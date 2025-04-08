@@ -6,20 +6,20 @@
 // @author      dodying | VietSub by BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
-// @icon        https://gitee.com/dodying/userJs/raw/master/Logo.png
-// @downloadURL https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/novelDownloaderVietSub.user.js
-// @updateURL   https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/novelDownloaderVietSub.user.js
+// @icon        https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Logo.png
+// @downloadURL https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js
+// @updateURL   https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.js
 
-// @require     https://greasyfork.org/scripts/398502-download/code/download.js?version=977735
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js
 
-// @require     https://greasyfork.org/scripts/21541-chs2cht/code/chs2cht.js?version=605976
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js
 // @require     https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js
 
-// @resource fontLib https://gitee.com/dodying/userJs/raw/master/novel/novelDownloader/SourceHanSansCN-Regular-Often.json?v=2
+// @resource fontLib https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/SourceHanSansCN-Regular-Often.json
 
 
 // @grant       GM_xmlhttpRequest
@@ -2996,6 +2996,7 @@
 
   if (Config.customize) {
     try {
+      console.log(JSON.parse(Config.customize));
       const ruleUser = window.eval(Config.customize); // eslint-disable-line no-eval
       Rule.special = Rule.special.concat(ruleUser);
     } catch (error) {
@@ -3091,7 +3092,7 @@
       '  Luồng tải xuống: <input type="number" name="thread">',
       '  Số lần thử lại: <input type="number" name="retry">',
       '  <br>',
-      '  Thời gian chờ: <input type="number" name="timeout">',
+      '  Thời gian chờ - timeout: <input type="number" name="timeout">',
       '  Ngôn ngữ: <select name="language">',
       '    <option value="">Không chuyển đổi</option>',
       '    <option value="sc">Giản thể</option>',
