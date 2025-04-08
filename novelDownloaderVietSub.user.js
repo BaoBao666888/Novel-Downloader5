@@ -942,13 +942,12 @@ function decryptDES(encrypted, key, iv) {
     },
       { // https://www.jjwxc.net - getChapters + API Deal
           siteName: '晋江文学城 (getChapters)',
-          // Filter chỉ cần nhận diện trang index và trang chương
           filter: () => {
               if (window.location.href.match(/www.jjwxc.net\/onebook.php\?novelid=\d+$/)) {
-                  return 1; // Trang index
+                  return 1; 
               }
               if (window.location.href.match(/www.jjwxc.net\/onebook.php\?novelid=\d+&chapterid=\d+/)) {
-                  return 2; // Trang chương (không dùng lấy content)
+                  return 2; 
               }
               return 0;
           },
@@ -956,7 +955,7 @@ function decryptDES(encrypted, key, iv) {
           writer: '[itemprop="author"]',
           intro: '[itemprop="description"]',
           cover: '[itemprop="image"]',
-          volume: '.volumnfont', // Vẫn dùng để getChapters lấy tên quyển
+          volume: '.volumnfont', 
 
           // *** Dùng getChapters để tạo danh sách chương đầy đủ thông tin ***
           getChapters: async (doc) => {
@@ -973,15 +972,13 @@ function decryptDES(encrypted, key, iv) {
                       // Nếu là dòng tên quyển, cập nhật tên quyển hiện tại
                       currentVolume = volumeElement.text().trim();
                   } else if (chapterLinkElement.length > 0) {
-                      // Nếu là dòng chứa link chương
-                      const link = chapterLinkElement.first(); // Lấy link đầu tiên tìm được
-                      const isVipById = link.attr('id')?.startsWith('vip_') || false; // Kiểm tra ID gốc
+                      const link = chapterLinkElement.first(); 
+                      const isVipById = link.attr('id')?.startsWith('vip_') || false; 
                       let novelId, chapterId;
-                      let originalHref = link.attr('href'); // Lấy href gốc
-                      let title = (link.text() || link.parent().text()).trim().replace(/\[VIP\]$/, ''); // Lấy tiêu đề, bỏ [VIP] ở cuối nếu có
+                      let originalHref = link.attr('href'); 
+                      let title = (link.text() || link.parent().text()).trim().replace(/\[VIP\]$/, ''); 
 
-                      // Lấy novelId và chapterId
-                      if (isVipById && link.attr('rel')) { // Nếu là VIP gốc, ưu tiên lấy từ 'rel'
+                      if (isVipById && link.attr('rel')) { 
                           try {
                               const params = new URLSearchParams(link.attr('rel').split('?')[1]);
                               novelId = params.get('novelid');
@@ -989,7 +986,7 @@ function decryptDES(encrypted, key, iv) {
                               // Tạo URL chuẩn onebook.php để nhất quán
                               originalHref = `https://www.jjwxc.net/onebook.php?novelid=${novelId}&chapterid=${chapterId}`;
                           } catch (e) { console.warn("JJWXC getChapters: Lỗi parse 'rel' cho VIP link:", link.attr('rel')); }
-                      } else if (originalHref) { // Nếu không phải VIP gốc hoặc VIP không có 'rel', thử parse từ href
+                      } else if (originalHref) {
                           try {
                               const urlObj = new URL(originalHref, window.location.origin); // Đảm bảo URL tuyệt đối
                               originalHref = urlObj.href; // Cập nhật href tuyệt đối
@@ -1028,9 +1025,9 @@ function decryptDES(encrypted, key, iv) {
               const isVip = chapter.isVip;
               const token = unsafeWindow.tokenOptions?.Jjwxc;
 
-              // --- Hàm getConent (giữ nguyên) ---
+              
               function getConent(chap_content, sayBody = "", chapterIntro = "") {
-                  // ... (Giữ nguyên hàm getConent) ...
+                  
                   chap_content = chap_content.replace(/</g, "<").replace(/>/g, ">").replace(/\n　　/g,"<br>").replace(/<br><br>/g, "<br>");
                   if(sayBody && sayBody.trim().length>0){
                       chap_content = chap_content + "<br>---------<br>作者留言：<br>" + sayBody.replace(/\r\n/g,"<br>")
@@ -1041,7 +1038,7 @@ function decryptDES(encrypted, key, iv) {
                   // }
                   return chap_content;
               }
-              // --- Kết thúc hàm getConent ---
+              
 
               if (!novelId || !chapterId) {
                   console.error("JJWXC Deal Error: Thiếu ID trong object chapter.", chapter);
@@ -1051,13 +1048,13 @@ function decryptDES(encrypted, key, iv) {
               let requestUrl;
 
               if (isVip) {
-                  // --- Xử lý VIP ---
+                  
                   if (!token || token.length < 30 || token === '????') {
                       console.error(`%cJJWXC Deal (VIP ${chapterId} Error): Token không hợp lệ hoặc chưa có.`, "color: red;");
                       return { content: "", error: "Lỗi VIP: Token không hợp lệ/chưa có." };
                   }
                   requestUrl = `https://app.jjwxc.net/androidapi/chapterContent?novelId=${novelId}&versionCode=349&chapterId=${chapterId}&token=${token}`;
-                  console.log(`%cJJWXC Deal (VIP ${chapterId}): Gọi API...`, "color: blue;"); // Log khi bắt đầu gọi API VIP
+                  console.log(`%cJJWXC Deal (VIP ${chapterId}): Gọi API...`, "color: blue;"); 
 
                   try {
                       const res = await xhr.sync(requestUrl, null, {
@@ -1067,9 +1064,9 @@ function decryptDES(encrypted, key, iv) {
                       let res_json;
                       let contentText = res.responseText;
 
-                      // Giải mã nếu cần (decode.js)
+                      
                       if (!contentText.includes('"content"')) {
-                          // console.log(`%cJJWXC Deal (VIP ${chapterId}): Đang decode...`, "color: blue;"); // Có thể bật lại nếu cần debug decode
+                          // console.log(`%cJJWXC Deal (VIP ${chapterId}): Đang decode...`, "color: blue;");
                           let accesskey = res.responseHeaders.match(/accesskey:\s*(.*)/i)?.[1]?.trim();
                           let keyString = res.responseHeaders.match(/keystring:\s*(.*)/i)?.[1]?.trim();
                           if (!accesskey || !keyString) {
@@ -1083,7 +1080,7 @@ function decryptDES(encrypted, key, iv) {
                               console.error(`%cJJWXC Deal (VIP ${chapterId} Error): Lỗi decode/parse:`, "color: red;", e);
                               return { content: "", error: "Lỗi giải mã dữ liệu VIP (decode/parse)." };
                           }
-                      } else { // JSON không cần decode
+                      } else { 
                           try { res_json = JSON.parse(contentText); } catch (e) {
                               console.error(`%cJJWXC Deal (VIP ${chapterId} Error): Lỗi parse JSON trực tiếp:`, "color: red;", e);
                               return { content: "", error:"Lỗi parse JSON VIP trực tiếp." };
@@ -1100,7 +1097,7 @@ function decryptDES(encrypted, key, iv) {
                           return { content: "", error: "Lỗi VIP: Dữ liệu trả về không có nội dung." };
                       }
 
-                      // Giải mã hóa nội dung (crypto.js)
+                      
                       let chap_content = res_json.content;
                       try {
                           chap_content = decryptContent(chap_content);
@@ -1126,7 +1123,7 @@ function decryptDES(encrypted, key, iv) {
                   }
 
               } else {
-                  // --- XỬ LÝ CHƯƠNG FREE ---
+                  
                   requestUrl = `https://app.jjwxc.net/androidapi/chapterContent?novelId=${novelId}&chapterId=${chapterId}`;
                   console.log(`JJWXC Deal (Free ${chapterId}): Gọi API...`); // Log khi bắt đầu gọi API Free
 
