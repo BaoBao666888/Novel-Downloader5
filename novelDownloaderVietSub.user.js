@@ -282,31 +282,43 @@
       ],
     },
     // 文学
-      { // https://www.52shuku.vip/
-    siteName: '52书库',
-    filter: () => (window.location.host === 'www.52shuku.vip' ? ($('.list.clearfix').length ? 1 : 2) : 0),
-    url: '://www.52shuku.vip/\\w+/\\w+/\\w+.html$',
-    chapterUrl: '://www.52shuku.vip/\\w+/\\w+/\\w+_\\d+.html$',
-    title: () => {
+    {
+      siteName: '69shuba',
+      url: '://www.69shuba.com/book/\\d+/',
+      chapterUrl: '://www.69shuba.com/txt/\\d+/\\d+',
+      title: 'h3.mytitle.shuye .bread a:nth-of-type(3)',
+      chapter: '.mybox .catalog:last ul a',
+      chapterTitle: '.txtnav h1.hide720',
+      content: 'div.txtnav',
+      elementRemove: 'h1, div',
+      chapterNext: '.page1 a:contains("上一章")',
+      chapterNext: '.page1 a:contains("下一章")'
+    },
+    { // https://www.52shuku.vip/
+      siteName: '52书库',
+      filter: () => (window.location.host === 'www.52shuku.vip' ? ($('.list.clearfix').length ? 1 : 2) : 0),
+      url: '://www.52shuku.vip/\\w+/\\w+/\\w+.html$',
+      chapterUrl: '://www.52shuku.vip/\\w+/\\w+/\\w+_\\d+.html$',
+      title: () => {
         const breadcrumbs = $('.content-wrap .breadcrumbs');
         if (breadcrumbs.length > 0) {
-            let text = breadcrumbs.find('a:last').text().replace('丹青手', '').replace('扶子不好吃', '');
-            if (text.endsWith('丹青手')) {
-                text = text.replace('丹青手', '');
-            } else if (text.endsWith('扶子不好吃')) {
-                text = text.replace('扶子不好吃', '');
-            }
-            return text;
+          let text = breadcrumbs.find('a:last').text().replace('丹青手', '').replace('扶子不好吃', '');
+          if (text.endsWith('丹青手')) {
+            text = text.replace('丹青手', '');
+          } else if (text.endsWith('扶子不好吃')) {
+            text = text.replace('扶子不好吃', '');
+          }
+          return text;
         }
         return '';
+      },
+      chapter: '.list.clearfix > li > a',
+      chapterTitle: '#nr_title',
+      content: '#nr1',
+      elementRemove: '.related_top, .article-header, .article-nav, script, .chapterNum, .pagination2, hr + p, #go-top',
+      chapterPrev: '.pagination2 a:contains("上一页")',
+      chapterNext: '.pagination2 a:contains("下一页")',
     },
-    chapter: '.list.clearfix > li > a',
-    chapterTitle: '#nr_title',
-    content: '#nr1',
-    elementRemove: '.related_top, .article-header, .article-nav, script, .chapterNum, .pagination2, hr + p, #go-top',
-    chapterPrev: '.pagination2 a:contains("上一页")',
-    chapterNext: '.pagination2 a:contains("下一页")',
-   },
     { // http://gj.zdic.net
       siteName: '汉典古籍',
       filter: () => (window.location.host === 'gj.zdic.net' ? ($('#ml_1').length ? 1 : 2) : 0),
