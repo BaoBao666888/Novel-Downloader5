@@ -1062,7 +1062,7 @@ function decryptDES(encrypted, key, iv) {
         if (!bookId || !chapterId || !sourceType) { /*...*/ }
 
         const chuyen_doi = { /* ... bảng chuyển đổi ... */
-          'lai': '来', 'tựu': '就', 'nhĩ': '尔', 'nhi': '而', 'khởi': '起', 'môn': '门',
+          'lai': '来', 'tựu': '就', 'nhĩ': '你', 'nhi': '而', 'khởi': '起', 'môn': '门',
           'đáo': '到', 'giá': '这', 'thị': '是', 'thập': '什', 'thuyết': '说', 'tự': '自',
           'hoàn': '还', 'tha': '他/她', 'yêu': '么', 'quá': '过', 'thả': '且', 'kinh': '经',
           'dĩ': '已', 'toán': '算', 'tưởng': '想', 'chẩm': '怎', 'ngận': '很', 'đa': '多',
