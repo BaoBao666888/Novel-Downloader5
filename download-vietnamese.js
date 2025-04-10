@@ -359,7 +359,9 @@
     storage.downloading = true;
     checkDownload();
 
-    if (!document.getElementById('gmDownloadDialog')) document.body.appendChild(storage.element.dialog);
+    if (!document.getElementById('gmDownloadDialog')) {
+        document.body.appendChild(storage.element.dialog);
+    }
   };
   main.stop = () => {
     storage.pause = true;
@@ -505,7 +507,7 @@
       xhr(url, opt.onload, data, opt);
     });
   }
-
+  main.updateProgress = updateProgress;
   window.xhr = main;
   main.init();
 })(typeof window !== 'undefined' ? window : document);
