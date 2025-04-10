@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.7
+// @version     3.5.447.8
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
@@ -940,6 +940,130 @@ function decryptDES(encrypted, key, iv) {
                     return elem.html();
                 },
             },
+        },
+        { // https://fanqienovel.com/
+            siteName: '番茄小说 (Fanqie)',
+            url: '://fanqienovel.com/page/\\d+', // Trang mục lục
+            chapterUrl: '://fanqienovel.com/reader/\\d+', // Trang đọc truyện
+            // Lọc để xác định trang index hay chapter
+            filter: () => {
+                if (window.location.pathname.startsWith('/page/')) return 1; // Trang mục lục
+                if (window.location.pathname.startsWith('/reader/')) return 2; // Trang đọc truyện
+                return 0; // Không khớp
+            },
+
+            // --- Lấy thông tin sách từ API ---
+            // Hàm trợ giúp để gọi API thông tin sách một lần
+            _getFanqieApiData: async () => {
+                // Kiểm tra xem đã lấy dữ liệu chưa
+                if (Storage.book.fanqieApiData) return Storage.book.fanqieApiData;
+
+                const bookIdMatch = window.location.pathname.match(/\/(?:page|reader)\/(\d+)/);
+                if (!bookIdMatch) {
+                    console.error("Fanqie Rule: Không thể lấy bookId từ URL.");
+                    return null;
+                }
+                const bookId = bookIdMatch[1];
+                const apiUrl = `https://api5-normal-sinfonlineb.fqnovel.com/reading/bookapi/multi-detail/v/?aid=2329&iid=1&version_code=999&book_id=${bookId}`;
+
+                try {
+                    console.log(`Fanqie Rule: Đang lấy thông tin sách từ API: ${apiUrl}`);
+                    const res = await xhr.sync(apiUrl, null, { method: 'GET', responseType: 'json' });
+                    if (res.response && res.response.data && res.response.data.length > 0) {
+                        console.log("Fanqie Rule: Lấy thông tin sách thành công.");
+                        Storage.book.fanqieApiData = res.response.data[0]; // Lưu dữ liệu vào Storage để tái sử dụng
+                        return Storage.book.fanqieApiData;
+                    } else {
+                        console.error("Fanqie Rule: API thông tin sách không trả về dữ liệu hợp lệ.", res.response);
+                        return null;
+                    }
+                } catch (error) {
+                    console.error("Fanqie Rule: Lỗi khi gọi API thông tin sách:", error);
+                    return null;
+                }
+            },
+            // Sử dụng dữ liệu đã lấy từ API
+            title: async () => {
+                const data = await Rule.special.find(r => r.siteName.startsWith('番茄小说'))._getFanqieApiData();
+                return data?.book_name || '';
+            },
+            writer: async () => {
+                const data = await Rule.special.find(r => r.siteName.startsWith('番茄小说'))._getFanqieApiData();
+                return data?.author || '';
+            },
+            intro: async () => {
+                const data = await Rule.special.find(r => r.siteName.startsWith('番茄小说'))._getFanqieApiData();
+                // Giữ nguyên dấu xuống dòng nếu có, hàm downloadTo sẽ xử lý sau
+                return (data?.abstract || '') + '\nLink cover: ' + (data?.thumb_url || '');
+            },
+            cover: async () => {
+                const data = await Rule.special.find(r => r.siteName.startsWith('番茄小说'))._getFanqieApiData();
+                return data?.thumb_url || '';
+            },
+            // ----------------------------------
+
+            // --- Lấy danh sách chương từ trang HTML ---
+            chapter: '.page-directory-content a.chapter-item-title', // Selector cho link chương
+            vipChapter: '.page-directory-content .chapter-item:has(span.chapter-item-lock) > a.chapter-item-title', // Selector cho chương VIP (có icon khóa)
+            // volume: '', // Không thấy thông tin quyển trong HTML mẫu
+            // -----------------------------------------
+
+            // --- Hàm xử lý lấy nội dung chương (Quan trọng) ---
+            deal: async (chapter) => {
+                const chapIdMatch = chapter.url.match(/\/reader\/(\d+)/);
+                if (!chapIdMatch) {
+                    console.error(`Fanqie Deal (API Ngoài) Error: Không thể lấy chapterId từ URL: ${chapter.url}`);
+                    return { title: chapter.title + " (Lỗi URL)", content: "<p><strong>Lỗi khi tải chương:</strong> URL chương không hợp lệ.</p>" };
+                }
+                const chapId = chapIdMatch[1];
+                // *** Sử dụng trực tiếp host API ngoài ***
+                const externalApiHost = "http://rehaofan.jingluo.love";
+                const externalApiUrl = `${externalApiHost}/content?item_id=${chapId}`;
+
+                console.log(`%cFanqie Deal (API Ngoài): Đang lấy nội dung chương ${chapId} từ: ${externalApiUrl}`, "color: purple;");
+                try {
+                    const res = await xhr.sync(externalApiUrl, null, {
+                        method: 'GET',
+                        headers: {
+                            // Không cần cookie hay user-agent đặc biệt khi gọi API này (theo code mẫu)
+                        },
+                        responseType: 'json' // Yêu cầu userscript parse JSON
+                    });
+
+                    // Kiểm tra cấu trúc JSON trả về từ API ngoài
+                    if (res.response && res.response.data && res.response.data.content) {
+                        const content = res.response.data.content;
+                        // API ngoài có thể trả về title hoặc không, nếu không thì dùng title gốc
+                        const title = res.response.data.title || chapter.title;
+                        console.log(`%cFanqie Deal (API Ngoài): Lấy nội dung thành công cho chương ${chapId}.`, "color: green;");
+
+                        // Nội dung từ API này có vẻ đã được giải mã và có thể chứa thẻ <p> hoặc <br>
+                        // Giữ nguyên nội dung HTML này để hàm downloadTo xử lý tiếp
+                        return { title: title, content: content };
+
+                    } else {
+                        // Xử lý lỗi nếu API ngoài không trả về đúng cấu trúc
+                        console.error(`%cFanqie Deal (API Ngoài) Error: API ngoài không trả về nội dung hợp lệ cho chương ${chapId}.`, "color: red;", res.response);
+                        let errorMsg = "Không nhận được nội dung hợp lệ từ API bên ngoài.";
+                        if (res.response && typeof res.response === 'object') { // Nếu API trả về JSON lỗi
+                            errorMsg += ` (Data: ${JSON.stringify(res.response)})`;
+                        } else if (res.responseText) { // Nếu API trả về text lỗi
+                            errorMsg += ` (Response: ${res.responseText.substring(0, 100)}...)`;
+                        }
+                        return { title: chapter.title + " (Lỗi API Ngoài)", content: `<p><strong>Lỗi khi tải chương:</strong> ${errorMsg}</p>` };
+                    }
+                } catch (error) {
+                    // Xử lý lỗi mạng hoặc lỗi khác khi gọi API ngoài
+                    console.error(`%cFanqie Deal (API Ngoài) Error: Lỗi khi gọi API ngoài cho chương ${chapId}:`, "color: red;", error);
+                    let errorMsg = "Lỗi mạng hoặc không thể kết nối tới API bên ngoài.";
+                    if (error.status) errorMsg = `Lỗi HTTP ${error.status} khi gọi API bên ngoài.`;
+                    else if (error.message) errorMsg = error.message;
+                    return { title: chapter.title + " (Lỗi API Ngoài)", content: `<p><strong>Lỗi khi tải chương:</strong> ${errorMsg}</p>` };
+                }
+            },
+            // -------------------------------------------------
+
+            // Giữ thread thấp để tránh làm quá tải API ngoài hoặc bị chặn
         },
         { // https://sangtacviet.com/truyen/
             siteName: 'Sáng Tác Việt (API Chapter List)',
