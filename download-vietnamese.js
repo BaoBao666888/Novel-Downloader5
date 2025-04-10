@@ -507,7 +507,6 @@
       xhr(url, opt.onload, data, opt);
     });
   }
-  main.updateProgress = updateProgress;
   window.xhr = main;
   main.init();
 })(typeof window !== 'undefined' ? window : document);
