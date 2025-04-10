@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.2
+// @version     3.5.447.1
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
@@ -1057,10 +1057,19 @@ function decryptDES(encrypted, key, iv) {
             },
             // *** HÀM DEAL VỚI LOGIC BÙ TỪ CHI TIẾT ***
             deal: async (chapter) => {
+                 // --- Hàm sleep ---
+                function sleep(ms) {
+                    return new Promise(resolve => setTimeout(resolve, ms));
+                }
+                // --- Thời gian chờ sau khi mở tab mới (ms) ---
+                const delayAfterOpenTab = 10000;//hờ 7 giây, có thể điều chỉnh
                 const bookId = chapter.bookId;
                 const chapterId = chapter.chapterId;
                 const sourceType = chapter.sourceType;
-                if (!bookId || !chapterId || !sourceType) { /*...*/ }
+                if (!bookId || !chapterId || !sourceType) {
+                    console.error("STV Deal Error: Thiếu ID chương/sách/nguồn.", chapter);
+                    return { content: "", error: "Lỗi nội bộ: Thiếu ID." };
+                }
 
                 const chuyen_doi = { /* ... bảng chuyển đổi ... */
                     'lai': '来', 'tựu': '就', 'nhĩ': '你', 'nhi': '而', 'khởi': '起', 'môn': '门',
@@ -1087,246 +1096,283 @@ function decryptDES(encrypted, key, iv) {
 
                 const apiUrl = 'https://sangtacviet.com/index.php';
                 const payload = `bookid=${bookId}&h=${sourceType}&c=${chapterId}&ngmar=readc&sajax=readchapter&sty=1&exts=`;
-                const refererUrl = `https://sangtacviet.com/truyen/${sourceType}/1/${bookId}/${chapterId}/`;
+                const chapterWebUrl = `https://sangtacviet.com/truyen/${sourceType}/1/${bookId}/${chapterId}/`;
+                let retryAttempted = false; // Cờ để chỉ thử lại một lần
 
-                console.log(`%cSTV Deal (Chương ${chapterId}): Gọi API bằng FETCH...`, "color: purple;");
+                // --- Hàm con để thực hiện gọi API và xử lý nội dung ---
+                async function attemptApiCall() {
+                    console.log(`%cSTV Deal (Chương ${chapterId}): ${retryAttempted ? 'Thử lại' : 'Lần đầu'} gọi API FETCH...`, retryAttempted ? "color: orange;" : "color: purple;");
 
-                try {
-                    const response = await fetch(apiUrl, { /* ... cấu hình fetch ... */
+                    const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
-                            'Referer': refererUrl,
+                            // Sử dụng URL trang chương làm Referer
+                            'Referer': chapterWebUrl,
                         },
                         body: payload,
                     });
 
-                    // Kiểm tra xem request có thành công không (status 2xx)
+                    // Kiểm tra lỗi HTTP
                     if (!response.ok) {
-                        // Nếu status không phải 2xx, báo lỗi mạng/server
-                        console.error(`%cSTV Deal (Chương ${chapterId} Error): Fetch thất bại, Status: ${response.status}`, "color: red;");
-                        // Thử đọc text lỗi nếu có
-                        let errorText = `Lỗi HTTP ${response.status}`;
-                        try { errorText = await response.text(); } catch (e) { }
-                        return { content: "", error: `Lỗi mạng/server khi gọi API STV: ${response.status} - ${errorText.substring(0, 100)}` };
+                        throw new Error(`Fetch thất bại, Status: ${response.status}`); // Ném lỗi để catch bên ngoài xử lý retry
                     }
 
-                    // Đã thành công (status 2xx), đọc response text
                     const responseText = await response.text();
+                    let jsonData;
                     try {
-                        const jsonData = JSON.parse(responseText);
-                        console.log(`%cSTV Deal (Chương ${chapterId}): Parse JSON thành công. Code: ${jsonData?.code}`, "color: purple;");
-                        if (jsonData && jsonData.code === "0" && typeof jsonData.data !== 'undefined') {
-                            const rawHtmlContent = jsonData.data;
-                            const chapterTitle = chapter.title;
+                        jsonData = JSON.parse(responseText);
+                    } catch (e) {
+                        console.error(`%cSTV Deal (Chương ${chapterId} Error): Phản hồi không phải JSON hợp lệ.`, "color: red;", responseText);
+                        throw new Error("Phản hồi API không phải JSON"); // Ném lỗi
+                    }
 
-                            // *** BƯỚC 2: TẠO DANH SÁCH NODE (Đã sửa xử lý <p>) ***
-                            const nodes = [];
-                            const tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = rawHtmlContent;
-                            function processChildNodes(element) {
-                                element.childNodes.forEach(node => {
-                                    if (node.nodeType === Node.TEXT_NODE) {
-                                        let processedText = node.textContent;
-                                        for (const vietPunc in punctuation_map) {
-                                            processedText = processedText.replace(new RegExp(vietPunc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'), punctuation_map[vietPunc]);
-                                        }
-                                        nodes.push({ type: 'text', text: processedText });
-                                    } else if (node.nodeType === Node.ELEMENT_NODE) {
-                                        if (node.tagName === 'I' && node.hasAttribute('t') && node.hasAttribute('h')) {
-                                            nodes.push({
-                                                type: 'word',
-                                                h: (node.getAttribute('h') || '').toLowerCase(),
-                                                t: node.getAttribute('t') || '',
-                                                v: node.getAttribute('v') || '',
-                                                inner: node.textContent || ''
-                                            });
-                                        } else if (node.tagName === 'P') {
-                                            processChildNodes(node);
-                                            nodes.push({ type: 'newline' });
-                                        } else if (node.tagName === 'BR') {
-                                            nodes.push({ type: 'newline' });
-                                        } else if (node.tagName !== 'SPAN') {
-                                            processChildNodes(node);
-                                        }
+                    // Kiểm tra lỗi logic từ API STV
+                    if (!jsonData || jsonData.code !== "0" || typeof jsonData.data === 'undefined') {
+                        console.error(`%cSTV Deal (Chương ${chapterId} Error): API trả về lỗi. Code: ${jsonData?.code}`, "color: red;", jsonData);
+                        throw new Error(`Lỗi API STV (Code: ${jsonData?.code || 'N/A'}) - ${jsonData?.err || 'Dữ liệu không hợp lệ'}`); // Ném lỗi
+                    }
+
+                    console.log(`%cSTV Deal (Chương ${chapterId}): Parse JSON thành công. Code: ${jsonData?.code}`, "color: purple;");
+                    if (jsonData && jsonData.code === "0" && typeof jsonData.data !== 'undefined') {
+                        const rawHtmlContent = jsonData.data;
+                        const chapterTitle = chapter.title;
+
+                        // *** BƯỚC 2: TẠO DANH SÁCH NODE (Đã sửa xử lý <p>) ***
+                        const nodes = [];
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = rawHtmlContent;
+                        function processChildNodes(element) {
+                            element.childNodes.forEach(node => {
+                                if (node.nodeType === Node.TEXT_NODE) {
+                                    let processedText = node.textContent;
+                                    for (const vietPunc in punctuation_map) {
+                                        processedText = processedText.replace(new RegExp(vietPunc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'), punctuation_map[vietPunc]);
                                     }
-                                });
-                            }
-                            processChildNodes(tempDiv);
-
-                            // *** BƯỚC 3 & 4: XỬ LÝ NODE WORD VÀ NỐI KẾT QUẢ ***
-                            let finalChineseText = "";
-                            for (const node of nodes) {
-                                if (node.type === 'text') {
-                                    finalChineseText += node.text;
-                                } else if (node.type === 'newline') {
-                                    finalChineseText += '\n';
-                                } // Xử lý node 'word'
-                                else if (node.type === 'word') {
-                                    const t_raw = node.t;
-                                    const h_raw = node.h;
-                                    const v_raw = node.v || '';
-                                    const t_chars = t_raw.split('').filter(c => c);
-                                    const len_t = t_chars.length;
-                                    const h_words = h_raw.split(' ').filter(w => w);
-                                    const len_h_actual = h_words.length;
-                                    const t_has_special_chars = t_raw.includes('的') || t_raw.includes('了');
-
-                                    let current_chinese_result = '';
-                                    const currentDebugLog = [];
-
-                                    // Quy tắc 1: t > h -> Nhận t ngay
-                                    if (len_t > len_h_actual) {
-                                        current_chinese_result = t_raw;
-                                        currentDebugLog.push(`- Nhận t ngay (t > h): h='${h_raw}', t='${t_raw}'`);
+                                    nodes.push({ type: 'text', text: processedText });
+                                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                                    if (node.tagName === 'I' && node.hasAttribute('t') && node.hasAttribute('h')) {
+                                        nodes.push({
+                                            type: 'word',
+                                            h: (node.getAttribute('h') || '').toLowerCase(),
+                                            t: node.getAttribute('t') || '',
+                                            v: node.getAttribute('v') || '',
+                                            inner: node.textContent || ''
+                                        });
+                                    } else if (node.tagName === 'P') {
+                                        processChildNodes(node);
+                                        nodes.push({ type: 'newline' });
+                                    } else if (node.tagName === 'BR') {
+                                        nodes.push({ type: 'newline' });
+                                    } else if (node.tagName !== 'SPAN') {
+                                        processChildNodes(node);
                                     }
-                                    // Quy tắc 2: t = h và không có 的/了 -> Nhận t ngay
-                                    else if (len_t === len_h_actual && !t_has_special_chars) {
-                                        current_chinese_result = t_raw;
-                                        currentDebugLog.push(`- Nhận t ngay (t = h, không có 的/了): h='${h_raw}', t='${t_raw}'`);
+                                }
+                            });
+                        }
+                        processChildNodes(tempDiv);
+
+                        // *** BƯỚC 3 & 4: XỬ LÝ NODE WORD VÀ NỐI KẾT QUẢ ***
+                        let finalChineseText = "";
+                        for (const node of nodes) {
+                            if (node.type === 'text') {
+                                finalChineseText += node.text;
+                            } else if (node.type === 'newline') {
+                                finalChineseText += '\n';
+                            } // Xử lý node 'word'
+                            else if (node.type === 'word') {
+                                const t_raw = node.t;
+                                const h_raw = node.h;
+                                const v_raw = node.v || '';
+                                const t_chars = t_raw.split('').filter(c => c);
+                                const len_t = t_chars.length;
+                                const h_words = h_raw.split(' ').filter(w => w);
+                                const len_h_actual = h_words.length;
+                                const t_has_special_chars = t_raw.includes('的') || t_raw.includes('了');
+
+                                let current_chinese_result = '';
+                                const currentDebugLog = [];
+
+                                // Quy tắc 1: t > h -> Nhận t ngay
+                                if (len_t > len_h_actual) {
+                                    current_chinese_result = t_raw;
+                                    currentDebugLog.push(`- Nhận t ngay (t > h): h='${h_raw}', t='${t_raw}'`);
+                                }
+                                // Quy tắc 2: t = h và không có 的/了 -> Nhận t ngay
+                                else if (len_t === len_h_actual && !t_has_special_chars) {
+                                    current_chinese_result = t_raw;
+                                    currentDebugLog.push(`- Nhận t ngay (t = h, không có 的/了): h='${h_raw}', t='${t_raw}'`);
+                                }
+                                // Quy tắc 3: t < h hoặc t = h mà có 的/了 -> Bù từ chi tiết
+                                else {
+                                    const result_chars = [];
+                                    let t_index = 0;
+                                    let h_index = 0;
+
+                                    // Xử lý "了" ở cuối nếu có
+                                    let trailing_le = false;
+                                    if (t_raw.endsWith('了')) {
+                                        trailing_le = true;
+                                        t_chars.pop(); // Cắt "了" ra, xử lý sau
                                     }
-                                    // Quy tắc 3: t < h hoặc t = h mà có 的/了 -> Bù từ chi tiết
-                                    else {
-                                        const result_chars = [];
-                                        let t_index = 0;
-                                        let h_index = 0;
 
-                                        // Xử lý "了" ở cuối nếu có
-                                        let trailing_le = false;
-                                        if (t_raw.endsWith('了')) {
-                                            trailing_le = true;
-                                            t_chars.pop(); // Cắt "了" ra, xử lý sau
-                                        }
+                                    // Duyệt từng từ trong h
+                                    while (h_index < h_words.length) {
+                                        let h_word = h_words[h_index];
 
-                                        // Duyệt từng từ trong h
-                                        while (h_index < h_words.length) {
-                                            let h_word = h_words[h_index];
-
-                                            // Kiểm tra cụm từ đặc biệt (2 từ)
-                                            if (h_index + 1 < h_words.length) {
-                                                const h_phrase = `${h_word} ${h_words[h_index + 1]}`;
-                                                if (special_mappings[h_phrase] && t_index + special_mappings[h_phrase].length <= t_chars.length) {
-                                                    // Chỉ chèn nếu t đủ ký tự để khớp
-                                                    const special_chars = special_mappings[h_phrase].split('');
-                                                    let match = true;
-                                                    for (let i = 0; i < special_chars.length; i++) {
-                                                        if (t_chars[t_index + i] !== special_chars[i]) {
-                                                            match = false;
-                                                            break;
-                                                        }
+                                        // Kiểm tra cụm từ đặc biệt (2 từ)
+                                        if (h_index + 1 < h_words.length) {
+                                            const h_phrase = `${h_word} ${h_words[h_index + 1]}`;
+                                            if (special_mappings[h_phrase] && t_index + special_mappings[h_phrase].length <= t_chars.length) {
+                                                // Chỉ chèn nếu t đủ ký tự để khớp
+                                                const special_chars = special_mappings[h_phrase].split('');
+                                                let match = true;
+                                                for (let i = 0; i < special_chars.length; i++) {
+                                                    if (t_chars[t_index + i] !== special_chars[i]) {
+                                                        match = false;
+                                                        break;
                                                     }
-                                                    if (match) {
-                                                        result_chars.push(...special_chars);
-                                                        h_index += 2;
-                                                        t_index += special_chars.length;
-                                                        continue;
-                                                    }
+                                                }
+                                                if (match) {
+                                                    result_chars.push(...special_chars);
+                                                    h_index += 2;
+                                                    t_index += special_chars.length;
+                                                    continue;
                                                 }
                                             }
+                                        }
 
-                                            // Xử lý từ đơn
-                                            if (special_mappings[h_word] && t_index < t_chars.length && t_chars[t_index] === special_mappings[h_word]) {
-                                                // Từ đặc biệt đơn khớp với t
-                                                result_chars.push(special_mappings[h_word]);
+                                        // Xử lý từ đơn
+                                        if (special_mappings[h_word] && t_index < t_chars.length && t_chars[t_index] === special_mappings[h_word]) {
+                                            // Từ đặc biệt đơn khớp với t
+                                            result_chars.push(special_mappings[h_word]);
+                                            h_index++;
+                                            t_index++;
+                                        } else if (t_index < t_chars.length) {
+                                            // Ưu tiên khớp với t
+                                            const chinese_char = chuyen_doi[h_word];
+                                            if (chinese_char && chinese_char === t_chars[t_index]) {
+                                                result_chars.push(t_chars[t_index]);
                                                 h_index++;
                                                 t_index++;
-                                            } else if (t_index < t_chars.length) {
-                                                // Ưu tiên khớp với t
-                                                const chinese_char = chuyen_doi[h_word];
-                                                if (chinese_char && chinese_char === t_chars[t_index]) {
-                                                    result_chars.push(t_chars[t_index]);
-                                                    h_index++;
-                                                    t_index++;
-                                                } else if (chinese_char) {
-                                                    // Không khớp, dùng từ điển
-                                                    if (h_word === 'tha') {
-                                                        const vText = v_raw.toLowerCase();
-                                                        if (vText.includes('hắn') || vText.includes('anh ấy')) result_chars.push('他');
-                                                        else if (vText.includes('nàng') || vText.includes('cô ấy')) result_chars.push('她');
-                                                        else result_chars.push('他');
-                                                    } else {
-                                                        result_chars.push(...chinese_char.split('')); // Chèn từng ký tự
-                                                    }
-                                                    h_index++;
-                                                } else {
-                                                    // Không có trong từ điển, dùng t nếu còn
-                                                    result_chars.push(t_chars[t_index]);
-                                                    h_index++;
-                                                    t_index++;
-                                                }
-                                            } else if (chuyen_doi[h_word]) {
-                                                // t hết, bù từ từ điển
+                                            } else if (chinese_char) {
+                                                // Không khớp, dùng từ điển
                                                 if (h_word === 'tha') {
                                                     const vText = v_raw.toLowerCase();
                                                     if (vText.includes('hắn') || vText.includes('anh ấy')) result_chars.push('他');
                                                     else if (vText.includes('nàng') || vText.includes('cô ấy')) result_chars.push('她');
                                                     else result_chars.push('他');
                                                 } else {
-                                                    result_chars.push(...chuyen_doi[h_word].split('')); // Chèn từng ký tự
+                                                    result_chars.push(...chinese_char.split('')); // Chèn từng ký tự
                                                 }
                                                 h_index++;
                                             } else {
-                                                // Thiếu từ, ghi debug
-                                                currentDebugLog.push(`- Thiếu ký tự Trung cho '${h_word}': h='${h_raw}', t='${t_raw}'`);
-                                                result_chars.push('?');
+                                                // Không có trong từ điển, dùng t nếu còn
+                                                result_chars.push(t_chars[t_index]);
                                                 h_index++;
+                                                t_index++;
                                             }
+                                        } else if (chuyen_doi[h_word]) {
+                                            // t hết, bù từ từ điển
+                                            if (h_word === 'tha') {
+                                                const vText = v_raw.toLowerCase();
+                                                if (vText.includes('hắn') || vText.includes('anh ấy')) result_chars.push('他');
+                                                else if (vText.includes('nàng') || vText.includes('cô ấy')) result_chars.push('她');
+                                                else result_chars.push('他');
+                                            } else {
+                                                result_chars.push(...chuyen_doi[h_word].split('')); // Chèn từng ký tự
+                                            }
+                                            h_index++;
+                                        } else {
+                                            // Thiếu từ, ghi debug
+                                            currentDebugLog.push(`- Thiếu ký tự Trung cho '${h_word}': h='${h_raw}', t='${t_raw}'`);
+                                            result_chars.push('?');
+                                            h_index++;
                                         }
-
-                                        // Nối phần dư của t (trừ "了" đã cắt)
-                                        if (t_index < t_chars.length) {
-                                            const remaining_t = t_chars.slice(t_index);
-                                            result_chars.push(...remaining_t);
-                                            currentDebugLog.push(`- Nối ${remaining_t.length} ký tự dư từ 't': h='${h_raw}', t='${t_raw}'. Phần dư: '${remaining_t.join('')}'`);
-                                        }
-
-                                        // Thêm "了" vào cuối nếu có
-                                        if (trailing_le) {
-                                            result_chars.push('了');
-                                        }
-
-                                        if (currentDebugLog.length > 0) {
-                                            debugLog.push(...currentDebugLog);
-                                        }
-                                        current_chinese_result = result_chars.join('');
                                     }
 
-                                    if (h_raw === 'dĩ tiền') {
-                                        console.log('dĩ tiền -> 以前')
-                                        current_chinese_result = '以前';
-                                    } else
-                                        if (h_raw === 'tự kỷ') {
-                                            console.log('tự kỷ -> 自己')
-                                            current_chinese_result = '自己';
-                                        }
-                                    node.chinese_result = current_chinese_result;
-                                    finalChineseText += current_chinese_result;
+                                    // Nối phần dư của t (trừ "了" đã cắt)
+                                    if (t_index < t_chars.length) {
+                                        const remaining_t = t_chars.slice(t_index);
+                                        result_chars.push(...remaining_t);
+                                        currentDebugLog.push(`- Nối ${remaining_t.length} ký tự dư từ 't': h='${h_raw}', t='${t_raw}'. Phần dư: '${remaining_t.join('')}'`);
+                                    }
+
+                                    // Thêm "了" vào cuối nếu có
+                                    if (trailing_le) {
+                                        result_chars.push('了');
+                                    }
+
+                                    if (currentDebugLog.length > 0) {
+                                        debugLog.push(...currentDebugLog);
+                                    }
+                                    current_chinese_result = result_chars.join('');
                                 }
-                            } // Kết thúc vòng lặp nodes
 
-                            // *** BƯỚC 5: DỌN DẸP VÀ TRẢ VỀ ***
-                            finalChineseText = finalChineseText.replace(/[ \t]+/g, '').replace(/\n+/g, '\n').replace(/\?\s*\?/g, '?').trim().replace('Vìvấnđềnộidung，nguồnnàykhônghỗtrợxemvănbảngốc。', '').replace('Bạnđangxemvănbảngốcchưadịch，cóthểkéoxuốngcuốitrangđểchọnbảndịch。', '');
-                            console.log(`%cSTV Deal (Chương ${chapterId}): Tái tạo text gốc hoàn tất.`, "color: green;");
-                            Storage.book.debugLog.push(...debugLog);
-                            return { content: finalChineseText, title: chapterTitle };
+                                if (h_raw === 'dĩ tiền') {
+                                    console.log('dĩ tiền -> 以前')
+                                    current_chinese_result = '以前';
+                                } else
+                                    if (h_raw === 'tự kỷ') {
+                                        console.log('tự kỷ -> 自己')
+                                        current_chinese_result = '自己';
+                                    }
+                                node.chinese_result = current_chinese_result;
+                                finalChineseText += current_chinese_result;
+                            }
+                        } // Kết thúc vòng lặp nodes
 
-                        } else {
-                            console.error(`%cSTV Deal (Chương ${chapterId} Error): API trả về lỗi (FETCH). Code: ${jsonData?.code}`, "color: red;", jsonData);
-                            return { content: "", error: `Lỗi API STV (Code: ${jsonData?.code || 'N/A'}) - ${jsonData?.err || ''}` };
-                        }
-                    } catch (e) {
-                        // Parse JSON lỗi -> Phản hồi không phải JSON hợp lệ
-                        console.error(`%cSTV Deal (Chương ${chapterId} Error): Phản hồi không phải JSON hợp lệ (FETCH).`, "color: red;");
-                        console.error("Response Text:", responseText); // In ra text bị lỗi parse
-                        return { content: "", error: `Lỗi STV: Phản hồi API không phải JSON cho chương ${chapterId}.` };
+                        // *** BƯỚC 5: DỌN DẸP VÀ TRẢ VỀ ***
+                        finalChineseText = finalChineseText.replace(/[ \t]+/g, '').replace(/\n+/g, '\n').replace(/\?\s*\?/g, '?').trim().replace('Vìvấnđềnộidung，nguồnnàykhônghỗtrợxemvănbảngốc。', '').replace('Bạnđangxemvănbảngốcchưadịch，cóthểkéoxuốngcuốitrangđểchọnbảndịch。', '');
+                        console.log(`%cSTV Deal (Chương ${chapterId}): Tái tạo text gốc hoàn tất.`, "color: green;");
+                        Storage.book.debugLog.push(...debugLog);
+                        return { content: finalChineseText, title: chapterTitle };
+
+                    } else {
+                        console.error(`%cSTV Deal (Chương ${chapterId} Error): API trả về lỗi (FETCH). Code: ${jsonData?.code}`, "color: red;", jsonData);
+                        return { content: "", error: `Lỗi API STV (Code: ${jsonData?.code || 'N/A'}) - ${jsonData?.err || ''}` };
                     }
+                }
 
+
+                // === Logic chính của hàm deal ===
+                try {
+                    // Thử gọi API lần đầu
+                    return await attemptApiCall();
                 } catch (error) {
-                    // Lỗi mạng hoặc lỗi trong quá trình fetch
-                    console.error(`%cSTV Deal (Chương ${chapterId} Error): Lỗi fetch API:`, "color: red;", error);
-                    let errorMsg = `Lỗi mạng khi gọi API STV (Fetch) cho chương ${chapterId}.`;
-                    if (error.message) errorMsg += ` (${error.message})`;
-                    return { content: "", error: errorMsg };
+                    // Xử lý lỗi từ lần gọi đầu tiên
+                    console.warn(`%cSTV Deal (Chương ${chapterId}): Lỗi lần đầu - ${error.message}`, "color: orange;");
+
+                    if (!retryAttempted) {
+                        retryAttempted = true; // Đánh dấu đã thử lại
+                        console.log(`%cSTV Deal (Chương ${chapterId}): Mở trang ${chapterWebUrl} và chờ ${delayAfterOpenTab / 1000} giây để thử lại...`, "color: orange;");
+
+                        // Mở tab mới
+                        try {
+                            window.open(chapterWebUrl, '_blank');
+                            // Lưu ý: Không thể đảm bảo tab đã load xong hoàn toàn,
+                            // nhưng việc mở tab có thể giúp trình duyệt cập nhật context (cookie/referer)
+                        } catch (openError) {
+                            console.error(`%cSTV Deal (Chương ${chapterId}): Không thể mở tab mới. Lỗi:`, "color: red;", openError);
+                            // Nếu không mở được tab, việc thử lại có thể vẫn thất bại
+                        }
+
+                        // Chờ
+                        await sleep(delayAfterOpenTab);
+
+                        // Thử gọi API lần thứ hai
+                        try {
+                            return await attemptApiCall(); // Gọi lại hàm con
+                        } catch (retryError) {
+                            // Lỗi ngay cả sau khi thử lại
+                            console.error(`%cSTV Deal (Chương ${chapterId} Error): Thất bại sau khi thử lại - ${retryError.message}`, "color: red;");
+                            return { content: "", error: `Lỗi STV sau khi thử lại: ${retryError.message}` };
+                        }
+                    } else {
+                        // Lỗi xảy ra trong lần thử lại (đã retryAttempted = true)
+                        console.error(`%cSTV Deal (Chương ${chapterId} Error): Lỗi trong lần thử lại - ${error.message}`, "color: red;");
+                        return { content: "", error: `Lỗi STV trong lần thử lại: ${error.message}` };
+                    }
                 }
             },
             // Không cần content và elementRemove vì deal trả về raw HTML để xử lý sau
@@ -1350,38 +1396,6 @@ function decryptDES(encrypted, key, iv) {
                 } else {
                     console.log("STV Debug: Không có lỗi bù từ nào được ghi nhận.");
                 }
-
-                Storage.book = Storage.book || {}; // Đảm bảo tồn tại
-                const debugLogs = Storage.book.debugLog || []; // Lấy log hoặc mảng rỗng
-                console.log(`STV Debug: Số lượng log lỗi bù từ: ${debugLogs.length}`); // Log số lượng lỗi
-
-                // *** Tải file debug NGAY CẢ KHI RỖNG ***
-                const title = Storage.book.title || chapters[0]?.title || 'Unknown';
-                let debugContent = `Log lỗi bù từ cho truyện: ${title}\nChương: ${chapters.map(c => (c && c.chapterId) ? c.chapterId : '?').join(', ')}\n------------------------------------\n`;
-                if (debugLogs.length > 0) {
-                    debugContent += debugLogs.join('\n');
-                } else {
-                    debugContent += "Không có lỗi bù từ nào được ghi nhận.";
-                }
-
-                const blob = new window.Blob([debugContent], { type: 'text/plain;charset=utf-8' });
-                try {
-                    // Thử dùng saveAs trước, sau đó đến download
-                    if (typeof saveAs === 'function') {
-                        console.log("Đang tải debug.txt bằng saveAs...");
-                        saveAs(blob, `${title}_debug.txt`);
-                    } else if (typeof download === 'function') {
-                        console.log("Đang tải debug.txt bằng download()...");
-                        download(blob, `${title}_debug.txt`);
-                    } else {
-                        console.error("Không tìm thấy hàm saveAs hoặc download để tải file debug.");
-                    }
-                } catch (e) {
-                    console.error("Lỗi khi gọi hàm tải file debug:", e);
-                }
-
-                // Xóa log sau khi đã xử lý
-                delete Storage.book.debugLog;
             },
         },
         { // https://www.jjwxc.net - getChapters + API Deal
@@ -4262,6 +4276,7 @@ function decryptDES(encrypted, key, iv) {
                         if (result.content.trim().length < 10) {
                             console.warn(`%cNội dung (deal) chương '${result.title || chapter.title}' có vẻ rỗng hoặc quá ngắn. Đánh dấu là lỗi.`, "color: orange;");
                             chapter.contentRaw = ''; // Đánh dấu lỗi
+                            throw new Error("ContentCheck thất bại");
                         } else {
                             chapter.document = result.content; // Hoặc result.contentRaw nếu có
                             chapter.contentRaw = result.content;
@@ -4272,6 +4287,7 @@ function decryptDES(encrypted, key, iv) {
                     } else {
                         console.error(`%cHàm deal trả về lỗi hoặc không có nội dung cho chương: ${chapter.title || chapter.url}`, "color: red;", result?.error || '');
                         chapter.contentRaw = ''; // Đánh dấu lỗi
+                        throw new Error("ContentCheck thất bại");
                     }
                 } catch (error) {
                     console.error(`%cLỗi khi thực thi deal cho chương: ${chapter.title || chapter.url}`, "color: red;", error);
