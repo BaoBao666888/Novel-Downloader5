@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.5
+// @version     3.5.447.6
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
@@ -1244,8 +1244,9 @@ function decryptDES(encrypted, key, iv) {
                                             // Xử lý 'tha'
                                             if (h_word === 'tha') {
                                                 const vText = v_raw.toLowerCase();
-                                                if (vText.includes('hắn') || vText.includes('anh ấy')) final_char = '他';
-                                                else if (vText.includes('nàng') || vText.includes('cô ấy')) final_char = '她';
+                                                if (vText.includes('hắn')) final_char = '他';
+                                                else if (vText.includes('nàng')) final_char = '她';
+                                                else if (vText.includes('nó')) final_char = '它';
                                                 else final_char = '他'; // Mặc định
                                             }
 
