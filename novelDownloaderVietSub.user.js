@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.3
+// @version     3.5.447.4
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
@@ -1090,6 +1090,7 @@ function decryptDES(encrypted, key, iv) {
                     'dĩ tiền': '以前',
                     'tự kỷ': '自己',
                     'cánh nhiên': '竟然',
+                    'nghi hoặc': '疑惑',
                 };
                 const debugLog = [];
                 Storage.book = Storage.book || {};
