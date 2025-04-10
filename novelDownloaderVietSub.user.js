@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.2
+// @version     3.5.447.3
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
@@ -1072,11 +1072,11 @@ function decryptDES(encrypted, key, iv) {
                 }
 
                 const chuyen_doi = { /* ... bảng chuyển đổi ... */
-                    'lai': '来', 'tựu': '就', 'nhĩ': '你', 'nhi': '而', 'khởi': '起', 'môn': '门',
+                    'lai': '来', 'tựu': '就', 'nhĩ': '你', 'nhi': '而', 'khởi': '起', 'môn': '们',
                     'đáo': '到', 'giá': '这', 'thị': '是', 'thập': '什', 'thuyết': '说', 'tự': '自',
-                    'hoàn': '还', 'tha': '他/她', 'yêu': '么', 'quá': '过', 'thả': '且', 'kinh': '经',
+                    'hoàn': '还', 'tha': '他/她', 'quá': '过', 'thả': '且', 'kinh': '经',
                     'dĩ': '已', 'toán': '算', 'tưởng': '想', 'chẩm': '怎', 'ngận': '很', 'đa': '多',
-                    'nhất': '一', 'hạ': '下', 'kỷ': '己'
+                    'nhất': '一', 'hạ': '下', 'kỷ': '己', 'yêu': '么',
                     // ... thêm nữa ...
                 };
                 const punctuation_map = { /* ... bảng dấu câu ... */
@@ -1089,6 +1089,7 @@ function decryptDES(encrypted, key, iv) {
                 const special_mappings = {
                     'dĩ tiền': '以前',
                     'tự kỷ': '自己',
+                    'cánh nhiên': '竟然',
                 };
                 const debugLog = [];
                 Storage.book = Storage.book || {};
@@ -1185,141 +1186,114 @@ function decryptDES(encrypted, key, iv) {
                                 const h_raw = node.h;
                                 const v_raw = node.v || '';
                                 const t_chars = t_raw.split('').filter(c => c);
-                                const len_t = t_chars.length;
                                 const h_words = h_raw.split(' ').filter(w => w);
-                                const len_h_actual = h_words.length;
-                                const t_has_special_chars = t_raw.includes('的') || t_raw.includes('了');
+                                const len_t = t_chars.length;
+                                const len_h = h_words.length;
 
                                 let current_chinese_result = '';
                                 const currentDebugLog = [];
 
-                                // Quy tắc 1: t > h -> Nhận t ngay
-                                if (len_t > len_h_actual) {
+                                // --- QUY TẮC 1: Nhận t ngay nếu t dài hơn h ---
+                                if (len_t > len_h) {
                                     current_chinese_result = t_raw;
-                                    currentDebugLog.push(`- Nhận t ngay (t > h): h='${h_raw}', t='${t_raw}'`);
+                                    //currentDebugLog.push(`- Nhận t nhanh (t > h): h='${h_raw}', t='${t_raw}'`);
                                 }
-                                // Quy tắc 2: t = h và không có 的/了 -> Nhận t ngay
-                                else if (len_t === len_h_actual && !t_has_special_chars) {
+                                // --- QUY TẮC 2: Nhận t nhanh nếu t bằng h và không chứa ký tự đặc biệt (và không phải 'tha') ---
+                                else if (len_t === len_h && !(t_raw.includes('的') || t_raw.includes('了') || h_raw.includes('tha'))) {
                                     current_chinese_result = t_raw;
-                                    currentDebugLog.push(`- Nhận t ngay (t = h, không có 的/了): h='${h_raw}', t='${t_raw}'`);
+                                    //currentDebugLog.push(`- Nhận t nhanh (t = h, không đặc biệt): h='${h_raw}', t='${t_raw}'`);
                                 }
-                                // Quy tắc 3: t < h hoặc t = h mà có 的/了 -> Bù từ chi tiết
+                                // --- QUY TẮC 3: Logic bù từ chi tiết ---
                                 else {
                                     const result_chars = [];
                                     let t_index = 0;
                                     let h_index = 0;
 
-                                    // Xử lý "了" ở cuối nếu có
-                                    let trailing_le = false;
-                                    if (t_raw.endsWith('了')) {
-                                        trailing_le = true;
-                                        t_chars.pop(); // Cắt "了" ra, xử lý sau
-                                    }
+                                    while (h_index < len_h) {
+                                        let consumed_h = 1; // Số từ h được xử lý trong vòng lặp này
 
-                                    // Duyệt từng từ trong h
-                                    while (h_index < h_words.length) {
-                                        let h_word = h_words[h_index];
-
-                                        // Kiểm tra cụm từ đặc biệt (2 từ)
-                                        if (h_index + 1 < h_words.length) {
-                                            const h_phrase = `${h_word} ${h_words[h_index + 1]}`;
-                                            if (special_mappings[h_phrase] && t_index + special_mappings[h_phrase].length <= t_chars.length) {
-                                                // Chỉ chèn nếu t đủ ký tự để khớp
-                                                const special_chars = special_mappings[h_phrase].split('');
-                                                let match = true;
-                                                for (let i = 0; i < special_chars.length; i++) {
-                                                    if (t_chars[t_index + i] !== special_chars[i]) {
-                                                        match = false;
-                                                        break;
-                                                    }
+                                        // 3.1. Ưu tiên kiểm tra cụm từ đặc biệt 2 từ
+                                        if (h_index + 1 < len_h) {
+                                            const h_phrase = `${h_words[h_index]} ${h_words[h_index + 1]}`;
+                                            if (special_mappings[h_phrase]) {
+                                                const mapped_phrase = special_mappings[h_phrase];
+                                                // Kiểm tra xem có khớp với phần đầu của t còn lại không
+                                                if (t_index + mapped_phrase.length <= len_t && t_raw.substring(t_index, t_index + mapped_phrase.length) === mapped_phrase) {
+                                                    result_chars.push(mapped_phrase);
+                                                    t_index += mapped_phrase.length; // Khớp -> tăng t_index
+                                                    currentDebugLog.push(`- Mapping cụm từ (khớp t): '${h_phrase}' -> '${mapped_phrase}'`);
+                                                } else {
+                                                    // Không khớp t, vẫn dùng mapping nhưng không tăng t_index
+                                                    result_chars.push(mapped_phrase);
+                                                    currentDebugLog.push(`- Mapping cụm từ (không khớp t): '${h_phrase}' -> '${mapped_phrase}'`);
                                                 }
-                                                if (match) {
-                                                    result_chars.push(...special_chars);
-                                                    h_index += 2;
-                                                    t_index += special_chars.length;
-                                                    continue;
-                                                }
+                                                consumed_h = 2; // Đã xử lý 2 từ h
+                                                h_index += consumed_h;
+                                                continue; // Sang vòng lặp h tiếp theo
                                             }
                                         }
 
-                                        // Xử lý từ đơn
-                                        if (special_mappings[h_word] && t_index < t_chars.length && t_chars[t_index] === special_mappings[h_word]) {
-                                            // Từ đặc biệt đơn khớp với t
-                                            result_chars.push(special_mappings[h_word]);
-                                            h_index++;
-                                            t_index++;
-                                        } else if (t_index < t_chars.length) {
-                                            // Ưu tiên khớp với t
-                                            const chinese_char = chuyen_doi[h_word];
-                                            if (chinese_char && chinese_char === t_chars[t_index]) {
-                                                result_chars.push(t_chars[t_index]);
-                                                h_index++;
-                                                t_index++;
-                                            } else if (chinese_char) {
-                                                // Không khớp, dùng từ điển
-                                                if (h_word === 'tha') {
-                                                    const vText = v_raw.toLowerCase();
-                                                    if (vText.includes('hắn') || vText.includes('anh ấy')) result_chars.push('他');
-                                                    else if (vText.includes('nàng') || vText.includes('cô ấy')) result_chars.push('她');
-                                                    else result_chars.push('他');
-                                                } else {
-                                                    result_chars.push(...chinese_char.split('')); // Chèn từng ký tự
-                                                }
-                                                h_index++;
-                                            } else {
-                                                // Không có trong từ điển, dùng t nếu còn
-                                                result_chars.push(t_chars[t_index]);
-                                                h_index++;
-                                                t_index++;
-                                            }
-                                        } else if (chuyen_doi[h_word]) {
-                                            // t hết, bù từ từ điển
+                                        // 3.2. Xử lý từ đơn
+                                        const h_word = h_words[h_index];
+                                        const mapped_char = special_mappings[h_word] || chuyen_doi[h_word]; // Ưu tiên special
+
+                                        if (mapped_char) {
+                                            // Có mapping/chuyển đổi
+                                            let final_char = mapped_char;
+                                            // Xử lý 'tha'
                                             if (h_word === 'tha') {
                                                 const vText = v_raw.toLowerCase();
-                                                if (vText.includes('hắn') || vText.includes('anh ấy')) result_chars.push('他');
-                                                else if (vText.includes('nàng') || vText.includes('cô ấy')) result_chars.push('她');
-                                                else result_chars.push('他');
-                                            } else {
-                                                result_chars.push(...chuyen_doi[h_word].split('')); // Chèn từng ký tự
+                                                if (vText.includes('hắn') || vText.includes('anh ấy')) final_char = '他';
+                                                else if (vText.includes('nàng') || vText.includes('cô ấy')) final_char = '她';
+                                                else final_char = '他'; // Mặc định
                                             }
-                                            h_index++;
+
+                                            // Kiểm tra khớp với t
+                                            if (t_index < len_t && t_chars[t_index] === final_char) {
+                                                result_chars.push(final_char); // Dùng ký tự (từ t hay map đều như nhau)
+                                                t_index++; // Khớp -> tăng t_index
+                                                // currentDebugLog.push(`- Từ '${h_word}' khớp t -> '${final_char}'`);
+                                            } else {
+                                                // Không khớp t hoặc t hết -> dùng mapping/chuyển đổi từ h
+                                                result_chars.push(final_char);
+                                                // *Không* tăng t_index ở đây
+                                                currentDebugLog.push(`- Từ '${h_word}' không khớp t/t hết, bù từ h -> '${final_char}'`);
+                                            }
                                         } else {
-                                            // Thiếu từ, ghi debug
-                                            currentDebugLog.push(`- Thiếu ký tự Trung cho '${h_word}': h='${h_raw}', t='${t_raw}'`);
-                                            result_chars.push('?');
-                                            h_index++;
+                                            // Không có trong từ điển
+                                            if (t_index < len_t) {
+                                                // Dùng ký tự từ t nếu còn
+                                                result_chars.push(t_chars[t_index]);
+                                                t_index++; // Dùng t -> tăng t_index
+                                                currentDebugLog.push(`- Từ '${h_word}' không có từ điển, dùng t -> '${t_chars[t_index-1]}'`);
+                                            } else {
+                                                // Hết cách, báo lỗi
+                                                result_chars.push('?');
+                                                currentDebugLog.push(`- Thiếu ký tự Trung cho '${h_word}' (t đã hết): h='${h_raw}', t='${t_raw}'`);
+                                            }
                                         }
+                                        h_index += consumed_h; // Tăng chỉ số h
+                                    } // Kết thúc while
+
+                                    // Chỉ nối phần t còn dư nếu vòng lặp chi tiết đã chạy
+                                    if (t_index < len_t) {
+                                        const remaining_t = t_chars.slice(t_index).join('');
+                                        result_chars.push(remaining_t);
+                                        currentDebugLog.push(`- Nối ${remaining_t.length} ký tự dư từ 't' sau khi xử lý h: '${remaining_t}'`);
                                     }
 
-                                    // Nối phần dư của t (trừ "了" đã cắt)
-                                    if (t_index < t_chars.length) {
-                                        const remaining_t = t_chars.slice(t_index);
-                                        result_chars.push(...remaining_t);
-                                        currentDebugLog.push(`- Nối ${remaining_t.length} ký tự dư từ 't': h='${h_raw}', t='${t_raw}'. Phần dư: '${remaining_t.join('')}'`);
-                                    }
-
-                                    // Thêm "了" vào cuối nếu có
-                                    if (trailing_le) {
-                                        result_chars.push('了');
-                                    }
-
-                                    if (currentDebugLog.length > 0) {
-                                        debugLog.push(...currentDebugLog);
-                                    }
                                     current_chinese_result = result_chars.join('');
-                                }
 
-                                if (h_raw === 'dĩ tiền') {
-                                    console.log('dĩ tiền -> 以前')
-                                    current_chinese_result = '以前';
-                                } else
-                                    if (h_raw === 'tự kỷ') {
-                                        console.log('tự kỷ -> 自己')
-                                        current_chinese_result = '自己';
-                                    }
+                                } // Kết thúc else (logic bù từ chi tiết)
+
                                 node.chinese_result = current_chinese_result;
                                 finalChineseText += current_chinese_result;
-                            }
+                                if (currentDebugLog.length > 0) {
+                                    Storage.book.debugLog.push(`--- Chương ${chapterId}, Node h='${h_raw}', t='${t_raw}' => '${current_chinese_result}' ---\n` + currentDebugLog.join('\n'));
+                                }
+                            } // Kết thúc else if (node.type === 'word')
+
+
                         } // Kết thúc vòng lặp nodes
 
                         // *** BƯỚC 5: DỌN DẸP VÀ TRẢ VỀ ***
