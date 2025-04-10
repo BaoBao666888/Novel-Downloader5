@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.6
+// @version     3.5.447.7
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
@@ -1074,7 +1074,7 @@ function decryptDES(encrypted, key, iv) {
                 const chuyen_doi = { /* ... bảng chuyển đổi ... */
                     'lai': '来', 'tựu': '就', 'nhĩ': '你', 'nhi': '而', 'khởi': '起', 'môn': '们',
                     'đáo': '到', 'giá': '这', 'thị': '是', 'thập': '什', 'thuyết': '说', 'tự': '自',
-                    'hoàn': '还', 'tha': '他/她', 'quá': '过', 'thả': '且', 'kinh': '经',
+                    'hoàn': '还', 'quá': '过', 'thả': '且', 'kinh': '经',
                     'dĩ': '已', 'toán': '算', 'tưởng': '想', 'chẩm': '怎', 'ngận': '很', 'đa': '多',
                     'nhất': '一', 'hạ': '下', 'kỷ': '己', 'yêu': '么',
                     // ... thêm nữa ...
@@ -1187,112 +1187,142 @@ function decryptDES(encrypted, key, iv) {
                                 const h_raw = node.h;
                                 const v_raw = node.v || '';
                                 const t_chars = t_raw.split('').filter(c => c);
-                                const h_words = h_raw.split(' ').filter(w => w);
+                                const h_parts = [];
+                                let current_h_word = '';
+                                let space_count = 0;
+                                for (let k = 0; k < h_raw.length; k++) {
+                                    const char = h_raw[k];
+                                    if (char === ' ') {
+                                        space_count++;
+                                        if (current_h_word) { h_parts.push(current_h_word); current_h_word = ''; }
+                                        if (space_count >= 2) { h_parts.push('__DOUBLE_SPACE__'); space_count = 0; }
+                                    } else {
+                                        if (space_count === 1 && h_parts.length > 0 && h_parts[h_parts.length - 1] !== '__DOUBLE_SPACE__') {}
+                                        current_h_word += char;
+                                        space_count = 0;
+                                    }
+                                }
+                                if (current_h_word) { h_parts.push(current_h_word); }
+                                // --- Kết thúc xử lý h_parts ---
+
+
                                 const len_t = t_chars.length;
-                                const len_h = h_words.length;
+                                const len_h = h_parts.filter(part => part !== '__DOUBLE_SPACE__').length; // Số từ h thực tế
+                                const len_h_parts = h_parts.length; // Tổng số phần tử h (tính cả double space)
+
+                                // --- BƯỚC 1: Tính effective_h_length ---
+                                let effective_h_length = len_h; // Bắt đầu bằng số từ h thực tế
+                                let effective_t_length = len_t;
+                                const t_has_de = t_raw.includes('的');
+                                const t_has_le = t_raw.includes('了');
+                                // Logic cộng thêm cho 的/了 (Cần xem xét kỹ!)
+                                // Quy tắc đơn giản: Nếu t có 的 hoặc 了 mà h không có __DOUBLE_SPACE__ tương ứng?
+                                // Tạm thời cộng 1 nếu t có 的 hoặc 了 để khớp mô tả ban đầu.
+                                if (t_has_de) {
+                                    effective_h_length++;
+                                    // currentDebugLog.push(`- Do t có 的/了, effective_h_length = ${effective_h_length}`);
+                                }
+                                if (t_has_le) {
+                                    effective_h_length++;
+                                }
+                                // --- KẾT THÚC BƯỚC 1 ---
 
                                 let current_chinese_result = '';
                                 const currentDebugLog = [];
+                                let processed = false; // Cờ đánh dấu đã xử lý xong
 
-                                // --- QUY TẮC 1: Nhận t ngay nếu t dài hơn h ---
-                                if (len_t > len_h) {
+                                // --- QUY TẮC NHẬN NHANH 1 & 2 --- (Giữ nguyên)
+                                if (effective_t_length === effective_h_length) {
                                     current_chinese_result = t_raw;
-                                    //currentDebugLog.push(`- Nhận t nhanh (t > h): h='${h_raw}', t='${t_raw}'`);
+                                    // currentDebugLog.push(`- Nhận t nhanh (t > h, không đặc biệt): h='${h_raw}', t='${t_raw}'`);
+                                    processed = true;
                                 }
-                                // --- QUY TẮC 2: Nhận t nhanh nếu t bằng h và không chứa ký tự đặc biệt (và không phải 'tha') ---
-                                else if (len_t === len_h && !(t_raw.includes('的') || t_raw.includes('了') || h_raw.includes('tha'))) {
-                                    current_chinese_result = t_raw;
-                                    //currentDebugLog.push(`- Nhận t nhanh (t = h, không đặc biệt): h='${h_raw}', t='${t_raw}'`);
+                                //set temp_t
+
+                                let temp_t_chars = [...t_chars];
+                                let start_t = 0;
+                                const hasDoubleSpace = h_parts.includes('__DOUBLE_SPACE__');
+
+                                if (!hasDoubleSpace && (temp_t_chars[0] === '的' || temp_t_chars[0] === '了') && effective_t_length > 1) {
+                                    start_t++;
                                 }
-                                // --- QUY TẮC 3: Logic bù từ chi tiết ---
-                                else {
-                                    const result_chars = [];
-                                    let t_index = 0;
-                                    let h_index = 0;
 
-                                    while (h_index < len_h) {
-                                        let consumed_h = 1; // Số từ h được xử lý trong vòng lặp này
+                                if (!processed) {
+                                    // Quét h_words để tìm cặp đặc biệt
+                                    for (let i = 0; i < len_h_parts - 1; i++) {
+                                        const pair = `${h_parts[i]} ${h_parts[i + 1]}`;
+                                        const mapped = special_mappings[pair];
 
-                                        // 3.1. Ưu tiên kiểm tra cụm từ đặc biệt 2 từ
-                                        if (h_index + 1 < len_h) {
-                                            const h_phrase = `${h_words[h_index]} ${h_words[h_index + 1]}`;
-                                            if (special_mappings[h_phrase]) {
-                                                const mapped_phrase = special_mappings[h_phrase];
-                                                // Kiểm tra xem có khớp với phần đầu của t còn lại không
-                                                if (t_index + mapped_phrase.length <= len_t && t_raw.substring(t_index, t_index + mapped_phrase.length) === mapped_phrase) {
-                                                    result_chars.push(mapped_phrase);
-                                                    t_index += mapped_phrase.length; // Khớp -> tăng t_index
-                                                    currentDebugLog.push(`- Mapping cụm từ (khớp t): '${h_phrase}' -> '${mapped_phrase}'`);
-                                                } else {
-                                                    // Không khớp t, vẫn dùng mapping nhưng không tăng t_index
-                                                    result_chars.push(mapped_phrase);
-                                                    currentDebugLog.push(`- Mapping cụm từ (không khớp t): '${h_phrase}' -> '${mapped_phrase}'`);
-                                                }
-                                                consumed_h = 2; // Đã xử lý 2 từ h
-                                                h_index += consumed_h;
-                                                continue; // Sang vòng lặp h tiếp theo
+                                        if (mapped) {
+                                            temp_t_chars.splice(i+start_t, 0, ...mapped.split('')); // Chèn vào đúng vị trí
+
+                                            currentDebugLog.push(`- Ghép cụm đặc biệt: '${pair}' → '${mapped}''`);
+                                            if (temp_t_chars.length < effective_h_length) {
+                                                currentDebugLog.push(`- Sau khi chèn đặc biệt, t<h → tiếp tục xử lý`);
+                                                processed = false;
+                                            } else {
+                                                currentDebugLog.push(`- Nhận '${temp_t_chars.join('')}'`);
+                                                current_chinese_result = temp_t_chars.join('');
+                                                processed = true;
+                                                break;
                                             }
                                         }
-
-                                        // 3.2. Xử lý từ đơn
-                                        const h_word = h_words[h_index];
-                                        const mapped_char = special_mappings[h_word] || chuyen_doi[h_word]; // Ưu tiên special
-
-                                        if (mapped_char) {
-                                            // Có mapping/chuyển đổi
-                                            let final_char = mapped_char;
-                                            // Xử lý 'tha'
-                                            if (h_word === 'tha') {
-                                                const vText = v_raw.toLowerCase();
-                                                if (vText.includes('hắn')) final_char = '他';
-                                                else if (vText.includes('nàng')) final_char = '她';
-                                                else if (vText.includes('nó')) final_char = '它';
-                                                else final_char = '他'; // Mặc định
-                                            }
-
-                                            // Kiểm tra khớp với t
-                                            if (t_index < len_t && t_chars[t_index] === final_char) {
-                                                result_chars.push(final_char); // Dùng ký tự (từ t hay map đều như nhau)
-                                                t_index++; // Khớp -> tăng t_index
-                                                // currentDebugLog.push(`- Từ '${h_word}' khớp t -> '${final_char}'`);
-                                            } else {
-                                                // Không khớp t hoặc t hết -> dùng mapping/chuyển đổi từ h
-                                                result_chars.push(final_char);
-                                                // *Không* tăng t_index ở đây
-                                                currentDebugLog.push(`- Từ '${h_word}' không khớp t/t hết, bù từ h -> '${final_char}'`);
-                                            }
-                                        } else {
-                                            // Không có trong từ điển
-                                            if (t_index < len_t) {
-                                                // Dùng ký tự từ t nếu còn
-                                                result_chars.push(t_chars[t_index]);
-                                                t_index++; // Dùng t -> tăng t_index
-                                                currentDebugLog.push(`- Từ '${h_word}' không có từ điển, dùng t -> '${t_chars[t_index-1]}'`);
-                                            } else {
-                                                // Hết cách, báo lỗi
-                                                result_chars.push('?');
-                                                currentDebugLog.push(`- Thiếu ký tự Trung cho '${h_word}' (t đã hết): h='${h_raw}', t='${t_raw}'`);
-                                            }
-                                        }
-                                        h_index += consumed_h; // Tăng chỉ số h
-                                    } // Kết thúc while
-
-                                    // Chỉ nối phần t còn dư nếu vòng lặp chi tiết đã chạy
-                                    if (t_index < len_t) {
-                                        const remaining_t = t_chars.slice(t_index).join('');
-                                        result_chars.push(remaining_t);
-                                        currentDebugLog.push(`- Nối ${remaining_t.length} ký tự dư từ 't' sau khi xử lý h: '${remaining_t}'`);
                                     }
-
-                                    current_chinese_result = result_chars.join('');
-
-                                } // Kết thúc else (logic bù từ chi tiết)
-
-                                node.chinese_result = current_chinese_result;
-                                finalChineseText += current_chinese_result;
-                                if (currentDebugLog.length > 0) {
-                                    Storage.book.debugLog.push(`--- Chương ${chapterId}, Node h='${h_raw}', t='${t_raw}' => '${current_chinese_result}' ---\n` + currentDebugLog.join('\n'));
                                 }
+                                // --- LOGIC BÙ TỪ CHI TIẾT (chỉ chạy nếu quy tắc nhanh không áp dụng) ---
+                                if (!processed) {
+                                    for(let i = 0; i < len_h_parts ; i++) {
+                                        if (temp_t_chars.length < effective_h_length) {
+                                            if (h_parts[i] === 'tha') {
+                                                let temp = '';
+                                                if (v_raw.includes('hắn')) {
+                                                    temp = '他';
+                                                } else
+                                                    if (v_raw.includes('nàng')) {
+                                                        temp = '她';
+                                                    } else
+                                                        if (v_raw.includes('nó')) {
+                                                            temp = '它';
+                                                        } else {
+                                                            temp = '他'
+                                                        }
+                                                temp_t_chars.splice(i + start_t, 0, ...temp.split(''));
+                                                currentDebugLog.push(`- Lấy trong từ điển: '${h_parts[i]}' → '${temp}', do v='${v_raw}'`);
+                                            } else
+                                                if ((h_parts[i] === 'nhi' && temp_t_chars[i+start_t] ==='儿') || (h_parts[i] === 'kỷ' && temp_t_chars[i+start_t] ==='几') || h_parts[i] === '__DOUBLE_SPACE__') {
+                                                    currentDebugLog.push(`- Sử dụng từ gốc: '${h_parts[i]}' → '${temp_t_chars[i+start_t]}'`);
+                                                } else {
+                                                    const mapped = chuyen_doi[h_parts[i]];
+                                                    if (mapped && temp_t_chars[i+start_t] !== mapped) {
+                                                        temp_t_chars.splice(i + start_t, 0, ...mapped.split(''));
+                                                        currentDebugLog.push(`- Lấy trong từ điển: '${h_parts[i]}' → '${mapped}'`);
+
+                                                    } else {
+                                                        currentDebugLog.push(`- Sử dụng từ gốc: '${h_parts[i]}' → '${temp_t_chars[i+start_t]}'`);
+                                                    }
+                                                }
+                                        }
+                                        else {
+                                            currentDebugLog.push(`- Nhận '${temp_t_chars.join('')}'`);
+                                            current_chinese_result = temp_t_chars.join('');
+                                            processed = true;
+                                            break;
+                                        }
+
+                                    }
+                                    if (temp_t_chars.length >= effective_h_length && !processed) {
+                                        currentDebugLog.push(`- Nhận '${temp_t_chars.join('')}'`);
+                                        current_chinese_result = temp_t_chars.join('');
+                                        processed = true;
+                                    }
+                                }
+                                if (!processed) {currentDebugLog.push(`- Thiếu ký tự Trung đối với h='${h_raw}', t='${temp_t_chars.join('')}'`);}
+                                if (temp_t_chars.length > effective_h_length && !processed) {currentDebugLog.push(`- SAI LOGIC đối với h='${h_raw}', t='${temp_t_chars.join('')}'`);}
+
+                                if (currentDebugLog.length > 0) { // Ghi log nếu có debug
+                                    Storage.book.debugLog.push(`--- Chương ${chapterId}, Node h='${h_raw}'(${effective_h_length}), t='${t_raw}'(${temp_t_chars.length}) => '${current_chinese_result}' ---\n` + currentDebugLog.join('\n'));
+                                }
+                                finalChineseText += current_chinese_result;
                             } // Kết thúc else if (node.type === 'word')
 
 
