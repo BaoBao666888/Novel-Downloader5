@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.2
+// @version     3.5.447.1
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
@@ -539,7 +539,6 @@ function decryptDES(encrypted, key, iv) {
                     for (const res of result) unsafeWindow.eval(res.responseText);
                 }
 
-<<<<<<< HEAD
                 const chapterId = chapter.url.split('/').slice(-1)[0];
                 const res1 = await new Promise((resolve, reject) => {
                     xhr.add({
@@ -557,127 +556,6 @@ function decryptDES(encrypted, key, iv) {
                             resolve(res);
                         },
                     }, null, 0, true);
-=======
-                // Chỉ thêm chương nếu có ID và tiêu đề hợp lệ
-                if (chapterId && chapterTitleOri && !isNaN(parseInt(chapterId))) {
-                  chapters.push({
-                    title: chapterTitleOri, // *** LẤY TIÊU ĐỀ GỐC TIẾNG TRUNG ***
-                    url: `#stv-api-chapter-${chapterId}`, // URL giả, không còn quan trọng
-                    bookId: bookId,
-                    chapterId: chapterId, // ID chương chính xác từ API
-                    sourceType: sourceId,
-                    // vip: correspondingLink.hasClass('unvip') // Thêm trạng thái VIP nếu cần
-                  });
-                } else {
-                  console.warn("STV getChapters Warn: Bỏ qua dòng dữ liệu chương không hợp lệ:", oriDataChapters[i]);
-                }
-              }
-            }
-            console.log(`STV getChapters: Đã xử lý ${chapters.length} chương từ API.`);
-            return chapters;
-
-          } else {
-            console.error(`%cSTV getChapters Error: API không trả về dữ liệu hợp lệ. Code: ${jsonData?.code}`, "color: red;", jsonData);
-            return [];
-          }
-        } catch (error) {
-          console.error(`%cSTV getChapters Error: Lỗi fetch hoặc parse JSON:`, "color: red;", error);
-          return [];
-        }
-      },
-      // *** HÀM DEAL VỚI LOGIC BÙ TỪ CHI TIẾT ***
-      deal: async (chapter) => {
-        const bookId = chapter.bookId;
-        const chapterId = chapter.chapterId;
-        const sourceType = chapter.sourceType;
-        if (!bookId || !chapterId || !sourceType) { /*...*/ }
-
-        const chuyen_doi = { /* ... bảng chuyển đổi ... */
-          'lai': '来', 'tựu': '就', 'nhĩ': '你', 'nhi': '而', 'khởi': '起', 'môn': '门',
-          'đáo': '到', 'giá': '这', 'thị': '是', 'thập': '什', 'thuyết': '说', 'tự': '自',
-          'hoàn': '还', 'tha': '他/她', 'yêu': '么', 'quá': '过', 'thả': '且', 'kinh': '经',
-          'dĩ': '已', 'toán': '算', 'tưởng': '想', 'chẩm': '怎', 'ngận': '很', 'đa': '多',
-          'nhất': '一', 'hạ': '下', 'kỷ': '己'
-          // ... thêm nữa ...
-        };
-        const punctuation_map = { /* ... bảng dấu câu ... */
-          '，': '，', ',': '，', '.......': '……', '......': '……', '...': '…', '.': '。', '。': '。', '！': '！', '!': '！', '？': '？', '?': '？',
-          '：': '：', ':': '：', '；': '；', ';': '；', '“': '“', '”': '”', '"': '"',
-          '‘': '‘', '’': '’', "'": "'", '（': '（', '(': '（', '）': '）', ')': '）',
-          '…': '…', '—': '—', '-': '—', '《': '《', '》': '》'
-        };
-
-        const special_mappings = {
-          'dĩ tiền': '以前',
-          'tự kỷ': '自己',
-        };
-        const debugLog = [];
-        Storage.book = Storage.book || {};
-        Storage.book.debugLog = Storage.book.debugLog || [];
-
-        const apiUrl = 'https://sangtacviet.com/index.php';
-        const payload = `bookid=${bookId}&h=${sourceType}&c=${chapterId}&ngmar=readc&sajax=readchapter&sty=1&exts=`;
-        const refererUrl = `https://sangtacviet.com/truyen/${sourceType}/1/${bookId}/${chapterId}/`;
-
-        console.log(`%cSTV Deal (Chương ${chapterId}): Gọi API bằng FETCH...`, "color: purple;");
-
-        try {
-          const response = await fetch(apiUrl, { /* ... cấu hình fetch ... */
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'Referer': refererUrl, },
-            body: payload,
-          });
-
-          // Kiểm tra xem request có thành công không (status 2xx)
-          if (!response.ok) {
-            // Nếu status không phải 2xx, báo lỗi mạng/server
-            console.error(`%cSTV Deal (Chương ${chapterId} Error): Fetch thất bại, Status: ${response.status}`, "color: red;");
-            // Thử đọc text lỗi nếu có
-            let errorText = `Lỗi HTTP ${response.status}`;
-            try { errorText = await response.text(); } catch (e) { }
-            return { content: "", error: `Lỗi mạng/server khi gọi API STV: ${response.status} - ${errorText.substring(0, 100)}` };
-          }
-
-          // Đã thành công (status 2xx), đọc response text
-          const responseText = await response.text();
-          try {
-            const jsonData = JSON.parse(responseText);
-            console.log(`%cSTV Deal (Chương ${chapterId}): Parse JSON thành công. Code: ${jsonData?.code}`, "color: purple;");
-            if (jsonData && jsonData.code === "0" && typeof jsonData.data !== 'undefined') {
-              const rawHtmlContent = jsonData.data;
-              const chapterTitle = chapter.title;
-
-              // *** BƯỚC 2: TẠO DANH SÁCH NODE (Đã sửa xử lý <p>) ***
-              const nodes = [];
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = rawHtmlContent;
-              function processChildNodes(element) {
-                element.childNodes.forEach(node => {
-                  if (node.nodeType === Node.TEXT_NODE) {
-                    let processedText = node.textContent;
-                    for (const vietPunc in punctuation_map) {
-                      processedText = processedText.replace(new RegExp(vietPunc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'), punctuation_map[vietPunc]);
-                    }
-                    nodes.push({ type: 'text', text: processedText });
-                  } else if (node.nodeType === Node.ELEMENT_NODE) {
-                    if (node.tagName === 'I' && node.hasAttribute('t') && node.hasAttribute('h')) {
-                      nodes.push({
-                        type: 'word',
-                        h: (node.getAttribute('h') || '').toLowerCase(),
-                        t: node.getAttribute('t') || '',
-                        v: node.getAttribute('v') || '',
-                        inner: node.textContent || ''
-                      });
-                    } else if (node.tagName === 'P') {
-                      processChildNodes(node);
-                      nodes.push({ type: 'newline' });
-                    } else if (node.tagName === 'BR') {
-                      nodes.push({ type: 'newline' });
-                    } else if (node.tagName !== 'SPAN') {
-                      processChildNodes(node);
-                    }
-                  }
->>>>>>> f791675acb5d6d7c312af899d98b8002a932de84
                 });
                 const accessKey = res1.response.chapter_access_key;
 
