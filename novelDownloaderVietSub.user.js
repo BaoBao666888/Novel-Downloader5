@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.8
+// @version     3.5.447.9
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
@@ -2393,6 +2393,7 @@ function decryptDES(encrypted, key, iv) {
                         },
                     }, null, 0, true);
                 });
+
                 return content;
             },
             getChapters: async (doc) => {
@@ -4276,7 +4277,7 @@ function decryptDES(encrypted, key, iv) {
                     const rule = vipChapters.includes(url) ? Storage.rule.vip : Storage.rule;
 
                     if (chapterNew.contentRaw && chapterNew.document) {
-                        await onChapterLoad({ response: chapterNew.document, responseText: chapterNew.document }, { raw: chapterNew });
+                        await originalOnChapterLoad({ response: chapterNew.document, responseText: chapterNew.document }, { raw: chapterNew });
                     } else {
                         delete chapterNew.contentRaw;
                         if (rule.iframe) {
@@ -4402,13 +4403,26 @@ function decryptDES(encrypted, key, iv) {
                 try {
                     const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
                     const result = await rule.deal(chapter); // Hàm deal đã bao gồm fetch và xử lý
-                    if (result && result.content) {
-                        if (result.content.trim().length < 10) {
-                            console.warn(`%cNội dung (deal) chương '${result.title || chapter.title}' có vẻ rỗng hoặc quá ngắn. Đánh dấu là lỗi.`, "color: orange;");
-                            chapter.contentRaw = ''; // Đánh dấu lỗi
+                    if (typeof result === "string") {
+                        // Trường hợp result chính là content (string)
+                        if (result.trim().length < 1) {
+                            console.warn(`%cNội dung (deal) chương '${chapter.title}' có vẻ rỗng hoặc quá ngắn. Đánh dấu là lỗi.`, "color: orange;");
+                            chapter.contentRaw = '';
                             throw new Error("ContentCheck thất bại");
                         } else {
-                            chapter.document = result.content; // Hoặc result.contentRaw nếu có
+                            chapter.document = result;
+                            chapter.contentRaw = result;
+                            chapter.content = result;
+                            updateProgress();
+                        }
+                    } else if (result && result.content) {
+                        // Trường hợp result là object có content
+                        if (result.content.trim().length < 1) {
+                            console.warn(`%cNội dung (deal) chương '${result.title || chapter.title}' có vẻ rỗng hoặc quá ngắn. Đánh dấu là lỗi.`, "color: orange;");
+                            chapter.contentRaw = '';
+                            throw new Error("ContentCheck thất bại");
+                        } else {
+                            chapter.document = result.content;
                             chapter.contentRaw = result.content;
                             chapter.content = result.content;
                             if (result.title) chapter.title = result.title;
