@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.9
+// @version     3.5.447.9e1
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
@@ -1016,11 +1016,14 @@ function decryptDES(encrypted, key, iv) {
                     return { title: chapter.title + " (Lỗi URL)", content: "<p><strong>Lỗi khi tải chương:</strong> URL chương không hợp lệ.</p>" };
                 }
                 const chapId = chapIdMatch[1];
-                // *** Sử dụng trực tiếp host API ngoài ***
-                const externalApiHost = "http://rehaofan.jingluo.love";
+                let externalApiHost = unsafeWindow.tokenOptions?.Fanqie;
+                // const externalApiHost = "http://rehaofan.jingluo.love";
+                if (!externalApiHost ) {
+                    externalApiHost = "http://rehaofan.jingluo.love";
+                }
                 const externalApiUrl = `${externalApiHost}/content?item_id=${chapId}`;
 
-                console.log(`%cFanqie Deal (API Ngoài): Đang lấy nội dung chương ${chapId} từ: ${externalApiUrl}`, "color: purple;");
+                console.log(`%cFanqie Deal (API): Đang lấy nội dung chương ${chapId} từ: ${externalApiUrl}`, "color: purple;");
                 try {
                     const res = await xhr.sync(externalApiUrl, null, {
                         method: 'GET',
@@ -1035,12 +1038,21 @@ function decryptDES(encrypted, key, iv) {
                         const content = res.response.data.content;
                         // API ngoài có thể trả về title hoặc không, nếu không thì dùng title gốc
                         const title = res.response.data.title || chapter.title;
-                        console.log(`%cFanqie Deal (API Ngoài): Lấy nội dung thành công cho chương ${chapId}.`, "color: green;");
+                        console.log(`%cFanqie Deal (API): Lấy nội dung thành công cho chương ${chapId}.`, "color: green;");
 
                         // Nội dung từ API này có vẻ đã được giải mã và có thể chứa thẻ <p> hoặc <br>
                         // Giữ nguyên nội dung HTML này để hàm downloadTo xử lý tiếp
                         return { title: title, content: content };
 
+                    } else if (res.response && res.response.data && res.response.data.data.content) {
+                        const content = res.response.data.data.content;
+                        // API ngoài có thể trả về title hoặc không, nếu không thì dùng title gốc
+                        const title = res.response.data.data.title || chapter.title;
+                        console.log(`%cFanqie Deal (API Riêng): Lấy nội dung thành công cho chương ${chapId}.`, "color: green;");
+
+                        // Nội dung từ API này có vẻ đã được giải mã và có thể chứa thẻ <p> hoặc <br>
+                        // Giữ nguyên nội dung HTML này để hàm downloadTo xử lý tiếp
+                        return { title: title, content: content };
                     } else {
                         // Xử lý lỗi nếu API ngoài không trả về đúng cấu trúc
                         console.error(`%cFanqie Deal (API Ngoài) Error: API ngoài không trả về nội dung hợp lệ cho chương ${chapId}.`, "color: red;", res.response);
