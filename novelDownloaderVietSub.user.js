@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.10
+// @version     3.5.447.11
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/dodying/UserJs/issues
@@ -1062,7 +1062,7 @@ function decryptDES(encrypted, key, iv) {
                         } else if (res.responseText) { // Nếu API trả về text lỗi
                             errorMsg += ` (Response: ${res.responseText.substring(0, 100)}...)`;
                         }
-                        return { title: chapter.title + " (Lỗi API Ngoài)", content: `<p><strong>Lỗi khi tải chương:</strong> ${errorMsg}</p>` };
+                        return "";
                     }
                 } catch (error) {
                     // Xử lý lỗi mạng hoặc lỗi khác khi gọi API ngoài
@@ -1070,7 +1070,7 @@ function decryptDES(encrypted, key, iv) {
                     let errorMsg = "Lỗi mạng hoặc không thể kết nối tới API bên ngoài.";
                     if (error.status) errorMsg = `Lỗi HTTP ${error.status} khi gọi API bên ngoài.`;
                     else if (error.message) errorMsg = error.message;
-                    return { title: chapter.title + " (Lỗi API Ngoài)", content: `<p><strong>Lỗi khi tải chương:</strong> ${errorMsg}</p>` };
+                    return "";
                 }
             },
             // -------------------------------------------------
@@ -4795,7 +4795,7 @@ function decryptDES(encrypted, key, iv) {
             const blob = new window.Blob([all], {
                 type: 'text/plain;charset=utf-8',
             });
-            download(blob, `${title}.txt`);
+            download(blob, `${title}__${writer}.txt`);
         },
         epub: async (chapters) => {
             const { length } = String(chapters.length);
