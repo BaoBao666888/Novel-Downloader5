@@ -5,7 +5,7 @@
 // @version     3.5.447.11
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
-// @supportURL  https://github.com/dodying/UserJs/issues
+// @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
 // @icon        https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Logo.png
 // @downloadURL https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js
 // @updateURL   https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js
