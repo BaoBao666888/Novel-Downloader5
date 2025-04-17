@@ -71,7 +71,7 @@
         Jjwxc: "token của bạn",
 
         // API endpoint cho Fanqie (có thể giữ nguyên hoặc đổi nếu bạn có API riêng)
-        Fanqie: "https://rehaofan.jingluo.love", // Hoặc API khác như https://api.v2.sukimon.me:45598
+        Fanqie: "https://rehaofan.jingluo.love", // Hoặc API khác
       };
       // --- KẾT THÚC PHẦN CHỈNH SỬA ---
 
@@ -95,7 +95,7 @@
 Script hỗ trợ một danh sách lớn các trang web. Danh sách các rule xử lý cụ thể nằm trong mã nguồn của script, trong mảng `Rule.special`. Một số trang tiêu biểu đã được thêm/cập nhật rule bao gồm:
 
 *   Fanqie (蕃茄小说)
-*   Sang Tác Việt (sangtacviet.com)
+*   Sáng Tác Việt (sangtacviet.com)
 *   JJWXC (晋江文学城)
 *   Qidian (起点中文网)
 *   69shuba (69书吧)
