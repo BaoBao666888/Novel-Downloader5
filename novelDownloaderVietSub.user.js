@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.11
+// @version     3.5.447.12
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1132,48 +1132,50 @@ function decryptDES(encrypted, key, iv) {
                     const responseText = await response.text();
                     const jsonData = JSON.parse(responseText);
 
-                    if (jsonData && jsonData.code === 1 && jsonData.oridata && jsonData.data) {
+                    if (jsonData && jsonData.code === 1 && (jsonData.oridata || jsonData.data)) {
                         console.log(`%cSTV getChapters: Lấy danh sách chương thành công.`, "color: green;");
                         const chapters = [];
-                        const oriDataChapters = jsonData.oridata.split('-//-'); // Tiêu đề gốc tiếng Trung
-                        const translatedChapters = jsonData.data.split('-//-'); // Tiêu đề dịch (dùng để tham khảo nếu cần)
 
-                        // Bỏ qua phần tử đầu tiên có thể là rỗng hoặc header
-                        if (oriDataChapters[0].split('-/-').length < 3) oriDataChapters.shift();
-                        if (translatedChapters[0].split('-/-').length < 3) translatedChapters.shift();
+                        let oriDataChapters = jsonData.oridata ? jsonData.oridata.split('-//-') : [];
+                        let translatedChapters = jsonData.data ? jsonData.data.split('-//-') : [];
 
-                        // Lấy danh sách các thẻ <a> trên trang chỉ để đánh số thứ tự
+                        // Bỏ qua phần tử đầu tiên nếu không hợp lệ
+                        if (oriDataChapters[0] && oriDataChapters[0].split('-/-').length < 3) oriDataChapters.shift();
+                        if (translatedChapters[0] && translatedChapters[0].split('-/-').length < 3) translatedChapters.shift();
+
+                        // Nếu không có oriData, dùng translated làm gốc và gán tiêu đề mặc định
+                        const isUsingTranslatedAsFallback = oriDataChapters.length === 0 && translatedChapters.length > 0;
+                        if (isUsingTranslatedAsFallback) {
+                            oriDataChapters = translatedChapters;
+                            console.log("Không phát hiện tiêu đề tiếng Trung, sử dụng cấu trúc tiêu đề thay thế: 第{order}章");
+                        }
+
                         const chapterLinksOnPage = $('#chaptercontainerinner a.listchapitem', doc);
                         let linkIndex = 0;
 
                         for (let i = 0; i < oriDataChapters.length; i++) {
-                            const oriParts = oriDataChapters[i].split('-/-'); // [type, chapterId, chapterTitleOri]
-                            // const transParts = translatedChapters[i] ? translatedChapters[i].split('-/-') : null; // [type, chapterId, chapterTitleTrans]
-
+                            const oriParts = oriDataChapters[i].split('-/-');
                             if (oriParts.length >= 3) {
                                 const chapterId = oriParts[1];
-                                const chapterTitleOri = oriParts[2].trim();
-                                // const chapterTitleTrans = (transParts && transParts.length >= 3) ? transParts[2].trim() : chapterTitleOri; // Lấy title dịch, fallback về gốc
+                                const chapterTitleOri = isUsingTranslatedAsFallback
+                                ? `第${i + 1}章`
+                                : oriParts[2].trim();
 
-                                // Tìm thẻ <a> tương ứng trên trang để đánh số (không đảm bảo 100% khớp nhưng là cách tốt nhất hiện tại)
                                 const correspondingLink = chapterLinksOnPage.eq(linkIndex++);
                                 if (correspondingLink.length > 0) {
-                                    correspondingLink.attr('novel-downloader-chapter', ''); // Đánh dấu thường
-                                    // Có thể thêm logic kiểm tra class 'unvip' để đánh dấu VIP nếu có
-                                    // if (correspondingLink.hasClass('unvip')) { correspondingLink.attr('novel-downloader-chapter', 'vip'); }
+                                    correspondingLink.attr('novel-downloader-chapter', '');
                                     correspondingLink.attr('order', chapters.length + 1);
                                 }
 
-                                // Chỉ thêm chương nếu có ID và tiêu đề hợp lệ
                                 if (chapterId && chapterTitleOri && !isNaN(parseInt(chapterId))) {
                                     chapters.push({
-                                        title: chapterTitleOri, // *** LẤY TIÊU ĐỀ GỐC TIẾNG TRUNG ***
-                                        url: `#stv-api-chapter-${chapterId}`, // URL giả, không còn quan trọng
+                                        title: chapterTitleOri,
+                                        url: `#stv-api-chapter-${chapterId}`,
                                         bookId: bookId,
-                                        chapterId: chapterId, // ID chương chính xác từ API
+                                        chapterId: chapterId,
                                         sourceType: sourceId,
-                                        // vip: correspondingLink.hasClass('unvip') // Thêm trạng thái VIP nếu cần
                                     });
+
                                 } else {
                                     console.warn("STV getChapters Warn: Bỏ qua dòng dữ liệu chương không hợp lệ:", oriDataChapters[i]);
                                 }
@@ -1216,7 +1218,7 @@ function decryptDES(encrypted, key, iv) {
                     // ... thêm nữa ...
                 };
                 const punctuation_map = { /* ... bảng dấu câu ... */
-                    '，': '，', ',': '，', '.......': '……', '......': '……', '...': '…', '.': '。', '。': '。', '！': '！', '!': '！', '？': '？', '?': '？',
+                    '，': '，', ',': '，', '.......': '……', '......': '……', '.....': '……', '....': '…','...': '…', '..': '…', '.': '。', '。': '。', '！': '！', '!': '！', '？': '？', '?': '？',
                     '：': '：', ':': '：', '；': '；', ';': '；', '“': '“', '”': '”', '"': '"',
                     '‘': '‘', '’': '’', "'": "'", '（': '（', '(': '（', '）': '）', ')': '）',
                     '…': '…', '—': '—', '-': '—', '《': '《', '》': '》', '『': '“', '』': '”',
