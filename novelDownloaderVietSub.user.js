@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.12
+// @version     3.5.447.13
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1106,14 +1106,9 @@ function decryptDES(encrypted, key, iv) {
 
                 const apiUrl = 'https://sangtacviet.com/index.php';
                 const payload = `ngmar=chapterlist&h=${sourceId}&bookid=${bookId}&sajax=getchapterlist`;
-                const refererUrl = window.location.href; // Dùng URL hiện tại làm referer
-
-                console.log(`%cSTV getChapters: Gọi API lấy danh sách chương...`, "color: purple;");
-                // console.log("URL:", apiUrl);
-                // console.log("Payload:", payload);
+                const refererUrl = window.location.href;
 
                 try {
-                    // Gọi API bằng fetch (giống cách gọi thành công của hàm deal)
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: {
@@ -1121,7 +1116,6 @@ function decryptDES(encrypted, key, iv) {
                             'Referer': refererUrl,
                         },
                         body: payload,
-                        // Không cần credentials và X-Requested-With theo thử nghiệm thành công trước đó
                     });
 
                     if (!response.ok) {
@@ -1133,17 +1127,14 @@ function decryptDES(encrypted, key, iv) {
                     const jsonData = JSON.parse(responseText);
 
                     if (jsonData && jsonData.code === 1 && (jsonData.oridata || jsonData.data)) {
-                        console.log(`%cSTV getChapters: Lấy danh sách chương thành công.`, "color: green;");
                         const chapters = [];
 
                         let oriDataChapters = jsonData.oridata ? jsonData.oridata.split('-//-') : [];
                         let translatedChapters = jsonData.data ? jsonData.data.split('-//-') : [];
 
-                        // Bỏ qua phần tử đầu tiên nếu không hợp lệ
                         if (oriDataChapters[0] && oriDataChapters[0].split('-/-').length < 3) oriDataChapters.shift();
                         if (translatedChapters[0] && translatedChapters[0].split('-/-').length < 3) translatedChapters.shift();
 
-                        // Nếu không có oriData, dùng translated làm gốc và gán tiêu đề mặc định
                         const isUsingTranslatedAsFallback = oriDataChapters.length === 0 && translatedChapters.length > 0;
                         if (isUsingTranslatedAsFallback) {
                             oriDataChapters = translatedChapters;
@@ -1155,35 +1146,60 @@ function decryptDES(encrypted, key, iv) {
 
                         for (let i = 0; i < oriDataChapters.length; i++) {
                             const oriParts = oriDataChapters[i].split('-/-');
-                            if (oriParts.length >= 3) {
-                                const chapterId = oriParts[1];
-                                const chapterTitleOri = isUsingTranslatedAsFallback
-                                ? `第${i + 1}章`
-                                : oriParts[2].trim();
+                            if (oriParts.length < 3) continue;
 
-                                const correspondingLink = chapterLinksOnPage.eq(linkIndex++);
-                                if (correspondingLink.length > 0) {
-                                    correspondingLink.attr('novel-downloader-chapter', '');
-                                    correspondingLink.attr('order', chapters.length + 1);
+                            const chapterId = oriParts[1];
+                            let chapterTitleOri = isUsingTranslatedAsFallback ? `第${i + 1}章` : oriParts[2].trim();
+
+                            const correspondingLink = chapterLinksOnPage.eq(linkIndex++); // dùng trước để tô màu luôn
+
+                            let shouldSkip = false;
+                            if (sourceId === 'jjwxc') {
+                                const currentMatch = chapterTitleOri.match(/^\[(\d+)\]/);
+                                const next = oriDataChapters[i + 1];
+                                const nextTitle = next?.split('-/-')[2]?.trim();
+                                const nextMatch = nextTitle?.match(/^\[(\d+)\]/);
+
+                                if (currentMatch && nextMatch && currentMatch[1] === nextMatch[1]) {
+                                    console.log(`%cSTV getChapters: Bỏ chương [${currentMatch[1]}] hiện tại, giữ chương sau`, "color: orange;");
+                                    shouldSkip = true;
+
+                                    // ❗ Tô màu nhưng không thêm vào danh sách chương
+                                    if (correspondingLink.length > 0) {
+                                        correspondingLink.css('background-color', '#fce4ec'); // hoặc màu gì đó nổi bật
+                                        correspondingLink.attr('data-note', 'bỏ do trùng số [n]');
+                                    }
+
+                                    continue; // bỏ push vào chapters
                                 }
 
-                                if (chapterId && chapterTitleOri && !isNaN(parseInt(chapterId))) {
-                                    chapters.push({
-                                        title: chapterTitleOri,
-                                        url: `#stv-api-chapter-${chapterId}`,
-                                        bookId: bookId,
-                                        chapterId: chapterId,
-                                        sourceType: sourceId,
-                                    });
-
-                                } else {
-                                    console.warn("STV getChapters Warn: Bỏ qua dòng dữ liệu chương không hợp lệ:", oriDataChapters[i]);
+                                // Nếu không skip thì xóa [n] khỏi tiêu đề
+                                if (currentMatch) {
+                                    chapterTitleOri = chapterTitleOri.replace(/^\[\d+\]/, '').trim();
                                 }
                             }
+
+                            // Nếu không skip, xử lý như bình thường
+                            if (correspondingLink.length > 0) {
+                                correspondingLink.attr('novel-downloader-chapter', '');
+                                correspondingLink.attr('order', chapters.length + 1);
+                            }
+
+                            if (chapterId && chapterTitleOri && !isNaN(parseInt(chapterId))) {
+                                chapters.push({
+                                    title: chapterTitleOri,
+                                    url: `#stv-api-chapter-${chapterId}`,
+                                    bookId: bookId,
+                                    chapterId: chapterId,
+                                    sourceType: sourceId,
+                                });
+                            } else {
+                                console.warn("STV getChapters Warn: Bỏ qua dòng dữ liệu chương không hợp lệ:", oriDataChapters[i]);
+                            }
                         }
+
                         console.log(`STV getChapters: Đã xử lý ${chapters.length} chương từ API.`);
                         return chapters;
-
                     } else {
                         console.error(`%cSTV getChapters Error: API không trả về dữ liệu hợp lệ. Code: ${jsonData?.code}`, "color: red;", jsonData);
                         return [];
@@ -1193,6 +1209,7 @@ function decryptDES(encrypted, key, iv) {
                     return [];
                 }
             },
+
             // *** HÀM DEAL VỚI LOGIC BÙ TỪ CHI TIẾT ***
             deal: async (chapter) => {
                  // --- Hàm sleep ---
