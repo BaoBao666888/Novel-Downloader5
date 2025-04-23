@@ -8,6 +8,8 @@
 // @grant        GM_xmlhttpRequest
 // @connect      api.truyenreview.com
 // @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js
+// @updateURL    https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/wkidic-search-to-detail.user.js
+// @downloadURL  https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/wkidic-search-to-detail.user.js
 // ==/UserScript==
 
 (function () {
