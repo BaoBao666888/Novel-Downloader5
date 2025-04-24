@@ -1161,7 +1161,6 @@ function decryptDES(encrypted, key, iv) {
                     document.body.prepend(container);
 
                     const allChapters = [...chapters, ...vipChapters];
-                    console.log(`✅ Tổng số chương: ${allChapters.length}`);
                     // Sau khi tạo xong container và append vào DOM
                     document.body.prepend(container);
 
