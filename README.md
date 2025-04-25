@@ -95,19 +95,20 @@
 Script hỗ trợ một danh sách lớn các trang web. Danh sách các rule xử lý cụ thể nằm trong mã nguồn của script, trong mảng `Rule.special`. Một số trang tiêu biểu đã được thêm/cập nhật rule bao gồm:
 
 *   Fanqie (蕃茄小说)
-*   Sáng Tác Việt (sangtacviet.com)
 *   JJWXC (晋江文学城)
 *   Qidian (起点中文网)
 *   69shuba (69书吧)
 *   PO18 (po18.tw)
 *   Haitang (海棠文化)
+*   Sáng Tác Việt (sangtacviet.com)
+*   Afdian (afdian.com)
 *   Và nhiều trang khác...
 
 *(Bạn có thể tự thêm hoặc sửa rule trong code nếu muốn hỗ trợ trang web khác hoặc trang hiện tại có thay đổi cấu trúc).*
 
 ## Vấn đề đã biết (Chưa sửa lỗi)
 
-1.  **Khó hiển thị giao diện:** Trong phiên bản `3.5.447.11` này, giao diện tải xuống (bảng điều khiển) **đôi khi không tự động xuất hiện** khi nhấp đúp vào cạnh trái hoặc dùng menu lệnh, không ổn định như các bản 445, 446 trước đó.
+1.  **Khó hiển thị giao diện:** Trong phiên bản `3.5.447` này, giao diện tải xuống (bảng điều khiển) **đôi khi không tự động xuất hiện** khi nhấp đúp vào cạnh trái hoặc dùng menu lệnh, không ổn định như các bản 445, 446 trước đó.
     *   **Cách khắc phục tạm thời:** Tải lại trang (F5) và thử lại thao tác mở bảng điều khiển (nhấp đúp hoặc dùng menu). Có thể cần thử vài lần.
 2.  **Luồng tải không hoạt động đúng:** Việc cài đặt nhiều hơn 1 luồng tải (`thread`) trong cấu hình hiện tại **không hoạt động song song** như mong đợi cho tất cả các trường hợp.
     *   Script vẫn xử lý tải xuống một cách **tuần tự** (từng chương một) đối với các rule phức tạp (dùng `deal`, `iframe`, `popup`) hoặc khi có độ trễ (`delayBetweenChapters`).
