@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.20
+// @version     3.5.447.21
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1161,6 +1161,7 @@ function decryptDES(encrypted, key, iv) {
                     document.body.prepend(container);
 
                     const allChapters = [...chapters, ...vipChapters];
+                    console.log(`✅ Tổng số chương: ${allChapters.length}`);
                     // Sau khi tạo xong container và append vào DOM
                     document.body.prepend(container);
 
@@ -2556,6 +2557,7 @@ function decryptDES(encrypted, key, iv) {
                         onload(res, request) {
                             try {
                                 resolve(res.responseText);
+                                console.log("Lấy nội dung thành công!");
                             } catch (error) {
                                 console.error(error);
                                 resolve('');
@@ -2564,7 +2566,43 @@ function decryptDES(encrypted, key, iv) {
                     }, null, 0, true);
                 });
 
-                return content;
+                // Gọi thêm chapter.url để lấy 作者的話
+                const extra = await new Promise((resolve, reject) => {
+                    xhr.add({
+                        chapter,
+                        url: chapter.url,
+                        responseType: 'document',
+                        onload(res, request) {
+                            try {
+                                const doc = res.response;
+                                const authorBox = doc.querySelector('div.Author_box');
+                                if (authorBox) {
+                                    const h2 = authorBox.querySelector('h2');
+                                    if (h2 && h2.textContent.trim() === '作者的話') {
+                                        const authorSayDiv = authorBox.querySelector('div.author_say');
+                                        if (authorSayDiv) {
+                                            const p = authorSayDiv.querySelector('p');
+                                            if (p) {
+                                                const text = p.textContent.trim();
+                                                if (text) {
+                                                    resolve("\n------------\n作者的話:\n" + text);
+                                                    console.log("Phát hiện tác giả có lời muốn nói!");
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                resolve('');
+                            } catch (error) {
+                                console.error(error);
+                                resolve('');
+                            }
+                        },
+                    }, null, 0, true);
+                });
+
+                return content + extra;
             },
             getChapters: async (doc) => {
                 const urlArr = window.location.href.split('/');
