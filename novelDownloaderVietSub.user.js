@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.22
+// @version     3.5.447.23
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1425,16 +1425,86 @@ function decryptDES(encrypted, key, iv) {
                 const payload = `bookid=${bookId}&h=${sourceType}&c=${chapterId}&ngmar=readc&sajax=readchapter&sty=1&exts=`;
                 const chapterWebUrl = `https://sangtacviet.com/truyen/${sourceType}/1/${bookId}/${chapterId}/`;
                 let retryAttempted = false; // Cờ để chỉ thử lại một lần
+                /// auto captcha review
+                async function autoSolveCaptcha(captchaTab) {
+                    const maxWait = 60 * 1000; // Tổng cộng chờ tối đa 60s
+                    const checkInterval = 1000; // Kiểm tra mỗi 1s
+                    const clickTimeout = 10000; // Sau khi click, nếu chưa xong trong 5s thì reload
+                    const startTime = Date.now();
+                    let clicked = false;
+                    let clickedTime = null;
+
+                    console.log('%cAuto captcha: Bắt đầu theo dõi tab xác minh...', 'color: orange;');
+
+                    while (captchaTab && !captchaTab.closed && (Date.now() - startTime < maxWait)) {
+                        try {
+                            if (captchaTab.document && captchaTab.document.readyState === 'complete') {
+                                const checkbox = captchaTab.document.querySelector('input[type="checkbox"]');
+                                const verifying = captchaTab.document.querySelector('#verifying');
+                                const success = captchaTab.document.querySelector('#success');
+                                const fail = captchaTab.document.querySelector('#fail');
+                                const expired = captchaTab.document.querySelector('#expired');
+                                const timeout = captchaTab.document.querySelector('#timeout');
+                                const challengeError = captchaTab.document.querySelector('#challenge-error');
+
+                                if (success && success.style.display !== 'none') {
+                                    console.log('%cAuto captcha: Xác minh thành công rồi!', 'color: green;');
+                                    return; // Đã xong
+                                }
+
+                                if ((fail && fail.style.display !== 'none') || (expired && expired.style.display !== 'none') || (timeout && timeout.style.display !== 'none') || (challengeError && challengeError.style.display !== 'none')) {
+                                    console.warn('%cAuto captcha: Phát hiện lỗi xác minh, đang reload lại tab...', 'color: red;');
+                                    captchaTab.location.reload();
+                                    clicked = false;
+                                    clickedTime = null;
+                                    await sleep(3000); // đợi reload 3s trước khi kiểm tra tiếp
+                                    continue;
+                                }
+
+                                if (checkbox && !checkbox.checked) {
+                                    if (verifying && verifying.style.display !== 'none') {
+                                        console.log('%cAuto captcha: Đang xác minh, không click.', 'color: blue;');
+                                    } else if (!clicked) {
+                                        checkbox.click();
+                                        clicked = true;
+                                        clickedTime = Date.now();
+                                        console.log('%cAuto captcha: Đã tự click xác minh.', 'color: green;');
+                                    }
+                                }
+
+                                if (clicked && clickedTime && (Date.now() - clickedTime > clickTimeout)) {
+                                    console.warn('%cAuto captcha: Click rồi mà lâu quá chưa xong, reload tab!', 'color: red;');
+                                    captchaTab.location.reload();
+                                    clicked = false;
+                                    clickedTime = null;
+                                    await sleep(3000);
+                                    continue;
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Auto captcha: Không thể truy cập tab (chưa load xong hoặc Cross-Origin?)', e);
+                        }
+
+                        await sleep(checkInterval);
+                    }
+
+                    console.warn('Auto captcha: Hết thời gian chờ, chưa xác minh được.');
+                }
+
                 /// captcha
                 async function waitForCaptchaAndRetry(attemptApiCallFunc, chapterId, chapterWebUrl) {
-                    const maxAttempts = 60; // tối đa thử 30 lần (~120 giây)
-                    const retryDelay = 2000; // mỗi lần cách nhau 1 giây
+                    const maxAttempts = 30; // tối đa thử 30 lần (~45 giây)
+                    const retryDelay = 1500; // mỗi lần cách nhau 1 giây
 
                     console.log(`%cSTV Deal (Chương ${chapterId}): Gặp captcha, mở lại tab và bắt đầu kiểm tra...`, "color: orange;");
                     let captchaTab = null;
                     try {
                         captchaTab = window.open(chapterWebUrl, '_blank');
-                        console.log("Mở link xác nhận captcha: ", chapterWebUrl,)
+
+                        console.log("Mở link xác nhận captcha: ", chapterWebUrl,);
+
+                        autoSolveCaptcha(captchaTab);
+
                     } catch (error) {
                         console.warn(`%cSTV Deal (Chương ${chapterId}): Không thể mở tab, tiếp tục thử lại không cần tab.`, "color: orange;");
                     }
