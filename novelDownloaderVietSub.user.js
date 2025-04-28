@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.30
+// @version     3.5.447.22
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1425,6 +1425,51 @@ function decryptDES(encrypted, key, iv) {
                 const payload = `bookid=${bookId}&h=${sourceType}&c=${chapterId}&ngmar=readc&sajax=readchapter&sty=1&exts=`;
                 const chapterWebUrl = `https://sangtacviet.com/truyen/${sourceType}/1/${bookId}/${chapterId}/`;
                 let retryAttempted = false; // Cờ để chỉ thử lại một lần
+                /// captcha
+                async function waitForCaptchaAndRetry(attemptApiCallFunc, chapterId, chapterWebUrl) {
+                    const maxAttempts = 30; // tối đa thử 30 lần (~30 giây)
+                    const retryDelay = 1000; // mỗi lần cách nhau 1 giây
+
+                    console.log(`%cSTV Deal (Chương ${chapterId}): Gặp captcha, mở lại tab và bắt đầu kiểm tra...`, "color: orange;");
+                    let captchaTab = null;
+                    try {
+                        captchaTab = window.open(chapterWebUrl, '_blank');
+                        console.log("Mở link xác nhận captcha: ", chapterWebUrl,)
+                    } catch (error) {
+                        console.warn(`%cSTV Deal (Chương ${chapterId}): Không thể mở tab, tiếp tục thử lại không cần tab.`, "color: orange;");
+                    }
+
+                    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                        await sleep(retryDelay);
+
+                        try {
+                            const result = await attemptApiCallFunc();
+                            if (result.content) {
+                                console.log(`%cSTV Deal (Chương ${chapterId}): Bypass captcha thành công sau ${attempt} lần thử.`, "color: green;");
+
+                                // Nếu tab còn mở thì đóng
+                                if (captchaTab && !captchaTab.closed) {
+                                    captchaTab.close();
+                                    console.log(`%cSTV Deal (Chương ${chapterId}): Đã tự đóng tab sau khi tải thành công.`, "color: green;");
+                                }
+
+                                return result;
+                            }
+                        } catch (error) {
+                            if (error.message.includes('Vui lòng xác nhận')) {
+                                console.log(`%cSTV Deal (Chương ${chapterId}): Vẫn cần xác nhận... (lần ${attempt}/${maxAttempts})`, "color: orange;");
+                                // tiếp tục thử
+                            } else {
+                                console.error(`%cSTV Deal (Chương ${chapterId}): Gặp lỗi khác khi retry:`, "color: red;", error);
+                                throw error; // lỗi khác -> dừng retry
+                            }
+                        }
+                    }
+
+                    throw new Error("Quá thời gian chờ xác nhận captcha!");
+                }
+
+
 
                 // --- Hàm con để thực hiện gọi API và xử lý nội dung ---
                 async function attemptApiCall() {
@@ -1676,24 +1721,10 @@ function decryptDES(encrypted, key, iv) {
 
                     if (!retryAttempted) {
                         retryAttempted = true; // Đánh dấu đã thử lại
-                        console.log(`%cSTV Deal (Chương ${chapterId}): Mở trang ${chapterWebUrl} và chờ ${delayAfterOpenTab / 1000} giây để thử lại...`, "color: orange;");
-
-                        // Mở tab mới
-                        try {
-                            window.open(chapterWebUrl, '_blank');
-                            // Lưu ý: Không thể đảm bảo tab đã load xong hoàn toàn,
-                            // nhưng việc mở tab có thể giúp trình duyệt cập nhật context (cookie/referer)
-                        } catch (openError) {
-                            console.error(`%cSTV Deal (Chương ${chapterId}): Không thể mở tab mới. Lỗi:`, "color: red;", openError);
-                            // Nếu không mở được tab, việc thử lại có thể vẫn thất bại
-                        }
-
-                        // Chờ
-                        await sleep(delayAfterOpenTab);
-
+                        console.log(`%cSTV Deal (Chương ${chapterId}): Mở trang ${chapterWebUrl} và chờ xác nhận captcha để thử lại...`, "color: orange;");
                         // Thử gọi API lần thứ hai
                         try {
-                            return await attemptApiCall(); // Gọi lại hàm con
+                            return await waitForCaptchaAndRetry(attemptApiCall, chapterId, chapterWebUrl);
                         } catch (retryError) {
                             // Lỗi ngay cả sau khi thử lại
                             console.error(`%cSTV Deal (Chương ${chapterId} Error): Thất bại sau khi thử lại - ${retryError.message}`, "color: red;");
