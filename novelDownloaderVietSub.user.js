@@ -1427,8 +1427,8 @@ function decryptDES(encrypted, key, iv) {
                 let retryAttempted = false; // Cờ để chỉ thử lại một lần
                 /// captcha
                 async function waitForCaptchaAndRetry(attemptApiCallFunc, chapterId, chapterWebUrl) {
-                    const maxAttempts = 30; // tối đa thử 30 lần (~45 giây)
-                    const retryDelay = 1500; // mỗi lần cách nhau 1 giây
+                    const maxAttempts = 60; // tối đa thử 30 lần (~120 giây)
+                    const retryDelay = 2000; // mỗi lần cách nhau 1 giây
 
                     console.log(`%cSTV Deal (Chương ${chapterId}): Gặp captcha, mở lại tab và bắt đầu kiểm tra...`, "color: orange;");
                     let captchaTab = null;
