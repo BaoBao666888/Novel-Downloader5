@@ -1427,8 +1427,8 @@ function decryptDES(encrypted, key, iv) {
                 let retryAttempted = false; // Cờ để chỉ thử lại một lần
                 /// captcha
                 async function waitForCaptchaAndRetry(attemptApiCallFunc, chapterId, chapterWebUrl) {
-                    const maxAttempts = 30; // tối đa thử 30 lần (~30 giây)
-                    const retryDelay = 1000; // mỗi lần cách nhau 1 giây
+                    const maxAttempts = 30; // tối đa thử 30 lần (~45 giây)
+                    const retryDelay = 1500; // mỗi lần cách nhau 1 giây
 
                     console.log(`%cSTV Deal (Chương ${chapterId}): Gặp captcha, mở lại tab và bắt đầu kiểm tra...`, "color: orange;");
                     let captchaTab = null;
@@ -1728,7 +1728,14 @@ function decryptDES(encrypted, key, iv) {
                         } catch (retryError) {
                             // Lỗi ngay cả sau khi thử lại
                             console.error(`%cSTV Deal (Chương ${chapterId} Error): Thất bại sau khi thử lại - ${retryError.message}`, "color: red;");
-                            return { content: "", error: `Lỗi STV sau khi thử lại: ${retryError.message}` };
+                            console.log(`%cSTV Deal (Chương ${chapterId}): Mở trang ${chapterWebUrl} và chờ xác nhận captcha để thử lại...`, "color: orange;");
+                            try {
+                                return await waitForCaptchaAndRetry(attemptApiCall, chapterId, chapterWebUrl);
+                            }
+                            catch (error) {
+                                console.error(`%cSTV Deal (Chương ${chapterId} Error): Thất bại sau khi thử lại - ${retryError.message}`, "color: red;");
+                                return { content: "", error: `Lỗi STV sau khi thử lại: ${retryError.message}` };
+                            }
                         }
                     } else {
                         // Lỗi xảy ra trong lần thử lại (đã retryAttempted = true)
