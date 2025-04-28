@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.24
+// @version     3.5.447.25
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1429,10 +1429,12 @@ function decryptDES(encrypted, key, iv) {
                 async function autoSolveCaptcha(captchaTab) {
                     const maxWait = 60 * 1000; // Tổng cộng chờ tối đa 60s
                     const checkInterval = 1000; // Kiểm tra mỗi 1s
-                    const clickTimeout = 5000; // Sau khi click, nếu chưa xong trong 5s thì reload
+                    const noCaptchaTimeout = 5 * 1000; // Nếu 2s không tìm thấy checkbox thì bỏ qua
+                    const clickTimeout = 5000;
                     const startTime = Date.now();
                     let clicked = false;
                     let clickedTime = null;
+                    let firstNotFound = null;
 
                     console.log('%cAuto captcha: Bắt đầu theo dõi tab xác minh...', 'color: orange;');
 
@@ -1457,18 +1459,28 @@ function decryptDES(encrypted, key, iv) {
                                     captchaTab.location.reload();
                                     clicked = false;
                                     clickedTime = null;
-                                    await sleep(3000); // đợi reload 3s trước khi kiểm tra tiếp
+                                    await sleep(3000);
                                     continue;
                                 }
 
-                                if (checkbox && !checkbox.checked) {
-                                    if (verifying && verifying.style.display !== 'none') {
-                                        console.log('%cAuto captcha: Đang xác minh, không click.', 'color: blue;');
-                                    } else if (!clicked) {
-                                        checkbox.click();
-                                        clicked = true;
-                                        clickedTime = Date.now();
-                                        console.log('%cAuto captcha: Đã tự click xác minh.', 'color: green;');
+                                if (!checkbox) {
+                                    if (!firstNotFound) {
+                                        firstNotFound = Date.now();
+                                    } else if (Date.now() - firstNotFound > noCaptchaTimeout) {
+                                        console.warn('%cAuto captcha: Không tìm thấy ô captcha sau 10s, bỏ qua.', 'color: orange;');
+                                        return;
+                                    }
+                                } else {
+                                    firstNotFound = null; // Reset nếu tìm thấy checkbox
+                                    if (!checkbox.checked) {
+                                        if (verifying && verifying.style.display !== 'none') {
+                                            console.log('%cAuto captcha: Đang xác minh, không click.', 'color: blue;');
+                                        } else if (!clicked) {
+                                            checkbox.click();
+                                            clicked = true;
+                                            clickedTime = Date.now();
+                                            console.log('%cAuto captcha: Đã tự click xác minh.', 'color: green;');
+                                        }
                                     }
                                 }
 
@@ -1490,6 +1502,7 @@ function decryptDES(encrypted, key, iv) {
 
                     console.warn('Auto captcha: Hết thời gian chờ, chưa xác minh được.');
                 }
+
 
                 /// captcha
                 async function waitForCaptchaAndRetry(attemptApiCallFunc, chapterId, chapterWebUrl) {
