@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.23
+// @version     3.5.447.24
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1429,7 +1429,7 @@ function decryptDES(encrypted, key, iv) {
                 async function autoSolveCaptcha(captchaTab) {
                     const maxWait = 60 * 1000; // Tổng cộng chờ tối đa 60s
                     const checkInterval = 1000; // Kiểm tra mỗi 1s
-                    const clickTimeout = 10000; // Sau khi click, nếu chưa xong trong 5s thì reload
+                    const clickTimeout = 5000; // Sau khi click, nếu chưa xong trong 5s thì reload
                     const startTime = Date.now();
                     let clicked = false;
                     let clickedTime = null;
