@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.25
+// @version     3.5.447.26
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1264,6 +1264,53 @@ function decryptDES(encrypted, key, iv) {
             intro: '#book-sumary > span', // Tóm tắt
             cover: '#thumb-prop', // Bìa
 
+            _getBookInfoFromJJWXC: async (novelId) => {
+                const apiUrl = `https://app.jjwxc.net/androidapi/novelbasicinfo?novelId=${novelId}`;
+
+                await new Promise((resolve, reject) => {
+                    GM_xmlhttpRequest({
+                        method: "GET",
+                        url: apiUrl,
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile) Chrome/90.0.0.0 Mobile Safari/537.36'
+                        },
+                        onload: function (res) {
+                            try {
+                                const doc = JSON.parse(res.responseText);
+                                const name = doc.novelName?.trim();
+                                const author = doc.authorName?.trim();
+                                const tags = doc.novelTags?.trim();
+                                let coverRaw = doc.novelCover || '';
+                                coverRaw = coverRaw.replace(/_[0-9]+_[0-9]+(?=\.jpg)/, '');
+                                let intro = doc.novelIntro || '';
+                                intro = intro
+                                    .replace(/&lt;/g, "<")
+                                    .replace(/&gt;/g, ">")
+                                    .replace(/<br\s*\/?>/gi, '\n')
+                                    .replace(/\n{2,}/g, '\n')
+                                    .trim();
+                                Storage.book = Storage.book || {};
+                                Storage.book.title = name || Storage.book.title;
+                                Storage.book.writer = author || Storage.book.writer;
+                                Storage.book.intro = intro || Storage.book.intro;
+                                Storage.book.cover = coverRaw || Storage.book.cover;
+
+
+                                if (name) $('.novel-downloader-v3 input[name="title"]').val(name);
+                                if (author) $('.novel-downloader-v3 input[name="writer"]').val(author);
+                                if (intro) $('.novel-downloader-v3 input[name="intro"]').val(intro);
+                                if (coverRaw) $('.novel-downloader-v3 input[name="cover"]').val(coverRaw);
+
+                                resolve();
+                            } catch (err) {
+                                console.error("Lỗi parse JSON JJWXC novelbasicinfo:", err, res.responseText);
+                                reject(err);
+                            }
+                        },
+                        onerror: reject
+                    });
+                });
+            },
             // *** DÙNG getChapters ĐỂ GỌI API LẤY DANH SÁCH CHƯƠNG ***
             getChapters: async (doc) => {
                 const novelMatch = window.location.pathname.match(/truyen\/([^/]+)\/\d+\/(\d+)\//);
@@ -1273,6 +1320,11 @@ function decryptDES(encrypted, key, iv) {
                 }
                 const sourceId = novelMatch[1];
                 const bookId = novelMatch[2];
+
+                if (sourceId === 'jjwxc') {
+                    await Rule.special.find(r => r.siteName.startsWith('Sáng Tác Việt (API Chapter List)'))._getBookInfoFromJJWXC(bookId);
+                }
+
 
                 const apiUrl = 'https://sangtacviet.com/index.php';
                 const payload = `ngmar=chapterlist&h=${sourceId}&bookid=${bookId}&sajax=getchapterlist`;
@@ -1426,10 +1478,12 @@ function decryptDES(encrypted, key, iv) {
                 const chapterWebUrl = `https://sangtacviet.com/truyen/${sourceType}/1/${bookId}/${chapterId}/`;
                 let retryAttempted = false; // Cờ để chỉ thử lại một lần
                 /// auto captcha review
+                let captchaShouldStop = false;
+
                 async function autoSolveCaptcha(captchaTab) {
-                    const maxWait = 60 * 1000; // Tổng cộng chờ tối đa 60s
-                    const checkInterval = 1000; // Kiểm tra mỗi 1s
-                    const noCaptchaTimeout = 5 * 1000; // Nếu 2s không tìm thấy checkbox thì bỏ qua
+                    const maxWait = 60 * 1000;
+                    const checkInterval = 1000;
+                    const noCaptchaTimeout = 5000;
                     const clickTimeout = 5000;
                     const startTime = Date.now();
                     let clicked = false;
@@ -1438,7 +1492,7 @@ function decryptDES(encrypted, key, iv) {
 
                     console.log('%cAuto captcha: Bắt đầu theo dõi tab xác minh...', 'color: orange;');
 
-                    while (captchaTab && !captchaTab.closed && (Date.now() - startTime < maxWait)) {
+                    while (!captchaShouldStop && captchaTab && !captchaTab.closed && (Date.now() - startTime < maxWait)) {
                         try {
                             if (captchaTab.document && captchaTab.document.readyState === 'complete') {
                                 const checkbox = captchaTab.document.querySelector('input[type="checkbox"]');
@@ -1451,12 +1505,12 @@ function decryptDES(encrypted, key, iv) {
 
                                 if (success && success.style.display !== 'none') {
                                     console.log('%cAuto captcha: Xác minh thành công rồi!', 'color: green;');
-                                    return; // Đã xong
+                                    return;
                                 }
 
                                 if ((fail && fail.style.display !== 'none') || (expired && expired.style.display !== 'none') || (timeout && timeout.style.display !== 'none') || (challengeError && challengeError.style.display !== 'none')) {
                                     console.warn('%cAuto captcha: Phát hiện lỗi xác minh, đang reload lại tab...', 'color: red;');
-                                    captchaTab.location.reload();
+                                    if (!captchaTab.closed) captchaTab.location.reload();
                                     clicked = false;
                                     clickedTime = null;
                                     await sleep(3000);
@@ -1467,11 +1521,11 @@ function decryptDES(encrypted, key, iv) {
                                     if (!firstNotFound) {
                                         firstNotFound = Date.now();
                                     } else if (Date.now() - firstNotFound > noCaptchaTimeout) {
-                                        console.warn('%cAuto captcha: Không tìm thấy ô captcha sau 10s, bỏ qua.', 'color: orange;');
+                                        console.warn('%cAuto captcha: Không tìm thấy captcha (checkbox), có thể không cần xác minh. Dừng auto.', 'color: orange;');
                                         return;
                                     }
                                 } else {
-                                    firstNotFound = null; // Reset nếu tìm thấy checkbox
+                                    firstNotFound = null;
                                     if (!checkbox.checked) {
                                         if (verifying && verifying.style.display !== 'none') {
                                             console.log('%cAuto captcha: Đang xác minh, không click.', 'color: blue;');
@@ -1486,7 +1540,7 @@ function decryptDES(encrypted, key, iv) {
 
                                 if (clicked && clickedTime && (Date.now() - clickedTime > clickTimeout)) {
                                     console.warn('%cAuto captcha: Click rồi mà lâu quá chưa xong, reload tab!', 'color: red;');
-                                    captchaTab.location.reload();
+                                    if (!captchaTab.closed) captchaTab.location.reload();
                                     clicked = false;
                                     clickedTime = null;
                                     await sleep(3000);
@@ -1494,30 +1548,30 @@ function decryptDES(encrypted, key, iv) {
                                 }
                             }
                         } catch (e) {
-                            console.warn('Auto captcha: Không thể truy cập tab (chưa load xong hoặc Cross-Origin?)', e);
+                            console.warn('Auto captcha: Không thể truy cập tab (có thể chưa load xong hoặc bị CORS)', e);
                         }
 
                         await sleep(checkInterval);
                     }
 
-                    console.warn('Auto captcha: Hết thời gian chờ, chưa xác minh được.');
+                    console.warn('Auto captcha: Hết thời gian hoặc bị huỷ, dừng theo dõi captcha.');
                 }
+
 
 
                 /// captcha
                 async function waitForCaptchaAndRetry(attemptApiCallFunc, chapterId, chapterWebUrl) {
-                    const maxAttempts = 30; // tối đa thử 30 lần (~45 giây)
-                    const retryDelay = 1500; // mỗi lần cách nhau 1 giây
+                    const maxAttempts = 30;
+                    const retryDelay = 1500;
+                    captchaShouldStop = false; // reset flag
 
                     console.log(`%cSTV Deal (Chương ${chapterId}): Gặp captcha, mở lại tab và bắt đầu kiểm tra...`, "color: orange;");
                     let captchaTab = null;
+
                     try {
                         captchaTab = window.open(chapterWebUrl, '_blank');
-
-                        console.log("Mở link xác nhận captcha: ", chapterWebUrl,);
-
-                        autoSolveCaptcha(captchaTab);
-
+                        console.log("Mở link xác nhận captcha: ", chapterWebUrl);
+                        autoSolveCaptcha(captchaTab); // chạy song song, sẽ bị dừng khi cần
                     } catch (error) {
                         console.warn(`%cSTV Deal (Chương ${chapterId}): Không thể mở tab, tiếp tục thử lại không cần tab.`, "color: orange;");
                     }
@@ -1530,7 +1584,8 @@ function decryptDES(encrypted, key, iv) {
                             if (result.content) {
                                 console.log(`%cSTV Deal (Chương ${chapterId}): Bypass captcha thành công sau ${attempt} lần thử.`, "color: green;");
 
-                                // Nếu tab còn mở thì đóng
+                                //  Dừng auto click và đóng tab
+                                captchaShouldStop = true;
                                 if (captchaTab && !captchaTab.closed) {
                                     captchaTab.close();
                                     console.log(`%cSTV Deal (Chương ${chapterId}): Đã tự đóng tab sau khi tải thành công.`, "color: green;");
@@ -1541,14 +1596,15 @@ function decryptDES(encrypted, key, iv) {
                         } catch (error) {
                             if (error.message.includes('Vui lòng xác nhận')) {
                                 console.log(`%cSTV Deal (Chương ${chapterId}): Vẫn cần xác nhận... (lần ${attempt}/${maxAttempts})`, "color: orange;");
-                                // tiếp tục thử
                             } else {
                                 console.error(`%cSTV Deal (Chương ${chapterId}): Gặp lỗi khác khi retry:`, "color: red;", error);
-                                throw error; // lỗi khác -> dừng retry
+                                captchaShouldStop = true;
+                                throw error;
                             }
                         }
                     }
 
+                    captchaShouldStop = true;
                     throw new Error("Quá thời gian chờ xác nhận captcha!");
                 }
 
