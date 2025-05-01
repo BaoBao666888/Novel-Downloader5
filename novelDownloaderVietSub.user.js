@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.27
+// @version     3.5.447.28
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1534,7 +1534,8 @@ function decryptDES(encrypted, key, iv) {
 
                                 if (success && success.style.display !== 'none') {
                                     console.log('%cAuto captcha: Xác minh thành công rồi!', 'color: green;');
-                                    return;
+                                    captchaShouldStop = true;
+                                    break;
                                 }
 
                                 if ((fail && fail.style.display !== 'none') || (expired && expired.style.display !== 'none') || (timeout && timeout.style.display !== 'none') || (challengeError && challengeError.style.display !== 'none')) {
@@ -1550,8 +1551,9 @@ function decryptDES(encrypted, key, iv) {
                                     if (!firstNotFound) {
                                         firstNotFound = Date.now();
                                     } else if (Date.now() - firstNotFound > noCaptchaTimeout) {
-                                        console.warn('%cAuto captcha: Không tìm thấy captcha (checkbox), có thể không cần xác minh. Dừng auto.', 'color: orange;');
-                                        return;
+                                        console.warn('%cAuto captcha: Không tìm thấy checkbox, có thể không cần xác minh. Dừng.', 'color: orange;');
+                                        captchaShouldStop = true;
+                                        break;
                                     }
                                 } else {
                                     firstNotFound = null;
@@ -1568,7 +1570,7 @@ function decryptDES(encrypted, key, iv) {
                                 }
 
                                 if (clicked && clickedTime && (Date.now() - clickedTime > clickTimeout)) {
-                                    console.warn('%cAuto captcha: Click rồi mà lâu quá chưa xong, reload tab!', 'color: red;');
+                                    console.warn('%cAuto captcha: Click rồi mà lâu quá chưa xong, reload lại.', 'color: red;');
                                     if (!captchaTab.closed) captchaTab.location.reload();
                                     clicked = false;
                                     clickedTime = null;
@@ -1577,16 +1579,19 @@ function decryptDES(encrypted, key, iv) {
                                 }
                             }
                         } catch (e) {
-                            console.warn('Auto captcha: Không thể truy cập tab (có thể chưa load xong hoặc bị CORS)', e);
+                            console.warn('Auto captcha: Không thể truy cập tab (chưa load xong hoặc CORS)', e);
                         }
 
                         await sleep(checkInterval);
+
+                        if (captchaShouldStop) {
+                            console.log('%cAuto captcha: Đã được yêu cầu dừng, thoát vòng lặp.', 'color: orange;');
+                            break;
+                        }
                     }
 
                     console.warn('Auto captcha: Hết thời gian hoặc bị huỷ, dừng theo dõi captcha.');
                 }
-
-
 
                 /// captcha
                 async function waitForCaptchaAndRetry(attemptApiCallFunc, chapterId, chapterWebUrl) {
@@ -1600,7 +1605,15 @@ function decryptDES(encrypted, key, iv) {
                     try {
                         captchaTab = window.open(chapterWebUrl, '_blank');
                         console.log("Mở link xác nhận captcha: ", chapterWebUrl);
-                        autoSolveCaptcha(captchaTab); // chạy song song, sẽ bị dừng khi cần
+                        autoSolveCaptcha(captchaTab);
+                        const autoCloseInterval = setInterval(() => {
+                            if (captchaShouldStop && captchaTab && !captchaTab.closed) {
+                                captchaTab.close();
+                                clearInterval(autoCloseInterval);
+                                console.log('%cAuto captcha: Đã tự đóng tab sau khi captcha complete.', 'color: green;');
+                            }
+                        }, 1000);
+
                     } catch (error) {
                         console.warn(`%cSTV Deal (Chương ${chapterId}): Không thể mở tab, tiếp tục thử lại không cần tab.`, "color: orange;");
                     }
@@ -1626,9 +1639,7 @@ function decryptDES(encrypted, key, iv) {
                             if (error.message.includes('Vui lòng xác nhận')) {
                                 console.log(`%cSTV Deal (Chương ${chapterId}): Vẫn cần xác nhận... (lần ${attempt}/${maxAttempts})`, "color: orange;");
                             } else {
-                                console.error(`%cSTV Deal (Chương ${chapterId}): Gặp lỗi khác khi retry:`, "color: red;", error);
-                                captchaShouldStop = true;
-                                throw error;
+                                console.warn(`%cSTV Deal (Chương ${chapterId}): Lỗi không phải captcha, vẫn thử lại (lần ${attempt}/${maxAttempts})`, "color: orange;", error);
                             }
                         }
                     }
@@ -1878,39 +1889,18 @@ function decryptDES(encrypted, key, iv) {
                     }
                 }
 
-
-                // === Logic chính của hàm deal ===
                 try {
-                    // Thử gọi API lần đầu
                     return await attemptApiCall();
                 } catch (error) {
-                    // Xử lý lỗi từ lần gọi đầu tiên
-                    console.warn(`%cSTV Deal (Chương ${chapterId}): Lỗi lần đầu - ${error.message}`, "color: orange;");
-
                     if (!retryAttempted) {
-                        retryAttempted = true; // Đánh dấu đã thử lại
-                        console.log(`%cSTV Deal (Chương ${chapterId}): Mở trang ${chapterWebUrl} và chờ xác nhận captcha để thử lại...`, "color: orange;");
-                        // Thử gọi API lần thứ hai
-                        try {
-                            return await waitForCaptchaAndRetry(attemptApiCall, chapterId, chapterWebUrl);
-                        } catch (retryError) {
-                            // Lỗi ngay cả sau khi thử lại
-                            console.error(`%cSTV Deal (Chương ${chapterId} Error): Thất bại sau khi thử lại - ${retryError.message}`, "color: red;");
-                            console.log(`%cSTV Deal (Chương ${chapterId}): Mở trang ${chapterWebUrl} và chờ xác nhận captcha để thử lại...`, "color: orange;");
-                            try {
-                                return await waitForCaptchaAndRetry(attemptApiCall, chapterId, chapterWebUrl);
-                            }
-                            catch (error) {
-                                console.error(`%cSTV Deal (Chương ${chapterId} Error): Thất bại sau khi thử lại - ${retryError.message}`, "color: red;");
-                                return { content: "", error: `Lỗi STV sau khi thử lại: ${retryError.message}` };
-                            }
-                        }
+                        retryAttempted = true;
+                        return await waitForCaptchaAndRetry(attemptApiCall, chapterId, chapterWebUrl);
                     } else {
-                        // Lỗi xảy ra trong lần thử lại (đã retryAttempted = true)
-                        console.error(`%cSTV Deal (Chương ${chapterId} Error): Lỗi trong lần thử lại - ${error.message}`, "color: red;");
-                        return { content: "", error: `Lỗi STV trong lần thử lại: ${error.message}` };
+                        console.error(`STV Deal (Chương ${chapterId} Error): Đã thử lại nhưng vẫn thất bại`);
+                        return { content: "", error: `Lỗi STV sau khi thử lại: ${error.message}` };
                     }
                 }
+
             },
             // Không cần content và elementRemove vì deal trả về raw HTML để xử lý sau
             // content: ...,
