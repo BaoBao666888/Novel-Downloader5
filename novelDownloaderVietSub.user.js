@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.26
+// @version     3.5.447.27
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1280,8 +1280,35 @@ function decryptDES(encrypted, key, iv) {
                                 const name = doc.novelName?.trim();
                                 const author = doc.authorName?.trim();
                                 const tags = doc.novelTags?.trim();
-                                let coverRaw = doc.novelCover || '';
-                                coverRaw = coverRaw.replace(/_[0-9]+_[0-9]+(?=\.jpg)/, '');
+                                // Hàm kiểm tra URL có trả về ảnh không
+                                function checkImageUrlValid(url) {
+                                    return new Promise((resolve) => {
+                                        GM_xmlhttpRequest({
+                                            method: 'HEAD',
+                                            url: url,
+                                            onload: (res) => {
+                                                const contentType = res.responseHeaders.match(/content-type:\s*([^\r\n]+)/i)?.[1] || '';
+                                                resolve(res.status === 200 && contentType.startsWith('image/'));
+                                            },
+                                            onerror: () => resolve(false),
+                                            ontimeout: () => resolve(false)
+                                        });
+                                    });
+                                }
+
+                                // Xử lý ảnh cover
+                                async function processCover(novelCover) {
+                                    if (!novelCover) return '';
+
+                                    const coverRaw = novelCover;
+                                    const modifiedCover = coverRaw
+                                    .replace(/_[0-9]+_[0-9]+(?=\.jpg)/, '')
+                                    .replace(/\.jpg.*/i, '.jpg');
+
+                                    const isValid = await checkImageUrlValid(modifiedCover);
+                                    return isValid ? modifiedCover : coverRaw;
+                                }
+
                                 let intro = doc.novelIntro || '';
                                 intro = intro
                                     .replace(/&lt;/g, "<")
@@ -1289,17 +1316,19 @@ function decryptDES(encrypted, key, iv) {
                                     .replace(/<br\s*\/?>/gi, '\n')
                                     .replace(/\n{2,}/g, '\n')
                                     .trim();
+
                                 Storage.book = Storage.book || {};
                                 Storage.book.title = name || Storage.book.title;
                                 Storage.book.writer = author || Storage.book.writer;
                                 Storage.book.intro = intro || Storage.book.intro;
-                                Storage.book.cover = coverRaw || Storage.book.cover;
-
+                                processCover(doc.novelCover).then((cover) => {
+                                    Storage.book.cover = cover;
+                                    $('.novel-downloader-v3 input[name="cover"]').val(cover);
+                                });
 
                                 if (name) $('.novel-downloader-v3 input[name="title"]').val(name);
                                 if (author) $('.novel-downloader-v3 input[name="writer"]').val(author);
                                 if (intro) $('.novel-downloader-v3 input[name="intro"]').val(intro);
-                                if (coverRaw) $('.novel-downloader-v3 input[name="cover"]').val(coverRaw);
 
                                 resolve();
                             } catch (err) {
@@ -1386,7 +1415,7 @@ function decryptDES(encrypted, key, iv) {
                                     console.log(`%cSTV getChapters: Bỏ chương [${currentMatch[1]}] hiện tại, giữ chương sau`, "color: orange;");
                                     shouldSkip = true;
 
-                                    // ❗ Tô màu nhưng không thêm vào danh sách chương
+                                    // Tô màu nhưng không thêm vào danh sách chương
                                     if (correspondingLink.length > 0) {
                                         correspondingLink.css('background-color', '#fce4ec'); // hoặc màu gì đó nổi bật
                                         correspondingLink.attr('data-note', 'bỏ do trùng số [n]');
