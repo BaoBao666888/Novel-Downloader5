@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.28
+// @version     3.5.447.29
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1513,7 +1513,7 @@ function decryptDES(encrypted, key, iv) {
                     const maxWait = 60 * 1000;
                     const checkInterval = 1000;
                     const noCaptchaTimeout = 5000;
-                    const clickTimeout = 5000;
+                    const clickTimeout = 8000;
                     const startTime = Date.now();
                     let clicked = false;
                     let clickedTime = null;
@@ -1597,7 +1597,7 @@ function decryptDES(encrypted, key, iv) {
                 async function waitForCaptchaAndRetry(attemptApiCallFunc, chapterId, chapterWebUrl) {
                     const maxAttempts = 30;
                     const retryDelay = 1500;
-                    captchaShouldStop = false; // reset flag
+                    captchaShouldStop = false;
 
                     console.log(`%cSTV Deal (Chương ${chapterId}): Gặp captcha, mở lại tab và bắt đầu kiểm tra...`, "color: orange;");
                     let captchaTab = null;
@@ -1606,45 +1606,58 @@ function decryptDES(encrypted, key, iv) {
                         captchaTab = window.open(chapterWebUrl, '_blank');
                         console.log("Mở link xác nhận captcha: ", chapterWebUrl);
                         autoSolveCaptcha(captchaTab);
+
+                        // Theo dõi trạng thái để đóng tab khi captcha xong
                         const autoCloseInterval = setInterval(() => {
                             if (captchaShouldStop && captchaTab && !captchaTab.closed) {
                                 captchaTab.close();
                                 clearInterval(autoCloseInterval);
-                                console.log('%cAuto captcha: Đã tự đóng tab sau khi captcha complete.', 'color: green;');
+                                console.log(`%cAuto captcha: Đã tự đóng tab sau khi captcha complete.`, "color: green;");
                             }
                         }, 1000);
-
                     } catch (error) {
                         console.warn(`%cSTV Deal (Chương ${chapterId}): Không thể mở tab, tiếp tục thử lại không cần tab.`, "color: orange;");
                     }
 
                     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                        console.log(`🌀 STV Deal (Chương ${chapterId}): Thử lại API lần ${attempt}/${maxAttempts}`);
                         await sleep(retryDelay);
 
                         try {
                             const result = await attemptApiCallFunc();
+
                             if (result.content) {
                                 console.log(`%cSTV Deal (Chương ${chapterId}): Bypass captcha thành công sau ${attempt} lần thử.`, "color: green;");
-
-                                //  Dừng auto click và đóng tab
                                 captchaShouldStop = true;
+
                                 if (captchaTab && !captchaTab.closed) {
                                     captchaTab.close();
                                     console.log(`%cSTV Deal (Chương ${chapterId}): Đã tự đóng tab sau khi tải thành công.`, "color: green;");
                                 }
 
                                 return result;
+                            } else {
+                                console.log(`%cSTV Deal (Chương ${chapterId}): API trả về nhưng chưa có nội dung.`, "color: orange;");
                             }
                         } catch (error) {
-                            if (error.message.includes('Vui lòng xác nhận')) {
-                                console.log(`%cSTV Deal (Chương ${chapterId}): Vẫn cần xác nhận... (lần ${attempt}/${maxAttempts})`, "color: orange;");
+                            console.warn(`❗ STV Deal (Chương ${chapterId}): Lỗi lần ${attempt}: ${error.message}`);
+
+                            // Cho phép tiếp tục retry nếu là lỗi liên quan đến captcha/code 7
+                            if (
+                                error.message.includes('Vui lòng xác nhận') ||
+                                error.message.includes('Code: 7') ||
+                                error.message.includes('STV Code: 7')
+                            ) {
+                                console.log(`%cSTV Deal (Chương ${chapterId}): Vẫn cần xác nhận, tiếp tục thử...`, "color: orange;");
                             } else {
-                                console.warn(`%cSTV Deal (Chương ${chapterId}): Lỗi không phải captcha, vẫn thử lại (lần ${attempt}/${maxAttempts})`, "color: orange;", error);
+                                console.warn(`%cSTV Deal (Chương ${chapterId}): Gặp lỗi không xác định, vẫn thử tiếp.`, "color: orange;", error);
+                                // Không throw nữa, vẫn tiếp tục retry
                             }
                         }
                     }
 
                     captchaShouldStop = true;
+                    console.error(`%cSTV Deal (Chương ${chapterId}): Quá thời gian xác nhận captcha sau ${maxAttempts} lần.`, "color: red;");
                     throw new Error("Quá thời gian chờ xác nhận captcha!");
                 }
 
