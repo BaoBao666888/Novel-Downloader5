@@ -141,7 +141,7 @@
     }
   
     // Gán vào unsafeWindow để rule sử dụng được
-    unsafeWindow.FqCrypto = FqCrypto;
-    unsafeWindow.FqClient = FqClient;
+    window.FqCrypto = FqCrypto;
+    window.FqClient = FqClient;
   })();
   
