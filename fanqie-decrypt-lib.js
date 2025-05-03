@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         fanqie-decrypt-lib
 // @namespace    tampermonkey-download
-// @version      1.0
+// @version      1.1
 // @description  Hỗ trợ giải mã nội dung từ fanqienovel
 // ==/UserScript==
-
-/* global xhr, unsafeWindow */
+/* eslint-env browser, es2020 */
 
 (function () {
   'use strict';
