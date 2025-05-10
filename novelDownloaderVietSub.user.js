@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.29
+// @version     3.5.447.30
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1042,67 +1042,165 @@ function decryptDES(encrypted, key, iv) {
             deal: async (chapter) => {
                 const chapIdMatch = chapter.url.match(/\/reader\/(\d+)/);
                 if (!chapIdMatch) {
-                    console.error(`Fanqie Deal (API Ngoài) Error: Không thể lấy chapterId từ URL: ${chapter.url}`);
+                    console.error(`Fanqie Deal Error: Không thể lấy chapterId từ URL: ${chapter.url}`);
                     return { title: chapter.title + " (Lỗi URL)", content: "<p><strong>Lỗi khi tải chương:</strong> URL chương không hợp lệ.</p>" };
                 }
+
                 const chapId = chapIdMatch[1];
                 let externalApiHost = unsafeWindow.tokenOptions?.Fanqie;
-                // const externalApiHost = "http://rehaofan.jingluo.love";
-                if (!externalApiHost ) {
-                    externalApiHost = "http://rehaofan.jingluo.love";
-                }
                 const externalApiUrl = `${externalApiHost}/content?item_id=${chapId}`;
 
-                console.log(`%cFanqie Deal (API): Đang lấy nội dung chương ${chapId} từ: ${externalApiUrl}`, "color: purple;");
                 try {
                     const res = await xhr.sync(externalApiUrl, null, {
                         method: 'GET',
-                        headers: {
-                            // Không cần cookie hay user-agent đặc biệt khi gọi API này (theo code mẫu)
-                        },
-                        responseType: 'json' // Yêu cầu userscript parse JSON
+                        responseType: 'json'
                     });
 
-                    // Kiểm tra cấu trúc JSON trả về từ API ngoài
-                    if (res.response && res.response.data && res.response.data.content) {
-                        const content = res.response.data.content;
-                        // API ngoài có thể trả về title hoặc không, nếu không thì dùng title gốc
-                        const title = res.response.data.title || chapter.title;
-                        console.log(`%cFanqie Deal (API): Lấy nội dung thành công cho chương ${chapId}.`, "color: green;");
-
-                        // Nội dung từ API này có vẻ đã được giải mã và có thể chứa thẻ <p> hoặc <br>
-                        // Giữ nguyên nội dung HTML này để hàm downloadTo xử lý tiếp
-                        return { title: title, content: content };
-
-                    } else if (res.response && res.response.data && res.response.data.data.content) {
-                        const content = res.response.data.data.content;
-                        // API ngoài có thể trả về title hoặc không, nếu không thì dùng title gốc
-                        const title = res.response.data.data.title || chapter.title;
-                        console.log(`%cFanqie Deal (API Riêng): Lấy nội dung thành công cho chương ${chapId}.`, "color: green;");
-
-                        // Nội dung từ API này có vẻ đã được giải mã và có thể chứa thẻ <p> hoặc <br>
-                        // Giữ nguyên nội dung HTML này để hàm downloadTo xử lý tiếp
-                        return { title: title, content: content };
+                    const data = res.response?.data || res.response?.data?.data;
+                    if (data?.content) {
+                        const title = data.title || chapter.title;
+                        return { title, content: data.content };
                     } else {
-                        // Xử lý lỗi nếu API ngoài không trả về đúng cấu trúc
-                        console.error(`%cFanqie Deal (API Ngoài) Error: API ngoài không trả về nội dung hợp lệ cho chương ${chapId}.`, "color: red;", res.response);
-                        let errorMsg = "Không nhận được nội dung hợp lệ từ API bên ngoài.";
-                        if (res.response && typeof res.response === 'object') { // Nếu API trả về JSON lỗi
-                            errorMsg += ` (Data: ${JSON.stringify(res.response)})`;
-                        } else if (res.responseText) { // Nếu API trả về text lỗi
-                            errorMsg += ` (Response: ${res.responseText.substring(0, 100)}...)`;
-                        }
-                        return "";
+                        throw new Error("API ngoài không trả về content.");
                     }
-                } catch (error) {
-                    // Xử lý lỗi mạng hoặc lỗi khác khi gọi API ngoài
-                    console.error(`%cFanqie Deal (API Ngoài) Error: Lỗi khi gọi API ngoài cho chương ${chapId}:`, "color: red;", error);
-                    let errorMsg = "Lỗi mạng hoặc không thể kết nối tới API bên ngoài.";
-                    if (error.status) errorMsg = `Lỗi HTTP ${error.status} khi gọi API bên ngoài.`;
-                    else if (error.message) errorMsg = error.message;
-                    return "";
+                } catch (e) {
+                    console.warn(`Fanqie Deal API ngoài lỗi, thử giải mã nội bộ...`);
+
+                    const REG_KEY = "ac25c67ddd8f38c1b37a2348828e222e";
+                    const INSTALL_ID = "4427064614339001";
+                    const SERVER_DEVICE_ID = "4427064614334905";
+                    const AID = "1967";
+                    const VERSION_CODE = "62532";
+
+                    // === Helper AES & Decrypt ===
+                    function hexToBytes(hex) {
+                        const bytes = [];
+                        for (let i = 0; i < hex.length; i += 2) {
+                            bytes.push(parseInt(hex.substr(i, 2), 16));
+                        }
+                        return new Uint8Array(bytes);
+                    }
+
+                    function pkcs7Unpad(data) {
+                        const padding = data[data.length - 1];
+                        if (padding > 16) return data;
+                        for (let i = data.length - padding; i < data.length; i++) {
+                            if (data[i] !== padding) return data;
+                        }
+                        return data.slice(0, data.length - padding);
+                    }
+
+                    async function decryptContent(content, keyHex) {
+                        const decoded = Uint8Array.from(atob(content), c => c.charCodeAt(0));
+                        const iv = decoded.slice(0, 16);
+                        const ct = decoded.slice(16);
+                        const key = await crypto.subtle.importKey(
+                            'raw',
+                            hexToBytes(keyHex),
+                            { name: 'AES-CBC' },
+                            false,
+                            ['decrypt']
+                        );
+                        const decrypted = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, key, ct);
+                        return pkcs7Unpad(new Uint8Array(decrypted));
+                    }
+
+                    async function gunzip(data) {
+                        const ds = new DecompressionStream('gzip');
+                        const writer = ds.writable.getWriter();
+                        writer.write(data);
+                        writer.close();
+                        const output = await new Response(ds.readable).arrayBuffer();
+                        return new Uint8Array(output);
+                    }
+
+                    async function generateRegisterContent(deviceId, keyHex) {
+                        const key = hexToBytes(keyHex);
+                        const deviceIdBytes = new Uint8Array(8);
+                        const deviceIdNum = BigInt(deviceId);
+                        for (let i = 0; i < 8; i++) {
+                            deviceIdBytes[i] = Number((deviceIdNum >> BigInt(i * 8)) & BigInt(0xFF));
+                        }
+                        const valBytes = new Uint8Array(8);
+                        const iv = crypto.getRandomValues(new Uint8Array(16));
+                        const content = new Uint8Array([...deviceIdBytes, ...valBytes]);
+
+                        const cryptoKey = await crypto.subtle.importKey(
+                            'raw',
+                            key,
+                            { name: 'AES-CBC' },
+                            false,
+                            ['encrypt']
+                        );
+                        const encrypted = await crypto.subtle.encrypt({ name: 'AES-CBC', iv }, cryptoKey, content);
+
+                        const result = new Uint8Array([...iv, ...new Uint8Array(encrypted)]);
+                        return btoa(String.fromCharCode(...result));
+                    }
+
+                    async function getDecryptionKey() {
+                        const content = await generateRegisterContent(SERVER_DEVICE_ID, REG_KEY);
+                        const result = await xhr.sync("https://api5-normal-sinfonlineb.fqnovel.com/reading/crypt/registerkey?aid=" + AID, {
+                            method: 'POST',
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Cookie": `install_id=${INSTALL_ID}`,
+                                "User-Agent": "okhttp/4.9.3"
+                            },
+                            responseType: 'json'
+                        }, JSON.stringify({ content, keyver: 1 }));
+
+                        const encryptedKey = Uint8Array.from(atob(result.response.data.key), c => c.charCodeAt(0));
+                        const keyRaw = await crypto.subtle.importKey(
+                            'raw',
+                            hexToBytes(REG_KEY),
+                            { name: 'AES-CBC' },
+                            false,
+                            ['decrypt']
+                        );
+                        const decryptedKey = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: encryptedKey.slice(0, 16) }, keyRaw, encryptedKey.slice(16));
+                        return [...new Uint8Array(decryptedKey)].map(b => b.toString(16).padStart(2, '0')).join('');
+                    }
+
+                    async function getChapterContent(chapId) {
+                        const url = `https://api5-normal-sinfonlineb.fqnovel.com/reading/reader/batch_full/v?item_ids=${chapId}&req_type=1&aid=${AID}&update_version_code=${VERSION_CODE}`;
+                        const res = await xhr.sync(url, null, {
+                            method: 'GET',
+                            headers: {
+                                "Cookie": `install_id=${INSTALL_ID}`,
+                                "User-Agent": "okhttp/4.9.3"
+                            },
+                            responseType: 'json'
+                        });
+                        return res.response.data?.[chapId]?.content;
+                    }
+
+                    function processContent(raw) {
+                        return raw
+                            .replace(/<[^>]+>/g, '')
+                            .replace(/&nbsp;/g, ' ')
+                            .split('\n')
+                            .map(line => '　　' + line.trim())
+                            .join('\n');
+                    }
+
+                    try {
+                        const key = await getDecryptionKey();
+                        const encContent = await getChapterContent(chapId);
+                        const decrypted = await decryptContent(encContent, key);
+                        const ungzipped = await gunzip(decrypted);
+                        const decoded = new TextDecoder().decode(ungzipped);
+                        return { title: chapter.title, content: `<p>${processContent(decoded).replace(/\n/g, '</p><p>')}</p>` };
+                    } catch (innerErr) {
+                        console.error('Fanqie fallback decrypt error:', innerErr);
+                        return {
+                            title: chapter.title + " (Lỗi nội bộ)",
+                            content: "<p><strong>Lỗi khi tải chương:</strong> Không thể giải mã nội dung.</p>"
+                        };
+                    }
                 }
             },
+
             // -------------------------------------------------
 
             // Giữ thread thấp để tránh làm quá tải API ngoài hoặc bị chặn
@@ -1509,159 +1607,53 @@ function decryptDES(encrypted, key, iv) {
                 /// auto captcha review
                 let captchaShouldStop = false;
 
-                async function autoSolveCaptcha(captchaTab) {
-                    const maxWait = 60 * 1000;
-                    const checkInterval = 1000;
-                    const noCaptchaTimeout = 5000;
-                    const clickTimeout = 8000;
-                    const startTime = Date.now();
-                    let clicked = false;
-                    let clickedTime = null;
-                    let firstNotFound = null;
-
-                    console.log('%cAuto captcha: Bắt đầu theo dõi tab xác minh...', 'color: orange;');
-
-                    while (!captchaShouldStop && captchaTab && !captchaTab.closed && (Date.now() - startTime < maxWait)) {
-                        try {
-                            if (captchaTab.document && captchaTab.document.readyState === 'complete') {
-                                const checkbox = captchaTab.document.querySelector('input[type="checkbox"]');
-                                const verifying = captchaTab.document.querySelector('#verifying');
-                                const success = captchaTab.document.querySelector('#success');
-                                const fail = captchaTab.document.querySelector('#fail');
-                                const expired = captchaTab.document.querySelector('#expired');
-                                const timeout = captchaTab.document.querySelector('#timeout');
-                                const challengeError = captchaTab.document.querySelector('#challenge-error');
-
-                                if (success && success.style.display !== 'none') {
-                                    console.log('%cAuto captcha: Xác minh thành công rồi!', 'color: green;');
-                                    captchaShouldStop = true;
-                                    break;
-                                }
-
-                                if ((fail && fail.style.display !== 'none') || (expired && expired.style.display !== 'none') || (timeout && timeout.style.display !== 'none') || (challengeError && challengeError.style.display !== 'none')) {
-                                    console.warn('%cAuto captcha: Phát hiện lỗi xác minh, đang reload lại tab...', 'color: red;');
-                                    if (!captchaTab.closed) captchaTab.location.reload();
-                                    clicked = false;
-                                    clickedTime = null;
-                                    await sleep(3000);
-                                    continue;
-                                }
-
-                                if (!checkbox) {
-                                    if (!firstNotFound) {
-                                        firstNotFound = Date.now();
-                                    } else if (Date.now() - firstNotFound > noCaptchaTimeout) {
-                                        console.warn('%cAuto captcha: Không tìm thấy checkbox, có thể không cần xác minh. Dừng.', 'color: orange;');
-                                        captchaShouldStop = true;
-                                        break;
-                                    }
-                                } else {
-                                    firstNotFound = null;
-                                    if (!checkbox.checked) {
-                                        if (verifying && verifying.style.display !== 'none') {
-                                            console.log('%cAuto captcha: Đang xác minh, không click.', 'color: blue;');
-                                        } else if (!clicked) {
-                                            checkbox.click();
-                                            clicked = true;
-                                            clickedTime = Date.now();
-                                            console.log('%cAuto captcha: Đã tự click xác minh.', 'color: green;');
-                                        }
-                                    }
-                                }
-
-                                if (clicked && clickedTime && (Date.now() - clickedTime > clickTimeout)) {
-                                    console.warn('%cAuto captcha: Click rồi mà lâu quá chưa xong, reload lại.', 'color: red;');
-                                    if (!captchaTab.closed) captchaTab.location.reload();
-                                    clicked = false;
-                                    clickedTime = null;
-                                    await sleep(3000);
-                                    continue;
-                                }
-                            }
-                        } catch (e) {
-                            console.warn('Auto captcha: Không thể truy cập tab (chưa load xong hoặc CORS)', e);
-                        }
-
-                        await sleep(checkInterval);
-
-                        if (captchaShouldStop) {
-                            console.log('%cAuto captcha: Đã được yêu cầu dừng, thoát vòng lặp.', 'color: orange;');
-                            break;
-                        }
+                async function forceReloadTab(captchaTab) {
+                    if (captchaTab && !captchaTab.closed) {
+                        console.warn('[Auto Captcha] Đang reload tab xác minh...');
+                        captchaTab.location.reload();
                     }
-
-                    console.warn('Auto captcha: Hết thời gian hoặc bị huỷ, dừng theo dõi captcha.');
                 }
-
                 /// captcha
                 async function waitForCaptchaAndRetry(attemptApiCallFunc, chapterId, chapterWebUrl) {
-                    const maxAttempts = 30;
-                    const retryDelay = 1500;
+                    const retryDelay = 5000;
+                    const maxAttempts = 6;
                     captchaShouldStop = false;
 
-                    console.log(`%cSTV Deal (Chương ${chapterId}): Gặp captcha, mở lại tab và bắt đầu kiểm tra...`, "color: orange;");
-                    let captchaTab = null;
-
-                    try {
-                        captchaTab = window.open(chapterWebUrl, '_blank');
-                        console.log("Mở link xác nhận captcha: ", chapterWebUrl);
-                        autoSolveCaptcha(captchaTab);
-
-                        // Theo dõi trạng thái để đóng tab khi captcha xong
-                        const autoCloseInterval = setInterval(() => {
-                            if (captchaShouldStop && captchaTab && !captchaTab.closed) {
-                                captchaTab.close();
-                                clearInterval(autoCloseInterval);
-                                console.log(`%cAuto captcha: Đã tự đóng tab sau khi captcha complete.`, "color: green;");
-                            }
-                        }, 1000);
-                    } catch (error) {
-                        console.warn(`%cSTV Deal (Chương ${chapterId}): Không thể mở tab, tiếp tục thử lại không cần tab.`, "color: orange;");
-                    }
+                    console.log(`%cSTV Deal (Chương ${chapterId}): Mở tab captcha mini...`, "color: orange;");
+                    let captchaTab = window.open(
+                        chapterWebUrl,
+                        '_blank',
+                        'width=400,height=600,left=200,top=150,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+                    );
 
                     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-                        console.log(`🌀 STV Deal (Chương ${chapterId}): Thử lại API lần ${attempt}/${maxAttempts}`);
+                        console.log(`🌀 Thử lại API lần ${attempt}/${maxAttempts}`);
                         await sleep(retryDelay);
 
                         try {
                             const result = await attemptApiCallFunc();
-
                             if (result.content) {
-                                console.log(`%cSTV Deal (Chương ${chapterId}): Bypass captcha thành công sau ${attempt} lần thử.`, "color: green;");
+                                console.log(`✅ Captcha OK! Đã lấy được nội dung chương.`);
                                 captchaShouldStop = true;
-
-                                if (captchaTab && !captchaTab.closed) {
-                                    captchaTab.close();
-                                    console.log(`%cSTV Deal (Chương ${chapterId}): Đã tự đóng tab sau khi tải thành công.`, "color: green;");
-                                }
-
+                                if (captchaTab && !captchaTab.closed) captchaTab.close();
                                 return result;
-                            } else {
-                                console.log(`%cSTV Deal (Chương ${chapterId}): API trả về nhưng chưa có nội dung.`, "color: orange;");
                             }
                         } catch (error) {
-                            console.warn(`❗ STV Deal (Chương ${chapterId}): Lỗi lần ${attempt}: ${error.message}`);
-
-                            // Cho phép tiếp tục retry nếu là lỗi liên quan đến captcha/code 7
-                            if (
-                                error.message.includes('Vui lòng xác nhận') ||
-                                error.message.includes('Code: 7') ||
-                                error.message.includes('STV Code: 7')
-                            ) {
-                                console.log(`%cSTV Deal (Chương ${chapterId}): Vẫn cần xác nhận, tiếp tục thử...`, "color: orange;");
-                            } else {
-                                console.warn(`%cSTV Deal (Chương ${chapterId}): Gặp lỗi không xác định, vẫn thử tiếp.`, "color: orange;", error);
-                                // Không throw nữa, vẫn tiếp tục retry
+                            console.warn(`❌ API fail lần ${attempt}: ${error.message}`);
+                            if (error.message.includes('xác nhận')) {
+                                // 👉 Nếu đến lần 2 mà vẫn chưa xong, thử reload tab
+                                if (attempt === 2 && captchaTab && !captchaTab.closed) {
+                                    console.warn(`🌀 Reload lại tab captcha...`);
+                                    captchaTab.location.reload();
+                                }
                             }
                         }
                     }
 
                     captchaShouldStop = true;
-                    console.error(`%cSTV Deal (Chương ${chapterId}): Quá thời gian xác nhận captcha sau ${maxAttempts} lần.`, "color: red;");
+                    if (captchaTab && !captchaTab.closed) captchaTab.close();
                     throw new Error("Quá thời gian chờ xác nhận captcha!");
                 }
-
-
 
                 // --- Hàm con để thực hiện gọi API và xử lý nội dung ---
                 async function attemptApiCall() {
