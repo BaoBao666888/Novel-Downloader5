@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.30
+// @version     3.5.447.31
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -972,238 +972,205 @@ function decryptDES(encrypted, key, iv) {
             },
         },
         { // https://fanqienovel.com/
-            siteName: '番茄小说 (Fanqie)',
-            url: '://fanqienovel.com/page/\\d+', // Trang mục lục
-            chapterUrl: '://fanqienovel.com/reader/\\d+', // Trang đọc truyện
-            // Lọc để xác định trang index hay chapter
+            siteName: '番茄小说 (Fanqie)', // ID duy nhất để tìm rule này
+            url: '://fanqienovel.com/page/\\d+',
+            chapterUrl: '://fanqienovel.com/reader/\\d+',
             filter: () => {
-                if (window.location.pathname.startsWith('/page/')) return 1; // Trang mục lục
-                if (window.location.pathname.startsWith('/reader/')) return 2; // Trang đọc truyện
-                return 0; // Không khớp
+                if (window.location.pathname.startsWith('/page/')) return 1;
+                if (window.location.pathname.startsWith('/reader/')) return 2;
+                return 0;
             },
 
-            // --- Lấy thông tin sách từ API ---
-            // Hàm trợ giúp để gọi API thông tin sách một lần
-            _getFanqieApiData: async () => {
-                // Kiểm tra xem đã lấy dữ liệu chưa
-                if (Storage.book.fanqieApiData) return Storage.book.fanqieApiData;
+            _internalGetFanqieApiData: async function(ruleObject) {
+                const cacheKey = '_cachedFanqieBookApiData';
+                if (ruleObject[cacheKey]) return ruleObject[cacheKey];
 
                 const bookIdMatch = window.location.pathname.match(/\/(?:page|reader)\/(\d+)/);
-                if (!bookIdMatch) {
-                    console.error("Fanqie Rule: Không thể lấy bookId từ URL.");
-                    return null;
-                }
+                if (!bookIdMatch) { console.error("Fanqie Rule: Không thể lấy bookId."); return null; }
                 const bookId = bookIdMatch[1];
                 const apiUrl = `https://api5-normal-sinfonlineb.fqnovel.com/reading/bookapi/multi-detail/v/?aid=2329&iid=1&version_code=999&book_id=${bookId}`;
 
                 try {
-                    console.log(`Fanqie Rule: Đang lấy thông tin sách từ API: ${apiUrl}`);
                     const res = await xhr.sync(apiUrl, null, { method: 'GET', responseType: 'json' });
-                    if (res.response && res.response.data && res.response.data.length > 0) {
-                        console.log("Fanqie Rule: Lấy thông tin sách thành công.");
-                        Storage.book.fanqieApiData = res.response.data[0]; // Lưu dữ liệu vào Storage để tái sử dụng
-                        return Storage.book.fanqieApiData;
-                    } else {
-                        console.error("Fanqie Rule: API thông tin sách không trả về dữ liệu hợp lệ.", res.response);
-                        return null;
+                    if (res.response?.data?.[0]) {
+                        ruleObject[cacheKey] = res.response.data[0]; // Cache vào đối tượng rule
+                        return ruleObject[cacheKey];
                     }
-                } catch (error) {
-                    console.error("Fanqie Rule: Lỗi khi gọi API thông tin sách:", error);
-                    return null;
-                }
+                    console.error("Fanqie Rule: API sách không trả về dữ liệu.", res.response);
+                } catch (error) { console.error("Fanqie Rule: Lỗi API sách:", error); }
+                return null;
             },
-            // Sử dụng dữ liệu đã lấy từ API
+
+            // --- Hàm trợ giúp nội bộ để lấy API fallback từ server ---
+            _internalFetchFanqieFallbackApis: async function(ruleObject) {
+                const configCacheKey = '_cachedFanqieFallbackApiConfig';
+                const apisCacheKey = '_cachedFanqieFallbackApis';
+                const promiseCacheKey = '_fetchingFanqieFallbackApisPromise';
+
+                // Tạo đối tượng config nếu chưa có trên ruleObject
+                if (!ruleObject[configCacheKey]) {
+                    ruleObject[configCacheKey] = {
+                        server_url: "http://74.113.96.176:5001/api/sources", // << THAY BẰNG URL SERVER
+                        auth_token: "wcnmd91jb", // << THAY BẰNG AUTH TOKEN
+                    };
+                }
+                const config = ruleObject[configCacheKey];
+
+                if (ruleObject[apisCacheKey]) return ruleObject[apisCacheKey];
+                if (ruleObject[promiseCacheKey]) return ruleObject[promiseCacheKey];
+
+                ruleObject[promiseCacheKey] = (async () => {
+                    try {
+                        const headers = {
+                            "User-Agent": navigator.userAgent,
+                            "Accept": "application/json, text/javascript, */*; q=0.01",
+                        };
+                        if (config.auth_token) {
+                            headers["X-Auth-Token"] = config.auth_token;
+                        }
+                        const response = await xhr.sync(config.server_url, null, {
+                            method: 'GET', headers, responseType: 'json', timeout: 10000
+                        });
+                        if (response?.response?.sources) {
+                            const enabledApis = response.response.sources
+                            .filter(s => s.enabled && s.single_url)
+                            .map(s => ({ name: s.name, url_template: s.single_url }));
+                            if (enabledApis.length > 0) {
+                                ruleObject[apisCacheKey] = enabledApis; return enabledApis;
+                            }
+                        }
+                        console.warn("Fanqie Rule: Server không trả về API fallback hợp lệ.");
+                        ruleObject[apisCacheKey] = []; return [];
+                    } catch (e) {
+                        console.error("Fanqie Rule: Lỗi khi lấy API fallback:", e);
+                        ruleObject[apisCacheKey] = []; return [];
+                    } finally {
+                        delete ruleObject[promiseCacheKey]; // Xóa promise sau khi hoàn thành
+                    }
+                })();
+                return ruleObject[promiseCacheKey];
+            },
+            // -----------------------------------------------------------------
+            getFanqieRule: () => Rule.special.find(r => r.siteName === '番茄小说 (Fanqie)'),
+
             title: async () => {
-                const data = await Rule.special.find(r => r.siteName.startsWith('番茄小说'))._getFanqieApiData();
+                const currentRule = Rule.special.find(r => r.siteName === '番茄小说 (Fanqie)');
+                if (!currentRule) return '';
+                const data = await currentRule._internalGetFanqieApiData(currentRule);
                 return data?.book_name || '';
             },
             writer: async () => {
-                const data = await Rule.special.find(r => r.siteName.startsWith('番茄小说'))._getFanqieApiData();
+                const currentRule = Rule.special.find(r => r.siteName === '番茄小说 (Fanqie)');
+                if (!currentRule) return '';
+                const data = await currentRule._internalGetFanqieApiData(currentRule);
                 return data?.author || '';
             },
             intro: async () => {
-                const data = await Rule.special.find(r => r.siteName.startsWith('番茄小说'))._getFanqieApiData();
-                // Giữ nguyên dấu xuống dòng nếu có, hàm downloadTo sẽ xử lý sau
+                const currentRule = Rule.special.find(r => r.siteName === '番茄小说 (Fanqie)');
+                if (!currentRule) return '';
+                const data = await currentRule._internalGetFanqieApiData(currentRule);
                 return (data?.abstract || '') + '\nLink cover: ' + (data?.thumb_url || '');
             },
             cover: async () => {
-                const data = await Rule.special.find(r => r.siteName.startsWith('番茄小说'))._getFanqieApiData();
+                const currentRule = Rule.special.find(r => r.siteName === '番茄小说 (Fanqie)');
+                if (!currentRule) return '';
+                const data = await currentRule._internalGetFanqieApiData(currentRule);
                 return data?.thumb_url || '';
             },
-            // ----------------------------------
 
-            // --- Lấy danh sách chương từ trang HTML ---
-            chapter: '.page-directory-content a.chapter-item-title', // Selector cho link chương
-            vipChapter: '.page-directory-content .chapter-item:has(span.chapter-item-lock) > a.chapter-item-title', // Selector cho chương VIP (có icon khóa)
-            // volume: '', // Không thấy thông tin quyển trong HTML mẫu
-            // -----------------------------------------
+            chapter: '.page-directory-content a.chapter-item-title',
+            vipChapter: '.page-directory-content .chapter-item:has(span.chapter-item-lock) > a.chapter-item-title',
 
-            // --- Hàm xử lý lấy nội dung chương (Quan trọng) ---
-            deal: async (chapter) => {
-                const chapIdMatch = chapter.url.match(/\/reader\/(\d+)/);
+            deal: async (chapterInfo) => {
+                const chapIdMatch = chapterInfo.url.match(/\/reader\/(\d+)/);
                 if (!chapIdMatch) {
-                    console.error(`Fanqie Deal Error: Không thể lấy chapterId từ URL: ${chapter.url}`);
-                    return { title: chapter.title + " (Lỗi URL)", content: "<p><strong>Lỗi khi tải chương:</strong> URL chương không hợp lệ.</p>" };
+                    console.error(`Fanqie Deal: Lỗi URL: ${chapterInfo.url}`);
+                    return { title: chapterInfo.title + " (Lỗi URL)", content: "<p>Lỗi URL chương.</p>" };
                 }
-
                 const chapId = chapIdMatch[1];
-                let externalApiHost = unsafeWindow.tokenOptions?.Fanqie;
-                const externalApiUrl = `${externalApiHost}/content?item_id=${chapId}`;
 
-                try {
-                    const res = await xhr.sync(externalApiUrl, null, {
-                        method: 'GET',
-                        responseType: 'json'
-                    });
-
-                    const data = res.response?.data || res.response?.data?.data;
-                    if (data?.content) {
-                        const title = data.title || chapter.title;
-                        return { title, content: data.content };
-                    } else {
-                        throw new Error("API ngoài không trả về content.");
-                    }
-                } catch (e) {
-                    console.warn(`Fanqie Deal API ngoài lỗi, thử giải mã nội bộ...`);
-
-                    const REG_KEY = "ac25c67ddd8f38c1b37a2348828e222e";
-                    const INSTALL_ID = "4427064614339001";
-                    const SERVER_DEVICE_ID = "4427064614334905";
-                    const AID = "1967";
-                    const VERSION_CODE = "62532";
-
-                    // === Helper AES & Decrypt ===
-                    function hexToBytes(hex) {
-                        const bytes = [];
-                        for (let i = 0; i < hex.length; i += 2) {
-                            bytes.push(parseInt(hex.substr(i, 2), 16));
-                        }
-                        return new Uint8Array(bytes);
-                    }
-
-                    function pkcs7Unpad(data) {
-                        const padding = data[data.length - 1];
-                        if (padding > 16) return data;
-                        for (let i = data.length - padding; i < data.length; i++) {
-                            if (data[i] !== padding) return data;
-                        }
-                        return data.slice(0, data.length - padding);
-                    }
-
-                    async function decryptContent(content, keyHex) {
-                        const decoded = Uint8Array.from(atob(content), c => c.charCodeAt(0));
-                        const iv = decoded.slice(0, 16);
-                        const ct = decoded.slice(16);
-                        const key = await crypto.subtle.importKey(
-                            'raw',
-                            hexToBytes(keyHex),
-                            { name: 'AES-CBC' },
-                            false,
-                            ['decrypt']
-                        );
-                        const decrypted = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, key, ct);
-                        return pkcs7Unpad(new Uint8Array(decrypted));
-                    }
-
-                    async function gunzip(data) {
-                        const ds = new DecompressionStream('gzip');
-                        const writer = ds.writable.getWriter();
-                        writer.write(data);
-                        writer.close();
-                        const output = await new Response(ds.readable).arrayBuffer();
-                        return new Uint8Array(output);
-                    }
-
-                    async function generateRegisterContent(deviceId, keyHex) {
-                        const key = hexToBytes(keyHex);
-                        const deviceIdBytes = new Uint8Array(8);
-                        const deviceIdNum = BigInt(deviceId);
-                        for (let i = 0; i < 8; i++) {
-                            deviceIdBytes[i] = Number((deviceIdNum >> BigInt(i * 8)) & BigInt(0xFF));
-                        }
-                        const valBytes = new Uint8Array(8);
-                        const iv = crypto.getRandomValues(new Uint8Array(16));
-                        const content = new Uint8Array([...deviceIdBytes, ...valBytes]);
-
-                        const cryptoKey = await crypto.subtle.importKey(
-                            'raw',
-                            key,
-                            { name: 'AES-CBC' },
-                            false,
-                            ['encrypt']
-                        );
-                        const encrypted = await crypto.subtle.encrypt({ name: 'AES-CBC', iv }, cryptoKey, content);
-
-                        const result = new Uint8Array([...iv, ...new Uint8Array(encrypted)]);
-                        return btoa(String.fromCharCode(...result));
-                    }
-
-                    async function getDecryptionKey() {
-                        const content = await generateRegisterContent(SERVER_DEVICE_ID, REG_KEY);
-                        const result = await xhr.sync("https://api5-normal-sinfonlineb.fqnovel.com/reading/crypt/registerkey?aid=" + AID, {
-                            method: 'POST',
-                            headers: {
-                                "Content-Type": "application/json",
-                                "Cookie": `install_id=${INSTALL_ID}`,
-                                "User-Agent": "okhttp/4.9.3"
-                            },
-                            responseType: 'json'
-                        }, JSON.stringify({ content, keyver: 1 }));
-
-                        const encryptedKey = Uint8Array.from(atob(result.response.data.key), c => c.charCodeAt(0));
-                        const keyRaw = await crypto.subtle.importKey(
-                            'raw',
-                            hexToBytes(REG_KEY),
-                            { name: 'AES-CBC' },
-                            false,
-                            ['decrypt']
-                        );
-                        const decryptedKey = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: encryptedKey.slice(0, 16) }, keyRaw, encryptedKey.slice(16));
-                        return [...new Uint8Array(decryptedKey)].map(b => b.toString(16).padStart(2, '0')).join('');
-                    }
-
-                    async function getChapterContent(chapId) {
-                        const url = `https://api5-normal-sinfonlineb.fqnovel.com/reading/reader/batch_full/v?item_ids=${chapId}&req_type=1&aid=${AID}&update_version_code=${VERSION_CODE}`;
-                        const res = await xhr.sync(url, null, {
-                            method: 'GET',
-                            headers: {
-                                "Cookie": `install_id=${INSTALL_ID}`,
-                                "User-Agent": "okhttp/4.9.3"
-                            },
-                            responseType: 'json'
-                        });
-                        return res.response.data?.[chapId]?.content;
-                    }
-
-                    function processContent(raw) {
-                        return raw
-                            .replace(/<[^>]+>/g, '')
-                            .replace(/&nbsp;/g, ' ')
-                            .split('\n')
-                            .map(line => '　　' + line.trim())
-                            .join('\n');
-                    }
-
-                    try {
-                        const key = await getDecryptionKey();
-                        const encContent = await getChapterContent(chapId);
-                        const decrypted = await decryptContent(encContent, key);
-                        const ungzipped = await gunzip(decrypted);
-                        const decoded = new TextDecoder().decode(ungzipped);
-                        return { title: chapter.title, content: `<p>${processContent(decoded).replace(/\n/g, '</p><p>')}</p>` };
-                    } catch (innerErr) {
-                        console.error('Fanqie fallback decrypt error:', innerErr);
-                        return {
-                            title: chapter.title + " (Lỗi nội bộ)",
-                            content: "<p><strong>Lỗi khi tải chương:</strong> Không thể giải mã nội dung.</p>"
-                        };
-                    }
+                // Tìm đối tượng rule Fanqie hiện tại
+                const currentRule = Rule.special.find(r => r.siteName === '番茄小说 (Fanqie)');
+                if (!currentRule) {
+                    console.error("Fanqie Deal: Không tìm thấy rule Fanqie để xử lý.");
+                    return { title: chapterInfo.title + " (Lỗi cấu hình)", content: "<p>Lỗi cấu hình rule.</p>" };
                 }
+
+                // --- Các hàm helper nội bộ, không phụ thuộc 'this' ---
+                function processContentText(rawText, sourceApi = '') {
+                    if (!rawText || typeof rawText !== 'string') return "";
+                    let text = rawText;
+                    if (sourceApi.includes('lsjk.api.gg')) {
+                        const matches = text.matchAll(/<p(?: idx="\d+")?>(.*?)<\/p>/g);
+                        text = Array.from(matches, m => m[1]).join('\n');
+                    }
+                    text = text
+                        .replace(/<br\s*\/?>/gi, '\n').replace(/<p[^>]*>/gi, '\n').replace(/<\/p>/gi, '')
+                        .replace(/<[^>]+>/g, '').replace(/ | /g, ' ').replace(/\\u003c|\\u003e/g, '')
+                        .replace(/\r\n|\r/g, '\n');
+                    const processedLines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0).map(l => '　　' + l);
+                    return `<p>${processedLines.join('</p><p>')}</p>`;
+                }
+
+                function extractData(responseData, currentChapId, defaultTitle) {
+                    let content = null, title = defaultTitle;
+                    if (!responseData) return { title, content };
+                    const R = responseData;
+                    content = R.content || R.data?.content || R.data?.data?.content || R.chapter?.content || R.text;
+                    if (!content && R.data?.[currentChapId]?.content) content = R.data[currentChapId].content;
+                    if (!content && R[currentChapId]?.content) content = R[currentChapId].content;
+                    if (typeof content === 'object' && content !== null && content.value) content = content.value;
+                    title = R.title || R.data?.title || R.data?.data?.title || R.chapter?.title ||
+                        R.data?.[currentChapId]?.title || R[currentChapId]?.title || defaultTitle;
+                    return { title, content };
+                }
+                // ----------------------------------------------------
+
+                // --- Phương thức 1: API Ngoài (unsafeWindow) ---
+                const timeout = typeof Config !== 'undefined' && Config.timeout ? Config.timeout : 15000;
+                const externalApiUrlTemplate = unsafeWindow.tokenOptions?.Fanqie;
+                if (externalApiUrlTemplate && typeof externalApiUrlTemplate === 'string' && externalApiUrlTemplate.includes('{chapter_id}')) {
+                    const externalApiUrl = externalApiUrlTemplate.replace(/{chapter_id}/g, chapId);
+                    console.log(`Fanqie Deal: Thử API ngoài: ${externalApiUrl}`);
+                    try {
+                        const res = await xhr.sync(externalApiUrl, null, { method: 'GET', responseType: 'json', timeout });
+                        const { title, content } = extractData(res?.response, chapId, chapterInfo.title);
+                        if (content) {
+                            console.log(`Fanqie Deal: Thành công từ API ngoài.`);
+                            return { title, content: processContentText(content, externalApiUrl) };
+                        }
+                    } catch (e) { console.warn(`Fanqie Deal: Lỗi API ngoài ${externalApiUrl}:`, e.message); }
+                }
+
+                // --- Phương thức 2: Fallback API từ server (gọi qua currentRule) ---
+                console.log(`Fanqie Deal: Thử Fallback API từ server.`);
+                const fallbackApisToTry = await currentRule._internalFetchFanqieFallbackApis(currentRule);
+
+                if (!fallbackApisToTry || fallbackApisToTry.length === 0) {
+                    console.warn("Fanqie Deal: Không có API fallback từ server.");
+                    return { title: chapterInfo.title + " (Lỗi API)", content: "<p>Lỗi: Không có API fallback.</p>" };
+                }
+
+                for (const api of fallbackApisToTry) {
+                    if (!api.url_template) continue;
+                    const apiUrl = api.url_template.replace(/{chapter_id}|{item_id}|ITEMID/gi, chapId);
+                    console.log(`Fanqie Deal: Thử Fallback API (${api.name}): ${apiUrl}`);
+                    try {
+                        const res = await xhr.sync(apiUrl, null, { method: 'GET', responseType: 'text', timeout: 10000 });
+                        let responseData = null, rawTextForProcessing = null;
+                        if (res?.response) { try { responseData = JSON.parse(res.response); } catch (parseError) { rawTextForProcessing = res.response; } }
+                        const { title, content: extractedContent } = extractData(responseData, chapId, chapterInfo.title);
+                        const finalContentToProcess = extractedContent || rawTextForProcessing;
+                        if (finalContentToProcess) {
+                            console.log(`Fanqie Deal: Thành công từ Fallback API (${api.name}).`);
+                            return { title, content: processContentText(finalContentToProcess, apiUrl) };
+                        }
+                    } catch (e) { console.warn(`Fanqie Deal: Lỗi Fallback API (${api.name}) ${apiUrl}:`, e.message); }
+                }
+
+                console.error(`Fanqie Deal: Không thể tải nội dung cho chapterId ${chapId}.`);
+                return { title: chapterInfo.title + " (Lỗi tải)", content: "<p>Lỗi: Không thể tải nội dung chương.</p>" };
             },
-
-            // -------------------------------------------------
-
-            // Giữ thread thấp để tránh làm quá tải API ngoài hoặc bị chặn
         },
         //afdian.com
         {
@@ -1577,12 +1544,43 @@ function decryptDES(encrypted, key, iv) {
 
                 const chuyen_doi = { /* ... bảng chuyển đổi ... */
                     'lai': '来', 'tựu': '就', 'nhĩ': '你', 'nhi': '而', 'khởi': '起', 'môn': '们',
-                    'đáo': '到', 'giá': '这', 'thị': '是', 'thập': '什', 'thuyết': '说', 'tự': '自',
+                    'đáo': '到', 'giá': '这', 'là': '是', 'thập': '什', 'thuyết': '说', 'tự': '自',
                     'hoàn': '还', 'quá': '过', 'thả': '且', 'kinh': '经',
                     'dĩ': '已', 'toán': '算', 'tưởng': '想', 'chẩm': '怎', 'ngận': '很', 'đa': '多',
                     'nhất': '一', 'hạ': '下', 'kỷ': '己', 'yêu': '么',
                     // ... thêm nữa ...
                 };
+                // const chuyen_doi = {
+                //     'tới': '来',
+                //     'liền': '就',
+                //     'ngươi': '你',
+                //     'mà': '而',
+                //     'dậy': '起',
+                //     'các': '们',
+                //     'đến': '到',
+                //     'này': '这',
+                //     'là': '是',
+                //     'gì': '什',
+                //     'nói': '说',
+                //     'chính': '自',
+                //     'vẫn': '还',
+                //     'đã': '过',
+                //     'và': '且',
+                //     'từng': '经',
+                //     'tính': '算',
+                //     'nghĩ': '想',
+                //     'sao': '怎',
+                //     'rất': '很',
+                //     'nhiều': '多',
+                //     'một': '一',
+                //     'xuống': '下',
+                //     'mình': '己',
+                //     'gì': '么',
+                //     'hắn': '他',
+                //     'nàng': '她',
+                //     'nó': '它',
+                //     'bọn hắn': '他们',
+                // };
                 const punctuation_map = { /* ... bảng dấu câu ... */
                     '，': '，', ',': '，', '.......': '……', '......': '……', '.....': '……', '....': '…','...': '…', '..': '…', '.': '。', '。': '。', '！': '！', '!': '！', '？': '？', '?': '？',
                     '：': '：', ':': '：', '；': '；', ';': '；', '“': '“', '”': '”', '"': '"',
@@ -1693,6 +1691,7 @@ function decryptDES(encrypted, key, iv) {
                     if (jsonData && jsonData.code === "0" && typeof jsonData.data !== 'undefined') {
                         const rawHtmlContent = jsonData.data;
                         const chapterTitle = chapter.title;
+                        rawHtmlContent = rawHtmlContent.trim();
 
                         // *** BƯỚC 2: TẠO DANH SÁCH NODE (Đã sửa xử lý <p>) ***
                         const nodes = [];
