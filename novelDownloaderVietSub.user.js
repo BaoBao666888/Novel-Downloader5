@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.31
+// @version     3.5.447.32
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -387,8 +387,8 @@ function decryptDES(encrypted, key, iv) {
 
         {
             siteName: '69shuba',
-            url: '://www.69shuba.com/book/\\d+/',
-            chapterUrl: '://www.69shuba.com/txt/\\d+/\\d+',
+            url: '://69shuba.cx/book/\\d+/',
+            chapterUrl: '://69shuba.cx/txt/\\d+/\\d+',
             title: 'h3.mytitle.shuye .bread a:nth-of-type(3)',
             chapter: '.mybox .catalog:last ul a',
             chapterTitle: '.txtnav h1.hide720',
@@ -1122,6 +1122,7 @@ function decryptDES(encrypted, key, iv) {
                     if (typeof content === 'object' && content !== null && content.value) content = content.value;
                     title = R.title || R.data?.title || R.data?.data?.title || R.chapter?.title ||
                         R.data?.[currentChapId]?.title || R[currentChapId]?.title || defaultTitle;
+                    if (content === "今日次数上限") content = "";
                     return { title, content };
                 }
                 // ----------------------------------------------------
@@ -5400,7 +5401,8 @@ function decryptDES(encrypted, key, iv) {
 
             for (let i = 0; i < chapters.length; i++) {
                 const { title, content } = chapters[i];
-                files[`${String(i + 1).padStart(length, '0')}-${title.replace(/[\\/:*?"<>|]/g, '-')}.txt`] = content;
+                //files[`${String(i + 1).padStart(length, '0')}-${title.replace(/[\\/:*?"<>|]/g, '-')}.txt`] = content;
+                files[`${title.replace(/[\\/:*?"<>|]/g, '-')}.txt`] = content;
             }
 
             const zip = new JSZip();

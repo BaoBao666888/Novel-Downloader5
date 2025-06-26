@@ -100,7 +100,6 @@ Script hỗ trợ một danh sách lớn các trang web. Danh sách các rule x�
 *   69shuba (69书吧)
 *   PO18 (po18.tw)
 *   Haitang (海棠文化)
-*   Sáng Tác Việt (sangtacviet.com)
 *   Afdian (afdian.com)
 *   Và nhiều trang khác...
 
