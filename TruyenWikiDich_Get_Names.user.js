@@ -1,6 +1,5 @@
 // ==UserScript==
 // @name         TruyenWikiDich Get Names
-// @namespace    http://tampermonkey.net/
 // @version      1.2
 // @description  Lấy danh sách tên nhân vật từ truyenwikidich.net
 // @author       QuocBao
