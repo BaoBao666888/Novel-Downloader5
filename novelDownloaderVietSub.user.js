@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.32
+// @version     3.5.447.33
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -971,6 +971,23 @@ function decryptDES(encrypted, key, iv) {
                 },
             },
         },
+
+        { // https://www.wfxs.tw/
+            siteName: '微风小说',
+            url: /www.wfxs.tw\/booklist\/\d+.html/,
+            chapterUrl: /www.wfxs.tw\/xiaoshuo\/\d+\/\d+\/(\d+.html|)/,
+            infoPage: '.tabstit > a[href^="/xiaoshuo/"],.nav a[href^="/xiaoshuo/"]',
+            title: '.booktitle > h1',
+            writer: '.booktitle > #author > a',
+            intro: '#bookintro',
+            cover: '#bookimg > img',
+            chapter: '#readerlists > ul > li > a',
+            chapterTitle: '[class="chapter-content px-3 pb-5"] > h1',
+            chapterNext: '[class="warp my-5 foot-nav"] > a:contains("上一章")',
+            chapterNext: '[class="warp my-5 foot-nav"] > a:contains("下一章")',
+            content: '[class="chapter-content px-3 pb-5"] > .content',
+        },
+
         { // https://fanqienovel.com/
             siteName: '番茄小说 (Fanqie)', // ID duy nhất để tìm rule này
             url: '://fanqienovel.com/page/\\d+',
@@ -1149,7 +1166,7 @@ function decryptDES(encrypted, key, iv) {
 
                 if (!fallbackApisToTry || fallbackApisToTry.length === 0) {
                     console.warn("Fanqie Deal: Không có API fallback từ server.");
-                    return { title: chapterInfo.title + " (Lỗi API)", content: "<p>Lỗi: Không có API fallback.</p>" };
+                    return { title: chapterInfo.title + " (Lỗi API)", content: "" };
                 }
 
                 for (const api of fallbackApisToTry) {
@@ -1170,7 +1187,7 @@ function decryptDES(encrypted, key, iv) {
                 }
 
                 console.error(`Fanqie Deal: Không thể tải nội dung cho chapterId ${chapId}.`);
-                return { title: chapterInfo.title + " (Lỗi tải)", content: "<p>Lỗi: Không thể tải nội dung chương.</p>" };
+                return { title: chapterInfo.title + " (Lỗi tải)", content: "" };
             },
         },
         //afdian.com
@@ -5064,6 +5081,7 @@ function decryptDES(encrypted, key, iv) {
         container.find('[name="info"]>[name="rule"]').html(`<a href="${window.location.origin}" target="_blank">${Storage.rule.siteName}</a>`);
 
         let infoPage = await getFromRule(Storage.rule.infoPage, { attr: 'href' }, [], null);
+        //console.log("Url: " + infoPage);
         if (infoPage === window.location.href) {
             infoPage = null;
         } else if (infoPage) {
@@ -5076,6 +5094,7 @@ function decryptDES(encrypted, key, iv) {
                 infoPage = null;
             }
         }
+        //console.log("Url: " + infoPage);
 
         // rule-title
 
@@ -5402,7 +5421,7 @@ function decryptDES(encrypted, key, iv) {
             for (let i = 0; i < chapters.length; i++) {
                 const { title, content } = chapters[i];
                 //files[`${String(i + 1).padStart(length, '0')}-${title.replace(/[\\/:*?"<>|]/g, '-')}.txt`] = content;
-                files[`${title.replace(/[\\/:*?"<>|]/g, '-')}.txt`] = content;
+                files[`${String(i + 1).padStart(length, '0')}-${title.replace(/[\\/:*?"<>|]/g, '-')}.txt`] = title + "\n" + content;
             }
 
             const zip = new JSZip();
