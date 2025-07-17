@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.34
+// @version     3.5.447.35
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -4498,6 +4498,7 @@ function decryptDES(encrypted, key, iv) {
         });
         container.find('[name="buttons"]').find('[name="download"]').on('click', async (e) => {
             container.find('[name="progress"]').show();
+            //xhr.showDialog();
             container.find('[name="buttons"]').find('[name="download"]').attr('disabled', 'disabled');
             container.find('[name="buttons"]').find('[name="force-download"]').attr('disabled', null);
             if (!Storage.audio) {
@@ -4548,6 +4549,19 @@ function decryptDES(encrypted, key, iv) {
 
             const format = $(e.target).attr('format');
             const onComplete = async (force) => {
+               const failedChapters = Storage.book.chapters.filter(c => !c.contentRaw && !c.document);
+                if (failedChapters.length > 0 && !force) {
+                    console.warn(`%cPhát hiện ${failedChapters.length} chương tải thất bại. Quá trình tạo file sẽ bị tạm dừng.`, "color: red; font-weight: bold;");
+                    console.warn('Các chương lỗi:', failedChapters.map(c => c.url));
+                    alert(`Tải xuống hoàn tất nhưng có ${failedChapters.length} chương bị lỗi.\n\nBạn có thể thử nhấn nút "Tải xuống" lại để thử lại các chương lỗi, hoặc nhấn "Buộc lưu" để tạo file với các chương đã tải thành công.`);
+
+                    // Kích hoạt lại các nút để người dùng có thể thao tác
+                    container.find('[name="buttons"]').find('[name="download"]').attr('disabled', null);
+                    container.find('[name="buttons"]').find('[name="force-save"]').attr('disabled', null);
+                    return; // Dừng lại, không tạo file
+                }
+                // === KẾT THÚC CODE BỔ SUNG ===
+
                 if (!force) {
                     container.find('[name="buttons"]').find('[name="force-save"]').attr('disabled', 'disabled').off('click');
                     container.find('[name="buttons"]').find('[name="force-download"]').attr('disabled', 'disabled');
@@ -4907,58 +4921,51 @@ function decryptDES(encrypted, key, iv) {
                 return;
             }
 
-            //thêm
             if (chapterList.download.length > 0) {
-                xhr.init({
-                    retry: Config.retry,
-                    thread: Storage.rule.thread && Storage.rule.thread < Config.thread ? Storage.rule.thread : Config.thread, // **QUAN TRỌNG: Vẫn giữ thread = 1**
-                    timeout: Config.timeout,
-                    // onfailed: onChapterFailed, // Sẽ xử lý lỗi trong vòng lặp
-                    onfailedEvery: onChapterFailedEvery,
-                    checkLoad: async (res) => (res.status >= 200 && res.status < 300),
-                });
+                console.log(`Bắt đầu xử lý tải xuống ${chapterList.download.length} chương theo lô.`);
 
-                for (const chapter of chapterList.download) {
-                    if ('contentRaw' in chapter) continue; // Bỏ qua nếu đã xử lý (ví dụ do addChapterNext)
-                    if (Config.delayBetweenChapters > 0) { // Chỉ chờ nếu delay > 0
-                        console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây trước khi tải (download) chương: ${chapter.title || chapter.url}`, "color: orange;");
-                        await sleep(Config.delayBetweenChapters);
-                    }
-                    console.log(`%cBắt đầu tải (download) chương: ${chapter.title || chapter.url}`, "color: blue;");
+                const chunkSize = Storage.rule.thread && Storage.rule.thread < Config.thread ? Storage.rule.thread : Config.thread;
+                const totalChunks = Math.ceil(chapterList.download.length / chunkSize);
 
-                    await new Promise(async (resolveRequest) => {
-                        let requestSucceeded = false;
-                        try {
-                            // Tạo một yêu cầu duy nhất bằng cách dùng xhr.add hoặc tương đương
-                            // Cách đơn giản nhất là dùng lại xhr.list với mảng chỉ có 1 phần tử
-                            xhr.storage.config.set('onComplete', () => { // onComplete cho chunk 1 phần tử này
-                                // Không cần làm gì nhiều ở đây vì đã có originalOnChapterLoad xử lý
-                                console.log(`%cHoàn thành tải chunk cho: ${chapter.title || chapter.url}`, "color: blue;");
-                                requestSucceeded = true; // Đánh dấu thành công
-                                resolveRequest();
-                            });
-                            xhr.storage.config.set('onfailed', (res, request) => { // onfailed cho chunk này
-                                console.warn(`%cLỗi tải chunk cho: ${request?.raw?.title || request?.raw?.url}, tiếp tục...`, "color: orange;");
-                                onChapterFailed(res, request); // Gọi hàm xử lý lỗi gốc
-                                requestSucceeded = false; // Đánh dấu thất bại
-                                resolveRequest(); // Vẫn resolve để vòng lặp tiếp tục
-                            });
+                for (let i = 0; i < chapterList.download.length; i += chunkSize) {
+                    const chunk = chapterList.download.slice(i, i + chunkSize);
+                    const currentChunkNum = (i / chunkSize) + 1;
 
-                            xhr.list([chapter], { // requestOption gốc chứa originalOnChapterLoad
-                                onload: originalOnChapterLoad, // Đảm bảo hàm xử lý nội dung được gọi
-                                overrideMimeType
-                            });
-                            xhr.start(); // Bắt đầu xử lý chunk 1 chương này
-                        } catch (error) {
-                            console.error(`%cLỗi nghiêm trọng khi bắt đầu tải chương ${chapter.title || chapter.url}:`, "color: red;", error);
-                            chapter.contentRaw = ''; // Đánh dấu lỗi
-                            resolveRequest(); // Resolve để tiếp tục vòng lặp
-                        }
-                        // Không await xhr.start() ở đây vì nó trả về ngay lập tức
-                        // Promise sẽ được resolve bởi onComplete hoặc onfailed
+                    console.log(`%cĐang xử lý lô ${currentChunkNum}/${totalChunks} (gồm ${chunk.length} chương)`, "color: blue; font-weight: bold;");
+
+                    // Dùng Promise để đợi lô hiện tại hoàn thành
+                    await new Promise(resolveChunk => {
+                        // Khởi tạo xhr cho mỗi lô
+                        xhr.init({
+                            retry: Config.retry,
+                            thread: chunkSize,
+                            timeout: Config.timeout,
+                            onComplete: () => {
+                                console.log(`%cĐã hoàn thành lô ${currentChunkNum}/${totalChunks}.`, "color: green;");
+                                resolveChunk(); // Báo cho Promise biết là lô đã xong
+                            },
+                            onfailed: onChapterFailed,
+                            onfailedEvery: onChapterFailedEvery,
+                            checkLoad: async (res) => (res.status >= 200 && res.status < 300),
+                        });
+
+                        // Gửi danh sách chương của lô này để tải
+                        xhr.list(chunk, {
+                            onload: originalOnChapterLoad,
+                            overrideMimeType
+                        });
+
+                        // Bắt đầu tải lô
+                        xhr.start();
                     });
-                    // Cập nhật tiến trình chung sau mỗi lần tải (thành công hay thất bại đều cập nhật)
-                    updateProgress(); // Cập nhật dựa trên trạng thái contentRaw
+
+                    // Nếu đây không phải là lô cuối cùng, thì đợi
+                    if (i + chunkSize < chapterList.download.length) {
+                        if (Config.delayBetweenChapters > 0) {
+                            console.log(`%cĐợi ${Config.delayBetweenChapters / 1000} giây trước khi bắt đầu lô tiếp theo...`, "color: orange;");
+                            await sleep(Config.delayBetweenChapters); // Hàm sleep đã có sẵn trong code của bạn
+                        }
+                    }
                 }
             }
             //hết
