@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.33
+// @version     3.5.447.34
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -383,19 +383,6 @@ function decryptDES(encrypted, key, iv) {
             elementRemove: '',
             chapterPrev: '.fanye_cen a:contains("上一章")',
             chapterNext: '.fanye_cen a:contains("下一章")',
-        },
-
-        {
-            siteName: '69shuba',
-            url: '://69shuba.cx/book/\\d+/',
-            chapterUrl: '://69shuba.cx/txt/\\d+/\\d+',
-            title: 'h3.mytitle.shuye .bread a:nth-of-type(3)',
-            chapter: '.mybox .catalog:last ul a',
-            chapterTitle: '.txtnav h1.hide720',
-            content: 'div.txtnav',
-            elementRemove: 'h1, div',
-            chapterNext: '.page1 a:contains("上一章")',
-            chapterNext: '.page1 a:contains("下一章")'
         },
         { // https://www.52shuku.vip/
             siteName: '52书库',
@@ -970,6 +957,23 @@ function decryptDES(encrypted, key, iv) {
                     return elem.html();
                 },
             },
+        },
+
+        {
+            siteName: '69shuba',
+            url: '69shuba(.cx|.com)/book/\\d+/',
+            chapterUrl: '69shuba(.cx|.com)/txt/\\d+/\\d+',
+            infoPage: () => `https://www.69shuba.com/book/${window.location.pathname.match(/\/book\/(\d+)/)[1]}.htm`,
+            cover: 'div.bookimg2 > img',
+            title: '.booknav2 > h1 > a',
+            writer: '.booknav2 p:nth-of-type(1) a',
+            intro: 'div.navtxt',
+            chapter: '.mybox .catalog:last ul a',
+            chapterTitle: '.txtnav h1.hide720',
+            content: 'div.txtnav',
+            elementRemove: 'h1, div',
+            chapterNext: '.page1 a:contains("上一章")',
+            chapterNext: '.page1 a:contains("下一章")'
         },
 
         { // https://www.wfxs.tw/
@@ -5081,7 +5085,7 @@ function decryptDES(encrypted, key, iv) {
         container.find('[name="info"]>[name="rule"]').html(`<a href="${window.location.origin}" target="_blank">${Storage.rule.siteName}</a>`);
 
         let infoPage = await getFromRule(Storage.rule.infoPage, { attr: 'href' }, [], null);
-        //console.log("Url: " + infoPage);
+        console.log("Url: " + infoPage);
         if (infoPage === window.location.href) {
             infoPage = null;
         } else if (infoPage) {
