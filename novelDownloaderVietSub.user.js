@@ -4924,7 +4924,11 @@ function decryptDES(encrypted, key, iv) {
             if (chapterList.download.length > 0) {
                 console.log(`Bắt đầu xử lý tải xuống ${chapterList.download.length} chương theo lô.`);
 
-                const chunkSize = Storage.rule.thread && Storage.rule.thread < Config.thread ? Storage.rule.thread : Config.thread;
+                //const chunkSize = Storage.rule.thread && Storage.rule.thread < Config.thread ? Storage.rule.thread : Config.thread;
+                let chunkSize = Storage.rule.thread && Storage.rule.thread < Config.thread ? Storage.rule.thread : Config.thread;
+                if (Config.addChapterNext || Config.addChapterPrev || (Config.thread < 1)) {
+                    chunkSize = 1;
+                }
                 const totalChunks = Math.ceil(chapterList.download.length / chunkSize);
 
                 for (let i = 0; i < chapterList.download.length; i += chunkSize) {
