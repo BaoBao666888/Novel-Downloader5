@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.35
+// @version     3.5.447.36
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1021,57 +1021,6 @@ function decryptDES(encrypted, key, iv) {
                 } catch (error) { console.error("Fanqie Rule: Lỗi API sách:", error); }
                 return null;
             },
-
-            // --- Hàm trợ giúp nội bộ để lấy API fallback từ server ---
-            _internalFetchFanqieFallbackApis: async function(ruleObject) {
-                const configCacheKey = '_cachedFanqieFallbackApiConfig';
-                const apisCacheKey = '_cachedFanqieFallbackApis';
-                const promiseCacheKey = '_fetchingFanqieFallbackApisPromise';
-
-                // Tạo đối tượng config nếu chưa có trên ruleObject
-                if (!ruleObject[configCacheKey]) {
-                    ruleObject[configCacheKey] = {
-                        server_url: "http://74.113.96.176:5001/api/sources", // << THAY BẰNG URL SERVER
-                        auth_token: "wcnmd91jb", // << THAY BẰNG AUTH TOKEN
-                    };
-                }
-                const config = ruleObject[configCacheKey];
-
-                if (ruleObject[apisCacheKey]) return ruleObject[apisCacheKey];
-                if (ruleObject[promiseCacheKey]) return ruleObject[promiseCacheKey];
-
-                ruleObject[promiseCacheKey] = (async () => {
-                    try {
-                        const headers = {
-                            "User-Agent": navigator.userAgent,
-                            "Accept": "application/json, text/javascript, */*; q=0.01",
-                        };
-                        if (config.auth_token) {
-                            headers["X-Auth-Token"] = config.auth_token;
-                        }
-                        const response = await xhr.sync(config.server_url, null, {
-                            method: 'GET', headers, responseType: 'json', timeout: 10000
-                        });
-                        if (response?.response?.sources) {
-                            const enabledApis = response.response.sources
-                            .filter(s => s.enabled && s.single_url)
-                            .map(s => ({ name: s.name, url_template: s.single_url }));
-                            if (enabledApis.length > 0) {
-                                ruleObject[apisCacheKey] = enabledApis; return enabledApis;
-                            }
-                        }
-                        console.warn("Fanqie Rule: Server không trả về API fallback hợp lệ.");
-                        ruleObject[apisCacheKey] = []; return [];
-                    } catch (e) {
-                        console.error("Fanqie Rule: Lỗi khi lấy API fallback:", e);
-                        ruleObject[apisCacheKey] = []; return [];
-                    } finally {
-                        delete ruleObject[promiseCacheKey]; // Xóa promise sau khi hoàn thành
-                    }
-                })();
-                return ruleObject[promiseCacheKey];
-            },
-            // -----------------------------------------------------------------
             getFanqieRule: () => Rule.special.find(r => r.siteName === '番茄小说 (Fanqie)'),
 
             title: async () => {
@@ -1110,21 +1059,15 @@ function decryptDES(encrypted, key, iv) {
                 }
                 const chapId = chapIdMatch[1];
 
-                // Tìm đối tượng rule Fanqie hiện tại
                 const currentRule = Rule.special.find(r => r.siteName === '番茄小说 (Fanqie)');
                 if (!currentRule) {
                     console.error("Fanqie Deal: Không tìm thấy rule Fanqie để xử lý.");
                     return { title: chapterInfo.title + " (Lỗi cấu hình)", content: "<p>Lỗi cấu hình rule.</p>" };
                 }
 
-                // --- Các hàm helper nội bộ, không phụ thuộc 'this' ---
                 function processContentText(rawText, sourceApi = '') {
                     if (!rawText || typeof rawText !== 'string') return "";
                     let text = rawText;
-                    if (sourceApi.includes('lsjk.api.gg')) {
-                        const matches = text.matchAll(/<p(?: idx="\d+")?>(.*?)<\/p>/g);
-                        text = Array.from(matches, m => m[1]).join('\n');
-                    }
                     text = text
                         .replace(/<br\s*\/?>/gi, '\n').replace(/<p[^>]*>/gi, '\n').replace(/<\/p>/gi, '')
                         .replace(/<[^>]+>/g, '').replace(/ | /g, ' ').replace(/\\u003c|\\u003e/g, '')
@@ -1146,53 +1089,83 @@ function decryptDES(encrypted, key, iv) {
                     if (content === "今日次数上限") content = "";
                     return { title, content };
                 }
-                // ----------------------------------------------------
 
-                // --- Phương thức 1: API Ngoài (unsafeWindow) ---
                 const timeout = typeof Config !== 'undefined' && Config.timeout ? Config.timeout : 15000;
-                const externalApiUrlTemplate = unsafeWindow.tokenOptions?.Fanqie;
-                if (externalApiUrlTemplate && typeof externalApiUrlTemplate === 'string' && externalApiUrlTemplate.includes('{chapter_id}')) {
-                    const externalApiUrl = externalApiUrlTemplate.replace(/{chapter_id}/g, chapId);
-                    console.log(`Fanqie Deal: Thử API ngoài: ${externalApiUrl}`);
+                const apiConfigs = unsafeWindow.tokenOptions?.Fanqie;
+
+                const doubiDomains = [
+                    "api.langge.cf",
+                    "api.doubi.tk",
+                    "20.langge.tk",
+                    "v2.dahuilang.cf",
+                    "vip.langge.cf:45800",
+                    "219.154.201.122:5006"
+                ];
+
+                function isDoubiDomain(url) {
+                    return doubiDomains.some(domain => url.includes(domain));
+                }
+
+                let apiList = [];
+
+                if (typeof apiConfigs === 'string' && apiConfigs.includes('{chapter_id}')) {
+                    apiList.push({ url: apiConfigs.replace(/{chapter_id}/g, chapId) });
+                } else if (Array.isArray(apiConfigs)) {
+                    for (const item of apiConfigs) {
+                        if (!item?.url) continue;
+
+                        let url = item.url;
+                        if (url.includes('{chapter_id}')) {
+                            url = url.replace(/{chapter_id}/g, chapId);
+                        }
+
+                        // Nếu là domain dạng "doubi" và chưa có query -> gắn thêm các query cần thiết
+                        if (isDoubiDomain(url)) {
+                            const u = new URL(url, location.origin);
+                            if (!u.searchParams.has('item_id')) u.searchParams.set('item_id', chapId);
+                            u.searchParams.set('source', '番茄');
+                            u.searchParams.set('tab', '小说');
+                            u.searchParams.set('version', '4.6.29');
+                            url = u.toString();
+                        }
+
+                        apiList.push({ url, key: item.key });
+                    }
+                }
+
+                for (const { url, key } of apiList) {
+                    console.log(`Fanqie Deal: Thử API: ${url}`);
                     try {
-                        const res = await xhr.sync(externalApiUrl, null, { method: 'GET', responseType: 'json', timeout });
+                        const headers = {};
+                        if (isDoubiDomain(url)) {
+                            if (!key) {
+                                alert(`⚠️ Thiếu key (qttoken) cho API ${url}!\nVui lòng thêm vào tokenOptions.Fanqie.`);
+                                continue;
+                            }
+                            headers.cookie = `qttoken=${key}`;
+                        }
+
+                        const res = await xhr.sync(url, null, {
+                            method: 'GET',
+                            headers,
+                            responseType: 'json',
+                            timeout
+                        });
+
                         const { title, content } = extractData(res?.response, chapId, chapterInfo.title);
                         if (content) {
-                            console.log(`Fanqie Deal: Thành công từ API ngoài.`);
-                            return { title, content: processContentText(content, externalApiUrl) };
+                            console.log(`Fanqie Deal: Thành công từ ${url}`);
+                            return { title, content: processContentText(content, url) };
                         }
-                    } catch (e) { console.warn(`Fanqie Deal: Lỗi API ngoài ${externalApiUrl}:`, e.message); }
-                }
-
-                // --- Phương thức 2: Fallback API từ server (gọi qua currentRule) ---
-                console.log(`Fanqie Deal: Thử Fallback API từ server.`);
-                const fallbackApisToTry = await currentRule._internalFetchFanqieFallbackApis(currentRule);
-
-                if (!fallbackApisToTry || fallbackApisToTry.length === 0) {
-                    console.warn("Fanqie Deal: Không có API fallback từ server.");
-                    return { title: chapterInfo.title + " (Lỗi API)", content: "" };
-                }
-
-                for (const api of fallbackApisToTry) {
-                    if (!api.url_template) continue;
-                    const apiUrl = api.url_template.replace(/{chapter_id}|{item_id}|ITEMID/gi, chapId);
-                    console.log(`Fanqie Deal: Thử Fallback API (${api.name}): ${apiUrl}`);
-                    try {
-                        const res = await xhr.sync(apiUrl, null, { method: 'GET', responseType: 'text', timeout: 10000 });
-                        let responseData = null, rawTextForProcessing = null;
-                        if (res?.response) { try { responseData = JSON.parse(res.response); } catch (parseError) { rawTextForProcessing = res.response; } }
-                        const { title, content: extractedContent } = extractData(responseData, chapId, chapterInfo.title);
-                        const finalContentToProcess = extractedContent || rawTextForProcessing;
-                        if (finalContentToProcess) {
-                            console.log(`Fanqie Deal: Thành công từ Fallback API (${api.name}).`);
-                            return { title, content: processContentText(finalContentToProcess, apiUrl) };
-                        }
-                    } catch (e) { console.warn(`Fanqie Deal: Lỗi Fallback API (${api.name}) ${apiUrl}:`, e.message); }
+                    } catch (e) {
+                        console.warn(`Fanqie Deal: Lỗi từ ${url}:`, e.message);
+                    }
                 }
 
                 console.error(`Fanqie Deal: Không thể tải nội dung cho chapterId ${chapId}.`);
                 return { title: chapterInfo.title + " (Lỗi tải)", content: "" };
             },
+
         },
         //afdian.com
         {
