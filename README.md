@@ -71,7 +71,10 @@
         Jjwxc: "token của bạn",
 
         // API endpoint cho Fanqie (có thể giữ nguyên hoặc đổi nếu bạn có API riêng)
-        Fanqie: "http://192.168.1.2:8888/content?item_id={chapter_id}", // Hoặc API khác, phải có {chapter_id}
+        Fanqie: [
+            {url: "http://192.168.1.2:8888/content?item_id={chapter_id}"},
+            {url: "url", key: "key"}, //key cần cho api doubi
+        ], // Hoặc API khác, phải có {chapter_id}
       };
       // --- KẾT THÚC PHẦN CHỈNH SỬA ---
 
