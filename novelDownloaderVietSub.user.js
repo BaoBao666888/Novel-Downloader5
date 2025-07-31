@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.36
+// @version     3.5.447.37.1
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -958,6 +958,35 @@ function decryptDES(encrypted, key, iv) {
                 },
             },
         },
+
+        // { //https://www.ihuaben.com
+        //     siteName: 'ihuaben',
+        //     url: 'ihuaben\\.com/book/\\d+\\.html(?:\\?.*)?',
+        //     chapterUrl: 'ihuaben\\.com/book/\\d+/\\d+\\.html',
+        //     infoPage: () => {
+        //         const match = location.href.match(/\/book\/(\d+)\/\d+\.html/);
+        //         if (match) {
+        //             return `https://www.ihuaben.com/book/${match[1]}.html`;
+        //         }
+        //         return location.href;
+        //     },
+        //     cover: () => {
+        //         const img = document.querySelector('.biginfo .cover img');
+        //         if (!img) return null;
+        //         const src = img.getAttribute('src');
+        //         if (!src) return null;
+        //         return 'https:' + src.split('?')[0];
+        //     },
+        //     title: '.infodetail .simpleinfo h1.text-danger',
+        //     writer: '.infodetail .simpleinfo a.text-muted',
+        //     intro: '.infodetail .text-muted.aboutbook.hidden-xs.hidden-sm',
+        //     chapter: '.chapter-list p a',
+        //     chapterTitle: '#chaptertitle h1',
+        //     content: 'div.txtnav',
+        //     // elementRemove: 'h1, div',
+        //     chapterNext: '.page1 a:contains("上一章")',
+        //     chapterNext: '.page1 a:contains("下一章")'
+        // },
 
         {
             siteName: '69shuba',
@@ -4837,186 +4866,162 @@ function decryptDES(encrypted, key, iv) {
 
             //thêm
             // === THỰC THI TUẦN TỰ ===
-            console.log("Bắt đầu thực thi tuần tự...");
 
-            // 1. Xử lý 'deal'
-            for (const chapter of chapterList.deal) {
-                if ('contentRaw' in chapter) continue; // Bỏ qua nếu đã xử lý (ví dụ do addChapterNext)
-                if (Config.delayBetweenChapters > 0) { // Chỉ chờ nếu delay > 0
-                    console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây trước khi xử lý (deal) chương...`, "color: orange;");
-                    await sleep(Config.delayBetweenChapters);
-                }
-                console.log(`%cBắt đầu xử lý (deal) chương: ${chapter.title || chapter.url}`, "color: purple;");
-                try {
+            // --- Hàm helper để phân loại chương cần xử lý ---
+            const classifyChapters = (chaptersToProcess) => {
+                const classifiedList = { iframe: [], popup: [], deal: [], download: [] };
+                for (const chapter of chaptersToProcess) {
+                    // Bỏ qua nếu đã có nội dung (quan trọng cho các lần thử lại)
+                    if (chapter.contentRaw) continue;
+
                     const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
-                    const result = await rule.deal(chapter); // Hàm deal đã bao gồm fetch và xử lý
-                    if (typeof result === "string") {
-                        // Trường hợp result chính là content (string)
-                        if (result.trim().length < 1) {
-                            console.warn(`%cNội dung (deal) chương '${chapter.title}' có vẻ rỗng hoặc quá ngắn. Đánh dấu là lỗi.`, "color: orange;");
-                            chapter.contentRaw = '';
-                            throw new Error("ContentCheck thất bại");
-                        } else {
-                            chapter.document = result;
-                            chapter.contentRaw = result;
-                            chapter.content = result;
-                            updateProgress();
-                        }
-                    } else if (result && result.content) {
-                        // Trường hợp result là object có content
-                        if (result.content.trim().length < 1) {
-                            console.warn(`%cNội dung (deal) chương '${result.title || chapter.title}' có vẻ rỗng hoặc quá ngắn. Đánh dấu là lỗi.`, "color: orange;");
-                            chapter.contentRaw = '';
-                            throw new Error("ContentCheck thất bại");
-                        } else {
-                            chapter.document = result.content;
-                            chapter.contentRaw = result.content;
-                            chapter.content = result.content;
-                            if (result.title) chapter.title = result.title;
-                            updateProgress();
-                        }
-                    } else {
-                        console.error(`%cHàm deal trả về lỗi hoặc không có nội dung cho chương: ${chapter.title || chapter.url}`, "color: red;", result?.error || '');
-                        chapter.contentRaw = ''; // Đánh dấu lỗi
-                        throw new Error("ContentCheck thất bại");
+                    if (rule.iframe) classifiedList.iframe.push(chapter);
+                    else if (rule.popup) classifiedList.popup.push(chapter);
+                    else if (rule.deal && typeof rule.deal === 'function') classifiedList.deal.push(chapter);
+                    else classifiedList.download.push(chapter);
+                }
+                return classifiedList;
+            };
+
+            // Vòng lặp thử lại chính
+            const maxAttempts = Math.max(0, Config.retry || 0);
+            for (let attempt = 0; attempt <= maxAttempts; attempt++) {
+                let chaptersToProcess;
+                if (attempt === 0) {
+                    // Lần đầu tiên, xử lý tất cả chương
+                    console.log("Bắt đầu lần tải đầu tiên...");
+                    chaptersToProcess = Storage.book.chapters.filter(c => !c.contentRaw);
+                } else {
+                    // Các lần sau, chỉ xử lý các chương bị lỗi
+                    chaptersToProcess = Storage.book.chapters.filter(c => !c.contentRaw);
+                    if (chaptersToProcess.length === 0) {
+                        console.log("%cTất cả chương đã được tải thành công. Không cần thử lại.", "color: green;");
+                        break; // Thoát khỏi vòng lặp nếu không còn chương lỗi
                     }
-                } catch (error) {
-                    console.error(`%cLỗi khi thực thi deal cho chương: ${chapter.title || chapter.url}`, "color: red;", error);
-                    chapter.contentRaw = ''; // Đánh dấu lỗi
+                    console.log(`%cLần thử lại ${attempt}/${Config.retry}: Còn lại ${chaptersToProcess.length} chương lỗi.`, "color: orange; font-weight: bold;");
                 }
-                // Cập nhật tiến trình chung sau mỗi lần deal (thành công hay thất bại đều cập nhật)
-                updateProgress(); // Cập nhật dựa trên trạng thái contentRaw
-            }
-            //hết
 
-            if (Storage.book.chapters.every((i) => i.contentRaw && i.document)) {
-                await onComplete();
-                return;
-            }
+                const currentRunList = classifyChapters(chaptersToProcess);
 
-            if (chapterList.download.length > 0) {
-                console.log(`Bắt đầu xử lý tải xuống ${chapterList.download.length} chương theo lô.`);
-
-                //const chunkSize = Storage.rule.thread && Storage.rule.thread < Config.thread ? Storage.rule.thread : Config.thread;
-                let chunkSize = Storage.rule.thread && Storage.rule.thread < Config.thread ? Storage.rule.thread : Config.thread;
-                if (Config.addChapterNext || Config.addChapterPrev || (Config.thread < 1)) {
-                    chunkSize = 1;
-                }
-                const totalChunks = Math.ceil(chapterList.download.length / chunkSize);
-
-                for (let i = 0; i < chapterList.download.length; i += chunkSize) {
-                    const chunk = chapterList.download.slice(i, i + chunkSize);
-                    const currentChunkNum = (i / chunkSize) + 1;
-
-                    console.log(`%cĐang xử lý lô ${currentChunkNum}/${totalChunks} (gồm ${chunk.length} chương)`, "color: blue; font-weight: bold;");
-
-                    // Dùng Promise để đợi lô hiện tại hoàn thành
-                    await new Promise(resolveChunk => {
-                        // Khởi tạo xhr cho mỗi lô
-                        xhr.init({
-                            retry: Config.retry,
-                            thread: chunkSize,
-                            timeout: Config.timeout,
-                            onComplete: () => {
-                                console.log(`%cĐã hoàn thành lô ${currentChunkNum}/${totalChunks}.`, "color: green;");
-                                resolveChunk(); // Báo cho Promise biết là lô đã xong
-                            },
-                            onfailed: onChapterFailed,
-                            onfailedEvery: onChapterFailedEvery,
-                            checkLoad: async (res) => (res.status >= 200 && res.status < 300),
-                        });
-
-                        // Gửi danh sách chương của lô này để tải
-                        xhr.list(chunk, {
-                            onload: originalOnChapterLoad,
-                            overrideMimeType
-                        });
-
-                        // Bắt đầu tải lô
-                        xhr.start();
-                    });
-
-                    // Nếu đây không phải là lô cuối cùng, thì đợi
-                    if (i + chunkSize < chapterList.download.length) {
+                // 1. Xử lý 'deal'
+                if (currentRunList.deal.length > 0) {
+                    console.log(`Bắt đầu xử lý (deal) ${currentRunList.deal.length} chương.`);
+                    for (const chapter of currentRunList.deal) {
+                        if (chapter.contentRaw) continue; // Bỏ qua nếu đã được xử lý bởi logic khác trong cùng lần chạy
                         if (Config.delayBetweenChapters > 0) {
-                            console.log(`%cĐợi ${Config.delayBetweenChapters / 1000} giây trước khi bắt đầu lô tiếp theo...`, "color: orange;");
-                            await sleep(Config.delayBetweenChapters); // Hàm sleep đã có sẵn trong code của bạn
+                            await sleep(Config.delayBetweenChapters);
+                        }
+                        console.log(`%cBắt đầu xử lý (deal) chương: ${chapter.title || chapter.url}`, "color: purple;");
+                        try {
+                            const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
+                            const result = await rule.deal(chapter);
+                            if (typeof result === "string") {
+                                if (result.trim().length < 1) throw new Error("Nội dung rỗng hoặc quá ngắn");
+                                chapter.document = result;
+                                chapter.contentRaw = result;
+                                chapter.content = result;
+                            } else if (result && result.content) {
+                                if (result.content.trim().length < 1) throw new Error("Nội dung rỗng hoặc quá ngắn");
+                                chapter.document = result.content;
+                                chapter.contentRaw = result.content;
+                                chapter.content = result.content;
+                                if (result.title) chapter.title = result.title;
+                            } else {
+                                throw new Error(result?.error || "Hàm deal không trả về nội dung");
+                            }
+                            updateProgress();
+                        } catch (error) {
+                            console.error(`%cLỗi khi thực thi deal cho chương: ${chapter.title || chapter.url}`, "color: red;", error);
+                            chapter.contentRaw = '';
                         }
                     }
                 }
-            }
-            //hết
 
-            if (chapterList.iframe.length && chapterList.iframe.find((i) => !('contentRaw' in i))) {
-                for (const chapter of chapterList.iframe.filter((i) => !('contentRaw' in i))) {
-                    const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
-                    await new Promise((resolve, reject) => {
-                        $('<iframe>').on('load', async (e) => {
-                            let response, responseText;
-                            try {
-                                if (typeof rule.iframe === 'function') await rule.iframe(e.target.contentWindow);
-                                response = e.target.contentWindow.document;
-                                responseText = e.target.contentWindow.document.documentElement.outerHTML;
-                            } catch (error) {
-                                console.error(error);
-                                response = '';
-                                responseText = '';
-                            }
-                            // THAY ĐỔI Ở ĐÂY:
-                            await originalOnChapterLoad({ response, responseText }, { raw: chapter });
-                            // ------------
-                            $(e.target).remove();
-                            resolve();
-                        }).attr('src', chapter.url).css('visibility', 'hidden')
-                            .appendTo('body');
-                    });
-                    // Có thể thêm sleep ở đây nếu cần delay giữa các iframe
-                    if (Config.delayBetweenChapters > 0) {
-                        console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây sau khi xử lý iframe chương: ${chapter.title || chapter.url}`, "color: orange;");
-                        await sleep(Config.delayBetweenChapters);
+
+                // 2. Xử lý 'download' (xhr.list)
+                if (currentRunList.download.length > 0) {
+                    console.log(`Bắt đầu xử lý tải xuống ${currentRunList.download.length} chương theo lô.`);
+                    let chunkSize = Storage.rule.thread && Storage.rule.thread < Config.thread ? Storage.rule.thread : Config.thread;
+                    if (Config.addChapterNext || Config.addChapterPrev || (Config.thread < 1)) {
+                        chunkSize = 1;
+                    }
+
+                    for (let i = 0; i < currentRunList.download.length; i += chunkSize) {
+                        const chunk = currentRunList.download.slice(i, i + chunkSize);
+                        const currentChunkNum = (i / chunkSize) + 1;
+                        console.log(`%cĐang xử lý lô ${currentChunkNum} (gồm ${chunk.length} chương)`, "color: blue; font-weight: bold;");
+
+                        await new Promise(resolveChunk => {
+                            xhr.init({
+                                retry: 0, // Tắt retry của xhr, để vòng lặp lớn của chúng ta kiểm soát
+                                thread: chunkSize,
+                                timeout: Config.timeout,
+                                onComplete: () => {
+                                    console.log(`%cĐã hoàn thành lô ${currentChunkNum}.`, "color: green;");
+                                    resolveChunk();
+                                },
+                                onfailed: onChapterFailed,
+                                onfailedEvery: onChapterFailedEvery,
+                                checkLoad: async (res) => (res.status >= 200 && res.status < 300),
+                            });
+                            xhr.list(chunk, { onload: originalOnChapterLoad, overrideMimeType });
+                            xhr.start();
+                        });
+
+                        if (i + chunkSize < currentRunList.download.length && Config.delayBetweenChapters > 0) {
+                            await sleep(Config.delayBetweenChapters);
+                        }
                     }
                 }
-            }
 
-            //thêm
-            if (chapterList.popup.length && chapterList.popup.find((i) => !('contentRaw' in i))) {
-                for (const chapter of chapterList.popup.filter((i) => !('contentRaw' in i))) {
-                    // **Cảnh báo 1: Sử dụng 'var' thay vì 'let' hoặc 'const'**
-                    var popupWindow = window.open(chapter.url, '', 'resizable,scrollbars,width=300,height=350'); // Nên đổi var thành let
-                    window.localStorage.setItem('gm-nd-url', chapter.url);
-                    await waitFor(() => window.localStorage.getItem('gm-nd-html') || !popupWindow || popupWindow.closed);
-                    const html = window.localStorage.getItem('gm-nd-html');
-                    const doc = html;
-                    // THAY ĐỔI Ở ĐÂY:
-                    await originalOnChapterLoad({ response: doc, responseText: html }, { raw: chapter });
-                    // ------------
-                    if (popupWindow && !popupWindow.closed) {
-                        popupWindow.close();
-                    }
-                    window.localStorage.removeItem('gm-nd-url');
-                    window.localStorage.removeItem('gm-nd-html');
-
-                    // Thêm sleep ở đây nếu cần delay giữa các popup
-                    if (Config.delayBetweenChapters > 0) {
-                        console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây sau khi xử lý popup chương: ${chapter.title || chapter.url}`, "color: orange;");
-                        await sleep(Config.delayBetweenChapters);
+                // 3. Xử lý 'iframe'
+                if (currentRunList.iframe.length > 0) {
+                    console.log(`Bắt đầu xử lý (iframe) ${currentRunList.iframe.length} chương.`);
+                    for (const chapter of currentRunList.iframe) {
+                        if (chapter.contentRaw) continue;
+                        const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
+                        await new Promise((resolve) => {
+                            $('<iframe>').on('load', async (e) => {
+                                let response, responseText;
+                                try {
+                                    if (typeof rule.iframe === 'function') await rule.iframe(e.target.contentWindow);
+                                    response = e.target.contentWindow.document;
+                                    responseText = e.target.contentWindow.document.documentElement.outerHTML;
+                                } catch (error) {
+                                    console.error(error);
+                                    response = ''; responseText = '';
+                                }
+                                await originalOnChapterLoad({ response, responseText }, { raw: chapter });
+                                $(e.target).remove();
+                                resolve();
+                            }).attr('src', chapter.url).css('visibility', 'hidden').appendTo('body');
+                        });
+                        if (Config.delayBetweenChapters > 0) await sleep(Config.delayBetweenChapters);
                     }
                 }
-            }
-            //hết
-            //             await onComplete();
-            // --- Hoàn thành ---
-            console.log("Đã hoàn thành vòng lặp xử lý tuần tự.");
-            // Kiểm tra lại lần cuối xem còn chương nào thiếu không
-            const remaining = Storage.book.chapters.filter(c => !('contentRaw' in c));
-            if (remaining.length === 0) {
-                console.log("Tất cả chương đã hoàn tất. Chuẩn bị lưu file...");
-                await onComplete(); // Gọi hàm hoàn tất cuối cùng (để tạo file)
-            } else {
-                console.warn(`%cCòn ${remaining.length} chương chưa có nội dung sau khi chạy tuần tự. Vui lòng kiểm tra lỗi hoặc nhấn "Buộc lưu".`, "color: orange;");
-                // Không tự động gọi onComplete, để người dùng quyết định bấm "Buộc lưu"
-                container.find('[name="buttons"]').find('[name="force-save"]').attr('disabled', null); // Kích hoạt nút Buộc lưu
-            }
+
+                // 4. Xử lý 'popup'
+                if (currentRunList.popup.length > 0) {
+                    console.log(`Bắt đầu xử lý (popup) ${currentRunList.popup.length} chương.`);
+                    for (const chapter of currentRunList.popup) {
+                        if (chapter.contentRaw) continue;
+                        var popupWindow = window.open(chapter.url, '', 'resizable,scrollbars,width=300,height=350');
+                        window.localStorage.setItem('gm-nd-url', chapter.url);
+                        await waitFor(() => window.localStorage.getItem('gm-nd-html') || !popupWindow || popupWindow.closed);
+                        const html = window.localStorage.getItem('gm-nd-html');
+                        await originalOnChapterLoad({ response: html, responseText: html }, { raw: chapter });
+                        if (popupWindow && !popupWindow.closed) popupWindow.close();
+                        window.localStorage.removeItem('gm-nd-url');
+                        window.localStorage.removeItem('gm-nd-html');
+                        if (Config.delayBetweenChapters > 0) await sleep(Config.delayBetweenChapters);
+                    }
+                }
+
+            } // Kết thúc vòng lặp for (retry)
+
+            // Sau khi tất cả các lần thử lại kết thúc, gọi onComplete lần cuối
+            console.log("Tất cả các lần tải và thử lại đã hoàn tất. Chuẩn bị lưu file...");
+            await onComplete(); // Luôn gọi onComplete, nó sẽ tự xử lý các chương lỗi bên trong.
         });
         container.find('[name="buttons"]').find('[type="button"]:not([name="download"])').on('click', async (e) => {
             const name = $(e.target).attr('name');
