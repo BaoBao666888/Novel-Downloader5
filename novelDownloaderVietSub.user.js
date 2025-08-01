@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.37.1
+// @version     3.5.447.37.2
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1084,25 +1084,14 @@ function decryptDES(encrypted, key, iv) {
                 const chapIdMatch = chapterInfo.url.match(/\/reader\/(\d+)/);
                 if (!chapIdMatch) {
                     console.error(`Fanqie Deal: Lỗi URL: ${chapterInfo.url}`);
-                    return { title: chapterInfo.title + " (Lỗi URL)", content: "<p>Lỗi URL chương.</p>" };
+                    return { title: chapterInfo.title + " (Lỗi URL)", content: "" };
                 }
                 const chapId = chapIdMatch[1];
 
                 const currentRule = Rule.special.find(r => r.siteName === '番茄小说 (Fanqie)');
                 if (!currentRule) {
                     console.error("Fanqie Deal: Không tìm thấy rule Fanqie để xử lý.");
-                    return { title: chapterInfo.title + " (Lỗi cấu hình)", content: "<p>Lỗi cấu hình rule.</p>" };
-                }
-
-                function processContentText(rawText, sourceApi = '') {
-                    if (!rawText || typeof rawText !== 'string') return "";
-                    let text = rawText;
-                    text = text
-                        .replace(/<br\s*\/?>/gi, '\n').replace(/<p[^>]*>/gi, '\n').replace(/<\/p>/gi, '')
-                        .replace(/<[^>]+>/g, '').replace(/ | /g, ' ').replace(/\\u003c|\\u003e/g, '')
-                        .replace(/\r\n|\r/g, '\n');
-                    const processedLines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0).map(l => '　　' + l);
-                    return `<p>${processedLines.join('</p><p>')}</p>`;
+                    return { title: chapterInfo.title + " (Lỗi cấu hình)", content: "" };
                 }
 
                 function extractData(responseData, currentChapId, defaultTitle) {
@@ -1117,6 +1106,54 @@ function decryptDES(encrypted, key, iv) {
                         R.data?.[currentChapId]?.title || R[currentChapId]?.title || defaultTitle;
                     if (content === "今日次数上限") content = "";
                     return { title, content };
+                }
+
+                function fixQuotes(text) {
+                    if (!text || !/[＂“”"]/.test(text)) {
+                        return text;
+                    }
+                    let normalized = text.replace(/[＂“”]/g, '"');
+                    let quoteCount = (normalized.match(/"/g) || []).length;
+                    if (quoteCount % 2 === 0) {
+                        let isOpen = true;
+                        return normalized.replace(/"/g, () => {
+                            const q = isOpen ? '“' : '”';
+                            isOpen = !isOpen;
+                            return q;
+                        });
+                    }
+                    console.log("Fanqie fixQuotes: Phát hiện số lượng dấu ngoặc kép lẻ, chỉ sửa dấu ＂.");
+                    let isOpen = true;
+                    // Tìm dấu ngoặc kép cuối cùng để quyết định trạng thái mở/đóng
+                    const lastQuoteIndex = Math.max(text.lastIndexOf('“'), text.lastIndexOf('”'));
+                    if (lastQuoteIndex !== -1) {
+                        isOpen = text[lastQuoteIndex] === '”'; // Nếu cái cuối là đóng, thì cái tiếp theo sẽ là mở
+                    }
+                    return text.replace(/＂/g, () => {
+                        const q = isOpen ? '“' : '”';
+                        isOpen = !isOpen;
+                        return q;
+                    });
+                }
+
+                function generateCookie() {
+                    const base = 1000000000000000000;
+                    return "novel_web_id=" + (base * 6 + Math.floor(Math.random() * (base * 3)));
+                }
+
+                function decodeText(text) {
+                    const CODE_ST = 58344, CODE_ED = 58715;
+                    const CHARSET = ['D', '在', '主', '特', '家', '军', '然', '表', '场', '4', '要', '只', 'v', '和', '?', '6', '别', '还', 'g', '现', '儿', '岁', '?', '?', '此', '象', '月', '3', '出', '战', '工', '相', 'o', '男', '首', '失', '世', 'F', '都', '平', '文', '什', 'V', 'O', '将', '真', 'T', '那', '当', '?', '会', '立', '些', 'u', '是', '十', '张', '学', '气', '大', '爱', '两', '命', '全', '后', '东', '性', '通', '被', '1', '它', '乐', '接', '而', '感', '车', '山', '公', '了', '常', '以', '何', '可', '话', '先', 'p', 'i', '叫', '轻', 'M', '士', 'w', '着', '变', '尔', '快', 'l', '个', '说', '少', '色', '里', '安', '花', '远', '7', '难', '师', '放', 't', '报', '认', '面', '道', 'S', '?', '克', '地', '度', 'I', '好', '机', 'U', '民', '写', '把', '万', '同', '水', '新', '没', '书', '电', '吃', '像', '斯', '5', '为', 'y', '白', '几', '日', '教', '看', '但', '第', '加', '候', '作', '上', '拉', '住', '有', '法', 'r', '事', '应', '位', '利', '你', '声', '身', '国', '问', '马', '女', '他', 'Y', '比', '父', 'x', 'A', 'H', 'N', 's', 'X', '边', '美', '对', '所', '金', '活', '回', '意', '到', 'z', '从', 'j', '知', '又', '内', '因', '点', 'Q', '三', '定', '8', 'R', 'b', '正', '或', '夫', '向', '德', '听', '更', '?', '得', '告', '并', '本', 'q', '过', '记', 'L', '让', '打', 'f', '人', '就', '者', '去', '原', '满', '体', '做', '经', 'K', '走', '如', '孩', 'c', 'G', '给', '使', '物', '?', '最', '笑', '部', '?', '员', '等', '受', 'k', '行', '一', '条', '果', '动', '光', '门', '头', '见', '往', '自', '解', '成', '处', '天', '能', '于', '名', '其', '发', '总', '母', '的', '死', '手', '入', '路', '进', '心', '来', 'h', '时', '力', '多', '开', '己', '许', 'd', '至', '由', '很', '界', 'n', '小', '与', 'Z', '想', '代', '么', '分', '生', '口', '再', '妈', '望', '次', '西', '风', '种', '带', 'J', '?', '实', '情', '才', '这', '?', 'E', '我', '神', '格', '长', '觉', '间', '年', '眼', '无', '不', '亲', '关', '结', '0', '友', '信', '下', '却', '重', '己', '老', '2', '音', '字', 'm', '呢', '明', '之', '前', '高', 'P', 'B', '目', '太', 'e', '9', '起', '稜', '她', '也','W', '用', '方', '子', '英', '每', '理', '便', '西', '数', '期', '中', 'C', '外', '样', 'a', '海', '们','任']
+                    let decodedText = "";
+                    for (let i = 0; i < text.length; i++) {
+                        const code = text.charCodeAt(i);
+                        if (CODE_ST <= code && code <= CODE_ED) {
+                            decodedText += CHARSET[code - CODE_ST] || text[i];
+                        } else {
+                            decodedText += text[i];
+                        }
+                    }
+                    return decodedText;
                 }
 
                 const timeout = typeof Config !== 'undefined' && Config.timeout ? Config.timeout : 15000;
@@ -1136,29 +1173,59 @@ function decryptDES(encrypted, key, iv) {
                 }
 
                 let apiList = [];
+                const addedUrls = new Set();
+
+                // Hàm để thêm một URL vào danh sách nếu chưa có
+                const addApiToList = (url, key) => {
+                    const finalUrl = url.toString();
+                    if (!addedUrls.has(finalUrl)) {
+                        apiList.push({ url: finalUrl, key: key });
+                        addedUrls.add(finalUrl);
+                    }
+                };
 
                 if (typeof apiConfigs === 'string' && apiConfigs.includes('{chapter_id}')) {
-                    apiList.push({ url: apiConfigs.replace(/{chapter_id}/g, chapId) });
+                    addApiToList(apiConfigs.replace(/{chapter_id}/g, chapId));
                 } else if (Array.isArray(apiConfigs)) {
+                    // Thêm các URL từ cấu hình người dùng
                     for (const item of apiConfigs) {
                         if (!item?.url) continue;
 
-                        let url = item.url;
-                        if (url.includes('{chapter_id}')) {
-                            url = url.replace(/{chapter_id}/g, chapId);
-                        }
+                        let userUrlStr = item.url.replace(/{chapter_id}/g, chapId);
+                        const u = new URL(userUrlStr, location.origin);
 
-                        // Nếu là domain dạng "doubi" và chưa có query -> gắn thêm các query cần thiết
-                        if (isDoubiDomain(url)) {
-                            const u = new URL(url, location.origin);
+                        if (isDoubiDomain(userUrlStr)) {
+                            // Chuẩn hóa các tham số cho domain doubi
                             if (!u.searchParams.has('item_id')) u.searchParams.set('item_id', chapId);
                             u.searchParams.set('source', '番茄');
                             u.searchParams.set('tab', '小说');
                             u.searchParams.set('version', '4.6.29');
-                            url = u.toString();
                         }
+                        addApiToList(u.toString(), item.key);
+                    }
 
-                        apiList.push({ url, key: item.key });
+                    // Tự động bổ sung các domain doubi khác nếu cần
+                    const firstDoubiConfig = apiConfigs.find(item => item?.url && isDoubiDomain(item.url));
+                    if (firstDoubiConfig) {
+                        // Lấy cấu trúc path và query từ URL doubi đầu tiên người dùng cung cấp
+                        const template = new URL(firstDoubiConfig.url.replace(/{chapter_id}/g, chapId), location.origin);
+                        if (!template.searchParams.has('item_id')) template.searchParams.set('item_id', chapId);
+                        template.searchParams.set('source', '番茄');
+                        template.searchParams.set('tab', '小说');
+                        template.searchParams.set('version', '4.6.29');
+
+                        // Lặp qua tất cả các domain doubi chuẩn
+                        for (const domain of doubiDomains) {
+                            const newUrl = new URL(template.toString());
+                            const [hostname, port] = domain.split(':');
+                            newUrl.hostname = hostname;
+                            newUrl.protocol = 'https:'; // Mặc định là https
+                            if (port) newUrl.port = port;
+                            else newUrl.port = '';
+
+                            // Thêm vào danh sách nếu nó chưa tồn tại
+                            addApiToList(newUrl.toString(), firstDoubiConfig.key);
+                        }
                     }
                 }
 
@@ -1184,10 +1251,47 @@ function decryptDES(encrypted, key, iv) {
                         const { title, content } = extractData(res?.response, chapId, chapterInfo.title);
                         if (content) {
                             console.log(`Fanqie Deal: Thành công từ ${url}`);
-                            return { title, content: processContentText(content, url) };
+                            const fixedContent = fixQuotes(content);
+                            if (content !== fixedContent) {
+                                console.log("Fanqie Deal: Đã sửa lại dấu ngoặc kép trong chương.");
+                            }
+                            return { title, content: fixedContent };
                         }
                     } catch (e) {
                         console.warn(`Fanqie Deal: Lỗi từ ${url}:`, e.message);
+                    }
+                }
+
+                //fallback cho chương không VIP nếu tất cả API thất bại
+                const isVip = $(`a[href*="/reader/${chapId}"]`).closest('.chapter-item').find('.chapter-item-lock').length > 0;
+                if (!isVip && apiList.length === 0) { // Chỉ fallback khi không có API hoặc tất cả API đã fail
+                     console.log(`Fanqie Deal: Không có API hoặc tất cả API thất bại, thử fallback cho chương free ${chapId}...`);
+                    try {
+                        const readerUrl = "https://fanqienovel.com/reader/" + chapId;
+                        const cookie = generateCookie();
+                        const readerResp = await xhr.sync(readerUrl, null, {
+                            method: "GET",
+                            headers: {
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.0.0 Safari/537.36",
+                                "Cookie": cookie
+                            },
+                            responseType: 'text' // Yêu cầu response dạng text để parse HTML
+                        });
+
+                        const html = readerResp.response;
+                        const contentMatch = html.match(/<div class="muye-reader-content.*?">(.*?)<\/div>/s); // Thêm flag 's' để . khớp cả ký tự xuống dòng
+                        if (contentMatch && contentMatch[1]) {
+                            let rawText = contentMatch[1];
+                            const decodedContent = decodeText(rawText);
+                            console.log("Fanqie Deal: Fallback thành công!");
+                             const fixedContent = fixQuotes(decodedContent);
+                             if (decodedContent !== fixedContent) {
+                                console.log("Fanqie Deal: Đã sửa lại dấu ngoặc kép trong chương (fallback).");
+                             }
+                            return { title: chapterInfo.title, content: fixedContent };
+                        }
+                    } catch (e) {
+                        console.error("Fanqie Deal: Fallback thất bại:", e);
                     }
                 }
 
@@ -4910,6 +5014,7 @@ function decryptDES(encrypted, key, iv) {
                         if (chapter.contentRaw) continue; // Bỏ qua nếu đã được xử lý bởi logic khác trong cùng lần chạy
                         if (Config.delayBetweenChapters > 0) {
                             await sleep(Config.delayBetweenChapters);
+                            console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
                         }
                         console.log(`%cBắt đầu xử lý (deal) chương: ${chapter.title || chapter.url}`, "color: purple;");
                         try {
