@@ -5014,8 +5014,8 @@ function decryptDES(encrypted, key, iv) {
                     for (const chapter of currentRunList.deal) {
                         if (chapter.contentRaw) continue; // Bỏ qua nếu đã được xử lý bởi logic khác trong cùng lần chạy
                         if (Config.delayBetweenChapters > 0) {
-                            await sleep(Config.delayBetweenChapters);
                             console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
+                            await sleep(Config.delayBetweenChapters);
                         }
                         console.log(`%cBắt đầu xử lý (deal) chương: ${chapter.title || chapter.url}`, "color: purple;");
                         try {
