@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.37.2
+// @version     3.5.447.37.3
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1741,8 +1741,8 @@ function decryptDES(encrypted, key, iv) {
                 }
                 /// captcha
                 async function waitForCaptchaAndRetry(attemptApiCallFunc, chapterId, chapterWebUrl) {
-                    const retryDelay = 5000;
-                    const maxAttempts = 6;
+                    const retryDelay = 10000;
+                    const maxAttempts = 10;
                     captchaShouldStop = false;
 
                     console.log(`%cSTV Deal (Chương ${chapterId}): Mở tab captcha mini...`, "color: orange;");
@@ -1784,7 +1784,7 @@ function decryptDES(encrypted, key, iv) {
                 // --- Hàm con để thực hiện gọi API và xử lý nội dung ---
                 async function attemptApiCall() {
                     console.log(`%cSTV Deal (Chương ${chapterId}): ${retryAttempted ? 'Thử lại' : 'Lần đầu'} gọi API FETCH...`, retryAttempted ? "color: orange;" : "color: purple;");
-
+                    console.log(`API: ${apiUrl}`);
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: {
@@ -1794,6 +1794,7 @@ function decryptDES(encrypted, key, iv) {
                         },
                         body: payload,
                     });
+                    //console.log("ND: ", response.text());
 
                     // Kiểm tra lỗi HTTP
                     if (!response.ok) {
@@ -1817,7 +1818,7 @@ function decryptDES(encrypted, key, iv) {
 
                     console.log(`%cSTV Deal (Chương ${chapterId}): Parse JSON thành công. Code: ${jsonData?.code}`, "color: purple;");
                     if (jsonData && jsonData.code === "0" && typeof jsonData.data !== 'undefined') {
-                        const rawHtmlContent = jsonData.data;
+                        let rawHtmlContent = jsonData.data;
                         const chapterTitle = chapter.title;
                         rawHtmlContent = rawHtmlContent.trim();
 
