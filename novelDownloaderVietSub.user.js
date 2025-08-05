@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.37.3
+// @version     3.5.447.37.4
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1109,9 +1109,10 @@ function decryptDES(encrypted, key, iv) {
                 }
 
                 function fixQuotes(text) {
-                    if (!text || !/[＂“”"]/.test(text)) {
+                    if (!text || !/＂/.test(text)) {
                         return text;
                     }
+                    console.log("Fanqie fixQuotes: Phát hiện dấu ＂, chỉnh sửa.");
                     let normalized = text.replace(/[＂“”]/g, '"');
                     let quoteCount = (normalized.match(/"/g) || []).length;
                     if (quoteCount % 2 === 0) {
@@ -1713,7 +1714,8 @@ function decryptDES(encrypted, key, iv) {
                     '，': '，', ',': '，', '.......': '……', '......': '……', '.....': '……', '....': '…','...': '…', '..': '…', '.': '。', '。': '。', '！': '！', '!': '！', '？': '？', '?': '？',
                     '：': '：', ':': '：', '；': '；', ';': '；', '“': '“', '”': '”', '"': '"',
                     '‘': '‘', '’': '’', "'": "'", '（': '（', '(': '（', '）': '）', ')': '）',
-                    '…': '…', '—': '—', '-': '—', '《': '《', '》': '》', '『': '“', '』': '”',
+                    '…': '…', '—': '—', '-': '—', '《': '《', '》': '》', 
+                    //'『': '“', '』': '”',
                 };
 
                 const special_mappings = {
