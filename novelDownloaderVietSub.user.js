@@ -5077,6 +5077,7 @@ function decryptDES(encrypted, key, iv) {
                         });
 
                         if (i + chunkSize < currentRunList.download.length && Config.delayBetweenChapters > 0) {
+                            console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
                             await sleep(Config.delayBetweenChapters);
                         }
                     }
