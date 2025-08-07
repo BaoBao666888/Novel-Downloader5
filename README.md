@@ -104,6 +104,7 @@ Script hỗ trợ một danh sách lớn các trang web. Danh sách các rule x�
 *   PO18 (po18.tw)
 *   Haitang (海棠文化)
 *   Afdian (afdian.com)
+*   Ihuaben (ihuaben.com)
 *   Và nhiều trang khác...
 
 *(Bạn có thể tự thêm hoặc sửa rule trong code nếu muốn hỗ trợ trang web khác hoặc trang hiện tại có thay đổi cấu trúc).*
