@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.38.4
+// @version     3.5.447.39.4
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1442,6 +1442,134 @@ function decryptDES(encrypted, key, iv) {
 
 
         },
+
+
+        { //https://www.novel543.com/
+            siteName: '稷下書院(Novel543)',
+            filter: () => {
+                if (window.location.host !== 'www.novel543.com') return 0;
+                if (window.location.pathname.endsWith('/dir')) return 1; // Trang mục lục
+                if (window.location.pathname.match(/\/\d+\/\d+_\d+.*\.html$/)) return 2; // Trang chương
+                return 0; // Không phải trang hỗ trợ
+            },
+            infoPage: () => `https://www.novel543.com${window.location.pathname.replace('/dir', '/')}`,
+            title: '.media-content.info > h1.title',
+            writer: '.media-content.info .author',
+            intro: '.media-content.info .intro p',
+            cover: '.media-left .cover img',
+            chapter: '.chaplist ul.all > li > a',
+
+            deal: async (chapter) => {
+                async function fetchContentNovel543(url, verificationSelector) {
+                    if (!verificationSelector) {
+                        console.error("[fetchPageContent] Lỗi: Cần phải cung cấp 'verificationSelector'.");
+                        throw new Error("Cần selector để xác thực trang đã tải.");
+                    }
+
+                    console.log(`[fetchPageContent] Mở popup để tải URL: ${url}`);
+
+                    return new Promise((resolve, reject) => {
+                        const popup = window.open(url, '_blank', 'width=500,height=600,resizable=yes,scrollbars=yes');
+                        if (!popup) {
+                            alert("Vui lòng cho phép trang web này mở cửa sổ Pop-up để có thể tải nội dung!");
+                            return reject("Cửa sổ Pop-up đã bị chặn.");
+                        }
+
+                        console.log(`[fetchPageContent] Đang chờ element: "${verificationSelector}"`);
+
+                        const checkInterval = setInterval(() => {
+                            try {
+                                if (popup.closed) {
+                                    clearInterval(checkInterval);
+                                    return reject("Cửa sổ xác thực đã bị đóng.");
+                                }
+
+                                if (popup.document.readyState === 'complete' && popup.document.querySelector(verificationSelector)) {
+                                    clearInterval(checkInterval);
+                                    const html = popup.document.documentElement.outerHTML;
+                                    popup.close();
+                                    console.log(`%c[fetchPageContent] Đã lấy nội dung thành công từ popup cho URL: ${url}`, "color: green;");
+                                    resolve(html);
+                                }
+                            } catch (e) {
+                                // Bỏ qua lỗi cross-origin (do Cloudflare hoặc chính sách CORS)
+                            }
+                        }, 500);
+
+                        setTimeout(() => {
+                            clearInterval(checkInterval);
+                            if (popup && !popup.closed) popup.close();
+                            reject(new Error(`Hết thời gian chờ xác thực (30 giây) cho URL: ${url}`));
+                        }, 30000);
+                    });
+                }
+
+                const fontMap = { '㟧': '二', '㠬': '丁', '㣉': '入', '㥕': '刀', '㥫': '干', '㦂': '工', '㦫': '巾', '㦱': '亡', '㦳': '之', '㦵': '已', '㦶': '弓', '㧜': '勺', '㨾': '元', '㩙': '五', '㩽': '屯', '㪏': '切', '㪶': '仁', '㪸': '化', '㫅': '父', '㫇': '今', '㫈': '凶', '㫠': '欠', '㫡': '丹', '㫦': '六', '㫧': '文', '㫯': '尺', '㮽': '未', '㰙': '巧', '㰜': '功', '㰱': '世', '㰴': '本', '㰷': '丙', '㱏': '右', '㱒': '平', '㱕': '的', '㱗': '在', '㳍': '叫', '㳎': '用', '㳒': '失', '㳓': '生', '㳔': '到', '㵑': '分', '㵒': '乎', '㵔': '令', '㵕': '成', '㵙': '句', '㹏': '主', '㹐': '市', '㹓': '年', '䀱': '百', '䀲': '同', '䀴': '而', '䃢': '行', '䋢': '里', '䋤': '回', '䌠': '加', '䑖': '制', '䗙': '去', '䗽': '好', '䘓': '因', '䛈': '然', '䛊': '政', '䛌': '社', '䛍': '事', '䛗': '重', '䜥': '新', '䜭': '明', '䥉': '原', '䥊': '利', '䥍': '但', '䦣': '向', '䦤': '道', '䭹': '公', '䭻': '系', '䭼': '很', '䭾': '者', '䮍': '直', '䮹': '程', '䯬': '果', '䯮': '象', '䲻': '毛', '䲾': '白', '䶑': '扯', '䶓': '走', '丳': '抄', '乀': '裸', '乁': '赤', '噷': '交', '噸': '密', '圙': '娼', '塿': '共', '夌': '李', '婈': '游', '婖': '集', '媱': '操', '嵞': '芽', '嵟': '花', '欜': '器', '鼶': '棒', '齂': '母', };
+                let combinedHtmlContent = '';
+                let currentUrl = chapter.url;
+                let mainChapterTitle = chapter.title;
+                let isFirstPage = true;
+
+                while (currentUrl) {
+                    console.log(`%cNovel543 Deal: Đang tải trang "${mainChapterTitle}" từ ${currentUrl}`, "color: blue;");
+
+                    const pageHtml = await fetchContentNovel543(currentUrl, '.chapter-content > h1');
+                    const doc = new window.DOMParser().parseFromString(pageHtml, 'text/html');
+
+                    if (isFirstPage) {
+                        mainChapterTitle = $(doc).find('.chapter-content > h1').text().trim().replace(/\s*\(\d+\/\d+\)$/, '') || chapter.title;
+                        isFirstPage = false;
+                    }
+
+                    const contentElement = $(doc).find('.content.py-5');
+                    if (!contentElement.length) {
+                        console.warn("Novel543 Deal: Không tìm thấy nội dung trên trang", currentUrl);
+                        break;
+                    }
+
+                    combinedHtmlContent += contentElement.html();
+
+                    const nextLink = $(doc).find('.foot-nav a:contains("下一章")');
+                    const nextHref = nextLink.attr('href');
+
+                    if (nextHref && nextHref.includes('_')) {
+                        const currentParts = currentUrl.match(/(\d+_\d+)(_(\d+))?\.html$/);
+                        const nextParts = nextHref.match(/(\d+_\d+)(_(\d+))?\.html$/);
+
+                        if (nextParts && currentParts && nextParts[1] === currentParts[1]) {
+                            currentUrl = new URL(nextHref, currentUrl).href;
+                        } else {
+                            currentUrl = null;
+                        }
+                    } else {
+                        currentUrl = null;
+                    }
+                }
+
+                console.log(`%cNovel543 Deal: Đã tải xong tất cả các trang cho chương "${mainChapterTitle}". Bắt đầu giải mã...`, "color: green;");
+
+                const tempDiv = $('<div>').html(combinedHtmlContent);
+
+                tempDiv.find('div, span').remove();
+
+
+                let textContent = tempDiv.find('p').map((index, p_element) => {
+                    return $(p_element).text().trim();
+                }).get().join('\n');
+
+                for (const [obfuscated, real] of Object.entries(fontMap)) {
+                    textContent = textContent.replace(new RegExp(obfuscated, 'g'), real);
+                }
+
+                console.log(`%cNovel543 Deal: Dọn dẹp và giải mã hoàn tất.`, "color: green;");
+
+                return {
+                    title: mainChapterTitle,
+                    content: textContent
+                };
+            }
+        },
+
         //https://www.ihuaben.com/
         {
             siteName: '画本 (ihuaben)',
@@ -4628,6 +4756,58 @@ function decryptDES(encrypted, key, iv) {
         }
     }
 
+    async function fetchPageContent(url) {
+        console.log(`[fetchPageContent] Đang thử tải URL: ${url}`);
+        // Thử tải bằng xhr trước, nhanh hơn nếu không có bảo vệ
+        const res = await xhr.sync(url, null, { cache: false });
+
+        // Dấu hiệu nhận biết trang thử thách của Cloudflare
+        if (res.responseText.includes('<title>Just a moment...</title>') || res.responseText.includes('challenge-platform')) {
+            console.warn("[fetchPageContent] Phát hiện Cloudflare. Chuyển sang phương thức popup...");
+            alert("Trang web được bảo vệ bởi Cloudflare. Một cửa sổ nhỏ sẽ được mở để xác thực. Vui lòng không đóng nó cho đến khi hoàn tất.");
+
+            return new Promise((resolve, reject) => {
+                const popup = window.open(url, '_blank', 'width=500,height=600,resizable=yes,scrollbars=yes');
+                if (!popup) {
+                    alert("Vui lòng cho phép trang web này mở cửa sổ Pop-up để có thể vượt qua lớp bảo vệ!");
+                    return reject("Cửa sổ Pop-up đã bị chặn.");
+                }
+
+                const checkInterval = setInterval(() => {
+                    try {
+                        if (popup.closed) {
+                            clearInterval(checkInterval);
+                            return reject("Cửa sổ xác thực đã bị đóng thủ công.");
+                        }
+                        // Kiểm tra xem trang thật đã tải xong chưa (dựa vào một element có trên trang thật)
+                        if (popup.document.readyState === 'complete' && popup.document.querySelector('.media-content.info > h1.title')) {
+                            clearInterval(checkInterval);
+                            const html = popup.document.documentElement.outerHTML;
+                            popup.close();
+                            console.log("[fetchPageContent] Đã lấy nội dung thành công qua popup.");
+                            resolve(html); // Trả về nội dung HTML của trang
+                        }
+                    } catch (e) {
+                        // Bỏ qua lỗi cross-origin tạm thời khi popup đang chuyển trang
+                    }
+                }, 500); // Kiểm tra mỗi nửa giây
+
+                // Timeout để tránh treo script
+                setTimeout(() => {
+                    if (checkInterval) { // Nếu vẫn đang chạy
+                        clearInterval(checkInterval);
+                        if (popup && !popup.closed) popup.close();
+                        reject("Hết thời gian chờ xác thực Cloudflare (30 giây).");
+                    }
+                }, 30000);
+            });
+        } else {
+            // Không có Cloudflare, trả về kết quả như bình thường
+            console.log("[fetchPageContent] Không phát hiện Cloudflare. Tiến hành bình thường.");
+            return res.responseText;
+        }
+    }
+
     async function showUI() {
         if ($('.novel-downloader-v3').length) {
             $('.novel-downloader-v3').toggle();
@@ -5345,20 +5525,21 @@ function decryptDES(encrypted, key, iv) {
         container.find('[name="info"]>[name="rule"]').html(`<a href="${window.location.origin}" target="_blank">${Storage.rule.siteName}</a>`);
 
         let infoPage = await getFromRule(Storage.rule.infoPage, { attr: 'href' }, [], null);
-        console.log("Url: " + infoPage);
+
         if (infoPage === window.location.href) {
-            infoPage = null;
+            infoPage = null; // Chúng ta đã ở trang thông tin, dùng document hiện tại
         } else if (infoPage) {
             infoPage = new URL(infoPage, window.location.href).href;
-            const res = await xhr.sync(infoPage, null, { cache: true });
             try {
-                infoPage = new window.DOMParser().parseFromString(res.responseText, 'text/html');
+                // Sử dụng hàm mới có khả năng vượt qua Cloudflare
+                const infoPageHtml = await fetchPageContent(infoPage);
+                infoPage = new window.DOMParser().parseFromString(infoPageHtml, 'text/html');
             } catch (error) {
-                console.error(error);
+                console.error("Không thể lấy trang thông tin sách:", error);
+                alert(`Lỗi: ${error}. Không thể lấy thông tin sách.`);
                 infoPage = null;
             }
         }
-        //console.log("Url: " + infoPage);
 
         // rule-title
 
