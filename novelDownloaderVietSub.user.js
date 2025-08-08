@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.39.5
+// @version     3.5.447.39.6
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1455,7 +1455,7 @@ function decryptDES(encrypted, key, iv) {
             infoPage: () => `https://www.novel543.com${window.location.pathname.replace('/dir', '/')}`,
             title: '.media-content.info > h1.title',
             writer: '.media-content.info .author',
-            intro: '.media-content.info .intro p',
+            intro: '.media-content.info .intro',
             cover: '.media-left .cover img',
             chapter: '.chaplist ul.all > li > a',
 
