@@ -1452,8 +1452,13 @@ function decryptDES(encrypted, key, iv) {
                 if (window.location.pathname.match(/\/\d+\/\d+_\d+.*\.html$/)) return 2; // Trang chương
                 return 0; // Không phải trang hỗ trợ
             },
-            infoPage: () => `https://www.novel543.com${window.location.pathname.replace('/dir', '/')}`,
-            title: '.media-content.info > h1.title',
+            infoPage: () => {
+                const base = 'https://www.novel543.com';
+                const path = window.location.pathname || '/';
+                const infoPath = path.replace(/\/[^\/]*$/, '/');
+                return base + infoPath;
+            },
+            title: '.media-content.info h1.title',
             writer: '.media-content.info .author',
             intro: '.media-content.info .intro',
             cover: '.media-left .cover img',
@@ -1611,13 +1616,12 @@ function decryptDES(encrypted, key, iv) {
             title: '.infodetail .simpleinfo h1.text-danger',
             writer: '.infodetail .simpleinfo a.text-muted',
             intro: '.infodetail .text-muted.aboutbook.hidden-xs.hidden-sm',
-            cover: () => {
-                const img = document.querySelector('.biginfo .cover img');
+            cover: (doc) => {
+                const img = doc.querySelector('.biginfo .cover img');
                 if (!img) return null;
                 const src = img.getAttribute('src');
                 return src ? 'https:' + src.split('?')[0] : null;
             },
-
             getChapters: async () => {
                 const bookIdMatch = window.location.pathname.match(/book\/(\d+)/);
                 if (!bookIdMatch) {
@@ -4781,54 +4785,78 @@ function decryptDES(encrypted, key, iv) {
         }
     }
 
-    async function fetchPageContent(url) {
+    async function fetchPageContent(url, selector) {
         console.log(`[fetchPageContent] Đang thử tải URL: ${url}`);
-        const res = await xhr.sync(url, null, { cache: false });
 
+        // --- Bước 1: Thử XHR ---
+        try {
+            const res = await xhr.sync(url, null, { cache: false });
+            if (!res.responseText.includes('<title>Just a moment...</title>') &&
+                !res.responseText.includes('challenge-platform')) {
+                console.log("[fetchPageContent] Tải qua XHR thành công.");
+                return res.responseText;
+            } else {
+                console.warn("[fetchPageContent] XHR gặp Cloudflare.");
+            }
+        } catch (err) {
+            console.warn("[fetchPageContent] XHR lỗi:", err);
+        }
 
-        if (res.responseText.includes('<title>Just a moment...</title>') || res.responseText.includes('challenge-platform')) {
-            console.warn("[fetchPageContent] Phát hiện Cloudflare. Chuyển sang phương thức popup...");
-            alert("Trang web được bảo vệ bởi Cloudflare. Một cửa sổ nhỏ sẽ được mở để xác thực. Vui lòng không đóng nó cho đến khi hoàn tất.");
+        // --- Bước 2: Thử fetch với cookie ---
+        try {
+            const res = await fetch(url, { credentials: "include" }); // gửi cookie phiên hiện tại
+            const html = await res.text();
+            if (!html.includes('<title>Just a moment...</title>') &&
+                !html.includes('challenge-platform')) {
+                console.log("[fetchPageContent] Tải qua fetch+cookie thành công.");
+                return html;
+            } else {
+                console.warn("[fetchPageContent] fetch+cookie gặp Cloudflare.");
+            }
+        } catch (err) {
+            console.warn("[fetchPageContent] fetch+cookie lỗi:", err);
+        }
 
-            return new Promise((resolve, reject) => {
-                const popup = window.open(url, '_blank', 'width=500,height=600,resizable=yes,scrollbars=yes');
-                if (!popup) {
-                    alert("Vui lòng cho phép trang web này mở cửa sổ Pop-up để có thể vượt qua lớp bảo vệ!");
-                    return reject("Cửa sổ Pop-up đã bị chặn.");
-                }
+        // --- Bước 3: Mở popup vượt Cloudflare ---
+        console.warn("[fetchPageContent] Chuyển sang phương thức popup...");
+        alert("Trang web được bảo vệ bởi Cloudflare. Một cửa sổ nhỏ sẽ được mở để xác thực. Vui lòng không đóng nó cho đến khi hoàn tất.");
 
-                const checkInterval = setInterval(() => {
-                    try {
-                        if (popup.closed) {
-                            clearInterval(checkInterval);
-                            return reject("Cửa sổ xác thực đã bị đóng thủ công.");
-                        }
+        return new Promise((resolve, reject) => {
+            const popup = window.open(url, '_blank', 'width=500,height=600,resizable=yes,scrollbars=yes');
+            if (!popup) {
+                alert("Vui lòng cho phép trang web này mở cửa sổ Pop-up để có thể vượt qua lớp bảo vệ!");
+                return reject("Cửa sổ Pop-up đã bị chặn.");
+            }
 
-                        if (popup.document.readyState === 'complete') {
+            const checkInterval = setInterval(() => {
+                try {
+                    if (popup.closed) {
+                        clearInterval(checkInterval);
+                        return reject("Cửa sổ xác thực đã bị đóng thủ công.");
+                    }
+
+                    if (popup.document.readyState === 'complete') {
+                        if (!selector || popup.document.querySelector(selector)) {
                             clearInterval(checkInterval);
                             const html = popup.document.documentElement.outerHTML;
                             popup.close();
                             console.log("[fetchPageContent] Đã lấy nội dung thành công qua popup.");
-                            resolve(html); // Trả về nội dung HTML của trang
+                            resolve(html);
                         }
-                    } catch (e) {
-                        // Bỏ qua lỗi cross-origin tạm thời khi popup đang chuyển trang
                     }
-                }, 500);
+                } catch (e) {
+                    // Cross-origin khi đang chuyển trang
+                }
+            }, 500);
 
-                setTimeout(() => {
-                    if (checkInterval) { 
-                        clearInterval(checkInterval);
-                        if (popup && !popup.closed) popup.close();
-                        reject("Hết thời gian chờ xác thực Cloudflare (30 giây).");
-                    }
-                }, 30000);
-            });
-        } else {
-            console.log("[fetchPageContent] Không phát hiện Cloudflare. Tiến hành bình thường.");
-            return res.responseText;
-        }
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                if (popup && !popup.closed) popup.close();
+                reject("Hết thời gian chờ xác thực Cloudflare (30 giây).");
+            }, 30000);
+        });
     }
+
 
     async function showUI() {
         if ($('.novel-downloader-v3').length) {
@@ -5549,13 +5577,14 @@ function decryptDES(encrypted, key, iv) {
         let infoPage = await getFromRule(Storage.rule.infoPage, { attr: 'href' }, [], null);
 
         if (infoPage === window.location.href) {
-            infoPage = null; // Chúng ta đã ở trang thông tin, dùng document hiện tại
+            infoPage = null;
         } else if (infoPage) {
             infoPage = new URL(infoPage, window.location.href).href;
             try {
-                // Sử dụng hàm mới có khả năng vượt qua Cloudflare
-                const infoPageHtml = await fetchPageContent(infoPage);
-                infoPage = new window.DOMParser().parseFromString(infoPageHtml, 'text/html');
+                // Truyền luôn selector của rule title
+                const selector = Storage.rule.title;
+                const infoPageHtml = await fetchPageContent(infoPage, selector);
+                infoPage = new DOMParser().parseFromString(infoPageHtml, 'text/html');
             } catch (error) {
                 console.error("Không thể lấy trang thông tin sách:", error);
                 alert(`Lỗi: ${error}. Không thể lấy thông tin sách.`);
@@ -5563,6 +5592,8 @@ function decryptDES(encrypted, key, iv) {
             }
         }
 
+
+        //console.log(infoPage);
         // rule-title
 
         let title = await getFromRule(Storage.rule.title, { document: infoPage || document }, [], '');
