@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.39.4
+// @version     3.5.447.39.5
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1461,50 +1461,60 @@ function decryptDES(encrypted, key, iv) {
 
             deal: async (chapter) => {
                 async function fetchContentNovel543(url, verificationSelector) {
-                    if (!verificationSelector) {
-                        console.error("[fetchPageContent] Lỗi: Cần phải cung cấp 'verificationSelector'.");
-                        throw new Error("Cần selector để xác thực trang đã tải.");
+                    if (!verificationSelector) throw new Error("Cần selector để xác thực trang đã tải.");
+
+                    // Bước 1: thử tải ẩn trước
+                    try {
+                        const htmlTest = await fetch(url, { credentials: 'include' }).then(r => r.text());
+                        if (!htmlTest.includes('cf-browser-verification') && !htmlTest.includes('Just a moment')) {
+                            const docTest = new DOMParser().parseFromString(htmlTest, 'text/html');
+                            if (docTest.querySelector(verificationSelector)) {
+                                console.log(`[fetchPageContent] Không cần mở popup cho URL: ${url}`);
+                                return htmlTest;
+                            }
+                        }
+                        console.warn(`[fetchPageContent] Cloudflare chặn, cần mở popup cho URL: ${url}`);
+                    } catch (err) {
+                        console.warn(`[fetchPageContent] Thử tải ẩn thất bại, mở popup. Lỗi:`, err);
                     }
 
-                    console.log(`[fetchPageContent] Mở popup để tải URL: ${url}`);
-
+                    // Bước 2: Mở popup để Cloudflare xác thực
                     return new Promise((resolve, reject) => {
+                        console.log(`[fetchPageContent] Mở popup xác thực: ${url}`);
                         const popup = window.open(url, '_blank', 'width=500,height=600,resizable=yes,scrollbars=yes');
                         if (!popup) {
-                            alert("Vui lòng cho phép trang web này mở cửa sổ Pop-up để có thể tải nội dung!");
-                            return reject("Cửa sổ Pop-up đã bị chặn.");
+                            alert("Bật pop-up để tải nội dung!");
+                            return reject("Pop-up bị chặn");
                         }
-
-                        console.log(`[fetchPageContent] Đang chờ element: "${verificationSelector}"`);
 
                         const checkInterval = setInterval(() => {
                             try {
                                 if (popup.closed) {
                                     clearInterval(checkInterval);
-                                    return reject("Cửa sổ xác thực đã bị đóng.");
+                                    return reject("Cửa sổ xác thực đã đóng.");
                                 }
-
                                 if (popup.document.readyState === 'complete' && popup.document.querySelector(verificationSelector)) {
                                     clearInterval(checkInterval);
                                     const html = popup.document.documentElement.outerHTML;
                                     popup.close();
-                                    console.log(`%c[fetchPageContent] Đã lấy nội dung thành công từ popup cho URL: ${url}`, "color: green;");
+                                    console.log(`[fetchPageContent] Xác thực xong, đã lấy nội dung từ: ${url}`);
                                     resolve(html);
                                 }
                             } catch (e) {
-                                // Bỏ qua lỗi cross-origin (do Cloudflare hoặc chính sách CORS)
+                                // Bỏ qua lỗi cross-origin do Cloudflare
                             }
                         }, 500);
 
                         setTimeout(() => {
                             clearInterval(checkInterval);
                             if (popup && !popup.closed) popup.close();
-                            reject(new Error(`Hết thời gian chờ xác thực (30 giây) cho URL: ${url}`));
+                            reject(new Error(`Hết thời gian chờ (30s) cho URL: ${url}`));
                         }, 30000);
                     });
                 }
 
                 const fontMap = { '㟧': '二', '㠬': '丁', '㣉': '入', '㥕': '刀', '㥫': '干', '㦂': '工', '㦫': '巾', '㦱': '亡', '㦳': '之', '㦵': '已', '㦶': '弓', '㧜': '勺', '㨾': '元', '㩙': '五', '㩽': '屯', '㪏': '切', '㪶': '仁', '㪸': '化', '㫅': '父', '㫇': '今', '㫈': '凶', '㫠': '欠', '㫡': '丹', '㫦': '六', '㫧': '文', '㫯': '尺', '㮽': '未', '㰙': '巧', '㰜': '功', '㰱': '世', '㰴': '本', '㰷': '丙', '㱏': '右', '㱒': '平', '㱕': '的', '㱗': '在', '㳍': '叫', '㳎': '用', '㳒': '失', '㳓': '生', '㳔': '到', '㵑': '分', '㵒': '乎', '㵔': '令', '㵕': '成', '㵙': '句', '㹏': '主', '㹐': '市', '㹓': '年', '䀱': '百', '䀲': '同', '䀴': '而', '䃢': '行', '䋢': '里', '䋤': '回', '䌠': '加', '䑖': '制', '䗙': '去', '䗽': '好', '䘓': '因', '䛈': '然', '䛊': '政', '䛌': '社', '䛍': '事', '䛗': '重', '䜥': '新', '䜭': '明', '䥉': '原', '䥊': '利', '䥍': '但', '䦣': '向', '䦤': '道', '䭹': '公', '䭻': '系', '䭼': '很', '䭾': '者', '䮍': '直', '䮹': '程', '䯬': '果', '䯮': '象', '䲻': '毛', '䲾': '白', '䶑': '扯', '䶓': '走', '丳': '抄', '乀': '裸', '乁': '赤', '噷': '交', '噸': '密', '圙': '娼', '塿': '共', '夌': '李', '婈': '游', '婖': '集', '媱': '操', '嵞': '芽', '嵟': '花', '欜': '器', '鼶': '棒', '齂': '母', };
+
                 let combinedHtmlContent = '';
                 let currentUrl = chapter.url;
                 let mainChapterTitle = chapter.title;
@@ -1549,9 +1559,7 @@ function decryptDES(encrypted, key, iv) {
                 console.log(`%cNovel543 Deal: Đã tải xong tất cả các trang cho chương "${mainChapterTitle}". Bắt đầu giải mã...`, "color: green;");
 
                 const tempDiv = $('<div>').html(combinedHtmlContent);
-
                 tempDiv.find('div, span').remove();
-
 
                 let textContent = tempDiv.find('p').map((index, p_element) => {
                     return $(p_element).text().trim();
@@ -1561,6 +1569,22 @@ function decryptDES(encrypted, key, iv) {
                     textContent = textContent.replace(new RegExp(obfuscated, 'g'), real);
                 }
 
+                // --- Xóa dòng đầu nếu trùng title ---
+                let lines = textContent.split(/\r?\n/);
+                if (lines.length > 0) {
+                    let firstLine = lines[0].trim();
+                    let cleanTitle = mainChapterTitle.trim();
+
+                    // So sánh chính xác hoặc bỏ ký tự đặc biệt
+                    if (firstLine === cleanTitle ||
+                        firstLine.replace(/[^\w\u4e00-\u9fff]/g, '') === cleanTitle.replace(/[^\w\u4e00-\u9fff]/g, '')) {
+                        console.log(`[Novel543] Dòng đầu content trùng title, xóa: "${firstLine}"`);
+                        lines.shift(); // xóa dòng đầu
+                    }
+                    textContent = lines.join('\n');
+                }
+
+
                 console.log(`%cNovel543 Deal: Dọn dẹp và giải mã hoàn tất.`, "color: green;");
 
                 return {
@@ -1568,6 +1592,7 @@ function decryptDES(encrypted, key, iv) {
                     content: textContent
                 };
             }
+
         },
 
         //https://www.ihuaben.com/
@@ -4758,10 +4783,9 @@ function decryptDES(encrypted, key, iv) {
 
     async function fetchPageContent(url) {
         console.log(`[fetchPageContent] Đang thử tải URL: ${url}`);
-        // Thử tải bằng xhr trước, nhanh hơn nếu không có bảo vệ
         const res = await xhr.sync(url, null, { cache: false });
 
-        // Dấu hiệu nhận biết trang thử thách của Cloudflare
+
         if (res.responseText.includes('<title>Just a moment...</title>') || res.responseText.includes('challenge-platform')) {
             console.warn("[fetchPageContent] Phát hiện Cloudflare. Chuyển sang phương thức popup...");
             alert("Trang web được bảo vệ bởi Cloudflare. Một cửa sổ nhỏ sẽ được mở để xác thực. Vui lòng không đóng nó cho đến khi hoàn tất.");
@@ -4779,8 +4803,8 @@ function decryptDES(encrypted, key, iv) {
                             clearInterval(checkInterval);
                             return reject("Cửa sổ xác thực đã bị đóng thủ công.");
                         }
-                        // Kiểm tra xem trang thật đã tải xong chưa (dựa vào một element có trên trang thật)
-                        if (popup.document.readyState === 'complete' && popup.document.querySelector('.media-content.info > h1.title')) {
+
+                        if (popup.document.readyState === 'complete') {
                             clearInterval(checkInterval);
                             const html = popup.document.documentElement.outerHTML;
                             popup.close();
@@ -4790,11 +4814,10 @@ function decryptDES(encrypted, key, iv) {
                     } catch (e) {
                         // Bỏ qua lỗi cross-origin tạm thời khi popup đang chuyển trang
                     }
-                }, 500); // Kiểm tra mỗi nửa giây
+                }, 500);
 
-                // Timeout để tránh treo script
                 setTimeout(() => {
-                    if (checkInterval) { // Nếu vẫn đang chạy
+                    if (checkInterval) { 
                         clearInterval(checkInterval);
                         if (popup && !popup.closed) popup.close();
                         reject("Hết thời gian chờ xác thực Cloudflare (30 giây).");
@@ -4802,7 +4825,6 @@ function decryptDES(encrypted, key, iv) {
                 }, 30000);
             });
         } else {
-            // Không có Cloudflare, trả về kết quả như bình thường
             console.log("[fetchPageContent] Không phát hiện Cloudflare. Tiến hành bình thường.");
             return res.responseText;
         }
