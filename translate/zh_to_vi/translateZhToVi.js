@@ -1,20 +1,23 @@
 // translateZhToVi.js
-// Tampermonkey-friendly library. Exposes global window.TranslateZhToVi
-// Usage: await TranslateZhToVi.init({ nameUrl, vpUrl, hvUrl, forceReload:false });
-// then TranslateZhToVi.translateText("...", opts), TranslateZhToVi.suggestName("...")
+// Tampermonkey-friendly library. Attach: window.TranslateZhToVi
+// Usage:
+//   await TranslateZhToVi.init({ nameUrl, vpUrl, hvUrl, forceReload:false });
+//   const out = TranslateZhToVi.translateText(text, { maxMatchLen: 30, priorityNameFirst:true });
+//   const segs = TranslateZhToVi.translateSegments(text);
 
 (function(global){
   const DB_NAME = 'TranslateZhToVi_DB_v1';
-  const CACHE_KEY = 'dict_cache';
+  const CACHE_KEY = 'dict_cache_v1';
   const DEFAULT_OPTS = {
     priorityNameFirst: true,
     preferLongVP: true,
-    riêngChung: true, // uses .tag === 'riêng' if present
+    riêngChung: true,
     maxSuggest: 200,
-    forceReload: false
+    forceReload: false,
+    maxMatchLen: null // null -> use dict max
   };
 
-  // ----------------- tiny IndexedDB wrapper -----------------
+  // tiny IndexedDB wrapper
   function idbOpen(){
     return new Promise((res, rej) => {
       const r = indexedDB.open(DB_NAME, 1);
@@ -54,9 +57,9 @@
     });
   }
 
-  // ----------------- helpers -----------------
+  // helpers
   function isCJK(ch){
-    return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(ch);
+    return /[\u3400-\u4DBF\u4E00-\u9FFF\uf900-\ufaff]/.test(ch);
   }
   function splitRuns(s){
     const runs = [];
@@ -71,132 +74,201 @@
     return runs;
   }
 
-  // ----------------- build index (from dict object) -----------------
+  // fetch util (GM friendly)
+  function fetchText(url){
+    return new Promise((res, rej) => {
+      if(typeof GM_xmlhttpRequest === 'function'){
+        GM_xmlhttpRequest({
+          method:'GET', url, responseType:'text',
+          onload(resp){
+            if(resp.status>=200 && resp.status<300) res(resp.responseText);
+            else rej(new Error('HTTP '+resp.status));
+          },
+          onerror(e){ rej(e); }
+        });
+      } else {
+        fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); }).then(res).catch(rej);
+      }
+    });
+  }
+
+  // build length buckets
   function buildBucketsFromDict(dictObj){
-    // dictObj { zh: {val, alts, [tag]} }
     const buckets = Object.create(null);
     let maxLen = 0;
     for(const k of Object.keys(dictObj)){
       const len = k.length;
       if(len === 0) continue;
       if(!buckets[len]) buckets[len] = Object.create(null);
-      buckets[len][k] = dictObj[k]; // store whole object
+      buckets[len][k] = dictObj[k];
       if(len > maxLen) maxLen = len;
     }
     return { buckets, maxLen };
   }
 
-  // ----------------- fetch util (GM-friendly) -----------------
-  function fetchText(url){
-    // prefer GM_xmlHttpRequest if available (Tampermonkey)
-    return new Promise((res, rej) => {
-      if(typeof GM_xmlHttpRequest === 'function'){
-        GM_xmlHttpRequest({
-          method: 'GET',
-          url,
-          responseType: 'text',
-          onload(resp){
-            if(resp.status >= 200 && resp.status < 300) res(resp.responseText);
-            else rej(new Error('HTTP '+resp.status));
-          },
-          onerror(err){ rej(err); }
-        });
-      } else {
-        fetch(url).then(r => {
-          if(!r.ok) throw new Error('HTTP '+r.status);
-          return r.text();
-        }).then(res).catch(rej);
-      }
-    });
-  }
-
-  // ----------------- core matching algorithm -----------------
-  function translateCJKRun(run, nameIdx, vpIdx, opts){
-    const order = opts.priorityNameFirst ? ['name','vp'] : ['vp','name'];
-    const out = [];
-    let i = 0, L = run.length, globalMax = Math.max(nameIdx.maxLen||0, vpIdx.maxLen||0);
-    while(i < L){
-      let matched = false;
-      let maxTry = Math.min(globalMax, L - i);
-      for(let l = maxTry; l >= 1; --l){
-        const sub = run.substr(i, l);
-        const hits = { name: (nameIdx.buckets[l] && nameIdx.buckets[l][sub]) || null,
-                       vp:   (vpIdx.buckets[l] && vpIdx.buckets[l][sub]) || null };
-        if(hits.name || hits.vp){
-          // riêng>chung handling if tags exist
-          if(opts.riêngChung){
-            if(hits.name && hits.name.tag === 'riêng' && (!hits.vp || hits.vp.tag !== 'riêng')){
-              out.push({ zh: sub, val: hits.name.val, alts: hits.name.alts, source: 'Name' });
-              i += l; matched = true; break;
-            }
-            if(hits.vp && hits.vp.tag === 'riêng' && (!hits.name || hits.name.tag !== 'riêng')){
-              out.push({ zh: sub, val: hits.vp.val, alts: hits.vp.alts, source: 'VP' });
-              i += l; matched = true; break;
-            }
-          }
-          // both exist
-          if(hits.name && hits.vp){
-            if(opts.preferLongVP){
-              out.push({ zh: sub, val: hits.vp.val, alts: hits.vp.alts, source: 'VP' });
-            } else {
-              out.push({ zh: sub, val: hits.name.val, alts: hits.name.alts, source: 'Name' });
-            }
-            i += l; matched = true; break;
-          } else if(hits.name){
-            out.push({ zh: sub, val: hits.name.val, alts: hits.name.alts, source: 'Name' });
-            i += l; matched = true; break;
-          } else {
-            out.push({ zh: sub, val: hits.vp.val, alts: hits.vp.alts, source: 'VP' });
-            i += l; matched = true; break;
-          }
+  // normalize input objects into { val, alts, tag?, skip? }
+  function normalizeDictAny(raw){
+    const out = Object.create(null);
+    for(const k of Object.keys(raw)){
+      if(!k) continue;
+      const v = raw[k];
+      if(v == null) continue;
+      if(typeof v === 'string'){
+        // split by '/' into alts; if first part empty => skip marker
+        const parts = v.split('/').map(x=>x.trim());
+        const alts = parts.filter(x=>x !== undefined && x !== null);
+        // treat explicit empty first meaning "" as SKIP
+        const first = (parts.length>0 ? parts[0] : '');
+        if(first === ''){
+          out[k] = { val: '', alts: alts.length?alts: [''], skip: true };
+        } else {
+          out[k] = { val: first, alts: alts.length?alts:[first] };
         }
-      }
-      if(!matched){
-        // fallback 1 char -> we'll handle later via HanViet
-        out.push({ zh: run[i], val: null, alts: null, source: null });
-        i += 1;
+      } else if(typeof v === 'object' && v.val !== undefined){
+        const val = String(v.val||'').trim();
+        const alts = Array.isArray(v.alts) ? v.alts.map(x=>String(x).trim()).filter(Boolean) : (val? [val]:[]);
+        const entry = { val: val, alts: alts.length?alts:[val] };
+        if(v.tag) entry.tag = v.tag;
+        if(val === '') entry.skip = true;
+        out[k] = entry;
+      } else {
+        const s = String(v).trim();
+        out[k] = { val: s, alts: [s] };
       }
     }
     return out;
   }
 
-  function hanVietFallbackForItems(items, hvDict){
-    // items: array of {zh,val,...}, convert nulls using hvDict per char
-    const out = [];
+  // Global-longest-first matching per CJK-run
+  function globalLongestMatch(text, nameIdx, vpIdx, hvDict, opts, overrideMax){
+    const N = text.length;
+    const maxFromDict = Math.max(nameIdx.maxLen||0, vpIdx.maxLen||0);
+    const maxLen = overrideMax && Number.isInteger(overrideMax) ? Math.min(overrideMax, maxFromDict) : maxFromDict;
+    // arrays
+    const replaced = new Array(N).fill(false);
+    const slots = new Array(N).fill(null); // slots[i] = {zh, val, alts, source, len}
+    // iterate lengths from maxLen -> 1
+    for(let l = maxLen; l >= 1; --l){
+      const nameBucket = nameIdx.buckets[l] || {};
+      const vpBucket = vpIdx.buckets[l] || {};
+      for(let i = 0; i + l <= N; ++i){
+        if(replaced.slice(i, i+l).some(x=>x)) continue; // overlap
+        const sub = text.substr(i, l);
+        let hitName = nameBucket[sub] || null;
+        let hitVp = vpBucket[sub] || null;
+        if(!hitName && !hitVp) continue;
+        // handle skip (if any has skip true and others not)
+        if(opts.riêngChung){
+          if(hitName && hitName.skip && (!hitVp || !hitVp.skip)){
+            // treat as SKIP -> keep original zh
+            slots[i] = { zh: sub, val: sub, alts: hitName.alts||[sub], source:'SKIP', len: l };
+            for(let k=0;k<l;k++) replaced[i+k]=true;
+            continue;
+          }
+          if(hitVp && hitVp.skip && (!hitName || !hitName.skip)){
+            slots[i] = { zh: sub, val: sub, alts: hitVp.alts||[sub], source:'SKIP', len: l };
+            for(let k=0;k<l;k++) replaced[i+k]=true;
+            continue;
+          }
+        }
+        // both exist or one exists
+        if(hitName && hitVp){
+          const chooseVp = opts.preferLongVP;
+          if(chooseVp){
+            slots[i] = { zh: sub, val: hitVp.val, alts: hitVp.alts, source:'VP', len: l };
+          } else {
+            slots[i] = { zh: sub, val: hitName.val, alts: hitName.alts, source:'Name', len: l };
+          }
+          for(let k=0;k<l;k++) replaced[i+k]=true;
+        } else if(hitName){
+          if(hitName.skip){
+            slots[i] = { zh: sub, val: sub, alts: hitName.alts||[sub], source:'SKIP', len: l };
+          } else {
+            slots[i] = { zh: sub, val: hitName.val, alts: hitName.alts, source:'Name', len: l };
+          }
+          for(let k=0;k<l;k++) replaced[i+k]=true;
+        } else {
+          if(hitVp.skip){
+            slots[i] = { zh: sub, val: sub, alts: hitVp.alts||[sub], source:'SKIP', len: l };
+          } else {
+            slots[i] = { zh: sub, val: hitVp.val, alts: hitVp.alts, source:'VP', len: l };
+          }
+          for(let k=0;k<l;k++) replaced[i+k]=true;
+        }
+      }
+    }
+    // build output items by walking i
+    const items = [];
+    for(let i=0;i<N;){
+      if(slots[i]){
+        const it = slots[i];
+        items.push({ zh: it.zh, val: it.val, alts: it.alts, source: it.source });
+        i += it.len;
+      } else {
+        // single char fallback (handle later by hanviet)
+        const ch = text[i];
+        items.push({ zh: ch, val: null, alts: null, source: null });
+        i += 1;
+      }
+    }
+    // now fill nulls with hanviet fallback
+    const filled = [];
     for(const it of items){
       if(it.val !== null){
-        out.push(it);
+        filled.push(it);
       } else {
-        // it.zh might be a single char, or multiple if fallback chunked; we'll map char by char
+        // it.zh is single char usually
         let built = [];
         for(const ch of it.zh){
           const hv = hvDict[ch];
           if(hv) built.push(hv.val);
           else built.push(ch);
         }
-        out.push({ zh: it.zh, val: built.join(' '), alts: [built.join(' ')], source: 'HanViet' });
+        filled.push({ zh: it.zh, val: built.join(' '), alts: [built.join(' ')], source: 'HanViet' });
       }
     }
-    return out;
+    return filled;
   }
 
-  // ----------------- main object -----------------
+  // join tokens with spacing/punct/capitalization rules
+  function joinTokensMakePretty(tokens){
+    // tokens: array of {zh, val, alts, source} (val already string)
+    // we'll join with single spaces, then tidy spaces around punctuation, then capitalize sentence starts and after quotes
+    let parts = tokens.map(t => (t.val===null||t.val===undefined) ? t.zh : t.val);
+    let s = parts.join(' ');
+    // remove spaces before punctuation (both western and CJK punctuation)
+    s = s.replace(/\s+([,.:;!?%»”\)\]\}，。、《》？！，；：])/g, '$1');
+    // ensure space after punctuation if letter follows (except when punctuation is CJK and next is CJK)
+    s = s.replace(/([\.!?。！？])(["»”']?)([^\s"'\)\]\}])/g, (m,p,quote,after) => `${p}${quote} ${after}`);
+    // remove space before closing quotes if any
+    s = s.replace(/\s+(["»”'])/g, '$1');
+    // collapse multiple spaces
+    s = s.replace(/\s{2,}/g, ' ');
+    // trim
+    s = s.trim();
+    // capitalize first letter of text and first letter after sentence end or after double quote "
+    s = s.replace(/(^|[\.!\?。！？]["”']?\s+)(\p{L})/gu, (m, lead, ch) => lead + ch.toUpperCase());
+    // also capitalize after opening quote " (if pattern: "a -> "A)
+    s = s.replace(/(["“”']\s*)(\p{L})/gu, (m, q, ch) => q + ch.toUpperCase());
+    return s;
+  }
+
   const TranslateZhToVi = {
     isReady: false,
     _raw: { nameRaw:null, vpRaw:null, hvRaw:null },
-    _idx: { nameIdx: {buckets:{},maxLen:0}, vpIdx: {buckets:{},maxLen:0}, hvDict: {} },
+    _idx: { nameIdx:{buckets:{},maxLen:0}, vpIdx:{buckets:{},maxLen:0}, hvDict:{} },
+    opts: Object.assign({}, DEFAULT_OPTS),
+
     async init(opts = {}){
-      this.opts = Object.assign({}, DEFAULT_OPTS, opts || {});
+      this.opts = Object.assign({}, this.opts, opts || {});
       const nameUrl = opts.nameUrl || 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/translate/zh_to_vi/Name.json';
       const vpUrl   = opts.vpUrl   || 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/translate/zh_to_vi/VP.json';
       const hvUrl   = opts.hvUrl   || 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/translate/zh_to_vi/HanViet.json';
 
-      // Try cache
       let cache = null;
       try { cache = await idbGet(CACHE_KEY); } catch(e){ console.warn('idb read err', e); }
       if(cache && !this.opts.forceReload){
         try {
-          // restore
           this._raw = cache.raw;
           this._idx = cache.idx;
           this.isReady = true;
@@ -207,93 +279,56 @@
         }
       }
 
-      // fetch raw JSON (text -> parse)
       const [nameText, vpText, hvText] = await Promise.all([
         fetchText(nameUrl),
         fetchText(vpUrl),
         fetchText(hvUrl)
       ]);
-      // parse
       let nameObj = JSON.parse(nameText);
       let vpObj   = JSON.parse(vpText);
       let hvObj   = JSON.parse(hvText);
 
-      // ensure normalized structure: {val, alts}
-      function norm(obj){
-        const out = Object.create(null);
-        for(const k of Object.keys(obj)){
-          const v = obj[k];
-          if(v == null) continue;
-          if(typeof v === 'string'){
-            const parts = v.split('/').map(x => x.trim()).filter(Boolean);
-            out[k] = { val: parts[0]||v, alts: parts.length?parts:[v] };
-          } else if(typeof v === 'object' && v.val){
-            out[k] = { val: String(v.val), alts: Array.isArray(v.alts)?v.alts:(v.val? [String(v.val)]:[]) };
-            if(v.tag) out[k].tag = v.tag;
-          } else {
-            out[k] = { val: String(v), alts: [String(v)] };
-          }
-        }
-        return out;
-      }
-      nameObj = norm(nameObj);
-      vpObj   = norm(vpObj);
-      // hvObj expected {char: "việt"} or normalized as above
-      const hvNormalized = Object.create(null);
-      for(const k of Object.keys(hvObj)){
-        const v = hvObj[k];
-        if(typeof v === 'string'){
-          const parts = v.split('/').map(x=>x.trim()).filter(Boolean);
-          hvNormalized[k] = { val: parts[0], alts: parts };
-        } else if(typeof v === 'object' && v.val){
-          hvNormalized[k] = { val: String(v.val), alts: Array.isArray(v.alts)?v.alts:[String(v.val)] };
-        } else {
-          hvNormalized[k] = { val: String(v), alts: [String(v)] };
-        }
-      }
+      nameObj = normalizeDictAny(nameObj);
+      vpObj   = normalizeDictAny(vpObj);
+      const hvNorm = normalizeDictAny(hvObj);
 
-      // build buckets
       const nameIdx = buildBucketsFromDict(nameObj);
       const vpIdx   = buildBucketsFromDict(vpObj);
 
-      // store
-      this._raw = { nameRaw: nameObj, vpRaw: vpObj, hvRaw: hvNormalized };
-      this._idx = { nameIdx, vpIdx, hvDict: hvNormalized };
+      this._raw = { nameRaw: nameObj, vpRaw: vpObj, hvRaw: hvNorm };
+      this._idx = { nameIdx, vpIdx, hvDict: hvNorm };
       this.isReady = true;
 
-      // cache to idb (be mindful of size)
-      try {
-        await idbPut(CACHE_KEY, { raw: this._raw, idx: this._idx, savedAt: Date.now() });
-      } catch(e){
-        console.warn('cache write fail', e);
-      }
-      console.log('[TranslateZhToVi] loaded from remote and indexed');
+      try { await idbPut(CACHE_KEY, { raw: this._raw, idx: this._idx, savedAt: Date.now() }); } catch(e){ console.warn('cache write fail', e); }
+      console.log('[TranslateZhToVi] loaded and indexed');
     },
 
     clearCache: async function(){
-      try { await idbDel(CACHE_KEY); console.log('[TranslateZhToVi] cache cleared'); } catch(e){ console.warn(e); }
+      await idbDel(CACHE_KEY).catch(()=>{});
       this.isReady = false;
+      console.log('[TranslateZhToVi] cache cleared');
     },
 
-    // translate a whole text -> returns string
+    // translate whole text and return a pretty string
     translateText: function(text, opts){
       if(!this.isReady) throw new Error('TranslateZhToVi not init()');
       opts = Object.assign({}, this.opts, opts||{});
       const runs = splitRuns(text);
-      const pieces = [];
+      const tokens = [];
       for(const r of runs){
         if(r.mode === 'CJK'){
-          const items = translateCJKRun(r.text, this._idx.nameIdx, this._idx.vpIdx, opts);
-          const filled = hanVietFallbackForItems(items, this._idx.hvDict);
-          for(const it of filled) pieces.push(it.val);
+          const maxMatch = opts.maxMatchLen || Math.max(this._idx.nameIdx.maxLen||0, this._idx.vpIdx.maxLen||0);
+          const items = globalLongestMatch(r.text, this._idx.nameIdx, this._idx.vpIdx, this._idx.hvDict, opts, maxMatch);
+          tokens.push(...items);
         } else {
-          pieces.push(r.text);
+          tokens.push({ zh: r.text, val: r.text, alts: [r.text], source: 'TEXT' });
         }
       }
-      return pieces.join('');
+      const out = joinTokensMakePretty(tokens);
+      return out;
     },
 
-    // returns array of {zh, val, alts, source} for each matched segment (no joining)
+    // return array of segments {zh, val, alts, source} (no pretty join)
     translateSegments: function(text, opts){
       if(!this.isReady) throw new Error('TranslateZhToVi not init()');
       opts = Object.assign({}, this.opts, opts||{});
@@ -301,9 +336,9 @@
       const out = [];
       for(const r of runs){
         if(r.mode === 'CJK'){
-          const items = translateCJKRun(r.text, this._idx.nameIdx, this._idx.vpIdx, opts);
-          const filled = hanVietFallbackForItems(items, this._idx.hvDict);
-          out.push(...filled.map(it => ({ zh: it.zh, val: it.val, alts: it.alts, source: it.source })));
+          const maxMatch = opts.maxMatchLen || Math.max(this._idx.nameIdx.maxLen||0, this._idx.vpIdx.maxLen||0);
+          const items = globalLongestMatch(r.text, this._idx.nameIdx, this._idx.vpIdx, this._idx.hvDict, opts, maxMatch);
+          out.push(...items);
         } else {
           out.push({ zh: r.text, val: r.text, alts: [r.text], source: 'TEXT' });
         }
@@ -311,29 +346,22 @@
       return out;
     },
 
-    // suggest names: return matches from Name & VP (exact first, then substring matches)
+    // suggest name: exact matches first; else substring matches; else fallback translate
     suggestName: function(term, limit){
       if(!this.isReady) throw new Error('TranslateZhToVi not init()');
       limit = limit || this.opts.maxSuggest;
       const res = [];
       const nameRaw = this._raw.nameRaw || {};
       const vpRaw = this._raw.vpRaw || {};
-
-      // exact
       if(nameRaw[term]) res.push({ source: 'Name', zh: term, val: nameRaw[term].val, alts: nameRaw[term].alts });
-      if(vpRaw[term])   res.push({ source: 'VP',   zh: term, val: vpRaw[term].val,   alts: vpRaw[term].alts });
-
-      if(res.length > 0) return res;
-
-      // substring-search (keys that contain term OR term contains key)
+      if(vpRaw[term]) res.push({ source: 'VP', zh: term, val: vpRaw[term].val, alts: vpRaw[term].alts });
+      if(res.length) return res;
+      // substring
       function scan(obj, label){
-        let out = [];
-        const keys = Object.keys(obj);
-        for(const k of keys){
+        const out = [];
+        for(const k of Object.keys(obj)){
           if(out.length >= limit) break;
-          if(k.includes(term) || term.includes(k)){
-            out.push({ source: label, zh: k, val: obj[k].val, alts: obj[k].alts });
-          }
+          if(k.includes(term) || term.includes(k)) out.push({ source: label, zh: k, val: obj[k].val, alts: obj[k].alts });
         }
         return out;
       }
@@ -341,31 +369,29 @@
       const r2 = scan(vpRaw, 'VP');
       const merged = r1.concat(r2).slice(0, limit);
       if(merged.length) return merged;
-
-      // fallback: translate the term and return single item
+      // fallback single result
       const t = this.translateText(term, { priorityNameFirst: this.opts.priorityNameFirst });
       return [{ source: 'Fallback', zh: term, val: t, alts: [t] }];
     },
 
-    // small helper to add/update a dict entry in memory (not persisted)
+    // in-memory add/update (and persist cache)
     addEntry: function(dictName, zh, val, alts, tag){
       if(!this.isReady) throw new Error('TranslateZhToVi not init()');
-      const targetRaw = dictName === 'name' ? this._raw.nameRaw : this._raw.vpRaw;
-      if(!targetRaw) throw new Error('invalid dictName');
-      targetRaw[zh] = { val, alts: alts || [val], tag };
-      // rebuild indexes (simple way: rebuild full index - ok for manual edits)
-      const newIdx = buildBucketsFromDict(targetRaw);
+      const target = dictName === 'name' ? this._raw.nameRaw : this._raw.vpRaw;
+      if(!target) throw new Error('invalid dictName');
+      const entry = { val: val||'', alts: alts && alts.length ? alts : (val? [val]:[]) };
+      if(tag) entry.tag = tag;
+      if(entry.val === '') entry.skip = true;
+      target[zh] = entry;
+      // rebuild index
+      const newIdx = buildBucketsFromDict(target);
       if(dictName === 'name') this._idx.nameIdx = newIdx;
       else this._idx.vpIdx = newIdx;
-      // update cache (async)
       idbPut(CACHE_KEY, { raw: this._raw, idx: this._idx, savedAt: Date.now() }).catch(()=>{});
     },
 
-    // expose internals for debugging (read-only)
     _debug: function(){ return { raw: this._raw, idx: this._idx, opts: this.opts }; }
   };
 
-  // attach global
   global.TranslateZhToVi = TranslateZhToVi;
-
 })(window);
