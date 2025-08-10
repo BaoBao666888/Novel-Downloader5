@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      2.0.4
+// @version      3.0.0
 // @description  Dịch trang, quản lý name-sets, sửa tên, chế độ đọc rút gọn và tùy chỉnh giao diện.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -44,7 +44,13 @@ const DEFAULT_CONFIG = {
         bgColor: '#fdfdf6',
         textColor: '#1f1f1f',
         textAlign: 'justify'
-    }
+    },
+    overrideFontEnabled: false,
+    overrideFontFamily: "Noto Serif, 'Times New Roman', serif" ,
+    showStartButton: true,
+    autoTranslateOnScroll: true,
+    nameEditingEnabled: true,
+    allowCopyWhenEditing: true,
 };
 
 /* ================== STORAGE ================== */
@@ -66,6 +72,8 @@ function saveConfig(cfg) { GM_setValue('tm_translate_config_v2', cfg); }
 let config = loadConfig();
 
 /* ================== GLOBAL STATE ================== */
+let translationCache = {};
+let isTranslating = false;
 let lastTranslationState = null; // { items, placeholderMaps, translatedResults }
 let hanvietMap = null;
 let lastSelectionRange = null;
@@ -188,7 +196,43 @@ function unlockPageInteraction() {
 
     console.log('[tm-translate] Đã kích hoạt chế độ giải phóng chuột và tô đen văn bản.');
 }
+
+function applyGlobalFontOverride() {
+    // Xóa style cũ nếu có để cập nhật
+    removeElementById('tm-font-override-style');
+
+    // Chỉ chạy khi người dùng đã bật tính năng này trong cài đặt
+    if (!config.overrideFontEnabled) {
+        return;
+    }
+
+    const css = `
+        body, body *, p, div, span, a, li, td, th {
+            font-family: ${config.overrideFontFamily} !important;
+        }
+    `;
+    const style = document.createElement('style');
+    style.id = 'tm-font-override-style';
+    style.textContent = css;
+    (document.head || document.documentElement).appendChild(style);
+
+    console.log(`[tm-translate] Đã áp dụng font chữ ghi đè: ${config.overrideFontFamily}`);
+}
 /* ================== DOM MANIPULATION & UI HELPERS ================== */
+function applyCopyabilityStyle() {
+    // Kiểm tra điều kiện "mạnh tay"
+    if (config.nameEditingEnabled && config.allowCopyWhenEditing) {
+        // Nếu đủ điều kiện, gọi hàm unlock
+        unlockPageInteraction();
+    } else {
+        // Trong MỌI trường hợp khác, gỡ bỏ can thiệp
+        removeElementById('tm-unlock-style');
+        // (Chúng ta không thể gỡ các event listener đã thêm một cách dễ dàng,
+        // nhưng việc gỡ bỏ CSS đã giải quyết 90% vấn đề hiển thị và hành vi)
+        console.log('[tm-translate] Đã tắt chế độ can thiệp copy.');
+    }
+}
+
 function showLoading(message) {
     removeLoading();
     const div = document.createElement('div');
@@ -202,23 +246,25 @@ function removeLoading() {
 }
 function showFloatingButtons() {
     removeFloatingButtons();
-    const pencil = document.createElement('div');
-    pencil.id = 'tm-edit-pencil';
-    pencil.className = 'tm-float-btn';
-    pencil.title = 'Sửa tên (chọn chữ rồi bấm)';
-    pencil.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    if (config.nameEditingEnabled) {
+        const pencil = document.createElement('div');
+        pencil.id = 'tm-edit-pencil';
+        pencil.className = 'tm-float-btn';
+        pencil.title = 'Sửa tên (chọn chữ rồi bấm)';
+        pencil.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 
-    pencil.addEventListener('mousedown', () => {
-        const sel = window.getSelection();
-        if (sel.rangeCount > 0) {
-            lastSelectionRange = sel.getRangeAt(0).cloneRange();
-        }
-    });
-    pencil.addEventListener('click', (event) => {
-        event.preventDefault();
-        openEditModalForSelection();
-    });
-    document.body.appendChild(pencil);
+        pencil.addEventListener('mousedown', () => {
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0) {
+                lastSelectionRange = sel.getRangeAt(0).cloneRange();
+            }
+        });
+        pencil.addEventListener('click', (event) => {
+            event.preventDefault();
+            openEditModalForSelection();
+        });
+        document.body.appendChild(pencil);
+    }
 
     // Chỉ hiển thị nút Style khi ở chế độ rút gọn
     if (simplifiedActive) {
@@ -237,6 +283,32 @@ function removeFloatingButtons() {
     removeStylePanel();
 }
 function removeElementById(id) { document.getElementById(id)?.remove(); }
+function createStartButton() {
+    // Nếu trang đã dịch rồi thì không hiện nút này nữa
+     if (translatedBodyClone || !config.showStartButton) return;
+    if (translatedBodyClone) return;
+
+    removeElementById('tm-start-translate-btn');
+    const startBtn = document.createElement('div');
+    startBtn.id = 'tm-start-translate-btn';
+    startBtn.className = 'tm-float-btn';
+    startBtn.style.backgroundColor = '#28a745'; // Màu xanh lá
+    startBtn.style.right = '18px';
+    startBtn.style.bottom = '18px';
+    startBtn.title = 'Bắt đầu dịch trang này';
+    startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M21.79,6.22C20.21,4.64,18,4,15.5,4c-2.12,0-3.88,0.64-5.23,1.93L12,7.66l1.41,1.41l-2.42,2.42l-2.42-2.42L10,7.66 C10,7.66,10,7.66,10,7.66L8.59,6.24C7.7,5.36,6.58,4.8,5.25,4.8C4.19,4.8,3.2,5.1,2.4,5.9C0.83,7.47,0.83,10,2.4,11.6l4.24,4.24 c0.78,0.78,1.8,1.17,2.83,1.17s2.05-0.39,2.83-1.17l1.41-1.41l-1.41-1.41L12,14.34l-1.06-1.06c-0.39-0.39-0.39-1.02,0-1.41 s1.02-0.39,1.41,0l1.06,1.06l2.42-2.42l1.41,1.41l-1.41,1.41c-1.56,1.56-4.09,1.56-5.66,0l-4.24-4.24c-1.17-1.17-1.17-3.07,0-4.24 c0.75-0.75,1.76-1.12,2.83-1.12s2.08,0.38,2.83,1.12l1.41,1.41L12,7.66l2.42,2.42l1.41-1.41L14.41,7.24c1.35-1.29,3.11-1.93,5.23-1.93 c2.5,0,4.71,0.64,6.29,2.21c1.56,1.56,1.56,4.09,0,5.66l-2.12,2.12l-1.41-1.41l2.12-2.12C22.96,10.32,22.96,7.79,21.79,6.22z"/></svg>`;
+
+    // Khi click, nó sẽ gọi hàm startTranslateAction (hàm này đã có cơ chế chống click nhiều lần)
+    startBtn.addEventListener('click', startTranslateAction);
+    document.body.appendChild(startBtn);
+}
+function updateStartButtonVisibility() {
+    if (config.showStartButton) {
+        createStartButton();
+    } else {
+        removeElementById('tm-start-translate-btn');
+    }
+}
 
 /* ================== SELECTION TRACKING ================== */
 document.addEventListener('selectionchange', () => {
@@ -307,14 +379,14 @@ document.addEventListener('selectionchange', function saveSelectionSnapshot() {
 
 
 /* ================== CORE TRANSLATION LOGIC ================== */
+
 function collectTranslatableItems(includeScriptStyle = false, roots = [document.body]) {
     const items = [];
     const seenNodes = new WeakSet();
     const skipTags = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'PRE', 'CODE', 'TEXTAREA'];
     const ignoreRootIds = ['tm-edit-pencil', 'tm-style-button', 'tm-edit-modal', 'tm-settings-modal', 'tm-style-panel'];
 
-    // Regex MỚI: Chỉ lấy text có chứa ký tự chữ (Hán hoặc Latinh), bỏ qua các chuỗi chỉ có số và dấu câu.
-    const hasMeaningfulTextRegex = /[a-zA-Z\u4e00-\u9fa5]/;
+    const hasMeaningfulTextRegex = /[a-zA-Z\u4e00-\u9fa5\d]/;
 
     function isIgnored(element) {
         if (!element || seenNodes.has(element)) return true;
@@ -323,6 +395,9 @@ function collectTranslatableItems(includeScriptStyle = false, roots = [document.
             if (cur.nodeType !== 1) {
                 cur = cur.parentElement;
                 continue;
+            }
+            if (cur.classList && (cur.classList.contains('tm-chunk') || cur.classList.contains('tm-parent-translated'))) {
+                return true;
             }
             if (cur.id && ignoreRootIds.some(id => cur.id.startsWith(id))) return true;
             if (cur.isContentEditable) return true;
@@ -335,9 +410,18 @@ function collectTranslatableItems(includeScriptStyle = false, roots = [document.
     function traverse(node) {
         if (isIgnored(node)) return;
 
+        if (node.nodeType === Node.ELEMENT_NODE && node.tagName.toUpperCase() === 'A') {
+            const href = node.getAttribute('href');
+            const text = node.textContent.trim();
+            if (href && text && hasMeaningfulTextRegex.test(text)) {
+                items.push({ type: 'link', href: href, original: text, node: node });
+                seenNodes.add(node);
+                return;
+            }
+        }
+
         if (node.nodeType === Node.TEXT_NODE) {
             const text = node.nodeValue.trim();
-            // Áp dụng điều kiện lọc MỚI
             if (text.length > 0 && hasMeaningfulTextRegex.test(text)) {
                 items.push({ type: 'text', node: node, original: text });
                 seenNodes.add(node);
@@ -349,7 +433,6 @@ function collectTranslatableItems(includeScriptStyle = false, roots = [document.
             const attrsToTranslate = ['title', 'placeholder', 'value'];
             for (const attr of attrsToTranslate) {
                 const text = node.getAttribute(attr)?.trim();
-                // Áp dụng điều kiện lọc MỚI
                 if (text && text.length > 0 && hasMeaningfulTextRegex.test(text)) {
                     items.push({ type: 'attribute', element: node, attribute: attr, original: text });
                 }
@@ -363,9 +446,10 @@ function collectTranslatableItems(includeScriptStyle = false, roots = [document.
     }
 
     roots.forEach(root => traverse(root));
-    console.log(`[tm-translate] Đã thu thập được ${items.length} mục để dịch (đã lọc text có nghĩa).`);
+    console.log(`[tm-translate] Đã thu thập được ${items.length} mục mới để dịch.`);
     return items;
 }
+
 function buildNameSetReplacer(nameSet) {
     const keys = Object.keys(nameSet).sort((a, b) => b.length - a.length);
     return function(text, placeholderMap) {
@@ -399,119 +483,225 @@ function splitIntoBatches(arr, maxChars) {
     return batches;
 }
 
-function postTranslate(serverUrl, content, targetLang) {
+function postTranslate(serverUrl, contentArray, targetLang) {
     return new Promise((resolve, reject) => {
+        const payload = { content: JSON.stringify(contentArray), tl: targetLang };
+
         GM_xmlhttpRequest({
             method: 'POST',
             url: serverUrl,
             headers: { 'Content-Type': 'application/json', 'referer': 'https://dichngay.com/' },
-            data: JSON.stringify({ content, tl: targetLang }),
+            data: JSON.stringify(payload),
             onload(res) {
                 if (res.status >= 200 && res.status < 300) {
-                    try { resolve(JSON.parse(res.responseText)); } catch (e) { reject(new Error('Invalid JSON: ' + e)); }
-                } else reject(new Error('HTTP ' + res.status));
+                    try {
+                        const jsonResponse = JSON.parse(res.responseText);
+                        let translatedContentString = jsonResponse?.data?.content ?? jsonResponse?.translatedText;
+
+                        if (typeof translatedContentString !== 'string') {
+                            throw new Error("Server response 'content' was not a string.");
+                        }
+
+                        // ** SỬA LỖI: Dọn dẹp chuỗi JSON trước khi parse **
+                        // 1. Loại bỏ các ký tự điều khiển ASCII không hợp lệ (0-31) ngoại trừ tab, newline...
+                        // 2. Thay thế các dấu \ đơn lẻ (nguyên nhân chính gây lỗi) bằng \\
+                        const sanitizedString = translatedContentString
+                            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+                            .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+
+                        resolve(JSON.parse(sanitizedString));
+
+                    } catch (e) {
+                         console.error("Lỗi nghiêm trọng khi parse JSON từ server:", e);
+                         reject(new Error('Failed to parse response from server. Error: ' + e));
+                    }
+                } else {
+                    reject(new Error('HTTP Error: ' + res.status));
+                }
             },
             onerror(err) { reject(err); }
         });
     });
 }
 
-async function startTranslateAction() {
-    try {
-        let isRetranslatingInSimplifiedMode = simplifiedActive;
+function highlightNamesInText(translatedText, nameSet) {
+    let finalHtml = escapeHtml(translatedText);
+    const vietToOrigMap = {};
+    for (const orig in nameSet) {
+        vietToOrigMap[nameSet[orig]] = orig;
+    }
 
-        if (isRetranslatingInSimplifiedMode) {
-            console.log("Đang dịch lại trong Chế độ rút gọn...");
-        } else {
-            originalBodyClone = document.body.cloneNode(true);
+    const vietNames = Object.keys(vietToOrigMap).sort((a, b) => b.length - a.length);
+
+    for (const vietName of vietNames) {
+        if (!vietName) continue;
+
+        const regex = new RegExp(escapeHtml(vietName).replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+
+        // Chỉ thay thế nếu tìm thấy
+        if (regex.test(finalHtml)) {
+             const origName = vietToOrigMap[vietName];
+             const replacementHtml = `<span class="tm-name" data-orig="${escapeHtml(origName)}">${escapeHtml(vietName)}</span>`;
+             finalHtml = finalHtml.replace(regex, replacementHtml);
         }
+    }
+    return finalHtml;
+}
 
+
+
+function tokenizeString(str) {
+    if (!str) return [];
+    // Regex này giờ sẽ chỉ coi những thứ như emoji hoặc ký tự lạ là "special".
+    const specialCharsRegex = /([^a-zA-Z0-9\u4e00-\u9fa5\s。，、？！：；“”‘’（）《》]+)/g;
+    const parts = str.split(specialCharsRegex).filter(Boolean);
+    const tokens = [];
+    for (const part of parts) {
+        // Dùng test() trên regex gốc để đảm bảo phân loại đúng
+        if (/([^a-zA-Z0-9\u4e00-\u9fa5\s。，、？！：；“”‘’（）《》]+)/.test(part)) {
+            tokens.push({ type: 'special', value: part });
+        } else {
+            if (tokens.length > 0 && tokens[tokens.length - 1].type === 'text') {
+                tokens[tokens.length - 1].value += part;
+            } else {
+                tokens.push({ type: 'text', value: part });
+            }
+        }
+    }
+    return tokens;
+}
+
+function reassembleTranslatedString(tokens, translatedTexts) {
+    let result = '';
+    let translatedIndex = 0;
+    for (const token of tokens) {
+        if (token.type === 'text') {
+            if (translatedIndex < translatedTexts.length) {
+                result += translatedTexts[translatedIndex];
+                translatedIndex++;
+            }
+        } else { // type === 'special'
+            result += token.value;
+        }
+    }
+    return result;
+}
+
+
+async function startTranslateAction() {
+    if (isTranslating) {
+        showNotification("Đang dịch, vui lòng đợi...", 2000);
+        return;
+    }
+    isTranslating = true;
+    removeElementById('tm-start-translate-btn');
+
+    try {
+        originalBodyClone = document.body.cloneNode(true);
         showLoading('Đang thu thập nội dung...');
         config = loadConfig();
-        const nameSet = config.nameSets[config.activeNameSet] || {};
-        const replacer = buildNameSetReplacer(nameSet);
-
         const items = collectTranslatableItems(config.includeScriptStyle, [originalBodyClone]);
-        if (items.length === 0) {
-            removeLoading();
-            alert('[tm-translate] Không tìm thấy nội dung để dịch.');
-            return;
-        }
+        if (items.length === 0) throw new Error('Không tìm thấy nội dung để dịch.');
 
-        const placeholderMaps = [];
-        const modifiedContents = items.map(it => {
-            const pmap = {};
-            const after = replacer(it.original || '', pmap);
-            placeholderMaps.push(pmap);
-            return after;
+        // Phần Tokenize và dịch đã ổn định, giữ nguyên
+        const textsToSend = [];
+        items.forEach(item => {
+            item.tokens = tokenizeString(item.original);
+            item.tokens.forEach(token => {
+                if (token.type === 'text' && token.value.trim()) textsToSend.push(token.value);
+            });
         });
-
-        lastTranslationState = { items, placeholderMaps, translatedResults: null };
-        const batches = splitIntoBatches(modifiedContents, config.maxCharsPerRequest);
+        const batches = splitIntoBatches(textsToSend, config.maxCharsPerRequest);
         showLoading(`Đang dịch... (0/${batches.length} gói)`);
-
-        let translatedResults = [];
+        let allTranslatedTexts = [];
         for (let b = 0; b < batches.length; b++) {
             showLoading(`Đang dịch... (${b + 1}/${batches.length} gói)`);
-            const batchArr = batches[b];
-            try {
-                const json = await postTranslate(config.serverUrl, batchArr.join('\n'), config.targetLang);
-                const translatedRaw = json?.data?.content ?? json?.translatedText;
-                if (typeof translatedRaw === 'string') {
-                    translatedResults.push(...translatedRaw.split('\n'));
-                } else {
-                    throw new Error('Phản hồi dịch không hợp lệ');
-                }
-            } catch (error) {
-                console.error(`[tm-translate] Lỗi khi dịch gói ${b + 1}:`, error);
-                // *** FIX LỖI "LỘN CHỖ" QUAN TRỌNG NHẤT ***
-                // Nếu dịch lỗi, chèn các chuỗi rỗng để giữ đúng thứ tự và độ dài mảng.
-                const emptyResults = Array(batchArr.length).fill('');
-                translatedResults.push(...emptyResults);
-                alert(`Gặp lỗi khi dịch gói ${b + 1}. Một số đoạn có thể không được dịch. Vui lòng thử lại sau.`);
-            }
+            const translatedBatch = await postTranslate(config.serverUrl, batches[b], config.targetLang);
+            allTranslatedTexts.push(...(translatedBatch || []));
             if (b < batches.length - 1) await sleep(config.delayMs);
         }
+        let translationIdx = 0;
+        translationCache = {};
+        items.forEach(item => {
+            const numTextTokens = item.tokens.filter(t => t.type === 'text' && t.value.trim()).length;
+            const translatedParts = allTranslatedTexts.slice(translationIdx, translationIdx + numTextTokens);
+            item.translated = reassembleTranslatedString(item.tokens, translatedParts);
+            translationIdx += numTextTokens;
+            if (item.original && item.translated) translationCache[item.original] = item.translated;
+        });
+        console.log(`Dịch toàn trang hoàn tất. Đã cache ${Object.keys(translationCache).length} mục.`);
 
-        lastTranslationState.translatedResults = translatedResults;
+        lastTranslationState = { items };
         showLoading('Đang áp dụng bản dịch...');
 
+        // Tạo bản sao đã dịch để dùng cho cả 2 trường hợp
         translatedBodyClone = originalBodyClone.cloneNode(true);
         const itemsInClone = collectTranslatableItems(config.includeScriptStyle, [translatedBodyClone]);
-        const restorePlaceholders = (text, pmap) => Object.entries(pmap).reduce((acc, [ph, data]) => acc.split(ph).join(data.viet), text);
+        const nameSet = config.nameSets[config.activeNameSet] || {};
 
         for (let i = 0; i < itemsInClone.length; i++) {
-            const it = itemsInClone[i];
-            const rawRes = translatedResults[i];
-            if (rawRes == null || rawRes === '') continue; // Bỏ qua nếu không có bản dịch
-            const finalPlainText = restorePlaceholders(rawRes, placeholderMaps[i] || {});
-            if (it.type === 'text') it.node.nodeValue = finalPlainText;
-            else if (it.type === 'attribute') it.element.setAttribute(it.attribute, finalPlainText);
-        }
+            const itemInClone = itemsInClone[i];
+            const originalItem = items[i];
 
-        if (!isRetranslatingInSimplifiedMode && !config.simplifiedEnabled) {
-            document.body.replaceWith(translatedBodyClone.cloneNode(true));
+            if (!originalItem?.translated) continue;
+
+            if (itemInClone.type === 'attribute') {
+                // Nếu là attribute, dùng setAttribute để cập nhật
+                itemInClone.element.setAttribute(itemInClone.attribute, originalItem.translated);
+            }
+            else if (itemInClone.node && itemInClone.node.parentNode) {
+                // Nếu là node text, xử lý như cũ
+                const parent = itemInClone.node.parentNode;
+                const highlightedHtml = highlightNamesInText(originalItem.translated, nameSet);
+
+                if (config.nameEditingEnabled) {
+                    const chunkSpan = document.createElement('span');
+                    chunkSpan.className = 'tm-chunk';
+                    chunkSpan.dataset.orig = originalItem.original;
+                    chunkSpan.innerHTML = highlightedHtml;
+                    parent.replaceChild(chunkSpan, itemInClone.node);
+                } else {
+                    const tempWrapper = document.createElement('span');
+                    tempWrapper.innerHTML = highlightedHtml;
+                    while (tempWrapper.firstChild) {
+                        parent.insertBefore(tempWrapper.firstChild, itemInClone.node);
+                    }
+                    parent.insertBefore(document.createTextNode(' '), itemInClone.node);
+                    parent.removeChild(itemInClone.node);
+                    parent.classList.add('tm-parent-translated');
+                }
+            }
         }
 
         removeLoading();
-        console.log('[tm-translate] Dịch hoàn tất.');
-        showFloatingButtons();
 
-        if (config.simplifiedEnabled || isRetranslatingInSimplifiedMode) {
+        if (config.simplifiedEnabled) {
+            // Nếu bật chế độ rút gọn, ĐỪNG thay thế body.
+            // Thay vào đó, gọi hàm enableSimplifiedView, nó sẽ tự xử lý.
+            console.log('[tm-translate] Dịch hoàn tất. Đang kích hoạt chế độ rút gọn...');
             enableSimplifiedView();
-        }
-        if (!simplifiedActive) {
+        } else {
+            // Nếu không, thì mới thay thế body như bình thường.
+            console.log('[tm-translate] Dịch hoàn tất. Đang áp dụng lên trang gốc...');
+            document.body.replaceWith(translatedBodyClone.cloneNode(true));
+            // Các hàm này chỉ nên chạy ở chế độ thường
+            applyGlobalFontOverride();
             startAutoTranslateObserver();
         }
-        unlockPageInteraction();
+
+        // Các hàm này chạy cho cả hai trường hợp
+        applyCopyabilityStyle();
+        showFloatingButtons();
+        console.log('[tm-translate] Quy trình hoàn tất.');
 
     } catch (err) {
         removeLoading();
         console.error('[tm-translate] Lỗi nghiêm trọng:', err);
-        alert('Đã xảy ra lỗi nghiêm trọng trong quá trình dịch. Vui lòng kiểm tra console (F12).');
+        alert('Đã xảy ra lỗi nghiêm trọng: ' + err.message);
+    } finally {
+        isTranslating = false;
     }
 }
-
 /* ================== SIMPLIFIED VIEW ================== */
 function findMainContentElement(translatedBody) {
     console.log("Bắt đầu tìm khối nội dung chính...");
@@ -548,7 +738,7 @@ function findMainContentElement(translatedBody) {
     console.warn("Không tìm thấy khối nội dung chính, trả về body.");
     return translatedBody;
 }
-/* === Helpers for simplified view & safe spacing === */
+
 function splitBySentenceHeuristic(text) {
   const regex = /([^。！？!?\.]+[。！？!?\.…]?)/g;
   const parts = text.match(regex);
@@ -595,97 +785,90 @@ function injectSimplifiedCSS() {
   document.head.appendChild(s);
 }
 
-function buildSimplifiedHtml(mainContentElement) {
-    // Hàm đệ quy để đi sâu vào cây DOM và xây dựng lại HTML một cách an toàn
-    function processNode(node) {
-        // 1. Xử lý node văn bản: trả về nội dung đã được escape
-        if (node.nodeType === 3) { // Text Node
-            return escapeHtml(node.nodeValue);
+function buildSimplifiedHtml(translatedItems) {
+    let html = '';
+    const nameSet = config.nameSets[config.activeNameSet] || {};
+
+    translatedItems.forEach(item => {
+        if (!item.translated || (item.type !== 'text' && item.type !== 'link')) return;
+
+        const highlightedHtml = highlightNamesInText(item.translated, nameSet);
+        const p = document.createElement('p');
+        let contentContainer;
+
+        // Luôn tạo container, nhưng cách tạo khác nhau
+        if (config.nameEditingEnabled) {
+            // Chế độ EDIT: Bắt buộc phải có vỏ tm-chunk
+            const chunkSpan = document.createElement('span');
+            chunkSpan.className = 'tm-chunk';
+            chunkSpan.dataset.orig = item.original;
+            chunkSpan.innerHTML = highlightedHtml;
+            contentContainer = chunkSpan;
+        } else {
+            // Chế độ AN TOÀN: Dùng một div tạm để chứa các node con
+            const tempWrapper = document.createElement('div');
+            tempWrapper.innerHTML = highlightedHtml;
+            contentContainer = tempWrapper;
         }
 
-        // 2. Bỏ qua các node không phải element (comment, etc.)
-        if (node.nodeType !== 1) {
-            return '';
-        }
-
-        const tagName = node.tagName.toUpperCase();
-
-        // 3. Các thẻ cần loại bỏ hoàn toàn và không xử lý con của chúng
-        const tagsToDiscard = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'FORM', 'BUTTON', 'INPUT', 'NAV', 'FOOTER', 'HEADER', 'ASIDE', 'IMG', 'VIDEO', 'SVG', 'CANVAS'];
-        if (tagsToDiscard.includes(tagName)) {
-            return '';
-        }
-
-        // 4. Thẻ ngắt dòng <br> là tín hiệu quan trọng để tách đoạn
-        if (tagName === 'BR') {
-            return ' <br> '; // Thêm khoảng trắng để đảm bảo tách biệt
-        }
-
-        // 5. Xử lý các node con trước để lấy nội dung bên trong
-        let innerHtml = Array.from(node.childNodes).map(processNode).join('');
-
-        // 6. Giữ lại các thẻ định dạng inline quan trọng
-        const inlineTags = ['B', 'I', 'STRONG', 'EM', 'U', 'SPAN', 'FONT'];
-        if (inlineTags.includes(tagName)) {
-            // Chỉ giữ lại thẻ nếu nó thực sự chứa nội dung
-            return innerHtml.trim() ? `<${tagName.toLowerCase()}>${innerHtml}</${tagName.toLowerCase()}>` : '';
-        }
-
-        // 7. Xử lý và giữ lại các thẻ link <a> hợp lệ
-        if (tagName === 'A') {
-            const href = node.getAttribute('href');
-            if (href && (href.startsWith('http') || href.startsWith('/'))) {
-                return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${innerHtml}</a>`;
+        // *** SỬA LỖI CỐT LÕI: Gắn cả container thay vì chỉ con của nó ***
+        if (item.type === 'link' && item.href) {
+            const a = document.createElement('a');
+            a.href = escapeHtml(item.href);
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            // Nếu là chế độ edit, contentContainer là một node đơn (span.tm-chunk)
+            // Nếu không, contentContainer là một div chứa nhiều node con
+            if (contentContainer.nodeName === 'SPAN' && contentContainer.classList.contains('tm-chunk')) {
+                 a.appendChild(contentContainer);
+            } else { // Chuyển các node con từ div tạm vào
+                 while(contentContainer.firstChild) {
+                    a.appendChild(contentContainer.firstChild);
+                }
             }
-            // Nếu link không hợp lệ, chỉ trả về nội dung bên trong (flatten)
-            return innerHtml;
+            p.appendChild(a);
+        } else {
+            // Logic tương tự cho trường hợp không phải link
+            if (contentContainer.nodeName === 'SPAN' && contentContainer.classList.contains('tm-chunk')) {
+                 p.appendChild(contentContainer);
+            } else {
+                 while(contentContainer.firstChild) {
+                    p.appendChild(contentContainer.firstChild);
+                }
+            }
         }
-
-        // 8. Với các thẻ khối (div, p, li, table,...) và các thẻ khác,
-        // chúng ta chỉ lấy nội dung bên trong và thêm dấu ngắt <br> để đảm bảo tách đoạn.
-        // Điều này sẽ "ép phẳng" cấu trúc bảng mà vẫn giữ được thứ tự.
-        if (innerHtml.trim()) {
-             return ` <br>${innerHtml}<br> `;
-        }
-        return '';
-    }
-
-    // Bắt đầu xử lý từ khối nội dung chính
-    const rawHtml = processNode(mainContentElement);
-
-    // Dọn dẹp và tách chuỗi HTML thô thành các đoạn văn sạch sẽ
-    const finalParagraphs = rawHtml
-        .split(/<br\s*\/?>/i) // Tách các đoạn bằng thẻ <br>
-        .map(p => p.replace(/&nbsp;/g, ' ').trim()) // Dọn dẹp khoảng trắng
-        .filter(p => p.length > 0 && p.replace(/<[^>]+>/g, '').trim().length > 0); // Lọc bỏ các đoạn trống
-
-    // Bọc mỗi đoạn trong thẻ <p> để đảm bảo hiển thị đúng
-    return finalParagraphs.map(p => `<p>${p}</p>`).join('\n');
+        html += p.outerHTML + '\n';
+    });
+    return html;
 }
 
 function enableSimplifiedView() {
     if (simplifiedActive) {
-        applySimplifiedStyle(); // Chỉ cần áp dụng lại style nếu đã ở chế độ rút gọn
+        applySimplifiedStyle();
         return;
     }
-
-    if (!translatedBodyClone) {
+    if (!lastTranslationState || !lastTranslationState.items) {
         alert("Chưa có nội dung dịch để hiển thị. Vui lòng dịch trang trước.");
         return;
     }
 
-    const mainContentElement = findMainContentElement(translatedBodyClone);
-    if (!mainContentElement) {
-        alert("Không thể tìm thấy nội dung chính.");
-        return;
+    if (config.simplifiedBlockJS) {
+        console.log('[tm-translate] Chặn JS được bật. Đang dọn dẹp script và event...');
+        // Xóa tất cả các thẻ script trên toàn bộ trang
+        document.querySelectorAll('script, iframe').forEach(el => el.remove());
+        // Vô hiệu hóa tất cả các event handler inline
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(el => {
+            for (const attr of el.attributes) {
+                if (attr.name.startsWith('on')) {
+                    el.removeAttribute(attr.name);
+                }
+            }
+        });
     }
 
-    const cleanContentHtml = buildSimplifiedHtml(mainContentElement);
-
-    // *** LOGIC MỚI: DỌN DẸP HEAD THÔNG MINH ***
-    // 1. Xóa các file style và script CỦA TRANG GỐC
-    document.head.querySelectorAll('link[rel="stylesheet"], style, script').forEach(el => {
-        // Giữ lại các thẻ của Tampermonkey hoặc của chính script này
+    // Dọn dẹp head của trang gốc
+    document.head.querySelectorAll('link[rel="stylesheet"], style').forEach(el => {
         if (!el.src?.includes('tampermonkey') && !el.id.startsWith('tm-')) {
             el.remove();
         }
@@ -693,6 +876,7 @@ function enableSimplifiedView() {
 
     // 2. Cài lại CSS toàn cục của script để đảm bảo giao diện không bị hỏng
     injectGlobalCSS();
+    const cleanContentHtml = buildSimplifiedHtml(lastTranslationState.items);
 
     // 3. Tạo lại trang rút gọn
     document.body.innerHTML = '';
@@ -802,58 +986,122 @@ function disableSimplifiedView() {
 // --- KẾT THÚC THAY THẾ KHU VỰC SIMPLIFIED VIEW ---
 
 /* ================== AUTO TRANSLATE NEW CONTENT ================== */
-async function translateNewNodes(nodes) {
-    console.log('[tm-translate] Bắt đầu dịch nội dung mới...');
-    config = loadConfig();
+
+function showNotification(message, duration = 2000) {
+    removeElementById('tm-notification-bubble');
+    const div = document.createElement('div');
+    div.id = 'tm-notification-bubble';
+    div.textContent = message;
+    div.style.cssText = `
+        position: fixed; top: 20px; right: 20px; background-color: #2c3e50;
+        color: white; padding: 10px 18px; border-radius: 25px;
+        z-index: 2147483647; font-size: 14px; box-shadow: var(--tm-shadow);
+        opacity: 0; transition: opacity 0.3s ease;
+    `;
+    document.body.appendChild(div);
+    setTimeout(() => { div.style.opacity = '1'; }, 10);
+    setTimeout(() => {
+        div.style.opacity = '0';
+        setTimeout(() => { div.remove(); }, 300);
+    }, duration);
+}
+function applyTranslationToDom(items) {
     const nameSet = config.nameSets[config.activeNameSet] || {};
-    const replacer = buildNameSetReplacer(nameSet);
 
-    const items = collectTranslatableItems(config.includeScriptStyle, nodes);
-    if (!items || items.length === 0) {
-        return;
-    }
+    for (const it of items) {
+        if (!it.translated) continue;
 
-    const placeholderMaps = [];
-    const modifiedContents = items.map(it => {
-        const pmap = {};
-        const after = replacer(it.original || '', pmap);
-        placeholderMaps.push(pmap);
-        return after;
-    });
+        if (it.type === 'attribute') {
+            // Nếu là attribute, dùng setAttribute để cập nhật
+             if (it.element && it.element.isConnected) {
+                it.element.setAttribute(it.attribute, it.translated);
+            }
+        }
+        else if (it.node?.isConnected && it.node.parentNode) {
+            // Nếu là node text, xử lý như cũ
+            const parent = it.node.parentNode;
+            const highlightedHtml = highlightNamesInText(it.translated, nameSet);
 
-    const batches = splitIntoBatches(modifiedContents, config.maxCharsPerRequest);
-    let translatedResults = [];
-    for (const batchArr of batches) {
-        try {
-            const json = await postTranslate(config.serverUrl, batchArr.join('\n'), config.targetLang);
-            const translatedRaw = json?.data?.content ?? json?.translatedText;
-            if (typeof translatedRaw !== 'string') continue;
-            translatedResults.push(...translatedRaw.split('\n'));
-            await sleep(config.delayMs);
-        } catch (e) {
-            console.error('[tm-translate] Lỗi khi dịch nội dung mới:', e);
-            return;
+            if (config.nameEditingEnabled) {
+                const chunkSpan = document.createElement('span');
+                chunkSpan.className = 'tm-chunk';
+                chunkSpan.dataset.orig = it.original;
+                chunkSpan.innerHTML = highlightedHtml;
+                parent.replaceChild(chunkSpan, it.node);
+            } else {
+                const tempWrapper = document.createElement('span');
+                tempWrapper.innerHTML = highlightedHtml;
+                while (tempWrapper.firstChild) {
+                    parent.insertBefore(tempWrapper.firstChild, it.node);
+                }
+                parent.insertBefore(document.createTextNode(' '), it.node);
+                parent.removeChild(it.node);
+                parent.classList.add('tm-parent-translated');
+            }
         }
     }
+}
 
-    const restorePlaceholders = (text, pmap) => Object.entries(pmap).reduce((acc, [ph, data]) => acc.split(ph).join(data.viet), text);
-
-    for (let i = 0; i < items.length; i++) {
-        const it = items[i];
-        if (!translatedResults[i]) continue;
-        const finalPlainText = restorePlaceholders(translatedResults[i], placeholderMaps[i] || {});
-        try {
-            if (it.type === 'text' && it.node?.isConnected) it.node.nodeValue = finalPlainText;
-            else if (it.type === 'attribute' && it.element?.isConnected) it.element.setAttribute(it.attribute, finalPlainText);
-        } catch (e) { /* ignore */ }
+async function translateNewNodes(nodes) {
+    if (window.tmTranslateObserver) window.tmTranslateObserver.disconnect();
+    const allNewItems = collectTranslatableItems(config.includeScriptStyle, nodes);
+    if (!allNewItems.length) {
+        if (window.tmTranslateObserver) window.tmTranslateObserver.observe(document.body, { childList: true, subtree: true });
+        return;
     }
-    console.log('[tm-translate] Dịch nội dung mới hoàn tất.');
+    const itemsToTranslate = [], cachedItems = [];
+    allNewItems.forEach(item => {
+        if (translationCache.hasOwnProperty(item.original)) {
+            item.translated = translationCache[item.original];
+            cachedItems.push(item);
+        } else { itemsToTranslate.push(item); }
+    });
+
+    if (cachedItems.length > 0) {
+        // *** THÊM THÔNG BÁO CHO CACHE ***
+        //showNotification(`Áp dụng ${cachedItems.length} mục từ cache...`, 1500);
+        console.log(`[tm-translate] Áp dụng ${cachedItems.length} mục từ cache...`)
+        applyTranslationToDom(cachedItems);
+    }
+    if (itemsToTranslate.length > 0) {
+        showNotification(`Đang dịch ${itemsToTranslate.length} mục mới...`, 3000);
+        const textsToSend = [];
+        itemsToTranslate.forEach(item => {
+            item.tokens = tokenizeString(item.original);
+            item.tokens.forEach(token => {
+                if (token.type === 'text' && token.value.trim()) textsToSend.push(token.value);
+            });
+            translationCache[item.original] = ''; // Đánh dấu đang xử lý
+        });
+        const batches = splitIntoBatches(textsToSend, config.maxCharsPerRequest);
+        let allTranslatedTexts = [];
+        for (const batchArr of batches) {
+             const translatedBatch = await postTranslate(config.serverUrl, batchArr, config.targetLang);
+             allTranslatedTexts.push(...(translatedBatch || []));
+        }
+        let translationIdx = 0;
+        itemsToTranslate.forEach(item => {
+            const numTextTokens = item.tokens.filter(t => t.type === 'text' && t.value.trim()).length;
+            const translatedParts = allTranslatedTexts.slice(translationIdx, translationIdx + numTextTokens);
+            item.translated = reassembleTranslatedString(item.tokens, translatedParts);
+            translationIdx += numTextTokens;
+            if (item.original && item.translated) {
+                translationCache[item.original] = item.translated;
+            }
+        });
+        applyTranslationToDom(itemsToTranslate);
+    }
+
+    if (window.tmTranslateObserver) window.tmTranslateObserver.observe(document.body, { childList: true, subtree: true });
 }
 function startAutoTranslateObserver() {
     // Nếu observer đã tồn tại, ngắt nó đi trước khi tạo mới
     if (window.tmTranslateObserver) window.tmTranslateObserver.disconnect();
+    if (!config.autoTranslateOnScroll) {
+        console.log('[tm-translate] Tự động dịch đã bị tắt trong cài đặt.');
+        return;
+    }
 
-    // Debounce: Chờ 500ms sau khi trang ngừng thay đổi rồi mới dịch
     let debounceTimeout;
     const observerCallback = (mutationsList, observer) => {
         const hasRelevantChanges = mutationsList.some(m => m.addedNodes.length > 0 && Array.from(m.addedNodes).some(n => n.nodeType === 1 && !n.closest('[id^="tm-"]')));
@@ -862,9 +1110,6 @@ function startAutoTranslateObserver() {
             clearTimeout(debounceTimeout);
             debounceTimeout = setTimeout(() => {
                 console.log("[tm-translate] Phát hiện nội dung mới. Bắt đầu dịch bổ sung...");
-                // Dịch toàn bộ body để bắt các thay đổi một cách an toàn nhất
-                // Hàm startTranslateAction đã đủ thông minh để không dịch lại những gì đã dịch
-                // và chỉ áp dụng lên các text node mới.
                 translateNewNodes(Array.from(document.body.childNodes));
             }, 500);
         }
@@ -873,6 +1118,13 @@ function startAutoTranslateObserver() {
     window.tmTranslateObserver = new MutationObserver(observerCallback);
     window.tmTranslateObserver.observe(document.body, { childList: true, subtree: true });
     console.log('[tm-translate] Đã bật chế độ tự động dịch nội dung mới.');
+}
+
+function stopAutoTranslateObserver() {
+    if (window.tmTranslateObserver) {
+        window.tmTranslateObserver.disconnect();
+        console.log('[tm-translate] Đã dừng chế độ tự động dịch nội dung mới.');
+    }
 }
 /* ================== EDIT MODAL & HELPERS ================== */
 function findDataOrigFromSelectionRange(range) {
@@ -887,65 +1139,6 @@ function findDataOrigFromSelectionRange(range) {
         };
     }
     return null;
-}
-
-
-function openEditModalForSelection() {
-    // Lấy selection hiện tại, nếu rỗng thì fallback về lastSelectionRange (đã lưu trước khi click button)
-    let sel = window.getSelection();
-    let selectedText = sel && sel.toString ? sel.toString().trim() : '';
-
-    if ((!selectedText || selectedText.length === 0) && lastSelectionRange) {
-        // Nếu selection bị mất vì click, dùng snapshot lưu trước
-        if (lastSelectionRange._textSnapshot) {
-            selectedText = lastSelectionRange._textSnapshot.trim();
-        } else {
-            try {
-                selectedText = lastSelectionRange.toString().trim();
-            } catch (e) {
-                selectedText = '';
-            }
-        }
-    }
-
-    if (!selectedText) {
-        alert('Vui lòng bôi đen một đoạn văn bản đã được dịch.');
-        return;
-    }
-
-    if (!lastTranslationState) {
-        alert('Chưa có trạng thái dịch. Hãy dịch trang trước khi sửa name.');
-        return;
-    }
-
-    const { items, translatedResults, placeholderMaps } = lastTranslationState;
-
-    // 1) Nếu selection khớp trực tiếp với một tên trong placeholderMaps thì mở modal ngay
-    for (let i = 0; i < placeholderMaps.length; i++) {
-        const pmap = placeholderMaps[i] || {};
-        for (const ph in pmap) {
-            const nameData = pmap[ph];
-            if (nameData && nameData.viet && nameData.viet.includes(selectedText)) {
-                showEditModal(nameData.orig, nameData.viet);
-                return;
-            }
-        }
-    }
-
-    // 2) Nếu không tìm thấy trong map, tìm trong translatedResults từng chunk
-    for (let i = 0; i < translatedResults.length; i++) {
-        let chunk = translatedResults[i] || '';
-        // restore placeholders to readable Vietnamese for searching
-        const pmap = placeholderMaps[i] || {};
-        chunk = chunk.replace(/__TM_NAME_\d+__/g, (m) => (pmap[m] && pmap[m].viet) ? pmap[m].viet : m);
-        if (chunk && chunk.includes(selectedText)) {
-            // show modal with corresponding original (items[i].original) and the chunk
-            showEditModal(items[i].original || '', chunk);
-            return;
-        }
-    }
-
-    alert('Không tìm thấy cụm từ gốc tương ứng. Hãy thử chọn nhiều ký tự hơn hoặc dịch lại trang.');
 }
 
 function showEditModal(chinese, vietnamese) {
@@ -989,18 +1182,18 @@ function showEditModal(chinese, vietnamese) {
 
         let buttonsHtml = '';
         if (exists) {
+            // Nếu name đã tồn tại, hiển thị Sửa/Xóa
             buttonsHtml = `
                 <button id="tm-edit-delete" class="tm-btn">Xóa</button>
                 <button id="tm-edit-save" class="tm-btn tm-btn-primary">Sửa</button>
             `;
         } else {
+            // Nếu là name mới, hiển thị Thêm
             buttonsHtml = `<button id="tm-edit-add" class="tm-btn tm-btn-primary">Thêm</button>`;
         }
         actionsContainer.innerHTML = buttonsHtml;
         attachActionListeners();
     }
-
-
 
     // Hàm để gắn listener cho các nút động
     function attachActionListeners() {
@@ -1026,9 +1219,8 @@ function showEditModal(chinese, vietnamese) {
 
             saveConfig(config);
             close();
-            showLoading('Đang đồng bộ lại trang...');
-            await retranslateNodesForChinese(key);
-            removeLoading();
+            // Dịch lại toàn bộ trang để áp dụng thay đổi
+            await applyChangesAndRetranslate();
         };
 
         if (btnAdd) btnAdd.onclick = () => actionHandler('add');
@@ -1036,7 +1228,7 @@ function showEditModal(chinese, vietnamese) {
         if (btnDelete) btnDelete.onclick = () => actionHandler('delete');
     }
 
-    // Listener để kiểm tra trực tiếp khi gõ
+    // Listener để kiểm tra trực tiếp khi gõ vào ô tiếng Trung
     origInput.addEventListener('input', checkNameAndRefreshUI);
 
     const close = () => wrapper.remove();
@@ -1051,6 +1243,47 @@ function showEditModal(chinese, vietnamese) {
 
     // Chạy lần đầu để khởi tạo UI
     checkNameAndRefreshUI();
+}
+function openEditModalForSelection() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) {
+        if (lastSelectionRange && !lastSelectionRange.collapsed) {
+             sel.removeAllRanges();
+             sel.addRange(lastSelectionRange);
+        } else {
+            alert('Vui lòng bôi đen một đoạn văn bản đã dịch.');
+            return;
+        }
+    }
+
+    const range = sel.getRangeAt(0);
+    let container = range.commonAncestorContainer;
+    if (container.nodeType === 3) { // Nếu là text node, lấy thẻ cha
+        container = container.parentElement;
+    }
+
+    // 1. Tìm thẻ name cụ thể (`.tm-name`) gần nhất
+    const nameSpan = container.closest('span.tm-name');
+    if (nameSpan) {
+        const originalText = nameSpan.dataset.orig;
+        const translatedText = nameSpan.textContent;
+        console.log(`Đã tìm thấy name cụ thể: ${originalText} -> ${translatedText}`);
+        showEditModal(originalText, translatedText);
+        return; // Tìm thấy, dừng lại ở đây
+    }
+
+    // 2. Nếu không có name cụ thể, mới tìm đến khối dịch lớn (`.tm-chunk`)
+    const chunkSpan = container.closest('span.tm-chunk');
+    if (chunkSpan) {
+        const originalText = chunkSpan.dataset.orig;
+        const translatedText = chunkSpan.textContent;
+        console.log(`Không tìm thấy name cụ thể, lấy khối lớn: ${originalText}`);
+        showEditModal(originalText, translatedText);
+        return; // Tìm thấy, dừng lại ở đây
+    }
+
+    // 3. Nếu không tìm thấy cả hai
+    alert('Không tìm thấy khối dữ liệu dịch tương ứng tại vùng chọn.');
 }
 
 async function buildHanVietFromMap(chinese, map) {
@@ -1111,23 +1344,28 @@ function showSuggestionModal(chinese, vietnamese, onSelect) {
     currentCol.innerHTML = "<p>Đang dịch...</p>";
     (async () => {
         try {
-            const json = await postTranslate(config.serverUrl, chinese, config.targetLang);
-            const translatedText = json?.data?.content ?? json?.translatedText;
-            if (typeof translatedText === 'string') {
+            // *** FIX: Gửi đi một mảng chứa một phần tử, theo đúng giao thức mới ***
+            const translatedArray = await postTranslate(config.serverUrl, [chinese], config.targetLang);
+
+            // Lấy kết quả từ phần tử đầu tiên của mảng trả về
+            const translatedText = translatedArray[0] || '';
+
+            if (translatedText) {
                 const lines = progressiveCapitalizations(translatedText.trim());
                 currentCol.innerHTML = lines.map(line => `<div class="tm-suggest-item">${escapeHtml(line)}</div>`).join('');
             } else {
-                throw new Error('Phản hồi dịch không hợp lệ');
+                throw new Error('Server đã trả về một bản dịch rỗng.');
             }
         } catch (error) {
             console.error("Lỗi khi dịch gợi ý:", error);
             currentCol.innerHTML = `<p style="color:red;">Dịch gợi ý thất bại.</p><p>Bản dịch hiện tại:</p>`;
-            const currentLines = progressiveCapitalizations(vietnamese); // Fallback về hành vi cũ
+            // Fallback về hành vi cũ, dùng text đã có
+            const currentLines = progressiveCapitalizations(vietnamese);
             currentCol.innerHTML += currentLines.map(line => `<div class="tm-suggest-item">${escapeHtml(line)}</div>`).join('');
         }
     })();
 
-    // Xử lý cột Hán-Việt (giữ nguyên)
+    // Xử lý cột Hán-Việt (giữ nguyên, không cần thay đổi)
     (async () => {
         const hvCol = wrapper.querySelector('#tm-suggest-hv-col .tm-preview-box');
         try {
@@ -1141,7 +1379,7 @@ function showSuggestionModal(chinese, vietnamese, onSelect) {
         }
     })();
 
-    // Gắn listener cho các dòng gợi ý
+    // Gắn listener cho các dòng gợi ý (giữ nguyên)
     wrapper.addEventListener('click', (e) => {
         if (e.target.classList.contains('tm-suggest-item')) {
             onSelect(e.target.textContent);
@@ -1149,6 +1387,7 @@ function showSuggestionModal(chinese, vietnamese, onSelect) {
         }
     });
 
+    // Các nút Google (giữ nguyên)
     wrapper.querySelector('#tm-suggest-google-search').addEventListener('click', () => {
         const q = encodeURIComponent(chinese);
         if (q) GM_openInTab(`https://www.google.com/search?q=${q}`);
@@ -1161,30 +1400,29 @@ function showSuggestionModal(chinese, vietnamese, onSelect) {
     GM_addStyle('.tm-suggest-item { padding: 4px 8px; cursor: pointer; border-radius: 4px; } .tm-suggest-item:hover { background-color: #e9ecef; }');
 }
 
-async function retranslateNodesForChinese(chineseKey) {
-    console.log(`Name liên quan đến "${chineseKey}" đã thay đổi. Bắt đầu làm mới toàn bộ trang...`);
-    showLoading('Phục hồi trang gốc...');
-    await sleep(50); // Cho phép UI hiển thị loading
+async function applyChangesAndRetranslate() {
+    console.log('Cài đặt name đã thay đổi. Bắt đầu dịch lại toàn bộ trang...');
+    showLoading('Đang làm mới trang với name set mới...');
+    await sleep(50);
 
     if (originalBodyClone) {
-        // 1. Khôi phục lại trang về trạng thái chưa dịch
+        // 1. Khôi phục lại body gốc từ bản sao
         document.body.replaceWith(originalBodyClone.cloneNode(true));
         console.log('[tm-translate] Đã phục hồi body gốc để dịch lại.');
 
-        // 2. Reset lại các trạng thái và nút bấm
+        // 2. Reset các trạng thái và giao diện
         lastTranslationState = null;
         translatedBodyClone = null;
-        if (simplifiedActive) {
-            simplifiedActive = false; // Tắt trạng thái rút gọn nếu có
-        }
+        if (simplifiedActive) simplifiedActive = false;
         removeFloatingButtons();
 
         // 3. Bắt đầu dịch lại toàn bộ trang từ đầu
-        console.log(`Bắt đầu dịch lại từ đầu với name set đã cập nhật.`);
+        // startTranslateAction sẽ tự động load config mới nhất
+        console.log('Bắt đầu quy trình dịch lại...');
         await startTranslateAction();
     } else {
         removeLoading();
-        alert('Không tìm thấy bản sao trang gốc. Vui lòng tải lại trang để áp dụng thay đổi.');
+        alert('Không tìm thấy bản sao trang gốc. Vui lòng tải lại trang (F5) để áp dụng thay đổi.');
     }
 }
 /* ================== HAN-VIET & NAME HELPERS ================== */
@@ -1345,6 +1583,13 @@ function openSettingsUI() {
                             <button id="tm-newset" class="tm-btn">Tạo bộ mới</button>
                             <button id="tm-delset" class="tm-btn">Xóa bộ này</button>
                         </div>
+                        <div class="tm-row" style="align-items: center;">
+                            <label class="tm-label" style="margin: 0;">Công cụ:</label>
+                            <button id="tm-import-btn" class="tm-btn">Nhập từ File</button>
+                            <button id="tm-export-json-btn" class="tm-btn">Xuất ra JSON</button>
+                            <button id="tm-export-txt-btn" class="tm-btn">Xuất ra TXT</button>
+                             <input type="file" id="tm-import-file" style="display: none;" accept=".json,.txt">
+                        </div>
                         <label class="tm-label" style="margin-top: 16px;">Thêm/Sửa nhanh (mỗi dòng: Trung=Việt)</label>
                         <textarea id="tm-pairs" class="tm-textarea" style="height: 250px; font-family: monospace;" placeholder="Ví dụ:\n贺川=Hạ Xuyên\n崔然=Thôi Nhiên"></textarea>
                         <button id="tm-save-pairs" class="tm-btn tm-btn-primary">Thêm/Cập nhật các cặp này</button>
@@ -1357,6 +1602,33 @@ function openSettingsUI() {
             </div>
             <!-- General Tab -->
             <div id="tab-general" class="tm-tab-content">
+                <label class="tm-label">
+                     <input type="checkbox" id="tm-name-editing-enabled" style="margin-right: 5px;" />
+                     Bật chế độ Sửa Tên (Edit Name)
+                </label>
+                <div id="tm-allow-copy-container" style="padding-left: 25px; margin-top: 8px;">
+                     <label class="tm-label" style="font-weight: normal;">
+                         <input type="checkbox" id="tm-allow-copy-checkbox" style="margin-right: 5px;" />
+                         Cho phép copy văn bản khi đang ở chế độ Sửa Tên
+                     </label>
+                </div>
+                <p style="font-size:13px; color:#c0392b; background: #f9e3e3; padding: 5px; border-radius: 4px;">
+                    <b>Cảnh báo:</b> Tính năng này cần bọc văn bản đã dịch trong thẻ <code>&lt;span&gt;</code>.
+                    Điều này có thể làm một số trang web bị lỗi hiển thị hoặc hoạt động không đúng.
+                    <b>Tắt tính năng này để có độ tương thích cao nhất. Nên bật khi rút gọn trang.</b>
+                </p>
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+                <label class="tm-label">
+                     <input type="checkbox" id="tm-show-start-btn" style="margin-right: 5px;" />
+                     Hiển thị nút "Dịch" nổi trên trang
+                </label>
+                <p style="font-size:13px; color:#555">Bật/tắt nút dịch màu xanh lá cây ở góc màn hình.</p>
+                <label class="tm-label" style="margin-top: 16px;">
+                     <input type="checkbox" id="tm-auto-translate-scroll" style="margin-right: 5px;" />
+                     Tự động dịch khi có nội dung mới
+                </label>
+                <p style="font-size:13px; color:#555">Khi cuộn trang hoặc có nội dung mới hiện ra, script sẽ tự dịch. Tắt đi nếu bạn muốn tự kiểm soát.</p>
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
                 <label class="tm-label">Chế độ đọc rút gọn (Simplified View)</label>
                 <select id="tm-simplified" class="tm-select">
                      <option value="0">Tắt</option>
@@ -1369,7 +1641,22 @@ function openSettingsUI() {
                      Chặn JavaScript trong chế độ rút gọn
                 </label>
                 <p style="font-size:13px; color:#555">Ngăn các script của trang gốc chạy, giúp trang nhẹ hơn và tránh các popup/quảng cáo khó chịu. Khuyên dùng.</p>
-           </div>
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+
+                <label class="tm-label" style="margin-top: 16px;">
+                     <input type="checkbox" id="tm-override-font-enabled" style="margin-right: 5px;" />
+                     Ghi đè font chữ sau khi dịch (chế độ thường)
+                </label>
+                <p style="font-size:13px; color:#555">Tự động đổi font của trang sang một font dễ đọc hơn cho tiếng Việt.</p>
+                <label class="tm-label">Font chữ thay thế</label>
+                <select id="tm-override-font-family" class="tm-select">
+                    <option value="Noto Serif, 'Times New Roman', serif">Noto Serif (Mặc định)</option>
+                    <option value="Arial, 'Helvetica Neue', sans-serif">Arial</option>
+                    <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                    <option value="Verdana, Geneva, sans-serif">Verdana</option>
+                    <option value="'Segoe UI', Tahoma, sans-serif">Segoe UI</option>
+                </select>
+            </div>
             <!-- Advanced Tab -->
             <div id="tab-advanced" class="tm-tab-content">
                 <label class="tm-label">URL Server Dịch</label>
@@ -1390,6 +1677,14 @@ function openSettingsUI() {
     document.body.appendChild(wrapper);
 
     // --- Tab logic ---
+    const nameEditingCheckbox = wrapper.querySelector('#tm-name-editing-enabled');
+    const copyContainer = wrapper.querySelector('#tm-allow-copy-container');
+
+    function toggleCopyOptionVisibility() {
+        copyContainer.style.display = nameEditingCheckbox.checked ? 'block' : 'none';
+    }
+    nameEditingCheckbox.addEventListener('change', toggleCopyOptionVisibility);
+
     const tabs = wrapper.querySelectorAll('.tm-tab-btn');
     const contents = wrapper.querySelectorAll('.tm-tab-content');
     tabs.forEach(tab => {
@@ -1399,6 +1694,74 @@ function openSettingsUI() {
             tab.classList.add('active');
             wrapper.querySelector(`#tab-${tab.dataset.tab}`).classList.add('active');
         });
+    });
+
+     // --- Import / Export Logic ---
+    const fileInput = wrapper.querySelector('#tm-import-file');
+    wrapper.querySelector('#tm-import-btn').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const content = e.target.result;
+                const setName = setSelect.value;
+                let newNames = {};
+                let count = 0;
+
+                if (file.name.endsWith('.json')) {
+                    newNames = JSON.parse(content);
+                } else if (file.name.endsWith('.txt')) {
+                    content.split(/\r?\n/).forEach(line => {
+                        const parts = line.split('=');
+                        if (parts.length === 2 && parts[0].trim() && parts[1].trim()) {
+                            newNames[parts[0].trim()] = parts[1].trim();
+                        }
+                    });
+                } else {
+                    alert('Chỉ hỗ trợ file .json hoặc .txt');
+                    return;
+                }
+
+                if (confirm(`Bạn có chắc muốn nhập ${Object.keys(newNames).length} tên vào bộ "${setName}"? Các tên trùng lặp sẽ bị ghi đè.`)) {
+                    Object.assign(config.nameSets[setName], newNames);
+                    count = Object.keys(newNames).length;
+                    alert(`Đã nhập thành công ${count} tên.`);
+                    refreshNameSetPreview();
+                }
+            } catch (err) {
+                alert('Lỗi khi đọc file. File có thể bị hỏng hoặc sai định dạng.\n' + err);
+            } finally {
+                fileInput.value = ''; // Reset input
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    const triggerDownload = (filename, content, mimeType) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([content], { type: mimeType }));
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    };
+
+    wrapper.querySelector('#tm-export-json-btn').addEventListener('click', () => {
+        const setName = setSelect.value;
+        const names = config.nameSets[setName];
+        const content = JSON.stringify(names, null, 2);
+        triggerDownload(`${setName}.json`, content, 'application/json');
+    });
+
+     wrapper.querySelector('#tm-export-txt-btn').addEventListener('click', () => {
+        const setName = setSelect.value;
+        const names = config.nameSets[setName];
+        const content = Object.entries(names).map(([k, v]) => `${k}=${v}`).join('\n');
+        triggerDownload(`${setName}.txt`, content, 'text/plain');
     });
 
     // --- Name Set Logic ---
@@ -1518,7 +1881,14 @@ function openSettingsUI() {
     // --- Init fields & Save ---
     wrapper.querySelector('#tm-simplified').value = config.simplifiedEnabled ? '1' : '0';
     wrapper.querySelector('#tm-simplified-js').checked = !!config.simplifiedBlockJS;
+    wrapper.querySelector('#tm-override-font-enabled').checked = !!config.overrideFontEnabled;
+    wrapper.querySelector('#tm-override-font-family').value = config.overrideFontFamily;
+    wrapper.querySelector('#tm-show-start-btn').checked = !!config.showStartButton;
+    wrapper.querySelector('#tm-auto-translate-scroll').checked = !!config.autoTranslateOnScroll;
+    wrapper.querySelector('#tm-name-editing-enabled').checked = !!config.nameEditingEnabled;
+    wrapper.querySelector('#tm-allow-copy-checkbox').checked = !!config.allowCopyWhenEditing;
     refreshSetSelector();
+    toggleCopyOptionVisibility();
 
     const close = () => wrapper.remove();
     wrapper.querySelector('.tm-modal-backdrop').addEventListener('click', close);
@@ -1527,8 +1897,16 @@ function openSettingsUI() {
 
     wrapper.querySelector('#tm-settings-save').addEventListener('click', () => {
         // General
+        const oldNameEditing = config.nameEditingEnabled;
+        config.nameEditingEnabled = wrapper.querySelector('#tm-name-editing-enabled').checked;
+        config.allowCopyWhenEditing = wrapper.querySelector('#tm-allow-copy-checkbox').checked;
+
+        const oldAutoTranslate = config.autoTranslateOnScroll;
+        config.showStartButton = wrapper.querySelector('#tm-show-start-btn').checked;
+        config.autoTranslateOnScroll = wrapper.querySelector('#tm-auto-translate-scroll').checked;
         config.simplifiedEnabled = wrapper.querySelector('#tm-simplified').value === '1';
-        config.simplifiedBlockJS = wrapper.querySelector('#tm-simplified-js').checked;
+        config.overrideFontEnabled = wrapper.querySelector('#tm-override-font-enabled').checked;
+        config.overrideFontFamily = wrapper.querySelector('#tm-override-font-family').value;
         // Advanced
         config.serverUrl = wrapper.querySelector('#tm-server').value.trim();
         config.hanvietJsonUrl = wrapper.querySelector('#tm-hv-url').value.trim();
@@ -1539,31 +1917,31 @@ function openSettingsUI() {
         alert('Đã lưu cài đặt.');
         close();
 
-        // *** LOGIC MỚI: TỰ ĐỘNG ÁP DỤNG THAY ĐỔI NẾU TRANG ĐÃ DỊCH ***
-        // Biến translatedBodyClone chỉ tồn tại sau khi đã dịch thành công.
         if (translatedBodyClone) {
             console.log("Phát hiện thay đổi cài đặt khi trang đã dịch. Bắt đầu dịch lại để áp dụng...");
-            retranslateNodesForChinese('cài đặt');
+            applyChangesAndRetranslate();;
         }
     });
 }
 
 /* ================== MENU & INIT ================== */
-GM_registerMenuCommand('Dịch', startTranslateAction);
+GM_registerMenuCommand('Dịch trang này', startTranslateAction);
 GM_registerMenuCommand('Cài đặt', openSettingsUI);
 
-// Expose main functions to window for debugging/advanced use
 window._tm_translate = {
     start: startTranslateAction,
     settings: openSettingsUI,
-    retranslateKey: retranslateNodesForChinese,
+    retranslateKey: applyChangesAndRetranslate,
     toggleSimplified: () => simplifiedActive ? disableSimplifiedView() : enableSimplifiedView(),
     getState: () => lastTranslationState,
     getConfig: () => config,
 };
 
+
 injectGlobalCSS();
 
-console.log('[tm-translate 2.0.0] Đã tải. Sử dụng menu Tampermonkey để bắt đầu.');
+createStartButton();
+
+console.log('[tm-translate 3.0.0] Đã tải. Sử dụng menu Tampermonkey để bắt đầu.');
 
 })();
