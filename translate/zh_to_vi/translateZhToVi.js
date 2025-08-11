@@ -231,26 +231,31 @@
   }
 
 
-  // join tokens with spacing/punct/capitalization rules
+  // THAY THẾ TOÀN BỘ HÀM NÀY
   function joinTokensMakePretty(tokens) {
-    // tokens: array of {zh, val, alts, source} (val already string)
-    let parts = tokens.map(t => (t.val === null || t.val === undefined) ? t.zh : t.val);
-    let s = parts.join(' ');
-    // Xóa khoảng trắng trước các dấu câu (bổ sung dấu Trung)
-    s = s.replace(/\s+([,.:;!?%»”\)\]\}，。、《》」』？！，；：])/g, '$1');
-    // Xóa khoảng trắng sau các dấu câu mở
-    s = s.replace(/([«“\(\[\{《「『])\s+/g, '$1');
+    let result = '';
+    for (let i = 0; i < tokens.length; i++) {
+        const currentToken = tokens[i];
+        let currentVal = (currentToken.val === null || currentToken.val === undefined) ? currentToken.zh : currentToken.val;
 
-    s = s.replace(/([\.!?。！？])(["»”']?)([^\s"'\)\]\}，。、《》」』？！，；：])/g, (m, p, quote, after) => {
-        if (/[\u3400-\u9FFF]/.test(after)) { // Nếu ký tự sau là CJK, không thêm space
-             return `${p}${quote}${after}`;
+        // Bỏ qua các giá trị rỗng hoặc chỉ có khoảng trắng
+        if (!currentVal.trim()) continue;
+
+        // Nếu không phải là token đầu tiên, hãy xem xét việc thêm khoảng trắng
+        if (result.length > 0) {
+            const lastCharOfResult = result.slice(-1);
+            const firstCharOfCurrent = currentVal.charAt(0);
+
+            const noSpaceBefore = '.,:;!?%»”)]}，。、《》」』？！，；：'.includes(firstCharOfCurrent);
+            const noSpaceAfter = '([«“{《「『'.includes(lastCharOfResult);
+
+            if (!noSpaceBefore && !noSpaceAfter) {
+                result += ' ';
+            }
         }
-        return `${p}${quote} ${after}`;
-    });
-    s = s.replace(/\s{2,}/g, ' ').trim();
-    s = s.replace(/(^|[\.!\?。！？]["”']?\s+)(\p{L})/gu, (m, lead, ch) => lead + ch.toUpperCase());
-    s = s.replace(/(["“‘「『]\s*)(\p{L})/gu, (m, q, ch) => q + ch.toUpperCase());
-    return s;
+        result += currentVal;
+    }
+    return result.trim();
   }
 
   const TranslateZhToVi = {
