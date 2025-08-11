@@ -230,26 +230,26 @@
     return filled;
   }
 
+
   // join tokens with spacing/punct/capitalization rules
   function joinTokensMakePretty(tokens) {
     // tokens: array of {zh, val, alts, source} (val already string)
-    // we'll join with single spaces, then tidy spaces around punctuation, then capitalize sentence starts and after quotes
     let parts = tokens.map(t => (t.val === null || t.val === undefined) ? t.zh : t.val);
     let s = parts.join(' ');
-    // remove spaces before punctuation (both western and CJK punctuation)
-    s = s.replace(/\s+([,.:;!?%»”\)\]\}，。、《》？！，；：])/g, '$1');
-    // ensure space after punctuation if letter follows (except when punctuation is CJK and next is CJK)
-    s = s.replace(/([\.!?。！？])(["»”']?)([^\s"'\)\]\}])/g, (m, p, quote, after) => `${p}${quote} ${after}`);
-    // remove space before closing quotes if any
-    s = s.replace(/\s+(["»”'])/g, '$1');
-    // collapse multiple spaces
-    s = s.replace(/\s{2,}/g, ' ');
-    // trim
-    s = s.trim();
-    // capitalize first letter of text and first letter after sentence end or after double quote "
+    // Xóa khoảng trắng trước các dấu câu (bổ sung dấu Trung)
+    s = s.replace(/\s+([,.:;!?%»”\)\]\}，。、《》」』？！，；：])/g, '$1');
+    // Xóa khoảng trắng sau các dấu câu mở
+    s = s.replace(/([«“\(\[\{《「『])\s+/g, '$1');
+
+    s = s.replace(/([\.!?。！？])(["»”']?)([^\s"'\)\]\}，。、《》」』？！，；：])/g, (m, p, quote, after) => {
+        if (/[\u3400-\u9FFF]/.test(after)) { // Nếu ký tự sau là CJK, không thêm space
+             return `${p}${quote}${after}`;
+        }
+        return `${p}${quote} ${after}`;
+    });
+    s = s.replace(/\s{2,}/g, ' ').trim();
     s = s.replace(/(^|[\.!\?。！？]["”']?\s+)(\p{L})/gu, (m, lead, ch) => lead + ch.toUpperCase());
-    // also capitalize after opening quote " (if pattern: "a -> "A)
-    s = s.replace(/(["“”']\s*)(\p{L})/gu, (m, q, ch) => q + ch.toUpperCase());
+    s = s.replace(/(["“‘「『]\s*)(\p{L})/gu, (m, q, ch) => q + ch.toUpperCase());
     return s;
   }
 
