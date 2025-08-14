@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.40.0
+// @version     3.5.447.41.0
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -1367,7 +1367,7 @@ function decryptDES(encrypted, key, iv) {
                         link.href = chapter.url;
                         link.innerText = chapter.name;
                         link.setAttribute("novel-downloader-chapter", chap.has_right === 0 ? "vip" : "");
-                        link.setAttribute("order", idx + 1); 
+                        link.setAttribute("order", idx + 1);
                         link.style = `
                 display: block;
                 padding: 6px 8px;
@@ -1442,10 +1442,200 @@ function decryptDES(encrypted, key, iv) {
 
 
         },
+        {
+            siteName: 'TruyenWikiDich',
+            filter: () => {
+                if (!window.location.host.includes('truyenwikidich.net')) return 0;
+                if (window.location.pathname.match(/^\/truyen\/[^\/]+\/chuong-/)) return 2;
+                if (window.location.pathname.match(/^\/truyen\/[^\/]+$/)) return 1;
+                return 0;
+            },
 
+            title: '.cover-info h2',
+            writer: 'p:contains("Tác giả:") > a',
+            intro: '.book-desc-detail',
+            cover: () => { return 'https://truyenwikidich.net' + $('.cover-wrapper img').attr('src')},
+
+            getChapters: async (doc) => {
+                // 1. Kiểm tra đăng nhập và quyền hạn
+                if ($('a[data-action="login"]').length > 0) {
+                    alert('Lỗi: Bạn cần đăng nhập vào Wikidich và là người đăng hoặc đồng quản lý của truyện này để tải nội dung.');
+                    return [];
+                }
+                const currentUserHref = $('#ddUser a[href*="/user/"]').first().attr('href');
+                if (!currentUserHref) {
+                    alert('Lỗi: Không thể xác định người dùng hiện tại. Hãy chắc chắn bạn đã đăng nhập.');
+                    return [];
+                }
+                const currentUserId = decodeURIComponent(currentUserHref.split('/').pop());
+                const managers = $('.book-manager').map((i, el) => $(el).data('id')).get();
+                if (!managers.includes(currentUserId)) {
+                    alert('Lỗi: Bạn không phải là người đăng hoặc đồng quản lý của truyện này. Không thể tải nội dung gốc.');
+                    return [];
+                }
+
+                console.log('Xác thực người dùng thành công. Bắt đầu tải danh sách chương từ API...');
+
+                // 2. Tái tạo logic API một cách chính xác
+                const Http = {
+                    get: (url) => ({
+                        html: () => new Promise((resolve, reject) => {
+                            xhr.sync(url, null, {
+                                responseType: 'document',
+                                onload: (res) => resolve(res.response),
+                                onerror: reject
+                            });
+                        }),
+                    }),
+                };
+
+                const Script = {
+                    execute: (fnStr, fnName, arg) => {
+                        if (!fnStr) {
+                            console.error(`[Wikidich Rule] Lỗi: chuỗi hàm cho '${fnName}' không hợp lệ.`);
+                            return undefined;
+                        }
+                        try {
+                            const fn = new Function(fnStr + `; return ${fnName};`)();
+                            return fn(arg);
+                        } catch (e) {
+                            console.error(`[Wikidich Rule] Lỗi khi thực thi script cho '${fnName}':`, e);
+                            return undefined;
+                        }
+                    }
+                };
+
+                // Hàm signFunc gốc của Wikidich
+                const signFuncStr = `function signFunc(r){function o(r,o){return r>>>o|r<<32-o}for(var f,n,t=Math.pow,c=t(2,32),i="length",a="",e=[],u=8*r[i],v=[],g=[],h=g[i],l={},s=2;64>h;s++)if(!l[s]){for(f=0;313>f;f+=s)l[f]=s;v[h]=t(s,.5)*c|0,g[h++]=t(s,1/3)*c|0}for(r+="";r[i]%64-56;)r+="\\0";for(f=0;f<r[i];f++){if((n=r.charCodeAt(f))>>8)return;e[f>>2]|=n<<(3-f)%4*8}for(e[e[i]]=u/c|0,e[e[i]]=u,n=0;n<e[i];){var d=e.slice(n,n+=16),p=v;for(v=v.slice(0,8),f=0;64>f;f++){var w=d[f-15],A=d[f-2],C=v[0],F=v[4],M=v[7]+(o(F,6)^o(F,11)^o(F,25))+(F&v[5]^~F&v[6])+g[f]+(d[f]=16>f?d[f]:d[f-16]+(o(w,7)^o(w,18)^w>>>3)+d[f-7]+(o(A,17)^o(A,19)^A>>>10)|0);(v=[M+((o(C,2)^o(C,13)^o(C,22))+(C&v[1]^C&v[2]^v[1]&v[2]))|0].concat(v))[4]=v[4]+M|0}for(f=0;8>f;f++)v[f]=v[f]+p[f]|0}for(f=0;8>f;f++)for(n=3;n+1;n--){var S=v[f]>>8*n&255;a+=(16>S?0:"")+S.toString(16)}return a}`;
+
+                const html = doc.documentElement.outerHTML;
+                const bookId = doc.querySelector("input#bookId")?.value;
+                const size = html.match(/loadBookIndex.*?,\s*(\d+)/)?.[1] || 50;
+                const signKey = html.match(/signKey\s*=\s*"(.*?)"/)?.[1];
+                const fuzzySignFuncStr = html.match(/function fuzzySign[\s\S]*?}/)?.[0];
+
+                if (!bookId || !signKey || !fuzzySignFuncStr) {
+                    alert("Lỗi: Không tìm thấy thông tin (bookId, signKey, fuzzySign) để gọi API. Cấu trúc trang có thể đã thay đổi.");
+                    return [];
+                }
+
+                const genSign = (key, page, pageSize) => {
+                    const fuzzyResult = Script.execute(fuzzySignFuncStr, "fuzzySign", key + page + pageSize);
+                    return Script.execute(signFuncStr, "signFunc", fuzzyResult);
+                };
+
+                const getChapterInPage = async (currentPage) => {
+                    const sign = genSign(signKey, currentPage, size);
+                    if (sign === undefined) {
+                        throw new Error("Tạo 'sign' thất bại. Logic ký tên trên trang có thể đã thay đổi.");
+                    }
+                    const params = new URLSearchParams({ bookId, signKey, sign, size, start: currentPage.toFixed(0) });
+                    const url = `${window.location.origin}/book/index?${params}`;
+                    console.log(url);
+                    return await Http.get(url).html();
+                };
+
+                // 3. Vòng lặp để lấy tất cả các trang chương, với logic dừng chính xác
+                const allChapters = [];
+                let currentPage = 0;
+
+                while (true) {
+                    let pageDoc;
+                    try {
+                        console.log(`Đang tải trang mục lục, bắt đầu từ: ${currentPage}...`);
+                        pageDoc = await getChapterInPage(currentPage);
+                    } catch (err) {
+                        alert(`Lỗi khi tải trang mục lục: ${err.message}`);
+                        break;
+                    }
+
+                    const chapterLinks = $(pageDoc).find("li.chapter-name a[href]");
+                    if (chapterLinks.length === 0 && allChapters.length > 0) { // Nếu trang không có chương VÀ đã có chương từ trước -> dừng lại
+                        console.log("Không tìm thấy chương nào trên trang này, kết thúc.");
+                        break;
+                    }
+
+                    chapterLinks.each((_, el) => {
+                        allChapters.push({
+                            title: $(el).text().trim(),
+                            url: new URL($(el).attr('href'), window.location.origin).href,
+                        });
+                    });
+
+                    // Logic dừng vòng lặp chính xác: Dựa vào thông tin phân trang
+                    const paginationLinks = $(pageDoc).find("ul.pagination a[data-start]");
+                    const lastPageStartValue = paginationLinks.length > 0
+                        ? parseInt(paginationLinks.last().attr("data-start"))
+                        : 0;
+
+                    if (currentPage >= lastPageStartValue && chapterLinks.length > 0) {
+                        console.log("Đã đạt hoặc vượt qua trang cuối cùng, kết thúc.");
+                        break;
+                    }
+
+                    currentPage += parseInt(size);
+                }
+
+
+                // 4. Hiển thị danh sách chương đã lấy được lên giao diện
+                const container = document.createElement("div");
+                container.id = "wikidich-chapter-container";
+                container.style = "padding: 16px; border: 1px solid #ccc; background: #fff; max-width: 800px; margin: 20px auto; box-shadow: 0 2px 4px rgba(0,0,0,0.1);";
+                container.innerHTML = `<h2 style="text-align:center; color: #1a73e8;">📖 Danh sách chương (${allChapters.length} chương - tải từ API)</h2>`;
+
+                allChapters.forEach((chap, index) => {
+                    const link = document.createElement("a");
+                    link.href = chap.url;
+                    link.innerText = chap.title;
+                    link.setAttribute("novel-downloader-chapter", "");
+                    link.setAttribute("order", index + 1);
+                    link.style = "display: block; padding: 8px 12px; margin: 5px 0; border-left: 4px solid #2196F3; text-decoration: none; color: #333; background-color: #f9f9f9; border-radius: 4px;";
+                    container.appendChild(link);
+                });
+
+                document.body.prepend(container);
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                setTimeout(() => {
+                    $('a[order]').each((_, a) => {
+                        if (!container.contains(a)) {
+                            a.removeAttribute('order');
+                            a.removeAttribute('novel-downloader-chapter');
+                        }
+                    });
+                }, 500);
+
+                return allChapters;
+            },
+
+            deal: async (chapter) => {
+                const editUrl = chapter.url + '/chinh-sua';
+                try {
+                    const res = await xhr.sync(editUrl, null, { method: 'GET', responseType: 'document' });
+                    const doc = res.response;
+
+                    const chineseTitle = $(doc).find('input#txtNameCn').val();
+                    const chineseContent = $(doc).find('textarea#txtContentCn').val();
+
+                    if (typeof chineseContent !== 'string') {
+                        throw new Error("Không tìm thấy nội dung tiếng Trung trên trang chỉnh sửa.");
+                    }
+
+                    return {
+                        title: chineseTitle,
+                        content: chineseContent
+                    };
+                } catch (error) {
+                    console.error(`Lỗi khi tải nội dung từ ${editUrl}:`, error);
+                    return {
+                        title: chapter.title + " (Lỗi Tải)",
+                        content: "Không thể tải nội dung tiếng Trung. Vui lòng kiểm tra lại quyền truy cập hoặc thử lại sau."
+                    };
+                }
+            }
+        },
         {
             siteName: '第一版主 (diyibanzhu)',
-
             filter: () => {
                 if (!window.location.host.includes('diyibanzhu.me')) return 0;
                 const params = new URLSearchParams(window.location.search);
@@ -1661,7 +1851,7 @@ function decryptDES(encrypted, key, iv) {
         },
 
         //https://www.novel543.com/
-        { 
+        {
             siteName: '稷下書院(Novel543)',
             filter: () => {
                 if (window.location.host !== 'www.novel543.com') return 0;
@@ -2250,7 +2440,7 @@ function decryptDES(encrypted, key, iv) {
                     '，': '，', ',': '，', '.......': '……', '......': '……', '.....': '……', '....': '…','...': '…', '..': '…', '.': '。', '。': '。', '！': '！', '!': '！', '？': '？', '?': '？',
                     '：': '：', ':': '：', '；': '；', ';': '；', '“': '“', '”': '”', '"': '"',
                     '‘': '‘', '’': '’', "'": "'", '（': '（', '(': '（', '）': '）', ')': '）',
-                    '…': '…', '—': '—', '-': '—', '《': '《', '》': '》', 
+                    '…': '…', '—': '—', '-': '—', '《': '《', '》': '》',
                     //'『': '“', '』': '”',
                 };
 
