@@ -2,4 +2,4 @@ test/
 build/
 __pycache__/
 .venv/
-.spec
+*.spec
