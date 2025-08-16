@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.2.1
+// @version      3.2.0
 // @description  Dịch trang, quản lý name-sets, sửa tên, chế độ đọc rút gọn và tùy chỉnh giao diện.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -91,8 +91,34 @@ function escapeHtml(s) {
     .replace(/'/g, '&#039;');
 }
 function unescapeHtml(s) { return (s || '').toString().replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); }
+function capitalizeFirstLetter(s) {
+    if (typeof s !== 'string' || !s) return s;
 
+    // Sử dụng biểu thức chính quy để tìm chữ cái Unicode đầu tiên trong chuỗi.
+    // \p{L} khớp với bất kỳ chữ cái nào trong bất kỳ ngôn ngữ nào.
+    // Cờ 'u' là bắt buộc để nó hoạt động với Unicode.
+    const firstLetterMatch = s.match(/\p{L}/u);
 
+    // Nếu không tìm thấy chữ cái nào (ví dụ: chuỗi chỉ có dấu câu "!!??"),
+    // thì không làm gì cả, trả về chuỗi gốc.
+    if (!firstLetterMatch) {
+        return s;
+    }
+
+    // Lấy vị trí (index) của chữ cái đầu tiên đó.
+    const index = firstLetterMatch.index;
+
+    // Tái tạo lại chuỗi:
+    // 1. Lấy tất cả các ký tự đứng trước chữ cái đầu tiên.
+    const prefix = s.substring(0, index);
+    // 2. Viết hoa chữ cái đầu tiên đó.
+    const capitalizedChar = s.charAt(index).toUpperCase();
+    // 3. Lấy phần còn lại của chuỗi.
+    const suffix = s.substring(index + 1);
+
+    // Ghép chúng lại và trả về.
+    return prefix + capitalizedChar + suffix;
+}
 /* ================== FANQIE NOVEL DECODING ================== */
 const fontMap = { 'E4B0' : '0', 'E54F' : '1', 'E4E7' : '2', 'E504' : '3', 'E49E' : '4', 'E4F6' : '5', 'E556' : '6', 'E53C' : '7', 'E47A' : '8', 'E474' : '9', 'E40D' : 'a', 'E51C' : 'b', 'E487' : 'c', 'E436' : 'd', 'E51A' : 'e', 'E43B' : 'f', 'E485' : 'g', 'E4BA' : 'h', 'E478' : 'i', 'E445' : 'j', 'E52F' : 'k', 'E49A' : 'l', 'E425' : 'm', 'E4DB' : 'n', 'E40B' : 'o', 'E3FF' : 'p', 'E488' : 'q', 'E47B' : 'r', 'E407' : 's', 'E558' : 't', 'E46B' : 'u', 'E543' : 'v', 'E417' : 'w', 'E48F' : 'x', 'E3E9' : 'y', 'E52A' : 'z', 'E428' : 'A', 'E4C1' : 'B', 'E481' : 'C', 'E43E' : 'D', 'E44A' : 'E', 'E4D3' : 'F', 'E43C' : 'G', 'E4CB' : 'H', 'E4E8' : 'I', 'E410' : 'J', 'E429' : 'K', 'E4E6' : 'L', 'E557' : 'M', 'E51D' : 'N', 'E3FC' : 'O', 'E455' : 'P', 'E470' : 'Q', 'E4B2' : 'R', 'E44E' : 'S', 'E435' : 'T', 'E41B' : 'U', 'E4B4' : 'V', 'E4EE' : 'W', 'E4BB' : 'X', 'E467' : 'Y', 'E4B9' : 'Z', 'E3F3' : '的', 'E526' : '一', 'E456' : '是', 'E517' : '了', 'E40E' : '我', 'E511' : '不', 'E41C' : '人', 'E53F' : '在', 'E54D' : '他', 'E4C0' : '有', 'E473' : '这', 'E4FB' : '个', 'E54A' : '上', 'E453' : '们', 'E528' : '来', 'E44F' : '到', 'E42B' : '时', 'E440' : '大', 'E480' : '地', 'E4C2' : '为', 'E53D' : '子', 'E42C' : '中', 'E489' : '你', 'E47C' : '说', 'E4A5' : '生', 'E42A' : '国', 'E4C5' : '年', 'E548' : '着', 'E443' : '就', 'E553' : '那', 'E47F' : '和', 'E420' : '要', 'E406' : '她', 'E4C8' : '出', 'E3FE' : '也', 'E41F' : '得', 'E4A8' : '里', 'E534' : '后', 'E4C4' : '自', 'E4DF' : '以', 'E51F' : '会', 'E4E2' : '家', 'E502' : '可', 'E438' : '下', 'E551' : '而', 'E539' : '过', 'E54C' : '天', 'E44D' : '去', 'E498' : '能', 'E52C' : '对', 'E431' : '小', 'E45B' : '多', 'E4A4' : '然', 'E501' : '于', 'E46C' : '心', 'E4D5' : '学', 'E42E' : '么', 'E541' : '之', 'E500' : '都', 'E4FE' : '好', 'E52E' : '看', 'E448' : '起', 'E45E' : '发', 'E49B' : '当', 'E427' : '没', 'E545' : '成', 'E464' : '只', 'E41D' : '如', 'E459' : '事', 'E458' : '把', 'E4D6' : '还', 'E4FF' : '用', 'E4F9' : '第', 'E48C' : '样', 'E450' : '道', 'E54B' : '想', 'E465' : '作', 'E4B5' : '种', 'E4FC' : '开', 'E524' : '美', 'E48D' : '总', 'E512' : '从', 'E457' : '无', 'E40A' : '情', 'E52D' : '己', 'E441' : '面', 'E404' : '最', 'E50B' : '女', 'E4DC' : '但', 'E3EB' : '现', 'E466' : '前', 'E51B' : '些', 'E4CF' : '所', 'E503' : '同', 'E508' : '日', 'E49D' : '手', 'E43F' : '又', 'E559' : '行', 'E4D8' : '意', 'E4B6' : '动', 'E4CD' : '方', 'E4C3' : '期', 'E44C' : '它', 'E493' : '头', 'E469' : '经', 'E52B' : '长', 'E521' : '儿', 'E4AA' : '回', 'E4F8' : '位', 'E4D7' : '分', 'E3F6' : '爱', 'E3FD' : '老', 'E531' : '因', 'E4F4' : '很', 'E446' : '给', 'E49C' : '名', 'E409' : '法', 'E439' : '间', 'E422' : '斯', 'E3F5' : '知', 'E53A' : '世', 'E510' : '什', 'E523' : '两', 'E505' : '次', 'E48A' : '使', 'E4EB' : '身', 'E4D1' : '者', 'E525' : '被', 'E4BF' : '高', 'E41A' : '已', 'E4B3' : '亲', 'E4DA' : '其', 'E546' : '进', 'E515' : '此', 'E3EE' : '话', 'E400' : '常', 'E50A' : '与', 'E461' : '活', 'E4CC' : '正', 'E4CE' : '感', 'E4F5' : '见', 'E4D0' : '明', 'E433' : '问', 'E4A2' : '力', 'E3FB' : '理', 'E468' : '尔', 'E4B1' : '点', 'E550' : '文', 'E403' : '几', 'E542' : '定', 'E4A9' : '本', 'E527' : '公', 'E4BD' : '特', 'E4BC' : '做', 'E460' : '外', 'E463' : '孩', 'E532' : '相', 'E45A' : '西', 'E475' : '果', 'E42D' : '走', 'E408' : '将', 'E3F0' : '月', 'E3EA' : '十', 'E449' : '实', 'E432' : '向', 'E4A1' : '声', 'E43A' : '车', 'E472' : '全', 'E509' : '信', 'E49F' : '重', 'E519' : '三', 'E514' : '机', 'E4FA' : '工', 'E3F1' : '物', 'E53B' : '气', 'E413' : '每', 'E50E' : '并', 'E554' : '别', 'E4AB' : '真', 'E536' : '打', 'E412' : '太', 'E45F' : '新', 'E4DD' : '比', 'E520' : '才', 'E3ED' : '便', 'E51E' : '夫', 'E4EF' : '再', 'E540' : '书', 'E50F' : '部', 'E3F2' : '水', 'E486' : '像', 'E522' : '眼', 'E46F' : '等', 'E3E8' : '体', 'E3EF' : '却', 'E454' : '加', 'E424' : '电', 'E405' : '主', 'E45C' : '界', 'E423' : '门', 'E418' : '利', 'E4F2' : '海', 'E415' : '受', 'E4ED' : '听', 'E3F9' : '表', 'E555' : '德', 'E421' : '少', 'E401' : '克', 'E4A6' : '代', 'E411' : '员', 'E530' : '许', 'E4D2' : '稜', 'E47E' : '先', 'E430' : '口', 'E4E0' : '由', 'E4E1' : '死', 'E476' : '安', 'E444' : '写', 'E490' : '性', 'E4C6' : '马', 'E40C' : '光', 'E4F3' : '白', 'E513' : '或', 'E4D4' : '住', 'E55B' : '难', 'E414' : '望', 'E416' : '教', 'E4B8' : '命', 'E499' : '花', 'E537' : '结', 'E496' : '乐', 'E533' : '色', 'E4D9' : '更', 'E544' : '拉', 'E549' : '东', 'E437' : '神', 'E518' : '记', 'E491' : '处', 'E4E3' : '让', 'E479' : '母', 'E46E' : '父', 'E495' : '应', 'E4F7' : '直', 'E4A0' : '字', 'E484' : '场', 'E402' : '平', 'E4EC' : '报', 'E4A3' : '友', 'E497' : '关', 'E3F4' : '放', 'E4CA' : '至', 'E482' : '张', 'E4C7' : '认', 'E4C9' : '接', 'E46D' : '告', 'E4AC' : '入', 'E50C' : '笑', 'E4A7' : '内', 'E4B7' : '英', 'E419' : '军', 'E55A' : '候', 'E471' : '民', 'E4FD' : '岁', 'E535' : '往', 'E42F' : '何', 'E43D' : '度', 'E4F1' : '山', 'E4DE' : '觉', 'E552' : '路', 'E547' : '带', 'E3F7' : '万', 'E426' : '男', 'E4BE' : '边', 'E3FA' : '风', 'E462' : '解', 'E4EA' : '叫', 'E47D' : '任', 'E4E9' : '金', 'E3EC' : '快', 'E4F0' : '原', 'E452' : '吃', 'E54E' : '妈', 'E41E' : '变', 'E447' : '通', 'E4AD' : '师', 'E529' : '立', 'E4AE' : '象', 'E451' : '数', 'E506' : '四', 'E4E4' : '失', 'E50D' : '满', 'E483' : '战', 'E442' : '远', 'E538' : '格', 'E4E5' : '士', 'E492' : '音', 'E434' : '轻', 'E48E' : '目', 'E53E' : '条', 'E40F' : '呢', };
 
@@ -123,7 +149,6 @@ function decodeFanqieReaderText(text) {
 }
 
 function injectGlobalCSS() {
-    // Nếu style đã tồn tại, không làm gì cả để tránh trùng lặp
     if (document.getElementById('tm-global-styles')) return;
 
     const css = `
@@ -152,7 +177,7 @@ function injectGlobalCSS() {
         }
         .tm-modal-header { padding: 12px 20px; border-bottom: 1px solid var(--tm-border-color); display: flex; justify-content: space-between; align-items: center; }
         .tm-modal-header h2, .tm-modal-header h3 { margin: 0; font-size: 1.2rem; }
-        .tm-modal-content { padding: 20px; overflow-y: auto; }
+        .tm-modal-content { padding: 20px; overflow-y: auto; color: var(--tm-dark); } /* SỬA ĐỔI: Thêm màu chữ mặc định */
         .tm-modal-footer { padding: 12px 20px; border-top: 1px solid var(--tm-border-color); display: flex; justify-content: flex-end; gap: 8px; background-color: var(--tm-light); }
         .tm-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #ccc; background: #f7f7f7; cursor: pointer; transition: background 0.2s; font-size: 14px; }
         .tm-btn:hover { background: #e9e9e9; }
@@ -174,7 +199,7 @@ function injectGlobalCSS() {
         #tm-simplified-container { padding: 30px 5%; min-height: 100vh; box-sizing: border-box; }
         #tm-simplified-container p { margin-bottom: 1.2em; }
         #tm-simplified-topbar { max-width: 800px; margin: 0 auto 24px auto; display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid rgba(128,128,128,0.3); }
-        .tm-preview-box { border: 1px solid var(--tm-border-color); padding: 8px; min-height: 200px; max-height: 400px; overflow: auto; background: #fafafa; border-radius: 6px; }
+        .tm-preview-box { border: 1px solid var(--tm-border-color); padding: 8px; min-height: 200px; max-height: 400px; overflow: auto; background: #fafafa; border-radius: 6px; color: var(--tm-dark); } /* SỬA ĐỔI: Thêm màu chữ */
         #tm-loading-indicator { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: var(--tm-dark); color: white; padding: 10px 20px; border-radius: 8px; z-index: 2147483647; font-size: 16px; box-shadow: var(--tm-shadow); }
     `;
     const styleEl = document.createElement('style');
@@ -182,7 +207,6 @@ function injectGlobalCSS() {
     styleEl.textContent = css;
     document.head.appendChild(styleEl);
 }
-
 
 function unlockPageInteraction() {
     // 1. Ghi đè CSS một cách tuyệt đối để BẮT BUỘC cho phép tô đen
@@ -415,8 +439,8 @@ function collectTranslatableItems(includeScriptStyle = false, roots = [document.
     const seenNodes = new WeakSet();
     const skipTags = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'PRE', 'CODE', 'TEXTAREA'];
     const ignoreRootIds = ['tm-edit-pencil', 'tm-style-button', 'tm-edit-modal', 'tm-settings-modal', 'tm-style-panel'];
-
-    const hasMeaningfulTextRegex = /[a-zA-Z\u4e00-\u9fa5\d]/;
+    const isFanqie = window.location.hostname.includes('fanqienovel.com');
+    const hasMeaningfulTextRegex = isFanqie ? /\S/ : /[a-zA-Z\u4e00-\u9fa5\d]/;
 
     function isIgnored(element) {
         if (!element || seenNodes.has(element)) return true;
@@ -651,24 +675,20 @@ async function startTranslateAction() {
 
         const textsToSend = [];
         items.forEach(item => {
-            let textToTokenize = item.original;
             const hostname = window.location.hostname;
             const pathname = window.location.pathname;
 
-            // Kiểm tra URL để chọn đúng bộ giải mã
+            item.decodedOriginal = item.original; // Mặc định gán bản gốc
             if (hostname.includes('fanqienovel.com')) {
                 if (pathname.startsWith('/reader/')) {
-                    textToTokenize = decodeFanqieReaderText(textToTokenize); // Bộ giải mã MỚI
+                    item.decodedOriginal = decodeFanqieReaderText(item.original);
                 } else {
-                    textToTokenize = decodeFanqieGeneralText(textToTokenize); // Bộ giải mã CŨ
+                    item.decodedOriginal = decodeFanqieGeneralText(item.original);
                 }
             }
-
-            // Giờ mới tokenize đoạn text đã được giải mã
-            item.tokens = tokenizeString(textToTokenize);
+            item.tokens = tokenizeString(item.decodedOriginal);
             item.tokens.forEach(token => {
                 if (token.type === 'text' && token.value.trim()) {
-                    // Bước 1: Thay thế tên Trung bằng placeholder TRƯỚC khi gửi đi dịch
                     const processedText = nameReplacer(token.value, placeholderMap);
                     textsToSend.push(processedText);
                 }
@@ -692,20 +712,17 @@ async function startTranslateAction() {
             const translatedParts = allTranslatedTexts.slice(translationIdx, translationIdx + numTextTokens);
             const reassembledText = reassembleTranslatedString(item.tokens, translatedParts);
 
-            // Bước 2: Khôi phục lại tên Việt từ placeholder SAU khi đã dịch xong
             item.translated = restoreNames(reassembledText, placeholderMap);
 
             translationIdx += numTextTokens;
-            if (item.original && item.translated) {
-                translationCache[item.original] = item.translated;
+            if (item.decodedOriginal && item.translated) {
+                translationCache[item.decodedOriginal] = item.translated;
             }
         });
         console.log(`Dịch toàn trang hoàn tất. Đã cache ${Object.keys(translationCache).length} mục.`);
 
         lastTranslationState = { items };
         showLoading('Đang áp dụng bản dịch...');
-
-        // Tạo bản sao đã dịch để dùng cho cả 2 trường hợp
         translatedBodyClone = originalBodyClone.cloneNode(true);
         const itemsInClone = collectTranslatableItems(config.includeScriptStyle, [translatedBodyClone]);
 
@@ -715,37 +732,38 @@ async function startTranslateAction() {
 
             if (!originalItem?.translated) continue;
 
+            originalItem.translated = capitalizeFirstLetter(originalItem.translated);
+
             if (itemInClone.type === 'attribute') {
                 itemInClone.element.setAttribute(itemInClone.attribute, originalItem.translated);
             }
             else if (itemInClone.node && itemInClone.node.parentNode) {
-                // Luôn chạy highlight tên trước
+                const nameSet = config.nameSets[config.activeNameSet] || {};
                 const highlightedHtml = highlightNamesInText(originalItem.translated, nameSet);
 
                 if (config.nameEditingEnabled) {
                     const chunkSpan = document.createElement('span');
                     chunkSpan.className = 'tm-chunk';
-                    chunkSpan.dataset.orig = originalItem.original;
+                    chunkSpan.dataset.orig = originalItem.decodedOriginal; // Dùng bản đã giải mã
                     chunkSpan.innerHTML = highlightedHtml;
 
-                    // Nếu là link, thì chèn chunk vào trong link
                     if (itemInClone.type === 'link') {
-                        itemInClone.node.innerHTML = ''; // Xóa nội dung cũ của link
+                        itemInClone.node.innerHTML = '';
                         itemInClone.node.appendChild(chunkSpan);
-                    } else { // Nếu là text thường, thay thế text node bằng chunk
+                    } else {
                         itemInClone.node.parentNode.replaceChild(chunkSpan, itemInClone.node);
                     }
                 } else {
-                    // Chế độ không sửa tên (an toàn)
+                    const parent = itemInClone.node.parentNode;
+                    if (parent && parent.nodeType === 1) {
+                         parent.setAttribute('title', `${originalItem.decodedOriginal}`);
+                    }
                     const tempWrapper = document.createElement('div');
                     tempWrapper.innerHTML = highlightedHtml;
-                    const parent = itemInClone.node.parentNode;
-
                     while (tempWrapper.firstChild) {
                         parent.insertBefore(tempWrapper.firstChild, itemInClone.node);
                     }
                     parent.removeChild(itemInClone.node);
-                    parent.classList.add('tm-parent-translated');
                 }
             }
         }
@@ -868,51 +886,47 @@ function buildSimplifiedHtml(translatedItems) {
     const showOriginal = config.simplifiedShowOriginal || false;
 
     translatedItems.forEach(item => {
-        const textToShow = showOriginal ? item.original : item.translated;
-        if (!textToShow || (item.type !== 'text' && item.type !== 'link')) return;
+        if (item.type !== 'text' && item.type !== 'link') return;
 
-        // Chỉ highlight tên khi hiển thị bản dịch, và chỉ khi chế độ sửa tên được bật
-        const contentHtml = (!showOriginal && config.nameEditingEnabled)
-            ? highlightNamesInText(textToShow, nameSet)
-            : escapeHtml(textToShow);
+        const originalTextToShow = item.decodedOriginal || item.original;
 
-        const p = document.createElement('p');
-        let contentContainer;
+        // Luôn chuẩn hóa bản dịch trước
+        const finalTranslatedText = capitalizeFirstLetter((item.translated || '').trim());
 
-        if (!showOriginal && config.nameEditingEnabled) {
-            const chunkSpan = document.createElement('span');
-            chunkSpan.className = 'tm-chunk';
-            chunkSpan.dataset.orig = item.original; // Luôn lưu text gốc
-            chunkSpan.innerHTML = contentHtml;
-            contentContainer = chunkSpan;
+        let p = document.createElement('p');
+        let finalContent; // Đây sẽ là node cuối cùng được chèn vào <p> hoặc <a>
+
+        if (showOriginal) {
+            // Nếu hiển thị bản gốc, chỉ chèn text đã được escape
+            finalContent = document.createTextNode(originalTextToShow);
         } else {
-            const tempWrapper = document.createElement('div');
-            tempWrapper.innerHTML = contentHtml;
-            contentContainer = tempWrapper;
+            // Nếu hiển thị bản dịch...
+            if (config.nameEditingEnabled) {
+                // ...và chế độ sửa tên BẬT:
+                const chunkSpan = document.createElement('span');
+                chunkSpan.className = 'tm-chunk';
+                chunkSpan.dataset.orig = originalTextToShow;
+                // Nội dung bên trong là bản dịch đã được highlight name
+                chunkSpan.innerHTML = highlightNamesInText(finalTranslatedText, nameSet);
+                finalContent = chunkSpan;
+            } else {
+                // ...và chế độ sửa tên TẮT:
+                finalContent = document.createTextNode(finalTranslatedText);
+            }
         }
 
+        // Đưa nội dung cuối cùng vào thẻ <a> nếu là link, hoặc <p> nếu là text thường
         if (item.type === 'link' && item.href) {
             const a = document.createElement('a');
             a.href = escapeHtml(item.href);
             a.target = '_blank';
             a.rel = 'noopener noreferrer';
-            if (contentContainer.nodeName === 'SPAN' && contentContainer.classList.contains('tm-chunk')) {
-                 a.appendChild(contentContainer);
-            } else {
-                 while(contentContainer.firstChild) {
-                    a.appendChild(contentContainer.firstChild);
-                }
-            }
+            a.appendChild(finalContent);
             p.appendChild(a);
         } else {
-            if (contentContainer.nodeName === 'SPAN' && contentContainer.classList.contains('tm-chunk')) {
-                 p.appendChild(contentContainer);
-            } else {
-                 while(contentContainer.firstChild) {
-                    p.appendChild(contentContainer.firstChild);
-                }
-            }
+            p.appendChild(finalContent);
         }
+
         html += p.outerHTML + '\n';
     });
     return html;
@@ -1087,97 +1101,119 @@ function applyTranslationToDom(items) {
     for (const it of items) {
         if (!it.translated) continue;
 
+        // Chuẩn hóa và viết hoa trước
+        it.translated = capitalizeFirstLetter(it.translated.trim());
+
         if (it.type === 'attribute') {
             if (it.element && it.element.isConnected) {
                 it.element.setAttribute(it.attribute, it.translated);
             }
         }
         else if (it.node?.isConnected && it.node.parentNode) {
-            // Luôn chạy highlight tên trước
             const highlightedHtml = highlightNamesInText(it.translated, nameSet);
 
             if (config.nameEditingEnabled) {
                 const chunkSpan = document.createElement('span');
                 chunkSpan.className = 'tm-chunk';
-                chunkSpan.dataset.orig = it.original;
+                chunkSpan.dataset.orig = it.decodedOriginal;
+
                 chunkSpan.innerHTML = highlightedHtml;
 
-                // Nếu là link, thì chèn chunk vào trong link
                 if (it.type === 'link') {
-                    it.node.innerHTML = ''; // Xóa nội dung cũ của link
-                    it.node.appendChild(chunkSpan);
-                } else { // Nếu là text thường, thay thế text node bằng chunk
+                    // Nếu là link, cần xử lý cẩn thận để không xóa thẻ <a>
+                    const linkParent = it.node.parentNode;
+                    if(linkParent && linkParent.tagName === 'A') {
+                        linkParent.innerHTML = ''; // Xóa text cũ bên trong link
+                        linkParent.appendChild(chunkSpan);
+                    } else {
+                        // Trường hợp hiếm gặp, thay thế như bình thường
+                        it.node.parentNode.replaceChild(chunkSpan, it.node);
+                    }
+                } else {
                     it.node.parentNode.replaceChild(chunkSpan, it.node);
                 }
             } else {
-                // Chế độ không sửa tên (an toàn)
+                const parent = it.node.parentNode;
+                if (parent && parent.nodeType === 1) {
+                     parent.setAttribute('title', `Dịch từ: ${it.decodedOriginal.trim()}`);
+                }
                 const tempWrapper = document.createElement('div');
                 tempWrapper.innerHTML = highlightedHtml;
-                const parent = it.node.parentNode;
-
                 while (tempWrapper.firstChild) {
                     parent.insertBefore(tempWrapper.firstChild, it.node);
                 }
                 parent.removeChild(it.node);
-                parent.classList.add('tm-parent-translated');
             }
         }
     }
 }
-
 async function translateNewNodes(nodes) {
+    // Tạm dừng observer để tránh vòng lặp vô tận
     if (window.tmTranslateObserver) window.tmTranslateObserver.disconnect();
+
     const allNewItems = collectTranslatableItems(config.includeScriptStyle, nodes);
     if (!allNewItems.length) {
+        // Nếu không có gì để dịch, bật lại observer và thoát
         if (window.tmTranslateObserver) window.tmTranslateObserver.observe(document.body, { childList: true, subtree: true });
         return;
     }
-    const itemsToTranslate = [], cachedItems = [];
+
+    // *** LOGIC SỬA ĐỔI: Giải mã ngay từ đầu ***
+    // 1. Luôn tạo thuộc tính 'decodedOriginal' cho tất cả các item mới
     allNewItems.forEach(item => {
-        if (translationCache.hasOwnProperty(item.original)) {
-            item.translated = translationCache[item.original];
-            cachedItems.push(item);
-        } else { itemsToTranslate.push(item); }
+        item.decodedOriginal = item.original; // Mặc định
+        const hostname = window.location.hostname;
+        const pathname = window.location.pathname;
+        if (hostname.includes('fanqienovel.com')) {
+            if (pathname.startsWith('/reader/')) {
+                item.decodedOriginal = decodeFanqieReaderText(item.original);
+            } else {
+                item.decodedOriginal = decodeFanqieGeneralText(item.original);
+            }
+        }
     });
 
+    const itemsToTranslate = [], cachedItems = [];
+
+    // 2. Dùng 'decodedOriginal' làm key để kiểm tra cache
+    allNewItems.forEach(item => {
+        if (translationCache.hasOwnProperty(item.decodedOriginal)) {
+            item.translated = translationCache[item.decodedOriginal];
+            cachedItems.push(item);
+        } else {
+            itemsToTranslate.push(item);
+        }
+    });
+
+    // Phần xử lý cache không thay đổi
     if (cachedItems.length > 0) {
-        //showNotification(`Áp dụng ${cachedItems.length} mục từ cache...`, 1500);
-        console.log(`[tm-translate] Áp dụng ${cachedItems.length} mục từ cache...`)
+        console.log(`[tm-translate] Tự động dịch: Áp dụng ${cachedItems.length} mục từ cache...`);
         applyTranslationToDom(cachedItems);
     }
+
+    // Phần dịch nội dung mới
     if (itemsToTranslate.length > 0) {
         showNotification(`Đang dịch ${itemsToTranslate.length} mục mới...`, 3000);
 
         const nameSet = config.nameSets[config.activeNameSet] || {};
         const nameReplacer = buildNameSetReplacer(nameSet);
         const placeholderMap = {};
-
         const textsToSend = [];
+
         itemsToTranslate.forEach(item => {
-            let textToTokenize = item.original;
-            const hostname = window.location.hostname;
-            const pathname = window.location.pathname;
-
-            // Kiểm tra URL để chọn đúng bộ giải mã
-            if (hostname.includes('fanqienovel.com')) {
-                if (pathname.startsWith('/reader/')) {
-                    textToTokenize = decodeFanqieReaderText(textToTokenize); // Bộ giải mã MỚI
-                } else {
-                    textToTokenize = decodeFanqieGeneralText(textToTokenize); // Bộ giải mã CŨ
-                }
-            }
-
-            // Giờ mới tokenize đoạn text đã được giải mã
-            item.tokens = tokenizeString(textToTokenize);
+            // Không cần giải mã lại ở đây nữa vì đã làm ở trên
+            item.tokens = tokenizeString(item.decodedOriginal);
             item.tokens.forEach(token => {
                 if (token.type === 'text' && token.value.trim()) {
                     const processedText = nameReplacer(token.value, placeholderMap);
                     textsToSend.push(processedText);
                 }
             });
-            translationCache[item.original] = ''; // Đánh dấu đang xử lý
+            // Đánh dấu đang xử lý trong cache bằng key đã giải mã
+            translationCache[item.decodedOriginal] = '';
         });
 
+        // Các bước còn lại (batch, post, reassemble) không thay đổi
         const batches = splitIntoBatches(textsToSend, config.maxCharsPerRequest);
         let allTranslatedTexts = [];
         for (const batchArr of batches) {
@@ -1190,18 +1226,17 @@ async function translateNewNodes(nodes) {
             const numTextTokens = item.tokens.filter(t => t.type === 'text' && t.value.trim()).length;
             const translatedParts = allTranslatedTexts.slice(translationIdx, translationIdx + numTextTokens);
             const reassembledText = reassembleTranslatedString(item.tokens, translatedParts);
-
-            // Khôi phục tên Việt sau khi dịch
             item.translated = restoreNames(reassembledText, placeholderMap);
-
             translationIdx += numTextTokens;
-            if (item.original && item.translated) {
-                translationCache[item.original] = item.translated;
+
+            if (item.decodedOriginal && item.translated) {
+                translationCache[item.decodedOriginal] = item.translated; // Lưu vào cache bằng key đã giải mã
             }
         });
         applyTranslationToDom(itemsToTranslate);
     }
 
+    // Bật lại observer sau khi đã xử lý xong
     if (window.tmTranslateObserver) window.tmTranslateObserver.observe(document.body, { childList: true, subtree: true });
 }
 function startAutoTranslateObserver() {
@@ -1292,7 +1327,6 @@ function showEditModal(chinese, vietnamese) {
     const vietInput = wrapper.querySelector('#tm-edit-viet-input');
     const actionsContainer = wrapper.querySelector('#tm-edit-actions');
 
-    // Hàm để kiểm tra và cập nhật giao diện
     function checkNameAndRefreshUI() {
         const currentChinese = origInput.value.trim();
         const currentNameSet = config.nameSets[config.activeNameSet] || {};
@@ -1300,30 +1334,32 @@ function showEditModal(chinese, vietnamese) {
 
         let buttonsHtml = '';
         if (exists) {
-            // Nếu name đã tồn tại, hiển thị Sửa/Xóa
             buttonsHtml = `
                 <button id="tm-edit-delete" class="tm-btn">Xóa</button>
                 <button id="tm-edit-save" class="tm-btn tm-btn-primary">Sửa</button>
             `;
         } else {
-            // Nếu là name mới, hiển thị Thêm
             buttonsHtml = `<button id="tm-edit-add" class="tm-btn tm-btn-primary">Thêm</button>`;
         }
         actionsContainer.innerHTML = buttonsHtml;
         attachActionListeners();
     }
 
-    // Hàm để gắn listener cho các nút động
     function attachActionListeners() {
         const btnAdd = document.getElementById('tm-edit-add');
         const btnSave = document.getElementById('tm-edit-save');
         const btnDelete = document.getElementById('tm-edit-delete');
 
+        // *** SỬA ĐỔI TOÀN BỘ LOGIC CỦA actionHandler ***
         const actionHandler = async (action) => {
+            const setName = config.activeNameSet;
             const key = origInput.value.trim();
             const value = vietInput.value.trim();
-            const setName = config.activeNameSet;
 
+            // 1. Lấy "ảnh chụp" của name-set TRƯỚC KHI thay đổi
+            const oldNameSetSnapshot = JSON.parse(JSON.stringify(config.nameSets[setName] || {}));
+
+            // 2. Thực hiện thay đổi
             if (action === 'add' || action === 'save') {
                 if (!key || !value) {
                     alert('Không được để trống.');
@@ -1335,10 +1371,15 @@ function showEditModal(chinese, vietnamese) {
                 delete config.nameSets[setName][key];
             }
 
+            // 3. Lưu config và đóng modal
             saveConfig(config);
             close();
-            // Dịch lại toàn bộ trang để áp dụng thay đổi
-            await applyNameChangeLive();
+
+            // 4. Lấy name-set MỚI SAU KHI thay đổi
+            const newNameSet = config.nameSets[setName] || {};
+
+            // 5. Gọi hàm cập nhật thông minh với đầy đủ tham số
+            await applyNameChangeLive(newNameSet, oldNameSetSnapshot);
         };
 
         if (btnAdd) btnAdd.onclick = () => actionHandler('add');
@@ -1346,7 +1387,6 @@ function showEditModal(chinese, vietnamese) {
         if (btnDelete) btnDelete.onclick = () => actionHandler('delete');
     }
 
-    // Listener để kiểm tra trực tiếp khi gõ vào ô tiếng Trung
     origInput.addEventListener('input', checkNameAndRefreshUI);
 
     const close = () => wrapper.remove();
@@ -1359,9 +1399,9 @@ function showEditModal(chinese, vietnamese) {
         });
     });
 
-    // Chạy lần đầu để khởi tạo UI
     checkNameAndRefreshUI();
 }
+
 function findChunkFromRange(range) {
     if (!range) return null;
 
@@ -1559,40 +1599,99 @@ async function applyChangesAndRetranslate() {
         alert('Không tìm thấy bản sao trang gốc. Vui lòng tải lại trang (F5) để áp dụng thay đổi.');
     }
 }
-async function applyNameChangeLive() {
-    console.log('Cài đặt name đã thay đổi. Bắt đầu cập nhật trực tiếp...');
-    showLoading('Đang làm mới tên...');
-    await sleep(50); // Cho UI có thời gian hiển thị loading
+async function applyNameChangeLive(newNameSet, oldNameSet) {
+    console.log('Cài đặt name đã thay đổi. Bắt đầu cập nhật thông minh (phiên bản tối ưu)...');
+    showLoading('Đang cập nhật tên thông minh...');
 
     try {
-        const nameSet = config.nameSets[config.activeNameSet] || {};
-        const allChunks = document.querySelectorAll('.tm-chunk[data-orig]');
-
+        const allChunks = Array.from(document.querySelectorAll('.tm-chunk[data-orig]'));
         if (allChunks.length === 0) {
-             console.warn("Không tìm thấy khối .tm-chunk nào để cập nhật.");
-             // Nếu không có chunk, có thể trang chưa được dịch ở chế độ edit, fallback về hàm cũ
-             await applyChangesAndRetranslate();
-             return;
+            console.warn("Không tìm thấy khối .tm-chunk nào, sẽ dịch lại toàn bộ trang.");
+            await applyChangesAndRetranslate();
+            return;
         }
 
+        // --- GIAI ĐOẠN 1: THU THẬP TẤT CẢ CÁC CÂU CẦN DỊCH LẠI ---
+        const textsToTranslate = [];
+        const updatePlan = [];
+
         allChunks.forEach(chunk => {
-            const originalText = chunk.dataset.orig;
-            // translationCache lưu map từ text gốc -> text dịch
-            if (originalText && translationCache.hasOwnProperty(originalText)) {
-                const translatedText = translationCache[originalText];
-                // Chạy lại hàm highlight với bộ tên mới
-                const newHighlightedHtml = highlightNamesInText(translatedText, nameSet);
-                chunk.innerHTML = newHighlightedHtml;
-            } else {
-                console.warn("Không tìm thấy bản dịch trong cache cho:", originalText);
+            const originalChinese = chunk.dataset.orig;
+
+            const oldNamesInChunk = Object.keys(oldNameSet).filter(name => originalChinese.includes(name));
+            const newNamesInChunk = Object.keys(newNameSet).filter(name => originalChinese.includes(name));
+            const deletedNames = oldNamesInChunk.filter(name => !newNamesInChunk.includes(name));
+            const addedNames = newNamesInChunk.filter(name => !oldNamesInChunk.includes(name));
+            const editedNames = newNamesInChunk.filter(name =>
+                oldNamesInChunk.includes(name) && newNameSet[name] !== oldNameSet[name]
+            );
+
+            if (deletedNames.length > 0 || addedNames.length > 0 || editedNames.length > 0) {
+                let textForTranslation;
+                let translationType;
+                let placeholderMapForChunk = null; // Sẽ chỉ được dùng cho THÊM/SỬA
+
+                if (deletedNames.length > 0) {
+                    translationType = 'full_sentence';
+                    textForTranslation = originalChinese;
+                } else {
+                    translationType = 'placeholder';
+                    placeholderMapForChunk = {};
+                    let textWithPlaceholders = originalChinese;
+                    // Dùng newNamesInChunk để đảm bảo index đúng với ngữ cảnh câu
+                    newNamesInChunk.forEach((name, index) => {
+                        const placeholder = `__TM_NAME_${index}__`;
+                        placeholderMapForChunk[placeholder] = { orig: name, viet: newNameSet[name] };
+                        textWithPlaceholders = textWithPlaceholders.replaceAll(name, placeholder);
+                    });
+                    textForTranslation = textWithPlaceholders;
+                }
+
+                const translationIndex = textsToTranslate.length;
+                textsToTranslate.push(textForTranslation);
+                updatePlan.push({
+                    chunk: chunk,
+                    originalChinese: originalChinese,
+                    translationIndex: translationIndex,
+                    translationType: translationType,
+                    placeholderMap: placeholderMapForChunk
+                });
             }
         });
 
-        console.log(`[tm-translate] Đã cập nhật xong ${allChunks.length} khối văn bản với name set mới.`);
+        if (textsToTranslate.length === 0) {
+            console.log("Không có câu nào cần cập nhật. Hoàn tất.");
+            removeLoading();
+            return;
+        }
+        console.log(`Đã thu thập ${textsToTranslate.length} câu để dịch lại trong một lượt.`);
+
+        // --- GIAI ĐOẠN 2: GỬI ĐI DỊCH HÀNG LOẠT ---
+        const allTranslatedTexts = await postTranslate(config.serverUrl, textsToTranslate, config.targetLang);
+
+        // --- GIAI ĐOẠN 3: ÁP DỤNG KẾT QUẢ ---
+        updatePlan.forEach(plan => {
+            let translatedText = allTranslatedTexts[plan.translationIndex];
+            if (!translatedText) return;
+
+            if (plan.translationType === 'placeholder') {
+                // *** SỬA ĐỔI: Sử dụng bản đồ đã lưu, không tạo lại nữa ***
+                translatedText = restoreNames(translatedText, plan.placeholderMap);
+            } else {
+                translationCache[plan.originalChinese] = translatedText;
+            }
+
+            // Chuẩn hóa và áp dụng highlight
+            const finalText = capitalizeFirstLetter(translatedText.trim());
+            const finalHtml = highlightNamesInText(finalText, newNameSet);
+            plan.chunk.innerHTML = finalHtml;
+        });
+
+        console.log(`[tm-translate] Đã hoàn tất cập nhật tên thông minh cho ${updatePlan.length} khối văn bản.`);
 
     } catch (err) {
-        console.error('[tm-translate] Lỗi khi cập nhật tên trực tiếp, sẽ dịch lại toàn bộ trang:', err);
-        await applyChangesAndRetranslate(); // Fallback về hàm cũ nếu có lỗi
+        console.error('[tm-translate] Lỗi khi cập nhật tên thông minh, sẽ dịch lại toàn bộ trang:', err);
+        await applyChangesAndRetranslate();
     } finally {
         removeLoading();
     }
@@ -1742,6 +1841,7 @@ function createStylePanel() {
 function openSettingsUI() {
     removeElementById('tm-settings-modal');
     config = loadConfig();
+    const oldNameSetSnapshot = JSON.parse(JSON.stringify(config.nameSets[config.activeNameSet] || {}));
 
     const wrapper = document.createElement('div');
     wrapper.id = 'tm-settings-modal';
@@ -2100,13 +2200,15 @@ function openSettingsUI() {
         config.delayMs = parseInt(wrapper.querySelector('#tm-delay').value, 10);
         config.maxCharsPerRequest = parseInt(wrapper.querySelector('#tm-max').value, 10);
 
+        config.activeNameSet = setSelect.value;
         saveConfig(config);
         alert('Đã lưu cài đặt.');
         close();
 
         if (translatedBodyClone) {
-            console.log("Phát hiện thay đổi cài đặt khi trang đã dịch. Bắt đầu dịch lại để áp dụng...");
-            applyChangesAndRetranslate();;
+            console.log("Phát hiện thay đổi cài đặt khi trang đã dịch. Bắt đầu dịch lại thông minh...");
+            const newNameSet = config.nameSets[config.activeNameSet] || {};
+            applyNameChangeLive(newNameSet, oldNameSetSnapshot);
         }
     });
 }
