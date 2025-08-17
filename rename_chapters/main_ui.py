@@ -8,18 +8,22 @@ import threading
 import urllib.request
 import webbrowser
 from packaging.version import parse as parse_version
+from extensions import jjwxc_ext
 
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.0.3"
+    CURRENT_VERSION = "0.0.4"
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
-        self.title("Công cụ đổi tên & chỉnh sửa file truyện v3.1 (có hướng dẫn)")
+        self.title("Rename Chapters v0.0.4")
         self.geometry("1200x800")
 
         self.folder_path = tk.StringVar()
         self.files_data = []
         self.preview_job = None
+
+        self.sorted_files_cache = []
+        self.excluded_files = set()
 
         self.create_widgets()
         self.load_config()
@@ -142,6 +146,7 @@ class RenamerApp(tk.Tk):
         
         self.create_rename_tab()
         self.create_credit_tab()
+        self.create_online_fetch_tab()
 
         log_frame = ttk.LabelFrame(main_paned_window, text="Nhật ký hoạt động", padding="5")
         self.log_text = scrolledtext.ScrolledText(log_frame, height=8, state='disabled', wrap=tk.WORD)
@@ -151,60 +156,77 @@ class RenamerApp(tk.Tk):
     def create_rename_tab(self):
         rename_tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(rename_tab, text="Đổi Tên File")
+        rename_tab.columnconfigure(0, weight=1)
+        rename_tab.rowconfigure(2, weight=1) # Cho bảng preview co giãn
 
+        # --- Frame tùy chọn ---
         options_frame = ttk.LabelFrame(rename_tab, text="2. Tùy chọn", padding="10")
-        options_frame.pack(fill=tk.X, expand=False)
-        options_frame.grid_columnconfigure(1, weight=1) # Cho phép ô entry co giãn
+        options_frame.grid(row=0, column=0, sticky="ew")
+        options_frame.grid_columnconfigure(1, weight=1)
         
-        # Chiến lược ưu tiên
+        # (Các tùy chọn cũ giữ nguyên, chỉ sửa lại grid)
         self.strategy = tk.StringVar(value="content_first")
         ttk.Radiobutton(options_frame, text="Ưu tiên nội dung", variable=self.strategy, value="content_first", command=self.schedule_preview_update).grid(row=0, column=0, sticky="w", padx=5)
         ttk.Radiobutton(options_frame, text="Ưu tiên tên file", variable=self.strategy, value="filename_first", command=self.schedule_preview_update).grid(row=0, column=1, sticky="w", padx=5)
         
-        # Cấu trúc mới
         ttk.Label(options_frame, text="Cấu trúc mới:").grid(row=1, column=0, sticky="w", padx=5, pady=(10, 5))
-        self.format_combobox = ttk.Combobox(options_frame, values=["第{num}章 {title}.txt"])
+        self.format_combobox = ttk.Combobox(options_frame, values=["Chương {num} - {title}.txt"])
         self.format_combobox.grid(row=1, column=1, columnspan=2, sticky="we", padx=5)
-        self.format_combobox.set("第{num}章 {title}.txt")
+        self.format_combobox.set("Chương {num} - {title}.txt")
         self.format_combobox.bind("<KeyRelease>", self.schedule_preview_update)
-        ttk.Label(options_frame, text="(Dùng {num} cho số chương, {title} cho tiêu đề)").grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
-
-        # Regex (tên file) - Đẩy các hàng xuống 1 bậc
-        self.filename_regex = tk.StringVar()
+        ttk.Label(options_frame, text="(Dùng {num}, {title}, và {num + n} hoặc {num - n})").grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
+        
+        self.filename_regex = tk.StringVar(); self.content_regex = tk.StringVar()
         ttk.Label(options_frame, text="Regex (tên file):").grid(row=3, column=0, sticky="w", padx=5, pady=(10, 5))
         fn_regex_entry = ttk.Entry(options_frame, textvariable=self.filename_regex)
         fn_regex_entry.grid(row=3, column=1, sticky="we", padx=5)
         fn_regex_entry.bind("<KeyRelease>", self.schedule_preview_update)
-        # Nút Hướng dẫn
-        help_button1 = ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide)
-        help_button1.grid(row=3, column=2, sticky="w", padx=(0, 5))
-
-        # Regex (nội dung) - Đẩy các hàng xuống 1 bậc
-        self.content_regex = tk.StringVar()
+        ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=3, column=2, sticky="w", padx=(0, 5))
         ttk.Label(options_frame, text="Regex (nội dung):").grid(row=4, column=0, sticky="w", padx=5, pady=5)
         ct_regex_entry = ttk.Entry(options_frame, textvariable=self.content_regex)
         ct_regex_entry.grid(row=4, column=1, sticky="we", padx=5)
         ct_regex_entry.bind("<KeyRelease>", self.schedule_preview_update)
-        # Nút Hướng dẫn
-        help_button2 = ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide)
-        help_button2.grid(row=4, column=2, sticky="w", padx=(0, 5))
+        ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=4, column=2, sticky="w", padx=(0, 5))
 
-        # Đẩy các hàng xuống 1 bậc
-        ttk.Button(options_frame, text="BẮT ĐẦU ĐỔI TÊN", command=self.start_renaming).grid(row=5, column=0, columnspan=3, pady=10, ipady=5)
+        # --- Frame tiêu đề tùy chỉnh ---
+        custom_title_frame = ttk.LabelFrame(rename_tab, text="3. Sử dụng tiêu đề tùy chỉnh (Tùy chọn)", padding=10)
+        custom_title_frame.grid(row=1, column=0, sticky="ew", pady=5)
+        custom_title_frame.columnconfigure(1, weight=1)
 
-        # Bảng xem trước (giữ nguyên)
-        preview_frame = ttk.LabelFrame(rename_tab, text="3. Xem trước thay đổi", padding="10")
-        preview_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
-        cols = ("Tên file gốc", "Số (tên file)", "Nguồn", "Số (nội dung)", "Nguồn", "Tên file mới")
-        self.tree = ttk.Treeview(preview_frame, columns=cols, show='headings')
-        for col, width in zip(cols, [250, 80, 100, 80, 100, 250]):
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=width, anchor="w")
+        self.use_custom_titles = tk.BooleanVar(value=False)
+        ttk.Checkbutton(custom_title_frame, text="Kích hoạt (Mỗi dòng là một tiêu đề, áp dụng theo thứ tự file đã sắp xếp)", variable=self.use_custom_titles, command=self.schedule_preview_update).grid(row=0, column=0, columnspan=2, sticky="w")
+        
+        self.custom_titles_text = scrolledtext.ScrolledText(custom_title_frame, height=5, wrap=tk.WORD)
+        self.custom_titles_text.grid(row=1, column=0, columnspan=2, sticky="ewns", pady=(5,0))
+        
+        # --- Bảng xem trước và các nút hành động ---
+        preview_frame = ttk.LabelFrame(rename_tab, text="4. Xem trước và Hành động", padding="10")
+        preview_frame.grid(row=2, column=0, sticky="nsew", pady=5)
+        preview_frame.columnconfigure(0, weight=1); preview_frame.rowconfigure(1, weight=1)
+
+        # Thanh tìm kiếm và loại trừ
+        actions_bar = ttk.Frame(preview_frame)
+        actions_bar.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        ttk.Label(actions_bar, text="Tìm kiếm:").pack(side=tk.LEFT, padx=(0, 5))
+        self.search_var = tk.StringVar()
+        search_entry = ttk.Entry(actions_bar, textvariable=self.search_var)
+        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        search_entry.bind("<KeyRelease>", self._search_files)
+        ttk.Button(actions_bar, text="Loại trừ file đã chọn", command=lambda: self._toggle_exclusion(exclude=True)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(actions_bar, text="Bao gồm lại", command=lambda: self._toggle_exclusion(exclude=False)).pack(side=tk.LEFT, padx=5)
+
+        cols = ("Tên file gốc", "Số (tên file)", "Số (nội dung)", "Tên file mới")
+        self.tree = ttk.Treeview(preview_frame, columns=cols, show='headings', selectmode='extended')
+        self.tree.grid(row=1, column=0, sticky="nsew")
+        self.tree.tag_configure("excluded", foreground="red")
+        for col, width in zip(cols, [300, 100, 100, 300]):
+            self.tree.heading(col, text=col); self.tree.column(col, width=width)
+        
         vsb = ttk.Scrollbar(preview_frame, orient="vertical", command=self.tree.yview)
-        vsb.pack(side='right', fill='y')
+        vsb.grid(row=1, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=vsb.set)
-        self.tree.pack(fill=tk.BOTH, expand=True)
-
+        
+        ttk.Button(rename_tab, text="BẮT ĐẦU ĐỔI TÊN", command=self.start_renaming).grid(row=3, column=0, pady=10, ipady=5)
     # --- HÀM MỚI ĐỂ HIỂN THỊ CỬA SỔ HƯỚNG DẪN ---
     def show_regex_guide(self):
         help_window = tk.Toplevel(self)
@@ -324,6 +346,65 @@ VÍ DỤ THỰC TẾ:
         self.credit_preview_text = scrolledtext.ScrolledText(credit_preview_frame, wrap=tk.WORD, state="disabled")
         self.credit_preview_text.pack(fill=tk.BOTH, expand=True)
 
+    def create_online_fetch_tab(self):
+        online_tab = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(online_tab, text="Lấy Tiêu Đề Online")
+        online_tab.columnconfigure(0, weight=1)
+        online_tab.rowconfigure(1, weight=1)
+
+        # --- Frame nhập liệu ---
+        fetch_frame = ttk.LabelFrame(online_tab, text="1. Nguồn", padding=10)
+        fetch_frame.grid(row=0, column=0, sticky="ew")
+        fetch_frame.columnconfigure(1, weight=1)
+        
+        ttk.Label(fetch_frame, text="Trang web:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.source_web = ttk.Combobox(fetch_frame, values=["jjwxc.net"], state="readonly")
+        self.source_web.grid(row=0, column=1, sticky="ew", padx=5)
+        self.source_web.set("jjwxc.net")
+        
+        ttk.Label(fetch_frame, text="URL mục lục:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.source_url = tk.StringVar()
+        ttk.Entry(fetch_frame, textvariable=self.source_url).grid(row=1, column=1, sticky="ew", padx=5)
+        
+        ttk.Button(fetch_frame, text="Bắt đầu lấy dữ liệu", command=self._fetch_online_titles).grid(row=2, column=1, sticky="e", pady=5, padx=5)
+
+        # --- Frame kết quả ---
+        result_frame = ttk.LabelFrame(online_tab, text="2. Kết quả", padding=10)
+        result_frame.grid(row=1, column=0, sticky="nsew", pady=5)
+        result_frame.columnconfigure(0, weight=1); result_frame.rowconfigure(0, weight=1)
+        
+        cols = ("Số chương", "Tiêu đề 1 (标题)", "Tiêu đề 2 (内容提要)")
+        self.online_tree = ttk.Treeview(result_frame, columns=cols, show='headings', selectmode='extended')
+        self.online_tree.grid(row=0, column=0, sticky="nsew")
+        for col in cols: self.online_tree.heading(col, text=col)
+        
+        vsb = ttk.Scrollbar(result_frame, orient="vertical", command=self.online_tree.yview)
+        vsb.grid(row=0, column=1, sticky="ns")
+        self.online_tree.configure(yscrollcommand=vsb.set)
+        
+        # --- Frame hành động ---
+        apply_frame = ttk.LabelFrame(online_tab, text="3. Áp dụng", padding=10)
+        apply_frame.grid(row=2, column=0, sticky="ew", pady=(5,0))
+        apply_frame.columnconfigure(1, weight=1)
+
+        # Dòng chọn theo khoảng
+        ttk.Label(apply_frame, text="Chọn nhanh theo khoảng:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.online_range_var = tk.StringVar()
+        range_entry = ttk.Entry(apply_frame, textvariable=self.online_range_var)
+        range_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        ttk.Button(apply_frame, text="Chọn", command=self._select_online_range).grid(row=0, column=2, sticky="w", padx=5, pady=5)
+        ttk.Label(apply_frame, text="(Ví dụ: 1-10, -50, 100-, all)").grid(row=1, column=1, sticky="w", padx=5)
+
+        # Dòng áp dụng
+        action_row_frame = ttk.Frame(apply_frame)
+        action_row_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(10,0))
+
+        ttk.Label(action_row_frame, text="Sử dụng cột tiêu đề:").pack(side=tk.LEFT, padx=5)
+        self.title_choice = tk.StringVar(value="title2")
+        ttk.Radiobutton(action_row_frame, text="Tiêu đề 1", variable=self.title_choice, value="title1").pack(side=tk.LEFT)
+        ttk.Radiobutton(action_row_frame, text="Tiêu đề 2", variable=self.title_choice, value="title2").pack(side=tk.LEFT)
+        ttk.Button(action_row_frame, text="Sao chép tiêu đề đã chọn vào Tab Đổi Tên", command=self._apply_online_titles).pack(side=tk.RIGHT, padx=5)
+
     def _on_pos_change(self):
         self.line_num_spinbox.config(state="normal" if self.credit_position.get() == "line" else "disabled")
 
@@ -347,47 +428,72 @@ VÍ DỤ THỰC TẾ:
     def _update_rename_preview(self):
         path = self.folder_path.get()
         if not os.path.isdir(path): return
+
         self.tree.delete(*self.tree.get_children())
         self.files_data.clear()
+        
         self.log("Bắt đầu quét và phân tích lại các file...")
         try:
-            files = sorted([f for f in os.listdir(path) if f.lower().endswith(".txt")])
+            files = [f for f in os.listdir(path) if f.lower().endswith(".txt")]
         except Exception as e:
             self.log(f"Lỗi khi truy cập thư mục: {e}"); messagebox.showerror("Lỗi", f"Không thể đọc các file trong thư mục: {e}"); return
+
         for filename in files:
             filepath = os.path.join(path, filename)
             analysis = logic.analyze_file(filepath, self.filename_regex.get(), self.content_regex.get())
             self.files_data.append(analysis)
-            new_name = logic.generate_new_name(analysis, self.strategy.get(), self.format_combobox.get()) or "Lỗi/Thiếu số"
-            self.tree.insert("", "end", values=(analysis['filename'], analysis['from_filename']['num'] or "N/A", analysis['from_filename']['source'], analysis['from_content']['num'] or "N/A", analysis['from_content']['source'], new_name))
+        
+        # Sắp xếp file và lưu vào cache
+        self._sort_files()
+
+        # Hiển thị file đã sắp xếp lên Treeview
+        for i, analysis in enumerate(self.sorted_files_cache):
+            self._insert_file_to_tree(analysis, i)
+        
         self.log(f"Phân tích hoàn tất cho {len(self.files_data)} file.")
-        if files:
-            self.credit_file_selector['values'] = files
+        
+        # Cập nhật combobox ở tab credit
+        sorted_filenames = [f['filename'] for f in self.sorted_files_cache]
+        if sorted_filenames:
+            self.credit_file_selector['values'] = sorted_filenames
             self.credit_file_selector.current(0)
         else:
-            self.credit_file_selector['values'] = []
-            self.credit_file_selector.set('')
+            self.credit_file_selector['values'] = []; self.credit_file_selector.set('')
 
     def start_renaming(self):
-        if not self.files_data: messagebox.showwarning("Cảnh báo", "Chưa có file nào để đổi tên."); return
-        if not messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn đổi tên {len(self.files_data)} file không?"): return
+        if not self.sorted_files_cache: messagebox.showwarning("Cảnh báo", "Chưa có file nào để đổi tên."); return
+        
+        files_to_rename = [f for f in self.sorted_files_cache if f['filename'] not in self.excluded_files]
+        if not files_to_rename: messagebox.showwarning("Cảnh báo", "Tất cả file đã bị loại trừ hoặc không có file nào."); return
+
+        if not messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn đổi tên {len(files_to_rename)} file không?"): return
+        
         self.log("="*20 + " BẮT ĐẦU ĐỔI TÊN " + "="*20)
         success, fail = 0, 0
         folder, strategy, name_format = self.folder_path.get(), self.strategy.get(), self.format_combobox.get()
         self._update_history_combobox(self.format_combobox)
-        for analysis in self.files_data:
-            old_path, new_name = analysis['filepath'], logic.generate_new_name(analysis, strategy, name_format)
+        
+        custom_titles = self.custom_titles_text.get("1.0", tk.END).strip().split('\n') if self.use_custom_titles.get() else None
+        
+        for i, analysis in enumerate(self.sorted_files_cache):
+            if analysis['filename'] in self.excluded_files:
+                self.log(f"[Loại trừ] Bỏ qua file: {analysis['filename']}")
+                continue
+            
+            new_name = logic.generate_new_name(analysis, strategy, name_format, custom_titles, i)
             if new_name is None: self.log(f"[Bỏ qua] {analysis['filename']}: Không tìm thấy số chương."); fail += 1; continue
             if new_name == analysis['filename']: self.log(f"[Bỏ qua] {analysis['filename']}: Tên đã đúng."); continue
+            
             try:
-                os.rename(old_path, os.path.join(folder, new_name))
+                os.rename(analysis['filepath'], os.path.join(folder, new_name))
                 self.log(f"[Thành công] {analysis['filename']} -> {new_name}"); success += 1
             except Exception as e:
                 self.log(f"[Lỗi] {analysis['filename']}: {e}"); fail += 1
+        
         self.log(f"Hoàn tất! Thành công: {success}, Thất bại/Bỏ qua: {fail}")
-        messagebox.showinfo("Hoàn tất", f"Đã xong.\nThành công: {success}\nThất bại/Bỏ qua: {fail}")
+        messagebox.showinfo("Hoàn tất", f"Đã xong.\nThành công: {success}\nThất bại/Bỏ qua: {fail + len(self.excluded_files)}")
         self.schedule_preview_update(None)
-
+        
     def preview_credit(self):
         # Lấy tên file trực tiếp từ Combobox, không cần qua tab khác
         filename = self.credit_file_selector.get()
@@ -436,6 +542,159 @@ VÍ DỤ THỰC TẾ:
             history.remove(current_value)
         history.insert(0, current_value)
         combobox['values'] = history[:max_history]
+    
+    def _sort_files(self):
+        """Sắp xếp danh sách file theo số chương và lưu vào cache."""
+        def get_sort_key(analysis):
+            # Ưu tiên số từ nội dung, sau đó đến tên file
+            num = analysis['from_content']['num'] or analysis['from_filename']['num']
+            return num if num is not None else float('inf')
+        self.sorted_files_cache = sorted(self.files_data, key=get_sort_key)
+
+    def _search_files(self, event=None):
+        search_term = self.search_var.get().lower()
+        # Xóa hết item cũ
+        self.tree.delete(*self.tree.get_children())
+        # Thêm lại các item khớp với tìm kiếm
+        for i, analysis in enumerate(self.sorted_files_cache):
+            if search_term in analysis['filename'].lower():
+                self._insert_file_to_tree(analysis, i)
+
+    def _toggle_exclusion(self, exclude: bool):
+        selected_items = self.tree.selection()
+        if not selected_items: return
+        
+        for item_id in selected_items:
+            try:
+                filename = self.tree.item(item_id, 'values')[0]
+                if exclude:
+                    self.excluded_files.add(filename)
+                else:
+                    self.excluded_files.discard(filename)
+            except IndexError:
+                continue # Bỏ qua nếu không lấy được tên file
+        
+        self._refresh_tree_tags() # Gọi hàm làm mới màu sắc
+
+    def _refresh_tree_tags(self):
+        """Cập nhật lại tags cho tất cả các dòng trong Treeview dựa trên excluded_files."""
+        for item_id in self.tree.get_children():
+            try:
+                filename = self.tree.item(item_id, 'values')[0]
+                if filename in self.excluded_files:
+                    self.tree.item(item_id, tags=("excluded",))
+                else:
+                    self.tree.item(item_id, tags=())
+            except IndexError:
+                pass
+
+    def _refresh_tree_tags(self):
+        """Cập nhật lại tags cho tất cả các dòng trong Treeview dựa trên excluded_files."""
+        for item_id in self.tree.get_children():
+            filename = self.tree.item(item_id, 'values')[0]
+            if filename in self.excluded_files:
+                self.tree.item(item_id, tags=("excluded",))
+            else:
+                self.tree.item(item_id, tags=())
+
+    def _insert_file_to_tree(self, analysis: dict, index: int):
+        new_name = self._generate_preview_name(analysis, index)
+        tags = ("excluded",) if analysis['filename'] in self.excluded_files else ()
+        self.tree.insert("", "end", values=(
+            analysis['filename'],
+            analysis['from_filename']['num'] or "N/A",
+            analysis['from_content']['num'] or "N/A",
+            new_name
+        ), tags=tags)
+
+    def _generate_preview_name(self, analysis: dict, index: int) -> str:
+        custom_titles = self.custom_titles_text.get("1.0", tk.END).strip().split('\n') if self.use_custom_titles.get() else None
+        return logic.generate_new_name(
+            analysis, self.strategy.get(), self.format_combobox.get(),
+            custom_titles=custom_titles,
+            file_index=index
+        ) or "Lỗi/Thiếu số"
+
+    def _fetch_online_titles(self):
+        url = self.source_url.get()
+        if not url:
+            messagebox.showerror("Lỗi", "Vui lòng nhập URL mục lục.")
+            return
+
+        def _worker():
+            self.log(f"Đang lấy dữ liệu từ {url}...")
+            result = jjwxc_ext.fetch_chapters(url)
+            self.after(0, self._update_online_tree, result)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _update_online_tree(self, result):
+        self.online_tree.delete(*self.online_tree.get_children())
+        if 'error' in result:
+            self.log(f"Lỗi: {result['error']}")
+            messagebox.showerror("Lỗi", result['error'])
+            return
+        
+        chapters = result.get('data', [])
+        for chap in chapters:
+            self.online_tree.insert("", "end", values=(chap['num'], chap['title1'], chap['title2']))
+        self.log(f"Lấy thành công {len(chapters)} chương.")
+
+    def _apply_online_titles(self):
+        selected_items = self.online_tree.selection()
+        if not selected_items:
+            messagebox.showinfo("Thông báo", "Vui lòng chọn ít nhất một chương từ bảng kết quả.")
+            return
+        
+        title_key = self.title_choice.get() # 'title1' or 'title2'
+        
+        selected_titles = []
+        for item_id in selected_items:
+            item_data = self.online_tree.item(item_id, 'values')
+            title = item_data[1] if title_key == 'title1' else item_data[2]
+            selected_titles.append(title)
+        
+        self.custom_titles_text.delete("1.0", tk.END)
+        self.custom_titles_text.insert("1.0", "\n".join(selected_titles))
+        self.use_custom_titles.set(True) # Tự động kích hoạt
+        
+        self.notebook.select(0) # Chuyển về tab Đổi Tên
+        self.schedule_preview_update()
+        self.log(f"Đã áp dụng {len(selected_titles)} tiêu đề tùy chỉnh.")
+
+    def _select_online_range(self):
+        """Chọn các chương trong bảng online dựa vào chuỗi nhập vào."""
+        range_str = self.online_range_var.get().strip().lower()
+        if not range_str: return
+
+        all_items = self.online_tree.get_children()
+        if not all_items: return
+
+        self.online_tree.selection_remove(self.online_tree.selection()) # Xóa lựa chọn cũ
+
+        try:
+            if range_str == 'all' or range_str == '*':
+                self.online_tree.selection_add(all_items)
+                return
+
+            items_to_select = []
+            if '-' in range_str:
+                start_str, end_str = range_str.split('-', 1)
+                start = int(start_str) if start_str else 1
+                end = int(end_str) if end_str else float('inf')
+            else:
+                start = end = int(range_str)
+
+            for item_id in all_items:
+                chap_num = int(self.online_tree.item(item_id, 'values')[0])
+                if start <= chap_num <= end:
+                    items_to_select.append(item_id)
+            
+            if items_to_select:
+                self.online_tree.selection_add(items_to_select)
+
+        except (ValueError, IndexError):
+            messagebox.showerror("Lỗi cú pháp", "Cú pháp không hợp lệ. Hãy dùng các dạng như: '1-10', '-50', '100-', 'all', hoặc '5'.")
 
 if __name__ == "__main__":
     app = RenamerApp()

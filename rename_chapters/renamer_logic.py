@@ -97,21 +97,52 @@ def analyze_file(filepath: str, custom_filename_regex: str = None, custom_conten
         analysis['error'] = str(e)
     return analysis
 
-def generate_new_name(analysis: dict, strategy: str, custom_format: str = "第{num}章 {title}.txt") -> str:
-    num = None; title = ""
+def generate_new_name(analysis: dict, strategy: str, custom_format: str, custom_titles: list = None, file_index: int = None) -> str:
+    num = None
+    title = ""
+
+    # 1. Xác định số chương
     if strategy == 'content_first':
         num = analysis['from_content']['num'] or analysis['from_filename']['num']
-        title = analysis['from_content']['title'] or analysis['from_filename']['title'] or ""
-    elif strategy == 'filename_first':
+    else: # filename_first
         num = analysis['from_filename']['num'] or analysis['from_content']['num']
-        title = analysis['from_filename']['title'] or analysis['from_content']['title'] or ""
-    if num is None: return None
+
+    if num is None:
+        return None
+
+    # 2. Xử lý biểu thức {num +/- n}
+    try:
+        match = re.search(r'\{num\s*([+\-])\s*(\d+)\}', custom_format)
+        if match:
+            operator = match.group(1)
+            value = int(match.group(2))
+            if operator == '+':
+                num += value
+            else:
+                num -= value
+            # Xóa biểu thức khỏi chuỗi format để không bị lỗi sau này
+            custom_format = re.sub(r'\{num\s*([+\-])\s*(\d+)\}', '{num}', custom_format)
+    except (TypeError, ValueError):
+        # Bỏ qua nếu có lỗi, dùng số chương gốc
+        pass
+
+    # 3. Xác định tiêu đề
+    # Ưu tiên tiêu đề tùy chỉnh nếu có
+    if custom_titles and file_index is not None and 0 <= file_index < len(custom_titles):
+        title = custom_titles[file_index]
+    else: # Nếu không thì dùng logic cũ
+        if strategy == 'content_first':
+            title = analysis['from_content']['title'] or analysis['from_filename']['title'] or ""
+        else:
+            title = analysis['from_filename']['title'] or analysis['from_content']['title'] or ""
+    
+    # 4. Tạo tên file mới
     try:
         new_name_raw = custom_format.format(num=num, title=title.strip())
         return sanitize_filename(new_name_raw)
-    except (KeyError, TypeError):
-        return sanitize_filename(f"第{num}章 {title}.txt")
-
+    except Exception:
+        return sanitize_filename(f"Chương {num} - {title}.txt")
+    
 # ---XỬ LÝ CREDIT ---
 
 def modify_content(filepath: str, credit_text: str, position: str, line_num: int = 1, preview_only: bool = False):
