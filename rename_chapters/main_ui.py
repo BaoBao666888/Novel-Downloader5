@@ -11,7 +11,7 @@ from packaging.version import parse as parse_version
 
 class RenamerApp(tk.Tk):
     CURRENT_VERSION = "0.0.3"
-    VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/version.json"
+    VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
         self.title("Công cụ đổi tên & chỉnh sửa file truyện v3.1 (có hướng dẫn)")
@@ -23,6 +23,7 @@ class RenamerApp(tk.Tk):
 
         self.create_widgets()
         self.load_config()
+        self.check_for_updates()
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def on_closing(self):
@@ -81,10 +82,49 @@ class RenamerApp(tk.Tk):
             print(f"Không thể tải config: {e}")
             self.log("Không tìm thấy file config hoặc file bị lỗi. Sử dụng cài đặt mặc định.")
 
+    def check_for_updates(self, manual_check=False):
+        """Kiểm tra phiên bản mới trong một thread riêng để không làm treo UI."""
+        def _check():
+            try:
+                with urllib.request.urlopen(self.VERSION_CHECK_URL, timeout=5) as response:
+                    data = json.loads(response.read().decode())
+                
+                latest_version_str = data.get("version")
+                if not latest_version_str: return
+
+                if parse_version(latest_version_str) > parse_version(self.CURRENT_VERSION):
+                    notes = data.get("notes", "Không có chi tiết.")
+                    download_url = data.get("url")
+                    
+                    msg = f"Đã có phiên bản mới: {latest_version_str}\n\nNội dung cập nhật:\n{notes}\n\nBạn có muốn tải về ngay không?"
+                    if messagebox.askyesno("Có bản cập nhật!", msg):
+                        if download_url: webbrowser.open(download_url)
+                elif manual_check:
+                    messagebox.showinfo("Kiểm tra cập nhật", "Bạn đang sử dụng phiên bản mới nhất.")
+
+            except Exception as e:
+                print(f"Lỗi kiểm tra cập nhật: {e}")
+                if manual_check:
+                    messagebox.showerror("Lỗi", "Không thể kiểm tra cập nhật. Vui lòng kiểm tra kết nối mạng.")
+        
+        # Chạy trong thread để không block UI
+        threading.Thread(target=_check, daemon=True).start()
+
     def create_widgets(self):
         # --- Các phần layout chính (folder_frame, main_paned_window, notebook, log_frame)---
         main_frame = ttk.Frame(self, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # === TẠO MENU BAR ===
+        menubar = tk.Menu(self)
+        self.config(menu=menubar)
+
+        # Menu Trợ giúp
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Trợ giúp", menu=help_menu)
+        help_menu.add_command(label="Hướng dẫn Regex", command=self.show_regex_guide)
+        help_menu.add_separator()
+        help_menu.add_command(label="Kiểm tra cập nhật...", command=lambda: self.check_for_updates(manual_check=True))
 
         folder_frame = ttk.LabelFrame(main_frame, text="1. Chọn thư mục", padding="10")
         folder_frame.pack(fill=tk.X, expand=False, pady=(0, 5))

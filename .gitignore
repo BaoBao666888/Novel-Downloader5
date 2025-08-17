@@ -4,3 +4,4 @@ __pycache__/
 .venv/
 *.spec
 rename_chapters/config.json
+*.iss
