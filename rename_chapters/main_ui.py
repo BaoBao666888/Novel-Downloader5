@@ -15,7 +15,7 @@ class RenamerApp(tk.Tk):
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
-        self.title("Rename Chapters v0.0.4")
+        self.title("Rename Chapters v0.0.5")
         self.geometry("1200x800")
 
         self.folder_path = tk.StringVar()
