@@ -1,5 +1,5 @@
 {
-  "version": "0.0.3",
-  "url": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/0.0.3/Rename%20Chapters.exe",
-  "notes": "- Sửa lỗi treo khi nhập nhanh.\n-Thêm tính năng add credit cho các file\n- Sửa lỗi treo khi nhập quá số dòng cho phép\n- Thêm tính năng lưu lịch sử."
+  "version": "0.0.4",
+  "url": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/0.0.4/Rename-Chapters-setup.exe",
+  "notes": "- Thêm tab Lấy Tiêu Đề Online\n- Hỗ trợ Jjwxc (Tấn giang)\n- Thêm tính năng chọn nhanh chương theo khoảng (ví dụ: 1-50, 100-, all) tại tab Lấy Tiêu Đề Online.\n- Bật tính năng chọn nhiều mục cùng lúc trong các bảng (dùng Shift+Click và Ctrl+Click)."
 }
