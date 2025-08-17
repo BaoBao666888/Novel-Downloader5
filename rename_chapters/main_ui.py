@@ -11,7 +11,7 @@ from packaging.version import parse as parse_version
 from extensions import jjwxc_ext
 
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.0.4"
+    CURRENT_VERSION = "0.0.5"
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
@@ -157,14 +157,24 @@ class RenamerApp(tk.Tk):
         rename_tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(rename_tab, text="Đổi Tên File")
         rename_tab.columnconfigure(0, weight=1)
-        rename_tab.rowconfigure(2, weight=1) # Cho bảng preview co giãn
+        # Thay đổi: row 0 sẽ chứa PanedWindow, row 1 chứa nút bấm
+        rename_tab.rowconfigure(0, weight=1)
 
-        # --- Frame tùy chọn ---
-        options_frame = ttk.LabelFrame(rename_tab, text="2. Tùy chọn", padding="10")
+        # --- TẠO PANEDWINDOW ĐỂ CHIA CÁC NGĂN ---
+        rename_paned_window = ttk.PanedWindow(rename_tab, orient=tk.VERTICAL)
+        rename_paned_window.grid(row=0, column=0, sticky="nsew")
+
+        # --- Ngăn trên: chứa tất cả các tùy chọn ---
+        top_pane_frame = ttk.Frame(rename_paned_window)
+        top_pane_frame.columnconfigure(0, weight=1) # Cho phép các widget bên trong co giãn
+        rename_paned_window.add(top_pane_frame, weight=1) # Thêm vào PanedWindow
+
+        # --- Frame tùy chọn (được đặt vào top_pane_frame) ---
+        options_frame = ttk.LabelFrame(top_pane_frame, text="2. Tùy chọn", padding="10")
         options_frame.grid(row=0, column=0, sticky="ew")
         options_frame.grid_columnconfigure(1, weight=1)
         
-        # (Các tùy chọn cũ giữ nguyên, chỉ sửa lại grid)
+        # (Các widget tùy chọn giữ nguyên, chỉ thay đổi container của chúng)
         self.strategy = tk.StringVar(value="content_first")
         ttk.Radiobutton(options_frame, text="Ưu tiên nội dung", variable=self.strategy, value="content_first", command=self.schedule_preview_update).grid(row=0, column=0, sticky="w", padx=5)
         ttk.Radiobutton(options_frame, text="Ưu tiên tên file", variable=self.strategy, value="filename_first", command=self.schedule_preview_update).grid(row=0, column=1, sticky="w", padx=5)
@@ -188,10 +198,11 @@ class RenamerApp(tk.Tk):
         ct_regex_entry.bind("<KeyRelease>", self.schedule_preview_update)
         ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=4, column=2, sticky="w", padx=(0, 5))
 
-        # --- Frame tiêu đề tùy chỉnh ---
-        custom_title_frame = ttk.LabelFrame(rename_tab, text="3. Sử dụng tiêu đề tùy chỉnh (Tùy chọn)", padding=10)
+        # --- Frame tiêu đề tùy chỉnh (được đặt vào top_pane_frame) ---
+        custom_title_frame = ttk.LabelFrame(top_pane_frame, text="3. Sử dụng tiêu đề tùy chỉnh (Tùy chọn)", padding=10)
         custom_title_frame.grid(row=1, column=0, sticky="ew", pady=5)
-        custom_title_frame.columnconfigure(1, weight=1)
+        custom_title_frame.columnconfigure(0, weight=1) # Thay đổi ở đây
+        custom_title_frame.rowconfigure(1, weight=1) # Cho phép ô text co giãn
 
         self.use_custom_titles = tk.BooleanVar(value=False)
         ttk.Checkbutton(custom_title_frame, text="Kích hoạt (Mỗi dòng là một tiêu đề, áp dụng theo thứ tự file đã sắp xếp)", variable=self.use_custom_titles, command=self.schedule_preview_update).grid(row=0, column=0, columnspan=2, sticky="w")
@@ -199,10 +210,10 @@ class RenamerApp(tk.Tk):
         self.custom_titles_text = scrolledtext.ScrolledText(custom_title_frame, height=5, wrap=tk.WORD)
         self.custom_titles_text.grid(row=1, column=0, columnspan=2, sticky="ewns", pady=(5,0))
         
-        # --- Bảng xem trước và các nút hành động ---
-        preview_frame = ttk.LabelFrame(rename_tab, text="4. Xem trước và Hành động", padding="10")
-        preview_frame.grid(row=2, column=0, sticky="nsew", pady=5)
+        # --- Ngăn dưới: chứa bảng xem trước ---
+        preview_frame = ttk.LabelFrame(rename_paned_window, text="4. Xem trước và Hành động", padding="10")
         preview_frame.columnconfigure(0, weight=1); preview_frame.rowconfigure(1, weight=1)
+        rename_paned_window.add(preview_frame, weight=3) # Thêm vào PanedWindow với trọng số lớn hơn
 
         # Thanh tìm kiếm và loại trừ
         actions_bar = ttk.Frame(preview_frame)
@@ -215,18 +226,20 @@ class RenamerApp(tk.Tk):
         ttk.Button(actions_bar, text="Loại trừ file đã chọn", command=lambda: self._toggle_exclusion(exclude=True)).pack(side=tk.LEFT, padx=5)
         ttk.Button(actions_bar, text="Bao gồm lại", command=lambda: self._toggle_exclusion(exclude=False)).pack(side=tk.LEFT, padx=5)
 
-        cols = ("Tên file gốc", "Số (tên file)", "Số (nội dung)", "Tên file mới")
+        cols = ("Trạng thái", "Tên file gốc", "Số (tên file)", "Số (nội dung)", "Tên file mới")
         self.tree = ttk.Treeview(preview_frame, columns=cols, show='headings', selectmode='extended')
+        
         self.tree.grid(row=1, column=0, sticky="nsew")
         self.tree.tag_configure("excluded", foreground="red")
-        for col, width in zip(cols, [300, 100, 100, 300]):
+        for col, width in zip(cols, [80, 300, 100, 100, 300]):
             self.tree.heading(col, text=col); self.tree.column(col, width=width)
         
         vsb = ttk.Scrollbar(preview_frame, orient="vertical", command=self.tree.yview)
         vsb.grid(row=1, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=vsb.set)
         
-        ttk.Button(rename_tab, text="BẮT ĐẦU ĐỔI TÊN", command=self.start_renaming).grid(row=3, column=0, pady=10, ipady=5)
+        # --- Nút hành động chính (được đặt vào rename_tab) ---
+        ttk.Button(rename_tab, text="BẮT ĐẦU ĐỔI TÊN", command=self.start_renaming).grid(row=1, column=0, pady=10, ipady=5)
     # --- HÀM MỚI ĐỂ HIỂN THỊ CỬA SỔ HƯỚNG DẪN ---
     def show_regex_guide(self):
         help_window = tk.Toplevel(self)
@@ -566,7 +579,7 @@ VÍ DỤ THỰC TẾ:
         
         for item_id in selected_items:
             try:
-                filename = self.tree.item(item_id, 'values')[0]
+                filename = self.tree.item(item_id, 'values')[1]
                 if exclude:
                     self.excluded_files.add(filename)
                 else:
@@ -577,30 +590,30 @@ VÍ DỤ THỰC TẾ:
         self._refresh_tree_tags() # Gọi hàm làm mới màu sắc
 
     def _refresh_tree_tags(self):
-        """Cập nhật lại tags cho tất cả các dòng trong Treeview dựa trên excluded_files."""
+        """Cập nhật lại tags và cột trạng thái cho tất cả các dòng."""
         for item_id in self.tree.get_children():
             try:
-                filename = self.tree.item(item_id, 'values')[0]
+                values = list(self.tree.item(item_id, 'values'))
+                filename = values[1] # Tên file giờ ở cột thứ 2
+
                 if filename in self.excluded_files:
-                    self.tree.item(item_id, tags=("excluded",))
+                    values[0] = "Loại trừ"
+                    # Gộp 2 lệnh làm một: vừa cập nhật giá trị, vừa áp dụng tag màu
+                    self.tree.item(item_id, values=values, tags=("excluded",))
                 else:
-                    self.tree.item(item_id, tags=())
+                    values[0] = "OK"
+                    # Gộp 2 lệnh làm một: vừa cập nhật giá trị, vừa xóa tag màu
+                    self.tree.item(item_id, values=values, tags=())
+                    
             except IndexError:
                 pass
-
-    def _refresh_tree_tags(self):
-        """Cập nhật lại tags cho tất cả các dòng trong Treeview dựa trên excluded_files."""
-        for item_id in self.tree.get_children():
-            filename = self.tree.item(item_id, 'values')[0]
-            if filename in self.excluded_files:
-                self.tree.item(item_id, tags=("excluded",))
-            else:
-                self.tree.item(item_id, tags=())
 
     def _insert_file_to_tree(self, analysis: dict, index: int):
         new_name = self._generate_preview_name(analysis, index)
         tags = ("excluded",) if analysis['filename'] in self.excluded_files else ()
+        status = "Loại trừ" if analysis['filename'] in self.excluded_files else "OK"
         self.tree.insert("", "end", values=(
+            status,
             analysis['filename'],
             analysis['from_filename']['num'] or "N/A",
             analysis['from_content']['num'] or "N/A",
