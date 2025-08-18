@@ -2,6 +2,8 @@ test/
 build/
 __pycache__/
 .venv/
+.wdm/
 *.spec
 rename_chapters/config.json
+rename_chapters/po18_cookies.json
 *.iss
