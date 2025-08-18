@@ -35,7 +35,7 @@ def sanitize_filename(name: str) -> str:
     sanitized = re.sub(invalid_chars, '', name)
     return sanitized.strip()
 
-def analyze_file(filepath: str, custom_filename_regex: str = None, custom_content_regex: str = None):
+def analyze_file(filepath: str, custom_filename_regexes: list = None, custom_content_regexes: list = None):
     analysis = {
         'filepath': filepath,
         'filename': os.path.basename(filepath),
@@ -45,14 +45,18 @@ def analyze_file(filepath: str, custom_filename_regex: str = None, custom_conten
     }
     filename = analysis['filename'].rsplit('.', 1)[0]
     # 1. Phân tích từ tên file
-    if custom_filename_regex:
-        try:
-            match = re.search(custom_filename_regex, filename)
-            if match and len(match.groups()) >= 2:
-                analysis['from_filename']['num'] = int(match.group(1))
-                analysis['from_filename']['title'] = match.group(2).strip()
-                analysis['from_filename']['source'] = 'Custom Regex'
-        except (re.error, IndexError, ValueError): pass
+    if custom_filename_regexes:
+        for pattern in custom_filename_regexes:
+            if not pattern: continue # Bỏ qua dòng trống
+            try:
+                match = re.search(pattern, filename)
+                if match and len(match.groups()) >= 2:
+                    analysis['from_filename']['num'] = int(match.group(1))
+                    analysis['from_filename']['title'] = match.group(2).strip()
+                    analysis['from_filename']['source'] = 'Custom Regex'
+                    break 
+            except (re.error, IndexError, ValueError):
+                pass
     if analysis['from_filename']['num'] is None:
         patterns = [r'(?:chương|c|q|quyển|chap|chapter|第)?\s*(\d+)\s*[:\-.]*\s*(.*)']
         for pattern in patterns:
@@ -73,14 +77,18 @@ def analyze_file(filepath: str, custom_filename_regex: str = None, custom_conten
         with open(filepath, 'r', encoding='utf-8') as f:
             first_line = f.readline().strip()
             if first_line:
-                if custom_content_regex:
-                    try:
-                        match = re.match(custom_content_regex, first_line)
-                        if match and len(match.groups()) >= 2:
-                            analysis['from_content']['num'] = int(match.group(1))
-                            analysis['from_content']['title'] = match.group(2).strip()
-                            analysis['from_content']['source'] = 'Custom Regex'
-                    except (re.error, IndexError, ValueError): pass
+                if custom_content_regexes:
+                    for pattern in custom_content_regexes:
+                        if not pattern: continue
+                        try:
+                            match = re.search(pattern, filename)
+                            if match and len(match.groups()) >= 2:
+                                analysis['from_filename']['num'] = int(match.group(1))
+                                analysis['from_filename']['title'] = match.group(2).strip()
+                                analysis['from_filename']['source'] = 'Custom Regex'
+                                break 
+                        except (re.error, IndexError, ValueError):
+                            pass
                 if analysis['from_content']['num'] is None:
                     match = re.match(r'第\s*([一二三四五六七八九十百千万两零\d]+)\s*章\s*(.*)', first_line)
                     if match:

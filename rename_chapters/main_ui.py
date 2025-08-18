@@ -9,13 +9,15 @@ import urllib.request
 import webbrowser
 from packaging.version import parse as parse_version
 from extensions import jjwxc_ext
+from extensions import po18_ext
+import pythoncom
 
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.0.5"
+    CURRENT_VERSION = "0.0.6"
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
-        self.title("Rename Chapters v0.0.5")
+        self.title("Rename Chapters v0.0.6")
         self.geometry("1200x800")
 
         self.folder_path = tk.StringVar()
@@ -42,8 +44,8 @@ class RenamerApp(tk.Tk):
             'rename_strategy': self.strategy.get(),
             'rename_format': self.format_combobox.get(),
             'rename_format_history': list(self.format_combobox['values']),
-            'filename_regex': self.filename_regex.get(),
-            'content_regex': self.content_regex.get(),
+            'filename_regexes': self.filename_regex_text.get("1.0", tk.END).strip(),
+            'content_regexes': self.content_regex_text.get("1.0", tk.END).strip(),
             'credit_text': self.credit_text_widget.get("1.0", tk.END).strip(),
             'credit_position': self.credit_position.get(),
             'credit_line_num': self.credit_line_num.get(),
@@ -69,8 +71,10 @@ class RenamerApp(tk.Tk):
                 self.format_combobox['values'] = format_history
                 self.format_combobox.set(config_data.get('rename_format', '第{num}章 {title}.txt'))
                 
-                self.filename_regex.set(config_data.get('filename_regex', ''))
-                self.content_regex.set(config_data.get('content_regex', ''))
+                self.filename_regex_text.delete("1.0", tk.END)
+                self.filename_regex_text.insert("1.0", config_data.get('filename_regexes', config_data.get('filename_regex', '')))
+                self.content_regex_text.delete("1.0", tk.END)
+                self.content_regex_text.insert("1.0", config_data.get('content_regexes', config_data.get('content_regex', '')))
 
                 credit_text = config_data.get('credit_text', 'Được convert bởi XYZ')
                 self.credit_text_widget.delete("1.0", tk.END)
@@ -186,17 +190,20 @@ class RenamerApp(tk.Tk):
         self.format_combobox.bind("<KeyRelease>", self.schedule_preview_update)
         ttk.Label(options_frame, text="(Dùng {num}, {title}, và {num + n} hoặc {num - n})").grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
         
-        self.filename_regex = tk.StringVar(); self.content_regex = tk.StringVar()
-        ttk.Label(options_frame, text="Regex (tên file):").grid(row=3, column=0, sticky="w", padx=5, pady=(10, 5))
-        fn_regex_entry = ttk.Entry(options_frame, textvariable=self.filename_regex)
-        fn_regex_entry.grid(row=3, column=1, sticky="we", padx=5)
-        fn_regex_entry.bind("<KeyRelease>", self.schedule_preview_update)
-        ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=3, column=2, sticky="w", padx=(0, 5))
-        ttk.Label(options_frame, text="Regex (nội dung):").grid(row=4, column=0, sticky="w", padx=5, pady=5)
-        ct_regex_entry = ttk.Entry(options_frame, textvariable=self.content_regex)
-        ct_regex_entry.grid(row=4, column=1, sticky="we", padx=5)
-        ct_regex_entry.bind("<KeyRelease>", self.schedule_preview_update)
-        ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=4, column=2, sticky="w", padx=(0, 5))
+        ttk.Label(options_frame, text="Regex (tên file):").grid(row=3, column=0, sticky="nw", padx=5, pady=(10, 5))
+        self.filename_regex_text = tk.Text(options_frame, height=3, wrap=tk.WORD)
+        self.filename_regex_text.grid(row=3, column=1, sticky="we", padx=5)
+        self.filename_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
+        ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=3, column=2, sticky="n", padx=(0, 5), pady=(10, 0))
+        ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=4, column=1, sticky="w", padx=5)
+
+        ttk.Label(options_frame, text="Regex (nội dung):").grid(row=5, column=0, sticky="nw", padx=5, pady=5)
+        self.content_regex_text = tk.Text(options_frame, height=3, wrap=tk.WORD)
+        self.content_regex_text.grid(row=5, column=1, sticky="we", padx=5, pady=5)
+        self.content_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
+        ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=5, column=2, sticky="n", padx=(0, 5), pady=(5, 0))
+        ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=6, column=1, sticky="w", padx=5)
+
 
         # --- Frame tiêu đề tùy chỉnh (được đặt vào top_pane_frame) ---
         custom_title_frame = ttk.LabelFrame(top_pane_frame, text="3. Sử dụng tiêu đề tùy chỉnh (Tùy chọn)", padding=10)
@@ -371,7 +378,7 @@ VÍ DỤ THỰC TẾ:
         fetch_frame.columnconfigure(1, weight=1)
         
         ttk.Label(fetch_frame, text="Trang web:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        self.source_web = ttk.Combobox(fetch_frame, values=["jjwxc.net"], state="readonly")
+        self.source_web = ttk.Combobox(fetch_frame, values=["jjwxc.net", "po18.tw"], state="readonly")
         self.source_web.grid(row=0, column=1, sticky="ew", padx=5)
         self.source_web.set("jjwxc.net")
         
@@ -386,7 +393,7 @@ VÍ DỤ THỰC TẾ:
         result_frame.grid(row=1, column=0, sticky="nsew", pady=5)
         result_frame.columnconfigure(0, weight=1); result_frame.rowconfigure(0, weight=1)
         
-        cols = ("Số chương", "Tiêu đề 1 (标题)", "Tiêu đề 2 (内容提要)")
+        cols = ("Số chương", "Tiêu đề chính", "Tiêu đề phụ/Tóm tắt")
         self.online_tree = ttk.Treeview(result_frame, columns=cols, show='headings', selectmode='extended')
         self.online_tree.grid(row=0, column=0, sticky="nsew")
         for col in cols: self.online_tree.heading(col, text=col)
@@ -414,8 +421,8 @@ VÍ DỤ THỰC TẾ:
 
         ttk.Label(action_row_frame, text="Sử dụng cột tiêu đề:").pack(side=tk.LEFT, padx=5)
         self.title_choice = tk.StringVar(value="title2")
-        ttk.Radiobutton(action_row_frame, text="Tiêu đề 1", variable=self.title_choice, value="title1").pack(side=tk.LEFT)
-        ttk.Radiobutton(action_row_frame, text="Tiêu đề 2", variable=self.title_choice, value="title2").pack(side=tk.LEFT)
+        ttk.Radiobutton(action_row_frame, text="Tiêu đề chính", variable=self.title_choice, value="title1").pack(side=tk.LEFT)
+        ttk.Radiobutton(action_row_frame, text="Tiêu đề phụ", variable=self.title_choice, value="title2").pack(side=tk.LEFT)
         ttk.Button(action_row_frame, text="Sao chép tiêu đề đã chọn vào Tab Đổi Tên", command=self._apply_online_titles).pack(side=tk.RIGHT, padx=5)
 
     def _on_pos_change(self):
@@ -453,7 +460,11 @@ VÍ DỤ THỰC TẾ:
 
         for filename in files:
             filepath = os.path.join(path, filename)
-            analysis = logic.analyze_file(filepath, self.filename_regex.get(), self.content_regex.get())
+            fn_regex_list = self.filename_regex_text.get("1.0", tk.END).strip().split('\n')
+            ct_regex_list = self.content_regex_text.get("1.0", tk.END).strip().split('\n')
+            analysis = logic.analyze_file(filepath, 
+                                        custom_filename_regexes=fn_regex_list, 
+                                        custom_content_regexes=ct_regex_list)
             self.files_data.append(analysis)
         
         # Sắp xếp file và lưu vào cache
@@ -630,23 +641,51 @@ VÍ DỤ THỰC TẾ:
 
     def _fetch_online_titles(self):
         url = self.source_url.get()
+        # selected_site = self.source_web.get()
+
+        # if selected_site == "po18.tw" and not admin_utils.is_admin():
+        #     if messagebox.askyesno("Yêu cầu quyền Admin",
+        #                         "Lấy dữ liệu từ po18.tw cần quyền quản trị viên (Admin) để đọc cookie từ trình duyệt.\n\n"
+        #                         "Bạn có muốn khởi động lại ứng dụng với quyền Admin không?"):
+        #         admin_utils.run_as_admin()
+        #     return # Dừng ngay tại đây, không làm gì thêm trong tiến trình cũ
+
         if not url:
             messagebox.showerror("Lỗi", "Vui lòng nhập URL mục lục.")
             return
 
         def _worker():
-            self.log(f"Đang lấy dữ liệu từ {url}...")
-            result = jjwxc_ext.fetch_chapters(url)
-            self.after(0, self._update_online_tree, result)
+            pythoncom.CoInitialize()
+            try:
+                # Các công việc cũ vẫn giữ nguyên
+                self.log(f"Đang lấy dữ liệu từ {url}...")
+                
+                selected_site = self.source_web.get()
+                result = None
+
+                if selected_site == "jjwxc.net":
+                    result = jjwxc_ext.fetch_chapters(url)
+                elif selected_site == "po18.tw":
+                    result = po18_ext.fetch_chapters(url, root_window=self)
+                else:
+                    result = {'error': 'Trang web không được hỗ trợ.'}
+                
+                # Gửi kết quả về luồng giao diện
+                self.after(0, self._update_online_tree, result)
+            finally:
+                # Bước 2: Luôn luôn hủy đăng ký khi luồng kết thúc, dù thành công hay thất bại
+                pythoncom.CoUninitialize()
 
         threading.Thread(target=_worker, daemon=True).start()
 
     def _update_online_tree(self, result):
         self.online_tree.delete(*self.online_tree.get_children())
+        # THAY THẾ BẰNG KHỐI NÀY
         if 'error' in result:
-            self.log(f"Lỗi: {result['error']}")
-            messagebox.showerror("Lỗi", result['error'])
-            return
+            error_msg = result['error']
+            self.log(f"Lỗi: {error_msg}")
+            messagebox.showerror("Lỗi", error_msg)
+            return # Dừng hàm sau khi xử lý lỗi
         
         chapters = result.get('data', [])
         for chap in chapters:
