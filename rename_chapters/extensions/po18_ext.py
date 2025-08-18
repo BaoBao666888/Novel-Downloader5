@@ -2,7 +2,6 @@
 import os
 import re
 import json
-import time
 import requests
 from requests.cookies import RequestsCookieJar
 from bs4 import BeautifulSoup
@@ -22,7 +21,7 @@ except ImportError:
 
 COOKIE_FILE = 'po18_cookies.json'
 
-# ========== CÁC HÀM TIỆN ÍCH MỚI ==========
+# ========== CÁC HÀM TIỆN ÍCH (Không thay đổi nhiều) ==========
 
 def _load_cookies_from_file():
     if not os.path.exists(COOKIE_FILE): return None
@@ -52,62 +51,66 @@ def _validate_cookies(cookie_jar, validation_url):
     except Exception:
         return False
 
+# ========== HÀM ĐĂNG NHẬP TƯƠNG TÁC (Đã nâng cấp) ==========
+
 def _interactive_selenium_login(root_window):
-    """
-    Mở trình duyệt VÀ một hộp thoại. Người dùng đăng nhập rồi nhấn nút xác nhận.
-    """
-    if not webdriver:
-        raise ImportError("Selenium/Webdriver-Manager chưa được cài đặt. Vui lòng chạy: pip install selenium webdriver-manager")
+    def create_prompt(title, message, button_text):
+        """Hàm tiện ích tạo và canh giữa hộp thoại."""
+        prompt = tk.Toplevel(root_window)
+        prompt.title(title)
+        prompt.transient(root_window)
+        prompt.grab_set()
+        prompt.resizable(False, False)
+        ttk.Label(prompt, text=message, padding="20", justify=tk.LEFT).pack()
+        ttk.Button(prompt, text=button_text, command=prompt.destroy).pack(pady=10)
+        root_window.update_idletasks()
+        x = root_window.winfo_x() + (root_window.winfo_width() // 2) - (prompt.winfo_width() // 2)
+        y = root_window.winfo_y() + (root_window.winfo_height() // 2) - (prompt.winfo_height() // 2)
+        prompt.geometry(f"+{x}+{y}")
+        return prompt
 
-    # --- TẠO HỘP THOẠI HƯỚNG DẪN ---
-    prompt = tk.Toplevel(root_window)
-    prompt.title("Yêu cầu đăng nhập")
-    prompt.transient(root_window) # Giữ nó luôn ở trên cửa sổ chính
-    prompt.grab_set() # Khóa tương tác với cửa sổ chính
-    prompt.resizable(False, False)
-    
-    ttk.Label(prompt, text="Một cửa sổ trình duyệt sẽ mở ra.\n\n"
-                            "Vui lòng đăng nhập vào tài khoản PO18 của bạn.\n\n"
-                            "Sau khi đăng nhập thành công, nhấn nút 'Tiếp tục' bên dưới.", 
-              padding="20").pack()
-    ttk.Button(prompt, text="Tiếp tục", command=prompt.destroy).pack(pady=10)
-    
-    # Canh giữa hộp thoại
-    root_window.update_idletasks()
-    x = root_window.winfo_x() + (root_window.winfo_width() // 2) - (prompt.winfo_width() // 2)
-    y = root_window.winfo_y() + (root_window.winfo_height() // 2) - (prompt.winfo_height() // 2)
-    prompt.geometry(f"+{x}+{y}")
-
-    # --- KHỞI ĐỘNG SELENIUM ---
     driver = None
     try:
+        # --- BƯỚC 1: Mở trình duyệt và hộp thoại hướng dẫn đăng nhập ---
         cache_manager = DriverCacheManager(root_dir=".")
         driver_path = ChromeDriverManager(cache_manager=cache_manager).install()
         service = ChromeService(executable_path=driver_path)
-        opts = ChromeOptions()
-        opts.add_argument("--start-maximized")
+        opts = ChromeOptions(); opts.add_argument("--start-maximized")
         driver = webdriver.Chrome(service=service, options=opts)
         
-        login_url = "https://members.po18.tw/apps/login.php"
-        driver.get(login_url)
+        driver.get("https://members.po18.tw/apps/login.php")
         
-        # --- ĐIỂM MẤU CHỐT: Chờ cho đến khi người dùng đóng hộp thoại ---
-        root_window.wait_window(prompt)
+        login_prompt = create_prompt(
+            "Bước 1: Đăng nhập",
+            "Một cửa sổ trình duyệt đã mở ra.\n\n"
+            "Vui lòng ĐĂNG NHẬP vào tài khoản PO18 của bạn.\n\n"
+            "Sau khi đăng nhập xong, nhấn nút 'Tiếp tục' bên dưới.",
+            "Tiếp tục"
+        )
+        root_window.wait_window(login_prompt) # Chờ người dùng nhấn "Tiếp tục"
 
-        # Sau khi người dùng nhấn nút, lấy cookie
+        # --- BƯỚC 2: Điều hướng và hiện hộp thoại hướng dẫn xác nhận ---
+        print("Đăng nhập đã được xác nhận. Đang điều hướng đến trang chủ...")
+        driver.get("https://www.po18.tw/")
+
+        confirm_prompt = create_prompt(
+            "Bước 2: Xác nhận tải trang",
+            "Trình duyệt đang tải trang chủ PO18.\n\n"
+            "Vui lòng đợi cho đến khi trang TẢI XONG HOÀN TOÀN.\n\n"
+            "Sau đó, nhấn nút 'OK' bên dưới để chương trình lấy cookie.",
+            "OK, trang đã tải xong"
+        )
+        root_window.wait_window(confirm_prompt) # Chờ người dùng nhấn "OK"
+
+        # --- BƯỚC 3: Lấy và lưu cookie ---
+        print("Đã xác nhận tải xong. Đang lấy và lưu cookie...")
         selenium_cookies = driver.get_cookies()
         
-        # Kiểm tra lại lần cuối xem đã đăng nhập thành công chưa
-        # Kiểm tra xem có bất kỳ cookie nào chứa 'auth' hoặc 'token' không
-        is_logged_in = any(
-            'auth' in c['name'].lower() or 'token' in c['name'].lower() 
-            for c in selenium_cookies
-        )
-
+        is_logged_in = any('auth' in c['name'].lower() or 'token' in c['name'].lower() for c in selenium_cookies)
         if not is_logged_in:
-            raise Exception("Đăng nhập không thành công! Không tìm thấy cookie xác thực (authtoken). Vui lòng thử đăng nhập lại.")
+            raise Exception("Đăng nhập không thành công! Không tìm thấy cookie xác thực (authtoken). Vui lòng thử lại.")
         
-        print("Đăng nhập thành công! Đang lưu cookie...")
+        print("Lưu cookie thành công!")
         _save_cookies_to_file(selenium_cookies)
         
         jar = RequestsCookieJar()
@@ -141,7 +144,7 @@ def parse_chapters_from_page(soup):
             chapters.append({'num': int(num_str), 'title1': title, 'title2': 'N/A'})
     return chapters
 
-# ========== HÀM CHÍNH (GIAO TIẾP VỚI UI) ==========
+# ========== HÀM CHÍNH (GIAO TIẾP VỚI UI - Giữ nguyên logic) ==========
 
 def fetch_chapters(url: str, root_window=None):
     if not root_window:

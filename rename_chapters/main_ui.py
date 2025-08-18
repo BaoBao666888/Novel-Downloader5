@@ -13,11 +13,11 @@ from extensions import po18_ext
 import pythoncom
 
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.0.6"
+    CURRENT_VERSION = "0.0.7"
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
-        self.title("Rename Chapters v0.0.6")
+        self.title("Rename Chapters v0.0.7")
         self.geometry("1200x800")
 
         self.folder_path = tk.StringVar()
