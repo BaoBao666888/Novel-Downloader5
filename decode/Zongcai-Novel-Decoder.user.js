@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zongcai Novel Decoder
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  Giải mã văn bản, quản lý ánh xạ ký tự, và xử lý ký tự mới một cách thông minh.
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/Zongcai-Novel-Decoder.user.js
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/Zongcai-Novel-Decoder.user.js
@@ -314,11 +314,15 @@
                     <label class="switch"><input type="checkbox" id="${SCRIPT_PREFIX}-show-btn-toggle"><span class="slider"></span></label>
                 </div>
             </div>
-            <!-- CÔNG CỤ XÂY DỰNG "BỘ NÃO" TỪ DỮ LIỆU CŨ -->
             <div class="${SCRIPT_PREFIX}-settings-section">
                 <h3>Công cụ Đồng bộ</h3>
                 <p>Nhấn nút này để script "học" lại từ dữ liệu ánh xạ hiện tại của bạn, giúp nó nhận diện các ảnh trùng lặp trong tương lai.</p>
                 <button id="${SCRIPT_PREFIX}-sync-btn" class="${SCRIPT_PREFIX}-btn ${SCRIPT_PREFIX}-btn-primary">Đồng bộ hóa "bộ não" AI</button>
+            </div>
+            <div class="${SCRIPT_PREFIX}-settings-section">
+                <h3>Công cụ Chẩn đoán</h3>
+                <p>Kiểm tra xem có ký tự nào đang được biểu thị bởi nhiều phiên bản ảnh khác nhau không.</p>
+                <button id="${SCRIPT_PREFIX}-check-duplicates-btn" class="${SCRIPT_PREFIX}-btn ${SCRIPT_PREFIX}-btn-primary">Kiểm tra Trùng lặp Ký tự</button>
             </div>
             <div class="${SCRIPT_PREFIX}-settings-section">
                 <h3>Bảng Ánh xạ Ký tự</h3>
@@ -371,17 +375,12 @@
                     const hashB = fileToHashMap[fileB] || '';
                     if (hashA < hashB) return -1;
                     if (hashA > hashB) return 1;
-                    // Nếu hash giống nhau, sắp xếp theo tên file
                     return fileA.localeCompare(fileB);
                 });
 
-                // Cập nhật lại charMap đã được sắp xếp
                 charMap = Object.fromEntries(sortedEntries);
                 db.saveCharMap(charMap);
-
-                // Vẽ lại bảng
                 renderCharMapTable();
-
                 alert(`Đồng bộ và sắp xếp hoàn tất!`);
             } catch (error) {
                 alert("Có lỗi xảy ra trong quá trình đồng bộ.");
@@ -389,6 +388,63 @@
                 btn.disabled = false;
                 btn.textContent = 'Đồng bộ hóa "bộ não" AI';
             }
+        };
+
+        // --- LISTENER CHO NÚT KIỂM TRA TRÙNG LẶP (MỚI) ---
+        document.getElementById(`${SCRIPT_PREFIX}-check-duplicates-btn`).onclick = () => {
+            // 1. Đảo ngược imageHashMap để nhóm các hash theo ký tự
+            const charToHashes = {};
+            for (const [hash, char] of Object.entries(imageHashMap)) {
+                if (!charToHashes[char]) {
+                    charToHashes[char] = [];
+                }
+                charToHashes[char].push(hash);
+            }
+
+            // 2. Lọc ra những ký tự có nhiều hơn 1 hash
+            const duplicates = Object.entries(charToHashes).filter(([char, hashes]) => hashes.length > 1);
+
+            if (duplicates.length === 0) {
+                alert("Tuyệt vời! Không tìm thấy ký tự nào bị trùng lặp trong 'bộ não' AI.");
+                return;
+            }
+
+            // 3. Xây dựng bản đồ ngược từ charMap để tìm tên file từ ký tự
+            const charToFilenames = {};
+            for (const [filename, char] of Object.entries(charMap)) {
+                 if (!charToFilenames[char]) {
+                    charToFilenames[char] = [];
+                }
+                charToFilenames[char].push(filename);
+            }
+
+            // 4. Hiển thị kết quả trong một modal mới
+            const resultBody = document.createElement('div');
+            resultBody.innerHTML = `<p>Phát hiện <b>${duplicates.length}</b> ký tự được biểu thị bởi nhiều phiên bản ảnh khác nhau. Điều này là bình thường và script vẫn đang hoạt động đúng.</p><hr>`;
+
+            duplicates.forEach(([char, hashes]) => {
+                const charSection = document.createElement('div');
+                charSection.style.marginBottom = '20px';
+                charSection.innerHTML = `<h3>Ký tự: <span style="font-size: 2em; color: #007bff;">${char}</span> (Tìm thấy ${hashes.length} phiên bản)</h3>`;
+
+                const imageContainer = document.createElement('div');
+                imageContainer.style.display = 'flex';
+                imageContainer.style.gap = '10px';
+                imageContainer.style.flexWrap = 'wrap';
+
+                const filenames = charToFilenames[char] || [];
+                filenames.forEach(filename => {
+                    const img = document.createElement('img');
+                    img.src = `https://www.eduask0471.com/wzbodyimg/${filename}`;
+                    img.title = filename;
+                    img.style.border = '1px solid #ccc';
+                    img.style.height = '32px';
+                    imageContainer.appendChild(img);
+                });
+                charSection.appendChild(imageContainer);
+                resultBody.appendChild(charSection);
+            });
+            createModal('Kết quả Chẩn đoán Trùng lặp', resultBody, []);
         };
 
         document.getElementById(`${SCRIPT_PREFIX}-add-row-btn`).onclick = () => {
@@ -400,65 +456,108 @@
         document.getElementById(`${SCRIPT_PREFIX}-export-btn`).onclick = () => {
             document.getElementById(`${SCRIPT_PREFIX}-io-textarea`).value = JSON.stringify(charMap, null, 2);
         };
-        document.getElementById(`${SCRIPT_PREFIX}-import-btn`).onclick = () => {
+        document.getElementById(`${SCRIPT_PREFIX}-import-btn`).onclick = async () => {
             const textarea = document.getElementById(`${SCRIPT_PREFIX}-io-textarea`);
             try {
                 const newMap = JSON.parse(textarea.value);
                 if (typeof newMap !== 'object' || newMap === null) throw new Error("Dữ liệu không hợp lệ.");
                 charMap = newMap;
                 db.saveCharMap(charMap);
-                alert("Nhập thành công! Hãy nhấn nút 'Đồng bộ hóa' để script học từ dữ liệu mới này.");
-                renderCharMapTable();
+                alert("Nhập thành công! Bắt đầu quá trình đồng bộ hóa tự động...");
+                // Tự động chạy sync
+                document.getElementById(`${SCRIPT_PREFIX}-sync-btn`).click();
             } catch (e) {
                 alert("Lỗi khi nhập dữ liệu. Vui lòng kiểm tra lại định dạng JSON.");
             }
         };
     }
-
     function renderCharMapTable() {
         const container = document.getElementById(`${SCRIPT_PREFIX}-map-table-container`);
         if (!container) return;
+
+        // Bước 1: Nhóm các tên file theo hash của chúng
+        const hashToFilenames = {};
+        const fileToHashMap = {}; // Lưu lại để dùng sau
+        const entries = Object.entries(charMap);
+
+        // Dùng for loop để có thể await bên trong nếu cần, dù hiện tại chưa
+        for (const [filename, char] of entries) {
+            // Cần tìm hash tương ứng với file này
+            let foundHash = null;
+            for (const [hash, hChar] of Object.entries(imageHashMap)) {
+                if (hChar === char) {
+                    // Tạm giả định hash này đúng, cần cơ chế sync để chắc chắn 100%
+                    // Để tối ưu, chúng ta cần 1 map file -> hash, sẽ xây dựng khi sync
+                    foundHash = hash; // Lấy hash đầu tiên tìm được
+                    break; // Tạm thời
+                }
+            }
+            // Đây là cách chính xác hơn, nhưng chậm hơn nếu không có cache
+            // const hash = await getImageHash(`https://www.eduask0471.com/wzbodyimg/${filename}`);
+            // Chỗ này cần hàm sync để tạo ra fileToHashMap chuẩn
+        }
+        // Do logic trên phức tạp, chúng ta sẽ render dựa trên imageHashMap là chính
+        // và tìm file đại diện từ charMap
+
         const table = document.createElement('table');
         table.className = `${SCRIPT_PREFIX}-table`;
         table.innerHTML = `
-            <thead>
-                <tr>
-                    <th>Ảnh (Tên file)</th>
-                    <th>Ký tự</th>
-                    <th>Hành động</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        `;
+        <thead>
+            <tr>
+                <th>Ảnh Đại Diện (và ${Object.keys(charMap).length} files)</th>
+                <th>Ký tự</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
         const tbody = table.querySelector('tbody');
-        Object.entries(charMap).sort().forEach(([filename, char]) => { // Sắp xếp theo alphabet
-            tbody.appendChild(createCharMapRow(filename, char));
+
+        // Tìm file đại diện cho mỗi hash
+        const charToFilenames = {};
+        for (const [filename, char] of Object.entries(charMap)) {
+            if (!charToFilenames[char]) charToFilenames[char] = [];
+            charToFilenames[char].push(filename);
+        }
+
+        Object.entries(imageHashMap)
+            .sort(([hashA, charA], [hashB, charB]) => charA.localeCompare(charB, 'zh-Hans-CN')) // Sắp xếp theo ký tự
+            .forEach(([hash, char]) => {
+            const representativeFile = (charToFilenames[char] || [])[0] || '';
+            const allFiles = charToFilenames[char] || [];
+            if (representativeFile) {
+                tbody.appendChild(createCharMapRow(hash, char, representativeFile, allFiles));
+            }
         });
+
         container.innerHTML = '';
         container.appendChild(table);
     }
 
-    function createCharMapRow(filename, char) {
+    function createCharMapRow(hash, char, representativeFile, allFiles) {
         const tr = document.createElement('tr');
-        tr.dataset.filename = filename;
+        tr.dataset.hash = hash;
+
+        const fileCount = allFiles.length > 1 ? ` (+${allFiles.length - 1} files)` : '';
+
         tr.innerHTML = `
-            <td>
-                <img src="https://www.eduask0471.com/wzbodyimg/${filename}" alt="${filename}" title="${filename}">
-                <input type="text" class="filename-input" value="${filename}" style="display:none; width: 100%;">
-            </td>
-            <td>
-                <span class="char-span">${char}</span>
-                <input type="text" class="char-input" value="${char}" maxlength="1" style="display:none;">
-            </td>
-            <td>
-                <button class="edit-btn ${SCRIPT_PREFIX}-btn ${SCRIPT_PREFIX}-btn-secondary">Sửa</button>
-                <button class="save-btn ${SCRIPT_PREFIX}-btn ${SCRIPT_PREFIX}-btn-primary" style="display:none;">Lưu</button>
-                <button class="delete-btn ${SCRIPT_PREFIX}-btn ${SCRIPT_PREFIX}-btn-danger">Xóa</button>
-            </td>
-        `;
+        <td title="${allFiles.join('\n')}">
+            <img src="https://www.eduask0471.com/wzbodyimg/${representativeFile}" alt="${representativeFile}">
+            <span style="font-size: 0.8em; color: #666;">${representativeFile}${fileCount}</span>
+        </td>
+        <td>
+            <span class="char-span">${char}</span>
+            <input type="text" class="char-input" value="${char}" maxlength="1" style="display:none;">
+        </td>
+        <td>
+            <button class="edit-btn ${SCRIPT_PREFIX}-btn ${SCRIPT_PREFIX}-btn-secondary">Sửa</button>
+            <button class="save-btn ${SCRIPT_PREFIX}-btn ${SCRIPT_PREFIX}-btn-primary" style="display:none;">Lưu</button>
+            <button class="delete-btn ${SCRIPT_PREFIX}-btn ${SCRIPT_PREFIX}-btn-danger">Xóa</button>
+        </td>
+    `;
+
         const charSpan = tr.querySelector('.char-span');
         const charInput = tr.querySelector('.char-input');
-        const filenameInput = tr.querySelector('.filename-input');
         const editBtn = tr.querySelector('.edit-btn');
         const saveBtn = tr.querySelector('.save-btn');
         const deleteBtn = tr.querySelector('.delete-btn');
@@ -466,8 +565,6 @@
         const toggleEdit = (isEditing) => {
             charSpan.style.display = isEditing ? 'none' : 'inline';
             charInput.style.display = isEditing ? 'inline' : 'none';
-            tr.querySelector('img').style.display = isEditing ? 'none' : 'inline-block';
-            filenameInput.style.display = isEditing ? 'inline-block' : 'none';
             editBtn.style.display = isEditing ? 'none' : 'inline-block';
             saveBtn.style.display = isEditing ? 'inline-block' : 'none';
         };
@@ -475,49 +572,41 @@
         editBtn.onclick = () => toggleEdit(true);
 
         deleteBtn.onclick = () => {
-            if (confirm(`Bạn có chắc muốn xóa ánh xạ cho "${filename}"?`)) {
-                delete charMap[filename];
+            if (confirm(`Bạn có chắc muốn xóa ký tự "${char}" và TOÀN BỘ ${allFiles.length} file ảnh liên quan?`)) {
+                // Xóa khỏi imageHashMap
+                delete imageHashMap[hash];
+                // Xóa tất cả các file liên quan khỏi charMap
+                allFiles.forEach(filename => {
+                    delete charMap[filename];
+                });
+                db.saveImageHashMap(imageHashMap);
                 db.saveCharMap(charMap);
                 tr.remove();
-                // Lưu ý: Không xóa khỏi imageHashMap để giữ "kiến thức" lại
             }
         };
 
-        //  Nút Lưu sẽ cập nhật cả 2 database
-        saveBtn.onclick = async () => {
-            const oldFilename = tr.dataset.filename;
-            const newFilename = filenameInput.value.trim();
+        saveBtn.onclick = () => {
             const newChar = charInput.value.trim();
-
-            if (!newFilename || !newChar) {
-                alert("Tên file và ký tự không được để trống."); return;
+            if (!newChar) {
+                alert("Ký tự không được để trống."); return;
             }
 
-            // Cập nhật charMap
-            if (oldFilename && oldFilename !== newFilename) delete charMap[oldFilename];
-            charMap[newFilename] = newChar;
+            // Cập nhật "bộ não"
+            imageHashMap[hash] = newChar;
+            db.saveImageHashMap(imageHashMap);
+
+            // Cập nhật tất cả các file liên quan trong charMap
+            allFiles.forEach(filename => {
+                charMap[filename] = newChar;
+            });
             db.saveCharMap(charMap);
 
-            // Cập nhật imageHashMap
-            const imageUrl = `https://www.eduask0471.com/wzbodyimg/${newFilename}`;
-            const hash = await getImageHash(imageUrl);
-            if (hash) {
-                imageHashMap[hash] = newChar;
-                db.saveImageHashMap(imageHashMap);
-            }
-
-            // Cập nhật lại giao diện
-            tr.dataset.filename = newFilename;
-            tr.querySelector('img').src = imageUrl;
-            tr.querySelector('img').alt = newFilename;
-            tr.querySelector('img').title = newFilename;
             charSpan.textContent = newChar;
             toggleEdit(false);
             alert("Đã lưu!");
         };
         return tr;
     }
-
     function preprocessImageForOCR(src) {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -647,15 +736,21 @@
             showResultPanel(cleanedText);
         }
     }
-
     async function showUnknownCharsPanel(unknowns) {
         const container = document.createElement('div');
         container.innerHTML = `
-  <p>Phát hiện <b>${Object.keys(unknowns).length}</b> ký tự ảnh mới. Script sẽ tự động nhận diện:</p>
-  <p style="color:red; font-weight:bold;">
-    ⚠️ Các ký tự được nhận diện bởi AI, hãy kiểm tra thật kỹ để tránh sai xóa.
-  </p>
-`;
+      <p>Phát hiện <b>${Object.keys(unknowns).length}</b> ký tự ảnh mới.</p>
+      <div style="margin-bottom: 15px;">
+        <label for="${SCRIPT_PREFIX}-paste-box" style="display: block; margin-bottom: 5px;"><b>Dán chuỗi ký tự tại đây để tự động điền:</b></label>
+        <div style="display: flex; gap: 10px;">
+          <input type="text" id="${SCRIPT_PREFIX}-paste-box" class="${SCRIPT_PREFIX}-btn" style="flex-grow: 1; border: 1px solid #ccc; text-align: left;">
+          <button id="${SCRIPT_PREFIX}-apply-str-btn" class="${SCRIPT_PREFIX}-btn ${SCRIPT_PREFIX}-btn-secondary">Áp dụng</button>
+        </div>
+      </div>
+      <p style="color:red; font-weight:bold;">
+        ⚠️ Các ký tự được nhận diện bởi AI. Chữ có <span style="border: 2px solid green; padding: 0 3px;">viền xanh</span> là AI nhận diện đúng.
+      </p>
+    `;
         const grid = document.createElement('div');
         grid.className = `${SCRIPT_PREFIX}-unknown-grid`;
         Object.keys(unknowns).forEach(filename => {
@@ -671,8 +766,8 @@
                     const char = input.value.trim();
                     const hash = unknowns[filename].hash;
                     if (char) {
-                        charMap[filename] = char; // Cập nhật DB người dùng
-                        if (hash) imageHashMap[hash] = char; // Cập nhật "bộ não"
+                        charMap[filename] = char;
+                        if (hash) imageHashMap[hash] = char;
                     }
                 });
                 db.saveCharMap(charMap);
@@ -683,7 +778,31 @@
         };
         const modal = createModal('Xử lý Ký tự mới', container, [saveButtonInfo]);
 
-        // --- OCR LOGIC ---
+        // --- LOGIC MỚI: TỰ ĐỘNG ĐIỀN CHUỖI ---
+        document.getElementById(`${SCRIPT_PREFIX}-apply-str-btn`).onclick = () => {
+            const pasteBox = document.getElementById(`${SCRIPT_PREFIX}-paste-box`);
+            const str = pasteBox.value.trim().replace(/\s/g, '');
+            const inputs = modal.querySelectorAll(`.${SCRIPT_PREFIX}-unknown-grid input`);
+            if (!str) return;
+
+            inputs.forEach((input, index) => {
+                if (index < str.length) {
+                    const ocrChar = input.value;
+                    const pastedChar = str[index];
+                    if (ocrChar && ocrChar === pastedChar) {
+                        // AI nhận diện đúng, đánh dấu nó
+                        input.style.border = '2px solid green';
+                    } else {
+                        // Điền ký tự từ chuỗi
+                        input.value = pastedChar;
+                        input.style.border = '1px solid #ccc'; // Reset border
+                    }
+                }
+            });
+            pasteBox.value = ''; // Xóa box sau khi áp dụng
+        };
+
+        // --- OCR LOGIC (giữ nguyên) ---
         const worker = await Tesseract.createWorker('chi_sim');
         await worker.setParameters({
             tessedit_pageseg_mode: Tesseract.PSM.SINGLE_CHAR,
