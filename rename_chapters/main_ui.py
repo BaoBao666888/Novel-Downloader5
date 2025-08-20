@@ -10,22 +10,29 @@ import webbrowser
 from packaging.version import parse as parse_version
 from extensions import jjwxc_ext
 from extensions import po18_ext
+from text_operations import TextOperations
 import pythoncom
 
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.0.7"
+    CURRENT_VERSION = "0.0.9"
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
-        self.title("Rename Chapters v0.0.7")
+        self.title("Rename Chapters v0.0.9")
         self.geometry("1200x800")
 
+        self.text_modified = tk.BooleanVar(value=False)
+
         self.folder_path = tk.StringVar()
+        self.selected_file = tk.StringVar()
         self.files_data = []
         self.preview_job = None
 
         self.sorted_files_cache = []
         self.excluded_files = set()
+
+        self.find_replace_history = []
+        self.split_regex_history = []
 
         self.create_widgets()
         self.load_config()
@@ -33,7 +40,18 @@ class RenamerApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def on_closing(self):
-        """Lưu cấu hình trước khi đóng."""
+        """Hỏi lưu file nếu cần, sau đó lưu cấu hình trước khi đóng."""
+        if self.text_modified.get():
+            response = messagebox.askyesnocancel(
+                "Lưu thay đổi?",
+                "Bạn có các thay đổi chưa được lưu. Bạn có muốn lưu chúng trước khi thoát không?"
+            )
+            if response is True:
+                saved_successfully = self._save_changes()
+                if not saved_successfully:
+                    return
+            elif response is None:
+                return
         self.save_config()
         self.destroy()
 
@@ -49,6 +67,13 @@ class RenamerApp(tk.Tk):
             'credit_text': self.credit_text_widget.get("1.0", tk.END).strip(),
             'credit_position': self.credit_position.get(),
             'credit_line_num': self.credit_line_num.get(),
+            'find_replace_history': {
+                'find': list(self.find_text['values']),
+                'replace': list(self.replace_text['values'])
+            },
+            'split_regex_history': list(self.split_regex['values']),
+            # THÊM MỚI: Lưu lịch sử định dạng tên file chia
+            'split_format_history': list(self.split_format_combobox['values'])
         }
         try:
             with open('config.json', 'w', encoding='utf-8') as f:
@@ -63,29 +88,40 @@ class RenamerApp(tk.Tk):
                 with open('config.json', 'r', encoding='utf-8') as f:
                     config_data = json.load(f)
 
+                # ... (các phần load khác giữ nguyên) ...
                 self.folder_path.set(config_data.get('folder_path', ''))
                 self.strategy.set(config_data.get('rename_strategy', 'content_first'))
                 
-                # Tải lịch sử và giá trị cho format
                 format_history = config_data.get('rename_format_history', [])
+                if not format_history: format_history = ["Chương {num} - {title}.txt"]
                 self.format_combobox['values'] = format_history
-                self.format_combobox.set(config_data.get('rename_format', '第{num}章 {title}.txt'))
+                self.format_combobox.set(config_data.get('rename_format', format_history[0]))
                 
                 self.filename_regex_text.delete("1.0", tk.END)
-                self.filename_regex_text.insert("1.0", config_data.get('filename_regexes', config_data.get('filename_regex', '')))
+                self.filename_regex_text.insert("1.0", config_data.get('filename_regexes', ''))
                 self.content_regex_text.delete("1.0", tk.END)
-                self.content_regex_text.insert("1.0", config_data.get('content_regexes', config_data.get('content_regex', '')))
+                self.content_regex_text.insert("1.0", config_data.get('content_regexes', ''))
 
-                credit_text = config_data.get('credit_text', 'Được convert bởi XYZ')
                 self.credit_text_widget.delete("1.0", tk.END)
-                self.credit_text_widget.insert("1.0", credit_text)
-
+                self.credit_text_widget.insert("1.0", config_data.get('credit_text', ''))
                 self.credit_position.set(config_data.get('credit_position', 'top'))
                 self.credit_line_num.set(config_data.get('credit_line_num', 2))
                 
-                # Tải lại preview nếu có đường dẫn
+                fr_history = config_data.get('find_replace_history', {})
+                self.find_text['values'] = fr_history.get('find', [])
+                self.replace_text['values'] = fr_history.get('replace', [])
+                
+                self.split_regex['values'] = config_data.get('split_regex_history', [])
+                
+                # THÊM MỚI: Tải lịch sử định dạng tên file chia
+                split_format_history = config_data.get('split_format_history', [])
+                if not split_format_history: split_format_history = ["{num}.txt"]
+                self.split_format_combobox['values'] = split_format_history
+                self.split_format_combobox.set(split_format_history[0])
+
                 if self.folder_path.get():
                     self.schedule_preview_update()
+                
         except Exception as e:
             print(f"Không thể tải config: {e}")
             self.log("Không tìm thấy file config hoặc file bị lỗi. Sử dụng cài đặt mặc định.")
@@ -130,7 +166,7 @@ class RenamerApp(tk.Tk):
         # Menu Trợ giúp
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Trợ giúp", menu=help_menu)
-        help_menu.add_command(label="Hướng dẫn Regex", command=self.show_regex_guide)
+        help_menu.add_command(label="Hướng dẫn Regex", command=lambda: self.show_regex_guide("general"))
         help_menu.add_separator()
         help_menu.add_command(label="Kiểm tra cập nhật...", command=lambda: self.check_for_updates(manual_check=True))
 
@@ -151,6 +187,7 @@ class RenamerApp(tk.Tk):
         self.create_rename_tab()
         self.create_credit_tab()
         self.create_online_fetch_tab()
+        self.create_text_operations_tab()  # Add this line
 
         log_frame = ttk.LabelFrame(main_paned_window, text="Nhật ký hoạt động", padding="5")
         self.log_text = scrolledtext.ScrolledText(log_frame, height=8, state='disabled', wrap=tk.WORD)
@@ -161,24 +198,19 @@ class RenamerApp(tk.Tk):
         rename_tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(rename_tab, text="Đổi Tên File")
         rename_tab.columnconfigure(0, weight=1)
-        # Thay đổi: row 0 sẽ chứa PanedWindow, row 1 chứa nút bấm
         rename_tab.rowconfigure(0, weight=1)
 
-        # --- TẠO PANEDWINDOW ĐỂ CHIA CÁC NGĂN ---
         rename_paned_window = ttk.PanedWindow(rename_tab, orient=tk.VERTICAL)
         rename_paned_window.grid(row=0, column=0, sticky="nsew")
 
-        # --- Ngăn trên: chứa tất cả các tùy chọn ---
         top_pane_frame = ttk.Frame(rename_paned_window)
-        top_pane_frame.columnconfigure(0, weight=1) # Cho phép các widget bên trong co giãn
-        rename_paned_window.add(top_pane_frame, weight=1) # Thêm vào PanedWindow
+        top_pane_frame.columnconfigure(0, weight=1)
+        rename_paned_window.add(top_pane_frame, weight=1)
 
-        # --- Frame tùy chọn (được đặt vào top_pane_frame) ---
         options_frame = ttk.LabelFrame(top_pane_frame, text="2. Tùy chọn", padding="10")
         options_frame.grid(row=0, column=0, sticky="ew")
         options_frame.grid_columnconfigure(1, weight=1)
         
-        # (Các widget tùy chọn giữ nguyên, chỉ thay đổi container của chúng)
         self.strategy = tk.StringVar(value="content_first")
         ttk.Radiobutton(options_frame, text="Ưu tiên nội dung", variable=self.strategy, value="content_first", command=self.schedule_preview_update).grid(row=0, column=0, sticky="w", padx=5)
         ttk.Radiobutton(options_frame, text="Ưu tiên tên file", variable=self.strategy, value="filename_first", command=self.schedule_preview_update).grid(row=0, column=1, sticky="w", padx=5)
@@ -191,42 +223,39 @@ class RenamerApp(tk.Tk):
         ttk.Label(options_frame, text="(Dùng {num}, {title}, và {num + n} hoặc {num - n})").grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
         
         ttk.Label(options_frame, text="Regex (tên file):").grid(row=3, column=0, sticky="nw", padx=5, pady=(10, 5))
-        self.filename_regex_text = tk.Text(options_frame, height=3, wrap=tk.WORD)
+        self.filename_regex_text = tk.Text(options_frame, height=3, wrap=tk.WORD, undo=True)
         self.filename_regex_text.grid(row=3, column=1, sticky="we", padx=5)
         self.filename_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
         ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=3, column=2, sticky="n", padx=(0, 5), pady=(10, 0))
         ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=4, column=1, sticky="w", padx=5)
 
         ttk.Label(options_frame, text="Regex (nội dung):").grid(row=5, column=0, sticky="nw", padx=5, pady=5)
-        self.content_regex_text = tk.Text(options_frame, height=3, wrap=tk.WORD)
+        self.content_regex_text = tk.Text(options_frame, height=3, wrap=tk.WORD, undo=True)
         self.content_regex_text.grid(row=5, column=1, sticky="we", padx=5, pady=5)
         self.content_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
         ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=5, column=2, sticky="n", padx=(0, 5), pady=(5, 0))
         ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=6, column=1, sticky="w", padx=5)
 
-
-        # --- Frame tiêu đề tùy chỉnh (được đặt vào top_pane_frame) ---
         custom_title_frame = ttk.LabelFrame(top_pane_frame, text="3. Sử dụng tiêu đề tùy chỉnh (Tùy chọn)", padding=10)
         custom_title_frame.grid(row=1, column=0, sticky="ew", pady=5)
-        custom_title_frame.columnconfigure(0, weight=1) # Thay đổi ở đây
-        custom_title_frame.rowconfigure(1, weight=1) # Cho phép ô text co giãn
+        custom_title_frame.columnconfigure(0, weight=1)
+        custom_title_frame.rowconfigure(1, weight=1)
 
         self.use_custom_titles = tk.BooleanVar(value=False)
         ttk.Checkbutton(custom_title_frame, text="Kích hoạt (Mỗi dòng là một tiêu đề, áp dụng theo thứ tự file đã sắp xếp)", variable=self.use_custom_titles, command=self.schedule_preview_update).grid(row=0, column=0, columnspan=2, sticky="w")
         
-        self.custom_titles_text = scrolledtext.ScrolledText(custom_title_frame, height=5, wrap=tk.WORD)
+        self.custom_titles_text = scrolledtext.ScrolledText(custom_title_frame, height=5, wrap=tk.WORD, undo=True)
         self.custom_titles_text.grid(row=1, column=0, columnspan=2, sticky="ewns", pady=(5,0))
         
-        # --- Ngăn dưới: chứa bảng xem trước ---
         preview_frame = ttk.LabelFrame(rename_paned_window, text="4. Xem trước và Hành động", padding="10")
         preview_frame.columnconfigure(0, weight=1); preview_frame.rowconfigure(1, weight=1)
-        rename_paned_window.add(preview_frame, weight=3) # Thêm vào PanedWindow với trọng số lớn hơn
+        rename_paned_window.add(preview_frame, weight=3)
 
-        # Thanh tìm kiếm và loại trừ
         actions_bar = ttk.Frame(preview_frame)
         actions_bar.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         ttk.Label(actions_bar, text="Tìm kiếm:").pack(side=tk.LEFT, padx=(0, 5))
         self.search_var = tk.StringVar()
+        # SỬA LỖI: Xóa undo=True khỏi ttk.Entry
         search_entry = ttk.Entry(actions_bar, textvariable=self.search_var)
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         search_entry.bind("<KeyRelease>", self._search_files)
@@ -245,82 +274,152 @@ class RenamerApp(tk.Tk):
         vsb.grid(row=1, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=vsb.set)
         
-        # --- Nút hành động chính (được đặt vào rename_tab) ---
         ttk.Button(rename_tab, text="BẮT ĐẦU ĐỔI TÊN", command=self.start_renaming).grid(row=1, column=0, pady=10, ipady=5)
-    # --- HÀM MỚI ĐỂ HIỂN THỊ CỬA SỔ HƯỚNG DẪN ---
-    def show_regex_guide(self):
+
+    def show_regex_guide(self, guide_type="rename"):
         help_window = tk.Toplevel(self)
         help_window.title("Hướng dẫn sử dụng Regex")
-        help_window.geometry("700x550")
-        help_window.resizable(False, False)
-        help_window.transient(self) # Giữ cửa sổ con luôn ở trên cửa sổ chính
+        help_window.geometry("700x600") # Tăng chiều cao để chứa thêm nội dung
+        help_window.transient(self)
 
         main_frame = ttk.Frame(help_window, padding="15")
         main_frame.pack(fill="both", expand=True)
 
-        guide_text = scrolledtext.ScrolledText(main_frame, wrap=tk.WORD, state="normal", relief=tk.FLAT)
-        guide_text.pack(fill="both", expand=True)
+        guide_notebook = ttk.Notebook(main_frame)
+        guide_notebook.pack(fill="both", expand=True, pady=(0, 10))
 
-        # Nội dung hướng dẫn
-        content = """
-Regex (Biểu thức chính quy) là một 'khuôn mẫu' để bạn mô tả cho máy tính biết cách tìm và lấy thông tin bạn muốn.
+        # --- Tab 1: Ký hiệu chung ---
+        common_symbols_tab = scrolledtext.ScrolledText(guide_notebook, wrap=tk.WORD)
+        guide_notebook.add(common_symbols_tab, text="Ký hiệu chung")
+        common_content = """
+Regex (Biểu thức chính quy) là một công cụ mạnh mẽ để tìm kiếm và xử lý văn bản dựa trên các 'khuôn mẫu'.
 
-YÊU CẦU BẮT BUỘC:
-Khuôn mẫu của bạn phải tạo ra 2 'ngăn chứa' (capturing group) bằng dấu ngoặc đơn (...).
+--- CÁC KÝ HIỆU CƠ BẢN ---
+.         - Khớp với bất kỳ ký tự nào (trừ dòng mới).
+\\d        - Khớp với một chữ số (0-9).
+\\D        - Khớp với ký tự KHÔNG phải là số.
+\\w        - Khớp với ký tự chữ, số, hoặc gạch dưới (_).
+\\s        - Khớp với khoảng trắng (dấu cách, tab, xuống dòng).
+\\n        - Khớp với ký tự xuống dòng (new line).
+\\t        - Khớp với ký tự tab.
+^         - Bắt đầu một chuỗi hoặc một dòng (ở chế độ multi-line).
+$         - Kết thúc một chuỗi hoặc một dòng.
+\\b        - Ranh giới của một từ (word boundary).
 
-    - Ngăn 1 (...): Phải chứa SỐ CHƯƠNG.
-    - Ngăn 2 (...): Phải chứa TIÊU ĐỀ CHƯƠNG.
+--- LƯỢNG TỪ (Quantifiers) ---
+*         - 0 hoặc nhiều lần. Vd: a*
++         - 1 hoặc nhiều lần. Vd: a+
+?         - 0 hoặc 1 lần. Vd: colou?r (khớp 'color' và 'colour')
+{n}       - Chính xác n lần. Vd: \\d{4} (tìm 4 chữ số).
+{n,m}     - Từ n đến m lần. Vd: \\d{2,4} (tìm từ 2 đến 4 chữ số).
 
-----------------------------------------------------
+--- KÝ HIỆU NHÓM & KÝ TỰ ĐẶC BIỆT ---
+(...)     - Nhóm bắt (Capturing Group). Nội dung khớp sẽ được 'lưu lại' để sử dụng sau (tham chiếu bằng $1, $2,...).
+(?:...)   - Nhóm không bắt (Non-capturing Group). Dùng để gom nhóm mà không 'lưu lại'.
+[...]     - Khớp với một ký tự trong tập hợp. Vd: [aeiou]
+[^...]    - Khớp với ký tự KHÔNG có trong tập hợp.
+|         - Hoặc (OR). Vd: cat|dog
+\\         - Thoát (escape) một ký tự đặc biệt. Vd: \\. để tìm dấu chấm.
 
-CÁC KÝ HIỆU REGEX THÔNG DỤNG:
-
-  \\d+      Tìm một hoặc nhiều chữ số (0-9).
-            (ví dụ: khớp với '123', '05')
-
-  .*        Tìm bất kỳ ký tự nào (trừ dòng mới), bao nhiêu lần cũng được.
-            (Thường dùng để lấy tiêu đề)
-
-  \\s*       Tìm 0 hoặc nhiều khoảng trắng.
-
-  [_-]      Tìm một ký tự là gạch dưới '_' hoặc gạch ngang '-'.
-
-  .         Tìm chính xác dấu chấm '.' (cần có \\ phía trước: \\. )
-
-----------------------------------------------------
-
-VÍ DỤ THỰC TẾ:
-
-1. Tên file: 'Truyen-A-Chap-123-Tieu-de-chuong.txt'
-   -> Regex cần dùng: Chap-(\\d+)-(.*)
-   -> Giải thích:
-      - 'Chap-': Tìm đúng chữ 'Chap-'.
-      - (\\d+): Ngăn 1, tìm và lấy số '123'.
-      - '-': Tìm dấu gạch ngang tiếp theo.
-      - (.*): Ngăn 2, lấy tất cả phần còn lại 'Tieu-de-chuong'.
-
-2. Tên file: 'Quyển 3 - 098 . Tên chương bất kỳ.txt'
-   -> Regex cần dùng: (\\d+)\\s*\\.\\s*(.*)
-   -> Giải thích:
-      - (\\d+): Ngăn 1, tìm và lấy số '098'.
-      - \\s*\\.\\s*: Tìm dấu '.' có hoặc không có khoảng trắng bao quanh.
-      - (.*): Ngăn 2, lấy phần tiêu đề còn lại.
-
-3. Dòng đầu tiên trong file: 'Chương 54:Hồi Ức'
-   -> Regex cần dùng: Chương (\\d+):(.*)
-   -> Giải thích:
-      - 'Chương ': Tìm chữ 'Chương ' và khoảng trắng.
-      - (\\d+): Ngăn 1, lấy số '54'.
-      - ':': Tìm dấu hai chấm.
-      - (.*): Ngăn 2, lấy 'Hồi Ức'.
+--- CẤU TRÚC THƯỜNG GẶP ---
+- Tìm dòng chứa một từ cụ thể (Vd: "Error"):
+  ^.*Error.*$
+- Tìm và xóa các dòng trống thừa (2+ dòng trống):
+  (\\r?\\n){2,}   -> Thay bằng: \\n
+- Tham lam vs Lười biếng (Greedy vs Lazy):
+  Mặc định, * và + là 'tham lam' (greedy), khớp chuỗi dài nhất có thể. Thêm ? để chuyển sang 'lười biếng' (lazy) và khớp chuỗi ngắn nhất.
+  Vd: <a>.*<b>  sẽ khớp từ <a> đầu tiên đến <b> cuối cùng trong chuỗi.
+      <a>.*?<b> sẽ khớp từ <a> đến <b> gần nhất. Rất hữu ích khi xử lý HTML/XML.
 """
-        guide_text.insert("1.0", content)
-        guide_text.config(state="disabled") # Không cho người dùng sửa
+        common_symbols_tab.insert("1.0", common_content)
+        common_symbols_tab.config(state="disabled")
+
+        # --- Tab 2: Ví dụ Đổi tên file ---
+        rename_guide = scrolledtext.ScrolledText(guide_notebook, wrap=tk.WORD)
+        guide_notebook.add(rename_guide, text="Ví dụ: Đổi tên")
+        rename_content = """
+YÊU CẦU BẮT BUỘC:
+Khuôn mẫu của bạn phải tạo ra 2 'nhóm bắt' (...) để lấy ra SỐ CHƯƠNG và TIÊU ĐỀ.
+
+    - Nhóm 1 (...): Phải chứa SỐ CHƯƠNG.
+    - Nhóm 2 (...): Phải chứa TIÊU ĐỀ CHƯƠNG.
+
+----------------------------------------------------
+VÍ DỤ 1:
+- Tên file: 'Truyen-A-Chap-123-Tieu-de-chuong.txt'
+- Regex cần dùng: Chap-(\\d+)-(.*)
+- Giải thích:
+  'Chap-': Tìm chính xác chuỗi 'Chap-'.
+  '(\\d+)': Nhóm 1, tìm và bắt 1 hoặc nhiều chữ số (số 123).
+  '-': Tìm chính xác dấu gạch nối.
+  '(.*)': Nhóm 2, tìm và bắt mọi ký tự cho đến hết tên file.
+
+VÍ DỤ 2:
+- Tên file: 'Quyển 3 - 098 . Tên chương.txt'
+- Regex cần dùng: (\\d+)\\s*\\.\\s*(.*)
+- Giải thích:
+  '(\\d+)': Nhóm 1, tìm và bắt 1 hoặc nhiều chữ số (số 098).
+  '\\s*': Tìm 0 hoặc nhiều khoảng trắng.
+  '\\.': Tìm dấu chấm (phải có '\\' vì '.' là ký tự đặc biệt).
+  '\\s*': Tìm tiếp 0 hoặc nhiều khoảng trắng.
+  '(.*)': Nhóm 2, tìm và bắt phần còn lại của tên file.
+"""
+        rename_guide.insert("1.0", rename_content)
+        rename_guide.config(state="disabled")
+
+        # --- Tab 3: Ví dụ Tìm & thay thế ---
+        find_replace_guide = scrolledtext.ScrolledText(guide_notebook, wrap=tk.WORD)
+        guide_notebook.add(find_replace_guide, text="Ví dụ: Tìm & Thay thế")
+        find_replace_content = """
+Trong ô 'Thay thế', bạn có thể dùng $1, $2, ... (hoặc \\1, \\2) để tham chiếu đến nội dung đã được bắt bởi các nhóm (...) trong ô 'Tìm'.
+
+----------------------------------------------------
+VÍ DỤ 1: Đổi "Chương 123" thành "Chapter 123"
+- Tìm:    Chương\\s*(\\d+)
+- Thay:   Chapter $1
+- Giải thích: 'Chương\\s*' tìm chữ 'Chương' và khoảng trắng theo sau. '(\\d+)' bắt số chương vào nhóm 1. '$1' ở ô thay thế sẽ chèn lại số đã bắt được.
+
+VÍ DỤ 2: Đổi ngoặc kép thành ngoặc kiểu Trung
+- Tìm:    "(.*?)"
+- Thay:   『$1』
+- Giải thích: Dấu " bên ngoài tìm ngoặc kép. '(.*?)' bắt tất cả nội dung bên trong một cách 'lười biếng' (lazy) để nó dừng lại ở dấu " gần nhất. $1 chèn lại nội dung đó.
+
+VÍ DỤ 3: Xóa các dòng chỉ chứa khoảng trắng
+- Tìm:    ^\\s+$\\n
+- Thay:   (để trống)
+- Giải thích: '^' bắt đầu dòng, '\\s+' tìm 1 hoặc nhiều khoảng trắng, '$' kết thúc dòng. Tìm các dòng chỉ có khoảng trắng và xóa chúng.
+"""
+        find_replace_guide.insert("1.0", find_replace_content)
+        find_replace_guide.config(state="disabled")
+
+        # --- Tab 4: Ví dụ Chia file ---
+        split_guide = scrolledtext.ScrolledText(guide_notebook, wrap=tk.WORD)
+        guide_notebook.add(split_guide, text="Ví dụ: Chia file")
+        split_content = """
+Regex chia file dùng để xác định các dòng mà tại đó file sẽ được cắt ra. Toàn bộ dòng phải khớp với mẫu.
+
+----------------------------------------------------
+VÍ DỤ 1: Chia theo tên chương tiếng Trung
+- Regex:   ^第.*?章.*$
+- Giải thích: '^' bắt đầu dòng, '第' tìm chữ 'Đệ', '.*?' tìm số chương, '章' tìm chữ 'Chương', '.*' tìm tiêu đề, '$' kết thúc dòng.
+
+VÍ DỤ 2: Chia theo tên chương tiếng Việt
+- Regex:   ^Chương\\s*\\d+.*$
+- Giải thích: Tương tự, tìm các dòng bắt đầu bằng 'Chương', theo sau là số và tiêu đề.
+
+VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
+- Regex:   ^\\*{5,}$
+- Giải thích: Tìm các dòng chỉ chứa 5 hoặc nhiều ký tự '*'.
+"""
+        split_guide.insert("1.0", split_content)
+        split_guide.config(state="disabled")
+        
+        tab_map = {"general": 0, "rename": 1, "find_replace": 2, "split": 3}
+        guide_notebook.select(tab_map.get(guide_type, 0))
 
         close_button = ttk.Button(main_frame, text="Đã hiểu", command=help_window.destroy)
-        close_button.pack(pady=(10, 0))
-
-    # --- Các hàm khác (create_credit_tab, select_folder, log, v.v...)---
+        close_button.pack()
+        
     def create_credit_tab(self):
         credit_tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(credit_tab, text="Thêm Credit")
@@ -334,7 +433,7 @@ VÍ DỤ THỰC TẾ:
 
         # Nội dung credit - Dùng Text widget
         ttk.Label(credit_options_frame, text="Nội dung credit:").grid(row=0, column=0, sticky="nw", padx=5, pady=5)
-        self.credit_text_widget = tk.Text(credit_options_frame, height=4, wrap=tk.WORD)
+        self.credit_text_widget = tk.Text(credit_options_frame, height=4, wrap=tk.WORD, undo=True)
         self.credit_text_widget.grid(row=0, column=1, columnspan=2, sticky="ew", padx=5, pady=5)
         self.credit_text_widget.insert("1.0", "Được convert bởi XYZ") # Giá trị mặc định
 
@@ -372,7 +471,6 @@ VÍ DỤ THỰC TẾ:
         online_tab.columnconfigure(0, weight=1)
         online_tab.rowconfigure(1, weight=1)
 
-        # --- Frame nhập liệu ---
         fetch_frame = ttk.LabelFrame(online_tab, text="1. Nguồn", padding=10)
         fetch_frame.grid(row=0, column=0, sticky="ew")
         fetch_frame.columnconfigure(1, weight=1)
@@ -384,11 +482,11 @@ VÍ DỤ THỰC TẾ:
         
         ttk.Label(fetch_frame, text="URL mục lục:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.source_url = tk.StringVar()
+        # SỬA LỖI: Xóa undo=True khỏi ttk.Entry
         ttk.Entry(fetch_frame, textvariable=self.source_url).grid(row=1, column=1, sticky="ew", padx=5)
         
         ttk.Button(fetch_frame, text="Bắt đầu lấy dữ liệu", command=self._fetch_online_titles).grid(row=2, column=1, sticky="e", pady=5, padx=5)
 
-        # --- Frame kết quả ---
         result_frame = ttk.LabelFrame(online_tab, text="2. Kết quả", padding=10)
         result_frame.grid(row=1, column=0, sticky="nsew", pady=5)
         result_frame.columnconfigure(0, weight=1); result_frame.rowconfigure(0, weight=1)
@@ -402,20 +500,18 @@ VÍ DỤ THỰC TẾ:
         vsb.grid(row=0, column=1, sticky="ns")
         self.online_tree.configure(yscrollcommand=vsb.set)
         
-        # --- Frame hành động ---
         apply_frame = ttk.LabelFrame(online_tab, text="3. Áp dụng", padding=10)
         apply_frame.grid(row=2, column=0, sticky="ew", pady=(5,0))
         apply_frame.columnconfigure(1, weight=1)
 
-        # Dòng chọn theo khoảng
         ttk.Label(apply_frame, text="Chọn nhanh theo khoảng:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.online_range_var = tk.StringVar()
+        # SỬA LỖI: Xóa undo=True khỏi ttk.Entry
         range_entry = ttk.Entry(apply_frame, textvariable=self.online_range_var)
         range_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
         ttk.Button(apply_frame, text="Chọn", command=self._select_online_range).grid(row=0, column=2, sticky="w", padx=5, pady=5)
         ttk.Label(apply_frame, text="(Ví dụ: 1-10, -50, 100-, all)").grid(row=1, column=1, sticky="w", padx=5)
 
-        # Dòng áp dụng
         action_row_frame = ttk.Frame(apply_frame)
         action_row_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(10,0))
 
@@ -424,6 +520,349 @@ VÍ DỤ THỰC TẾ:
         ttk.Radiobutton(action_row_frame, text="Tiêu đề chính", variable=self.title_choice, value="title1").pack(side=tk.LEFT)
         ttk.Radiobutton(action_row_frame, text="Tiêu đề phụ", variable=self.title_choice, value="title2").pack(side=tk.LEFT)
         ttk.Button(action_row_frame, text="Sao chép tiêu đề đã chọn vào Tab Đổi Tên", command=self._apply_online_titles).pack(side=tk.RIGHT, padx=5)
+
+    def create_text_operations_tab(self):
+        text_ops_tab = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(text_ops_tab, text="Xử lý Văn bản")
+        text_ops_tab.rowconfigure(1, weight=1)
+        text_ops_tab.columnconfigure(0, weight=1)
+
+        file_frame = ttk.LabelFrame(text_ops_tab, text="1. Chọn file (dùng chung cho các tab bên dưới)", padding="10")
+        file_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        ttk.Entry(file_frame, textvariable=self.selected_file, state="readonly").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        ttk.Button(file_frame, text="Chọn...", command=self._select_file_for_ops).pack(side=tk.LEFT)
+
+        ops_notebook = ttk.Notebook(text_ops_tab)
+        ops_notebook.grid(row=1, column=0, sticky="nsew")
+
+        # Find/Replace sub-tab
+        find_replace_frame = ttk.Frame(ops_notebook, padding="10")
+        ops_notebook.add(find_replace_frame, text="Tìm & Thay thế")
+        self._create_find_replace_widgets(find_replace_frame)
+
+        # Split file sub-tab
+        split_frame = ttk.Frame(ops_notebook, padding="10")
+        ops_notebook.add(split_frame, text="Chia file")
+        self._create_split_widgets(split_frame)
+
+    def _create_find_replace_widgets(self, parent):
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(1, weight=1) # Thay đổi row index
+
+        # ĐÃ XÓA VÙNG CHỌN FILE KHỎI ĐÂY
+
+        options_frame = ttk.LabelFrame(parent, text="1. Tùy chọn", padding="10") # Đổi số thứ tự
+        options_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10)) # Thay đổi row index
+
+        # ... (code bên trong options_frame không thay đổi)
+        find_frame = ttk.Frame(options_frame)
+        find_frame.pack(fill=tk.X)
+        ttk.Label(find_frame, text="Tìm:      ").pack(side=tk.LEFT)
+        self.find_text = ttk.Combobox(find_frame)
+        self.find_text.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(find_frame, text="?", width=3, command=lambda: self.show_regex_guide("find_replace")).pack(side=tk.LEFT, padx=5)
+        replace_frame = ttk.Frame(options_frame)
+        replace_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(replace_frame, text="Thay thế:").pack(side=tk.LEFT)
+        self.replace_text = ttk.Combobox(replace_frame)
+        self.replace_text.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Label(replace_frame, text="(Dùng $1, $2...)").pack(side=tk.LEFT, padx=5)
+        opts_frame = ttk.Frame(options_frame)
+        opts_frame.pack(fill=tk.X, pady=5)
+        self.match_case = tk.BooleanVar(value=False)
+        self.match_word = tk.BooleanVar(value=False)
+        self.use_regex = tk.BooleanVar(value=False)
+        self.search_up = tk.BooleanVar(value=False)
+        ttk.Checkbutton(opts_frame, text="Khớp chữ hoa/thường", variable=self.match_case).pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(opts_frame, text="Khớp toàn bộ từ", variable=self.match_word).pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(opts_frame, text="Dùng Regex", variable=self.use_regex).pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(opts_frame, text="Tìm ngược lên", variable=self.search_up).pack(side=tk.LEFT, padx=5)
+
+
+        content_frame = ttk.LabelFrame(parent, text="2. Nội dung & Hành động", padding="10") # Đổi số thứ tự
+        content_frame.grid(row=1, column=0, sticky="nsew") # Thay đổi row index
+        content_frame.rowconfigure(0, weight=1)
+        content_frame.columnconfigure(0, weight=1)
+
+        self.text_content = scrolledtext.ScrolledText(content_frame, wrap=tk.WORD, undo=True)
+        self.text_content.grid(row=0, column=0, columnspan=7, sticky="nsew")
+        self.text_content.bind("<<Modified>>", self._mark_text_as_modified)
+
+        button_grid_frame = ttk.Frame(content_frame)
+        button_grid_frame.grid(row=1, column=0, columnspan=7, pady=(10,0), sticky="ew")
+        
+        ttk.Button(button_grid_frame, text="Tìm tiếp", command=self._find_next).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0,5))
+        ttk.Button(button_grid_frame, text="Thay thế", command=self._replace_current).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        ttk.Button(button_grid_frame, text="Thay thế tất cả", command=self._replace_all).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        ttk.Button(button_grid_frame, text="Lưu", command=self._save_changes).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        ttk.Button(button_grid_frame, text="Lưu thành file mới...", command=self._save_as).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        ttk.Button(button_grid_frame, text="Hoàn tác", command=self.text_content.edit_undo).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        ttk.Button(button_grid_frame, text="Làm lại", command=self.text_content.edit_redo).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5,0))
+    def _create_split_widgets(self, parent):
+        options_frame = ttk.LabelFrame(parent, text="1. Tùy chọn chia file", padding="10") # Đổi số thứ tự
+        options_frame.pack(fill=tk.X, pady=(0, 10))
+        options_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(options_frame, text="Regex chia file:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.split_regex = ttk.Combobox(options_frame)
+        self.split_regex.grid(row=0, column=1, sticky="ew")
+        ttk.Button(options_frame, text="?", width=3, command=lambda: self.show_regex_guide("split")).grid(row=0, column=2, padx=5)
+        
+        ttk.Label(options_frame, text="Cấu trúc tên file:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.split_format_combobox = ttk.Combobox(options_frame)
+        self.split_format_combobox.grid(row=1, column=1, sticky="ew")
+        self.split_format_combobox.set("part_{num}.txt")
+        # THAY ĐỔI: Cập nhật text hướng dẫn cho tính năng mới
+        ttk.Label(options_frame, text="(Dùng {num}, {num+n}, {num-n})").grid(row=1, column=2, padx=5)
+
+        pos_frame = ttk.Frame(options_frame)
+        pos_frame.grid(row=2, column=0, columnspan=3, sticky="w", padx=5, pady=5)
+        self.split_position = tk.StringVar(value="after")
+        ttk.Radiobutton(pos_frame, text="Chia sau regex", variable=self.split_position, value="after").pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(pos_frame, text="Chia trước regex", variable=self.split_position, value="before").pack(side=tk.LEFT, padx=5)
+
+        preview_frame = ttk.LabelFrame(parent, text="2. Xem trước kết quả chia", padding="10") # Đổi số thứ tự
+        preview_frame.pack(fill=tk.BOTH, expand=True)
+
+        cols = ("STT", "Nội dung bắt đầu", "Kích thước")
+        self.split_tree = ttk.Treeview(preview_frame, columns=cols, show='headings')
+        self.split_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        for col, width in zip(cols, [50, 400, 100]):
+            self.split_tree.heading(col, text=col)
+            self.split_tree.column(col, width=width, anchor='w')
+
+        vsb = ttk.Scrollbar(preview_frame, orient="vertical", command=self.split_tree.yview)
+        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        self.split_tree.configure(yscrollcommand=vsb.set)
+
+        btn_frame = ttk.Frame(parent)
+        btn_frame.pack(fill=tk.X, pady=10)
+        btn_frame.columnconfigure(0, weight=1)
+        btn_frame.columnconfigure(1, weight=1)
+        ttk.Button(btn_frame, text="Xem trước", command=self._preview_split).grid(row=0, column=0, sticky="e", padx=(0,5))
+        ttk.Button(btn_frame, text="Bắt đầu chia file", command=self._execute_split).grid(row=0, column=1, sticky="w", padx=(5,0))
+    def _mark_text_as_modified(self, event=None):
+        """Được gọi khi text widget được sửa đổi. Đặt cờ 'modified'."""
+        if self.text_content.edit_modified():
+            self.text_modified.set(True)
+        self.text_content.edit_modified(False)
+    # THÊM HÀM MỚI
+    def _save_as(self):
+        """Lưu nội dung hiện tại vào một file mới."""
+        new_filepath = filedialog.asksaveasfilename(
+            title="Lưu thành file mới",
+            initialfile=os.path.basename(self.selected_file.get() or "untitled.txt"),
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+        )
+        if new_filepath:
+            try:
+                content = self.text_content.get("1.0", tk.END)
+                with open(new_filepath, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                
+                # Cập nhật file đang được chọn thành file mới
+                self.selected_file.set(new_filepath)
+                self.text_modified.set(False)
+                self.log(f"Đã lưu file thành công với tên mới: '{os.path.basename(new_filepath)}'")
+                messagebox.showinfo("Thành công", f"Đã lưu file thành công:\n{new_filepath}")
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể lưu file: {str(e)}")
+    def _select_file_for_ops(self):
+        filepath = filedialog.askopenfilename(
+            title="Chọn file cần xử lý",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+        )
+        if filepath:
+            if self.text_modified.get():
+                response = messagebox.askyesnocancel( "Lưu thay đổi?", "File hiện tại đã bị thay đổi. Bạn có muốn lưu lại trước khi mở file mới không?")
+                if response is True:
+                    if not self._save_changes(): return
+                elif response is None:
+                    return
+
+            self.selected_file.set(filepath)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    self.text_content.delete('1.0', tk.END)
+                    self.text_content.insert('1.0', content)
+                    self.text_content.edit_reset()
+                    self.text_content.edit_modified(False)
+                    self.text_modified.set(False)
+                    self.log(f"Đã mở file '{os.path.basename(filepath)}' để xử lý văn bản.")
+                    self.text_content.mark_set(tk.INSERT, "1.0")
+                    self.text_content.focus_set()
+                    
+                    # THÊM MỚI: Xóa kết quả xem trước cũ của tab chia file
+                    self.split_tree.delete(*self.split_tree.get_children())
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể đọc file: {e}")
+    def _find_next(self):
+        find_what = self.find_text.get()
+        if not find_what:
+            return
+        
+        self._update_history_combobox(self.find_text)
+
+        result = TextOperations.find_text(
+            self.text_content,
+            find_what,
+            match_case=self.match_case.get(),
+            match_word=self.match_word.get(),
+            use_regex=self.use_regex.get(),
+            search_up=self.search_up.get()
+        )
+
+        if result:
+            self.log(f"Đã tìm thấy \"{find_what}\".")
+            start_pos, length = result
+            self.text_content.tag_remove(tk.SEL, '1.0', tk.END)
+            end_pos = f"{start_pos}+{length}c"
+            self.text_content.tag_add(tk.SEL, start_pos, end_pos)
+            self.text_content.mark_set(tk.INSERT, end_pos)
+            self.text_content.see(start_pos)
+            self.text_content.focus_set() # Vẫn focus vào text để người dùng thấy kết quả
+        else:
+            self.log(f"Không tìm thấy \"{find_what}\".")
+            messagebox.showinfo("Không tìm thấy", f"Không tìm thấy \"{find_what}\"", parent=self)
+    def _replace_current(self):
+        try:
+            if not self.text_content.tag_ranges(tk.SEL):
+                self._find_next()
+                if not self.text_content.tag_ranges(tk.SEL): return
+        except tk.TclError:
+            self._find_next()
+            if not self.text_content.tag_ranges(tk.SEL): return
+
+        find_what = self.find_text.get()
+        replace_with = self.replace_text.get()
+        if find_what: self._update_history_combobox(self.find_text)
+        if replace_with: self._update_history_combobox(self.replace_text)
+
+        replaced = TextOperations.replace_text(
+            self.text_content,
+            find_what,
+            replace_with,
+            match_case=self.match_case.get(),
+            use_regex=self.use_regex.get()
+        )
+
+        if replaced:
+            self.log(f"Đã thay thế lựa chọn hiện tại bằng '{replace_with}'.") # GHI LOG
+            self._find_next()
+        else:
+            messagebox.showwarning("Thay thế", "Văn bản được chọn không khớp với văn bản tìm kiếm.", parent=self)
+
+    def _replace_all(self):
+        find_what = self.find_text.get()
+        replace_with = self.replace_text.get()
+        if not find_what: return
+        
+        if find_what: self._update_history_combobox(self.find_text)
+        if replace_with: self._update_history_combobox(self.replace_text)
+
+        if not messagebox.askyesno("Xác nhận", "Bạn có chắc muốn thay thế tất cả trong file này?"):
+            return
+
+        count = TextOperations.replace_all(
+            self.text_content, find_what, replace_with,
+            match_case=self.match_case.get(),
+            match_word=self.match_word.get(),
+            use_regex=self.use_regex.get()
+        )
+        if count > 0:
+            self.log(f"Thay thế tất cả: {count} kết quả được thay thế cho '{find_what}'.") # GHI LOG
+            self._mark_text_as_modified()
+        messagebox.showinfo("Hoàn tất", f"Đã thay thế {count} kết quả.", parent=self)
+
+    def _save_changes(self):
+        """Lưu các thay đổi vào file hiện tại. Trả về True nếu thành công, False nếu thất bại/hủy."""
+        filepath = self.selected_file.get()
+        if not filepath:
+            messagebox.showerror("Lỗi", "Chưa có file nào được chọn.")
+            return False
+        
+        if not messagebox.askyesno("Xác nhận", f"Lưu các thay đổi vào file:\n{os.path.basename(filepath)}?"):
+            return False
+
+        try:
+            content = self.text_content.get("1.0", tk.END)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            self.text_modified.set(False)
+            self.log(f"Đã lưu thành công file: {os.path.basename(filepath)}")
+            messagebox.showinfo("Thành công", "Đã lưu file thành công.")
+            return True
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể lưu file: {str(e)}")
+            return False
+
+    def _save_as(self):
+        """Lưu nội dung hiện tại vào một file mới."""
+        new_filepath = filedialog.asksaveasfilename(
+            title="Lưu thành file mới",
+            initialfile=os.path.basename(self.selected_file.get() or "untitled.txt"),
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+        )
+        if new_filepath:
+            try:
+                content = self.text_content.get("1.0", tk.END)
+                with open(new_filepath, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                
+                # Cập nhật file đang được chọn thành file mới
+                self.selected_file.set(new_filepath)
+                self.text_modified.set(False)
+                self.log(f"Đã lưu file thành công với tên mới: '{os.path.basename(new_filepath)}'")
+                messagebox.showinfo("Thành công", f"Đã lưu file thành công:\n{new_filepath}")
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể lưu file: {str(e)}")
+
+    def _preview_split(self):
+        filepath = self.selected_file.get()
+        regex = self.split_regex.get()
+        if not filepath or not regex:
+            messagebox.showwarning("Thiếu thông tin", "Vui lòng chọn file ở trên và nhập Regex.")
+            return
+        
+        self._update_history_combobox(self.split_regex)
+        preview_data, error = TextOperations.split_file(filepath, regex, self.split_position.get())
+
+        self.split_tree.delete(*self.split_tree.get_children())
+        if error:
+            messagebox.showerror("Lỗi Regex", error)
+            return
+        
+        for i, (start_content, size) in enumerate(preview_data):
+            self.split_tree.insert("", "end", values=(i + 1, start_content, f"{size} bytes"))
+        self.log(f"Xem trước chia file '{os.path.basename(filepath)}' thành {len(preview_data)} phần.")
+
+    def _execute_split(self):
+        filepath = self.selected_file.get()
+        regex = self.split_regex.get()
+        name_format = self.split_format_combobox.get()
+
+        if not filepath or not regex or not name_format:
+            messagebox.showwarning("Thiếu thông tin", "Vui lòng chọn file, nhập Regex và cấu trúc tên file.")
+            return
+
+        self._update_history_combobox(self.split_regex)
+        self._update_history_combobox(self.split_format_combobox)
+
+        if not messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn chia file '{os.path.basename(filepath)}'?"):
+            return
+
+        count, error = TextOperations.execute_split(filepath, regex, self.split_position.get(), name_format)
+        if error:
+            messagebox.showerror("Lỗi", f"Chia file thất bại: {error}")
+        else:
+            messagebox.showinfo("Hoàn tất", f"Đã chia file thành công thành {count} phần.")
+            self.log(f"Đã chia file '{os.path.basename(filepath)}' thành {count} phần.")
+
 
     def _on_pos_change(self):
         self.line_num_spinbox.config(state="normal" if self.credit_position.get() == "line" else "disabled")
@@ -641,14 +1080,6 @@ VÍ DỤ THỰC TẾ:
 
     def _fetch_online_titles(self):
         url = self.source_url.get()
-        # selected_site = self.source_web.get()
-
-        # if selected_site == "po18.tw" and not admin_utils.is_admin():
-        #     if messagebox.askyesno("Yêu cầu quyền Admin",
-        #                         "Lấy dữ liệu từ po18.tw cần quyền quản trị viên (Admin) để đọc cookie từ trình duyệt.\n\n"
-        #                         "Bạn có muốn khởi động lại ứng dụng với quyền Admin không?"):
-        #         admin_utils.run_as_admin()
-        #     return # Dừng ngay tại đây, không làm gì thêm trong tiến trình cũ
 
         if not url:
             messagebox.showerror("Lỗi", "Vui lòng nhập URL mục lục.")
@@ -657,7 +1088,6 @@ VÍ DỤ THỰC TẾ:
         def _worker():
             pythoncom.CoInitialize()
             try:
-                # Các công việc cũ vẫn giữ nguyên
                 self.log(f"Đang lấy dữ liệu từ {url}...")
                 
                 selected_site = self.source_web.get()
@@ -670,10 +1100,8 @@ VÍ DỤ THỰC TẾ:
                 else:
                     result = {'error': 'Trang web không được hỗ trợ.'}
                 
-                # Gửi kết quả về luồng giao diện
                 self.after(0, self._update_online_tree, result)
             finally:
-                # Bước 2: Luôn luôn hủy đăng ký khi luồng kết thúc, dù thành công hay thất bại
                 pythoncom.CoUninitialize()
 
         threading.Thread(target=_worker, daemon=True).start()
