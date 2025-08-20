@@ -311,7 +311,7 @@
         '《': '«', '》': '»'
       }
     };
-    const map = maps[style] || maps['vietnamese'];
+    const map = maps[style] || maps.vietnamese;
     return s.replace(/[　-〿＀-￯«»「」『』《》]/g, ch => map[ch] !== undefined ? map[ch] : ch);
   }
 
