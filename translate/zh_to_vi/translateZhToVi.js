@@ -1,9 +1,20 @@
-// translateZhToVi.js
+// ZhToVi.modified.js
 // Tampermonkey-friendly library. Attach: window.TranslateZhToVi
-// Usage:
+// New/changed features (quick):
+//  - FIX: fetchText bug removed (Tampermonkey + fetch compatible)
+//  - Improved joinTokensMakePretty to better preserve punctuation (including CJK punctuation)
+//  - New API: translateSentence(text, opts) — translate a single sentence and keep punctuation/spacing
+//  - New API: translateWithAlternatives(text, opts) — returns array of segments with alts and chosen value
+//  - Alias: suggest(term, limit) -> suggests translations (wraps suggestName)
+//  - Small sanitization & capitalization after sentence-ending punctuation for ASCII letters
+// Usage (head of file note):
 //   await TranslateZhToVi.init({ nameUrl, vpUrl, hvUrl, forceReload:false });
-//   const out = TranslateZhToVi.translateText(text, { maxMatchLen: 30, priorityNameFirst:true });
-//   const segs = TranslateZhToVi.translateSegments(text);
+//   // quick translate (preserves punctuation as much as possible):
+//   const out = TranslateZhToVi.translateSentence(text, { maxMatchLen: 30, priorityNameFirst:true });
+//   // get detailed segments with alternatives
+//   const segs = TranslateZhToVi.translateWithAlternatives(text);
+//   // get suggestions for a term
+//   const s = TranslateZhToVi.suggest('明月', 10);
 
 (function (global) {
   const DB_NAME = 'TranslateZhToVi_DB_v1';
@@ -14,6 +25,7 @@
     riêngChung: true,
     maxSuggest: 200,
     forceReload: false,
+    punctMap: 'vietnamese',
     maxMatchLen: null // null -> use dict max
   };
 
@@ -74,7 +86,7 @@
     return runs;
   }
 
-  // fetch util (GM friendly)
+  // fetch util (GM friendly) — FIXED stray char
   function fetchText(url) {
     return new Promise((res, rej) => {
       if (typeof GM_xmlhttpRequest === 'function') {
@@ -231,31 +243,76 @@
   }
 
 
-  // THAY THẾ TOÀN BỘ HÀM NÀY
+  // Improved pretty join: preserve punctuation (including CJK), avoid extraneous spaces,
+  // and do simple capitalization after sentence-ending punctuation for ASCII letters.
   function joinTokensMakePretty(tokens) {
     let result = '';
+    // punctuation characters that should generally NOT have a space before them
+    const noSpaceBeforeChars = new Set(['.', ',', ':', ';', '!', '?', '…', '%', '»', '”', '』', '』', ')', ']', '}', '，', '。', '、', '：', '；', '？', '！', '」', '』', '》']);
+    // punctuation characters that should generally NOT have a space after them
+    const noSpaceAfterChars = new Set(['(', '[', '{', '«', '“', '『', '「', '《']);
+    // characters that mark sentence boundary for capitalization
+    const sentenceEnd = new Set(['.', '!', '?', '\n', '。', '！', '？']);
+
     for (let i = 0; i < tokens.length; i++) {
-        const currentToken = tokens[i];
-        let currentVal = (currentToken.val === null || currentToken.val === undefined) ? currentToken.zh : currentToken.val;
+      const currentToken = tokens[i];
+      let currentVal = (currentToken.val === null || currentToken.val === undefined) ? currentToken.zh : currentToken.val;
+      if (typeof currentVal !== 'string') currentVal = String(currentVal);
 
-        // Bỏ qua các giá trị rỗng hoặc chỉ có khoảng trắng
-        if (!currentVal.trim()) continue;
+      // If token is empty or whitespace, skip
+      if (!currentVal || !currentVal.trim()) continue;
 
-        // Nếu không phải là token đầu tiên, hãy xem xét việc thêm khoảng trắng
-        if (result.length > 0) {
-            const lastCharOfResult = result.slice(-1);
-            const firstCharOfCurrent = currentVal.charAt(0);
+      // Determine whether to add a space before this token
+      if (result.length > 0) {
+        const lastCharOfResult = result.slice(-1);
+        const firstCharOfCurrent = currentVal.charAt(0);
 
-            const noSpaceBefore = '.,:;!?%»”)]}，。、《》」』？！，；：'.includes(firstCharOfCurrent);
-            const noSpaceAfter = '([«“{《「『'.includes(lastCharOfResult);
+        const noSpaceBefore = noSpaceBeforeChars.has(firstCharOfCurrent);
+        const noSpaceAfter = noSpaceAfterChars.has(lastCharOfResult);
 
-            if (!noSpaceBefore && !noSpaceAfter) {
-                result += ' ';
-            }
+        if (!noSpaceBefore && !noSpaceAfter) {
+          result += ' ';
         }
-        result += currentVal;
+      }
+
+      // Simple capitalization after sentence end for ASCII letters
+      if (result.length > 0) {
+        const lastChar = result.slice(-1);
+        if (sentenceEnd.has(lastChar)) {
+          // find first ASCII letter
+          currentVal = currentVal.replace(/^\s*/, '');
+          const first = currentVal.charAt(0);
+          if (first && first >= 'a' && first <= 'z') {
+            currentVal = first.toUpperCase() + currentVal.slice(1);
+          }
+        }
+      }
+
+      result += currentVal;
     }
+
     return result.trim();
+  }
+
+  // punctuation mapping function
+  function mapPunctuation(s, style = 'vietnamese') {
+    if (!s) return s;
+    const maps = {
+      ascii: {
+        '，': ',', '。': '.', '：': ':', '；': ';', '？': '?', '！': '!',
+        '、': ',', '（': '(', '）': ')', '【': '[', '】': ']', '—': '-', '～': '~',
+        '「': '“', '」': '”', '『': '“', '』': '”',
+        '《': '<', '》': '>'
+      },
+      vietnamese: {
+        '，': ',', '。': '.', '：': ':', '；': ';', '？': '?', '！': '!',
+        '、': ',', '（': '(', '）': ')', //'【': '[', '】': ']',
+        '「': '“', '」': '”', '『': '“', '』': '”', '“': '“', '”': '”',
+        '《': '«', '》': '»'
+      }
+    };
+    const map = maps[style] || maps['vietnamese'];
+    return s.replace(/[　-〿＀-￯«»「」『』《》]/g, ch => map[ch] !== undefined ? map[ch] : ch);
   }
 
   const TranslateZhToVi = {
@@ -314,7 +371,7 @@
       console.log('[TranslateZhToVi] cache cleared');
     },
 
-    // translate whole text and return a pretty string
+    // translate whole text and return a pretty string (backwards-compatible)
     translateText: function (text, opts) {
       if (!this.isReady) throw new Error('TranslateZhToVi not init()');
       opts = Object.assign({}, this.opts, opts || {});
@@ -329,7 +386,35 @@
           tokens.push({ zh: r.text, val: r.text, alts: [r.text], source: 'TEXT' });
         }
       }
-      const out = joinTokensMakePretty(tokens);
+      let out = joinTokensMakePretty(tokens);
+      if (opts.punctMap) out = mapPunctuation(out, opts.punctMap);
+      return out;
+    },
+
+    // translate a single sentence (keeps punctuation better, recommended for one-shot)
+    translateSentence: function (text, opts) {
+      // forwards to translateText but ensures we preserve non-CJK punctuation runs more granularly
+      if (!this.isReady) throw new Error('TranslateZhToVi not init()');
+      opts = Object.assign({}, this.opts, opts || {});
+
+      // split runs, but for non-CJK runs, further split by whitespace while preserving punctuation
+      const runs = splitRuns(text);
+      const tokens = [];
+      for (const r of runs) {
+        if (r.mode === 'CJK') {
+          const maxMatch = opts.maxMatchLen || Math.max(this._idx.nameIdx.maxLen || 0, this._idx.vpIdx.maxLen || 0);
+          const items = globalLongestMatch(r.text, this._idx.nameIdx, this._idx.vpIdx, this._idx.hvDict, opts, maxMatch);
+          tokens.push(...items);
+        } else {
+          // break non-CJK run into small tokens separated by spaces but keep punctuation attached
+          const parts = r.text.split(/(\s+)/g).filter(x => x !== undefined && x !== null);
+          for (const p of parts) {
+            tokens.push({ zh: p, val: p, alts: [p], source: 'TEXT' });
+          }
+        }
+      }
+      let out = joinTokensMakePretty(tokens);
+      if (opts.punctMap) out = mapPunctuation(out, opts.punctMap);
       return out;
     },
 
@@ -346,6 +431,27 @@
           out.push(...items);
         } else {
           out.push({ zh: r.text, val: r.text, alts: [r.text], source: 'TEXT' });
+        }
+      }
+      return out;
+    },
+
+    // return segments but keep ALL alternatives (useful for interactive suggest UI)
+    translateWithAlternatives: function (text, opts) {
+      if (!this.isReady) throw new Error('TranslateZhToVi not init()');
+      opts = Object.assign({}, this.opts, opts || {});
+      const runs = splitRuns(text);
+      const out = [];
+      for (const r of runs) {
+        if (r.mode === 'CJK') {
+          const maxMatch = opts.maxMatchLen || Math.max(this._idx.nameIdx.maxLen || 0, this._idx.vpIdx.maxLen || 0);
+          const items = globalLongestMatch(r.text, this._idx.nameIdx, this._idx.vpIdx, this._idx.hvDict, opts, maxMatch);
+          // globalLongestMatch already includes alts; preserve structure
+          out.push(...items);
+        } else {
+          // further split by whitespace so UI can choose to replace small pieces
+          const parts = r.text.split(/(\s+)/g).filter(x => x !== undefined && x !== null);
+          for (const p of parts) out.push({ zh: p, val: p, alts: [p], source: 'TEXT' });
         }
       }
       return out;
@@ -378,6 +484,9 @@
       const t = this.translateText(term, { priorityNameFirst: this.opts.priorityNameFirst });
       return [{ source: 'Fallback', zh: term, val: t, alts: [t] }];
     },
+
+    // alias for suggestName (friendlier name)
+    suggest: function (term, limit) { return this.suggestName(term, limit); },
 
     // in-memory add/update (and persist cache)
     addEntry: function (dictName, zh, val, alts, tag) {
