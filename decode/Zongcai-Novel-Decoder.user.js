@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zongcai Novel Decoder
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.6
 // @description  Giải mã văn bản, quản lý ánh xạ ký tự, và xử lý ký tự mới một cách thông minh.
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/Zongcai-Novel-Decoder.user.js
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/Zongcai-Novel-Decoder.user.js
