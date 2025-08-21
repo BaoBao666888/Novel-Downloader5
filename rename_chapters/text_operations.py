@@ -181,6 +181,47 @@ class TextOperations:
             return [], f"Regex không hợp lệ: {str(e)}"
         except Exception as e:
             return [], f"Lỗi không xác định: {str(e)}"
+    
+    @staticmethod
+    def get_split_chunks(filepath, split_regex, split_position="after"):
+        """
+        Trả về danh sách các phần (chunk) đầy đủ sau khi chia file theo regex.
+        Kết quả: ([(chunk_str, size), ...], error_message_or_None)
+        """
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except Exception as e:
+            return [], f"Không thể đọc file: {str(e)}"
+
+        try:
+            matches = list(re.finditer(split_regex, content, re.MULTILINE))
+            if not matches:
+                return [], "Không tìm thấy điểm chia nào với regex đã cho"
+
+            split_points = []
+            for match in matches:
+                point = match.end() if split_position == "after" else match.start()
+                split_points.append(point)
+
+            # Add start and end
+            split_points.insert(0, 0)
+            split_points.append(len(content))
+
+            chunks = []
+            for i in range(len(split_points) - 1):
+                start = split_points[i]
+                end = split_points[i + 1]
+                chunk = content[start:end]
+                size = end - start
+                chunks.append((chunk, size))
+
+            return chunks, None
+
+        except re.error as e:
+            return [], f"Regex không hợp lệ: {str(e)}"
+        except Exception as e:
+            return [], f"Lỗi không xác định: {str(e)}"
 
     @staticmethod
     def _sanitize_filename(name: str) -> str:
