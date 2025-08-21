@@ -6,19 +6,19 @@ import renamer_logic as logic
 import json
 import threading
 import urllib.request
-import webbrowser
 from packaging.version import parse as parse_version
 from extensions import jjwxc_ext
 from extensions import po18_ext
 from text_operations import TextOperations
+from update import show_update_window, fetch_manifest_from_url
 import pythoncom
 
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.0.9"
+    CURRENT_VERSION = "0.1.0"
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
-        self.title("Rename Chapters v0.0.9")
+        self.title("Rename Chapters v0.1.0")
         self.geometry("1200x800")
 
         self.text_modified = tk.BooleanVar(value=False)
@@ -72,8 +72,9 @@ class RenamerApp(tk.Tk):
                 'replace': list(self.replace_text['values'])
             },
             'split_regex_history': list(self.split_regex['values']),
-            # THÊM MỚI: Lưu lịch sử định dạng tên file chia
-            'split_format_history': list(self.split_format_combobox['values'])
+            'split_format_history': list(self.split_format_combobox['values']),
+            'selected_file': self.selected_file.get(),
+            'split_position': self.split_position.get(),
         }
         try:
             with open('config.json', 'w', encoding='utf-8') as f:
@@ -87,8 +88,6 @@ class RenamerApp(tk.Tk):
             if os.path.exists('config.json'):
                 with open('config.json', 'r', encoding='utf-8') as f:
                     config_data = json.load(f)
-
-                # ... (các phần load khác giữ nguyên) ...
                 self.folder_path.set(config_data.get('folder_path', ''))
                 self.strategy.set(config_data.get('rename_strategy', 'content_first'))
                 
@@ -113,45 +112,82 @@ class RenamerApp(tk.Tk):
                 
                 self.split_regex['values'] = config_data.get('split_regex_history', [])
                 
-                # THÊM MỚI: Tải lịch sử định dạng tên file chia
                 split_format_history = config_data.get('split_format_history', [])
                 if not split_format_history: split_format_history = ["{num}.txt"]
                 self.split_format_combobox['values'] = split_format_history
                 self.split_format_combobox.set(split_format_history[0])
 
+                try:
+                    self.split_position.set(config_data.get('split_position', 'after'))
+                except Exception:
+                    pass
+
                 if self.folder_path.get():
                     self.schedule_preview_update()
-                
+                self.selected_file.set(config_data.get('selected_file', ''))
         except Exception as e:
             print(f"Không thể tải config: {e}")
             self.log("Không tìm thấy file config hoặc file bị lỗi. Sử dụng cài đặt mặc định.")
 
     def check_for_updates(self, manual_check=False):
-        """Kiểm tra phiên bản mới trong một thread riêng để không làm treo UI."""
+        """Kiểm tra phiên bản mới (thread riêng)."""
         def _check():
             try:
-                with urllib.request.urlopen(self.VERSION_CHECK_URL, timeout=5) as response:
-                    data = json.loads(response.read().decode())
-                
-                latest_version_str = data.get("version")
-                if not latest_version_str: return
+                manifest = None
+                # Thử fetch manifest từ remote (VERSION_CHECK_URL)
+                try:
+                    manifest = fetch_manifest_from_url(self.VERSION_CHECK_URL, timeout=10)
+                except Exception:
+                    manifest = None
 
-                if parse_version(latest_version_str) > parse_version(self.CURRENT_VERSION):
-                    notes = data.get("notes", "Không có chi tiết.")
-                    download_url = data.get("url")
-                    
-                    msg = f"Đã có phiên bản mới: {latest_version_str}\n\nNội dung cập nhật:\n{notes}\n\nBạn có muốn tải về ngay không?"
-                    if messagebox.askyesno("Có bản cập nhật!", msg):
-                        if download_url: webbrowser.open(download_url)
-                elif manual_check:
-                    messagebox.showinfo("Kiểm tra cập nhật", "Bạn đang sử dụng phiên bản mới nhất.")
+                # Nếu không lấy được manifest online, thử đọc local version.json (fallback)
+                if not manifest:
+                    try:
+                        with open('version.json', 'r', encoding='utf-8') as f:
+                            manifest = json.load(f)
+                        # Nếu local manifest có notes_file local path, đọc nội dung luôn
+                        nf = manifest.get('notes_file')
+                        if nf and not manifest.get('notes'):
+                            if isinstance(nf, str) and nf.lower().startswith(('http://', 'https://')):
+                                try:
+                                    with urllib.request.urlopen(nf, timeout=6) as r:
+                                        manifest['notes'] = r.read().decode('utf-8')
+                                except Exception:
+                                    manifest['notes'] = ''
+                            else:
+                                try:
+                                    with open(nf, 'r', encoding='utf-8') as nfobj:
+                                        manifest['notes'] = nfobj.read()
+                                except Exception:
+                                    manifest['notes'] = ''
+                    except Exception:
+                        manifest = None
 
+                if not manifest:
+                    if manual_check:
+                        self.after(0, lambda: messagebox.showinfo("Kiểm tra cập nhật", "Không lấy được thông tin cập nhật (mất kết nối hoặc manifest không hợp lệ)."))
+                    return
+
+                latest_version_str = manifest.get("version")
+                download_url = manifest.get("url")
+
+                if latest_version_str and parse_version(latest_version_str) > parse_version(self.CURRENT_VERSION):
+                    try:
+                        self.save_config()
+                    except Exception:
+                        pass
+                    # show update window (manifest already contains 'notes' if available)
+                    try:
+                        self.after(0, lambda: show_update_window(self, manifest))
+                    except Exception:
+                        self.after(0, lambda: messagebox.showinfo("Cập nhật", f"Phát hiện phiên bản {latest_version_str}. Tải: {download_url}"))
+                else:
+                    if manual_check:
+                        self.after(0, lambda: messagebox.showinfo("Kiểm tra cập nhật", "Bạn đang sử dụng phiên bản mới nhất."))
             except Exception as e:
                 print(f"Lỗi kiểm tra cập nhật: {e}")
                 if manual_check:
-                    messagebox.showerror("Lỗi", "Không thể kiểm tra cập nhật. Vui lòng kiểm tra kết nối mạng.")
-        
-        # Chạy trong thread để không block UI
+                    self.after(0, lambda: messagebox.showerror("Lỗi", "Không thể kiểm tra cập nhật. Vui lòng kiểm tra kết nối mạng."))
         threading.Thread(target=_check, daemon=True).start()
 
     def create_widgets(self):
@@ -182,6 +218,7 @@ class RenamerApp(tk.Tk):
         notebook_frame = ttk.Frame(main_paned_window)
         self.notebook = ttk.Notebook(notebook_frame)
         self.notebook.pack(fill=tk.BOTH, expand=True)
+        self.notebook.bind("<<NotebookTabChanged>>", self._on_notebook_tab_changed)
         main_paned_window.add(notebook_frame, weight=3)
         
         self.create_rename_tab()
@@ -196,20 +233,17 @@ class RenamerApp(tk.Tk):
 
     def create_rename_tab(self):
         rename_tab = ttk.Frame(self.notebook, padding="10")
-        self.notebook.add(rename_tab, text="Đổi Tên File")
+        self.notebook.add(rename_tab, text="Đổi Tên")
         rename_tab.columnconfigure(0, weight=1)
-        rename_tab.rowconfigure(0, weight=1)
+        rename_tab.rowconfigure(1, weight=1)
 
         rename_paned_window = ttk.PanedWindow(rename_tab, orient=tk.VERTICAL)
-        rename_paned_window.grid(row=0, column=0, sticky="nsew")
+        rename_paned_window.grid(row=0, column=0, sticky="nsew", rowspan=2)
 
-        top_pane_frame = ttk.Frame(rename_paned_window)
-        top_pane_frame.columnconfigure(0, weight=1)
-        rename_paned_window.add(top_pane_frame, weight=1)
-
-        options_frame = ttk.LabelFrame(top_pane_frame, text="2. Tùy chọn", padding="10")
-        options_frame.grid(row=0, column=0, sticky="ew")
-        options_frame.grid_columnconfigure(1, weight=1)
+        # Options frame in top pane
+        options_frame = ttk.LabelFrame(rename_paned_window, text="2. Tùy chọn", padding="10")
+        rename_paned_window.add(options_frame, weight=1)
+        options_frame.columnconfigure(1, weight=1)
         
         self.strategy = tk.StringVar(value="content_first")
         ttk.Radiobutton(options_frame, text="Ưu tiên nội dung", variable=self.strategy, value="content_first", command=self.schedule_preview_update).grid(row=0, column=0, sticky="w", padx=5)
@@ -223,21 +257,22 @@ class RenamerApp(tk.Tk):
         ttk.Label(options_frame, text="(Dùng {num}, {title}, và {num + n} hoặc {num - n})").grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
         
         ttk.Label(options_frame, text="Regex (tên file):").grid(row=3, column=0, sticky="nw", padx=5, pady=(10, 5))
-        self.filename_regex_text = tk.Text(options_frame, height=3, wrap=tk.WORD, undo=True)
+        self.filename_regex_text = tk.Text(options_frame, height=2, wrap=tk.WORD, undo=True)  # Giảm chiều cao từ 3 xuống 2
         self.filename_regex_text.grid(row=3, column=1, sticky="we", padx=5)
         self.filename_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
         ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=3, column=2, sticky="n", padx=(0, 5), pady=(10, 0))
         ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=4, column=1, sticky="w", padx=5)
 
         ttk.Label(options_frame, text="Regex (nội dung):").grid(row=5, column=0, sticky="nw", padx=5, pady=5)
-        self.content_regex_text = tk.Text(options_frame, height=3, wrap=tk.WORD, undo=True)
+        self.content_regex_text = tk.Text(options_frame, height=2, wrap=tk.WORD, undo=True)  # Giảm chiều cao từ 3 xuống 2
         self.content_regex_text.grid(row=5, column=1, sticky="we", padx=5, pady=5)
         self.content_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
         ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=5, column=2, sticky="n", padx=(0, 5), pady=(5, 0))
         ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=6, column=1, sticky="w", padx=5)
 
-        custom_title_frame = ttk.LabelFrame(top_pane_frame, text="3. Sử dụng tiêu đề tùy chỉnh (Tùy chọn)", padding=10)
-        custom_title_frame.grid(row=1, column=0, sticky="ew", pady=5)
+        # Custom title frame
+        custom_title_frame = ttk.LabelFrame(rename_paned_window, text="3. Sử dụng tiêu đề tùy chỉnh (Tùy chọn)", padding=10)
+        rename_paned_window.add(custom_title_frame, weight=1)
         custom_title_frame.columnconfigure(0, weight=1)
         custom_title_frame.rowconfigure(1, weight=1)
 
@@ -247,23 +282,30 @@ class RenamerApp(tk.Tk):
         self.custom_titles_text = scrolledtext.ScrolledText(custom_title_frame, height=5, wrap=tk.WORD, undo=True)
         self.custom_titles_text.grid(row=1, column=0, columnspan=2, sticky="ewns", pady=(5,0))
         
+        # Preview frame
         preview_frame = ttk.LabelFrame(rename_paned_window, text="4. Xem trước và Hành động", padding="10")
-        preview_frame.columnconfigure(0, weight=1); preview_frame.rowconfigure(1, weight=1)
         rename_paned_window.add(preview_frame, weight=3)
+        preview_frame.columnconfigure(0, weight=1)
+        preview_frame.rowconfigure(1, weight=1)
 
         actions_bar = ttk.Frame(preview_frame)
         actions_bar.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         ttk.Label(actions_bar, text="Tìm kiếm:").pack(side=tk.LEFT, padx=(0, 5))
         self.search_var = tk.StringVar()
-        # SỬA LỖI: Xóa undo=True khỏi ttk.Entry
         search_entry = ttk.Entry(actions_bar, textvariable=self.search_var)
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         search_entry.bind("<KeyRelease>", self._search_files)
         ttk.Button(actions_bar, text="Loại trừ file đã chọn", command=lambda: self._toggle_exclusion(exclude=True)).pack(side=tk.LEFT, padx=5)
         ttk.Button(actions_bar, text="Bao gồm lại", command=lambda: self._toggle_exclusion(exclude=False)).pack(side=tk.LEFT, padx=5)
-
+        ttk.Button(actions_bar, text="BẮT ĐẦU ĐỔI TÊN", command=self.start_renaming).pack(side=tk.LEFT, padx=5)
         cols = ("Trạng thái", "Tên file gốc", "Số (tên file)", "Số (nội dung)", "Tên file mới")
         self.tree = ttk.Treeview(preview_frame, columns=cols, show='headings', selectmode='extended')
+
+        # Map item_id -> full filepath để dùng khi double-click
+        self.tree_filepaths = {}
+        # Bind double-click để mở xem file
+        self.tree.bind("<Double-1>", self._open_preview_from_rename)
+
         
         self.tree.grid(row=1, column=0, sticky="nsew")
         self.tree.tag_configure("excluded", foreground="red")
@@ -273,8 +315,6 @@ class RenamerApp(tk.Tk):
         vsb = ttk.Scrollbar(preview_frame, orient="vertical", command=self.tree.yview)
         vsb.grid(row=1, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=vsb.set)
-        
-        ttk.Button(rename_tab, text="BẮT ĐẦU ĐỔI TÊN", command=self.start_renaming).grid(row=1, column=0, pady=10, ipady=5)
 
     def show_regex_guide(self, guide_type="rename"):
         help_window = tk.Toplevel(self)
@@ -423,19 +463,20 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     def create_credit_tab(self):
         credit_tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(credit_tab, text="Thêm Credit")
-        credit_tab.rowconfigure(1, weight=1)
-        credit_tab.columnconfigure(1, weight=1)
+        credit_tab.columnconfigure(0, weight=1)
+        credit_tab.rowconfigure(0, weight=1)
 
-        # --- Frame tùy chọn credit ---
-        credit_options_frame = ttk.LabelFrame(credit_tab, text="2. Tùy chọn & Hành động", padding="10")
-        credit_options_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        credit_paned = ttk.PanedWindow(credit_tab, orient=tk.VERTICAL)
+        credit_paned.grid(row=0, column=0, sticky="nsew")
+
+        credit_options_frame = ttk.LabelFrame(credit_paned, text="2. Tùy chọn & Hành động", padding="10")
+        credit_paned.add(credit_options_frame, weight=1)
         credit_options_frame.columnconfigure(1, weight=1)
 
-        # Nội dung credit - Dùng Text widget
         ttk.Label(credit_options_frame, text="Nội dung credit:").grid(row=0, column=0, sticky="nw", padx=5, pady=5)
         self.credit_text_widget = tk.Text(credit_options_frame, height=4, wrap=tk.WORD, undo=True)
         self.credit_text_widget.grid(row=0, column=1, columnspan=2, sticky="ew", padx=5, pady=5)
-        self.credit_text_widget.insert("1.0", "Được convert bởi XYZ") # Giá trị mặc định
+        self.credit_text_widget.insert("1.0", "Được convert bởi XYZ")  # Giá trị mặc định
 
         ttk.Label(credit_options_frame, text="Vị trí thêm:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.credit_position = tk.StringVar(value="top")
@@ -449,19 +490,21 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.line_num_spinbox = ttk.Spinbox(pos_frame, from_=1, to=999, textvariable=self.credit_line_num, width=5, state="disabled")
         self.line_num_spinbox.pack(side=tk.LEFT)
 
-        # Thêm Combobox để chọn file xem trước ngay tại tab này
+        # Đưa nút "Xem trước" và "Áp dụng cho tất cả file" cùng hàng với "Xem trước cho file"
         ttk.Label(credit_options_frame, text="Xem trước cho file:").grid(row=2, column=0, sticky="w", padx=5, pady=(10, 5))
         self.credit_file_selector = ttk.Combobox(credit_options_frame, state="readonly")
         self.credit_file_selector.grid(row=2, column=1, sticky="ew", padx=5, pady=(10, 5))
+        button_frame = ttk.Frame(credit_options_frame)
+        button_frame.grid(row=2, column=2, sticky="e", padx=5, pady=(10, 5))
+        ttk.Button(button_frame, text="XEM TRƯỚC", command=self.preview_credit).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="ÁP DỤNG CHO TẤT CẢ FILE", command=self.apply_credit_to_all).pack(side=tk.LEFT)
 
-        # Đặt các nút hành động vào chung một frame
-        action_frame = ttk.Frame(credit_options_frame)
-        action_frame.grid(row=3, column=0, columnspan=3, pady=(10, 0))
-        ttk.Button(action_frame, text="Xem trước", command=self.preview_credit).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="ÁP DỤNG CHO TẤT CẢ FILE", command=self.apply_credit_to_all).pack(side=tk.LEFT, padx=5)
+        # Initialize self.credit_preview_text
+        credit_preview_frame = ttk.LabelFrame(credit_paned, text="3. Xem trước nội dung", padding="10")
+        credit_paned.add(credit_preview_frame, weight=12)
+        credit_preview_frame.columnconfigure(0, weight=1)
+        credit_preview_frame.rowconfigure(0, weight=1)
 
-        credit_preview_frame = ttk.LabelFrame(credit_tab, text="3. Xem trước nội dung", padding="10")
-        credit_preview_frame.grid(row=1, column=0, columnspan=2, sticky="nsew")
         self.credit_preview_text = scrolledtext.ScrolledText(credit_preview_frame, wrap=tk.WORD, state="disabled")
         self.credit_preview_text.pack(fill=tk.BOTH, expand=True)
 
@@ -469,27 +512,33 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         online_tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(online_tab, text="Lấy Tiêu Đề Online")
         online_tab.columnconfigure(0, weight=1)
-        online_tab.rowconfigure(1, weight=1)
+        online_tab.rowconfigure(0, weight=1)
 
-        fetch_frame = ttk.LabelFrame(online_tab, text="1. Nguồn", padding=10)
-        fetch_frame.grid(row=0, column=0, sticky="ew")
+        online_paned = ttk.PanedWindow(online_tab, orient=tk.VERTICAL)
+        online_paned.grid(row=0, column=0, sticky="nsew")
+
+        fetch_frame = ttk.LabelFrame(online_paned, text="1. Nguồn", padding=10)
+        online_paned.add(fetch_frame, weight=1)
         fetch_frame.columnconfigure(1, weight=1)
-        
+
         ttk.Label(fetch_frame, text="Trang web:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.source_web = ttk.Combobox(fetch_frame, values=["jjwxc.net", "po18.tw"], state="readonly")
         self.source_web.grid(row=0, column=1, sticky="ew", padx=5)
         self.source_web.set("jjwxc.net")
-        
+
+        # Đưa nút "Bắt đầu lấy dữ liệu" cùng hàng với "URL mục lục"
         ttk.Label(fetch_frame, text="URL mục lục:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.source_url = tk.StringVar()
-        # SỬA LỖI: Xóa undo=True khỏi ttk.Entry
-        ttk.Entry(fetch_frame, textvariable=self.source_url).grid(row=1, column=1, sticky="ew", padx=5)
-        
-        ttk.Button(fetch_frame, text="Bắt đầu lấy dữ liệu", command=self._fetch_online_titles).grid(row=2, column=1, sticky="e", pady=5, padx=5)
+        url_frame = ttk.Frame(fetch_frame)
+        url_frame.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        ttk.Entry(url_frame, textvariable=self.source_url).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(url_frame, text="Bắt đầu lấy dữ liệu", command=self._fetch_online_titles).pack(side=tk.LEFT, padx=5)
 
-        result_frame = ttk.LabelFrame(online_tab, text="2. Kết quả", padding=10)
-        result_frame.grid(row=1, column=0, sticky="nsew", pady=5)
-        result_frame.columnconfigure(0, weight=1); result_frame.rowconfigure(0, weight=1)
+        # Result frame
+        result_frame = ttk.LabelFrame(online_paned, text="2. Kết quả", padding=10)
+        online_paned.add(result_frame, weight=3)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
         
         cols = ("Số chương", "Tiêu đề chính", "Tiêu đề phụ/Tóm tắt")
         self.online_tree = ttk.Treeview(result_frame, columns=cols, show='headings', selectmode='extended')
@@ -506,7 +555,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         ttk.Label(apply_frame, text="Chọn nhanh theo khoảng:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.online_range_var = tk.StringVar()
-        # SỬA LỖI: Xóa undo=True khỏi ttk.Entry
+
         range_entry = ttk.Entry(apply_frame, textvariable=self.online_range_var)
         range_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
         ttk.Button(apply_frame, text="Chọn", command=self._select_online_range).grid(row=0, column=2, sticky="w", padx=5, pady=5)
@@ -532,7 +581,10 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Entry(file_frame, textvariable=self.selected_file, state="readonly").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         ttk.Button(file_frame, text="Chọn...", command=self._select_file_for_ops).pack(side=tk.LEFT)
 
-        ops_notebook = ttk.Notebook(text_ops_tab)
+        # Simplify: Remove automatic file loading logic
+        self.ops_notebook = ttk.Notebook(text_ops_tab)
+        ops_notebook = self.ops_notebook
+
         ops_notebook.grid(row=1, column=0, sticky="nsew")
 
         # Find/Replace sub-tab
@@ -547,14 +599,16 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
     def _create_find_replace_widgets(self, parent):
         parent.columnconfigure(0, weight=1)
-        parent.rowconfigure(1, weight=1) # Thay đổi row index
+        parent.rowconfigure(0, weight=1)
 
-        # ĐÃ XÓA VÙNG CHỌN FILE KHỎI ĐÂY
-
-        options_frame = ttk.LabelFrame(parent, text="1. Tùy chọn", padding="10") # Đổi số thứ tự
-        options_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10)) # Thay đổi row index
-
-        # ... (code bên trong options_frame không thay đổi)
+        # Tạo PanedWindow chính theo chiều dọc
+        main_paned = ttk.PanedWindow(parent, orient=tk.VERTICAL)
+        main_paned.grid(row=0, column=0, sticky="nsew")
+        
+        # Frame cho phần tùy chọn 
+        options_frame = ttk.LabelFrame(main_paned, text="1. Tùy chọn", padding="10")
+        main_paned.add(options_frame, weight=0)
+        
         find_frame = ttk.Frame(options_frame)
         find_frame.pack(fill=tk.X)
         ttk.Label(find_frame, text="Tìm:      ").pack(side=tk.LEFT)
@@ -579,8 +633,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Checkbutton(opts_frame, text="Tìm ngược lên", variable=self.search_up).pack(side=tk.LEFT, padx=5)
 
 
-        content_frame = ttk.LabelFrame(parent, text="2. Nội dung & Hành động", padding="10") # Đổi số thứ tự
-        content_frame.grid(row=1, column=0, sticky="nsew") # Thay đổi row index
+        # Frame cho phần nội dung 
+        content_frame = ttk.LabelFrame(main_paned, text="2. Nội dung & Hành động", padding="10")
+        main_paned.add(content_frame, weight=1)
         content_frame.rowconfigure(0, weight=1)
         content_frame.columnconfigure(0, weight=1)
 
@@ -598,9 +653,18 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Button(button_grid_frame, text="Lưu thành file mới...", command=self._save_as).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
         ttk.Button(button_grid_frame, text="Hoàn tác", command=self.text_content.edit_undo).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
         ttk.Button(button_grid_frame, text="Làm lại", command=self.text_content.edit_redo).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5,0))
+    
     def _create_split_widgets(self, parent):
-        options_frame = ttk.LabelFrame(parent, text="1. Tùy chọn chia file", padding="10") # Đổi số thứ tự
-        options_frame.pack(fill=tk.X, pady=(0, 10))
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(0, weight=1)
+
+        # Tạo PanedWindow chính theo chiều dọc
+        main_paned = ttk.PanedWindow(parent, orient=tk.VERTICAL)
+        main_paned.grid(row=0, column=0, sticky="nsew")
+
+        # Frame cho tùy chọn chia file
+        options_frame = ttk.LabelFrame(main_paned, text="1. Tùy chọn chia file", padding="10")
+        main_paned.add(options_frame, weight=0)
         options_frame.columnconfigure(1, weight=1)
 
         ttk.Label(options_frame, text="Regex chia file:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
@@ -612,21 +676,30 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.split_format_combobox = ttk.Combobox(options_frame)
         self.split_format_combobox.grid(row=1, column=1, sticky="ew")
         self.split_format_combobox.set("part_{num}.txt")
-        # THAY ĐỔI: Cập nhật text hướng dẫn cho tính năng mới
         ttk.Label(options_frame, text="(Dùng {num}, {num+n}, {num-n})").grid(row=1, column=2, padx=5)
 
         pos_frame = ttk.Frame(options_frame)
-        pos_frame.grid(row=2, column=0, columnspan=3, sticky="w", padx=5, pady=5)
+        pos_frame.grid(row=2, column=0, columnspan=2, sticky="w", padx=5, pady=5)
         self.split_position = tk.StringVar(value="after")
         ttk.Radiobutton(pos_frame, text="Chia sau regex", variable=self.split_position, value="after").pack(side=tk.LEFT, padx=5)
         ttk.Radiobutton(pos_frame, text="Chia trước regex", variable=self.split_position, value="before").pack(side=tk.LEFT, padx=5)
 
-        preview_frame = ttk.LabelFrame(parent, text="2. Xem trước kết quả chia", padding="10") # Đổi số thứ tự
-        preview_frame.pack(fill=tk.BOTH, expand=True)
+        # Tạo frame riêng cho 2 nút ở cột 2
+        button_frame = ttk.Frame(options_frame)
+        button_frame.grid(row=2, column=2, sticky="e", padx=5, pady=5)
+
+        ttk.Button(button_frame, text="Xem trước", command=self._preview_split).grid(row=0, column=0, padx=2)
+        ttk.Button(button_frame, text="BẮT ĐẦU CHIA FILE", command=self._execute_split).grid(row=0, column=1, padx=2)
+
+
+        # Frame cho xem trước kết quả 
+        preview_frame = ttk.LabelFrame(main_paned, text="2. Xem trước kết quả chia", padding="10")
+        main_paned.add(preview_frame, weight=1)
 
         cols = ("STT", "Nội dung bắt đầu", "Kích thước")
         self.split_tree = ttk.Treeview(preview_frame, columns=cols, show='headings')
         self.split_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.split_tree.bind("<Double-1>", self._open_preview_file)  # Bind double-click to open preview
 
         for col, width in zip(cols, [50, 400, 100]):
             self.split_tree.heading(col, text=col)
@@ -635,13 +708,48 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         vsb = ttk.Scrollbar(preview_frame, orient="vertical", command=self.split_tree.yview)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
         self.split_tree.configure(yscrollcommand=vsb.set)
+    
+    
+    def _open_preview_file(self, event):
+        """Open a new window to display the content of the selected preview file."""
+        selected_item = self.split_tree.selection()
+        if not selected_item:
+            return
 
-        btn_frame = ttk.Frame(parent)
-        btn_frame.pack(fill=tk.X, pady=10)
-        btn_frame.columnconfigure(0, weight=1)
-        btn_frame.columnconfigure(1, weight=1)
-        ttk.Button(btn_frame, text="Xem trước", command=self._preview_split).grid(row=0, column=0, sticky="e", padx=(0,5))
-        ttk.Button(btn_frame, text="Bắt đầu chia file", command=self._execute_split).grid(row=0, column=1, sticky="w", padx=(5,0))
+        item_data = self.split_tree.item(selected_item[0], 'values')
+        if not item_data:
+            return
+
+        try:
+            file_index = int(item_data[0]) - 1  # Get the file index from the first column
+        except Exception:
+            messagebox.showerror("Lỗi", "Dữ liệu hàng không hợp lệ.")
+            return
+
+        filepath = self.selected_file.get()
+        regex = self.split_regex.get()
+        name_format = self.split_format_combobox.get()
+
+        # Lấy toàn bộ các phần (full chunks) thay vì chỉ preview
+        chunks, error = TextOperations.get_split_chunks(filepath, regex, self.split_position.get())
+        if error or file_index >= len(chunks):
+            messagebox.showerror("Lỗi", "Không thể mở nội dung file.")
+            return
+
+        # chunks[i] = (full_chunk_string, size)
+        file_content = chunks[file_index][0]
+        file_name = name_format.format(num=file_index + 1)
+
+        # Create a new window to display the content
+        preview_window = tk.Toplevel(self)
+        preview_window.title(f"Xem trước: {file_name}")
+        preview_window.geometry("800x600")
+
+        text_widget = scrolledtext.ScrolledText(preview_window, wrap=tk.WORD, state="normal")
+        text_widget.pack(fill=tk.BOTH, expand=True)
+        text_widget.insert("1.0", file_content)
+        text_widget.config(state="disabled")
+
     def _mark_text_as_modified(self, event=None):
         """Được gọi khi text widget được sửa đổi. Đặt cờ 'modified'."""
         if self.text_content.edit_modified():
@@ -669,16 +777,22 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 messagebox.showinfo("Thành công", f"Đã lưu file thành công:\n{new_filepath}")
             except Exception as e:
                 messagebox.showerror("Lỗi", f"Không thể lưu file: {str(e)}")
-    def _select_file_for_ops(self):
-        filepath = filedialog.askopenfilename(
-            title="Chọn file cần xử lý",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
-        )
+    def _select_file_for_ops(self, filepath=None):
+        """Chọn file cần xử lý hoặc mở file được chỉ định."""
+        if not filepath:
+            filepath = filedialog.askopenfilename(
+                title="Chọn file cần xử lý",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+            )
         if filepath:
             if self.text_modified.get():
-                response = messagebox.askyesnocancel( "Lưu thay đổi?", "File hiện tại đã bị thay đổi. Bạn có muốn lưu lại trước khi mở file mới không?")
+                response = messagebox.askyesnocancel(
+                    "Lưu thay đổi?",
+                    "File hiện tại đã bị thay đổi. Bạn có muốn lưu lại trước khi mở file mới không?"
+                )
                 if response is True:
-                    if not self._save_changes(): return
+                    if not self._save_changes():
+                        return
                 elif response is None:
                     return
 
@@ -694,11 +808,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     self.log(f"Đã mở file '{os.path.basename(filepath)}' để xử lý văn bản.")
                     self.text_content.mark_set(tk.INSERT, "1.0")
                     self.text_content.focus_set()
-                    
-                    # THÊM MỚI: Xóa kết quả xem trước cũ của tab chia file
                     self.split_tree.delete(*self.split_tree.get_children())
+                    self._last_loaded_file = filepath
             except Exception as e:
                 messagebox.showerror("Lỗi", f"Không thể đọc file: {e}")
+
     def _find_next(self):
         find_what = self.find_text.get()
         if not find_what:
@@ -837,8 +951,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             messagebox.showerror("Lỗi Regex", error)
             return
         
-        for i, (start_content, size) in enumerate(preview_data):
-            self.split_tree.insert("", "end", values=(i + 1, start_content, f"{size} bytes"))
+        for i, (content, size) in enumerate(preview_data):
+            # Hiển thị nội dung đầy đủ thay vì chỉ hiển thị kích thước
+            self.split_tree.insert("", "end", values=(i + 1, content.strip(), f"{size} bytes"))
         self.log(f"Xem trước chia file '{os.path.basename(filepath)}' thành {len(preview_data)} phần.")
 
     def _execute_split(self):
@@ -1006,6 +1121,24 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         history.insert(0, current_value)
         combobox['values'] = history[:max_history]
     
+    def _on_notebook_tab_changed(self, event=None):
+        """Khi user chuyển tab: nếu chuyển tới tab 'Xử lý Văn bản' và có selected_file hợp lệ
+        thì tự động load file đó (không hiện dialog)."""
+        try:
+            tab_id = self.notebook.select()
+            tab_text = self.notebook.tab(tab_id, 'text')
+            if tab_text == "Xử lý Văn bản":
+                filepath = self.selected_file.get()
+                if filepath and os.path.isfile(filepath):
+                    # tránh load lại cùng file nhiều lần
+                    if getattr(self, "_last_loaded_file", "") != filepath:
+                        self._select_file_for_ops(filepath=filepath)
+                        self._last_loaded_file = filepath
+                # nếu không có file hợp lệ thì không làm gì (user có thể bấm Chọn... để mở)
+        except Exception as e:
+            # phòng khi notebook chưa sẵn sàng hoặc lỗi khác
+            print(f"Lỗi trong _on_notebook_tab_changed: {e}")
+
     def _sort_files(self):
         """Sắp xếp danh sách file theo số chương và lưu vào cache."""
         def get_sort_key(analysis):
@@ -1062,13 +1195,22 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         new_name = self._generate_preview_name(analysis, index)
         tags = ("excluded",) if analysis['filename'] in self.excluded_files else ()
         status = "Loại trừ" if analysis['filename'] in self.excluded_files else "OK"
-        self.tree.insert("", "end", values=(
+        item_id = self.tree.insert("", "end", values=(
             status,
             analysis['filename'],
             analysis['from_filename']['num'] or "N/A",
             analysis['from_content']['num'] or "N/A",
             new_name
         ), tags=tags)
+
+        # Lưu đường dẫn đầy đủ để dùng cho preview/chỉnh sửa
+        try:
+            folder = self.folder_path.get()
+            fullpath = os.path.join(folder, analysis['filename'])
+        except Exception:
+            fullpath = analysis.get('filename', '')
+        self.tree_filepaths[item_id] = fullpath
+
 
     def _generate_preview_name(self, analysis: dict, index: int) -> str:
         custom_titles = self.custom_titles_text.get("1.0", tk.END).strip().split('\n') if self.use_custom_titles.get() else None
@@ -1108,7 +1250,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
     def _update_online_tree(self, result):
         self.online_tree.delete(*self.online_tree.get_children())
-        # THAY THẾ BẰNG KHỐI NÀY
         if 'error' in result:
             error_msg = result['error']
             self.log(f"Lỗi: {error_msg}")
@@ -1175,6 +1316,82 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         except (ValueError, IndexError):
             messagebox.showerror("Lỗi cú pháp", "Cú pháp không hợp lệ. Hãy dùng các dạng như: '1-10', '-50', '100-', 'all', hoặc '5'.")
+    
+    def _open_preview_from_rename(self, event):
+        """Mở cửa sổ xem file khi double-click ở tab Đổi Tên."""
+        selected = self.tree.selection()
+        if not selected:
+            return
+        item = selected[0]
+        filepath = self.tree_filepaths.get(item)
+        if not filepath:
+            # fallback lấy tên từ cột 2
+            try:
+                filename = self.tree.item(item, 'values')[1]
+                filepath = os.path.join(self.folder_path.get(), filename)
+            except Exception:
+                messagebox.showerror("Lỗi", "Không xác định được đường dẫn file.")
+                return
+
+        if not os.path.isfile(filepath):
+            messagebox.showerror("Lỗi", f"Không tìm thấy file:\n{filepath}")
+            return
+
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể đọc file: {e}")
+            return
+
+        preview_window = tk.Toplevel(self)
+        preview_window.title(os.path.basename(filepath))
+        preview_window.geometry("800x600")
+
+        txt = scrolledtext.ScrolledText(preview_window, wrap=tk.WORD)
+        txt.pack(fill=tk.BOTH, expand=True)
+        txt.insert("1.0", content)
+        txt.config(state="disabled")
+
+        # Nút Chỉnh sửa — đặt giữa cửa sổ
+        btn_frame = ttk.Frame(preview_window)
+        # Không fill theo chiều X, để nội dung nằm giữa; nếu muốn có khoảng ngang rộng hơn, dùng fill=tk.X và thêm pady
+        btn_frame.pack(fill=tk.X, pady=10)
+
+        # Tạo một frame con để đảm bảo nút nằm chính giữa theo chiều ngang
+        center_frame = ttk.Frame(btn_frame)
+        center_frame.pack(anchor='center')  # => mọi widget con sẽ nằm ở giữa
+
+        edit_btn = ttk.Button(center_frame, text="Chỉnh sửa",
+                              command=lambda: [preview_window.destroy(), self._jump_to_text_ops_and_load(filepath)])
+        edit_btn.pack()  # pack mặc định đặt nút ở giữa của center_frame
+
+    def _jump_to_text_ops_and_load(self, filepath):
+        """Chuyển sang tab Xử lý Văn bản -> Tìm & Thay thế và load file để chỉnh sửa."""
+        # 1) chọn tab Xử lý Văn bản
+        for tab_id in self.notebook.tabs():
+            if self.notebook.tab(tab_id, 'text') == "Xử lý Văn bản":
+                self.notebook.select(tab_id)
+                break
+
+        # 2) chọn sub-tab Tìm & Thay thế (giả sử tab thứ nhất trong ops_notebook là Find&Replace)
+        try:
+            # đảm bảo ops_notebook được lưu tới self.ops_notebook ở create_text_operations_tab
+            if hasattr(self, 'ops_notebook'):
+                # tìm tab index text == "Tìm & Thay thế"
+                for t in self.ops_notebook.tabs():
+                    if self.ops_notebook.tab(t, 'text') == "Tìm & Thay thế":
+                        self.ops_notebook.select(t)
+                        break
+                # nếu ko tìm thấy, chọn tab 0
+            else:
+                # fallback: cố gắng chọn tab 0
+                pass
+        except Exception:
+            pass
+
+        # 3) set selected_file và load file (không show dialog)
+        self._select_file_for_ops(filepath=filepath)
 
 if __name__ == "__main__":
     app = RenamerApp()

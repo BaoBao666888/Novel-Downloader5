@@ -7,4 +7,5 @@ __pycache__/
 rename_chapters/config.json
 rename_chapters/po18_cookies.json
 rename_chapters/.ghichu.txt
+rename_chapters/local/
 *.iss
