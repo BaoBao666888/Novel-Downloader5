@@ -6,7 +6,6 @@ import tempfile
 import urllib.request
 import subprocess
 import re
-import html
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import tkinter.font as tkfont
