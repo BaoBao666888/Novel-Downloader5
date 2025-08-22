@@ -162,15 +162,15 @@ class RenamerApp(tk.Tk):
             try:
                 manifest = None
                 # Thử fetch manifest từ remote (VERSION_CHECK_URL)
-                # try:
-                #     manifest = fetch_manifest_from_url(self.VERSION_CHECK_URL, timeout=10)
-                # except Exception:
-                #     manifest = None
+                try:
+                    manifest = fetch_manifest_from_url(self.VERSION_CHECK_URL, timeout=10)
+                except Exception:
+                    manifest = None
 
                 # Nếu không lấy được manifest online, thử đọc local version.json (fallback)
                 if not manifest:
                     try:
-                        with open('./local/version.json', 'r', encoding='utf-8') as f:
+                        with open('version.json', 'r', encoding='utf-8') as f:
                             manifest = json.load(f)
                         # Nếu local manifest có notes_file local path, đọc nội dung luôn
                         nf = manifest.get('notes_file')
