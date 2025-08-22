@@ -1,5 +1,7 @@
 # main_ui.py
 import os
+import re
+import tkinter.font as tkfont
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import renamer_logic as logic
@@ -14,11 +16,11 @@ from update import show_update_window, fetch_manifest_from_url
 import pythoncom
 
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.1.0"
+    CURRENT_VERSION = "0.1.1"
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
-        self.title("Rename Chapters v0.1.0")
+        self.title("Rename Chapters v0.1.1")
         self.geometry("1200x800")
 
         self.text_modified = tk.BooleanVar(value=False)
@@ -33,6 +35,10 @@ class RenamerApp(tk.Tk):
 
         self.find_replace_history = []
         self.split_regex_history = []
+
+        self.sort_strategy = tk.StringVar(value="content")
+        self.combine_titles_var = tk.BooleanVar(value=False)
+        self.title_format_var = tk.StringVar(value="{t1} - {t2}")
 
         self.create_widgets()
         self.load_config()
@@ -60,6 +66,7 @@ class RenamerApp(tk.Tk):
         config_data = {
             'folder_path': self.folder_path.get(),
             'rename_strategy': self.strategy.get(),
+            'sort_strategy': self.sort_strategy.get(), # THÊM
             'rename_format': self.format_combobox.get(),
             'rename_format_history': list(self.format_combobox['values']),
             'filename_regexes': self.filename_regex_text.get("1.0", tk.END).strip(),
@@ -75,6 +82,8 @@ class RenamerApp(tk.Tk):
             'split_format_history': list(self.split_format_combobox['values']),
             'selected_file': self.selected_file.get(),
             'split_position': self.split_position.get(),
+            'combine_titles': self.combine_titles_var.get(),
+            'title_format': self.title_format_var.get(),
         }
         try:
             with open('config.json', 'w', encoding='utf-8') as f:
@@ -90,6 +99,7 @@ class RenamerApp(tk.Tk):
                     config_data = json.load(f)
                 self.folder_path.set(config_data.get('folder_path', ''))
                 self.strategy.set(config_data.get('rename_strategy', 'content_first'))
+                self.sort_strategy.set(config_data.get('sort_strategy', 'content')) # THÊM
                 
                 format_history = config_data.get('rename_format_history', [])
                 if not format_history: format_history = ["Chương {num} - {title}.txt"]
@@ -121,6 +131,9 @@ class RenamerApp(tk.Tk):
                     self.split_position.set(config_data.get('split_position', 'after'))
                 except Exception:
                     pass
+                
+                self.combine_titles_var.set(config_data.get('combine_titles', False))
+                self.title_format_var.set(config_data.get('title_format', '{t1} - {t2}'))
 
                 if self.folder_path.get():
                     self.schedule_preview_update()
@@ -128,7 +141,6 @@ class RenamerApp(tk.Tk):
         except Exception as e:
             print(f"Không thể tải config: {e}")
             self.log("Không tìm thấy file config hoặc file bị lỗi. Sử dụng cài đặt mặc định.")
-
     def check_for_updates(self, manual_check=False):
         """Kiểm tra phiên bản mới (thread riêng)."""
         def _check():
@@ -203,6 +215,7 @@ class RenamerApp(tk.Tk):
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Trợ giúp", menu=help_menu)
         help_menu.add_command(label="Hướng dẫn Regex", command=lambda: self.show_regex_guide("general"))
+        help_menu.add_command(label="Hướng dẫn thao tác", command=self.show_operation_guide)
         help_menu.add_separator()
         help_menu.add_command(label="Kiểm tra cập nhật...", command=lambda: self.check_for_updates(manual_check=True))
 
@@ -244,10 +257,30 @@ class RenamerApp(tk.Tk):
         options_frame = ttk.LabelFrame(rename_paned_window, text="2. Tùy chọn", padding="10")
         rename_paned_window.add(options_frame, weight=1)
         options_frame.columnconfigure(1, weight=1)
-        
+
+        # === KHU VỰC ĐƯỢC THAY ĐỔI ===
+        # Frame chính cho hàng tùy chọn đầu tiên
+        strategy_sort_frame = ttk.Frame(options_frame)
+        strategy_sort_frame.grid(row=0, column=0, columnspan=3, sticky="ew")
+        strategy_sort_frame.columnconfigure(0, weight=1)
+        strategy_sort_frame.columnconfigure(1, weight=1)
+
+        # Cột 1: Chọn nguồn lấy số chương
+        num_source_frame = ttk.Frame(strategy_sort_frame)
+        num_source_frame.grid(row=0, column=0, sticky="w")
+        ttk.Label(num_source_frame, text="Lấy số từ:").pack(side=tk.LEFT, padx=(0, 10))
         self.strategy = tk.StringVar(value="content_first")
-        ttk.Radiobutton(options_frame, text="Ưu tiên nội dung", variable=self.strategy, value="content_first", command=self.schedule_preview_update).grid(row=0, column=0, sticky="w", padx=5)
-        ttk.Radiobutton(options_frame, text="Ưu tiên tên file", variable=self.strategy, value="filename_first", command=self.schedule_preview_update).grid(row=0, column=1, sticky="w", padx=5)
+        ttk.Radiobutton(num_source_frame, text="Ưu tiên nội dung", variable=self.strategy, value="content_first", command=self.schedule_preview_update).pack(side=tk.LEFT)
+        ttk.Radiobutton(num_source_frame, text="Ưu tiên tên file", variable=self.strategy, value="filename_first", command=self.schedule_preview_update).pack(side=tk.LEFT, padx=(5,0))
+
+        # Cột 2: Chọn cách sắp xếp
+        sort_by_frame = ttk.Frame(strategy_sort_frame)
+        sort_by_frame.grid(row=0, column=1, sticky="w", padx=(20, 0))
+        ttk.Label(sort_by_frame, text="Sắp xếp theo số của:").pack(side=tk.LEFT, padx=(0, 10))
+        # self.sort_strategy đã được tạo trong __init__
+        ttk.Radiobutton(sort_by_frame, text="Nội dung", variable=self.sort_strategy, value="content", command=self._sort_and_refresh_ui).pack(side=tk.LEFT)
+        ttk.Radiobutton(sort_by_frame, text="Tên file", variable=self.sort_strategy, value="filename", command=self._sort_and_refresh_ui).pack(side=tk.LEFT, padx=(5,0))
+        # === KẾT THÚC THAY ĐỔI ===
         
         ttk.Label(options_frame, text="Cấu trúc mới:").grid(row=1, column=0, sticky="w", padx=5, pady=(10, 5))
         self.format_combobox = ttk.Combobox(options_frame, values=["Chương {num} - {title}.txt"])
@@ -257,20 +290,20 @@ class RenamerApp(tk.Tk):
         ttk.Label(options_frame, text="(Dùng {num}, {title}, và {num + n} hoặc {num - n})").grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
         
         ttk.Label(options_frame, text="Regex (tên file):").grid(row=3, column=0, sticky="nw", padx=5, pady=(10, 5))
-        self.filename_regex_text = tk.Text(options_frame, height=2, wrap=tk.WORD, undo=True)  # Giảm chiều cao từ 3 xuống 2
+        self.filename_regex_text = tk.Text(options_frame, height=2, wrap=tk.WORD, undo=True)
         self.filename_regex_text.grid(row=3, column=1, sticky="we", padx=5)
         self.filename_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
         ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=3, column=2, sticky="n", padx=(0, 5), pady=(10, 0))
         ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=4, column=1, sticky="w", padx=5)
 
         ttk.Label(options_frame, text="Regex (nội dung):").grid(row=5, column=0, sticky="nw", padx=5, pady=5)
-        self.content_regex_text = tk.Text(options_frame, height=2, wrap=tk.WORD, undo=True)  # Giảm chiều cao từ 3 xuống 2
+        self.content_regex_text = tk.Text(options_frame, height=2, wrap=tk.WORD, undo=True)
         self.content_regex_text.grid(row=5, column=1, sticky="we", padx=5, pady=5)
         self.content_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
         ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=5, column=2, sticky="n", padx=(0, 5), pady=(5, 0))
         ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=6, column=1, sticky="w", padx=5)
 
-        # Custom title frame
+        # Custom title frame (giữ nguyên)
         custom_title_frame = ttk.LabelFrame(rename_paned_window, text="3. Sử dụng tiêu đề tùy chỉnh (Tùy chọn)", padding=10)
         rename_paned_window.add(custom_title_frame, weight=1)
         custom_title_frame.columnconfigure(0, weight=1)
@@ -282,7 +315,7 @@ class RenamerApp(tk.Tk):
         self.custom_titles_text = scrolledtext.ScrolledText(custom_title_frame, height=5, wrap=tk.WORD, undo=True)
         self.custom_titles_text.grid(row=1, column=0, columnspan=2, sticky="ewns", pady=(5,0))
         
-        # Preview frame
+        # Preview frame (giữ nguyên)
         preview_frame = ttk.LabelFrame(rename_paned_window, text="4. Xem trước và Hành động", padding="10")
         rename_paned_window.add(preview_frame, weight=3)
         preview_frame.columnconfigure(0, weight=1)
@@ -301,12 +334,9 @@ class RenamerApp(tk.Tk):
         cols = ("Trạng thái", "Tên file gốc", "Số (tên file)", "Số (nội dung)", "Tên file mới")
         self.tree = ttk.Treeview(preview_frame, columns=cols, show='headings', selectmode='extended')
 
-        # Map item_id -> full filepath để dùng khi double-click
         self.tree_filepaths = {}
-        # Bind double-click để mở xem file
         self.tree.bind("<Double-1>", self._open_preview_from_rename)
 
-        
         self.tree.grid(row=1, column=0, sticky="nsew")
         self.tree.tag_configure("excluded", foreground="red")
         for col, width in zip(cols, [80, 300, 100, 100, 300]):
@@ -319,7 +349,7 @@ class RenamerApp(tk.Tk):
     def show_regex_guide(self, guide_type="rename"):
         help_window = tk.Toplevel(self)
         help_window.title("Hướng dẫn sử dụng Regex")
-        help_window.geometry("700x600") # Tăng chiều cao để chứa thêm nội dung
+        help_window.geometry("700x600") 
         help_window.transient(self)
 
         main_frame = ttk.Frame(help_window, padding="15")
@@ -460,6 +490,141 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         close_button = ttk.Button(main_frame, text="Đã hiểu", command=help_window.destroy)
         close_button.pack()
         
+        # Đặt hàm này gần hàm show_regex_guide
+    
+    def show_operation_guide(self):
+        guide_win = tk.Toplevel(self)
+        guide_win.title("Hướng dẫn thao tác")
+        guide_win.geometry("800x650")
+        guide_win.transient(self)
+        guide_win.grab_set()
+
+        main_frame = ttk.Frame(guide_win, padding="15")
+        main_frame.pack(fill="both", expand=True)
+
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill="both", expand=True, pady=(0, 10))
+
+        def create_tab(title, content):
+            tab = scrolledtext.ScrolledText(notebook, wrap=tk.WORD, padx=10, pady=10)
+            notebook.add(tab, text=title)
+            # SỬ DỤNG HÀM RENDER MỚI
+            self._render_markdown_guide(tab, content.strip())
+
+        rename_guide = """
+    --- TAB ĐỔI TÊN ---
+    Tab này là chức năng chính, giúp bạn đổi tên hàng loạt file truyện theo một cấu trúc thống nhất.
+
+    1.  **Chọn thư mục**:
+        -   Nhấn nút **"Chọn..."** để chỉ định thư mục chứa các file .txt cần xử lý.
+        -   Sau khi chọn, chương trình sẽ tự động quét và phân tích các file.
+
+    2.  **Tùy chọn**:
+        -   **Lấy số từ**: Quyết định chương trình sẽ ưu tiên lấy số chương từ đâu để điền vào tên file mới.
+            -   *Ưu tiên nội dung*: Lấy số từ dòng đầu tiên của file. Nếu không có, mới lấy từ tên file.
+            -   *Ưu tiên tên file*: Lấy số từ tên file. Nếu không có, mới lấy từ nội dung.
+        -   **Sắp xếp theo số của**: Quyết định thứ tự các file trong bảng "Xem trước" sẽ được sắp xếp theo nguồn nào. Điều này rất quan trọng khi bạn dùng "Tiêu đề tùy chỉnh".
+            -   *Nội dung*: Sắp xếp dựa trên số chương lấy từ nội dung.
+            -   *Tên file*: Sắp xếp dựa trên số chương lấy từ tên file.
+        -   **Cấu trúc mới**: Định dạng cho tên file mới.
+            -   `{num}`: Sẽ được thay bằng số chương.
+            -   `{title}`: Sẽ được thay bằng tiêu đề chương.
+            -   `{num+n}` hoặc `{num-n}`: Tự động cộng/trừ số chương (ví dụ: `{num+1}`).
+        -   **Regex (tên file / nội dung)**: Dành cho người dùng nâng cao. Giúp chương trình nhận diện số và tiêu đề chương trong các trường hợp phức tạp mà mẫu có sẵn không xử lý được.
+
+    3.  **Sử dụng tiêu đề tùy chỉnh**:
+        -   Check vào ô **"Kích hoạt"**.
+        -   Dán danh sách các tiêu đề vào ô văn bản bên dưới, mỗi tiêu đề một dòng.
+        -   Các tiêu đề này sẽ được áp dụng lần lượt cho các file đã được sắp xếp trong bảng "Xem trước".
+
+    4.  **Xem trước và Hành động**:
+        -   **Bảng xem trước**: Hiển thị danh sách các file, số chương được nhận diện và tên file mới sẽ trông như thế nào. Có thể chọn nhiều file bằng **Ctrl + Click chuột trái** hoặc chọn 1 hàng sau đó đến hàng mới nhấn **Shift +  Click chuột trái** để chọn khoảng từ hàng trước tới hàng này.
+        -   **Tìm kiếm**: Lọc nhanh các file trong bảng.
+        -   **Loại trừ file đã chọn**: Chọn một hoặc nhiều file trong bảng và nhấn nút này để bỏ qua chúng khi đổi tên. Các file này sẽ được đánh dấu màu đỏ.
+        -   **Bao gồm lại**: Chọn các file đã bị loại trừ để đưa chúng trở lại quá trình đổi tên.
+        -   **BẮT ĐẦU ĐỔI TÊN**: Nút cuối cùng để thực hiện việc đổi tên hàng loạt.
+        -   **Double-click vào một dòng**: Mở cửa sổ xem nhanh nội dung của file đó.
+    """
+        create_tab("Đổi Tên", rename_guide)
+
+        credit_guide = """
+    --- TAB THÊM CREDIT ---
+    Chức năng này giúp bạn chèn một dòng thông tin (ví dụ: tên người convert, nguồn,...) vào tất cả các file trong thư mục đã chọn.
+
+    1.  **Nội dung credit**: Nhập đoạn văn bản bạn muốn thêm vào đây.
+    2.  **Vị trí thêm**:
+        -   **Đầu file**: Chèn credit vào dòng đầu tiên của mỗi file.
+        -   **Cuối file**: Chèn credit vào dòng cuối cùng của mỗi file.
+        -   **Dòng thứ...**: Chèn credit vào một dòng cụ thể do bạn chỉ định.
+    3.  **Xem trước**:
+        -   Chọn một file từ danh sách thả xuống.
+        -   Nhấn nút **"XEM TRƯỚC"** để xem nội dung file sẽ trông như thế nào sau khi thêm credit.
+    4.  **ÁP DỤNG CHO TẤT CẢ FILE**:
+        -   Nhấn nút này để thực hiện việc thêm credit vào tất cả các file.
+        -   **Lưu ý**: Hành động này sẽ **ghi đè** lên các file gốc.
+    """
+        create_tab("Thêm Credit", credit_guide)
+
+        online_guide = """
+    --- TAB LẤY TIÊU ĐỀ ONLINE ---
+    Công cụ mạnh mẽ giúp lấy danh sách tiêu đề chương trực tiếp từ các trang web truyện.
+
+    1.  **Nguồn**:
+        -   **Trang web**: Chọn trang bạn muốn lấy dữ liệu (ví dụ: jjwxc.net).
+        -   **URL mục lục**: Dán đường link của trang mục lục truyện vào đây.
+        -   **Bắt đầu lấy dữ liệu**: Nhấn để chương trình truy cập URL và lấy về danh sách chương.
+
+    2.  **Kết quả**:
+        -   Bảng này sẽ hiển thị danh sách các chương lấy được, bao gồm số chương, tiêu đề chính và tiêu đề phụ (nếu có).
+        -   Có thể chọn nhiều dòng bằng **Ctrl + Click chuột trái** hoặc chọn 1 hàng sau đó đến hàng mới nhấn **Shift +  Click chuột trái** để chọn khoảng từ hàng trước tới hàng này.
+
+    3.  **Áp dụng**:
+        -   **Chọn nhanh theo khoảng**: Giúp chọn nhanh các chương trong bảng kết quả.
+            -   `1-50`: Chọn từ chương 1 đến 50.
+            -   `-100`: Chọn tất cả các chương đến 100.
+            -   `80-`: Chọn từ chương 80 đến hết.
+            -   `all`: Chọn tất cả.
+        -   **Gộp 2 tiêu đề**:
+            -   Kích hoạt tùy chọn này nếu bạn muốn kết hợp tiêu đề chính và phụ.
+            -   Sử dụng `{t1}` cho tiêu đề chính và `{t2}` cho tiêu đề phụ trong ô cấu trúc.
+        -   **Nếu không gộp, sử dụng cột**: Chọn cột tiêu đề bạn muốn dùng (chính hoặc phụ).
+        -   **Sao chép tiêu đề...**: Sau khi đã chọn các chương mong muốn, nhấn nút này. Các tiêu đề tương ứng sẽ được tự động sao chép vào ô "Tiêu đề tùy chỉnh" ở Tab "Đổi Tên".
+    """
+        create_tab("Lấy Tiêu Đề Online", online_guide)
+        
+        text_guide = """
+    --- TAB XỬ LÝ VĂN BẢN ---
+    Cung cấp các công cụ để chỉnh sửa nội dung file hoặc chia nhỏ file.
+
+    1.  **Chọn file**: Chọn file .txt bạn muốn chỉnh sửa hoặc chia nhỏ. Nội dung file sẽ được tải vào ô bên dưới.
+
+    --- Sub-tab: Tìm & Thay thế ---
+    -   **Tìm / Thay thế**: Nhập văn bản cần tìm và văn bản sẽ thay thế. Hỗ trợ Regex.
+    -   **Các tùy chọn**:
+        -   **Khớp chữ hoa/thường**: Bật để phân biệt A và a.
+        -   **Khớp toàn bộ từ**: Chỉ tìm các từ đứng riêng lẻ (ví dụ: tìm "an" sẽ không khớp với "bàn").
+        -   **Dùng Regex**: Kích hoạt chế độ tìm kiếm bằng biểu thức chính quy.
+        -   **Tìm ngược lên**: Tìm từ vị trí con trỏ ngược về đầu file.
+    -   **Các nút hành động**:
+        -   **Tìm tiếp**: Nhảy đến kết quả trùng khớp tiếp theo.
+        -   **Thay thế**: Thay thế kết quả đang được chọn và tự động tìm kết quả tiếp theo.
+        -   **Thay thế tất cả**: Thay thế mọi kết quả tìm thấy trong toàn bộ file.
+        -   **Lưu**: Ghi đè các thay đổi lên file gốc.
+        -   **Lưu thành file mới...**: Lưu nội dung đã sửa vào một file mới.
+        -   **Hoàn tác / Làm lại**: Quay lại hoặc tiến tới các bước chỉnh sửa.
+
+    --- Sub-tab: Chia file ---
+    -   **Regex chia file**: Nhập mẫu Regex để xác định dòng dùng làm điểm chia. Ví dụ: `^Chương \\d+` sẽ chia file tại mỗi dòng bắt đầu bằng "Chương [số]".
+    -   **Cấu trúc tên file**: Đặt tên cho các file con được tạo ra.
+    -   **Chia sau/trước regex**: Quyết định dòng khớp với regex sẽ thuộc về file trước đó hay file sau đó.
+    -   **Xem trước**: Hiển thị danh sách các phần sẽ được tạo ra. Double-click vào một dòng để xem trước toàn bộ nội dung của phần đó.
+    -   **BẮT ĐẦU CHIA FILE**: Thực hiện việc chia file. Các file con sẽ được lưu trong một thư mục mới.
+    """
+        create_tab("Xử lý văn bản", text_guide)
+        
+        close_button = ttk.Button(main_frame, text="Đóng", command=guide_win.destroy)
+        close_button.pack()
+
     def create_credit_tab(self):
         credit_tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(credit_tab, text="Thêm Credit")
@@ -517,16 +682,14 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         online_paned = ttk.PanedWindow(online_tab, orient=tk.VERTICAL)
         online_paned.grid(row=0, column=0, sticky="nsew")
 
+        # Frame 1: Nguồn (Không thay đổi)
         fetch_frame = ttk.LabelFrame(online_paned, text="1. Nguồn", padding=10)
         online_paned.add(fetch_frame, weight=1)
         fetch_frame.columnconfigure(1, weight=1)
-
         ttk.Label(fetch_frame, text="Trang web:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.source_web = ttk.Combobox(fetch_frame, values=["jjwxc.net", "po18.tw"], state="readonly")
         self.source_web.grid(row=0, column=1, sticky="ew", padx=5)
         self.source_web.set("jjwxc.net")
-
-        # Đưa nút "Bắt đầu lấy dữ liệu" cùng hàng với "URL mục lục"
         ttk.Label(fetch_frame, text="URL mục lục:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.source_url = tk.StringVar()
         url_frame = ttk.Frame(fetch_frame)
@@ -534,37 +697,46 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Entry(url_frame, textvariable=self.source_url).pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Button(url_frame, text="Bắt đầu lấy dữ liệu", command=self._fetch_online_titles).pack(side=tk.LEFT, padx=5)
 
-        # Result frame
+        # Frame 2: Kết quả (Không thay đổi)
         result_frame = ttk.LabelFrame(online_paned, text="2. Kết quả", padding=10)
         online_paned.add(result_frame, weight=3)
         result_frame.columnconfigure(0, weight=1)
         result_frame.rowconfigure(0, weight=1)
-        
         cols = ("Số chương", "Tiêu đề chính", "Tiêu đề phụ/Tóm tắt")
         self.online_tree = ttk.Treeview(result_frame, columns=cols, show='headings', selectmode='extended')
         self.online_tree.grid(row=0, column=0, sticky="nsew")
         for col in cols: self.online_tree.heading(col, text=col)
-        
         vsb = ttk.Scrollbar(result_frame, orient="vertical", command=self.online_tree.yview)
         vsb.grid(row=0, column=1, sticky="ns")
         self.online_tree.configure(yscrollcommand=vsb.set)
         
         apply_frame = ttk.LabelFrame(online_tab, text="3. Áp dụng", padding=10)
         apply_frame.grid(row=2, column=0, sticky="ew", pady=(5,0))
+        apply_frame.columnconfigure(0, weight=1)
         apply_frame.columnconfigure(1, weight=1)
 
-        ttk.Label(apply_frame, text="Chọn nhanh theo khoảng:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        select_frame = ttk.Frame(apply_frame)
+        select_frame.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        ttk.Label(select_frame, text="Chọn nhanh theo khoảng:").pack(side=tk.LEFT, padx=(0, 5))
         self.online_range_var = tk.StringVar()
+        range_entry = ttk.Entry(select_frame, textvariable=self.online_range_var)
+        range_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(select_frame, text="Chọn", command=self._select_online_range).pack(side=tk.LEFT, padx=5)
 
-        range_entry = ttk.Entry(apply_frame, textvariable=self.online_range_var)
-        range_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
-        ttk.Button(apply_frame, text="Chọn", command=self._select_online_range).grid(row=0, column=2, sticky="w", padx=5, pady=5)
-        ttk.Label(apply_frame, text="(Ví dụ: 1-10, -50, 100-, all)").grid(row=1, column=1, sticky="w", padx=5)
+        # Phần bên phải cho "Gộp tiêu đề"
+        combine_frame = ttk.Frame(apply_frame)
+        combine_frame.grid(row=0, column=1, sticky="ew", padx=(10, 0))
+        ttk.Checkbutton(combine_frame, text="Gộp 2 tiêu đề theo cấu trúc:", variable=self.combine_titles_var).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Entry(combine_frame, textvariable=self.title_format_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # --- Hàng 2: Các label chú thích ---
+        ttk.Label(apply_frame, text="(Ví dụ: 1-10, -50, 100-, all)").grid(row=1, column=0, sticky="w", padx=5)
+        ttk.Label(apply_frame, text="(Dùng {t1} và {t2})").grid(row=1, column=1, sticky="w", padx=(10, 0))
 
+        # --- Hàng 3: Hàng hành động cuối cùng ---
         action_row_frame = ttk.Frame(apply_frame)
-        action_row_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(10,0))
-
-        ttk.Label(action_row_frame, text="Sử dụng cột tiêu đề:").pack(side=tk.LEFT, padx=5)
+        action_row_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10,0))
+        ttk.Label(action_row_frame, text="Nếu không gộp, sử dụng cột:").pack(side=tk.LEFT, padx=5)
         self.title_choice = tk.StringVar(value="title2")
         ttk.Radiobutton(action_row_frame, text="Tiêu đề chính", variable=self.title_choice, value="title1").pack(side=tk.LEFT)
         ttk.Radiobutton(action_row_frame, text="Tiêu đề phụ", variable=self.title_choice, value="title2").pack(side=tk.LEFT)
@@ -611,7 +783,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         
         find_frame = ttk.Frame(options_frame)
         find_frame.pack(fill=tk.X)
-        ttk.Label(find_frame, text="Tìm:      ").pack(side=tk.LEFT)
+        ttk.Label(find_frame, text="Tìm:        ").pack(side=tk.LEFT)
         self.find_text = ttk.Combobox(find_frame)
         self.find_text.pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Button(find_frame, text="?", width=3, command=lambda: self.show_regex_guide("find_replace")).pack(side=tk.LEFT, padx=5)
@@ -1141,11 +1313,30 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
     def _sort_files(self):
         """Sắp xếp danh sách file theo số chương và lưu vào cache."""
+        sort_by = self.sort_strategy.get() # 'content' or 'filename'
+        
         def get_sort_key(analysis):
-            # Ưu tiên số từ nội dung, sau đó đến tên file
-            num = analysis['from_content']['num'] or analysis['from_filename']['num']
+            num = None
+            if sort_by == 'content':
+                num = analysis['from_content']['num']
+            else: # 'filename'
+                num = analysis['from_filename']['num']
+            # Nếu không tìm thấy số ở nguồn ưu tiên, thử nguồn còn lại
+            if num is None:
+                num = analysis['from_filename']['num'] if sort_by == 'content' else analysis['from_content']['num']
+            
             return num if num is not None else float('inf')
         self.sorted_files_cache = sorted(self.files_data, key=get_sort_key)
+
+    def _sort_and_refresh_ui(self):
+        """Sắp xếp lại cache và làm mới Treeview mà không cần phân tích lại file."""
+        if not self.files_data:
+            return
+        self._sort_files()
+        self.tree.delete(*self.tree.get_children())
+        for i, analysis in enumerate(self.sorted_files_cache):
+            self._insert_file_to_tree(analysis, i)
+        self.log("Đã sắp xếp lại danh sách file.")
 
     def _search_files(self, event=None):
         search_term = self.search_var.get().lower()
@@ -1267,13 +1458,28 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             messagebox.showinfo("Thông báo", "Vui lòng chọn ít nhất một chương từ bảng kết quả.")
             return
         
-        title_key = self.title_choice.get() # 'title1' or 'title2'
-        
         selected_titles = []
-        for item_id in selected_items:
-            item_data = self.online_tree.item(item_id, 'values')
-            title = item_data[1] if title_key == 'title1' else item_data[2]
-            selected_titles.append(title)
+        
+        # Logic mới để gộp tiêu đề
+        if self.combine_titles_var.get():
+            format_str = self.title_format_var.get()
+            for item_id in selected_items:
+                item_data = self.online_tree.item(item_id, 'values')
+                t1 = item_data[1]
+                t2 = item_data[2]
+                try:
+                    combined_title = format_str.format(t1=t1, t2=t2)
+                    selected_titles.append(combined_title)
+                except KeyError:
+                    # Nếu format string bị lỗi, dùng fallback
+                    selected_titles.append(f"{t1} - {t2}")
+        else:
+            # Logic cũ
+            title_key = self.title_choice.get() # 'title1' or 'title2'
+            for item_id in selected_items:
+                item_data = self.online_tree.item(item_id, 'values')
+                title = item_data[1] if title_key == 'title1' else item_data[2]
+                selected_titles.append(title)
         
         self.custom_titles_text.delete("1.0", tk.END)
         self.custom_titles_text.insert("1.0", "\n".join(selected_titles))
@@ -1282,6 +1488,41 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.notebook.select(0) # Chuyển về tab Đổi Tên
         self.schedule_preview_update()
         self.log(f"Đã áp dụng {len(selected_titles)} tiêu đề tùy chỉnh.")
+
+    def _render_markdown_guide(self, text_widget, markdown_text):
+        """Render văn bản markdown đơn giản hỗ trợ heading (---...---) và bold (**...**)."""
+        text_widget.config(state='normal')
+        text_widget.delete('1.0', tk.END)
+
+        # Cấu hình font
+        base_font = tkfont.Font(font=text_widget.cget("font"))
+        bold_font = tkfont.Font(font=base_font)
+        bold_font.configure(weight='bold')
+        heading_font = tkfont.Font(font=base_font)
+        heading_font.configure(size=base_font.cget('size') + 2, weight='bold')
+
+        # Cấu hình tag
+        text_widget.tag_configure('bold', font=bold_font)
+        text_widget.tag_configure('heading', font=heading_font, foreground="#0b5394", spacing1=5, spacing3=10)
+
+        # Regex để tìm heading và bold
+        tag_regex = re.compile(r'^---(.*?)---$|\*\*(.*?)\*\*', re.MULTILINE)
+        last_end = 0
+
+        for match in tag_regex.finditer(markdown_text):
+            text_widget.insert(tk.END, markdown_text[last_end:match.start()])
+
+            if match.group(1) is not None:  # Khớp với heading
+                content = match.group(1).strip()
+                text_widget.insert(tk.END, content + "\n", 'heading')
+            elif match.group(2) is not None:  # Khớp với bold
+                content = match.group(2)
+                text_widget.insert(tk.END, content, 'bold')
+            
+            last_end = match.end()
+
+        text_widget.insert(tk.END, markdown_text[last_end:])
+        text_widget.config(state='disabled')
 
     def _select_online_range(self):
         """Chọn các chương trong bảng online dựa vào chuỗi nhập vào."""
