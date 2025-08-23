@@ -1,20 +1,26 @@
-<h1>Phiên bản 0.1.2 — Tích hợp công cụ Dịch & Xử lý Ảnh</h1>
-Cám ơn bạn đã dùng <c color="#c2185b">Rename Chapters</c> — bản cập nhật này là một bước tiến lớn, biến ứng dụng thành một bộ công cụ đa năng để xử lý cả văn bản và hình ảnh.
+<h1>Phiên bản 0.1.3 — Tích hợp Qidian & Tối ưu hóa Quy trình</h1>
+Tiếp tục lắng nghe phản hồi từ người dùng, bản cập nhật 0.1.3 cho <c color="#c2185b">Rename Chapters</c> tập trung vào việc mở rộng khả năng tương thích với các trang truyện lớn và tinh chỉnh các tính năng hiện có để quy trình làm việc của bạn mượt mà và hiệu quả hơn.
 
 <h2>TÍNH NĂNG NỔI BẬT</h2>
-<b>[MỚI] Tab Dịch Thuật Chuyên Dụng</b>
-Tích hợp toàn bộ sức mạnh của script dịch thuật vào thẳng ứng dụng, không cần dùng Tampermonkey nữa.
-- Giao diện 2 cột trực quan: Văn bản gốc bên trái, kết quả bên phải.
-- Quản lý Name-set toàn diện: Thêm, sửa, xóa, nhập/xuất name-set ngay trong tab.
-- Sửa Name thông minh: Chuột phải vào kết quả dịch để sửa name hoặc xem gợi ý (Hán-Việt & Dịch máy).
-- Tự động cập nhật: Name sau khi sửa sẽ tự động được áp dụng lại vào các đoạn dịch liên quan mà không cần dịch lại toàn bộ.
+<b>[MỚI] Hỗ trợ lấy tiêu đề từ Qidian.com</b>
+Giờ đây bạn có thể lấy danh sách chương từ một trong những trang truyện lớn nhất thế giới một cách dễ dàng.
+- Tự động hoàn toàn: Chương trình sẽ tự khởi chạy trình duyệt ẩn để lấy cookie "khách" cần thiết trong lần đầu tiên, không yêu cầu người dùng đăng nhập hay làm bất cứ điều gì.
+- Chỉ cần dán URL mục lục và bắt đầu lấy dữ liệu, tương tự các trang đã hỗ trợ.
 
-<b>[MỚI] Tab Xử lý Ảnh Đa Năng</b>
-Một công cụ mới cho phép tải và chỉnh sửa ảnh cơ bản, rất hữu ích cho việc làm bìa truyện hoặc xử lý ảnh minh họa.
-- Tải ảnh từ URL hoặc file trên máy tính.
-- Công cụ nâng cao chất lượng: Làm nét (Unsharp Mask), tăng chi tiết, và nâng cấp độ phân giải x2 với thuật toán chất lượng cao.
-- Tương tác trực quan: Phóng to/thu nhỏ bằng con lăn chuột, kéo/thả để di chuyển ảnh.
-- Chuyển đổi định dạng: Lưu ảnh đã xử lý sang nhiều định dạng phổ biến (PNG, JPEG, WEBP...).
+<b>[MỚI] Tùy chọn "Sửa dòng đầu của file"</b>
+Một công cụ mạnh mẽ dành cho người dùng chuyên sâu đã được thêm vào Tab "Đổi Tên".
+- Khi kích hoạt, dòng đầu tiên của mỗi file sẽ được <b>ghi đè</b> bằng chính tên file mới được tạo ra (đã loại bỏ đuôi .txt).
+- Hữu ích để đồng bộ hóa tiêu đề trong nội dung với tên file một cách nhanh chóng.
+- Tính năng chỉ áp dụng cho các file mà chương trình tìm thấy số chương thành công.
+
+<h2>CẢI TIẾN VÀ SỬA LỖI</h2>
+<b>Quản lý Name trực quan hơn:</b>
+- Thêm nút "Xóa" trực tiếp trên mỗi dòng trong danh sách name để thao tác nhanh hơn.
+- Cửa sổ "Sửa Name" giờ đây thông minh hơn: tự động hiển thị nút "Sửa" và "Xóa" cho name đã tồn tại, và nút "Lưu" cho name mới.
+
+<b>Sửa lỗi quan trọng:</b>
+- Khắc phục lỗi danh sách name hiển thị "Bộ này trống" khi khởi động ứng dụng, dù đã có dữ liệu trong file config.
+- Sửa lỗi `AttributeError` xảy ra khi thêm name mới vào một bộ tên trống trước khi thực hiện bất kỳ lần dịch nào.
 
 <h2>Hướng dẫn cập nhật</h2>
 - Nhấn <b>Tải & Cài đặt</b> để download bản cài đặt (.exe) tự động.
