@@ -16,17 +16,18 @@ import urllib.request
 from packaging.version import parse as parse_version
 from extensions import jjwxc_ext
 from extensions import po18_ext
+from extensions import qidian_ext
 from text_operations import TextOperations
 from update import show_update_window, fetch_manifest_from_url
 import translator_logic as trans_logic
 import pythoncom
 
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.1.2"
+    CURRENT_VERSION = "0.1.3"
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
-        self.title("Rename Chapters v0.1.2")
+        self.title("Rename Chapters v0.1.3 (by BaoBao)")
         self.geometry("1200x800")
 
         # --- BIẾN TRẠNG THÁI ---
@@ -116,6 +117,8 @@ class RenamerApp(tk.Tk):
         except Exception as e:
             print(f"Không thể lưu config: {e}")
 
+    # main_ui.py
+
     def load_config(self):
         """Tải và áp dụng cài đặt từ config.json nếu có."""
         try:
@@ -150,6 +153,18 @@ class RenamerApp(tk.Tk):
             split_format_history = config_data.get('split_format_history', []); self.split_format_combobox['values'] = split_format_history or ["{num}.txt"]; self.split_format_combobox.set((split_format_history or ["{num}.txt"])[0])
             self.split_position.set(config_data.get('split_position', 'after'))
             self.combine_titles_var.set(config_data.get('combine_titles', False)); self.title_format_var.set(config_data.get('title_format', '{t1} - {t2}'))
+            
+            name_sets_keys = list(self.app_config.get('nameSets', {}).keys())
+            if name_sets_keys:
+                self.translator_name_set_combo['values'] = name_sets_keys
+            
+            active_set = config_data.get('activeNameSet', 'Mặc định')
+            if active_set in name_sets_keys:
+                self.translator_name_set_combo.set(active_set)
+            elif name_sets_keys:
+                self.translator_name_set_combo.set(name_sets_keys[0])
+            self._refresh_translator_name_preview()
+
             if self.folder_path.get(): self.schedule_preview_update()
             self.selected_file.set(config_data.get('selected_file', ''))
         except Exception as e:
@@ -170,7 +185,7 @@ class RenamerApp(tk.Tk):
                 # Nếu không lấy được manifest online, thử đọc local version.json (fallback)
                 if not manifest:
                     try:
-                        with open('version.json', 'r', encoding='utf-8') as f:
+                        with open('./local/version.json', 'r', encoding='utf-8') as f:
                             manifest = json.load(f)
                         # Nếu local manifest có notes_file local path, đọc nội dung luôn
                         nf = manifest.get('notes_file')
@@ -283,6 +298,7 @@ class RenamerApp(tk.Tk):
         strategy_sort_frame.grid(row=0, column=0, columnspan=3, sticky="ew")
         strategy_sort_frame.columnconfigure(0, weight=1)
         strategy_sort_frame.columnconfigure(1, weight=1)
+        strategy_sort_frame.columnconfigure(2, weight=1)
 
         # Cột 1: Chọn nguồn lấy số chương
         num_source_frame = ttk.Frame(strategy_sort_frame)
@@ -299,7 +315,12 @@ class RenamerApp(tk.Tk):
         # self.sort_strategy đã được tạo trong __init__
         ttk.Radiobutton(sort_by_frame, text="Nội dung", variable=self.sort_strategy, value="content", command=self._sort_and_refresh_ui).pack(side=tk.LEFT)
         ttk.Radiobutton(sort_by_frame, text="Tên file", variable=self.sort_strategy, value="filename", command=self._sort_and_refresh_ui).pack(side=tk.LEFT, padx=(5,0))
-        # === KẾT THÚC THAY ĐỔI ===
+        
+         # Cột 3: Sửa dòng đầu file ---
+        self.edit_first_line_var = tk.BooleanVar(value=False)
+        edit_line_frame = ttk.Frame(strategy_sort_frame)
+        edit_line_frame.grid(row=0, column=2, sticky="w", padx=(20, 0))
+        ttk.Checkbutton(edit_line_frame, text="Sửa dòng đầu của file", variable=self.edit_first_line_var).pack(side=tk.LEFT)
         
         ttk.Label(options_frame, text="Cấu trúc mới:").grid(row=1, column=0, sticky="w", padx=5, pady=(10, 5))
         self.format_combobox = ttk.Combobox(options_frame, values=["Chương {num} - {title}.txt"])
@@ -545,6 +566,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   **Sắp xếp theo số của**: Quyết định thứ tự các file trong bảng "Xem trước" sẽ được sắp xếp theo nguồn nào. Điều này rất quan trọng khi bạn dùng "Tiêu đề tùy chỉnh".
                 -   *Nội dung*: Sắp xếp dựa trên số chương lấy từ nội dung.
                 -   *Tên file*: Sắp xếp dựa trên số chương lấy từ tên file.
+            -   **Sửa dòng đầu của file**: Khi được chọn, chương trình sẽ **ghi đè** dòng đầu tiên của mỗi file bằng chính tên file mới được tạo ra (không bao gồm đuôi file như .txt). Tính năng này chỉ hoạt động nếu file đó được tìm thấy số chương.
             -   **Cấu trúc mới**: Định dạng cho tên file mới.
                 -   `{num}`: Sẽ được thay bằng số chương.
                 -   `{title}`: Sẽ được thay bằng tiêu đề chương.
@@ -592,6 +614,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   **Trang web**: Chọn trang bạn muốn lấy dữ liệu (ví dụ: jjwxc.net).
             -   **URL mục lục**: Dán đường link của trang mục lục truyện vào đây.
             -   **Bắt đầu lấy dữ liệu**: Nhấn để chương trình truy cập URL và lấy về danh sách chương.
+            -   **Lưu ý**: Đảm bảo URL hợp lệ và có kết nối mạng. Nếu trang web yêu cầu đăng nhập, app sẽ mở trình duyệt để bạn đăng nhập hoặc tải cookie trước khi lấy dữ liệu.
 
         2.  **Kết quả**:
             -   Bảng này sẽ hiển thị danh sách các chương lấy được, bao gồm số chương, tiêu đề chính và tiêu đề phụ (nếu có).
@@ -754,7 +777,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         online_paned.add(fetch_frame, weight=1)
         fetch_frame.columnconfigure(1, weight=1)
         ttk.Label(fetch_frame, text="Trang web:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        self.source_web = ttk.Combobox(fetch_frame, values=["jjwxc.net", "po18.tw"], state="readonly")
+        self.source_web = ttk.Combobox(fetch_frame, values=["jjwxc.net", "po18.tw", "qidian.com"], state="readonly")
         self.source_web.grid(row=0, column=1, sticky="ew", padx=5)
         self.source_web.set("jjwxc.net")
         ttk.Label(fetch_frame, text="URL mục lục:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
@@ -1300,6 +1323,27 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 continue
             
             new_name = logic.generate_new_name(analysis, strategy, name_format, custom_titles, i)
+
+            if self.edit_first_line_var.get():
+                if new_name is not None:
+                    try:
+                        new_first_line = os.path.splitext(new_name)[0]
+                        with open(analysis['filepath'], 'r', encoding='utf-8') as f:
+                            lines = f.readlines()
+                        
+                        if lines:
+                            lines[0] = new_first_line + '\n'
+                        else:
+                            lines.append(new_first_line + '\n')
+                        
+                        with open(analysis['filepath'], 'w', encoding='utf-8') as f:
+                            f.writelines(lines)
+                        self.log(f"[Sửa nội dung] Đã cập nhật dòng đầu của file: {analysis['filename']}")
+                    except Exception as e:
+                        self.log(f"[Lỗi nội dung] Không thể sửa dòng đầu file {analysis['filename']}: {e}")
+                else:
+                    self.log(f"[Cảnh báo] Bỏ qua sửa dòng đầu cho file {analysis['filename']} vì không lấy được số chương.")
+
             if new_name is None: self.log(f"[Bỏ qua] {analysis['filename']}: Không tìm thấy số chương."); fail += 1; continue
             if new_name == analysis['filename']: self.log(f"[Bỏ qua] {analysis['filename']}: Tên đã đúng."); continue
             
@@ -1499,6 +1543,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     result = jjwxc_ext.fetch_chapters(url)
                 elif selected_site == "po18.tw":
                     result = po18_ext.fetch_chapters(url, root_window=self)
+                elif selected_site == "qidian.com":
+                    result = qidian_ext.fetch_chapters(url, root_window=self)
                 else:
                     result = {'error': 'Trang web không được hỗ trợ.'}
                 
@@ -1775,6 +1821,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         # Lưu lại output widget và gán menu chuột phải
         self.translator_output_text = scrolledtext.ScrolledText(right_frame, wrap=tk.WORD, state="disabled")
         self.translator_output_text.grid(row=0, column=0, sticky="nsew")
+
+        self.translator_output_text.chunk_data = {}
+
         self.translator_output_text.bind("<Button-3>", self._show_translator_context_menu)
         
         control_frame = ttk.Frame(translator_tab, padding=(0, 10, 0, 0))
@@ -1920,7 +1969,19 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             label_text = f"{key} = {current_set[key]}"
             ttk.Label(row_frame, text=label_text).pack(side=tk.LEFT, fill=tk.X, expand=True)
 
+            ttk.Button(row_frame, text="Xóa", command=lambda k=key: self._delete_name_from_list(k)).pack(side=tk.RIGHT)
             ttk.Button(row_frame, text="Sửa/Gợi ý", command=lambda k=key, v=current_set[key]: self._edit_name(k, v)).pack(side=tk.RIGHT, padx=5)
+
+    def _delete_name_from_list(self, key_to_delete: str):
+        """Hàm mới để xử lý việc xóa name từ danh sách chính."""
+        set_name = self.translator_name_set_combo.get()
+        if not set_name: return
+
+        if messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn xóa name '{key_to_delete}' không?", parent=self):
+            if key_to_delete in self.app_config['nameSets'][set_name]:
+                del self.app_config['nameSets'][set_name][key_to_delete]
+                self.save_config()
+                self._refresh_translator_name_preview() # Cập nhật lại danh sách
 
     def _create_new_set(self):
         name = simpledialog.askstring("Tạo bộ mới", "Nhập tên cho bộ mới:", parent=self)
@@ -1987,13 +2048,14 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.save_config()
 
     def _edit_name(self, key, current_viet=""):
+        original_key = key # Lưu lại key gốc để xử lý đổi tên
+        
         edit_win = tk.Toplevel(self)
         edit_win.title("Thêm / Sửa Name")
         edit_win.geometry("500x150")
         edit_win.transient(self)
         edit_win.grab_set()
 
-        # ... (Phần code còn lại của hàm giữ nguyên, chỉ thay đổi 2 dòng trên)
         main_frame = ttk.Frame(edit_win, padding=15)
         main_frame.pack(fill=tk.BOTH, expand=True)
         main_frame.columnconfigure(1, weight=1)
@@ -2001,7 +2063,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Label(main_frame, text="Tiếng Trung:").grid(row=0, column=0, sticky="w", pady=2)
         key_entry = ttk.Entry(main_frame)
         key_entry.insert(0, key)
-        # key_entry.config(state="readonly") # XÓA DÒNG NÀY ĐỂ CHO PHÉP SỬA
         key_entry.grid(row=0, column=1, sticky="ew", pady=2)
 
         ttk.Label(main_frame, text="Tiếng Việt:").grid(row=1, column=0, sticky="w", pady=2)
@@ -2012,14 +2073,12 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         viet_entry.focus_set()
         viet_entry.selection_range(0, tk.END)
 
-        def on_suggestion_select(new_value):
-            viet_entry.delete(0, tk.END)
-            viet_entry.insert(0, new_value)
-            edit_win.lift()
-            viet_entry.focus_set()
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.grid(row=2, column=0, columnspan=2, pady=(15, 0), sticky="e")
+        
+        # --- LOGIC NÚT ĐỘNG ---
 
-        def on_save():
-            original_key = key # Lưu lại key gốc để xóa nếu cần
+        def on_save_or_update():
             new_key = key_entry.get().strip()
             new_viet = viet_entry.get().strip()
             if not new_key or not new_viet:
@@ -2027,7 +2086,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 return
 
             set_name = self.translator_name_set_combo.get()
-            # Nếu key bị sửa, xóa key cũ đi
+            # Nếu đổi key, xóa key cũ đi
             if original_key != new_key and original_key in self.app_config['nameSets'][set_name]:
                 del self.app_config['nameSets'][set_name][original_key]
             
@@ -2037,15 +2096,55 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             edit_win.destroy()
             self._smart_retranslate([new_key])
 
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.grid(row=2, column=0, columnspan=2, pady=(15, 0), sticky="e")
+        def on_delete():
+            key_to_delete = key_entry.get().strip()
+            if not key_to_delete: return
+            
+            set_name = self.translator_name_set_combo.get()
+            if messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn xóa name '{key_to_delete}'?", parent=edit_win):
+                if key_to_delete in self.app_config['nameSets'][set_name]:
+                    del self.app_config['nameSets'][set_name][key_to_delete]
+                    self.save_config()
+                    self._refresh_translator_name_preview()
+                edit_win.destroy()
+        
+        # Tạo tất cả các nút
         suggest_btn = ttk.Button(btn_frame, text="Gợi ý...",
-                                command=lambda: self._show_suggestion_window(key_entry.get(), on_suggestion_select))
-        suggest_btn.pack(side=tk.LEFT, padx=5)
+                                command=lambda: self._show_suggestion_window(key_entry.get(), lambda v: (viet_entry.delete(0, tk.END), viet_entry.insert(0, v), edit_win.lift(), viet_entry.focus_set())))
         cancel_btn = ttk.Button(btn_frame, text="Hủy", command=edit_win.destroy)
-        cancel_btn.pack(side=tk.LEFT, padx=5)
-        save_btn = ttk.Button(btn_frame, text="Lưu", command=on_save)
-        save_btn.pack(side=tk.LEFT)
+        
+        save_btn = ttk.Button(btn_frame, text="Lưu", command=on_save_or_update)
+        update_btn = ttk.Button(btn_frame, text="Sửa", command=on_save_or_update)
+        delete_btn = ttk.Button(btn_frame, text="Xóa", command=on_delete)
+        
+        # Hàm kiểm tra và thay đổi nút
+        def update_buttons(event=None):
+            current_key = key_entry.get().strip()
+            set_name = self.translator_name_set_combo.get()
+            exists = current_key in self.app_config['nameSets'][set_name]
+
+            # Ẩn tất cả các nút hành động trước
+            save_btn.grid_remove()
+            update_btn.grid_remove()
+            delete_btn.grid_remove()
+            
+            if exists:
+                # Nếu name đã tồn tại -> hiện Sửa và Xóa
+                update_btn.grid(row=0, column=2, padx=5)
+                delete_btn.grid(row=0, column=3, padx=5)
+            else:
+                # Nếu là name mới -> hiện Lưu
+                save_btn.grid(row=0, column=2, padx=5)
+
+        # Đặt các nút cố định và gọi hàm update_buttons
+        suggest_btn.grid(row=0, column=0)
+        cancel_btn.grid(row=0, column=1, padx=5)
+        
+        # Gán sự kiện cho ô nhập Tiếng Trung
+        key_entry.bind("<KeyRelease>", update_buttons)
+        
+        # Gọi lần đầu để có trạng thái đúng
+        update_buttons()
 
     def _show_translator_context_menu(self, event):
         widget = event.widget
