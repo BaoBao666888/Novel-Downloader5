@@ -146,7 +146,7 @@ def parse_chapters_from_page(soup):
 
 # ========== HÀM CHÍNH (GIAO TIẾP VỚI UI - Giữ nguyên logic) ==========
 
-def fetch_chapters(url: str, root_window=None):
+def fetch_chapters(url: str, root_window=None, proxies=None):
     if not root_window:
         return {'error': 'Lỗi hệ thống: Thiếu tham chiếu đến cửa sổ chính.'}
 
@@ -179,7 +179,7 @@ def fetch_chapters(url: str, root_window=None):
 
         while current_page_url and current_page_url not in processed_pages:
             print(f"Đang tải trang mục lục: {current_page_url.split('?')[0]}")
-            resp = s.get(current_page_url, timeout=15); resp.raise_for_status()
+            resp = s.get(current_page_url, timeout=60, proxies=proxies); resp.raise_for_status()
             processed_pages.add(current_page_url)
             
             soup = BeautifulSoup(resp.text, 'html.parser')

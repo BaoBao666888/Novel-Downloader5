@@ -1,27 +1,20 @@
-<h1>Phiên bản 0.1.3 — Tích hợp Qidian & Tối ưu hóa Quy trình</h1>
-Tiếp tục lắng nghe phản hồi từ người dùng, bản cập nhật 0.1.3 cho <c color="#c2185b">Rename Chapters</c> tập trung vào việc mở rộng khả năng tương thích với các trang truyện lớn và tinh chỉnh các tính năng hiện có để quy trình làm việc của bạn mượt mà và hiệu quả hơn.
-
+<h1>Phiên bản 0.1.4 — Tăng cường Kết nối với Quản lý Proxy & Hỗ trợ Fanqie Novel</h1>
+Bản cập nhật 0.1.4 của <c color="#c2185b">Rename Chapters</c> là một bước tiến lớn trong việc đảm bảo kết nối ổn định và trao cho người dùng nhiều quyền kiểm soát hơn. Giờ đây, bạn có thể dễ dàng vượt qua các rào cản mạng và mở rộng thư viện truyện của mình với một nguồn mới.
 <h2>TÍNH NĂNG NỔI BẬT</h2>
-<b>[MỚI] Hỗ trợ lấy tiêu đề từ Qidian.com</b>
-Giờ đây bạn có thể lấy danh sách chương từ một trong những trang truyện lớn nhất thế giới một cách dễ dàng.
-- Tự động hoàn toàn: Chương trình sẽ tự khởi chạy trình duyệt ẩn để lấy cookie "khách" cần thiết trong lần đầu tiên, không yêu cầu người dùng đăng nhập hay làm bất cứ điều gì.
-- Chỉ cần dán URL mục lục và bắt đầu lấy dữ liệu, tương tự các trang đã hỗ trợ.
-
-<b>[MỚI] Tùy chọn "Sửa dòng đầu của file"</b>
-Một công cụ mạnh mẽ dành cho người dùng chuyên sâu đã được thêm vào Tab "Đổi Tên".
-- Khi kích hoạt, dòng đầu tiên của mỗi file sẽ được <b>ghi đè</b> bằng chính tên file mới được tạo ra (đã loại bỏ đuôi .txt).
-- Hữu ích để đồng bộ hóa tiêu đề trong nội dung với tên file một cách nhanh chóng.
-- Tính năng chỉ áp dụng cho các file mà chương trình tìm thấy số chương thành công.
-
+<b>[MỚI] Trình Quản lý Proxy Toàn diện</b>
+Vượt qua các giới hạn truy cập và bảo vệ quyền riêng tư của bạn với một công cụ quản lý proxy chuyên nghiệp, được truy cập từ menu "Proxy" mới.
+- <b>Nhập và quản lý danh sách:</b> Dễ dàng thêm, sửa, xóa hàng loạt proxy. Giao diện có sẵn các mẫu để bạn bắt đầu.
+- <b>Kiểm tra proxy song song:</b> Kiểm tra hàng trăm proxy chỉ trong vài giây thay vì hàng giờ. Chương trình sẽ sử dụng đa luồng để kiểm tra đồng thời và báo cáo trạng thái (Sống/Chết) của từng proxy.
+- <b>Tự động dọn dẹp:</b> Sau khi kiểm tra, bạn có thể chọn tự động xóa các proxy "chết" khỏi danh sách.
+- <b>Kiểm soát linh hoạt:</b> Bật/tắt việc sử dụng proxy cho từng tính năng riêng biệt (Lấy tiêu đề, Dịch thuật, Tải ảnh).
+<b>[MỚI] Hỗ trợ lấy tiêu đề từ FanqieNovel.com (Tiểu Thuyết Cà Chua)</b>
+Thêm một trang truyện lớn vào danh sách các nguồn được hỗ trợ.
+Chỉ cần dán URL mục lục của truyện từ fanqienovel.com và bắt đầu lấy dữ liệu.
+Hoạt động mượt mà với hệ thống proxy mới nếu bạn kích hoạt.
 <h2>CẢI TIẾN VÀ SỬA LỖI</h2>
-<b>Quản lý Name trực quan hơn:</b>
-- Thêm nút "Xóa" trực tiếp trên mỗi dòng trong danh sách name để thao tác nhanh hơn.
-- Cửa sổ "Sửa Name" giờ đây thông minh hơn: tự động hiển thị nút "Sửa" và "Xóa" cho name đã tồn tại, và nút "Lưu" cho name mới.
-
-<b>Sửa lỗi quan trọng:</b>
-- Khắc phục lỗi danh sách name hiển thị "Bộ này trống" khi khởi động ứng dụng, dù đã có dữ liệu trong file config.
-- Sửa lỗi `AttributeError` xảy ra khi thêm name mới vào một bộ tên trống trước khi thực hiện bất kỳ lần dịch nào.
-
+<b>Tối ưu hóa kết nối mạng:</b>
+- Cơ chế lấy proxy được làm lại hoàn toàn. Thay vì thử và thất bại, chương trình giờ đây sẽ <b>kiểm tra và chọn một proxy hoạt động</b> *trước khi* gửi yêu cầu chính, giúp giảm thiểu lỗi timeout và tăng tốc độ cho các chức năng online.
+- Cải thiện logic lấy cookie cho Qidian để hoạt động ổn định và thân thiện hơn với người dùng.
 <h2>Hướng dẫn cập nhật</h2>
 - Nhấn <b>Tải & Cài đặt</b> để download bản cài đặt (.exe) tự động.
 - Ứng dụng sẽ đóng để tránh xung đột; bộ cài sẽ khởi chạy để cài đặt.

@@ -93,11 +93,11 @@ def _split_into_batches(text_list: list, max_chars: int):
         batches.append(current_batch)
     return batches
 
-def _post_translate_batch(content_array: list, server_url: str):
+def _post_translate_batch(content_array: list, server_url: str, proxies=None):
     payload = {'content': json.dumps(content_array, ensure_ascii=False), 'tl': 'vi'}
     headers = {'Content-Type': 'application/json', 'Referer': 'https://dichngay.com/'}
     try:
-        response = requests.post(server_url, json=payload, headers=headers, timeout=30)
+        response = requests.post(server_url, json=payload, headers=headers, timeout=60, proxies=proxies)
         response.raise_for_status()
         json_response = response.json()
         translated_content_str = json_response.get('data', {}).get('content') or json_response.get('translatedText', '[]')
@@ -131,7 +131,7 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
             progress = int((i / total_batches) * 100)
             update_progress_callback(f"Đang dịch gói {i+1}/{total_batches}...", progress)
         
-        translated_batch = _post_translate_batch(batch, server_url)
+        translated_batch = _post_translate_batch(batch, server_url, settings.get('proxies'))
         all_translated_texts.extend(translated_batch)
         
         if i < total_batches - 1:
