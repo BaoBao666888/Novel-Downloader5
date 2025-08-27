@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.41.2
+// @version     3.5.447.41.3
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -440,13 +440,23 @@ function decryptDES(encrypted, key, iv) {
             chapterPrev: '.fanye_cen a:contains("上一章")',
             chapterNext: '.fanye_cen a:contains("下一章")',
         },
-        { // https://www.52shuku.vip/
+        { // https://www.52shuku.vip/  và https://www.52shuku.net/
             siteName: '52书库',
-            filter: () => (window.location.host === 'www.52shuku.vip' ? ($('.list.clearfix').length ? 1 : 2) : 0),
-            url: '://www.52shuku.vip/\\w+/\\w+/\\w+.html$',
-            chapterUrl: '://www.52shuku.vip/\\w+/\\w+/\\w+_\\d+.html$',
-            title: () => {
-                const breadcrumbs = $('.content-wrap .breadcrumbs');
+            filter: () => (/^www\.52shuku\.(vip|net)$/.test(window.location.host) ? ($('.list.clearfix').length ? 1 : 2) : 0),
+            url: '://www\\.52shuku\\.(vip|net)/\\w+/\\w+/\\w+\\.html$',
+            chapterUrl: '://www\\.52shuku\\.(vip|net)/\\w+/\\w+/\\w+_\\d+\\.html$',
+            infoPage: () => {
+                const breadcrumbs = $('.content-wrap .breadcrumbs, .breadcrumbs');
+                return breadcrumbs.length ? breadcrumbs.find('a:last').attr('href') : '';
+            },
+            intro: (doc) => {
+                const ps = $(doc).find('article.article-content > p').filter((i, el) => {
+                    return !el.hasAttribute('id') && !el.hasAttribute('class');
+                }).slice(0, 3);
+                return ps.map((i, el) => $(el).text().trim()).get().join('\n\n');
+            },
+            title: (doc) => {
+                const breadcrumbs = $(doc).find('.content-wrap .breadcrumbs, .breadcrumbs');
                 if (breadcrumbs.length > 0) {
                     let text = breadcrumbs.find('a:last').text().replace('丹青手', '').replace('扶子不好吃', '');
                     if (text.endsWith('丹青手')) {
@@ -1261,29 +1271,29 @@ function decryptDES(encrypted, key, iv) {
                         addApiToList(u.toString(), item.key);
                     }
 
-                    // Tự động bổ sung các domain doubi khác nếu cần
-                    const firstDoubiConfig = apiConfigs.find(item => item?.url && isDoubiDomain(item.url));
-                    if (firstDoubiConfig) {
-                        // Lấy cấu trúc path và query từ URL doubi đầu tiên người dùng cung cấp
-                        const template = new URL(firstDoubiConfig.url.replace(/{chapter_id}/g, chapId), location.origin);
-                        if (!template.searchParams.has('item_id')) template.searchParams.set('item_id', chapId);
-                        template.searchParams.set('source', '番茄');
-                        template.searchParams.set('tab', '小说');
-                        template.searchParams.set('version', '4.6.29');
+//                     // Tự động bổ sung các domain doubi khác nếu cần
+//                     const firstDoubiConfig = apiConfigs.find(item => item?.url && isDoubiDomain(item.url));
+//                     if (firstDoubiConfig) {
+//                         // Lấy cấu trúc path và query từ URL doubi đầu tiên người dùng cung cấp
+//                         const template = new URL(firstDoubiConfig.url.replace(/{chapter_id}/g, chapId), location.origin);
+//                         if (!template.searchParams.has('item_id')) template.searchParams.set('item_id', chapId);
+//                         template.searchParams.set('source', '番茄');
+//                         template.searchParams.set('tab', '小说');
+//                         template.searchParams.set('version', '4.6.29');
 
-                        // Lặp qua tất cả các domain doubi chuẩn
-                        for (const domain of doubiDomains) {
-                            const newUrl = new URL(template.toString());
-                            const [hostname, port] = domain.split(':');
-                            newUrl.hostname = hostname;
-                            newUrl.protocol = 'https:'; // Mặc định là https
-                            if (port) newUrl.port = port;
-                            else newUrl.port = '';
+//                         // Lặp qua tất cả các domain doubi chuẩn
+//                         for (const domain of doubiDomains) {
+//                             const newUrl = new URL(template.toString());
+//                             const [hostname, port] = domain.split(':');
+//                             newUrl.hostname = hostname;
+//                             newUrl.protocol = 'https:'; // Mặc định là https
+//                             if (port) newUrl.port = port;
+//                             else newUrl.port = '';
 
-                            // Thêm vào danh sách nếu nó chưa tồn tại
-                            addApiToList(newUrl.toString(), firstDoubiConfig.key);
-                        }
-                    }
+//                             // Thêm vào danh sách nếu nó chưa tồn tại
+//                             addApiToList(newUrl.toString(), firstDoubiConfig.key);
+//                         }
+//                     }
                 }
 
                 for (const { url, key } of apiList) {
