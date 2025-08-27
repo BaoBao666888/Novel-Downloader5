@@ -2,6 +2,7 @@
 import os
 import re
 import io
+import time
 import tkinter.font as tkfont
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext, simpledialog
@@ -17,17 +18,20 @@ from packaging.version import parse as parse_version
 from extensions import jjwxc_ext
 from extensions import po18_ext
 from extensions import qidian_ext
+from extensions import fanqienovel_ext
 from text_operations import TextOperations
 from update import show_update_window, fetch_manifest_from_url
 import translator_logic as trans_logic
 import pythoncom
+import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.1.3"
+    CURRENT_VERSION = "0.1.4"
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
-        self.title("Rename Chapters v0.1.3 (by BaoBao)")
+        self.title("Rename Chapters v0.1.4 (by BaoBao)")
         self.geometry("1200x800")
 
         # --- BIẾN TRẠNG THÁI ---
@@ -67,6 +71,12 @@ class RenamerApp(tk.Tk):
                 'hanvietJsonUrl': 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/han_viet/output.json',
                 'delayMs': 400,
                 'maxChars': 4500
+            },
+            'proxy_settings': {
+                'proxies': [],
+                'use_for_fetch_titles': False,
+                'use_for_translate': False,
+                'use_for_images': False
             }
         }
 
@@ -185,7 +195,7 @@ class RenamerApp(tk.Tk):
                 # Nếu không lấy được manifest online, thử đọc local version.json (fallback)
                 if not manifest:
                     try:
-                        with open('./local/version.json', 'r', encoding='utf-8') as f:
+                        with open('version.json', 'r', encoding='utf-8') as f:
                             manifest = json.load(f)
                         # Nếu local manifest có notes_file local path, đọc nội dung luôn
                         nf = manifest.get('notes_file')
@@ -242,6 +252,7 @@ class RenamerApp(tk.Tk):
         self.config(menu=menubar)
 
         menubar.add_command(label="Dịch", command=lambda: self._select_tab_by_name("Dịch"))
+        menubar.add_command(label="Proxy", command=self._open_proxy_manager_window)
 
         # Menu Trợ giúp
         help_menu = tk.Menu(menubar, tearoff=0)
@@ -777,7 +788,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         online_paned.add(fetch_frame, weight=1)
         fetch_frame.columnconfigure(1, weight=1)
         ttk.Label(fetch_frame, text="Trang web:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        self.source_web = ttk.Combobox(fetch_frame, values=["jjwxc.net", "po18.tw", "qidian.com"], state="readonly")
+        self.source_web = ttk.Combobox(fetch_frame, values=["jjwxc.net", "po18.tw", "qidian.com", "fanqienovel.com"], state="readonly")
         self.source_web.grid(row=0, column=1, sticky="ew", padx=5)
         self.source_web.set("jjwxc.net")
         ttk.Label(fetch_frame, text="URL mục lục:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
@@ -1539,12 +1550,18 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 selected_site = self.source_web.get()
                 result = None
 
+                proxies = self._get_proxy_for_request('fetch_titles')
+                if proxies:
+                    self.log(f"Sử dụng proxy: {proxies['http']}")
+
                 if selected_site == "jjwxc.net":
-                    result = jjwxc_ext.fetch_chapters(url)
+                    result = jjwxc_ext.fetch_chapters(url, proxies=proxies)
                 elif selected_site == "po18.tw":
-                    result = po18_ext.fetch_chapters(url, root_window=self)
+                    result = po18_ext.fetch_chapters(url, root_window=self, proxies=proxies)
                 elif selected_site == "qidian.com":
-                    result = qidian_ext.fetch_chapters(url, root_window=self)
+                    result = qidian_ext.fetch_chapters(url, root_window=self, proxies=proxies)
+                elif selected_site == "fanqienovel.com":
+                    result = fanqienovel_ext.fetch_chapters(url, proxies=proxies)
                 else:
                     result = {'error': 'Trang web không được hỗ trợ.'}
                 
@@ -2237,6 +2254,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.app_config['translator_settings']['delayMs'] = self.adv_delay.get()
         self.app_config['translator_settings']['maxChars'] = self.adv_max_chars.get()
 
+        proxies = self._get_proxy_for_request('translate')
+        if proxies:
+            self.log(f"Dịch thuật sử dụng proxy: {proxies['http']}")
+        self.app_config['translator_settings']['proxies'] = proxies
+
         set_name = self.translator_name_set_combo.get()
         active_name_set = self.app_config.get('nameSets', {}).get(set_name, {})
         
@@ -2413,7 +2435,10 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
     def _download_image_worker(self, url):
         try:
-            response = requests.get(url, timeout=20, headers={'User-Agent': 'Mozilla/5.0'})
+            proxies = self._get_proxy_for_request('images')
+            if proxies:
+                self.log(f"Tải ảnh sử dụng proxy: {proxies['http']}")
+            response = requests.get(url, timeout=60, headers={'User-Agent': 'Mozilla/5.0'}, proxies=proxies)
             response.raise_for_status()
             # Gọi hàm xử lý chung
             self._process_image_data(io.BytesIO(response.content))
@@ -2652,7 +2677,202 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         threading.Thread(target=worker, daemon=True).start()
 
+    def _open_proxy_manager_window(self):
+        proxy_win = tk.Toplevel(self)
+        proxy_win.title("Quản lý Proxy")
+        proxy_win.geometry("700x550") 
+        proxy_win.transient(self)
+        proxy_win.grab_set()
 
+        main_paned = ttk.PanedWindow(proxy_win, orient=tk.VERTICAL)
+        main_paned.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+
+        input_frame = ttk.Frame(main_paned)
+        main_paned.add(input_frame, weight=2)
+        input_frame.rowconfigure(1, weight=1); input_frame.columnconfigure(0, weight=1)
+        ttk.Label(input_frame, text="Nhập danh sách proxy (mỗi proxy một dòng):").grid(row=0, column=0, sticky="w")
+        proxy_text = scrolledtext.ScrolledText(input_frame, wrap=tk.WORD, height=10)
+        proxy_text.grid(row=1, column=0, sticky="nsew", pady=5)
+        
+        placeholder_text = (
+            "# Dán danh sách proxy vào đây. Ví dụ:\n"
+            "http://123.45.67.89:8080\n"
+            "socks5://user:pass@98.76.54.32:1080\n"
+            "socks4://1.4.195.114:4145"
+        )
+        
+        def add_placeholder(event=None):
+            if not proxy_text.get("1.0", "end-1c").strip():
+                proxy_text.config(foreground="grey")
+                proxy_text.insert("1.0", placeholder_text)
+
+        def remove_placeholder(event=None):
+            if proxy_text.get("1.0", "end-1c") == placeholder_text:
+                proxy_text.delete("1.0", tk.END)
+                proxy_text.config(foreground="black")
+        
+        proxy_text.bind("<FocusIn>", remove_placeholder)
+        proxy_text.bind("<FocusOut>", add_placeholder)
+
+        proxy_settings = self.app_config.get('proxy_settings', {})
+        proxy_list = proxy_settings.get('proxies', [])
+        
+        if proxy_list:
+            proxy_text.insert("1.0", "\n".join(proxy_list))
+        else:
+            add_placeholder()
+
+        result_frame = ttk.LabelFrame(main_paned, text="Kết quả kiểm tra", padding=10)
+        main_paned.add(result_frame, weight=1)
+        result_frame.rowconfigure(0, weight=1); result_frame.columnconfigure(0, weight=1)
+        result_text = scrolledtext.ScrolledText(result_frame, wrap=tk.WORD, height=5, state="disabled")
+        result_text.grid(row=0, column=0, sticky="nsew")
+
+        # warning_label = ttk.Label(
+        #     main_paned, 
+        #     text="Lưu ý: Các proxy miễn phí trên mạng thường không ổn định, rất chậm và có thể không an toàn. Hãy cân nhắc kỹ trước khi sử dụng.",
+        #     foreground="dark orange", # Màu cam sẫm để cảnh báo
+        #     wraplength=550, # Tự động xuống dòng nếu văn bản quá dài
+        #     justify=tk.LEFT
+        # )
+        # warning_label.grid(row=4, column=0, sticky="w", pady=(5, 10))
+
+        # KHUNG TÙY CHỌN VÀ NÚT BẤM
+        bottom_frame = ttk.Frame(proxy_win)
+        bottom_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
+
+        options_frame = ttk.LabelFrame(bottom_frame, text="Sử dụng proxy cho các chức năng", padding=10)
+        options_frame.pack(side=tk.LEFT, fill=tk.Y, expand=True)
+
+        use_for_fetch = tk.BooleanVar(value=proxy_settings.get('use_for_fetch_titles', False))
+        use_for_translate = tk.BooleanVar(value=proxy_settings.get('use_for_translate', False))
+        use_for_images = tk.BooleanVar(value=proxy_settings.get('use_for_images', False))
+
+        ttk.Checkbutton(options_frame, text="Lấy tiêu đề online", variable=use_for_fetch).pack(anchor="w")
+        ttk.Checkbutton(options_frame, text="Dịch thuật", variable=use_for_translate).pack(anchor="w")
+        ttk.Checkbutton(options_frame, text="Tải ảnh từ URL", variable=use_for_images).pack(anchor="w")
+
+        def _save_proxy_settings():
+            # Lấy danh sách proxy, bỏ qua placeholder nếu còn
+            proxies_raw = proxy_text.get("1.0", tk.END).strip()
+            if proxies_raw == placeholder_text:
+                proxy_list = []
+            else:
+                proxy_list = [line.strip() for line in proxies_raw.split('\n') if line.strip()]
+
+            self.app_config['proxy_settings'] = {
+                'proxies': proxy_list,
+                'use_for_fetch_titles': use_for_fetch.get(),
+                'use_for_translate': use_for_translate.get(),
+                'use_for_images': use_for_images.get()
+            }
+            self.save_config()
+            messagebox.showinfo("Thành công", "Đã lưu cài đặt proxy.", parent=proxy_win)
+            proxy_win.destroy()
+
+        action_frame = ttk.Frame(bottom_frame)
+        action_frame.pack(side=tk.RIGHT)
+        
+        check_btn = ttk.Button(action_frame, text="Kiểm tra Proxy", command=lambda: self._start_proxy_check_thread(proxy_text, result_text, check_btn))
+        check_btn.pack(fill=tk.X, pady=2)
+        
+        save_btn = ttk.Button(action_frame, text="Lưu và Đóng", command=lambda: _save_proxy_settings())
+        save_btn.pack(fill=tk.X, pady=2)
+
+    def _get_proxy_for_request(self, feature_name: str):
+        """
+        Lấy một proxy ngẫu nhiên từ danh sách đã lưu (không kiểm tra lại).
+        feature_name: 'fetch_titles', 'translate', 'images'
+        """
+        proxy_settings = self.app_config.get('proxy_settings', {})
+        use_proxy_flag = proxy_settings.get(f'use_for_{feature_name}', False)
+
+        if not use_proxy_flag:
+            return None
+
+        proxy_list = proxy_settings.get('proxies', [])
+        if not proxy_list:
+            self.log("[Proxy] Chức năng proxy được bật nhưng danh sách trống.")
+            return None
+
+        chosen_proxy = random.choice(proxy_list)
+        self.log(f"[Proxy] Sử dụng proxy ngẫu nhiên: {chosen_proxy}")
+        return {"http": chosen_proxy, "https": chosen_proxy}
+
+    def _start_proxy_check_thread(self, proxy_widget, result_widget, button):
+        """Khởi động luồng kiểm tra proxy."""
+        proxies_raw = proxy_widget.get("1.0", tk.END).strip()
+        proxy_list = [line.strip() for line in proxies_raw.split('\n') if line.strip() and not line.startswith('#')]
+        
+        if not proxy_list:
+            messagebox.showwarning("Thông báo", "Không có proxy nào để kiểm tra.", parent=proxy_widget)
+            return
+
+        button.config(state="disabled")
+        result_widget.config(state="normal")
+        result_widget.delete("1.0", tk.END)
+        result_widget.insert("1.0", f"Bắt đầu kiểm tra {len(proxy_list)} proxy...\n")
+        result_widget.config(state="disabled")
+
+        thread = threading.Thread(
+            target=self._check_proxies_worker,
+            args=(proxy_list, result_widget, button, proxy_widget),
+            daemon=True
+        )
+        thread.start()
+
+    def _check_single_proxy(self, proxy_str, timeout=30):
+        """Hàm con để kiểm tra một proxy duy nhất."""
+        try:
+            proxies_dict = {"http": proxy_str, "https": proxy_str}
+            start_time = time.time()
+            # httpbin.org/get là một endpoint nhẹ để kiểm tra
+            response = requests.get("http://httpbin.org/get", proxies=proxies_dict, timeout=timeout)
+            response.raise_for_status()
+            latency = (time.time() - start_time) * 1000  # ms
+            return proxy_str, True, f"{latency:.0f}ms"
+        except Exception as e:
+            return proxy_str, False, str(e).splitlines()[-1]
+
+    def _check_proxies_worker(self, proxy_list, result_widget, button, proxy_widget):
+        """Worker chạy trong thread để kiểm tra song song."""
+        working_proxies = []
+        
+        # Giới hạn 100 luồng kiểm tra cùng lúc để tránh quá tải
+        with ThreadPoolExecutor(max_workers=100) as executor:
+            future_to_proxy = {executor.submit(self._check_single_proxy, proxy): proxy for proxy in proxy_list}
+            
+            for future in as_completed(future_to_proxy):
+                proxy, is_working, result_msg = future.result()
+                
+                def update_ui():
+                    result_widget.config(state="normal")
+                    if is_working:
+                        result_widget.insert(tk.END, f"SỐNG - {proxy} ({result_msg})\n", "ok")
+                        working_proxies.append(proxy)
+                    else:
+                        result_widget.insert(tk.END, f"CHẾT - {proxy} - {result_msg}\n", "error")
+                    result_widget.see(tk.END)
+                    result_widget.config(state="disabled")
+
+                self.after(0, update_ui)
+        
+        def final_update():
+            result_widget.config(state="normal")
+            result_widget.tag_config("ok", foreground="green")
+            result_widget.tag_config("error", foreground="red")
+            result_widget.insert(tk.END, f"\nHoàn tất! Tìm thấy {len(working_proxies)} proxy hoạt động.")
+            result_widget.config(state="disabled")
+            
+            # Tự động cập nhật lại ô nhập liệu với các proxy còn sống
+            if messagebox.askyesno("Cập nhật danh sách?", f"Tìm thấy {len(working_proxies)} proxy hoạt động. Bạn có muốn cập nhật lại danh sách chỉ với các proxy này không?"):
+                proxy_widget.delete("1.0", tk.END)
+                proxy_widget.insert("1.0", "\n".join(working_proxies))
+
+            button.config(state="normal")
+
+        self.after(0, final_update)
+    
 if __name__ == "__main__":
     app = RenamerApp()
     app.mainloop()

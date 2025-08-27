@@ -119,7 +119,7 @@ def parse_chapters_from_page(html_content: str):
             chapters.append({'num': chapter_counter, 'title1': title1, 'title2': title2})
     return chapters
 
-def fetch_chapters(url: str, root_window=None):
+def fetch_chapters(url: str, root_window=None, proxies=None):
     base_url = get_clean_url(url)
     if not base_url:
         return {'error': 'URL Qidian không hợp lệ. URL phải có dạng .../book/#######/...'}
@@ -160,9 +160,15 @@ def fetch_chapters(url: str, root_window=None):
         }
         
         print(f"Đang tải mục lục Qidian với cookie đã lưu...")
-        resp = session.get(base_url, headers=headers, timeout=15)
+
+        resp = session.get(base_url, headers=headers, timeout=60, proxies=proxies)
         resp.raise_for_status()
         resp.encoding = 'utf-8'
+
+        #save response vào file .html
+        # with open("qidian_response.html", "w", encoding="utf-8") as f:
+        #     f.write(resp.text)
+        #     print("Đã lưu nội dung trang Qidian vào qidian_response.html")
 
         all_chapters = parse_chapters_from_page(resp.text)
         if not all_chapters:
@@ -184,8 +190,8 @@ def fetch_chapters(url: str, root_window=None):
 # if __name__ == "__main__":
 #     test_url = "https://www.qidian.com/book/1037076300/"
 #     result = fetch_chapters(test_url)
-#     if 'error' in result:
-#         print("Lỗi:", result['error'])
-#     else:
-#         for chapter in result['data']:
-#             print(f"{chapter['num']}: {chapter['title1']} ({chapter['title2']})")
+    # if 'error' in result:
+    #     print("Lỗi:", result['error'])
+    # else:
+    #     for chapter in result['data']:
+    #         print(f"{chapter['num']}: {chapter['title1']} ({chapter['title2']})")

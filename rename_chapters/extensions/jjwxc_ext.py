@@ -2,7 +2,7 @@
 import requests
 from bs4 import BeautifulSoup
 
-def fetch_chapters(url: str):
+def fetch_chapters(url: str, proxies=None):
     """
     Lấy danh sách chương từ một URL của jjwxc.net.
     Trả về một list các dictionary, mỗi dict chứa: num, title1, title2.
@@ -11,7 +11,7 @@ def fetch_chapters(url: str):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=60, proxies=proxies)
         response.raise_for_status() # Báo lỗi nếu request thất bại
         
         # JJWXC dùng encoding GB18030
@@ -57,3 +57,12 @@ def fetch_chapters(url: str):
         return {'error': f"Lỗi mạng: {e}"}
     except Exception as e:
         return {'error': f"Lỗi không xác định: {e}"}
+    
+# if __name__ == "__main__":
+#     print("Test: ")
+#     proxies = {
+#         "http": "socks4://101.35.42.37:3389",
+#         "https": "socks4://101.35.42.37:3389",
+#     }
+#     all = fetch_chapters("https://www.jjwxc.net/onebook.php?novelid=4509405",proxies=proxies)
+#     print(all)
