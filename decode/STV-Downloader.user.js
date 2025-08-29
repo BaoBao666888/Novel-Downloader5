@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         STV Data Collector (Advanced)
 // @namespace    https://sangtacviet.com/
-// @version      4.0
+// @version      4.1_beta
 // @description  Thu thập dữ liệu từ STV với khả năng chống CAPTCHA, random delay và lưu tiến độ
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/STV-Downloader.user.js
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/STV-Downloader.user.js
 // @author       Bảo Bảo
 // @match        https://sangtacviet.com/truyen/*/*/*/
 // @grant        GM_registerMenuCommand
+// @grant        GM_openInTab
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
 // @icon         https://sangtacviet.com/favicon.ico
 // ==/UserScript==
@@ -21,11 +22,76 @@
     let captchaTab = null;
     let shouldStop = false;
 
+    // Kiểm tra xem GM_openInTab có sẵn không (Tampermonkey)
+    const useGMOpen = (typeof GM_openInTab === 'function');
+
     // --- HÀM TIỆN ÍCH ---
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     const getRandomDelay = (min, max) => {
         return Math.floor(Math.random() * (max - min + 1)) + min;
+    };
+
+    // Mở tab captcha — ưu tiên GM_openInTab (active:false) để không focus, fallback về window.open
+    const openCaptchaTab = (url) => {
+        try {
+            if (useGMOpen) {
+                // Mở tab nền, không focus
+                return GM_openInTab(url, {
+                    active: false,
+                    insert: true,
+                    setParent: true
+                });
+            } else {
+                // Fallback: window.open (có thể gây focus)
+                return window.open(
+                    url,
+                    '_blank',
+                    'width=450,height=650,left=200,top=150,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+                );
+            }
+        } catch (e) {
+            console.warn('openCaptchaTab failed, fallback to window.open:', e);
+            return window.open(
+                url,
+                '_blank',
+                'width=450,height=650,left=200,top=150,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+            );
+        }
+    };
+
+    // Đóng tab (cả GM tab object hoặc window)
+    const closeCaptchaTab = (tab) => {
+        try {
+            if (!tab) return;
+            // GM tab object có method close()
+            if (typeof tab.close === 'function') {
+                tab.close();
+                return;
+            }
+            // window reference
+            if (typeof tab.closed !== 'undefined' && tab.closed === false && typeof tab.close === 'function') {
+                tab.close();
+                return;
+            }
+        } catch (e) {
+            console.warn('closeCaptchaTab error:', e);
+        }
+    };
+
+    // Kiểm tra xem tab đã đóng hay không (để quyết định mở mới)
+    const isTabClosed = (tab) => {
+        if (!tab) return true;
+        try {
+            // Nếu GM tab object có thuộc tính 'closed' -> kiểm tra
+            if (typeof tab.closed !== 'undefined') return !!tab.closed;
+            // Nếu không có 'closed' property, nhưng có 'close' function (GM), coi như vẫn mở
+            if (typeof tab.close === 'function') return false;
+            // Fallback: nếu là window reference, check tab.closed
+            return !!tab.closed;
+        } catch (e) {
+            return true;
+        }
     };
 
     // --- GIAO DIỆN ĐIỀU KHIỂN ---
@@ -217,12 +283,9 @@
         async function handleCaptchaAndRetry() {
             console.log(`🔄 Xử lý CAPTCHA/Code7 cho chương ${chapter.order}`);
 
-            if (!captchaTab || captchaTab.closed) {
-                captchaTab = window.open(
-                    chapterWebUrl,
-                    '_blank',
-                    'width=450,height=650,left=200,top=150,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
-                );
+            // Mở tab captcha nếu chưa có hoặc đã đóng
+            if (isTabClosed(captchaTab)) {
+                captchaTab = openCaptchaTab(chapterWebUrl);
             }
 
             const maxCaptchaAttempts = 8;
@@ -243,8 +306,10 @@
                     const result = await attemptApiCall();
                     console.log(`✅ CAPTCHA/Code7 đã được giải quyết cho chương ${chapter.order}`);
 
-                    if (captchaTab && !captchaTab.closed) {
-                        captchaTab.close();
+                    if (!isTabClosed(captchaTab)) {
+                        try {
+                            closeCaptchaTab(captchaTab);
+                        } catch (e) { /* ignore */ }
                         captchaTab = null;
                     }
 
@@ -254,16 +319,38 @@
 
                     // Reload tab captcha sau lần thử thứ 2 và mỗi 2 lần thử tiếp theo
                     if (attempt === 2 || attempt % 2 === 0) {
-                        if (captchaTab && !captchaTab.closed) {
-                            console.log(`🔄 Reload tab để refresh cookie...`);
-                            captchaTab.location.reload();
+                        if (!isTabClosed(captchaTab)) {
+                            if (useGMOpen) {
+                                // Với GM_openInTab: đóng rồi mở lại (avoid focus)
+                                try {
+                                    closeCaptchaTab(captchaTab);
+                                } catch (e) { console.warn('close failed', e); }
+                                captchaTab = openCaptchaTab(chapterWebUrl);
+                            } else {
+                                // fallback: reload window tab
+                                try {
+                                    captchaTab.location.reload();
+                                } catch (e) {
+                                    // nếu reload lỗi thì đóng và mở mới
+                                    try {
+                                        closeCaptchaTab(captchaTab);
+                                    } catch (ee) {}
+                                    captchaTab = openCaptchaTab(chapterWebUrl);
+                                }
+                            }
+                            console.log(`🔄 Reload/Restart tab để refresh cookie...`);
+                        } else {
+                            // nếu tab đã đóng, mở tab mới
+                            captchaTab = openCaptchaTab(chapterWebUrl);
                         }
                     }
                 }
             }
 
-            if (captchaTab && !captchaTab.closed) {
-                captchaTab.close();
+            if (!isTabClosed(captchaTab)) {
+                try {
+                    closeCaptchaTab(captchaTab);
+                } catch (e) {}
                 captchaTab = null;
             }
 
@@ -494,8 +581,10 @@ ${data.map(item => `${item.order}. ${item.title} ${item.error ? '(LỖI)' : '(OK
             document.getElementById('stop-collecting').disabled = true;
 
             // Đóng tab captcha nếu còn
-            if (captchaTab && !captchaTab.closed) {
-                captchaTab.close();
+            if (!isTabClosed(captchaTab)) {
+                try {
+                    closeCaptchaTab(captchaTab);
+                } catch (e) {}
                 captchaTab = null;
             }
 
