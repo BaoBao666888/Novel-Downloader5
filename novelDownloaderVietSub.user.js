@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.41.3
+// @version     3.5.447.41.4
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -28,6 +28,7 @@
 // @grant       GM_getValue
 // @grant       GM_registerMenuCommand
 // @grant       GM_getResourceText
+// @grant       GM_addValueChangeListener
 // @run-at      document-end
 // @connect     *
 // @include     *
@@ -106,10 +107,165 @@ function decryptDES(encrypted, key, iv) {
     });
     return decrypted.toString(CryptoJS.enc.Utf8);
 }
+
 /* eslint-disable no-debugger  */
 /* global $ xhr tranStr JSZip saveAs CryptoJS opentype */
 
 ; (function () { // eslint-disable-line no-extra-semi
+    const TaskManager = {
+        STATE_KEY: 'nd_manager_state',
+        _listeners: [], // Mảng để lưu các hàm callback khi state thay đổi
+
+        // Hàm để lấy state hiện tại một cách an toàn
+        async getState() {
+            let state = await GM_getValue(this.STATE_KEY);
+            // Nếu chưa có state, khởi tạo state mặc định
+            if (!state) {
+                return { queue: [], history: [] };
+            }
+            return state;
+        },
+
+        // Hàm để cập nhật state. Rất quan trọng: nó nhận một hàm updater
+        // để tránh race condition (xung đột khi nhiều tab cùng ghi)
+        async setState(updater) {
+            const currentState = await this.getState();
+            const newState = updater(currentState);
+            await GM_setValue(this.STATE_KEY, newState);
+            return newState;
+        },
+
+        // Thêm một hàm lắng nghe
+        onStateChange(callback) {
+            this._listeners.push(callback);
+        },
+
+        // Khởi tạo trình quản lý
+        init() {
+            // Lắng nghe sự thay đổi của state từ các tab khác
+            GM_addValueChangeListener(this.STATE_KEY, (name, old_value, new_value, remote) => {
+                if (remote) { // Chỉ xử lý nếu thay đổi đến từ tab khác
+                    console.log('TaskManager: State changed from another tab.');
+                    // Thông báo cho tất cả các listener trên tab này
+                    this._listeners.forEach(callback => callback(new_value));
+                }
+            });
+            console.log('TaskManager initialized and listening for changes.');
+        }
+    };
+
+    // Hàm để hiển thị Giao diện Quản lý
+    async function showManagerUI() {
+        // Nếu UI đã tồn tại, chỉ cần bật/tắt nó
+        const existingUI = document.getElementById('nd-manager-overlay');
+        if (existingUI) {
+            existingUI.style.display = existingUI.style.display === 'none' ? 'flex' : 'none';
+            return;
+        }
+
+        // Tạo style cho UI (chỉ một lần)
+        const style = document.createElement('style');
+        style.textContent = `
+            #nd-manager-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999998; display: flex; align-items: center; justify-content: center; font-family: sans-serif; }
+            #nd-manager-window { background: #f4f4f4; width: 80%; max-width: 900px; height: 80%; max-height: 700px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; }
+            #nd-manager-header { padding: 15px 20px; background: #333; color: white; display: flex; justify-content: space-between; align-items: center; }
+            #nd-manager-header h2 { margin: 0; font-size: 18px; }
+            #nd-manager-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; opacity: 0.8; }
+            #nd-manager-tabs { display: flex; background: #e0e0e0; padding: 0 10px; }
+            .nd-manager-tab { padding: 12px 18px; cursor: pointer; border-bottom: 3px solid transparent; }
+            .nd-manager-tab.active { border-bottom-color: #3498db; background: #f4f4f4; font-weight: bold; }
+            #nd-manager-content { flex-grow: 1; padding: 20px; overflow-y: auto; color: #333; }
+            .nd-manager-page { display: none; }
+            .nd-manager-page.active { display: block; }
+        `;
+        document.head.appendChild(style);
+
+        // Tạo cấu trúc HTML
+        const overlay = document.createElement('div');
+        overlay.id = 'nd-manager-overlay';
+        overlay.innerHTML = `
+            <div id="nd-manager-window">
+                <div id="nd-manager-header">
+                    <h2>Trình Quản lý Tải xuống</h2>
+                    <button id="nd-manager-close">&times;</button>
+                </div>
+                <div id="nd-manager-tabs">
+                    <div class="nd-manager-tab active" data-tab="queue">Hàng đợi</div>
+                    <div class="nd-manager-tab" data-tab="history">Lịch sử</div>
+                </div>
+                <div id="nd-manager-content">
+                    <div class="nd-manager-page active" id="nd-manager-page-queue">
+                        <h3>Đang tải & Đang chờ</h3>
+                        <div id="nd-queue-list">Chưa có gì trong hàng đợi.</div>
+                    </div>
+                    <div class="nd-manager-page" id="nd-manager-page-history">
+                        <h3>Lịch sử Tương tác</h3>
+                        <div id="nd-history-list">Chưa có lịch sử.</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Hàm để render dữ liệu vào UI
+        const renderUI = (state) => {
+            console.log('Rendering manager UI with new state:', state);
+
+            // --- Render Hàng đợi ---
+            const queueList = document.getElementById('nd-queue-list');
+            if (!state.queue || state.queue.length === 0) {
+                queueList.innerHTML = 'Chưa có gì trong hàng đợi.';
+            } else {
+                queueList.innerHTML = state.queue.map(task => `
+                    <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="font-weight: bold;">${task.bookTitle}</div>
+                        <div style="font-size: 12px; color: #666;">Trang: ${task.domain}</div>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                            <progress value="${task.progress.completed}" max="${task.progress.total}" style="width: 100%;"></progress>
+                            <span>${task.progress.completed} / ${task.progress.total}</span>
+                        </div>
+                        <div style="font-size: 12px; color: #888;">Trạng thái: ${task.status}</div>
+                    </div>
+                `).join('');
+            }
+
+            // --- Render Lịch sử ---
+            const historyList = document.getElementById('nd-history-list');
+            if (!state.history || state.history.length === 0) {
+                historyList.innerHTML = 'Chưa có lịch sử.';
+            } else {
+                 historyList.innerHTML = state.history.map(task => `
+                    <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="font-weight: bold;">${task.bookTitle}</div>
+                        <div style="font-size: 12px; color: #666;">Trang: ${task.domain}</div>
+                        <div style="font-size: 12px; color: #888;">Trạng thái: ${task.status} - ${new Date(task.finishedAt).toLocaleString()}</div>
+                    </div>
+                `).join('');
+            }
+        };
+
+        // Gắn sự kiện
+        document.getElementById('nd-manager-close').addEventListener('click', () => {
+            overlay.style.display = 'none';
+        });
+
+        document.querySelectorAll('.nd-manager-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelector('.nd-manager-tab.active').classList.remove('active');
+                document.querySelector('.nd-manager-page.active').classList.remove('active');
+                tab.classList.add('active');
+                document.getElementById(`nd-manager-page-${tab.dataset.tab}`).classList.add('active');
+            });
+        });
+
+        // Lấy state lần đầu và render
+        const initialState = await TaskManager.getState();
+        renderUI(initialState);
+
+        // Đăng ký hàm render để tự động cập nhật UI khi state thay đổi
+        TaskManager.onStateChange(renderUI);
+    }
+    TaskManager.init();
     let fontLib;
 
     /*
@@ -350,6 +506,7 @@ function decryptDES(encrypted, key, iv) {
             }
         };
     })();
+
 
     Rule.special = [
         { // https://manhua.dmzj.com/
@@ -1071,10 +1228,26 @@ function decryptDES(encrypted, key, iv) {
             chapterNext: '.page1 a:contains("下一章")'
         },
 
-        { // https://www.wfxs.tw/
-            siteName: '微风小说',
-            url: /www.wfxs.tw\/booklist\/\d+.html/,
-            chapterUrl: /www.wfxs.tw\/xiaoshuo\/\d+\/\d+\/(\d+.html|)/,
+        {
+            siteName: '微风小说 (wfxs)',
+            filter: () => {
+                const h = window.location.host;
+                if (h === 'm.wfxs.tw') {
+                    const target = window.location.href
+                    .replace(/^https?:\/\/m\./, 'https://www.')
+                    .replace(/\/+\.html$/, '.html');
+
+                    if (confirm('Trang đang ở phiên bản mobile. Bạn muốn chuyển sang phiên bản desktop để tải đầy đủ nội dung?\n\n' + target)) {
+                        window.location.href = target;
+                    }
+                    return 0;
+                }
+                if (/www\.wfxs\.tw\/booklist\/\d+\.html/.test(window.location.href)) return 1; // trang mục lục
+                if (/www\.wfxs\.tw\/xiaoshuo\/\d+\/\d+\/(\d+\.html)?$/.test(window.location.href)) return 2; // trang chương (thô)
+                return 0;
+            },
+            url: /www.wfxs.tw\/booklist\/\d+\.html/,
+            chapterUrl: /www.wfxs.tw\/xiaoshuo\/\d+\/\d+\/(\d+\.html|)$/,
             infoPage: '.tabstit > a[href^="/xiaoshuo/"],.nav a[href^="/xiaoshuo/"]',
             title: '.booktitle > h1',
             writer: '.booktitle > #author > a',
@@ -1082,9 +1255,215 @@ function decryptDES(encrypted, key, iv) {
             cover: '#bookimg > img',
             chapter: '#readerlists > ul > li > a',
             chapterTitle: '[class="chapter-content px-3 pb-5"] > h1',
-            chapterNext: '[class="warp my-5 foot-nav"] > a:contains("上一章")',
-            chapterNext: '[class="warp my-5 foot-nav"] > a:contains("下一章")',
-            content: '[class="chapter-content px-3 pb-5"] > .content',
+            //content: '[class="chapter-content px-3 pb-5"] > .content',
+            deal: async (chapter) => {
+                const CONTENT_SEL = '.chapter-content.px-3.pb-5 > .content';
+                const TITLE_SEL = '.chapter-content.px-3.pb-5 > h1';
+                const FOOT_NAV_SEL = '.warp.my-5.foot-nav';
+
+                const sleep = ms => new Promise(res => setTimeout(res, ms));
+                const delayMs = (typeof Config !== 'undefined' && Number(Config.delayBetweenChapters) > 0)
+                ? Number(Config.delayBetweenChapters)
+                : 500;
+
+                async function fetchWithPopupIfBlocked(url, verificationSelector = 'body', timeout = 30000) {
+                    try {
+                        const text = await fetch(url, { credentials: 'include' }).then(r => r.text());
+                        if (!/cf-browser-verification|Just a moment/i.test(text)) {
+                            const doc = new DOMParser().parseFromString(text, 'text/html');
+                            if (doc.querySelector(verificationSelector)) return text;
+                        }
+                    } catch (e) {
+                        // ignore and fallback to popup
+                    }
+
+                    return new Promise((resolve, reject) => {
+                        const popup = window.open(url, '_blank', 'width=900,height=700');
+                        if (!popup) return reject('Popup blocked');
+                        const start = Date.now();
+                        const interval = setInterval(() => {
+                            try {
+                                if (popup.closed) {
+                                    clearInterval(interval);
+                                    return reject('Popup closed before ready');
+                                }
+                                if (popup.document && popup.document.readyState === 'complete' && popup.document.querySelector(verificationSelector)) {
+                                    const html = popup.document.documentElement.outerHTML;
+                                    clearInterval(interval);
+                                    popup.close();
+                                    return resolve(html);
+                                }
+                            } catch (e) { /* cross-origin while waiting */ }
+                            if (Date.now() - start > timeout) {
+                                clearInterval(interval);
+                                if (!popup.closed) popup.close();
+                                return reject('Popup timeout');
+                            }
+                        }, 500);
+                    });
+                }
+
+                function parsePager(text) {
+                    if (!text) return null;
+                    const m = text.match(/[（(]\s*(\d+)\s*[\/／]\s*(\d+)\s*[)）]/);
+                    if (m) return { page: parseInt(m[1], 10), total: parseInt(m[2], 10) };
+                    return null;
+                }
+
+                function normalizeText(s) {
+                    return (s || '').replace(/\s+/g, '').replace(/[頁页]/g, '页');
+                }
+
+                function findNextPageLinkByText(doc, currentUrl, pager) {
+                    const anchors = Array.from(doc.querySelectorAll('a'));
+
+                    // 1) tìm bằng text (hợp nhất giản/phồn + bỏ space)
+                    for (const a of anchors) {
+                        const raw = a.textContent || '';
+                        const txt = normalizeText(raw).trim();
+                        if (txt.includes('下一页') || txt.includes('下页')) {
+                            const href = a.getAttribute('href');
+                            if (href) return new URL(href, currentUrl).href;
+                        }
+                    }
+
+                    // 2) nếu có pager: tìm href chứa số trang tiếp theo
+                    if (pager && typeof pager.page === 'number') {
+                        const nextNum = pager.page + 1;
+                        const re_end_num_html = new RegExp('/' + nextNum + '(?:\\.html)?(?:/)?$');
+                        const re_page_param = new RegExp('[?&](?:page|p)=' + nextNum + '(?:$|&)');
+                        for (const a of anchors) {
+                            const hrefRaw = a.getAttribute('href');
+                            if (!hrefRaw) continue;
+                            let abs;
+                            try { abs = new URL(hrefRaw, currentUrl).href; } catch (e) { continue; }
+                            if (re_end_num_html.test(abs) || re_page_param.test(abs) || abs.includes('/' + nextNum + '/')) {
+                                return abs;
+                            }
+                        }
+                    }
+
+                    // 3) fallback: kiểm tra foot-nav cho 下一章 (nhiều khi chứa /2.html)
+                    const foot = doc.querySelector(FOOT_NAV_SEL);
+                    if (foot) {
+                        const footAnchors = Array.from(foot.querySelectorAll('a'));
+                        for (const a of footAnchors) {
+                            const txt = (a.textContent || '').trim();
+                            const href = a.getAttribute('href');
+                            if (!href) continue;
+                            const abs = new URL(href, currentUrl).href;
+                            if (txt === '下一章') return abs;
+                            const segs = abs.split('/').filter(Boolean);
+                            const last = segs[segs.length - 1] || '';
+                            if (/^\d+(\.html)?$/.test(last)) return abs;
+                        }
+                    }
+
+                    // 4) heuristic: tăng số cuối của currentUrl
+                    try {
+                        const cur = new URL(currentUrl);
+                        const path = cur.pathname;
+                        let m = path.match(/\/(\d+)(?:\.html)?\/?$/);
+                        if (m) {
+                            const next = parseInt(m[1], 10) + 1;
+                            const cand1 = currentUrl.replace(/\/(\d+)(?:\.html)?\/?$/, '/' + next + '.html');
+                            return cand1;
+                        }
+                        m = path.match(/_(\d+)\.html$/);
+                        if (m) {
+                            const next = parseInt(m[1], 10) + 1;
+                            const cand = currentUrl.replace(/_(\d+)\.html$/, '_' + next + '.html');
+                            return cand;
+                        }
+                    } catch (e) { /* ignore */ }
+
+                    return null;
+                }
+
+                // main
+                console.log('[wfxs.deal] start deal:', chapter && (chapter.title || chapter.url));
+                let combinedHtml = '';
+                let cur = chapter.url;
+                let mainTitle = chapter.title || '';
+                let first = true;
+                let pagesFetched = 0;
+
+                while (cur) {
+                    console.log('[wfxs.deal] fetch page:', cur);
+                    let html;
+                    try {
+                        html = await fetchWithPopupIfBlocked(cur, TITLE_SEL);
+                    } catch (err) {
+                        console.error('[wfxs.deal] fetch error:', err);
+                        break;
+                    }
+
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+                    if (first) {
+                        const tnode = doc.querySelector(TITLE_SEL) || doc.querySelector('h1');
+                        if (tnode) {
+                            const rawTitle = tnode.textContent.trim();
+                            mainTitle = rawTitle.replace(/[（(]\s*\d+\s*[\/／]\s*\d+\s*[)）]$/, '').trim() || mainTitle;
+                        }
+                        first = false;
+                    }
+
+                    const contentNode = doc.querySelector(CONTENT_SEL);
+                    if (contentNode) {
+                        Array.from(contentNode.querySelectorAll('script,style,iframe,.ads,.ad')).forEach(n => n.remove());
+                        combinedHtml += contentNode.innerHTML;
+                    } else {
+                        combinedHtml += (doc.body && doc.body.innerHTML) || '';
+                    }
+                    pagesFetched++;
+
+                    // pager xử lý
+                    const tnodeCheck = doc.querySelector(TITLE_SEL) || doc.querySelector('h1');
+                    const ttext = tnodeCheck ? tnodeCheck.textContent : '';
+                    const pager = parsePager(ttext);
+                    if (pager) {
+                        console.log(`[wfxs.deal] internal pager: ${pager.page}/${pager.total}`);
+                        if (pager.page >= pager.total) break;
+                        const nextPage = findNextPageLinkByText(doc, cur, pager);
+                        if (nextPage) {
+                            console.log('[wfxs.deal] next page ->', nextPage);
+                            // sleep trước khi fetch trang tiếp theo
+                            if (delayMs > 0) await sleep(delayMs);
+
+                            cur = nextPage;
+                            continue;
+                        } else {
+                            console.warn('[wfxs.deal] no next page link found, stop.');
+                            break;
+                        }
+                    } else {
+                        break; // không phải phân trang nội bộ -> dừng sau 1 trang
+                    }
+                }
+
+                // convert HTML -> text
+                const tmp = document.createElement('div');
+                tmp.innerHTML = combinedHtml;
+                Array.from(tmp.querySelectorAll('script,style,iframe,.ads,.ad')).forEach(n => n.remove());
+                const pNodes = Array.from(tmp.querySelectorAll('p')).map(p => p.textContent.trim()).filter(Boolean);
+                let text = pNodes.length ? pNodes.join('\n\n') : (tmp.textContent || '').split(/\n+/).map(s => s.trim()).filter(Boolean).join('\n\n');
+
+                // remove leading title line if duplicate
+                const lines = text.split(/\r?\n/);
+                if (lines.length && lines[0].trim()) {
+                    const firstLine = lines[0].trim();
+                    const cleanedTitle = (mainTitle || '').replace(/[^\w\u4e00-\u9fff]/g, '');
+                    if (firstLine === mainTitle || firstLine.replace(/[^\w\u4e00-\u9fff]/g,'') === cleanedTitle) {
+                        lines.shift();
+                        text = lines.join('\n');
+                    } else text = lines.join('\n');
+                }
+
+                console.log('[wfxs.deal] done:', mainTitle, 'pagesFetched=', pagesFetched, 'len=', (text||'').length);
+                return { title: mainTitle, content: text };
+            },
+
         },
 
         { // https://fanqienovel.com/
@@ -1270,30 +1649,6 @@ function decryptDES(encrypted, key, iv) {
                         }
                         addApiToList(u.toString(), item.key);
                     }
-
-//                     // Tự động bổ sung các domain doubi khác nếu cần
-//                     const firstDoubiConfig = apiConfigs.find(item => item?.url && isDoubiDomain(item.url));
-//                     if (firstDoubiConfig) {
-//                         // Lấy cấu trúc path và query từ URL doubi đầu tiên người dùng cung cấp
-//                         const template = new URL(firstDoubiConfig.url.replace(/{chapter_id}/g, chapId), location.origin);
-//                         if (!template.searchParams.has('item_id')) template.searchParams.set('item_id', chapId);
-//                         template.searchParams.set('source', '番茄');
-//                         template.searchParams.set('tab', '小说');
-//                         template.searchParams.set('version', '4.6.29');
-
-//                         // Lặp qua tất cả các domain doubi chuẩn
-//                         for (const domain of doubiDomains) {
-//                             const newUrl = new URL(template.toString());
-//                             const [hostname, port] = domain.split(':');
-//                             newUrl.hostname = hostname;
-//                             newUrl.protocol = 'https:'; // Mặc định là https
-//                             if (port) newUrl.port = port;
-//                             else newUrl.port = '';
-
-//                             // Thêm vào danh sách nếu nó chưa tồn tại
-//                             addApiToList(newUrl.toString(), firstDoubiConfig.key);
-//                         }
-//                     }
                 }
 
                 for (const { url, key } of apiList) {
@@ -5442,7 +5797,7 @@ function decryptDES(encrypted, key, iv) {
             '  <br>',
             '  <button type="button" name="choose-download-dir" style="border:2px solid #2ecc71;padding:4px 8px;border-radius:4px;margin-right:6px;">Chọn thư mục lưu</button>',
             '  <input type="text" name="downloadDirDisplay" readonly placeholder="Thư mục lưu hiện tại (mặc định trình duyệt)" style="min-width:260px;"/>',
-            '  <label style="margin-left:6px;"><input type="checkbox" name="rememberDownloadDir"> Ghi nhớ</label>',
+            '  <label style="margin-left:6px;"><input type="checkbox" name="rememberDownloadDir"> Ghi nhớ (Chỉ domain này)</label>',
             '</div>',
 
             '<div name="progress">',
@@ -5516,14 +5871,17 @@ function decryptDES(encrypted, key, iv) {
             });
         }
 
-        async function saveDirHandleToIDB(handle) {
-            try { await idbPut('downloadDir', handle); } catch (e) { console.warn('saveDirHandleToIDB:', e); }
+        async function saveDirHandleToIDB(handle, domain) {
+            const key = `dirHandle_${domain}`;
+            try { await idbPut(key, handle); } catch (e) { console.warn('saveDirHandleToIDB:', e); }
         }
-        async function getDirHandleFromIDB() {
-            try { return await idbGet('downloadDir'); } catch (e) { console.warn('getDirHandleFromIDB:', e); return null; }
+        async function getDirHandleFromIDB(domain) {
+            const key = `dirHandle_${domain}`;
+            try { return await idbGet(key); } catch (e) { console.warn('getDirHandleFromIDB:', e); return null; }
         }
-        async function clearSavedDirHandle() {
-            try { await idbDelete('downloadDir'); } catch (e) { console.warn('clearSavedDirHandle:', e); }
+        async function clearSavedDirHandle(domain) {
+            const key = `dirHandle_${domain}`;
+            try { await idbDelete(key); } catch (e) { console.warn('clearSavedDirHandle:', e); }
         }
 
         function updateDownloadDirUI() {
@@ -5542,9 +5900,8 @@ function decryptDES(encrypted, key, iv) {
         (async function tryRestoreSavedDir() {
             try {
                 if (Config.rememberDownloadDir && window.indexedDB && window.FileSystemFileHandle !== undefined) {
-                    const saved = await getDirHandleFromIDB();
+                    const saved = await getDirHandleFromIDB(window.location.hostname);
                     if (saved) {
-                        // thử quyền
                         try {
                             const perm = await saved.queryPermission({ mode: 'readwrite' });
                             if (perm !== 'granted') {
@@ -5554,7 +5911,6 @@ function decryptDES(encrypted, key, iv) {
                                 Storage.downloadDirHandle = saved;
                             }
                         } catch (e) {
-                            // một số môi trường trả về object khác, vẫn thử gán
                             Storage.downloadDirHandle = saved;
                         }
                     }
@@ -5606,30 +5962,64 @@ function decryptDES(encrypted, key, iv) {
         });
 
         // Khi thay đổi checkbox Ghi nhớ
-               // THAY THẾ BẰNG ĐOẠN NÀY:
         container.find('[name="rememberDownloadDir"]').on('change', async function () {
             const isChecked = this.checked;
+            const domain = window.location.hostname; // Lấy domain hiện tại
 
-            // BƯỚC 1: CẬP NHẬT VÀ LƯU TRẠNG THÁI CHECKBOX VÀO CONFIG
             Config.rememberDownloadDir = isChecked;
             GM_setValue('config', Config);
             ndShowToast(isChecked ? 'Đã bật "Ghi nhớ thư mục".' : 'Đã tắt "Ghi nhớ thư mục".', 'info', 2500);
 
-            // BƯỚC 2: XỬ LÝ LƯU/XÓA HANDLE TRONG INDEXEDDB (logic này vẫn đúng)
             if (isChecked) {
-                // Nếu BẬT ghi nhớ, lưu handle hiện tại (nếu có) vào DB
                 if (Storage.downloadDirHandle) {
-                    await saveDirHandleToIDB(Storage.downloadDirHandle);
+                    await saveDirHandleToIDB(Storage.downloadDirHandle, domain);
                 }
             } else {
-                // Nếu TẮT ghi nhớ, xóa handle đã lưu khỏi DB
-                await clearSavedDirHandle();
+                await clearSavedDirHandle(domain);
             }
         });
-
         // set initial ui
         updateDownloadDirUI();
-        // === END: Thêm chọn thư mục lưu ===
+
+         async function runTask(task) {
+            // Lấy các biến cần thiết từ scope của showUI
+            const format = task.format;
+            const onComplete = async (force) => { /* ... */ }; // Ta sẽ định nghĩa lại onComplete ở bước sau
+
+            console.log(`Bắt đầu thực thi tác vụ: ${task.id} - ${task.bookTitle}`);
+
+            // Cập nhật trạng thái task thành "downloading"
+            await TaskManager.setState(s => {
+                const taskInState = s.queue.find(t => t.id === task.id);
+                if (taskInState) taskInState.status = 'downloading';
+                return s;
+            });
+
+            // (Phần logic tải xuống sẽ được chuyển vào đây từ trình xử lý click cũ)
+            // Tạm thời, chúng ta sẽ mô phỏng tiến trình
+            for (let i = 0; i < task.chapters.length; i++) {
+                await new Promise(resolve => setTimeout(resolve, 500)); // Giả lập tải 1 chương
+
+                // Cập nhật tiến trình
+                await TaskManager.setState(s => {
+                    const taskInState = s.queue.find(t => t.id === task.id);
+                    if (taskInState) taskInState.progress.completed = i + 1;
+                    return s;
+                });
+            }
+
+            // Cập nhật trạng thái hoàn thành và chuyển sang lịch sử
+            await TaskManager.setState(s => {
+                s.queue = s.queue.filter(t => t.id !== task.id);
+                task.status = 'completed';
+                task.finishedAt = new Date().toISOString();
+                s.history.push(task);
+                return s;
+            });
+
+            console.log(`Hoàn thành tác vụ: ${task.id}`);
+            ndShowToast(`Đã tải xong: ${task.bookTitle}`, 'success');
+        }
 
         container.find('[name="buttons"]').find('[name="download"]').on('click', async (e) => {
             container.find('[name="progress"]').show();
@@ -6340,7 +6730,7 @@ function decryptDES(encrypted, key, iv) {
         showUI();
     }, 'N');
     GM_registerMenuCommand('Show Storage', () => {
-        console.log({ Storage, xhr: xhr.storage.getSelf() });
+        showManagerUI();
     }, 'S');
 
     const downloadTo = {
