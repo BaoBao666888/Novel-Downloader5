@@ -15,9 +15,6 @@ class TextOperations:
                 start_pos_index = text_widget.index(tk.INSERT)
         except tk.TclError:
             start_pos_index = text_widget.index(tk.INSERT)
-
-        # SỬA LỖI: Xử lý trường hợp .count() trả về None hoặc các kiểu dữ liệu khác nhau.
-        # Điều này giúp chương trình "phòng thủ" trước sự không nhất quán của Tkinter.
         raw_count = text_widget.count('1.0', start_pos_index, 'chars')
         if isinstance(raw_count, tuple):
             current_index = raw_count[0]
@@ -292,4 +289,74 @@ class TextOperations:
 
         except Exception as e:
             return 0, str(e)
+    
+    @staticmethod
+    def renumber_chapters(text_content: str, find_regex: str, replace_format: str, start_num: int = 1):
+        """
+        Tìm tất cả các chuỗi khớp với find_regex và đánh số lại chúng.
+        replace_format phải chứa '{num}' để chèn số thứ tự.
+        """
+        if '{num}' not in replace_format:
+            return None, 0, "Cấu trúc thay thế phải chứa '{num}'."
 
+        class Counter:
+            def __init__(self, start, fmt):
+                self.counter = start
+                self.format = fmt
+            
+            def repl(self, match):
+                res = self.format.format(num=self.counter)
+                self.counter += 1
+                return res
+
+        c = Counter(start_num, replace_format)
+        try:
+            new_text, count = re.subn(find_regex, c.repl, text_content, flags=re.MULTILINE)
+            return new_text, count, None
+        except re.error as e:
+            return None, 0, f"Lỗi Regex: {e}"
+
+    @staticmethod
+    def apply_toc_to_content(main_content: str, toc_content: str, toc_regex: str, main_regex: str, mode: str):
+        """
+        Áp dụng mục lục vào file truyện với 2 chế độ: 'append' (bổ sung) hoặc 'replace' (thay thế).
+        - toc_regex: Cần 1 capturing group để lấy key (ví dụ: '第123章').
+        - main_regex: Cần khớp với phần cần thay thế trong file chính.
+        """
+        toc = {}
+        try:
+            for line in toc_content.splitlines():
+                if not line.strip(): continue
+                match = re.search(toc_regex, line)
+                if match and len(match.groups()) >= 1:
+                    key = match.group(1).strip()
+                    toc[key] = line.strip()
+        except re.error as e:
+            return None, 0, f"Lỗi Regex file mục lục: {e}"
+        except IndexError:
+             return None, 0, "Lỗi Regex file mục lục: Phải có ít nhất một nhóm bắt `(...)`."
+
+        if not toc:
+            return None, 0, "Không tìm thấy chương nào hợp lệ trong file mục lục với Regex đã cho."
+
+        def replace_func(match):
+            key_to_lookup = match.group(0).strip()
+            full_title_from_toc = toc.get(key_to_lookup)
+
+            if not full_title_from_toc:
+                return match.group(0) # Giữ nguyên nếu không tìm thấy trong mục lục
+
+            if mode == 'append':
+                # Lấy phần tiêu đề (bỏ đi phần key)
+                title_part = full_title_from_toc[len(key_to_lookup):].strip()
+                # Nối key gốc với phần tiêu đề
+                return f"{key_to_lookup} {title_part}".strip()
+            else: # mode == 'replace'
+                # Thay thế toàn bộ bằng dòng từ mục lục
+                return full_title_from_toc
+
+        try:
+            new_text, count = re.subn(main_regex, replace_func, main_content, flags=re.MULTILINE)
+            return new_text, count, None
+        except re.error as e:
+            return None, 0, f"Lỗi Regex file truyện chính: {e}"

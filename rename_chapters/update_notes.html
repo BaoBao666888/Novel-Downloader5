@@ -1,20 +1,27 @@
-<h1>Phiên bản 0.1.4 — Tăng cường Kết nối với Quản lý Proxy & Hỗ trợ Fanqie Novel</h1>
-Bản cập nhật 0.1.4 của <c color="#c2185b">Rename Chapters</c> là một bước tiến lớn trong việc đảm bảo kết nối ổn định và trao cho người dùng nhiều quyền kiểm soát hơn. Giờ đây, bạn có thể dễ dàng vượt qua các rào cản mạng và mở rộng thư viện truyện của mình với một nguồn mới.
+<h1>Phiên bản 0.1.5 — Bộ Công cụ Xử lý Nâng cao & Giải nén</h1>
+Bản cập nhật 0.1.5 tiếp tục biến <c color="#c2185b">Rename Chapters</c> thành một bộ công cụ toàn diện, bổ sung các tính năng xử lý văn bản hàng loạt mạnh mẽ và tiện ích giải nén trực tiếp trong ứng dụng, giúp bạn xử lý mọi thứ từ file nén cho đến nội dung thô.
+
 <h2>TÍNH NĂNG NỔI BẬT</h2>
-<b>[MỚI] Trình Quản lý Proxy Toàn diện</b>
-Vượt qua các giới hạn truy cập và bảo vệ quyền riêng tư của bạn với một công cụ quản lý proxy chuyên nghiệp, được truy cập từ menu "Proxy" mới.
-- <b>Nhập và quản lý danh sách:</b> Dễ dàng thêm, sửa, xóa hàng loạt proxy. Giao diện có sẵn các mẫu để bạn bắt đầu.
-- <b>Kiểm tra proxy song song:</b> Kiểm tra hàng trăm proxy chỉ trong vài giây thay vì hàng giờ. Chương trình sẽ sử dụng đa luồng để kiểm tra đồng thời và báo cáo trạng thái (Sống/Chết) của từng proxy.
-- <b>Tự động dọn dẹp:</b> Sau khi kiểm tra, bạn có thể chọn tự động xóa các proxy "chết" khỏi danh sách.
-- <b>Kiểm soát linh hoạt:</b> Bật/tắt việc sử dụng proxy cho từng tính năng riêng biệt (Lấy tiêu đề, Dịch thuật, Tải ảnh).
-<b>[MỚI] Hỗ trợ lấy tiêu đề từ FanqieNovel.com (Tiểu Thuyết Cà Chua)</b>
-Thêm một trang truyện lớn vào danh sách các nguồn được hỗ trợ.
-Chỉ cần dán URL mục lục của truyện từ fanqienovel.com và bắt đầu lấy dữ liệu.
-Hoạt động mượt mà với hệ thống proxy mới nếu bạn kích hoạt.
+<b>[MỚI] Tiện ích Giải nén File trực tiếp</b>
+Một menu "Công cụ" mới đã được thêm vào, cho phép bạn giải nén các file nén phổ biến mà không cần rời khỏi ứng dụng.
+- Hỗ trợ đa định dạng: Dễ dàng giải nén các file `.zip`, `.rar`, `.7z` và nhiều định dạng khác.
+- Đơn giản và tiện lợi: Chỉ cần chọn file nén và thư mục đích, chương trình sẽ tự động xử lý.
+- **Yêu cầu:** Có sẵn phần mềm giải nén tương ứng trên máy (như 7-Zip hoặc WinRAR).
+
+<b>[MỚI] Sub-tab "Công cụ Nhanh" trong Xử lý Văn bản</b>
+Hai công cụ mạnh mẽ, tùy biến hoàn toàn bằng Regex, đã được thêm vào để tự động hóa các tác vụ phức tạp nhất.
+- **Đánh lại số chương tuần tự:** Tìm kiếm các dòng chương theo một Regex tùy chỉnh và tự động đánh số lại chúng theo thứ tự, bắt đầu từ một số bạn chỉ định.
+- **Thêm tiêu đề từ Mục lục:** Dán hoặc tải một file mục lục, sau đó tự động áp dụng các tiêu đề này vào file truyện chính. Hỗ trợ hai chế độ:
+    - *Bổ sung:* Chỉ thêm phần tên chương vào sau tag chương (`第123章`).
+    - *Thay thế:* Ghi đè toàn bộ tag chương bằng dòng tương ứng từ mục lục (`第123章 Tên chương đầy đủ`).
+
 <h2>CẢI TIẾN VÀ SỬA LỖI</h2>
-<b>Tối ưu hóa kết nối mạng:</b>
-- Cơ chế lấy proxy được làm lại hoàn toàn. Thay vì thử và thất bại, chương trình giờ đây sẽ <b>kiểm tra và chọn một proxy hoạt động</b> *trước khi* gửi yêu cầu chính, giúp giảm thiểu lỗi timeout và tăng tốc độ cho các chức năng online.
-- Cải thiện logic lấy cookie cho Qidian để hoạt động ổn định và thân thiện hơn với người dùng.
+<b>Tích hợp liền mạch giữa các Tab:</b>
+- Thêm nút **"Sao chép vào Công cụ Nhanh"** trong tab "Lấy Tiêu Đề Online", cho phép bạn gửi thẳng danh sách tiêu đề vừa lấy được sang công cụ "Thêm tiêu đề từ Mục lục" để xử lý ngay lập tức.
+
+<b>Tăng cường tính linh hoạt:</b>
+- Thêm tùy chọn **"Bắt buộc sửa"** cho chức năng "Sửa dòng đầu của file". Khi được chọn, chương trình sẽ ghi đè dòng đầu tiên kể cả khi không phân tích được số chương, giúp bạn kiểm soát hoàn toàn kết quả.
+
 <h2>Hướng dẫn cập nhật</h2>
 - Nhấn <b>Tải & Cài đặt</b> để download bản cài đặt (.exe) tự động.
 - Ứng dụng sẽ đóng để tránh xung đột; bộ cài sẽ khởi chạy để cài đặt.
