@@ -26,15 +26,14 @@ import pythoncom
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.1.4"
+    CURRENT_VERSION = "0.1.5"
     VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     def __init__(self):
         super().__init__()
-        self.title("Rename Chapters v0.1.4 (by BaoBao)")
+        self.title("Rename Chapters v0.1.5 (by BaoBao)")
         self.geometry("1200x800")
-
-        # --- BIẾN TRẠNG THÁI ---
         self.text_modified = tk.BooleanVar(value=False)
         self.folder_path = tk.StringVar()
         self.selected_file = tk.StringVar()
@@ -251,6 +250,10 @@ class RenamerApp(tk.Tk):
         menubar = tk.Menu(self)
         self.config(menu=menubar)
 
+        tools_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Công cụ", menu=tools_menu)
+        tools_menu.add_command(label="Giải nén file (.zip, .7z, .rar...)", command=self._start_extraction)
+
         menubar.add_command(label="Dịch", command=lambda: self._select_tab_by_name("Dịch"))
         menubar.add_command(label="Proxy", command=self._open_proxy_manager_window)
 
@@ -332,6 +335,8 @@ class RenamerApp(tk.Tk):
         edit_line_frame = ttk.Frame(strategy_sort_frame)
         edit_line_frame.grid(row=0, column=2, sticky="w", padx=(20, 0))
         ttk.Checkbutton(edit_line_frame, text="Sửa dòng đầu của file", variable=self.edit_first_line_var).pack(side=tk.LEFT)
+        self.force_edit_first_line_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(edit_line_frame, text="Bắt buộc sửa (kể cả khi lỗi)", variable=self.force_edit_first_line_var).pack(side=tk.LEFT, padx=5)
         
         ttk.Label(options_frame, text="Cấu trúc mới:").grid(row=1, column=0, sticky="w", padx=5, pady=(10, 5))
         self.format_combobox = ttk.Combobox(options_frame, values=["Chương {num} - {title}.txt"])
@@ -561,6 +566,23 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             notebook.add(tab, text=title)
             # SỬ DỤNG HÀM RENDER MỚI
             self._render_markdown_guide(tab, content.strip())
+        
+        tools_guide = """
+        --- MENU CÔNG CỤ ---
+        Menu này chứa các tiện ích bổ sung giúp xử lý các file liên quan đến truyện.
+
+        **1. Giải nén file (.zip, .7z, .rar...)**:
+        -   **Chức năng**: Giải nén các file nén phổ biến, rất hữu ích khi bạn tải về truyện dưới dạng file nén.
+        -   **Yêu cầu**:
+            -   Bạn cần cài đặt thư viện `patoolib` bằng lệnh: **`pip install patoolib`**.
+            -   Máy tính của bạn cần có sẵn phần mềm giải nén tương ứng (ví dụ: **7-Zip** hoặc **WinRAR**).
+        -   **Cách dùng**:
+            1.  Vào menu **Công cụ -> Giải nén file...**
+            2.  Chọn file nén bạn muốn giải nén.
+            3.  Chọn thư mục để chứa các file sau khi giải nén.
+            4.  Chương trình sẽ tự động thực hiện và thông báo khi hoàn tất.
+        """
+        create_tab("Công cụ", tools_guide)
 
         rename_guide = """
         --- TAB ĐỔI TÊN ---
@@ -641,7 +663,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 -   Kích hoạt tùy chọn này nếu bạn muốn kết hợp tiêu đề chính và phụ.
                 -   Sử dụng `{t1}` cho tiêu đề chính và `{t2}` cho tiêu đề phụ trong ô cấu trúc.
             -   **Nếu không gộp, sử dụng cột**: Chọn cột tiêu đề bạn muốn dùng (chính hoặc phụ).
-            -   **Sao chép tiêu đề...**: Sau khi đã chọn các chương mong muốn, nhấn nút này. Các tiêu đề tương ứng sẽ được tự động sao chép vào ô "Tiêu đề tùy chỉnh" ở Tab "Đổi Tên".
+            -   **Sao chép tiêu đề...**: Sau khi đã chọn các chương mong muốn, nhấn nút này. Các tiêu đề tương ứng sẽ được tự động sao chép vào ô "Tiêu đề tùy chỉnh" ở Tab cần thiết.
         """
         create_tab("Lấy Tiêu Đề Online", online_guide)
         
@@ -651,7 +673,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         1.  **Chọn file**: Chọn file .txt bạn muốn chỉnh sửa hoặc chia nhỏ. Nội dung file sẽ được tải vào ô bên dưới.
 
-        --- Sub-tab: Tìm & Thay thế ---
+        **--- Sub-tab: Tìm & Thay thế ---**
         -   **Tìm / Thay thế**: Nhập văn bản cần tìm và văn bản sẽ thay thế. Hỗ trợ Regex.
         -   **Các tùy chọn**:
             -   **Khớp chữ hoa/thường**: Bật để phân biệt A và a.
@@ -666,12 +688,36 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   **Lưu thành file mới...**: Lưu nội dung đã sửa vào một file mới.
             -   **Hoàn tác / Làm lại**: Quay lại hoặc tiến tới các bước chỉnh sửa.
 
-        --- Sub-tab: Chia file ---
+        **--- Sub-tab: Chia file ---**
         -   **Regex chia file**: Nhập mẫu Regex để xác định dòng dùng làm điểm chia. Ví dụ: `^Chương \\d+` sẽ chia file tại mỗi dòng bắt đầu bằng "Chương [số]".
         -   **Cấu trúc tên file**: Đặt tên cho các file con được tạo ra.
         -   **Chia sau/trước regex**: Quyết định dòng khớp với regex sẽ thuộc về file trước đó hay file sau đó.
         -   **Xem trước**: Hiển thị danh sách các phần sẽ được tạo ra. Double-click vào một dòng để xem trước toàn bộ nội dung của phần đó.
         -   **BẮT ĐẦU CHIA FILE**: Thực hiện việc chia file. Các file con sẽ được lưu trong một thư mục mới.
+
+        **--- Sub-tab: Công cụ Nhanh ---**
+        Đây là nơi chứa các công cụ xử lý văn bản chuyên dụng, giúp tự động hóa các tác vụ lặp đi lặp lại.
+
+        **a. Đánh lại số chương:**
+        -   **Chức năng**: Tự động tìm tất cả các dòng khớp với Regex và đánh số lại chúng một cách tuần tự.
+        -   **Cách dùng**:
+            1.  **Regex tìm kiếm**: Nhập mẫu để tìm dòng chương. Ví dụ: `第\\d+章` hoặc `Chương \\d+`.
+            2.  **Cấu trúc thay thế**: Nhập định dạng bạn muốn cho dòng chương mới. **Bắt buộc** phải chứa `{num}`. Ví dụ: `第{num}章` hoặc `Chương {num}:`.
+            3.  **Bắt đầu từ số**: Nhập số chương bắt đầu.
+            4.  Nhấn **"Thực hiện"**.
+
+        **b. Thêm tiêu đề từ Mục lục:**
+        -   **Chức năng**: Dùng một danh sách mục lục (dán vào hoặc tải từ file) để cập nhật tiêu đề cho file truyện chính.
+        -   **Cách dùng**:
+            1.  **Nội dung Mục lục**: Dán danh sách mục lục vào ô văn bản lớn, hoặc nhấn **"Tải file Mục lục..."** để nạp từ file.
+            2.  **Regex file Mục lục**: Nhập mẫu để đọc mục lục. Cần có một **nhóm bắt (...)** để xác định đâu là tag chương (ví dụ: `第123章`).
+                -   *Ví dụ:* `(第\\d+章)` sẽ bắt `第123章` từ dòng `第123章 Tên chương`.
+            3.  **Regex file Truyện**: Nhập mẫu để tìm các dòng/phần cần được thay thế trong file truyện chính.
+                -   *Ví dụ:* `^(第\\d+章)$` sẽ chỉ khớp với các dòng chỉ chứa `第123章`.
+            4.  **Chọn chế độ**:
+                -   **Bổ sung Tiêu đề**: Giữ lại tag chương trong file truyện (`第123章`) và chỉ nối thêm phần tiêu đề từ mục lục.
+                -   **Thay thế Toàn bộ**: Xóa hoàn toàn tag chương trong file truyện và thay bằng cả dòng tương ứng từ mục lục.
+            5.  Nhấn **"Áp dụng Mục lục"**.
         """
         create_tab("Xử lý văn bản", text_guide)
 
@@ -841,6 +887,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.title_choice = tk.StringVar(value="title2")
         ttk.Radiobutton(action_row_frame, text="Tiêu đề chính", variable=self.title_choice, value="title1").pack(side=tk.LEFT)
         ttk.Radiobutton(action_row_frame, text="Tiêu đề phụ", variable=self.title_choice, value="title2").pack(side=tk.LEFT)
+        ttk.Button(action_row_frame, text="Sao chép vào Công cụ Nhanh", command=self._copy_titles_to_quick_tools).pack(side=tk.LEFT, padx=20)
         ttk.Button(action_row_frame, text="Sao chép tiêu đề đã chọn vào Tab Đổi Tên", command=self._apply_online_titles).pack(side=tk.RIGHT, padx=5)
 
     def create_text_operations_tab(self):
@@ -869,6 +916,10 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         split_frame = ttk.Frame(ops_notebook, padding="10")
         ops_notebook.add(split_frame, text="Chia file")
         self._create_split_widgets(split_frame)
+
+        tools_frame = ttk.Frame(ops_notebook, padding="10")
+        ops_notebook.add(tools_frame, text="Công cụ Nhanh")
+        self._create_quick_tools_widgets(tools_frame)
 
     def _create_find_replace_widgets(self, parent):
         parent.columnconfigure(0, weight=1)
@@ -1336,16 +1387,19 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             new_name = logic.generate_new_name(analysis, strategy, name_format, custom_titles, i)
 
             if self.edit_first_line_var.get():
-                if new_name is not None:
+                # Điều kiện để sửa: (có tên mới hợp lệ) HOẶC (người dùng bắt buộc sửa)
+                if new_name is not None or self.force_edit_first_line_var.get():
                     try:
-                        new_first_line = os.path.splitext(new_name)[0]
+                        # Nếu new_name là None (do lỗi) và bị bắt buộc, nó sẽ dùng tên xem trước
+                        # Hàm _generate_preview_name sẽ trả về "Lỗi/Thiếu số"
+                        preview_name_for_line = self._generate_preview_name(analysis, i)
+                        new_first_line = os.path.splitext(preview_name_for_line)[0]
+                        
                         with open(analysis['filepath'], 'r', encoding='utf-8') as f:
                             lines = f.readlines()
                         
-                        if lines:
-                            lines[0] = new_first_line + '\n'
-                        else:
-                            lines.append(new_first_line + '\n')
+                        if lines: lines[0] = new_first_line + '\n'
+                        else: lines.append(new_first_line + '\n')
                         
                         with open(analysis['filepath'], 'w', encoding='utf-8') as f:
                             f.writelines(lines)
@@ -1353,7 +1407,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     except Exception as e:
                         self.log(f"[Lỗi nội dung] Không thể sửa dòng đầu file {analysis['filename']}: {e}")
                 else:
-                    self.log(f"[Cảnh báo] Bỏ qua sửa dòng đầu cho file {analysis['filename']} vì không lấy được số chương.")
+                    self.log(f"[Cảnh báo] Bỏ qua sửa dòng đầu cho file {analysis['filename']} vì không lấy được số chương và không bị bắt buộc.")
 
             if new_name is None: self.log(f"[Bỏ qua] {analysis['filename']}: Không tìm thấy số chương."); fail += 1; continue
             if new_name == analysis['filename']: self.log(f"[Bỏ qua] {analysis['filename']}: Tên đã đúng."); continue
@@ -2872,6 +2926,195 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             button.config(state="normal")
 
         self.after(0, final_update)
+    
+    def _create_quick_tools_widgets(self, parent):
+        parent.columnconfigure(0, weight=1)
+
+        # --- Công cụ 1: Đánh lại số chương ---
+        renumber_frame = ttk.LabelFrame(parent, text="1. Đánh lại số chương", padding=10)
+        renumber_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
+        renumber_frame.columnconfigure(1, weight=1)
+        # ... (Nội dung của công cụ này giữ nguyên như lần trước) ...
+        ttk.Label(renumber_frame, text="Regex tìm kiếm:").grid(row=0, column=0, sticky="w", padx=5, pady=2)
+        self.renumber_find_regex = ttk.Entry(renumber_frame)
+        self.renumber_find_regex.insert(0, r"第\d+章")
+        self.renumber_find_regex.grid(row=0, column=1, sticky="ew", padx=5)
+        ttk.Label(renumber_frame, text="Cấu trúc thay thế:").grid(row=1, column=0, sticky="w", padx=5, pady=2)
+        self.renumber_replace_format = ttk.Entry(renumber_frame)
+        self.renumber_replace_format.insert(0, "第{num}章")
+        self.renumber_replace_format.grid(row=1, column=1, sticky="ew", padx=5)
+        ttk.Label(renumber_frame, text="(Phải chứa {num})").grid(row=1, column=2, sticky="w")
+        action_frame1 = ttk.Frame(renumber_frame)
+        action_frame1.grid(row=2, column=1, sticky="e", pady=(5, 0))
+        ttk.Label(action_frame1, text="Bắt đầu từ số:").pack(side=tk.LEFT)
+        self.renumber_start_var = tk.StringVar(value="1")
+        ttk.Entry(action_frame1, textvariable=self.renumber_start_var, width=5).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame1, text="Thực hiện", command=self._renumber_chapters_in_text).pack(side=tk.LEFT)
+
+        # --- Công cụ 2: Thêm tiêu đề từ mục lục (GIAO DIỆN MỚI HOÀN TOÀN) ---
+        toc_frame = ttk.LabelFrame(parent, text="2. Thêm tiêu đề từ Mục lục", padding=10)
+        toc_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=10)
+        toc_frame.columnconfigure(0, weight=1) # Cho cột 0 giãn ra
+        toc_frame.rowconfigure(1, weight=1) # Cho ô text giãn ra
+
+        # Hàng 1: Nút tải file
+        toc_input_header = ttk.Frame(toc_frame)
+        toc_input_header.grid(row=0, column=0, columnspan=2, sticky="ew")
+        ttk.Label(toc_input_header, text="Dán hoặc tải nội dung Mục lục vào ô bên dưới:").pack(side=tk.LEFT)
+        ttk.Button(toc_input_header, text="Tải file Mục lục...", command=self._load_toc_into_text).pack(side=tk.RIGHT)
+        
+        # Hàng 2: Ô nhập mục lục
+        self.toc_content_text = scrolledtext.ScrolledText(toc_frame, wrap=tk.WORD, height=8)
+        self.toc_content_text.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=5)
+
+        # Hàng 3 & 4: Regex
+        regex_frame = ttk.Frame(toc_frame)
+        regex_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=5)
+        regex_frame.columnconfigure(1, weight=1)
+        ttk.Label(regex_frame, text="Regex file Mục lục:").grid(row=0, column=0, sticky="w", padx=5, pady=2)
+        self.toc_file_regex = ttk.Entry(regex_frame)
+        self.toc_file_regex.insert(0, r"^(第\d+章)")
+        self.toc_file_regex.grid(row=0, column=1, sticky="ew", padx=5)
+        ttk.Label(regex_frame, text="(Cần 1 nhóm bắt)").grid(row=0, column=2, sticky="w")
+        ttk.Label(regex_frame, text="Regex file Truyện:").grid(row=1, column=0, sticky="w", padx=5, pady=2)
+        self.main_file_regex = ttk.Entry(regex_frame)
+        self.main_file_regex.insert(0, r"^(第\d+章)$")
+        self.main_file_regex.grid(row=1, column=1, sticky="ew", padx=5)
+        ttk.Label(regex_frame, text="(Khớp phần cần thay)").grid(row=1, column=2, sticky="w")
+        
+        # Hàng 5: Hành động
+        action_frame2 = ttk.Frame(toc_frame)
+        action_frame2.grid(row=3, column=0, columnspan=2, sticky="ew", pady=5)
+        self.toc_mode_var = tk.StringVar(value="append")
+        ttk.Radiobutton(action_frame2, text="Bổ sung Tiêu đề", variable=self.toc_mode_var, value="append").pack(side=tk.LEFT)
+        ttk.Radiobutton(action_frame2, text="Thay thế Toàn bộ", variable=self.toc_mode_var, value="replace").pack(side=tk.LEFT, padx=10)
+        ttk.Button(action_frame2, text="Áp dụng Mục lục", command=self._add_titles_from_toc_in_text).pack(side=tk.RIGHT)
+
+    def _load_toc_into_text(self):
+        """Tải nội dung từ file mục lục vào ô ScrolledText."""
+        toc_path = filedialog.askopenfilename(title="Chọn file Mục lục", filetypes=[("Text files", "*.txt")])
+        if not toc_path: return
+        try:
+            with open(toc_path, 'r', encoding='utf-8') as f:
+                toc_content = f.read()
+            self.toc_content_text.delete("1.0", tk.END)
+            self.toc_content_text.insert("1.0", toc_content)
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể đọc file: {e}", parent=self)
+
+    def _renumber_chapters_in_text(self):
+        current_content = self.text_content.get("1.0", tk.END)
+        if not current_content.strip():
+            messagebox.showwarning("Thông báo", "Không có nội dung để xử lý.", parent=self); return
+        
+        find_regex = self.renumber_find_regex.get()
+        replace_format = self.renumber_replace_format.get()
+        
+        try: start_num = int(self.renumber_start_var.get())
+        except ValueError: messagebox.showerror("Lỗi", "Số bắt đầu phải là số nguyên.", parent=self); return
+
+        if not messagebox.askyesno("Xác nhận", "Hành động này sẽ thay đổi nội dung hiện tại. Bạn có chắc muốn tiếp tục?"): return
+
+        new_content, count, error = TextOperations.renumber_chapters(current_content, find_regex, replace_format, start_num)
+        
+        if error:
+            messagebox.showerror("Lỗi", error, parent=self); return
+
+        self.text_content.delete("1.0", tk.END)
+        self.text_content.insert("1.0", new_content)
+        self.log(f"[Công cụ nhanh] Đã đánh số lại {count} chương.")
+        messagebox.showinfo("Hoàn tất", f"Đã đánh số lại thành công {count} chương.", parent=self)
+
+    def _add_titles_from_toc_in_text(self):
+        current_content = self.text_content.get("1.0", tk.END)
+        toc_content = self.toc_content_text.get("1.0", tk.END).strip()
+        
+        if not current_content.strip() or not toc_content:
+            messagebox.showwarning("Thiếu thông tin", "Vui lòng đảm bảo cả file truyện và nội dung mục lục đều đã có.", parent=self)
+            return
+
+        toc_regex = self.toc_file_regex.get()
+        main_regex = self.main_file_regex.get()
+        mode = self.toc_mode_var.get()
+        
+        if not messagebox.askyesno("Xác nhận", "Hành động này sẽ thay đổi nội dung file truyện hiện tại. Bạn có chắc?"): return
+            
+        new_content, count, error = TextOperations.apply_toc_to_content(current_content, toc_content, toc_regex, main_regex, mode)
+
+        if error:
+            messagebox.showerror("Lỗi", error, parent=self)
+            return
+
+        self.text_content.delete("1.0", tk.END)
+        self.text_content.insert("1.0", new_content)
+        self.log(f"[Công cụ nhanh] Đã áp dụng mục lục cho {count} chương.")
+        messagebox.showinfo("Hoàn tất", f"Đã áp dụng thành công mục lục cho {count} chương.", parent=self)
+
+    def _start_extraction(self):
+        """Bắt đầu quá trình giải nén file trong một thread riêng."""
+        archive_path = filedialog.askopenfilename(
+            title="Chọn file nén cần giải nén",
+            filetypes=[
+                ("Archive files", "*.zip *.rar *.7z *.gz *.tar"), 
+                ("All files", "*.*")
+            ]
+        )
+        if not archive_path:
+            return
+
+        dest_path = filedialog.askdirectory(
+            title="Chọn thư mục để giải nén vào"
+        )
+        if not dest_path:
+            return
+
+        def worker():
+            try:
+                import patoolib
+                self.log(f"[Giải nén] Bắt đầu giải nén '{os.path.basename(archive_path)}'...")
+                patoolib.extract_archive(archive_path, outdir=dest_path)
+                self.log(f"[Giải nén] Hoàn tất! Đã giải nén vào: {dest_path}")
+                self.after(0, lambda: messagebox.showinfo("Thành công", "Đã giải nén file thành công!"))
+            except ImportError:
+                self.log("[Lỗi] Thư viện 'patoolib' chưa được cài đặt.")
+                self.after(0, lambda: messagebox.showerror("Lỗi", "Vui lòng cài đặt thư viện 'patoolib' để sử dụng tính năng này.\nChạy lệnh: pip install patoolib"))
+            except Exception as e:
+                self.log(f"[Lỗi giải nén] {e}")
+                self.after(0, lambda: messagebox.showerror("Lỗi", f"Giải nén thất bại: {e}"))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _copy_titles_to_quick_tools(self):
+        """Sao chép tiêu đề từ bảng online vào ô mục lục của Công cụ Nhanh."""
+        selected_items = self.online_tree.selection()
+        if not selected_items:
+            messagebox.showinfo("Thông báo", "Vui lòng chọn ít nhất một chương.", parent=self)
+            return
+
+        # Lấy tiêu đề theo logic gộp hoặc chọn cột
+        selected_titles = []
+        if self.combine_titles_var.get():
+            format_str = self.title_format_var.get()
+            for item_id in selected_items:
+                item_data = self.online_tree.item(item_id, 'values')
+                try:
+                    combined = format_str.format(t1=item_data[1], t2=item_data[2])
+                    selected_titles.append(f"第{item_data[0]}章 {combined}") # Thêm số chương vào đầu
+                except KeyError: pass
+        else:
+            title_key_index = 1 if self.title_choice.get() == 'title1' else 2
+            for item_id in selected_items:
+                item_data = self.online_tree.item(item_id, 'values')
+                selected_titles.append(f"第{item_data[0]}章 {item_data[title_key_index]}")
+
+        # Chuyển tab và điền dữ liệu
+        self._select_tab_by_name("Xử lý Văn bản")
+        self.ops_notebook.select(self.ops_notebook.tabs()[-1]) # Chọn sub-tab cuối cùng (Công cụ Nhanh)
+        
+        self.toc_content_text.delete("1.0", tk.END)
+        self.toc_content_text.insert("1.0", "\n".join(selected_titles))
+        
+        self.log(f"Đã sao chép {len(selected_titles)} tiêu đề vào Công cụ Nhanh.")
     
 if __name__ == "__main__":
     app = RenamerApp()
