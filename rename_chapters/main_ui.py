@@ -24,8 +24,38 @@ from update import show_update_window, fetch_manifest_from_url
 import translator_logic as trans_logic
 import pythoncom
 import random
+import subprocess
+import sys
+import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+if sys.platform == 'win32':
+    class DummyStream:
+        def __init__(self, *args, **kwargs):
+            # Tự do định nghĩa thuộc tính encoding vì đây là lớp của chúng ta
+            self.encoding = 'utf-8'
+        
+        # Cung cấp các phương thức mà các thư viện khác có thể gọi
+        def write(self, s):
+            pass # Bỏ qua, không làm gì cả
+        
+        def flush(self):
+            pass # Bỏ qua, không làm gì cả
+
+    if sys.stdout is None:
+        sys.stdout = DummyStream()
+    if sys.stderr is None:
+        sys.stderr = DummyStream()
+    _Popen = subprocess.Popen
+    CREATE_NO_WINDOW = 0x08000000
+
+    def Popen_no_window(*args, **kwargs):
+        kwargs['creationflags'] = CREATE_NO_WINDOW
+        kwargs['stdout'] = subprocess.PIPE
+        kwargs['stderr'] = subprocess.PIPE
+        return _Popen(*args, **kwargs)
+
+    subprocess.Popen = Popen_no_window
 
 class RenamerApp(tk.Tk):
     CURRENT_VERSION = "0.1.5"
