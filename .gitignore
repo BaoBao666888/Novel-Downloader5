@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 .wdm/
 dist/
+tools/
 *.spec
 rename_chapters/config.json
 rename_chapters/po18_cookies.json
