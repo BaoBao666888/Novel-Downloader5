@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.41.4
+// @version     3.5.447.41.5
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -5797,7 +5797,7 @@ function decryptDES(encrypted, key, iv) {
             '  <br>',
             '  <button type="button" name="choose-download-dir" style="border:2px solid #2ecc71;padding:4px 8px;border-radius:4px;margin-right:6px;">Chọn thư mục lưu</button>',
             '  <input type="text" name="downloadDirDisplay" readonly placeholder="Thư mục lưu hiện tại (mặc định trình duyệt)" style="min-width:260px;"/>',
-            '  <label style="margin-left:6px;"><input type="checkbox" name="rememberDownloadDir"> Ghi nhớ (Chỉ domain này)</label>',
+            '  <label style="margin-left:6px;"><input type="checkbox" name="rememberDownloadDir"> Ghi nhớ (Link này)</label>',
             '</div>',
 
             '<div name="progress">',
@@ -5833,6 +5833,7 @@ function decryptDES(encrypted, key, iv) {
         // === BEGIN: Thêm chọn thư mục lưu (File System Access + IDB lưu handle) ===
         // Storage.downloadDirHandle sẽ giữ handle hiện thời trong session
         Storage.downloadDirHandle = Storage.downloadDirHandle || null;
+        const downloadDirStorageKey = getDirHandleStorageKey();
 
         // Simple IndexedDB tiny helper để lưu FileSystemHandle (structured clone)
         function openNDDB() {
@@ -5871,16 +5872,24 @@ function decryptDES(encrypted, key, iv) {
             });
         }
 
-        async function saveDirHandleToIDB(handle, domain) {
-            const key = `dirHandle_${domain}`;
+        function getDirHandleStorageKey() {
+            const href = (window.location && window.location.href) ? window.location.href : '';
+            return encodeURIComponent(href.split('#')[0]);
+        }
+
+        async function saveDirHandleToIDB(handle, keySuffix) {
+            if (!keySuffix) return;
+            const key = `dirHandle_${keySuffix}`;
             try { await idbPut(key, handle); } catch (e) { console.warn('saveDirHandleToIDB:', e); }
         }
-        async function getDirHandleFromIDB(domain) {
-            const key = `dirHandle_${domain}`;
+        async function getDirHandleFromIDB(keySuffix) {
+            if (!keySuffix) return null;
+            const key = `dirHandle_${keySuffix}`;
             try { return await idbGet(key); } catch (e) { console.warn('getDirHandleFromIDB:', e); return null; }
         }
-        async function clearSavedDirHandle(domain) {
-            const key = `dirHandle_${domain}`;
+        async function clearSavedDirHandle(keySuffix) {
+            if (!keySuffix) return;
+            const key = `dirHandle_${keySuffix}`;
             try { await idbDelete(key); } catch (e) { console.warn('clearSavedDirHandle:', e); }
         }
 
@@ -5900,18 +5909,20 @@ function decryptDES(encrypted, key, iv) {
         (async function tryRestoreSavedDir() {
             try {
                 if (Config.rememberDownloadDir && window.indexedDB && window.FileSystemFileHandle !== undefined) {
-                    const saved = await getDirHandleFromIDB(window.location.hostname);
-                    if (saved) {
-                        try {
-                            const perm = await saved.queryPermission({ mode: 'readwrite' });
-                            if (perm !== 'granted') {
-                                const req = await saved.requestPermission({ mode: 'readwrite' });
-                                if (req === 'granted') Storage.downloadDirHandle = saved;
-                            } else {
+                    if (downloadDirStorageKey) {
+                        const saved = await getDirHandleFromIDB(downloadDirStorageKey);
+                        if (saved) {
+                            try {
+                                const perm = await saved.queryPermission({ mode: 'readwrite' });
+                                if (perm !== 'granted') {
+                                    const req = await saved.requestPermission({ mode: 'readwrite' });
+                                    if (req === 'granted') Storage.downloadDirHandle = saved;
+                                } else {
+                                    Storage.downloadDirHandle = saved;
+                                }
+                            } catch (e) {
                                 Storage.downloadDirHandle = saved;
                             }
-                        } catch (e) {
-                            Storage.downloadDirHandle = saved;
                         }
                     }
                 }
@@ -5934,22 +5945,41 @@ function decryptDES(encrypted, key, iv) {
                 updateDownloadDirUI();
 
                 // Thử xin quyền ghi ngay lập tức (user gesture)
+                let toastType = 'success';
+                let toastDuration = 3500;
+                let toastMessage = 'Đã chọn thư mục.';
+
                 try {
                     const perm = await dirHandle.requestPermission({ mode: 'readwrite' });
                     if (perm === 'granted') {
-                        ndShowToast('Đã chọn thư mục và cấp quyền ghi.', 'success', 3500);
+                        toastMessage = 'Đã chọn thư mục và cấp quyền ghi.';
                     } else {
-                        ndShowToast('Đã chọn thư mục nhưng chưa cấp quyền ghi. File sẽ dùng Save As.', 'warning', 5000);
+                        toastMessage = 'Đã chọn thư mục nhưng chưa cấp quyền ghi. File sẽ dùng Save As.';
+                        toastType = 'warning';
+                        toastDuration = 5000;
                     }
                 } catch (reqErr) {
                     console.warn('requestPermission lỗi (có thể không cần thiết):', reqErr);
-                    ndShowToast('Đã chọn thư mục (không thể kiểm tra quyền).', 'info', 3500);
+                    toastMessage = 'Đã chọn thư mục (không thể kiểm tra quyền).';
+                    toastType = 'info';
                 }
 
-                if (container.find('[name="rememberDownloadDir"]').prop('checked')) {
-                    await saveDirHandleToIDB(dirHandle);
-                    ndShowToast('Đã lưu lựa chọn thư mục (Ghi nhớ).', 'info', 3000);
+                const shouldRemember = container.find('[name="rememberDownloadDir"]').prop('checked');
+                if (shouldRemember && downloadDirStorageKey) {
+                    try {
+                        await saveDirHandleToIDB(dirHandle, downloadDirStorageKey);
+                        toastMessage += ' Đã lưu cho link này.';
+                    } catch (saveErr) {
+                        console.warn('saveDirHandleToIDB lỗi:', saveErr);
+                        toastMessage += ' Không thể lưu ghi nhớ.';
+                        if (toastType === 'success') toastType = 'warning';
+                    }
+                } else if (shouldRemember) {
+                    toastMessage += ' Không thể lưu vì thiếu khóa lưu trữ.';
+                    if (toastType === 'success') toastType = 'warning';
                 }
+
+                ndShowToast(toastMessage, toastType, toastDuration);
             } catch (e) {
                 if (e && e.name === 'AbortError') {
                     console.log('User cancelled directory picker');
@@ -5964,18 +5994,18 @@ function decryptDES(encrypted, key, iv) {
         // Khi thay đổi checkbox Ghi nhớ
         container.find('[name="rememberDownloadDir"]').on('change', async function () {
             const isChecked = this.checked;
-            const domain = window.location.hostname; // Lấy domain hiện tại
+            const storageKey = downloadDirStorageKey; // Khóa lưu theo link hiện tại
 
             Config.rememberDownloadDir = isChecked;
             GM_setValue('config', Config);
             ndShowToast(isChecked ? 'Đã bật "Ghi nhớ thư mục".' : 'Đã tắt "Ghi nhớ thư mục".', 'info', 2500);
 
             if (isChecked) {
-                if (Storage.downloadDirHandle) {
-                    await saveDirHandleToIDB(Storage.downloadDirHandle, domain);
+                if (Storage.downloadDirHandle && storageKey) {
+                    await saveDirHandleToIDB(Storage.downloadDirHandle, storageKey);
                 }
-            } else {
-                await clearSavedDirHandle(domain);
+            } else if (storageKey) {
+                await clearSavedDirHandle(storageKey);
             }
         });
         // set initial ui
