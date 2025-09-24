@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Works Manager
 // @namespace    https://github.com/BaoBao666888/
-// @version      0.3.0
+// @version      0.4.0
 // @description  Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu.
 // @author       QuocBao
 // @match        https://truyenwikidich.net/user/*/works*
@@ -12,6 +12,8 @@
 // @run-at       document-idle
 // @grant        GM_notification
 // @grant        GM_registerMenuCommand
+// @grant        GM_xmlhttpRequest
+// @grant        GM_openInTab
 // @updateURL    https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/TruyenWikiDich_Works_Manager.user.js
 // @downloadURL  https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/TruyenWikiDich_Works_Manager.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
@@ -26,11 +28,17 @@
     const FILTER_RESULT_LIMIT = 500;
     const STORE_VERSION = 1;
     const DELAY = 1400;
+    const MAX_RETRIES = 10; // Số lần thử lại tối đa
+    const RETRY_DELAY = 5000; // Thời gian chờ giữa các lần thử lại (3 giây)
     const STORE_CFG = {
         name: 'wdWorksCache',
         storeName: 'snapshots',
         description: 'Works cache for offline filtering'
     };
+
+    const BROADCAST_PREFIX = 'wdwm:';
+    const ORIGIN_ID = Math.random().toString(36).slice(2);
+    let broadcastWarned = false;
 
     const TEXT = {
         needSync: 'Chưa có dữ liệu. Nhấn "Đồng bộ" để tải toàn bộ works.',
@@ -58,7 +66,10 @@
         panel: null,
         fileInput: null,
         filterModal: null,
-        hasInitialFilter: false
+        channel: null,
+        channelName: null,
+        hasInitialFilter: false,
+        isPausedByCloudflare: false
     };
     const norm = (text = '') => text.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -105,6 +116,30 @@
         return Math.round(value);
     };
 
+    const Http = {
+        get: (url) => ({
+            html: async () => {
+                const res = await fetch(url, {
+                    credentials: 'include',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const html = await res.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                doc.html = () => html;
+                return doc;
+            },
+        }),
+    };
+
+    const Script = {
+        execute: (fnStr, fnName, arg) => {
+            // Tạo hàm một cách an toàn
+            const fn = new Function(fnStr + `; return ${fnName};`)();
+            return fn(arg);
+        }
+    };
+
     const detectContext = () => {
         const url = new URL(window.location.href);
         url.hash = '';
@@ -138,17 +173,35 @@
         wrap.id = 'wd-works-overlay';
         wrap.style.cssText = 'position:fixed;inset:0;background:rgba(5,10,15,0.78);display:flex;align-items:center;justify-content:center;z-index:99998;color:#fff;font-family:Segoe UI,sans-serif;';
         wrap.innerHTML = `
-            <div style="background:#101722;padding:22px;border-radius:14px;min-width:280px;text-align:center;box-shadow:0 16px 36px rgba(0,0,0,.35);">
+            <div style="background:#101722;padding:22px;border-radius:14px;min-width:320px;text-align:center;box-shadow:0 16px 36px rgba(0,0,0,.35);">
                 <div class="msg" style="font-size:15px;font-weight:600;margin-bottom:12px;">Đang đồng bộ…</div>
                 <div class="bar" style="width:100%;height:6px;background:rgba(255,255,255,0.15);border-radius:999px;overflow:hidden;">
                     <span style="display:block;height:100%;width:0;background:linear-gradient(90deg,#39c5ff,#4bffdc);transition:width .2s;"></span>
                 </div>
                 <div class="meta" style="margin-top:10px;font-size:12px;opacity:.85;"></div>
-                <button data-action="stop" style="margin-top:16px;background:rgba(246,78,96,0.28);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;">Dừng</button>
+                <div class="controls" style="margin-top:16px;">
+                     <button data-action="stop" style="background:rgba(246,78,96,0.28);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;">Dừng</button>
+                     <button data-action="resume" style="display:none; background:#39c5ff;border:none;color:#0b1220;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;">Tiếp tục</button>
+                </div>
             </div>`;
+
         wrap.querySelector('button[data-action="stop"]').addEventListener('click', () => {
             state.abort = true;
+            state.isPausedByCloudflare = false;
         });
+
+        wrap.querySelector('button[data-action="resume"]').addEventListener('click', () => {
+            state.isPausedByCloudflare = false;
+
+            // Khôi phục lại giao diện đồng bộ ngay lập tức
+            updateOverlay({ text: 'Đang tiếp tục đồng bộ...', meta: 'Đã nhận tín hiệu, tiếp tục quét...' });
+
+            const overlay = ensureOverlay(); // Lấy lại chính nó để thao tác
+            overlay.querySelector('.bar').style.display = 'block';
+            overlay.querySelector('.controls button[data-action="stop"]').style.display = 'inline-block';
+            overlay.querySelector('.controls button[data-action="resume"]').style.display = 'none';
+        });
+
         document.body.appendChild(wrap);
         state.overlay = wrap;
         return wrap;
@@ -175,15 +228,18 @@
         if (state.panel) return state.panel;
         const panel = document.createElement('div');
         panel.id = 'wd-works-panel';
-        panel.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99997;background:rgba(17,25,34,0.92);color:#fff;padding:12px 14px;border-radius:10px;min-width:240px;font-family:Segoe UI,sans-serif;font-size:12px;box-shadow:0 12px 30px rgba(0,0,0,0.25);';
+
+        panel.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:99997;background:rgba(17,25,34,0.92);color:#fff;padding:12px 14px;border-radius:10px;min-width:240px;font-family:Segoe UI,sans-serif;font-size:12px;box-shadow:0 12px 30px rgba(0,0,0,0.25);';
+
         panel.innerHTML = `
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                 <strong style="font-size:13px;">Works Manager</strong>
-                <button data-action="toggle" style="background:none;border:none;color:#fff;font-size:16px;line-height:1;cursor:pointer;">–</button>
+                <button data-action="toggle" style="background:none;border:none;color:#fff;font-size:16px;line-height:1;cursor:pointer;">+</button>
             </div>
-            <div class="summary" style="line-height:1.6;"></div>
-            <div class="actions" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
-            <div class="msg" style="margin-top:8px;opacity:.8;"></div>`;
+            <div class="summary" style="line-height:1.6; display:none;"></div>
+            <div class="actions" style="display:none; flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
+            <div class="msg" style="margin-top:8px;opacity:.8; display:none;"></div>`;
+
         const btnStyle = 'flex:1 1 48%;background:rgba(255,255,255,0.16);border:none;color:#fff;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px;';
         const actions = [
             ['sync', 'Đồng bộ'],
@@ -201,21 +257,34 @@
             btn.style.cssText = btnStyle + (action === 'clear' ? ';background:rgba(246,78,96,0.28);' : '');
             actionsEl.appendChild(btn);
         });
+
+        panel.dataset.collapsed = '1';
+
         panel.addEventListener('click', (event) => {
             const target = event.target.closest('button[data-action]');
             if (!target) return;
             event.stopPropagation();
             const action = target.dataset.action;
+
             if (action === 'toggle') {
-                const collapsed = panel.dataset.collapsed === '1';
-                panel.dataset.collapsed = collapsed ? '0' : '1';
-                const display = collapsed ? '' : 'none';
-                panel.querySelector('.summary').style.display = display;
-                panel.querySelector('.actions').style.display = display;
-                panel.querySelector('.msg').style.display = display;
-                target.textContent = collapsed ? '–' : '+';
+                const isCollapsed = panel.dataset.collapsed === '1';
+                panel.dataset.collapsed = isCollapsed ? '0' : '1';
+
+                if (isCollapsed) { // Nếu đang thu gọn -> Mở ra
+                    panel.querySelector('.summary').style.display = ''; // Dùng '' để quay về mặc định (block)
+                    panel.querySelector('.actions').style.display = 'flex'; // Khôi phục ĐÚNG display: flex
+                    panel.querySelector('.msg').style.display = '';
+                    target.textContent = '–';
+                } else { // Nếu đang mở -> Thu gọn
+                    panel.querySelector('.summary').style.display = 'none';
+                    panel.querySelector('.actions').style.display = 'none';
+                    panel.querySelector('.msg').style.display = 'none';
+                    target.textContent = '+';
+                }
+
                 return;
             }
+
             if (action === 'sync') handleSync();
             else if (action === 'export') handleExport();
             else if (action === 'import') handleImport();
@@ -405,13 +474,53 @@
             });
         }
         if (start > 0) url.searchParams.set('start', String(start));
-        const response = await fetch(url.href, {
-            credentials: 'include',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const html = await response.text();
-        return new DOMParser().parseFromString(html, 'text/html');
+
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                // Nếu đang bị tạm dừng, chờ ở đây
+                while (state.isPausedByCloudflare) {
+                    if (state.abort) throw new Error('Đã dừng đồng bộ theo yêu cầu.');
+                    await sleep(500); // Chờ 0.5s rồi kiểm tra lại
+                }
+
+                const response = await fetch(url.href, {
+                    credentials: 'include',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                let htmlContent = await response.text();
+                const isCloudflareChallenge = response.status === 403 || htmlContent.includes('cdn-cgi/challenge-platform');
+
+                if (isCloudflareChallenge) {
+                    console.warn('[WorksManager] Phát hiện Cloudflare. Tạm dừng và chờ người dùng xác nhận.');
+                    state.isPausedByCloudflare = true;
+
+                    GM_openInTab(window.location.origin, { active: true });
+
+                    const overlay = ensureOverlay();
+                    updateOverlay({
+                        text: 'Yêu cầu xác thực',
+                        meta: 'Đã mở một tab mới. Vui lòng giải quyết CAPTCHA (nếu có) và chờ trang tải xong. Sau đó, quay lại đây và nhấn "Tiếp tục".'
+                    });
+                    overlay.querySelector('.bar').style.display = 'none';
+                    overlay.querySelector('.controls button[data-action="stop"]').style.display = 'none';
+                    overlay.querySelector('.controls button[data-action="resume"]').style.display = 'inline-block';
+
+                    // Chờ vòng lặp tiếp theo kiểm tra lại state.isPausedByCloudflare
+                    attempt--; // Không tính đây là một lần thử lại thất bại
+                    continue;
+                }
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return new DOMParser().parseFromString(htmlContent, 'text/html');
+
+            } catch (err) {
+                if (state.abort) throw err; // Nếu người dùng đã bấm dừng, ném lỗi ra ngay
+                console.warn(`[WorksManager] Lỗi khi tải trang (thử lại ${attempt}/${MAX_RETRIES}):`, err.message);
+                if (attempt >= MAX_RETRIES) throw err;
+                await sleep(RETRY_DELAY);
+            }
+        }
     };
 
     const addUnique = (arr, value) => {
@@ -482,7 +591,8 @@
             notify('Truyện không tồn tại trong cache.', true);
             return;
         }
-        if (!window.confirm(`Bạn có chắc muốn xóa "${state.cache.books[bookId].title}" khỏi cache?`)) return;
+        const bookTitle = state.cache.books[bookId].title;
+        if (!window.confirm(`Bạn có chắc muốn xóa "${bookTitle}" khỏi cache?`)) return;
 
         state.cache.bookIds = state.cache.bookIds.filter(id => id !== bookId);
         delete state.cache.books[bookId];
@@ -490,9 +600,73 @@
         await saveCache(state.cache);
         notify(TEXT.manualRemoved);
         updateSummary();
+
+        if (state.channel) {
+            state.channel.postMessage({ origin: ORIGIN_ID, type: 'remove', bookId: bookId, title: bookTitle });
+        }
     };
 
-    const parseBookFromPage = (doc, bookId, bookUrl, currentUser) => {
+    // Hàm mới: dùng để lấy số chương chính xác bằng cách gọi API
+    const fetchAccurateChapterCount = async (doc, bookId) => {
+        try {
+            const BASE_URL = window.location.origin;
+            const html = doc.documentElement.innerHTML;
+            const size = html.match(/loadBookIndex.*?,\s*(\d+)/)?.[1] || 50;
+            const signKey = html.match(/signKey\s*=\s*"([^"]+)"/)?.[1];
+            const fuzzySign = html.match(/function fuzzySign[\s\S]*?}/)?.[0];
+
+            if (!bookId || !signKey || !fuzzySign) {
+                console.warn('[WorksManager] Thiếu thông tin để tải danh sách chương từ API.');
+                return null;
+            }
+
+            // GIỮ NGUYÊN signFunc gốc, không thay đổi
+            const signFunc = `function signFunc(r){function o(r,o){return r>>>o|r<<32-o}for(var f,n,t=Math.pow,c=t(2,32),i="length",a="",e=[],u=8*r[i],v=[],g=[],h=g[i],l={},s=2;64>h;s++)if(!l[s]){for(f=0;313>f;f+=s)l[f]=s;v[h]=t(s,.5)*c|0,g[h++]=t(s,1/3)*c|0}for(r+="";r[i]%64-56;)r+="\\0";for(f=0;f<r[i];f++){if((n=r.charCodeAt(f))>>8)return;e[f>>2]|=n<<(3-f)%4*8}for(e[e[i]]=u/c|0,e[e[i]]=u,n=0;n<e[i];){var d=e.slice(n,n+=16),p=v;for(v=v.slice(0,8),f=0;64>f;f++){var w=d[f-15],A=d[f-2],C=v[0],F=v[4],M=v[7]+(o(F,6)^o(F,11)^o(F,25))+(F&v[5]^~F&v[6])+g[f]+(d[f]=16>f?d[f]:d[f-16]+(o(w,7)^o(w,18)^w>>>3)+d[f-7]+(o(A,17)^o(A,19)^A>>>10)|0);(v=[M+((o(C,2)^o(C,13)^o(C,22))+(C&v[1]^C&v[2]^v[1]&v[2]))|0].concat(v))[4]=v[4]+M|0}for(f=0;8>f;f++)v[f]=v[f]+p[f]|0}for(f=0;8>f;f++)for(n=3;n+1;n--){var S=v[f]>>8*n&255;a+=(16>S?0:"")+S.toString(16)}return a}`;
+
+            const genSign = (signKey, currentPage, size) => {
+                return Script.execute(signFunc, "signFunc",
+                                      Script.execute(fuzzySign, "fuzzySign", signKey + currentPage + size)
+                                     );
+            }
+
+            const getChapterInPage = async (currentPage) => {
+                const params = new URLSearchParams({
+                    bookId: bookId,
+                    signKey: signKey,
+                    sign: genSign(signKey, currentPage, size),
+                    size: size,
+                    start: currentPage.toFixed(0)
+                });
+                console.log(`Link: ${BASE_URL}/book/index?${params}`);
+                return await Http.get(`${BASE_URL}/book/index?${params}`).html();
+            }
+
+            let totalChapters = 0;
+            let currentPage = 0;
+            let docPage = await getChapterInPage(currentPage);
+
+            while (docPage) {
+                const els = docPage.querySelectorAll("li.chapter-name a");
+                totalChapters += els.length;
+
+                const paginationLinks = docPage.querySelectorAll("ul.pagination a[data-start]");
+                if (paginationLinks.length === 0) break;
+
+                const lastPageStart = parseInt(paginationLinks[paginationLinks.length - 1].getAttribute("data-start"), 10);
+                if (currentPage >= lastPageStart) break;
+
+                currentPage += parseInt(size, 10);
+                docPage = await getChapterInPage(currentPage);
+            }
+
+            return totalChapters;
+        } catch (err) {
+            console.error('[WorksManager] Lỗi khi lấy số chương chính xác bằng API:', err);
+            return null; // Trả về null nếu có lỗi
+        }
+    };
+
+    const parseBookFromPage = async (doc, bookId, bookUrl, currentUser) => {
         try {
             const info = doc.querySelector('.cover-info');
             if (!info) throw new Error('Không tìm thấy khối .cover-info');
@@ -592,12 +766,14 @@
             });
             console.log('[parseBookFromPage] stats:', stats);
 
-            let chapters = null;
-            const latestChapterLink = Array.from(info.querySelectorAll('p a')).find(a => a.href.includes('/truyen/') && a.href.includes('/chuong-'));
-            if (latestChapterLink) {
-                const chapterText = latestChapterLink.textContent.trim();
-                const chapterMatch = chapterText.match(/chương\s*(\d+)/i) || chapterText.match(/(\d+)/);
-                if (chapterMatch) chapters = parseInt(chapterMatch[1], 10);
+            let chapters = await fetchAccurateChapterCount(doc, bookId);
+            if (chapters === null) { // Fallback về cách cũ nếu API lỗi
+                const latestChapterLink = Array.from(info.querySelectorAll('p a')).find(a => a.href.includes('/truyen/') && a.href.includes('/chuong-'));
+                if (latestChapterLink) {
+                    const chapterText = latestChapterLink.textContent.trim();
+                    const chapterMatch = chapterText.match(/chương\s*(\d+)/i) || chapterText.match(/(\d+)/);
+                    if (chapterMatch) chapters = parseInt(chapterMatch[1], 10);
+                }
             }
             console.log('[parseBookFromPage] chapters:', chapters);
 
@@ -677,54 +853,53 @@
             if (!ALLOWED_HOSTNAMES.includes(parsedUrl.hostname) || !parsedUrl.pathname.startsWith('/truyen/')) {
                 throw new Error('URL không hợp lệ.');
             }
-
             updateOverlay({ text: 'Đang tải và xử lý truyện...', progress: 50, meta: '' });
             const response = await fetch(parsedUrl.href);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const html = await response.text();
             const doc = new DOMParser().parseFromString(html, 'text/html');
+            const bookId = window.bookId || doc.querySelector('input[name="bookId"]')?.value;
+            if (!bookId) throw new Error('Không tìm thấy ID truyện.');
+            const currentUserSlug = getCurrentUser(doc);
+            if (!currentUserSlug) throw new Error('Không xác định được người dùng.');
 
-            const bookIdMatch = html.match(/var\s+bookId\s*=\s*"([^"]+)"/);
-            const bookId = bookIdMatch ? bookIdMatch[1] : doc.querySelector('input[name="bookId"]')?.value;
-            if (!bookId) throw new Error('Không tìm thấy ID truyện trên trang.');
-
-            const currentUser = getCurrentUser(doc);
-            if (!currentUser) throw new Error('Không xác định được người dùng trên trang.');
-
-            // Tải cache trước khi phân tích để có thể merge flags
-            state.key = `works:${currentUser}:works:v${STORE_VERSION}`;
+            state.key = `works:${currentUserSlug}:works:v${STORE_VERSION}`;
             await localforage.ready();
             await loadCache();
 
-            const book = parseBookFromPage(doc, bookId, parsedUrl.href, currentUser);
+            const book = await parseBookFromPage(doc, bookId, parsedUrl.href, state.cache ? state.cache.username : currentUserSlug);
             if (!book) throw new Error('Không thể phân tích thông tin truyện.');
-            console.log('[ManualAdd] currentUser (slug):', currentUser, 'flags:', book.flags);
-
             const userHasRole = book.flags.poster || book.flags.managerOwner || book.flags.managerGuest || book.flags.editorOwner || book.flags.editorGuest;
-            if (!userHasRole) {
-                throw new Error(`Bạn không có vai trò quản lý nào cho truyện này. Không thể thêm vào danh sách.`);
-            }
+            if (!userHasRole) throw new Error(`Bạn không có vai trò quản lý nào cho truyện này.`);
 
             if (!state.cache) {
-                state.cache = { books: {}, bookIds: [], version: STORE_VERSION, username: currentUser, mode: 'works' };
+                state.cache = { books: {}, bookIds: [], version: STORE_VERSION, username: currentUserSlug, mode: 'works' };
             }
-
-            const isUpdating = state.cache.books[book.id];
-            if (!isUpdating) {
+            if (!state.cache.books[book.id]) {
                 state.cache.bookIds.unshift(book.id);
             }
             state.cache.books[book.id] = book;
-
             await saveCache(state.cache);
             notify(TEXT.manualAdded);
+
+
+            if (state.channel) {
+                state.channel.postMessage({ origin: ORIGIN_ID, type: 'add', book });
+            }
+            if (state.filterModal) {
+                console.log('[WorksManager] Cửa sổ lọc đang mở, tự động làm mới kết quả.');
+                state.filterModal.shadowRoot.querySelector('button[data-action="apply"]').click();
+            }
+
         } catch (err) {
             console.error('[WorksManager] Manual Add failed', err);
-            notify(`Lỗi: ${err.message}`, true); // Thông báo lỗi sẽ được hiển thị cho người dùng
+            notify(`Lỗi: ${err.message}`, true);
         } finally {
             hideOverlay();
             updateSummary();
         }
     };
+
 
     const runFilter = (criteria) => {
         if (!state.cache) return [];
@@ -962,207 +1137,293 @@
         container.appendChild(holder);
     };
 
-    const handleSync = async () => {
-        if (state.syncing) {
-            notify(TEXT.syncRunning, true);
-            return;
+    const readMaxPages = (doc) => {
+        const lastPageLink = doc.querySelector('.pagination li:last-child a[href*="start="]');
+        if (lastPageLink) {
+            try {
+                const start = new URL(lastPageLink.href, window.location.origin).searchParams.get('start');
+                return (parseInt(start, 10) / 10) + 1;
+            } catch (e) { /* ignore */ }
         }
-        const started = Date.now(); // <-- BẮT ĐẦU ĐẾM GIỜ NGAY TẠI ĐÂY
-        state.syncing = true;
-        state.abort = false;
-        updateOverlay({ text: 'Đang đồng bộ works…', progress: 0, meta: '' });
-        const aggregated = { books: {}, bookIds: [] };
-        const addBook = (book) => {
-            if (!book || !book.id) return;
-            const existingBook = aggregated.books[book.id];
-            if (!existingBook) {
-                aggregated.bookIds.push(book.id);
-                aggregated.books[book.id] = book;
-            } else {
-                Object.assign(existingBook, {
-                    title: book.title, status: book.status, stats: book.stats, chapters: book.chapters, updated: book.updated
-                });
-            }
-        };
-        try {
-            // Giai đoạn 1
-            const firstData = state.hasInitialFilter ? extractFromDocument(await fetchDocument(0)) : extractFromDocument(document);
-            if (!firstData.list.length && firstData.total === 0) {
-                notify("Không có works nào để đồng bộ.");
-                state.syncing = false; hideOverlay(); return;
-            }
-            if (!firstData.list.length) throw new Error('Không đọc được danh sách works trên trang hiện tại.');
-
-            let total = firstData.total || firstData.list.length;
-            let pageSize = firstData.pageSize || firstData.list.length || 10;
-            firstData.list.forEach(addBook);
-            let processed = firstData.list.length;
-            updateOverlay({ progress: Math.min(99, (processed / Math.max(1, total)) * 50), meta: `Đã xử lý ${Math.min(processed, total)}/${total}` });
-
-            for (let start = pageSize; start < total; start += pageSize) {
-                if (state.abort) throw new Error(TEXT.syncAbort);
-                await sleep(DELAY);
-                const doc = await fetchDocument(start);
-                const data = extractFromDocument(doc);
-                if (data.total !== null) total = data.total;
-                if (data.pageSize) pageSize = data.pageSize;
-                data.list.forEach(addBook);
-                processed = Object.keys(aggregated.books).length;
-                const progress = Math.min(99, (processed / Math.max(1, total)) * 50); // Giai đoạn 1 chiếm 50%
-                const elapsed = Date.now() - started;
-                const avg = processed ? elapsed / processed : 0;
-                const remaining = Math.max(total - processed, 0);
-                const eta = avg ? fmtDuration(avg * remaining) : '';
-                updateOverlay({ progress, meta: `Đã xử lý ${Math.min(processed, total)}/${total}${eta ? ` – còn ${eta}` : ''}` });
-            }
-
-            // Giai đoạn 2
-            updateOverlay({ text: 'Đang thu thập nhãn bổ sung…', progress: 50, meta: '' });
-            await collectAdditionalMetadata(aggregated, started);
-
-            const duration = Date.now() - started; // <-- TÍNH THỜI GIAN Ở CUỐI CÙNG
-            const payload = {
-                version: STORE_VERSION, username: state.username, mode: state.mode,
-                syncedAt: new Date().toISOString(), durationMs: duration,
-                bookIds: aggregated.bookIds, books: aggregated.books,
-                sourceTotal: aggregated.bookIds.length
-            };
-            await saveCache(payload);
-            updateOverlay({ progress: 100, meta: `Hoàn tất sau ${fmtDuration(duration)}` });
-            notify(TEXT.syncDone);
-        } catch (err) {
-            if (err && err.message === TEXT.syncAbort) notify(TEXT.syncAbort, true);
-            else { console.error('[WorksManager] sync', err); notify('Đồng bộ thất bại.', true); }
-        } finally {
-            state.syncing = false;
-            hideOverlay();
-            updateSummary();
-        }
+        // Nếu không có nút trang cuối, kiểm tra xem có truyện nào không
+        return doc.querySelector('.book-info') ? 1 : 0;
     };
 
-    const collectFilterTasks = (doc) => {
-        const anchors = Array.from(doc.querySelectorAll('#ddFilter a'));
-        const handlers = { bc: true, ba: true, be: true, bt: true, bd: true }; // bp và bv đã bị loại bỏ
+    const handleSync = () => {
+        if (state.syncing) {
+            notify(TEXT.syncRunning, true); return;
+        }
+        // Đưa toàn bộ logic vào setTimeout để đảm bảo UI được cập nhật trước
+        setTimeout(async () => {
+            const started = Date.now();
+
+            state.syncing = true;
+            state.abort = false;
+            const aggregated = { books: {}, bookIds: [] };
+
+            try {
+                updateOverlay({ text: 'Giai đoạn 1/3: Lấy danh sách truyện', subTask: 'Bắt đầu...', progress: 0 });
+
+                const firstDoc = state.hasInitialFilter ? await fetchDocument(0) : document;
+                const firstData = extractFromDocument(firstDoc);
+
+                if (!firstData.list.length && (firstData.total === 0 || readTotal(firstDoc) === 0)) {
+                    notify("Không có works nào để đồng bộ."); throw new Error("empty");
+                }
+                if (!firstData.list.length) throw new Error('Không đọc được danh sách works.');
+
+                let pageSize = firstData.pageSize || 10;
+                let maxPages = readMaxPages(firstDoc);
+
+                firstData.list.forEach(book => {
+                    if (book && !aggregated.books[book.id]) {
+                        aggregated.bookIds.push(book.id);
+                        aggregated.books[book.id] = book;
+                    }
+                });
+
+                for (let currentPage = 2; currentPage <= maxPages; currentPage++) {
+                    if (state.abort) throw new Error(TEXT.syncAbort);
+                    await sleep(DELAY);
+                    const start = (currentPage - 1) * pageSize;
+                    const doc = await fetchDocument(start);
+                    extractFromDocument(doc).list.forEach(book => {
+                        if (book && !aggregated.books[book.id]) {
+                            aggregated.bookIds.push(book.id);
+                            aggregated.books[book.id] = book;
+                        }
+                    });
+                    const progress = (currentPage / maxPages) * 100;
+                    const elapsed = Date.now() - started;
+                    const timePerPage = elapsed / (currentPage - 1);
+                    const remainingPages = maxPages - currentPage;
+                    const etaMs = timePerPage * remainingPages;
+                    const etaString = etaMs > 1000 ? ` – Còn lại ~${fmtDuration(etaMs)}` : '';
+                    updateOverlay({ progress: progress * 0.33, meta: `Đã quét ${currentPage}/${maxPages} trang${etaString}` });
+                }
+
+                await collectAdditionalMetadata(aggregated, started);
+
+                updateOverlay({ text: 'Giai đoạn 3/3: Hoàn tất', subTask: 'Lưu dữ liệu vào cache...', progress: 100 });
+                const duration = Date.now() - started;
+                const payload = {
+                    version: STORE_VERSION, username: state.username, mode: state.mode,
+                    syncedAt: new Date().toISOString(), durationMs: duration,
+                    bookIds: aggregated.bookIds, books: aggregated.books, sourceTotal: aggregated.bookIds.length
+                };
+                await saveCache(payload);
+                updateOverlay({ meta: `Hoàn tất sau ${fmtDuration(duration)}` });
+                notify(TEXT.syncDone);
+
+            } catch (err) {
+                if (err.message === "empty") { /* do nothing */ }
+                else if (err && err.message === TEXT.syncAbort) notify(TEXT.syncAbort, true);
+                else { console.error('[WorksManager] sync', err); notify('Đồng bộ thất bại.', true); }
+            } finally {
+                state.syncing = false;
+                hideOverlay();
+                updateSummary();
+            }
+        }, 0); // Delay 0ms để đẩy vào hàng đợi sự kiện
+    };
+
+    const analyzeFilterTasks = async (started) => {
+        updateOverlay({ text: 'Giai đoạn 2/3: Phân tích bộ lọc', subTask: 'Lấy danh sách bộ lọc mới nhất...', progress: 33 });
+
+        // LUÔN LUÔN TẢI LẠI TRANG CHÍNH ĐỂ LẤY DANH SÁCH BỘ LỌC ĐẦY ĐỦ
+        const cleanDoc = await fetchDocument(0);
+
+        const anchors = Array.from(cleanDoc.querySelectorAll('#ddFilter a'));
+        const handlers = { bc: 'Thể loại', ba: 'Vai trò', be: 'Vai trò', bt: 'Thuộc tính', bs: 'Trạng thái' };
         const tasks = [];
-        anchors.forEach((anchor) => {
+
+        const totalAnalysisTasks = anchors.filter(a => a.getAttribute('href') && a.getAttribute('href') !== '#!').length;
+        let analyzedCount = 0;
+
+        for (const anchor of anchors) {
+            if (state.abort) throw new Error(TEXT.syncAbort);
             const label = anchor.textContent.trim();
             const href = anchor.getAttribute('href');
-            if (!href || href === '#!' || !label || label === 'Tất cả') return;
+            if (!href || href === '#!' || !label || label === 'Tất cả') continue;
+
+            analyzedCount++;
+            const elapsed = Date.now() - started;
+            const etaString = `– ETA: ${fmtDuration((elapsed / analyzedCount) * (totalAnalysisTasks - analyzedCount))}`;
+            updateOverlay({ subTask: `Phân tích: ${label} ${etaString}` });
+
             try {
                 const url = new URL(href, window.location.origin);
                 url.searchParams.delete('start');
                 const entries = Array.from(url.searchParams.entries());
-                if (entries.length !== 1) return;
+                if (entries.length !== 1) continue;
                 const [key, value] = entries[0];
-                if (!handlers[key]) return;
-                tasks.push({ label, key, value, params: { [key]: value } });
+                if (!handlers[key]) continue;
+
+                const filterDoc = await fetchDocument(0, { [key]: value });
+                const total = readTotal(filterDoc);
+                const pages = readMaxPages(filterDoc);
+                tasks.push({ label, key, value, group: handlers[key], params: { [key]: value }, total: total || 0, pages });
+                updateOverlay({ meta: `Đã phân tích: ${label} (${total} truyện / ${pages} trang)` });
+                await sleep(500);
             } catch (_) {}
-        });
+        }
         return tasks;
     };
 
-    // Hàm này áp dụng nhãn cho một truyện dựa trên tác vụ
     const applyTask = (book, task) => {
         if (!book) return;
         const { flags, collections } = book;
         switch (task.key) {
-            case 'bc': addUnique(collections, task.label); break; // Thể loại
-            case 'ba': // Vai trò người đăng/quản lý
-                if (task.value === '3') flags.poster = true;
-                else if (task.value === '1') flags.managerOwner = true;
-                else if (task.value === '2') flags.managerGuest = true;
+            case 'bc': addUnique(collections, task.label); break;
+            case 'ba':
+                if (task.value === '1') { // Đồng quản lý - chủ
+                    flags.managerOwner = true;
+                    flags.poster = true; // Là trường hợp đặc biệt của "Tôi là người đăng"
+                } else if (task.value === '3') { // Tôi là người đăng
+                    flags.poster = true;
+                } else if (task.value === '2') { // Đồng quản lý - khách
+                    flags.managerGuest = true;
+                }
                 break;
-            case 'be': // Vai trò biên tập
-                if (task.value === '1') flags.editorOwner = true;
-                else if (task.value === '2') flags.editorGuest = true;
+            case 'be':
+                if (task.value === '1') { // Biên tập - chủ
+                    flags.editorOwner = true;
+                    flags.poster = true; // Cũng là trường hợp đặc biệt của "Tôi là người đăng"
+                } else if (task.value === '2') { // Biên tập - khách
+                    flags.editorGuest = true;
+                }
                 break;
-            case 'bt': // Thuộc tính nhúng
-                if (task.value === '1') flags.embedLink = true;
-                else if (task.value === '2') flags.embedFile = true;
-                break;
-            case 'bd': flags.duplicate = true; break; // Thuộc tính truyện trùng
+            case 'bt':
+                if (task.value === '1') flags.embedLink = true; else if (task.value === '2') flags.embedFile = true; break;
         }
     };
 
-    // Hàm này điều phối việc thu thập metadata
-    const collectAdditionalMetadata = async (aggregated) => {
-        // Reset flags và collections cho tất cả truyện trước khi thu thập
+
+    const collectAdditionalMetadata = async (aggregated, started) => {
+        // Reset flags và collections
         Object.values(aggregated.books).forEach(book => {
             book.flags = { poster: false, managerOwner: false, managerGuest: false, editorOwner: false, editorGuest: false, embedLink: false, embedFile: false, duplicate: false };
             book.collections = [];
         });
 
-        const tasks = collectFilterTasks(document);
-        if (!tasks.length) return;
+        const allTasks = await analyzeFilterTasks(document, started);
+        const taskGroups = allTasks.reduce((acc, task) => {
+            if (!acc[task.group]) acc[task.group] = [];
+            acc[task.group].push(task);
+            return acc;
+        }, {});
 
-        for (const task of tasks) {
-            if (state.abort) throw new Error(TEXT.syncAbort);
-            updateOverlay({ text: `Đang thu thập: ${task.label}`, meta: '' });
+        const masterIdSet = new Set(aggregated.bookIds);
+        const totalGroups = Object.keys(taskGroups).length;
+        let groupIndex = 0;
 
-            const ids = new Set();
-            let start = 0;
-            let total = Infinity;
-            let pageSize = 10;
-            while (start < total) {
-                const doc = await fetchDocument(start, task.params);
-                const data = extractFromDocument(doc);
-                if (data.list.length === 0 && start === 0) break; // Không có truyện nào trong bộ lọc này
-                data.list.forEach((book) => ids.add(book.id));
-                total = data.total || total;
-                pageSize = data.pageSize || pageSize;
-                if (!pageSize || data.list.length < pageSize) break;
-                start += pageSize;
-                await sleep(DELAY);
+        console.group('[Works Manager DEBUG] Bắt đầu thu thập Metadata');
+
+        for (const groupName in taskGroups) {
+            groupIndex++;
+            const progressBase = 33 + (66 * (groupIndex - 1) / totalGroups);
+            updateOverlay({ text: `Giai đoạn 2/3: Thu thập ${groupName}`, subTask: 'Bắt đầu...', progress: progressBase });
+            console.group(`[DEBUG] Xử lý nhóm: "${groupName}"`);
+
+            const groupTasks = taskGroups[groupName];
+            if (groupTasks.length === 0) {
+                console.log('Không có tác vụ nào, bỏ qua.'); console.groupEnd(); continue;
             }
 
-            ids.forEach((id) => {
-                const book = aggregated.books[id];
-                if (book) applyTask(book, task);
-            });
+            groupTasks.sort((a, b) => b.total - a.total);
+            const majorityTask = groupTasks[0];
+            const minorityTasks = groupTasks.slice(1);
+            const processedInMinorities = new Set();
+
+            console.log(` -> Nhóm lớn nhất (sẽ được suy luận): "${majorityTask.label}" (${majorityTask.total} truyện, ${majorityTask.pages} trang)`);
+            console.log(` -> Các nhóm nhỏ hơn (sẽ quét):`, minorityTasks.map(t => `${t.label} (${t.total})`));
+
+            for (const [i, task] of minorityTasks.entries()) {
+                if (state.abort) throw new Error(TEXT.syncAbort);
+                const elapsed = Date.now() - started;
+                const etaString = `– ETA: ${fmtDuration((elapsed / (i + 1)) * (minorityTasks.length - (i + 1)))}`;
+                updateOverlay({ subTask: `Đang quét: ${task.label} (${task.total} truyện) ${etaString}` });
+                const ids = await fetchIdsForTask(task);
+                ids.forEach(id => {
+                    const book = aggregated.books[id];
+                    if (book) {
+                        applyTask(book, task);
+                        processedInMinorities.add(id);
+                    }
+                });
+            }
+
+            const y = majorityTask.total;
+            const x = majorityTask.pages;
+            const remainingIds = [...masterIdSet].filter(id => !processedInMinorities.has(id));
+
+            console.log(` -> Số truyện đã xử lý trong các nhóm nhỏ: ${processedInMinorities.size}`);
+            console.log(` -> Tổng số truyện thực tế của nhóm lớn nhất: y = ${y}`);
+            console.log(` -> Số trang của nhóm lớn nhất: x = ${x}`);
+            console.log(` -> Điều kiện an toàn: y >= (x - 1) * 10 && y <= x * 10`);
+            console.log(`    -> (${y} >= ${(x-1) * 10} && ${y} <= ${x * 10})`);
+
+            // Điều kiện an toàn vẫn giữ nguyên để kiểm tra tính nhất quán của dữ liệu từ server
+            const isSafeToInfer = y >= (x - 1) * 10 && y <= x * 10;
+
+            if (isSafeToInfer) {
+                console.log('%c -> KẾT QUẢ: An toàn. Bắt đầu suy luận.', 'color: lightgreen');
+                updateOverlay({ subTask: `Suy luận cho: ${majorityTask.label} (${remainingIds.length} truyện)` });
+                remainingIds.forEach(id => applyTask(aggregated.books[id], majorityTask));
+            } else {
+                console.log('%c -> KẾT QUẢ: KHÔNG an toàn. Quét đầy đủ để đảm bảo chính xác.', 'color: orange');
+                updateOverlay({ subTask: `Kiểm tra an toàn thất bại! Quét đầy đủ: ${majorityTask.label}` });
+                const ids = await fetchIdsForTask(majorityTask);
+                ids.forEach(id => {
+                    const book = aggregated.books[id];
+                    if (book) applyTask(book, majorityTask);
+                });
+            }
+
+            console.groupEnd();
+            updateOverlay({ progress: 33 + (66 * groupIndex / totalGroups) });
         }
+        console.groupEnd();
     };
 
+
+
     const initializeStoryPage = async () => {
-        const currentUser = getCurrentUser(document);
-        if (!currentUser) {
-            console.log('[WorksManager] Không xác định được người dùng, bỏ qua cập nhật thụ động.');
-            return;
-        }
+        const currentUserSlug = getCurrentUser(document);
+        if (!currentUserSlug) return;
         const bookId = window.bookId || document.querySelector('input[name="bookId"]')?.value;
-        //console.log(bookId);
         if (!bookId) return;
 
-        state.key = `works:${currentUser}:works:v${STORE_VERSION}`;
+        state.key = `works:${currentUserSlug}:works:v${STORE_VERSION}`;
         localforage.config(STORE_CFG);
         await localforage.ready();
         await loadCache();
 
-        if (!state.cache || !state.cache.books || !state.cache.books[bookId]) {
-            //console.log("Bỏ qua")
-            return; // Không có trong cache thì im lặng bỏ qua
-        }
+        if (!state.cache || !state.cache.books || !state.cache.books[bookId]) return;
 
-        const updatedBook = parseBookFromPage(document, bookId, window.location.href.split('#')[0], currentUser);
+        const updatedBook = await parseBookFromPage(document, bookId, window.location.href.split('#')[0], state.cache.username);
 
         if (updatedBook) {
             state.cache.books[bookId] = updatedBook;
             await saveCache(state.cache);
             notify(`Đã cập nhật "${updatedBook.title}" từ trang truyện.`);
+            // Gửi thông báo cập nhật cho các tab khác
+            const channelName = `${BROADCAST_PREFIX}${state.key}`;
+            try {
+                const channel = new BroadcastChannel(channelName);
+                channel.postMessage({ origin: ORIGIN_ID, type: 'update', book: updatedBook });
+                channel.close();
+            } catch(e) {}
         }
     };
 
-    // Hàm mới: chỉ chạy trên trang works
     const initializeWorksPage = async () => {
         const context = detectContext();
         if (!context) return;
-        const initialQuery = context.baseQuery.toString();
         state.username = context.username;
         state.mode = context.mode;
         state.basePath = context.basePath;
-        state.baseQuery = new URLSearchParams();
         state.key = `works:${state.username}:${state.mode}:v${STORE_VERSION}`;
-        state.hasInitialFilter = Boolean(initialQuery);
-        if (initialQuery) notify('Đang bỏ qua bộ lọc đang áp dụng. Mở trang "Tất cả" để đồng bộ đầy đủ.', true);
 
         localforage.config(STORE_CFG);
         await localforage.ready();
@@ -1170,15 +1431,61 @@
         await loadCache();
         updateSummary();
 
+        // Thiết lập kênh liên lạc
+        state.channelName = `${BROADCAST_PREFIX}${state.key}`;
+        try {
+            state.channel = new BroadcastChannel(state.channelName);
+            state.channel.onmessage = (event) => {
+                if (event.data.origin === ORIGIN_ID) return; // Bỏ qua tin nhắn từ chính mình
+
+                const { type, book, bookId, title } = event.data;
+                let message = '';
+                let needsUiUpdate = false;
+
+                if (type === 'update' && book && state.cache?.books[book.id]) {
+                    state.cache.books[book.id] = book;
+                    message = `Đã nhận cập nhật cho: "${book.title}"`;
+                    needsUiUpdate = true;
+                } else if (type === 'add' && book && state.cache) {
+                    if (!state.cache.books[book.id]) {
+                        state.cache.bookIds.unshift(book.id);
+                    }
+                    state.cache.books[book.id] = book;
+                    message = `Đã nhận truyện mới: "${book.title}"`;
+                    needsUiUpdate = true;
+                } else if (type === 'remove' && bookId && state.cache?.books[bookId]) {
+                    state.cache.bookIds = state.cache.bookIds.filter(id => id !== bookId);
+                    delete state.cache.books[bookId];
+                    message = `Đã xóa truyện: "${title}"`;
+                    needsUiUpdate = true;
+                }
+
+                if (needsUiUpdate) {
+                    console.log(`[WorksManager] Broadcast received: ${message}`);
+                    setMessage(message);
+                    setTimeout(() => { if (panelMessage().textContent === message) setMessage(''); }, 5000);
+
+                    // Không cần saveCache vì tab gốc đã lưu, chỉ cần cập nhật UI
+                    updateSummary();
+                    if (state.filterModal) {
+                        state.filterModal.shadowRoot.querySelector('button[data-action="apply"]').click();
+                    }
+                }
+            };
+        } catch (e) {
+            if (!broadcastWarned) {
+                console.warn('[WorksManager] BroadcastChannel không được hỗ trợ. Đồng bộ thời gian thực sẽ không hoạt động.');
+                broadcastWarned = true;
+            }
+        }
+
         GM_registerMenuCommand('Đồng bộ works', handleSync);
         GM_registerMenuCommand('Xuất dữ liệu works', handleExport);
         GM_registerMenuCommand('Nhập dữ liệu works', handleImport);
         GM_registerMenuCommand('Lọc works', openFilter);
-
         if (!state.cache) notify(TEXT.needSync);
     };
 
-    // Hàm bootstrap mới: đóng vai trò router
     const bootstrap = async () => {
         const path = window.location.pathname;
         if (path.includes('/user/') && path.includes('/works')) {
