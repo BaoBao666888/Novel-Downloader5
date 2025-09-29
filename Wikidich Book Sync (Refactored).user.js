@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         Wikidich Book Sync (Refactored)
 // @namespace    https://github.com/BaoBao666888/
-// @version      4.1.1
+// @author       QuocBao
+// @version      4.2.0
 // @description  Syncs Wikidich chapters with a source (e.g., Fanqie, 69shuba) directly from the book page, handles hidden/empty content.
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich%20Book%20Sync%20%28Refactored%29.user.js
@@ -24,7 +25,7 @@
     // --- Constants ---
     const DEBUG = true;
     const SCRIPT_ID = 'WikidichBookSync';
-    const SCRIPT_VERSION = '4.1.0';
+    const SCRIPT_VERSION = '4.2.0';
     const logDebug = (...args) => { if (DEBUG) console.log(`[${SCRIPT_ID}]`, ...args); };
 
     const FANQIE_API_DEFAULT = 'https://rehaofan.jingluo.love';
@@ -65,6 +66,9 @@
     let isSyncRunning = false;
     let syncQueue = [];
     let nextChapterDelay = DEFAULT_NEXT_CHAPTER_DELAY;
+
+    let wikiInvalidChapters = [];
+    let sourceInvalidChapters = [];
 
     // --- New Fanqie Content Fetcher Helpers ---
     function fanqie_fixQuotes(text) {
@@ -107,9 +111,9 @@
         // 2. Thay thế <br> bằng 1 dấu xuống dòng.
         // 3. Xóa tất cả các thẻ HTML còn lại.
         let text = html
-            .replace(/<\/p>/gi, '\n\n')
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<[^>]*>/g, '');
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]*>/g, '');
         // 4. Trim để xóa khoảng trắng thừa ở đầu và cuối.
         return text.trim();
     }
@@ -152,32 +156,58 @@
         const directoryUrl = `https://fanqienovel.com/page/${bookId}`;
         try {
             const doc = await WikiChapterFetcher.Http.get(directoryUrl).html();
-            const chapterEls = doc.querySelectorAll('.page-directory-content .chapter-item'); // Get the whole item
+            const chapterEls = doc.querySelectorAll('.page-directory-content .chapter-item');
             if (!chapterEls || chapterEls.length === 0) {
                 logToStatusUI('❌ Không tìm thấy chương Fanqie.', true); callback(null); return;
             }
-            const chapters = Array.from(chapterEls).map(el => {
+
+            // --- BẮT ĐẦU THAY ĐỔI ---
+            const validChapters = [];
+            const invalidChapters = [];
+
+            Array.from(chapterEls).forEach(el => {
                 const linkEl = el.querySelector('a.chapter-item-title');
                 const name = linkEl?.innerText?.trim();
                 const href = linkEl?.getAttribute('href');
-                const url = href ? new URL(href, 'https://fanqienovel.com/').href : null;
-                const numberMatch = name?.match(/(\d+)/);
-                const idMatch = href?.match(/reader\/(\d+)/);
-                const isVip = !!el.querySelector('.chapter-item-lock'); // Check for lock icon
-                return {
-                    number: numberMatch ? parseInt(numberMatch[1]) : null,
-                    name: name || 'N/A', url,
-                    id: idMatch ? idMatch[1] : null,
-                    isVip: isVip // Store VIP status
-                };
-            }).filter(c => c.number !== null && c.id && c.url);
 
-            if (chapters.length === 0) {
-                logToStatusUI('⚠️ Không parse được chương Fanqie hợp lệ.', true); callback(null); return;
+                if (!name || !href) return; // Bỏ qua nếu không có tên hoặc link
+
+                const url = new URL(href, 'https://fanqienovel.com/').href;
+                const numberMatch = name?.match(/(\d+)/); // Cố gắng lấy số chương từ tên
+                const idMatch = href?.match(/reader\/(\d+)/);
+                const isVip = !!el.querySelector('.chapter-item-lock');
+
+                const number = numberMatch ? parseInt(numberMatch[1]) : null;
+                const id = idMatch ? idMatch[1] : null;
+
+                const chapterInfo = {
+                    name,
+                    url,
+                    id,
+                    isVip
+                };
+
+                // Nếu lấy được số và các thông tin cần thiết khác, cho vào danh sách hợp lệ
+                if (number !== null && id && url) {
+                    validChapters.push({ ...chapterInfo, number });
+                } else {
+                    // Nếu không, cho vào danh sách lỗi
+                    invalidChapters.push(chapterInfo);
+                }
+            });
+
+
+            if (validChapters.length === 0 && invalidChapters.length > 0) {
+                logToStatusUI('⚠️ Không parse được chương Fanqie hợp lệ nào, chỉ có chương lỗi.', true);
             }
-            chapters.sort((a, b) => a.number - b.number);
-            logToStatusUI(`✅ Tải xong ${chapters.length} chương Fanqie.`);
-            callback(chapters);
+
+            validChapters.sort((a, b) => a.number - b.number);
+            logToStatusUI(`✅ Tải xong ${validChapters.length} chương hợp lệ và ${invalidChapters.length} chương lỗi từ Fanqie.`);
+
+            // Trả về một object chứa cả 2 danh sách
+            callback({ valid: validChapters, invalid: invalidChapters });
+            // --- KẾT THÚC THAY ĐỔI ---
+
         } catch (error) { logDebug("Error fetching Fanqie directory:", error); logToStatusUI(`❌ Lỗi tải DS Fanqie: ${error.message}`, true); callback(null); }
     }
 
@@ -299,23 +329,35 @@
             if (!chapterEls || chapterEls.length === 0) {
                 logToStatusUI('❌ Không tìm thấy chương nào trên 69shu吧.', true); callback(null); return;
             }
-            let chapters = [];
+
+            // --- BẮT ĐẦU THAY ĐỔI ---
+            let validChapters = [];
+            let invalidChapters = [];
+
             const reversedEls = Array.from(chapterEls).reverse();
             reversedEls.forEach((el) => {
                 const name = el.textContent?.trim();
                 const relativeHref = el.getAttribute('href');
                 if (!name || !relativeHref) return;
+
                 const absoluteUrl = new URL(relativeHref, directoryUrl).href;
                 const nameMatch = name.match(/^(?:第)?\s*(\d+)\s*(?:章|话|节|回|篇)/i) || name.match(/^(\d+)/);
                 const number = nameMatch ? parseInt(nameMatch[1]) : null;
-                if (number !== null) chapters.push({ number, name, url: absoluteUrl, id: absoluteUrl });
+
+                if (number !== null) {
+                    validChapters.push({ number, name, url: absoluteUrl, id: absoluteUrl });
+                } else {
+                    invalidChapters.push({ name, url: absoluteUrl });
+                }
             });
-            chapters.sort((a, b) => a.number - b.number);
-            if (chapters.length === 0) {
-                logToStatusUI('⚠️ Không parse được chương 69shu吧 hợp lệ.', true); callback(null); return;
-            }
-            logToStatusUI(`✅ Tải xong ${chapters.length} chương từ 69shu吧.`);
-            callback(chapters);
+
+            validChapters.sort((a, b) => a.number - b.number);
+            logToStatusUI(`✅ Tải xong ${validChapters.length} chương hợp lệ và ${invalidChapters.length} chương không nhận diện được số từ 69shu吧.`);
+
+            // Trả về object chứa cả 2 danh sách
+            callback({ valid: validChapters, invalid: invalidChapters });
+            // --- KẾT THÚC THAY ĐỔI ---
+
         } catch (error) { logDebug("Error fetching 69shu吧 directory:", error); logToStatusUI(`❌ Lỗi tải DS 69shu吧: ${error.message || error}`, true); callback(null); }
     }
 
@@ -325,15 +367,35 @@
             const doc = await WikiChapterFetcher.Http.get(chapterUrl, { overrideMimeType: 'text/html; charset=gbk' }).html();
             const contentElement = doc.querySelector('div.txtnav');
             if (!contentElement) return null;
+
+            // Lấy tiêu đề gốc để so sánh và lọc sau này
+            const titleElement = contentElement.querySelector('h1');
+            const titleText = titleElement ? titleElement.textContent.trim() : '';
+
+            // 1. Xóa thẻ div chứa thông tin ngày tháng/tác giả
+            contentElement.querySelector('.txtinfo')?.remove();
+
+            // 2. Xóa các thẻ script, quảng cáo...
             contentElement.querySelectorAll('script, style, iframe, .adsbygoogle, div[id*="ads"], div[class*="ads"], div[style*="text-align:center"], div:empty').forEach(el => el.remove());
+
+            // 3. Xóa các div điều hướng
             Array.from(contentElement.querySelectorAll('div')).forEach(div => {
                 const text = div.textContent.toLowerCase();
                 if (text.includes("上一章") || text.includes("下一章") || text.includes("目录") || text.includes("書籤") || text.includes("温馨提示") || text.includes("69书吧")) {
                     div.remove();
                 }
             });
-            const rawHtmlContent = contentElement.innerHTML;
-            const textOnly = extractTextOnly(rawHtmlContent);
+
+            // Chuyển đổi HTML còn lại thành văn bản thuần túy
+            let textOnly = extractTextOnly(contentElement.innerHTML);
+
+            // 4. Lọc tiêu đề bị lặp ở dòng đầu
+            if (titleText && textOnly.trim().startsWith(titleText)) {
+                // Nếu dòng đầu của nội dung chính là tiêu đề, thì cắt bỏ nó đi
+                textOnly = textOnly.trim().substring(titleText.length).trim();
+            }
+
+
             return (textOnly && textOnly.trim().length > 0) ? textOnly : null;
         } catch (error) { logToStatusUI(`❌ Lỗi tải nội dung 69shu吧 (${chapterUrl.slice(-20)}): ${error.message || error}`, true); return null; }
     }
@@ -390,21 +452,44 @@
             if (!bookId || !signKey || !fuzzySign) throw new Error("Thiếu dữ liệu cần thiết để tải chương Wiki.");
             const genSign = (sk, cp, sz) => this.Script.execute(this.signFunc, "signFunc", this.Script.execute(fuzzySign, "fuzzySign", sk + cp + sz));
             const getChapterInPage = async (cp) => { const params = new URLSearchParams({ bookId, signKey, sign: genSign(signKey, cp, size), size, start: cp.toFixed(0) }); return await this.Http.get(`${BASE_URL}/book/index?${params}`).html(); };
-            let currentPage = 0; const data = []; doc = await getChapterInPage(currentPage);
+
+            // --- BẮT ĐẦU THAY ĐỔI ---
+            let currentPage = 0;
+            const validChapters = []; // Chương có số
+            const invalidChapters = []; // Chương không có số
+
+            doc = await getChapterInPage(currentPage);
             while (doc) {
                 const els = doc.querySelectorAll("li.chapter-name a, ul#chapters li a, a[href*='/chuong-']");
                 for (const e of els) {
                     let link = e.getAttribute("href") || e.getAttribute("data-href");
                     if (link?.length >= 2) {
-                        const name = e.textContent.trim(); let number = null; const nameMatch = name.match(/(?:Chương|第|Đệ)\s*(\d+)/i); const urlMatch = link.match(/\/chuong-(\d+)/i);
-                        if (nameMatch?.[1]) number = parseInt(nameMatch[1]); else if (urlMatch?.[1]) number = parseInt(urlMatch[1]);
-                        if (number !== null) { const absoluteUrl = link.startsWith('http') ? link : (link.startsWith('/') ? `${BASE_URL}${link}` : `${BASE_URL}/${link}`); data.push({ number, name, url: absoluteUrl, host: BASE_URL }); }
+                        const name = e.textContent.trim();
+                        let number = null;
+                        const nameMatch = name.match(/(?:Chương|第|Đệ)\s*(\d+)/i);
+                        const urlMatch = link.match(/\/chuong-(\d+)/i);
+                        const absoluteUrl = link.startsWith('http') ? link : (link.startsWith('/') ? `${BASE_URL}${link}` : `${BASE_URL}/${link}`);
+
+                        if (nameMatch?.[1]) number = parseInt(nameMatch[1]);
+                        else if (urlMatch?.[1]) number = parseInt(urlMatch[1]);
+
+                        if (number !== null) {
+                            validChapters.push({ number, name, url: absoluteUrl, host: BASE_URL });
+                        } else {
+                            // Nếu không tìm thấy số, thêm vào danh sách lỗi
+                            invalidChapters.push({ name, url: absoluteUrl });
+                        }
                     }
                 }
-                const paginationLinks = doc.querySelectorAll("ul.pagination a[data-start]"); const lastPage = paginationLinks.length > 0 ? parseInt(paginationLinks[paginationLinks.length - 1].getAttribute("data-start")) : 0;
-                if (currentPage >= lastPage) break; currentPage += parseInt(size); doc = await getChapterInPage(currentPage);
+                const paginationLinks = doc.querySelectorAll("ul.pagination a[data-start]");
+                const lastPage = paginationLinks.length > 0 ? parseInt(paginationLinks[paginationLinks.length - 1].getAttribute("data-start")) : 0;
+                if (currentPage >= lastPage) break;
+                currentPage += parseInt(size);
+                doc = await getChapterInPage(currentPage);
             }
-            return data;
+            // Trả về một object chứa cả 2 danh sách
+            return { valid: validChapters, invalid: invalidChapters };
+            // --- KẾT THÚC THAY ĐỔI ---
         }
     };
 
@@ -586,26 +671,32 @@
         panel.id = `${SCRIPT_ID}-compare-panel`;
         panel.innerHTML = `
             <div class="compare-header">
-                <span id="${SCRIPT_ID}-compare-header-text">Giám sát đồng bộ</span>
+                <span id="${SCRIPT_ID}-compare-header-text">So sánh & Chỉnh sửa</span>
                 <div class="compare-header-controls">
                     <button id="${SCRIPT_ID}-compare-hide-btn" title="Ẩn (không dừng)">—</button>
-                    <button id="${SCRIPT_ID}-compare-close-btn" title="Đóng (dừng nếu đang chạy)">×</button>
+                    <button id="${SCRIPT_ID}-compare-close-btn" title="Đóng">×</button>
                 </div>
             </div>
             <div class="compare-body">
                 <div class="compare-col">
-                    <h4>📖 Wikidich (Hiện tại)</h4>
-                    <div id="${SCRIPT_ID}-compare-wiki-title" class="compare-title">Chờ xử lý...</div>
-                    <pre id="${SCRIPT_ID}-compare-wiki-content" class="compare-content"></pre>
+                    <h4>📖 Wikidich (Sửa ở đây)</h4>
+                    <div class="compare-title">
+                        <b>VN:</b> <span id="${SCRIPT_ID}-compare-wiki-title-vn">(Chưa tải)</span><br>
+                        <b>CN:</b> <input type="text" id="${SCRIPT_ID}-compare-wiki-title-cn" placeholder="Tên chương Tiếng Trung" style="width: 98%; padding: 4px;">
+                    </div>
+                    <textarea id="${SCRIPT_ID}-compare-wiki-content" class="compare-content" placeholder="Nội dung Tiếng Trung..." style="height: 100%;"></textarea>
+                    <button id="${SCRIPT_ID}-manual-save-btn" style="margin-top: 5px; padding: 8px; background-color: #4CAF50; color: white; border: none; cursor: pointer; font-weight: bold;">Lưu Thay Đổi (Vào Wikidich)</button>
                 </div>
                 <div class="compare-col">
-    <h4>☁️ Nguồn (<span id="${SCRIPT_ID}-compare-source-name"></span>)</h4>
-    <div id="${SCRIPT_ID}-compare-source-title" class="compare-title">Chờ xử lý...</div>
-    <pre id="${SCRIPT_ID}-compare-source-content" class="compare-content"></pre>
-</div>
+                    <h4>☁️ Nguồn (<span id="${SCRIPT_ID}-compare-source-name"></span>) (Chỉ xem)</h4>
+                    <div id="${SCRIPT_ID}-compare-source-title" class="compare-title">Chờ xử lý...</div>
+                    <textarea id="${SCRIPT_ID}-compare-source-content" class="compare-content" readonly></textarea>
+                </div>
             </div>
         `;
         document.body.appendChild(panel);
+
+        document.getElementById(`${SCRIPT_ID}-manual-save-btn`)?.addEventListener('click', handleManualSave);
 
         // --- Event Listeners cho panel ---
         const header = panel.querySelector('.compare-header');
@@ -642,70 +733,94 @@
         const panel = document.getElementById(`${SCRIPT_ID}-compare-panel`);
         if (!panel) return;
 
-        // Lấy các element một lần để dùng lại
+        // Lấy các element một lần
         const headerTextEl = document.getElementById(`${SCRIPT_ID}-compare-header-text`);
-        const wikiTitleEl = document.getElementById(`${SCRIPT_ID}-compare-wiki-title`);
-        const wikiContentEl = document.getElementById(`${SCRIPT_ID}-compare-wiki-content`);
+        const wikiTitleVnEl = document.getElementById(`${SCRIPT_ID}-compare-wiki-title-vn`);
+        const wikiTitleCnInput = document.getElementById(`${SCRIPT_ID}-compare-wiki-title-cn`);
+        const wikiContentArea = document.getElementById(`${SCRIPT_ID}-compare-wiki-content`);
         const sourceTitleEl = document.getElementById(`${SCRIPT_ID}-compare-source-title`);
-        const sourceContentEl = document.getElementById(`${SCRIPT_ID}-compare-source-content`);
+        const sourceContentArea = document.getElementById(`${SCRIPT_ID}-compare-source-content`);
         const sourceNameEl = document.getElementById(`${SCRIPT_ID}-compare-source-name`);
+        const saveBtn = document.getElementById(`${SCRIPT_ID}-manual-save-btn`);
 
-        // Xử lý khi reset
-        if (options.reset) {
-            headerTextEl.textContent = 'Giám sát đồng bộ';
-            wikiTitleEl.textContent = 'Chờ xử lý...';
-            wikiContentEl.textContent = '';
+        // Reset UI
+        const resetUI = () => {
+            headerTextEl.textContent = 'So sánh & Chỉnh sửa';
+            wikiTitleVnEl.textContent = '(Chưa tải)';
+            wikiTitleCnInput.value = '';
+            wikiContentArea.value = '';
             sourceTitleEl.textContent = 'Chờ xử lý...';
-            sourceContentEl.textContent = '';
+            sourceContentArea.value = '';
             sourceNameEl.textContent = currentAdapter?.name || '...';
+            saveBtn.disabled = true;
+            delete saveBtn.dataset.editUrl;
+        };
+
+        if (options.reset) {
+            resetUI();
             return;
         }
 
-        const { chapterData, status, sourceText } = options;
-        if (!chapterData) return;
+        // --- BẮT ĐẦU SỬA ---
+        const { wikiChapter, sourceChapter, headerMessage, initialWikiContent, initialWikiNameCn, initialSourceContent } = options;
 
-        const chNum = chapterData.wiki.number;
-        headerTextEl.textContent = `👁️ Đang xử lý chương ${chNum} - Trạng thái: ${status}`;
-        sourceNameEl.textContent = currentAdapter?.name || '...';
+        if (headerMessage) {
+            headerTextEl.textContent = headerMessage;
+        } else {
+            headerTextEl.textContent = `So sánh & Chỉnh sửa`;
+        }
 
-        // --- Logic mới: Luôn cập nhật thông tin Wiki trước tiên ---
-        // Chỉ fetch lại nội dung Wiki khi trạng thái là "Đang kiểm tra"
-        if (status.startsWith('Đang kiểm tra')) {
-            wikiTitleEl.textContent = 'Đang tải...';
-            wikiContentEl.textContent = '';
-            sourceTitleEl.textContent = `VN: ${chapterData.source.name}`;
-            sourceContentEl.textContent = '(Chưa lấy)';
+        // Xử lý Wiki
+        if (wikiChapter) {
+            wikiTitleVnEl.textContent = wikiChapter.name;
+            const editUrl = `${wikiChapter.url.replace(/#.*$/, '')}/chinh-sua`;
+            saveBtn.dataset.editUrl = editUrl;
+            saveBtn.disabled = false;
 
-            const editUrl = `${chapterData.wiki.url.replace(/#.*$/, '')}/chinh-sua`;
-            try {
-                const resp = await gmFetch({ method: 'GET', url: editUrl });
-                const doc = new DOMParser().parseFromString(resp.responseText, 'text/html');
-                const nameCn = doc.querySelector('#txtNameCn')?.value || '(Không tìm thấy)';
-                const content = doc.querySelector('#txtContentCn')?.value || '(Nội dung trống)';
-                wikiTitleEl.innerHTML = `<b>VN:</b> ${chapterData.wiki.name}<br><b>CN:</b> ${nameCn}`;
-                wikiContentEl.textContent = content;
-            } catch (e) {
-                wikiTitleEl.textContent = 'Lỗi tải dữ liệu Wiki';
+            if (typeof initialWikiContent !== 'undefined') { // Nếu có nội dung sẵn
+                wikiContentArea.value = initialWikiContent;
+                // THÊM DÒNG NÀY ĐỂ HIỂN THỊ TÊN TIẾNG TRUNG
+                if (typeof initialWikiNameCn !== 'undefined') {
+                    wikiTitleCnInput.value = initialWikiNameCn;
+                }
+            } else { // Nếu không, tự đi lấy
+                wikiTitleCnInput.value = 'Đang tải...';
+                try {
+                    const resp = await gmFetch({ method: 'GET', url: editUrl });
+                    const doc = new DOMParser().parseFromString(resp.responseText, 'text/html');
+                    const nameCn = doc.querySelector('#txtNameCn')?.value;
+                    const content = doc.querySelector('#txtContentCn')?.value || '';
+                    if (typeof nameCn === 'undefined') throw new Error("Không lấy được dữ liệu. Đã đăng nhập chưa?");
+                    wikiTitleCnInput.value = nameCn;
+                    wikiContentArea.value = content;
+                } catch (e) {
+                    wikiTitleCnInput.value = `Lỗi: ${e.message}`;
+                    saveBtn.disabled = true;
+                }
             }
+        } else {
+            wikiTitleVnEl.textContent = '(Không có)';
+            wikiTitleCnInput.value = ''; wikiContentArea.value = ''; saveBtn.disabled = true;
         }
 
-        // Cập nhật thông tin Nguồn khi có
-        if (status === 'Đang lấy nội dung Nguồn...') {
-            sourceContentEl.textContent = 'Đang tải...';
-        } else if (status === 'Đã có nội dung Nguồn.') {
-            sourceContentEl.textContent = sourceText || '(Nội dung rỗng)';
-        }
-
-        // Cập nhật trạng thái cuối cùng
-        if (status.startsWith('Hoàn tất')) {
-            headerTextEl.textContent = `✅ Chương ${chNum} - ${status}`;
-            if(status.includes('(Đã đủ)')) {
-                sourceTitleEl.textContent = '(Không lấy từ nguồn)';
-                sourceContentEl.textContent = '(Không lấy từ nguồn vì Wiki đã đủ nội dung)';
+        // Xử lý Nguồn
+        if (sourceChapter) {
+            sourceTitleEl.textContent = `CN: ${sourceChapter.name}`;
+            if (typeof initialSourceContent !== 'undefined') { // Nếu có nội dung sẵn
+                sourceContentArea.value = initialSourceContent;
+            } else { // Nếu không, tự đi lấy
+                sourceContentArea.value = 'Đang tải...';
+                try {
+                    const sourceText = await currentAdapter.fetchContent(sourceChapter);
+                    sourceContentArea.value = sourceText || '(Nội dung rỗng)';
+                } catch (e) {
+                    sourceContentArea.value = `Lỗi tải nội dung nguồn: ${e.message}`;
+                }
             }
-        } else if (status.startsWith('Lỗi')) {
-            headerTextEl.textContent = `❌ Chương ${chNum} - ${status}`;
+        } else {
+            sourceTitleEl.textContent = '(Không có)'; sourceContentArea.value = '';
         }
+        // --- KẾT THÚC SỬA ---
     }
 
     function createMainUI() {
@@ -759,12 +874,58 @@
                     <div class="list-header">Danh sách chương (<span id="chapter-count">0</span>) | Nguồn: <span id="source-name">Chưa xác định</span></div>
                     <ul id="${UI_CHAPTER_LIST_ID}"><li><i>Chờ tải dữ liệu...</i></li></ul>
                 </div>
+                <details style="margin-top: 10px;">
+                    <summary style="font-weight: bold; cursor: pointer;">Danh sách chương không khớp/lỗi (<span id="invalid-chapter-count">0</span>)</summary>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 5px; border: 1px solid #ddd;">
+                        <div>
+                            <h6>📖 Wikidich</h6>
+                            <ul id="${SCRIPT_ID}-wiki-invalid-list" style="list-style: none; padding: 0; margin: 0;"></ul>
+                        </div>
+                        <div>
+                            <h6>☁️ Nguồn</h6>
+                            <ul id="${SCRIPT_ID}-source-invalid-list" style="list-style: none; padding: 0; margin: 0;"></ul>
+                        </div>
+                    </div>
+                </details>
             </div>
             <div class="panel-footer" id="${UI_STATUS_ID}">Chờ thao tác...</div>
         `;
         document.body.appendChild(panel);
 
         // Event Listeners
+        const handleCompareClick = async (target) => {
+            const panel = document.getElementById(`${SCRIPT_ID}-compare-panel`);
+            panel.style.display = 'flex';
+            await updateMonitorPanel({ reset: true });
+
+            let wikiChapter = null, sourceChapter = null;
+
+            if (target.dataset.chapterNumber) { // Từ danh sách chính
+                const chapterNumber = parseInt(target.dataset.chapterNumber);
+                wikiChapter = wikiChapters.find(ch => ch.number === chapterNumber);
+                sourceChapter = sourceChapters.find(ch => ch.number === chapterNumber);
+            } else if (target.dataset.wikiUrl) { // Từ danh sách wiki lỗi
+                wikiChapter = wikiInvalidChapters.find(ch => ch.url === target.dataset.wikiUrl);
+            } else if (target.dataset.sourceUrl) { // Từ danh sách nguồn lỗi
+                sourceChapter = sourceInvalidChapters.find(ch => ch.url === target.dataset.sourceUrl);
+            }
+
+            if (!wikiChapter && !sourceChapter) {
+                alert('Không tìm thấy dữ liệu cho chương này.');
+                return;
+            }
+
+            await updateMonitorPanel({ wikiChapter, sourceChapter });
+        };
+
+        // Gắn sự kiện cho cả 3 danh sách
+        [UI_CHAPTER_LIST_ID, `${SCRIPT_ID}-wiki-invalid-list`, `${SCRIPT_ID}-source-invalid-list`].forEach(id => {
+            document.getElementById(id)?.addEventListener('click', (e) => {
+                const target = e.target.closest('.compare-btn');
+                if (target) handleCompareClick(target);
+            });
+        });
+
         document.getElementById(UI_CLOSE_BTN_ID)?.addEventListener('click', () => {
             panel.style.display = 'none';
         });
@@ -792,26 +953,7 @@
         });
 
         // Event listener for compare buttons (using event delegation)
-        document.getElementById(UI_CHAPTER_LIST_ID).addEventListener('click', async (e) => {
-            const target = e.target.closest('.compare-btn');
-            if (target && target.dataset.chapterNumber) {
-                const chapterNumber = parseInt(target.dataset.chapterNumber);
-                const chapterData = findChapterData(chapterNumber);
-                if (!chapterData) {
-                    alert(`Không tìm thấy dữ liệu cho chương ${chapterNumber}`);
-                    return;
-                }
 
-                const panel = document.getElementById(`${SCRIPT_ID}-compare-panel`);
-                panel.style.display = 'flex'; // Hiện panel lên
-
-                // Dùng lại hàm updateMonitorPanel để hiển thị
-                await updateMonitorPanel({ reset: true }); // Xóa nội dung cũ
-                await updateMonitorPanel({ chapterData, status: 'Đang lấy nội dung Wiki...' });
-                const sourceText = await currentAdapter.fetchContent(chapterData.source);
-                await updateMonitorPanel({ chapterData, status: 'Đã có nội dung Nguồn.', sourceText });
-            }
-        });
 
         // Load persisted settings
         loadFromStorage(getStorageKey(SOURCE_URL_PREFIX, currentBookInfo.key)).then(url => { if (url) document.getElementById(UI_SOURCE_URL_INPUT_ID).value = url; detectAdapter(url); updateUI(); });
@@ -958,6 +1100,28 @@ Trạng thái: ${status}`;
 `;
             listUl.appendChild(li);
         });
+        const populateInvalidList = (listId, chapters, type) => {
+            const listUl = document.getElementById(listId);
+            listUl.innerHTML = '';
+            if (chapters.length === 0) {
+                listUl.innerHTML = '<li><i>(Trống)</i></li>';
+                return;
+            }
+            chapters.forEach((ch, index) => {
+                const li = document.createElement('li');
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                li.innerHTML = `
+                    <span style="overflow: hidden; text-overflow: ellipsis;">${ch.name}</span>
+                    <button class="compare-btn" data-${type}-url="${ch.url}" title="Xem & Sửa tay">✏️</button>
+                `;
+                listUl.appendChild(li);
+            });
+        };
+
+        populateInvalidList(`${SCRIPT_ID}-wiki-invalid-list`, wikiInvalidChapters, 'wiki');
+        populateInvalidList(`${SCRIPT_ID}-source-invalid-list`, sourceInvalidChapters, 'source');
+        document.getElementById('invalid-chapter-count').textContent = wikiInvalidChapters.length + sourceInvalidChapters.length;
     }
 
     function logToStatusUI(message, isError = false) {
@@ -976,44 +1140,62 @@ Trạng thái: ${status}`;
         const editUrl = `${chapterData.wiki.url.replace(/#.*$/, '')}/chinh-sua`;
 
         try {
-            // --- Bước 1: LUÔN LUÔN lấy nội dung hiện tại của Wiki để kiểm tra ---
-            await updateMonitorPanel({ chapterData, status: 'Đang kiểm tra nội dung Wiki...' });
+            // --- Bước 1: Lấy nội dung hiện tại của Wiki ---
             const getResp = await gmFetch({ method: 'GET', url: editUrl });
             const doc = new DOMParser().parseFromString(getResp.responseText, 'text/html');
-            const currentName = doc.querySelector('#txtNameCn')?.value;
+            const currentName = doc.querySelector('#txtNameCn')?.value; // Lấy tên CN
             const currentContent = doc.querySelector('#txtContentCn')?.value || '';
 
             if (typeof currentName === 'undefined') {
                 throw new Error("Không lấy được tên chương. Đã đăng nhập chưa?");
             }
 
+            // Cập nhật bảng giám sát với nội dung Wiki vừa lấy
+            await updateMonitorPanel({
+                wikiChapter: chapterData.wiki,
+                sourceChapter: chapterData.source,
+                headerMessage: `Ch. ${chNum} - Đang kiểm tra nội dung Wiki...`,
+                initialWikiContent: currentContent,
+                initialWikiNameCn: currentName // <-- Truyền tên CN vào
+            });
+
             // --- Bước 2: KIỂM TRA nếu bật chế độ "Chỉ thay thế chương thiếu" ---
             if (options.onlyMissing && options.regex) {
                 try {
-                    const userRegex = new RegExp(options.regex, 'i'); // 'i' = không phân biệt hoa thường
+                    const userRegex = new RegExp(options.regex, 'i');
                     if (!userRegex.test(currentContent)) {
-                        // NẾU KHÔNG KHỚP (tức là chương đã ĐỦ) -> Bỏ qua
                         logToStatusUI(`☑️ Chương ${chNum} đã đủ nội dung, bỏ qua.`);
-                        chapterStatus[chNum] = 'checked_ok'; // Đặt trạng thái mới
+                        chapterStatus[chNum] = 'checked_ok';
                         await saveChapterStatus();
-                        await updateMonitorPanel({ chapterData, status: 'Hoàn tất (Đã đủ).' });
-                        return; // << QUAN TRỌNG: Thoát khỏi hàm luôn
+                        await updateMonitorPanel({
+                            wikiChapter: chapterData.wiki, sourceChapter: chapterData.source,
+                            headerMessage: `Ch. ${chNum} - Hoàn tất (Đã đủ nội dung)`,
+                            initialWikiContent: currentContent,
+                            initialWikiNameCn: currentName // <-- Truyền tên CN vào
+                        });
+                        return;
                     }
-                    // Nếu khớp, tức là chương thiếu, thì tiếp tục chạy xuống dưới
                     logToStatusUI(`⚠️ Chương ${chNum} thiếu nội dung, tiến hành cập nhật.`);
                 } catch (e) {
                     logToStatusUI(`❌ Regex không hợp lệ: "${options.regex}". Bỏ qua kiểm tra.`, true);
                 }
             }
 
-            // --- Bước 3: Lấy nội dung từ Nguồn (chỉ chạy nếu không bị thoát ở trên) ---
-            await updateMonitorPanel({ chapterData, status: 'Đang lấy nội dung Nguồn...' });
+            // --- Bước 3: Lấy nội dung từ Nguồn ---
             const sourceText = await currentAdapter.fetchContent(chapterData.source);
             if (!sourceText) throw new Error("Adapter trả về nội dung rỗng từ nguồn.");
-            await updateMonitorPanel({ chapterData, status: 'Đã có nội dung Nguồn.', sourceText });
+
+            // Cập nhật bảng giám sát với nội dung Nguồn
+            await updateMonitorPanel({
+                wikiChapter: chapterData.wiki, sourceChapter: chapterData.source,
+                headerMessage: `Ch. ${chNum} - Đã có nội dung nguồn, chuẩn bị cập nhật...`,
+                initialWikiContent: currentContent,
+                initialWikiNameCn: currentName, // <-- Truyền tên CN vào
+                initialSourceContent: sourceText
+            });
+
 
             // --- Bước 4: Gửi yêu cầu cập nhật (PUT) ---
-            await updateMonitorPanel({ chapterData, status: 'Đang cập nhật...', sourceText });
             const body = `nameCn=${encodeURIComponent(currentName)}&contentCn=${encodeURIComponent(sourceText)}`;
             const putResp = await gmFetch({
                 method: 'PUT', url: editUrl, data: body,
@@ -1028,15 +1210,24 @@ Trạng thái: ${status}`;
             // --- Bước 5: Xử lý kết quả ---
             if (putResp.status === 200 && putRespJson?.err === 0) {
                 logToStatusUI(`✅ Chương ${chNum} cập nhật thành công.`);
-                chapterStatus[chNum] = 'updated_hidden'; // Màu xanh lá cây
-                await updateMonitorPanel({ chapterData, status: 'Hoàn tất (Đã cập nhật).', sourceText });
+                chapterStatus[chNum] = 'updated_hidden';
+                await updateMonitorPanel({
+                    wikiChapter: chapterData.wiki, sourceChapter: chapterData.source,
+                    headerMessage: `Ch. ${chNum} - Hoàn tất (Đã cập nhật)`,
+                    initialWikiContent: sourceText,
+                    initialWikiNameCn: currentName, // <-- Truyền tên CN vào
+                    initialSourceContent: sourceText
+                });
             } else {
                 throw new Error(`Lỗi server: ${JSON.stringify(putRespJson || { status: putResp.status, statusText: putResp.statusText }).slice(0, 200)}`);
             }
         } catch (err) {
             logToStatusUI(`❌ Lỗi chương ${chNum}: ${err.message}`, true);
             chapterStatus[chNum] = 'error';
-            await updateMonitorPanel({ chapterData, status: `Lỗi: ${err.message}` });
+            await updateMonitorPanel({
+                wikiChapter: chapterData.wiki, sourceChapter: chapterData.source,
+                headerMessage: `Ch. ${chNum} - Lỗi: ${err.message}`
+            });
         }
         await saveChapterStatus();
     }
@@ -1093,15 +1284,24 @@ Trạng thái: ${status}`;
     async function handleLoadData() {
         const btn = document.getElementById(UI_LOAD_DATA_BTN_ID); btn.disabled = true; btn.textContent = "Đang tải...";
         let success = true;
+
+        // Reset danh sách lỗi
+        wikiInvalidChapters = [];
+        sourceInvalidChapters = [];
+
         // Fetch Wiki
         try {
             logToStatusUI("Đang tải DS chương Wikidich...");
-            wikiChapters = await WikiChapterFetcher.getAllChapters(location.href);
-            const newStatus = {}; wikiChapters.forEach(ch => { newStatus[ch.number] = chapterStatus[ch.number] || 'pending'; });
+            const wikiResult = await WikiChapterFetcher.getAllChapters(location.href);
+            wikiChapters = wikiResult.valid;
+            wikiInvalidChapters = wikiResult.invalid; // Lưu chương lỗi
+
+            const newStatus = {};
+            wikiChapters.forEach(ch => { newStatus[ch.number] = chapterStatus[ch.number] || 'pending'; });
             chapterStatus = newStatus;
             await saveToStorage(getStorageKey(WIKI_LIST_PREFIX, currentBookInfo.key), wikiChapters);
             await saveChapterStatus();
-            logToStatusUI(`✅ Tải xong ${wikiChapters.length} chương Wikidich.`);
+            logToStatusUI(`✅ Tải xong ${wikiChapters.length} chương hợp lệ và ${wikiInvalidChapters.length} chương lỗi từ Wikidich.`);
         } catch (error) { logToStatusUI(`❌ Lỗi tải DS Wiki: ${error.message}`, true); success = false; }
 
         // Fetch Source
@@ -1112,12 +1312,15 @@ Trạng thái: ${status}`;
                 const sourceBookId = adapter.extractBookId(url);
                 await saveToStorage(getStorageKey(SOURCE_URL_PREFIX, currentBookInfo.key), url);
                 await new Promise(resolve => {
-                    adapter.fetchDirectory(sourceBookId, async (chapters) => {
-                        if (chapters) {
-                            sourceChapters = chapters;
+                    adapter.fetchDirectory(sourceBookId, async (result) => {
+                        if (result && result.valid) {
+                            sourceChapters = result.valid;
+                            sourceInvalidChapters = result.invalid || []; // Lưu chương lỗi
                             await saveToStorage(getStorageKey(SOURCE_LIST_PREFIX, currentBookInfo.key), sourceChapters);
-                            logToStatusUI(`✅ Tải xong ${sourceChapters.length} chương từ ${adapter.name}.`);
-                        } else { logToStatusUI(`⚠️ Không tải được chương nào từ ${adapter.name}.`, true); success = false; }
+                        } else {
+                            logToStatusUI(`⚠️ Không tải được chương nào từ ${adapter.name}.`, true);
+                            success = false;
+                        }
                         resolve();
                     });
                 });
@@ -1189,7 +1392,7 @@ Trạng thái: ${status}`;
             }
 
             // Xử lý chương
-           await processChapterDirect(chapterData, options);
+            await processChapterDirect(chapterData, options);
 
             // Cập nhật lại trạng thái cuối cùng trên UI
             const finalStatus = chapterStatus[chapterNumber] || 'error';
@@ -1206,6 +1409,48 @@ Trạng thái: ${status}`;
         }
         // Dừng tiến trình
         handleStopSync();
+    }
+
+    async function handleManualSave() {
+        const btn = document.getElementById(`${SCRIPT_ID}-manual-save-btn`);
+        const editUrl = btn.dataset.editUrl;
+        if (!editUrl) {
+            alert("Lỗi: Không tìm thấy URL của chương để sửa. Hãy chắc chắn bạn đã mở chương Wikidich hợp lệ.");
+            logToStatusUI("Lỗi lưu tay: Thiếu editUrl.", true);
+            return;
+        }
+
+        if (!confirm("Bạn có chắc muốn lưu thay đổi này lên máy chủ Wikidich?")) return;
+
+        btn.disabled = true;
+        btn.textContent = "Đang lưu...";
+
+        try {
+            const nameCn = document.getElementById(`${SCRIPT_ID}-compare-wiki-title-cn`).value;
+            const contentCn = document.getElementById(`${SCRIPT_ID}-compare-wiki-content`).value;
+            const body = `nameCn=${encodeURIComponent(nameCn)}&contentCn=${encodeURIComponent(contentCn)}`;
+            const putResp = await gmFetch({
+                method: 'PUT', url: editUrl, data: body,
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+                responseType: 'json'
+            });
+            const putRespJson = putResp.response;
+            if (putResp.status === 200 && putRespJson?.err === 0) {
+                alert("Lưu thành công!");
+                logToStatusUI(`✅ Lưu tay chương thành công: ${editUrl}`);
+            } else {
+                throw new Error(`Lỗi server: ${JSON.stringify(putRespJson || { status: putResp.status, statusText: putResp.statusText }).slice(0, 200)}`);
+            }
+        } catch (err) {
+            alert(`Lưu thất bại: ${err.message}`);
+            logToStatusUI(`❌ Lỗi lưu tay: ${err.message}`, true);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Lưu Thay Đổi (Vào Wikidich)";
+        }
     }
 
     async function handleStopSync() {
@@ -1228,6 +1473,9 @@ Trạng thái: ${status}`;
             await saveChapterStatus(); logToStatusUI("🗑️ Đã xóa lịch sử."); updateUI();
         }
     }
+
+
+
     // --- Initialization ---
     async function initialize() {
         logDebug(`Script initializing (v${SCRIPT_VERSION})...`);
