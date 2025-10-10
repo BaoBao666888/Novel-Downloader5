@@ -110,6 +110,38 @@ Script hỗ trợ một danh sách lớn các trang web. Danh sách các rule x�
 
 *(Bạn có thể tự thêm hoặc sửa rule trong code nếu muốn hỗ trợ trang web khác hoặc trang hiện tại có thay đổi cấu trúc).*
 
+## Các script & thư mục liên quan trong repo
+
+### Userscript chính
+
+*   **novelDownloaderVietSub*.user.js:** Bao gồm bản stable (
+ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.445, 3.5.446) để test/lùi lỗi; cài đặt nhanh [Stable](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js) • [Beta](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-beta.user.js) • [3.5.446](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-3.5.446.user.js) • [3.5.445](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-3.5.445.user.js).
+*   **auto inject tokenOptions.user.js:** Script phụ tự tạo window.tokenOptions (token JJWXC, API Fanqie) cho novelDownloaderVietSub; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/auto%20inject%20tokenOptions.user.js).
+
+### Userscript bổ trợ
+
+*   **Auto Volume Chapter Uploader.user.js:** Tự động chèn tập/chương, kiểm tra trùng/thiếu và chọn vị trí chèn -n/n- khi đăng truyện; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js) và khuyến nghị dùng kèm app [rename_chapters](rename_chapters) để đồng bộ tên chương trước khi tải lên.
+*   **download-vietnamese.js:** Bộ tải xuống chung (GM_xmlhttpRequest/fetch/xhr) với UI theo dõi, gom các liên kết tải cấu hình sẵn; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js).
+*   **Fanqie Chapter Replacer and copy Full.user.js:** Thay nội dung chương Fanqie từ API cá nhân và thêm nút copy tiêu đề + nội dung để dùng lại nhanh; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Fanqie%20Chapter%20Replacer%20and%20copy%20Full.user.js).
+*   **TM Translate.user.js:** Dịch trang, quản lý name-set, chuẩn hóa tên, chế độ đọc rút gọn và tùy chỉnh giao diện; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js).
+*   **Wikidich Book Sync (Refactored).user.js:** Đồng bộ, chép chương từ nguồn (Fanqie, 69shuba, ...) sang Wikidich ngay trên trang sách, xử lý chương ẩn hoặc rỗng; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich%20Book%20Sync%20(Refactored).user.js).
+*   **TruyenWikiDich_Works_Manager.user.js:** Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TruyenWikiDich_Works_Manager.user.js).
+*   **TruyenWikiDich_Get_Names.user.js:** Lấy danh sách tên nhân vật từ truyenwikidich.net; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TruyenWikiDich_Get_Names.user.js).
+*   **wkidich-search-to-detail.user.js:** Thêm nút tìm truyện Wikidich và hiển thị link nhúng detail từ API; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/wkidich-search-to-detail.user.js).
+
+### Công cụ & thư mục
+
+*   **decode\\Zongcai-Novel-Decoder.user.js:** Giải mã truyện Zongcai; [Cài đặt STV](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/STV-Downloader.user.js) • [Cài đặt Zongcai](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/Zongcai-Novel-Decoder.user.js).
+*   **rename_chapters\\***: Ứng dụng Tkinter Rename Chapters (v0.1.5) đổi tên file theo nội dung, sắp xếp, gộp/tách, hỗ trợ fetch metadata (bìa, tóm tắt), plugin cho JJWXC/PO18/Qidian/Fanqie và cập nhật tự động; tải [gói ZIP repo](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/0.1.5/Rename-Chapters-setup.exe), pip install -r rename_chapters/requirements.txt rồi chạy python rename_chapters/main_ui.py.
+
+### Dữ liệu & thư viện hỗ trợ
+
+*   **han_viet/output.json:** Từ điển Han-Việt để Việt hóa nhanh các cụm Hán.
+*   **translate\\zh_to_vi\\(HanViet.json, Name.json, VP.json):** Những bộ từ điển lớn (tên riêng, từ vựng, VietPhrase) mà `TranslateZhToVi` dùng làm nền.
+*   **fanqie-decrypt-lib.js:** Thư viện giải mã/chuyển hóa Fanqie, tái sử dụng trong các userscript liên quan.
+*   **chs2cht.js:** Bộ chuyển Giản thể ↔ Phồn thể, dùng khi cần xuất bản với chữ Hant hoặc chuyển từ nguồn zh-Hant.
+*   **SourceHanSansCN-Regular-Often.json:** Bản đồ glyph → ký tự được trích từ font Source Han Sans (dùng để giải mã icon font trong truyện).
+
 ## Vấn đề đã biết (Chưa sửa lỗi)
 
 1.  **Khó hiển thị giao diện:** Trong phiên bản `3.5.447` này, giao diện tải xuống (bảng điều khiển) **đôi khi không tự động xuất hiện** khi nhấp đúp vào cạnh trái hoặc dùng menu lệnh, không ổn định như các bản 445, 446 trước đó.
@@ -145,3 +177,6 @@ Khi báo lỗi, vui lòng cung cấp các thông tin sau:
 
 *   Script này được phát triển dựa trên phiên bản gốc của **dodying**.
 *   Cảm ơn tất cả những người đã đóng góp ý tưởng, báo lỗi và sử dụng script.
+
+
+
