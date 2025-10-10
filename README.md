@@ -87,7 +87,7 @@
 
 5.  **Chỉnh sửa Token và API:**
     *   Tìm dòng `Jjwxc: "token của bạn"`. **Quan trọng:** Thay thế `"token của bạn"` bằng **token JJWXC thực tế** của bạn (token này thường lấy từ quá trình đăng nhập vào app JJWXC, bạn cần tự tìm cách lấy). **Không chia sẻ token này cho người khác.**
-    *   Tìm dòng `Fanqie: "https://rehaofan.jingluo.love"`. Bạn có thể giữ nguyên API này hoặc thay thế bằng một địa chỉ API Fanqie khác nếu bạn có.
+    *   Tìm dòng `Fanqie: "..."`. Bạn có thể thay thế bằng một địa chỉ API Fanqie khác nếu bạn có.
 6.  **Lưu Script:** Nhấn "File" -> "Save" hoặc nút Lưu tương ứng. Đảm bảo script này được **bật (enabled)** trong trình quản lý userscript.
 7.  **Hoàn tất:** Script phụ trợ này sẽ tự động chạy trên mọi trang và tạo ra biến `window.tokenOptions`. Script `novelDownloaderVietSub` sẽ tự động tìm và sử dụng biến này khi tải truyện từ JJWXC (VIP) hoặc Fanqie.
 
@@ -132,7 +132,7 @@ ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.
 ### Công cụ & thư mục
 
 *   **decode\\Zongcai-Novel-Decoder.user.js:** Giải mã truyện Zongcai; [Cài đặt STV](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/STV-Downloader.user.js) • [Cài đặt Zongcai](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/Zongcai-Novel-Decoder.user.js).
-*   **rename_chapters\\***: Ứng dụng Tkinter Rename Chapters (v0.1.5) đổi tên file theo nội dung, sắp xếp, gộp/tách, hỗ trợ fetch metadata (bìa, tóm tắt), plugin cho JJWXC/PO18/Qidian/Fanqie và cập nhật tự động; tải [gói ZIP repo](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/0.1.5/Rename-Chapters-setup.exe), pip install -r rename_chapters/requirements.txt rồi chạy python rename_chapters/main_ui.py.
+*   **rename_chapters\\***: Ứng dụng Tkinter Rename Chapters (v0.1.5) đổi tên file theo nội dung, sắp xếp, gộp/tách, hỗ trợ fetch metadata (ảnh, mục lục), plugin cho JJWXC/PO18/Qidian/Fanqie va cập nhật tự động; ưu tiên dùng bản build sẵn [Rename-Chapters-setup.exe](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/0.1.5/Rename-Chapters-setup.exe).
 
 ### Dữ liệu & thư viện hỗ trợ
 
@@ -177,6 +177,8 @@ Khi báo lỗi, vui lòng cung cấp các thông tin sau:
 
 *   Script này được phát triển dựa trên phiên bản gốc của **dodying**.
 *   Cảm ơn tất cả những người đã đóng góp ý tưởng, báo lỗi và sử dụng script.
+
+
 
 
 
