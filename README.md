@@ -114,7 +114,7 @@ Script hỗ trợ một danh sách lớn các trang web. Danh sách các rule x�
 
 ### Userscript chính
 
-*   **novelDownloaderVietSub*.user.js:** Bao gồm bản stable (
+*   **novelDownloaderVietSub.user.js:** Bao gồm bản stable (
 ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.445, 3.5.446) để test/lùi lỗi; cài đặt nhanh [Stable](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js) • [Beta](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-beta.user.js) • [3.5.446](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-3.5.446.user.js) • [3.5.445](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-3.5.445.user.js).
 *   **auto inject tokenOptions.user.js:** Script phụ tự tạo window.tokenOptions (token JJWXC, API Fanqie) cho novelDownloaderVietSub; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/auto%20inject%20tokenOptions.user.js).
 
