@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.41.5
+// @version     3.5.447.41.6
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -6104,7 +6104,7 @@ function decryptDES(encrypted, key, iv) {
 
             const format = $(e.target).attr('format');
             const onComplete = async (force) => {
-               const failedChapters = Storage.book.chapters.filter(c => !c.contentRaw && !c.document);
+               const failedChapters = Storage.book.chapters.filter(c => !(c.contentRaw || c.content));
                 if (failedChapters.length > 0 && !force) {
                     console.warn(`%cPhát hiện ${failedChapters.length} chương tải thất bại. Quá trình tạo file sẽ bị tạm dừng.`, "color: red; font-weight: bold;");
                     console.warn('Các chương lỗi:', failedChapters.map(c => c.url));
@@ -6171,7 +6171,7 @@ function decryptDES(encrypted, key, iv) {
                     }
 
                     const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
-                    let content = chapter.contentRaw;
+                    let content = chapter.contentRaw || chapter.content;
                     if (!content) continue;
                     if (rule.elementRemove || Config.useCommon) {
                         if (Storage.debug.content) debugger;
@@ -6452,6 +6452,8 @@ function decryptDES(encrypted, key, iv) {
                         break; // Thoát khỏi vòng lặp nếu không còn chương lỗi
                     }
                     console.log(`%cLần thử lại ${attempt}/${Config.retry}: Còn lại ${chaptersToProcess.length} chương lỗi.`, "color: orange; font-weight: bold;");
+                    console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
+                    await sleep(Config.delayBetweenChapters);
                 }
 
                 const currentRunList = classifyChapters(chaptersToProcess);
@@ -6487,6 +6489,8 @@ function decryptDES(encrypted, key, iv) {
                         } catch (error) {
                             console.error(`%cLỗi khi thực thi deal cho chương: ${chapter.title || chapter.url}`, "color: red;", error);
                             chapter.contentRaw = '';
+                            chapter.content = '';
+                            chapter.document = '';
                         }
                     }
                 }
@@ -6506,19 +6510,41 @@ function decryptDES(encrypted, key, iv) {
                         console.log(`%cĐang xử lý lô ${currentChunkNum} (gồm ${chunk.length} chương)`, "color: blue; font-weight: bold;");
 
                         await new Promise(resolveChunk => {
-                            xhr.init({
-                                retry: 0, // Tắt retry của xhr, để vòng lặp lớn của chúng ta kiểm soát
-                                thread: chunkSize,
-                                timeout: Config.timeout,
-                                onComplete: () => {
+                            // 1. Tạo bộ đếm và hàm kiểm tra hoàn thành cho riêng lô này
+                            let completedCount = 0;
+                            const checkCompletion = () => {
+                                completedCount++;
+                                if (completedCount >= chunk.length) {
                                     console.log(`%cĐã hoàn thành lô ${currentChunkNum}.`, "color: green;");
-                                    resolveChunk();
-                                },
-                                onfailed: onChapterFailed,
+                                    // Dùng setTimeout để đảm bảo các tác vụ con đã xong hẳn
+                                    setTimeout(resolveChunk, 0);
+                                }
+                            };
+
+                            // 2. Bọc các hàm callback gốc để thêm bộ đếm vào
+                            const onloadWrapper = (res, request) => {
+                                originalOnChapterLoad(res, request).finally(checkCompletion);
+                            };
+
+                            const onfailedWrapper = (res, request) => {
+                                onChapterFailed(res, request).finally(checkCompletion);
+                            };
+
+                            // 3. Khởi tạo và chạy xhr với các hàm callback đã được bọc lại
+                            xhr.init({
+                                retry: 0,
+                                thread: Math.min(chunkSize, chunk.length), // Vẫn giữ fix từ lần trước
+                                timeout: Config.timeout,
+                                // Hoàn toàn không dùng onComplete của thư viện nữa
                                 onfailedEvery: onChapterFailedEvery,
                                 checkLoad: async (res) => (res.status >= 200 && res.status < 300),
                             });
-                            xhr.list(chunk, { onload: originalOnChapterLoad, overrideMimeType });
+
+                            xhr.list(chunk, {
+                                onload: onloadWrapper,
+                                onfailed: onfailedWrapper, // Dùng onfailed ở đây thay vì trong init
+                                overrideMimeType
+                            });
                             xhr.start();
                         });
 
