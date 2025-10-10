@@ -121,7 +121,6 @@ ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.
 ### Userscript bổ trợ
 
 *   **Auto Volume Chapter Uploader.user.js:** Tự động chèn tập/chương, kiểm tra trùng/thiếu và chọn vị trí chèn -n/n- khi đăng truyện; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js) và khuyến nghị dùng kèm app [rename_chapters](rename_chapters) để đồng bộ tên chương trước khi tải lên.
-*   **download-vietnamese.js:** Bộ tải xuống chung (GM_xmlhttpRequest/fetch/xhr) với UI theo dõi, gom các liên kết tải cấu hình sẵn; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js).
 *   **Fanqie Chapter Replacer and copy Full.user.js:** Thay nội dung chương Fanqie từ API cá nhân và thêm nút copy tiêu đề + nội dung để dùng lại nhanh; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Fanqie%20Chapter%20Replacer%20and%20copy%20Full.user.js).
 *   **TM Translate.user.js:** Dịch trang, quản lý name-set, chuẩn hóa tên, chế độ đọc rút gọn và tùy chỉnh giao diện; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js).
 *   **Wikidich Book Sync (Refactored).user.js:** Đồng bộ, chép chương từ nguồn (Fanqie, 69shuba, ...) sang Wikidich ngay trên trang sách, xử lý chương ẩn hoặc rỗng; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich%20Book%20Sync%20(Refactored).user.js).
@@ -137,6 +136,7 @@ ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.
 ### Dữ liệu & thư viện hỗ trợ
 
 *   **han_viet/output.json:** Từ điển Han-Việt để Việt hóa nhanh các cụm Hán.
+*   **download-vietnamese.js:** Bộ tải xuống chung (GM_xmlhttpRequest/fetch/xhr) với UI theo dõi, gom các liên kết tải cấu hình sẵn.
 *   **translate\\zh_to_vi\\(HanViet.json, Name.json, VP.json):** Những bộ từ điển lớn (tên riêng, từ vựng, VietPhrase) mà `TranslateZhToVi` dùng làm nền.
 *   **fanqie-decrypt-lib.js:** Thư viện giải mã/chuyển hóa Fanqie, tái sử dụng trong các userscript liên quan.
 *   **chs2cht.js:** Bộ chuyển Giản thể ↔ Phồn thể, dùng khi cần xuất bản với chữ Hant hoặc chuyển từ nguồn zh-Hant.
