@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Works Manager
 // @namespace    https://github.com/BaoBao666888/
-// @version      0.4.0
+// @version      0.5.0
 // @description  Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu.
 // @author       QuocBao
 // @match        https://truyenwikidich.net/user/*/works*
@@ -14,8 +14,8 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
 // @grant        GM_openInTab
-// @updateURL    https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/TruyenWikiDich_Works_Manager.user.js
-// @downloadURL  https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/TruyenWikiDich_Works_Manager.user.js
+// @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TruyenWikiDich_Works_Manager.user.js
+// @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TruyenWikiDich_Works_Manager.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js
 // ==/UserScript==
 
@@ -166,6 +166,86 @@
         return null;
     };
 
+    const askSyncOptions = () => {
+        return new Promise((resolve) => {
+            const dialog = document.createElement('div');
+            dialog.id = 'wd-works-sync-options';
+            dialog.style.cssText = 'position:fixed;inset:0;background:rgba(5,10,15,0.85);display:flex;align-items:center;justify-content:center;z-index:99999;color:#fff;font-family:Segoe UI,sans-serif;';
+            dialog.innerHTML = `
+                <style>
+                    .sync-option {
+                        border: 1px solid transparent;
+                        transition: background-color 0.2s, border-color 0.2s;
+                    }
+                    .sync-option:has(input:checked) {
+                        background-color: rgba(57, 197, 255, 0.1) !important;
+                        border-color: #39c5ff;
+                    }
+                </style>
+                <div style="background:#101722;padding:22px;border-radius:14px;min-width:400px;text-align:left;box-shadow:0 16px 36px rgba(0,0,0,.35);">
+                    <h3 style="margin:0 0 16px;font-size:16px;font-weight:600;">Tùy chọn đồng bộ</h3>
+                    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+                        <label class="sync-option" style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; cursor:pointer;">
+                            <input type="radio" name="sync-mode" value="full" checked style="width:18px; height:18px; accent-color:#39c5ff; pointer-events:none;">
+                            <div>
+                                <strong style="color:#fff;">Đồng bộ đầy đủ</strong>
+                                <div style="font-size:12px; opacity:0.8;">Quét lại danh sách truyện và toàn bộ thông tin. (Khuyên dùng)</div>
+                            </div>
+                        </label>
+                        <label class="sync-option" style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; cursor:pointer;">
+                            <input type="radio" name="sync-mode" value="summary_only" style="width:18px; height:18px; accent-color:#39c5ff; pointer-events:none;">
+                            <div>
+                                <strong style="color:#fff;">Chỉ đồng bộ văn án</strong>
+                                <div style="font-size:12px; opacity:0.8;">Chỉ tải văn án cho các truyện chưa có. Hữu ích khi danh sách truyện đã đủ.</div>
+                            </div>
+                        </label>
+                    </div>
+                    <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top:16px;">
+                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                             <div>
+                                 <label for="sync-threads" style="font-size:12px; opacity:0.8; margin-bottom:4px; display:block;">Số luồng</label>
+                                 <input id="sync-threads" type="number" value="1" min="1" max="5" style="width:100%; padding: 7px 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; font-size: 13px;">
+                             </div>
+                             <div>
+                                 <label for="sync-delay" style="font-size:12px; opacity:0.8; margin-bottom:4px; display:block;">Delay (ms)</label>
+                                 <input id="sync-delay" type="number" value="1500" min="500" step="100" style="width:100%; padding: 7px 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; font-size: 13px;">
+                             </div>
+                         </div>
+                    </div>
+                    <div class="controls" style="margin-top:20px; text-align:right; display:flex; justify-content:flex-end; gap:10px;">
+                         <button data-action="cancel" style="background:rgba(255,255,255,0.12);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;">Hủy</button>
+                         <button data-action="start" style="background:#39c5ff;border:none;color:#0b1220;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;">Bắt đầu</button>
+                    </div>
+                </div>`;
+
+            dialog.addEventListener('click', (e) => {
+                const button = e.target.closest('button[data-action]');
+                const action = button ? button.dataset.action : null;
+
+                // Xử lý khi click vào label để chọn radio
+                const label = e.target.closest('.sync-option');
+                if (label) {
+                    const radio = label.querySelector('input[type="radio"]');
+                    if (radio) {
+                        radio.checked = true;
+                    }
+                }
+
+                if (action === 'cancel') {
+                    dialog.remove();
+                    resolve(null);
+                } else if (action === 'start') {
+                    const mode = dialog.querySelector('input[name="sync-mode"]:checked').value;
+                    const threads = parseInt(dialog.querySelector('#sync-threads').value, 10) || 1;
+                    const delay = parseInt(dialog.querySelector('#sync-delay').value, 10) || 1500;
+                    dialog.remove();
+                    resolve({ mode, threads, delay });
+                }
+            });
+
+            document.body.appendChild(dialog);
+        });
+    };
 
     const ensureOverlay = () => {
         if (state.overlay) return state.overlay;
@@ -467,13 +547,23 @@
     };
 
     const fetchDocument = async (start, extraParams = null) => {
-        const url = new URL(state.basePath, window.location.origin);
-        if (extraParams) {
-            Object.entries(extraParams).forEach(([key, value]) => {
-                url.searchParams.set(key, value);
-            });
+        let finalUrl;
+
+        // KIỂM TRA "CHỈ THỊ ĐẶC BIỆT"
+        if (extraParams && extraParams.overrideUrl) {
+            finalUrl = extraParams.overrideUrl; // Nếu có, dùng trực tiếp URL này
+        } else {
+            // Nếu không, hoạt động như cũ
+            const url = new URL(state.basePath, window.location.origin);
+            if (extraParams) {
+                Object.entries(extraParams).forEach(([key, value]) => {
+                    url.searchParams.set(key, value);
+                });
+            }
+            if (start > 0) url.searchParams.set('start', String(start));
+            finalUrl = url.href;
         }
-        if (start > 0) url.searchParams.set('start', String(start));
+
 
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -483,7 +573,7 @@
                     await sleep(500); // Chờ 0.5s rồi kiểm tra lại
                 }
 
-                const response = await fetch(url.href, {
+                const response = await fetch(finalUrl, { // Dùng finalUrl thay vì url.href
                     credentials: 'include',
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
@@ -546,6 +636,32 @@
             await sleep(DELAY);
         }
         return ids;
+    };
+
+    const fetchAllBooksForTask = async (task) => {
+        const books = [];
+        const seenIds = new Set();
+        let start = 0;
+        let total = Infinity;
+        let pageSize = null;
+        while (start === 0 || start < total) {
+            if (state.abort) throw new Error(TEXT.syncAbort);
+            const doc = await fetchDocument(start, task.params);
+            const data = extractFromDocument(doc);
+            data.list.forEach((book) => {
+                if (book && !seenIds.has(book.id)) {
+                    books.push(book);
+                    seenIds.add(book.id);
+                }
+            });
+            if (data.total !== null && data.total !== undefined) total = data.total;
+            pageSize = data.pageSize || pageSize || 10;
+            if (!pageSize || pageSize <= 0) break;
+            start += pageSize;
+            if (start >= total) break;
+            await sleep(DELAY);
+        }
+        return books;
     };
 
     const handleExport = () => {
@@ -822,11 +938,16 @@
             newFlags.embedFile = !newFlags.embedLink;
             console.log('[parseBookFromPage] newFlags:', newFlags);
 
+            const summaryEl = doc.querySelector('.book-desc-detail');
+            const summary = summaryEl ? summaryEl.innerText.trim() : '';
+            console.log('[parseBookFromPage] summary captured:', summary.substring(0, 100) + '...'); // Log 100 ký tự đầu
+
             const oldBook = state.cache?.books?.[bookId] || {};
             console.log('[parseBookFromPage] oldBook.flags:', oldBook.flags);
 
             const result = {
                 id: bookId, title, url: bookUrl, coverUrl, author, status,
+                summary,
                 statusNorm: norm(status), titleNorm: norm(title), authorNorm: norm(author),
                 tags, stats, chapters, updated, updated,
                 updatedISO: updated ? updated.toISOString() : '', updatedTs: updated ? +updated : 0,
@@ -843,6 +964,11 @@
         }
     };
 
+
+    const parseSummaryFromPage = (doc) => {
+        const summaryEl = doc.querySelector('.book-desc-detail');
+        return summaryEl ? summaryEl.innerText.trim() : '';
+    };
 
     const handleManualAdd = async () => {
         const url = window.prompt('Nhập URL truyện cần thêm/cập nhật:', '');
@@ -930,6 +1056,11 @@
         if (criteria.search) {
             const q = norm(criteria.search);
             list = list.filter((b) => b.titleNorm.includes(q) || b.authorNorm.includes(q));
+        }
+        if (criteria.summarySearch) {
+            const q = norm(criteria.summarySearch);
+            // Chỉ tìm trong các truyện có văn án
+            list = list.filter((b) => b.summary && norm(b.summary).includes(q));
         }
         if (criteria.categories.length) {
             list = list.filter((b) => b.collections && b.collections.some((label) => criteria.categories.includes(label)));
@@ -1040,6 +1171,7 @@
                         <div><label for="filter-sortby">Sắp xếp</label><select id="filter-sortby" name="sortBy"><option value="recent">Cập nhật mới nhất</option><option value="oldest">Cập nhật cũ nhất</option><option value="views">Lượt xem giảm dần</option><option value="rating">Đánh giá giảm dần</option><option value="title">Tiêu đề A→Z</option></select></div>
                     </div>
                     <div><label for="filter-search">Tìm kiếm</label><input id="filter-search" type="text" name="search" placeholder="Tiêu đề / Tác giả"></div>
+                    <div><label for="filter-summary">Tìm trong văn án</label><input id="filter-summary" type="text" name="summarySearch" placeholder="Nội dung trong tóm tắt truyện"></div>
                 </form>
                 <div class="checkbox-groups">
                     <div><div class="group-title">Thể loại</div><div class="checkbox-group-body">${buildCheckGroup('category', categories.map((label) => ({ value: label, label })))}</div></div>
@@ -1061,6 +1193,7 @@
                 const criteria = {
                     fromDate: form.elements.from.value || '', toDate: form.elements.to.value || '',
                     status: form.elements.status.value || 'all', search: form.elements.search.value || '',
+                    summarySearch: form.elements.summarySearch.value || '',
                     sortBy: form.elements.sortBy.value || 'recent',
                     categories: Array.from(shadow.querySelectorAll('input[name=category]:checked')).map(i => i.value),
                     roles: Array.from(shadow.querySelectorAll('input[name=role]:checked')).map(i => i.value),
@@ -1149,80 +1282,114 @@
         return doc.querySelector('.book-info') ? 1 : 0;
     };
 
-    const handleSync = () => {
+    const handleSync = async () => {
         if (state.syncing) {
             notify(TEXT.syncRunning, true); return;
         }
+
+        const options = await askSyncOptions();
+        if (!options) { // Người dùng đã hủy
+            return;
+        }
+
+        // Cập nhật DELAY toàn cục từ lựa chọn của người dùng
+        const originalDelay = DELAY;
+        // DELAY = options.delay; // Gán lại biến DELAY nếu cần, hoặc truyền trực tiếp
+
         // Đưa toàn bộ logic vào setTimeout để đảm bảo UI được cập nhật trước
         setTimeout(async () => {
             const started = Date.now();
 
             state.syncing = true;
             state.abort = false;
-            const aggregated = { books: {}, bookIds: [] };
+            // Nếu chỉ lấy văn án, chúng ta dùng cache có sẵn. Nếu không, tạo mới.
+            const aggregated = options.mode === 'summary_only' && state.cache
+            ? state.cache
+            : { books: {}, bookIds: [] };
 
             try {
-                updateOverlay({ text: 'Giai đoạn 1/3: Lấy danh sách truyện', subTask: 'Bắt đầu...', progress: 0 });
+                if (options.mode === 'full') {
+                    // --- LOGIC ĐỒNG BỘ ĐẦY ĐỦ (Gốc) ---
+                    updateOverlay({ text: 'Giai đoạn 1/3: Lấy danh sách truyện', subTask: 'Bắt đầu...', progress: 0 });
+                    const firstDoc = state.hasInitialFilter ? await fetchDocument(0) : document;
+                    const firstData = extractFromDocument(firstDoc);
 
-                const firstDoc = state.hasInitialFilter ? await fetchDocument(0) : document;
-                const firstData = extractFromDocument(firstDoc);
-
-                if (!firstData.list.length && (firstData.total === 0 || readTotal(firstDoc) === 0)) {
-                    notify("Không có works nào để đồng bộ."); throw new Error("empty");
-                }
-                if (!firstData.list.length) throw new Error('Không đọc được danh sách works.');
-
-                let pageSize = firstData.pageSize || 10;
-                let maxPages = readMaxPages(firstDoc);
-
-                firstData.list.forEach(book => {
-                    if (book && !aggregated.books[book.id]) {
-                        aggregated.bookIds.push(book.id);
-                        aggregated.books[book.id] = book;
+                    if (!firstData.list.length && (firstData.total === 0 || readTotal(firstDoc) === 0)) {
+                        notify("Không có works nào để đồng bộ."); throw new Error("empty");
                     }
-                });
-
-                for (let currentPage = 2; currentPage <= maxPages; currentPage++) {
-                    if (state.abort) throw new Error(TEXT.syncAbort);
-                    await sleep(DELAY);
-                    const start = (currentPage - 1) * pageSize;
-                    const doc = await fetchDocument(start);
-                    extractFromDocument(doc).list.forEach(book => {
+                    if (!firstData.list.length) throw new Error('Không đọc được danh sách works.');
+                    let pageSize = firstData.pageSize || 10;
+                    let maxPages = readMaxPages(firstDoc);
+                    firstData.list.forEach(book => {
                         if (book && !aggregated.books[book.id]) {
                             aggregated.bookIds.push(book.id);
                             aggregated.books[book.id] = book;
                         }
                     });
-                    const progress = (currentPage / maxPages) * 100;
-                    const elapsed = Date.now() - started;
-                    const timePerPage = elapsed / (currentPage - 1);
-                    const remainingPages = maxPages - currentPage;
-                    const etaMs = timePerPage * remainingPages;
-                    const etaString = etaMs > 1000 ? ` – Còn lại ~${fmtDuration(etaMs)}` : '';
-                    updateOverlay({ progress: progress * 0.33, meta: `Đã quét ${currentPage}/${maxPages} trang${etaString}` });
+
+                    for (let currentPage = 2; currentPage <= maxPages; currentPage++) {
+                        if (state.abort) throw new Error(TEXT.syncAbort);
+                        await sleep(options.delay); // Dùng delay từ options
+                        const start = (currentPage - 1) * pageSize;
+                        const doc = await fetchDocument(start);
+                        extractFromDocument(doc).list.forEach(book => {
+                            if (book && !aggregated.books[book.id]) {
+                                aggregated.bookIds.push(book.id);
+                                aggregated.books[book.id] = book;
+                            }
+                        });
+                        const progress = (currentPage / maxPages) * 100;
+                        const elapsed = Date.now() - started;
+                        const timePerPage = elapsed / (currentPage - 1);
+                        const remainingPages = maxPages - currentPage;
+                        const etaMs = timePerPage * remainingPages;
+                        const etaString = etaMs > 1000 ? ` – Còn lại ~${fmtDuration(etaMs)}` : '';
+                        updateOverlay({ progress: progress * 0.33, meta: `Đã quét ${currentPage}/${maxPages} trang${etaString}` });
+                    }
+                    await collectAdditionalMetadata(aggregated, started);
+                } else {
+                    // Nếu chỉ lấy văn án, kiểm tra xem có cache không
+                    if (!state.cache) {
+                        notify("Cần đồng bộ đầy đủ ít nhất một lần trước khi chỉ lấy văn án.", true);
+                        throw new Error("no_cache_for_summary_only");
+                    }
                 }
 
-                await collectAdditionalMetadata(aggregated, started);
+                // --- GỌI HÀM LẤY VĂN ÁN MỚI ---
+                // Chạy cho cả 2 chế độ, vì chế độ full cũng cần lấy văn án
+                await collectSummaries(aggregated, options.threads, options.delay, started);
 
-                updateOverlay({ text: 'Giai đoạn 3/3: Hoàn tất', subTask: 'Lưu dữ liệu vào cache...', progress: 100 });
+
+                updateOverlay({ text: 'Hoàn tất', subTask: 'Lưu dữ liệu vào cache...', progress: 100 });
                 const duration = Date.now() - started;
-                const payload = {
+
+                // Khi lưu, đảm bảo payload là object hoàn chỉnh
+                const payload = options.mode === 'full'
+                ? {
                     version: STORE_VERSION, username: state.username, mode: state.mode,
                     syncedAt: new Date().toISOString(), durationMs: duration,
                     bookIds: aggregated.bookIds, books: aggregated.books, sourceTotal: aggregated.bookIds.length
-                };
+                }
+                : aggregated; // Nếu là summary_only, aggregated đã là state.cache rồi
+
                 await saveCache(payload);
                 updateOverlay({ meta: `Hoàn tất sau ${fmtDuration(duration)}` });
                 notify(TEXT.syncDone);
+                // NHẮC NGƯỜI DÙNG XUẤT FILE
+                setTimeout(() => {
+                    notify('Đồng bộ xong, hãy nhấn "Xuất" để tạo bản sao lưu dữ liệu!', false);
+                }, 2000);
+
 
             } catch (err) {
-                if (err.message === "empty") { /* do nothing */ }
+                if (err.message === "empty" || err.message === "no_cache_for_summary_only") { /* do nothing */ }
                 else if (err && err.message === TEXT.syncAbort) notify(TEXT.syncAbort, true);
                 else { console.error('[WorksManager] sync', err); notify('Đồng bộ thất bại.', true); }
             } finally {
                 state.syncing = false;
                 hideOverlay();
                 updateSummary();
+                // DELAY = originalDelay; // Khôi phục delay gốc nếu cần
             }
         }, 0); // Delay 0ms để đẩy vào hàng đợi sự kiện
     };
@@ -1298,16 +1465,80 @@
         }
     };
 
+    const collectSummaries = async (aggregated, threads, delay, started) => {
+        updateOverlay({ text: 'Giai đoạn 3/3: Tải văn án', subTask: 'Chuẩn bị...', progress: 85 });
+
+        const bookIdsToFetch = aggregated.bookIds.filter(id => !aggregated.books[id]?.summary);
+        if (bookIdsToFetch.length === 0) {
+            updateOverlay({ meta: 'Tất cả truyện đã có văn án.' });
+            await sleep(1500);
+            return;
+        }
+
+        let completedCount = 0;
+        const totalToFetch = bookIdsToFetch.length;
+        const baseProgress = 85;
+
+        const worker = async (queue) => {
+            for (const bookId of queue) {
+                if (state.abort) break;
+                const book = aggregated.books[bookId];
+                if (!book || !book.url) continue;
+
+                try {
+                    // 1. Vẫn fetch trang truyện như cũ để lấy HTML
+                    const bookDoc = await fetchDocument(0, { overrideUrl: book.url });
+
+                    // 2. Dùng hàm siêu nhẹ mới để lấy MỖI văn án
+                    const summary = parseSummaryFromPage(bookDoc);
+
+                    // 3. Nếu lấy được văn án, lưu lại
+                    if (summary) {
+                        aggregated.books[bookId].summary = summary;
+                        // Lưu ngay lập tức để tránh mất dữ liệu
+                        await saveCache(state.cache);
+                    }
+                } catch (err) {
+                    console.error(`[WorksManager] Lỗi khi tải văn án cho ${book.title}:`, err);
+                } finally {
+                    completedCount++;
+                    const progress = baseProgress + (completedCount / totalToFetch) * 15; // Giai đoạn này chiếm 15% thanh tiến trình
+                    const elapsed = Date.now() - started;
+                    const timePerItem = elapsed / completedCount;
+                    const etaMs = timePerItem * (totalToFetch - completedCount);
+                    const etaString = etaMs > 1000 ? ` – ETA: ${fmtDuration(etaMs)}` : '';
+
+                    updateOverlay({
+                        progress,
+                        meta: `Đã tải ${completedCount}/${totalToFetch} văn án${etaString}`
+                    });
+                    await sleep(delay);
+                }
+            }
+        };
+
+        const queues = Array.from({ length: threads }, () => []);
+        bookIdsToFetch.forEach((id, index) => queues[index % threads].push(id));
+
+        const workers = queues.map(queue => worker(queue));
+        await Promise.all(workers);
+    };
+
 
     const collectAdditionalMetadata = async (aggregated, started) => {
-        // Reset flags và collections
+        // Reset flags và collections (giữ nguyên)
         Object.values(aggregated.books).forEach(book => {
             book.flags = { poster: false, managerOwner: false, managerGuest: false, editorOwner: false, editorGuest: false, embedLink: false, embedFile: false, duplicate: false };
             book.collections = [];
         });
 
         const allTasks = await analyzeFilterTasks(document, started);
-        const taskGroups = allTasks.reduce((acc, task) => {
+
+        // Tách các tác vụ: tác vụ trạng thái ('bs') sẽ được xử lý riêng
+        const otherTasks = allTasks.filter(task => task.key !== 'bs');
+
+        // --- PHẦN 1: Xử lý các metadata khác (Thể loại, Vai trò, Thuộc tính) ---
+        const taskGroups = otherTasks.reduce((acc, task) => {
             if (!acc[task.group]) acc[task.group] = [];
             acc[task.group].push(task);
             return acc;
@@ -1317,11 +1548,11 @@
         const totalGroups = Object.keys(taskGroups).length;
         let groupIndex = 0;
 
-        console.group('[Works Manager DEBUG] Bắt đầu thu thập Metadata');
+        console.group('[Works Manager DEBUG] Bắt đầu thu thập Metadata (không bao gồm Trạng thái)');
 
         for (const groupName in taskGroups) {
             groupIndex++;
-            const progressBase = 33 + (66 * (groupIndex - 1) / totalGroups);
+            const progressBase = 33 + (50 * (groupIndex - 1) / totalGroups);
             updateOverlay({ text: `Giai đoạn 2/3: Thu thập ${groupName}`, subTask: 'Bắt đầu...', progress: progressBase });
             console.group(`[DEBUG] Xử lý nhóm: "${groupName}"`);
 
@@ -1335,14 +1566,12 @@
             const minorityTasks = groupTasks.slice(1);
             const processedInMinorities = new Set();
 
-            console.log(` -> Nhóm lớn nhất (sẽ được suy luận): "${majorityTask.label}" (${majorityTask.total} truyện, ${majorityTask.pages} trang)`);
+            console.log(` -> Nhóm lớn nhất (sẽ được suy luận): "${majorityTask.label}" (${majorityTask.total} truyện)`);
             console.log(` -> Các nhóm nhỏ hơn (sẽ quét):`, minorityTasks.map(t => `${t.label} (${t.total})`));
 
             for (const [i, task] of minorityTasks.entries()) {
                 if (state.abort) throw new Error(TEXT.syncAbort);
-                const elapsed = Date.now() - started;
-                const etaString = `– ETA: ${fmtDuration((elapsed / (i + 1)) * (minorityTasks.length - (i + 1)))}`;
-                updateOverlay({ subTask: `Đang quét: ${task.label} (${task.total} truyện) ${etaString}` });
+                updateOverlay({ subTask: `Đang quét: ${task.label} (${task.total} truyện)...` });
                 const ids = await fetchIdsForTask(task);
                 ids.forEach(id => {
                     const book = aggregated.books[id];
@@ -1353,37 +1582,86 @@
                 });
             }
 
-            const y = majorityTask.total;
-            const x = majorityTask.pages;
             const remainingIds = [...masterIdSet].filter(id => !processedInMinorities.has(id));
-
             console.log(` -> Số truyện đã xử lý trong các nhóm nhỏ: ${processedInMinorities.size}`);
-            console.log(` -> Tổng số truyện thực tế của nhóm lớn nhất: y = ${y}`);
-            console.log(` -> Số trang của nhóm lớn nhất: x = ${x}`);
-            console.log(` -> Điều kiện an toàn: y >= (x - 1) * 10 && y <= x * 10`);
-            console.log(`    -> (${y} >= ${(x-1) * 10} && ${y} <= ${x * 10})`);
-
-            // Điều kiện an toàn vẫn giữ nguyên để kiểm tra tính nhất quán của dữ liệu từ server
-            const isSafeToInfer = y >= (x - 1) * 10 && y <= x * 10;
-
-            if (isSafeToInfer) {
-                console.log('%c -> KẾT QUẢ: An toàn. Bắt đầu suy luận.', 'color: lightgreen');
-                updateOverlay({ subTask: `Suy luận cho: ${majorityTask.label} (${remainingIds.length} truyện)` });
-                remainingIds.forEach(id => applyTask(aggregated.books[id], majorityTask));
-            } else {
-                console.log('%c -> KẾT QUẢ: KHÔNG an toàn. Quét đầy đủ để đảm bảo chính xác.', 'color: orange');
-                updateOverlay({ subTask: `Kiểm tra an toàn thất bại! Quét đầy đủ: ${majorityTask.label}` });
-                const ids = await fetchIdsForTask(majorityTask);
-                ids.forEach(id => {
-                    const book = aggregated.books[id];
-                    if (book) applyTask(book, majorityTask);
-                });
-            }
+            console.log('%c -> KẾT QUẢ: An toàn. Bắt đầu suy luận.', 'color: lightgreen');
+            updateOverlay({ subTask: `Suy luận cho: ${majorityTask.label} (${remainingIds.length} truyện)` });
+            remainingIds.forEach(id => applyTask(aggregated.books[id], majorityTask));
 
             console.groupEnd();
-            updateOverlay({ progress: 33 + (66 * groupIndex / totalGroups) });
+            updateOverlay({ progress: 33 + (50 * groupIndex / totalGroups) });
         }
         console.groupEnd();
+
+
+        // --- PHẦN 2: Kiểm tra và đồng bộ lại theo Trạng thái nếu cần ---
+        updateOverlay({ text: `Giai đoạn 2/3: Kiểm tra Trạng thái`, subTask: 'Bắt đầu...', progress: 85 });
+        console.group('[Works Manager DEBUG] Bắt đầu kiểm tra Trạng thái');
+
+        // Nhóm các truyện đã quét được theo trạng thái của chúng
+        const localStatusGroups = Object.values(aggregated.books).reduce((acc, book) => {
+            if (book && book.status) {
+                if (!acc[book.status]) acc[book.status] = [];
+                acc[book.status].push(book);
+            }
+            return acc;
+        }, {});
+
+        const cleanDoc = await fetchDocument(0);
+        const statusAnchors = Array.from(cleanDoc.querySelectorAll('#ddFilter a[href*="bs="]'));
+
+        for (const anchor of statusAnchors) {
+            if (state.abort) throw new Error(TEXT.syncAbort);
+            const label = anchor.textContent.trim();
+            const href = anchor.getAttribute('href');
+            if (!href || href === '#!') continue;
+
+            const url = new URL(href, window.location.origin);
+            const key = url.searchParams.keys().next().value;
+            if (key !== 'bs') continue;
+            const value = url.searchParams.get(key);
+            const params = { [key]: value };
+
+            const localCount = localStatusGroups[label] ? localStatusGroups[label].length : 0;
+            updateOverlay({ subTask: `Kiểm tra: ${label}...` });
+
+            const firstPageDoc = await fetchDocument(0, params);
+            const serverTotal = readTotal(firstPageDoc);
+            const serverPages = readMaxPages(firstPageDoc);
+
+            if (serverTotal === null || (serverTotal === 0 && localCount === 0)) {
+                console.log(` -> Bỏ qua trạng thái "${label}" (không có truyện trên server).`);
+                continue;
+            }
+
+            // Điều kiện kiểm tra: tổng số trên server phải khớp với số đã quét, VÀ phải thỏa mãn điều kiện an toàn
+            const isSafe = serverTotal >= (serverPages - 1) * 10 && serverTotal <= serverPages * 10;
+            const isMismatched = serverTotal !== localCount;
+
+            console.log(` -> Trạng thái: "${label}" | Local: ${localCount} | Server: ${serverTotal} | Pages: ${serverPages} | Safe: ${isSafe}`);
+
+            if (isMismatched || !isSafe) {
+                console.warn(` -> KHÔNG KHỚP cho "${label}". Local=${localCount}, Server=${serverTotal}, Safe=${isSafe}. Bắt đầu quét lại toàn bộ.`);
+                updateOverlay({ subTask: `Quét lại "${label}" (${serverTotal} truyện)...` });
+
+                const booksFromFullScan = await fetchAllBooksForTask({ label, params });
+                let newBooksAdded = 0;
+                booksFromFullScan.forEach(book => {
+                    if (!aggregated.books[book.id]) {
+                        aggregated.books[book.id] = book;
+                        aggregated.bookIds.push(book.id);
+                        newBooksAdded++;
+                    }
+                });
+                console.log(` -> Đã quét lại "${label}" và thêm ${newBooksAdded} truyện mới.`);
+                if (newBooksAdded > 0) {
+                    updateOverlay({ meta: `Đã thêm ${newBooksAdded} truyện từ "${label}"` });
+                }
+            } else {
+                console.log(` -> Trạng thái "${label}" đã khớp.`);
+            }
+        }
+        console.groupEnd(); // End DEBUG group
     };
 
 
