@@ -5703,18 +5703,18 @@ function decryptDES(encrypted, key, iv) {
         const chaptersDownloaded = [];
 
         const issueBody = [
-            `- 脚本: \`novelDownloader3 v${GM_info.script.version}\``,
-            '- 类型: `Bug/建议`',
-            `- 浏览器: \`${GM_info.platform ? GM_info.platform.browserName : '浏览器'} v${GM_info.platform ? GM_info.platform.browserVersion : '版本'}\``,
-            `- 扩展: \`${GM_info.scriptHandler} v${GM_info.version}\``,
-            '---',
-            '<!-- 你的问题 -->',
-        ];
+            `- Script: \`novelDownloader5 v${GM_info.script.version}\``,
+            '- Loại: `Bug/Góp ý`',
+            `- Trình duyệt: \`${GM_info.platform ? GM_info.platform.browserName : 'Trình duyệt'} v${GM_info.platform ? GM_info.platform.browserVersion : 'Phiên bản'}\``,
+            `- Tiện ích mở rộng: \`${GM_info.scriptHandler} v${GM_info.version}\``,
+            '---',
+            '<!-- Vấn đề của bạn -->',
+        ];
 
         // ui
         const html = [
             '<div name="info">',
-            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/dodying/UserJs/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><a href="https://github.com/dodying/UserJs#捐赠" target="_blank">Donate</a></sup>`,
+            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5" target="_blank">GitHub</a></sup>`,
             '  <br>',
             '  Tên sách: <input type="text" name="title" value="加载中，请稍候">',
             '  <br>',
