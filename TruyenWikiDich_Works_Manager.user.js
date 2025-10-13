@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Works Manager
 // @namespace    https://github.com/BaoBao666888/
-// @version      0.5.0
+// @version      0.5.1
 // @description  Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu.
 // @author       QuocBao
 // @match        https://truyenwikidich.net/user/*/works*
@@ -172,57 +172,65 @@
             dialog.id = 'wd-works-sync-options';
             dialog.style.cssText = 'position:fixed;inset:0;background:rgba(5,10,15,0.85);display:flex;align-items:center;justify-content:center;z-index:99999;color:#fff;font-family:Segoe UI,sans-serif;';
             dialog.innerHTML = `
-                <style>
-                    .sync-option {
-                        border: 1px solid transparent;
-                        transition: background-color 0.2s, border-color 0.2s;
-                    }
-                    .sync-option:has(input:checked) {
-                        background-color: rgba(57, 197, 255, 0.1) !important;
-                        border-color: #39c5ff;
-                    }
-                </style>
-                <div style="background:#101722;padding:22px;border-radius:14px;min-width:400px;text-align:left;box-shadow:0 16px 36px rgba(0,0,0,.35);">
-                    <h3 style="margin:0 0 16px;font-size:16px;font-weight:600;">Tùy chọn đồng bộ</h3>
-                    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
-                        <label class="sync-option" style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; cursor:pointer;">
-                            <input type="radio" name="sync-mode" value="full" checked style="width:18px; height:18px; accent-color:#39c5ff; pointer-events:none;">
-                            <div>
-                                <strong style="color:#fff;">Đồng bộ đầy đủ</strong>
-                                <div style="font-size:12px; opacity:0.8;">Quét lại danh sách truyện và toàn bộ thông tin. (Khuyên dùng)</div>
-                            </div>
-                        </label>
-                        <label class="sync-option" style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; cursor:pointer;">
-                            <input type="radio" name="sync-mode" value="summary_only" style="width:18px; height:18px; accent-color:#39c5ff; pointer-events:none;">
-                            <div>
-                                <strong style="color:#fff;">Chỉ đồng bộ văn án</strong>
-                                <div style="font-size:12px; opacity:0.8;">Chỉ tải văn án cho các truyện chưa có. Hữu ích khi danh sách truyện đã đủ.</div>
-                            </div>
-                        </label>
-                    </div>
-                    <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top:16px;">
-                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                             <div>
-                                 <label for="sync-threads" style="font-size:12px; opacity:0.8; margin-bottom:4px; display:block;">Số luồng</label>
-                                 <input id="sync-threads" type="number" value="1" min="1" max="5" style="width:100%; padding: 7px 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; font-size: 13px;">
-                             </div>
-                             <div>
-                                 <label for="sync-delay" style="font-size:12px; opacity:0.8; margin-bottom:4px; display:block;">Delay (ms)</label>
-                                 <input id="sync-delay" type="number" value="1500" min="500" step="100" style="width:100%; padding: 7px 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; font-size: 13px;">
-                             </div>
+            <style>
+                .sync-option {
+                    border: 1px solid transparent;
+                    transition: background-color 0.2s, border-color 0.2s;
+                }
+                .sync-option:has(input:checked) {
+                    background-color: rgba(57, 197, 255, 0.1) !important;
+                    border-color: #39c5ff;
+                }
+            </style>
+            <div style="background:#101722;padding:22px;border-radius:14px;min-width:420px;text-align:left;box-shadow:0 16px 36px rgba(0,0,0,.35);">
+                <h3 style="margin:0 0 16px;font-size:16px;font-weight:600;">Tùy chọn đồng bộ</h3>
+                <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+                    <label class="sync-option" style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; cursor:pointer;">
+                        <input type="radio" name="sync-mode" value="full_no_summary" checked style="width:18px; height:18px; accent-color:#39c5ff; pointer-events:none;">
+                        <div>
+                            <strong style="color:#fff;">Đồng bộ nhanh (Không văn án)</strong>
+                            <div style="font-size:12px; opacity:0.8;">Quét lại danh sách truyện và thông tin cơ bản. Tốc độ nhanh nhất.</div>
+                        </div>
+                    </label>
+                    <label class="sync-option" style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; cursor:pointer;">
+                        <input type="radio" name="sync-mode" value="full_with_summary" style="width:18px; height:18px; accent-color:#39c5ff; pointer-events:none;">
+                        <div>
+                            <strong style="color:#fff;">Đồng bộ đầy đủ (Kèm văn án)</strong>
+                            <div style="font-size:12px; opacity:0.8;">Quét tất cả thông tin, bao gồm cả văn án. Sẽ mất nhiều thời gian hơn.</div>
+                        </div>
+                    </label>
+
+                    <label class="sync-option" style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; cursor:pointer;">
+                        <input type="radio" name="sync-mode" value="summary_only" style="width:18px; height:18px; accent-color:#39c5ff; pointer-events:none;">
+                        <div>
+                            <strong style="color:#fff;">Chỉ đồng bộ văn án</strong>
+                            <div style="font-size:12px; opacity:0.8;">Chỉ tải văn án cho các truyện chưa có. Hữu ích khi danh sách truyện đã đủ.</div>
+                        </div>
+                    </label>
+
+                </div>
+                <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top:16px;">
+                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                         <div>
+                             <label for="sync-threads" style="font-size:12px; opacity:0.8; margin-bottom:4px; display:block;">Số luồng</label>
+                             <input id="sync-threads" type="number" value="1" min="1" max="5" style="width:100%; padding: 7px 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; font-size: 13px;">
                          </div>
-                    </div>
-                    <div class="controls" style="margin-top:20px; text-align:right; display:flex; justify-content:flex-end; gap:10px;">
-                         <button data-action="cancel" style="background:rgba(255,255,255,0.12);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;">Hủy</button>
-                         <button data-action="start" style="background:#39c5ff;border:none;color:#0b1220;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;">Bắt đầu</button>
-                    </div>
-                </div>`;
+                         <div>
+                             <label for="sync-delay" style="font-size:12px; opacity:0.8; margin-bottom:4px; display:block;">Delay (ms)</label>
+                             <input id="sync-delay" type="number" value="1500" min="500" step="100" style="width:100%; padding: 7px 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; font-size: 13px;">
+                         </div>
+                     </div>
+                </div>
+                <div class="controls" style="margin-top:20px; text-align:right; display:flex; justify-content:flex-end; gap:10px;">
+                     <button data-action="cancel" style="background:rgba(255,255,255,0.12);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;">Hủy</button>
+                     <button data-action="start" style="background:#39c5ff;border:none;color:#0b1220;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;">Bắt đầu</button>
+                </div>
+            </div>`;
 
             dialog.addEventListener('click', (e) => {
                 const button = e.target.closest('button[data-action]');
                 const action = button ? button.dataset.action : null;
 
-                // Xử lý khi click vào label để chọn radio
                 const label = e.target.closest('.sync-option');
                 if (label) {
                     const radio = label.querySelector('input[type="radio"]');
@@ -1292,23 +1300,20 @@
             return;
         }
 
-        // Cập nhật DELAY toàn cục từ lựa chọn của người dùng
-        const originalDelay = DELAY;
-        // DELAY = options.delay; // Gán lại biến DELAY nếu cần, hoặc truyền trực tiếp
-
-        // Đưa toàn bộ logic vào setTimeout để đảm bảo UI được cập nhật trước
         setTimeout(async () => {
             const started = Date.now();
-
             state.syncing = true;
             state.abort = false;
-            // Nếu chỉ lấy văn án, chúng ta dùng cache có sẵn. Nếu không, tạo mới.
-            const aggregated = options.mode === 'summary_only' && state.cache
-            ? state.cache
-            : { books: {}, bookIds: [] };
+
+            const isFullSync = options.mode.startsWith('full');
+            const shouldFetchSummaries = options.mode === 'full_with_summary' || options.mode === 'summary_only';
+
+            const aggregated = (options.mode === 'summary_only' && state.cache)
+                ? state.cache
+                : { books: {}, bookIds: [] };
 
             try {
-                if (options.mode === 'full') {
+                if (isFullSync) {
                     // --- LOGIC ĐỒNG BỘ ĐẦY ĐỦ (Gốc) ---
                     updateOverlay({ text: 'Giai đoạn 1/3: Lấy danh sách truyện', subTask: 'Bắt đầu...', progress: 0 });
                     const firstDoc = state.hasInitialFilter ? await fetchDocument(0) : document;
@@ -1329,7 +1334,7 @@
 
                     for (let currentPage = 2; currentPage <= maxPages; currentPage++) {
                         if (state.abort) throw new Error(TEXT.syncAbort);
-                        await sleep(options.delay); // Dùng delay từ options
+                        await sleep(options.delay);
                         const start = (currentPage - 1) * pageSize;
                         const doc = await fetchDocument(start);
                         extractFromDocument(doc).list.forEach(book => {
@@ -1347,51 +1352,47 @@
                         updateOverlay({ progress: progress * 0.33, meta: `Đã quét ${currentPage}/${maxPages} trang${etaString}` });
                     }
                     await collectAdditionalMetadata(aggregated, started);
-                } else {
-                    // Nếu chỉ lấy văn án, kiểm tra xem có cache không
-                    if (!state.cache) {
+                } else { // Chế độ "Chỉ đồng bộ văn án"
+                     if (!state.cache) {
                         notify("Cần đồng bộ đầy đủ ít nhất một lần trước khi chỉ lấy văn án.", true);
                         throw new Error("no_cache_for_summary_only");
                     }
                 }
 
-                // --- GỌI HÀM LẤY VĂN ÁN MỚI ---
-                // Chạy cho cả 2 chế độ, vì chế độ full cũng cần lấy văn án
-                await collectSummaries(aggregated, options.threads, options.delay, started);
-
+                // --- Chỉ gọi hàm lấy văn án KHI CẦN THIẾT ---
+                if (shouldFetchSummaries) {
+                    await collectSummaries(aggregated, options.threads, options.delay, started);
+                }
 
                 updateOverlay({ text: 'Hoàn tất', subTask: 'Lưu dữ liệu vào cache...', progress: 100 });
                 const duration = Date.now() - started;
 
-                // Khi lưu, đảm bảo payload là object hoàn chỉnh
-                const payload = options.mode === 'full'
-                ? {
-                    version: STORE_VERSION, username: state.username, mode: state.mode,
-                    syncedAt: new Date().toISOString(), durationMs: duration,
-                    bookIds: aggregated.bookIds, books: aggregated.books, sourceTotal: aggregated.bookIds.length
-                }
-                : aggregated; // Nếu là summary_only, aggregated đã là state.cache rồi
+                const payload = isFullSync
+                   ? {
+                        version: STORE_VERSION, username: state.username, mode: state.mode,
+                        syncedAt: new Date().toISOString(), durationMs: duration,
+                        bookIds: aggregated.bookIds, books: aggregated.books, sourceTotal: aggregated.bookIds.length
+                    }
+                   : aggregated;
 
                 await saveCache(payload);
                 updateOverlay({ meta: `Hoàn tất sau ${fmtDuration(duration)}` });
                 notify(TEXT.syncDone);
-                // NHẮC NGƯỜI DÙNG XUẤT FILE
                 setTimeout(() => {
                     notify('Đồng bộ xong, hãy nhấn "Xuất" để tạo bản sao lưu dữ liệu!', false);
                 }, 2000);
 
 
             } catch (err) {
-                if (err.message === "empty" || err.message === "no_cache_for_summary_only") { /* do nothing */ }
+                 if (err.message === "empty" || err.message === "no_cache_for_summary_only") { /* do nothing */ }
                 else if (err && err.message === TEXT.syncAbort) notify(TEXT.syncAbort, true);
                 else { console.error('[WorksManager] sync', err); notify('Đồng bộ thất bại.', true); }
             } finally {
                 state.syncing = false;
                 hideOverlay();
                 updateSummary();
-                // DELAY = originalDelay; // Khôi phục delay gốc nếu cần
             }
-        }, 0); // Delay 0ms để đẩy vào hàng đợi sự kiện
+        }, 0);
     };
 
     const analyzeFilterTasks = async (started) => {
@@ -1646,16 +1647,27 @@
 
                 const booksFromFullScan = await fetchAllBooksForTask({ label, params });
                 let newBooksAdded = 0;
+                let updatedBooks = 0;
+
                 booksFromFullScan.forEach(book => {
+                    // Nếu đây là một truyện hoàn toàn mới, thì thêm ID vào danh sách chính
                     if (!aggregated.books[book.id]) {
-                        aggregated.books[book.id] = book;
                         aggregated.bookIds.push(book.id);
                         newBooksAdded++;
+                    } else {
+                        // Nếu không, đây là một truyện cần cập nhật
+                        updatedBooks++;
                     }
+
+                    // QUAN TRỌNG: Luôn luôn ghi đè thông tin truyện bằng dữ liệu mới nhất từ lần quét
+                    aggregated.books[book.id] = book;
                 });
-                console.log(` -> Đã quét lại "${label}" và thêm ${newBooksAdded} truyện mới.`);
-                if (newBooksAdded > 0) {
-                    updateOverlay({ meta: `Đã thêm ${newBooksAdded} truyện từ "${label}"` });
+
+                console.log(` -> Đã quét lại "${label}", thêm ${newBooksAdded} truyện mới và cập nhật ${updatedBooks} truyện.`);
+                if (newBooksAdded > 0 || updatedBooks > 0) {
+                    updateOverlay({ meta: `Đã cập nhật ${newBooksAdded + updatedBooks} truyện từ "${label}"` });
+                } else {
+                     console.log(` -> Quét lại "${label}" nhưng không tìm thấy thay đổi nào.`);
                 }
             } else {
                 console.log(` -> Trạng thái "${label}" đã khớp.`);
