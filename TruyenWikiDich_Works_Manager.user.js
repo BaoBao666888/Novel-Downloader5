@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Works Manager
 // @namespace    https://github.com/BaoBao666888/
-// @version      0.5.1
+// @version      0.5.2
 // @description  Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu.
 // @author       QuocBao
 // @match        https://truyenwikidich.net/user/*/works*
@@ -1308,13 +1308,20 @@
             const isFullSync = options.mode.startsWith('full');
             const shouldFetchSummaries = options.mode === 'full_with_summary' || options.mode === 'summary_only';
 
-            const aggregated = (options.mode === 'summary_only' && state.cache)
-                ? state.cache
-                : { books: {}, bookIds: [] };
+            // LOGIC MỚI: Khởi tạo aggregated dựa trên chế độ sync
+            let aggregated;
+            if (options.mode === 'summary_only' && state.cache) {
+                aggregated = state.cache; // Dùng cache cũ cho chế độ chỉ lấy văn án
+            } else if (options.mode === 'full_no_summary' && state.cache) {
+                // Dùng cache cũ làm nền để hợp nhất, tránh mất văn án
+                aggregated = state.cache;
+            } else {
+                // Bắt đầu mới cho đồng bộ đầy đủ có văn án, hoặc khi chưa có cache
+                aggregated = { books: {}, bookIds: [] };
+            }
 
             try {
                 if (isFullSync) {
-                    // --- LOGIC ĐỒNG BỘ ĐẦY ĐỦ (Gốc) ---
                     updateOverlay({ text: 'Giai đoạn 1/3: Lấy danh sách truyện', subTask: 'Bắt đầu...', progress: 0 });
                     const firstDoc = state.hasInitialFilter ? await fetchDocument(0) : document;
                     const firstData = extractFromDocument(firstDoc);
@@ -1323,12 +1330,21 @@
                         notify("Không có works nào để đồng bộ."); throw new Error("empty");
                     }
                     if (!firstData.list.length) throw new Error('Không đọc được danh sách works.');
+
                     let pageSize = firstData.pageSize || 10;
                     let maxPages = readMaxPages(firstDoc);
+
+                    // LOGIC MỚI: Xử lý trang đầu tiên với logic hợp nhất
                     firstData.list.forEach(book => {
-                        if (book && !aggregated.books[book.id]) {
-                            aggregated.bookIds.push(book.id);
-                            aggregated.books[book.id] = book;
+                        if (options.mode === 'full_no_summary' && state.cache) {
+                            const existingBook = aggregated.books[book.id] || {};
+                            aggregated.books[book.id] = { ...existingBook, ...book }; // Giữ văn án (nếu có), cập nhật phần còn lại
+                            if (!existingBook.id) { aggregated.bookIds.push(book.id); } // Thêm ID nếu là truyện mới
+                        } else {
+                            if (book && !aggregated.books[book.id]) {
+                                aggregated.bookIds.push(book.id);
+                                aggregated.books[book.id] = book;
+                            }
                         }
                     });
 
@@ -1337,12 +1353,21 @@
                         await sleep(options.delay);
                         const start = (currentPage - 1) * pageSize;
                         const doc = await fetchDocument(start);
+
+                        // LOGIC MỚI: Áp dụng logic hợp nhất cho các trang tiếp theo
                         extractFromDocument(doc).list.forEach(book => {
-                            if (book && !aggregated.books[book.id]) {
-                                aggregated.bookIds.push(book.id);
-                                aggregated.books[book.id] = book;
+                             if (options.mode === 'full_no_summary' && state.cache) {
+                                const existingBook = aggregated.books[book.id] || {};
+                                aggregated.books[book.id] = { ...existingBook, ...book };
+                                if (!existingBook.id) { aggregated.bookIds.push(book.id); }
+                            } else {
+                                if (book && !aggregated.books[book.id]) {
+                                    aggregated.bookIds.push(book.id);
+                                    aggregated.books[book.id] = book;
+                                }
                             }
                         });
+
                         const progress = (currentPage / maxPages) * 100;
                         const elapsed = Date.now() - started;
                         const timePerPage = elapsed / (currentPage - 1);
@@ -1352,14 +1377,13 @@
                         updateOverlay({ progress: progress * 0.33, meta: `Đã quét ${currentPage}/${maxPages} trang${etaString}` });
                     }
                     await collectAdditionalMetadata(aggregated, started);
-                } else { // Chế độ "Chỉ đồng bộ văn án"
+                } else {
                      if (!state.cache) {
                         notify("Cần đồng bộ đầy đủ ít nhất một lần trước khi chỉ lấy văn án.", true);
                         throw new Error("no_cache_for_summary_only");
                     }
                 }
 
-                // --- Chỉ gọi hàm lấy văn án KHI CẦN THIẾT ---
                 if (shouldFetchSummaries) {
                     await collectSummaries(aggregated, options.threads, options.delay, started);
                 }
@@ -1367,7 +1391,7 @@
                 updateOverlay({ text: 'Hoàn tất', subTask: 'Lưu dữ liệu vào cache...', progress: 100 });
                 const duration = Date.now() - started;
 
-                const payload = isFullSync
+                const payload = (isFullSync || !state.cache)
                    ? {
                         version: STORE_VERSION, username: state.username, mode: state.mode,
                         syncedAt: new Date().toISOString(), durationMs: duration,
@@ -1381,7 +1405,6 @@
                 setTimeout(() => {
                     notify('Đồng bộ xong, hãy nhấn "Xuất" để tạo bản sao lưu dữ liệu!', false);
                 }, 2000);
-
 
             } catch (err) {
                  if (err.message === "empty" || err.message === "no_cache_for_summary_only") { /* do nothing */ }
