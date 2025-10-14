@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Works Manager
 // @namespace    https://github.com/BaoBao666888/
-// @version      0.5.3
+// @version      0.5.4
 // @description  Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu.
 // @author       QuocBao
 // @match        https://truyenwikidich.net/user/*/works*
@@ -1690,10 +1690,27 @@
                     setMessage(message);
                     setTimeout(() => { if (panelMessage().textContent === message) setMessage(''); }, 5000);
 
-                    // Không cần saveCache vì tab gốc đã lưu, chỉ cần cập nhật UI
                     updateSummary();
+
+                    // LOGIC: LƯU VÀ PHỤC HỒI VỊ TRÍ CUỘN
                     if (state.filterModal) {
+                        // Tìm đến vùng chứa kết quả có thể cuộn được
+                        const resultsBody = state.filterModal.shadowRoot.querySelector('.results-body');
+
+                        // 1. Lưu lại vị trí cuộn hiện tại (nếu có)
+                        const scrollTop = resultsBody ? resultsBody.scrollTop : 0;
+
+                        // 2. Kích hoạt việc lọc lại như cũ
                         state.filterModal.shadowRoot.querySelector('button[data-action="apply"]').click();
+
+                        // 3. Khôi phục lại vị trí cuộn sau một khoảng trễ nhỏ
+                        // (cần trễ một chút để DOM có thời gian cập nhật kết quả mới)
+                        setTimeout(() => {
+                            const newResultsBody = state.filterModal.shadowRoot.querySelector('.results-body');
+                            if (newResultsBody) {
+                                newResultsBody.scrollTop = scrollTop;
+                            }
+                        }, 100); // 100ms là đủ để giao diện cập nhật
                     }
                 }
             };
