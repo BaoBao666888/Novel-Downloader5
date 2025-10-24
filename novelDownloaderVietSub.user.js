@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.42.6
+// @version     3.5.447.42.7
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -3043,14 +3043,14 @@ function decryptDES(encrypted, key, iv) {
                 async function attemptApiCall() {
                     console.log(`%cSTV Deal (Chương ${chapterId}): ${retryAttempted ? 'Thử lại' : 'Lần đầu'} gọi API FETCH...`, retryAttempted ? "color: orange;" : "color: purple;");
                     console.log(`API: ${apiUrl}`);
-                    const response = await fetch(apiUrl, {
+                    const response = await fetch(`${apiUrl}?${payload}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                             // Sử dụng URL trang chương làm Referer
                             'Referer': chapterWebUrl,
                         },
-                        body: payload,
+                        body: null,
                     });
                     //console.log("ND: ", response.text());
 
@@ -3168,7 +3168,7 @@ function decryptDES(encrypted, key, iv) {
                         } // Kết thúc vòng lặp nodes
 
                         // *** BƯỚC 5: DỌN DẸP VÀ TRẢ VỀ ***
-                        finalChineseText = finalChineseText.replace(/[ \t]+/g, '').replace(/\n+/g, '\n').replace(/\?\s*\?/g, '?').trim().replace('Vìvấnđềnộidung，nguồnnàykhônghỗtrợxemvănbảngốc。', '').replace('Bạnđangxemvănbảngốcchưadịch，cóthểkéoxuốngcuốitrangđểchọnbảndịch。', '');
+                        finalChineseText = finalChineseText.replace(/[ \t]+/g, '').replace(/\n+/g, '\n').replace(/\?\s*\?/g, '?').trim().replace('Vìvấnđềnộidung，nguồnnàykhônghỗtrợxemvănbảngốc。', '').replace('Bạnđangxemvănbảngốcchưadịch，cóthểkéoxuốngcuốitrangđểchọnbảndịch。', '').replace('————————！！————————', '——————————————————');
                         console.log(`%cSTV Deal (Chương ${chapterId}): Tái tạo text gốc hoàn tất.`, "color: green;");
                         Storage.book.debugLog.push(...debugLog);
                         return { content: finalChineseText, title: chapterTitle };
