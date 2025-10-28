@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.42.7
+// @version     3.5.447.42.8
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -403,6 +403,10 @@ function decryptDES(encrypted, key, iv) {
      */
     async function processJjwxcTagsWithModel(rawHtml, sourceType, chapterContext) {
         console.log(`[Model Client] Bắt đầu xử lý Model cho chương ${chapterContext?.chapterId || '?'} (Gửi HTML đến server)...`);
+        if (sourceType !== "jjwxc") {
+            console.log(`[Model Client] Không phải nội dung Tấn Giang. Đang trả về...`);
+            return rawHtml;
+        }
         const startTime = performance.now();
 
         // Chỉ cần gọi API mới
@@ -3150,15 +3154,10 @@ function decryptDES(encrypted, key, iv) {
                                 } else {
                                     // Nếu 't' VẪN RỖNG (tất cả API đều fail)
                                     // -> Fallback cuối cùng là dùng chữ Việt (gây dính chùm)
-                                    console.warn(`[Fallback] Node word thiếu 't': v='${node.v}', i='${node.inner}'. Dùng chữ Việt.`);
-                                    finalChineseText += ''; // Dùng chữ Việt
-
-                                    // Ghi log debug
-                                    Storage.book = Storage.book || {};
-                                    Storage.book.debugFallbackLog = Storage.book.debugFallbackLog || [];
-                                    Storage.book.debugFallbackLog.push(
-                                        `[T_FALLBACK] Chương ${chapterId}: v='${node.v}', i='${node.inner}' -> Dùng chữ Việt.`
-                                    );
+                                    // console.warn(`[Fallback] Node word thiếu 't': v='${node.v}', i='${node.inner}'. Dùng chữ Việt.`);
+                                    // finalChineseText += ''; // Dùng chữ Việt
+                                    console.error(`STV Deal (Chương ${chapterId} Error): Thiếu chữ tiếng Trung, không thể tải xuống!`);
+                                    return { content: "", title: chapterTitle };
                                 }
 
                                 // ---- TOÀN BỘ LOGIC BÙ TỪ CŨ (h_parts, chuyen_doi, ...) ĐÃ BỊ XÓA ----
