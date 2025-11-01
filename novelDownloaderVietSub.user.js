@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.42.8
+// @version     3.5.447.42.9
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -3259,10 +3259,8 @@ function decryptDES(encrypted, key, iv) {
             cover: '[itemprop="image"]',
             volume: '.volumnfont',
 
-            // *** Dùng getChapters để tạo danh sách chương đầy đủ thông tin ***
             getChapters: async (doc) => {
                 const chapters = [];
-                let currentVolume = ""; // Lưu tên quyển
 
                 // Lặp qua tất cả các dòng trong bảng mục lục
                 $(doc).find('#oneboolt tbody tr').each((index, tr) => {
@@ -3270,10 +3268,7 @@ function decryptDES(encrypted, key, iv) {
                     const volumeElement = row.find('.volumnfont'); // Tìm tên quyển
                     const chapterLinkElement = row.find('a[itemprop="url"], a[id^="vip_"]'); // Tìm link chương (thường hoặc VIP gốc)
 
-                    if (volumeElement.length > 0) {
-                        // Nếu là dòng tên quyển, cập nhật tên quyển hiện tại
-                        currentVolume = volumeElement.text().trim();
-                    } else if (chapterLinkElement.length > 0) {
+                    if (chapterLinkElement.length > 0) {
                         const link = chapterLinkElement.first();
                         const isVipById = link.attr('id')?.startsWith('vip_') || false;
                         let novelId, chapterId;
@@ -3306,8 +3301,6 @@ function decryptDES(encrypted, key, iv) {
                             chapters.push({
                                 title: title,
                                 url: originalHref, // URL gốc onebook.php
-                                volume: currentVolume,
-                                // *** Thêm các thuộc tính cần thiết cho hàm deal ***
                                 novelId: novelId,
                                 chapterId: chapterId,
                                 isVip: isVipById // Xác định VIP dựa trên ID gốc
