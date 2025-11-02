@@ -3154,10 +3154,10 @@ function decryptDES(encrypted, key, iv) {
                                 } else {
                                     // Nếu 't' VẪN RỖNG (tất cả API đều fail)
                                     // -> Fallback cuối cùng là dùng chữ Việt (gây dính chùm)
-                                    // console.warn(`[Fallback] Node word thiếu 't': v='${node.v}', i='${node.inner}'. Dùng chữ Việt.`);
-                                    // finalChineseText += ''; // Dùng chữ Việt
-                                    console.error(`STV Deal (Chương ${chapterId} Error): Thiếu chữ tiếng Trung, không thể tải xuống!`);
-                                    return { content: "", title: chapterTitle };
+                                    console.warn(`[Fallback] Node word thiếu 't': v='${node.v}', i='${node.inner}'. Bỏ qua từ này.`);
+                                    finalChineseText += ''; // Dùng chữ Việt
+                                    // console.error(`STV Deal (Chương ${chapterId} Error): Thiếu chữ tiếng Trung, không thể tải xuống!`);
+                                    // return { content: "", title: chapterTitle };
                                 }
 
                                 // ---- TOÀN BỘ LOGIC BÙ TỪ CŨ (h_parts, chuyen_doi, ...) ĐÃ BỊ XÓA ----
