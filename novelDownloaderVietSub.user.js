@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.42.9
+// @version     3.5.447.43.0
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -2794,7 +2794,6 @@ function decryptDES(encrypted, key, iv) {
                     });
                 });
             },
-            // *** DÙNG getChapters ĐỂ GỌI API LẤY DANH SÁCH CHƯƠNG ***
             getChapters: async (doc) => {
                 const novelMatch = window.location.pathname.match(/truyen\/([^/]+)\/\d+\/(\d+)\//);
                 if (!novelMatch) {
@@ -2805,7 +2804,14 @@ function decryptDES(encrypted, key, iv) {
                 const bookId = novelMatch[2];
 
                 if (sourceId === 'jjwxc') {
-                    await Rule.special.find(r => r.siteName.startsWith('Sáng Tác Việt (API Chapter List)'))._getBookInfoFromJJWXC(bookId);
+                    try {
+                        console.log("STV getChapters: Đang gọi API JJWXC...");
+                        await Rule.special.find(r => r.siteName.startsWith('Sáng Tác Việt (API Chapter List)'))._getBookInfoFromJJWXC(bookId);
+                        console.log("STV getChapters: Gọi API JJWXC thành công.");
+                    } catch (jjwxcError) {
+                        console.warn("STV getChapters: Lỗi khi gọi API JJWXC (bỏ qua):", jjwxcError);
+                        // Bỏ qua lỗi và tiếp tục, không dừng script
+                    }
                 }
 
 
@@ -2915,7 +2921,6 @@ function decryptDES(encrypted, key, iv) {
                 }
             },
 
-            // *** HÀM DEAL VỚI LOGIC BÙ TỪ CHI TIẾT ***
             deal: async (chapter) => {
                  // --- Hàm sleep ---
                 function sleep(ms) {
@@ -3108,7 +3113,7 @@ function decryptDES(encrypted, key, iv) {
                         function processChildNodes(element) {
                             element.childNodes.forEach(node => {
                                 if (node.nodeType === Node.TEXT_NODE) {
-                                    let processedText = node.textContent;
+                                    let processedText = node.textContent.trim();
                                     for (const vietPunc in punctuation_map) {
                                         processedText = processedText.replace(new RegExp(vietPunc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'), punctuation_map[vietPunc]);
                                     }
@@ -3139,7 +3144,14 @@ function decryptDES(encrypted, key, iv) {
                         let finalChineseText = "";
                         for (const node of nodes) {
                             if (node.type === 'text') {
-                                finalChineseText += node.text;
+                                const textContent = node.text;
+                                if (!/[a-zA-Z]/.test(textContent)) {
+                                    // Không có chữ Anh -> là dấu câu, khoảng trắng thừa -> Xóa hết whitespace
+                                    finalChineseText += textContent.replace(/\s+/g, '');
+	                             } else {
+                                    // Có chữ Anh -> là câu tiếng Anh -> Giữ nguyên
+                                	 finalChineseText += textContent;
+                                }
                             } else if (node.type === 'newline') {
                                 finalChineseText += '\n';
                             } // Xử lý node 'word'
@@ -3150,7 +3162,7 @@ function decryptDES(encrypted, key, iv) {
                                 if (t_raw.trim()) {
                                     // Nếu 't' CÓ nội dung (do STV gốc, STV API, hoặc Model điền)
                                     // -> DÙNG LUÔN 't'
-                                    finalChineseText += t_raw;
+                                    finalChineseText += t_raw.replace(/[ \t]+/g, '');
                                 } else {
                                     // Nếu 't' VẪN RỖNG (tất cả API đều fail)
                                     // -> Fallback cuối cùng là dùng chữ Việt (gây dính chùm)
@@ -3167,7 +3179,7 @@ function decryptDES(encrypted, key, iv) {
                         } // Kết thúc vòng lặp nodes
 
                         // *** BƯỚC 5: DỌN DẸP VÀ TRẢ VỀ ***
-                        finalChineseText = finalChineseText.replace(/[ \t]+/g, '').replace(/\n+/g, '\n').replace(/\?\s*\?/g, '?').trim().replace('Vìvấnđềnộidung，nguồnnàykhônghỗtrợxemvănbảngốc。', '').replace('Bạnđangxemvănbảngốcchưadịch，cóthểkéoxuốngcuốitrangđểchọnbảndịch。', '').replace('————————！！————————', '——————————————————');
+                        finalChineseText = finalChineseText.replace(/\n+/g, '\n').replace(/\?\s*\?/g, '?').trim().replace('Vì vấn đề nội dung， nguồn này không hỗ trợ xem văn bản gốc。', '').replace('Bạn đang xem văn bản gốc chưa dịch， có thể kéo xuống cuối trang để chọn bản dịch。', '').replace('————————！！————————', '——————————————————');
                         console.log(`%cSTV Deal (Chương ${chapterId}): Tái tạo text gốc hoàn tất.`, "color: green;");
                         Storage.book.debugLog.push(...debugLog);
                         return { content: finalChineseText, title: chapterTitle };
