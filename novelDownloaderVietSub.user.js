@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.43.0
+// @version     3.5.447.43.1
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -3113,7 +3113,7 @@ function decryptDES(encrypted, key, iv) {
                         function processChildNodes(element) {
                             element.childNodes.forEach(node => {
                                 if (node.nodeType === Node.TEXT_NODE) {
-                                    let processedText = node.textContent.trim();
+                                    let processedText = node.textContent;
                                     for (const vietPunc in punctuation_map) {
                                         processedText = processedText.replace(new RegExp(vietPunc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'), punctuation_map[vietPunc]);
                                     }
@@ -3147,7 +3147,7 @@ function decryptDES(encrypted, key, iv) {
                                 const textContent = node.text;
                                 if (!/[a-zA-Z]/.test(textContent)) {
                                     // Không có chữ Anh -> là dấu câu, khoảng trắng thừa -> Xóa hết whitespace
-                                    finalChineseText += textContent.replace(/\s+/g, '');
+                                    finalChineseText += textContent.replace(/ /g, '');
 	                             } else {
                                     // Có chữ Anh -> là câu tiếng Anh -> Giữ nguyên
                                 	 finalChineseText += textContent;
