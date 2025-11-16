@@ -10,4 +10,10 @@ rename_chapters/po18_cookies.json
 rename_chapters/qidian_guest_cookies.json
 rename_chapters/.ghichu.txt
 rename_chapters/local/
+rename_chapters/backgrounds/
+rename_chapters/icons/
 *.iss
+.env.example
+.env
+*.env
+rename_chapters/.env

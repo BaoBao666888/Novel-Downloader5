@@ -1,26 +1,20 @@
-<h1>Phiên bản 0.1.5 — Bộ Công cụ Xử lý Nâng cao & Giải nén</h1>
-Bản cập nhật 0.1.5 tiếp tục biến <c color="#c2185b">Rename Chapters</c> thành một bộ công cụ toàn diện, bổ sung các tính năng xử lý văn bản hàng loạt mạnh mẽ và tiện ích giải nén trực tiếp trong ứng dụng, giúp bạn xử lý mọi thứ từ file nén cho đến nội dung thô.
+<h1>Phiên bản 0.1.6 — Cá nhân hoá giao diện & mở rộng nguồn</h1>
+Bản cập nhật này tập trung vào trải nghiệm: bạn có thể tuỳ biến giao diện sâu hơn, thêm ảnh nền riêng, bật/tắt hiệu ứng và quản lý mọi nguồn lấy mục lục trong một popup gọn gàng. Rename Chapters cũng chào đón nguồn <c color="#c2185b">Ihuaben</c> và mang tới nhiều tinh chỉnh cho dev muốn debug nhanh.
 
-<h2>TÍNH NĂNG NỔI BẬT</h2>
-<b>[MỚI] Tiện ích Giải nén File trực tiếp</b>
-Một menu "Công cụ" mới đã được thêm vào, cho phép bạn giải nén các file nén phổ biến mà không cần rời khỏi ứng dụng.
-- Hỗ trợ đa định dạng: Dễ dàng giải nén các file `.zip`, `.rar`, `.7z` và nhiều định dạng khác.
-- Đơn giản và tiện lợi: Chỉ cần chọn file nén và thư mục đích, chương trình sẽ tự động xử lý.
-- **Yêu cầu:** Có sẵn phần mềm giải nén tương ứng trên máy (như 7-Zip hoặc WinRAR).
+<h2>Tính năng nổi bật</h2>
+<b>[Mới] Tab cài đặt giao diện hiện đại</b>
+- Chọn bảng màu (Midnight, Aurora, Forest, Daylight), đổi màu nhấn, màu chữ, kích thước font hoặc chuyển về giao diện ttk cổ điển chỉ với một cú click.
+- Hỗ trợ ảnh nền cá nhân: chọn ảnh bất kỳ, ứng dụng tự sao chép vào thư mục <b>backgrounds/</b> và co giãn theo kích thước cửa sổ.
+- Bật/tắt hiệu ứng “glow” bám theo chuột (đã tối ưu để mượt hơn) và tuỳ chọn chỉ dùng manifest local khi cần debug cập nhật.
 
-<b>[MỚI] Sub-tab "Công cụ Nhanh" trong Xử lý Văn bản</b>
-Hai công cụ mạnh mẽ, tùy biến hoàn toàn bằng Regex, đã được thêm vào để tự động hóa các tác vụ phức tạp nhất.
-- **Đánh lại số chương tuần tự:** Tìm kiếm các dòng chương theo một Regex tùy chỉnh và tự động đánh số lại chúng theo thứ tự, bắt đầu từ một số bạn chỉ định.
-- **Thêm tiêu đề từ Mục lục:** Dán hoặc tải một file mục lục, sau đó tự động áp dụng các tiêu đề này vào file truyện chính. Hỗ trợ hai chế độ:
-    - *Bổ sung:* Chỉ thêm phần tên chương vào sau tag chương (`第123章`).
-    - *Thay thế:* Ghi đè toàn bộ tag chương bằng dòng tương ứng từ mục lục (`第123章 Tên chương đầy đủ`).
+<b>[Mới] Popup chọn nguồn lấy tiêu đề</b>
+- Nhấn “Chọn nguồn…” để mở cửa sổ icon: mỗi dịch vụ có logo, domain và ví dụ link mẫu. Chọn xong cửa sổ tự đóng, thông tin hiển thị ngay trong tab chính.
+- Thêm nguồn <b>ihuaben.com</b> với parser API riêng. Tiêu đề chính luôn sạch tiền tố <b>第…章</b> trong khi tiêu đề phụ giữ nguyên định dạng gốc.
 
-<h2>CẢI TIẾN VÀ SỬA LỖI</h2>
-<b>Tích hợp liền mạch giữa các Tab:</b>
-- Thêm nút **"Sao chép vào Công cụ Nhanh"** trong tab "Lấy Tiêu Đề Online", cho phép bạn gửi thẳng danh sách tiêu đề vừa lấy được sang công cụ "Thêm tiêu đề từ Mục lục" để xử lý ngay lập tức.
-
-<b>Tăng cường tính linh hoạt:</b>
-- Thêm tùy chọn **"Bắt buộc sửa"** cho chức năng "Sửa dòng đầu của file". Khi được chọn, chương trình sẽ ghi đè dòng đầu tiên kể cả khi không phân tích được số chương, giúp bạn kiểm soát hoàn toàn kết quả.
+<h2>Cải tiến & sửa lỗi</h2>
+- Cho phép cấu hình APP_VERSION, USE_LOCAL_MANIFEST_ONLY,… qua file <b>.env</b> để dev dễ kiểm thử bản cập nhật.
+- Thống nhất màu sắc/typography cho toàn bộ Text, Treeview, Notebook; danh sách nguồn online tự đổi màu theo theme.
+- Hiệu ứng chuột click-through nhẹ hơn, giảm kích thước và thời gian fade để không cản thao tác.
 
 <h2>Hướng dẫn cập nhật</h2>
 - Nhấn <b>Tải & Cài đặt</b> để download bản cài đặt (.exe) tự động.
