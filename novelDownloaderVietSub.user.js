@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.43.1
+// @version     3.5.447.43.2
 // @author      dodying | BaoBao
 // @namespace   https://github.com/dodying/UserJs
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -236,7 +236,7 @@ function decryptDES(encrypted, key, iv) {
             if (!state.history || state.history.length === 0) {
                 historyList.innerHTML = 'Chưa có lịch sử.';
             } else {
-                 historyList.innerHTML = state.history.map(task => `
+                historyList.innerHTML = state.history.map(task => `
                     <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <div style="font-weight: bold;">${task.bookTitle}</div>
                         <div style="font-size: 12px; color: #666;">Trang: ${task.domain}</div>
@@ -267,6 +267,15 @@ function decryptDES(encrypted, key, iv) {
         // Đăng ký hàm render để tự động cập nhật UI khi state thay đổi
         TaskManager.onStateChange(renderUI);
     }
+
+    function validateContent(content) {
+        const sizeBytes = new TextEncoder().encode(content).length;
+        if (sizeBytes < 2048) {
+            return null;
+        }
+        return content;
+    }
+
     TaskManager.init();
     let fontLib;
 
@@ -318,8 +327,8 @@ function decryptDES(encrypted, key, iv) {
 
     // === BẮT ĐẦU CODE TÍCH HỢP MODEL ===
     function sleep(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
-            }
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
     /**
      * (ĐÃ SỬA LẠI) Gửi HTML thô đến Model API và nhận về HTML đã xử lý
@@ -695,10 +704,10 @@ function decryptDES(encrypted, key, iv) {
                 const introElem = $('dd.jieshao_content > h3');
                 if (introElem.length) {
                     let text = introElem.text().replace('简介：', '').trim();
-                //     // // Nếu có dấu ngắt dòng <br> thì lấy hết luôn
-                //     introElem.find('br').each((_, br) => {
-                //         text += '<br>';
-                // });
+                    //     // // Nếu có dấu ngắt dòng <br> thì lấy hết luôn
+                    //     introElem.find('br').each((_, br) => {
+                    //         text += '<br>';
+                    // });
                     return text;
                 }
                 return '';
@@ -1784,7 +1793,7 @@ function decryptDES(encrypted, key, iv) {
                         });
 
                         const { title, content } = extractData(res?.response, chapId, chapterInfo.title);
-                        if (content) {
+                        if (validateContent(content)) {
                             console.log(`Fanqie Deal: Thành công từ ${url}`);
                             const fixedContent = fixQuotes(content);
                             if (content !== fixedContent) {
@@ -1800,7 +1809,7 @@ function decryptDES(encrypted, key, iv) {
                 //fallback cho chương không VIP nếu tất cả API thất bại
                 const isVip = $(`a[href*="/reader/${chapId}"]`).closest('.chapter-item').find('.chapter-item-lock').length > 0;
                 if (!isVip) { // Chỉ fallback khi không có API hoặc tất cả API đã fail
-                     console.log(`Fanqie Deal: Không có API hoặc tất cả API thất bại, thử fallback cho chương free ${chapId}...`);
+                    console.log(`Fanqie Deal: Không có API hoặc tất cả API thất bại, thử fallback cho chương free ${chapId}...`);
                     try {
                         const readerUrl = "https://fanqienovel.com/reader/" + chapId;
                         const cookie = generateCookie();
@@ -1819,10 +1828,10 @@ function decryptDES(encrypted, key, iv) {
                             let rawText = contentMatch[1];
                             const decodedContent = decodeText(rawText);
                             console.log("Fanqie Deal: Fallback thành công!");
-                             const fixedContent = fixQuotes(decodedContent);
-                             if (decodedContent !== fixedContent) {
+                            const fixedContent = fixQuotes(decodedContent);
+                            if (decodedContent !== fixedContent) {
                                 console.log("Fanqie Deal: Đã sửa lại dấu ngoặc kép trong chương (fallback).");
-                             }
+                            }
                             return { title: chapterInfo.title, content: fixedContent };
                         }
                     } catch (e) {
@@ -2099,8 +2108,8 @@ function decryptDES(encrypted, key, iv) {
                     // Logic dừng vòng lặp chính xác: Dựa vào thông tin phân trang
                     const paginationLinks = $(pageDoc).find("ul.pagination a[data-start]");
                     const lastPageStartValue = paginationLinks.length > 0
-                        ? parseInt(paginationLinks.last().attr("data-start"))
-                        : 0;
+                    ? parseInt(paginationLinks.last().attr("data-start"))
+                    : 0;
 
                     if (currentPage >= lastPageStartValue && chapterLinks.length > 0) {
                         console.log("Đã đạt hoặc vượt qua trang cuối cùng, kết thúc.");
@@ -2718,6 +2727,100 @@ function decryptDES(encrypted, key, iv) {
             intro: '#book-sumary > span', // Tóm tắt
             cover: '#thumb-prop', // Bìa
 
+            _getBookInfoFromQIDIAN: async (novelId) => {
+                const apiUrl = `https://www.qidian.com/book/${novelId}/`;
+                console.log("STV getChapters: Đang gọi API QIDIAN...");
+
+                try {
+                    // respone = HTML string đầy đủ
+                    const respone = await fetchPageContent(apiUrl, '.book-info h1#bookName');
+                    const $doc = $(respone);
+
+                    // 1Tiêu đề
+                    const title = $doc.find('.book-info h1#bookName').text().trim() || '';
+
+                    //  Tên tác giả
+                    const writer = $doc.find('.author-intro a.writer-name').text().trim() || '';
+
+                    // Ảnh bìa
+                    let cover = '';
+                    let rawCover = $doc.find('.book-author img').attr('src') || '';
+
+                    if (rawCover) {
+                        // //bookcover.yuewen.com/qdbimg/349573/1046577011/600.webp
+                        // -> https://bookcover.yuewen.com/qdbimg/349573/1046577011
+                        cover = rawCover
+                            .replace(/^\/\//, 'https://')
+                            .replace(/\/\d+(?:\.\w+)?$/, '');
+                    }
+
+                    //  作品属性：.book-info p.book-attribute
+                    let attrText = $doc.find('.book-info p.book-attribute').text().trim();
+                    if (attrText) {
+                        // gom khoảng trắng cho gọn
+                        attrText = attrText.replace(/\s+/g, ' ');
+                    }
+                    const attrSection = attrText ? `作品属性：${attrText}` : '';
+
+                    // 作品简介：#book-intro-detail (giữ xuống dòng)
+                    let introHtml = $doc.find('.intro-detail p#book-intro-detail').html() || '';
+                    let introMain = '';
+
+                    if (introHtml) {
+                        introMain = introHtml
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>')
+                            .replace(/&amp;/g, '&')
+                            .replace(/<br\s*\/?>/gi, '\n')
+                            .replace(/<[^>]+>/g, '')
+                            .replace(/\n{2,}/g, '\n')
+                            .trim();
+                    }
+
+                    if (introMain) {
+                        introMain = `作品简介：${introMain}`;
+                    }
+
+                    // 作品标签：.intro-honor-label p.all-label a
+                    const tags = $doc
+                    .find('.intro-honor-label p.all-label a')
+                    .map((i, el) => $(el).text().trim())
+                    .get()
+                    .filter(Boolean);
+
+                    const tagSection = tags.length
+                    ? `作品标签：${tags.join(', ')}`
+                    : '';
+
+                    //  Gộp intro tổng
+                    const intro = [attrSection, introMain, tagSection, `Link cover: ${cover}`]
+                    .filter(Boolean)
+                    .join('\n\n');
+
+                    // Lưu vào Storage + fill form
+                    Storage.book = Storage.book || {};
+                    if (title) Storage.book.title = title;
+                    if (writer) Storage.book.writer = writer;
+                    if (intro) Storage.book.intro = intro;
+                    if (cover) Storage.book.cover = cover;
+
+                    if (title) $('.novel-downloader-v3 input[name="title"]').val(title);
+                    if (writer) $('.novel-downloader-v3 input[name="writer"]').val(writer);
+                    if (intro) $('.novel-downloader-v3 input[name="intro"]').val(intro);
+                    if (cover) $('.novel-downloader-v3 input[name="cover"]').val(cover);
+
+                    // console.log('[QIDIAN] Lấy info xong:', {
+                    //     title,
+                    //     writer,
+                    //     cover,
+                    //     introPreview: intro.slice(0, 100) + (intro.length > 100 ? '...' : '')
+                    // });
+                } catch (err) {
+                    console.error("Lỗi lấy info từ QIDIAN:", err);
+                }
+            },
+
+
             _getBookInfoFromJJWXC: async (novelId) => {
                 const apiUrl = `https://app.jjwxc.net/androidapi/novelbasicinfo?novelId=${novelId}`;
 
@@ -2794,6 +2897,7 @@ function decryptDES(encrypted, key, iv) {
                     });
                 });
             },
+
             getChapters: async (doc) => {
                 const novelMatch = window.location.pathname.match(/truyen\/([^/]+)\/\d+\/(\d+)\//);
                 if (!novelMatch) {
@@ -2802,6 +2906,15 @@ function decryptDES(encrypted, key, iv) {
                 }
                 const sourceId = novelMatch[1];
                 const bookId = novelMatch[2];
+                if (sourceId === 'qidian') {
+                    try {
+                        await Rule.special.find(r => r.siteName.startsWith('Sáng Tác Việt (API Chapter List)'))._getBookInfoFromQIDIAN(bookId);
+                        console.log("STV getChapters: Gọi API QIDIAN thành công.");
+                    } catch (jjwxcError) {
+                        console.warn("STV getChapters: Lỗi khi gọi API QIDIAN (bỏ qua):", jjwxcError);
+                        // Bỏ qua lỗi và tiếp tục, không dừng script
+                    }
+                }
 
                 if (sourceId === 'jjwxc') {
                     try {
@@ -2922,7 +3035,7 @@ function decryptDES(encrypted, key, iv) {
             },
 
             deal: async (chapter) => {
-                 // --- Hàm sleep ---
+                // --- Hàm sleep ---
                 function sleep(ms) {
                     return new Promise(resolve => setTimeout(resolve, ms));
                 }
@@ -3146,16 +3259,16 @@ function decryptDES(encrypted, key, iv) {
                             if (node.type === 'text') {
                                 const textContent = node.text;
                                 if (!/[a-zA-Z]/.test(textContent)) {
-                                    // Không có chữ Anh -> là dấu câu, khoảng trắng thừa -> Xóa hết whitespace
-                                    finalChineseText += textContent.replace(/ /g, '');
-	                             } else {
-                                    // Có chữ Anh -> là câu tiếng Anh -> Giữ nguyên
-                                	 finalChineseText += textContent;
-                                }
+                                    // Không có chữ Anh -> là dấu câu, khoảng trắng thừa -> Xóa hết whitespace
+                                    finalChineseText += textContent.replace(/ /g, '');
+                                } else {
+                                    // Có chữ Anh -> là câu tiếng Anh -> Giữ nguyên
+                                    finalChineseText += textContent;
+                                }
                             } else if (node.type === 'newline') {
                                 finalChineseText += '\n';
                             } // Xử lý node 'word'
-                           else if (node.type === 'word') {
+                            else if (node.type === 'word') {
                                 const t_raw = node.t || ''; // Lấy 't' (đã được model điền)
 
                                 // (Yêu cầu 3) Xuất ra như thường (dùng 't')
@@ -3179,7 +3292,7 @@ function decryptDES(encrypted, key, iv) {
                         } // Kết thúc vòng lặp nodes
 
                         // *** BƯỚC 5: DỌN DẸP VÀ TRẢ VỀ ***
-                        finalChineseText = finalChineseText.replace(/\n+/g, '\n').replace(/\?\s*\?/g, '?').trim().replace('Vì vấn đề nội dung， nguồn này không hỗ trợ xem văn bản gốc。', '').replace('Bạn đang xem văn bản gốc chưa dịch， có thể kéo xuống cuối trang để chọn bản dịch。', '').replace('————————！！————————', '——————————————————');
+                        finalChineseText = finalChineseText.replace(/\n+/g, '\n').replace(/\?\s*\?/g, '?').trim().replace('Vì vấn đề nội dung， nguồn này không hỗ trợ xem văn bản gốc。', '').replace('Bạn đang xem văn bản gốc chưa dịch， có thể kéo xuống cuối trang để chọn bản dịch。', '').replace('————————！！————————', '---------').replace('————————', '---------');
                         console.log(`%cSTV Deal (Chương ${chapterId}): Tái tạo text gốc hoàn tất.`, "color: green;");
                         Storage.book.debugLog.push(...debugLog);
                         return { content: finalChineseText, title: chapterTitle };
@@ -3238,7 +3351,7 @@ function decryptDES(encrypted, key, iv) {
                     modelPredictionsLog.forEach(pred => {
                         // Đảm bảo chỉ log nếu source là 'model' (dù đã lọc ở trên, cẩn thận vẫn hơn)
                         if (pred.source === 'model') {
-                             logContent += `[${pred.chapterId || '?'} - ${pred.chapterTitle || '(chưa có)'}] P:'${pred.p || ''}' | V:'${pred.v || ''}' | I:'${pred.i || ''}' | T_gốc:'${pred.t_original || ''}' => T_predicted:'${pred.t_predicted || '(empty)'}'\n`;
+                            logContent += `[${pred.chapterId || '?'} - ${pred.chapterTitle || '(chưa có)'}] P:'${pred.p || ''}' | V:'${pred.v || ''}' | I:'${pred.i || ''}' | T_gốc:'${pred.t_original || ''}' => T_predicted:'${pred.t_predicted || '(empty)'}'\n`;
                         }
                     });
 
@@ -5743,13 +5856,13 @@ function decryptDES(encrypted, key, iv) {
         const chaptersDownloaded = [];
 
         const issueBody = [
-            `- Script: \`novelDownloader5 v${GM_info.script.version}\``,
-            '- Loại: `Bug/Góp ý`',
-            `- Trình duyệt: \`${GM_info.platform ? GM_info.platform.browserName : 'Trình duyệt'} v${GM_info.platform ? GM_info.platform.browserVersion : 'Phiên bản'}\``,
-            `- Tiện ích mở rộng: \`${GM_info.scriptHandler} v${GM_info.version}\``,
-            '---',
-            '<!-- Vấn đề của bạn -->',
-        ];
+            `- Script: \`novelDownloader5 v${GM_info.script.version}\``,
+            '- Loại: `Bug/Góp ý`',
+            `- Trình duyệt: \`${GM_info.platform ? GM_info.platform.browserName : 'Trình duyệt'} v${GM_info.platform ? GM_info.platform.browserVersion : 'Phiên bản'}\``,
+            `- Tiện ích mở rộng: \`${GM_info.scriptHandler} v${GM_info.version}\``,
+            '---',
+            '<!-- Vấn đề của bạn -->',
+        ];
 
         // ui
         const html = [
@@ -5770,7 +5883,7 @@ function decryptDES(encrypted, key, iv) {
             '  Nhiều cài đặt hơn: <button name="toggle">Hiển thị</button>',
             '</div>',
             '<div class="useless" name="config">',
-             '  Thời gian chờ giữa các chương (ms): <input type="number" name="delayBetweenChapters" min="0" placeholder="2000" style="width:60px;">',
+            '  Thời gian chờ giữa các chương (ms): <input type="number" name="delayBetweenChapters" min="0" placeholder="2000" style="width:60px;">',
             '  <br>',
             '  Luồng tải xuống: <input type="number" name="thread">',
             '  Số lần thử lại: <input type="number" name="retry">',
@@ -6051,7 +6164,7 @@ function decryptDES(encrypted, key, iv) {
         // set initial ui
         updateDownloadDirUI();
 
-         async function runTask(task) {
+        async function runTask(task) {
             // Lấy các biến cần thiết từ scope của showUI
             const format = task.format;
             const onComplete = async (force) => { /* ... */ }; // Ta sẽ định nghĩa lại onComplete ở bước sau
@@ -6144,7 +6257,7 @@ function decryptDES(encrypted, key, iv) {
 
             const format = $(e.target).attr('format');
             const onComplete = async (force) => {
-               const failedChapters = Storage.book.chapters.filter(c => !(c.contentRaw || c.content));
+                const failedChapters = Storage.book.chapters.filter(c => !(c.contentRaw || c.content));
                 if (failedChapters.length > 0 && !force) {
                     console.warn(`%cPhát hiện ${failedChapters.length} chương tải thất bại. Quá trình tạo file sẽ bị tạm dừng.`, "color: red; font-weight: bold;");
                     console.warn('Các chương lỗi:', failedChapters.map(c => c.url));
