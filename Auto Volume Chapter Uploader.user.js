@@ -16,7 +16,25 @@
 
 (function() {
     'use strict';
+    const { hostname, pathname } = window.location;
 
+    if (hostname === 'truyenwikidich.net') {
+        const parts = pathname.split('/').filter(p => p.length > 0);
+
+        // Ví dụ parts:
+        // ["truyen", "slug1", "slug2", "chinh-sua"]
+
+        if (parts[0] === 'truyen' && parts.at(-1) === 'chinh-sua') {
+            const count = parts.length; // độ dài mảng
+
+            // Nếu có đúng 4 phần => chỉnh sửa CHƯƠNG
+            // Ví dụ: /truyen/<truyen>/<chuong>/chinh-sua
+            if (count === 4) {
+                console.log('[WDU] Trang chỉnh sửa CHƯƠNG → không chạy script.');
+                return;
+            }
+        }
+    }
     // --- Cấu hình ---
     const APP_PREFIX = 'WDU_'; // Viết tắt cho WikiDich Uploader
     // const LOG_MAX_LINES = 10000; // Giới hạn số dòng log để tránh lag
