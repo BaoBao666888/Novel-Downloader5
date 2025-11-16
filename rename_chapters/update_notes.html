@@ -1,20 +1,11 @@
-<h1>Phiên bản 0.1.6 — Cá nhân hoá giao diện & mở rộng nguồn</h1>
-Bản cập nhật này tập trung vào trải nghiệm: bạn có thể tuỳ biến giao diện sâu hơn, thêm ảnh nền riêng, bật/tắt hiệu ứng và quản lý mọi nguồn lấy mục lục trong một popup gọn gàng. Rename Chapters cũng chào đón nguồn <c color="#c2185b">Ihuaben</c> và mang tới nhiều tinh chỉnh cho dev muốn debug nhanh.
+<h1>Phiên bản 0.1.7 — Bản vá ổn định</h1>
+Sau bản cập nhật lớn 0.1.6, chúng tôi phát hành 0.1.7 để xử lý các lỗi phát sinh khi build exe: icon nguồn không hiện, preview chia file không mở trên một số cấu hình và định dạng `{num-1}` gây crash.
 
-<h2>Tính năng nổi bật</h2>
-<b>[Mới] Tab cài đặt giao diện hiện đại</b>
-- Chọn bảng màu (Midnight, Aurora, Forest, Daylight), đổi màu nhấn, màu chữ, kích thước font hoặc chuyển về giao diện ttk cổ điển chỉ với một cú click.
-- Hỗ trợ ảnh nền cá nhân: chọn ảnh bất kỳ, ứng dụng tự sao chép vào thư mục <b>backgrounds/</b> và co giãn theo kích thước cửa sổ.
-- Bật/tắt hiệu ứng “glow” bám theo chuột (đã tối ưu để mượt hơn) và tuỳ chọn chỉ dùng manifest local khi cần debug cập nhật.
-
-<b>[Mới] Popup chọn nguồn lấy tiêu đề</b>
-- Nhấn “Chọn nguồn…” để mở cửa sổ icon: mỗi dịch vụ có logo, domain và ví dụ link mẫu. Chọn xong cửa sổ tự đóng, thông tin hiển thị ngay trong tab chính.
-- Thêm nguồn <b>ihuaben.com</b> với parser API riêng. Tiêu đề chính luôn sạch tiền tố <b>第…章</b> trong khi tiêu đề phụ giữ nguyên định dạng gốc.
-
-<h2>Cải tiến & sửa lỗi</h2>
-- Cho phép cấu hình APP_VERSION, USE_LOCAL_MANIFEST_ONLY,… qua file <b>.env</b> để dev dễ kiểm thử bản cập nhật.
-- Thống nhất màu sắc/typography cho toàn bộ Text, Treeview, Notebook; danh sách nguồn online tự đổi màu theo theme.
-- Hiệu ứng chuột click-through nhẹ hơn, giảm kích thước và thời gian fade để không cản thao tác.
+<h2>Sửa lỗi quan trọng</h2>
+- Icon popup chọn nguồn giờ luôn hiển thị, ngay cả khi chạy file cài đặt (app tự tìm icon trong thư mục cài hoặc PyInstaller bundle).
+- “Xem trước” trong tab Chia File hoạt động ổn định: double-click hàng nào cũng mở, kể cả sau khi đóng cửa sổ preview.
+- Định dạng tên file `{num±n}` (ví dụ `{num-1}`) đã được parser mới xử lý đúng ở cả preview lẫn khi chia file thực tế.
+- Combobox Regex chia/định dạng file nhớ giá trị cuối cùng – không còn hiện chuỗi rỗng khi relaunch.
 
 <h2>Hướng dẫn cập nhật</h2>
 - Nhấn <b>Tải & Cài đặt</b> để download bản cài đặt (.exe) tự động.
