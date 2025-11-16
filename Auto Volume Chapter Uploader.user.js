@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume/Chapter Uploader
 // @namespace    http://tampermonkey.net/
-// @version      1.0.5
+// @version      1.0.7
 // @description  Tự động hóa quá trình thêm/bổ sung chương trên wiki và web hồng
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
@@ -23,7 +23,9 @@
     // const FILE_SIZE_WARNING_KB = 4; // Cảnh báo nếu file nhỏ hơn (KB)
     let settings = {
         LOG_MAX_LINES: 1000,
-        FILE_SIZE_WARNING_KB: 4
+        FILE_SIZE_WARNING_KB: 4,
+        FILENAME_REGEX: String.raw`第(\d+)章\s*(.*)`,
+        CHAPTER_NAME_TEMPLATE: '第{num}章 {title}',
     };
     const SETTINGS_KEY = `${APP_PREFIX}settings`;
 
@@ -35,7 +37,6 @@
         allFiles: [],
         validFiles: [],
         invalidFiles: [],
-        positionInputs: [],
     };
 
     // --- Tạo UI trong Shadow DOM để tránh xung đột CSS ---
@@ -281,6 +282,66 @@
                     <input type="number" id="${APP_PREFIX}setting-file-kb" class="${APP_PREFIX}text-input">
                     <span class="${APP_PREFIX}notice">Cảnh báo nếu file nhỏ hơn X KB. (Mặc định: 4)</span>
                 </div>
+
+               <div class="${APP_PREFIX}setting-item">
+                    <label for="${APP_PREFIX}setting-filename-regex">
+                        Regex tên file (2 nhóm: num, title):
+                        <button type="button"
+                                id="${APP_PREFIX}setting-filename-regex-help"
+                                style="margin-left:6px;border-radius:50%;border:1px solid #ccc;
+                                    width:18px;height:18px;padding:0;font-size:11px;
+                                    line-height:16px;background:#f5f5f5;cursor:pointer;">
+                            ?
+                        </button>
+                    </label>
+
+                    <!-- Regex + nút Test -->
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <input type="text"
+                            id="${APP_PREFIX}setting-filename-regex"
+                            class="${APP_PREFIX}text-input"
+                            placeholder="第(\\d+)章\\s*(.*)"
+                            style="margin-bottom:0;">
+                        <button type="button"
+                                id="${APP_PREFIX}setting-filename-regex-test"
+                                style="padding:5px 8px;font-size:12px;background-color:#ff9800;
+                                    color:#fff;border:none;border-radius:4px;cursor:pointer;
+                                    white-space:nowrap;">
+                            Test
+                        </button>
+                    </div>
+
+                    <!-- Tên file ví dụ -->
+                    <input type="text"
+                    id="${APP_PREFIX}setting-filename-sample"
+                    class="${APP_PREFIX}text-input"
+                    placeholder="Ví dụ: 第188章 禅说.txt"
+                    style="
+                        display:block;
+                        opacity:0;
+                        height:0;
+                        padding:0 8px;
+                        margin:0;
+                        transition: all 0.25s ease;
+                        overflow:hidden;
+                        pointer-events:none;
+                    ">
+
+
+                    <span class="${APP_PREFIX}notice">
+                        Ví dụ Regex: <code>第(\\d+)章\\s*(.*)</code> → "第188章 禅说.txt"
+                    </span>
+
+                    <!-- Kết quả test -->
+                    <div class="${APP_PREFIX}notice"
+                        id="${APP_PREFIX}setting-filename-regex-test-result"></div>
+                </div>
+
+                <div class="${APP_PREFIX}setting-item">
+                    <label for="${APP_PREFIX}setting-chapter-template">Mẫu tên chương:</label>
+                    <input type="text" id="${APP_PREFIX}setting-chapter-template" class="${APP_PREFIX}text-input" placeholder="第{num}章 {title}">
+                    <span class="${APP_PREFIX}notice">Ví dụ: <code>chương {num}: {title}</code> hoặc <code>{num}-{title}</code></span>
+                </div>
             </div>
             <div class="${APP_PREFIX}modal-footer">
                 <button id="${APP_PREFIX}settings-save" class="${APP_PREFIX}btn">Lưu</button>
@@ -391,6 +452,15 @@
     const settingsCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}settings-cancel`);
     const logMaxInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-log-max`);
     const fileSizeKbInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-file-kb`);
+    const filenameRegexInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex`);
+    const filenameSampleInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-sample`);
+    const chapterTemplateInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-chapter-template`);
+
+    const filenameRegexHelpBtn = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex-help`);
+    const filenameRegexTestBtn = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex-test`);
+    const filenameRegexTestResult = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex-test-result`);
+
+
 
     // --- Chức năng Ghi log ---
     const log = (message, type = 'info') => {
@@ -409,6 +479,128 @@
         else if (type === 'warn') console.warn(`[Uploader] ${message}`);
         else console.log(`[Uploader] ${message}`);
     };
+
+    // --- Hướng dẫn Regex ---
+    if (filenameRegexHelpBtn) {
+        filenameRegexHelpBtn.addEventListener('click', () => {
+            alert(
+                `Hướng dẫn Regex tên file:
+
+• Regex phải có ÍT NHẤT 2 nhóm bắt ( ... ):
+   1) Nhóm 1: số chương (num)
+   2) Nhóm 2: tiêu đề chương (title)
+
+Ví dụ thường dùng:
+1. (\\d+)-(.*)
+   Khớp: "001-Tiêu đề.txt"
+   → num = 001, title = "Tiêu đề"
+
+2. 第(\\d+)章\\s*(.*)
+   Khớp: "第1章 Tiêu đề.txt"
+   → num = 1, title = "Tiêu đề"
+
+3. Chương\\s+(\\d+)\\s*-\\s*(.*)
+   Khớp: "Chương 12 - Tiêu đề.txt"
+
+Lưu ý:
+- Không cần ghi phần .txt trong regex (script tự bỏ đuôi .txt).
+- Có thể dùng nhiều trường hợp với dấu |, ví dụ:
+  (\\d+)-(.*)|第(\\d+)章\\s*(.*)`
+            );
+        });
+    }
+        // --- Hàm test Regex với tên file ví dụ ---
+    function runFilenameRegexTest() {
+        if (!filenameRegexTestResult) return;
+
+        filenameRegexTestResult.textContent = '';
+
+        const pattern = (filenameRegexInput.value || '').trim();
+        if (!pattern) {
+            filenameRegexTestResult.textContent = '❌ Vui lòng nhập Regex trước.';
+            return;
+        }
+
+        let re;
+        try {
+            re = new RegExp(pattern, 'i');
+        } catch (e) {
+            filenameRegexTestResult.textContent = '❌ Regex không hợp lệ: ' + e.message;
+            return;
+        }
+
+        const sampleRaw = (filenameSampleInput && filenameSampleInput.value || '').trim();
+        if (!sampleRaw) {
+            filenameRegexTestResult.textContent =
+                '❌ Vui lòng nhập tên file ví dụ (vd: 第188章 禅说.txt).';
+            return;
+        }
+
+        // bỏ đuôi .txt nếu có
+        const baseName = sampleRaw.replace(/\.txt$/i, '');
+        const m = baseName.match(re);
+
+        if (!m) {
+            filenameRegexTestResult.textContent =
+                `❌ Regex KHÔNG khớp với tên file này.\n` +
+                `Tên đang test: "${sampleRaw}"`;
+            return;
+        }
+
+        if (m.length < 3) {
+            filenameRegexTestResult.textContent =
+                `❌ Regex chỉ bắt được ${m.length - 1} nhóm (không đủ 2 nhóm num/title).\n` +
+                `Hãy chắc chắn Regex có ít nhất 2 cặp ngoặc ( ... ).`;
+            return;
+        }
+
+        // Hiển thị chi tiết các nhóm
+        const lines = [];
+        lines.push(`Tên file: "${sampleRaw}"`);
+        lines.push(`Chuỗi match: "${m[0]}"`);
+        lines.push(`- Nhóm 1 (num): ${m[1]}`);
+        lines.push(`- Nhóm 2 (title): ${m[2] || ''}`);
+
+        if (m.length > 3) {
+            for (let i = 3; i < m.length; i++) {
+                lines.push(`- Nhóm ${i}: ${m[i] || ''}`);
+            }
+        }
+
+        filenameRegexTestResult.textContent =
+            '✅ Regex khớp với tên file.\n' + lines.join('\n');
+    }
+
+    if (filenameRegexTestBtn) {
+        filenameRegexTestBtn.addEventListener('click', () => {
+
+            // Nếu ô đang ẩn → hiện nó
+            if (filenameSampleInput && filenameSampleInput.style.opacity === '0') {
+
+                // Hiện đẹp
+                filenameSampleInput.style.height = '32px';
+                filenameSampleInput.style.padding = '6px 8px';
+                filenameSampleInput.style.margin = '6px 0';
+                filenameSampleInput.style.opacity = '1';
+                filenameSampleInput.style.pointerEvents = 'auto';
+
+                filenameRegexTestResult.textContent = '💡 Nhập tên file ví dụ rồi bấm Test lần nữa.';
+                filenameSampleInput.focus();
+                return;
+            }
+
+            // Nếu đã hiện thì chạy test
+            runFilenameRegexTest();
+        });
+    }
+
+
+
+
+    if (filenameRegexTestBtn) {
+        filenameRegexTestBtn.addEventListener('click', runFilenameRegexTest);
+    }
+
 
     // --- Fake Upload Button ---
     const fakeUploadBtn = shadowRoot.querySelector(`#${APP_PREFIX}fake-upload`);
@@ -579,6 +771,41 @@
         log('Sẵn sàng. Vui lòng chọn quyển.');
     }
 
+    function parseChapterFromFilename(fileName) {
+        const baseName = fileName.replace(/\.txt$/i, '');
+        let pattern = settings.FILENAME_REGEX;
+
+        if (!pattern) {
+            // fallback an toàn
+            pattern = String.raw`第(\d+)章\s*(.*)`;
+        }
+
+        let re;
+        try {
+            re = new RegExp(pattern, 'i');
+        } catch (e) {
+            // Regex lưu sai → fallback
+            re = /第(\d+)章\s*(.*)/i;
+        }
+
+        const m = baseName.match(re);
+        if (!m) return null;
+
+        const num = parseInt(m[1], 10);
+        if (Number.isNaN(num)) return null;
+
+        const title = (m[2] || '').trim();
+
+        return { num, title };
+    }
+
+    function applyTemplate(template, num, title) {
+        return template
+            .replace(/{num}/g, num.toString())
+            .replace(/{title}/g, title || '');
+    }
+
+
 
     // Xử lý khi người dùng chọn file
     function handleFileSelect(event) {
@@ -595,7 +822,6 @@
 
         log(`Đã chọn ${files.length} file. Đang xử lý...`);
         manualInputContainer.innerHTML = ''; // Xóa sạch UI cũ
-        state.positionInputs = [];
         state.validFiles = [];
         state.invalidFiles = [];
 
@@ -618,23 +844,27 @@
         state.allFiles = files;
 
         const chapterNumbers = new Map();
-        // Regex này bắt cả "Chương 123" và "第123章"
-        const chapterRegex = /(?:Chương|chương|Chương hồi|Hồi|c|q|quyển|Q|第)\s*(\d+)[章]*/i;
 
-        state.allFiles.forEach(file => {
-            const match = file.name.match(chapterRegex);
-            if (match && match[1]) {
-                const chapterNumber = parseInt(match[1], 10);
-                if (chapterNumbers.has(chapterNumber)) {
-                    chapterNumbers.get(chapterNumber).push(file.name);
-                } else {
-                    chapterNumbers.set(chapterNumber, [file.name]);
-                }
-                state.validFiles.push({ file, chapterNumber });
-            } else {
-                state.invalidFiles.push(file);
+        for (const file of files) {
+            const parsed = parseChapterFromFilename(file.name);
+            if (!parsed) {
+                // Không tìm được num → coi là file lỗi để user nhập tay
+                state.invalidFiles.push({ file, reason: 'Không tìm thấy số chương từ tên file.' });
+                log(`❌ File "${file.name}" không tìm được số chương (sai regex/tên).`, 'error');
+                continue;
             }
-        });
+
+            const { num, title } = parsed;
+
+            if (chapterNumbers.has(num)) {
+                state.invalidFiles.push({ file, reason: `Trùng chương ${num}` });
+                log(`❌ File "${file.name}" trùng chương ${num} với "${chapterNumbers.get(num).name}".`, 'error');
+                continue;
+            }
+
+            chapterNumbers.set(num, file);
+            state.validFiles.push({ file, chapterNumber: num, rawTitle: title });
+        }
 
         state.validFiles.sort((a, b) => a.chapterNumber - b.chapterNumber);
 
@@ -688,15 +918,23 @@
             manualInputContainer.appendChild(createUIWarning(missingMessage, 'warn'));
         }
 
-        // 4. Xử lý file không hợp lệ (logic cũ, nhưng giờ nó sẽ thêm UI BÊN DƯỚI các warning)
+        // 4. Xử lý file không hợp lệ
+
         if (state.invalidFiles.length > 0) {
-            log(`CÓ ${state.invalidFiles.length} FILE KHÔNG HỢP LỆ (không có 'Chương xxx'):`, 'warn');
-            state.invalidFiles.forEach(file => {
-                const { wrapper, input } = createPositionInput(file);
-                manualInputContainer.appendChild(wrapper);
-                state.positionInputs.push({ file, input });
-            });
-            manualInputContainer.style.display = 'block'; // Đảm bảo (dù hơi thừa)
+            log(`Có ${state.invalidFiles.length} file không parse được num, cần chèn thủ công:`, 'warn');
+
+            state.previewOrder = state.validFiles.map(item => ({
+                type: 'valid',
+                file: item.file,
+                chapterNumber: item.chapterNumber,
+                rawTitle: item.rawTitle
+            }));
+
+            state.remainingInvalidFiles = state.invalidFiles.map(x => x.file);
+
+            buildInsertPreviewUI(manualInputContainer);
+
+            manualInputContainer.style.display = 'block';
             hasError = true;
         }
 
@@ -712,12 +950,14 @@
                 descCnInput.value = `${state.validFiles[0].chapterNumber}`;
                 log(`✅ Đã điền mô tả: ${state.validFiles[0].chapterNumber}`);
             } else if (state.invalidFiles.length > 0 && state.validFiles.length === 0) {
-                const firstInvalidMatch = state.invalidFiles[0].name.match(/\d+/);
+                const firstInvalidFile = state.invalidFiles[0].file || state.invalidFiles[0];
+                const firstInvalidMatch = firstInvalidFile.name.match(/\d+/);
                 if (firstInvalidMatch) {
                     descCnInput.value = `Từ ${firstInvalidMatch[0]}`;
                     log(`✅ Đã điền mô tả (dự đoán): ${firstInvalidMatch[0]}`);
                 }
-            } else {
+            }
+            else {
                 log('Không tìm thấy số chương để điền mô tả.', 'warn');
             }
             // Kích hoạt sự kiện 'change' để Materialize cập nhật UI (nhãn nổi lên)
@@ -763,24 +1003,257 @@
         }
     }
 
-    // Tạo ô nhập vị trí cho file không hợp lệ
-    function createPositionInput(file) {
-        const wrapper = document.createElement('div');
-        wrapper.className = `${APP_PREFIX}manual-file-entry`;
+    function openInsertPopup(insertIndex) {
+        if (state.remainingInvalidFiles.length === 0) {
+            alert('Không còn file để chèn');
+            return;
+        }
 
-        const label = document.createElement('label');
-        label.htmlFor = `${APP_PREFIX}input-${file.name}`;
-        label.innerText = `"${file.name}" - Nhập vị trí:`;
-        wrapper.appendChild(label);
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.4)'; // vẫn mờ nền sau
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.zIndex = '999999';
 
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.id = `${APP_PREFIX}input-${file.name}`;
-        input.placeholder = 'VD: 2 (sau C.2), -3 (trước C.3)';
-        input.className = `${APP_PREFIX}text-input`;
-        wrapper.appendChild(input);
+        const box = document.createElement('div');
+        box.style.background = '#fff';
+        box.style.color = '#000';
+        box.style.padding = '12px';
+        box.style.borderRadius = '8px';
+        box.style.width = '350px';
+        box.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
 
-        return { wrapper, input };
+
+        const title = document.createElement('div');
+        title.textContent = 'Chọn 1 file để chèn';
+        title.style.fontWeight = 'bold';
+        title.style.marginBottom = '8px';
+        box.appendChild(title);
+
+        const list = document.createElement('div');
+        let selected = 0;
+
+        state.remainingInvalidFiles.forEach((file, idx) => {
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.gap = '8px';
+            row.style.padding = '4px';
+            row.style.cursor = 'pointer';
+
+            if (idx === 0) row.style.background = '#f5f5f5';
+
+
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'ins-radio';
+            radio.checked = idx === 0;
+
+            const span = document.createElement('span');
+            span.textContent = file.name;
+
+            row.onclick = () => {
+                selected = idx;
+                Array.from(list.children).forEach(r => { r.style.background = 'transparent'; });
+                row.style.background = '#e3f2fd';
+                radio.checked = true;
+            };
+
+            row.appendChild(radio);
+            row.appendChild(span);
+            list.appendChild(row);
+        });
+
+        box.appendChild(list);
+
+        const btnRow = document.createElement('div');
+        btnRow.style.display = 'flex';
+        btnRow.style.justifyContent = 'flex-end';
+        btnRow.style.gap = '6px';
+        btnRow.style.marginTop = '10px';
+
+        const cancel = document.createElement('button');
+        cancel.textContent = 'Hủy';
+        cancel.onclick = () => document.body.removeChild(overlay);
+
+        const ok = document.createElement('button');
+        ok.textContent = 'Chèn';
+        ok.style.background = '#ff9800';
+        ok.style.color = '#fff';
+
+        ok.onclick = () => {
+            const file = state.remainingInvalidFiles[selected];
+            if (!file) return;
+
+            // Chèn
+            state.previewOrder.splice(insertIndex, 0, {
+                type: 'insert',
+                file,
+                chapterNumber: null,
+                rawTitle: null
+            });
+
+            // Xóa khỏi remaining
+            state.remainingInvalidFiles.splice(selected, 1);
+
+            document.body.removeChild(overlay);
+            renderPreviewList();
+        };
+
+        btnRow.appendChild(cancel);
+        btnRow.appendChild(ok);
+        box.appendChild(btnRow);
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+    }
+
+
+    function createPlusRow(index, label) {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.gap = '6px';
+        row.style.alignItems = 'center';
+        row.style.padding = '4px 0';
+
+        // + bên trái
+        const leftBtn = createPlusButton(index);
+        row.appendChild(leftBtn);
+
+        // text ở giữa
+        const span = document.createElement('span');
+        span.style.color = '#888';
+        span.textContent = label || '';
+        row.appendChild(span);
+
+        // + bên phải (cùng insertIndex, chèn vào cùng vị trí)
+        const rightBtn = createPlusButton(index);
+        row.appendChild(rightBtn);
+
+        return row;
+    }
+
+
+
+    function createPlusButton(insertIndex) {
+        const btn = document.createElement('button');
+        btn.textContent = '+';
+        btn.style.width = '22px';
+        btn.style.height = '22px';
+        btn.style.borderRadius = '50%';
+
+        btn.style.border = '1px solid #ff9800';
+        btn.style.background = '#fffbe6';
+        btn.style.color = '#e65100';
+
+
+        btn.style.cursor = 'pointer';
+
+        btn.onclick = () => openInsertPopup(insertIndex);
+        return btn;
+    }
+
+
+    function buildInsertPreviewUI(container) {
+        container.innerHTML = `
+        <div style="font-weight:bold;margin-bottom:6px;">🧩 Sắp xếp file chèn</div>
+        <div style="font-size:12px;color:#ccc;margin-bottom:8px;">
+            Bấm nút <b>+</b> để chèn file vào vị trí muốn.
+            Nếu chèn nhầm, hãy nhấn vào ô màu cam để bỏ file đó khỏi sắp xếp.
+        </div>
+    `;
+
+
+        const wrap = document.createElement('div');
+        wrap.id = `${APP_PREFIX}preview-wrapper`;
+        container.appendChild(wrap);
+
+        state._previewWrapperEl = wrap;
+        renderPreviewList();
+    }
+
+    function renderPreviewList() {
+        const wrapper = state._previewWrapperEl;
+        if (!wrapper) return;
+
+        wrapper.innerHTML = '';
+
+        const list = state.previewOrder;
+
+        // nút + đầu danh sách
+        // wrapper.appendChild(createPlusRow(0, 'Đầu'));
+
+        list.forEach((item, idx) => {
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.gap = '6px';
+            row.style.padding = '4px 0';
+
+            if (item.type === 'insert') {
+                row.style.background = '#fff8e1';
+                row.style.borderRadius = '4px';
+                row.style.border = '1px dashed #ffc107';
+                row.style.cursor = 'pointer';
+                row.title = 'Nhấn để bỏ file này khỏi sắp xếp';
+
+                // Cho phép nhấn vào hàng cam để bỏ chèn
+                row.addEventListener('click', (ev) => {
+                    // Nếu bấm vào nút + thì không xử lý “bỏ chèn”
+                    const target = ev.target;
+                    if (target && target.tagName && target.tagName.toLowerCase() === 'button') {
+                        return;
+                    }
+
+                    if (!confirm('Bỏ file này khỏi danh sách sắp xếp và đưa lại về bảng chọn file?')) {
+                        return;
+                    }
+
+                    // Xoá khỏi previewOrder
+                    const removedList = state.previewOrder.splice(idx, 1);
+                    const removed = removedList && removedList[0];
+
+                    // Đưa lại file vào remainingInvalidFiles (nếu có)
+                    if (removed && removed.file) {
+                        if (!Array.isArray(state.remainingInvalidFiles)) {
+                            state.remainingInvalidFiles = [];
+                        }
+                        state.remainingInvalidFiles.push(removed.file);
+                    }
+
+                    renderPreviewList();
+                });
+            }
+
+
+
+            // + trước
+            row.appendChild(createPlusButton(idx));
+
+            const text = document.createElement('span');
+            text.style.flex = '1';
+            text.style.whiteSpace = 'nowrap';
+            text.style.overflow = 'hidden';
+            text.style.textOverflow = 'ellipsis';
+
+            if (item.type === 'valid') {
+                text.textContent = `C.${item.chapterNumber} - ${item.file.name}`;
+            } else {
+                text.textContent = item.file.name;
+                text.style.color = '#e65100'; // cam đậm cho dễ thấy
+            }
+            row.appendChild(text);
+
+            // + sau (nút này sẽ luôn nằm sát bên phải)
+            row.appendChild(createPlusButton(idx + 1));
+
+
+            wrapper.appendChild(row);
+        });
+
+        // wrapper.appendChild(createPlusRow(list.length, 'Cuối'));
     }
 
     // Tạo thông báo lỗi/cảnh báo trên UI
@@ -808,34 +1281,22 @@
             return;
         }
 
-        let mergedFiles = [...state.validFiles.map(item => ({ file: item.file, chapterNumber: item.chapterNumber }))];
+        let mergedFiles;
 
-        // Xử lý các file nhập thủ công
-        for (const { file, input } of state.positionInputs) {
-            const val = input.value.trim();
-            if (val === '') {
-                log(`Bỏ qua file "${file.name}" vì không nhập vị trí.`, 'warn');
-                continue;
-            }
-            const match = val.match(/^(-?)(\d+)$/); // Chỉ chấp nhận số hoặc -số
-            if (!match) {
-                log(`❌ File "${file.name}": vị trí không hợp lệ "${val}". Bỏ qua file này.`, 'error');
-                continue;
-            }
-
-            const before = match[1] === '-';
-            const chapterNum = parseInt(match[2]);
-            const index = mergedFiles.findIndex(item => item.chapterNumber === chapterNum);
-
-            if (index === -1) {
-                log(`❌ Không tìm thấy chương ${chapterNum} để chèn "${file.name}". Bỏ qua file này.`, 'error');
-                continue;
-            }
-
-            const insertIndex = before ? index : index + 1;
-            mergedFiles.splice(insertIndex, 0, { file, chapterNumber: null }); // chapterNumber là null cho file chèn thủ công
-            log(`📥 File "${file.name}" sẽ được ${before ? 'chèn trước' : 'chèn sau'} chương ${chapterNum}.`);
+        if (state.previewOrder && state.previewOrder.length > 0) {
+            mergedFiles = state.previewOrder.map(item => ({
+                file: item.file,
+                chapterNumber: item.chapterNumber,
+                rawTitle: item.rawTitle
+            }));
+        } else {
+            mergedFiles = state.validFiles.map(item => ({
+                file: item.file,
+                chapterNumber: item.chapterNumber,
+                rawTitle: item.rawTitle
+            }));
         }
+
 
         // Cập nhật lại tổng số file
         const numFiles = mergedFiles.length;
@@ -909,11 +1370,20 @@
             const fileTextInput = row.querySelector('input.file-path');
             const fileInputReal = row.querySelector('input[type="file"]');
 
-            const chapterName = file.name.replace(/\.txt$/i, ''); // Xóa đuôi .txt
+            let chapterName;
+
+            // Nếu file có chapterNumber (tức là parse được num), dùng template
+            if (item.chapterNumber != null) {
+                const titleFromName = (item.rawTitle || file.name.replace(/\.txt$/i, '')).trim();
+                const tpl = settings.CHAPTER_NAME_TEMPLATE || '第{num}章 {title}';
+                chapterName = applyTemplate(tpl, item.chapterNumber, titleFromName);
+            } else {
+                // File chèn tay, không có num → dùng tên file thô (tránh crash)
+                chapterName = file.name.replace(/\.txt$/i, '');
+            }
 
             if (nameInput) {
                 nameInput.value = chapterName;
-                // Kích hoạt sự kiện 'change' để Materialize cập nhật UI (nhãn nổi lên)
                 const event = new Event('change', { bubbles: true });
                 nameInput.dispatchEvent(event);
             }
@@ -954,6 +1424,12 @@
             // Tải cài đặt hiện tại vào input
             logMaxInput.value = settings.LOG_MAX_LINES;
             fileSizeKbInput.value = settings.FILE_SIZE_WARNING_KB;
+            filenameRegexInput.value = settings.FILENAME_REGEX;
+            chapterTemplateInput.value = settings.CHAPTER_NAME_TEMPLATE;
+
+            if (filenameSampleInput && !filenameSampleInput.value) {
+                filenameSampleInput.value = '第188章 禅说.txt';
+            }
 
             settingsOverlay.classList.remove(`${APP_PREFIX}hide`);
             settingsModal.classList.remove(`${APP_PREFIX}hide`);
@@ -962,15 +1438,37 @@
         function hideSettingsModal() {
             settingsOverlay.classList.add(`${APP_PREFIX}hide`);
             settingsModal.classList.add(`${APP_PREFIX}hide`);
+            if (filenameSampleInput) {
+                filenameSampleInput.style.height = '0';
+                filenameSampleInput.style.padding = '0 8px';
+                filenameSampleInput.style.margin = '0';
+                filenameSampleInput.style.opacity = '0';
+                filenameSampleInput.style.pointerEvents = 'none';
+            }
+
         }
 
         settingsBtn.addEventListener('click', showSettingsModal);
         settingsCancelBtn.addEventListener('click', hideSettingsModal);
         settingsOverlay.addEventListener('click', hideSettingsModal); // Click bên ngoài để đóng
-
         settingsSaveBtn.addEventListener('click', () => {
             const newLogMax = parseInt(logMaxInput.value, 10);
             const newFileKb = parseInt(fileSizeKbInput.value, 10);
+            const newRegex = filenameRegexInput.value.trim();
+            const newChapTpl = chapterTemplateInput.value.trim() || '第{num}章 {title}';
+            // Bắt buộc phải có {num}
+            if (!newChapTpl.includes('{num}')) {
+                alert('Template phải chứa {num}.');
+                return;
+            }
+
+            // Test regex có hợp lệ không
+            try {
+                new RegExp(newRegex);
+            } catch (e) {
+                alert('Regex tên file không hợp lệ: ' + e.message);
+                return;
+            }
 
             if (isNaN(newLogMax) || newLogMax <= 0) {
                 alert('Số dòng log phải là số dương.');
@@ -984,6 +1482,8 @@
 
             settings.LOG_MAX_LINES = newLogMax;
             settings.FILE_SIZE_WARNING_KB = newFileKb;
+            settings.FILENAME_REGEX = newRegex;
+            settings.CHAPTER_NAME_TEMPLATE = newChapTpl;
 
             saveSettings(); // Lưu vào localStorage
             hideSettingsModal();
