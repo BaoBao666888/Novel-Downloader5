@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         NovelDownloader Helper - AntiClear
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/BaoBao666888/Novel-Downloader5
 // @author       QuocBao
 // @version      0.2
 // @description  Ngăn web tự clear console, anti-debug cơ bản
 // @match        *://*/*
+// @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/novelDownloaderAntiConsole.user.js
+// @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/novelDownloaderAntiConsole.user.js
 // @run-at       document-start
 // @grant        unsafeWindow
 // ==/UserScript==

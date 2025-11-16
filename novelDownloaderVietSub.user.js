@@ -2,9 +2,9 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.43.2
+// @version     3.5.447.43.3
 // @author      dodying | BaoBao
-// @namespace   https://github.com/dodying/UserJs
+// @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
 // @icon        https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Logo.png
 // @downloadURL https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js
@@ -30,6 +30,7 @@
 // @grant       GM_getResourceText
 // @grant       GM_addValueChangeListener
 // @run-at      document-end
+// @grant       GM_openInTab
 // @connect     *
 // @include     *
 // @noframes
@@ -114,6 +115,21 @@ function decryptDES(encrypted, key, iv) {
 /* global $ xhr tranStr JSZip saveAs CryptoJS opentype */
 
 ; (function () { // eslint-disable-line no-extra-semi
+    function openHelperTab(url) {
+        try {
+            if (typeof GM_openInTab === 'function') {
+                GM_openInTab(url, { active: true, insert: true });
+            } else if (typeof GM !== 'undefined' && typeof GM.openInTab === 'function') {
+                GM.openInTab(url, { active: true, insert: true });
+            } else {
+                // fallback: dùng window.open (cần user gesture để tránh bị block popup)
+                window.open(url, '_blank');
+            }
+        } catch (e) {
+            console.error('[ND] Lỗi khi mở tab helper:', e);
+            window.open(url, '_blank');
+        }
+    }
     const TaskManager = {
         STATE_KEY: 'nd_manager_state',
         _listeners: [], // Mảng để lưu các hàm callback khi state thay đổi
@@ -863,21 +879,74 @@ function decryptDES(encrypted, key, iv) {
             siteName: '起点中文网',
             url: /(qidian.com|hongxiu.com|readnovel.com|xs8.cn)\/(info|book)\/\d+/,
             chapterUrl: /(qidian.com|hongxiu.com|readnovel.com|xs8.cn)\/chapter/,
-            title: 'h1>em',
-            writer: '.writer',
-            intro: '.book-intro',
-            cover: '.J-getJumpUrl>img',
-            chapter: '.volume>.cf>li a',
-            vipChapter: '.volume>.cf>li a[href^="//vipreader.qidian.com"]',
-            volume: () => $('.volume>h3').toArray().map((i) => i.childNodes[2]),
-            chapterTitle: '.j_chapterName',
-            content: '.j_readContent',
-            elementRemove: '.review-count,span[style]',
-            chapterPrev: (doc) => [$('[id^="chapter-"]', doc).attr('data-purl')],
-            chapterNext: (doc) => [$('[id^="chapter-"]', doc).attr('data-nurl')],
-            vip: {
-                iframe: async (win) => waitFor(() => win.enContent === undefined && win.cuChapterId === undefined && win.fEnS === undefined),
+            title: 'h1#bookName',
+            writer: 'a.writer-name',
+            intro: (doc) => {
+                let cover = '';
+                let rawCover = $('.book-author img', doc).attr('src') || '';
+
+                if (rawCover) {
+                    cover = rawCover
+                        .replace(/^\/\//, 'https://')
+                        .replace(/\/\d+(?:\.\w+)?$/, '');
+                }
+                let attrText = $('.book-info p.book-attribute', doc).text().trim();
+                if (attrText) {
+                    // gom khoảng trắng cho gọn
+                    attrText = attrText.replace(/\s+/g, ' ');
+                }
+                const attrSection = attrText ? `属性：${attrText}` : '';
+                let introHtml = $('.intro-detail p#book-intro-detail', doc).html() || '';
+                let introMain = '';
+
+                if (introHtml) {
+                    introMain = introHtml
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>')
+                        .replace(/&amp;/g, '&')
+                        .replace(/<br\s*\/?>/gi, '\n')
+                        .replace(/<[^>]+>/g, '')
+                        .replace(/\n{2,}/g, '\n')
+                        .trim();
+                }
+
+                if (introMain) {
+                    introMain = `简介：${introMain}`;
+                }
+
+                const tags = $('.intro-honor-label p.all-label a', doc)
+                .map((i, el) => $(el).text().trim())
+                .get()
+                .filter(Boolean);
+
+                const tagSection = tags.length
+                ? `标签：${tags.join(', ')}`
+                : '';
+                return [attrSection, introMain, tagSection, `Link cover: ${cover}`]
+                .filter(Boolean)
+                .join('\n\n');
             },
+            cover: (doc) => {
+                let cover = '';
+                let rawCover = $('.book-author img', doc).attr('src') || '';
+
+                if (rawCover) {
+                    cover = rawCover
+                        .replace(/^\/\//, 'https://')
+                        .replace(/\/\d+(?:\.\w+)?$/, '');
+                }
+                return cover;
+            },
+            chapter: 'ul.volume-chapters li > a',
+            vipChapter: 'ul.volume-chapters li:has(em) > a',
+            chapterTitle: 'h1.title',
+            content: 'main[data-type="cjk"]',
+            // elementRemove: '.review-count,span[style]',
+            chapterPrev: (doc) => [$('a', doc).filter((i, el) => el.textContent.trim() === "上一章")],
+            chapterNext: (doc) => [$('a', doc).filter((i, el) => el.textContent.trim() === "下一章")],
+            // vip: {
+            //     iframe: async (win) => waitFor(() => win.enContent === undefined && win.cuChapterId === undefined && win.fEnS === undefined),
+            // },
         },
         { // https://www.ciweimao.com
             siteName: '刺猬猫',
@@ -6928,15 +6997,58 @@ function decryptDES(encrypted, key, iv) {
         if (Storage.debug.book) console.log(Storage.book);
     }
 
-    $('<div class="novel-downloader-trigger" style="position:fixed;top:0px;left:0px;width:1px;height:100%;z-index:999999;background:transparent;"></div>').on({
-        dblclick() {
-            init();
-            showUI();
-        },
-    }).appendTo('body');
-    GM_registerMenuCommand('Download Novel', () => {
+    function checkNovelDownloaderHelper() {
+        try {
+            const antiInstalled = unsafeWindow.__ND_ANTI_INSTALLED__;
+
+            if (!antiInstalled) {
+                const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+                const now = Date.now();
+                const lastCancel = GM_getValue('ND_HELPER_LAST_CANCEL_TS', 0);
+
+                // Nếu chưa cài helper AND không nằm trong thời gian miễn hỏi
+                if (now - lastCancel >= THREE_DAYS) {
+
+                    const ok = confirm(
+                        "Để chặn console.clear & các trick chống debug của web, bạn nên cài script hỗ trợ:\n\n" +
+                        "『novelDownloaderAntiConsole』\n\n" +
+                        "Bấm OK để mở tab cài.\n" +
+                        "Bấm Cancel để bỏ qua (3 ngày sau sẽ hỏi lại)."
+                    );
+
+                    if (ok) {
+                        // User muốn cài → mở tab nhưng KHÔNG lưu trạng thái
+                        alert("Tab cài script anti sẽ mở.\nHãy bấm Install.\n\nSau khi cài xong, bấm lại menu Download Novel.");
+                        GM_openInTab(
+                            "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/novelDownloaderAntiConsole.user.js",
+                            { active: true, insert: true, setParent: true }
+                        );
+                        return; // không mở UI
+                    } else {
+                        // User cố tình từ chối → nhớ lần cuối
+                        GM_setValue('ND_HELPER_LAST_CANCEL_TS', now);
+                    }
+                }
+                // Nếu < 3 ngày, thì không hỏi lại → chạy tiếp
+            }
+        } catch (e) {
+            console.error("Lỗi khi kiểm tra anti-script:", e);
+        }
+
+        // Helper đã cài hoặc user tạm bỏ qua → chạy bình thường
         init();
         showUI();
+    }
+
+
+    $('<div class="novel-downloader-trigger" style="position:fixed;top:0px;left:0px;width:1px;height:100%;z-index:999999;background:transparent;"></div>').on({
+        dblclick() {
+            checkNovelDownloaderHelper();
+        },
+    }).appendTo('body');
+
+    GM_registerMenuCommand("Download Novel", () => {
+        checkNovelDownloaderHelper();
     }, 'N');
     GM_registerMenuCommand('Show Storage', () => {
         showManagerUI();
