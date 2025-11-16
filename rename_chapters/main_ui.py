@@ -284,7 +284,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.1.6')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.1.7')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -1067,6 +1067,7 @@ class RenamerApp(tk.Tk):
                 'replace': list(self.replace_text['values'])
             },
             'split_regex_history': list(self.split_regex['values']),
+            'split_regex_last': self.split_regex.get(),
             'split_format_history': list(self.split_format_combobox['values']),
             'selected_file': self.selected_file.get(),
             'split_position': self.split_position.get(),
@@ -1111,7 +1112,12 @@ class RenamerApp(tk.Tk):
             self.credit_line_num.set(config_data.get('credit_line_num', 2))
             
             fr_history = config_data.get('find_replace_history', {}); self.find_text['values'] = fr_history.get('find', []); self.replace_text['values'] = fr_history.get('replace', [])
-            self.split_regex['values'] = config_data.get('split_regex_history', [])
+            split_regex_history = config_data.get('split_regex_history', [])
+            self.split_regex['values'] = split_regex_history
+            if split_regex_history:
+                self.split_regex.set(config_data.get('split_regex_last', split_regex_history[0]))
+            else:
+                self.split_regex.set(config_data.get('split_regex_last', ''))
             
             split_format_history = config_data.get('split_format_history', []); self.split_format_combobox['values'] = split_format_history or ["{num}.txt"]; self.split_format_combobox.set((split_format_history or ["{num}.txt"])[0])
             self.split_position.set(config_data.get('split_position', 'after'))
@@ -2143,6 +2149,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     
     def _open_preview_file(self, event):
         """Open a new window to display the content of the selected preview file."""
+        item_id = self.split_tree.identify_row(event.y)
+        if item_id:
+            self.split_tree.selection_set(item_id)
         selected_item = self.split_tree.selection()
         if not selected_item:
             return
@@ -2169,7 +2178,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         # chunks[i] = (full_chunk_string, size)
         file_content = chunks[file_index][0]
-        file_name = name_format.format(num=file_index + 1)
+        file_name = TextOperations.render_split_filename(name_format, file_index + 1)
 
         # Create a new window to display the content
         preview_window = tk.Toplevel(self)
@@ -2571,8 +2580,10 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     
     def _update_history_combobox(self, combobox, max_history=10):
         """Thêm giá trị hiện tại vào đầu danh sách lịch sử."""
-        current_value = combobox.get()
-        history = list(combobox['values'])
+        current_value = combobox.get().strip()
+        if not current_value:
+            return
+        history = [item for item in combobox['values'] if item.strip()]
         if current_value in history:
             history.remove(current_value)
         history.insert(0, current_value)

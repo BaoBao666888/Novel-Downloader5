@@ -3,7 +3,39 @@ import re
 import tkinter as tk
 from tkinter import messagebox
 
+
 class TextOperations:
+    SPLIT_FORMAT_PATTERN = re.compile(r'\{([^{}]+)\}')
+
+    @staticmethod
+    def render_split_filename(template: str, num: int) -> str:
+        """
+        Hỗ trợ cú pháp {num}, {num+n}, {num-n} trong định dạng tên file.
+        Trả về chuỗi đã thay thế số (không dùng str.format để tránh lỗi).
+        """
+        if not template:
+            return f"part_{num}.txt"
+
+        def repl(match):
+            expr = match.group(1).strip()
+            if not expr.lower().startswith('num'):
+                return match.group(0)
+            offset = 0
+            remainder = expr[3:].strip()
+            if remainder:
+                sign = 1
+                if remainder[0] in '+-':
+                    sign = 1 if remainder[0] == '+' else -1
+                    remainder = remainder[1:].strip()
+                try:
+                    value = int(remainder or '0')
+                    offset = sign * value
+                except ValueError:
+                    return match.group(0)
+            return str(num + offset)
+
+        return TextOperations.SPLIT_FORMAT_PATTERN.sub(repl, template)
+
     @staticmethod
     def find_text(text_widget, search_text, match_case=False, match_word=False, use_regex=False, search_up=False):
         """Find text in the text widget and return the position."""
@@ -262,22 +294,8 @@ class TextOperations:
                 if not chunk: continue
                 count += 1
                 
-                # THÊM MỚI: Logic xử lý {num+n} và {num-n}
-                current_num = count
-                temp_format = name_format
-                try:
-                    match = re.search(r'\{num\s*([+\-])\s*(\d+)\}', temp_format)
-                    if match:
-                        operator = match.group(1)
-                        value = int(match.group(2))
-                        current_num = current_num + value if operator == '+' else current_num - value
-                        temp_format = re.sub(r'\{num\s*([+\-])\s*(\d+)\}', '{num}', temp_format)
-                except (TypeError, ValueError):
-                    pass # Bỏ qua nếu có lỗi, dùng số gốc
-                
-                try:
-                    new_filename = temp_format.format(num=current_num)
-                except (KeyError, ValueError):
+                new_filename = TextOperations.render_split_filename(name_format, count)
+                if '{' in new_filename or '}' in new_filename:
                     new_filename = f"part_{count}.txt"
                 
                 sanitized_filename = TextOperations._sanitize_filename(new_filename)
