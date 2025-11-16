@@ -5,7 +5,11 @@ import io
 import time
 import tkinter.font as tkfont
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext, simpledialog
+from tkinter import ttk, filedialog, messagebox, scrolledtext, simpledialog, colorchooser
+try:
+    import ctypes
+except ImportError:
+    ctypes = None
 import requests
 from PIL import Image, ImageTk, ImageFilter
 import numpy as np
@@ -19,6 +23,7 @@ from extensions import jjwxc_ext
 from extensions import po18_ext
 from extensions import qidian_ext
 from extensions import fanqienovel_ext
+from extensions import ihuaben_ext
 from text_operations import TextOperations
 from update import show_update_window, fetch_manifest_from_url
 import translator_logic as trans_logic
@@ -27,7 +32,263 @@ import random
 import subprocess
 import sys
 import io
+import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+if getattr(sys, "frozen", False):
+    _EXEC_BASE_DIR = os.path.dirname(sys.executable)
+else:
+    _EXEC_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_RESOURCE_BASE_DIR = getattr(sys, "_MEIPASS", _EXEC_BASE_DIR)
+
+BASE_DIR = _EXEC_BASE_DIR
+RESOURCE_DIR = _RESOURCE_BASE_DIR
+MODERN_THEME_NAME = "RenameModern"
+BACKGROUND_DIR = os.path.join(BASE_DIR, "backgrounds")
+
+THEME_PRESETS = {
+    "Midnight": {
+        "bg": "#0f172a",
+        "card": "#17213b",
+        "card_alt": "#1f2a44",
+        "border": "#273553",
+        "text": "#f5f7ff",
+        "muted": "#98a2c3",
+        "input_bg": "#111a32",
+        "disabled": "#3b4362"
+    },
+    "Aurora": {
+        "bg": "#111827",
+        "card": "#1f2937",
+        "card_alt": "#243447",
+        "border": "#2f3c4f",
+        "text": "#ecfeff",
+        "muted": "#b5c6d6",
+        "input_bg": "#162032",
+        "disabled": "#475569"
+    },
+    "Forest": {
+        "bg": "#0d1712",
+        "card": "#14241a",
+        "card_alt": "#193322",
+        "border": "#1e3a26",
+        "text": "#e6fffa",
+        "muted": "#9fe7c7",
+        "input_bg": "#10261a",
+        "disabled": "#30593f"
+    },
+    "Daylight": {
+        "bg": "#f5f5f5",
+        "card": "#ffffff",
+        "card_alt": "#f7f7fb",
+        "border": "#dfe3ef",
+        "text": "#1f2933",
+        "muted": "#6b7280",
+        "input_bg": "#edf1fb",
+        "disabled": "#c3c8d7"
+    }
+}
+
+DEFAULT_UI_SETTINGS = {
+    'theme': 'Midnight',
+    'accent_color': '#6366f1',
+    'text_color': '',
+    'font_size': 10,
+    'mouse_glow': False,
+    'background_image': '',
+    'use_classic_theme': False
+}
+
+ONLINE_SOURCES = [
+    {
+        "id": "jjwxc",
+        "label": "JJWXC",
+        "domain": "jjwxc.net",
+        "site_value": "jjwxc.net",
+        "sample": "https://www.jjwxc.net/onebook.php?novelid=123456",
+        "icon": "icons/jjwxc.png"
+    },
+    {
+        "id": "po18",
+        "label": "PO18",
+        "domain": "po18.tw",
+        "site_value": "po18.tw",
+        "sample": "https://www.po18.tw/books/123456",
+        "icon": "icons/po18.png"
+    },
+    {
+        "id": "qidian",
+        "label": "QiDian",
+        "domain": "qidian.com",
+        "site_value": "qidian.com",
+        "sample": "https://www.qidian.com/book/1037076300/",
+        "icon": "icons/qidian.png"
+    },
+    {
+        "id": "fanqie",
+        "label": "番茄小说",
+        "domain": "fanqienovel.com",
+        "site_value": "fanqienovel.com",
+        "sample": "https://fanqienovel.com/page/123456",
+        "icon": "icons/fanqie.png"
+    },
+    {
+        "id": "ihuaben",
+        "label": "Ihuaben",
+        "domain": "ihuaben.com",
+        "site_value": "ihuaben.com",
+        "sample": "https://www.ihuaben.com/book/9219715.html",
+        "icon": "icons/ihuaben.png"
+    }
+]
+
+SOURCE_BY_ID = {src["id"]: src for src in ONLINE_SOURCES}
+
+
+def _load_env_file(path):
+    """Đọc file .env đơn giản và đưa biến vào os.environ."""
+    env_data = {}
+    try:
+        with open(path, 'r', encoding='utf-8') as env_file:
+            for line in env_file:
+                stripped = line.strip()
+                if not stripped or stripped.startswith('#') or '=' not in stripped:
+                    continue
+                key, value = stripped.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                env_data[key] = value
+                os.environ.setdefault(key, value)
+    except FileNotFoundError:
+        pass
+    return env_data
+
+
+def _normalize_hex_color(value, fallback="#6366f1"):
+    if not value:
+        return fallback
+    value = value.strip()
+    if not value:
+        return fallback
+    if not value.startswith("#"):
+        value = f"#{value}"
+    if len(value) == 4:
+        value = "#" + "".join(ch * 2 for ch in value[1:])
+    if len(value) != 7:
+        return fallback
+    try:
+        int(value[1:], 16)
+        return value.lower()
+    except ValueError:
+        return fallback
+
+
+def _adjust_color_luminance(hex_color, delta=0.1):
+    color = _normalize_hex_color(hex_color)
+    rgb = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
+    adjusted = []
+    for channel in rgb:
+        if delta >= 0:
+            channel = channel + (255 - channel) * delta
+        else:
+            channel = channel * (1 + delta)
+        adjusted.append(int(max(0, min(255, round(channel)))))
+    return "#%02x%02x%02x" % tuple(adjusted)
+
+
+def _make_window_clickthrough(window):
+    if not (sys.platform.startswith('win') and ctypes):
+        return
+    try:
+        hwnd = window.winfo_id()
+        GWL_EXSTYLE = -20
+        WS_EX_LAYERED = 0x00080000
+        WS_EX_TRANSPARENT = 0x00000020
+        current = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+        ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, current | WS_EX_LAYERED | WS_EX_TRANSPARENT)
+        ctypes.windll.user32.SetLayeredWindowAttributes(hwnd, 0, 255, 0x00000002)
+    except Exception:
+        pass
+
+
+def _resolve_path(path):
+    if not path:
+        return ''
+    if os.path.isabs(path):
+        return path
+    return os.path.join(BASE_DIR, path)
+
+
+def _env_bool(name, default=False, env_map=None):
+    value = None
+    if env_map:
+        value = env_map.get(name)
+    if value is None:
+        value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ('1', 'true', 'yes', 'y', 'on')
+
+
+def _sync_versioned_files(version):
+    """Đồng bộ version.json và update_notes.html với phiên bản trong .env."""
+    if not version:
+        return
+    try:
+        _sync_version_manifest(version)
+    except Exception as exc:
+        print(f"Không thể đồng bộ version.json: {exc}")
+    try:
+        _sync_update_notes(version)
+    except Exception as exc:
+        print(f"Không thể đồng bộ update_notes.html: {exc}")
+
+
+def _sync_version_manifest(version):
+    manifest_path = os.path.join(BASE_DIR, 'version.json')
+    if not os.path.exists(manifest_path):
+        return
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as mf:
+            manifest = json.load(mf)
+    except Exception:
+        return
+    original = json.dumps(manifest, ensure_ascii=False, sort_keys=True)
+    manifest['version'] = version
+    url = manifest.get('url', '')
+    if isinstance(url, str):
+        manifest['url'] = re.sub(r'(rename_chapters/)(\d+\.\d+\.\d+)',
+                                 rf'\1{version}', url, count=1)
+    if json.dumps(manifest, ensure_ascii=False, sort_keys=True) != original:
+        with open(manifest_path, 'w', encoding='utf-8', newline='\n') as mf:
+            json.dump(manifest, mf, indent=2, ensure_ascii=False)
+
+
+def _sync_update_notes(version):
+    notes_path = os.path.join(BASE_DIR, 'update_notes.html')
+    if not os.path.exists(notes_path):
+        return
+    try:
+        with open(notes_path, 'r', encoding='utf-8') as nf:
+            content = nf.read()
+    except Exception:
+        return
+    new_content = content
+    new_content = re.sub(r'(Phiên bản\s+)(\d+\.\d+\.\d+)',
+                         rf'\1{version}', new_content, count=1)
+    new_content = re.sub(r'(Bản cập nhật\s+)(\d+\.\d+\.\d+)',
+                         rf'\1{version}', new_content, count=1)
+    if new_content != content:
+        with open(notes_path, 'w', encoding='utf-8', newline='\n') as nf:
+            nf.write(new_content)
+
+
+ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.1.6')
+USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
+SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
+if SYNC_VERSIONED_FILES:
+    _sync_versioned_files(APP_VERSION)
 
 if sys.platform == 'win32':
     class DummyStream:
@@ -58,12 +319,18 @@ if sys.platform == 'win32':
     subprocess.Popen = Popen_no_window
 
 class RenamerApp(tk.Tk):
-    CURRENT_VERSION = "0.1.5"
-    VERSION_CHECK_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
+    CURRENT_VERSION = APP_VERSION
+    VERSION_CHECK_URL = os.environ.get(
+        "VERSION_CHECK_URL",
+        "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
+    )
     def __init__(self):
         super().__init__()
-        self.title("Rename Chapters v0.1.5 (by BaoBao)")
+        self.title(f"Rename Chapters v{self.CURRENT_VERSION} (by BaoBao)")
         self.geometry("1200x800")
+        self._style = ttk.Style(self)
+        self._base_theme = self._style.theme_use()
+        self._base_bg = self.cget("background")
         self.text_modified = tk.BooleanVar(value=False)
         self.folder_path = tk.StringVar()
         self.selected_file = tk.StringVar()
@@ -84,6 +351,29 @@ class RenamerApp(tk.Tk):
 
         self.app_config = {}
         self._set_default_config()
+        self._preload_ui_settings()
+        self.ui_settings = dict(self.app_config.get('ui_settings', {}))
+        self._pending_font_value = self.ui_settings.get('font_size', DEFAULT_UI_SETTINGS['font_size'])
+        self._theme_ready = False
+        self._cursor_motion_binding_active = False
+        self._cursor_glow_window = None
+        self._cursor_glow_canvas = None
+        self._cursor_glow_after = None
+        self._cursor_glow_enabled = False
+        self._cursor_glow_item = None
+        self._mouse_glow_warning_shown = False
+        self._cursor_last_update = 0.0
+        self._background_canvas = tk.Canvas(self, highlightthickness=0, bd=0, bg=self._base_bg)
+        self._background_canvas.pack(fill=tk.BOTH, expand=True)
+        self._background_canvas.bind("<Configure>", self._on_canvas_configure)
+        self._background_image_original = None
+        self._background_image = None
+        self._background_image_path = ''
+        self._background_image_item = None
+        self._canvas_width = 0
+        self._canvas_height = 0
+        self._content_window = None
+        self.use_local_manifest_only = USE_LOCAL_MANIFEST_ONLY
 
         self.create_widgets()
         self.load_config()
@@ -106,8 +396,640 @@ class RenamerApp(tk.Tk):
                 'use_for_fetch_titles': False,
                 'use_for_translate': False,
                 'use_for_images': False
-            }
+            },
+            'ui_settings': dict(DEFAULT_UI_SETTINGS)
         }
+
+    def _preload_ui_settings(self):
+        """Nạp nhanh cấu hình UI từ file config trước khi dựng widget."""
+        config_path = os.path.join(BASE_DIR, 'config.json')
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as cfg:
+                    data = json.load(cfg)
+                ui_settings = data.get('ui_settings')
+                if isinstance(ui_settings, dict):
+                    self.app_config['ui_settings'].update(ui_settings)
+        except Exception:
+            pass
+
+    def _apply_modern_theme(self, refresh_existing=False):
+        """Thiết lập bảng màu và style ttk cho giao diện hiện đại hơn."""
+        settings = getattr(self, "ui_settings", {}) or {}
+        use_classic = bool(settings.get('use_classic_theme'))
+        style = ttk.Style(self)
+        if not hasattr(self, "_base_theme"):
+            self._base_theme = style.theme_use()
+            self._base_bg = self.cget("background")
+        self.option_clear()
+
+        if use_classic:
+            style.theme_use(self._base_theme)
+            colors = {
+                "bg": self._base_bg,
+                "card": self._base_bg,
+                "card_alt": self._base_bg,
+                "border": "#d0d5dd",
+                "accent": "#3b82f6",
+                "accent_hover": "#2563eb",
+                "accent_soft": "#dbeafe",
+                "text": "#111827",
+                "muted": "#475467",
+                "input_bg": "#ffffff",
+                    "disabled": "#cbd5f5"
+            }
+            self._theme_colors = colors
+            self.configure(bg=self._base_bg)
+            if self._background_canvas:
+                self._background_canvas.config(bg=self._base_bg)
+            self._theme_ready = False
+            self._apply_background_image()
+            return
+
+        if MODERN_THEME_NAME not in style.theme_names():
+            parent_theme = "clam" if "clam" in style.theme_names() else self._base_theme
+            try:
+                style.theme_create(MODERN_THEME_NAME, parent=parent_theme)
+            except tk.TclError:
+                pass
+        try:
+            style.theme_use(MODERN_THEME_NAME)
+        except tk.TclError:
+            pass
+
+        theme_name = settings.get('theme', 'Midnight')
+        base_palette = THEME_PRESETS.get(theme_name, next(iter(THEME_PRESETS.values())))
+        colors = dict(base_palette)
+        accent = _normalize_hex_color(settings.get('accent_color', '#6366f1'), '#6366f1')
+        colors["accent"] = accent
+        colors["accent_hover"] = _adjust_color_luminance(accent, 0.2)
+        colors["accent_soft"] = _adjust_color_luminance(accent, -0.2)
+        text_override = settings.get('text_color')
+        if text_override:
+            text_color = _normalize_hex_color(text_override, colors["text"])
+            colors["text"] = text_color
+            colors["muted"] = _adjust_color_luminance(text_color, 0.4)
+        self._theme_colors = colors
+        font_size = int(settings.get('font_size', 10))
+        base_font = ("Segoe UI", font_size)
+        self.configure(bg=colors["bg"])
+        if self._background_canvas:
+            self._background_canvas.config(bg=colors["bg"])
+        self.option_add("*Font", base_font)
+        self.option_add("*Label.Font", base_font)
+        self.option_add("*Entry.Background", colors["input_bg"])
+        self.option_add("*Entry.Foreground", colors["text"])
+        self.option_add("*Entry.Font", base_font)
+        self.option_add("*Text.Background", colors["input_bg"])
+        self.option_add("*Text.Foreground", colors["text"])
+        self.option_add("*Text.InsertBackground", colors["accent"])
+        self.option_add("*Text.HighlightThickness", 1)
+        self.option_add("*Text.HighlightBackground", colors["border"])
+        self.option_add("*Text.BorderWidth", 0)
+        self.option_add("*Text.Relief", "flat")
+        self.option_add("*Menubutton.Font", base_font)
+
+        style.configure("TFrame", background=colors["card"])
+        style.configure("Card.TFrame", background=colors["card"])
+        style.configure("App.TFrame", background=colors["bg"])
+        style.configure("TLabelframe", background=colors["card"], foreground=colors["muted"], borderwidth=1, relief="solid")
+        style.configure("TLabelframe.Label", background=colors["card"], foreground=colors["accent"], font=("Segoe UI", 10, "bold"))
+        style.configure("Section.TLabelframe", background=colors["card"], foreground=colors["muted"], borderwidth=1,
+                        relief="solid")
+        style.configure("Section.TLabelframe.Label", background=colors["card"], foreground=colors["accent"],
+                        font=("Segoe UI", 10, "bold"))
+        style.configure("TLabel", background=colors["card"], foreground=colors["text"])
+        style.configure("TCheckbutton", background=colors["card"], foreground=colors["text"], padding=2)
+        style.configure("TRadiobutton", background=colors["card"], foreground=colors["text"], padding=2)
+        style.configure("TPanedwindow", background=colors["bg"], borderwidth=0)
+        style.configure("TNotebook", background=colors["bg"], borderwidth=0, padding=0)
+        style.configure("TNotebook.Tab", background=colors["bg"], foreground=colors["muted"], padding=(16, 8))
+        style.map("TNotebook.Tab",
+                  background=[("selected", colors["card_alt"])],
+                  foreground=[("selected", colors["text"])])
+        style.configure("TButton", font=("Segoe UI Semibold", 10), background=colors["accent"],
+                        foreground="#ffffff", borderwidth=0, padding=(12, 6), relief="flat")
+        style.map("TButton",
+                  background=[("active", colors["accent_hover"]), ("pressed", colors["accent_hover"]),
+                              ("disabled", colors["border"])],
+                  foreground=[("disabled", colors["muted"])])
+        style.configure("TEntry", fieldbackground=colors["input_bg"], background=colors["input_bg"],
+                        foreground=colors["text"], bordercolor=colors["border"], relief="flat", padding=6)
+        style.map("TEntry",
+                  fieldbackground=[("focus", colors["card_alt"])],
+                  bordercolor=[("focus", colors["accent"])])
+        style.configure("TCombobox", fieldbackground=colors["input_bg"], background=colors["input_bg"],
+                        foreground=colors["text"], arrowcolor=colors["accent"], padding=6)
+        style.map("TCombobox",
+                  fieldbackground=[("readonly", colors["input_bg"])],
+                  foreground=[("disabled", colors["muted"])])
+        style.configure("Treeview", background=colors["card_alt"], fieldbackground=colors["card_alt"],
+                        foreground=colors["text"], rowheight=24, bordercolor=colors["border"])
+        style.configure("Treeview.Heading", background=colors["bg"], foreground=colors["text"],
+                        font=("Segoe UI Semibold", 10))
+        style.map("Treeview",
+                  background=[("selected", colors["accent"])],
+                  foreground=[("selected", "#ffffff")])
+        style.configure("Horizontal.TProgressbar", background=colors["accent"], troughcolor=colors["card_alt"],
+                        borderwidth=0)
+        style.configure("TScrollbar", background=colors["card_alt"], troughcolor=colors["card"],
+                        bordercolor=colors["card_alt"])
+
+        self.style = style
+        if refresh_existing and getattr(self, "_theme_ready", False):
+            self._refresh_text_widgets()
+        self._theme_ready = True
+        self._apply_background_image()
+        self._refresh_source_tiles_theme()
+
+    def _style_text_widget(self, widget):
+        if not isinstance(widget, tk.Text):
+            return
+        colors = getattr(self, "_theme_colors", None)
+        if not colors:
+            return
+        prev_state = widget.cget("state")
+        if prev_state == "disabled":
+            widget.config(state="normal")
+        widget.configure(bg=colors["input_bg"], fg=colors["text"],
+                         insertbackground=colors["accent"],
+                         highlightthickness=1, highlightbackground=colors["border"],
+                         highlightcolor=colors["accent"], relief=tk.FLAT, bd=0)
+        if prev_state == "disabled":
+            widget.config(state="disabled")
+
+    def _refresh_text_widgets(self):
+        if not getattr(self, "_theme_ready", False):
+            return
+        def _walk(widget):
+            if isinstance(widget, tk.Text):
+                self._style_text_widget(widget)
+            for child in widget.winfo_children():
+                _walk(child)
+        _walk(self)
+        self._apply_background_image()
+
+    def _apply_background_image(self):
+        path = self.ui_settings.get('background_image') or ''
+        if path:
+            path = _resolve_path(path)
+        if path and os.path.exists(path):
+            if path != getattr(self, "_background_image_path", ""):
+                try:
+                    self._background_image_original = Image.open(path).convert("RGBA")
+                    self._background_image_path = path
+                except Exception as exc:
+                    print(f"Không thể tải ảnh nền: {exc}")
+                    self._background_image_original = None
+                    self._background_image_path = ''
+            self._refresh_background_image()
+        else:
+            self._background_image_original = None
+            self._background_image_path = ''
+            self._background_image = None
+            self._background_image_item = None
+            if self._background_canvas:
+                self._background_canvas.delete("background_image")
+                bg_color = self._theme_colors.get('bg') if getattr(self, "_theme_colors", None) else self._base_bg
+                self._background_canvas.config(bg=bg_color)
+                if self._content_window is not None:
+                    self._background_canvas.tag_raise(self._content_window)
+
+    def _load_source_icon(self, relative_path, source_id):
+        """
+        Tải icon nguồn từ thư mục dự án. Bạn có thể thay icon bằng cách đặt file vào
+        đường dẫn relative (ví dụ icons/jjwxc.png) và cập nhật trong ONLINE_SOURCES.
+        """
+        if not relative_path:
+            return None
+        candidates = [
+            os.path.join(BASE_DIR, relative_path),
+            os.path.join(RESOURCE_DIR, relative_path)
+        ]
+        abs_path = None
+        for candidate in candidates:
+            if candidate and os.path.exists(candidate):
+                abs_path = candidate
+                break
+        if not abs_path:
+            return None
+        try:
+            image = Image.open(abs_path).convert("RGBA")
+            image = image.resize((48, 48), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(image)
+            self.source_icon_images[source_id] = photo
+            return photo
+        except Exception as exc:
+            print(f"Không thể tải icon {relative_path}: {exc}")
+            return None
+
+    def _update_source_info_labels(self):
+        if not hasattr(self, "source_domain_var"):
+            return
+        config = SOURCE_BY_ID.get(self.selected_online_source.get())
+        if not config:
+            self.source_domain_var.set("Domain: —")
+            self.source_sample_var.set('')
+            if hasattr(self, "source_current_label"):
+                self.source_current_label.config(text="(chưa chọn)")
+            return
+        if hasattr(self, "source_current_label"):
+            self.source_current_label.config(text=config['label'])
+        self.source_domain_var.set(f"Domain: {config['domain']}")
+        sample = config.get('sample') or ''
+        self.source_sample_var.set(sample)
+
+    def _refresh_source_tiles_theme(self):
+        if not hasattr(self, "source_tiles") or not self.source_tiles:
+            return
+        colors = getattr(self, "_theme_colors", {}) or {}
+        default_bg = colors.get("card_alt", "#1f2a44")
+        selected_bg = colors.get("accent_soft", "#2a385f")
+        text_color = colors.get("text", "#f5f7ff")
+        border = colors.get("border", "#273553")
+        accent = colors.get("accent", "#6366f1")
+        if hasattr(self, "source_tile_container") and self.source_tile_container:
+            self.source_tile_container.configure(bg=colors.get("bg", "#0f172a"))
+        current = self.selected_online_source.get() if hasattr(self, "selected_online_source") else None
+        for sid, tile_info in self.source_tiles.items():
+            tile = tile_info['frame']
+            selected = sid == current
+            bg = selected_bg if selected else default_bg
+            border_color = accent if selected else border
+            tile.configure(bg=bg, highlightbackground=border_color, highlightcolor=border_color,
+                           highlightthickness=2 if selected else 1)
+            for widget in tile_info['widgets']:
+                widget.configure(bg=bg, fg=text_color)
+
+    def _open_source_selector(self):
+        if getattr(self, "_source_selector_window", None):
+            try:
+                self._source_selector_window.focus_set()
+                return
+            except Exception:
+                self._source_selector_window = None
+        selector = tk.Toplevel(self)
+        selector.title("Chọn nguồn lấy mục lục")
+        selector.geometry("520x340")
+        selector.transient(self)
+        selector.grab_set()
+        selector.resizable(False, False)
+        self._source_selector_window = selector
+
+        def _cleanup():
+            if getattr(self, "_source_selector_window", None):
+                self._source_selector_window.grab_release()
+            self._source_selector_window = None
+            self.source_tiles = {}
+            self.source_tile_container = None
+            selector.destroy()
+
+        selector.protocol("WM_DELETE_WINDOW", _cleanup)
+
+        outer = ttk.Frame(selector, padding=12)
+        outer.pack(fill=tk.BOTH, expand=True)
+        self.source_tile_container = tk.Frame(outer, bd=0)
+        self.source_tile_container.pack(fill=tk.BOTH, expand=True)
+
+        self.source_tiles = {}
+        for idx, src in enumerate(ONLINE_SOURCES):
+            row = idx // 3
+            col = idx % 3
+            self.source_tile_container.grid_rowconfigure(row, weight=1)
+            self.source_tile_container.grid_columnconfigure(col, weight=1)
+            tile = tk.Frame(self.source_tile_container, bd=0, highlightthickness=1, cursor="hand2")
+            tile.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
+            tile.configure(width=150, height=120)
+            tile.pack_propagate(False)
+            icon = self._load_source_icon(src.get('icon'), src['id'])
+            if icon:
+                icon_label = tk.Label(tile, image=icon, borderwidth=0)
+            else:
+                icon_label = tk.Label(tile, text=src['label'], font=("Segoe UI", 11, "bold"),
+                                      borderwidth=0, wraplength=110, justify=tk.CENTER)
+            icon_label.pack(pady=(6, 2))
+            text_label = tk.Label(tile, text=src['label'], font=("Segoe UI", 10, "normal"))
+            text_label.pack()
+            self.source_tiles[src['id']] = {
+                'frame': tile,
+                'widgets': [icon_label, text_label]
+            }
+            def _bind(widget, sid):
+                widget.bind("<Button-1>", lambda _e: self._handle_source_selection(sid))
+            _bind(tile, src['id'])
+            _bind(icon_label, src['id'])
+            _bind(text_label, src['id'])
+
+        ttk.Button(outer, text="Đóng", command=_cleanup).pack(pady=(8, 0))
+        self._refresh_source_tiles_theme()
+
+    def _handle_source_selection(self, source_id):
+        self.selected_online_source.set(source_id)
+        self._update_source_info_labels()
+        if getattr(self, "_source_selector_window", None):
+            try:
+                self._source_selector_window.destroy()
+            except Exception:
+                pass
+            self._source_selector_window = None
+        self.source_tiles = {}
+        self.source_tile_container = None
+
+    def _refresh_background_image(self):
+        if not self._background_image_original or not self._background_canvas:
+            return
+        width = max(1, self._canvas_width or self.winfo_width())
+        height = max(1, self._canvas_height or self.winfo_height())
+        try:
+            resized = self._background_image_original.resize((width, height), Image.LANCZOS)
+        except Exception:
+            return
+        self._background_image = ImageTk.PhotoImage(resized)
+        if self._background_image_item is None:
+            self._background_image_item = self._background_canvas.create_image(
+                0, 0, anchor="nw", image=self._background_image, tags="background_image")
+            self._background_canvas.tag_lower(self._background_image_item)
+        else:
+            self._background_canvas.itemconfig(self._background_image_item, image=self._background_image)
+        if self._content_window is not None:
+            self._background_canvas.tag_raise(self._content_window)
+
+    def _on_canvas_configure(self, event):
+        self._canvas_width = max(1, event.width)
+        self._canvas_height = max(1, event.height)
+        if self._content_window is not None:
+            self._background_canvas.coords(self._content_window, 0, 0)
+            self._background_canvas.itemconfigure(self._content_window,
+                                                  width=self._canvas_width,
+                                                  height=self._canvas_height)
+        if self._background_image_original:
+            self._refresh_background_image()
+
+    def _update_ui_settings(self, save=True, **changes):
+        if not changes:
+            return
+        self.ui_settings.update({k: v for k, v in changes.items() if v is not None})
+        self._pending_font_value = self.ui_settings.get('font_size', self._pending_font_value)
+        self._apply_modern_theme(refresh_existing=True)
+        self._apply_mouse_glow_setting()
+        if save:
+            self.save_config()
+        self._sync_ui_settings_controls()
+
+    def _sync_ui_settings_controls(self):
+        if hasattr(self, "ui_theme_var"):
+            self.ui_theme_var.set(self.ui_settings.get('theme', DEFAULT_UI_SETTINGS['theme']))
+        if hasattr(self, "ui_accent_var"):
+            self.ui_accent_var.set(self.ui_settings.get('accent_color', DEFAULT_UI_SETTINGS['accent_color']))
+        if hasattr(self, "ui_text_color_var"):
+            self.ui_text_color_var.set(self.ui_settings.get('text_color', DEFAULT_UI_SETTINGS.get('text_color', '')))
+        if hasattr(self, "ui_font_var"):
+            self.ui_font_var.set(int(self.ui_settings.get('font_size', DEFAULT_UI_SETTINGS['font_size'])))
+        if hasattr(self, "ui_glow_var"):
+            self.ui_glow_var.set(bool(self.ui_settings.get('mouse_glow', False)))
+        if hasattr(self, "font_size_label"):
+            self.font_size_label.config(text=f"{self.ui_font_var.get()} pt")
+        if hasattr(self, "ui_classic_var"):
+            self.ui_classic_var.set(bool(self.ui_settings.get('use_classic_theme', False)))
+        if hasattr(self, "ui_background_var"):
+            self.ui_background_var.set(self.ui_settings.get('background_image', ''))
+        if hasattr(self, "ui_theme_combo"):
+            state = "disabled" if self.ui_settings.get('use_classic_theme') else "readonly"
+            self.ui_theme_combo.configure(state=state)
+        controls = [
+            getattr(self, "accent_entry", None),
+            getattr(self, "accent_button", None),
+            getattr(self, "text_color_entry", None),
+            getattr(self, "text_color_button", None),
+        ]
+        state = "disabled" if self.ui_settings.get('use_classic_theme') else "normal"
+        for ctrl in controls:
+            if ctrl:
+                ctrl.configure(state=state)
+        self._update_accent_preview()
+
+    def _update_accent_preview(self):
+        if hasattr(self, "accent_preview"):
+            color = _normalize_hex_color(self.ui_settings.get('accent_color', '#6366f1'))
+            self.accent_preview.config(bg=color)
+        self._update_text_color_preview()
+
+    def _update_text_color_preview(self):
+        if hasattr(self, "text_color_preview"):
+            text_color = self.ui_settings.get('text_color') or self._theme_colors.get('text', '#f5f7ff')
+            text_color = _normalize_hex_color(text_color, '#f5f7ff')
+            self.text_color_preview.config(bg=text_color)
+
+    def _commit_accent_entry(self):
+        entered = self.ui_accent_var.get()
+        normalized = _normalize_hex_color(entered, self.ui_settings.get('accent_color', '#6366f1'))
+        if normalized != entered:
+            self.ui_accent_var.set(normalized)
+        if normalized != self.ui_settings.get('accent_color'):
+            self._update_ui_settings(accent_color=normalized)
+        else:
+            self._update_accent_preview()
+
+    def _commit_text_color_entry(self):
+        entered = self.ui_text_color_var.get()
+        current = self.ui_settings.get('text_color', '')
+        if not entered:
+            if current:
+                self._update_ui_settings(text_color='')
+            else:
+                self._update_text_color_preview()
+            return
+        normalized = _normalize_hex_color(entered, current or '#f5f7ff')
+        if normalized != entered:
+            self.ui_text_color_var.set(normalized)
+        if normalized != current:
+            self._update_ui_settings(text_color=normalized)
+        else:
+            self._update_text_color_preview()
+
+    def _open_accent_picker(self):
+        initial = self.ui_settings.get('accent_color', '#6366f1')
+        color = colorchooser.askcolor(color=initial, parent=self)
+        if color and color[1]:
+            self.ui_accent_var.set(color[1])
+            self._update_ui_settings(accent_color=color[1])
+
+    def _open_text_color_picker(self):
+        initial = self.ui_settings.get('text_color') or self._theme_colors.get('text', '#f5f7ff')
+        color = colorchooser.askcolor(color=initial, parent=self)
+        if color and color[1]:
+            self.ui_text_color_var.set(color[1])
+            self._update_ui_settings(text_color=color[1])
+
+    def _on_font_scale_change(self, value):
+        val = int(round(float(value)))
+        self._pending_font_value = val
+        if hasattr(self, "font_size_label"):
+            self.font_size_label.config(text=f"{val} pt")
+
+    def _commit_font_scale(self, _event=None):
+        val = int(self._pending_font_value)
+        if val != self.ui_settings.get('font_size'):
+            self.ui_font_var.set(val)
+            self._update_ui_settings(font_size=val)
+
+    def _toggle_classic_theme(self):
+        desired = bool(self.ui_classic_var.get())
+        if desired != bool(self.ui_settings.get('use_classic_theme')):
+            self._update_ui_settings(use_classic_theme=desired)
+        else:
+            self._sync_ui_settings_controls()
+
+    def _toggle_mouse_glow(self):
+        desired = bool(self.ui_glow_var.get())
+        if desired != self.ui_settings.get('mouse_glow'):
+            self._update_ui_settings(mouse_glow=desired)
+        else:
+            self._apply_mouse_glow_setting()
+
+    def _choose_background_image(self):
+        filetypes = [
+            ("Ảnh", "*.png *.jpg *.jpeg *.bmp *.gif"),
+            ("PNG", "*.png"),
+            ("JPEG", "*.jpg *.jpeg"),
+            ("BMP", "*.bmp"),
+            ("GIF", "*.gif"),
+            ("Tất cả", "*.*"),
+        ]
+        initial_src = self.ui_settings.get('background_image', '') or BASE_DIR
+        initial_dir = initial_src if os.path.isdir(initial_src) else os.path.dirname(initial_src)
+        if not initial_dir or not os.path.isdir(initial_dir):
+            initial_dir = BASE_DIR
+        path = filedialog.askopenfilename(title="Chọn ảnh nền", initialdir=initial_dir, filetypes=filetypes)
+        if path:
+            try:
+                stored = self._copy_background_into_app(path)
+            except Exception as exc:
+                messagebox.showerror("Lỗi", f"Không thể sao chép ảnh nền: {exc}")
+                return
+            path = stored
+            if hasattr(self, "ui_background_var"):
+                self.ui_background_var.set(path)
+            self._update_ui_settings(background_image=path)
+
+    def _clear_background_image(self):
+        if self.ui_settings.get('background_image'):
+            if hasattr(self, "ui_background_var"):
+                self.ui_background_var.set('')
+            self._update_ui_settings(background_image='')
+        else:
+            if hasattr(self, "ui_background_var"):
+                self.ui_background_var.set('')
+            self._apply_background_image()
+
+    def _copy_background_into_app(self, source_path):
+        os.makedirs(BACKGROUND_DIR, exist_ok=True)
+        base = os.path.basename(source_path)
+        name, ext = os.path.splitext(base)
+        sanitized = re.sub(r'[^A-Za-z0-9_-]+', '_', name).strip('_') or "bg"
+        timestamp = int(time.time())
+        dest_name = f"{sanitized}_{timestamp}{ext.lower()}"
+        dest_path = os.path.join(BACKGROUND_DIR, dest_name)
+        shutil.copy2(source_path, dest_path)
+        return os.path.relpath(dest_path, BASE_DIR)
+
+    def _reset_ui_theme(self):
+        self.ui_settings = dict(DEFAULT_UI_SETTINGS)
+        self._pending_font_value = self.ui_settings['font_size']
+        self._apply_modern_theme(refresh_existing=True)
+        self._apply_mouse_glow_setting()
+        self._sync_ui_settings_controls()
+        self.save_config()
+
+    def _supports_mouse_glow(self):
+        return sys.platform.startswith('win') and ctypes is not None
+
+    def _apply_mouse_glow_setting(self):
+        enable = bool(self.ui_settings.get('mouse_glow'))
+        if enable and not self._supports_mouse_glow():
+            if not self._mouse_glow_warning_shown:
+                messagebox.showinfo("Thông báo", "Hiệu ứng chuột chỉ hỗ trợ trên Windows và cần quyền nâng cao.")
+                self._mouse_glow_warning_shown = True
+            enable = False
+            self.ui_settings['mouse_glow'] = False
+            if hasattr(self, "ui_glow_var"):
+                self.ui_glow_var.set(False)
+        if enable and not self._cursor_glow_window:
+            self._attach_mouse_glow()
+        elif not enable and self._cursor_glow_window:
+            self._detach_mouse_glow()
+        self._cursor_glow_enabled = enable
+
+    def _attach_mouse_glow(self):
+        if not self._supports_mouse_glow():
+            return
+        if not self._cursor_motion_binding_active:
+            self.bind_all("<Motion>", self._handle_cursor_motion, add="+")
+            self._cursor_motion_binding_active = True
+        glow = tk.Toplevel(self)
+        glow.withdraw()
+        glow.overrideredirect(True)
+        glow.attributes("-topmost", True)
+        glow.configure(bg="white")
+        try:
+            glow.wm_attributes("-transparentcolor", "white")
+        except tk.TclError:
+            pass
+        _make_window_clickthrough(glow)
+        canvas = tk.Canvas(glow, width=48, height=48, highlightthickness=0, bd=0, bg="white")
+        canvas.pack(fill=tk.BOTH, expand=True)
+        self._cursor_glow_window = glow
+        self._cursor_glow_canvas = canvas
+        self._cursor_glow_item = None
+
+    def _detach_mouse_glow(self):
+        if self._cursor_glow_after:
+            try:
+                self.after_cancel(self._cursor_glow_after)
+            except Exception:
+                pass
+            self._cursor_glow_after = None
+        if self._cursor_glow_window:
+            try:
+                self._cursor_glow_window.withdraw()
+                self._cursor_glow_window.destroy()
+            except Exception:
+                pass
+        self._cursor_glow_window = None
+        self._cursor_glow_canvas = None
+        self._cursor_glow_item = None
+
+    def _handle_cursor_motion(self, event):
+        if not self.ui_settings.get('mouse_glow') or not self._cursor_glow_window or not self._cursor_glow_canvas:
+            return
+        now = time.perf_counter()
+        if now - getattr(self, "_cursor_last_update", 0) < 0.03:
+            return
+        self._cursor_last_update = now
+        size = 36
+        x = event.x_root - size // 2
+        y = event.y_root - size // 2
+        self._cursor_glow_window.geometry(f"{size}x{size}+{x}+{y}")
+        if not self._cursor_glow_window.winfo_viewable():
+            self._cursor_glow_window.deiconify()
+        color = self._theme_colors.get('accent', '#ffffff')
+        canvas = self._cursor_glow_canvas
+        if not self._cursor_glow_item:
+            self._cursor_glow_item = canvas.create_oval(4, 4, size - 4, size - 4, fill=color, outline="")
+        else:
+            canvas.coords(self._cursor_glow_item, 4, 4, size - 4, size - 4)
+            canvas.itemconfig(self._cursor_glow_item, fill=color)
+        if self._cursor_glow_after:
+            try:
+                self.after_cancel(self._cursor_glow_after)
+            except Exception:
+                pass
+        self._cursor_glow_after = self.after(90, self._fade_cursor_glow)
+
+    def _fade_cursor_glow(self):
+        if self._cursor_glow_window:
+            self._cursor_glow_window.withdraw()
+        self._cursor_glow_after = None
 
     def on_closing(self):
         """Hỏi lưu file nếu cần, sau đó lưu cấu hình trước khi đóng."""
@@ -123,6 +1045,7 @@ class RenamerApp(tk.Tk):
             elif response is None:
                 return
         self.save_config()
+        self._detach_mouse_glow()
         self.destroy()
 
     def save_config(self):
@@ -150,6 +1073,7 @@ class RenamerApp(tk.Tk):
             'combine_titles': self.combine_titles_var.get(),
             'title_format': self.title_format_var.get(),
         })
+        self.app_config['ui_settings'] = self.ui_settings
         try:
             with open('config.json', 'w', encoding='utf-8') as f:
                 json.dump(self.app_config, f, indent=4)
@@ -206,47 +1130,62 @@ class RenamerApp(tk.Tk):
 
             if self.folder_path.get(): self.schedule_preview_update()
             self.selected_file.set(config_data.get('selected_file', ''))
+            ui_settings = config_data.get('ui_settings')
+            if isinstance(ui_settings, dict):
+                self.ui_settings.update(ui_settings)
+                self._apply_modern_theme(refresh_existing=True)
+                self._sync_ui_settings_controls()
+                self._apply_mouse_glow_setting()
         except Exception as e:
             print(f"Không thể tải config: {e}")
             self.log("Không tìm thấy file config hoặc file bị lỗi. Sử dụng cài đặt mặc định.")
+
+    def _load_local_manifest(self):
+        """Đọc version.json local và trả về manifest (kèm nội dung ghi chú nếu có)."""
+        manifest_path = os.path.join(BASE_DIR, 'version.json')
+        try:
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                manifest = json.load(f)
+        except Exception:
+            return None
+
+        nf = manifest.get('notes_file')
+        if nf and not manifest.get('notes'):
+            if isinstance(nf, str) and nf.lower().startswith(('http://', 'https://')):
+                try:
+                    with urllib.request.urlopen(nf, timeout=6) as r:
+                        manifest['notes'] = r.read().decode('utf-8')
+                except Exception:
+                    manifest['notes'] = ''
+            else:
+                try:
+                    with open(nf, 'r', encoding='utf-8') as nfobj:
+                        manifest['notes'] = nfobj.read()
+                except Exception:
+                    manifest['notes'] = ''
+        return manifest
 
     def check_for_updates(self, manual_check=False):
         """Kiểm tra phiên bản mới (thread riêng)."""
         def _check():
             try:
                 manifest = None
-                # Thử fetch manifest từ remote (VERSION_CHECK_URL)
-                try:
-                    manifest = fetch_manifest_from_url(self.VERSION_CHECK_URL, timeout=10)
-                except Exception:
-                    manifest = None
 
-                # Nếu không lấy được manifest online, thử đọc local version.json (fallback)
-                if not manifest:
+                if not self.use_local_manifest_only:
                     try:
-                        with open('version.json', 'r', encoding='utf-8') as f:
-                            manifest = json.load(f)
-                        # Nếu local manifest có notes_file local path, đọc nội dung luôn
-                        nf = manifest.get('notes_file')
-                        if nf and not manifest.get('notes'):
-                            if isinstance(nf, str) and nf.lower().startswith(('http://', 'https://')):
-                                try:
-                                    with urllib.request.urlopen(nf, timeout=6) as r:
-                                        manifest['notes'] = r.read().decode('utf-8')
-                                except Exception:
-                                    manifest['notes'] = ''
-                            else:
-                                try:
-                                    with open(nf, 'r', encoding='utf-8') as nfobj:
-                                        manifest['notes'] = nfobj.read()
-                                except Exception:
-                                    manifest['notes'] = ''
+                        manifest = fetch_manifest_from_url(self.VERSION_CHECK_URL, timeout=10)
                     except Exception:
                         manifest = None
 
                 if not manifest:
+                    manifest = self._load_local_manifest()
+
+                if not manifest:
                     if manual_check:
-                        self.after(0, lambda: messagebox.showinfo("Kiểm tra cập nhật", "Không lấy được thông tin cập nhật (mất kết nối hoặc manifest không hợp lệ)."))
+                        msg = "Không lấy được thông tin cập nhật (mất kết nối hoặc manifest không hợp lệ)."
+                        if self.use_local_manifest_only:
+                            msg = "Không đọc được version.json local để debug."
+                        self.after(0, lambda: messagebox.showinfo("Kiểm tra cập nhật", msg))
                     return
 
                 latest_version_str = manifest.get("version")
@@ -257,7 +1196,6 @@ class RenamerApp(tk.Tk):
                         self.save_config()
                     except Exception:
                         pass
-                    # show update window (manifest already contains 'notes' if available)
                     try:
                         self.after(0, lambda: show_update_window(self, manifest))
                     except Exception:
@@ -272,15 +1210,40 @@ class RenamerApp(tk.Tk):
         threading.Thread(target=_check, daemon=True).start()
 
     def create_widgets(self):
+        self._apply_modern_theme()
+        colors = getattr(self, "_theme_colors", {})
+        classic_theme = bool(self.ui_settings.get('use_classic_theme'))
+
         # --- Các phần layout chính (folder_frame, main_paned_window, notebook, log_frame)---
-        main_frame = ttk.Frame(self, padding="10")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame = ttk.Frame(self._background_canvas, padding="18", style="App.TFrame")
+        self._content_window = self._background_canvas.create_window(
+            0, 0, anchor="nw", window=main_frame, width=self._canvas_width or self.winfo_width(),
+            height=self._canvas_height or self.winfo_height()
+        )
+        self._background_canvas.tag_raise(self._content_window)
 
         # === TẠO MENU BAR ===
-        menubar = tk.Menu(self)
+        if classic_theme:
+            menubar = tk.Menu(self)
+            menu_style = {"tearoff": 0}
+        else:
+            menu_style = {
+                "tearoff": 0,
+                "background": colors.get("card", "#1c2541"),
+                "foreground": colors.get("text", "#f5f7ff"),
+                "activebackground": colors.get("accent", "#6366f1"),
+                "activeforeground": "#ffffff",
+                "bd": 0,
+                "relief": tk.FLAT
+            }
+            menubar = tk.Menu(self, background=colors.get("bg", "#0f172a"),
+                              foreground=colors.get("text", "#f5f7ff"),
+                              activebackground=colors.get("accent", "#6366f1"),
+                              activeforeground="#ffffff",
+                              bd=0, relief=tk.FLAT)
         self.config(menu=menubar)
 
-        tools_menu = tk.Menu(menubar, tearoff=0)
+        tools_menu = tk.Menu(menubar, **menu_style)
         menubar.add_cascade(label="Công cụ", menu=tools_menu)
         tools_menu.add_command(label="Giải nén file (.zip, .7z, .rar...)", command=self._start_extraction)
 
@@ -288,23 +1251,23 @@ class RenamerApp(tk.Tk):
         menubar.add_command(label="Proxy", command=self._open_proxy_manager_window)
 
         # Menu Trợ giúp
-        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu = tk.Menu(menubar, **menu_style)
         menubar.add_cascade(label="Trợ giúp", menu=help_menu)
         help_menu.add_command(label="Hướng dẫn Regex", command=lambda: self.show_regex_guide("general"))
         help_menu.add_command(label="Hướng dẫn thao tác", command=self.show_operation_guide)
         help_menu.add_separator()
         help_menu.add_command(label="Kiểm tra cập nhật...", command=lambda: self.check_for_updates(manual_check=True))
 
-        folder_frame = ttk.LabelFrame(main_frame, text="1. Chọn thư mục", padding="10")
-        folder_frame.pack(fill=tk.X, expand=False, pady=(0, 5))
+        folder_frame = ttk.LabelFrame(main_frame, text="1. Chọn thư mục", padding="12", style="Section.TLabelframe")
+        folder_frame.pack(fill=tk.X, expand=False, pady=(0, 8))
         
-        ttk.Entry(folder_frame, textvariable=self.folder_path, state="readonly").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        ttk.Entry(folder_frame, textvariable=self.folder_path, state="readonly").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
         ttk.Button(folder_frame, text="Chọn...", command=self.select_folder).pack(side=tk.LEFT)
         
         main_paned_window = ttk.PanedWindow(main_frame, orient=tk.VERTICAL)
         main_paned_window.pack(fill=tk.BOTH, expand=True)
 
-        notebook_frame = ttk.Frame(main_paned_window)
+        notebook_frame = ttk.Frame(main_paned_window, style="Card.TFrame")
         self.notebook = ttk.Notebook(notebook_frame)
         self.notebook.pack(fill=tk.BOTH, expand=True)
         self.notebook.bind("<<NotebookTabChanged>>", self._on_notebook_tab_changed)
@@ -316,11 +1279,101 @@ class RenamerApp(tk.Tk):
         self.create_text_operations_tab()
         self.create_translator_tab()
         self. create_image_processing_tab()
+        self.create_settings_tab()
 
-        log_frame = ttk.LabelFrame(main_paned_window, text="Nhật ký hoạt động", padding="5")
+        log_frame = ttk.LabelFrame(main_paned_window, text="Nhật ký hoạt động", padding="8", style="Section.TLabelframe")
         self.log_text = scrolledtext.ScrolledText(log_frame, height=8, state='disabled', wrap=tk.WORD)
+        if not classic_theme:
+            self.log_text.configure(bg=colors.get("input_bg", "#111a32"), fg=colors.get("text", "#f5f7ff"),
+                                    insertbackground=colors.get("accent", "#6366f1"), highlightthickness=1,
+                                    highlightbackground=colors.get("border", "#273553"), relief=tk.FLAT, bd=0)
         self.log_text.pack(fill=tk.BOTH, expand=True)
         main_paned_window.add(log_frame, weight=1)
+        self._apply_mouse_glow_setting()
+        self._apply_background_image()
+
+    def create_settings_tab(self):
+        settings_tab = ttk.Frame(self.notebook, padding="16")
+        self.notebook.add(settings_tab, text="Cài đặt")
+        settings_tab.columnconfigure(1, weight=1)
+
+        appearance_frame = ttk.LabelFrame(settings_tab, text="Giao diện hiện đại", padding=14, style="Section.TLabelframe")
+        appearance_frame.grid(row=0, column=0, sticky="ew", columnspan=2)
+        appearance_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(appearance_frame, text="Bảng màu:").grid(row=0, column=0, sticky="w", pady=(0, 6))
+        self.ui_theme_var = tk.StringVar(value=self.ui_settings.get('theme', 'Midnight'))
+        self.ui_theme_combo = ttk.Combobox(appearance_frame, state="readonly", values=list(THEME_PRESETS.keys()),
+                                           textvariable=self.ui_theme_var)
+        self.ui_theme_combo.grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=(0, 6))
+        self.ui_theme_combo.bind("<<ComboboxSelected>>", lambda _e: self._update_ui_settings(theme=self.ui_theme_var.get()))
+
+        ttk.Label(appearance_frame, text="Màu nhấn (hex):").grid(row=1, column=0, sticky="w")
+        self.ui_accent_var = tk.StringVar(value=self.ui_settings.get('accent_color', '#6366f1'))
+        self.accent_entry = ttk.Entry(appearance_frame, textvariable=self.ui_accent_var)
+        self.accent_entry.grid(row=1, column=1, sticky="ew", padx=(0, 8))
+        self.accent_entry.bind("<FocusOut>", lambda _e: self._commit_accent_entry())
+        self.accent_button = ttk.Button(appearance_frame, text="Chọn màu", command=self._open_accent_picker)
+        self.accent_button.grid(row=1, column=2, sticky="w")
+        self.accent_preview = tk.Label(appearance_frame, width=4, height=1, relief=tk.FLAT, borderwidth=0)
+        self.accent_preview.grid(row=1, column=3, padx=(10, 0))
+
+        ttk.Label(appearance_frame, text="Màu chữ:").grid(row=2, column=0, sticky="w")
+        self.ui_text_color_var = tk.StringVar(value=self.ui_settings.get('text_color', ''))
+        self.text_color_entry = ttk.Entry(appearance_frame, textvariable=self.ui_text_color_var)
+        self.text_color_entry.grid(row=2, column=1, sticky="ew", padx=(0, 8))
+        self.text_color_entry.bind("<FocusOut>", lambda _e: self._commit_text_color_entry())
+        self.text_color_button = ttk.Button(appearance_frame, text="Chọn màu", command=self._open_text_color_picker)
+        self.text_color_button.grid(row=2, column=2, sticky="w")
+        self.text_color_preview = tk.Label(appearance_frame, width=4, height=1, relief=tk.FLAT, borderwidth=0)
+        self.text_color_preview.grid(row=2, column=3, padx=(10, 0))
+
+        ttk.Label(appearance_frame, text="Kích thước chữ:").grid(row=3, column=0, sticky="w", pady=(10, 0))
+        self.ui_font_var = tk.IntVar(value=int(self.ui_settings.get('font_size', 10)))
+        font_scale = ttk.Scale(appearance_frame, from_=9, to=14, orient=tk.HORIZONTAL,
+                               command=self._on_font_scale_change)
+        font_scale.set(self.ui_font_var.get())
+        font_scale.grid(row=3, column=1, columnspan=2, sticky="ew", pady=(10, 0))
+        font_scale.bind("<ButtonRelease-1>", self._commit_font_scale)
+        self.font_size_label = ttk.Label(appearance_frame, text=f"{self.ui_font_var.get()} pt")
+        self.font_size_label.grid(row=3, column=3, sticky="w", padx=(10, 0))
+
+        self.ui_classic_var = tk.BooleanVar(value=bool(self.ui_settings.get('use_classic_theme', False)))
+        ttk.Checkbutton(appearance_frame,
+                        text="Sử dụng giao diện cổ điển (ttk gốc)",
+                        variable=self.ui_classic_var,
+                        command=self._toggle_classic_theme).grid(row=4, column=0, columnspan=3, sticky="w", pady=(12, 0))
+
+        animation_frame = ttk.LabelFrame(settings_tab, text="Hiệu ứng chuột", padding=14, style="Section.TLabelframe")
+        animation_frame.grid(row=1, column=0, sticky="ew", pady=(12, 0), columnspan=2)
+        animation_frame.columnconfigure(0, weight=1)
+
+        self.ui_glow_var = tk.BooleanVar(value=bool(self.ui_settings.get('mouse_glow', False)))
+        ttk.Checkbutton(animation_frame,
+                        text="Bật vòng sáng theo chuột (thử nghiệm)",
+                        variable=self.ui_glow_var,
+                        command=self._toggle_mouse_glow).grid(row=0, column=0, sticky="w")
+        ttk.Label(animation_frame,
+                  text="Tạo hiệu ứng highlight nhẹ khi di chuyển chuột quanh ứng dụng.").grid(row=1, column=0, sticky="w",
+                                                                                          pady=(4, 0))
+
+        bg_frame = ttk.LabelFrame(settings_tab, text="Ảnh nền", padding=14, style="Section.TLabelframe")
+        bg_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        bg_frame.columnconfigure(1, weight=1)
+        ttk.Label(bg_frame, text="Đường dẫn:").grid(row=0, column=0, sticky="w")
+        self.ui_background_var = tk.StringVar(value=self.ui_settings.get('background_image', ''))
+        bg_entry = ttk.Entry(bg_frame, textvariable=self.ui_background_var, state="readonly")
+        bg_entry.grid(row=0, column=1, sticky="ew", padx=(6, 6))
+        ttk.Button(bg_frame, text="Chọn ảnh...", command=self._choose_background_image).grid(row=0, column=2, sticky="w")
+        ttk.Button(bg_frame, text="Xóa ảnh", command=self._clear_background_image).grid(row=0, column=3, sticky="w", padx=(6, 0))
+        ttk.Label(bg_frame, text="Ảnh sẽ tự co giãn theo cửa sổ. Hỗ trợ: PNG, JPG, JPEG, BMP.").grid(row=1, column=0, columnspan=4, sticky="w", pady=(6, 0))
+
+        actions_frame = ttk.Frame(settings_tab)
+        actions_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(16, 0))
+        ttk.Button(actions_frame, text="Khôi phục mặc định", command=self._reset_ui_theme).pack(side=tk.LEFT)
+        ttk.Button(actions_frame, text="Lưu cấu hình ngay", command=self.save_config).pack(side=tk.LEFT, padx=(8, 0))
+
+        self._sync_ui_settings_controls()
 
     def create_rename_tab(self):
         rename_tab = ttk.Frame(self.notebook, padding="10")
@@ -604,7 +1657,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         **1. Giải nén file (.zip, .7z, .rar...)**:
         -   **Chức năng**: Giải nén các file nén phổ biến, rất hữu ích khi bạn tải về truyện dưới dạng file nén.
         -   **Yêu cầu**:
-            -   Bạn cần cài đặt thư viện `patoolib` bằng lệnh: **`pip install patoolib`**.
             -   Máy tính của bạn cần có sẵn phần mềm giải nén tương ứng (ví dụ: **7-Zip** hoặc **WinRAR**).
         -   **Cách dùng**:
             1.  Vào menu **Công cụ -> Giải nén file...**
@@ -862,17 +1914,42 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         # Frame 1: Nguồn (Không thay đổi)
         fetch_frame = ttk.LabelFrame(online_paned, text="1. Nguồn", padding=10)
         online_paned.add(fetch_frame, weight=1)
-        fetch_frame.columnconfigure(1, weight=1)
-        ttk.Label(fetch_frame, text="Trang web:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        self.source_web = ttk.Combobox(fetch_frame, values=["jjwxc.net", "po18.tw", "qidian.com", "fanqienovel.com"], state="readonly")
-        self.source_web.grid(row=0, column=1, sticky="ew", padx=5)
-        self.source_web.set("jjwxc.net")
-        ttk.Label(fetch_frame, text="URL mục lục:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        fetch_frame.columnconfigure(0, weight=1)
+
+        self.selected_online_source = tk.StringVar(value=ONLINE_SOURCES[0]['id'])
+        if not hasattr(self, "source_icon_images"):
+            self.source_icon_images = {}
+        self.source_tiles = {}
+        self.source_tile_container = None
+        self._source_selector_window = None
+
+        current_frame = ttk.Frame(fetch_frame)
+        current_frame.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        current_frame.columnconfigure(1, weight=1)
+        ttk.Label(current_frame, text="Nguồn hiện tại:").grid(row=0, column=0, sticky="w")
+        self.source_current_label = ttk.Label(current_frame, text="", font=("Segoe UI", 10, "bold"))
+        self.source_current_label.grid(row=0, column=1, sticky="w", padx=(6, 0))
+        ttk.Button(current_frame, text="Chọn nguồn...", command=self._open_source_selector).grid(row=0, column=2, padx=(10,0))
+
+        info_frame = ttk.Frame(fetch_frame)
+        info_frame.grid(row=1, column=0, sticky="ew")
+        info_frame.columnconfigure(2, weight=1)
+        self.source_domain_var = tk.StringVar()
+        ttk.Label(info_frame, textvariable=self.source_domain_var, font=("Segoe UI", 10, "italic")).grid(row=0, column=0, sticky="w", padx=5, pady=(0,4))
+        self.source_sample_var = tk.StringVar()
+        self.source_sample_label = ttk.Label(info_frame, textvariable=self.source_sample_var)
+        self.source_sample_label.grid(row=0, column=2, sticky="w", padx=5, pady=(0,4))
+        url_row = ttk.Frame(fetch_frame)
+        url_row.grid(row=2, column=0, sticky="ew", padx=5, pady=(8, 5))
+        url_row.columnconfigure(1, weight=1)
+        ttk.Label(url_row, text="URL mục lục:", padding=(0, 6)).grid(row=0, column=0, sticky="w")
         self.source_url = tk.StringVar()
-        url_frame = ttk.Frame(fetch_frame)
-        url_frame.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
-        ttk.Entry(url_frame, textvariable=self.source_url).pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Button(url_frame, text="Bắt đầu lấy dữ liệu", command=self._fetch_online_titles).pack(side=tk.LEFT, padx=5)
+        url_frame = ttk.Frame(url_row)
+        url_frame.grid(row=0, column=1, sticky="ew", padx=(6,0))
+        url_frame.columnconfigure(0, weight=1)
+        ttk.Entry(url_frame, textvariable=self.source_url).grid(row=0, column=0, sticky="ew")
+        ttk.Button(url_frame, text="Bắt đầu lấy dữ liệu", command=self._fetch_online_titles).grid(row=0, column=1, padx=(8,0))
+        self._update_source_info_labels()
 
         # Frame 2: Kết quả (Không thay đổi)
         result_frame = ttk.LabelFrame(online_paned, text="2. Kết quả", padding=10)
@@ -1631,23 +2708,27 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             try:
                 self.log(f"Đang lấy dữ liệu từ {url}...")
                 
-                selected_site = self.source_web.get()
-                result = None
-
-                proxies = self._get_proxy_for_request('fetch_titles')
-                if proxies:
-                    self.log(f"Sử dụng proxy: {proxies['http']}")
-
-                if selected_site == "jjwxc.net":
-                    result = jjwxc_ext.fetch_chapters(url, proxies=proxies)
-                elif selected_site == "po18.tw":
-                    result = po18_ext.fetch_chapters(url, root_window=self, proxies=proxies)
-                elif selected_site == "qidian.com":
-                    result = qidian_ext.fetch_chapters(url, root_window=self, proxies=proxies)
-                elif selected_site == "fanqienovel.com":
-                    result = fanqienovel_ext.fetch_chapters(url, proxies=proxies)
+                config = SOURCE_BY_ID.get(self.selected_online_source.get())
+                if not config:
+                    result = {'error': 'Không tìm thấy cấu hình nguồn. Vui lòng chọn lại.'}
                 else:
-                    result = {'error': 'Trang web không được hỗ trợ.'}
+                    selected_site = config['site_value']
+                    proxies = self._get_proxy_for_request('fetch_titles')
+                    if proxies:
+                        self.log(f"Sử dụng proxy: {proxies['http']}")
+
+                    if selected_site == "jjwxc.net":
+                        result = jjwxc_ext.fetch_chapters(url, proxies=proxies)
+                    elif selected_site == "po18.tw":
+                        result = po18_ext.fetch_chapters(url, root_window=self, proxies=proxies)
+                    elif selected_site == "qidian.com":
+                        result = qidian_ext.fetch_chapters(url, root_window=self, proxies=proxies)
+                    elif selected_site == "fanqienovel.com":
+                        result = fanqienovel_ext.fetch_chapters(url, proxies=proxies)
+                    elif selected_site == "ihuaben.com":
+                        result = ihuaben_ext.fetch_chapters(url, proxies=proxies)
+                    else:
+                        result = {'error': 'Trang web không được hỗ trợ.'}
                 
                 self.after(0, self._update_online_tree, result)
             finally:
