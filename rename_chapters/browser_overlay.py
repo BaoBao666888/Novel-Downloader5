@@ -31,6 +31,9 @@ class BrowserOverlay:
     def available(self):
         return _QT_AVAILABLE
 
+    def is_running(self):
+        return bool(self.proc)
+
     def toggle(self):
         if self.proc:
             self.hide()

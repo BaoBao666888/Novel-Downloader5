@@ -5,9 +5,6 @@ numpy
 opencv-python
 packaging
 pywin32
-selenium
-webdriver-manager
-undetected-chromedriver
 pyinstaller
 patool
 PyQt6

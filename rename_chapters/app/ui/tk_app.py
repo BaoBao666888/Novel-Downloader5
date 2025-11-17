@@ -28,6 +28,7 @@ from extensions import fanqienovel_ext
 from extensions import ihuaben_ext
 from app.core.text_ops import TextOperations
 from app.ui.update_dialog import show_update_window, fetch_manifest_from_url
+from app.ui.cookie_manager import CookieManagerWindow
 from app.core import translator as trans_logic
 import pythoncom
 import random
@@ -278,7 +279,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.1.7')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.1.8')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -357,6 +358,8 @@ class RenamerApp(tk.Tk):
         self._cursor_glow_item = None
         self._mouse_glow_warning_shown = False
         self._cursor_last_update = 0.0
+        self.cookie_window = None
+        self.cookies_db_path = os.path.join(BASE_DIR, "qt_browser_profile", "storage", "Cookies")
         self._background_canvas = tk.Canvas(self, highlightthickness=0, bd=0, bg=self._base_bg)
         self._background_canvas.pack(fill=tk.BOTH, expand=True)
         self._background_canvas.bind("<Configure>", self._on_canvas_configure)
@@ -368,6 +371,7 @@ class RenamerApp(tk.Tk):
         self._canvas_height = 0
         self._content_window = None
         self.use_local_manifest_only = USE_LOCAL_MANIFEST_ONLY
+        self._cleanup_legacy_files()
         self.create_widgets()
         self.load_config()
         self.check_for_updates()
@@ -392,6 +396,28 @@ class RenamerApp(tk.Tk):
             },
             'ui_settings': dict(DEFAULT_UI_SETTINGS)
         }
+
+    def _cleanup_legacy_files(self):
+        """Xóa các file/cấu trúc cũ không còn dùng."""
+        targets = [
+            os.path.join(BASE_DIR, "qidian_guest_cookies.json"),
+            os.path.join(BASE_DIR, "po18_cookies.json"),
+        ]
+        folders = [
+            os.path.join(BASE_DIR, ".wdm"),
+        ]
+        for path in targets:
+            try:
+                if os.path.isfile(path):
+                    os.remove(path)
+            except Exception:
+                pass
+        for folder in folders:
+            try:
+                if os.path.isdir(folder):
+                    shutil.rmtree(folder, ignore_errors=True)
+            except Exception:
+                pass
 
     def _preload_ui_settings(self):
         """Nạp nhanh cấu hình UI từ file config trước khi dựng widget."""
@@ -655,9 +681,37 @@ class RenamerApp(tk.Tk):
                 widget.configure(bg=bg, fg=text_color)
 
     def toggle_browser_overlay(self):
+        if self.cookie_window and self.cookie_window.winfo_exists():
+            messagebox.showwarning("Trình duyệt", "Vui lòng đóng cửa sổ cookie trước khi mở trình duyệt.")
+            return
         if hasattr(self, "browser_overlay") and self.browser_overlay:
             self.browser_overlay.toggle()
 
+    def open_cookie_manager(self):
+        overlay_active = (
+            hasattr(self, "browser_overlay")
+            and self.browser_overlay
+            and self.browser_overlay.is_running()
+        )
+        if overlay_active:
+            messagebox.showwarning("Cookie", "Vui lòng đóng cửa sổ trình duyệt trước khi quản lý cookie.")
+            return
+        if self.cookie_window and self.cookie_window.winfo_exists():
+            try:
+                self.cookie_window.lift()
+                self.cookie_window.focus_set()
+                return
+            except Exception:
+                self.cookie_window = None
+        cookie_dir = os.path.dirname(self.cookies_db_path)
+        if cookie_dir:
+            os.makedirs(cookie_dir, exist_ok=True)
+        self.cookie_window = CookieManagerWindow(
+            self,
+            self.cookies_db_path,
+            on_close=self._on_cookie_window_closed
+        )
+        self._update_cookie_menu_state()
 
     def _open_source_selector(self):
         if getattr(self, "_source_selector_window", None):
@@ -1250,6 +1304,7 @@ class RenamerApp(tk.Tk):
         self.config(menu=menubar)
         self.menubar = menubar
         self.browser_menu_label = "Trình duyệt"
+        self.cookie_menu_label = "Cookie"
 
         tools_menu = tk.Menu(menubar, **menu_style)
         menubar.add_cascade(label="Công cụ", menu=tools_menu)
@@ -1258,6 +1313,7 @@ class RenamerApp(tk.Tk):
         menubar.add_command(label="Dịch", command=lambda: self._select_tab_by_name("Dịch"))
         menubar.add_command(label="Proxy", command=self._open_proxy_manager_window)
         menubar.add_command(label=self.browser_menu_label, command=self.toggle_browser_overlay)
+        menubar.add_command(label=self.cookie_menu_label, command=self.open_cookie_manager)
 
         # Menu Trợ giúp
         help_menu = tk.Menu(menubar, **menu_style)
@@ -1272,7 +1328,7 @@ class RenamerApp(tk.Tk):
         
         ttk.Entry(folder_frame, textvariable=self.folder_path, state="readonly").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
         ttk.Button(folder_frame, text="Chọn...", command=self.select_folder).pack(side=tk.LEFT)
-        
+
         self.main_paned_window = ttk.PanedWindow(main_frame, orient=tk.VERTICAL)
         self.main_paned_window.pack(fill=tk.BOTH, expand=True)
 
@@ -1303,6 +1359,7 @@ class RenamerApp(tk.Tk):
         self.browser_overlay = BrowserOverlay(self)
         if not self.browser_overlay.available():
             self._set_browser_menu_state(False)
+        self._update_cookie_menu_state()
 
     def create_settings_tab(self):
         settings_tab = ttk.Frame(self.notebook, padding="16")
@@ -2443,20 +2500,44 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.log_text.see(tk.END)
         self.log_text.config(state='disabled')
 
+    def _on_cookie_window_closed(self):
+        self.cookie_window = None
+        self._update_cookie_menu_state()
+
     def _set_browser_menu_state(self, enabled: bool):
-        if not hasattr(self, "menubar"):
-            return
         state = tk.NORMAL if enabled else tk.DISABLED
-        try:
-            self.menubar.entryconfig(self.browser_menu_label, state=state)
-        except tk.TclError:
-            pass
+        menubar = getattr(self, "menubar", None)
+        if menubar:
+            try:
+                menubar.entryconfig(self.browser_menu_label, state=state)
+            except tk.TclError:
+                pass
+
+    def _set_cookie_menu_state(self, enabled: bool):
+        state = tk.NORMAL if enabled else tk.DISABLED
+        menubar = getattr(self, "menubar", None)
+        if menubar:
+            try:
+                menubar.entryconfig(self.cookie_menu_label, state=state)
+            except tk.TclError:
+                pass
+
+    def _update_cookie_menu_state(self):
+        overlay_active = (
+            hasattr(self, "browser_overlay")
+            and self.browser_overlay
+            and self.browser_overlay.is_running()
+        )
+        cookie_window_open = bool(self.cookie_window and self.cookie_window.winfo_exists())
+        self._set_cookie_menu_state(not overlay_active and not cookie_window_open)
 
     def on_browser_overlay_opened(self):
         self._set_browser_menu_state(False)
+        self._update_cookie_menu_state()
 
     def on_browser_overlay_closed(self):
         self._set_browser_menu_state(True)
+        self._update_cookie_menu_state()
 
     def schedule_preview_update(self, event=None):
         if self.preview_job: self.after_cancel(self.preview_job)
