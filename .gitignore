@@ -12,6 +12,7 @@ rename_chapters/.ghichu.txt
 rename_chapters/local/
 rename_chapters/backgrounds/
 rename_chapters/icons/
+qt_browser_profile/
 *.iss
 .env.example
 .env

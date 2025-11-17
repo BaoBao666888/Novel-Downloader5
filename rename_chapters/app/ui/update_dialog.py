@@ -11,6 +11,8 @@ from tkinter import ttk, messagebox, scrolledtext
 import tkinter.font as tkfont
 import webbrowser
 
+from app.paths import BASE_DIR
+
 # -----------------------
 # Private helpers
 # -----------------------
@@ -107,8 +109,7 @@ def fetch_manifest_from_url(url, timeout=10):
                         manifest['notes'] = nf.read()
                 except FileNotFoundError:
                     # thử interpret như relative to script dir
-                    base_dir = os.path.dirname(os.path.abspath(__file__))
-                    alt_path = os.path.join(base_dir, notes_file)
+                    alt_path = os.path.join(BASE_DIR, notes_file)
                     with open(alt_path, 'r', encoding='utf-8') as nf:
                         manifest['notes'] = nf.read()
         except Exception:
