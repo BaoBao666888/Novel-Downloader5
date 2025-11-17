@@ -371,7 +371,7 @@ class RenamerApp(tk.Tk):
         self._canvas_height = 0
         self._content_window = None
         self.use_local_manifest_only = USE_LOCAL_MANIFEST_ONLY
-        self._cleanup_legacy_files()
+        threading.Thread(target=self._cleanup_legacy_files, daemon=True).start()
         self.create_widgets()
         self.load_config()
         self.check_for_updates()
