@@ -4,10 +4,9 @@ import json
 import os
 import sys
 from datetime import datetime
-from typing import Callable, Dict, List, Optional
+from typing import Callable, List, Optional
 
 from PyQt6.QtCore import Qt, QTimer, QUrl
-from PyQt6.QtNetwork import QNetworkCookie
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -21,6 +20,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QMenu,
+    QProgressBar,
     QStackedWidget,
     QTabBar,
     QTabWidget,
@@ -28,7 +28,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
+from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineSettings
+
 
 
 from app.paths import BASE_DIR
@@ -51,12 +52,87 @@ class BrowserView(QWebEngineView):
     def __init__(self, profile: QWebEngineProfile, window: "_BrowserWindow"):
         super().__init__(window)
         self.window = window
-        page = QWebEnginePage(profile, self)
-        self.setPage(page)
+        self.setPage(QWebEnginePage(profile, self))
+        self._devtools_view = None
+        self._devtools_page = None
+        self._inspect_hooked = False
+        self._enable_devtools_setting()
+        self._hook_inspect_action()
 
     def createWindow(self, _type):
         return self.window._create_tab(switch=True, auto_close=True)
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_F12:
+            self._toggle_devtools()
+            return
+        super().keyPressEvent(event)
+
+    def _enable_devtools_setting(self):
+        settings = self.page().settings()
+        attr = getattr(QWebEngineSettings.WebAttribute, "DeveloperExtrasEnabled", None)
+        if attr is not None:
+            try:
+                settings.setAttribute(attr, True)
+            except Exception:
+                pass
+
+    def _ensure_devtools_ready(self):
+        if self._devtools_view and self._devtools_page:
+            return True
+        try:
+            dev_view = QWebEngineView()
+            dev_page = QWebEnginePage(self.page().profile(), dev_view)
+            dev_view.setPage(dev_page)
+            dev_view.setWindowTitle("DevTools")
+            dev_view.resize(960, 720)
+            dev_view.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+            dev_view.hide()
+            dev_view.destroyed.connect(self._reset_devtools)
+            self.page().setDevToolsPage(dev_page)
+            self._devtools_view = dev_view
+            self._devtools_page = dev_page
+            return True
+        except Exception:
+            self._devtools_view = None
+            self._devtools_page = None
+            return False
+
+    def _hook_inspect_action(self):
+        if self._inspect_hooked:
+            return
+        action = self.pageAction(QWebEnginePage.WebAction.InspectElement)
+        if action:
+            try:
+                action.triggered.connect(lambda _checked=False: self._show_devtools())
+                self._inspect_hooked = True
+            except Exception:
+                pass
+
+    def _reset_devtools(self):
+        self._devtools_view = None
+        self._devtools_page = None
+        try:
+            self.page().setDevToolsPage(None)
+        except Exception:
+            pass
+
+    def _show_devtools(self):
+        if not self._ensure_devtools_ready():
+            return
+        if self._devtools_view:
+            if not self._devtools_view.isVisible():
+                self._devtools_view.show()
+            self._devtools_view.raise_()
+            self._devtools_view.activateWindow()
+
+    def _toggle_devtools(self):
+        if not self._ensure_devtools_ready():
+            return
+        if self._devtools_view.isVisible():
+            self._devtools_view.hide()
+        else:
+            self._show_devtools()
 
 class HistoryDialog(QDialog):
     def __init__(
@@ -124,168 +200,6 @@ class HistoryDialog(QDialog):
             self.list_widget.takeItem(row)
 
 
-class CookieDialog(QDialog):
-    def __init__(self, profile: QWebEngineProfile, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Cookie đã lưu")
-        self.resize(500, 380)
-        self.profile = profile
-        self.store = profile.cookieStore() if profile else None
-        self.cookies_by_domain: Dict[str, List[QNetworkCookie]] = {}
-        self._signals_connected = False
-
-        layout = QVBoxLayout(self)
-        self.list_widget = QListWidget()
-        self.list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.list_widget.customContextMenuRequested.connect(self._show_context_menu)
-        layout.addWidget(self.list_widget, 1)
-
-        self.status_label = QLabel("Đang tải cookie...")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_label.setStyleSheet("color:#999; padding:4px;")
-        layout.addWidget(self.status_label)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        self.clear_button = buttons.addButton("Xóa tất cả", QDialogButtonBox.ButtonRole.ActionRole)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
-
-        self.clear_button.clicked.connect(self._clear_all)
-        self._render_timer = QTimer(self)
-        self._render_timer.setSingleShot(True)
-        self._render_timer.timeout.connect(self._render_list)
-
-        self._load_cookies()
-
-    def closeEvent(self, event):
-        if self._signals_connected and self.store:
-            try:
-                self.store.cookieAdded.disconnect(self._handle_cookie_added)
-            except Exception:
-                pass
-            try:
-                self.store.cookieRemoved.disconnect(self._handle_cookie_removed)
-            except Exception:
-                pass
-        super().closeEvent(event)
-
-    def _load_cookies(self):
-        self.cookies_by_domain.clear()
-        if not self.store:
-            self.status_label.setText("Không tìm thấy cookie.")
-            return
-        self.status_label.setText("Đang tải cookie...")
-        self.list_widget.clear()
-
-        try:
-            self.store.cookieAdded.connect(self._handle_cookie_added)
-            self.store.cookieRemoved.connect(self._handle_cookie_removed)
-            self._signals_connected = True
-        except Exception:
-            self._signals_connected = False
-
-        if not self._try_fetch_all():
-            try:
-                self.store.loadAllCookies()
-            except Exception:
-                pass
-
-    def _try_fetch_all(self) -> bool:
-        if not self.store:
-            return False
-        try:
-            self.store.allCookies(lambda cookies: self._handle_cookie_batch(cookies))
-            return True
-        except (AttributeError, TypeError):
-            return False
-
-    def _handle_cookie_batch(self, cookies):
-        if not cookies:
-            self.status_label.setText("Chưa có cookie nào.")
-            self._render_list()
-            return
-        for cookie in cookies:
-            self._add_cookie(cookie)
-        self._render_list()
-
-    def _handle_cookie_added(self, cookie: QNetworkCookie):
-        self._add_cookie(cookie)
-        self._render_timer.start(50)
-
-    def _handle_cookie_removed(self, cookie: QNetworkCookie):
-        domain = cookie.domain().lstrip(".") or "(không xác định)"
-        bucket = self.cookies_by_domain.get(domain)
-        if not bucket:
-            return
-        for existing in list(bucket):
-            if (existing.name() == cookie.name() and
-                    existing.domain() == cookie.domain() and
-                    existing.path() == cookie.path()):
-                bucket.remove(existing)
-        if not bucket:
-            self.cookies_by_domain.pop(domain, None)
-        self._render_timer.start(50)
-
-    def _add_cookie(self, cookie: QNetworkCookie):
-        domain = cookie.domain().lstrip(".") or "(không xác định)"
-        bucket = self.cookies_by_domain.setdefault(domain, [])
-        for existing in bucket:
-            if (existing.name() == cookie.name() and
-                    existing.domain() == cookie.domain() and
-                    existing.path() == cookie.path()):
-                bucket.remove(existing)
-                break
-        bucket.append(cookie)
-        self.status_label.setText("")
-
-    def _render_list(self):
-        self.list_widget.clear()
-        if not self.cookies_by_domain:
-            self.status_label.setText("Chưa có cookie nào.")
-        for domain in sorted(self.cookies_by_domain.keys()):
-            count = len(self.cookies_by_domain[domain])
-            item = QListWidgetItem(f"{domain} ({count} cookie)")
-            item.setData(Qt.ItemDataRole.UserRole, domain)
-            self.list_widget.addItem(item)
-
-    def _clear_all(self):
-        if QMessageBox.question(self, "Xóa cookie", "Bạn có chắc muốn xóa tất cả cookie?") != QMessageBox.StandardButton.Yes:
-            return
-        if self.store:
-            try:
-                self.store.deleteAllCookies()
-            except Exception:
-                pass
-        self.cookies_by_domain.clear()
-        self._render_list()
-        self.status_label.setText("Đã xóa tất cả cookie.")
-
-    def _show_context_menu(self, position):
-        item = self.list_widget.itemAt(position)
-        if not item:
-            return
-        domain = item.data(Qt.ItemDataRole.UserRole)
-        if not domain:
-            return
-        menu = QMenu(self)
-        delete_action = menu.addAction(f"Xóa cookie domain '{domain}'")
-        action = menu.exec(self.list_widget.mapToGlobal(position))
-        if action == delete_action:
-            self._delete_domain(domain)
-
-    def _delete_domain(self, domain: str):
-        cookies = self.cookies_by_domain.get(domain, [])
-        if not cookies:
-            return
-        if self.store:
-            for cookie in cookies:
-                try:
-                    self.store.deleteCookie(cookie)
-                except Exception:
-                    pass
-        self.cookies_by_domain.pop(domain, None)
-        self._render_list()
-
 class _BrowserWindow(QMainWindow):
     def __init__(self, initial_url: Optional[str], cmd_conn, event_conn):
         super().__init__()
@@ -295,6 +209,7 @@ class _BrowserWindow(QMainWindow):
         self.event_conn = event_conn
         self._closing = False
         self._plus_tab = None
+        self._view_progress = {}
 
         os.makedirs(PROFILE_DIR, exist_ok=True)
         self.profile = build_persistent_profile(self)
@@ -328,29 +243,35 @@ class _BrowserWindow(QMainWindow):
         btn_forward = QPushButton("▶")
         btn_reload = QPushButton("↻")
         btn_go = QPushButton("Go")
-        btn_prev_tab = QPushButton("«")
-        btn_next_tab = QPushButton("»")
+        btn_translate = QPushButton("Dịch")
+        btn_devtools = QPushButton("F12")
         btn_settings = QPushButton("⚙")
         btn_settings.clicked.connect(self._open_settings_menu)
-        self._tab_control_buttons = [btn_home, btn_back, btn_forward, btn_reload, btn_prev_tab, btn_next_tab]
+        self._tab_control_buttons = [btn_home, btn_back, btn_forward, btn_reload, btn_translate, btn_devtools]
 
         btn_home.clicked.connect(lambda: self._navigate(DEFAULT_HOME))
         btn_back.clicked.connect(lambda: self._current_view_action("back"))
         btn_forward.clicked.connect(lambda: self._current_view_action("forward"))
         btn_reload.clicked.connect(lambda: self._current_view_action("reload"))
         btn_go.clicked.connect(self._handle_navigate)
-        btn_prev_tab.clicked.connect(self._activate_prev_tab)
-        btn_next_tab.clicked.connect(self._activate_next_tab)
-
+        btn_translate.clicked.connect(self._translate_current_page)
+        btn_devtools.clicked.connect(self._open_devtools)
         toolbar.addWidget(QLabel("URL:"))
         toolbar.addWidget(self.address_bar, stretch=1)
         for btn in (btn_home, btn_back, btn_forward, btn_reload, btn_go,
-                    btn_prev_tab, btn_next_tab, btn_settings):
+                    btn_translate, btn_devtools, btn_settings):
             toolbar.addWidget(btn)
 
         toolbar_widget = QWidget()
         toolbar_widget.setLayout(toolbar)
         main_layout.addWidget(toolbar_widget)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setFixedHeight(4)
+        self.progress_bar.hide()
+        main_layout.addWidget(self.progress_bar)
 
         self.content_stack = QStackedWidget()
         self.tabs = QTabWidget()
@@ -384,6 +305,7 @@ class _BrowserWindow(QMainWindow):
         view = BrowserView(self.profile, self)
         view.urlChanged.connect(lambda url, v=view: self._handle_tab_url_change(v, url))
         view.titleChanged.connect(lambda title, v=view: self._update_tab_title(v, title))
+        view.loadProgress.connect(lambda value, v=view: self._handle_view_progress(v, value))
         if auto_close:
             view.page().windowCloseRequested.connect(lambda v=view: self._close_view(v))
 
@@ -396,6 +318,9 @@ class _BrowserWindow(QMainWindow):
             self.tabs.setCurrentIndex(idx)
         if start_url:
             self._navigate(start_url, view=view)
+        self._view_progress[view] = 0
+        if view is self._current_view():
+            self._apply_progress_value(0)
         self._update_empty_state()
         return view
 
@@ -408,36 +333,27 @@ class _BrowserWindow(QMainWindow):
         widget = self.tabs.widget(index)
         if widget is self._plus_tab:
             return
+        was_current = self.tabs.currentIndex() == index
         if widget:
             widget.deleteLater()
+        if isinstance(widget, BrowserView):
+            self._view_progress.pop(widget, None)
         self.tabs.removeTab(index)
+        real_indexes = self._real_tab_indexes()
+        if was_current and real_indexes:
+            target = None
+            for idx in reversed(real_indexes):
+                if idx < index:
+                    target = idx
+                    break
+            if target is None:
+                target = real_indexes[0]
+            self.tabs.setCurrentIndex(target)
         self._update_empty_state()
 
     def _real_tab_indexes(self):
         plus_idx = self.tabs.indexOf(self._plus_tab) if self._plus_tab else -1
         return [i for i in range(self.tabs.count()) if i != plus_idx]
-
-    def _activate_prev_tab(self):
-        indexes = self._real_tab_indexes()
-        if len(indexes) <= 1:
-            return
-        current = self.tabs.currentIndex()
-        if current not in indexes:
-            current = indexes[-1]
-        pos = indexes.index(current)
-        new_idx = indexes[pos - 1]
-        self.tabs.setCurrentIndex(new_idx)
-
-    def _activate_next_tab(self):
-        indexes = self._real_tab_indexes()
-        if len(indexes) <= 1:
-            return
-        current = self.tabs.currentIndex()
-        if current not in indexes:
-            current = indexes[0]
-        pos = indexes.index(current)
-        new_idx = indexes[(pos + 1) % len(indexes)]
-        self.tabs.setCurrentIndex(new_idx)
 
     def _on_tab_changed(self, index: int):
         if self._closing:
@@ -445,11 +361,13 @@ class _BrowserWindow(QMainWindow):
         view = self.tabs.widget(index)
         plus_idx = self.tabs.indexOf(self._plus_tab) if self._plus_tab else -1
         if plus_idx != -1 and index == plus_idx:
-            if self._real_tab_indexes():
-                self._create_tab(start_url=DEFAULT_HOME, switch=True)
             return
         if isinstance(view, BrowserView):
             self._update_address_bar(view.url())
+            self._apply_progress_value(self._view_progress.get(view, 0))
+        else:
+            self.address_bar.clear()
+            self._apply_progress_value(None)
 
     def _on_tab_bar_clicked(self, index: int):
         plus_idx = self.tabs.indexOf(self._plus_tab) if self._plus_tab else -1
@@ -488,6 +406,12 @@ class _BrowserWindow(QMainWindow):
         elif action == "reload":
             view.reload()
 
+    def _open_devtools(self):
+        view = self._current_view()
+        if not view:
+            return
+        view._show_devtools()
+
     def _handle_navigate(self):
         url = self.address_bar.text().strip() or DEFAULT_HOME
         self._navigate(url)
@@ -510,6 +434,91 @@ class _BrowserWindow(QMainWindow):
             except Exception:
                 pass
 
+    def _handle_view_progress(self, view: BrowserView, value: int):
+        self._view_progress[view] = value
+        if view is self._current_view():
+            self._apply_progress_value(value)
+
+    def _apply_progress_value(self, value: Optional[int]):
+        if not hasattr(self, "progress_bar"):
+            return
+        if value is None or value <= 0 or value >= 100:
+            self.progress_bar.hide()
+            self.progress_bar.setValue(0)
+        else:
+            self.progress_bar.setValue(max(0, min(100, value)))
+            self.progress_bar.show()
+
+    def _translate_current_page(self):
+        view = self._current_view()
+        if not view:
+            return
+        injection = """
+(function() {
+    if (window.__rcTranslateActive) {
+        return;
+    }
+    window.__rcTranslateActive = true;
+    const existingBar = document.querySelector('.goog-te-banner-frame');
+    if (existingBar) {
+        return;
+    }
+    const initCallback = '__rcTranslateInit_' + Date.now();
+    window[initCallback] = function() {
+        new google.translate.TranslateElement({
+            pageLanguage: 'auto',
+            includedLanguages: 'vi',
+            autoDisplay: true,
+            layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+        }, '__rc_translate_container');
+        if (typeof google.translate.TranslateElement !== 'undefined') {
+            const select = document.querySelector('.goog-te-combo');
+            if (select) {
+                select.value = 'vi';
+                select.dispatchEvent(new Event('change'));
+            }
+        }
+    };
+    if (!document.getElementById('__rc_translate_container')) {
+        const holder = document.createElement('div');
+        holder.id = '__rc_translate_container';
+        holder.style.position = 'fixed';
+        holder.style.zIndex = '2147483647';
+        holder.style.top = '8px';
+        holder.style.right = '8px';
+        holder.style.background = 'rgba(15,23,42,0.9)';
+        holder.style.padding = '8px 12px';
+        holder.style.borderRadius = '6px';
+        holder.style.boxShadow = '0 4px 12px rgba(0,0,0,0.35)';
+        holder.style.color = '#fff';
+        holder.style.fontFamily = 'sans-serif';
+        holder.style.fontSize = '13px';
+        holder.innerText = 'Đang dịch...';
+        document.body.appendChild(holder);
+    }
+    const script = document.createElement('script');
+    script.src = 'https://translate.googleapis.com/translate_a/element.js?cb=' + initCallback;
+    script.onload = function() {
+        const bar = document.querySelector('.goog-te-banner-frame');
+        if (bar) bar.style.display = 'none';
+        const select = document.querySelector('.goog-te-combo');
+        if (select) {
+            select.value = 'vi';
+            select.dispatchEvent(new Event('change'));
+        }
+    };
+    var holder = document.getElementById('__rc_translate_container');
+    script.onerror = function() {
+        window.__rcTranslateActive = false;
+        if (holder) {
+            holder.innerText = 'Không tải được script Google Translate.';
+        }
+    };
+    document.head.appendChild(script);
+})();
+"""
+        view.page().runJavaScript(injection)
+
     def _show_history_dialog(self):
         if not self.history_entries:
             QMessageBox.information(self, "Lịch sử trống", "Hiện chưa có lịch sử nào được lưu.")
@@ -520,10 +529,6 @@ class _BrowserWindow(QMainWindow):
             on_clear_all=self._clear_history,
             on_delete_entry=self._delete_history_entry
         )
-        dlg.exec()
-
-    def _show_cookie_dialog(self):
-        dlg = CookieDialog(self.profile, self)
         dlg.exec()
 
     def _clear_cache(self):
@@ -646,11 +651,11 @@ class _BrowserWindow(QMainWindow):
             btn.setEnabled(has_tabs)
         if not has_tabs:
             self.address_bar.clear()
+            self._apply_progress_value(None)
 
     def _open_settings_menu(self):
         menu = QMenu(self)
         menu.addAction("Lịch sử", self._show_history_dialog)
-        menu.addAction("Cookie", self._show_cookie_dialog)
         menu.addSeparator()
         menu.addAction("Xóa cache", self._clear_cache)
         button = self.sender()

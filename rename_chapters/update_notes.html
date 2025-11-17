@@ -1,13 +1,23 @@
-<h1>Phiên bản 0.1.7 — Bản vá ổn định</h1>
-Sau bản cập nhật lớn 0.1.6, chúng tôi phát hành 0.1.7 để xử lý các lỗi phát sinh khi build exe: icon nguồn không hiện, preview chia file không mở trên một số cấu hình và định dạng `{num-1}` gây crash.
+<h1>Phiên bản 0.1.8 — Bản cập nhật trình duyệt & cookie</h1>
+0.1.8 tập trung nâng cấp toàn bộ trải nghiệm lấy mục lục online: ta có trình duyệt tích hợp đầy đủ, quản lý cookie bằng sqlite3, quét sạch tàn tích Selenium cũ và tự động dịch trang ngay trong app.
 
-<h2>Sửa lỗi quan trọng</h2>
-- Icon popup chọn nguồn giờ luôn hiển thị, ngay cả khi chạy file cài đặt (app tự tìm icon trong thư mục cài hoặc PyInstaller bundle).
-- “Xem trước” trong tab Chia File hoạt động ổn định: double-click hàng nào cũng mở, kể cả sau khi đóng cửa sổ preview.
-- Định dạng tên file `{num±n}` (ví dụ `{num-1}`) đã được parser mới xử lý đúng ở cả preview lẫn khi chia file thực tế.
-- Combobox Regex chia/định dạng file nhớ giá trị cuối cùng – không còn hiện chuỗi rỗng khi relaunch.
+<h2>Điểm mới nổi bật</h2>
+- <b>Trình duyệt Qt tích hợp</b>: xuất hiện nút “Trình duyệt” trong menubar và phím tắt F12. Cửa sổ mới hỗ trợ đa tab, thanh tiến trình tải, nút dịch, DevTools (F12 hoặc nút riêng), quản lý lịch sử và cache.
+- <b>Nút “Cookie” riêng</b>: mở trình quản lý cookie viết bằng ttk, đọc/ghi trực tiếp file sqlite của trình duyệt tích hợp (không cần Qt dialog). Có thể sửa/xóa cookie theo domain.
+- <b>Lấy mục lục PO18/Qidian dùng cookie nội bộ</b>: extensions <b>po18_ext</b> và <b>qidian_ext</b> bỏ Selenium/undetected-chromedriver. Ứng dụng yêu cầu bạn đăng nhập bằng trình duyệt tích hợp rồi đọc cookie từ đó.
+- <b>Vệ sinh tệp cũ</b>: app tự xóa <b>po18_cookies.json</b>, <b>qidian_guest_cookies.json</b> và thư mục <b>.wdm</b> để tránh nhầm lẫn với cơ chế mới.
+- <b>Menu chuột phải & DevTools</b>: chỉ thêm tùy chọn “Inspect” khi Qt thiếu, nên menu giữ đúng ngữ cảnh gốc, đồng thời phím F12 và nút F12 luôn mở DevTools.
+
+
+<h2>Sửa lỗi & cải tiến nhỏ</h2>
+
+- Đóng tab hiện hành sẽ tự chuyển sang tab gần nhất thay vì để trống.
+- Thanh trạng thái tải giúp biết trang đã load xong hay chưa.
+- Sao chép/các thao tác chuột phải không còn crash do thiếu API PyQt6.
+
 
 <h2>Hướng dẫn cập nhật</h2>
-- Nhấn <b>Tải & Cài đặt</b> để download bản cài đặt (.exe) tự động.
-- Ứng dụng sẽ đóng để tránh xung đột; bộ cài sẽ khởi chạy để cài đặt.
-- Nếu muốn giữ bản cũ, chọn <b>Hủy</b> hoặc <b>Mở bằng trình duyệt</b>.
+
+- Nhấn <b>Tải & Cài đặt</b> để tải bản cài đặt 0.1.8.
+- Ứng dụng sẽ tự đóng trước khi chạy bộ cài.
+- Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.
