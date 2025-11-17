@@ -10,3 +10,5 @@ webdriver-manager
 undetected-chromedriver
 pyinstaller
 patool
+PyQt6
+PyQt6-WebEngine
