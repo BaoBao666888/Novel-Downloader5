@@ -13,6 +13,7 @@ rename_chapters/local/
 rename_chapters/backgrounds/
 rename_chapters/icons/
 qt_browser_profile/
+Tampermonkey_5.4.0_0/
 *.iss
 .env.example
 .env
