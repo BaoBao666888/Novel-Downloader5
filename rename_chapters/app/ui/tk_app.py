@@ -279,7 +279,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.1.8')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.1.9')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -371,10 +371,11 @@ class RenamerApp(tk.Tk):
         self._canvas_height = 0
         self._content_window = None
         self.use_local_manifest_only = USE_LOCAL_MANIFEST_ONLY
-        threading.Thread(target=self._cleanup_legacy_files, daemon=True).start()
         self.create_widgets()
         self.load_config()
-        self.check_for_updates()
+        threading.Thread(target=self._cleanup_legacy_files, daemon=True).start()
+        # Đẩy các tác vụ không cần chờ (kiểm tra update, preload nhỏ) sang luồng nền sau khi UI đã lên
+        self.after(200, self._schedule_background_tasks)
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def _set_default_config(self):
@@ -418,6 +419,18 @@ class RenamerApp(tk.Tk):
                     shutil.rmtree(folder, ignore_errors=True)
             except Exception:
                 pass
+
+    def _schedule_background_tasks(self):
+        """Khởi chạy các tác vụ hậu khởi động trong luồng nền để tránh chậm UI."""
+        threading.Thread(target=self._run_background_tasks, daemon=True).start()
+
+    def _run_background_tasks(self):
+        # Kiểm tra cập nhật (đã có luồng riêng bên trong)
+        try:
+            self.check_for_updates()
+        except Exception:
+            pass
+        # Có thể bổ sung thêm các bước preload nhẹ ở đây nếu cần
 
     def _preload_ui_settings(self):
         """Nạp nhanh cấu hình UI từ file config trước khi dựng widget."""
@@ -1724,11 +1737,20 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         main_frame.pack(fill="both", expand=True)
 
         notebook = ttk.Notebook(main_frame)
+        tabs_meta = []
+
+        selector_frame = ttk.Frame(main_frame)
+        selector_frame.pack(fill="x", pady=(0, 5))
+        ttk.Label(selector_frame, text="Chọn mục:", padding=(0, 0, 8, 0)).pack(side=tk.LEFT)
+        tab_selector = ttk.Combobox(selector_frame, state="readonly")
+        tab_selector.pack(side=tk.LEFT, fill="x", expand=True)
+
         notebook.pack(fill="both", expand=True, pady=(0, 10))
 
         def create_tab(title, content):
             tab = scrolledtext.ScrolledText(notebook, wrap=tk.WORD, padx=10, pady=10)
             notebook.add(tab, text=title)
+            tabs_meta.append((tab, title))
             # SỬ DỤNG HÀM RENDER MỚI
             self._render_markdown_guide(tab, content.strip())
         
@@ -1959,6 +1981,27 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   **Lưu ảnh...**: Chọn định dạng và nhấn **"Lưu ảnh..."** để lưu lại ảnh đã qua xử lý.
         """
         create_tab("Xử lý Ảnh", image_guide)
+
+        # Đồng bộ combobox chọn tab
+        tab_selector['values'] = [title for _tab, title in tabs_meta]
+        if tabs_meta:
+            tab_selector.current(0)
+            notebook.select(tabs_meta[0][0])
+
+        def on_tab_changed(event=None):
+            idx = notebook.index(notebook.select())
+            try:
+                tab_selector.current(idx)
+            except Exception:
+                pass
+
+        def on_select_combo(event=None):
+            idx = tab_selector.current()
+            if 0 <= idx < len(tabs_meta):
+                notebook.select(tabs_meta[idx][0])
+
+        notebook.bind("<<NotebookTabChanged>>", on_tab_changed)
+        tab_selector.bind("<<ComboboxSelected>>", on_select_combo)
         
         close_button = ttk.Button(main_frame, text="Đóng", command=guide_win.destroy)
         close_button.pack()

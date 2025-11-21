@@ -1,0 +1,52 @@
+{
+    "nameSets": {
+        "M\u1eb7c \u0111\u1ecbnh": {}
+    },
+    "activeNameSet": "M\u1eb7c \u0111\u1ecbnh",
+    "translator_settings": {
+        "serverUrl": "https://dichngay.com/translate/text",
+        "hanvietJsonUrl": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/han_viet/output.json",
+        "delayMs": 400,
+        "maxChars": 4500
+    },
+    "proxy_settings": {
+        "proxies": [],
+        "use_for_fetch_titles": false,
+        "use_for_translate": false,
+        "use_for_images": false
+    },
+    "ui_settings": {
+        "theme": "Midnight",
+        "accent_color": "#6366f1",
+        "text_color": "",
+        "font_size": 10,
+        "mouse_glow": false,
+        "background_image": "",
+        "use_classic_theme": false
+    },
+    "folder_path": "",
+    "rename_strategy": "content_first",
+    "sort_strategy": "content",
+    "rename_format": "Ch\u01b0\u01a1ng {num} - {title}.txt",
+    "rename_format_history": [
+        "Ch\u01b0\u01a1ng {num} - {title}.txt"
+    ],
+    "filename_regexes": "",
+    "content_regexes": "",
+    "credit_text": "",
+    "credit_position": "top",
+    "credit_line_num": 2,
+    "find_replace_history": {
+        "find": [],
+        "replace": []
+    },
+    "split_regex_history": [],
+    "split_regex_last": "",
+    "split_format_history": [
+        "{num}.txt"
+    ],
+    "selected_file": "",
+    "split_position": "after",
+    "combine_titles": false,
+    "title_format": "{t1} - {t2}"
+}

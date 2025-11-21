@@ -1,23 +1,23 @@
-<h1>Phiên bản 0.1.8 — Bản cập nhật trình duyệt & cookie</h1>
-0.1.8 tập trung nâng cấp toàn bộ trải nghiệm lấy mục lục online: ta có trình duyệt tích hợp đầy đủ, quản lý cookie bằng sqlite3, quét sạch tàn tích Selenium cũ và tự động dịch trang ngay trong app.
+<h1>Phiên bản 0.1.9 — Nâng cấp Tampermonkey & trải nghiệm duyệt (Bản thử nghiệm)</h1>
+0.1.9 bổ sung nền tảng Tampermonkey đơn giản, tối ưu nút Download, thanh URL và luồng đổi tên file, đồng thời cập nhật lại tab Hướng dẫn.
 
 <h2>Điểm mới nổi bật</h2>
-- <b>Trình duyệt Qt tích hợp</b>: xuất hiện nút “Trình duyệt” trong menubar và phím tắt F12. Cửa sổ mới hỗ trợ đa tab, thanh tiến trình tải, nút dịch, DevTools (F12 hoặc nút riêng), quản lý lịch sử và cache.
-- <b>Nút “Cookie” riêng</b>: mở trình quản lý cookie viết bằng ttk, đọc/ghi trực tiếp file sqlite của trình duyệt tích hợp (không cần Qt dialog). Có thể sửa/xóa cookie theo domain.
-- <b>Lấy mục lục PO18/Qidian dùng cookie nội bộ</b>: extensions <b>po18_ext</b> và <b>qidian_ext</b> bỏ Selenium/undetected-chromedriver. Ứng dụng yêu cầu bạn đăng nhập bằng trình duyệt tích hợp rồi đọc cookie từ đó.
-- <b>Vệ sinh tệp cũ</b>: app tự xóa <b>po18_cookies.json</b>, <b>qidian_guest_cookies.json</b> và thư mục <b>.wdm</b> để tránh nhầm lẫn với cơ chế mới.
-- <b>Menu chuột phải & DevTools</b>: chỉ thêm tùy chọn “Inspect” khi Qt thiếu, nên menu giữ đúng ngữ cảnh gốc, đồng thời phím F12 và nút F12 luôn mở DevTools.
+- <b>Nền tảng Tampermonkey nhẹ</b>: tải/ích hợp userscript, hỗ trợ GM_xmlhttpRequest, menu commands, chạy song song nhiều script (bảo vệ handler dùng registry). Có thể import link hoặc file userscript. (Hiện tại chỉ hỗ trợ cho các script Tampermonkey)
+- <b>Nút Download mới</b>: hiển thị danh sách tải với trạng thái (đang tải/hoàn tất/lỗi), hành động mở file/thư mục, sao chép link, hủy/tải lại, tự đặt tên tránh ghi đè và lưu lịch sử tải (download_records.json) giữa các lần mở app.
+- <b>Thanh URL & gợi ý</b>: chọn gợi ý sẽ tự load trang; lưu lịch sử truy cập và tìm kiếm để gợi ý nhanh hơn.
+- <b>Đổi tên file</b>: giữ selection khi refresh bảng xem trước; “Bắt buộc sửa” chỉ hiện khi bật “Sửa dòng đầu”; dòng đầu dùng định dạng gốc (giữ ký tự đặc biệt như dấu /) trong khi tên file vẫn được sanitize.
+- <b>Tab Hướng dẫn</b>: bổ sung mục Trình duyệt, Cookie, Cài đặt với hướng dẫn thao tác mới.
 
 
 <h2>Sửa lỗi & cải tiến nhỏ</h2>
 
-- Đóng tab hiện hành sẽ tự chuyển sang tab gần nhất thay vì để trống.
-- Thanh trạng thái tải giúp biết trang đã load xong hay chưa.
-- Sao chép/các thao tác chuột phải không còn crash do thiếu API PyQt6.
+- Sửa mất chọn dòng trong bảng Đổi tên sau khi refresh.
+- GM_xmlhttpRequest không còn crash do cross-thread; menu script không ghi đè lẫn nhau.
+- Fix tải xuống không lỗi khi trùng tên (tự thêm số), retry/hủy hoạt động ổn định.
 
 
 <h2>Hướng dẫn cập nhật</h2>
 
-- Nhấn <b>Tải & Cài đặt</b> để tải bản cài đặt 0.1.8.
+- Nhấn <b>Tải & Cài đặt</b> để tải bản cài đặt 0.1.9.
 - Ứng dụng sẽ tự đóng trước khi chạy bộ cài.
 - Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.
