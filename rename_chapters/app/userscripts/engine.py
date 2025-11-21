@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple
 
 import requests
 from requests import RequestException, Timeout
-from PyQt6.QtCore import QObject, pyqtSlot
+from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal, Qt
 from PyQt6.QtWebChannel import QWebChannel
 
 from app.paths import BASE_DIR
@@ -22,6 +22,25 @@ from app.paths import BASE_DIR
 
 META_BLOCK_RE = re.compile(r"// ==UserScript==(?P<body>.*?)// ==/UserScript==", re.DOTALL)
 HTTP_PREFIX_RE = re.compile(r"^https?://", re.IGNORECASE)
+
+
+class UiDispatcher(QObject):
+    """Helper to safely execute callables on the UI thread."""
+
+    run_signal = pyqtSignal(object)
+
+    def __init__(self):
+        super().__init__()
+        self.run_signal.connect(self._run, Qt.ConnectionType.QueuedConnection)  # type: ignore[attr-defined]
+
+    def _run(self, fn):
+        try:
+            fn()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            print(f"[UserscriptHost] ui dispatch error: {exc}")
+
+    def submit(self, fn):
+        self.run_signal.emit(fn)
 
 
 def _read_text(path: str) -> str:
@@ -425,7 +444,10 @@ class UserscriptController:
                 "pending_requests": {},
                 "aborted": set(),
             }
-            self.page.runJavaScript(injection)
+            try:
+                self.page.runJavaScript(injection)
+            except Exception as exc:
+                print(f"[UserscriptHost] Lỗi khi inject script {entry.path}: {exc}")
 
     def register_menu_command(self, script_id: str, command_id: str, title: str):
         state = self.script_states.get(script_id)
@@ -510,6 +532,7 @@ class UserscriptHost:
         self.window = window
         self.registry = UserscriptRegistry(registry_path, default_script_path)
         self.storage = UserscriptStorage(storage_path)
+        self._ui_dispatcher = UiDispatcher()
         self.environment = {
             "handlerName": "RenameChaptersTamperHost",
             "handlerVersion": "0.1.0",
@@ -560,7 +583,15 @@ class UserscriptHost:
                 continue
             script = self.loaded_scripts.get(entry.id)
             if not script:
-                continue
+                try:
+                    script = Userscript.load(entry.path)
+                    self.loaded_scripts[entry.id] = script
+                    self.registry.update_metadata(entry.id, script.metadata)
+                    print(f"[UserscriptHost] Loaded script: {entry.name or script.metadata.name}")
+                except Exception as exc:
+                    self.registry.record_error(entry.id, str(exc))
+                    print(f"[UserscriptHost] Lỗi khi tải script {entry.path}: {exc}")
+                    continue
             try:
                 if script.matches(url):
                     matches.append((entry, script))
@@ -624,7 +655,15 @@ class UserscriptHost:
                     "responseHeaders": "",
                     "finalUrl": options.get("url") or "",
                 }
-            ctrl.dispatch_request_result(sid, rid, success, payload)
+            # Ensure callbacks touch Qt objects on the UI thread to avoid crashes.
+            dispatcher = getattr(self, "_ui_dispatcher", None)
+            if dispatcher:
+                dispatcher.submit(lambda: ctrl.dispatch_request_result(sid, rid, success, payload))
+            else:  # fallback
+                try:
+                    ctrl.dispatch_request_result(sid, rid, success, payload)
+                except Exception:
+                    pass
 
         future.add_done_callback(_on_done)
 
@@ -644,7 +683,7 @@ class UserscriptHost:
 
     def set_script_enabled(self, script_id: str, enabled: bool):
         self.registry.set_enabled(script_id, enabled)
-        self._load_enabled_scripts()
+        # Không reload ngay để tránh đơ UI; script sẽ nạp lười khi cần.
 
     def update_script_from_url(self, script_id: str):
         entry = self.registry.get_entry(script_id)
@@ -669,11 +708,14 @@ class UserscriptHost:
             os.path.join(BASE_DIR, "download-vietnamese.js")
         ]
         for path in default_libs:
+            if not os.path.exists(path):
+                continue
             try:
                 with open(path, "r", encoding="utf-8") as handle:
                     libs.append(_b64_encode(handle.read()))
-            except Exception as exc:
-                print(f"[UserscriptHost] Không thể tải core lib {path}: {exc}")
+            except Exception:
+                # Bỏ qua lỗi tải core lib (scripts có thể tự @require)
+                continue
         return libs
 
     def _perform_request(self, options: Dict[str, object]):
@@ -864,6 +906,11 @@ BOOTSTRAP_TEMPLATE = r"""
             return;
         }}
         window.__tmLoadedScripts.add(PAYLOAD.scriptId);
+        const handlerRegistry = window.__tmHandlerRegistry = window.__tmHandlerRegistry || {{
+            valueChange: Object.create(null),
+            xhrResponse: Object.create(null),
+            menuExecute: Object.create(null),
+        }};
         const meta = PAYLOAD.meta || {{}};
         const env = PAYLOAD.env || {{}};
         const SCRIPT_ID = PAYLOAD.scriptId || ("script_" + Date.now());
@@ -897,14 +944,12 @@ BOOTSTRAP_TEMPLATE = r"""
             console.error("[TMHost] Lỗi khi chạy core lib:", err);
         }}
 
-        window.__tm_receiveRemoteValueChange = (scriptId, name, oldValue, newValue) => {{
-            if (scriptId !== SCRIPT_ID) return;
+        handlerRegistry.valueChange[SCRIPT_ID] = (name, oldValue, newValue) => {{
             gmStore[name] = cloneVal(newValue);
             notifyValueListeners(name, oldValue, newValue, true);
         }};
 
-        window.__tm_handleXhrResponse = (scriptId, requestId, payload) => {{
-            if (scriptId !== SCRIPT_ID) return;
+        handlerRegistry.xhrResponse[SCRIPT_ID] = (requestId, payload) => {{
             const cfg = xhrCallbacks[requestId];
             if (!cfg) return;
             const event = {{
@@ -959,8 +1004,7 @@ BOOTSTRAP_TEMPLATE = r"""
             delete xhrCallbacks[requestId];
         }};
 
-        window.__tm_executeMenuCommand = (scriptId, commandId) => {{
-            if (scriptId !== SCRIPT_ID) return;
+        handlerRegistry.menuExecute[SCRIPT_ID] = (commandId) => {{
             const fn = menuCallbacks[commandId];
             if (fn) {{
                 try {{
@@ -970,6 +1014,33 @@ BOOTSTRAP_TEMPLATE = r"""
                 }}
             }}
         }};
+
+        if (!window.__tm_receiveRemoteValueChange) {{
+            window.__tm_receiveRemoteValueChange = (scriptId, name, oldValue, newValue) => {{
+                const fn = handlerRegistry.valueChange && handlerRegistry.valueChange[scriptId];
+                if (fn) {{
+                    fn(name, oldValue, newValue);
+                }}
+            }};
+        }}
+
+        if (!window.__tm_handleXhrResponse) {{
+            window.__tm_handleXhrResponse = (scriptId, requestId, payload) => {{
+                const fn = handlerRegistry.xhrResponse && handlerRegistry.xhrResponse[scriptId];
+                if (fn) {{
+                    fn(requestId, payload);
+                }}
+            }};
+        }}
+
+        if (!window.__tm_executeMenuCommand) {{
+            window.__tm_executeMenuCommand = (scriptId, commandId) => {{
+                const fn = handlerRegistry.menuExecute && handlerRegistry.menuExecute[scriptId];
+                if (fn) {{
+                    fn(commandId);
+                }}
+            }};
+        }}
 
         const GM_getValue = (key, defaultValue) => {{
             return Object.prototype.hasOwnProperty.call(gmStore, key)

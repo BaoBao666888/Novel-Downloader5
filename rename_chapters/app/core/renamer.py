@@ -105,7 +105,7 @@ def analyze_file(filepath: str, custom_filename_regexes: list = None, custom_con
         analysis['error'] = str(e)
     return analysis
 
-def generate_new_name(analysis: dict, strategy: str, custom_format: str, custom_titles: list = None, file_index: int = None) -> str:
+def generate_new_name(analysis: dict, strategy: str, custom_format: str, custom_titles: list = None, file_index: int = None, sanitize_output: bool = True) -> str:
     num = None
     title = ""
 
@@ -147,7 +147,7 @@ def generate_new_name(analysis: dict, strategy: str, custom_format: str, custom_
     # 4. Tạo tên file mới
     try:
         new_name_raw = custom_format.format(num=num, title=title.strip())
-        return sanitize_filename(new_name_raw)
+        return sanitize_filename(new_name_raw) if sanitize_output else new_name_raw.strip()
     except Exception:
         return sanitize_filename(f"Chương {num} - {title}.txt")
     
