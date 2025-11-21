@@ -1486,9 +1486,22 @@ class RenamerApp(tk.Tk):
         self.edit_first_line_var = tk.BooleanVar(value=False)
         edit_line_frame = ttk.Frame(strategy_sort_frame)
         edit_line_frame.grid(row=0, column=2, sticky="w", padx=(20, 0))
-        ttk.Checkbutton(edit_line_frame, text="Sửa dòng đầu của file", variable=self.edit_first_line_var).pack(side=tk.LEFT)
+        self.edit_first_line_chk = ttk.Checkbutton(
+            edit_line_frame,
+            text="Sửa dòng đầu của file",
+            variable=self.edit_first_line_var,
+            command=lambda: self._toggle_force_edit_first_line(schedule=True)
+        )
+        self.edit_first_line_chk.pack(side=tk.LEFT)
         self.force_edit_first_line_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(edit_line_frame, text="Bắt buộc sửa (kể cả khi lỗi)", variable=self.force_edit_first_line_var).pack(side=tk.LEFT, padx=5)
+        self.force_edit_first_line_chk = ttk.Checkbutton(
+            edit_line_frame,
+            text="Bắt buộc sửa (kể cả khi lỗi)",
+            variable=self.force_edit_first_line_var,
+            state=tk.DISABLED
+        )
+        # chỉ hiển thị khi bật sửa dòng đầu
+        self._toggle_force_edit_first_line(schedule=False)
         
         ttk.Label(options_frame, text="Cấu trúc mới:").grid(row=1, column=0, sticky="w", padx=5, pady=(10, 5))
         self.format_combobox = ttk.Combobox(options_frame, values=["Chương {num} - {title}.txt"])
@@ -1718,6 +1731,33 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             notebook.add(tab, text=title)
             # SỬ DỤNG HÀM RENDER MỚI
             self._render_markdown_guide(tab, content.strip())
+        
+        browser_guide = """
+        --- TRÌNH DUYỆT ---
+        - Mở tab mới: bấm nút “+” hoặc phím tắt (nếu có).
+        - Nút Script: xem menu userscript, bấm để chạy menu command.
+        - Thanh địa chỉ: gợi ý URL/phổ biến; chọn gợi ý sẽ tự load trang.
+        - Tabs: click để chuyển, click nút “x” để đóng; có tab ẩn auto đóng khi cần.
+        - DevTools: nút F12 để bật/tắt.
+        - Tải xuống: nút ⬇ mở danh sách download, có thể hủy/tải lại/mở file/thư mục/copy link; trạng thái được lưu lại khi mở lại app.
+        """
+        create_tab("Trình duyệt", browser_guide)
+
+        cookie_guide = """
+        --- COOKIE ---
+        - Menu Trình duyệt → Cookie: mở trình quản lý cookie.
+        - Cho phép nhập/xóa cookie cho các domain, hỗ trợ tải cookie từ trình duyệt hệ thống nếu đã đăng nhập.
+        - Khi cần đăng nhập trang bảo vệ, mở trình duyệt tích hợp, đăng nhập, sau đó dùng cookie đã lưu cho các request/tải về.
+        """
+        create_tab("Cookie", cookie_guide)
+
+        settings_guide = """
+        --- CÀI ĐẶT ---
+        - Tự động lưu: lịch sử tải xuống (download_records.json), cấu hình tải (downloads.json), lịch sử truy cập (history.json).
+        - Có thể điều chỉnh thư mục tải, yêu cầu xác nhận khi tải, hỏi thư mục mỗi lần.
+        - Cài đặt người dùng (format rename, lịch sử cấu trúc) được lưu để dùng lại sau khi mở app.
+        """
+        create_tab("Cài đặt", settings_guide)
         
         tools_guide = """
         --- MENU CÔNG CỤ ---
@@ -2546,7 +2586,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     def _update_rename_preview(self):
         path = self.folder_path.get()
         if not os.path.isdir(path): return
+        # đảm bảo hiển thị/hide nút bắt buộc sửa theo trạng thái checkbox
+        self._toggle_force_edit_first_line(schedule=False)
 
+        # lưu selection hiện tại theo filename để phục hồi sau khi refresh
+        current_selection = {self.tree.item(item, 'values')[1] for item in self.tree.selection()}
         self.tree.delete(*self.tree.get_children())
         self.files_data.clear()
         
@@ -2571,8 +2615,16 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         # Hiển thị file đã sắp xếp lên Treeview
         for i, analysis in enumerate(self.sorted_files_cache):
             self._insert_file_to_tree(analysis, i)
+            # phục hồi selection nếu trùng filename
+            if analysis['filename'] in current_selection:
+                try:
+                    last_item = self.tree.get_children()[-1]
+                    self.tree.selection_add(last_item)
+                except Exception:
+                    pass
         
         self.log(f"Phân tích hoàn tất cho {len(self.files_data)} file.")
+        self.preview_job = None
         
         # Cập nhật combobox ở tab credit
         sorted_filenames = [f['filename'] for f in self.sorted_files_cache]
@@ -2608,9 +2660,15 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 # Điều kiện để sửa: (có tên mới hợp lệ) HOẶC (người dùng bắt buộc sửa)
                 if new_name is not None or self.force_edit_first_line_var.get():
                     try:
-                        # Nếu new_name là None (do lỗi) và bị bắt buộc, nó sẽ dùng tên xem trước
-                        # Hàm _generate_preview_name sẽ trả về "Lỗi/Thiếu số"
-                        preview_name_for_line = self._generate_preview_name(analysis, i)
+                        # Dùng định dạng gốc (không sanitize) cho dòng đầu để giữ ký tự đặc biệt nếu cần
+                        preview_name_for_line = logic.generate_new_name(
+                            analysis,
+                            strategy,
+                            name_format,
+                            custom_titles=custom_titles,
+                            file_index=i,
+                            sanitize_output=False
+                        ) or self._generate_preview_name(analysis, i)
                         new_first_line = os.path.splitext(preview_name_for_line)[0]
                         
                         with open(analysis['filepath'], 'r', encoding='utf-8') as f:
@@ -2808,6 +2866,21 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             custom_titles=custom_titles,
             file_index=index
         ) or "Lỗi/Thiếu số"
+
+    def _toggle_force_edit_first_line(self, schedule: bool = True):
+        if self.edit_first_line_var.get():
+            if not getattr(self.force_edit_first_line_chk, "_packed", False):
+                self.force_edit_first_line_chk.pack(side=tk.LEFT, padx=5)
+                self.force_edit_first_line_chk._packed = True
+            self.force_edit_first_line_chk.configure(state=tk.NORMAL)
+        else:
+            self.force_edit_first_line_var.set(False)
+            if getattr(self.force_edit_first_line_chk, "_packed", False):
+                self.force_edit_first_line_chk.pack_forget()
+                self.force_edit_first_line_chk._packed = False
+            self.force_edit_first_line_chk.configure(state=tk.DISABLED)
+        if schedule:
+            self.schedule_preview_update()
 
     def _fetch_online_titles(self):
         url = self.source_url.get()

@@ -50,6 +50,7 @@ PROFILE_DIR = os.path.join(BASE_DIR, "qt_browser_profile")
 HISTORY_FILE = os.path.join(PROFILE_DIR, "history.json")
 MAX_HISTORY = 500
 DOWNLOAD_SETTINGS_FILE = os.path.join(PROFILE_DIR, "downloads.json")
+DOWNLOAD_RECORDS_FILE = os.path.join(PROFILE_DIR, "download_records.json")
 USERSCRIPT_REGISTRY_FILE = os.path.join(PROFILE_DIR, "userscripts_registry.json")
 USERSCRIPT_DIR = os.path.join(PROFILE_DIR, "userscripts")
 SCHEME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*://')
@@ -230,22 +231,35 @@ class DownloadManagerDialog(QDialog):
         on_change_dir: Callable[[], None],
         on_toggle_ask: Callable[[bool], None],
         on_toggle_permission: Callable[[bool], None],
+        on_open_file: Callable[[int], None],
+        on_copy_source: Callable[[int], None],
+        on_cancel: Callable[[int], None],
+        on_retry: Callable[[int], None],
+        on_remove: Callable[[int], None],
         parent=None
     ):
         super().__init__(parent)
-        self.setWindowTitle("Trình quản lý tải xuống")
-        self.resize(520, 420)
+        self.setWindowTitle("Tải xuống")
+        self.resize(620, 520)
         self._on_open_dir = on_open_dir
         self._on_change_dir = on_change_dir
         self._on_toggle_ask = on_toggle_ask
         self._on_toggle_permission = on_toggle_permission
+        self._on_open_file = on_open_file
+        self._on_copy_source = on_copy_source
+        self._on_cancel = on_cancel
+        self._on_retry = on_retry
+        self._on_remove = on_remove
         layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(12, 12, 12, 12)
 
         self.path_label = QLabel()
         self.path_label.setWordWrap(True)
         layout.addWidget(self.path_label)
 
         self.list_widget = QListWidget()
+        self.list_widget.setSpacing(8)
         layout.addWidget(self.list_widget, 1)
 
         btn_row = QHBoxLayout()
@@ -276,24 +290,112 @@ class DownloadManagerDialog(QDialog):
         else:
             self.path_label.setText("Chưa cấu hình thư mục tải xuống.")
         self.list_widget.clear()
-        for record in records:
-            name = record.get("filename") or record.get("url") or "Tập tin"
-            status = record.get("state", "pending")
-            received = record.get("received") or 0
-            total = record.get("total") or 0
-            progress = ""
-            if total > 0:
-                percent = (received / total) * 100
-                progress = f"{percent:.0f}%"
-            elif status == "finished":
-                progress = "100%"
-            text = f"{name}\n- Trạng thái: {status}"
-            if progress:
-                text += f" ({progress})"
-            target = record.get("path")
-            if target:
-                text += f"\n- Lưu tại: {target}"
-            self.list_widget.addItem(text)
+        # Hiển thị mới nhất trước
+        for record in reversed(records):
+            item = QListWidgetItem()
+            item_widget = self._build_record_widget(record, directory)
+            item.setSizeHint(item_widget.sizeHint())
+            self.list_widget.addItem(item)
+            self.list_widget.setItemWidget(item, item_widget)
+
+    def _build_record_widget(self, record: dict, directory: str):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(6)
+
+        name = record.get("filename") or record.get("url") or "Tập tin"
+        state = record.get("state", "pending")
+        received = record.get("received") or 0
+        total = record.get("total") or 0
+        progress_bar = QProgressBar()
+        progress_bar.setTextVisible(True)
+        if total > 0:
+            progress_bar.setMaximum(total)
+            progress_bar.setValue(received)
+        elif state == "finished":
+            progress_bar.setMaximum(1)
+            progress_bar.setValue(1)
+        else:
+            progress_bar.setMaximum(0)  # indeterminate
+            progress_bar.setValue(0)
+
+        top_row = QHBoxLayout()
+        lbl_name = QLabel(f"<b>{name}</b>")
+        lbl_name.setTextFormat(Qt.TextFormat.RichText)
+        lbl_state = QLabel(self._format_state(state))
+        lbl_state.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        top_row.addWidget(lbl_name, 1)
+        top_row.addWidget(lbl_state, 0)
+        layout.addLayout(top_row)
+        layout.addWidget(progress_bar)
+
+        path = record.get("path") or ""
+        if path:
+            lbl_path = QLabel(f'<span style="color:#666;">{path}</span>')
+            lbl_path.setTextFormat(Qt.TextFormat.RichText)
+            lbl_path.setWordWrap(True)
+            layout.addWidget(lbl_path)
+
+        btn_row = QHBoxLayout()
+        rid = record.get("id")
+        btn_open_file = QPushButton("Mở file")
+        btn_open_dir = QPushButton("Mở thư mục")
+        btn_copy_url = QPushButton("Sao chép link")
+        btn_row.addWidget(btn_open_file)
+        btn_row.addWidget(btn_open_dir)
+        btn_row.addWidget(btn_copy_url)
+
+        if state in {"downloading", "requested"}:
+            btn_cancel = QPushButton("Hủy")
+            btn_cancel.clicked.connect(lambda _=False, rid=rid: self._on_cancel(rid))
+            btn_row.addWidget(btn_cancel)
+        elif state in {"interrupted", "cancelled"}:
+            btn_retry = QPushButton("Tải lại")
+            btn_retry.clicked.connect(lambda _=False, rid=rid: self._on_retry(rid))
+            btn_row.addWidget(btn_retry)
+
+        btn_row.addStretch(1)
+        layout.addLayout(btn_row)
+
+        btn_open_file.clicked.connect(lambda _=False, rid=rid: self._on_open_file(rid))
+        btn_open_dir.clicked.connect(self._on_open_dir)
+        btn_copy_url.clicked.connect(lambda _=False, rid=rid: self._on_copy_source(rid))
+
+        close_btn = QPushButton("X")
+        close_btn.setFixedWidth(28)
+        close_btn.clicked.connect(lambda _=False, rid=rid: self._on_remove(rid))
+        top_row.insertWidget(0, close_btn)
+
+        widget.setStyleSheet("""
+            QWidget {
+                background: #f8f9fb;
+                border: 1px solid #e1e5ea;
+                border-radius: 8px;
+            }
+            QProgressBar {
+                border: 1px solid #cdd4dc;
+                border-radius: 4px;
+                text-align: center;
+                background: #eef2f6;
+                height: 14px;
+            }
+            QProgressBar::chunk {
+                background: #4a90e2;
+                border-radius: 4px;
+            }
+        """)
+        return widget
+
+    def _format_state(self, state: str) -> str:
+        mapping = {
+            "requested": "Đang chờ",
+            "downloading": "Đang tải",
+            "finished": "Hoàn tất",
+            "cancelled": "Đã hủy",
+            "interrupted": "Lỗi",
+        }
+        return mapping.get(state, state)
 
     def sync_options(self, ask_each_time: bool, require_permission: bool):
         self._block_and_set(self.ask_checkbox, ask_each_time)
@@ -434,8 +536,10 @@ class _BrowserWindow(QMainWindow):
         self.profile = build_persistent_profile(self)
         self.history_entries = self._load_history_file()
         self.download_settings = self._load_download_settings()
-        self.download_records: List[dict] = []
-        self._download_record_index: dict[int, int] = {}
+        self.download_records: List[dict] = self._load_download_records()
+        self._download_record_index: dict[int, int] = {rec["id"]: idx for idx, rec in enumerate(self.download_records) if "id" in rec}
+        self._active_downloads: dict[int, QWebEngineDownloadRequest] = {}
+        self._pending_retries: dict[str, dict] = {}
         self._download_dialog: Optional[DownloadManagerDialog] = None
         self._search_term_counter: Counter[str] = Counter()
         self.userscript_host: Optional[UserscriptHost] = None
@@ -471,6 +575,7 @@ class _BrowserWindow(QMainWindow):
         self.address_completer = QCompleter(self._address_suggestions_model, self)
         self.address_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.address_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.address_completer.activated.connect(self._on_address_completer_activated)
         self.address_bar.setCompleter(self.address_completer)
 
         btn_home = QPushButton("Home")
@@ -561,11 +666,53 @@ class _BrowserWindow(QMainWindow):
         with open(DOWNLOAD_SETTINGS_FILE, "w", encoding="utf-8") as handle:
             json.dump(self.download_settings, handle, ensure_ascii=False, indent=2)
 
+    def _load_download_records(self) -> List[dict]:
+        if not os.path.exists(DOWNLOAD_RECORDS_FILE):
+            return []
+        try:
+            with open(DOWNLOAD_RECORDS_FILE, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            if isinstance(data, list):
+                return data
+        except Exception:
+            pass
+        return []
+
+    def _save_download_records(self):
+        os.makedirs(PROFILE_DIR, exist_ok=True)
+        try:
+            with open(DOWNLOAD_RECORDS_FILE, "w", encoding="utf-8") as handle:
+                json.dump(self.download_records, handle, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
     def _ensure_download_directory(self, directory: str):
         try:
             os.makedirs(directory, exist_ok=True)
         except OSError:
             pass
+
+    def _unique_filename(self, directory: str, filename: str) -> str:
+        base, ext = os.path.splitext(filename or "downloaded_file")
+        if not base:
+            base = "downloaded_file"
+        directory = directory or ""
+        existing_paths = set()
+        for rec in self.download_records:
+            path = rec.get("path")
+            if not path:
+                continue
+            if directory and os.path.dirname(path) != directory:
+                continue
+            existing_paths.add(os.path.normcase(path))
+        candidate = f"{base}{ext}"
+        idx = 1
+        while True:
+            candidate_path = os.path.join(directory, candidate) if directory else candidate
+            if os.path.normcase(candidate_path) not in existing_paths and (not directory or not os.path.exists(candidate_path)):
+                return candidate
+            candidate = f"{base} ({idx}){ext}"
+            idx += 1
 
     def _choose_download_dir(self):
         current = self.download_settings.get("directory") or _default_download_directory()
@@ -597,7 +744,11 @@ class _BrowserWindow(QMainWindow):
         if not download:
             return
         suggested_name = download.downloadFileName() or os.path.basename(download.url().path()) or "downloaded_file"
+        retry_record = self._pending_retries.pop(download.url().toString(), None)
         directory = self.download_settings.get("directory")
+        if retry_record:
+            directory = os.path.dirname(retry_record.get("path") or directory or _default_download_directory())
+            suggested_name = retry_record.get("filename") or suggested_name
         if not directory or self.download_settings.get("ask_each_time"):
             directory = QFileDialog.getExistingDirectory(
                 self,
@@ -611,7 +762,7 @@ class _BrowserWindow(QMainWindow):
                 self.download_settings["directory"] = directory
                 self._save_download_settings()
         self._ensure_download_directory(directory)
-        if self.download_settings.get("require_permission", True):
+        if self.download_settings.get("require_permission", True) and not retry_record:
             page_url = download.page().url().toString() if download.page() else ""
             message = (
                 "Trang đang yêu cầu lưu tập tin:\n"
@@ -623,35 +774,61 @@ class _BrowserWindow(QMainWindow):
             if QMessageBox.question(self, "Xác nhận tải xuống", message) != QMessageBox.StandardButton.Yes:
                 download.cancel()
                 return
-        if suggested_name:
+        if not retry_record and suggested_name:
+            suggested_name = self._unique_filename(directory, suggested_name)
+            download.setDownloadFileName(suggested_name)
+        elif suggested_name:
             download.setDownloadFileName(suggested_name)
         download.setDownloadDirectory(directory)
-        self._register_download(download, directory)
+        self._register_download(download, directory, reuse_record=retry_record)
         download.accept()
 
-    def _register_download(self, download: QWebEngineDownloadRequest, directory: str):
+    def _register_download(self, download: QWebEngineDownloadRequest, directory: str, reuse_record: Optional[dict] = None):
         filename = download.downloadFileName() or os.path.basename(download.url().path()) or "downloaded_file"
-        record = {
-            "id": download.id(),
-            "filename": filename,
-            "url": download.url().toString(),
-            "path": os.path.join(directory, filename),
-            "state": "requested",
-            "received": 0,
-            "total": 0,
-        }
-        self._download_record_index[record["id"]] = len(self.download_records)
-        self.download_records.append(record)
+        if reuse_record:
+            old_id = reuse_record.get("id")
+            reuse_record.update({
+                "id": download.id(),
+                "filename": filename,
+                "url": download.url().toString(),
+                "path": os.path.join(directory, filename),
+                "state": "requested",
+                "received": 0,
+                "total": 0,
+            })
+            idx = self._download_record_index.pop(old_id, None)
+            if idx is None:
+                idx = 0
+            self._download_record_index[reuse_record["id"]] = idx
+        else:
+            reuse_record = {
+                "id": download.id(),
+                "filename": filename,
+                "url": download.url().toString(),
+                "path": os.path.join(directory, filename),
+                "state": "requested",
+                "received": 0,
+                "total": 0,
+            }
+            self._download_record_index[reuse_record["id"]] = len(self.download_records)
+            self.download_records.append(reuse_record)
 
-        download.downloadProgress.connect(
-            lambda received, total, rid=record["id"]: self._on_download_progress(rid, received, total)
+        self._active_downloads[reuse_record["id"]] = download
+
+        download.receivedBytesChanged.connect(
+            lambda _val=None, rid=reuse_record["id"], d=download: self._on_download_bytes_changed(d, rid)
+        )
+        download.totalBytesChanged.connect(
+            lambda _val=None, rid=reuse_record["id"], d=download: self._on_download_bytes_changed(d, rid)
         )
         download.stateChanged.connect(
-            lambda state, rid=record["id"]: self._on_download_state_changed(rid, state)
+            lambda state, rid=reuse_record["id"]: self._on_download_state_changed(rid, state)
         )
-        download.finished.connect(
-            lambda _success=False, rid=record["id"]: self._on_download_finished(rid)
+        download.isFinishedChanged.connect(
+            lambda *_, rid=reuse_record["id"], d=download: self._on_download_finished(rid) if d.isFinished() else None
         )
+        self._on_download_bytes_changed(download, reuse_record["id"])
+        self._save_download_records()
         self._update_download_dialog()
 
     def _get_download_record(self, record_id: int):
@@ -660,6 +837,9 @@ class _BrowserWindow(QMainWindow):
             return None
         return self.download_records[idx]
 
+    def _on_download_bytes_changed(self, download: QWebEngineDownloadRequest, record_id: int):
+        self._on_download_progress(record_id, download.receivedBytes(), download.totalBytes())
+
     def _on_download_progress(self, record_id: int, received: int, total: int):
         record = self._get_download_record(record_id)
         if not record:
@@ -667,6 +847,7 @@ class _BrowserWindow(QMainWindow):
         record["received"] = received
         record["total"] = total
         record["state"] = "downloading"
+        self._save_download_records()
         self._update_download_dialog()
 
     def _on_download_state_changed(self, record_id: int, state):
@@ -681,6 +862,13 @@ class _BrowserWindow(QMainWindow):
             QWebEngineDownloadRequest.DownloadState.DownloadInterrupted: "interrupted",
         }
         record["state"] = state_map.get(state, str(state))
+        if state in {
+            QWebEngineDownloadRequest.DownloadState.DownloadCancelled,
+            QWebEngineDownloadRequest.DownloadState.DownloadInterrupted,
+            QWebEngineDownloadRequest.DownloadState.DownloadCompleted,
+        }:
+            self._active_downloads.pop(record_id, None)
+        self._save_download_records()
         self._update_download_dialog()
 
     def _on_download_finished(self, record_id: int):
@@ -689,6 +877,8 @@ class _BrowserWindow(QMainWindow):
             return
         if record.get("state") not in {"cancelled", "interrupted"}:
             record["state"] = "finished"
+        self._active_downloads.pop(record_id, None)
+        self._save_download_records()
         self._update_download_dialog()
 
     def _open_download_dialog(self):
@@ -698,6 +888,11 @@ class _BrowserWindow(QMainWindow):
                 on_change_dir=self._choose_download_dir,
                 on_toggle_ask=self._set_download_ask_each_time,
                 on_toggle_permission=self._set_download_require_permission,
+                on_open_file=self._open_download_file,
+                on_copy_source=self._on_copy_source,
+                on_cancel=self._cancel_download,
+                on_retry=self._retry_download,
+                on_remove=self._remove_download_record,
                 parent=self
             )
             self._download_dialog.finished.connect(self._on_download_dialog_closed)
@@ -716,6 +911,75 @@ class _BrowserWindow(QMainWindow):
 
     def _on_download_dialog_closed(self, _result):
         self._download_dialog = None
+
+    def _open_download_file(self, record_id: int):
+        record = self._get_download_record(record_id)
+        if not record:
+            return
+        path = record.get("path")
+        if path and os.path.exists(path):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+
+    def _open_download_source(self, record_id: int):
+        record = self._get_download_record(record_id)
+        if not record:
+            return
+        url = record.get("url")
+        if not url:
+            return
+        self._navigate(url)
+
+    def _on_copy_source(self, record_id: int):
+        record = self._get_download_record(record_id)
+        if not record:
+            return
+        url = record.get("url")
+        if not url:
+            return
+        clipboard = QApplication.clipboard()
+        clipboard.setText(url)
+
+    def _cancel_download(self, record_id: int):
+        download = self._active_downloads.get(record_id)
+        if download:
+            download.cancel()
+        record = self._get_download_record(record_id)
+        if record:
+            record["state"] = "cancelled"
+        self._save_download_records()
+        self._update_download_dialog()
+
+    def _retry_download(self, record_id: int):
+        record = self._get_download_record(record_id)
+        if not record:
+            return
+        url = record.get("url")
+        path = record.get("path")
+        if not url or not path:
+            return
+        record["state"] = "requested"
+        record["received"] = 0
+        record["total"] = 0
+        self._pending_retries[url] = record
+        view = self._current_view() or self._create_tab(switch=False, auto_close=True)
+        if view:
+            view.page().download(QUrl(url), os.path.basename(path))
+        self._save_download_records()
+        self._update_download_dialog()
+
+    def _remove_download_record(self, record_id: int):
+        record = self._get_download_record(record_id)
+        if not record:
+            return
+        self._active_downloads.pop(record_id, None)
+        idx = self._download_record_index.pop(record_id, None)
+        if idx is not None:
+            if 0 <= idx < len(self.download_records):
+                self.download_records.pop(idx)
+                # rebuild index map
+                self._download_record_index = {rec["id"]: i for i, rec in enumerate(self.download_records)}
+        self._save_download_records()
+        self._update_download_dialog()
 
 
     def _open_userscript_manager(self):
@@ -820,9 +1084,11 @@ class _BrowserWindow(QMainWindow):
             return
         try:
             self.userscript_host.set_script_enabled(script_id, enabled)
-            self._reload_userscript_runtime()
+            print("[Userscript] Đã lưu trạng thái, vui lòng tải lại trang/tab để áp dụng.")
+            self._refresh_userscript_button()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", f"Không thể thay đổi trạng thái script:\n{exc}")
+        finally:
             self._refresh_userscript_dialog()
 
     def _handle_userscript_update(self, script_id: str):
@@ -1016,6 +1282,12 @@ class _BrowserWindow(QMainWindow):
         if not view:
             return
         view._show_devtools()
+
+    def _on_address_completer_activated(self, text: str):
+        if not text:
+            return
+        self.address_bar.setText(text)
+        self._handle_navigate()
 
     def _handle_navigate(self):
         raw = self.address_bar.text().strip()
