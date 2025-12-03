@@ -9,8 +9,8 @@
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js
 // @match        https://truyenwikidich.net/nhung-file
 // @match        https://truyenwikidich.net/truyen/*/chinh-sua
-// @match        https://koanchay.net/nhung-file
-// @match        https://koanchay.net/truyen/*/chinh-sua
+// @match        https://koanchay.org/nhung-file
+// @match        https://koanchay.org/truyen/*/chinh-sua
 // @grant        GM_addStyle
 // ==/UserScript==
 
