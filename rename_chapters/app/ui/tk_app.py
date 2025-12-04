@@ -3,6 +3,7 @@ import os
 import re
 import io
 import time
+from datetime import datetime
 import tkinter.font as tkfont
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext, simpledialog, colorchooser
@@ -97,6 +98,21 @@ DEFAULT_UI_SETTINGS = {
     'use_classic_theme': False
 }
 
+DEFAULT_API_SETTINGS = {
+    'wiki_delay_min': 2.0,
+    'wiki_delay_max': 3.0,
+    'fanqie_delay_min': 0.0,
+    'fanqie_delay_max': 0.0,
+    'wiki_headers': {
+        "User-Agent": "RenameChapters-Wikidich/0.2",
+        "X-Requested-With": "XMLHttpRequest"
+    },
+    'fanqie_headers': {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+    }
+}
+
 ONLINE_SOURCES = [
     {
         "id": "jjwxc",
@@ -141,6 +157,14 @@ ONLINE_SOURCES = [
 ]
 
 SOURCE_BY_ID = {src["id"]: src for src in ONLINE_SOURCES}
+
+WD_SORT_OPTIONS = [
+    ("recent", "Mới nhất"),
+    ("oldest", "Cũ nhất"),
+    ("views", "Lượt xem cao"),
+    ("rating", "Đánh giá cao"),
+    ("title", "Theo tên (A-Z)")
+]
 
 
 def _load_env_file(path):
@@ -339,6 +363,9 @@ class RenamerApp(tk.Tk):
         self.sort_strategy = tk.StringVar(value="content")
         self.combine_titles_var = tk.BooleanVar(value=False)
         self.title_format_var = tk.StringVar(value="{t1} - {t2}")
+        self._pane_sizes = {}
+        self._paned_registry = []
+        self.regex_pins = {'find': [], 'replace': [], 'split': []}
 
         self.downloaded_image_data = None
         self.image_zoom_factor = 1.0
@@ -378,10 +405,12 @@ class RenamerApp(tk.Tk):
         wd_cfg = self.app_config.get('wikidich', {})
         self.wikidich_cache_path = wd_cfg.get('cache_path', os.path.join(BASE_DIR, "local", "wikidich_cache.json"))
         self.wikidich_filters = dict(wd_cfg.get('advanced_filter', {}))
+        self.api_settings = dict(self.app_config.get('api_settings', {}))
         self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
         self._wd_cover_cache = {}
         self._wd_loading = False
         self._wd_progress_running = False
+        self.wd_new_chapters = {}
         self.create_widgets()
         self.load_config()
         threading.Thread(target=self._cleanup_legacy_files, daemon=True).start()
@@ -403,10 +432,13 @@ class RenamerApp(tk.Tk):
             'proxy_settings': {
                 'proxies': [],
                 'use_for_fetch_titles': False,
+                'use_for_wikidich': False,
                 'use_for_translate': False,
                 'use_for_images': False
             },
             'ui_settings': dict(DEFAULT_UI_SETTINGS),
+            'pane_sizes': {},
+            'regex_pins': {'find': [], 'replace': [], 'split': []},
             'wikidich': {
                 'cache_path': os.path.join(BASE_DIR, "local", "wikidich_cache.json"),
                 'advanced_filter': {
@@ -420,7 +452,8 @@ class RenamerApp(tk.Tk):
                     'toDate': '',
                     'sortBy': 'recent'
                 }
-            }
+            },
+            'api_settings': dict(DEFAULT_API_SETTINGS)
         }
 
     def _cleanup_legacy_files(self):
@@ -1168,9 +1201,12 @@ class RenamerApp(tk.Tk):
         })
         self.app_config['ui_settings'] = self.ui_settings
         self.app_config['wikidich'] = {
-            'cache_path': self.wikidich_cache_path,
-            'advanced_filter': self.wikidich_filters
+            'cache_path': self.wikidich_cache_path
         }
+        self.app_config['api_settings'] = dict(self.api_settings or {})
+        self._capture_all_pane_sizes()
+        self.app_config['pane_sizes'] = dict(getattr(self, "_pane_sizes", {}))
+        self.app_config['regex_pins'] = dict(self.regex_pins)
         try:
             with open('config.json', 'w', encoding='utf-8') as f:
                 json.dump(self.app_config, f, indent=4)
@@ -1192,6 +1228,10 @@ class RenamerApp(tk.Tk):
                         self.app_config[key] = value
 
             config_data = self.app_config
+            self._pane_sizes = dict(config_data.get('pane_sizes', {}))
+            self.regex_pins = dict(config_data.get('regex_pins', {'find': [], 'replace': [], 'split': []}))
+            api_cfg = config_data.get('api_settings', {}) if isinstance(config_data.get('api_settings'), dict) else {}
+            self.api_settings = {**DEFAULT_API_SETTINGS, **api_cfg}
             self.folder_path.set(config_data.get('folder_path', ''))
             self.strategy.set(config_data.get('rename_strategy', 'content_first'))
             self.sort_strategy.set(config_data.get('sort_strategy', 'content'))
@@ -1207,9 +1247,14 @@ class RenamerApp(tk.Tk):
             self.credit_position.set(config_data.get('credit_position', 'top'))
             self.credit_line_num.set(config_data.get('credit_line_num', 2))
             
-            fr_history = config_data.get('find_replace_history', {}); self.find_text['values'] = fr_history.get('find', []); self.replace_text['values'] = fr_history.get('replace', [])
+            fr_history = config_data.get('find_replace_history', {})
+            self._apply_history_with_pins(self.find_text, fr_history.get('find', []), 'find')
+            self._apply_history_with_pins(self.replace_text, fr_history.get('replace', []), 'replace')
             split_regex_history = config_data.get('split_regex_history', [])
-            self.split_regex['values'] = split_regex_history
+            self._apply_history_with_pins(self.split_regex, split_regex_history, 'split')
+            # đồng bộ nút ghim
+            self._sync_pin_button('find', self.find_text, getattr(self, "find_pin_btn", None))
+            self._sync_pin_button('split', self.split_regex, getattr(self, "split_pin_btn", None))
             if split_regex_history:
                 self.split_regex.set(config_data.get('split_regex_last', split_regex_history[0]))
             else:
@@ -1233,15 +1278,13 @@ class RenamerApp(tk.Tk):
             wd_cfg = config_data.get('wikidich', {})
             if isinstance(wd_cfg, dict):
                 self.wikidich_cache_path = wd_cfg.get('cache_path', self.wikidich_cache_path)
-                adv = wd_cfg.get('advanced_filter', {})
-                if isinstance(adv, dict):
-                    self.wikidich_filters.update(adv)
-                if hasattr(self, "wd_search_var"):
-                    self.wd_search_var.set(self.wikidich_filters.get('search', ''))
-                    self.wd_summary_var.set(self.wikidich_filters.get('summarySearch', ''))
-                    self.wd_status_var.set(self.wikidich_filters.get('status', 'all'))
-                    self.wd_sort_var.set(self.wikidich_filters.get('sortBy', 'recent'))
-                self._wd_load_cache()
+            if hasattr(self, "wd_search_var"):
+                self.wd_search_var.set(self.wikidich_filters.get('search', ''))
+                self.wd_summary_var.set(self.wikidich_filters.get('summarySearch', ''))
+                self.wd_status_var.set(self.wikidich_filters.get('status', 'all'))
+                self._wd_set_sort_label_from_value(self.wikidich_filters.get('sortBy', 'recent'))
+            self._wd_sync_filter_controls_from_filters()
+            self._wd_load_cache()
 
             if self.folder_path.get(): self.schedule_preview_update()
             self.selected_file.set(config_data.get('selected_file', ''))
@@ -1251,6 +1294,7 @@ class RenamerApp(tk.Tk):
                 self._apply_modern_theme(refresh_existing=True)
                 self._sync_ui_settings_controls()
                 self._apply_mouse_glow_setting()
+            self.app_config['api_settings'] = dict(self.api_settings)
         except Exception as e:
             print(f"Không thể tải config: {e}")
             self.log("Không tìm thấy file config hoặc file bị lỗi. Sử dụng cài đặt mặc định.")
@@ -1386,6 +1430,7 @@ class RenamerApp(tk.Tk):
 
         self.main_paned_window = ttk.PanedWindow(main_frame, orient=tk.VERTICAL)
         self.main_paned_window.pack(fill=tk.BOTH, expand=True)
+        self._register_paned(self.main_paned_window, "main_paned")
 
         self.content_panel = ttk.Frame(self.main_paned_window, style="Card.TFrame")
         self.notebook = ttk.Notebook(self.content_panel)
@@ -1508,6 +1553,7 @@ class RenamerApp(tk.Tk):
 
         rename_paned_window = ttk.PanedWindow(rename_tab, orient=tk.VERTICAL)
         rename_paned_window.grid(row=0, column=0, sticky="nsew", rowspan=2)
+        self._register_paned(rename_paned_window, "rename_paned")
 
         # Options frame in top pane
         options_frame = ttk.LabelFrame(rename_paned_window, text="2. Tùy chọn", padding="10")
@@ -1570,14 +1616,14 @@ class RenamerApp(tk.Tk):
         self.filename_regex_text = tk.Text(options_frame, height=2, wrap=tk.WORD, undo=True)
         self.filename_regex_text.grid(row=3, column=1, sticky="we", padx=5)
         self.filename_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
-        ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=3, column=2, sticky="n", padx=(0, 5), pady=(10, 0))
+        ttk.Button(options_frame, text="?", width=1, command=self.show_regex_guide).grid(row=3, column=2, sticky="n", padx=(0, 5), pady=(10, 0))
         ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=4, column=1, sticky="w", padx=5)
 
         ttk.Label(options_frame, text="Regex (nội dung):").grid(row=5, column=0, sticky="nw", padx=5, pady=5)
         self.content_regex_text = tk.Text(options_frame, height=2, wrap=tk.WORD, undo=True)
         self.content_regex_text.grid(row=5, column=1, sticky="we", padx=5, pady=5)
         self.content_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
-        ttk.Button(options_frame, text="?", width=3, command=self.show_regex_guide).grid(row=5, column=2, sticky="n", padx=(0, 5), pady=(5, 0))
+        ttk.Button(options_frame, text="?", width=1, command=self.show_regex_guide).grid(row=5, column=2, sticky="n", padx=(0, 5), pady=(5, 0))
         ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=6, column=1, sticky="w", padx=5)
 
         # Custom title frame (giữ nguyên)
@@ -1718,7 +1764,7 @@ VÍ DỤ 2:
         find_replace_guide = scrolledtext.ScrolledText(guide_notebook, wrap=tk.WORD)
         guide_notebook.add(find_replace_guide, text="Ví dụ: Tìm & Thay thế")
         find_replace_content = """
-Trong ô 'Thay thế', bạn có thể dùng $1, $2, ... (hoặc \\1, \\2) để tham chiếu đến nội dung đã được bắt bởi các nhóm (...) trong ô 'Tìm'.
+Trong ô 'Thay thế', bạn có thể dùng $1, $2, ... (hoặc \\1, \\2) để tham chiếu đến nội dung đã được bắt bởi các nhóm (...) trong ô 'Tìm'. Hỗ trợ lịch sử và ghim regex, lịch sử tối đa ~20 mục.
 
 ----------------------------------------------------
 VÍ DỤ 1: Đổi "Chương 123" thành "Chapter 123"
@@ -1743,7 +1789,7 @@ VÍ DỤ 3: Xóa các dòng chỉ chứa khoảng trắng
         split_guide = scrolledtext.ScrolledText(guide_notebook, wrap=tk.WORD)
         guide_notebook.add(split_guide, text="Ví dụ: Chia file")
         split_content = """
-Regex chia file dùng để xác định các dòng mà tại đó file sẽ được cắt ra. Toàn bộ dòng phải khớp với mẫu.
+Regex chia file dùng để xác định các dòng mà tại đó file sẽ được cắt ra. Toàn bộ dòng phải khớp với mẫu. Hỗ trợ lịch sử + ghim (tối đa ~20 mục, ghim luôn ở đầu).
 
 ----------------------------------------------------
 VÍ DỤ 1: Chia theo tên chương tiếng Trung
@@ -1815,14 +1861,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         - Khi cần đăng nhập trang bảo vệ, mở trình duyệt tích hợp, đăng nhập, sau đó dùng cookie đã lưu cho các request/tải về.
         """
         create_tab("Cookie", cookie_guide)
-
-        settings_guide = """
-        --- CÀI ĐẶT ---
-        - Tự động lưu: lịch sử tải xuống (download_records.json), cấu hình tải (downloads.json), lịch sử truy cập (history.json).
-        - Có thể điều chỉnh thư mục tải, yêu cầu xác nhận khi tải, hỏi thư mục mỗi lần.
-        - Cài đặt người dùng (format rename, lịch sử cấu trúc) được lưu để dùng lại sau khi mở app.
-        """
-        create_tab("Cài đặt", settings_guide)
         
         tools_guide = """
         --- MENU CÔNG CỤ ---
@@ -1839,6 +1877,21 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             4.  Chương trình sẽ tự động thực hiện và thông báo khi hoàn tất.
         """
         create_tab("Công cụ", tools_guide)
+
+        wikidich_guide = """
+        --- WIKIDICH ---
+        - **Tải Works**: lấy danh sách truyện đã đăng, dùng cookie trình duyệt. Cấu hình proxy và header trong nút **Cài đặt**.
+        - **Tải chi tiết**: mở hộp chọn phạm vi (tất cả / đang lọc) và tuỳ chọn “Chỉ bổ sung chi tiết còn thiếu”.
+        - **Lọc**:
+            - Bộ lọc cơ bản: tìm tiêu đề/tác giả, văn án, trạng thái, sắp xếp (Mới nhất/Cũ nhất/...); hiển thị trạng thái lọc ngay trên khung.
+            - Lọc nâng cao: ngày cập nhật (chọn từ date picker), thể loại, vai trò, thuộc tính (Nhúng link/file), reset để xoá sạch lọc nâng cao.
+        - **Kiểm tra cập nhật**: chỉ kiểm tra các truyện đang hiển thị; cột “New” tô xanh toàn hàng khi có chương mới.
+        - **Link bổ sung**: double‑click để mở bằng trình duyệt tích hợp.
+        - **Tiến độ**: khung tiến độ ẩn, chỉ hiện khi đang chạy tác vụ.
+        - **Cài đặt request**: chỉnh delay Wiki/Fanqie, User-Agent Wiki/Fanqie; có nút về mặc định.
+        - **Proxy**: bật “Wikidich/Fanqie” trong tab Proxy để áp dụng cho Works/chi tiết/kiểm tra cập nhật.
+        """
+        create_tab("Wikidich", wikidich_guide)
 
         rename_guide = """
         --- TAB ĐỔI TÊN ---
@@ -1857,6 +1910,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 -   *Tên file*: Sắp xếp dựa trên số chương lấy từ tên file.
             -   **Sửa dòng đầu của file**: Khi được chọn, chương trình sẽ **ghi đè** dòng đầu tiên của mỗi file bằng chính tên file mới được tạo ra (không bao gồm đuôi file như .txt). Tính năng này chỉ hoạt động nếu file đó được tìm thấy số chương.
             -   **Cấu trúc mới**: Định dạng cho tên file mới.
+            -   **Regex (Tên file / Nội dung)**: hỗ trợ lịch sử và ghim regex; regex nội dung áp dụng lên dòng đầu file. Hạn sử dụng trên lịch sử: tối đa 20, nhưng ghim sẽ luôn ở đầu và không bị trôi.
                 -   `{num}`: Sẽ được thay bằng số chương.
                 -   `{title}`: Sẽ được thay bằng tiêu đề chương.
                 -   `{num+n}` hoặc `{num-n}`: Tự động cộng/trừ số chương (ví dụ: `{num+1}`).
@@ -1910,11 +1964,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   Có thể chọn nhiều dòng bằng **Ctrl + Click chuột trái** hoặc chọn 1 hàng sau đó đến hàng mới nhấn **Shift +  Click chuột trái** để chọn khoảng từ hàng trước tới hàng này.
 
         3.  **Áp dụng**:
-            -   **Chọn nhanh theo khoảng**: Giúp chọn nhanh các chương trong bảng kết quả.
-                -   `1-50`: Chọn từ chương 1 đến 50.
-                -   `-100`: Chọn tất cả các chương đến 100.
-                -   `80-`: Chọn từ chương 80 đến hết.
-                -   `all`: Chọn tất cả.
+            -   **Chọn nhanh theo khoảng**: Hỗ trợ nhiều khoảng, nhập `1-5,7,10-` để chọn 1-5,7 và từ 10 trở đi; `-100`, `80-`, `all/*` đều được.
             -   **Gộp 2 tiêu đề**:
                 -   Kích hoạt tùy chọn này nếu bạn muốn kết hợp tiêu đề chính và phụ.
                 -   Sử dụng `{t1}` cho tiêu đề chính và `{t2}` cho tiêu đề phụ trong ô cấu trúc.
@@ -1930,7 +1980,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         1.  **Chọn file**: Chọn file .txt bạn muốn chỉnh sửa hoặc chia nhỏ. Nội dung file sẽ được tải vào ô bên dưới.
 
         **--- Sub-tab: Tìm & Thay thế ---**
-        -   **Tìm / Thay thế**: Nhập văn bản cần tìm và văn bản sẽ thay thế. Hỗ trợ Regex.
+        -   **Tìm / Thay thế**: Nhập văn bản cần tìm và văn bản sẽ thay thế. Hỗ trợ Regex, nhóm $1, $2,...
+        -   **Lịch sử & Ghim**: Ô Tìm/Thay thế lưu tối đa ~20 mục; nút Ghim/Bỏ ghim giữ regex không bị trôi.
         -   **Các tùy chọn**:
             -   **Khớp chữ hoa/thường**: Bật để phân biệt A và a.
             -   **Khớp toàn bộ từ**: Chỉ tìm các từ đứng riêng lẻ (ví dụ: tìm "an" sẽ không khớp với "bàn").
@@ -1945,7 +1996,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   **Hoàn tác / Làm lại**: Quay lại hoặc tiến tới các bước chỉnh sửa.
 
         **--- Sub-tab: Chia file ---**
-        -   **Regex chia file**: Nhập mẫu Regex để xác định dòng dùng làm điểm chia. Ví dụ: `^Chương \\d+` sẽ chia file tại mỗi dòng bắt đầu bằng "Chương [số]".
+        -   **Regex chia file**: Nhập mẫu Regex để xác định dòng dùng làm điểm chia (hỗ trợ lịch sử + ghim). Ví dụ: `^Chương \\d+` sẽ chia file tại mỗi dòng bắt đầu bằng "Chương [số]".
         -   **Cấu trúc tên file**: Đặt tên cho các file con được tạo ra.
         -   **Chia sau/trước regex**: Quyết định dòng khớp với regex sẽ thuộc về file trước đó hay file sau đó.
         -   **Xem trước**: Hiển thị danh sách các phần sẽ được tạo ra. Double-click vào một dòng để xem trước toàn bộ nội dung của phần đó.
@@ -2057,6 +2108,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         credit_paned = ttk.PanedWindow(credit_tab, orient=tk.VERTICAL)
         credit_paned.grid(row=0, column=0, sticky="nsew")
+        self._register_paned(credit_paned, "credit_paned")
 
         credit_options_frame = ttk.LabelFrame(credit_paned, text="2. Tùy chọn & Hành động", padding="10")
         credit_paned.add(credit_options_frame, weight=1)
@@ -2105,6 +2157,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         online_paned = ttk.PanedWindow(online_tab, orient=tk.VERTICAL)
         online_paned.grid(row=0, column=0, sticky="nsew")
+        self._register_paned(online_paned, "online_paned")
 
         # Frame 1: Nguồn (Không thay đổi)
         fetch_frame = ttk.LabelFrame(online_paned, text="1. Nguồn", padding=10)
@@ -2197,6 +2250,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.notebook.add(wd_tab, text="Wikidich")
         wd_tab.columnconfigure(0, weight=1)
         wd_tab.rowconfigure(3, weight=1)
+        self.wd_missing_only_var = tk.BooleanVar(value=True)
+        self.wd_detail_scope_var = tk.StringVar(value="filtered")
+        self._wd_adv_section_visible = False
+        self._wd_pending_categories = []
+        self._wd_category_options = []
 
         header = ttk.Frame(wd_tab)
         header.grid(row=0, column=0, sticky="ew")
@@ -2204,10 +2262,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.wd_user_label = ttk.Label(header, text="Chưa kiểm tra đăng nhập")
         self.wd_user_label.grid(row=0, column=0, sticky="w")
         ttk.Button(header, text="Tải Works", command=self._wd_start_fetch_works).grid(row=0, column=1, padx=(10, 0))
-        ttk.Button(header, text="Tải chi tiết", command=self._wd_start_fetch_details).grid(row=0, column=2, padx=6)
-        self.wd_missing_only_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(header, text="Chỉ bổ sung chi tiết còn thiếu", variable=self.wd_missing_only_var).grid(row=0, column=3, sticky="w", padx=(6, 0))
-        ttk.Button(header, text="Lọc nâng cao", command=self._wd_open_advanced_filter).grid(row=0, column=4, sticky="e")
+        ttk.Button(header, text="Tải chi tiết", command=self._wd_prompt_detail_fetch).grid(row=0, column=2, padx=6)
+        ttk.Button(header, text="Cài đặt", command=self._open_api_settings_dialog).grid(row=0, column=3, padx=(0, 6))
 
         progress_frame = ttk.Frame(wd_tab)
         progress_frame.grid(row=1, column=0, sticky="ew", pady=(6, 4))
@@ -2217,11 +2273,16 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.wd_progress.grid(row=0, column=1, sticky="ew", padx=(6, 6))
         self.wd_progress_label = ttk.Label(progress_frame, text="Chờ thao tác...")
         self.wd_progress_label.grid(row=0, column=2, sticky="w")
+        self.wd_progress_frame = progress_frame
+        self._wd_progress_visible = False
+        progress_frame.grid_remove()
 
         filter_frame = ttk.LabelFrame(wd_tab, text="Bộ lọc cơ bản", padding=10)
         filter_frame.grid(row=2, column=0, sticky="ew")
         filter_frame.columnconfigure(1, weight=1)
         filter_frame.columnconfigure(3, weight=1)
+        filter_frame.columnconfigure(4, weight=0)
+        filter_frame.columnconfigure(5, weight=0)
         ttk.Label(filter_frame, text="Tiêu đề / Tác giả:").grid(row=0, column=0, sticky="w")
         self.wd_search_var = tk.StringVar(value=self.wikidich_filters.get('search', ''))
         ttk.Entry(filter_frame, textvariable=self.wd_search_var).grid(row=0, column=1, sticky="ew", padx=(4, 10))
@@ -2234,31 +2295,90 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.wd_summary_var = tk.StringVar(value=self.wikidich_filters.get('summarySearch', ''))
         ttk.Entry(filter_frame, textvariable=self.wd_summary_var).grid(row=1, column=1, sticky="ew", padx=(4, 10), pady=(6, 0))
         ttk.Label(filter_frame, text="Sắp xếp:").grid(row=1, column=2, sticky="w", pady=(6, 0))
-        self.wd_sort_var = tk.StringVar(value=self.wikidich_filters.get('sortBy', 'recent'))
-        ttk.Combobox(filter_frame, state="readonly", textvariable=self.wd_sort_var,
-                     values=["recent", "oldest", "views", "rating", "title"], width=18).grid(row=1, column=3, sticky="w", pady=(6, 0))
+        self._wd_sort_value_to_label = {value: label for value, label in WD_SORT_OPTIONS}
+        self._wd_sort_label_to_value = {label: value for value, label in WD_SORT_OPTIONS}
+        initial_sort_label = self._wd_sort_value_to_label.get(self.wikidich_filters.get('sortBy', 'recent'), WD_SORT_OPTIONS[0][1])
+        self.wd_sort_label_var = tk.StringVar(value=initial_sort_label)
+        ttk.Combobox(filter_frame, state="readonly", textvariable=self.wd_sort_label_var,
+                     values=[label for _, label in WD_SORT_OPTIONS], width=18).grid(row=1, column=3, sticky="w", pady=(6, 0))
 
         action_frame = ttk.Frame(filter_frame)
-        action_frame.grid(row=0, column=4, rowspan=2, sticky="e", padx=(10, 0))
+        action_frame.grid(row=0, column=5, rowspan=3, sticky="ne", padx=(10, 0))
         ttk.Button(action_frame, text="Áp dụng", command=self._wd_apply_filters).pack(fill=tk.X)
-        ttk.Button(action_frame, text="Đặt lại", command=self._wd_reset_filters).pack(fill=tk.X, pady=(6, 0))
+        ttk.Button(action_frame, text="Kiểm tra cập nhật", command=self._wd_prompt_check_updates).pack(fill=tk.X, pady=(6, 0))
+        self.wd_adv_toggle_btn = ttk.Button(action_frame, text="Hiện lọc nâng cao", command=self._wd_toggle_advanced_section)
+        self.wd_adv_toggle_btn.pack(fill=tk.X, pady=(10, 0))
+
+        status_info_frame = ttk.Frame(filter_frame)
+        status_info_frame.grid(row=1, column=4, sticky="nw", padx=(10, 0))
+        self.wd_basic_status_var = tk.StringVar(value="")
+        self.wd_adv_status_var = tk.StringVar(value="")
+        ttk.Label(status_info_frame, textvariable=self.wd_basic_status_var, foreground="#34d399").pack(anchor="w")
+        ttk.Label(status_info_frame, textvariable=self.wd_adv_status_var, foreground="#fbbf24").pack(anchor="w", pady=(2, 0))
+
+        flag_labels = {
+            "embedLink": "Có nhúng link",
+            "embedFile": "Có nhúng file"
+        }
+        ttk.Label(filter_frame, text="Thuộc tính:").grid(row=3, column=0, sticky="nw", pady=(8, 0))
+        self.wd_flag_vars = {flag: tk.BooleanVar(value=flag in self.wikidich_filters.get('flags', [])) for flag in flag_labels}
+        flag_frame = ttk.Frame(filter_frame)
+        flag_frame.grid(row=3, column=1, columnspan=3, sticky="w", pady=(8, 0))
+        for flag, label in flag_labels.items():
+            ttk.Checkbutton(flag_frame, text=label, variable=self.wd_flag_vars[flag]).pack(side=tk.LEFT, padx=(0, 12))
+        self.wd_count_var = tk.StringVar(value="Số truyện: 0")
+        ttk.Label(filter_frame, textvariable=self.wd_count_var).grid(row=3, column=2, columnspan=2, sticky="w", pady=(8, 0))
+
+        self.wd_adv_container = ttk.LabelFrame(filter_frame, text="Lọc nâng cao", padding=8)
+        self.wd_adv_container.grid(row=4, column=0, columnspan=6, sticky="ew", pady=(12, 0))
+        self.wd_adv_container.columnconfigure(0, weight=1)
+
+        self.wd_from_date_var = tk.StringVar(value=self.wikidich_filters.get('fromDate', ''))
+        self.wd_to_date_var = tk.StringVar(value=self.wikidich_filters.get('toDate', ''))
+        adv_header = ttk.Frame(self.wd_adv_container)
+        adv_header.grid(row=0, column=0, sticky="ew")
+        ttk.Label(adv_header, text="Khoảng ngày cập nhật (YYYY-MM-DD)").pack(side=tk.LEFT)
+        ttk.Button(adv_header, text="Đặt lại bộ lọc", command=self._wd_reset_filters).pack(side=tk.RIGHT)
+        date_frame = ttk.Frame(self.wd_adv_container)
+        date_frame.grid(row=1, column=0, sticky="ew", pady=(4, 10))
+        from_row = ttk.Frame(date_frame)
+        from_row.pack(fill=tk.X, pady=2)
+        ttk.Label(from_row, text="Từ:").pack(side=tk.LEFT)
+        ttk.Entry(from_row, textvariable=self.wd_from_date_var, state="readonly", width=12).pack(side=tk.LEFT, padx=(4, 4))
+        ttk.Button(from_row, text="Chọn", command=lambda: self._wd_open_date_picker(self.wd_from_date_var, "Chọn ngày bắt đầu")).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(from_row, text="Xóa", command=lambda: self._wd_clear_date(self.wd_from_date_var)).pack(side=tk.LEFT)
+        to_row = ttk.Frame(date_frame)
+        to_row.pack(fill=tk.X, pady=2)
+        ttk.Label(to_row, text="Đến:").pack(side=tk.LEFT)
+        ttk.Entry(to_row, textvariable=self.wd_to_date_var, state="readonly", width=12).pack(side=tk.LEFT, padx=(4, 4))
+        ttk.Button(to_row, text="Chọn", command=lambda: self._wd_open_date_picker(self.wd_to_date_var, "Chọn ngày kết thúc")).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(to_row, text="Xóa", command=lambda: self._wd_clear_date(self.wd_to_date_var)).pack(side=tk.LEFT)
+
+        ttk.Label(self.wd_adv_container, text="Thể loại đang có").grid(row=2, column=0, sticky="w", pady=(4, 2))
+        self.wd_category_listbox = tk.Listbox(self.wd_adv_container, selectmode=tk.MULTIPLE, height=6, exportselection=False)
+        self.wd_category_listbox.grid(row=3, column=0, sticky="ew")
+
+        ttk.Label(self.wd_adv_container, text="Vai trò của bạn").grid(row=4, column=0, sticky="w", pady=(8, 2))
+        roles_frame = ttk.Frame(self.wd_adv_container)
+        roles_frame.grid(row=5, column=0, sticky="w")
+        role_labels = {
+            "poster": "Tôi là người đăng",
+            "managerOwner": "Đồng quản lý - chủ",
+            "managerGuest": "Đồng quản lý - khách",
+            "editorOwner": "Biên tập - chủ",
+            "editorGuest": "Biên tập - khách"
+        }
+        self.wd_role_vars = {role: tk.BooleanVar(value=role in self.wikidich_filters.get('roles', [])) for role in wikidich_ext.ROLE_OPTIONS}
+        for role in wikidich_ext.ROLE_OPTIONS:
+            ttk.Checkbutton(roles_frame, text=role_labels.get(role, role), variable=self.wd_role_vars[role]).pack(anchor="w")
+
+        self.wd_adv_container.grid_remove()
+
+        self._wd_sync_filter_controls_from_filters()
 
         main_pane = ttk.PanedWindow(wd_tab, orient=tk.HORIZONTAL)
         main_pane.grid(row=3, column=0, sticky="nsew", pady=(8, 0))
-
-        tree_frame = ttk.Frame(main_pane)
-        main_pane.add(tree_frame, weight=2)
-        columns = ("title", "status", "updated", "chapters", "views", "author")
-        self.wd_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", selectmode="browse")
-        for col, width in zip(columns, [240, 110, 110, 80, 90, 160]):
-            self.wd_tree.heading(col, text=col.capitalize())
-            self.wd_tree.column(col, width=width, anchor="w")
-        # Ép Treeview bám sát cạnh trái để dành chỗ cho thanh cuộn
-        self.wd_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.wd_tree.bind("<<TreeviewSelect>>", self._wd_on_select)
-        tree_scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=self.wd_tree.yview)
-        self.wd_tree.configure(yscrollcommand=tree_scroll.set)
-        tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self._register_paned(main_pane, "wd_main_paned")
 
         detail_frame = ttk.Frame(main_pane, padding=6)
         detail_frame.columnconfigure(1, weight=1)
@@ -2311,7 +2431,35 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         summary_frame.rowconfigure(0, weight=1)
         self.wd_summary_text = scrolledtext.ScrolledText(summary_frame, wrap=tk.WORD, height=12, state="disabled")
         self.wd_summary_text.grid(row=0, column=0, sticky="nsew")
-        ttk.Button(summary_frame, text="Mở trang truyện", command=self._wd_open_book_in_browser).grid(row=1, column=0, sticky="e", pady=(6, 0))
+        button_row = ttk.Frame(summary_frame)
+        button_row.grid(row=1, column=0, sticky="e", pady=(6, 0))
+        ttk.Button(button_row, text="Mở trang truyện", command=self._wd_open_book_in_browser).pack(side=tk.LEFT)
+        self.wd_update_button = ttk.Button(button_row, text="Bổ sung chương", command=self._wd_open_update_dialog, state=tk.DISABLED)
+        self.wd_update_button.pack(side=tk.LEFT, padx=(8, 0))
+
+        tree_frame = ttk.Frame(main_pane)
+        main_pane.add(tree_frame, weight=2)
+
+        columns = ("title", "status", "updated", "chapters", "new_chapters", "views", "author")
+        self.wd_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", selectmode="browse")
+        column_labels = {
+            "title": "Tiêu đề",
+            "status": "Trạng thái",
+            "updated": "Cập nhật",
+            "chapters": "Wiki",
+            "new_chapters": "New",
+            "views": "Lượt xem",
+            "author": "Tác giả"
+        }
+        for col, width in zip(columns, [240, 110, 110, 80, 90, 90, 160]):
+            self.wd_tree.heading(col, text=column_labels.get(col, col.capitalize()))
+            self.wd_tree.column(col, width=width, anchor="w")
+        self.wd_tree.tag_configure("has_new", foreground="#16a34a")
+        self.wd_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.wd_tree.bind("<<TreeviewSelect>>", self._wd_on_select)
+        tree_scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=self.wd_tree.yview)
+        self.wd_tree.configure(yscrollcommand=tree_scroll.set)
+        tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
         self._wd_update_user_label()
         self._wd_apply_filters()
@@ -2353,6 +2501,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         # Tạo PanedWindow chính theo chiều dọc
         main_paned = ttk.PanedWindow(parent, orient=tk.VERTICAL)
         main_paned.grid(row=0, column=0, sticky="nsew")
+        self._register_paned(main_paned, "find_paned")
         
         # Frame cho phần tùy chọn 
         options_frame = ttk.LabelFrame(main_paned, text="1. Tùy chọn", padding="10")
@@ -2363,7 +2512,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Label(find_frame, text="Tìm:        ").pack(side=tk.LEFT)
         self.find_text = ttk.Combobox(find_frame)
         self.find_text.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Button(find_frame, text="?", width=3, command=lambda: self.show_regex_guide("find_replace")).pack(side=tk.LEFT, padx=5)
+        ttk.Button(find_frame, text="?", width=1, command=lambda: self.show_regex_guide("find_replace")).pack(side=tk.LEFT, padx=5)
+        self.find_pin_btn = ttk.Button(find_frame, text="Ghim", width=6, command=lambda: self._toggle_pin('find', self.find_text, self.find_pin_btn))
+        self.find_pin_btn.pack(side=tk.LEFT)
+        self.find_text.bind("<<ComboboxSelected>>", lambda e: self._sync_pin_button('find', self.find_text, self.find_pin_btn))
+        self.find_text.bind("<KeyRelease>", lambda e: self._sync_pin_button('find', self.find_text, self.find_pin_btn))
         replace_frame = ttk.Frame(options_frame)
         replace_frame.pack(fill=tk.X, pady=5)
         ttk.Label(replace_frame, text="Thay thế:").pack(side=tk.LEFT)
@@ -2410,6 +2563,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         # Tạo PanedWindow chính theo chiều dọc
         main_paned = ttk.PanedWindow(parent, orient=tk.VERTICAL)
         main_paned.grid(row=0, column=0, sticky="nsew")
+        self._register_paned(main_paned, "split_paned")
 
         # Frame cho tùy chọn chia file
         options_frame = ttk.LabelFrame(main_paned, text="1. Tùy chọn chia file", padding="10")
@@ -2419,7 +2573,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Label(options_frame, text="Regex chia file:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.split_regex = ttk.Combobox(options_frame)
         self.split_regex.grid(row=0, column=1, sticky="ew")
-        ttk.Button(options_frame, text="?", width=3, command=lambda: self.show_regex_guide("split")).grid(row=0, column=2, padx=5)
+        ttk.Button(options_frame, text="?", width=1, command=lambda: self.show_regex_guide("split")).grid(row=0, column=2, padx=5)
+        self.split_pin_btn = ttk.Button(options_frame, text="Ghim", width=6, command=lambda: self._toggle_pin('split', self.split_regex, self.split_pin_btn))
+        self.split_pin_btn.grid(row=0, column=3, padx=(0,5))
+        self.split_regex.bind("<<ComboboxSelected>>", lambda e: self._sync_pin_button('split', self.split_regex, self.split_pin_btn))
+        self.split_regex.bind("<KeyRelease>", lambda e: self._sync_pin_button('split', self.split_regex, self.split_pin_btn))
         
         ttk.Label(options_frame, text="Cấu trúc tên file:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.split_format_combobox = ttk.Combobox(options_frame)
@@ -2571,7 +2729,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         if not find_what:
             return
         
-        self._update_history_combobox(self.find_text)
+        self._update_history_combobox(self.find_text, key='find')
 
         result = TextOperations.find_text(
             self.text_content,
@@ -2606,8 +2764,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         find_what = self.find_text.get()
         replace_with = self.replace_text.get()
-        if find_what: self._update_history_combobox(self.find_text)
-        if replace_with: self._update_history_combobox(self.replace_text)
+        if find_what: self._update_history_combobox(self.find_text, key='find')
+        if replace_with: self._update_history_combobox(self.replace_text, key='replace')
 
         replaced = TextOperations.replace_text(
             self.text_content,
@@ -2628,8 +2786,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         replace_with = self.replace_text.get()
         if not find_what: return
         
-        if find_what: self._update_history_combobox(self.find_text)
-        if replace_with: self._update_history_combobox(self.replace_text)
+        if find_what: self._update_history_combobox(self.find_text, key='find')
+        if replace_with: self._update_history_combobox(self.replace_text, key='replace')
 
         if not messagebox.askyesno("Xác nhận", "Bạn có chắc muốn thay thế tất cả trong file này?"):
             return
@@ -2697,7 +2855,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             messagebox.showwarning("Thiếu thông tin", "Vui lòng chọn file ở trên và nhập Regex.")
             return
         
-        self._update_history_combobox(self.split_regex)
+        self._update_history_combobox(self.split_regex, key='split')
         preview_data, error = TextOperations.split_file(filepath, regex, self.split_position.get())
 
         self.split_tree.delete(*self.split_tree.get_children())
@@ -2719,7 +2877,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             messagebox.showwarning("Thiếu thông tin", "Vui lòng chọn file, nhập Regex và cấu trúc tên file.")
             return
 
-        self._update_history_combobox(self.split_regex)
+        self._update_history_combobox(self.split_regex, key='split')
         self._update_history_combobox(self.split_format_combobox)
 
         if not messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn chia file '{os.path.basename(filepath)}'?"):
@@ -2780,6 +2938,45 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         cookie_window_open = bool(self.cookie_window and self.cookie_window.winfo_exists())
         self._set_cookie_menu_state(not overlay_active and not cookie_window_open)
 
+    def _register_paned(self, paned: ttk.PanedWindow, key: str):
+        """Ghi nhớ pane để khôi phục vị trí sash và lưu cấu hình."""
+        if not hasattr(self, "_paned_registry"):
+            self._paned_registry = []
+        self._paned_registry.append((key, paned))
+        paned.bind("<ButtonRelease-1>", lambda e, k=key: self._update_pane_size(k), add="+")
+        self.after(200, lambda k=key: self._restore_pane_size(k))
+
+    def _restore_pane_size(self, key: str):
+        sizes = getattr(self, "_pane_sizes", {}).get(key)
+        paned = next((p for k, p in getattr(self, "_paned_registry", []) if k == key), None)
+        if not sizes or not paned:
+            return
+        try:
+            for idx, coord in enumerate(sizes):
+                if len(coord) >= 2:
+                    paned.sash_place(idx, coord[0], coord[1])
+        except Exception:
+            pass
+
+    def _update_pane_size(self, key: str):
+        paned = next((p for k, p in getattr(self, "_paned_registry", []) if k == key), None)
+        if not paned:
+            return
+        try:
+            coords = []
+            num_sash = max(0, len(paned.panes()) - 1)
+            for i in range(num_sash):
+                coords.append(paned.sash_coord(i))
+            if not hasattr(self, "_pane_sizes"):
+                self._pane_sizes = {}
+            self._pane_sizes[key] = coords
+        except Exception:
+            pass
+
+    def _capture_all_pane_sizes(self):
+        for key, _ in getattr(self, "_paned_registry", []):
+            self._update_pane_size(key)
+
     def on_browser_overlay_opened(self):
         self._set_browser_menu_state(False)
         self._update_cookie_menu_state()
@@ -2787,6 +2984,20 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     def on_browser_overlay_closed(self):
         self._set_browser_menu_state(True)
         self._update_cookie_menu_state()
+
+    def _open_in_app_browser(self, url: str):
+        url = (url or "").strip()
+        if not url:
+            return
+        overlay = getattr(self, "browser_overlay", None)
+        if overlay and overlay.available():
+            if overlay.is_running():
+                overlay.navigate(url)
+            else:
+                overlay.current_url = url
+                overlay.show()
+        else:
+            webbrowser.open(url)
 
     def schedule_preview_update(self, event=None):
         if self.preview_job: self.after_cancel(self.preview_job)
@@ -2947,16 +3158,63 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.log(f"Hoàn tất! Thành công: {success}, Thất bại: {fail}")
         messagebox.showinfo("Hoàn tất", f"Quá trình thêm credit đã xong.\nThành công: {success}\nThất bại: {fail}")
     
-    def _update_history_combobox(self, combobox, max_history=10):
+    def _apply_history_with_pins(self, combobox, history_list, pin_key=None):
+        pins = []
+        if pin_key:
+            pins = [p for p in self.regex_pins.get(pin_key, []) if p]
+        combined = []
+        for v in pins + list(history_list or []):
+            if v and v not in combined:
+                combined.append(v)
+        combobox['values'] = combined
+
+    def _update_history_combobox(self, combobox, key=None, max_history=20):
         """Thêm giá trị hiện tại vào đầu danh sách lịch sử."""
         current_value = combobox.get().strip()
         if not current_value:
             return
         history = [item for item in combobox['values'] if item.strip()]
+        pins = []
+        if key:
+            pins = [p for p in self.regex_pins.get(key, []) if p]
         if current_value in history:
             history.remove(current_value)
         history.insert(0, current_value)
-        combobox['values'] = history[:max_history]
+        combined = []
+        for v in pins + history:
+            if v and v not in combined:
+                combined.append(v)
+        if pins:
+            pin_set = set(pins)
+            pinned_part = [v for v in combined if v in pin_set]
+            other_part = [v for v in combined if v not in pin_set][:max_history]
+            combined = pinned_part + other_part
+        else:
+            combined = combined[:max_history]
+        combobox['values'] = combined
+
+    def _toggle_pin(self, key, combobox, button=None):
+        value = combobox.get().strip()
+        if not value:
+            messagebox.showinfo("Thông báo", "Không có nội dung để ghim.", parent=self)
+            return
+        pins = [p for p in self.regex_pins.get(key, []) if p]
+        if value in pins:
+            pins = [p for p in pins if p != value]
+        else:
+            pins = [value] + pins
+        self.regex_pins[key] = pins[:50]
+        self._update_history_combobox(combobox, key=key)
+        if button:
+            self._sync_pin_button(key, combobox, button)
+        self.save_config()
+
+    def _sync_pin_button(self, key, combobox, button):
+        if not button:
+            return
+        value = combobox.get().strip()
+        pins = [p for p in self.regex_pins.get(key, []) if p]
+        button.config(text="Bỏ ghim" if value and value in pins else "Ghim")
     
     def _on_notebook_tab_changed(self, event=None):
         """Khi user chuyển tab: nếu chuyển tới tab 'Xử lý Văn bản' và có selected_file hợp lệ
@@ -3217,38 +3475,62 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         text_widget.config(state='disabled')
 
     def _select_online_range(self):
-        """Chọn các chương trong bảng online dựa vào chuỗi nhập vào."""
+        """Chọn các chương trong bảng online dựa vào chuỗi nhập (hỗ trợ nhiều khoảng, dạng '1-5,7,10-')."""
         range_str = self.online_range_var.get().strip().lower()
-        if not range_str: return
+        if not range_str:
+            return
 
         all_items = self.online_tree.get_children()
-        if not all_items: return
+        if not all_items:
+            return
 
-        self.online_tree.selection_remove(self.online_tree.selection()) # Xóa lựa chọn cũ
+        def parse_token(tok: str):
+            tok = tok.strip()
+            if not tok:
+                return None
+            if tok in ('all', '*'):
+                return ('all', None)
+            m = re.match(r'^(\d+)?\s*-\s*(\d+)?$', tok)
+            if m:
+                start = int(m.group(1)) if m.group(1) else 1
+                end = int(m.group(2)) if m.group(2) else float('inf')
+                return (start, end)
+            if tok.isdigit():
+                v = int(tok)
+                return (v, v)
+            return None
 
-        try:
-            if range_str == 'all' or range_str == '*':
-                self.online_tree.selection_add(all_items)
+        tokens = [t for t in re.split(r'[,\s]+', range_str) if t.strip()]
+        ranges = []
+        for tok in tokens:
+            parsed = parse_token(tok)
+            if not parsed:
+                messagebox.showerror("Lỗi cú pháp", "Cú pháp không hợp lệ. Ví dụ: '1-10', '1-2,4-5', '-50', '100-', 'all', '7'.")
                 return
+            if parsed[0] == 'all':
+                ranges = [('all', None)]
+                break
+            ranges.append(parsed)
 
-            items_to_select = []
-            if '-' in range_str:
-                start_str, end_str = range_str.split('-', 1)
-                start = int(start_str) if start_str else 1
-                end = int(end_str) if end_str else float('inf')
-            else:
-                start = end = int(range_str)
+        self.online_tree.selection_remove(self.online_tree.selection())  # Xóa lựa chọn cũ
 
-            for item_id in all_items:
+        if ranges and ranges[0][0] == 'all':
+            self.online_tree.selection_add(all_items)
+            return
+
+        items_to_select = []
+        for item_id in all_items:
+            try:
                 chap_num = int(self.online_tree.item(item_id, 'values')[0])
+            except Exception:
+                continue
+            for start, end in ranges:
                 if start <= chap_num <= end:
                     items_to_select.append(item_id)
-            
-            if items_to_select:
-                self.online_tree.selection_add(items_to_select)
+                    break
 
-        except (ValueError, IndexError):
-            messagebox.showerror("Lỗi cú pháp", "Cú pháp không hợp lệ. Hãy dùng các dạng như: '1-10', '-50', '100-', 'all', hoặc '5'.")
+        if items_to_select:
+            self.online_tree.selection_add(items_to_select)
     
     def _open_preview_from_rename(self, event):
         """Mở cửa sổ xem file khi double-click ở tab Đổi Tên."""
@@ -3364,6 +3646,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         main_paned = ttk.PanedWindow(translator_tab, orient=tk.HORIZONTAL)
         main_paned.grid(row=0, column=0, sticky="nsew")
+        self._register_paned(main_paned, "translator_paned")
 
         left_frame = ttk.Frame(main_paned)
         main_paned.add(left_frame, weight=1)
@@ -4304,11 +4587,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         options_frame = ttk.LabelFrame(bottom_frame, text="Sử dụng proxy cho các chức năng", padding=10)
         options_frame.pack(side=tk.LEFT, fill=tk.Y, expand=True)
 
-        use_for_fetch = tk.BooleanVar(value=proxy_settings.get('use_for_fetch_titles', False))
+        use_for_wikidich = tk.BooleanVar(value=proxy_settings.get('use_for_wikidich', proxy_settings.get('use_for_fetch_titles', False)))
         use_for_translate = tk.BooleanVar(value=proxy_settings.get('use_for_translate', False))
         use_for_images = tk.BooleanVar(value=proxy_settings.get('use_for_images', False))
 
-        ttk.Checkbutton(options_frame, text="Lấy tiêu đề online", variable=use_for_fetch).pack(anchor="w")
+        ttk.Checkbutton(options_frame, text="Wikidich / Fanqie (Works, chi tiết, kiểm tra cập nhật)", variable=use_for_wikidich).pack(anchor="w")
         ttk.Checkbutton(options_frame, text="Dịch thuật", variable=use_for_translate).pack(anchor="w")
         ttk.Checkbutton(options_frame, text="Tải ảnh từ URL", variable=use_for_images).pack(anchor="w")
 
@@ -4322,7 +4605,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
             self.app_config['proxy_settings'] = {
                 'proxies': proxy_list,
-                'use_for_fetch_titles': use_for_fetch.get(),
+                'use_for_fetch_titles': use_for_wikidich.get(),
+                'use_for_wikidich': use_for_wikidich.get(),
                 'use_for_translate': use_for_translate.get(),
                 'use_for_images': use_for_images.get()
             }
@@ -4342,10 +4626,12 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     def _get_proxy_for_request(self, feature_name: str):
         """
         Lấy một proxy ngẫu nhiên từ danh sách đã lưu (không kiểm tra lại).
-        feature_name: 'fetch_titles', 'translate', 'images'
+        feature_name: 'fetch_titles', 'wikidich', 'fanqie', 'translate', 'images'
         """
         proxy_settings = self.app_config.get('proxy_settings', {})
         use_proxy_flag = proxy_settings.get(f'use_for_{feature_name}', False)
+        if feature_name in ('fetch_titles', 'wikidich', 'fanqie'):
+            use_proxy_flag = proxy_settings.get('use_for_wikidich', proxy_settings.get('use_for_fetch_titles', use_proxy_flag))
 
         if not use_proxy_flag:
             return None
@@ -4358,6 +4644,22 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         chosen_proxy = random.choice(proxy_list)
         self.log(f"[Proxy] Sử dụng proxy ngẫu nhiên: {chosen_proxy}")
         return {"http": chosen_proxy, "https": chosen_proxy}
+
+    def _get_delay_range(self, min_key: str, max_key: str, default_min: float, default_max: float):
+        settings = getattr(self, "api_settings", {}) or {}
+        try:
+            min_val = float(settings.get(min_key, default_min))
+        except Exception:
+            min_val = default_min
+        try:
+            max_val = float(settings.get(max_key, default_max))
+        except Exception:
+            max_val = max(default_max, min_val)
+        if min_val < 0:
+            min_val = 0.0
+        if max_val < min_val:
+            max_val = min_val
+        return min_val, max_val
 
     def _start_proxy_check_thread(self, proxy_widget, result_widget, button):
         """Khởi động luồng kiểm tra proxy."""
@@ -4577,7 +4879,21 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 if not self._wd_progress_running:
                     self.wd_progress.start(12)
                     self._wd_progress_running = True
+            self._wd_update_progress_visibility(message)
         self.after(0, _update)
+
+    def _wd_update_progress_visibility(self, message: str):
+        frame = getattr(self, "wd_progress_frame", None)
+        if not frame:
+            return
+        active = bool(self._wd_loading or (message and message.strip() and message != "Chờ thao tác..."))
+        visible = getattr(self, "_wd_progress_visible", False)
+        if active and not visible:
+            frame.grid()
+            self._wd_progress_visible = True
+        elif not active and visible:
+            frame.grid_remove()
+            self._wd_progress_visible = False
 
     def _wd_report_progress(self, stage: str, current: int, total: int, message: str):
         self._wd_set_progress(message, current, total)
@@ -4591,23 +4907,59 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         except Exception:
             pass
 
+    def _wd_collect_advanced_filter_values(self):
+        if not hasattr(self, "wd_flag_vars"):
+            return
+        self.wikidich_filters['flags'] = [flag for flag, var in self.wd_flag_vars.items() if var.get()]
+        self.wikidich_filters['roles'] = [role for role, var in self.wd_role_vars.items() if var.get()]
+        self.wikidich_filters['categories'] = self._wd_get_selected_categories()
+        self.wikidich_filters['fromDate'] = self.wd_from_date_var.get().strip()
+        self.wikidich_filters['toDate'] = self.wd_to_date_var.get().strip()
+        self.wikidich_filters['sortBy'] = self._wd_get_sort_value()
+
+    def _wd_get_sort_value(self):
+        if not hasattr(self, "wd_sort_label_var"):
+            return "recent"
+        return self._wd_sort_label_to_value.get(self.wd_sort_label_var.get(), "recent")
+
+    def _wd_set_sort_label_from_value(self, value):
+        if not hasattr(self, "wd_sort_label_var"):
+            return
+        label = self._wd_sort_value_to_label.get(value, WD_SORT_OPTIONS[0][1])
+        self.wd_sort_label_var.set(label)
+
+    def _wd_sync_filter_controls_from_filters(self):
+        if not hasattr(self, "wd_flag_vars"):
+            return
+        filters = self.wikidich_filters
+        for flag, var in self.wd_flag_vars.items():
+            var.set(flag in filters.get('flags', []))
+        for role, var in self.wd_role_vars.items():
+            var.set(role in filters.get('roles', []))
+        self.wd_from_date_var.set(filters.get('fromDate', ''))
+        self.wd_to_date_var.set(filters.get('toDate', ''))
+        self._wd_select_categories(filters.get('categories', []))
+        self._wd_set_sort_label_from_value(filters.get('sortBy', 'recent'))
+        self._wd_toggle_advanced_section(show=self._wd_has_advanced_filters())
+        self._wd_update_adv_status()
+        self._wd_update_basic_status()
+
     def _wd_reset_filters(self):
-        defaults = self.app_config.get('wikidich', {}).get('advanced_filter', {})
-        self.wd_search_var.set(defaults.get('search', ''))
-        self.wd_summary_var.set(defaults.get('summarySearch', ''))
-        self.wd_status_var.set(defaults.get('status', 'all'))
-        self.wd_sort_var.set(defaults.get('sortBy', 'recent'))
-        self.wikidich_filters.update({
-            'search': self.wd_search_var.get().strip(),
-            'summarySearch': self.wd_summary_var.get().strip(),
-            'status': self.wd_status_var.get(),
-            'sortBy': self.wd_sort_var.get()
-        })
+        if not hasattr(self, "wd_flag_vars"):
+            return
+        for var in self.wd_flag_vars.values():
+            var.set(False)
+        for var in self.wd_role_vars.values():
+            var.set(False)
+        self._wd_select_categories([])
+        self.wd_from_date_var.set("")
+        self.wd_to_date_var.set("")
         self._wd_apply_filters()
 
     def _wd_apply_filters(self):
         if not hasattr(self, "wd_tree"):
             return
+        self._wd_collect_advanced_filter_values()
         self.wikidich_filters.setdefault('categories', [])
         self.wikidich_filters.setdefault('roles', [])
         self.wikidich_filters.setdefault('flags', [])
@@ -4617,30 +4969,42 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             'search': self.wd_search_var.get().strip(),
             'summarySearch': self.wd_summary_var.get().strip(),
             'status': self.wd_status_var.get(),
-            'sortBy': self.wd_sort_var.get()
+            'sortBy': self._wd_get_sort_value()
         })
         filtered = wikidich_ext.filter_books(self.wikidich_data, self.wikidich_filters)
         self.wikidich_filtered = filtered
+        self._wd_update_adv_status()
+        self._wd_update_basic_status()
         self._wd_refresh_tree(filtered)
 
     def _wd_refresh_tree(self, books):
         self.wd_tree.delete(*self.wd_tree.get_children())
         self._wd_tree_index = {}
+        new_map = getattr(self, "wd_new_chapters", {})
         for book in books:
             stats = book.get('stats', {}) or {}
+            book_id = book.get('id')
+            new_count = ""  # default empty
+            if book_id and isinstance(new_map, dict):
+                val = new_map.get(book_id)
+                if isinstance(val, int) and val > 0:
+                    new_count = str(val)
+            tags = ("has_new",) if new_count else ()
             item_id = self.wd_tree.insert(
                 "",
                 "end",
+                tags=tags,
                 values=(
                     book.get('title', ''),
                     book.get('status', ''),
                     book.get('updated_text', ''),
                     book.get('chapters') or "",
+                    new_count,
                     stats.get('views') or "",
                     book.get('author', '')
                 )
             )
-            self._wd_tree_index[item_id] = book.get('id')
+            self._wd_tree_index[item_id] = book_id
         if books:
             first = self.wd_tree.get_children()[0]
             self.wd_tree.selection_set(first)
@@ -4657,6 +5021,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.wd_info_vars['chapters'].set("")
             self.wd_info_vars['collections'].set("")
             self.wd_info_vars['flags'].set("")
+        if hasattr(self, "wd_count_var"):
+            self.wd_count_var.set(f"Số truyện: {len(books)}")
 
     def _wd_on_select(self, event=None):
         selection = self.wd_tree.selection()
@@ -4667,9 +5033,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         book = self.wikidich_data.get('books', {}).get(book_id)
         self._wd_show_detail(book)
 
+
     def _wd_show_detail(self, book):
         self.wd_selected_book = book
         if not book:
+            self._wd_update_update_button_state()
             return
         self.wd_title_label.config(text=book.get('title', ''))
         self.wd_info_vars['author'].set(book.get('author', ''))
@@ -4686,9 +5054,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             "editorOwner": "Biên tập - chủ",
             "editorGuest": "Biên tập - khách",
             "embedLink": "Nhúng link",
-            "embedFile": "Nhúng file",
-            "duplicate": "Trùng",
-            "vip": "VIP"
+            "embedFile": "Nhúng file"
         }
         flag_labels = [flag_map.get(k, k) for k, v in (book.get('flags') or {}).items() if v]
         self.wd_info_vars['flags'].set(", ".join(flag_labels))
@@ -4702,6 +5068,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             label = link.get('label') or link.get('url')
             self.wd_links_listbox.insert(tk.END, label)
         self._wd_display_cover(book.get('cover_url'))
+        self._wd_update_update_button_state()
 
     def _wd_open_extra_link(self, event=None):
         if not self.wd_current_links:
@@ -4711,16 +5078,34 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         except IndexError:
             return
         link = self.wd_current_links[index]
-        url = link.get('url')
-        if url:
-            webbrowser.open(url)
+        url = (link.get('url') if isinstance(link, dict) else link) or ""
+        self._open_in_app_browser(url)
 
     def _wd_open_book_in_browser(self):
         if not getattr(self, "wd_selected_book", None):
             return
         url = self.wd_selected_book.get('url')
-        if url:
-            webbrowser.open(url)
+        self._open_in_app_browser(url)
+
+    def _wd_update_update_button_state(self):
+        btn = getattr(self, "wd_update_button", None)
+        if not btn:
+            return
+        diff = 0
+        selected = getattr(self, "wd_selected_book", None)
+        if selected and isinstance(self.wd_new_chapters, dict):
+            val = self.wd_new_chapters.get(selected.get('id'))
+            if isinstance(val, int):
+                diff = val
+        btn_state = tk.NORMAL if diff and diff > 0 else tk.DISABLED
+        btn.config(state=btn_state)
+
+    def _wd_open_update_dialog(self):
+        selected = getattr(self, "wd_selected_book", None)
+        if not selected:
+            messagebox.showinfo("Chưa chọn truyện", "Vui lòng chọn một truyện trước.", parent=self)
+            return
+        messagebox.showinfo("Bổ sung chương", "Tính năng cập nhật tự động đang được phát triển.", parent=self)
 
     def _wd_start_fetch_works(self):
         if self._wd_loading:
@@ -4741,13 +5126,29 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 self.log("[Wikidich] Không có cookie, dừng tải.")
                 return
             session = wikidich_ext.build_session_with_cookies(cookies, proxies=proxies)
+            wiki_headers = self.api_settings.get('wiki_headers') if isinstance(self.api_settings, dict) else {}
+            if isinstance(wiki_headers, dict):
+                session.headers.update(wiki_headers)
             user_slug = wikidich_ext.fetch_current_user(session, proxies=proxies)
             if not user_slug:
                 self.after(0, lambda: messagebox.showerror("Chưa đăng nhập", "Không tìm thấy mục 'Hồ sơ của tôi'. Hãy đăng nhập Wikidich bằng trình duyệt tích hợp rồi thử lại."))
                 self.log("[Wikidich] Không tìm thấy 'Hồ sơ của tôi' -> chưa đăng nhập.")
                 return
             self.log(f"[Wikidich] Đăng nhập: {user_slug}")
-            data = wikidich_ext.fetch_works(session, user_slug, proxies=proxies, progress_cb=self._wd_report_progress)
+            wiki_delay_min, wiki_delay_max = self._get_delay_range(
+                'wiki_delay_min',
+                'wiki_delay_max',
+                DEFAULT_API_SETTINGS['wiki_delay_min'],
+                DEFAULT_API_SETTINGS['wiki_delay_max']
+            )
+            delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0
+            data = wikidich_ext.fetch_works(
+                session,
+                user_slug,
+                proxies=proxies,
+                progress_cb=self._wd_report_progress,
+                delay=delay_avg
+            )
             try:
                 data = wikidich_ext.collect_additional_metadata(
                     session,
@@ -4771,6 +5172,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.wikidich_data = data
             self._wd_update_user_label()
             self._wd_save_cache()
+            self.after(0, self._wd_refresh_category_options)
             self.after(0, self._wd_apply_filters)
             self._wd_set_progress(f"Đã tải {len(data.get('book_ids', []))} works", len(data.get('book_ids', [])), len(data.get('book_ids', [])))
         except Exception as e:
@@ -4803,8 +5205,22 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 self.log("[Wikidich] Không có cookie, dừng tải chi tiết.")
                 return
             session = wikidich_ext.build_session_with_cookies(cookies, proxies=proxies)
+            wiki_headers = self.api_settings.get('wiki_headers') if isinstance(self.api_settings, dict) else {}
+            if isinstance(wiki_headers, dict):
+                session.headers.update(wiki_headers)
             current_user = self.wikidich_data.get('username') or wikidich_ext.fetch_current_user(session, proxies=proxies) or ""
-            target_ids = list(self.wikidich_data.get('book_ids', []))
+            scope = self.wd_detail_scope_var.get()
+            if scope == "filtered":
+                filtered_books = getattr(self, "wikidich_filtered", []) or []
+                target_ids = [book.get('id') for book in filtered_books if book.get('id')]
+                if not target_ids:
+                    self._wd_set_progress("Không có truyện khớp bộ lọc hiện tại", 0, 1)
+                    self.after(0, lambda: messagebox.showinfo("Không có truyện", "Không có truyện nào khớp bộ lọc hiện tại để tải chi tiết.", parent=self))
+                    self.log("[Wikidich] Không có truyện phù hợp bộ lọc để tải chi tiết.")
+                    return
+            else:
+                target_ids = list(self.wikidich_data.get('book_ids', []))
+            target_ids = list(dict.fromkeys(target_ids))
             if self.wd_missing_only_var.get():
                 target_ids = [bid for bid in target_ids if not self.wikidich_data.get('books', {}).get(bid, {}).get('summary')]
             total = len(target_ids)
@@ -4814,6 +5230,12 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 self.log("[Wikidich] Không có truyện cần tải chi tiết.")
                 return
             self._wd_set_progress("Đang tải chi tiết...", 0, total)
+            wiki_delay_min, wiki_delay_max = self._get_delay_range(
+                'wiki_delay_min',
+                'wiki_delay_max',
+                DEFAULT_API_SETTINGS['wiki_delay_min'],
+                DEFAULT_API_SETTINGS['wiki_delay_max']
+            )
             for idx, bid in enumerate(target_ids, start=1):
                 book = self.wikidich_data.get('books', {}).get(bid)
                 if not book:
@@ -4824,6 +5246,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 except Exception as e:
                     self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {e}")
                 self._wd_report_progress("detail", idx, total, f"Đang tải chi tiết {idx}/{total}")
+                delay = random.uniform(wiki_delay_min, wiki_delay_max) if wiki_delay_max > 0 else 0
+                if delay > 0:
+                    time.sleep(delay)
             self._wd_save_cache()
             self.after(0, self._wd_apply_filters)
             self._wd_set_progress("Hoàn tất tải chi tiết", total, total)
@@ -4832,6 +5257,92 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self._wd_loading = False
             pythoncom.CoUninitialize()
             self._wd_progress_running = False
+
+    def _wd_prompt_check_updates(self):
+        filtered = list(getattr(self, "wikidich_filtered", []) or [])
+        if not filtered:
+            messagebox.showinfo("Chưa có dữ liệu", "Không có truyện nào đang hiển thị để kiểm tra.", parent=self)
+            return
+        messagebox.showinfo("Kiểm tra cập nhật", "Chức năng chỉ kiểm tra các truyện đang hiển thị trong bảng hiện tại.", parent=self)
+        self._wd_start_check_updates()
+
+    def _wd_start_check_updates(self):
+        if self._wd_loading:
+            messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.")
+            return
+        threading.Thread(target=self._wd_check_updates_worker, daemon=True).start()
+
+    def _wd_check_updates_worker(self):
+        pythoncom.CoInitialize()
+        self._wd_loading = True
+        try:
+            filtered = list(getattr(self, "wikidich_filtered", []) or [])
+            if not filtered:
+                self._wd_set_progress("Không có truyện để kiểm tra", 0, 1)
+                return
+            proxies = self._get_proxy_for_request('fetch_titles')
+            fanqie_headers = self.api_settings.get('fanqie_headers') if isinstance(self.api_settings, dict) else {}
+            fanqie_delay_min, fanqie_delay_max = self._get_delay_range(
+                'fanqie_delay_min',
+                'fanqie_delay_max',
+                DEFAULT_API_SETTINGS['fanqie_delay_min'],
+                DEFAULT_API_SETTINGS['fanqie_delay_max']
+            )
+            total = len(filtered)
+            results = dict(self.wd_new_chapters) if isinstance(self.wd_new_chapters, dict) else {}
+            self._wd_set_progress("Đang kiểm tra cập nhật...", 0, total)
+            for idx, book in enumerate(filtered, start=1):
+                book_id = book.get('id')
+                diff = self._wd_calculate_new_chapters(book, proxies=proxies, headers=fanqie_headers)
+                if book_id:
+                    if isinstance(diff, int) and diff > 0:
+                        results[book_id] = diff
+                    else:
+                        results.pop(book_id, None)
+                self._wd_report_progress("check_update", idx, total, f"Đang kiểm tra {idx}/{total}")
+                delay = random.uniform(fanqie_delay_min, fanqie_delay_max) if fanqie_delay_max > 0 else 0
+                if delay > 0:
+                    time.sleep(delay)
+            self.wd_new_chapters = results
+            self.after(0, lambda: self._wd_refresh_tree(filtered))
+            self._wd_set_progress("Hoàn tất kiểm tra cập nhật", total, total)
+        except Exception as exc:
+            self.log(f"[Wikidich] Lỗi khi kiểm tra cập nhật: {exc}")
+            self.after(0, lambda: messagebox.showerror("Lỗi", f"Không thể kiểm tra cập nhật: {exc}", parent=self))
+        finally:
+            self._wd_loading = False
+            self._wd_progress_running = False
+            pythoncom.CoUninitialize()
+
+    def _wd_get_fanqie_link(self, book: dict):
+        links = book.get('extra_links') or []
+        for link in links:
+            if isinstance(link, dict):
+                url = link.get('url', '')
+            else:
+                url = str(link)
+            if url and "fanqienovel.com" in url:
+                return url
+        return None
+
+    def _wd_calculate_new_chapters(self, book: dict, proxies=None, headers=None):
+        link = self._wd_get_fanqie_link(book)
+        if not link:
+            return None
+        result = fanqienovel_ext.fetch_chapters(link, proxies=proxies, headers=headers)
+        if not result or result.get('error'):
+            if result and result.get('error'):
+                self.log(f"[Wikidich] Không thể lấy chương Fanqie cho '{book.get('title', '')}': {result['error']}")
+            return None
+        remote_list = result.get('data') or []
+        remote_total = len(remote_list)
+        current_total = book.get('chapters') or 0
+        try:
+            current_total = int(current_total)
+        except Exception:
+            current_total = 0
+        diff = remote_total - current_total
+        return diff if diff > 0 else 0
 
     def _wd_display_cover(self, url: str):
         if not url:
@@ -4870,6 +5381,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         if cached:
             self.wikidich_data = cached
             self._wd_update_user_label()
+            self._wd_refresh_category_options()
             self._wd_apply_filters()
 
     def _wd_save_cache(self):
@@ -4879,100 +5391,289 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         except Exception as e:
             self.log(f"[Wikidich] Không thể lưu cache: {e}")
 
-    def _wd_open_advanced_filter(self):
-        if getattr(self, "_wd_filter_window", None):
+    def _open_api_settings_dialog(self):
+        current = self.api_settings or {}
+        wiki_min = current.get('wiki_delay_min', DEFAULT_API_SETTINGS['wiki_delay_min'])
+        wiki_max = current.get('wiki_delay_max', DEFAULT_API_SETTINGS['wiki_delay_max'])
+        fanqie_min = current.get('fanqie_delay_min', DEFAULT_API_SETTINGS['fanqie_delay_min'])
+        fanqie_max = current.get('fanqie_delay_max', DEFAULT_API_SETTINGS['fanqie_delay_max'])
+        wiki_headers = current.get('wiki_headers', {}) or {}
+        fanqie_headers = current.get('fanqie_headers', {}) or {}
+
+        win = tk.Toplevel(self)
+        win.title("Cài đặt request")
+        win.transient(self)
+        win.grab_set()
+        win.resizable(False, False)
+        container = ttk.Frame(win, padding=12)
+        container.pack(fill="both", expand=True)
+
+        delay_frame = ttk.LabelFrame(container, text="Độ trễ giữa các request (giây)", padding=10)
+        delay_frame.pack(fill="x", expand=True)
+
+        wiki_row = ttk.Frame(delay_frame)
+        wiki_row.pack(fill="x", pady=4)
+        ttk.Label(wiki_row, text="Wiki:").pack(side=tk.LEFT)
+        wiki_min_var = tk.DoubleVar(value=wiki_min)
+        wiki_max_var = tk.DoubleVar(value=wiki_max)
+        ttk.Label(wiki_row, text="Từ").pack(side=tk.LEFT, padx=(8, 2))
+        ttk.Entry(wiki_row, textvariable=wiki_min_var, width=8).pack(side=tk.LEFT)
+        ttk.Label(wiki_row, text="đến").pack(side=tk.LEFT, padx=(6, 2))
+        ttk.Entry(wiki_row, textvariable=wiki_max_var, width=8).pack(side=tk.LEFT)
+
+        fanqie_row = ttk.Frame(delay_frame)
+        fanqie_row.pack(fill="x", pady=4)
+        ttk.Label(fanqie_row, text="Fanqie:").pack(side=tk.LEFT)
+        fanqie_min_var = tk.DoubleVar(value=fanqie_min)
+        fanqie_max_var = tk.DoubleVar(value=fanqie_max)
+        ttk.Label(fanqie_row, text="Từ").pack(side=tk.LEFT, padx=(8, 2))
+        ttk.Entry(fanqie_row, textvariable=fanqie_min_var, width=8).pack(side=tk.LEFT)
+        ttk.Label(fanqie_row, text="đến").pack(side=tk.LEFT, padx=(6, 2))
+        ttk.Entry(fanqie_row, textvariable=fanqie_max_var, width=8).pack(side=tk.LEFT)
+
+        headers_frame = ttk.LabelFrame(container, text="Header cho request", padding=10)
+        headers_frame.pack(fill="both", expand=True, pady=(10, 0))
+        headers_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(headers_frame, text="User-Agent (Wiki):").grid(row=0, column=0, sticky="w", padx=(0, 6))
+        wiki_ua_var = tk.StringVar(value=wiki_headers.get("User-Agent", DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent", "")))
+        ttk.Entry(headers_frame, textvariable=wiki_ua_var).grid(row=0, column=1, sticky="ew")
+
+        ttk.Label(headers_frame, text="User-Agent (Fanqie):").grid(row=1, column=0, sticky="w", padx=(0, 6), pady=(8, 0))
+        fanqie_ua_var = tk.StringVar(value=fanqie_headers.get("User-Agent", DEFAULT_API_SETTINGS['fanqie_headers'].get("User-Agent", "")))
+        ttk.Entry(headers_frame, textvariable=fanqie_ua_var).grid(row=1, column=1, sticky="ew", pady=(8, 0))
+
+        action_frame = ttk.Frame(container)
+        action_frame.pack(fill="x", pady=(12, 0))
+
+        def _reset_defaults():
+            wiki_min_var.set(DEFAULT_API_SETTINGS['wiki_delay_min'])
+            wiki_max_var.set(DEFAULT_API_SETTINGS['wiki_delay_max'])
+            fanqie_min_var.set(DEFAULT_API_SETTINGS['fanqie_delay_min'])
+            fanqie_max_var.set(DEFAULT_API_SETTINGS['fanqie_delay_max'])
+            wiki_ua_var.set(DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent", ""))
+            fanqie_ua_var.set(DEFAULT_API_SETTINGS['fanqie_headers'].get("User-Agent", ""))
+
+        def _save_settings():
             try:
-                self._wd_filter_window.lift()
-                return
+                wiki_min_val = float(wiki_min_var.get())
+                wiki_max_val = float(wiki_max_var.get())
+                fanqie_min_val = float(fanqie_min_var.get())
+                fanqie_max_val = float(fanqie_max_var.get())
             except Exception:
-                self._wd_filter_window = None
+                messagebox.showerror("Lỗi", "Giá trị độ trễ phải là số.", parent=win)
+                return
+            if wiki_min_val < 0 or wiki_max_val < 0 or fanqie_min_val < 0 or fanqie_max_val < 0:
+                messagebox.showerror("Lỗi", "Độ trễ không được âm.", parent=win)
+                return
+            if wiki_max_val < wiki_min_val:
+                wiki_max_val = wiki_min_val
+            if fanqie_max_val < fanqie_min_val:
+                fanqie_max_val = fanqie_min_val
+
+            wiki_ua = wiki_ua_var.get().strip() or DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent", "")
+            fanqie_ua = fanqie_ua_var.get().strip() or DEFAULT_API_SETTINGS['fanqie_headers'].get("User-Agent", "")
+            wiki_hdr = dict(DEFAULT_API_SETTINGS['wiki_headers'])
+            wiki_hdr["User-Agent"] = wiki_ua
+            fanqie_hdr = dict(DEFAULT_API_SETTINGS['fanqie_headers'])
+            fanqie_hdr["User-Agent"] = fanqie_ua
+
+            self.api_settings = {
+                'wiki_delay_min': wiki_min_val,
+                'wiki_delay_max': wiki_max_val,
+                'fanqie_delay_min': fanqie_min_val,
+                'fanqie_delay_max': fanqie_max_val,
+                'wiki_headers': wiki_hdr,
+                'fanqie_headers': fanqie_hdr
+            }
+            self.app_config['api_settings'] = dict(self.api_settings)
+            self.save_config()
+            messagebox.showinfo("Đã lưu", "Đã lưu cài đặt request.", parent=win)
+            win.destroy()
+
+        ttk.Button(action_frame, text="Trở về mặc định", command=_reset_defaults).pack(side=tk.LEFT)
+        ttk.Button(action_frame, text="Lưu", command=_save_settings).pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(action_frame, text="Đóng", command=win.destroy).pack(side=tk.RIGHT)
+
+    def _wd_prompt_detail_fetch(self):
+        if self._wd_loading:
+            messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.")
+            return
         if not self.wikidich_data.get('book_ids'):
             messagebox.showinfo("Chưa có dữ liệu", "Vui lòng tải works trước.")
             return
         win = tk.Toplevel(self)
-        win.title("Lọc nâng cao Wikidich")
-        win.geometry("520x520")
-        self._wd_filter_window = win
+        win.title("Tùy chọn tải chi tiết")
+        win.transient(self)
+        win.grab_set()
+        win.resizable(False, False)
+        container = ttk.Frame(win, padding=12)
+        container.pack(fill="both", expand=True)
+        ttk.Label(container, text="Chọn phạm vi tải chi tiết").pack(anchor="w")
+        missing_var = tk.BooleanVar(value=self.wd_missing_only_var.get())
+        ttk.Checkbutton(container, text="Chỉ bổ sung chi tiết còn thiếu", variable=missing_var).pack(anchor="w", pady=(6, 0))
 
-        def _close_window():
-            try:
-                win.destroy()
-            finally:
-                self._wd_filter_window = None
-        win.protocol("WM_DELETE_WINDOW", _close_window)
+        scope_var = tk.StringVar(value=self.wd_detail_scope_var.get())
+        ttk.Label(container, text="Phạm vi:").pack(anchor="w", pady=(12, 4))
+        ttk.Radiobutton(container, text="Tất cả truyện đã thu thập", variable=scope_var, value="all").pack(anchor="w")
+        ttk.Radiobutton(container, text="Chỉ các truyện đang áp dụng bộ lọc (kể cả nâng cao)", variable=scope_var, value="filtered").pack(anchor="w", pady=(2, 0))
 
-        filters = dict(self.wikidich_filters)
-        from_var = tk.StringVar(value=filters.get('fromDate', ''))
-        to_var = tk.StringVar(value=filters.get('toDate', ''))
-        roles_vars = {role: tk.BooleanVar(value=role in filters.get('roles', [])) for role in wikidich_ext.ROLE_OPTIONS}
-        flag_labels = {
-            "embedLink": "Nhúng bằng link",
-            "embedFile": "Nhúng bằng file",
-            "duplicate": "Truyện trùng",
-            "vip": "VIP"
-        }
-        flags_vars = {flag: tk.BooleanVar(value=flag in filters.get('flags', [])) for flag in flag_labels}
-        categories = sorted({c for b in self.wikidich_data.get('books', {}).values() for c in (b.get('collections') or [])})
+        btn_frame = ttk.Frame(container)
+        btn_frame.pack(fill=tk.X, pady=(16, 0))
 
-        ttk.Label(win, text="Khoảng ngày cập nhật").pack(anchor="w", padx=10, pady=(10, 4))
-        date_frame = ttk.Frame(win)
-        date_frame.pack(fill=tk.X, padx=10)
-        ttk.Label(date_frame, text="Từ:").pack(side=tk.LEFT)
-        ttk.Entry(date_frame, textvariable=from_var, width=12).pack(side=tk.LEFT, padx=(4, 10))
-        ttk.Label(date_frame, text="Đến:").pack(side=tk.LEFT)
-        ttk.Entry(date_frame, textvariable=to_var, width=12).pack(side=tk.LEFT, padx=(4, 0))
+        def _start():
+            self.wd_missing_only_var.set(missing_var.get())
+            self.wd_detail_scope_var.set(scope_var.get())
+            win.destroy()
+            self._wd_start_fetch_details()
 
-        if categories:
-            ttk.Label(win, text="Thể loại đã thu thập").pack(anchor="w", padx=10, pady=(10, 4))
-            cat_box = tk.Listbox(win, selectmode=tk.MULTIPLE, height=min(8, len(categories)))
-            cat_box.pack(fill=tk.X, padx=10)
-            for cat in categories:
-                cat_box.insert(tk.END, cat)
-            for idx, cat in enumerate(categories):
-                if cat in filters.get('categories', []):
-                    cat_box.selection_set(idx)
+        ttk.Button(btn_frame, text="Bắt đầu tải", command=_start).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Hủy", command=win.destroy).pack(side=tk.RIGHT, padx=(0, 8))
+
+    def _wd_toggle_advanced_section(self, show=None):
+        if not hasattr(self, "wd_adv_container"):
+            return
+        if show is None:
+            show = not getattr(self, "_wd_adv_section_visible", False)
+        if show:
+            self.wd_adv_container.grid()
         else:
-            cat_box = None
-            ttk.Label(win, text="(Chưa có thể loại để lọc)").pack(anchor="w", padx=10, pady=(4, 0))
+            self.wd_adv_container.grid_remove()
+        self._wd_adv_section_visible = show
+        if hasattr(self, "wd_adv_toggle_btn"):
+            self.wd_adv_toggle_btn.config(text="Ẩn lọc nâng cao" if show else "Hiện lọc nâng cao")
 
-        ttk.Label(win, text="Vai trò của bạn").pack(anchor="w", padx=10, pady=(10, 4))
-        role_frame = ttk.Frame(win)
-        role_frame.pack(fill=tk.X, padx=10)
-        role_labels = {
-            "poster": "Tôi là người đăng",
-            "managerOwner": "Đồng quản lý - chủ",
-            "managerGuest": "Đồng quản lý - khách",
-            "editorOwner": "Biên tập - chủ",
-            "editorGuest": "Biên tập - khách"
-        }
-        for role in wikidich_ext.ROLE_OPTIONS:
-            ttk.Checkbutton(role_frame, text=role_labels.get(role, role), variable=roles_vars[role]).pack(anchor="w")
+    def _wd_has_advanced_filters(self):
+        if not hasattr(self, "wd_role_vars"):
+            return False
+        if self.wd_from_date_var.get().strip() or self.wd_to_date_var.get().strip():
+            return True
+        if self._wd_get_selected_categories():
+            return True
+        if any(var.get() for var in self.wd_role_vars.values()):
+            return True
+        return False
 
-        ttk.Label(win, text="Thuộc tính").pack(anchor="w", padx=10, pady=(10, 4))
-        flag_frame = ttk.Frame(win)
-        flag_frame.pack(fill=tk.X, padx=10)
-        for flag, label in flag_labels.items():
-            ttk.Checkbutton(flag_frame, text=label, variable=flags_vars[flag]).pack(anchor="w")
+    def _wd_update_adv_status(self):
+        if not hasattr(self, "wd_adv_status_var"):
+            return
+        parts = []
+        if self.wd_from_date_var.get().strip() or self.wd_to_date_var.get().strip():
+            parts.append("Ngày cập nhật")
+        if self._wd_get_selected_categories():
+            parts.append("Thể loại")
+        if any(var.get() for var in getattr(self, "wd_role_vars", {}).values()):
+            parts.append("Vai trò")
+        text = f"Đang áp dụng lọc nâng cao ({', '.join(parts)})" if parts else ""
+        self.wd_adv_status_var.set(text)
 
-        def _apply_and_close():
-            selected_categories = []
-            if cat_box:
-                selected_categories = [cat_box.get(i) for i in cat_box.curselection()]
-            self.wikidich_filters.update({
-                'fromDate': from_var.get().strip(),
-                'toDate': to_var.get().strip(),
-                'categories': selected_categories,
-                'roles': [r for r, var in roles_vars.items() if var.get()],
-                'flags': [f for f, var in flags_vars.items() if var.get()]
-            })
-            self._wd_apply_filters()
-            self.save_config()
-            _close_window()
+    def _wd_update_basic_status(self):
+        if not hasattr(self, "wd_basic_status_var"):
+            return
+        parts = []
+        search = self.wd_search_var.get().strip()
+        if search:
+            parts.append(f"Tên/TG chứa '{search}'")
+        summary = self.wd_summary_var.get().strip()
+        if summary:
+            parts.append(f"Văn án chứa '{summary}'")
+        status = self.wd_status_var.get()
+        if status and status != "all":
+            parts.append(f"Trạng thái: {status}")
+        text = f"Đang lọc cơ bản ({', '.join(parts)})" if parts else ""
+        self.wd_basic_status_var.set(text)
 
-        action_frame = ttk.Frame(win)
-        action_frame.pack(fill=tk.X, padx=10, pady=12)
-        ttk.Button(action_frame, text="Áp dụng & Lưu", command=_apply_and_close).pack(side=tk.RIGHT)
-        ttk.Button(action_frame, text="Đóng", command=_close_window).pack(side=tk.RIGHT, padx=(0, 8))
+    def _wd_get_selected_categories(self):
+        listbox = getattr(self, "wd_category_listbox", None)
+        if not listbox or not self._wd_category_options:
+            return list(self._wd_pending_categories)
+        selected = []
+        for idx in listbox.curselection():
+            if 0 <= idx < len(self._wd_category_options):
+                selected.append(self._wd_category_options[idx])
+        self._wd_pending_categories = list(selected)
+        return selected
+
+    def _wd_select_categories(self, categories):
+        self._wd_pending_categories = list(categories or [])
+        listbox = getattr(self, "wd_category_listbox", None)
+        if not listbox:
+            return
+        listbox.selection_clear(0, tk.END)
+        if not getattr(self, "_wd_category_options", None):
+            return
+        for idx, cat in enumerate(self._wd_category_options):
+            if cat in self._wd_pending_categories:
+                listbox.selection_set(idx)
+
+    def _wd_refresh_category_options(self):
+        listbox = getattr(self, "wd_category_listbox", None)
+        if not listbox:
+            return
+        categories = sorted({c for b in self.wikidich_data.get('books', {}).values() for c in (b.get('collections') or []) if c})
+        self._wd_category_options = categories
+        listbox.delete(0, tk.END)
+        for cat in categories:
+            listbox.insert(tk.END, cat)
+        self._wd_select_categories(self._wd_pending_categories or self.wikidich_filters.get('categories', []))
+
+    def _wd_open_date_picker(self, target_var, title):
+        today = datetime.today()
+        current_value = target_var.get().strip()
+        try:
+            current_dt = datetime.fromisoformat(current_value) if current_value else today
+        except Exception:
+            current_dt = today
+        current_dt = min(current_dt, today)
+        win = tk.Toplevel(self)
+        win.title(title)
+        win.transient(self)
+        win.grab_set()
+        win.resizable(False, False)
+        frame = ttk.Frame(win, padding=12)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="Chọn ngày (không vượt quá hôm nay)").pack(anchor="w", pady=(0, 6))
+        year_var = tk.IntVar(value=current_dt.year)
+        month_var = tk.IntVar(value=current_dt.month)
+        day_var = tk.IntVar(value=current_dt.day)
+
+        spin_frame = ttk.Frame(frame)
+        spin_frame.pack(pady=(0, 8))
+        ttk.Label(spin_frame, text="Năm:").grid(row=0, column=0, padx=4)
+        ttk.Spinbox(spin_frame, from_=2005, to=today.year, textvariable=year_var, width=6).grid(row=0, column=1)
+        ttk.Label(spin_frame, text="Tháng:").grid(row=0, column=2, padx=4)
+        ttk.Spinbox(spin_frame, from_=1, to=12, textvariable=month_var, width=4).grid(row=0, column=3)
+        ttk.Label(spin_frame, text="Ngày:").grid(row=0, column=4, padx=4)
+        ttk.Spinbox(spin_frame, from_=1, to=31, textvariable=day_var, width=4).grid(row=0, column=5)
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill=tk.X)
+
+        def _set_today():
+            year_var.set(today.year)
+            month_var.set(today.month)
+            day_var.set(today.day)
+
+        def _apply():
+            try:
+                selected = datetime(year_var.get(), month_var.get(), day_var.get())
+            except ValueError:
+                messagebox.showerror("Ngày không hợp lệ", "Vui lòng kiểm tra lại ngày/tháng/năm.", parent=win)
+                return
+            if selected > today:
+                messagebox.showerror("Ngày không hợp lệ", "Không thể chọn ngày ở tương lai.", parent=win)
+                return
+            target_var.set(selected.strftime("%Y-%m-%d"))
+            self._wd_update_adv_status()
+            win.destroy()
+
+        ttk.Button(btn_frame, text="Hôm nay", command=_set_today).pack(side=tk.LEFT)
+        ttk.Button(btn_frame, text="Đồng ý", command=_apply).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Hủy", command=win.destroy).pack(side=tk.RIGHT, padx=(0, 8))
+
+    def _wd_clear_date(self, target_var):
+        target_var.set("")
+        self._wd_update_adv_status()
 
     def _start_extraction(self):
         """Bắt đầu quá trình giải nén file trong một thread riêng."""

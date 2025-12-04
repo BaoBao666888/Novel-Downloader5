@@ -81,11 +81,11 @@ def analyze_file(filepath: str, custom_filename_regexes: list = None, custom_con
                     for pattern in custom_content_regexes:
                         if not pattern: continue
                         try:
-                            match = re.search(pattern, filename)
+                            match = re.search(pattern, first_line)
                             if match and len(match.groups()) >= 2:
-                                analysis['from_filename']['num'] = int(match.group(1))
-                                analysis['from_filename']['title'] = match.group(2).strip()
-                                analysis['from_filename']['source'] = 'Custom Regex'
+                                analysis['from_content']['num'] = int(match.group(1))
+                                analysis['from_content']['title'] = match.group(2).strip()
+                                analysis['from_content']['source'] = 'Custom Regex (Content)'
                                 break 
                         except (re.error, IndexError, ValueError):
                             pass

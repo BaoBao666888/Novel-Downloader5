@@ -9,3 +9,4 @@ pyinstaller
 patool
 PyQt6
 PyQt6-WebEngine
+js2py
