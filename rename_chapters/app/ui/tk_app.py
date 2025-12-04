@@ -306,7 +306,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.1.9')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.0')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -1877,7 +1877,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         - **Lọc**:
             - Bộ lọc cơ bản: tìm tiêu đề/tác giả, văn án, trạng thái, sắp xếp (Mới nhất/Cũ nhất/...); hiển thị trạng thái lọc ngay trên khung.
             - Lọc nâng cao: ngày cập nhật (chọn từ date picker), thể loại, vai trò, thuộc tính (Nhúng link/file), reset để xoá sạch lọc nâng cao.
-        - **Kiểm tra cập nhật**: chỉ kiểm tra các truyện đang hiển thị; cột “New” tô xanh toàn hàng khi có chương mới.
+        - **Kiểm tra cập nhật**: chỉ kiểm tra các truyện đang hiển thị (Hiện tại chỉ hỗ trợ Fanqie); cột “New” tô xanh toàn hàng khi có chương mới.
         - **Link bổ sung**: double‑click để mở bằng trình duyệt tích hợp.
         - **Tiến độ**: khung tiến độ ẩn, chỉ hiện khi đang chạy tác vụ.
         - **Cài đặt request**: chỉnh delay Wiki/Fanqie, User-Agent Wiki/Fanqie; có nút về mặc định.

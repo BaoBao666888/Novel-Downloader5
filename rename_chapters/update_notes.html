@@ -1,23 +1,17 @@
-<h1>Phiên bản 0.1.9 — Nâng cấp Tampermonkey & trải nghiệm duyệt (Bản thử nghiệm)</h1>
-0.1.9 bổ sung nền tảng Tampermonkey đơn giản, tối ưu nút Download, thanh URL và luồng đổi tên file, đồng thời cập nhật lại tab Hướng dẫn.
+<h1>Phiên bản 0.2.0 — Thêm Wikidich, dịch Hán-Việt, lịch sử regex</h1>
+0.2.0 bổ sung tab Wikidich và cải thiện dịch thuật, thao tác regex.
 
 <h2>Điểm mới nổi bật</h2>
-- <b>Nền tảng Tampermonkey nhẹ</b>: tải/ích hợp userscript, hỗ trợ GM_xmlhttpRequest, menu commands, chạy song song nhiều script (bảo vệ handler dùng registry). Có thể import link hoặc file userscript. (Hiện tại chỉ hỗ trợ cho các script Tampermonkey)
-- <b>Nút Download mới</b>: hiển thị danh sách tải với trạng thái (đang tải/hoàn tất/lỗi), hành động mở file/thư mục, sao chép link, hủy/tải lại, tự đặt tên tránh ghi đè và lưu lịch sử tải (download_records.json) giữa các lần mở app.
-- <b>Thanh URL & gợi ý</b>: chọn gợi ý sẽ tự load trang; lưu lịch sử truy cập và tìm kiếm để gợi ý nhanh hơn.
-- <b>Đổi tên file</b>: giữ selection khi refresh bảng xem trước; “Bắt buộc sửa” chỉ hiện khi bật “Sửa dòng đầu”; dòng đầu dùng định dạng gốc (giữ ký tự đặc biệt như dấu /) trong khi tên file vẫn được sanitize.
-- <b>Tab Hướng dẫn</b>: bổ sung mục Trình duyệt, Cookie, Cài đặt với hướng dẫn thao tác mới.
+- <b>Tab Wikidich mới</b>: tải Works, tải chi tiết, lọc cơ bản/nâng cao (thể loại, vai trò, ngày cập nhật có date picker), reset lọc, hiển thị trạng thái lọc; kiểm tra cập nhật (chỉ danh sách đang hiển thị) và cột “New” tô xanh; link bổ sung mở bằng trình duyệt tích hợp; tiến độ ẩn khi không chạy; nút <b>Cài đặt</b> cho delay/User-Agent Wiki/Fanqie; proxy riêng cho Wikidich/Fanqie.
+- <b>Lấy tiêu đề online</b>: ô “Chọn nhanh theo khoảng” hỗ trợ nhiều khoảng (ví dụ `1-5,7,10-`, `all`, `-100`, `80-`); hướng dẫn cập nhật.
+- <b>Lịch sử & ghim regex</b>: Tìm/Thay thế và Chia file lưu tối đa ~20 mục, có nút Ghim/Bỏ ghim để giữ regex đúng.
+- <b>Dịch</b>: thêm nút <b>Việt</b> và <b>Hán Việt</b> (API dichngay `tl=hv`), thanh tiến độ ẩn khi chưa dịch, nút xuất kết quả ra TXT hoặc JSON; hướng dẫn tab Dịch đã cập nhật.
 
-
-<h2>Sửa lỗi & cải tiến nhỏ</h2>
-
-- Sửa mất chọn dòng trong bảng Đổi tên sau khi refresh.
-- GM_xmlhttpRequest không còn crash do cross-thread; menu script không ghi đè lẫn nhau.
-- Fix tải xuống không lỗi khi trùng tên (tự thêm số), retry/hủy hoạt động ổn định.
-
+<h2>Sửa đổi khác</h2>
+- Nút “?” trong Tìm/Chia file gọn hơn.
+- Tính năng Regex (Nội dung) đã hoạt động.
+- Loại bỏ thử nghiệm lưu vị trí paned (khung sẽ trở về mặc định mỗi lần mở).
 
 <h2>Hướng dẫn cập nhật</h2>
-
-- Nhấn <b>Tải & Cài đặt</b> để tải bản cài đặt 0.1.9.
-- Ứng dụng sẽ tự đóng trước khi chạy bộ cài.
+- Nhấn <b>Tải & Cài đặt</b> để cập nhật lên 0.2.0 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
 - Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.
