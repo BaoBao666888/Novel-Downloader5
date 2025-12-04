@@ -363,8 +363,6 @@ class RenamerApp(tk.Tk):
         self.sort_strategy = tk.StringVar(value="content")
         self.combine_titles_var = tk.BooleanVar(value=False)
         self.title_format_var = tk.StringVar(value="{t1} - {t2}")
-        self._pane_sizes = {}
-        self._paned_registry = []
         self.regex_pins = {'find': [], 'replace': [], 'split': []}
 
         self.downloaded_image_data = None
@@ -437,7 +435,6 @@ class RenamerApp(tk.Tk):
                 'use_for_images': False
             },
             'ui_settings': dict(DEFAULT_UI_SETTINGS),
-            'pane_sizes': {},
             'regex_pins': {'find': [], 'replace': [], 'split': []},
             'wikidich': {
                 'cache_path': os.path.join(BASE_DIR, "local", "wikidich_cache.json"),
@@ -1204,8 +1201,6 @@ class RenamerApp(tk.Tk):
             'cache_path': self.wikidich_cache_path
         }
         self.app_config['api_settings'] = dict(self.api_settings or {})
-        self._capture_all_pane_sizes()
-        self.app_config['pane_sizes'] = dict(getattr(self, "_pane_sizes", {}))
         self.app_config['regex_pins'] = dict(self.regex_pins)
         try:
             with open('config.json', 'w', encoding='utf-8') as f:
@@ -1228,7 +1223,6 @@ class RenamerApp(tk.Tk):
                         self.app_config[key] = value
 
             config_data = self.app_config
-            self._pane_sizes = dict(config_data.get('pane_sizes', {}))
             self.regex_pins = dict(config_data.get('regex_pins', {'find': [], 'replace': [], 'split': []}))
             api_cfg = config_data.get('api_settings', {}) if isinstance(config_data.get('api_settings'), dict) else {}
             self.api_settings = {**DEFAULT_API_SETTINGS, **api_cfg}
@@ -1430,7 +1424,6 @@ class RenamerApp(tk.Tk):
 
         self.main_paned_window = ttk.PanedWindow(main_frame, orient=tk.VERTICAL)
         self.main_paned_window.pack(fill=tk.BOTH, expand=True)
-        self._register_paned(self.main_paned_window, "main_paned")
 
         self.content_panel = ttk.Frame(self.main_paned_window, style="Card.TFrame")
         self.notebook = ttk.Notebook(self.content_panel)
@@ -1553,7 +1546,6 @@ class RenamerApp(tk.Tk):
 
         rename_paned_window = ttk.PanedWindow(rename_tab, orient=tk.VERTICAL)
         rename_paned_window.grid(row=0, column=0, sticky="nsew", rowspan=2)
-        self._register_paned(rename_paned_window, "rename_paned")
 
         # Options frame in top pane
         options_frame = ttk.LabelFrame(rename_paned_window, text="2. Tùy chọn", padding="10")
@@ -2045,10 +2037,12 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   Cho phép tùy chỉnh các thông số kỹ thuật như URL server dịch, URL file Hán-Việt, độ trễ và số ký tự tối đa cho mỗi yêu cầu.
 
         4.  **Dịch và Sửa Name từ kết quả**:
-            -   Nhấn nút **"BẮT ĐẦU DỊCH"** để bắt đầu.
+            -   Nút **"Việt"** dịch sang tiếng Việt, **"Hán Việt"** dùng API dichngay với `tl=hv`.
+            -   Thanh tiến độ ẩn mặc định, chỉ hiện khi đang dịch; nhãn trạng thái nằm cùng hàng với các nút.
             -   Sau khi dịch xong, bạn có thể **chuột phải** vào một đoạn văn bản trong ô "Kết quả dịch" và chọn **"Sửa Name..."**.
             -   Một cửa sổ sẽ hiện ra, cho phép bạn sửa cả name tiếng Trung và tiếng Việt. Nhấn nút **"Gợi ý..."** trong cửa sổ này để xem các gợi ý Hán-Việt và dịch máy.
             -   **Tự động cập nhật**: Sau khi bạn lưu một name, các đoạn dịch có chứa name đó sẽ được **tự động dịch lại** một cách thông minh mà không cần phải dịch lại toàn bộ.
+            -   **Xuất kết quả**: Lưu nội dung đã dịch ra `.txt` hoặc `.json` (dạng list dòng) bằng nút **"Xuất kết quả..."**.
         """
         create_tab("Dịch", translate_guide)
 
@@ -2108,7 +2102,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         credit_paned = ttk.PanedWindow(credit_tab, orient=tk.VERTICAL)
         credit_paned.grid(row=0, column=0, sticky="nsew")
-        self._register_paned(credit_paned, "credit_paned")
 
         credit_options_frame = ttk.LabelFrame(credit_paned, text="2. Tùy chọn & Hành động", padding="10")
         credit_paned.add(credit_options_frame, weight=1)
@@ -2157,7 +2150,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         online_paned = ttk.PanedWindow(online_tab, orient=tk.VERTICAL)
         online_paned.grid(row=0, column=0, sticky="nsew")
-        self._register_paned(online_paned, "online_paned")
 
         # Frame 1: Nguồn (Không thay đổi)
         fetch_frame = ttk.LabelFrame(online_paned, text="1. Nguồn", padding=10)
@@ -2378,7 +2370,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         main_pane = ttk.PanedWindow(wd_tab, orient=tk.HORIZONTAL)
         main_pane.grid(row=3, column=0, sticky="nsew", pady=(8, 0))
-        self._register_paned(main_pane, "wd_main_paned")
 
         detail_frame = ttk.Frame(main_pane, padding=6)
         detail_frame.columnconfigure(1, weight=1)
@@ -2501,7 +2492,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         # Tạo PanedWindow chính theo chiều dọc
         main_paned = ttk.PanedWindow(parent, orient=tk.VERTICAL)
         main_paned.grid(row=0, column=0, sticky="nsew")
-        self._register_paned(main_paned, "find_paned")
         
         # Frame cho phần tùy chọn 
         options_frame = ttk.LabelFrame(main_paned, text="1. Tùy chọn", padding="10")
@@ -2563,7 +2553,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         # Tạo PanedWindow chính theo chiều dọc
         main_paned = ttk.PanedWindow(parent, orient=tk.VERTICAL)
         main_paned.grid(row=0, column=0, sticky="nsew")
-        self._register_paned(main_paned, "split_paned")
 
         # Frame cho tùy chọn chia file
         options_frame = ttk.LabelFrame(main_paned, text="1. Tùy chọn chia file", padding="10")
@@ -2940,42 +2929,22 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
     def _register_paned(self, paned: ttk.PanedWindow, key: str):
         """Ghi nhớ pane để khôi phục vị trí sash và lưu cấu hình."""
-        if not hasattr(self, "_paned_registry"):
-            self._paned_registry = []
-        self._paned_registry.append((key, paned))
-        paned.bind("<ButtonRelease-1>", lambda e, k=key: self._update_pane_size(k), add="+")
-        self.after(200, lambda k=key: self._restore_pane_size(k))
+        pass
 
     def _restore_pane_size(self, key: str):
-        sizes = getattr(self, "_pane_sizes", {}).get(key)
-        paned = next((p for k, p in getattr(self, "_paned_registry", []) if k == key), None)
-        if not sizes or not paned:
-            return
-        try:
-            for idx, coord in enumerate(sizes):
-                if len(coord) >= 2:
-                    paned.sash_place(idx, coord[0], coord[1])
-        except Exception:
-            pass
+        return
+
+    def _restore_all_panes(self):
+        return
 
     def _update_pane_size(self, key: str):
-        paned = next((p for k, p in getattr(self, "_paned_registry", []) if k == key), None)
-        if not paned:
-            return
-        try:
-            coords = []
-            num_sash = max(0, len(paned.panes()) - 1)
-            for i in range(num_sash):
-                coords.append(paned.sash_coord(i))
-            if not hasattr(self, "_pane_sizes"):
-                self._pane_sizes = {}
-            self._pane_sizes[key] = coords
-        except Exception:
-            pass
+        return
 
     def _capture_all_pane_sizes(self):
-        for key, _ in getattr(self, "_paned_registry", []):
-            self._update_pane_size(key)
+        return
+
+    def _get_paned_size(self, paned: ttk.PanedWindow, is_horizontal: bool) -> int:
+        return 0
 
     def on_browser_overlay_opened(self):
         self._set_browser_menu_state(False)
@@ -3646,7 +3615,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         main_paned = ttk.PanedWindow(translator_tab, orient=tk.HORIZONTAL)
         main_paned.grid(row=0, column=0, sticky="nsew")
-        self._register_paned(main_paned, "translator_paned")
 
         left_frame = ttk.Frame(main_paned)
         main_paned.add(left_frame, weight=1)
@@ -3698,14 +3666,22 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ).grid(row=0, column=1, padx=5)
 
         self.translator_progress_bar = ttk.Progressbar(control_frame, orient="horizontal", mode="determinate")
+        # Ẩn mặc định, sẽ show khi dịch
         self.translator_progress_bar.grid(row=0, column=2, sticky="ew", padx=10)
+        self.translator_progress_bar.grid_remove()
 
-        ttk.Button(control_frame, text="BẮT ĐẦU DỊCH", 
-                command=lambda: self._start_translation_thread(self.translator_input_text, self.translator_output_text)
-        ).grid(row=0, column=3)
+        ttk.Button(control_frame, text="Việt", 
+                command=lambda: self._start_translation_thread(self.translator_input_text, self.translator_output_text, target_lang='vi')
+        ).grid(row=0, column=3, padx=(0,4))
+        ttk.Button(control_frame, text="Hán Việt", 
+                command=lambda: self._start_translation_thread(self.translator_input_text, self.translator_output_text, target_lang='hv')
+        ).grid(row=0, column=4, padx=(0,4))
+        ttk.Button(control_frame, text="Xuất kết quả...", 
+                command=self._export_translation_result
+        ).grid(row=0, column=5, padx=(0,4))
 
         self.translator_status_label = ttk.Label(control_frame, text="Sẵn sàng.")
-        self.translator_status_label.grid(row=1, column=3, sticky="e", pady=(5,0))
+        self.translator_status_label.grid(row=0, column=6, sticky="e", pady=(0,0))
 
     def _load_file_into_translator(self, text_widget):
         filepath = filedialog.askopenfilename(filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
@@ -3716,6 +3692,33 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             text_widget.delete("1.0", tk.END); text_widget.insert("1.0", content)
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể đọc file: {e}", parent=self)
+    
+    def _export_translation_result(self):
+        if not hasattr(self, "translator_output_text"):
+            return
+        content = self.translator_output_text.get("1.0", tk.END).strip()
+        if not content:
+            messagebox.showinfo("Thông báo", "Chưa có nội dung dịch để xuất.", parent=self)
+            return
+        filepath = filedialog.asksaveasfilename(
+            title="Xuất kết quả dịch",
+            defaultextension=".txt",
+            filetypes=[("Text file", "*.txt"), ("JSON (list)", "*.json"), ("All files", "*.*")]
+        )
+        if not filepath:
+            return
+        try:
+            if filepath.lower().endswith(".json"):
+                lines = [line for line in content.split("\n")]
+                with open(filepath, "w", encoding="utf-8") as f:
+                    import json
+                    json.dump(lines, f, ensure_ascii=False, indent=2)
+            else:
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(content)
+            messagebox.showinfo("Thành công", f"Đã xuất kết quả: {filepath}", parent=self)
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể lưu file: {e}", parent=self)
             
     def _create_translator_name_manager(self, parent):
         parent.columnconfigure(0, weight=1); parent.rowconfigure(1, weight=1)
@@ -4083,7 +4086,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _start_translation_thread(self, input_widget, output_widget):
+    def _start_translation_thread(self, input_widget, output_widget, target_lang='vi'):
         input_content = input_widget.get("1.0", tk.END).strip()
         if not input_content:
             messagebox.showwarning("Cảnh báo", "Không có nội dung để dịch.", parent=self); return
@@ -4105,19 +4108,20 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         set_name = self.translator_name_set_combo.get()
         active_name_set = self.app_config.get('nameSets', {}).get(set_name, {})
         
-        thread = threading.Thread(target=self._translation_worker, args=(input_content, active_name_set, self.app_config['translator_settings'], output_widget))
+        thread = threading.Thread(target=self._translation_worker, args=(input_content, active_name_set, self.app_config['translator_settings'], output_widget, target_lang))
         thread.daemon = True
         thread.start()
 
-    def _translation_worker(self, content, name_set, settings, output_widget):
+    def _translation_worker(self, content, name_set, settings, output_widget, target_lang='vi'):
         def update_ui_progress(message, value):
             self.after(0, lambda: [
                 self.translator_status_label.config(text=message),
-                self.translator_progress_bar.config(value=value)
+                self.translator_progress_bar.config(value=value),
+                self.translator_progress_bar.grid()
             ])
 
         chunks = content.split('\n')
-        translated_chunks = trans_logic.translate_text_chunks(chunks, name_set, settings, update_ui_progress)
+        translated_chunks = trans_logic.translate_text_chunks(chunks, name_set, settings, update_ui_progress, target_lang=target_lang or 'vi')
         
         def update_output_widget():
             output_widget.config(state="normal")
@@ -4133,6 +4137,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 output_widget.insert(tk.END, translated_chunk + '\n', (tag_name,))
                 
             output_widget.config(state="disabled")
+            self._last_translation_lang = target_lang or 'vi'
+            self.translator_progress_bar.grid_remove()
         self.after(0, update_output_widget)
         self.is_translating = False
 
@@ -4166,7 +4172,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             active_name_set = self.app_config.get('nameSets', {}).get(set_name, {})
             settings = self.app_config.get('translator_settings', {})
 
-            newly_translated = trans_logic.translate_text_chunks(chunks_to_retranslate, active_name_set, settings)
+            newly_translated = trans_logic.translate_text_chunks(chunks_to_retranslate, active_name_set, settings, target_lang=getattr(self, "_last_translation_lang", 'vi'))
 
             # 3. Cập nhật lại UI
             def update_ui():
