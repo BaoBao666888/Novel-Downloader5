@@ -2,21 +2,23 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import unicodedata
 import time
 from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, parse_qs, unquote
 
+import js2py
 import requests
 from bs4 import BeautifulSoup
 
 BASE_URL = "https://truyenwikidich.net"
-USER_AGENT = "RenameChapters-Wikidich/0.1"
+USER_AGENT = "RenameChapters-Wikidich/0.2"
 
 STATUS_OPTIONS = ["Còn tiếp", "Hoàn thành", "Tạm ngưng", "Chưa xác minh"]
 ROLE_OPTIONS = ["poster", "managerOwner", "managerGuest", "editorOwner", "editorGuest"]
-FLAG_OPTIONS = ["embedLink", "embedFile", "duplicate", "vip"]
+FLAG_OPTIONS = ["embedLink", "embedFile"]
 
 
 def _normalize(text: str) -> str:
@@ -477,29 +479,82 @@ def collect_additional_metadata(
             progress_cb("meta", 100, 100, f"Xong nhóm {group_name}")
 
     return aggregated
-    return {"username": user_slug, "book_ids": book_ids, "books": books, "synced_at": datetime.utcnow().isoformat()}
+    # return {"username": user_slug, "book_ids": book_ids, "books": books, "synced_at": datetime.utcnow().isoformat()}
 
 
-def _build_fuzzy_fn(doc_text: str) -> Callable[[str], str]:
-    match = re.search(r"function\s+fuzzySign\s*\(\w+\)\s*\{([^}]*)\}", doc_text, re.IGNORECASE | re.DOTALL)
-    if not match:
-        return lambda text: text
-    body = match.group(1)
-    shift = re.search(r"substring\((\d+)\)\s*\+\s*text\.substring\(\s*0\s*,\s*\1\s*\)", body)
-    if shift:
-        offset = int(shift.group(1))
+def _build_fuzzy_ctx(doc_text: str):
+    func_src = None
+    match = re.search(r"(function\s+fuzzySign\s*\(\s*[^)]*\)\s*\{[\s\S]*?\})", doc_text)
+    if match:
+        func_src = match.group(1)
+    else:
+        alt = re.search(r"fuzzySign\s*=\s*function\s*\(([^)]*)\)\s*\{([\s\S]*?)\}", doc_text)
+        if alt:
+            params = alt.group(1)
+            body = alt.group(2)
+            func_src = f"function fuzzySign({params}){{{body}}}"
+    if not func_src:
+        return None
+    try:
+        ctx = js2py.EvalJs()
+        ctx.execute(func_src)
+        return ctx
+    except Exception:
+        return None
 
-        def _fn(txt: str) -> str:
-            return txt[offset:] + txt[:offset]
 
-        return _fn
-    return lambda text: text
+def _run_node_sign(input_str: str) -> str:
+    sign_func = """
+        function signFunc(r) {
+            function o(r, o) { return (r >>> o) | (r << (32 - o)); }
+            var f, n, t = Math.pow, c = t(2, 32), i = "length", a = "", e = [], u = 8 * r[i], v = [], g = [],
+                h = g[i], l = {}, s = 2;
+            while (h < 64) {
+                if (!l[s]) { for (f = 0; f < 313; f += s) l[f] = s;
+                    v[h] = (t(s, 0.5) * c) | 0; g[h++] = (t(s, 1 / 3) * c) | 0;
+                }
+                s++;
+            }
+            r += "\\x80"; while (r[i] % 64 - 56) r += "\\0";
+            for (f = 0; f < r[i]; f++) { if ((n = r.charCodeAt(f)) >> 8) return;
+                e[f >> 2] |= n << ((3 - f) % 4) * 8;
+            }
+            e[e[i]] = (u / c) | 0; e[e[i]] = u;
+            for (n = 0; n < e[i];) {
+                var d = e.slice(n, (n += 16)), p = v.slice(0);
+                for (f = 0; f < 64; f++) {
+                    var w = d[f - 15], A = d[f - 2], C = p[0], F = p[4],
+                        M = p[7] + (o(F, 6) ^ o(F, 11) ^ o(F, 25)) + ((F & p[5]) ^ (~F & p[6])) + g[f] +
+                            (d[f] = f < 16 ? d[f] : d[f - 16] + (o(w, 7) ^ o(w, 18) ^ (w >>> 3)) +
+                            d[f - 7] + (o(A, 17) ^ o(A, 19) ^ (A >>> 10))) | 0;
+                    p = [(M + (o(C, 2) ^ o(C, 13) ^ o(C, 22)) + ((C & p[1]) ^ (C & p[2]) ^ (p[1] & p[2]))) | 0].concat(p);
+                    p[4] = (p[4] + M) | 0;
+                }
+                for (f = 0; f < 8; f++) v[f] = (v[f] + p[f]) | 0;
+            }
+            for (f = 0; f < 8; f++) for (n = 3; n >= 0; n--) {
+                var S = (v[f] >> (8 * n)) & 255; a += (S < 16 ? "0" : "") + S.toString(16);
+            }
+            return a;
+        }
+        """
+    node_script = f"""
+const signFunc = {sign_func};
+console.log(JSON.stringify(signFunc({json.dumps(input_str)})));
+"""
+    result = subprocess.run(["node", "-e", node_script], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "Không thể chạy Node.js để tính sign.")
+    return json.loads(result.stdout)
 
 
-def _gen_sign(sign_key: str, start: int, size: int, fuzzy_fn: Callable[[str], str]) -> str:
-    raw = f"{sign_key}{start}{size}"
-    fuzzy = fuzzy_fn(raw)
-    return hashlib.md5(fuzzy.encode("utf-8")).hexdigest()
+def _gen_sign(sign_key: str, start: int, size: int, fuzzy_ctx) -> str:
+    base = f"{sign_key}{start}{size}"
+    try:
+        fuzzy = fuzzy_ctx.fuzzySign(base) if fuzzy_ctx else base
+    except Exception:
+        fuzzy = base
+    return _run_node_sign(fuzzy)
 
 
 def _fetch_chapter_count(
@@ -508,7 +563,7 @@ def _fetch_chapter_count(
     book_id: str,
     sign_key: str,
     size: int,
-    fuzzy_fn: Callable[[str], str],
+    fuzzy_ctx,
     proxies=None,
 ) -> Optional[int]:
     total = 0
@@ -519,7 +574,7 @@ def _fetch_chapter_count(
         params = {
             "bookId": book_id,
             "signKey": sign_key,
-            "sign": _gen_sign(sign_key, start, size, fuzzy_fn),
+            "sign": _gen_sign(sign_key, start, size, fuzzy_ctx),
             "size": size,
             "start": start,
         }
@@ -593,6 +648,17 @@ def _parse_manager_flags(doc: BeautifulSoup, current_user: str) -> Dict[str, boo
     return flags
 
 
+def _normalize_external_link(href: str, base_url: str) -> str:
+    abs_url = urljoin(base_url, href)
+    parsed = urlparse(abs_url)
+    if parsed.path.startswith("/redirect"):
+        params = parse_qs(parsed.query or "")
+        target = params.get("u", [""])[0]
+        if target:
+            return unquote(target)
+    return abs_url
+
+
 def _parse_additional_links(desc_block: BeautifulSoup, base_url: str, ignore_block: Optional[BeautifulSoup]) -> List[Dict[str, str]]:
     links: List[Dict[str, str]] = []
     if not desc_block:
@@ -609,7 +675,7 @@ def _parse_additional_links(desc_block: BeautifulSoup, base_url: str, ignore_blo
         href = a.get("href", "")
         if href.startswith("/tim-kiem"):
             continue
-        links.append({"label": label, "url": urljoin(base_url, href)})
+        links.append({"label": label, "url": _normalize_external_link(href, base_url)})
     return links
 
 
@@ -672,10 +738,10 @@ def fetch_book_detail(
     size_match = re.search(r"loadBookIndex\(\s*0\s*,\s*(\d+)", text)
     sign_key = sign_key_match.group(1) if sign_key_match else ""
     size = int(size_match.group(1)) if size_match else 500
-    fuzzy_fn = _build_fuzzy_fn(text)
+    fuzzy_ctx = _build_fuzzy_ctx(text)
     chapters = None
     if book_id and sign_key:
-        chapters = _fetch_chapter_count(session, base_url, book_id, sign_key, size, fuzzy_fn, proxies=proxies)
+        chapters = _fetch_chapter_count(session, base_url, book_id, sign_key, size, fuzzy_ctx, proxies=proxies)
     if chapters is None:
         latest_link = next(
             (a for a in info.select("p a") if "/chuong-" in a.get("href", "")),
