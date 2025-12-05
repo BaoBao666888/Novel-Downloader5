@@ -311,7 +311,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.1')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.1.1')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -5306,10 +5306,20 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         else:
             self.wd_new_chapters.pop(book_id, None)
 
-        # Cập nhật dữ liệu nguồn
+        # Cập nhật dữ liệu nguồn (số chương + ngày cập nhật)
         selected['chapters'] = new_total
+        now = datetime.utcnow()
+        updated_iso = now.strftime("%Y-%m-%d")
+        updated_text = now.strftime("%d-%m-%Y")
+        updated_ts = int(now.timestamp() * 1000)
+        selected['updated_text'] = updated_text
+        selected['updated_iso'] = updated_iso
+        selected['updated_ts'] = updated_ts
         if isinstance(self.wikidich_data.get('books'), dict) and book_id in self.wikidich_data['books']:
             self.wikidich_data['books'][book_id]['chapters'] = new_total
+            self.wikidich_data['books'][book_id]['updated_text'] = updated_text
+            self.wikidich_data['books'][book_id]['updated_iso'] = updated_iso
+            self.wikidich_data['books'][book_id]['updated_ts'] = updated_ts
         self._wd_save_cache()
 
         # Làm mới hiển thị và giữ chọn truyện hiện tại
