@@ -1,17 +1,21 @@
-<h1>Phiên bản 0.2.0 — Thêm Wikidich, dịch Hán-Việt, lịch sử regex</h1>
-0.2.0 bổ sung tab Wikidich và cải thiện dịch thuật, thao tác regex.
+<h1>Phiên bản 0.2.1 — Tối ưu Wikidich, bỏ Node/js2py</h1>
+0.2.1 tập trung tăng tốc, dễ dùng hơn cho tab Wikidich và bỏ phụ thuộc JS ngoài.
 
 <h2>Điểm mới nổi bật</h2>
-- <b>Tab Wikidich mới</b>: tải Works, tải chi tiết, lọc cơ bản/nâng cao (thể loại, vai trò, ngày cập nhật có date picker), reset lọc, hiển thị trạng thái lọc; kiểm tra cập nhật (chỉ danh sách đang hiển thị) và cột “New” tô xanh; link bổ sung mở bằng trình duyệt tích hợp; tiến độ ẩn khi không chạy; nút <b>Cài đặt</b> cho delay/User-Agent Wiki/Fanqie; proxy riêng cho Wikidich/Fanqie.
-- <b>Lấy tiêu đề online</b>: ô “Chọn nhanh theo khoảng” hỗ trợ nhiều khoảng (ví dụ `1-5,7,10-`, `all`, `-100`, `80-`); hướng dẫn cập nhật.
-- <b>Lịch sử & ghim regex</b>: Tìm/Thay thế và Chia file lưu tối đa ~20 mục, có nút Ghim/Bỏ ghim để giữ regex đúng.
-- <b>Dịch</b>: thêm nút <b>Việt</b> và <b>Hán Việt</b> (API dichngay `tl=hv`), thanh tiến độ ẩn khi chưa dịch, nút xuất kết quả ra TXT hoặc JSON; hướng dẫn tab Dịch đã cập nhật.
+  - <b>Mở link tuỳ chọn</b>: chọn “Trình duyệt tích hợp” hoặc “Trình duyệt ngoài” trong nút <b>Cài đặt</b> (tab Wikidich); áp dụng cho link bổ sung và nút “Mở trang truyện”, được lưu vào config.
+  - <b>Giao diện chi tiết có cuộn & copy</b>: tiêu đề và nút “Mở trang truyện”/“Cập nhật chương” luôn cố định; phần bìa/thông tin/văn án trong khung cuộn, cho phép bôi đen & copy.
+  - <b>Nút hủy tiến trình</b>: thêm nút X cạnh thanh tiến độ Wikidich để dừng các tác vụ Works/chi tiết/kiểm tra cập nhật.
+  - <b>Cập nhật chương</b>: nút “Cập nhật chương” sáng khi cột New > 0, cho nhập số chương đã bổ sung; tự cộng vào tổng chương, trừ cột New và bỏ tô xanh khi về 0.
+  - <b>Kiểm tra cập nhật đa nguồn</b>: hỗ trợ link bổ sung Fanqie, JJWXC, PO18, Qidian (cần cookie), Ihuaben để đếm chương mới.
+  - <b>Ký chương thuần Python</b>: bỏ Node/js2py; tính sign trực tiếp bằng Python. Không cần cài Nodejs nữa.
 
-<h2>Sửa đổi khác</h2>
-- Nút “?” trong Tìm/Chia file gọn hơn.
-- Tính năng Regex (Nội dung) đã hoạt động.
-- Loại bỏ thử nghiệm lưu vị trí paned (khung sẽ trở về mặc định mỗi lần mở).
+<h2>Sửa lỗi & tối ưu</h2>
+  - Canvas chi tiết Wikidich không còn lỗi nền trên ttk.Frame.
+  - Lưu/khôi phục config Wikidich đầy đủ (bộ lọc nâng cao + chế độ mở link).
+  - Cập nhật mục hướng dẫn tab Wikidich theo thay đổi mới (link hỗ trợ, cách thêm link bổ sung).
+  - Reset thanh tiến độ Wikidich về trạng thái ẩn sau khi tác vụ kết thúc.
 
 <h2>Hướng dẫn cập nhật</h2>
-- Nhấn <b>Tải & Cài đặt</b> để cập nhật lên 0.2.0 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
-- Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.
+  - Nhấn <b>Tải & Cài đặt</b> để lên 0.2.1 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
+  - Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.
+

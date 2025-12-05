@@ -167,6 +167,11 @@ WD_SORT_OPTIONS = [
 ]
 
 
+class WikidichCancelled(Exception):
+    """Được ném ra khi người dùng hủy tác vụ Wikidich."""
+    pass
+
+
 def _load_env_file(path):
     """Đọc file .env đơn giản và đưa biến vào os.environ."""
     env_data = {}
@@ -306,7 +311,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.0')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.1')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -403,10 +408,12 @@ class RenamerApp(tk.Tk):
         wd_cfg = self.app_config.get('wikidich', {})
         self.wikidich_cache_path = wd_cfg.get('cache_path', os.path.join(BASE_DIR, "local", "wikidich_cache.json"))
         self.wikidich_filters = dict(wd_cfg.get('advanced_filter', {}))
+        self.wikidich_open_mode = wd_cfg.get('open_mode', 'in_app')
         self.api_settings = dict(self.app_config.get('api_settings', {}))
         self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
         self._wd_cover_cache = {}
         self._wd_loading = False
+        self._wd_cancel_requested = False
         self._wd_progress_running = False
         self.wd_new_chapters = {}
         self.create_widgets()
@@ -448,7 +455,8 @@ class RenamerApp(tk.Tk):
                     'fromDate': '',
                     'toDate': '',
                     'sortBy': 'recent'
-                }
+                },
+                'open_mode': 'in_app'
             },
             'api_settings': dict(DEFAULT_API_SETTINGS)
         }
@@ -1197,8 +1205,12 @@ class RenamerApp(tk.Tk):
             'title_format': self.title_format_var.get(),
         })
         self.app_config['ui_settings'] = self.ui_settings
+        if hasattr(self, "wd_search_var"):
+            self._wd_collect_advanced_filter_values()
         self.app_config['wikidich'] = {
-            'cache_path': self.wikidich_cache_path
+            'cache_path': self.wikidich_cache_path,
+            'advanced_filter': dict(self.wikidich_filters),
+            'open_mode': self.wikidich_open_mode
         }
         self.app_config['api_settings'] = dict(self.api_settings or {})
         self.app_config['regex_pins'] = dict(self.regex_pins)
@@ -1272,6 +1284,10 @@ class RenamerApp(tk.Tk):
             wd_cfg = config_data.get('wikidich', {})
             if isinstance(wd_cfg, dict):
                 self.wikidich_cache_path = wd_cfg.get('cache_path', self.wikidich_cache_path)
+                self.wikidich_open_mode = wd_cfg.get('open_mode', self.wikidich_open_mode)
+                adv_filter = wd_cfg.get('advanced_filter')
+                if isinstance(adv_filter, dict):
+                    self.wikidich_filters.update(adv_filter)
             if hasattr(self, "wd_search_var"):
                 self.wd_search_var.set(self.wikidich_filters.get('search', ''))
                 self.wd_summary_var.set(self.wikidich_filters.get('summarySearch', ''))
@@ -1877,10 +1893,13 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         - **Lọc**:
             - Bộ lọc cơ bản: tìm tiêu đề/tác giả, văn án, trạng thái, sắp xếp (Mới nhất/Cũ nhất/...); hiển thị trạng thái lọc ngay trên khung.
             - Lọc nâng cao: ngày cập nhật (chọn từ date picker), thể loại, vai trò, thuộc tính (Nhúng link/file), reset để xoá sạch lọc nâng cao.
-        - **Kiểm tra cập nhật**: chỉ kiểm tra các truyện đang hiển thị (Hiện tại chỉ hỗ trợ Fanqie); cột “New” tô xanh toàn hàng khi có chương mới.
-        - **Link bổ sung**: double‑click để mở bằng trình duyệt tích hợp.
-        - **Tiến độ**: khung tiến độ ẩn, chỉ hiện khi đang chạy tác vụ.
-        - **Cài đặt request**: chỉnh delay Wiki/Fanqie, User-Agent Wiki/Fanqie; có nút về mặc định.
+        - **Khu vực chi tiết**: tiêu đề + nút luôn hiển thị; phần còn lại có thanh cuộn, cho phép bôi đen/copy văn án, tag, thông tin.
+        - **Kiểm tra cập nhật**: chỉ kiểm tra các truyện đang hiển thị; hỗ trợ các link bổ sung thuộc Fanqie, JJWXC, PO18, Qidian (cần cookie trình duyệt), Ihuaben. Cột “New” tô xanh toàn hàng khi có chương mới.
+        - **Thêm link hỗ trợ**: mở trang sửa truyện trên Wikidich → Bổ sung link theo đúng cấu trúc (ví dụ: Fanqie https://fanqienovel.com/page/123456 hoặc /book/123456; JJWXC https://www.jjwxc.net/onebook.php?novelid=123456; PO18 https://www.po18.tw/books/123456; Qidian https://www.qidian.com/book/1037076300/; Ihuaben https://www.ihuaben.com/book/9219715.html). Dán xong lưu lại rồi tải chi tiết/kiểm tra cập nhật.
+        - **Cập nhật chương**: nút chỉ sáng khi có số “New”. Nhập số chương bổ sung để cộng vào tổng chương và trừ cột “New”; nếu hết thì mất tô xanh. (Nếu nhập quá tay, tải lại chi tiết để đồng bộ.)
+        - **Mở link/Trang truyện**: double‑click link bổ sung hoặc bấm “Mở trang truyện”. Chế độ mở (Trình duyệt tích hợp / Trình duyệt ngoài) chọn trong nút **Cài đặt** và áp dụng cho tất cả link.
+        - **Tiến độ**: khung tiến độ ẩn, chỉ hiện khi đang chạy tác vụ, có nút **X** để hủy thao tác đang chạy.
+        - **Cài đặt request**: chỉnh delay Wiki/Fanqie, User-Agent Wiki/Fanqie, chọn chế độ mở link; có nút về mặc định.
         - **Proxy**: bật “Wikidich/Fanqie” trong tab Proxy để áp dụng cho Works/chi tiết/kiểm tra cập nhật.
         """
         create_tab("Wikidich", wikidich_guide)
@@ -2265,6 +2284,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.wd_progress.grid(row=0, column=1, sticky="ew", padx=(6, 6))
         self.wd_progress_label = ttk.Label(progress_frame, text="Chờ thao tác...")
         self.wd_progress_label.grid(row=0, column=2, sticky="w")
+        self.wd_cancel_btn = ttk.Button(progress_frame, text="X", width=1, command=self._wd_request_cancel, state=tk.DISABLED)
+        self.wd_cancel_btn.grid(row=0, column=3, padx=(6, 0))
         self.wd_progress_frame = progress_frame
         self._wd_progress_visible = False
         progress_frame.grid_remove()
@@ -2371,21 +2392,67 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         main_pane = ttk.PanedWindow(wd_tab, orient=tk.HORIZONTAL)
         main_pane.grid(row=3, column=0, sticky="nsew", pady=(8, 0))
 
-        detail_frame = ttk.Frame(main_pane, padding=6)
-        detail_frame.columnconfigure(1, weight=1)
-        detail_frame.rowconfigure(3, weight=1)
-        main_pane.add(detail_frame, weight=3)
+        detail_container = ttk.Frame(main_pane)
+        detail_container.columnconfigure(0, weight=1)
+        detail_container.rowconfigure(1, weight=1)
+        main_pane.add(detail_container, weight=3)
 
-        self.wd_title_label = ttk.Label(detail_frame, text="Chưa chọn truyện", font=("Segoe UI", 11, "bold"))
-        self.wd_title_label.grid(row=0, column=0, columnspan=2, sticky="w")
+        header_frame = ttk.Frame(detail_container, padding=(6, 6, 6, 0))
+        header_frame.grid(row=0, column=0, sticky="ew")
+        header_frame.columnconfigure(0, weight=1)
+        self.wd_title_text = tk.Text(header_frame, height=2, wrap=tk.WORD, font=("Segoe UI", 11, "bold"), relief="flat", bd=0)
+        self.wd_title_text.grid(row=0, column=0, sticky="ew")
+        self._wd_make_text_readonly(self.wd_title_text)
+        self._wd_set_text_content(self.wd_title_text, "Chưa chọn truyện")
+        btn_row = ttk.Frame(header_frame)
+        btn_row.grid(row=1, column=0, sticky="e", pady=(6, 0))
+        ttk.Button(btn_row, text="Mở trang truyện", command=self._wd_open_book_in_browser).pack(side=tk.LEFT)
+        self.wd_update_button = ttk.Button(btn_row, text="Cập nhật chương", command=self._wd_open_update_dialog, state=tk.DISABLED)
+        self.wd_update_button.pack(side=tk.LEFT, padx=(8, 0))
+
+        content_container = ttk.Frame(detail_container, padding=(6, 0, 6, 6))
+        content_container.grid(row=1, column=0, sticky="nsew")
+        content_container.rowconfigure(0, weight=1)
+        content_container.columnconfigure(0, weight=1)
+
+        theme_bg = getattr(self, "_theme_colors", {}).get('card', None) if hasattr(self, "_theme_colors") else None
+        self.wd_detail_canvas = tk.Canvas(
+            content_container,
+            highlightthickness=0,
+            bd=0,
+            background=theme_bg or self._base_bg
+        )
+        detail_scrollbar = ttk.Scrollbar(content_container, orient="vertical", command=self.wd_detail_canvas.yview)
+        self.wd_detail_canvas.configure(yscrollcommand=detail_scrollbar.set)
+        self.wd_detail_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        detail_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        detail_frame = ttk.Frame(self.wd_detail_canvas, padding=6)
+        detail_window = self.wd_detail_canvas.create_window((0, 0), window=detail_frame, anchor="nw")
+        detail_frame.columnconfigure(1, weight=1)
+        detail_frame.rowconfigure(2, weight=1)
+
+        def _configure_detail(event=None):
+            bbox = self.wd_detail_canvas.bbox("all")
+            if bbox:
+                self.wd_detail_canvas.configure(scrollregion=bbox)
+            self.wd_detail_canvas.itemconfigure(detail_window, width=self.wd_detail_canvas.winfo_width())
+        detail_frame.bind("<Configure>", _configure_detail)
+        self.wd_detail_canvas.bind("<Configure>", lambda e: self.wd_detail_canvas.itemconfigure(detail_window, width=e.width))
+        self.wd_detail_canvas.bind("<MouseWheel>", lambda e: self.wd_detail_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+        detail_frame.bind("<MouseWheel>", lambda e: self.wd_detail_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+        self.wd_detail_canvas.bind("<Button-4>", lambda e: self.wd_detail_canvas.yview_scroll(-1, "units"))
+        self.wd_detail_canvas.bind("<Button-5>", lambda e: self.wd_detail_canvas.yview_scroll(1, "units"))
+        detail_frame.bind("<Button-4>", lambda e: self.wd_detail_canvas.yview_scroll(-1, "units"))
+        detail_frame.bind("<Button-5>", lambda e: self.wd_detail_canvas.yview_scroll(1, "units"))
 
         cover_frame = ttk.Frame(detail_frame)
-        cover_frame.grid(row=1, column=0, rowspan=3, sticky="nw", pady=(6, 0))
+        cover_frame.grid(row=0, column=0, rowspan=2, sticky="nw", pady=(6, 0))
         self.wd_cover_label = tk.Label(cover_frame, text="(Bìa)", bd=0)
         self.wd_cover_label.pack()
 
         info_frame = ttk.Frame(detail_frame)
-        info_frame.grid(row=1, column=1, sticky="new", padx=(10, 0), pady=(6, 0))
+        info_frame.grid(row=0, column=1, sticky="new", padx=(10, 0), pady=(6, 0))
         info_frame.columnconfigure(1, weight=1)
         self.wd_info_vars = {
             'author': tk.StringVar(value=""),
@@ -2396,37 +2463,41 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             'flags': tk.StringVar(value="")
         }
         ttk.Label(info_frame, text="Tác giả:").grid(row=0, column=0, sticky="w")
-        ttk.Label(info_frame, textvariable=self.wd_info_vars['author']).grid(row=0, column=1, sticky="w")
+        self.wd_author_entry = ttk.Entry(info_frame, textvariable=self.wd_info_vars['author'], state="readonly")
+        self.wd_author_entry.grid(row=0, column=1, sticky="ew")
         ttk.Label(info_frame, text="Trạng thái:").grid(row=1, column=0, sticky="w")
-        ttk.Label(info_frame, textvariable=self.wd_info_vars['status']).grid(row=1, column=1, sticky="w")
+        self.wd_status_entry = ttk.Entry(info_frame, textvariable=self.wd_info_vars['status'], state="readonly")
+        self.wd_status_entry.grid(row=1, column=1, sticky="ew")
         ttk.Label(info_frame, text="Cập nhật:").grid(row=2, column=0, sticky="w")
-        ttk.Label(info_frame, textvariable=self.wd_info_vars['updated']).grid(row=2, column=1, sticky="w")
+        self.wd_updated_entry = ttk.Entry(info_frame, textvariable=self.wd_info_vars['updated'], state="readonly")
+        self.wd_updated_entry.grid(row=2, column=1, sticky="ew")
         ttk.Label(info_frame, text="Số chương:").grid(row=3, column=0, sticky="w")
-        ttk.Label(info_frame, textvariable=self.wd_info_vars['chapters']).grid(row=3, column=1, sticky="w")
+        self.wd_chapters_entry = ttk.Entry(info_frame, textvariable=self.wd_info_vars['chapters'], state="readonly")
+        self.wd_chapters_entry.grid(row=3, column=1, sticky="ew")
         ttk.Label(info_frame, text="Thể loại/Tag:").grid(row=4, column=0, sticky="nw", pady=(4, 0))
-        ttk.Label(info_frame, textvariable=self.wd_info_vars['collections'], wraplength=320, justify=tk.LEFT).grid(row=4, column=1, sticky="w", pady=(4, 0))
+        self.wd_collections_text = scrolledtext.ScrolledText(info_frame, wrap=tk.WORD, height=3)
+        self.wd_collections_text.grid(row=4, column=1, sticky="ew", pady=(4, 0))
+        self._wd_make_text_readonly(self.wd_collections_text)
         ttk.Label(info_frame, text="Vai trò/Thuộc tính:").grid(row=5, column=0, sticky="nw", pady=(4, 0))
-        ttk.Label(info_frame, textvariable=self.wd_info_vars['flags'], wraplength=320, justify=tk.LEFT).grid(row=5, column=1, sticky="w", pady=(4, 0))
+        self.wd_flags_text = scrolledtext.ScrolledText(info_frame, wrap=tk.WORD, height=3)
+        self.wd_flags_text.grid(row=5, column=1, sticky="ew", pady=(4, 0))
+        self._wd_make_text_readonly(self.wd_flags_text)
 
         links_frame = ttk.LabelFrame(detail_frame, text="Link bổ sung", padding=6)
-        links_frame.grid(row=2, column=1, sticky="ew", padx=(10, 0), pady=(6, 0))
+        links_frame.grid(row=1, column=1, sticky="ew", padx=(10, 0), pady=(6, 0))
         links_frame.columnconfigure(0, weight=1)
-        self.wd_links_listbox = tk.Listbox(links_frame, height=4)
+        self.wd_links_listbox = tk.Listbox(links_frame, height=2)
         self.wd_links_listbox.grid(row=0, column=0, sticky="ew")
         self.wd_links_listbox.bind("<Double-Button-1>", self._wd_open_extra_link)
         self.wd_current_links = []
 
         summary_frame = ttk.LabelFrame(detail_frame, text="Văn án", padding=6)
-        summary_frame.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
+        summary_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
         summary_frame.columnconfigure(0, weight=1)
         summary_frame.rowconfigure(0, weight=1)
-        self.wd_summary_text = scrolledtext.ScrolledText(summary_frame, wrap=tk.WORD, height=12, state="disabled")
+        self.wd_summary_text = scrolledtext.ScrolledText(summary_frame, wrap=tk.WORD, height=12)
         self.wd_summary_text.grid(row=0, column=0, sticky="nsew")
-        button_row = ttk.Frame(summary_frame)
-        button_row.grid(row=1, column=0, sticky="e", pady=(6, 0))
-        ttk.Button(button_row, text="Mở trang truyện", command=self._wd_open_book_in_browser).pack(side=tk.LEFT)
-        self.wd_update_button = ttk.Button(button_row, text="Bổ sung chương", command=self._wd_open_update_dialog, state=tk.DISABLED)
-        self.wd_update_button.pack(side=tk.LEFT, padx=(8, 0))
+        self._wd_make_text_readonly(self.wd_summary_text)
 
         tree_frame = ttk.Frame(main_pane)
         main_pane.add(tree_frame, weight=2)
@@ -4864,6 +4935,42 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.log(f"[Công cụ nhanh] Đã áp dụng mục lục cho {count} chương.")
         messagebox.showinfo("Hoàn tất", f"Đã áp dụng thành công mục lục cho {count} chương.", parent=self)
 
+    def _wd_make_text_readonly(self, widget: tk.Text):
+        try:
+            bg = widget.master.cget("background")
+            if not bg:
+                bg = self._base_bg
+            widget.configure(background=bg)
+        except Exception:
+            widget.configure(background=self._base_bg)
+        widget.configure(state="normal", cursor="arrow")
+        widget.bind("<Key>", self._wd_block_text_edit)
+        widget.bind("<<Paste>>", lambda e: "break")
+        widget.bind("<<Cut>>", lambda e: "break")
+        widget.bind("<Button-1>", lambda e: widget.focus_set())
+        widget.bind("<Button-2>", lambda e: "break")
+        widget.bind("<Button-3>", lambda e: widget.focus_set())
+
+    def _wd_block_text_edit(self, event):
+        navigation_keys = {"Left", "Right", "Up", "Down", "Home", "End", "Next", "Prior"}
+        if event.keysym in ("Tab", "ISO_Left_Tab"):
+            try:
+                (event.widget.tk_focusPrev() if event.keysym == "ISO_Left_Tab" or event.state & 0x1 else event.widget.tk_focusNext()).focus_set()
+            except Exception:
+                pass
+            return "break"
+        if event.keysym in navigation_keys or event.keysym.startswith("Shift") or event.keysym.startswith("Control"):
+            return None
+        if (event.state & 0x4) and event.keysym.lower() in ("c", "a"):
+            return None
+        return "break"
+
+    def _wd_set_text_content(self, widget: tk.Text, content: str):
+        widget.configure(state="normal")
+        widget.delete("1.0", tk.END)
+        widget.insert("1.0", content or "")
+        widget.see("1.0")
+
     def _wd_update_user_label(self):
         if hasattr(self, "wd_user_label"):
             username = self.wikidich_data.get("username") or ""
@@ -4894,12 +5001,35 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             return
         active = bool(self._wd_loading or (message and message.strip() and message != "Chờ thao tác..."))
         visible = getattr(self, "_wd_progress_visible", False)
+        cancel_btn = getattr(self, "wd_cancel_btn", None)
+        if cancel_btn:
+            cancel_btn_state = tk.NORMAL if active and self._wd_loading else tk.DISABLED
+            cancel_btn.config(state=cancel_btn_state)
         if active and not visible:
             frame.grid()
             self._wd_progress_visible = True
         elif not active and visible:
             frame.grid_remove()
             self._wd_progress_visible = False
+
+    def _wd_request_cancel(self):
+        if not self._wd_loading:
+            return
+        self._wd_cancel_requested = True
+        self._wd_set_progress("Đang hủy tác vụ...", 0, 0)
+
+    def _wd_mark_cancelled(self):
+        self._wd_set_progress("Đã hủy", 0, 1)
+        self.after(800, lambda: (not self._wd_loading) and self._wd_set_progress("Chờ thao tác...", 0, 1))
+
+    def _wd_progress_callback(self, stage: str, current: int, total: int, message: str):
+        if getattr(self, "_wd_cancel_requested", False):
+            raise WikidichCancelled()
+        self._wd_report_progress(stage, current, total, message)
+
+    def _wd_ensure_not_cancelled(self):
+        if getattr(self, "_wd_cancel_requested", False):
+            raise WikidichCancelled()
 
     def _wd_report_progress(self, stage: str, current: int, total: int, message: str):
         self._wd_set_progress(message, current, total)
@@ -5016,17 +5146,18 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.wd_tree.selection_set(first)
             self._wd_on_select()
         else:
-            self.wd_title_label.config(text="Chưa có dữ liệu phù hợp")
-            self.wd_summary_text.config(state="normal")
-            self.wd_summary_text.delete("1.0", tk.END)
-            self.wd_summary_text.config(state="disabled")
+            self._wd_set_text_content(self.wd_title_text, "Chưa có dữ liệu phù hợp")
+            self._wd_set_text_content(self.wd_summary_text, "")
             self.wd_links_listbox.delete(0, tk.END)
+            self.wd_current_links = []
             self.wd_info_vars['author'].set("")
             self.wd_info_vars['status'].set("")
             self.wd_info_vars['updated'].set("")
             self.wd_info_vars['chapters'].set("")
             self.wd_info_vars['collections'].set("")
             self.wd_info_vars['flags'].set("")
+            self._wd_set_text_content(self.wd_collections_text, "")
+            self._wd_set_text_content(self.wd_flags_text, "")
         if hasattr(self, "wd_count_var"):
             self.wd_count_var.set(f"Số truyện: {len(books)}")
 
@@ -5043,16 +5174,28 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     def _wd_show_detail(self, book):
         self.wd_selected_book = book
         if not book:
+            self._wd_set_text_content(self.wd_title_text, "Chưa chọn truyện")
+            self._wd_set_text_content(self.wd_summary_text, "")
+            self._wd_set_text_content(self.wd_collections_text, "")
+            self._wd_set_text_content(self.wd_flags_text, "")
+            self.wd_links_listbox.delete(0, tk.END)
+            self.wd_info_vars['author'].set("")
+            self.wd_info_vars['status'].set("")
+            self.wd_info_vars['updated'].set("")
+            self.wd_info_vars['chapters'].set("")
+            self.wd_info_vars['collections'].set("")
+            self.wd_info_vars['flags'].set("")
             self._wd_update_update_button_state()
             return
-        self.wd_title_label.config(text=book.get('title', ''))
+        self._wd_set_text_content(self.wd_title_text, book.get('title', ''))
         self.wd_info_vars['author'].set(book.get('author', ''))
         self.wd_info_vars['status'].set(book.get('status', ''))
         self.wd_info_vars['updated'].set(book.get('updated_text') or book.get('updated_iso', ''))
         chapters = book.get('chapters')
         self.wd_info_vars['chapters'].set(str(chapters) if chapters not in (None, "") else "")
         collections = book.get('collections') or book.get('tags') or []
-        self.wd_info_vars['collections'].set(", ".join(collections))
+        collections_text = ", ".join(collections)
+        self.wd_info_vars['collections'].set(collections_text)
         flag_map = {
             "poster": "Người đăng",
             "managerOwner": "Đồng quản lý - chủ",
@@ -5063,11 +5206,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             "embedFile": "Nhúng file"
         }
         flag_labels = [flag_map.get(k, k) for k, v in (book.get('flags') or {}).items() if v]
-        self.wd_info_vars['flags'].set(", ".join(flag_labels))
-        self.wd_summary_text.config(state="normal")
-        self.wd_summary_text.delete("1.0", tk.END)
-        self.wd_summary_text.insert("1.0", book.get('summary', ''))
-        self.wd_summary_text.config(state="disabled")
+        flags_text = ", ".join(flag_labels)
+        self.wd_info_vars['flags'].set(flags_text)
+        self._wd_set_text_content(self.wd_collections_text, collections_text)
+        self._wd_set_text_content(self.wd_flags_text, flags_text)
+        self._wd_set_text_content(self.wd_summary_text, book.get('summary', ''))
         self.wd_links_listbox.delete(0, tk.END)
         self.wd_current_links = book.get('extra_links', [])
         for link in self.wd_current_links:
@@ -5075,6 +5218,16 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.wd_links_listbox.insert(tk.END, label)
         self._wd_display_cover(book.get('cover_url'))
         self._wd_update_update_button_state()
+
+    def _wd_open_link(self, url: str):
+        url = (url or "").strip()
+        if not url:
+            return
+        mode = getattr(self, "wikidich_open_mode", "in_app") or "in_app"
+        if mode == "external":
+            webbrowser.open(url)
+        else:
+            self._open_in_app_browser(url)
 
     def _wd_open_extra_link(self, event=None):
         if not self.wd_current_links:
@@ -5085,13 +5238,13 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             return
         link = self.wd_current_links[index]
         url = (link.get('url') if isinstance(link, dict) else link) or ""
-        self._open_in_app_browser(url)
+        self._wd_open_link(url)
 
     def _wd_open_book_in_browser(self):
         if not getattr(self, "wd_selected_book", None):
             return
         url = self.wd_selected_book.get('url')
-        self._open_in_app_browser(url)
+        self._wd_open_link(url)
 
     def _wd_update_update_button_state(self):
         btn = getattr(self, "wd_update_button", None)
@@ -5111,17 +5264,75 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         if not selected:
             messagebox.showinfo("Chưa chọn truyện", "Vui lòng chọn một truyện trước.", parent=self)
             return
-        messagebox.showinfo("Bổ sung chương", "Tính năng cập nhật tự động đang được phát triển.", parent=self)
+        book_id = selected.get('id')
+        if not book_id:
+            messagebox.showinfo("Thiếu dữ liệu", "Không xác định được truyện.", parent=self)
+            return
+        current_new = 0
+        if isinstance(self.wd_new_chapters, dict):
+            try:
+                val = int(self.wd_new_chapters.get(book_id, 0))
+                if val > 0:
+                    current_new = val
+            except Exception:
+                current_new = 0
+        if current_new <= 0:
+            messagebox.showinfo("Không có chương mới", "Không có số chương mới trong cột New.", parent=self)
+            return
+
+        prompt = f"Nhập số chương bổ sung (1-{current_new} hoặc lớn hơn nếu muốn trừ hết):"
+        result = simpledialog.askstring("Cập nhật chương", prompt, parent=self)
+        if result is None:
+            return
+        try:
+            delta = int(result.strip())
+        except Exception:
+            messagebox.showerror("Giá trị không hợp lệ", "Vui lòng nhập số nguyên dương.", parent=self)
+            return
+        if delta <= 0:
+            messagebox.showerror("Giá trị không hợp lệ", "Số chương phải lớn hơn 0.", parent=self)
+            return
+
+        # Cộng số chương, trừ cột New
+        try:
+            current_chapters = int(selected.get('chapters') or 0)
+        except Exception:
+            current_chapters = 0
+        new_total = current_chapters + delta
+
+        remaining_new = current_new - delta
+        if remaining_new > 0:
+            self.wd_new_chapters[book_id] = remaining_new
+        else:
+            self.wd_new_chapters.pop(book_id, None)
+
+        # Cập nhật dữ liệu nguồn
+        selected['chapters'] = new_total
+        if isinstance(self.wikidich_data.get('books'), dict) and book_id in self.wikidich_data['books']:
+            self.wikidich_data['books'][book_id]['chapters'] = new_total
+        self._wd_save_cache()
+
+        # Làm mới hiển thị và giữ chọn truyện hiện tại
+        filtered = list(getattr(self, "wikidich_filtered", []) or [])
+        self._wd_refresh_tree(filtered)
+        for item_id, bid in getattr(self, "_wd_tree_index", {}).items():
+            if bid == book_id:
+                self.wd_tree.selection_set(item_id)
+                self._wd_on_select()
+                break
 
     def _wd_start_fetch_works(self):
         if self._wd_loading:
             messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.")
             return
+        self._wd_cancel_requested = False
         threading.Thread(target=self._wd_fetch_works_worker, daemon=True).start()
 
     def _wd_fetch_works_worker(self):
         pythoncom.CoInitialize()
         self._wd_loading = True
+        self._wd_cancel_requested = False
+        cancelled = False
         self.log("[Wikidich] Bắt đầu tải Works...")
         self._wd_set_progress("Đang kiểm tra đăng nhập...", 0, 0)
         try:
@@ -5152,16 +5363,17 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 session,
                 user_slug,
                 proxies=proxies,
-                progress_cb=self._wd_report_progress,
+                progress_cb=self._wd_progress_callback,
                 delay=delay_avg
             )
+            self._wd_ensure_not_cancelled()
             try:
                 data = wikidich_ext.collect_additional_metadata(
                     session,
                     data,
                     user_slug,
                     proxies=proxies,
-                    progress_cb=self._wd_report_progress
+                    progress_cb=self._wd_progress_callback
                 )
             except Exception as e:
                 self.log(f"[Wikidich] Thu thập metadata thất bại: {e}")
@@ -5181,14 +5393,20 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.after(0, self._wd_refresh_category_options)
             self.after(0, self._wd_apply_filters)
             self._wd_set_progress(f"Đã tải {len(data.get('book_ids', []))} works", len(data.get('book_ids', [])), len(data.get('book_ids', [])))
+        except WikidichCancelled:
+            cancelled = True
+            self.log("[Wikidich] Đã hủy tải Works theo yêu cầu người dùng.")
+            self._wd_mark_cancelled()
         except Exception as e:
             self.log(f"[Wikidich] Lỗi tải works: {e}")
             self.after(0, lambda: messagebox.showerror("Lỗi Wikidich", f"Không thể tải works: {e}"))
         finally:
             self._wd_loading = False
+            self._wd_cancel_requested = False
             pythoncom.CoUninitialize()
             self._wd_progress_running = False
-            self._wd_set_progress("Chờ thao tác...", 0, 1)
+            if not cancelled:
+                self._wd_set_progress("Chờ thao tác...", 0, 1)
 
     def _wd_start_fetch_details(self):
         if self._wd_loading:
@@ -5197,11 +5415,14 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         if not self.wikidich_data.get('book_ids'):
             messagebox.showinfo("Chưa có dữ liệu", "Vui lòng tải works trước.")
             return
+        self._wd_cancel_requested = False
         threading.Thread(target=self._wd_fetch_details_worker, daemon=True).start()
 
     def _wd_fetch_details_worker(self):
         pythoncom.CoInitialize()
         self._wd_loading = True
+        self._wd_cancel_requested = False
+        cancelled = False
         self.log("[Wikidich] Bắt đầu tải chi tiết/văn án...")
         try:
             proxies = self._get_proxy_for_request('fetch_titles')
@@ -5230,6 +5451,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             if self.wd_missing_only_var.get():
                 target_ids = [bid for bid in target_ids if not self.wikidich_data.get('books', {}).get(bid, {}).get('summary')]
             total = len(target_ids)
+            self._wd_ensure_not_cancelled()
             if total == 0:
                 self._wd_set_progress("Không có truyện cần tải chi tiết", 0, 1)
                 self.after(0, lambda: messagebox.showinfo("Không có gì để tải", "Tất cả truyện đã có văn án/chi tiết."))
@@ -5251,7 +5473,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     self.wikidich_data['books'][bid] = updated
                 except Exception as e:
                     self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {e}")
-                self._wd_report_progress("detail", idx, total, f"Đang tải chi tiết {idx}/{total}")
+                self._wd_progress_callback("detail", idx, total, f"Đang tải chi tiết {idx}/{total}")
+                self._wd_ensure_not_cancelled()
                 delay = random.uniform(wiki_delay_min, wiki_delay_max) if wiki_delay_max > 0 else 0
                 if delay > 0:
                     time.sleep(delay)
@@ -5259,10 +5482,17 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.after(0, self._wd_apply_filters)
             self._wd_set_progress("Hoàn tất tải chi tiết", total, total)
             self.log("[Wikidich] Hoàn tất tải chi tiết.")
+        except WikidichCancelled:
+            cancelled = True
+            self.log("[Wikidich] Đã hủy tải chi tiết theo yêu cầu người dùng.")
+            self._wd_mark_cancelled()
         finally:
             self._wd_loading = False
+            self._wd_cancel_requested = False
             pythoncom.CoUninitialize()
             self._wd_progress_running = False
+            if not cancelled:
+                self._wd_set_progress("Chờ thao tác...", 0, 1)
 
     def _wd_prompt_check_updates(self):
         filtered = list(getattr(self, "wikidich_filtered", []) or [])
@@ -5276,11 +5506,14 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         if self._wd_loading:
             messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.")
             return
+        self._wd_cancel_requested = False
         threading.Thread(target=self._wd_check_updates_worker, daemon=True).start()
 
     def _wd_check_updates_worker(self):
         pythoncom.CoInitialize()
         self._wd_loading = True
+        self._wd_cancel_requested = False
+        cancelled = False
         try:
             filtered = list(getattr(self, "wikidich_filtered", []) or [])
             if not filtered:
@@ -5298,6 +5531,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             results = dict(self.wd_new_chapters) if isinstance(self.wd_new_chapters, dict) else {}
             self._wd_set_progress("Đang kiểm tra cập nhật...", 0, total)
             for idx, book in enumerate(filtered, start=1):
+                self._wd_ensure_not_cancelled()
                 book_id = book.get('id')
                 diff = self._wd_calculate_new_chapters(book, proxies=proxies, headers=fanqie_headers)
                 if book_id:
@@ -5305,20 +5539,28 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                         results[book_id] = diff
                     else:
                         results.pop(book_id, None)
-                self._wd_report_progress("check_update", idx, total, f"Đang kiểm tra {idx}/{total}")
+                self._wd_progress_callback("check_update", idx, total, f"Đang kiểm tra {idx}/{total}")
+                self._wd_ensure_not_cancelled()
                 delay = random.uniform(fanqie_delay_min, fanqie_delay_max) if fanqie_delay_max > 0 else 0
                 if delay > 0:
                     time.sleep(delay)
             self.wd_new_chapters = results
             self.after(0, lambda: self._wd_refresh_tree(filtered))
             self._wd_set_progress("Hoàn tất kiểm tra cập nhật", total, total)
+        except WikidichCancelled:
+            cancelled = True
+            self.log("[Wikidich] Đã hủy kiểm tra cập nhật theo yêu cầu người dùng.")
+            self._wd_mark_cancelled()
         except Exception as exc:
             self.log(f"[Wikidich] Lỗi khi kiểm tra cập nhật: {exc}")
             self.after(0, lambda: messagebox.showerror("Lỗi", f"Không thể kiểm tra cập nhật: {exc}", parent=self))
         finally:
             self._wd_loading = False
             self._wd_progress_running = False
+            self._wd_cancel_requested = False
             pythoncom.CoUninitialize()
+            if not cancelled:
+                self._wd_set_progress("Chờ thao tác...", 0, 1)
 
     def _wd_get_fanqie_link(self, book: dict):
         links = book.get('extra_links') or []
@@ -5331,24 +5573,43 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 return url
         return None
 
+    def _wd_find_link_with_domain(self, book: dict, domain: str):
+        links = book.get('extra_links') or []
+        for link in links:
+            url = (link.get('url') if isinstance(link, dict) else link) or ""
+            if domain in url:
+                return url
+        return None
+
     def _wd_calculate_new_chapters(self, book: dict, proxies=None, headers=None):
-        link = self._wd_get_fanqie_link(book)
-        if not link:
-            return None
-        result = fanqienovel_ext.fetch_chapters(link, proxies=proxies, headers=headers)
-        if not result or result.get('error'):
-            if result and result.get('error'):
-                self.log(f"[Wikidich] Không thể lấy chương Fanqie cho '{book.get('title', '')}': {result['error']}")
-            return None
-        remote_list = result.get('data') or []
-        remote_total = len(remote_list)
-        current_total = book.get('chapters') or 0
-        try:
-            current_total = int(current_total)
-        except Exception:
-            current_total = 0
-        diff = remote_total - current_total
-        return diff if diff > 0 else 0
+        domains = [
+            ("fanqienovel.com", fanqienovel_ext.fetch_chapters, {"headers": headers}),
+            ("jjwxc.net", jjwxc_ext.fetch_chapters, {}),
+            ("po18.tw", po18_ext.fetch_chapters, {}),
+            ("qidian.com", qidian_ext.fetch_chapters, {}),
+            ("ihuaben.com", ihuaben_ext.fetch_chapters, {}),
+        ]
+        for domain, fetcher, extra_args in domains:
+            url = self._wd_find_link_with_domain(book, domain)
+            if not url:
+                continue
+            kwargs = {"proxies": proxies}
+            kwargs.update({k: v for k, v in extra_args.items() if v is not None})
+            result = fetcher(url, **kwargs)
+            if not result or result.get('error'):
+                if result and result.get('error'):
+                    self.log(f"[Wikidich] Không thể lấy chương ({domain}) cho '{book.get('title', '')}': {result['error']}")
+                continue
+            remote_list = result.get('data') or []
+            remote_total = len(remote_list)
+            current_total = book.get('chapters') or 0
+            try:
+                current_total = int(current_total)
+            except Exception:
+                current_total = 0
+            diff = remote_total - current_total
+            return diff if diff > 0 else 0
+        return None
 
     def _wd_display_cover(self, url: str):
         if not url:
@@ -5405,6 +5666,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         fanqie_max = current.get('fanqie_delay_max', DEFAULT_API_SETTINGS['fanqie_delay_max'])
         wiki_headers = current.get('wiki_headers', {}) or {}
         fanqie_headers = current.get('fanqie_headers', {}) or {}
+        open_mode_var = tk.StringVar(value=getattr(self, "wikidich_open_mode", "in_app"))
 
         win = tk.Toplevel(self)
         win.title("Cài đặt request")
@@ -5449,6 +5711,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         fanqie_ua_var = tk.StringVar(value=fanqie_headers.get("User-Agent", DEFAULT_API_SETTINGS['fanqie_headers'].get("User-Agent", "")))
         ttk.Entry(headers_frame, textvariable=fanqie_ua_var).grid(row=1, column=1, sticky="ew", pady=(8, 0))
 
+        open_mode_frame = ttk.LabelFrame(container, text="Mở link Wikidich", padding=10)
+        open_mode_frame.pack(fill="x", expand=True, pady=(10, 0))
+        ttk.Radiobutton(open_mode_frame, text="Trình duyệt tích hợp (Overlay)", variable=open_mode_var, value="in_app").pack(anchor="w")
+        ttk.Radiobutton(open_mode_frame, text="Trình duyệt ngoài (mặc định hệ thống)", variable=open_mode_var, value="external").pack(anchor="w", pady=(4, 0))
+
         action_frame = ttk.Frame(container)
         action_frame.pack(fill="x", pady=(12, 0))
 
@@ -5459,6 +5726,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             fanqie_max_var.set(DEFAULT_API_SETTINGS['fanqie_delay_max'])
             wiki_ua_var.set(DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent", ""))
             fanqie_ua_var.set(DEFAULT_API_SETTINGS['fanqie_headers'].get("User-Agent", ""))
+            open_mode_var.set("in_app")
 
         def _save_settings():
             try:
@@ -5492,6 +5760,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 'wiki_headers': wiki_hdr,
                 'fanqie_headers': fanqie_hdr
             }
+            self.wikidich_open_mode = open_mode_var.get() or "in_app"
             self.app_config['api_settings'] = dict(self.api_settings)
             self.save_config()
             messagebox.showinfo("Đã lưu", "Đã lưu cài đặt request.", parent=win)
