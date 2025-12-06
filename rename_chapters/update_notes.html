@@ -12,7 +12,6 @@
 - <b>Dialog mượt hơn</b>: giảm hiện tượng pop‑up cửa sổ nhỏ trước khi mở dialog (proxy, sửa/gợi ý tên, date picker…) bằng cách đặt icon an toàn, tránh nháy.
 - <b>Single-instance</b>: bấm exe nhiều lần (kể cả đang ẩn khay) chỉ kích hoạt lại app đang chạy, không mở thêm instance.
 - <b>Dọn tạm</b>: thoát app sẽ dọn thư mục tạm _MEI* (trường hợp onefile) để tránh rác chiếm dung lượng khi lỗi.
-- <b>Khung nhật ký</b>: thu gọn còn 4 dòng, bớt chiếm chỗ.
 - <b>Đóng gói icon gọn</b>: giữ icon.ico/icon.png ở root/icons, spec/installer copy icons chuẩn, tránh nhầm icon cũ.
 
   
@@ -21,7 +20,6 @@
  - Xử lý Cloudflare (Koanchay): tạm dừng và hướng dẫn vượt qua bằng trình duyệt tích hợp.
  - Mượn header/cookie trực tiếp từ trình duyệt tích hợp (Qt) cho Wikidich/Koanchay, bỏ cấu hình User-Agent thủ công; thêm header đầy đủ (sec-ch-ua, priority…) để qua Cloudflare ổn định hơn.
  - Koanchay dùng cache/cookie riêng, lấy đúng miền koanchay.org/koanchay.net.
- - Chặn log debug UA/Probe khỏi giao diện người dùng.
  - Đối chiếu Works thông minh, tránh xáo trộn thứ tự; kiểm tra tổng số truyện, truyện neo và số truyện bị thêm/xóa.
  - Cập nhật hướng dẫn Wikidich/Koanchay (link hỗ trợ, cách thêm link bổ sung, chế độ mở link).
  - Reset thanh tiến độ về trạng thái ẩn sau tác vụ; giữ dữ liệu chi tiết nếu người dùng chọn.
