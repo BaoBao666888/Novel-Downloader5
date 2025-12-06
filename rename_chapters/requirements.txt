@@ -5,6 +5,7 @@ numpy
 opencv-python
 packaging
 pywin32
+pystray
 pyinstaller
 patool
 PyQt6

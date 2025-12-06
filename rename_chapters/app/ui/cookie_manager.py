@@ -47,6 +47,11 @@ class _EditCookieDialog(simpledialog.Dialog):
         self.record = record
         self.result = None
         super().__init__(parent, title="Sửa cookie")
+        try:
+            if hasattr(parent, "_apply_window_icon"):
+                parent._apply_window_icon(self)
+        except Exception:
+            pass
 
     def body(self, master):
         ttk.Label(master, text=f"Tên miền: {self.record.host_key or '(trống)'}").grid(
@@ -71,6 +76,11 @@ class _EditCookieDialog(simpledialog.Dialog):
 class CookieManagerWindow(tk.Toplevel):
     def __init__(self, master, db_path: str, *, on_close=None):
         super().__init__(master)
+        try:
+            if hasattr(master, "_apply_window_icon"):
+                master._apply_window_icon(self)
+        except Exception:
+            pass
         self.db_path = db_path
         self._on_close = on_close
         self.title("Quản lý cookie trình duyệt")

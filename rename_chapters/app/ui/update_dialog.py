@@ -131,6 +131,11 @@ def show_update_window(root, manifest):
     notes = manifest.get('notes', '')
 
     win = tk.Toplevel(root)
+    try:
+        if hasattr(root, "_apply_window_icon"):
+            root._apply_window_icon(win)
+    except Exception:
+        pass
     win.title(f"Cập nhật phiên bản {version}")
     win.geometry("780x520")
     win.transient(root)
