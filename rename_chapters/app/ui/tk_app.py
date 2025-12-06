@@ -16,6 +16,7 @@ except ImportError:
     ctypes = None
 
 import requests
+from bs4 import BeautifulSoup
 try:
     import pystray
 except ImportError:
@@ -402,7 +403,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.2')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.2.1')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -6133,9 +6134,18 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             resp = requests.get(url, timeout=20, proxies=proxies, allow_redirects=True)
             if resp.status_code == 404:
                 return True
-            text = resp.text.lower()
-            if "truyện không tồn tại" in text or "không tồn tại" in text:
-                return True
+            html = resp.text or ""
+            # Parse HTML để kiểm tra đúng block thông báo "Truyện không tồn tại."
+            try:
+                doc = BeautifulSoup(html, "html.parser")
+                center_block = doc.select_one("main .container .center-align")
+                if center_block:
+                    for p in center_block.find_all("p"):
+                        text = p.get_text(strip=True)
+                        if text.lower() == "truyện không tồn tại.":
+                            return True
+            except Exception as parse_exc:
+                self.log(f"[Wikidich] Lỗi phân tích HTML khi kiểm tra xóa: {parse_exc}")
         except Exception as exc:
             self.log(f"[Wikidich] Kiểm tra xóa thất bại: {exc}")
         return False
