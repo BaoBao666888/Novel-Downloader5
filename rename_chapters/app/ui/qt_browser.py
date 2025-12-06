@@ -14,7 +14,7 @@ from typing import Callable, List, Optional
 
 import requests
 from PyQt6.QtCore import Qt, QTimer, QUrl, QStringListModel
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -40,7 +40,14 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineSettings, QWebEngineDownloadRequest
+from PyQt6.QtWebEngineCore import (
+    QWebEngineProfile,
+    QWebEnginePage,
+    QWebEngineSettings,
+    QWebEngineDownloadRequest,
+    QWebEngineUrlRequestInterceptor,
+    QWebEngineCookieStore,
+)
 
 from app.paths import BASE_DIR
 from app.userscripts import UserscriptHost
@@ -55,6 +62,19 @@ USERSCRIPT_REGISTRY_FILE = os.path.join(PROFILE_DIR, "userscripts_registry.json"
 USERSCRIPT_DIR = os.path.join(PROFILE_DIR, "userscripts")
 SCHEME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*://')
 DOMAIN_LIKE_RE = re.compile(r'^[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(/.*)?$')
+
+
+def _find_app_icon() -> Optional[str]:
+    candidates = [
+        os.path.join(BASE_DIR, "icon.ico"),
+        os.path.join(BASE_DIR, "icons", "icon.ico"),
+        os.path.join(BASE_DIR, "icon.png"),
+        os.path.join(BASE_DIR, "icons", "icon.png"),
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    return None
 
 
 def build_persistent_profile(parent=None) -> QWebEngineProfile:
@@ -521,11 +541,74 @@ class UserscriptManagerDialog(QDialog):
             QMessageBox.information(self, "Chọn script", "Vui lòng chọn script cần cập nhật.")
             return
         self._on_update(script_id)
+
+
+class _HeaderSpy(QWebEngineUrlRequestInterceptor):
+    def __init__(self, event_conn, targets=None, cookie_store: Optional[QWebEngineCookieStore] = None):
+        super().__init__()
+        self.event_conn = event_conn
+        self.targets = set(targets or [])
+        self.cookie_store = cookie_store
+
+    def interceptRequest(self, info):
+        try:
+            host = info.requestUrl().host()
+            if self.targets and host not in self.targets:
+                return
+            headers = {}
+            for name in info.rawHeaderList():
+                key = bytes(name).decode("latin1", errors="ignore").strip()
+                if not key:
+                    continue
+                val = bytes(info.rawHeader(name)).decode("latin1", errors="ignore").strip()
+                headers[key] = val
+            if headers and self.event_conn:
+                try:
+                    self.event_conn.send(("REQUEST_HEADERS", {"host": host, "headers": headers}))
+                except Exception:
+                    pass
+            # lấy cookie hiện tại gửi về
+            if self.cookie_store and host and self.event_conn:
+                try:
+                    def _dump_cookies(cookies):
+                        serialized = []
+                        for c in cookies:
+                            try:
+                                serialized.append({
+                                    "name": bytes(c.name()).decode("utf-8", errors="ignore"),
+                                    "value": bytes(c.value()).decode("utf-8", errors="ignore"),
+                                    "domain": c.domain(),
+                                    "path": c.path(),
+                                    "secure": c.isSecure(),
+                                    "http_only": c.isHttpOnly(),
+                                    "expires": c.expirationDate().toSecsSinceEpoch() if c.expirationDate().isValid() else None,
+                                })
+                            except Exception:
+                                pass
+                        try:
+                            self.event_conn.send(("REQUEST_COOKIES", {"host": host, "cookies": serialized}))
+                        except Exception:
+                            pass
+                    self.cookie_store.cookiesForUrl(info.requestUrl(), _dump_cookies)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 class _BrowserWindow(QMainWindow):
     def __init__(self, initial_url: Optional[str], cmd_conn, event_conn):
         super().__init__()
         self.setWindowTitle("Rename Chapters - Browser")
         self.resize(1320, 900)
+        try:
+            icon_path = _find_app_icon()
+            if icon_path:
+                icon = QIcon(icon_path)
+                self.setWindowIcon(icon)
+                app = QApplication.instance()
+                if app:
+                    app.setWindowIcon(icon)
+        except Exception:
+            pass
         self.cmd_conn = cmd_conn
         self.event_conn = event_conn
         self._closing = False
@@ -545,6 +628,16 @@ class _BrowserWindow(QMainWindow):
         self.userscript_host: Optional[UserscriptHost] = None
         self._script_button: Optional[QPushButton] = None
         self._userscript_dialog: Optional[UserscriptManagerDialog] = None
+
+        # Gửi user-agent và headers thực tế về tiến trình cha để tái sử dụng cho requests
+        try:
+            targets = {"koanchay.org", "koanchay.net", "truyenwikidich.net"}
+            self._header_spy = _HeaderSpy(self.event_conn, targets=targets, cookie_store=self.profile.cookieStore())
+            self.profile.setUrlRequestInterceptor(self._header_spy)
+            if self.event_conn:
+                self.event_conn.send(("USER_AGENT", self.profile.httpUserAgent()))
+        except Exception:
+            self._header_spy = None
 
         self._build_ui()
         self._refresh_address_suggestions()

@@ -1,9 +1,11 @@
 # main_ui.py
 import os
+import socket
 import re
 import io
 import time
 from datetime import datetime
+from typing import Optional
 import tkinter.font as tkfont
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext, simpledialog, colorchooser
@@ -14,13 +16,19 @@ except ImportError:
     ctypes = None
 
 import requests
-from PIL import Image, ImageTk, ImageFilter
+try:
+    import pystray
+except ImportError:
+    pystray = None
+
+from PIL import Image, ImageTk, ImageFilter, ImageDraw, ImageFont
 import numpy as np
 import cv2
 from app.core import renamer as logic
 import json
 import threading
 import urllib.request
+from urllib.parse import urlparse
 from packaging.version import parse as parse_version
 from extensions import jjwxc_ext
 from extensions import po18_ext
@@ -39,6 +47,14 @@ import subprocess
 import sys
 import shutil
 import webbrowser
+try:
+    import win32event
+    import win32api
+    import winerror
+except Exception:
+    win32event = None
+    win32api = None
+    winerror = None
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from browser_overlay import BrowserOverlay
 from app.paths import BASE_DIR, RESOURCE_DIR, BACKGROUND_DIR
@@ -104,14 +120,30 @@ DEFAULT_API_SETTINGS = {
     'fanqie_delay_min': 0.0,
     'fanqie_delay_max': 0.0,
     'wiki_headers': {
-        "User-Agent": "RenameChapters-Wikidich/0.2",
-        "X-Requested-With": "XMLHttpRequest"
+        # Mặc định dùng UA của QtWebEngine (gần giống browser tích hợp)
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.10.0 Chrome/134.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "vi,en;q=0.9",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Upgrade-Insecure-Requests": "1"
     },
     'fanqie_headers': {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
     }
 }
+
+DEFAULT_BACKGROUND_SETTINGS = {
+    'enable': False,
+    'start_hidden': False
+}
+
+# Đảm bảo chỉ một instance (dùng localhost TCP)
+_SINGLE_INSTANCE_HOST = "127.0.0.1"
+_SINGLE_INSTANCE_PORT = int(os.environ.get("RC_SINGLE_INSTANCE_PORT", "45952"))
+_SINGLE_INSTANCE_MUTEX = "Global\\RenameChaptersSingleInstanceMutex"
+_instance_mutex_handle = None
 
 ONLINE_SOURCES = [
     {
@@ -223,6 +255,15 @@ def _adjust_color_luminance(hex_color, delta=0.1):
     return "#%02x%02x%02x" % tuple(adjusted)
 
 
+def _hex_to_rgb(hex_color, fallback=(99, 102, 241)):
+    """Convert hex color to RGB tuple."""
+    normalized = _normalize_hex_color(hex_color)
+    try:
+        return tuple(int(normalized[i:i + 2], 16) for i in (1, 3, 5))
+    except Exception:
+        return fallback
+
+
 def _make_window_clickthrough(window):
     if not (sys.platform.startswith('win') and ctypes):
         return
@@ -255,6 +296,56 @@ def _env_bool(name, default=False, env_map=None):
     if value is None:
         return default
     return value.strip().lower() in ('1', 'true', 'yes', 'y', 'on')
+
+
+def _acquire_single_instance_mutex() -> bool:
+    """Trả về True nếu chiếm được mutex; False nếu đã có instance."""
+    global _instance_mutex_handle
+    if not win32event or not win32api or not winerror:
+        return True
+    try:
+        handle = win32event.CreateMutex(None, False, _SINGLE_INSTANCE_MUTEX)
+        err = win32api.GetLastError()
+        _instance_mutex_handle = handle
+        if err == winerror.ERROR_ALREADY_EXISTS:
+            return False
+        return True
+    except Exception:
+        return True
+
+
+def _release_single_instance_mutex():
+    global _instance_mutex_handle
+    if _instance_mutex_handle:
+        try:
+            win32api.CloseHandle(_instance_mutex_handle)
+        except Exception:
+            pass
+    _instance_mutex_handle = None
+
+
+def ensure_single_instance_or_exit():
+    """Bind cổng nội bộ; nếu đã có instance, gửi lệnh SHOW và thoát."""
+    if not _acquire_single_instance_mutex():
+        try:
+            with socket.create_connection((_SINGLE_INSTANCE_HOST, _SINGLE_INSTANCE_PORT), timeout=1.5) as conn:
+                conn.sendall(b"SHOW")
+        except Exception:
+            pass
+        sys.exit(0)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        sock.bind((_SINGLE_INSTANCE_HOST, _SINGLE_INSTANCE_PORT))
+        sock.listen(1)
+        return sock
+    except OSError:
+        try:
+            with socket.create_connection((_SINGLE_INSTANCE_HOST, _SINGLE_INSTANCE_PORT), timeout=1.5) as conn:
+                conn.sendall(b"SHOW")
+        except Exception:
+            pass
+        sys.exit(0)
 
 
 def _sync_versioned_files(version):
@@ -311,7 +402,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.1.1')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.2')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -351,7 +442,7 @@ class RenamerApp(tk.Tk):
         "VERSION_CHECK_URL",
         "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
     )
-    def __init__(self):
+    def __init__(self, instance_server=None):
         super().__init__()
         self.title(f"Rename Chapters v{self.CURRENT_VERSION} (by BaoBao)")
         self.geometry("1200x800")
@@ -381,6 +472,13 @@ class RenamerApp(tk.Tk):
         self._set_default_config()
         self._preload_ui_settings()
         self.ui_settings = dict(self.app_config.get('ui_settings', {}))
+        self.background_settings = dict(DEFAULT_BACKGROUND_SETTINGS)
+        self.background_settings.update(self.app_config.get('background', {}))
+        self._tray_icon = None
+        self._tray_icon_thread = None
+        self._tray_image = None
+        self._hidden_to_tray = False
+        self._force_exit = False
         self._pending_font_value = self.ui_settings.get('font_size', DEFAULT_UI_SETTINGS['font_size'])
         self._theme_ready = False
         self._cursor_motion_binding_active = False
@@ -403,6 +501,10 @@ class RenamerApp(tk.Tk):
         self._canvas_width = 0
         self._canvas_height = 0
         self._content_window = None
+        self._icon_path = None
+        self._app_icon_image = None
+        self._instance_server = instance_server
+        self._instance_thread = None
         self.use_local_manifest_only = USE_LOCAL_MANIFEST_ONLY
 
         wd_cfg = self.app_config.get('wikidich', {})
@@ -416,8 +518,21 @@ class RenamerApp(tk.Tk):
         self._wd_cancel_requested = False
         self._wd_progress_running = False
         self.wd_new_chapters = {}
+        self.wd_site = "wikidich"
+        self._wd_contexts = {}
+        self._wd_site_states = {}
+        self._wd_tabs = {}
+        self._wd_cache_paths = {
+            "wikidich": self.wikidich_cache_path,
+            "koanchay": os.path.join(BASE_DIR, "local", "koanchay_cache.json")
+        }
+        self._browser_user_agent = None
+        self._browser_headers = {}
+        self._browser_cookies = {}
+        self._wd_resume_works = None
         self.create_widgets()
         self.load_config()
+        self._set_app_icon()
         threading.Thread(target=self._cleanup_legacy_files, daemon=True).start()
         # Đẩy các tác vụ không cần chờ (kiểm tra update, preload nhỏ) sang luồng nền sau khi UI đã lên
         self.after(200, self._schedule_background_tasks)
@@ -458,7 +573,8 @@ class RenamerApp(tk.Tk):
                 },
                 'open_mode': 'in_app'
             },
-            'api_settings': dict(DEFAULT_API_SETTINGS)
+            'api_settings': dict(DEFAULT_API_SETTINGS),
+            'background': dict(DEFAULT_BACKGROUND_SETTINGS)
         }
 
     def _cleanup_legacy_files(self):
@@ -797,6 +913,7 @@ class RenamerApp(tk.Tk):
             except Exception:
                 self._source_selector_window = None
         selector = tk.Toplevel(self)
+        self._apply_window_icon(selector)
         selector.title("Chọn nguồn lấy mục lục")
         selector.geometry("520x340")
         selector.transient(self)
@@ -947,6 +1064,52 @@ class RenamerApp(tk.Tk):
             text_color = self.ui_settings.get('text_color') or self._theme_colors.get('text', '#f5f7ff')
             text_color = _normalize_hex_color(text_color, '#f5f7ff')
             self.text_color_preview.config(bg=text_color)
+
+    def _sync_background_controls(self):
+        if hasattr(self, "bg_enable_var"):
+            self.bg_enable_var.set(bool(self.background_settings.get('enable', False)))
+        if hasattr(self, "bg_start_hidden_var"):
+            self.bg_start_hidden_var.set(bool(self.background_settings.get('start_hidden', False)))
+
+    def _update_background_settings(self, save=True, **changes):
+        disable_requested = bool(changes.get('enable') is False) if changes else False
+        if changes:
+            for key, value in changes.items():
+                if value is not None:
+                    self.background_settings[key] = bool(value)
+        if disable_requested:
+            self._hidden_to_tray = False
+            self._stop_tray_icon()
+        if save:
+            self.save_config()
+        self._sync_background_controls()
+
+    def _toggle_background_mode(self):
+        desired = bool(self.bg_enable_var.get()) if hasattr(self, "bg_enable_var") else False
+        if desired and pystray is None:
+            messagebox.showerror("Thiếu thư viện", "Cần cài gói 'pystray' để dùng chế độ chạy ngầm.\nChạy lệnh: pip install pystray")
+            if hasattr(self, "bg_enable_var"):
+                self.bg_enable_var.set(False)
+            desired = False
+        if not desired:
+            self.background_settings['start_hidden'] = False
+            if hasattr(self, "bg_start_hidden_var"):
+                self.bg_start_hidden_var.set(False)
+        self._update_background_settings(enable=desired, save=True)
+
+    def _toggle_start_hidden(self):
+        desired = bool(self.bg_start_hidden_var.get()) if hasattr(self, "bg_start_hidden_var") else False
+        if desired and not self.background_settings.get('enable'):
+            messagebox.showinfo("Cần bật chạy ngầm", "Bật tùy chọn chạy ngầm trước khi chọn khởi động ẩn vào khay.")
+            if hasattr(self, "bg_start_hidden_var"):
+                self.bg_start_hidden_var.set(False)
+            return
+        if desired and pystray is None:
+            messagebox.showerror("Thiếu thư viện", "Cần cài gói 'pystray' để dùng chế độ chạy ngầm.")
+            if hasattr(self, "bg_start_hidden_var"):
+                self.bg_start_hidden_var.set(False)
+            return
+        self._update_background_settings(start_hidden=desired, save=True)
 
     def _commit_accent_entry(self):
         entered = self.ui_accent_var.get()
@@ -1159,6 +1322,294 @@ class RenamerApp(tk.Tk):
             self._cursor_glow_window.withdraw()
         self._cursor_glow_after = None
 
+    def _apply_window_icon(self, window):
+        """Áp icon app cho cửa sổ con (Toplevel/Dialog)."""
+        if not window:
+            return
+        try:
+            if window is self:
+                if self._app_icon_image:
+                    window.iconphoto(False, self._app_icon_image)
+                if self._icon_path and self._icon_path.lower().endswith(".ico"):
+                    try:
+                        window.iconbitmap(self._icon_path)
+                    except Exception:
+                        pass
+                return
+
+            if self._app_icon_image:
+                # Giảm nháy: tạm withdraw, đặt icon, sau đó deiconify lại
+                was_withdrawn = False
+                try:
+                    if window.state() != "withdrawn":
+                        window.withdraw()
+                    else:
+                        was_withdrawn = True
+                except Exception:
+                    pass
+                try:
+                    window.iconphoto(False, self._app_icon_image)
+                except Exception:
+                    pass
+                try:
+                    if not was_withdrawn:
+                        window.after(1, window.deiconify)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    def _set_app_icon(self):
+        """Đặt icon cửa sổ từ file icon*.ico/png (root hoặc thư mục icons)."""
+        candidates = [
+            os.path.join(BASE_DIR, "icon.ico"),
+            os.path.join(BASE_DIR, "icons", "icon.ico"),
+            os.path.join(BASE_DIR, "icon.png"),
+            os.path.join(BASE_DIR, "icons", "icon.png"),
+        ]
+        icon_path = next((p for p in candidates if os.path.isfile(p)), None)
+        if not icon_path:
+            return
+        try:
+            self._icon_path = icon_path
+            # Luôn chuẩn bị PhotoImage để dùng cho child windows (tránh nháy cửa sổ)
+            loaded_image = None
+            if icon_path.lower().endswith(".png"):
+                loaded_image = tk.PhotoImage(file=icon_path)
+            elif icon_path.lower().endswith(".ico"):
+                try:
+                    from PIL import Image
+                    import io
+                    with Image.open(icon_path) as pil_img:
+                        pil_img = pil_img.convert("RGBA")
+                        buf = io.BytesIO()
+                        pil_img.save(buf, format="PNG")
+                        buf.seek(0)
+                        loaded_image = tk.PhotoImage(data=buf.read())
+                except Exception:
+                    loaded_image = None
+            if loaded_image:
+                self._app_icon_image = loaded_image
+                try:
+                    self.iconphoto(False, self._app_icon_image)
+                except tk.TclError:
+                    self.iconphoto(True, self._app_icon_image)
+            if icon_path.lower().endswith(".ico"):
+                # Giữ iconbitmap cho taskbar chính (root)
+                try:
+                    self.iconbitmap(icon_path)
+                except Exception:
+                    pass
+        except Exception as exc:
+            try:
+                self.log(f"Không thể đặt icon cửa sổ: {exc}")
+            except Exception:
+                pass
+
+    def _build_tray_image(self):
+        accent = self.ui_settings.get('accent_color', '#6366f1')
+        primary = _hex_to_rgb(accent)
+        highlight = _hex_to_rgb(_adjust_color_luminance(accent, 0.18), primary)
+        img = Image.new("RGBA", (64, 64), (*primary, 255))
+        draw = ImageDraw.Draw(img)
+        draw.rectangle((6, 10, 58, 54), fill=(*highlight, 235), outline=(255, 255, 255, 40), width=2)
+        font = ImageFont.load_default()
+        text = "RC"
+        try:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_w = bbox[2] - bbox[0]
+            text_h = bbox[3] - bbox[1]
+        except Exception:
+            text_w, text_h = draw.textsize(text, font=font)
+        draw.text(((64 - text_w) / 2, (64 - text_h) / 2), text, font=font, fill=(255, 255, 255, 255))
+        return img
+
+    def _load_tray_image_from_disk(self):
+        """Tìm icon người dùng cung cấp nếu có (icon.ico/png...)."""
+        candidates = [
+            os.path.join(BASE_DIR, "icon.png"),
+            os.path.join(BASE_DIR, "icon.ico"),
+            os.path.join(BASE_DIR, "icons", "icon.png"),
+            os.path.join(BASE_DIR, "icons", "icon.ico"),
+            os.path.join(BASE_DIR, "icons", "tray.png"),
+        ]
+        for path in candidates:
+            if os.path.isfile(path):
+                try:
+                    return Image.open(path).convert("RGBA")
+                except Exception:
+                    continue
+        return None
+
+    def _prepare_tray_image(self, image: Image.Image, size: int = 32) -> Image.Image:
+        """Đảm bảo icon khay kích thước nhỏ, định dạng RGBA."""
+        if not image:
+            return None
+        try:
+            img = image.convert("RGBA")
+            if img.size != (size, size):
+                img = img.resize((size, size), Image.LANCZOS)
+            return img
+        except Exception:
+            return None
+
+    def _pick_tray_image(self):
+        """Chọn icon khay: ưu tiên icon người dùng, fallback icon RC."""
+        fallback = self._build_tray_image()
+        disk_img = self._load_tray_image_from_disk()
+        if disk_img:
+            try:
+                return self._prepare_tray_image(disk_img)
+            except Exception:
+                pass
+        return self._prepare_tray_image(fallback)
+
+    def _ensure_tray_icon(self):
+        if self._tray_icon:
+            return True
+        if pystray is None:
+            messagebox.showerror("Thiếu thư viện", "Cần cài gói 'pystray' để dùng khay hệ thống.\nChạy lệnh: pip install pystray")
+            return False
+        try:
+            image = self._pick_tray_image()
+            if image is None:
+                raise ValueError("Không tạo được icon khay (thiếu pillow ICO encoder?). Thêm file icon.png hoặc cài lại Pillow.")
+            menu = pystray.Menu(
+                pystray.MenuItem("Mở cửa sổ", lambda _icon, _item: self.after(0, self._restore_from_tray), default=True),
+                pystray.MenuItem("Thoát", lambda _icon, _item: self.after(0, self._exit_from_tray))
+            )
+            self._tray_image = image
+            self._tray_icon = pystray.Icon(
+                "rename_chapters",
+                image=image.copy(),
+                title=f"Rename Chapters v{self.CURRENT_VERSION}",
+                menu=menu
+            )
+            # Explicitly set icon once to ensure driver has data before run()
+            self._tray_icon.icon = image.copy()
+
+            def _run_tray():
+                try:
+                    self._tray_icon.run()
+                except Exception as exc:
+                    self.after(0, lambda: self._handle_tray_failure(exc))
+
+            self._tray_icon_thread = threading.Thread(target=_run_tray, daemon=True)
+            self._tray_icon_thread.start()
+            return True
+        except Exception as exc:
+            self._tray_icon = None
+            self._tray_image = None
+            self._tray_icon_thread = None
+            self.log(f"Không thể khởi tạo khay hệ thống: {exc}")
+            messagebox.showerror("Lỗi khay hệ thống", f"Không thể bật chạy ngầm: {exc}")
+            return False
+
+    def _hide_to_tray(self, show_message=True, close_on_fail=False):
+        if self._hidden_to_tray:
+            return
+        if not self._ensure_tray_icon():
+            if close_on_fail:
+                self._perform_exit()
+            return
+        try:
+            if hasattr(self, "browser_overlay") and self.browser_overlay:
+                self.browser_overlay.hide()
+        except Exception:
+            pass
+        self.withdraw()
+        self._hidden_to_tray = True
+        if show_message:
+            self.log("Ứng dụng đang chạy ngầm ở khay hệ thống. Nhấp biểu tượng để mở lại hoặc chọn Thoát.")
+
+    def _restore_from_tray(self, _icon=None, _item=None):
+        def _do_restore():
+            if self._hidden_to_tray:
+                self.deiconify()
+                self._hidden_to_tray = False
+                try:
+                    self.lift()
+                    self.focus_force()
+                except Exception:
+                    pass
+        self.after(0, _do_restore)
+
+    def _exit_from_tray(self, _icon=None, _item=None):
+        self._force_exit = True
+        self.after(0, self.on_closing)
+
+    def _stop_tray_icon(self):
+        icon = getattr(self, "_tray_icon", None)
+        if icon:
+            try:
+                icon.stop()
+            except Exception:
+                pass
+        if getattr(self, "_tray_icon_thread", None):
+            try:
+                self._tray_icon_thread.join(timeout=1)
+            except Exception:
+                pass
+        self._tray_icon = None
+        self._tray_icon_thread = None
+        self._tray_image = None
+        self._hidden_to_tray = False
+
+    def _start_single_instance_listener(self):
+        pass
+
+    def _stop_single_instance_listener(self):
+        pass
+
+    def _cleanup_temp_extraction(self):
+        """Xóa thư mục tạm _MEI* nếu còn (onefile) để tránh rác khi lỗi."""
+        candidates = set()
+        mei = getattr(sys, "_MEIPASS", None)
+        if mei:
+            candidates.add(mei)
+        env_mei = os.environ.get("_MEIPASS2")
+        if env_mei:
+            candidates.add(env_mei)
+        for path in candidates:
+            try:
+                if path and os.path.isdir(path):
+                    shutil.rmtree(path, ignore_errors=True)
+            except Exception:
+                pass
+
+    def _handle_tray_failure(self, exc):
+        self.log(f"Lỗi khay hệ thống: {exc}")
+        try:
+            messagebox.showerror("Khay hệ thống", f"Không thể bật chạy ngầm: {exc}")
+        except Exception:
+            pass
+        self._update_background_settings(enable=False, start_hidden=False, save=True)
+        self._stop_tray_icon()
+        try:
+            self.deiconify()
+            self.lift()
+        except Exception:
+            pass
+
+    def _maybe_start_hidden(self):
+        if self.background_settings.get('enable') and self.background_settings.get('start_hidden'):
+            self.after(500, lambda: self._hide_to_tray(show_message=False))
+
+    def _perform_exit(self):
+        if hasattr(self, "browser_overlay") and self.browser_overlay:
+            try:
+                self.browser_overlay.hide()
+            except Exception:
+                pass
+        self._stop_tray_icon()
+        self._detach_mouse_glow()
+        self._cleanup_temp_extraction()
+        _release_single_instance_mutex()
+        try:
+            self.destroy()
+        except Exception:
+            pass
+
     def on_closing(self):
         """Hỏi lưu file nếu cần, sau đó lưu cấu hình trước khi đóng."""
         if self.text_modified.get():
@@ -1169,14 +1620,16 @@ class RenamerApp(tk.Tk):
             if response is True:
                 saved_successfully = self._save_changes()
                 if not saved_successfully:
+                    self._force_exit = False
                     return
             elif response is None:
+                self._force_exit = False
                 return
         self.save_config()
-        if hasattr(self, "browser_overlay") and self.browser_overlay:
-            self.browser_overlay.hide()
-        self._detach_mouse_glow()
-        self.destroy()
+        if self.background_settings.get('enable') and not self._force_exit:
+            self._hide_to_tray(close_on_fail=True)
+            return
+        self._perform_exit()
 
     def save_config(self):
         """Thu thập và lưu tất cả cài đặt vào file config.json."""
@@ -1203,6 +1656,7 @@ class RenamerApp(tk.Tk):
             'split_position': self.split_position.get(),
             'combine_titles': self.combine_titles_var.get(),
             'title_format': self.title_format_var.get(),
+            'background': dict(self.background_settings),
         })
         self.app_config['ui_settings'] = self.ui_settings
         if hasattr(self, "wd_search_var"):
@@ -1238,6 +1692,9 @@ class RenamerApp(tk.Tk):
             self.regex_pins = dict(config_data.get('regex_pins', {'find': [], 'replace': [], 'split': []}))
             api_cfg = config_data.get('api_settings', {}) if isinstance(config_data.get('api_settings'), dict) else {}
             self.api_settings = {**DEFAULT_API_SETTINGS, **api_cfg}
+            # Luôn dùng header mặc định/bắt từ trình duyệt, bỏ User-Agent tùy chỉnh cũ
+            self.api_settings['wiki_headers'] = dict(DEFAULT_API_SETTINGS['wiki_headers'])
+            self.api_settings['fanqie_headers'] = dict(DEFAULT_API_SETTINGS['fanqie_headers'])
             self.folder_path.set(config_data.get('folder_path', ''))
             self.strategy.set(config_data.get('rename_strategy', 'content_first'))
             self.sort_strategy.set(config_data.get('sort_strategy', 'content'))
@@ -1288,6 +1745,8 @@ class RenamerApp(tk.Tk):
                 adv_filter = wd_cfg.get('advanced_filter')
                 if isinstance(adv_filter, dict):
                     self.wikidich_filters.update(adv_filter)
+                self._wd_cache_paths["wikidich"] = self.wikidich_cache_path
+                self._wd_cache_paths["koanchay"] = self._wd_cache_paths.get("koanchay") or os.path.join(BASE_DIR, "local", "koanchay_cache.json")
             if hasattr(self, "wd_search_var"):
                 self.wd_search_var.set(self.wikidich_filters.get('search', ''))
                 self.wd_summary_var.set(self.wikidich_filters.get('summarySearch', ''))
@@ -1298,6 +1757,12 @@ class RenamerApp(tk.Tk):
 
             if self.folder_path.get(): self.schedule_preview_update()
             self.selected_file.set(config_data.get('selected_file', ''))
+            bg_cfg = config_data.get('background', {})
+            if isinstance(bg_cfg, dict):
+                self.background_settings.update(DEFAULT_BACKGROUND_SETTINGS)
+                self.background_settings.update(bg_cfg)
+            else:
+                self.background_settings = dict(DEFAULT_BACKGROUND_SETTINGS)
             ui_settings = config_data.get('ui_settings')
             if isinstance(ui_settings, dict):
                 self.ui_settings.update(ui_settings)
@@ -1305,6 +1770,8 @@ class RenamerApp(tk.Tk):
                 self._sync_ui_settings_controls()
                 self._apply_mouse_glow_setting()
             self.app_config['api_settings'] = dict(self.api_settings)
+            self._sync_background_controls()
+            self._maybe_start_hidden()
         except Exception as e:
             print(f"Không thể tải config: {e}")
             self.log("Không tìm thấy file config hoặc file bị lỗi. Sử dụng cài đặt mặc định.")
@@ -1457,13 +1924,13 @@ class RenamerApp(tk.Tk):
         self.create_settings_tab()
 
         log_frame = ttk.LabelFrame(self.main_paned_window, text="Nhật ký hoạt động", padding="8", style="Section.TLabelframe")
-        self.log_text = scrolledtext.ScrolledText(log_frame, height=8, state='disabled', wrap=tk.WORD)
+        self.log_text = scrolledtext.ScrolledText(log_frame, height=3, state='disabled', wrap=tk.WORD)
         if not classic_theme:
             self.log_text.configure(bg=colors.get("input_bg", "#111a32"), fg=colors.get("text", "#f5f7ff"),
                                     insertbackground=colors.get("accent", "#6366f1"), highlightthickness=1,
                                     highlightbackground=colors.get("border", "#273553"), relief=tk.FLAT, bd=0)
         self.log_text.pack(fill=tk.BOTH, expand=True)
-        self.main_paned_window.add(log_frame, weight=1)
+        self.main_paned_window.add(log_frame, weight=0)
         self._apply_mouse_glow_setting()
         self._apply_background_image()
         self.browser_overlay = BrowserOverlay(self)
@@ -1536,8 +2003,25 @@ class RenamerApp(tk.Tk):
                   text="Tạo hiệu ứng highlight nhẹ khi di chuyển chuột quanh ứng dụng.").grid(row=1, column=0, sticky="w",
                                                                                           pady=(4, 0))
 
+        tray_frame = ttk.LabelFrame(settings_tab, text="Chạy nền / Khay hệ thống", padding=14, style="Section.TLabelframe")
+        tray_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        tray_frame.columnconfigure(0, weight=1)
+
+        self.bg_enable_var = tk.BooleanVar(value=bool(self.background_settings.get('enable', False)))
+        ttk.Checkbutton(tray_frame,
+                        text="Đóng cửa sổ nhưng tiếp tục chạy ngầm (ẩn xuống khay)",
+                        variable=self.bg_enable_var,
+                        command=self._toggle_background_mode).grid(row=0, column=0, sticky="w")
+        self.bg_start_hidden_var = tk.BooleanVar(value=bool(self.background_settings.get('start_hidden', False)))
+        ttk.Checkbutton(tray_frame,
+                        text="Khởi động ẩn vào khay (khi bật chạy ngầm)",
+                        variable=self.bg_start_hidden_var,
+                        command=self._toggle_start_hidden).grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ttk.Label(tray_frame,
+                  text="Biểu tượng khay cung cấp menu Mở cửa sổ / Thoát hẳn.").grid(row=2, column=0, sticky="w", pady=(6, 0))
+
         bg_frame = ttk.LabelFrame(settings_tab, text="Ảnh nền", padding=14, style="Section.TLabelframe")
-        bg_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        bg_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(12, 0))
         bg_frame.columnconfigure(1, weight=1)
         ttk.Label(bg_frame, text="Đường dẫn:").grid(row=0, column=0, sticky="w")
         self.ui_background_var = tk.StringVar(value=self.ui_settings.get('background_image', ''))
@@ -1548,11 +2032,12 @@ class RenamerApp(tk.Tk):
         ttk.Label(bg_frame, text="Ảnh sẽ tự co giãn theo cửa sổ. Hỗ trợ: PNG, JPG, JPEG, BMP.").grid(row=1, column=0, columnspan=4, sticky="w", pady=(6, 0))
 
         actions_frame = ttk.Frame(settings_tab)
-        actions_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(16, 0))
+        actions_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(16, 0))
         ttk.Button(actions_frame, text="Khôi phục mặc định", command=self._reset_ui_theme).pack(side=tk.LEFT)
         ttk.Button(actions_frame, text="Lưu cấu hình ngay", command=self.save_config).pack(side=tk.LEFT, padx=(8, 0))
 
         self._sync_ui_settings_controls()
+        self._sync_background_controls()
 
     def create_rename_tab(self):
         rename_tab = ttk.Frame(self.notebook, padding="10")
@@ -1679,6 +2164,7 @@ class RenamerApp(tk.Tk):
 
     def show_regex_guide(self, guide_type="rename"):
         help_window = tk.Toplevel(self)
+        self._apply_window_icon(help_window)
         help_window.title("Hướng dẫn sử dụng Regex")
         help_window.geometry("700x600") 
         help_window.transient(self)
@@ -1825,6 +2311,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     
     def show_operation_guide(self):
         guide_win = tk.Toplevel(self)
+        self._apply_window_icon(guide_win)
         guide_win.title("Hướng dẫn thao tác")
         guide_win.geometry("800x650")
         guide_win.transient(self)
@@ -2257,17 +2744,43 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Button(action_row_frame, text="Sao chép tiêu đề đã chọn vào Tab Đổi Tên", command=self._apply_online_titles).pack(side=tk.RIGHT, padx=5)
 
     def create_wikidich_tab(self):
-        wd_tab = ttk.Frame(self.notebook, padding="10")
-        self.notebook.add(wd_tab, text="Wikidich")
-        wd_tab.columnconfigure(0, weight=1)
-        wd_tab.rowconfigure(3, weight=1)
+        initial_filters = dict(self.wikidich_filters)
+        initial_data = self.wikidich_data
+        initial_filtered = getattr(self, "wikidich_filtered", [])
+        initial_new = dict(self.wd_new_chapters)
+        for site in ("wikidich", "koanchay"):
+            if site == "koanchay":
+                self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
+                self.wikidich_filters = dict(initial_filters)
+                self.wikidich_filtered = []
+                self.wd_new_chapters = {}
+            tab = ttk.Frame(self.notebook, padding="10")
+            self._wd_tabs[site] = tab
+            tab_label = "Koanchay" if site == "koanchay" else "Wikidich"
+            self.notebook.add(tab, text=tab_label)
+            if site == "koanchay":
+                self.notebook.tab(tab, state="hidden")
+            self._build_wikidich_tab_ui(tab, site)
+            self._wd_contexts[site] = self._wd_capture_context()
+            self._wd_site_states[site] = self._wd_capture_site_state()
+        self.wd_new_chapters = initial_new
+        self.wikidich_filters = dict(initial_filters)
+        self.wikidich_data = initial_data
+        self.wikidich_filtered = list(initial_filtered) if initial_filtered else []
+        self._wd_set_active_site("wikidich", skip_save=True)
+
+    def _build_wikidich_tab_ui(self, tab, site: str):
+        self.wd_site = site
+        other_site = "koanchay" if site == "wikidich" else "wikidich"
+        tab.columnconfigure(0, weight=1)
+        tab.rowconfigure(3, weight=1)
         self.wd_missing_only_var = tk.BooleanVar(value=True)
         self.wd_detail_scope_var = tk.StringVar(value="filtered")
         self._wd_adv_section_visible = False
         self._wd_pending_categories = []
         self._wd_category_options = []
 
-        header = ttk.Frame(wd_tab)
+        header = ttk.Frame(tab)
         header.grid(row=0, column=0, sticky="ew")
         header.columnconfigure(4, weight=1)
         self.wd_user_label = ttk.Label(header, text="Chưa kiểm tra đăng nhập")
@@ -2275,8 +2788,13 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Button(header, text="Tải Works", command=self._wd_start_fetch_works).grid(row=0, column=1, padx=(10, 0))
         ttk.Button(header, text="Tải chi tiết", command=self._wd_prompt_detail_fetch).grid(row=0, column=2, padx=6)
         ttk.Button(header, text="Cài đặt", command=self._open_api_settings_dialog).grid(row=0, column=3, padx=(0, 6))
+        header_spacer = ttk.Frame(header)
+        header_spacer.grid(row=0, column=4, sticky="ew")
+        header.columnconfigure(4, weight=1)
+        self.wd_site_button = ttk.Button(header, text=other_site.capitalize(), command=lambda s=other_site: self._wd_switch_site(s))
+        self.wd_site_button.grid(row=0, column=5, sticky="e")
 
-        progress_frame = ttk.Frame(wd_tab)
+        progress_frame = ttk.Frame(tab)
         progress_frame.grid(row=1, column=0, sticky="ew", pady=(6, 4))
         progress_frame.columnconfigure(1, weight=1)
         ttk.Label(progress_frame, text="Tiến độ:").grid(row=0, column=0, sticky="w")
@@ -2290,7 +2808,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self._wd_progress_visible = False
         progress_frame.grid_remove()
 
-        filter_frame = ttk.LabelFrame(wd_tab, text="Bộ lọc cơ bản", padding=10)
+        filter_frame = ttk.LabelFrame(tab, text="Bộ lọc cơ bản", padding=10)
         filter_frame.grid(row=2, column=0, sticky="ew")
         filter_frame.columnconfigure(1, weight=1)
         filter_frame.columnconfigure(3, weight=1)
@@ -2389,7 +2907,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         self._wd_sync_filter_controls_from_filters()
 
-        main_pane = ttk.PanedWindow(wd_tab, orient=tk.HORIZONTAL)
+        main_pane = ttk.PanedWindow(tab, orient=tk.HORIZONTAL)
         main_pane.grid(row=3, column=0, sticky="nsew", pady=(8, 0))
 
         detail_container = ttk.Frame(main_pane)
@@ -2409,6 +2927,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Button(btn_row, text="Mở trang truyện", command=self._wd_open_book_in_browser).pack(side=tk.LEFT)
         self.wd_update_button = ttk.Button(btn_row, text="Cập nhật chương", command=self._wd_open_update_dialog, state=tk.DISABLED)
         self.wd_update_button.pack(side=tk.LEFT, padx=(8, 0))
+        self.wd_delete_button = ttk.Button(btn_row, text="Xóa", command=self._wd_delete_book, state=tk.DISABLED)
+        self.wd_delete_button.pack(side=tk.LEFT, padx=(8, 0))
 
         content_container = ttk.Frame(detail_container, padding=(6, 0, 6, 6))
         content_container.grid(row=1, column=0, sticky="nsew")
@@ -2525,6 +3045,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         self._wd_update_user_label()
         self._wd_apply_filters()
+
     def create_text_operations_tab(self):
         text_ops_tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(text_ops_tab, text="Xử lý Văn bản")
@@ -2712,6 +3233,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         # Create a new window to display the content
         preview_window = tk.Toplevel(self)
+        self._apply_window_icon(preview_window)
         preview_window.title(f"Xem trước: {file_name}")
         preview_window.geometry("800x600")
 
@@ -2962,10 +3484,37 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.schedule_preview_update(None)
 
     def log(self, message):
-        self.log_text.config(state='normal')
-        self.log_text.insert(tk.END, message + "\n")
-        self.log_text.see(tk.END)
-        self.log_text.config(state='disabled')
+        widget = getattr(self, "log_text", None)
+        if not widget:
+            print(message)
+            return
+        widget.config(state='normal')
+        widget.insert(tk.END, message + "\n")
+        widget.see(tk.END)
+        widget.config(state='disabled')
+
+    def _on_browser_headers(self, payload: dict):
+        host = (payload or {}).get("host")
+        headers = (payload or {}).get("headers") or {}
+        if not host or not headers:
+            return
+        filtered = {k: v for k, v in headers.items() if k and v}
+        if not filtered:
+            return
+        self._browser_headers[host] = filtered
+        try:
+            ua_logged = filtered.get("User-Agent") or filtered.get("user-agent")
+            self.log(f"[BrowserSpy] Headers from {host}: UA='{ua_logged}' keys={list(filtered.keys())}")
+        except Exception:
+            pass
+        for k, v in filtered.items():
+            if k and v and k.lower() == "user-agent":
+                self._browser_user_agent = v
+                break
+
+    def _on_browser_user_agent(self, ua: str):
+        if ua:
+            self._browser_user_agent = ua
 
     def _on_cookie_window_closed(self):
         self.cookie_window = None
@@ -3262,6 +3811,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         try:
             tab_id = self.notebook.select()
             tab_text = self.notebook.tab(tab_id, 'text')
+            if tab_text in ("Wikidich", "Koanchay"):
+                target_site = "koanchay" if tab_text == "Koanchay" else "wikidich"
+                self._wd_set_active_site(target_site)
             if tab_text == "Xử lý Văn bản":
                 filepath = self.selected_file.get()
                 if filepath and os.path.isfile(filepath):
@@ -3600,6 +4152,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             return
 
         preview_window = tk.Toplevel(self)
+        self._apply_window_icon(preview_window)
         preview_window.title(os.path.basename(filepath))
         preview_window.geometry("800x600")
 
@@ -3985,6 +4538,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         original_key = key # Lưu lại key gốc để xử lý đổi tên
         
         edit_win = tk.Toplevel(self)
+        self._apply_window_icon(edit_win)
         edit_win.title("Thêm / Sửa Name")
         edit_win.geometry("500x150")
         edit_win.transient(self)
@@ -4103,6 +4657,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
     def _show_suggestion_window(self, key, on_select_callback):
         suggest_win = tk.Toplevel(self)
+        self._apply_window_icon(suggest_win)
         suggest_win.title(f"Gợi ý cho '{key}'")
         suggest_win.geometry("600x400")
         suggest_win.transient(self)
@@ -4599,6 +5154,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
     def _open_proxy_manager_window(self):
         proxy_win = tk.Toplevel(self)
+        self._apply_window_icon(proxy_win)
         proxy_win.title("Quản lý Proxy")
         proxy_win.geometry("700x550") 
         proxy_win.transient(self)
@@ -4951,6 +5507,80 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         widget.bind("<Button-2>", lambda e: "break")
         widget.bind("<Button-3>", lambda e: widget.focus_set())
 
+    def _wd_get_base_url(self) -> str:
+        return "https://koanchay.org" if getattr(self, "wd_site", "wikidich") == "koanchay" else "https://truyenwikidich.net"
+
+    def _wd_get_cookie_domains(self):
+        if getattr(self, "wd_site", "wikidich") == "koanchay":
+            # Lấy đủ cookie cf_clearance dù user đăng nhập qua koanchay.org hay koanchay.net
+            return ["koanchay.org", "koanchay.net"]
+        return ["truyenwikidich.net", "koanchay.net"]
+
+    def _wd_default_headers(self) -> dict:
+        base_url = self._wd_get_base_url()
+        base_host = urlparse(base_url).hostname or ""
+        # Bắt đầu từ template mặc định
+        headers = {
+            "Accept": DEFAULT_API_SETTINGS['wiki_headers'].get("Accept"),
+            "Accept-Language": DEFAULT_API_SETTINGS['wiki_headers'].get("Accept-Language"),
+            "Cache-Control": "max-age=0",
+            "Pragma": "no-cache",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Referer": base_url + "/",
+            "Priority": "u=0, i",
+            "sec-ch-ua": '"Not:A-Brand";v="24", "Chromium";v="134"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+        }
+        # Gộp headers bắt được từ trình duyệt tích hợp (ưu tiên)
+        spy_headers = (self._browser_headers or {}).get(base_host, {})
+        if spy_headers:
+            for key, val in spy_headers.items():
+                if not key or not val:
+                    continue
+                lower = key.lower()
+                if lower in ("host", "origin", "content-length"):
+                    continue
+                headers[key] = val
+                if lower == "user-agent":
+                    self._browser_user_agent = val
+        # UA ưu tiên browser -> default (bỏ qua UA trong config để tránh lẫn)
+        ua = self._browser_user_agent or DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent")
+        if ua:
+            headers["User-Agent"] = ua
+        # self.log(f"[Wikidich] Using UA: {headers.get('User-Agent', '')}")
+        # Loại bỏ các key gây nghi ngờ
+        for bad in ("X-Requested-With", "x-requested-with", "Connection", "connection"):
+            headers.pop(bad, None)
+        # Clean None values
+        headers = {k: v for k, v in headers.items() if v}
+        wiki_headers = self.api_settings.get('wiki_headers') if isinstance(self.api_settings, dict) else {}
+        if isinstance(wiki_headers, dict):
+            for k, v in wiki_headers.items():
+                if not v:
+                    continue
+                lower = k.lower()
+                if lower in ("x-requested-with", "connection", "user-agent"):
+                    continue
+                if k not in headers:
+                    headers[k] = v
+        return headers
+
+    def _wd_log_request_headers(self, resp: requests.Response, label: str):
+        try:
+            req = resp.request
+            hdrs = dict(req.headers or {})
+            # avoid dumping cookies
+            hdrs.pop("Cookie", None)
+            hdrs.pop("cookie", None)
+            # self.log(f"[Wikidich] {label} headers -> {hdrs}")
+        except Exception:
+            pass
+
     def _wd_block_text_edit(self, event):
         navigation_keys = {"Left", "Right", "Up", "Down", "Home", "End", "Next", "Prior"}
         if event.keysym in ("Tab", "ISO_Left_Tab"):
@@ -4971,11 +5601,26 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         widget.insert("1.0", content or "")
         widget.see("1.0")
 
+    def _wd_sync_prompt(self, func):
+        """Chạy hộp thoại trong thread UI và chờ kết quả."""
+        result = {}
+        event = threading.Event()
+
+        def wrapper():
+            try:
+                result["value"] = func()
+            finally:
+                event.set()
+        self.after(0, wrapper)
+        event.wait()
+        return result.get("value")
+
     def _wd_update_user_label(self):
         if hasattr(self, "wd_user_label"):
             username = self.wikidich_data.get("username") or ""
             text = f"Tài khoản: {username}" if username else "Chưa kiểm tra đăng nhập"
-            self.wd_user_label.config(text=text)
+            color = "#ec4899" if getattr(self, "wd_site", "wikidich") == "koanchay" else ""
+            self.wd_user_label.config(text=text, foreground=color)
 
     def _wd_set_progress(self, message: str, current: int = 0, total: int = 0):
         def _update():
@@ -5258,6 +5903,14 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 diff = val
         btn_state = tk.NORMAL if diff and diff > 0 else tk.DISABLED
         btn.config(state=btn_state)
+        self._wd_update_delete_button_state()
+
+    def _wd_update_delete_button_state(self):
+        btn = getattr(self, "wd_delete_button", None)
+        if not btn:
+            return
+        enabled = bool(getattr(self, "wd_selected_book", None))
+        btn.config(state=tk.NORMAL if enabled else tk.DISABLED)
 
     def _wd_open_update_dialog(self):
         selected = getattr(self, "wd_selected_book", None)
@@ -5330,6 +5983,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 self.wd_tree.selection_set(item_id)
                 self._wd_on_select()
                 break
+        self._wd_update_delete_button_state()
 
     def _wd_start_fetch_works(self):
         if self._wd_loading:
@@ -5338,6 +5992,347 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self._wd_cancel_requested = False
         threading.Thread(target=self._wd_fetch_works_worker, daemon=True).start()
 
+    def _wd_merge_book_data(self, server_book: dict, local_book: dict) -> dict:
+        merged = dict(server_book or {})
+        if not local_book:
+            return merged
+        keep_fields = [
+            "summary",
+            "summary_norm",
+            "collections",
+            "flags",
+            "extra_links",
+            "chapters",
+            "stats",
+            "cover_url",
+            "updated_text",
+            "updated_iso",
+            "updated_ts",
+            "collected_at",
+        ]
+        for key in keep_fields:
+            val = local_book.get(key)
+            if val:
+                merged[key] = val
+        return merged
+
+    def _wd_precheck_works(self, meta_total: int, meta_latest: str) -> Optional[str]:
+        local_ids = list((self.wikidich_data or {}).get("book_ids") or [])
+        if not local_ids:
+            return "full_reset"
+        local_count = len(local_ids)
+        if meta_total:
+            if meta_total > local_count:
+                return "auto_more"
+            if meta_total < local_count:
+                # server ít hơn local
+                if meta_latest and meta_latest == local_ids[0]:
+                    choice = self._wd_sync_prompt(lambda: messagebox.askyesnocancel(
+                        "Phát hiện truyện bị xóa",
+                        f"Có vẻ đã xóa {local_count - meta_total} truyện trên server.\n"
+                        "Yes: Để hệ thống tự quét đối chiếu.\n"
+                        "No: Dừng để bạn tự xử lý local.\n"
+                        "Cancel: Dừng.",
+                        parent=self
+                    ))
+                    if choice is None:
+                        return None
+                    if choice:
+                        return "auto_less_same_top"
+                    return None
+                resp = self._wd_sync_prompt(lambda: simpledialog.askstring(
+                    "Thay đổi thứ tự/truyện bị xóa",
+                    "Server ít truyện hơn và truyện mới nhất khác.\n"
+                    "1: Hệ thống tự quét đối chiếu\n"
+                    "2: Tải lại từ đầu\n"
+                    "3: Dừng để tự xử lý\n"
+                    "Nhập 1/2/3:",
+                    parent=self
+                ))
+                if not resp or resp.strip() not in ("1", "2", "3"):
+                    return None
+                resp = resp.strip()
+                if resp == "3":
+                    return None
+                if resp == "2":
+                    return "full_reset"
+                return "auto_less_diff_top"
+        if not meta_latest:
+            return "full_reset"
+        local_latest = local_ids[0]
+        if local_latest == meta_latest:
+            choice = self._wd_sync_prompt(lambda: messagebox.askyesnocancel(
+                "Giữ dữ liệu chi tiết?",
+                "Số truyện không đổi và truyện mới nhất trùng.\n"
+                "Yes: Tải lại từ đầu (xóa dữ liệu chi tiết cũ).\n"
+                "No: Chỉ ghi đè dữ liệu vừa tải, giữ chi tiết đã có.\n"
+                "Cancel: Dừng tải Works.",
+                parent=self
+            ))
+            if choice is None:
+                return None
+            return "full_reset" if choice else "merge_keep_details"
+        resp = self._wd_sync_prompt(lambda: simpledialog.askstring(
+            "Phát hiện thay đổi thứ tự",
+            "Số truyện không đổi nhưng truyện mới nhất khác.\n"
+            "1: Hệ thống tự quét (tìm và xóa truyện bị xóa, giữ thứ tự server)\n"
+            "2: Tải lại từ đầu\n"
+            "3: Dừng để tự xử lý\n"
+            "Nhập 1/2/3:",
+            parent=self
+        ))
+        if not resp or resp.strip() not in ("1", "2", "3"):
+            return None
+        resp = resp.strip()
+        if resp == "3":
+            return None
+        if resp == "2":
+            return "full_reset"
+        return "autodiff"
+
+    def _wd_is_book_deleted_on_server(self, url: str, proxies=None) -> bool:
+        try:
+            resp = requests.get(url, timeout=20, proxies=proxies, allow_redirects=True)
+            if resp.status_code == 404:
+                return True
+            text = resp.text.lower()
+            if "truyện không tồn tại" in text or "không tồn tại" in text:
+                return True
+        except Exception as exc:
+            self.log(f"[Wikidich] Kiểm tra xóa thất bại: {exc}")
+        return False
+
+    def _wd_log_cloudflare_detection(self, resp: requests.Response, marker: str):
+        try:
+            url = getattr(resp, "url", "")
+            status = getattr(resp, "status_code", "")
+            snippet = ((resp.text or "")[:500] or "").replace("\n", " ").strip()
+            ua = getattr(resp.request, "headers", {}).get("User-Agent", "")
+            referer = getattr(resp.request, "headers", {}).get("Referer", "")
+            accept = getattr(resp.request, "headers", {}).get("Accept", "")
+            self.log(f"[Wikidich] Cloudflare? status={status} marker='{marker}' url={url} ua='{ua}' referer='{referer}' accept='{accept}' snippet='{snippet}'")
+        except Exception:
+            pass
+
+    def _wd_detect_cloudflare(self, resp: requests.Response) -> bool:
+        if resp is None:
+            return False
+        status = resp.status_code
+        text = (resp.text or "").lower()
+        markers = [
+            "cf-browser-verification",
+            "__cf_chl",
+            "attention required",
+            "just a moment",
+            "please enable cookies",
+            "ray id",
+            "cf-error-code",
+        ]
+        if status in (403, 429, 503, 520):
+            marker_hit = next((m for m in markers if m in text), f"status-{status}")
+            self._wd_log_cloudflare_detection(resp, marker_hit)
+            return True
+        # Với 200, chỉ coi là CF nếu thấy marker đặc trưng
+        marker_hit = next((m for m in markers if m in text), None)
+        if marker_hit:
+            self._wd_log_cloudflare_detection(resp, marker_hit)
+            return True
+        return False
+
+    def _wd_pause_for_cloudflare(self, url: str):
+        self._wd_set_progress("Tạm dừng: cần vượt Cloudflare", 0, 0)
+        self.log("[Wikidich] Bị Cloudflare chặn. Yêu cầu người dùng vượt chướng ngại.")
+        messagebox.showinfo(
+            "Cloudflare",
+            "Đang bị Cloudflare chặn. Hãy mở trình duyệt tích hợp để vượt xác thực, sau đó đóng trình duyệt và nhấn Tải Works/Tải chi tiết lại.",
+            parent=self
+        )
+        self._open_in_app_browser(url)
+
+    def _wd_delete_book(self):
+        selected = getattr(self, "wd_selected_book", None)
+        if not selected:
+            return
+        book_id = selected.get("id")
+        url = selected.get("url")
+        if not book_id or not url:
+            messagebox.showwarning("Thiếu dữ liệu", "Không xác định được truyện để xóa.", parent=self)
+            return
+        confirm = messagebox.askyesno(
+            "Xóa truyện khỏi dữ liệu local",
+            "Chỉ xóa khi truyện thực sự đã bị xóa trên server.\nTiếp tục kiểm tra?",
+            parent=self
+        )
+        if not confirm:
+            return
+        proxies = self._get_proxy_for_request('fetch_titles')
+        if not self._wd_is_book_deleted_on_server(url, proxies=proxies):
+            messagebox.showinfo("Chưa xóa trên server", "Trang truyện vẫn tồn tại, không thể xóa trên local.", parent=self)
+            return
+        # Xóa khỏi dữ liệu local
+        ids = list(self.wikidich_data.get("book_ids") or [])
+        if book_id in ids:
+            ids.remove(book_id)
+        self.wikidich_data["book_ids"] = ids
+        self.wikidich_data.get("books", {}).pop(book_id, None)
+        if isinstance(self.wd_new_chapters, dict):
+            self.wd_new_chapters.pop(book_id, None)
+        self._wd_save_cache()
+        self.log(f"[Wikidich] Đã xóa truyện khỏi local: {selected.get('title', book_id)}")
+        filtered = list(getattr(self, "wikidich_filtered", []) or [])
+        filtered = [b for b in filtered if b.get("id") != book_id]
+        self.wikidich_filtered = filtered
+        self._wd_refresh_tree(filtered)
+        messagebox.showinfo("Đã xóa", "Đã xóa truyện khỏi dữ liệu local.", parent=self)
+
+    def _wd_reconcile_works(self, server_data: dict, action: str) -> Optional[dict]:
+        if action == "full_reset":
+            return server_data
+        local_data = self.wikidich_data or {}
+        local_ids = list(local_data.get("book_ids") or [])
+        server_ids = list(server_data.get("book_ids") or [])
+        if action == "merge_keep_details":
+            merged_books = {}
+            local_books = local_data.get("books", {})
+            for bid in server_ids:
+                base = server_data.get("books", {}).get(bid, {})
+                merged_books[bid] = self._wd_merge_book_data(base, local_books.get(bid, {}))
+            server_data = dict(server_data)
+            server_data["books"] = merged_books
+            return server_data
+        if action == "auto_more":
+            total_server = server_data.get("total_count") or len(server_ids)
+            additions = max(0, total_server - len(local_ids))
+            local_latest = local_ids[0] if local_ids else None
+            if local_latest not in server_ids:
+                self._wd_sync_prompt(lambda: messagebox.showerror(
+                    "Lỗi đối chiếu",
+                    "Không tìm thấy truyện neo (truyện mới nhất trên local) trong danh sách server. Hãy tải lại từ đầu.",
+                    parent=self
+                ))
+                return None
+            anchor_idx = server_ids.index(local_latest)
+            prefix_len = anchor_idx
+            if additions == prefix_len:
+                # chỉ thêm mới, không xóa
+                merged_books = {}
+                local_books = local_data.get("books", {})
+                for bid in server_ids:
+                    base = server_data.get("books", {}).get(bid, {})
+                    if bid in local_books:
+                        merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
+                    else:
+                        merged_books[bid] = base
+                return {"username": self.wikidich_data.get("username"), "book_ids": server_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}
+            # có xóa + thêm
+            removal_expected = prefix_len - additions
+            resp = self._wd_sync_prompt(lambda: simpledialog.askstring(
+                "Thay đổi phức tạp",
+                "Phát hiện vừa thêm vừa xóa truyện.\n"
+                "1: Hệ thống tự quét (giữ thứ tự server)\n"
+                "2: Tải lại từ đầu\n"
+                "3: Dừng để tự xử lý\n"
+                "Nhập 1/2/3:",
+                parent=self
+            ))
+            if not resp or resp.strip() not in ("1", "2", "3"):
+                return None
+            resp = resp.strip()
+            if resp == "3":
+                return None
+            if resp == "2":
+                return server_data
+            # Tự quét: kiểm tra đủ số truyện bị xóa
+            missing_local = [bid for bid in local_ids if bid not in server_ids]
+            if len(missing_local) != removal_expected:
+                self._wd_sync_prompt(lambda: messagebox.showerror(
+                    "Lỗi đối chiếu",
+                    "Không xác định rõ truyện bị xóa/thêm. Hãy tải lại từ đầu.",
+                    parent=self
+                ))
+                return None
+            merged_books = {}
+            local_books = local_data.get("books", {})
+            for bid in server_ids:
+                base = server_data.get("books", {}).get(bid, {})
+                if bid in local_books:
+                    merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
+                else:
+                    merged_books[bid] = base
+            return {"username": self.wikidich_data.get("username"), "book_ids": server_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}
+        if action == "autodiff":
+            # server_data ở đây là dữ liệu quét từng phần (theo thứ tự server)
+            merged_books = {}
+            local_books = local_data.get("books", {})
+            for bid in server_ids:
+                base = server_data.get("books", {}).get(bid, {})
+                if bid in local_books:
+                    merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
+                else:
+                    merged_books[bid] = base
+            server_data = dict(server_data)
+            server_data["books"] = merged_books
+            return server_data
+        if action == "auto_less_same_top":
+            expected_removed = max(0, len(local_ids) - len(server_ids))
+            missing_local = [bid for bid in local_ids if bid not in server_ids]
+            if len(missing_local) != expected_removed:
+                self._wd_sync_prompt(lambda: messagebox.showerror(
+                    "Lỗi đối chiếu",
+                    "Không xác định rõ truyện bị xóa. Hãy tải lại từ đầu hoặc xử lý thủ công.",
+                    parent=self
+                ))
+                return None
+            merged_books = {}
+            local_books = local_data.get("books", {})
+            for bid in server_ids:
+                base = server_data.get("books", {}).get(bid, {})
+                if bid in local_books:
+                    merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
+                else:
+                    merged_books[bid] = base
+            server_data = dict(server_data)
+            server_data["books"] = merged_books
+            return server_data
+        if action == "auto_less_diff_top":
+            local_latest = local_ids[0] if local_ids else None
+            new_on_server = []
+            anchor_found = False
+            for bid in server_ids:
+                if bid == local_latest:
+                    anchor_found = True
+                    break
+                if bid not in local_ids:
+                    new_on_server.append(bid)
+            if not anchor_found:
+                self._wd_sync_prompt(lambda: messagebox.showerror(
+                    "Lỗi đối chiếu",
+                    "Không tìm thấy truyện neo trong danh sách server. Hãy tải lại từ đầu.",
+                    parent=self
+                ))
+                return None
+            expected_removed = (len(local_ids) - len(server_ids)) + len(new_on_server)
+            missing_local = [bid for bid in local_ids if bid not in server_ids]
+            if len(missing_local) != expected_removed:
+                self._wd_sync_prompt(lambda: messagebox.showerror(
+                    "Lỗi đối chiếu",
+                    "Không xác định rõ truyện bị xóa/thêm. Hãy tải lại từ đầu.",
+                    parent=self
+                ))
+                return None
+            merged_books = {}
+            local_books = local_data.get("books", {})
+            for bid in server_ids:
+                base = server_data.get("books", {}).get(bid, {})
+                if bid in local_books:
+                    merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
+                else:
+                    merged_books[bid] = base
+            server_data = dict(server_data)
+            server_data["books"] = merged_books
+            return server_data
+        return None
+
     def _wd_fetch_works_worker(self):
         pythoncom.CoInitialize()
         self._wd_loading = True
@@ -5345,23 +6340,58 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         cancelled = False
         self.log("[Wikidich] Bắt đầu tải Works...")
         self._wd_set_progress("Đang kiểm tra đăng nhập...", 0, 0)
+        prior_data = self.wikidich_data or {}
         try:
+            resume_state = getattr(self, "_wd_resume_works", None) or {}
+            existing_data = resume_state.get("data")
+            start_offset = resume_state.get("next_start")
+            page_size_hint = resume_state.get("page_size")
+            if existing_data:
+                start_msg = start_offset if start_offset is not None else len(existing_data.get("book_ids", []))
+                self.log(f"[Wikidich] Tiếp tục Works từ vị trí {start_msg}")
             proxies = self._get_proxy_for_request('fetch_titles')
-            cookies = load_browser_cookie_jar(["truyenwikidich.net", "koanchay.net"])
+            cookies = load_browser_cookie_jar(self._wd_get_cookie_domains())
             if not cookies:
                 self.after(0, lambda: messagebox.showerror("Thiếu cookie", "Không đọc được cookie Wikidich từ trình duyệt tích hợp. Hãy mở trình duyệt, đăng nhập rồi thử lại."))
                 self.log("[Wikidich] Không có cookie, dừng tải.")
                 return
             session = wikidich_ext.build_session_with_cookies(cookies, proxies=proxies)
             wiki_headers = self.api_settings.get('wiki_headers') if isinstance(self.api_settings, dict) else {}
+            merged_headers = self._wd_default_headers()
             if isinstance(wiki_headers, dict):
-                session.headers.update(wiki_headers)
-            user_slug = wikidich_ext.fetch_current_user(session, proxies=proxies)
+                for k, v in wiki_headers.items():
+                    if v and k not in merged_headers and k.lower() not in ("x-requested-with", "connection"):
+                        merged_headers[k] = v
+            session.headers.clear()
+            session.headers.update(merged_headers)
+            try:
+                resp_probe = session.get(self._wd_get_base_url(), timeout=25, proxies=proxies)
+                self._wd_log_request_headers(resp_probe, "Probe")
+                if self._wd_detect_cloudflare(resp_probe):
+                    self._wd_pause_for_cloudflare(self._wd_get_base_url())
+                    return
+            except Exception:
+                pass
+            user_slug = wikidich_ext.fetch_current_user(session, base_url=self._wd_get_base_url(), proxies=proxies)
             if not user_slug:
                 self.after(0, lambda: messagebox.showerror("Chưa đăng nhập", "Không tìm thấy mục 'Hồ sơ của tôi'. Hãy đăng nhập Wikidich bằng trình duyệt tích hợp rồi thử lại."))
                 self.log("[Wikidich] Không tìm thấy 'Hồ sơ của tôi' -> chưa đăng nhập.")
                 return
             self.log(f"[Wikidich] Đăng nhập: {user_slug}")
+            # Lấy metadata nhanh (tổng và truyện mới nhất) trước khi tải toàn bộ
+            meta_total = None
+            meta_latest = None
+            try:
+                meta = wikidich_ext.fetch_works_meta(session, user_slug, base_url=self._wd_get_base_url(), proxies=proxies)
+                meta_total = meta.get("total")
+                meta_latest = meta.get("latest_id")
+                self.log(f"[Wikidich] Tổng trên server: {meta_total}, mới nhất: {meta_latest}")
+            except Exception as e:
+                self.log(f"[Wikidich] Không lấy được metadata nhanh: {e}")
+            action = self._wd_precheck_works(meta_total, meta_latest)
+            if not action:
+                self.log("[Wikidich] Dừng tải Works theo lựa chọn người dùng/kiểm tra.")
+                return
             wiki_delay_min, wiki_delay_max = self._get_delay_range(
                 'wiki_delay_min',
                 'wiki_delay_max',
@@ -5369,40 +6399,65 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 DEFAULT_API_SETTINGS['wiki_delay_max']
             )
             delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0
-            data = wikidich_ext.fetch_works(
-                session,
-                user_slug,
-                proxies=proxies,
-                progress_cb=self._wd_progress_callback,
-                delay=delay_avg
-            )
-            self._wd_ensure_not_cancelled()
-            try:
-                data = wikidich_ext.collect_additional_metadata(
+            data = None
+            if action in ("autodiff", "auto_less_same_top", "auto_less_diff_top", "auto_more"):
+                # Quét tối thiểu: lấy đủ số truyện (meta_total) theo thứ tự server
+                stop_after = meta_total or None
+                data = wikidich_ext.fetch_works(
                     session,
-                    data,
                     user_slug,
+                    base_url=self._wd_get_base_url(),
                     proxies=proxies,
-                    progress_cb=self._wd_progress_callback
+                    progress_cb=self._wd_progress_callback,
+                    delay=delay_avg,
+                    stop_after=stop_after,
+                    existing_data=existing_data,
+                    start_offset=start_offset,
+                    page_size_hint=page_size_hint
                 )
-            except Exception as e:
-                self.log(f"[Wikidich] Thu thập metadata thất bại: {e}")
+            else:
+                data = wikidich_ext.fetch_works(
+                    session,
+                    user_slug,
+                    base_url=self._wd_get_base_url(),
+                    proxies=proxies,
+                    progress_cb=self._wd_progress_callback,
+                    delay=delay_avg,
+                    existing_data=existing_data,
+                    start_offset=start_offset,
+                    page_size_hint=page_size_hint
+                )
+            self._wd_ensure_not_cancelled()
+            new_ids = [bid for bid in data.get("book_ids", []) if bid not in (prior_data.get("book_ids") or [])]
+            delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0
+            if new_ids:
+                self._wd_fetch_details_for_new_books(session, data, new_ids, user_slug, delay_avg, proxies=proxies)
             self.log(f"[Wikidich] Đã lấy {len(data.get('book_ids', []))} works.")
-            existing = self.wikidich_data.get('books', {})
-            for bid, base in data.get('books', {}).items():
-                if bid in existing:
-                    old = existing[bid]
-                    merged = dict(base)
-                    for key in ["summary", "summary_norm", "collections", "flags", "extra_links", "chapters", "stats", "cover_url", "updated_text", "updated_iso", "updated_ts", "collected_at"]:
-                        if key in old and old.get(key):
-                            merged[key] = old[key]
-                    data["books"][bid] = merged
-            self.wikidich_data = data
+            reconciled = self._wd_reconcile_works(data, action)
+            if reconciled is None:
+                self.log("[Wikidich] Đã dừng tải Works theo yêu cầu/điều kiện không phù hợp.")
+                return
+            self.wikidich_data = reconciled
             self._wd_update_user_label()
             self._wd_save_cache()
             self.after(0, self._wd_refresh_category_options)
             self.after(0, self._wd_apply_filters)
             self._wd_set_progress(f"Đã tải {len(data.get('book_ids', []))} works", len(data.get('book_ids', [])), len(data.get('book_ids', [])))
+            self._wd_resume_works = None
+        except wikidich_ext.CloudflareBlocked as cf_exc:
+            partial = cf_exc.partial_data or {}
+            self._wd_resume_works = {
+                "data": partial,
+                "next_start": cf_exc.next_start,
+                "page_size": cf_exc.page_size,
+            }
+            self.wikidich_data = partial or self.wikidich_data
+            total = partial.get("total_count") or 0
+            current = len(partial.get("book_ids", []) or [])
+            self._wd_set_progress("Tạm dừng: cần vượt Cloudflare", current, total or 1)
+            self._wd_save_cache()
+            self._wd_pause_for_cloudflare(self._wd_get_base_url())
+            return
         except WikidichCancelled:
             cancelled = True
             self.log("[Wikidich] Đã hủy tải Works theo yêu cầu người dùng.")
@@ -5436,16 +6491,27 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.log("[Wikidich] Bắt đầu tải chi tiết/văn án...")
         try:
             proxies = self._get_proxy_for_request('fetch_titles')
-            cookies = load_browser_cookie_jar(["truyenwikidich.net", "koanchay.net"])
+            cookies = load_browser_cookie_jar(self._wd_get_cookie_domains())
             if not cookies:
                 self.after(0, lambda: messagebox.showerror("Thiếu cookie", "Không đọc được cookie Wikidich từ trình duyệt tích hợp."))
                 self.log("[Wikidich] Không có cookie, dừng tải chi tiết.")
                 return
             session = wikidich_ext.build_session_with_cookies(cookies, proxies=proxies)
             wiki_headers = self.api_settings.get('wiki_headers') if isinstance(self.api_settings, dict) else {}
+            merged_headers = self._wd_default_headers()
             if isinstance(wiki_headers, dict):
-                session.headers.update(wiki_headers)
-            current_user = self.wikidich_data.get('username') or wikidich_ext.fetch_current_user(session, proxies=proxies) or ""
+                for k, v in wiki_headers.items():
+                    if v and k not in merged_headers and k.lower() not in ("x-requested-with", "connection"):
+                        merged_headers[k] = v
+            session.headers.clear()
+            session.headers.update(merged_headers)
+            current_user = self.wikidich_data.get('username') or wikidich_ext.fetch_current_user(session, base_url=self._wd_get_base_url(), proxies=proxies) or ""
+            try:
+                dummy_resp = requests.Response()
+                dummy_resp.request = type("Req", (), {"headers": session.headers})()
+                self._wd_log_request_headers(dummy_resp, "Detail headers")
+            except Exception:
+                pass
             scope = self.wd_detail_scope_var.get()
             if scope == "filtered":
                 filtered_books = getattr(self, "wikidich_filtered", []) or []
@@ -5474,20 +6540,35 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 DEFAULT_API_SETTINGS['wiki_delay_min'],
                 DEFAULT_API_SETTINGS['wiki_delay_max']
             )
+            cf_paused = False
             for idx, bid in enumerate(target_ids, start=1):
                 book = self.wikidich_data.get('books', {}).get(bid)
                 if not book:
                     continue
                 try:
-                    updated = wikidich_ext.fetch_book_detail(session, book, current_user, proxies=proxies)
+                    updated = wikidich_ext.fetch_book_detail(session, book, current_user, base_url=self._wd_get_base_url(), proxies=proxies)
                     self.wikidich_data['books'][bid] = updated
+                except requests.HTTPError as http_err:
+                    resp_cf = getattr(http_err, "response", None)
+                    if self._wd_detect_cloudflare(resp_cf):
+                        cf_paused = True
+                        self.log("[Wikidich] Bị Cloudflare khi tải chi tiết, tạm dừng.")
+                        self._wd_set_progress("Tạm dừng: cần vượt Cloudflare", idx - 1, total)
+                        self._wd_pause_for_cloudflare(self._wd_get_base_url())
+                        break
+                    self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {http_err}")
                 except Exception as e:
                     self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {e}")
+                if cf_paused:
+                    break
                 self._wd_progress_callback("detail", idx, total, f"Đang tải chi tiết {idx}/{total}")
                 self._wd_ensure_not_cancelled()
                 delay = random.uniform(wiki_delay_min, wiki_delay_max) if wiki_delay_max > 0 else 0
                 if delay > 0:
                     time.sleep(delay)
+            if cf_paused:
+                self._wd_save_cache()
+                return
             self._wd_save_cache()
             self.after(0, self._wd_apply_filters)
             self._wd_set_progress("Hoàn tất tải chi tiết", total, total)
@@ -5591,6 +6672,99 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 return url
         return None
 
+    def _wd_switch_site(self, site: str):
+        site = (site or "").strip().lower()
+        if site not in ("wikidich", "koanchay"):
+            return
+        self._wd_show_site_tab(site)
+
+    def _wd_show_site_tab(self, site: str):
+        """Hiện tab theo site và kích hoạt context tương ứng."""
+        tab = (self._wd_tabs or {}).get(site)
+        if not tab:
+            return
+        try:
+            if self.notebook.tab(tab, "state") == "hidden":
+                self.notebook.tab(tab, state="normal")
+            self.notebook.select(tab)
+            self._wd_set_active_site(site)
+        except Exception:
+            pass
+
+    def _wd_capture_context(self):
+        """Lưu tất cả thuộc tính bắt đầu bằng wd_ cho site hiện tại."""
+        return {k: v for k, v in self.__dict__.items() if k.startswith("wd_")}
+
+    def _wd_capture_site_state(self):
+        """Lưu dữ liệu/tình trạng riêng cho từng site."""
+        return {
+            "filters": dict(self.wikidich_filters),
+            "data": self.wikidich_data,
+            "filtered": list(getattr(self, "wikidich_filtered", []) or []),
+            "new_chapters": dict(getattr(self, "wd_new_chapters", {}) or {}),
+            "pending_categories": list(getattr(self, "_wd_pending_categories", []) or []),
+            "category_options": list(getattr(self, "_wd_category_options", []) or []),
+            "adv_visible": bool(getattr(self, "_wd_adv_section_visible", False)),
+            "progress_visible": bool(getattr(self, "_wd_progress_visible", False)),
+            "progress_running": bool(getattr(self, "_wd_progress_running", False)),
+            "cancel_requested": bool(getattr(self, "_wd_cancel_requested", False)),
+            "loading": bool(getattr(self, "_wd_loading", False)),
+        }
+
+    def _wd_bind_context(self, site: str):
+        ctx = (self._wd_contexts or {}).get(site)
+        if not ctx:
+            return
+        for name, value in ctx.items():
+            setattr(self, name, value)
+
+    def _wd_save_site_state(self, site: str):
+        if not site:
+            return
+        self._wd_site_states[site] = self._wd_capture_site_state()
+
+    def _wd_restore_site_state(self, site: str):
+        state = (self._wd_site_states or {}).get(site) or {}
+        self.wikidich_filters = dict(state.get("filters", self.wikidich_filters))
+        self.wikidich_data = state.get("data", {"username": None, "book_ids": [], "books": {}, "synced_at": None})
+        self.wikidich_filtered = list(state.get("filtered", []))
+        self.wd_new_chapters = dict(state.get("new_chapters", {}))
+        self._wd_pending_categories = list(state.get("pending_categories", []))
+        self._wd_category_options = list(state.get("category_options", []))
+        self._wd_adv_section_visible = state.get("adv_visible", False)
+        self._wd_progress_visible = state.get("progress_visible", False)
+        self._wd_progress_running = state.get("progress_running", False)
+        self._wd_cancel_requested = state.get("cancel_requested", False)
+        self._wd_loading = state.get("loading", False)
+
+    def _wd_set_active_site(self, site: str, skip_save: bool = False):
+        site = (site or "").strip().lower()
+        if site not in ("wikidich", "koanchay"):
+            return
+        if site not in (self._wd_contexts or {}):
+            return
+        current = getattr(self, "wd_site", "wikidich")
+        if current == site:
+            return
+        if not skip_save and current in ("wikidich", "koanchay") and current != site:
+            self._wd_save_site_state(current)
+        self.wd_site = site
+        self._wd_resume_works = None
+        self._wd_bind_context(site)
+        self._wd_restore_site_state(site)
+        if hasattr(self, "wd_site_button"):
+            other = "koanchay" if site == "wikidich" else "wikidich"
+            self.wd_site_button.config(text=other.capitalize(), command=lambda s=other: self._wd_switch_site(s))
+        self._wd_update_user_label()
+        if getattr(self, "_wd_adv_section_visible", False):
+            self._wd_toggle_advanced_section(show=True)
+        else:
+            self._wd_toggle_advanced_section(show=False)
+        if getattr(self, "wikidich_filtered", None) is not None:
+            self._wd_refresh_tree(self.wikidich_filtered)
+        self._wd_update_progress_visibility(getattr(self, "wd_progress_label", None).cget("text") if hasattr(self, "wd_progress_label") else "")
+        self.log(f"[Wikidich] Đang dùng site: {site}")
+
     def _wd_calculate_new_chapters(self, book: dict, proxies=None, headers=None):
         domains = [
             ("fanqienovel.com", fanqienovel_ext.fetch_chapters, {"headers": headers}),
@@ -5620,6 +6794,30 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             diff = remote_total - current_total
             return diff if diff > 0 else 0
         return None
+
+    def _wd_fetch_details_for_new_books(self, session, data: dict, new_ids: list, current_user: str, delay: float, proxies=None):
+        total = len(new_ids)
+        if total == 0:
+            return
+        self.log(f"[Wikidich] Lấy chi tiết cho {total} truyện mới thêm.")
+        for idx, bid in enumerate(new_ids, start=1):
+            book = data.get("books", {}).get(bid)
+            if not book:
+                continue
+            try:
+                updated = wikidich_ext.fetch_book_detail(session, book, current_user, base_url=self._wd_get_base_url(), proxies=proxies)
+                data["books"][bid] = updated
+            except requests.HTTPError as http_err:
+                resp_cf = getattr(http_err, "response", None)
+                if self._wd_detect_cloudflare(resp_cf):
+                    self.log("[Wikidich] Bị Cloudflare khi lấy chi tiết truyện mới, tạm dừng.")
+                    raise wikidich_ext.CloudflareBlocked(data, next_start=len(data.get("book_ids", []) or []), page_size=0)
+                self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {http_err}")
+            except Exception as exc:
+                self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {exc}")
+            self._wd_report_progress("detail", idx, total, f"Chi tiết mới {idx}/{total}")
+            if delay > 0:
+                time.sleep(delay)
 
     def _wd_display_cover(self, url: str):
         if not url:
@@ -5653,8 +6851,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.wd_cover_label.config(image='', text="(Không tải được bìa)")
             self.wd_cover_label.image = None
 
+    def _wd_get_cache_path(self):
+        return (self._wd_cache_paths or {}).get(getattr(self, "wd_site", "wikidich"), self.wikidich_cache_path)
+
     def _wd_load_cache(self):
-        cached = wikidich_ext.load_cache(self.wikidich_cache_path)
+        cached = wikidich_ext.load_cache(self._wd_get_cache_path())
         if cached:
             self.wikidich_data = cached
             self._wd_update_user_label()
@@ -5664,7 +6865,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     def _wd_save_cache(self):
         try:
             if self.wikidich_data.get('book_ids'):
-                wikidich_ext.save_cache(self.wikidich_cache_path, self.wikidich_data)
+                wikidich_ext.save_cache(self._wd_get_cache_path(), self.wikidich_data)
         except Exception as e:
             self.log(f"[Wikidich] Không thể lưu cache: {e}")
 
@@ -5674,11 +6875,10 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         wiki_max = current.get('wiki_delay_max', DEFAULT_API_SETTINGS['wiki_delay_max'])
         fanqie_min = current.get('fanqie_delay_min', DEFAULT_API_SETTINGS['fanqie_delay_min'])
         fanqie_max = current.get('fanqie_delay_max', DEFAULT_API_SETTINGS['fanqie_delay_max'])
-        wiki_headers = current.get('wiki_headers', {}) or {}
-        fanqie_headers = current.get('fanqie_headers', {}) or {}
         open_mode_var = tk.StringVar(value=getattr(self, "wikidich_open_mode", "in_app"))
 
         win = tk.Toplevel(self)
+        self._apply_window_icon(win)
         win.title("Cài đặt request")
         win.transient(self)
         win.grab_set()
@@ -5709,18 +6909,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Label(fanqie_row, text="đến").pack(side=tk.LEFT, padx=(6, 2))
         ttk.Entry(fanqie_row, textvariable=fanqie_max_var, width=8).pack(side=tk.LEFT)
 
-        headers_frame = ttk.LabelFrame(container, text="Header cho request", padding=10)
-        headers_frame.pack(fill="both", expand=True, pady=(10, 0))
-        headers_frame.columnconfigure(1, weight=1)
-
-        ttk.Label(headers_frame, text="User-Agent (Wiki):").grid(row=0, column=0, sticky="w", padx=(0, 6))
-        wiki_ua_var = tk.StringVar(value=wiki_headers.get("User-Agent", DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent", "")))
-        ttk.Entry(headers_frame, textvariable=wiki_ua_var).grid(row=0, column=1, sticky="ew")
-
-        ttk.Label(headers_frame, text="User-Agent (Fanqie):").grid(row=1, column=0, sticky="w", padx=(0, 6), pady=(8, 0))
-        fanqie_ua_var = tk.StringVar(value=fanqie_headers.get("User-Agent", DEFAULT_API_SETTINGS['fanqie_headers'].get("User-Agent", "")))
-        ttk.Entry(headers_frame, textvariable=fanqie_ua_var).grid(row=1, column=1, sticky="ew", pady=(8, 0))
-
         open_mode_frame = ttk.LabelFrame(container, text="Mở link Wikidich", padding=10)
         open_mode_frame.pack(fill="x", expand=True, pady=(10, 0))
         ttk.Radiobutton(open_mode_frame, text="Trình duyệt tích hợp (Overlay)", variable=open_mode_var, value="in_app").pack(anchor="w")
@@ -5734,8 +6922,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             wiki_max_var.set(DEFAULT_API_SETTINGS['wiki_delay_max'])
             fanqie_min_var.set(DEFAULT_API_SETTINGS['fanqie_delay_min'])
             fanqie_max_var.set(DEFAULT_API_SETTINGS['fanqie_delay_max'])
-            wiki_ua_var.set(DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent", ""))
-            fanqie_ua_var.set(DEFAULT_API_SETTINGS['fanqie_headers'].get("User-Agent", ""))
             open_mode_var.set("in_app")
 
         def _save_settings():
@@ -5755,20 +6941,13 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             if fanqie_max_val < fanqie_min_val:
                 fanqie_max_val = fanqie_min_val
 
-            wiki_ua = wiki_ua_var.get().strip() or DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent", "")
-            fanqie_ua = fanqie_ua_var.get().strip() or DEFAULT_API_SETTINGS['fanqie_headers'].get("User-Agent", "")
-            wiki_hdr = dict(DEFAULT_API_SETTINGS['wiki_headers'])
-            wiki_hdr["User-Agent"] = wiki_ua
-            fanqie_hdr = dict(DEFAULT_API_SETTINGS['fanqie_headers'])
-            fanqie_hdr["User-Agent"] = fanqie_ua
-
             self.api_settings = {
                 'wiki_delay_min': wiki_min_val,
                 'wiki_delay_max': wiki_max_val,
                 'fanqie_delay_min': fanqie_min_val,
                 'fanqie_delay_max': fanqie_max_val,
-                'wiki_headers': wiki_hdr,
-                'fanqie_headers': fanqie_hdr
+                'wiki_headers': dict(DEFAULT_API_SETTINGS['wiki_headers']),
+                'fanqie_headers': dict(DEFAULT_API_SETTINGS['fanqie_headers'])
             }
             self.wikidich_open_mode = open_mode_var.get() or "in_app"
             self.app_config['api_settings'] = dict(self.api_settings)
@@ -5788,6 +6967,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             messagebox.showinfo("Chưa có dữ liệu", "Vui lòng tải works trước.")
             return
         win = tk.Toplevel(self)
+        self._apply_window_icon(win)
         win.title("Tùy chọn tải chi tiết")
         win.transient(self)
         win.grab_set()
@@ -5911,6 +7091,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             current_dt = today
         current_dt = min(current_dt, today)
         win = tk.Toplevel(self)
+        self._apply_window_icon(win)
         win.title(title)
         win.transient(self)
         win.grab_set()
@@ -6026,10 +7207,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         
         self.log(f"Đã sao chép {len(selected_titles)} tiêu đề vào Công cụ Nhanh.")
     
-def main():
+def main(instance_server=None):
     """Launch the Tkinter application."""
-    app = RenamerApp()
+    app = RenamerApp(instance_server=instance_server)
     app.mainloop()
+    _release_single_instance_mutex()
 
 
 if __name__ == "__main__":

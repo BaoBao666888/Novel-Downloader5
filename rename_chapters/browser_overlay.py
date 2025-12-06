@@ -135,5 +135,23 @@ class BrowserOverlay:
                 self.current_url = event[1]
             elif event[0] == "WINDOW_CLOSED":
                 self.hide()
+            elif event[0] == "REQUEST_HEADERS":
+                if hasattr(self.app, "_on_browser_headers"):
+                    try:
+                        self.app._on_browser_headers(event[1])
+                    except Exception:
+                        pass
+            elif event[0] == "USER_AGENT":
+                if hasattr(self.app, "_on_browser_user_agent"):
+                    try:
+                        self.app._on_browser_user_agent(event[1])
+                    except Exception:
+                        pass
+            elif event[0] == "REQUEST_COOKIES":
+                if hasattr(self.app, "_on_browser_cookies"):
+                    try:
+                        self.app._on_browser_cookies(event[1])
+                    except Exception:
+                        pass
         if self.proc:
             self.app.after(200, self._poll_events)
