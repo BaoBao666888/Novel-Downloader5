@@ -131,7 +131,7 @@ ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.
 ### Công cụ & thư mục
 
 *   **decode\\Zongcai-Novel-Decoder.user.js:** Giải mã truyện Zongcai; [Cài đặt STV](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/STV-Downloader.user.js) • [Cài đặt Zongcai](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/Zongcai-Novel-Decoder.user.js).
-*   **rename_chapters\\***: Ứng dụng Tkinter Rename Chapters (v0.1.5) đổi tên file theo nội dung, sắp xếp, gộp/tách, hỗ trợ fetch metadata (ảnh, mục lục), plugin cho JJWXC/PO18/Qidian/Fanqie va cập nhật tự động; ưu tiên dùng bản build sẵn [Rename-Chapters-setup.exe](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/0.1.5/Rename-Chapters-setup.exe).
+*   **rename_chapters\\***: Ứng dụng Tkinter Rename Chapters (v0.1.5) đổi tên file theo nội dung, sắp xếp, gộp/tách, hỗ trợ fetch metadata (ảnh, mục lục), plugin cho JJWXC/PO18/Qidian/Fanqie va cập nhật tự động; ưu tiên dùng bản build sẵn [Rename Chapters](https://github.com/BaoBao666888/Novel-Downloader5/releases).
 
 ### Dữ liệu & thư viện hỗ trợ
 
