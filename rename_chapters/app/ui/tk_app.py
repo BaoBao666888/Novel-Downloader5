@@ -531,6 +531,7 @@ class RenamerApp(tk.Tk):
         self._browser_cookies = {}
         self._wd_resume_works = None
         self.create_widgets()
+        self._start_single_instance_listener()
         self.load_config()
         self._set_app_icon()
         threading.Thread(target=self._cleanup_legacy_files, daemon=True).start()
@@ -1556,10 +1557,46 @@ class RenamerApp(tk.Tk):
         self._hidden_to_tray = False
 
     def _start_single_instance_listener(self):
-        pass
+        # Nếu đã có socket (từ ensure_single_instance_or_exit) thì dùng lại
+        if self._instance_server is None:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind((_SINGLE_INSTANCE_HOST, _SINGLE_INSTANCE_PORT))
+                sock.listen(1)
+                self._instance_server = sock
+            except Exception:
+                self._instance_server = None
+                return
+        if self._instance_thread:
+            return
+
+        def _listen():
+            while self._instance_server:
+                try:
+                    conn, _addr = self._instance_server.accept()
+                except OSError:
+                    break
+                with conn:
+                    try:
+                        data = conn.recv(32)
+                        if data and data.strip().upper() == b"SHOW":
+                            self.after(0, self._restore_from_tray)
+                    except Exception:
+                        pass
+
+        self._instance_thread = threading.Thread(target=_listen, daemon=True)
+        self._instance_thread.start()
 
     def _stop_single_instance_listener(self):
-        pass
+        sock = getattr(self, "_instance_server", None)
+        if sock:
+            try:
+                sock.close()
+            except Exception:
+                pass
+        self._instance_server = None
+        self._instance_thread = None
 
     def _cleanup_temp_extraction(self):
         """Xóa thư mục tạm _MEI* nếu còn (onefile) để tránh rác khi lỗi."""
@@ -1603,6 +1640,7 @@ class RenamerApp(tk.Tk):
                 pass
         self._stop_tray_icon()
         self._detach_mouse_glow()
+        self._stop_single_instance_listener()
         self._cleanup_temp_extraction()
         _release_single_instance_mutex()
         try:
@@ -6085,7 +6123,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             return None
         resp = resp.strip()
         if resp == "3":
-            return None
+            return "manual_less_stop"
         if resp == "2":
             return "full_reset"
         return "autodiff"
@@ -6205,25 +6243,54 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             additions = max(0, total_server - len(local_ids))
             local_latest = local_ids[0] if local_ids else None
             if local_latest not in server_ids:
-                self._wd_sync_prompt(lambda: messagebox.showerror(
-                    "Lỗi đối chiếu",
-                    "Không tìm thấy truyện neo (truyện mới nhất trên local) trong danh sách server. Hãy tải lại từ đầu.",
+                resp = self._wd_sync_prompt(lambda: simpledialog.askstring(
+                    "Không tìm thấy truyện neo",
+                    "Không tìm thấy truyện neo (truyện mới nhất trên local) trong danh sách server.\n"
+                    "1: Tải lại từ đầu\n"
+                    "2: Tự quét, giữ thứ tự server và gộp dữ liệu trùng\n"
+                    "3: Dừng để tự xử lý\n"
+                    "Nhập 1/2/3:",
                     parent=self
                 ))
-                return None
+                if not resp or resp.strip() not in ("1", "2", "3"):
+                    return None
+                resp = resp.strip()
+                if resp == "3":
+                    return None
+                if resp == "1":
+                    return server_data
+                merged_books = {}
+                local_books = local_data.get("books", {})
+                for bid in server_ids:
+                    base = server_data.get("books", {}).get(bid, {})
+                    merged_books[bid] = self._wd_merge_book_data(base, local_books.get(bid, {}))
+                server_data = dict(server_data)
+                server_data["books"] = merged_books
+                return server_data
             anchor_idx = server_ids.index(local_latest)
             prefix_len = anchor_idx
             if additions == prefix_len:
                 # chỉ thêm mới, không xóa
                 merged_books = {}
                 local_books = local_data.get("books", {})
-                for bid in server_ids:
+                merged_ids = list(server_ids)
+                if local_latest in local_ids:
+                    tail_start = local_ids.index(local_latest) + 1
+                    for bid in local_ids[tail_start:]:
+                        if bid not in merged_ids:
+                            merged_ids.append(bid)
+                for bid in merged_ids:
                     base = server_data.get("books", {}).get(bid, {})
-                    if bid in local_books:
-                        merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
-                    else:
+                    local_book = local_books.get(bid)
+                    if base and local_book:
+                        merged_books[bid] = self._wd_merge_book_data(base, local_book)
+                    elif base:
                         merged_books[bid] = base
-                return {"username": self.wikidich_data.get("username"), "book_ids": server_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}
+                    elif local_book:
+                        merged_books[bid] = local_book
+                    else:
+                        merged_books[bid] = {}
+                return {"username": self.wikidich_data.get("username"), "book_ids": merged_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}
             # có xóa + thêm
             removal_expected = prefix_len - additions
             resp = self._wd_sync_prompt(lambda: simpledialog.askstring(
@@ -6341,6 +6408,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.log("[Wikidich] Bắt đầu tải Works...")
         self._wd_set_progress("Đang kiểm tra đăng nhập...", 0, 0)
         prior_data = self.wikidich_data or {}
+        local_ids = list(prior_data.get("book_ids") or [])
+        expected_total = None
         try:
             resume_state = getattr(self, "_wd_resume_works", None) or {}
             existing_data = resume_state.get("data")
@@ -6392,6 +6461,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             if not action:
                 self.log("[Wikidich] Dừng tải Works theo lựa chọn người dùng/kiểm tra.")
                 return
+            if action == "manual_less_stop":
+                self.log("[Wikidich] Dừng tải Works để bạn tự xử lý truyện bị xóa/thêm (theo lựa chọn 3).")
+                self._wd_set_progress("Dừng: tự xử lý truyện bị xóa/thêm", 0, 1)
+                return
+            expected_total = meta_total
             wiki_delay_min, wiki_delay_max = self._get_delay_range(
                 'wiki_delay_min',
                 'wiki_delay_max',
@@ -6400,6 +6474,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             )
             delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0
             data = None
+            local_latest = local_ids[0] if local_ids else None
+            stop_when_found_id = local_latest if action == "auto_more" else None
             if action in ("autodiff", "auto_less_same_top", "auto_less_diff_top", "auto_more"):
                 # Quét tối thiểu: lấy đủ số truyện (meta_total) theo thứ tự server
                 stop_after = meta_total or None
@@ -6413,7 +6489,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     stop_after=stop_after,
                     existing_data=existing_data,
                     start_offset=start_offset,
-                    page_size_hint=page_size_hint
+                    page_size_hint=page_size_hint,
+                    stop_when_found_id=stop_when_found_id
                 )
             else:
                 data = wikidich_ext.fetch_works(
@@ -6425,7 +6502,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     delay=delay_avg,
                     existing_data=existing_data,
                     start_offset=start_offset,
-                    page_size_hint=page_size_hint
+                    page_size_hint=page_size_hint,
+                    stop_when_found_id=stop_when_found_id
                 )
             self._wd_ensure_not_cancelled()
             new_ids = [bid for bid in data.get("book_ids", []) if bid not in (prior_data.get("book_ids") or [])]
@@ -6438,6 +6516,19 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 self.log("[Wikidich] Đã dừng tải Works theo yêu cầu/điều kiện không phù hợp.")
                 return
             self.wikidich_data = reconciled
+            if expected_total is None:
+                expected_total = reconciled.get("total_count") or data.get("total_count")
+            final_count = len(self.wikidich_data.get("book_ids") or [])
+            if expected_total:
+                if final_count != expected_total:
+                    self.log(f"[Wikidich] Cảnh báo: số truyện local ({final_count}) khác server ({expected_total}).")
+                    self.after(0, lambda: messagebox.showwarning(
+                        "Không khớp số truyện",
+                        f"Số truyện local ({final_count}) khác server ({expected_total}). Hãy kiểm tra lại hoặc tải lại từ đầu.",
+                        parent=self
+                    ))
+                else:
+                    self.log("[Wikidich] Đối chiếu số truyện khớp với server.")
             self._wd_update_user_label()
             self._wd_save_cache()
             self.after(0, self._wd_refresh_category_options)
