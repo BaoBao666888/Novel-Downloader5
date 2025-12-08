@@ -2,14 +2,12 @@ import hashlib
 import json
 import os
 import re
-import subprocess
 import unicodedata
 import time
 from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
 
-import js2py
 import requests
 from bs4 import BeautifulSoup
 
@@ -21,12 +19,39 @@ ROLE_OPTIONS = ["poster", "managerOwner", "managerGuest", "editorOwner", "editor
 FLAG_OPTIONS = ["embedLink", "embedFile"]
 
 
+class CloudflareBlocked(Exception):
+    def __init__(self, partial_data: Optional[Dict[str, Any]] = None, next_start: int = 0, page_size: int = 0):
+        super().__init__("Cloudflare challenge")
+        self.partial_data = partial_data or {}
+        self.next_start = next_start
+        self.page_size = page_size
+
+
 def _normalize(text: str) -> str:
     if not text:
         return ""
     lowered = unicodedata.normalize("NFD", text)
     ascii_text = "".join(ch for ch in lowered if unicodedata.category(ch) != "Mn")
     return ascii_text.lower().strip()
+
+
+def _is_cloudflare_response(resp: requests.Response) -> bool:
+    if resp is None:
+        return False
+    status = resp.status_code
+    text = (resp.text or "").lower()
+    markers = [
+        "__cf_chl",
+        "cf-browser-verification",
+        "attention required",
+        "just a moment",
+        "please enable cookies",
+        "ray id",
+        "cf-error-code",
+    ]
+    if status in (403, 429, 503, 520):
+        return True
+    return any(m in text for m in markers)
 
 
 def _parse_abbr(raw: str) -> Optional[int]:
@@ -256,13 +281,24 @@ def fetch_works(
     progress_cb: Optional[Callable[[str, int, int, str], None]] = None,
     delay: float = 1.5,
     max_retries: int = 5,
+    stop_after: Optional[int] = None,
+    existing_data: Optional[Dict[str, Any]] = None,
+    start_offset: Optional[int] = None,
+    page_size_hint: Optional[int] = None,
+    stop_when_found_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     works_url = f"{base_url}/user/{user_slug}/works"
-    start = 0
     total: Optional[int] = None
-    page_size: Optional[int] = None
+    page_size: Optional[int] = page_size_hint
     book_ids: List[str] = []
     books: Dict[str, Dict[str, Any]] = {}
+
+    if existing_data:
+        book_ids = list(existing_data.get("book_ids") or [])
+        books = dict(existing_data.get("books") or {})
+        total = existing_data.get("total_count", total)
+
+    start = start_offset if start_offset is not None else len(book_ids)
 
     while True:
         params = {"start": start} if start else {}
@@ -280,6 +316,16 @@ def fetch_works(
                 time.sleep(delay * (attempt + 1))
         if resp is None:
             break
+        # Cloudflare detection: nếu gặp CF, trả về dữ liệu tạm để resume
+        if _is_cloudflare_response(resp):
+            partial = {
+                "username": user_slug,
+                "book_ids": book_ids,
+                "books": books,
+                "synced_at": datetime.utcnow().isoformat(),
+                "total_count": total if total is not None else len(book_ids),
+            }
+            raise CloudflareBlocked(partial, next_start=start, page_size=page_size or 0)
         doc = BeautifulSoup(resp.text, "html.parser")
         if total is None:
             total = _read_total(doc)
@@ -289,20 +335,69 @@ def fetch_works(
         nodes = container.select(":scope > .book-info")
         page_books = [_parse_book_node(node, base_url) for node in nodes]
         page_books = [b for b in page_books if b]
+        found_anchor = False
         for b in page_books:
             if b["id"] not in books:
                 book_ids.append(b["id"])
             books[b["id"]] = b
+            if stop_when_found_id and b["id"] == stop_when_found_id:
+                found_anchor = True
         if page_size is None:
             page_size = len(page_books) if page_books else 0
         if progress_cb:
             progress_cb("works", len(book_ids), total or 0, f"Đã lấy {len(book_ids)} truyện")
+        if stop_after and len(book_ids) >= stop_after:
+            break
+        if found_anchor:
+            break
         if not page_size or (total is not None and len(book_ids) >= total):
             break
         start += page_size
         time.sleep(delay)
 
-    return {"username": user_slug, "book_ids": book_ids, "books": books, "synced_at": datetime.utcnow().isoformat()}
+    total_count = total if total is not None else len(book_ids)
+    return {
+        "username": user_slug,
+        "book_ids": book_ids,
+        "books": books,
+        "synced_at": datetime.utcnow().isoformat(),
+        "total_count": total_count,
+    }
+
+
+def fetch_works_meta(
+    session: requests.Session,
+    user_slug: str,
+    base_url: str = BASE_URL,
+    proxies=None,
+    max_retries: int = 5,
+) -> Dict[str, Any]:
+    works_url = f"{base_url}/user/{user_slug}/works"
+    resp = None
+    for attempt in range(max_retries):
+        try:
+            resp = session.get(works_url, params={"start": 0}, timeout=40, proxies=proxies)
+            resp.raise_for_status()
+            break
+        except Exception:
+            if attempt + 1 >= max_retries:
+                raise
+            time.sleep(0.8 * (attempt + 1))
+    if resp is None:
+        raise RuntimeError("Không lấy được trang Works đầu tiên")
+    doc = BeautifulSoup(resp.text, "html.parser")
+    total = _read_total(doc)
+    container = doc.select_one(".book-list")
+    latest_id = None
+    first_page_ids: List[str] = []
+    if container:
+        nodes = container.select(":scope > .book-info")
+        parsed = [_parse_book_node(node, base_url) for node in nodes]
+        parsed = [b for b in parsed if b]
+        if parsed:
+            latest_id = parsed[0]["id"]
+            first_page_ids = [b["id"] for b in parsed]
+    return {"total": total, "latest_id": latest_id, "first_page_ids": first_page_ids}
 
 
 def _fetch_document(session: requests.Session, url: str, params: dict, proxies, max_retries: int, delay: float) -> BeautifulSoup:
@@ -482,79 +577,33 @@ def collect_additional_metadata(
     # return {"username": user_slug, "book_ids": book_ids, "books": books, "synced_at": datetime.utcnow().isoformat()}
 
 
-def _build_fuzzy_ctx(doc_text: str):
-    func_src = None
-    match = re.search(r"(function\s+fuzzySign\s*\(\s*[^)]*\)\s*\{[\s\S]*?\})", doc_text)
-    if match:
-        func_src = match.group(1)
-    else:
-        alt = re.search(r"fuzzySign\s*=\s*function\s*\(([^)]*)\)\s*\{([\s\S]*?)\}", doc_text)
-        if alt:
-            params = alt.group(1)
-            body = alt.group(2)
-            func_src = f"function fuzzySign({params}){{{body}}}"
-    if not func_src:
+def _build_fuzzy_ctx(doc_text: str) -> Optional[Callable[[str], str]]:
+    """
+    Tìm hàm fuzzySign trong HTML (đơn giản kiểu xoay chuỗi) và trả về callable Python.
+    Nếu không tìm thấy, trả về None để dùng chuỗi gốc.
+    """
+    match = re.search(r"function\s+fuzzySign\s*\(\s*\w+\s*\)\s*\{([^}]*)\}", doc_text)
+    if not match:
         return None
-    try:
-        ctx = js2py.EvalJs()
-        ctx.execute(func_src)
-        return ctx
-    except Exception:
-        return None
+    body = match.group(1)
+    rot = re.search(r"text\.substring\(\s*(\d+)\s*\)\s*\+\s*text\.substring\(\s*0\s*,?\s*\1?\s*\)", body)
+    if rot:
+        shift = int(rot.group(1))
+
+        def _rotate(text: str) -> str:
+            return text[shift:] + text[:shift]
+
+        return _rotate
+    return None
 
 
-def _run_node_sign(input_str: str) -> str:
-    sign_func = """
-        function signFunc(r) {
-            function o(r, o) { return (r >>> o) | (r << (32 - o)); }
-            var f, n, t = Math.pow, c = t(2, 32), i = "length", a = "", e = [], u = 8 * r[i], v = [], g = [],
-                h = g[i], l = {}, s = 2;
-            while (h < 64) {
-                if (!l[s]) { for (f = 0; f < 313; f += s) l[f] = s;
-                    v[h] = (t(s, 0.5) * c) | 0; g[h++] = (t(s, 1 / 3) * c) | 0;
-                }
-                s++;
-            }
-            r += "\\x80"; while (r[i] % 64 - 56) r += "\\0";
-            for (f = 0; f < r[i]; f++) { if ((n = r.charCodeAt(f)) >> 8) return;
-                e[f >> 2] |= n << ((3 - f) % 4) * 8;
-            }
-            e[e[i]] = (u / c) | 0; e[e[i]] = u;
-            for (n = 0; n < e[i];) {
-                var d = e.slice(n, (n += 16)), p = v.slice(0);
-                for (f = 0; f < 64; f++) {
-                    var w = d[f - 15], A = d[f - 2], C = p[0], F = p[4],
-                        M = p[7] + (o(F, 6) ^ o(F, 11) ^ o(F, 25)) + ((F & p[5]) ^ (~F & p[6])) + g[f] +
-                            (d[f] = f < 16 ? d[f] : d[f - 16] + (o(w, 7) ^ o(w, 18) ^ (w >>> 3)) +
-                            d[f - 7] + (o(A, 17) ^ o(A, 19) ^ (A >>> 10))) | 0;
-                    p = [(M + (o(C, 2) ^ o(C, 13) ^ o(C, 22)) + ((C & p[1]) ^ (C & p[2]) ^ (p[1] & p[2]))) | 0].concat(p);
-                    p[4] = (p[4] + M) | 0;
-                }
-                for (f = 0; f < 8; f++) v[f] = (v[f] + p[f]) | 0;
-            }
-            for (f = 0; f < 8; f++) for (n = 3; n >= 0; n--) {
-                var S = (v[f] >> (8 * n)) & 255; a += (S < 16 ? "0" : "") + S.toString(16);
-            }
-            return a;
-        }
-        """
-    node_script = f"""
-const signFunc = {sign_func};
-console.log(JSON.stringify(signFunc({json.dumps(input_str)})));
-"""
-    result = subprocess.run(["node", "-e", node_script], capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "Không thể chạy Node.js để tính sign.")
-    return json.loads(result.stdout)
-
-
-def _gen_sign(sign_key: str, start: int, size: int, fuzzy_ctx) -> str:
+def _gen_sign(sign_key: str, start: int, size: int, fuzzy_ctx: Optional[Callable[[str], str]]) -> str:
     base = f"{sign_key}{start}{size}"
     try:
-        fuzzy = fuzzy_ctx.fuzzySign(base) if fuzzy_ctx else base
+        fuzzy_input = fuzzy_ctx(base) if callable(fuzzy_ctx) else base
     except Exception:
-        fuzzy = base
-    return _run_node_sign(fuzzy)
+        fuzzy_input = base
+    return hashlib.sha256(fuzzy_input.encode()).hexdigest()
 
 
 def _fetch_chapter_count(
@@ -563,7 +612,7 @@ def _fetch_chapter_count(
     book_id: str,
     sign_key: str,
     size: int,
-    fuzzy_ctx,
+    fuzzy_ctx: Optional[Callable[[str], str]],
     proxies=None,
 ) -> Optional[int]:
     total = 0
@@ -597,10 +646,16 @@ def _fetch_chapter_count(
 def _parse_update_block(info_block: BeautifulSoup) -> Tuple[str, str, int]:
     updated_text = ""
     for p in info_block.select("p"):
-        text = _normalize(p.get_text(" ", strip=True))
-        if "thoi gian doi moi" in text:
+        raw_text = p.get_text(" ", strip=True)
+        norm = _normalize(raw_text)
+        norm_fallback = norm.replace("đ", "d").replace("ð", "d")
+        if (
+            "thoi gian doi moi" in norm
+            or "thoi gian doi moi" in norm_fallback
+            or "thời gian đổi mới" in raw_text.lower()
+        ):
             span = p.select_one("span")
-            raw = span.get_text(strip=True) if span else p.get_text(" ", strip=True)
+            raw = span.get_text(strip=True) if span else raw_text
             updated_text = re.sub(r"^[^:]*:\s*", "", raw).strip()
             break
     updated_iso, updated_ts = _parse_vn_date(updated_text)

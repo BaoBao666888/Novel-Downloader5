@@ -3,6 +3,7 @@ import os
 import socket
 import re
 import io
+import gzip
 import time
 from datetime import datetime
 from typing import Optional
@@ -61,6 +62,7 @@ from browser_overlay import BrowserOverlay
 from app.paths import BASE_DIR, RESOURCE_DIR, BACKGROUND_DIR
 
 MODERN_THEME_NAME = "RenameModern"
+CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 
 THEME_PRESETS = {
     "Midnight": {
@@ -281,11 +283,20 @@ def _make_window_clickthrough(window):
 
 
 def _resolve_path(path):
+    """Trả về đường dẫn tuyệt đối, chuẩn hóa dấu gạch và cả mẫu ổ đĩa Windows."""
     if not path:
         return ''
-    if os.path.isabs(path):
-        return path
-    return os.path.join(BASE_DIR, path)
+    normalized = str(path).strip()
+    if not normalized:
+        return ''
+    # Chuẩn hóa cả dấu gạch chéo ngược khi chạy trên hệ khác
+    normalized = normalized.replace("\\", os.sep)
+    # Nhận diện mẫu ổ đĩa Windows (C:\...) kể cả khi chạy trên non-Windows
+    if re.match(r"^[A-Za-z]:", normalized):
+        return os.path.normpath(normalized)
+    if os.path.isabs(normalized):
+        return os.path.normpath(normalized)
+    return os.path.normpath(os.path.join(BASE_DIR, normalized))
 
 
 def _env_bool(name, default=False, env_map=None):
@@ -403,7 +414,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.2.1')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.3')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -512,6 +523,8 @@ class RenamerApp(tk.Tk):
         self.wikidich_cache_path = wd_cfg.get('cache_path', os.path.join(BASE_DIR, "local", "wikidich_cache.json"))
         self.wikidich_filters = dict(wd_cfg.get('advanced_filter', {}))
         self.wikidich_open_mode = wd_cfg.get('open_mode', 'in_app')
+        self.wikidich_auto_pick_mode = wd_cfg.get('auto_pick_mode', 'extract_then_pick')
+        self.wikidich_links = dict(self.app_config.get('wikidich_links', {}))
         self.api_settings = dict(self.app_config.get('api_settings', {}))
         self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
         self._wd_cover_cache = {}
@@ -527,6 +540,15 @@ class RenamerApp(tk.Tk):
             "wikidich": self.wikidich_cache_path,
             "koanchay": os.path.join(BASE_DIR, "local", "koanchay_cache.json")
         }
+        self.wikidich_notes = self._wd_normalize_notes(self.app_config.get('wikidich_notes', {}))
+        self._wd_chapter_win = None
+        self._wd_chapter_tree = None
+        self._wd_chapter_status = None
+        self._wd_chapter_data = []
+        self._wd_chapter_buttons = {}
+        self._wd_global_notes_win = None
+        self._wd_notes_tree = None
+        self._wd_notes_preview = None
         self._browser_user_agent = None
         self._browser_headers = {}
         self._browser_cookies = {}
@@ -573,8 +595,11 @@ class RenamerApp(tk.Tk):
                     'toDate': '',
                     'sortBy': 'recent'
                 },
-                'open_mode': 'in_app'
+                'open_mode': 'in_app',
+                'auto_pick_mode': 'extract_then_pick'
             },
+            'wikidich_notes': {},
+            'wikidich_links': {},
             'api_settings': dict(DEFAULT_API_SETTINGS),
             'background': dict(DEFAULT_BACKGROUND_SETTINGS)
         }
@@ -615,10 +640,9 @@ class RenamerApp(tk.Tk):
 
     def _preload_ui_settings(self):
         """Nạp nhanh cấu hình UI từ file config trước khi dựng widget."""
-        config_path = os.path.join(BASE_DIR, 'config.json')
         try:
-            if os.path.exists(config_path):
-                with open(config_path, 'r', encoding='utf-8') as cfg:
+            if os.path.exists(CONFIG_PATH):
+                with open(CONFIG_PATH, 'r', encoding='utf-8') as cfg:
                     data = json.load(cfg)
                 ui_settings = data.get('ui_settings')
                 if isinstance(ui_settings, dict):
@@ -1224,7 +1248,9 @@ class RenamerApp(tk.Tk):
         dest_name = f"{sanitized}_{timestamp}{ext.lower()}"
         dest_path = os.path.join(BACKGROUND_DIR, dest_name)
         shutil.copy2(source_path, dest_path)
-        return os.path.relpath(dest_path, BASE_DIR)
+        # Lưu dùng dấu gạch xuôi để tương thích đa nền tảng; khi đọc sẽ normpath lại
+        rel_path = os.path.relpath(dest_path, BASE_DIR)
+        return rel_path.replace("\\", "/")
 
     def _reset_ui_theme(self):
         self.ui_settings = dict(DEFAULT_UI_SETTINGS)
@@ -1589,6 +1615,42 @@ class RenamerApp(tk.Tk):
         self._instance_thread = threading.Thread(target=_listen, daemon=True)
         self._instance_thread.start()
 
+    def _extract_archive_to(self, archive_path: str, dest_path: str):
+        """Giải nén bằng thư viện chuẩn; fallback 7-Zip cho .7z/.rar."""
+        os.makedirs(dest_path, exist_ok=True)
+        try:
+            shutil.unpack_archive(archive_path, dest_path)
+            return
+        except (shutil.ReadError, ValueError):
+            pass
+
+        ext = os.path.splitext(archive_path)[1].lower()
+        if ext == ".gz":
+            try:
+                base_name = os.path.basename(os.path.splitext(archive_path)[0]) or os.path.basename(archive_path)
+                target_path = os.path.join(dest_path, base_name)
+                with gzip.open(archive_path, "rb") as src, open(target_path, "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+                return
+            except Exception as exc:
+                raise RuntimeError(f"Lỗi giải nén .gz: {exc}")
+
+        if ext in {".7z", ".rar"}:
+            seven_zip = shutil.which("7z") or shutil.which("7za")
+            if not seven_zip:
+                raise RuntimeError("Cần sẵn 7-Zip (7z/7za trong PATH) để giải nén .7z/.rar.")
+            result = subprocess.run(
+                [seven_zip, "x", archive_path, f"-o{dest_path}", "-y"],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0:
+                err_output = (result.stderr or result.stdout or "").strip()
+                raise RuntimeError(err_output or "Lệnh 7z thất bại.")
+            return
+
+        raise RuntimeError(f"Không hỗ trợ định dạng nén: {ext or 'không xác định'}")
+
     def _stop_single_instance_listener(self):
         sock = getattr(self, "_instance_server", None)
         if sock:
@@ -1696,6 +1758,8 @@ class RenamerApp(tk.Tk):
             'combine_titles': self.combine_titles_var.get(),
             'title_format': self.title_format_var.get(),
             'background': dict(self.background_settings),
+            'wikidich_notes': dict(self.wikidich_notes or {}),
+            'wikidich_links': dict(self.wikidich_links or {}),
         })
         self.app_config['ui_settings'] = self.ui_settings
         if hasattr(self, "wd_search_var"):
@@ -1703,12 +1767,13 @@ class RenamerApp(tk.Tk):
         self.app_config['wikidich'] = {
             'cache_path': self.wikidich_cache_path,
             'advanced_filter': dict(self.wikidich_filters),
-            'open_mode': self.wikidich_open_mode
+            'open_mode': self.wikidich_open_mode,
+            'auto_pick_mode': getattr(self, "wikidich_auto_pick_mode", "extract_then_pick")
         }
         self.app_config['api_settings'] = dict(self.api_settings or {})
         self.app_config['regex_pins'] = dict(self.regex_pins)
         try:
-            with open('config.json', 'w', encoding='utf-8') as f:
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
                 json.dump(self.app_config, f, indent=4)
         except Exception as e:
             print(f"Không thể lưu config: {e}")
@@ -1718,8 +1783,8 @@ class RenamerApp(tk.Tk):
     def load_config(self):
         """Tải và áp dụng cài đặt từ config.json nếu có."""
         try:
-            if os.path.exists('config.json'):
-                with open('config.json', 'r', encoding='utf-8') as f:
+            if os.path.exists(CONFIG_PATH):
+                with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
                     loaded_config = json.load(f)
                 for key, value in loaded_config.items():
                     if isinstance(value, dict) and key in self.app_config:
@@ -1781,6 +1846,7 @@ class RenamerApp(tk.Tk):
             if isinstance(wd_cfg, dict):
                 self.wikidich_cache_path = wd_cfg.get('cache_path', self.wikidich_cache_path)
                 self.wikidich_open_mode = wd_cfg.get('open_mode', self.wikidich_open_mode)
+                self.wikidich_auto_pick_mode = wd_cfg.get('auto_pick_mode', getattr(self, "wikidich_auto_pick_mode", "extract_then_pick"))
                 adv_filter = wd_cfg.get('advanced_filter')
                 if isinstance(adv_filter, dict):
                     self.wikidich_filters.update(adv_filter)
@@ -1810,6 +1876,13 @@ class RenamerApp(tk.Tk):
                 self._apply_mouse_glow_setting()
             self.app_config['api_settings'] = dict(self.api_settings)
             self._sync_background_controls()
+            self.wikidich_notes = self._wd_normalize_notes(config_data.get('wikidich_notes'))
+            self.wikidich_links = dict(config_data.get('wikidich_links', {}))
+            if hasattr(self, "wd_auto_mode_var"):
+                label = None
+                if hasattr(self, "_wd_mode_labels"):
+                    label = self._wd_mode_labels.get(getattr(self, "wikidich_auto_pick_mode", "extract_then_pick"))
+                self.wd_auto_mode_var.set(label or getattr(self, "wikidich_auto_pick_mode", "extract_then_pick"))
             self._maybe_start_hidden()
         except Exception as e:
             print(f"Không thể tải config: {e}")
@@ -2413,20 +2486,16 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         create_tab("Công cụ", tools_guide)
 
         wikidich_guide = """
-        --- WIKIDICH ---
-        - **Tải Works**: lấy danh sách truyện đã đăng, dùng cookie trình duyệt. Cấu hình proxy và header trong nút **Cài đặt**.
-        - **Tải chi tiết**: mở hộp chọn phạm vi (tất cả / đang lọc) và tuỳ chọn “Chỉ bổ sung chi tiết còn thiếu”.
-        - **Lọc**:
-            - Bộ lọc cơ bản: tìm tiêu đề/tác giả, văn án, trạng thái, sắp xếp (Mới nhất/Cũ nhất/...); hiển thị trạng thái lọc ngay trên khung.
-            - Lọc nâng cao: ngày cập nhật (chọn từ date picker), thể loại, vai trò, thuộc tính (Nhúng link/file), reset để xoá sạch lọc nâng cao.
-        - **Khu vực chi tiết**: tiêu đề + nút luôn hiển thị; phần còn lại có thanh cuộn, cho phép bôi đen/copy văn án, tag, thông tin.
-        - **Kiểm tra cập nhật**: chỉ kiểm tra các truyện đang hiển thị; hỗ trợ các link bổ sung thuộc Fanqie, JJWXC, PO18, Qidian (cần cookie trình duyệt), Ihuaben. Cột “New” tô xanh toàn hàng khi có chương mới.
-        - **Thêm link hỗ trợ**: mở trang sửa truyện trên Wikidich → Bổ sung link theo đúng cấu trúc (ví dụ: Fanqie https://fanqienovel.com/page/123456 hoặc /book/123456; JJWXC https://www.jjwxc.net/onebook.php?novelid=123456; PO18 https://www.po18.tw/books/123456; Qidian https://www.qidian.com/book/1037076300/; Ihuaben https://www.ihuaben.com/book/9219715.html). Dán xong lưu lại rồi tải chi tiết/kiểm tra cập nhật.
-        - **Cập nhật chương**: nút chỉ sáng khi có số “New”. Nhập số chương bổ sung để cộng vào tổng chương và trừ cột “New”; nếu hết thì mất tô xanh. (Nếu nhập quá tay, tải lại chi tiết để đồng bộ.)
-        - **Mở link/Trang truyện**: double‑click link bổ sung hoặc bấm “Mở trang truyện”. Chế độ mở (Trình duyệt tích hợp / Trình duyệt ngoài) chọn trong nút **Cài đặt** và áp dụng cho tất cả link.
-        - **Tiến độ**: khung tiến độ ẩn, chỉ hiện khi đang chạy tác vụ, có nút **X** để hủy thao tác đang chạy.
-        - **Cài đặt request**: chỉnh delay Wiki/Fanqie, User-Agent Wiki/Fanqie, chọn chế độ mở link; có nút về mặc định.
-        - **Proxy**: bật “Wikidich/Fanqie” trong tab Proxy để áp dụng cho Works/chi tiết/kiểm tra cập nhật.
+        --- WIKIDICH / KOANCHAY ---
+        - **Tải Works / Tải chi tiết**: dùng cookie trình duyệt; Cài đặt proxy/header trong **Cài đặt**. Bộ lọc cơ bản + nâng cao (ngày, thể loại, vai trò, thuộc tính Nhúng link/file). Tab Koanchay dùng đúng domain koanchay.org/net tự động.
+        - **DS Chương**: tải danh sách chương mới nhất (đồng thời cập nhật chi tiết/số chương), xem nội dung gộp các phần, chỉnh sửa nội dung ngay trong app (PUT lên server bằng cookie sẵn có). Koanchay tự dùng domain koanchay.
+        - **Ghi chú**: Ghi chú cục bộ (gắn ID truyện) và Ghi chú toàn cục; lưu ngay vào config, giữ cả khi xóa truyện. Ghi chú toàn cục có danh sách quản lý, cho xem/sửa/xóa.
+        - **Liên kết thư mục**: Liên kết per-truyện và quản lý Liên kết toàn cục (lưu trong config, độc lập cache). Nút “Chọn tự động” với 2 chế độ: “Giải nén rồi chọn” (lấy file nén mới nhất -> giải nén vào thư mục số kế tiếp) hoặc “Chọn thư mục mới nhất” (lấy thư mục con mới tạo). Log kết quả và tự chuyển sang tab Đổi Tên.
+        - **Thêm link hỗ trợ**: mở trang sửa truyện -> thêm link đúng mẫu (Fanqie https://fanqienovel.com/page/123456 hoặc /book/123456; JJWXC https://www.jjwxc.net/onebook.php?novelid=123456; PO18 https://www.po18.tw/books/123456; Qidian https://www.qidian.com/book/1037076300/; Ihuaben https://www.ihuaben.com/book/9219715.html) rồi tải chi tiết / kiểm tra cập nhật.
+        - **Cập nhật chương**: nút chỉ sáng khi có “New”; nhập số để cộng tổng chương và trừ cột “New”. Sai lệch có thể tải lại chi tiết/DS Chương để đồng bộ.
+        - **Mở link/Trang truyện**: double‑click link bổ sung hoặc bấm “Mở trang truyện”. Chế độ mở (Trình duyệt tích hợp / ngoài) chọn trong **Cài đặt**.
+        - **Tiến độ & Hủy**: khung tiến độ ẩn, chỉ hiện khi chạy tác vụ, có nút **X** để hủy.
+        - **Proxy**: bật “Wikidich/Fanqie” trong tab Proxy để áp dụng cho Works/Chi tiết/Check cập nhật; Koanchay dùng cùng cấu hình proxy/cookie.
         """
         create_tab("Wikidich", wikidich_guide)
 
@@ -2464,7 +2533,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   **Loại trừ file đã chọn**: Chọn một hoặc nhiều file trong bảng và nhấn nút này để bỏ qua chúng khi đổi tên. Các file này sẽ được đánh dấu màu đỏ.
             -   **Bao gồm lại**: Chọn các file đã bị loại trừ để đưa chúng trở lại quá trình đổi tên.
             -   **BẮT ĐẦU ĐỔI TÊN**: Nút cuối cùng để thực hiện việc đổi tên hàng loạt.
-            -   **Double-click vào một dòng**: Mở cửa sổ xem nhanh nội dung của file đó.
+            -   **Double-click vào một dòng**: Mở cửa sổ xem nhanh nội dung file kèm nút **Đổi tên** để đặt tên thủ công; lưu xong sẽ tự làm mới bảng đổi tên.
         """
         create_tab("Đổi Tên", rename_guide)
 
@@ -2821,17 +2890,18 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         header = ttk.Frame(tab)
         header.grid(row=0, column=0, sticky="ew")
-        header.columnconfigure(4, weight=1)
+        header.columnconfigure(7, weight=1)
         self.wd_user_label = ttk.Label(header, text="Chưa kiểm tra đăng nhập")
         self.wd_user_label.grid(row=0, column=0, sticky="w")
         ttk.Button(header, text="Tải Works", command=self._wd_start_fetch_works).grid(row=0, column=1, padx=(10, 0))
-        ttk.Button(header, text="Tải chi tiết", command=self._wd_prompt_detail_fetch).grid(row=0, column=2, padx=6)
-        ttk.Button(header, text="Cài đặt", command=self._open_api_settings_dialog).grid(row=0, column=3, padx=(0, 6))
+        ttk.Button(header, text="Tải chi tiết", command=self._wd_prompt_detail_fetch).grid(row=0, column=2, padx=(6, 0))
+        ttk.Button(header, text="Ghi chú", command=self._wd_open_global_notes).grid(row=0, column=3, padx=(6, 0))
+        ttk.Button(header, text="Liên kết", command=self._wd_open_global_links).grid(row=0, column=4, padx=(6, 0))
+        ttk.Button(header, text="Cài đặt", command=self._open_api_settings_dialog).grid(row=0, column=5, padx=(6, 0))
         header_spacer = ttk.Frame(header)
-        header_spacer.grid(row=0, column=4, sticky="ew")
-        header.columnconfigure(4, weight=1)
+        header_spacer.grid(row=0, column=7, sticky="ew")
         self.wd_site_button = ttk.Button(header, text=other_site.capitalize(), command=lambda s=other_site: self._wd_switch_site(s))
-        self.wd_site_button.grid(row=0, column=5, sticky="e")
+        self.wd_site_button.grid(row=0, column=6, padx=(12, 0))
 
         progress_frame = ttk.Frame(tab)
         progress_frame.grid(row=1, column=0, sticky="ew", pady=(6, 4))
@@ -2964,8 +3034,12 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         btn_row = ttk.Frame(header_frame)
         btn_row.grid(row=1, column=0, sticky="e", pady=(6, 0))
         ttk.Button(btn_row, text="Mở trang truyện", command=self._wd_open_book_in_browser).pack(side=tk.LEFT)
+        self.wd_chapter_list_btn = ttk.Button(btn_row, text="DS Chương", command=self._wd_open_chapter_list, state=tk.DISABLED)
+        self.wd_chapter_list_btn.pack(side=tk.LEFT, padx=(8, 0))
         self.wd_update_button = ttk.Button(btn_row, text="Cập nhật chương", command=self._wd_open_update_dialog, state=tk.DISABLED)
         self.wd_update_button.pack(side=tk.LEFT, padx=(8, 0))
+        self.wd_note_button = ttk.Button(btn_row, text="Ghi chú", command=self._wd_open_local_note, state=tk.DISABLED)
+        self.wd_note_button.pack(side=tk.LEFT, padx=(8, 0))
         self.wd_delete_button = ttk.Button(btn_row, text="Xóa", command=self._wd_delete_book, state=tk.DISABLED)
         self.wd_delete_button.pack(side=tk.LEFT, padx=(8, 0))
 
@@ -2989,7 +3063,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         detail_frame = ttk.Frame(self.wd_detail_canvas, padding=6)
         detail_window = self.wd_detail_canvas.create_window((0, 0), window=detail_frame, anchor="nw")
         detail_frame.columnconfigure(1, weight=1)
-        detail_frame.rowconfigure(2, weight=1)
+        detail_frame.rowconfigure(3, weight=1)
 
         def _configure_detail(event=None):
             bbox = self.wd_detail_canvas.bbox("all")
@@ -3050,8 +3124,42 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.wd_links_listbox.bind("<Double-Button-1>", self._wd_open_extra_link)
         self.wd_current_links = []
 
+        link_frame = ttk.LabelFrame(detail_frame, text="Liên kết", padding=6)
+        link_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=(0, 0), pady=(6, 0))
+        link_frame.columnconfigure(1, weight=1)
+        self.wd_link_path_var = tk.StringVar(value="Chưa liên kết")
+        ttk.Label(link_frame, text="Thư mục:").grid(row=0, column=0, sticky="w")
+        ttk.Label(link_frame, textvariable=self.wd_link_path_var).grid(row=0, column=1, sticky="w")
+        btn_row = ttk.Frame(link_frame)
+        btn_row.grid(row=0, column=2, sticky="e")
+        ttk.Button(btn_row, text="Liên kết", command=self._wd_choose_link_folder).pack(side=tk.LEFT)
+        self.wd_auto_pick_btn = ttk.Button(btn_row, text="Chọn tự động", command=self._wd_auto_pick_linked, state=tk.DISABLED)
+        self.wd_auto_pick_btn.pack(side=tk.LEFT, padx=(6, 0))
+        mode_frame = ttk.Frame(link_frame)
+        mode_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(6, 0))
+        mode_frame.columnconfigure(1, weight=1)
+        ttk.Label(mode_frame, text="Chế độ:").grid(row=0, column=0, sticky="w")
+        mode_options = {
+            "extract_then_pick": "Giải nén rồi chọn",
+            "pick_latest": "Chọn thư mục mới nhất",
+        }
+        self._wd_mode_labels = mode_options
+        self._wd_mode_reverse = {v: k for k, v in mode_options.items()}
+        display_default = mode_options.get(getattr(self, "wikidich_auto_pick_mode", "extract_then_pick"), "Giải nén rồi chọn")
+        self.wd_auto_mode_var = tk.StringVar(value=display_default)
+        mode_combo = ttk.Combobox(
+            mode_frame,
+            state="readonly",
+            width=24,
+            values=list(mode_options.values()),
+            textvariable=self.wd_auto_mode_var
+        )
+        mode_combo.grid(row=0, column=1, sticky="w", padx=(6, 0))
+        mode_combo.bind("<<ComboboxSelected>>", lambda e: self._wd_change_auto_mode(self._wd_mode_reverse.get(self.wd_auto_mode_var.get(), "extract_then_pick")))
+        ttk.Label(mode_frame, text="Giải nén rồi chọn: lấy file nén mới nhất -> giải nén -> chọn\nChọn thư mục mới nhất: lấy thư mục con mới tạo nhất.", justify="left").grid(row=1, column=0, columnspan=3, sticky="w", pady=(4, 0))
+
         summary_frame = ttk.LabelFrame(detail_frame, text="Văn án", padding=6)
-        summary_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
+        summary_frame.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
         summary_frame.columnconfigure(0, weight=1)
         summary_frame.rowconfigure(0, weight=1)
         self.wd_summary_text = scrolledtext.ScrolledText(summary_frame, wrap=tk.WORD, height=12)
@@ -3060,6 +3168,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         tree_frame = ttk.Frame(main_pane)
         main_pane.add(tree_frame, weight=2)
+        tree_frame.columnconfigure(0, weight=1)
+        tree_frame.rowconfigure(0, weight=1)
 
         columns = ("title", "status", "updated", "chapters", "new_chapters", "views", "author")
         self.wd_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", selectmode="browse")
@@ -3076,11 +3186,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.wd_tree.heading(col, text=column_labels.get(col, col.capitalize()))
             self.wd_tree.column(col, width=width, anchor="w")
         self.wd_tree.tag_configure("has_new", foreground="#16a34a")
-        self.wd_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.wd_tree.grid(row=0, column=0, sticky="nsew")
         self.wd_tree.bind("<<TreeviewSelect>>", self._wd_on_select)
         tree_scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=self.wd_tree.yview)
         self.wd_tree.configure(yscrollcommand=tree_scroll.set)
-        tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        tree_scroll.grid(row=0, column=1, sticky="ns")
 
         self._wd_update_user_label()
         self._wd_apply_filters()
@@ -3613,7 +3723,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self._set_browser_menu_state(True)
         self._update_cookie_menu_state()
 
-    def _open_in_app_browser(self, url: str):
+    def _open_in_app_browser(self, url: str, force_overlay: bool = False):
         url = (url or "").strip()
         if not url:
             return
@@ -3624,6 +3734,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             else:
                 overlay.current_url = url
                 overlay.show()
+        elif force_overlay:
+            messagebox.showerror("Trình duyệt tích hợp", "Không khởi tạo được trình duyệt tích hợp (PyQt6 WebEngine).")
         else:
             webbrowser.open(url)
 
@@ -4212,6 +4324,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         edit_btn = ttk.Button(center_frame, text="Chỉnh sửa", command=lambda: [preview_window.destroy(), self._jump_to_text_ops_and_load(filepath)])
         edit_btn.pack(side=tk.LEFT, padx=5)
 
+        rename_btn = ttk.Button(center_frame, text="Đổi tên", command=lambda: self._open_manual_rename(preview_window, filepath, item))
+        rename_btn.pack(side=tk.LEFT, padx=5)
+
         translate_btn = ttk.Button(center_frame, text="Dịch", command=lambda: [preview_window.destroy(), self._jump_to_translator_and_load(filepath)])
         translate_btn.pack(side=tk.LEFT, padx=5)
 
@@ -4268,6 +4383,64 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             if self.notebook.tab(tab_id, "text") == name_to_find:
                 self.notebook.select(i)
                 break
+
+    # --- Đổi tên thủ công từ preview ---
+    def _open_manual_rename(self, preview_window, filepath, item_id):
+        if not os.path.isfile(filepath):
+            messagebox.showerror("Lỗi", "Không tìm thấy file để đổi tên.")
+            return
+        directory = os.path.dirname(filepath)
+        current_name = os.path.basename(filepath)
+        win = tk.Toplevel(preview_window)
+        self._apply_window_icon(win)
+        win.title("Đổi tên file")
+        win.geometry("420x160")
+        win.transient(preview_window)
+        win.grab_set()
+
+        frame = ttk.Frame(win, padding=12)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="Tên hiện tại:").grid(row=0, column=0, sticky="w")
+        ttk.Label(frame, text=current_name).grid(row=0, column=1, sticky="w")
+        ttk.Label(frame, text="Tên mới:").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        new_name_var = tk.StringVar(value=current_name)
+        entry = ttk.Entry(frame, textvariable=new_name_var, width=45)
+        entry.grid(row=1, column=1, sticky="ew", pady=(8, 0))
+        entry.focus_set()
+        frame.columnconfigure(1, weight=1)
+
+        btns = ttk.Frame(frame)
+        btns.grid(row=2, column=0, columnspan=2, sticky="e", pady=(12, 0))
+
+        def _apply():
+            new_name = new_name_var.get().strip()
+            if not new_name:
+                messagebox.showerror("Lỗi", "Tên mới không được rỗng.", parent=win)
+                return
+            if new_name == current_name:
+                win.destroy()
+                preview_window.destroy()
+                return
+            new_path = os.path.join(directory, new_name)
+            if os.path.exists(new_path):
+                messagebox.showerror("Lỗi", "Đã tồn tại file/thư mục cùng tên.", parent=win)
+                return
+            try:
+                os.rename(filepath, new_path)
+            except Exception as exc:
+                messagebox.showerror("Lỗi", f"Không thể đổi tên: {exc}", parent=win)
+                return
+            # cập nhật map tree_filepaths nếu có
+            if hasattr(self, "tree_filepaths") and isinstance(self.tree_filepaths, dict):
+                if item_id in self.tree_filepaths:
+                    self.tree_filepaths[item_id] = new_path
+            win.destroy()
+            preview_window.destroy()
+            self.log(f"[Đổi Tên] Đổi '{current_name}' -> '{new_name}'")
+            self.schedule_preview_update(None)
+
+        ttk.Button(btns, text="Lưu", command=_apply).pack(side=tk.RIGHT)
+        ttk.Button(btns, text="Hủy", command=win.destroy).pack(side=tk.RIGHT, padx=(0, 8))
 
     # --------CÁC HÀM CHO TAB DỊCH--------
     def create_translator_tab(self):
@@ -5555,6 +5728,22 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             return ["koanchay.org", "koanchay.net"]
         return ["truyenwikidich.net", "koanchay.net"]
 
+    def _wd_normalize_url_for_site(self, url: str) -> str:
+        """Đảm bảo URL phù hợp domain theo tab hiện tại (wikidich/koanchay)."""
+        url = (url or "").strip()
+        if not url:
+            return ""
+        try:
+            base = self._wd_get_base_url()
+            base_parts = urlparse(base)
+            parts = urlparse(url)
+            if parts.netloc and parts.netloc != base_parts.netloc:
+                parts = parts._replace(scheme=base_parts.scheme or "https", netloc=base_parts.netloc)
+                return parts.geturl()
+        except Exception:
+            return url
+        return url
+
     def _wd_default_headers(self) -> dict:
         base_url = self._wd_get_base_url()
         base_host = urlparse(base_url).hostname or ""
@@ -5608,6 +5797,30 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 if k not in headers:
                     headers[k] = v
         return headers
+
+    def _wd_build_wiki_session(self, include_user=True):
+        proxies = self._get_proxy_for_request('fetch_titles')
+        cookies = load_browser_cookie_jar(self._wd_get_cookie_domains())
+        if not cookies:
+            return None, None, proxies
+        session = wikidich_ext.build_session_with_cookies(cookies, proxies=proxies)
+        wiki_headers = self.api_settings.get('wiki_headers') if isinstance(self.api_settings, dict) else {}
+        merged_headers = self._wd_default_headers()
+        if isinstance(wiki_headers, dict):
+            for k, v in wiki_headers.items():
+                if v and k not in merged_headers and k.lower() not in ("x-requested-with", "connection"):
+                    merged_headers[k] = v
+        session.headers.clear()
+        session.headers.update(merged_headers)
+        current_user = None
+        if include_user:
+            try:
+                current_user = self.wikidich_data.get('username') or wikidich_ext.fetch_current_user(
+                    session, base_url=self._wd_get_base_url(), proxies=proxies
+                ) or ""
+            except Exception:
+                current_user = self.wikidich_data.get('username') or ""
+        return session, current_user, proxies
 
     def _wd_log_request_headers(self, resp: requests.Response, label: str):
         try:
@@ -5870,6 +6083,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.wd_info_vars['collections'].set("")
             self.wd_info_vars['flags'].set("")
             self._wd_update_update_button_state()
+            self._wd_update_delete_button_state()
+            self._wd_update_link_ui(None)
             return
         self._wd_set_text_content(self.wd_title_text, book.get('title', ''))
         self.wd_info_vars['author'].set(book.get('author', ''))
@@ -5902,6 +6117,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.wd_links_listbox.insert(tk.END, label)
         self._wd_display_cover(book.get('cover_url'))
         self._wd_update_update_button_state()
+        self._wd_update_delete_button_state()
+        self._wd_update_link_ui(book)
 
     def _wd_open_link(self, url: str):
         url = (url or "").strip()
@@ -5950,6 +6167,886 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             return
         enabled = bool(getattr(self, "wd_selected_book", None))
         btn.config(state=tk.NORMAL if enabled else tk.DISABLED)
+        note_btn = getattr(self, "wd_note_button", None)
+        if note_btn:
+            note_btn.config(state=tk.NORMAL if enabled else tk.DISABLED)
+        ch_btn = getattr(self, "wd_chapter_list_btn", None)
+        if ch_btn:
+            ch_btn.config(state=tk.NORMAL if enabled else tk.DISABLED)
+
+    # --- Ghi chú Wikidich ---
+    def _wd_normalize_notes(self, raw):
+        if not isinstance(raw, dict):
+            return {}
+        out = {}
+        for key, val in raw.items():
+            if key is None:
+                continue
+            try:
+                bid = str(key).strip()
+            except Exception:
+                continue
+            if not bid:
+                continue
+            if isinstance(val, dict):
+                content = val.get("content", "")
+                title = val.get("title", "")
+            else:
+                content = str(val)
+                title = ""
+            out[bid] = {"content": str(content or ""), "title": str(title or "")}
+        return out
+
+    def _wd_get_note_entry(self, book_id):
+        if book_id is None:
+            return None
+        bid = str(book_id).strip()
+        if not bid:
+            return None
+        if not isinstance(self.wikidich_notes, dict):
+            self.wikidich_notes = {}
+        return self.wikidich_notes.get(bid)
+
+    def _wd_get_note_content(self, book_id):
+        entry = self._wd_get_note_entry(book_id)
+        if isinstance(entry, dict):
+            return entry.get("content", "")
+        return ""
+
+    def _wd_global_notes_alive(self):
+        try:
+            return bool(self._wd_global_notes_win) and bool(self._wd_global_notes_win.winfo_exists())
+        except Exception:
+            return False
+
+    def _wd_set_note(self, book_id, content: str, title: str = ""):
+        if book_id is None:
+            return
+        bid = str(book_id).strip()
+        if not bid:
+            return
+        text = (content or "").strip()
+        if not isinstance(self.wikidich_notes, dict):
+            self.wikidich_notes = {}
+        if not text:
+            # Không lưu ghi chú rỗng
+            if bid in self.wikidich_notes:
+                self.wikidich_notes.pop(bid, None)
+            self.save_config()
+            self._wd_refresh_global_notes_view()
+            return
+        entry = self.wikidich_notes.get(bid, {})
+        entry["content"] = text
+        if title:
+            entry["title"] = title
+        self.wikidich_notes[bid] = entry
+        self.save_config()
+        self._wd_refresh_global_notes_view()
+
+    def _wd_delete_note(self, book_id):
+        if book_id is None:
+            return
+        bid = str(book_id).strip()
+        if not bid:
+            return
+        if isinstance(self.wikidich_notes, dict) and bid in self.wikidich_notes:
+            self.wikidich_notes.pop(bid, None)
+            self.save_config()
+            self._wd_refresh_global_notes_view()
+
+    def _wd_open_note_editor(self, book_id, title="", initial_text="", scope="local"):
+        bid = str(book_id).strip() if book_id is not None else ""
+        if not bid:
+            messagebox.showinfo("Chưa xác định", "Không lấy được ID truyện.", parent=self)
+            return
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title("Ghi chú" + (" - Toàn cục" if scope == "global" else ""))
+        win.geometry("520x360")
+        win.transient(self)
+        try:
+            win.focus_force()
+            win.lift()
+        except Exception:
+            pass
+
+        container = ttk.Frame(win, padding=10)
+        container.pack(fill="both", expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(1, weight=1)
+
+        header = ttk.Frame(container)
+        header.grid(row=0, column=0, sticky="ew")
+        ttk.Label(header, text=f"ID: {bid}").pack(anchor="w")
+        if title:
+            ttk.Label(header, text=f"Tiêu đề: {title}").pack(anchor="w", pady=(2, 0))
+        ttk.Label(
+            header,
+            text="Bấm Lưu (hoặc Ctrl+S) để ghi ngay vào config; Đóng sẽ hỏi lưu nếu có thay đổi."
+        ).pack(anchor="w", pady=(6, 0))
+
+        text_frame = ttk.Frame(container, padding=(0, 8, 0, 0))
+        text_frame.grid(row=1, column=0, sticky="nsew")
+        txt = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD)
+        txt.pack(fill="both", expand=True)
+        initial_value = (initial_text or "").strip()
+        if initial_text:
+            txt.insert("1.0", initial_text)
+
+        btn_frame = ttk.Frame(container)
+        btn_frame.grid(row=2, column=0, sticky="e", pady=(10, 0))
+
+        def _save():
+            content = txt.get("1.0", tk.END).strip()
+            self._wd_set_note(bid, content, title=title)
+            win.destroy()
+
+        def _close():
+            current = txt.get("1.0", tk.END).strip()
+            if current != initial_value:
+                resp = messagebox.askyesnocancel("Lưu ghi chú?", "Lưu ghi chú trước khi đóng?", parent=win)
+                if resp is None:
+                    return
+                if resp:
+                    _save()
+                    return
+            win.destroy()
+
+        def _delete():
+            if not self._wd_get_note_entry(bid):
+                win.destroy()
+                return
+            if messagebox.askyesno("Xóa ghi chú", "Bạn có chắc muốn xóa ghi chú này?", parent=win):
+                self._wd_delete_note(bid)
+                win.destroy()
+
+        ttk.Button(btn_frame, text="Lưu", command=_save).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Xóa", command=_delete).pack(side=tk.RIGHT, padx=(0, 8))
+        ttk.Button(btn_frame, text="Đóng", command=_close).pack(side=tk.RIGHT, padx=(0, 8))
+        win.protocol("WM_DELETE_WINDOW", _close)
+        def _hotkey_save(event=None):
+            _save()
+            return "break"
+        win.bind("<Control-s>", _hotkey_save)
+
+    def _wd_open_local_note(self):
+        book = getattr(self, "wd_selected_book", None)
+        if not book or not book.get("id"):
+            messagebox.showinfo("Chưa chọn truyện", "Vui lòng chọn một truyện trước.", parent=self)
+            return
+        book_id = book.get("id")
+        title = book.get("title", "")
+        current = self._wd_get_note_content(book_id)
+        self._wd_open_note_editor(book_id, title=title, initial_text=current, scope="local")
+
+    def _wd_open_global_notes(self):
+        try:
+            if self._wd_global_notes_win and tk.Toplevel.winfo_exists(self._wd_global_notes_win):
+                self._wd_global_notes_win.lift()
+                self._wd_refresh_global_notes_view()
+                return
+        except Exception:
+            pass
+
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title("Ghi chú Wikidich (toàn cục)")
+        win.geometry("720x480")
+        win.transient(self)
+        self._wd_global_notes_win = win
+
+        def _close():
+            self._wd_global_notes_win = None
+            win.destroy()
+        win.protocol("WM_DELETE_WINDOW", _close)
+
+        container = ttk.Frame(win, padding=10)
+        container.pack(fill="both", expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(1, weight=1)
+
+        info = ttk.Label(container, text="Danh sách chỉ hiện ghi chú có nội dung. Chọn một mục để xem/sửa/xóa.")
+        info.grid(row=0, column=0, sticky="w", pady=(0, 8))
+
+        tree = ttk.Treeview(container, columns=("id", "title", "content"), show="headings", selectmode="browse")
+        tree.heading("id", text="ID truyện")
+        tree.heading("title", text="Tiêu đề")
+        tree.heading("content", text="Nội dung (rút gọn)")
+        tree.column("id", width=120, anchor="w")
+        tree.column("title", width=200, anchor="w")
+        tree.column("content", width=320, anchor="w")
+        tree.grid(row=1, column=0, sticky="nsew")
+        tree.bind("<<TreeviewSelect>>", self._wd_on_global_note_select)
+        tree.bind("<Double-1>", lambda e: self._wd_edit_global_note())
+        self._wd_notes_tree = tree
+
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.grid(row=1, column=1, sticky="ns")
+
+        preview = scrolledtext.ScrolledText(container, height=6, wrap=tk.WORD, state="disabled")
+        preview.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(10, 0))
+        self._wd_notes_preview = preview
+
+        btn_frame = ttk.Frame(container)
+        btn_frame.grid(row=3, column=0, columnspan=2, sticky="e", pady=(10, 0))
+        ttk.Button(btn_frame, text="Xem", command=self._wd_edit_global_note).pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(btn_frame, text="Xóa", command=self._wd_delete_global_note).pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(btn_frame, text="Đóng", command=_close).pack(side=tk.RIGHT)
+
+        self._wd_refresh_global_notes_view()
+
+    def _wd_on_global_note_select(self, event=None):
+        if not self._wd_notes_tree or not self._wd_notes_preview or not self._wd_global_notes_alive():
+            return
+        sel = self._wd_notes_tree.selection()
+        if not sel:
+            content = ""
+        else:
+            item_id = sel[0]
+            bid = self._wd_notes_tree.set(item_id, "id")
+            entry = self._wd_get_note_entry(bid) or {}
+            content = entry.get("content", "")
+        self._wd_notes_preview.config(state="normal")
+        self._wd_notes_preview.delete("1.0", tk.END)
+        self._wd_notes_preview.insert("1.0", content)
+        self._wd_notes_preview.config(state="disabled")
+
+    def _wd_refresh_global_notes_view(self):
+        tree = getattr(self, "_wd_notes_tree", None)
+        if not tree or not self._wd_global_notes_alive():
+            return
+        try:
+            for iid in tree.get_children():
+                tree.delete(iid)
+        except tk.TclError:
+            return
+        notes = self.wikidich_notes if isinstance(self.wikidich_notes, dict) else {}
+        for bid, entry in notes.items():
+            if not isinstance(entry, dict):
+                continue
+            content = (entry.get("content") or "").strip()
+            if not content:
+                continue
+            title = entry.get("title") or ""
+            short = content.replace("\n", " ")
+            if len(short) > 120:
+                short = short[:117] + "..."
+            tree.insert("", "end", values=(bid, title, short))
+        # Clear preview if không có selection
+        self._wd_on_global_note_select()
+
+        def _wd_edit_global_note(self):
+            tree = getattr(self, "_wd_notes_tree", None)
+            if not tree:
+                return
+            sel = tree.selection()
+            if not sel:
+                messagebox.showinfo("Chưa chọn", "Chọn một ghi chú để xem/sửa.", parent=self)
+                return
+            bid = tree.set(sel[0], "id")
+            entry = self._wd_get_note_entry(bid) or {}
+            self._wd_open_note_editor(bid, title=entry.get("title", ""), initial_text=entry.get("content", ""), scope="global")
+
+        def _wd_delete_global_note(self):
+            tree = getattr(self, "_wd_notes_tree", None)
+            if not tree or not self._wd_global_notes_alive():
+                return
+            sel = tree.selection()
+            if not sel:
+                return
+            bid = tree.set(sel[0], "id")
+            parent = None
+            try:
+                if self._wd_global_notes_win and tk.Toplevel.winfo_exists(self._wd_global_notes_win):
+                    parent = self._wd_global_notes_win
+            except Exception:
+                parent = None
+            if messagebox.askyesno("Xóa ghi chú", f"Xóa ghi chú cho ID {bid}?", parent=parent or self):
+                self._wd_delete_note(bid)
+
+    # --- Liên kết toàn cục ---
+    def _wd_global_links_alive(self):
+        try:
+            return bool(self._wd_global_links_win) and bool(self._wd_global_links_win.winfo_exists())
+        except Exception:
+            return False
+
+    def _wd_open_global_links(self):
+        try:
+            if self._wd_global_links_win and tk.Toplevel.winfo_exists(self._wd_global_links_win):
+                self._wd_global_links_win.lift()
+                self._wd_refresh_global_links_view()
+                return
+        except Exception:
+            pass
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title("Liên kết thư mục (toàn cục)")
+        win.geometry("720x400")
+        win.transient(self)
+        self._wd_global_links_win = win
+        container = ttk.Frame(win, padding=10)
+        container.pack(fill="both", expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(1, weight=1)
+        ttk.Label(container, text="Danh sách liên kết theo ID truyện. Chọn một mục để đổi thư mục hoặc xóa.").grid(row=0, column=0, sticky="w")
+        tree = ttk.Treeview(container, columns=("id", "title", "path"), show="headings", selectmode="browse")
+        tree.heading("id", text="ID")
+        tree.heading("title", text="Tiêu đề")
+        tree.heading("path", text="Thư mục")
+        tree.column("id", width=160, anchor="w")
+        tree.column("title", width=220, anchor="w")
+        tree.column("path", width=320, anchor="w")
+        tree.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
+        tree.bind("<<TreeviewSelect>>", self._wd_on_global_link_select)
+        tree.bind("<Double-1>", lambda e: self._wd_edit_global_link())
+        self._wd_link_tree = tree
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.grid(row=1, column=1, sticky="ns", pady=(8, 0))
+        btns = ttk.Frame(container)
+        btns.grid(row=2, column=0, columnspan=2, sticky="e", pady=(10, 0))
+        ttk.Button(btns, text="Chọn thư mục...", command=self._wd_edit_global_link).pack(side=tk.RIGHT)
+        ttk.Button(btns, text="Mở thư mục", command=self._wd_open_link_folder).pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(btns, text="Xóa liên kết", command=self._wd_delete_global_link).pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(btns, text="Đóng", command=win.destroy).pack(side=tk.RIGHT, padx=(6, 0))
+        self._wd_refresh_global_links_view()
+
+    def _wd_refresh_global_links_view(self):
+        tree = getattr(self, "_wd_link_tree", None)
+        if not tree or not self._wd_global_links_alive():
+            return
+        for iid in tree.get_children():
+            tree.delete(iid)
+        links = self.wikidich_links if isinstance(self.wikidich_links, dict) else {}
+        for bid, path in links.items():
+            if not path:
+                continue
+            title = ""
+            try:
+                title = self.wikidich_data.get("books", {}).get(bid, {}).get("title", "")
+            except Exception:
+                title = ""
+            tree.insert("", "end", values=(bid, title, path))
+
+    def _wd_on_global_link_select(self, event=None):
+        # placeholder for future highlight/preview if cần
+        return
+
+    def _wd_edit_global_link(self):
+        tree = getattr(self, "_wd_link_tree", None)
+        if not tree or not self._wd_global_links_alive():
+            return
+        sel = tree.selection()
+        if not sel:
+            messagebox.showinfo("Chưa chọn", "Chọn một liên kết để thay đổi.", parent=self._wd_global_links_win or self)
+            return
+        bid = tree.set(sel[0], "id")
+        current = tree.set(sel[0], "path")
+        initial = current or self.app_config.get("folder_path") or BASE_DIR
+        path = filedialog.askdirectory(title=f"Chọn thư mục cho ID {bid}", initialdir=initial)
+        if not path:
+            return
+        self._wd_set_linked_folder(bid, path)
+        self._wd_refresh_global_links_view()
+        # nếu đang xem truyện này thì cập nhật UI
+        sel_book = getattr(self, "wd_selected_book", None)
+        if sel_book and sel_book.get("id") == bid:
+            self._wd_update_link_ui(sel_book)
+        self.log(f"[Wikidich] Cập nhật liên kết (global) cho {bid}: {path}")
+
+    def _wd_delete_global_link(self):
+        tree = getattr(self, "_wd_link_tree", None)
+        if not tree or not self._wd_global_links_alive():
+            return
+        sel = tree.selection()
+        if not sel:
+            return
+        bid = tree.set(sel[0], "id")
+        if messagebox.askyesno("Xóa liên kết", f"Xóa liên kết của ID {bid}?", parent=self._wd_global_links_win or self):
+            if isinstance(self.wikidich_links, dict):
+                self.wikidich_links.pop(bid, None)
+            # không đụng tới dữ liệu truyện; lưu config
+            self.save_config()
+            self._wd_refresh_global_links_view()
+            if getattr(self, "wd_selected_book", None) and self.wd_selected_book.get("id") == bid:
+                self._wd_update_link_ui(self.wd_selected_book)
+            self.log(f"[Wikidich] Đã xóa liên kết (global) cho {bid}")
+
+    def _wd_open_link_folder(self):
+        tree = getattr(self, "_wd_link_tree", None)
+        if not tree or not self._wd_global_links_alive():
+            return
+        sel = tree.selection()
+        if not sel:
+            return
+        path = tree.set(sel[0], "path")
+        if not path or not os.path.isdir(path):
+            messagebox.showinfo("Không tìm thấy thư mục", "Thư mục không tồn tại.", parent=self._wd_global_links_win or self)
+            return
+        try:
+            if sys.platform.startswith("win"):
+                os.startfile(path)
+            elif sys.platform.startswith("darwin"):
+                subprocess.Popen(["open", path])
+            else:
+                subprocess.Popen(["xdg-open", path])
+        except Exception as exc:
+            messagebox.showerror("Mở thư mục", f"Lỗi: {exc}", parent=self._wd_global_links_win or self)
+
+    # --- Danh sách chương ---
+    def _wd_set_chapter_status(self, text):
+        if self._wd_chapter_status:
+            self._wd_chapter_status.config(text=text or "")
+
+    def _wd_set_chapter_buttons_state(self, enabled: bool):
+        state = tk.NORMAL if enabled else tk.DISABLED
+        for btn in self._wd_chapter_buttons.values():
+            if btn:
+                btn.config(state=state)
+
+    def _wd_ensure_chapter_window(self, book_title=""):
+        try:
+            if self._wd_chapter_win and tk.Toplevel.winfo_exists(self._wd_chapter_win):
+                if hasattr(self, "_wd_chapter_book_label"):
+                    self._wd_chapter_book_label.config(text=book_title or self._wd_chapter_book_label.cget("text"))
+                return self._wd_chapter_win
+        except Exception:
+            pass
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title("Danh sách chương")
+        win.geometry("720x520")
+        win.transient(self)
+        win.columnconfigure(0, weight=1)
+        win.rowconfigure(2, weight=1)
+        win.protocol("WM_DELETE_WINDOW", self._wd_close_chapter_window)
+
+        header = ttk.Frame(win, padding=10)
+        header.grid(row=0, column=0, sticky="ew")
+        self._wd_chapter_book_label = ttk.Label(header, text=book_title or "Chưa chọn truyện", font=("Segoe UI", 11, "bold"))
+        self._wd_chapter_book_label.pack(anchor="w")
+        self._wd_chapter_status = ttk.Label(header, text="")
+        self._wd_chapter_status.pack(anchor="w", pady=(4, 0))
+
+        tree = ttk.Treeview(win, columns=("num", "title"), show="headings")
+        tree.heading("num", text="#")
+        tree.heading("title", text="Tiêu đề")
+        tree.column("num", width=70, anchor="w")
+        tree.column("title", width=520, anchor="w")
+        tree.grid(row=2, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        tree.bind("<<TreeviewSelect>>", self._wd_on_chapter_select)
+        tree.bind("<Double-1>", lambda e: self._wd_view_selected_chapter())
+        self._wd_chapter_tree = tree
+        scrollbar = ttk.Scrollbar(win, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.grid(row=2, column=1, sticky="ns", pady=(0, 10))
+
+        btn_frame = ttk.Frame(win, padding=(10, 0, 10, 10))
+        btn_frame.grid(row=3, column=0, columnspan=2, sticky="e")
+        view_btn = ttk.Button(btn_frame, text="Xem", command=self._wd_view_selected_chapter, state=tk.DISABLED)
+        edit_btn = ttk.Button(btn_frame, text="Sửa", command=self._wd_edit_selected_chapter, state=tk.DISABLED)
+        refresh_btn = ttk.Button(btn_frame, text="Tải lại", command=self._wd_open_chapter_list)
+        close_btn = ttk.Button(btn_frame, text="Đóng", command=self._wd_close_chapter_window)
+        view_btn.pack(side=tk.RIGHT)
+        edit_btn.pack(side=tk.RIGHT, padx=(6, 0))
+        refresh_btn.pack(side=tk.RIGHT, padx=(6, 0))
+        close_btn.pack(side=tk.RIGHT, padx=(6, 0))
+        self._wd_chapter_buttons = {"view": view_btn, "edit": edit_btn, "refresh": refresh_btn}
+        self._wd_chapter_win = win
+        self._wd_set_chapter_buttons_state(False)
+        return win
+
+    def _wd_open_chapter_list(self):
+        book = getattr(self, "wd_selected_book", None)
+        if not book or not book.get("id"):
+            messagebox.showinfo("Chưa chọn truyện", "Vui lòng chọn một truyện trước.", parent=self)
+            return
+        title = book.get("title", book.get("id"))
+        self._wd_ensure_chapter_window(title)
+        self._wd_set_chapter_status("Đang tải danh sách chương...")
+        self._wd_set_chapter_buttons_state(False)
+        threading.Thread(target=self._wd_fetch_chapter_list_worker, args=(book,), daemon=True).start()
+
+    def _wd_render_chapter_list(self, chapters: list, book_title: str):
+        tree = getattr(self, "_wd_chapter_tree", None)
+        if not tree:
+            return
+        for iid in tree.get_children():
+            tree.delete(iid)
+        self._wd_chapter_data = []
+        for idx, ch in enumerate(chapters):
+            iid = f"ch{idx}"
+            tree.insert("", "end", iid=iid, values=(ch.get("number"), ch.get("title", "")))
+            self._wd_chapter_data.append((iid, ch))
+        if hasattr(self, "_wd_chapter_book_label"):
+            self._wd_chapter_book_label.config(text=book_title or self._wd_chapter_book_label.cget("text"))
+        self._wd_set_chapter_status(f"Đã tải {len(chapters)} chương.")
+        self._wd_set_chapter_buttons_state(bool(chapters))
+
+    def _wd_on_chapter_select(self, event=None):
+        tree = getattr(self, "_wd_chapter_tree", None)
+        if not tree:
+            return
+        sel = tree.selection()
+        has = bool(sel)
+        if self._wd_chapter_buttons.get("view"):
+            self._wd_chapter_buttons["view"].config(state=tk.NORMAL if has else tk.DISABLED)
+        if self._wd_chapter_buttons.get("edit"):
+            self._wd_chapter_buttons["edit"].config(state=tk.NORMAL if has else tk.DISABLED)
+
+    def _wd_close_chapter_window(self):
+        try:
+            if self._wd_chapter_win and tk.Toplevel.winfo_exists(self._wd_chapter_win):
+                self._wd_chapter_win.destroy()
+        except Exception:
+            pass
+        self._wd_chapter_win = None
+        self._wd_chapter_tree = None
+        self._wd_chapter_status = None
+        self._wd_chapter_data = []
+        self._wd_chapter_buttons = {}
+
+    def _wd_get_selected_chapter(self):
+        tree = getattr(self, "_wd_chapter_tree", None)
+        if not tree:
+            return None
+        sel = tree.selection()
+        if not sel:
+            return None
+        iid = sel[0]
+        for stored_iid, ch in self._wd_chapter_data:
+            if stored_iid == iid:
+                return ch
+        return None
+
+    def _wd_fetch_chapter_list_worker(self, book: dict):
+        session, current_user, proxies = self._wd_build_wiki_session(include_user=True)
+        if not session:
+            self.after(0, lambda: self._wd_set_chapter_status("Không đọc được cookie Wikidich."))
+            return
+        try:
+            updated, chapters = wikidich_ext.fetch_book_chapters(
+                session,
+                {**book, "url": self._wd_normalize_url_for_site(book.get("url", ""))},
+                current_user or "",
+                base_url=self._wd_get_base_url(),
+                proxies=proxies
+            )
+            bid = book.get("id")
+            if bid:
+                self.wikidich_data['books'][bid] = updated
+            # Cập nhật UI chi tiết nếu vẫn đang chọn truyện này
+            def _apply():
+                sel = getattr(self, "wd_selected_book", None)
+                if sel and sel.get("id") == bid:
+                    self._wd_show_detail(updated)
+                # Làm mới bảng danh sách để phản ánh chi tiết mới
+                if hasattr(self, "wikidich_filtered"):
+                    self._wd_refresh_tree(getattr(self, "wikidich_filtered", []))
+                    if bid and hasattr(self, "wd_tree"):
+                        for item_id, stored_bid in getattr(self, "_wd_tree_index", {}).items():
+                            if stored_bid == bid:
+                                try:
+                                    self.wd_tree.selection_set(item_id)
+                                    self.wd_tree.see(item_id)
+                                except Exception:
+                                    pass
+                                break
+                self._wd_render_chapter_list(chapters, updated.get("title", bid))
+                self._wd_update_delete_button_state()
+                self._wd_save_cache()
+            self.after(0, _apply)
+        except Exception as exc:
+            self.log(f"[Wikidich] Lỗi tải danh sách chương: {exc}")
+            self.after(0, lambda: self._wd_set_chapter_status(f"Lỗi: {exc}"))
+
+    def _wd_view_selected_chapter(self):
+        chapter = self._wd_get_selected_chapter()
+        if not chapter:
+            messagebox.showinfo("Chưa chọn chương", "Chọn một chương trước.", parent=self._wd_chapter_win or self)
+            return
+        self._wd_set_chapter_status(f"Đang tải nội dung chương {chapter.get('number') or ''}...")
+        self._wd_set_chapter_buttons_state(False)
+        threading.Thread(target=self._wd_fetch_chapter_content_worker, args=(chapter,), daemon=True).start()
+
+    def _wd_fetch_chapter_content_worker(self, chapter: dict):
+        session, _user, proxies = self._wd_build_wiki_session(include_user=False)
+        if not session:
+            self.after(0, lambda: self._wd_set_chapter_status("Không đọc được cookie để tải nội dung chương."))
+            return
+        try:
+            content = wikidich_ext.fetch_chapter_content(
+                session,
+                self._wd_normalize_url_for_site(chapter.get("url", "")),
+                base_url=self._wd_get_base_url(),
+                proxies=proxies
+            )
+            text = content.get("text", "")
+            html = content.get("html", "")
+            self.after(0, lambda: self._wd_show_chapter_content(chapter, text, html))
+        except Exception as exc:
+            self.log(f"[Wikidich] Lỗi tải nội dung chương: {exc}")
+            self.after(0, lambda: self._wd_set_chapter_status(f"Lỗi: {exc}"))
+        finally:
+            self.after(0, lambda: self._wd_set_chapter_buttons_state(True))
+
+    def _wd_show_chapter_content(self, chapter: dict, text: str, html: str):
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        num = chapter.get("number")
+        win.title(f"Chương {num} - {chapter.get('title', '')}")
+        win.geometry("720x520")
+        frame = ttk.Frame(win, padding=10)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text=f"{chapter.get('title', '')}").pack(anchor="w")
+        txt = scrolledtext.ScrolledText(frame, wrap=tk.WORD)
+        txt.pack(fill="both", expand=True, pady=(8, 0))
+        txt.insert("1.0", text or html or "(Không có nội dung)")
+        txt.config(state="disabled")
+
+    def _wd_edit_selected_chapter(self):
+        chapter = self._wd_get_selected_chapter()
+        if not chapter:
+            messagebox.showinfo("Chưa chọn chương", "Chọn một chương trước.", parent=self._wd_chapter_win or self)
+            return
+        url = (self._wd_normalize_url_for_site(chapter.get("url")) or "").split("#")[0]
+        if not url:
+            return
+        edit_url = url.rstrip("/") + "/chinh-sua"
+        self._wd_open_edit_modal(chapter, edit_url)
+
+    def _wd_open_edit_modal(self, chapter: dict, edit_url: str):
+        session, _user, proxies = self._wd_build_wiki_session(include_user=False)
+        if not session:
+            messagebox.showinfo("Thiếu cookie", "Hãy mở trình duyệt tích hợp và đăng nhập Wikidich trước khi sửa chương.", parent=self._wd_chapter_win or self)
+            return
+        edit_url = self._wd_normalize_url_for_site(edit_url)
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        num = chapter.get("number")
+        win.title(f"Sửa chương {num}")
+        win.geometry("720x520")
+        win.transient(self)
+        win.columnconfigure(0, weight=1)
+        win.rowconfigure(2, weight=1)
+
+        header = ttk.Frame(win, padding=10)
+        header.grid(row=0, column=0, sticky="ew")
+        ttk.Label(header, text=f"Chương: {num} - {chapter.get('title', '')}", font=("Segoe UI", 11, "bold")).pack(anchor="w")
+        status_lbl = ttk.Label(header, text="Đang tải nội dung...")
+        status_lbl.pack(anchor="w", pady=(4, 0))
+
+        form = ttk.Frame(win, padding=(10, 0, 10, 0))
+        form.grid(row=1, column=0, sticky="ew")
+        form.columnconfigure(1, weight=1)
+        ttk.Label(form, text="Tên (CN):").grid(row=0, column=0, sticky="w")
+        name_var = tk.StringVar()
+        name_entry = ttk.Entry(form, textvariable=name_var)
+        name_entry.grid(row=0, column=1, sticky="ew", padx=(6, 0))
+
+        content_frame = ttk.Frame(win, padding=10)
+        content_frame.grid(row=2, column=0, sticky="nsew")
+        content_frame.rowconfigure(0, weight=1)
+        content_frame.columnconfigure(0, weight=1)
+        content_text = scrolledtext.ScrolledText(content_frame, wrap=tk.WORD)
+        content_text.grid(row=0, column=0, sticky="nsew")
+
+        btn_frame = ttk.Frame(win, padding=10)
+        btn_frame.grid(row=3, column=0, sticky="e")
+        save_btn = ttk.Button(btn_frame, text="Lưu", state=tk.DISABLED)
+        close_btn = ttk.Button(btn_frame, text="Đóng", command=win.destroy)
+        save_btn.pack(side=tk.RIGHT)
+        close_btn.pack(side=tk.RIGHT, padx=(6, 0))
+
+        def _fill(data: dict):
+            if not win.winfo_exists():
+                return
+            name_var.set(data.get("name_cn", ""))
+            content_text.delete("1.0", tk.END)
+            content_text.insert("1.0", data.get("content_cn", ""))
+            save_btn.config(state=tk.NORMAL)
+            status_lbl.config(text="Đã tải. Sửa và bấm Lưu để cập nhật.")
+            try:
+                name_entry.focus_set()
+            except Exception:
+                pass
+
+        def _load_error(msg):
+            if not win.winfo_exists():
+                return
+            status_lbl.config(text=msg)
+            save_btn.config(state=tk.DISABLED)
+
+        def _save_done(ok: bool, msg: str):
+            if not win.winfo_exists():
+                return
+            save_btn.config(state=tk.NORMAL)
+            status_lbl.config(text=msg)
+            if ok:
+                messagebox.showinfo("Đã lưu", "Lưu chương thành công.", parent=win)
+
+        def _do_load():
+            try:
+                data = wikidich_ext.fetch_chapter_edit(session, edit_url, proxies=proxies)
+                self.after(0, lambda: _fill(data))
+            except Exception as exc:
+                self.after(0, lambda: _load_error(f"Lỗi tải form: {exc}"))
+
+        def _do_save():
+            save_btn.config(state=tk.DISABLED)
+            status_lbl.config(text="Đang lưu...")
+            name = name_var.get()
+            content = content_text.get("1.0", tk.END)
+            def _worker():
+                try:
+                    wikidich_ext.save_chapter_edit(session, edit_url, name, content, proxies=proxies)
+                    self.after(0, lambda: _save_done(True, "Đã lưu thành công."))
+                except Exception as exc:
+                    self.after(0, lambda: _save_done(False, f"Lỗi lưu: {exc}"))
+            threading.Thread(target=_worker, daemon=True).start()
+
+        save_btn.config(command=_do_save)
+        threading.Thread(target=_do_load, daemon=True).start()
+
+    # --- Liên kết thư mục + tự chọn ---
+    def _wd_change_auto_mode(self, mode: str):
+        if mode not in ("extract_then_pick", "pick_latest"):
+            mode = "extract_then_pick"
+        self.wikidich_auto_pick_mode = mode
+        if hasattr(self, "wd_auto_mode_var"):
+            label = self._wd_mode_labels.get(mode, mode) if hasattr(self, "_wd_mode_labels") else mode
+            self.wd_auto_mode_var.set(label)
+        self.save_config()
+
+    def _wd_get_linked_folder(self, book=None) -> str:
+        book = book or getattr(self, "wd_selected_book", None)
+        bid = (book or {}).get("id")
+        if bid and isinstance(self.wikidich_links, dict):
+            val = self.wikidich_links.get(bid)
+            if val:
+                return val
+        return (book or {}).get("linked_folder", "") or ""
+
+    def _wd_set_linked_folder(self, book_id: str, path: str):
+        if not book_id:
+            return
+        if not isinstance(self.wikidich_links, dict):
+            self.wikidich_links = {}
+        self.wikidich_links[book_id] = path
+        # Ghi vào book hiện tại (runtime) để hiển thị tức thời, nhưng lưu chính ở config
+        books = self.wikidich_data.get("books", {})
+        if isinstance(books, dict) and book_id in books:
+            books[book_id]["linked_folder"] = path
+        self._wd_save_cache()
+        self.save_config()
+
+    def _wd_update_link_ui(self, book=None):
+        path = self._wd_get_linked_folder(book)
+        if hasattr(self, "wd_link_path_var"):
+            self.wd_link_path_var.set(path if path else "Chưa liên kết")
+        if hasattr(self, "wd_auto_pick_btn"):
+            self.wd_auto_pick_btn.config(state=tk.NORMAL if path else tk.DISABLED)
+
+    def _wd_choose_link_folder(self):
+        book = getattr(self, "wd_selected_book", None)
+        if not book or not book.get("id"):
+            messagebox.showinfo("Chưa chọn truyện", "Chọn một truyện trước.", parent=self)
+            return
+        initial = self._wd_get_linked_folder(book) or self.app_config.get("folder_path") or BASE_DIR
+        path = filedialog.askdirectory(title="Chọn thư mục liên kết", initialdir=initial)
+        if not path:
+            return
+        self._wd_set_linked_folder(book.get("id"), path)
+        self._wd_update_link_ui(book)
+        self.log(f"[Wikidich] Liên kết truyện '{book.get('title', book.get('id'))}' với thư mục: {path}")
+        self._wd_refresh_global_links_view()
+
+    def _wd_auto_pick_linked(self):
+        book = getattr(self, "wd_selected_book", None)
+        if not book or not book.get("id"):
+            messagebox.showinfo("Chưa chọn truyện", "Chọn một truyện trước.", parent=self)
+            return
+        link_path = self._wd_get_linked_folder(book)
+        if not link_path or not os.path.isdir(link_path):
+            messagebox.showinfo("Chưa liên kết", "Thiếu thư mục liên kết hoặc thư mục không tồn tại.", parent=self)
+            return
+        mode = getattr(self, "wikidich_auto_pick_mode", "extract_then_pick")
+        if hasattr(self, "wd_auto_pick_btn"):
+            self.wd_auto_pick_btn.config(state=tk.DISABLED)
+        self.log(f"[Wikidich] Tự chọn từ liên kết ({mode}) cho '{book.get('title', book.get('id'))}'...")
+
+        def _worker():
+            try:
+                target_dir = None
+                if mode == "extract_then_pick":
+                    target_dir = self._wd_extract_latest_archive(link_path)
+                else:
+                    target_dir = self._wd_pick_latest_subdir(link_path)
+                if not target_dir:
+                    raise ValueError("Không tìm thấy thư mục phù hợp.")
+                msg = f"Đã chọn thư mục: {target_dir}"
+                self.after(0, lambda: self._wd_apply_auto_pick_result(target_dir, msg))
+            except Exception as exc:
+                self.log(f"[Wikidich] Lỗi tự chọn: {exc}")
+                self.after(0, lambda: messagebox.showerror("Chọn tự động", f"Lỗi: {exc}", parent=self))
+            finally:
+                self.after(0, lambda: self.wd_auto_pick_btn.config(state=tk.NORMAL))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _wd_extract_latest_archive(self, link_path: str) -> str:
+        # Lấy file nén mới nhất
+        exts = {".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz"}
+        candidates = []
+        for name in os.listdir(link_path):
+            full = os.path.join(link_path, name)
+            if os.path.isfile(full) and os.path.splitext(name)[1].lower() in exts:
+                candidates.append((os.path.getmtime(full), full))
+        if not candidates:
+            raise ValueError("Không tìm thấy file nén phù hợp trong thư mục liên kết.")
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        archive_path = candidates[0][1]
+        # Tìm số thư mục kế tiếp
+        max_idx = 0
+        for name in os.listdir(link_path):
+            full = os.path.join(link_path, name)
+            if os.path.isdir(full) and name.isdigit():
+                try:
+                    max_idx = max(max_idx, int(name))
+                except Exception:
+                    pass
+        next_num = max_idx + 1 if max_idx >= 0 else 1
+        while True:
+            next_dir = os.path.join(link_path, str(next_num))
+            if not os.path.exists(next_dir):
+                break
+            next_num += 1
+        try:
+            self._extract_archive_to(archive_path, next_dir)
+        except Exception as exc:
+            raise RuntimeError(f"Lỗi giải nén: {exc}")
+        return next_dir
+
+    def _wd_pick_latest_subdir(self, link_path: str) -> str:
+        dirs = []
+        for name in os.listdir(link_path):
+            full = os.path.join(link_path, name)
+            if os.path.isdir(full):
+                dirs.append((os.path.getmtime(full), full))
+        if not dirs:
+            raise ValueError("Không tìm thấy thư mục con trong liên kết.")
+        dirs.sort(key=lambda x: x[0], reverse=True)
+        return dirs[0][1]
+
+    def _wd_apply_auto_pick_result(self, target_dir: str, message: str):
+        self.folder_path.set(target_dir)
+        self.log(f"[Wikidich] {message}")
+        messagebox.showinfo("Chọn tự động", f"{message}\nSẽ chuyển sang tab Đổi Tên.", parent=self)
+        self.schedule_preview_update(None)
+        self._select_tab_by_name("Đổi Tên")
+
 
     def _wd_open_update_dialog(self):
         selected = getattr(self, "wd_selected_book", None)
@@ -7262,14 +8359,10 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         def worker():
             try:
-                import patoolib
                 self.log(f"[Giải nén] Bắt đầu giải nén '{os.path.basename(archive_path)}'...")
-                patoolib.extract_archive(archive_path, outdir=dest_path)
+                self._extract_archive_to(archive_path, dest_path)
                 self.log(f"[Giải nén] Hoàn tất! Đã giải nén vào: {dest_path}")
                 self.after(0, lambda: messagebox.showinfo("Thành công", "Đã giải nén file thành công!"))
-            except ImportError:
-                self.log("[Lỗi] Thư viện 'patoolib' chưa được cài đặt.")
-                self.after(0, lambda: messagebox.showerror("Lỗi", "Vui lòng cài đặt thư viện 'patoolib' để sử dụng tính năng này.\nChạy lệnh: pip install patoolib"))
             except Exception as e:
                 self.log(f"[Lỗi giải nén] {e}")
                 self.after(0, lambda: messagebox.showerror("Lỗi", f"Giải nén thất bại: {e}"))

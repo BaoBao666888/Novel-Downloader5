@@ -1,29 +1,27 @@
-<h1>Phiên bản 0.2.2.1 — Thêm Koanchay, giữ thứ tự Works, cải thiện cập nhật</h1>
-0.2.2.1 mở rộng hỗ trợ Koanchay, kiểm soát thứ tự Works và thao tác xóa/cập nhật rõ ràng hơn.
+<h1>Phiên bản 0.2.3 — Ghi chú, DS Chương, Liên kết tự động</h1>
+0.2.3 bổ sung ghi chú cục bộ/toàn cục, danh sách chương và chỉnh sửa nội dung trực tiếp trong app, cùng cơ chế liên kết thư mục + chọn tự động phục vụ đổi tên.
 
 <h2>Điểm mới nổi bật</h2>
 
- - <b>Tab Koanchay</b>: giao diện tương tự Wikidich, chuyển nhanh bằng nút/tab riêng; label tài khoản đổi màu hồng để phân biệt; xử lý Cloudflare (tạm dừng, mở trình duyệt tích hợp để bạn vượt rồi tiếp tục).
-- <b>Tab Koanchay tách riêng</b>: mặc định ẩn, bấm nút để mở tab Koanchay cạnh Wikidich, dữ liệu/filters/cache tách biệt để tránh lẫn.
-- <b>Giữ thứ tự Works</b>: lấy tổng/truyện mới nhất từ trang đầu, đối chiếu với local trước khi tải; hỗ trợ các tình huống thêm/xóa/đổi thứ tự với lựa chọn tải lại, giữ chi tiết cũ, hoặc tự quét diff.
-- <b>Nút Xóa truyện</b>: nằm cạnh “Cập nhật chương”, chỉ xóa local khi trang truyện 404/“Truyện không tồn tại”.
-- <b>Khay hệ thống</b>: icon khay chuẩn hóa (ico/png từ thư mục icons), resize nhỏ để tránh lỗi icon_data rỗng; double‑click/left click icon khay để mở lại app nhanh, menu có sẵn “Mở cửa sổ”/“Thoát”.
-- <b>Icon cửa sổ</b>: áp icon thống nhất cho cửa sổ chính, trình duyệt Qt, dialog cập nhật; dialog con dùng thủ thuật gán icon sau khi rút gọn/hiện lại để giảm nháy.
-- <b>Dialog mượt hơn</b>: giảm hiện tượng pop‑up cửa sổ nhỏ trước khi mở dialog (proxy, sửa/gợi ý tên, date picker…) bằng cách đặt icon an toàn, tránh nháy.
-- <b>Single-instance</b>: bấm exe nhiều lần (kể cả đang ẩn khay) chỉ kích hoạt lại app đang chạy, không mở thêm instance.
-- <b>Dọn tạm</b>: thoát app sẽ dọn thư mục tạm _MEI* (trường hợp onefile) để tránh rác chiếm dung lượng khi lỗi.
-- <b>Đóng gói icon gọn</b>: giữ icon.ico/icon.png ở root/icons, spec/installer copy icons chuẩn, tránh nhầm icon cũ.
+  - <b>Ghi chú Wikidich</b>: nút Ghi chú toàn cục và cục bộ; cục bộ gắn với ID truyện nhưng vẫn lưu trong danh sách toàn cục; lưu ngay vào config.
+  - <b>DS Chương</b>: nút DS Chương mở cửa sổ tải danh sách chương mới nhất (đồng thời cập nhật chi tiết truyện), cho phép xem nội dung (gộp các phần) và chỉnh sửa trực tiếp nội dung chương trong app (PUT lên server, dùng cookie sẵn có).
+  - <b>Liên kết thư mục</b>: khu Liên kết dưới bìa truyện để chọn thư mục liên kết; nút “Chọn tự động” với 2 chế độ tiếng Việt: “Giải nén rồi chọn” (tự giải nén file nén mới nhất vào thư mục số kế tiếp) hoặc “Chọn thư mục mới nhất”. Liên kết lưu vào config (dù xóa truyện vẫn giữ) và có cửa sổ quản lý Liên kết toàn cục.
+  - <b>Header Wikidich</b>: thêm nút Liên kết toàn cục cạnh Ghi chú/Cài đặt; thanh cuộn danh sách truyện luôn hiển thị.
+  - <b>Khởi động ẩn & Ảnh nền</b>: đọc/ghi config theo đường dẫn tuyệt đối (BASE_DIR) và chuẩn hóa đường dẫn ảnh nền (hỗ trợ backslash) để khởi động ẩn/ảnh nền hoạt động khi chạy từ Startup/Task Scheduler.
+  - <b>Xem trước + Đổi tên thủ công</b>: double-click một dòng trong tab Đổi Tên sẽ mở cửa sổ xem nhanh nội dung file kèm nút “Đổi tên”; có thể sửa tên file thủ công, lưu là refresh lại bảng đổi tên.
 
-  
+
 <h2>Sửa lỗi & tối ưu</h2>
 
- - Sửa lỗi xóa truyện vừa đồng bộ về về.
- - Xử lý Cloudflare (Koanchay): tạm dừng và hướng dẫn vượt qua bằng trình duyệt tích hợp.
- - Mượn header/cookie trực tiếp từ trình duyệt tích hợp (Qt) cho Wikidich/Koanchay, bỏ cấu hình User-Agent thủ công; thêm header đầy đủ (sec-ch-ua, priority…) để qua Cloudflare ổn định hơn.
- - Koanchay dùng cache/cookie riêng, lấy đúng miền koanchay.org/koanchay.net.
- - Đối chiếu Works thông minh, tránh xáo trộn thứ tự; kiểm tra tổng số truyện, truyện neo và số truyện bị thêm/xóa.
- - Cập nhật hướng dẫn Wikidich/Koanchay (link hỗ trợ, cách thêm link bổ sung, chế độ mở link).
- - Reset thanh tiến độ về trạng thái ẩn sau tác vụ; giữ dữ liệu chi tiết nếu người dùng chọn.
+  - Giảm log trùng khi tự chọn liên kết; không crash khi cửa sổ ghi chú toàn cục đóng.
+  - Bố cục Liên kết/Văn án không chồng lấn; các nút modal không che UI chính.
+  - Cập nhật số chương khi tải DS Chương; refresh bảng truyện giữ selection.
+
+
+<h2>Ghi chú</h2>
+
+  - Yêu cầu cookie Wikidich hợp lệ để tải/sửa nội dung chương.
+  - Giải nén dùng thư viện chuẩn; file .7z/.rar cần có sẵn 7-Zip (lệnh 7z/7za trong PATH).
 
 
 <h2>Hướng dẫn cập nhật</h2>

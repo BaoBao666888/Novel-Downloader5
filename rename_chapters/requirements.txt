@@ -7,6 +7,5 @@ packaging
 pywin32
 pystray
 pyinstaller
-patool
 PyQt6
 PyQt6-WebEngine
