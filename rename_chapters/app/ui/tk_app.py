@@ -414,7 +414,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.3')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.3.1')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -522,6 +522,7 @@ class RenamerApp(tk.Tk):
         wd_cfg = self.app_config.get('wikidich', {})
         self.wikidich_cache_path = wd_cfg.get('cache_path', os.path.join(BASE_DIR, "local", "wikidich_cache.json"))
         self.wikidich_filters = dict(wd_cfg.get('advanced_filter', {}))
+        self.wikidich_filters.setdefault('extraLinkSearch', '')
         self.wikidich_open_mode = wd_cfg.get('open_mode', 'in_app')
         self.wikidich_auto_pick_mode = wd_cfg.get('auto_pick_mode', 'extract_then_pick')
         self.wikidich_links = dict(self.app_config.get('wikidich_links', {}))
@@ -585,12 +586,13 @@ class RenamerApp(tk.Tk):
             'wikidich': {
                 'cache_path': os.path.join(BASE_DIR, "local", "wikidich_cache.json"),
                 'advanced_filter': {
-                    'status': 'all',
-                    'search': '',
-                    'summarySearch': '',
-                    'categories': [],
-                    'roles': [],
-                    'flags': [],
+                'status': 'all',
+                'search': '',
+                'summarySearch': '',
+                'extraLinkSearch': '',
+                'categories': [],
+                'roles': [],
+                'flags': [],
                     'fromDate': '',
                     'toDate': '',
                     'sortBy': 'recent'
@@ -1855,6 +1857,8 @@ class RenamerApp(tk.Tk):
             if hasattr(self, "wd_search_var"):
                 self.wd_search_var.set(self.wikidich_filters.get('search', ''))
                 self.wd_summary_var.set(self.wikidich_filters.get('summarySearch', ''))
+                if hasattr(self, "wd_extra_link_var"):
+                    self.wd_extra_link_var.set(self.wikidich_filters.get('extraLinkSearch', ''))
                 self.wd_status_var.set(self.wikidich_filters.get('status', 'all'))
                 self._wd_set_sort_label_from_value(self.wikidich_filters.get('sortBy', 'recent'))
             self._wd_sync_filter_controls_from_filters()
@@ -2488,9 +2492,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         wikidich_guide = """
         --- WIKIDICH / KOANCHAY ---
         - **Tải Works / Tải chi tiết**: dùng cookie trình duyệt; Cài đặt proxy/header trong **Cài đặt**. Bộ lọc cơ bản + nâng cao (ngày, thể loại, vai trò, thuộc tính Nhúng link/file). Tab Koanchay dùng đúng domain koanchay.org/net tự động.
-        - **DS Chương**: tải danh sách chương mới nhất (đồng thời cập nhật chi tiết/số chương), xem nội dung gộp các phần, chỉnh sửa nội dung ngay trong app (PUT lên server bằng cookie sẵn có). Koanchay tự dùng domain koanchay.
+        - **Lọc cơ bản**: Tên/Tác giả, Văn án, Link bổ sung; trạng thái và sắp xếp. Dòng ticker dưới “Hiện lọc nâng cao” hiển thị trạng thái lọc, tự chạy chữ khi dài.
+        - **Lọc nâng cao**: ngày cập nhật, thể loại, vai trò, thuộc tính Nhúng link/file; có nút Đặt lại.
+        - **DS Chương**: tải danh sách chương mới nhất (đồng thời cập nhật chi tiết/số chương), xem nội dung gộp các phần, chỉnh sửa nội dung ngay trong app (PUT lên server bằng cookie sẵn có). Koanchay tự dùng domain koanchay; khi tải DS Chương sẽ tự trừ cột New theo số chương mới.
         - **Ghi chú**: Ghi chú cục bộ (gắn ID truyện) và Ghi chú toàn cục; lưu ngay vào config, giữ cả khi xóa truyện. Ghi chú toàn cục có danh sách quản lý, cho xem/sửa/xóa.
-        - **Liên kết thư mục**: Liên kết per-truyện và quản lý Liên kết toàn cục (lưu trong config, độc lập cache). Nút “Chọn tự động” với 2 chế độ: “Giải nén rồi chọn” (lấy file nén mới nhất -> giải nén vào thư mục số kế tiếp) hoặc “Chọn thư mục mới nhất” (lấy thư mục con mới tạo). Log kết quả và tự chuyển sang tab Đổi Tên.
+        - **Liên kết thư mục**: Liên kết per-truyện và quản lý Liên kết toàn cục (lưu trong config, độc lập cache). Nút “Chọn tự động” với 2 chế độ: “Giải nén rồi chọn” (lấy file nén mới nhất -> giải nén vào thư mục số kế tiếp) hoặc “Chọn thư mục mới nhất”; có nút “Mở thư mục...” để mở nhanh thư mục liên kết; nút chuyển Koanchay/Wikidich nằm mép phải.
         - **Thêm link hỗ trợ**: mở trang sửa truyện -> thêm link đúng mẫu (Fanqie https://fanqienovel.com/page/123456 hoặc /book/123456; JJWXC https://www.jjwxc.net/onebook.php?novelid=123456; PO18 https://www.po18.tw/books/123456; Qidian https://www.qidian.com/book/1037076300/; Ihuaben https://www.ihuaben.com/book/9219715.html) rồi tải chi tiết / kiểm tra cập nhật.
         - **Cập nhật chương**: nút chỉ sáng khi có “New”; nhập số để cộng tổng chương và trừ cột “New”. Sai lệch có thể tải lại chi tiết/DS Chương để đồng bộ.
         - **Mở link/Trang truyện**: double‑click link bổ sung hoặc bấm “Mở trang truyện”. Chế độ mở (Trình duyệt tích hợp / ngoài) chọn trong **Cài đặt**.
@@ -2890,7 +2896,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         header = ttk.Frame(tab)
         header.grid(row=0, column=0, sticky="ew")
-        header.columnconfigure(7, weight=1)
+        header.columnconfigure(6, weight=1)
         self.wd_user_label = ttk.Label(header, text="Chưa kiểm tra đăng nhập")
         self.wd_user_label.grid(row=0, column=0, sticky="w")
         ttk.Button(header, text="Tải Works", command=self._wd_start_fetch_works).grid(row=0, column=1, padx=(10, 0))
@@ -2899,9 +2905,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Button(header, text="Liên kết", command=self._wd_open_global_links).grid(row=0, column=4, padx=(6, 0))
         ttk.Button(header, text="Cài đặt", command=self._open_api_settings_dialog).grid(row=0, column=5, padx=(6, 0))
         header_spacer = ttk.Frame(header)
-        header_spacer.grid(row=0, column=7, sticky="ew")
+        header_spacer.grid(row=0, column=6, sticky="ew")
         self.wd_site_button = ttk.Button(header, text=other_site.capitalize(), command=lambda s=other_site: self._wd_switch_site(s))
-        self.wd_site_button.grid(row=0, column=6, padx=(12, 0))
+        self.wd_site_button.grid(row=0, column=7, padx=(12, 0))
 
         progress_frame = ttk.Frame(tab)
         progress_frame.grid(row=1, column=0, sticky="ew", pady=(6, 4))
@@ -2942,19 +2948,31 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Combobox(filter_frame, state="readonly", textvariable=self.wd_sort_label_var,
                      values=[label for _, label in WD_SORT_OPTIONS], width=18).grid(row=1, column=3, sticky="w", pady=(6, 0))
 
+        ttk.Label(filter_frame, text="Link bổ sung:").grid(row=2, column=0, sticky="w", pady=(6, 0))
+        self.wd_extra_link_var = tk.StringVar(value=self.wikidich_filters.get('extraLinkSearch', ''))
+        ttk.Entry(filter_frame, textvariable=self.wd_extra_link_var).grid(row=2, column=1, columnspan=3, sticky="ew", padx=(4, 10), pady=(6, 0))
+
         action_frame = ttk.Frame(filter_frame)
-        action_frame.grid(row=0, column=5, rowspan=3, sticky="ne", padx=(10, 0))
+        action_frame.grid(row=0, column=5, rowspan=4, sticky="ne", padx=(10, 0))
         ttk.Button(action_frame, text="Áp dụng", command=self._wd_apply_filters).pack(fill=tk.X)
         ttk.Button(action_frame, text="Kiểm tra cập nhật", command=self._wd_prompt_check_updates).pack(fill=tk.X, pady=(6, 0))
         self.wd_adv_toggle_btn = ttk.Button(action_frame, text="Hiện lọc nâng cao", command=self._wd_toggle_advanced_section)
         self.wd_adv_toggle_btn.pack(fill=tk.X, pady=(10, 0))
-
-        status_info_frame = ttk.Frame(filter_frame)
-        status_info_frame.grid(row=1, column=4, sticky="nw", padx=(10, 0))
         self.wd_basic_status_var = tk.StringVar(value="")
         self.wd_adv_status_var = tk.StringVar(value="")
-        ttk.Label(status_info_frame, textvariable=self.wd_basic_status_var, foreground="#34d399").pack(anchor="w")
-        ttk.Label(status_info_frame, textvariable=self.wd_adv_status_var, foreground="#fbbf24").pack(anchor="w", pady=(2, 0))
+        self.wd_status_ticker_var = tk.StringVar(value="")
+        self._wd_status_ticker_window = 60
+        self._wd_status_ticker_job = None
+        self._wd_status_ticker_index = 0
+        self._wd_status_ticker_delay = 80
+        ticker_label = ttk.Label(
+            action_frame,
+            textvariable=self.wd_status_ticker_var,
+            width=36,
+            anchor="w",
+            foreground="#16a34a"
+        )
+        ticker_label.pack(fill=tk.X, pady=(10, 0))
 
         flag_labels = {
             "embedLink": "Có nhúng link",
@@ -3135,6 +3153,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Button(btn_row, text="Liên kết", command=self._wd_choose_link_folder).pack(side=tk.LEFT)
         self.wd_auto_pick_btn = ttk.Button(btn_row, text="Chọn tự động", command=self._wd_auto_pick_linked, state=tk.DISABLED)
         self.wd_auto_pick_btn.pack(side=tk.LEFT, padx=(6, 0))
+        self.wd_open_link_btn = ttk.Button(btn_row, text="Mở thư mục...", command=self._wd_open_current_linked_folder, state=tk.DISABLED)
+        self.wd_open_link_btn.pack(side=tk.LEFT, padx=(6, 0))
         mode_frame = ttk.Frame(link_frame)
         mode_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(6, 0))
         mode_frame.columnconfigure(1, weight=1)
@@ -5943,6 +5963,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     def _wd_collect_advanced_filter_values(self):
         if not hasattr(self, "wd_flag_vars"):
             return
+        # Thu thập giá trị lọc cơ bản trước khi lưu/apply
+        self.wikidich_filters['search'] = self.wd_search_var.get().strip()
+        self.wikidich_filters['summarySearch'] = self.wd_summary_var.get().strip()
+        self.wikidich_filters['extraLinkSearch'] = getattr(self, "wd_extra_link_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_extra_link_var") else ""
+        self.wikidich_filters['status'] = self.wd_status_var.get()
         self.wikidich_filters['flags'] = [flag for flag, var in self.wd_flag_vars.items() if var.get()]
         self.wikidich_filters['roles'] = [role for role, var in self.wd_role_vars.items() if var.get()]
         self.wikidich_filters['categories'] = self._wd_get_selected_categories()
@@ -5971,6 +5996,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             var.set(role in filters.get('roles', []))
         self.wd_from_date_var.set(filters.get('fromDate', ''))
         self.wd_to_date_var.set(filters.get('toDate', ''))
+        if hasattr(self, "wd_extra_link_var"):
+            self.wd_extra_link_var.set(filters.get('extraLinkSearch', ''))
         self._wd_select_categories(filters.get('categories', []))
         self._wd_set_sort_label_from_value(filters.get('sortBy', 'recent'))
         self._wd_toggle_advanced_section(show=self._wd_has_advanced_filters())
@@ -5987,6 +6014,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self._wd_select_categories([])
         self.wd_from_date_var.set("")
         self.wd_to_date_var.set("")
+        if hasattr(self, "wd_extra_link_var"):
+            self.wd_extra_link_var.set("")
         self._wd_apply_filters()
 
     def _wd_apply_filters(self):
@@ -6001,6 +6030,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self.wikidich_filters.update({
             'search': self.wd_search_var.get().strip(),
             'summarySearch': self.wd_summary_var.get().strip(),
+            'extraLinkSearch': getattr(self, "wd_extra_link_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_extra_link_var") else "",
             'status': self.wd_status_var.get(),
             'sortBy': self._wd_get_sort_value()
         })
@@ -6061,6 +6091,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     def _wd_on_select(self, event=None):
         selection = self.wd_tree.selection()
         if not selection:
+            # Không tự khóa các nút khi danh sách rỗng; chỉ xóa chi tiết hiển thị
+            self._wd_show_detail(None)
             return
         item = selection[0]
         book_id = getattr(self, "_wd_tree_index", {}).get(item)
@@ -6436,34 +6468,48 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         # Clear preview if không có selection
         self._wd_on_global_note_select()
 
-        def _wd_edit_global_note(self):
-            tree = getattr(self, "_wd_notes_tree", None)
-            if not tree:
-                return
-            sel = tree.selection()
-            if not sel:
-                messagebox.showinfo("Chưa chọn", "Chọn một ghi chú để xem/sửa.", parent=self)
-                return
-            bid = tree.set(sel[0], "id")
-            entry = self._wd_get_note_entry(bid) or {}
-            self._wd_open_note_editor(bid, title=entry.get("title", ""), initial_text=entry.get("content", ""), scope="global")
+    def _wd_edit_global_note(self):
+        tree = getattr(self, "_wd_notes_tree", None)
+        if not tree:
+            return
+        sel = tree.selection()
+        if not sel:
+            messagebox.showinfo("Chưa chọn", "Chọn một ghi chú để xem/sửa.", parent=self)
+            return
+        bid = tree.set(sel[0], "id")
+        entry = self._wd_get_note_entry(bid) or {}
+        self._wd_open_note_editor(bid, title=entry.get("title", ""), initial_text=entry.get("content", ""), scope="global")
 
-        def _wd_delete_global_note(self):
-            tree = getattr(self, "_wd_notes_tree", None)
-            if not tree or not self._wd_global_notes_alive():
-                return
-            sel = tree.selection()
-            if not sel:
-                return
-            bid = tree.set(sel[0], "id")
+    def _wd_delete_global_note(self):
+        tree = getattr(self, "_wd_notes_tree", None)
+        if not tree or not self._wd_global_notes_alive():
+            return
+        sel = tree.selection()
+        if not sel:
+            return
+        bid = tree.set(sel[0], "id")
+        parent = None
+        try:
+            if self._wd_global_notes_win and tk.Toplevel.winfo_exists(self._wd_global_notes_win):
+                parent = self._wd_global_notes_win
+        except Exception:
             parent = None
-            try:
-                if self._wd_global_notes_win and tk.Toplevel.winfo_exists(self._wd_global_notes_win):
-                    parent = self._wd_global_notes_win
-            except Exception:
-                parent = None
-            if messagebox.askyesno("Xóa ghi chú", f"Xóa ghi chú cho ID {bid}?", parent=parent or self):
-                self._wd_delete_note(bid)
+        if messagebox.askyesno("Xóa ghi chú", f"Xóa ghi chú cho ID {bid}?", parent=parent or self):
+            self._wd_delete_note(bid)
+
+    def _wd_open_folder_path(self, path: str, parent=None):
+        if not path or not os.path.isdir(path):
+            messagebox.showinfo("Không tìm thấy thư mục", "Thư mục không tồn tại.", parent=parent or self)
+            return
+        try:
+            if sys.platform.startswith("win"):
+                os.startfile(path)
+            elif sys.platform.startswith("darwin"):
+                subprocess.Popen(["open", path])
+            else:
+                subprocess.Popen(["xdg-open", path])
+        except Exception as exc:
+            messagebox.showerror("Mở thư mục", f"Lỗi: {exc}", parent=parent or self)
 
     # --- Liên kết toàn cục ---
     def _wd_global_links_alive(self):
@@ -6582,18 +6628,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         if not sel:
             return
         path = tree.set(sel[0], "path")
-        if not path or not os.path.isdir(path):
-            messagebox.showinfo("Không tìm thấy thư mục", "Thư mục không tồn tại.", parent=self._wd_global_links_win or self)
-            return
-        try:
-            if sys.platform.startswith("win"):
-                os.startfile(path)
-            elif sys.platform.startswith("darwin"):
-                subprocess.Popen(["open", path])
-            else:
-                subprocess.Popen(["xdg-open", path])
-        except Exception as exc:
-            messagebox.showerror("Mở thư mục", f"Lỗi: {exc}", parent=self._wd_global_links_win or self)
+        self._wd_open_folder_path(path, parent=self._wd_global_links_win or self)
 
     # --- Danh sách chương ---
     def _wd_set_chapter_status(self, text):
@@ -6735,6 +6770,29 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 proxies=proxies
             )
             bid = book.get("id")
+            old_chapters = 0
+            try:
+                old_chapters = int(book.get("chapters") or 0)
+            except Exception:
+                old_chapters = 0
+            new_chapters_count = 0
+            try:
+                new_chapters_count = int(updated.get("chapters") or 0)
+            except Exception:
+                new_chapters_count = 0
+            if not new_chapters_count and isinstance(chapters, list):
+                new_chapters_count = len(chapters)
+            delta_new = max(0, new_chapters_count - old_chapters)
+            if bid and delta_new > 0 and isinstance(self.wd_new_chapters, dict):
+                try:
+                    current_new = int(self.wd_new_chapters.get(bid, 0) or 0)
+                except Exception:
+                    current_new = 0
+                remaining_new = current_new - delta_new
+                if remaining_new > 0:
+                    self.wd_new_chapters[bid] = remaining_new
+                else:
+                    self.wd_new_chapters.pop(bid, None)
             if bid:
                 self.wikidich_data['books'][bid] = updated
             # Cập nhật UI chi tiết nếu vẫn đang chọn truyện này
@@ -6948,6 +7006,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.wd_link_path_var.set(path if path else "Chưa liên kết")
         if hasattr(self, "wd_auto_pick_btn"):
             self.wd_auto_pick_btn.config(state=tk.NORMAL if path else tk.DISABLED)
+        if hasattr(self, "wd_open_link_btn"):
+            self.wd_open_link_btn.config(state=tk.NORMAL if path else tk.DISABLED)
 
     def _wd_choose_link_folder(self):
         book = getattr(self, "wd_selected_book", None)
@@ -6962,6 +7022,17 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self._wd_update_link_ui(book)
         self.log(f"[Wikidich] Liên kết truyện '{book.get('title', book.get('id'))}' với thư mục: {path}")
         self._wd_refresh_global_links_view()
+
+    def _wd_open_current_linked_folder(self):
+        book = getattr(self, "wd_selected_book", None)
+        if not book or not book.get("id"):
+            messagebox.showinfo("Chưa chọn truyện", "Chọn một truyện trước.", parent=self)
+            return
+        path = self._wd_get_linked_folder(book)
+        if not path:
+            messagebox.showinfo("Chưa liên kết", "Truyện chưa có thư mục liên kết.", parent=self)
+            return
+        self._wd_open_folder_path(path, parent=self)
 
     def _wd_auto_pick_linked(self):
         book = getattr(self, "wd_selected_book", None)
@@ -8229,6 +8300,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             parts.append("Vai trò")
         text = f"Đang áp dụng lọc nâng cao ({', '.join(parts)})" if parts else ""
         self.wd_adv_status_var.set(text)
+        self._wd_update_status_ticker()
 
     def _wd_update_basic_status(self):
         if not hasattr(self, "wd_basic_status_var"):
@@ -8240,11 +8312,56 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         summary = self.wd_summary_var.get().strip()
         if summary:
             parts.append(f"Văn án chứa '{summary}'")
+        extra_link = getattr(self, "wd_extra_link_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_extra_link_var") else ""
+        if extra_link:
+            parts.append(f"Link bổ sung chứa '{extra_link}'")
         status = self.wd_status_var.get()
         if status and status != "all":
             parts.append(f"Trạng thái: {status}")
         text = f"Đang lọc cơ bản ({', '.join(parts)})" if parts else ""
         self.wd_basic_status_var.set(text)
+        self._wd_update_status_ticker()
+
+    def _wd_update_status_ticker(self):
+        if not hasattr(self, "wd_status_ticker_var"):
+            return
+        if getattr(self, "_wd_status_ticker_job", None):
+            try:
+                self.after_cancel(self._wd_status_ticker_job)
+            except Exception:
+                pass
+            self._wd_status_ticker_job = None
+        basic = self.wd_basic_status_var.get().strip() if hasattr(self, "wd_basic_status_var") else ""
+        adv = self.wd_adv_status_var.get().strip() if hasattr(self, "wd_adv_status_var") else ""
+        combined = " | ".join([t for t in (basic, adv) if t])
+        self.wd_status_ticker_text = combined
+        self._wd_status_ticker_index = 0
+        self._wd_tick_status_ticker()
+
+    def _wd_tick_status_ticker(self):
+        if not hasattr(self, "wd_status_ticker_var"):
+            return
+        text = getattr(self, "wd_status_ticker_text", "") or ""
+        window = getattr(self, "_wd_status_ticker_window", 60)
+        if not text:
+            self.wd_status_ticker_var.set("")
+            self._wd_status_ticker_job = None
+            return
+        if len(text) <= window:
+            self.wd_status_ticker_var.set(text)
+            self._wd_status_ticker_job = None
+            return
+        buffer = text + "   |   "
+        start = getattr(self, "_wd_status_ticker_index", 0) % len(buffer)
+        doubled = buffer + buffer
+        display = doubled[start:start + window]
+        self.wd_status_ticker_var.set(display)
+        self._wd_status_ticker_index = (start + 1) % len(buffer)
+        try:
+            delay = max(40, getattr(self, "_wd_status_ticker_delay", 80))
+            self._wd_status_ticker_job = self.after(delay, self._wd_tick_status_ticker)
+        except Exception:
+            self._wd_status_ticker_job = None
 
     def _wd_get_selected_categories(self):
         listbox = getattr(self, "wd_category_listbox", None)
