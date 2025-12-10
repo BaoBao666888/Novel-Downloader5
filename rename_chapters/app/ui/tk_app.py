@@ -5,6 +5,8 @@ import re
 import io
 import gzip
 import time
+import html
+import zipfile
 from datetime import datetime
 from typing import Optional
 import tkinter.font as tkfont
@@ -137,9 +139,29 @@ DEFAULT_API_SETTINGS = {
     }
 }
 
+DEFAULT_UPLOAD_SETTINGS = {
+    "filename_regex": r"第(\d+)章\s*(.*)",
+    "content_regex": r"第(\d+)章\s*(.*)",
+    "template": "第{num}章 {title}",
+    "priority": "filename",  # filename | content
+    "warn_kb": 4,
+    "append_desc": "Bổ sung",
+    "sort_by_number": True,
+}
+
 DEFAULT_BACKGROUND_SETTINGS = {
     'enable': False,
     'start_hidden': False
+}
+
+DEFAULT_ND5_OPTIONS = {
+    "include_info": True,
+    "include_cover": True,
+    "heading_in_zip": True,
+    "format": "zip",
+    "title_tpl": "{num}. {title}",
+    "range": "",
+    "out_dir": ""
 }
 
 # Đảm bảo chỉ một instance (dùng localhost TCP)
@@ -414,7 +436,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.3.1')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.4')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -496,6 +518,7 @@ class RenamerApp(tk.Tk):
         self._cursor_motion_binding_active = False
         self._cursor_glow_window = None
         self._cursor_glow_canvas = None
+        self.nd5_options = dict(DEFAULT_ND5_OPTIONS)
         self._cursor_glow_after = None
         self._cursor_glow_enabled = False
         self._cursor_glow_item = None
@@ -527,6 +550,7 @@ class RenamerApp(tk.Tk):
         self.wikidich_auto_pick_mode = wd_cfg.get('auto_pick_mode', 'extract_then_pick')
         self.wikidich_links = dict(self.app_config.get('wikidich_links', {}))
         self.api_settings = dict(self.app_config.get('api_settings', {}))
+        self.wikidich_upload_settings = dict(self.app_config.get('wikidich_upload_settings', DEFAULT_UPLOAD_SETTINGS))
         self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
         self._wd_cover_cache = {}
         self._wd_loading = False
@@ -554,6 +578,8 @@ class RenamerApp(tk.Tk):
         self._browser_headers = {}
         self._browser_cookies = {}
         self._wd_resume_works = None
+        self._fanqie_bridge_proc = None
+        self._auto_update_temp_root = os.path.join(BASE_DIR, "tmp_auto_update")
         self.create_widgets()
         self._start_single_instance_listener()
         self.load_config()
@@ -603,6 +629,8 @@ class RenamerApp(tk.Tk):
             'wikidich_notes': {},
             'wikidich_links': {},
             'api_settings': dict(DEFAULT_API_SETTINGS),
+            'wikidich_upload_settings': dict(DEFAULT_UPLOAD_SETTINGS),
+            'novel_downloader5': dict(DEFAULT_ND5_OPTIONS),
             'background': dict(DEFAULT_BACKGROUND_SETTINGS)
         }
 
@@ -1678,6 +1706,39 @@ class RenamerApp(tk.Tk):
                     shutil.rmtree(path, ignore_errors=True)
             except Exception:
                 pass
+        self._cleanup_leftover_mei_dirs()
+
+    def _cleanup_leftover_mei_dirs(self):
+        """Xóa các thư mục _MEI* còn sót (PyInstaller tạm) trong app và thư mục TEMP hệ thống."""
+        roots = [BASE_DIR]
+        try:
+            import tempfile
+            temp_root = tempfile.gettempdir()
+            if temp_root and os.path.isdir(temp_root):
+                roots.append(temp_root)
+        except Exception:
+            pass
+        for root in roots:
+            try:
+                for name in os.listdir(root):
+                    if not name.startswith("_MEI"):
+                        continue
+                    path = os.path.join(root, name)
+                    if os.path.isdir(path):
+                        shutil.rmtree(path, ignore_errors=True)
+            except Exception:
+                pass
+
+    def _cleanup_auto_update_temp(self):
+        """Xóa thư mục tạm dùng cho Auto update Fanqie."""
+        root = getattr(self, "_auto_update_temp_root", None)
+        if not root:
+            return
+        try:
+            if os.path.isdir(root):
+                shutil.rmtree(root, ignore_errors=True)
+        except Exception:
+            pass
 
     def _handle_tray_failure(self, exc):
         self.log(f"Lỗi khay hệ thống: {exc}")
@@ -1707,6 +1768,10 @@ class RenamerApp(tk.Tk):
         self._detach_mouse_glow()
         self._stop_single_instance_listener()
         self._cleanup_temp_extraction()
+        self._stop_fanqie_bridge()
+        self._fanqie_clear_progress_cache()
+        self._cleanup_leftover_mei_dirs()
+        self._cleanup_auto_update_temp()
         _release_single_instance_mutex()
         try:
             self.destroy()
@@ -1762,6 +1827,7 @@ class RenamerApp(tk.Tk):
             'background': dict(self.background_settings),
             'wikidich_notes': dict(self.wikidich_notes or {}),
             'wikidich_links': dict(self.wikidich_links or {}),
+            'novel_downloader5': dict(self.nd5_options or {}),
         })
         self.app_config['ui_settings'] = self.ui_settings
         if hasattr(self, "wd_search_var"):
@@ -1773,6 +1839,7 @@ class RenamerApp(tk.Tk):
             'auto_pick_mode': getattr(self, "wikidich_auto_pick_mode", "extract_then_pick")
         }
         self.app_config['api_settings'] = dict(self.api_settings or {})
+        self.app_config['wikidich_upload_settings'] = dict(self.wikidich_upload_settings or {})
         self.app_config['regex_pins'] = dict(self.regex_pins)
         try:
             with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
@@ -1801,6 +1868,10 @@ class RenamerApp(tk.Tk):
             # Luôn dùng header mặc định/bắt từ trình duyệt, bỏ User-Agent tùy chỉnh cũ
             self.api_settings['wiki_headers'] = dict(DEFAULT_API_SETTINGS['wiki_headers'])
             self.api_settings['fanqie_headers'] = dict(DEFAULT_API_SETTINGS['fanqie_headers'])
+            if 'auto_credit' not in self.api_settings:
+                self.api_settings['auto_credit'] = True
+            upload_cfg = config_data.get('wikidich_upload_settings', {}) if isinstance(config_data.get('wikidich_upload_settings'), dict) else {}
+            self.wikidich_upload_settings = {**DEFAULT_UPLOAD_SETTINGS, **upload_cfg}
             self.folder_path.set(config_data.get('folder_path', ''))
             self.strategy.set(config_data.get('rename_strategy', 'content_first'))
             self.sort_strategy.set(config_data.get('sort_strategy', 'content'))
@@ -1882,6 +1953,9 @@ class RenamerApp(tk.Tk):
             self._sync_background_controls()
             self.wikidich_notes = self._wd_normalize_notes(config_data.get('wikidich_notes'))
             self.wikidich_links = dict(config_data.get('wikidich_links', {}))
+            nd5_cfg = config_data.get('novel_downloader5', {})
+            if isinstance(nd5_cfg, dict):
+                self.nd5_options = {**DEFAULT_ND5_OPTIONS, **nd5_cfg}
             if hasattr(self, "wd_auto_mode_var"):
                 label = None
                 if hasattr(self, "_wd_mode_labels"):
@@ -2000,6 +2074,7 @@ class RenamerApp(tk.Tk):
 
         tools_menu = tk.Menu(menubar, **menu_style)
         menubar.add_cascade(label="Công cụ", menu=tools_menu)
+        tools_menu.add_command(label="Download Novel 5...", command=self._open_fanqie_downloader)
         tools_menu.add_command(label="Giải nén file (.zip, .7z, .rar...)", command=self._start_extraction)
 
         menubar.add_command(label="Dịch", command=lambda: self._select_tab_by_name("Dịch"))
@@ -2499,11 +2574,21 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         - **Liên kết thư mục**: Liên kết per-truyện và quản lý Liên kết toàn cục (lưu trong config, độc lập cache). Nút “Chọn tự động” với 2 chế độ: “Giải nén rồi chọn” (lấy file nén mới nhất -> giải nén vào thư mục số kế tiếp) hoặc “Chọn thư mục mới nhất”; có nút “Mở thư mục...” để mở nhanh thư mục liên kết; nút chuyển Koanchay/Wikidich nằm mép phải.
         - **Thêm link hỗ trợ**: mở trang sửa truyện -> thêm link đúng mẫu (Fanqie https://fanqienovel.com/page/123456 hoặc /book/123456; JJWXC https://www.jjwxc.net/onebook.php?novelid=123456; PO18 https://www.po18.tw/books/123456; Qidian https://www.qidian.com/book/1037076300/; Ihuaben https://www.ihuaben.com/book/9219715.html) rồi tải chi tiết / kiểm tra cập nhật.
         - **Cập nhật chương**: nút chỉ sáng khi có “New”; nhập số để cộng tổng chương và trừ cột “New”. Sai lệch có thể tải lại chi tiết/DS Chương để đồng bộ.
-        - **Mở link/Trang truyện**: double‑click link bổ sung hoặc bấm “Mở trang truyện”. Chế độ mở (Trình duyệt tích hợp / ngoài) chọn trong **Cài đặt**.
+        - **Mở link/Trang truyện & nút nhanh**: double‑click link bổ sung hoặc bấm “Mở trang truyện”. Nút **Chỉnh sửa** mở màn hình upload Wikidich; nút **Auto update** (chỉ khi có link Fanqie) tự bật bridge, tải mục lục Fanqie, tạo file bổ sung, thêm Credit nếu bật, rồi mở cửa sổ upload đã điền sẵn.
         - **Tiến độ & Hủy**: khung tiến độ ẩn, chỉ hiện khi chạy tác vụ, có nút **X** để hủy.
         - **Proxy**: bật “Wikidich/Fanqie” trong tab Proxy để áp dụng cho Works/Chi tiết/Check cập nhật; Koanchay dùng cùng cấu hình proxy/cookie.
         """
         create_tab("Wikidich", wikidich_guide)
+
+        nd5_guide = """
+        --- NOVEL DOWNLOADER 5 (Fanqie/API) ---
+        - Mở từ menu **Công cụ → Download Novel 5...** (cửa sổ riêng, không chặn UI).
+        - Chỉ hỗ trợ Fanqie qua `fanqie_bridge_win.exe` (auto bật, kiểm tra healthz); có ghi nhớ tùy chọn (include info/cover, template tiêu đề, định dạng zip/txt/epub, phạm vi tải, thư mục lưu).
+        - Nhập URL Fanqie, bấm **Lấy thông tin** để lấy meta + mục lục (đánh số theo trang). Có log đầy đủ và thanh tiến độ.
+        - Chọn phạm vi/tùy chọn, bấm **Bắt đầu tải**: tự tải nội dung qua bridge, thêm tiêu đề vào file (nếu chọn), lưu file zip/txt/epub. Cache tiến độ tải từng book_id để tiếp tục nếu ngắt giữa chừng.
+        - Auto update trong tab Wikidich dùng cùng bridge/mục lục Fanqie và tái sử dụng credit/tùy chọn từ đây (Cài đặt request).
+        """
+        create_tab("Novel Downloader 5", nd5_guide)
 
         rename_guide = """
         --- TAB ĐỔI TÊN ---
@@ -3052,6 +3137,12 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         btn_row = ttk.Frame(header_frame)
         btn_row.grid(row=1, column=0, sticky="e", pady=(6, 0))
         ttk.Button(btn_row, text="Mở trang truyện", command=self._wd_open_book_in_browser).pack(side=tk.LEFT)
+        self.wd_auto_update_btn = ttk.Button(btn_row, text="Auto update", command=self._wd_auto_update_fanqie, state=tk.DISABLED)
+        self._wd_auto_update_pack_opts = {"side": tk.LEFT, "padx": (8, 0)}
+        self.wd_auto_update_btn.pack(**self._wd_auto_update_pack_opts)
+        self.wd_auto_update_btn.pack_forget()
+        self.wd_edit_book_btn = ttk.Button(btn_row, text="Chỉnh sửa", command=self._wd_open_wiki_edit_uploader, state=tk.DISABLED)
+        self.wd_edit_book_btn.pack(side=tk.LEFT, padx=(8, 0))
         self.wd_chapter_list_btn = ttk.Button(btn_row, text="DS Chương", command=self._wd_open_chapter_list, state=tk.DISABLED)
         self.wd_chapter_list_btn.pack(side=tk.LEFT, padx=(8, 0))
         self.wd_update_button = ttk.Button(btn_row, text="Cập nhật chương", command=self._wd_open_update_dialog, state=tk.DISABLED)
@@ -5824,6 +5915,34 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         if not cookies:
             return None, None, proxies
         session = wikidich_ext.build_session_with_cookies(cookies, proxies=proxies)
+        # Dedupe cookie trùng tên (ưu tiên domain truyenwikidich.net, giá trị không bị bọc ")
+        try:
+            cleaned = requests.cookies.RequestsCookieJar()
+            keep: dict[str, requests.cookies.Cookie] = {}
+            for c in session.cookies:
+                name_lower = c.name.lower()
+                cur = keep.get(name_lower)
+                preferred = cur
+                if cur is None:
+                    preferred = c
+                else:
+                    cur_bad_quote = str(cur.value or "").startswith('"') and str(cur.value or "").endswith('"')
+                    cand_bad_quote = str(c.value or "").startswith('"') and str(c.value or "").endswith('"')
+                    cur_good_domain = str(cur.domain or "").endswith("truyenwikidich.net")
+                    cand_good_domain = str(c.domain or "").endswith("truyenwikidich.net")
+                    if cand_good_domain and not cur_good_domain:
+                        preferred = c
+                    elif cur_good_domain == cand_good_domain:
+                        if cur_bad_quote and not cand_bad_quote:
+                            preferred = c
+                        elif len(str(c.value or "")) > len(str(cur.value or "")):
+                            preferred = c
+                keep[name_lower] = preferred
+            for c in keep.values():
+                cleaned.set(c.name, c.value, domain=c.domain, path=c.path)
+            session.cookies = cleaned
+        except Exception:
+            pass
         wiki_headers = self.api_settings.get('wiki_headers') if isinstance(self.api_settings, dict) else {}
         merged_headers = self._wd_default_headers()
         if isinstance(wiki_headers, dict):
@@ -6088,6 +6207,56 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         if hasattr(self, "wd_count_var"):
             self.wd_count_var.set(f"Số truyện: {len(books)}")
 
+    def _wd_select_tree_item(self, book_id: str):
+        if not book_id or not hasattr(self, "wd_tree"):
+            return
+        for item_id, bid in getattr(self, "_wd_tree_index", {}).items():
+            if bid == book_id:
+                try:
+                    self.wd_tree.selection_set(item_id)
+                    self.wd_tree.see(item_id)
+                except Exception:
+                    pass
+                break
+
+    def _wd_handle_uploaded_chapters(self, book: dict, added: int):
+        """Sau khi upload bổ sung: cập nhật số chương và cột New."""
+        if not added or added <= 0 or not book:
+            return
+        bid = book.get("id")
+        if not bid:
+            return
+        try:
+            current = int(book.get("chapters") or 0)
+        except Exception:
+            current = 0
+        new_total = current + added
+        if isinstance(self.wikidich_data, dict):
+            books = self.wikidich_data.get("books") or {}
+            if bid in books:
+                books[bid]["chapters"] = new_total
+        if getattr(self, "wd_selected_book", None) and self.wd_selected_book.get("id") == bid:
+            self.wd_selected_book["chapters"] = new_total
+            try:
+                self.wd_info_vars["chapters"].set(str(new_total))
+            except Exception:
+                pass
+        if isinstance(self.wd_new_chapters, dict):
+            cur_new = self.wd_new_chapters.get(bid)
+            if isinstance(cur_new, int):
+                new_diff = cur_new - added
+                if new_diff > 0:
+                    self.wd_new_chapters[bid] = new_diff
+                else:
+                    self.wd_new_chapters.pop(bid, None)
+        filtered = getattr(self, "wikidich_filtered", None)
+        if filtered is not None:
+            self._wd_refresh_tree(filtered)
+        else:
+            self._wd_apply_filters()
+        self._wd_select_tree_item(bid)
+        self._wd_update_update_button_state()
+
     def _wd_on_select(self, event=None):
         selection = self.wd_tree.selection()
         if not selection:
@@ -6116,8 +6285,16 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             self.wd_info_vars['flags'].set("")
             self._wd_update_update_button_state()
             self._wd_update_delete_button_state()
+            if hasattr(self, "wd_edit_book_btn"):
+                self.wd_edit_book_btn.config(state=tk.DISABLED)
+            btn = getattr(self, "wd_auto_update_btn", None)
+            if btn:
+                btn.config(state=tk.DISABLED)
+                if btn.winfo_manager():
+                    btn.pack_forget()
             self._wd_update_link_ui(None)
             return
+
         self._wd_set_text_content(self.wd_title_text, book.get('title', ''))
         self.wd_info_vars['author'].set(book.get('author', ''))
         self.wd_info_vars['status'].set(book.get('status', ''))
@@ -6150,6 +6327,20 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self._wd_display_cover(book.get('cover_url'))
         self._wd_update_update_button_state()
         self._wd_update_delete_button_state()
+        if hasattr(self, "wd_edit_book_btn"):
+            self.wd_edit_book_btn.config(state=tk.NORMAL)
+        btn = getattr(self, "wd_auto_update_btn", None)
+        if btn:
+            has_fanqie = bool(self._wd_get_fanqie_link(book))
+            if has_fanqie:
+                if not btn.winfo_manager():
+                    opts = getattr(self, "_wd_auto_update_pack_opts", {"side": tk.LEFT, "padx": (8, 0)})
+                    btn.pack(**opts)
+                btn.config(state=tk.NORMAL)
+            else:
+                btn.config(state=tk.DISABLED)
+                if btn.winfo_manager():
+                    btn.pack_forget()
         self._wd_update_link_ui(book)
 
     def _wd_open_link(self, url: str):
@@ -6178,6 +6369,490 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             return
         url = self.wd_selected_book.get('url')
         self._wd_open_link(url)
+
+    def _wd_open_wiki_edit_uploader(self, prefill: Optional[dict] = None):
+        book = getattr(self, "wd_selected_book", None)
+        if not book or not book.get("id"):
+            messagebox.showinfo("Chưa chọn truyện", "Chọn một truyện trước.", parent=self)
+            return
+        prefill = prefill or {}
+        prefill_files = list(prefill.get("parsed_files") or [])
+        prefill_desc = prefill.get("desc") or ""
+        prefill_select_append = bool(prefill.get("select_append_volume"))
+        prefill_raw_title_only = bool(prefill.get("raw_title_only"))
+        preview_full = bool(prefill.get("full_preview"))
+        prefill_source_label = prefill.get("source_label") or ""
+        current_raw_title_only = {"value": prefill_raw_title_only}
+        edit_page_url = self._wd_normalize_url_for_site(book.get("url", "")) + "/chinh-sua"
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title("Upload nội dung (Wikidich)")
+        win.geometry("680x520")
+        win.transient(self)
+        win.columnconfigure(0, weight=1)
+        win.rowconfigure(2, weight=1)
+        win.rowconfigure(5, weight=1)
+        status_var = tk.StringVar(value="Đang tải trang chỉnh sửa...")
+        files_var = tk.StringVar(value="Chưa chọn file")
+        volume_list = tk.Listbox(win, height=6)
+        volume_list.grid(row=1, column=0, sticky="nsew", padx=10, pady=(10, 0))
+        scrollbar = ttk.Scrollbar(win, orient="vertical", command=volume_list.yview)
+        volume_list.configure(yscrollcommand=scrollbar.set)
+        scrollbar.grid(row=1, column=1, sticky="ns", pady=(10, 0))
+        ttk.Label(win, textvariable=status_var, anchor="w").grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 0))
+        ttk.Label(win, text="Chọn volume (khóa vẫn upload được; ưu tiên quyển cuối cùng hoặc tạo mới trên web nếu cần).", anchor="w", justify="left").grid(row=4, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 6))
+        upload_cfg = {**DEFAULT_UPLOAD_SETTINGS, **(self.wikidich_upload_settings or {})}
+        desc_default = prefill_desc or upload_cfg.get("append_desc", DEFAULT_UPLOAD_SETTINGS["append_desc"])
+        desc_var = tk.StringVar(value=desc_default)
+        desc_frame = ttk.Frame(win)
+        desc_frame.grid(row=6, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 6))
+        desc_frame.columnconfigure(1, weight=1)
+        ttk.Label(desc_frame, text="Mô tả file bổ sung:").grid(row=0, column=0, sticky="w")
+        ttk.Entry(desc_frame, textvariable=desc_var).grid(row=0, column=1, sticky="ew", padx=(6, 0))
+        btn_frame = ttk.Frame(win)
+        btn_frame.grid(row=3, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 10))
+        btn_frame.columnconfigure(0, weight=1)
+        selected_files = []
+        parsed_files = []
+        parse_errors = []
+        upload_btn = ttk.Button(btn_frame, text="Tải lên", state=tk.DISABLED)
+        pick_btn = ttk.Button(btn_frame, text="Chọn file .txt", state=tk.DISABLED)
+        ttk.Label(win, textvariable=files_var, anchor="w", justify="left").grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 0))
+        log_box = scrolledtext.ScrolledText(win, height=8, wrap=tk.WORD, state="disabled")
+        log_box.grid(row=5, column=0, columnspan=2, sticky="nsew", padx=10, pady=(0, 10))
+        volumes_data = []
+        parse_settings = {
+            "filename_regex": upload_cfg.get("filename_regex", DEFAULT_UPLOAD_SETTINGS["filename_regex"]),
+            "content_regex": upload_cfg.get("content_regex", DEFAULT_UPLOAD_SETTINGS["content_regex"]),
+            "template": upload_cfg.get("template", DEFAULT_UPLOAD_SETTINGS["template"]),
+            "priority": upload_cfg.get("priority", DEFAULT_UPLOAD_SETTINGS["priority"]),
+            "warn_kb": upload_cfg.get("warn_kb", DEFAULT_UPLOAD_SETTINGS["warn_kb"]),
+            "sort_by_number": bool(upload_cfg.get("sort_by_number", DEFAULT_UPLOAD_SETTINGS["sort_by_number"])),
+        }
+
+        def _set_status(text):
+            status_var.set(text)
+
+        def _enable_actions():
+            try:
+                selection = volume_list.curselection()
+                selected = volumes_data[selection[0]] if selection else None
+            except Exception:
+                selected = None
+            can_edit = bool(selected and selected.get("editable"))
+            pick_btn.config(state=tk.NORMAL if volumes_data and can_edit else tk.DISABLED)
+            upload_btn.config(state=tk.NORMAL if parsed_files and not parse_errors and can_edit else tk.DISABLED)
+
+        def _log(msg, level="info"):
+            prefix = {"error": "[Lỗi] ", "warn": "[Cảnh báo] ", "ok": "[OK] "}.get(level, "")
+            log_box.config(state="normal")
+            log_box.insert(tk.END, prefix + msg + "\n")
+            log_box.see(tk.END)
+            log_box.config(state="disabled")
+
+        def _log_parsed_preview(preview_all=False, use_raw_only=False):
+            if not parsed_files:
+                return
+            tpl = parse_settings.get("template", "第{num}章 {title}")
+            _log("Xem trước tên chương:", "ok")
+            items = parsed_files if preview_all else parsed_files[:10]
+            for item in items:
+                raw_title = str(item.get("raw_title", "")).strip()
+                if use_raw_only:
+                    display = raw_title or f"{item['num']}"
+                else:
+                    display = tpl.replace("{num}", str(item["num"])).replace("{title}", raw_title)
+                num_label = f"#{item['num']}"
+                file_label = os.path.basename(item["path"])
+                _log(f"- {num_label}: {display} (file: {file_label})")
+            if not preview_all and len(parsed_files) > 10:
+                _log(f"... (+{len(parsed_files)-10} chương)", "ok")
+
+        def _on_select_files():
+            nonlocal selected_files, parsed_files, parse_errors
+            paths = filedialog.askopenfilenames(
+                parent=win,
+                title="Chọn file chương (.txt)",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+            )
+            if not paths:
+                return
+            selected_files = sorted(paths, key=lambda p: os.path.basename(p).lower())
+            preview = ", ".join(os.path.basename(p) for p in selected_files[:5])
+            if len(selected_files) > 5:
+                preview += f"... (+{len(selected_files)-5})"
+            files_var.set(f"{len(selected_files)} file: {preview}")
+            parsed_files = []
+            parse_errors = []
+            log_box.config(state="normal")
+            log_box.delete("1.0", tk.END)
+            log_box.config(state="disabled")
+            current_raw_title_only["value"] = False
+            _set_status("Đang phân tích file...")
+            upload_btn.config(state=tk.DISABLED)
+            def worker():
+                nonlocal parsed_files, parse_errors
+                parsed_files = []
+                parse_errors = []
+                try:
+                    warn_kb = float(parse_settings.get("warn_kb", 4))
+                except Exception:
+                    warn_kb = 4.0
+                warn_kb = max(0.0, warn_kb) * 1024
+                priority = (parse_settings.get("priority", "filename") or "filename").lower()
+                fn_regex = parse_settings.get("filename_regex", "")
+                ct_regex = parse_settings.get("content_regex", "")
+                pattern_fn = re.compile(fn_regex, re.IGNORECASE) if fn_regex else None
+                pattern_ct = re.compile(ct_regex, re.IGNORECASE) if ct_regex else None
+
+                def match(text, pattern):
+                    if not text or not pattern:
+                        return None
+                    m = pattern.search(text)
+                    if not m or not m.group(1):
+                        return None
+                    try:
+                        num = int(m.group(1))
+                    except Exception:
+                        return None
+                    title = m.group(2) or ""
+                    return num, title
+
+                files_info = []
+                for p in selected_files:
+                    try:
+                        size = os.path.getsize(p)
+                        files_info.append((p, size))
+                    except Exception:
+                        files_info.append((p, 0))
+
+                for path, size in files_info:
+                    name = os.path.basename(path)
+                    base = os.path.splitext(name)[0]
+                    first_line = ""
+                    info = None
+                    if priority == "filename":
+                        info = match(base, pattern_fn)
+                        if not info:
+                            try:
+                                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                                    first_line = (f.readline() or "").strip()
+                            except Exception:
+                                first_line = ""
+                            info = match(first_line, pattern_ct)
+                    else:
+                        try:
+                            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                                first_line = (f.readline() or "").strip()
+                        except Exception:
+                            first_line = ""
+                        info = match(first_line, pattern_ct)
+                        if not info:
+                            info = match(base, pattern_fn)
+                    if not info:
+                        parse_errors.append(f"{name}: Không tìm thấy số chương (tên/dòng đầu).")
+                        continue
+                    num, raw_title = info
+                    parsed_files.append({"path": path, "num": num, "raw_title": raw_title, "size": size})
+
+                if parse_settings.get("sort_by_number", True):
+                    parsed_files.sort(key=lambda x: x["num"])
+                else:
+                    parsed_files.sort(key=lambda x: os.path.basename(x["path"]).lower())
+                nums = [p["num"] for p in parsed_files]
+                missing = []
+                if nums:
+                    for i in range(nums[0], nums[-1] + 1):
+                        if i not in nums:
+                            missing.append(i)
+                dupes = set([n for n in nums if nums.count(n) > 1])
+
+                def ui_update():
+                    if warn_kb > 0:
+                        small = [p for p in parsed_files if p["size"] and p["size"] < warn_kb]
+                        if small:
+                            _log(f"{len(small)} file < {warn_kb//1024}KB: " + ", ".join(os.path.basename(s['path']) for s in small), "warn")
+                    for err in parse_errors:
+                        _log(err, "error")
+                    if dupes:
+                        _log("Trùng chương: " + ", ".join(str(d) for d in sorted(dupes)), "error")
+                        parse_errors.append("Có chương trùng")
+                    if missing:
+                        _log("Thiếu chương: " + ", ".join(str(m) for m in missing), "warn")
+                    if parsed_files:
+                        _log_parsed_preview(preview_all=preview_full, use_raw_only=current_raw_title_only["value"])
+                    _set_status(f"Đã phân tích {len(parsed_files)} file. {'Có lỗi' if parse_errors else 'Sẵn sàng upload'}.")
+                    _enable_actions()
+                self.after(0, ui_update)
+            threading.Thread(target=worker, daemon=True).start()
+
+        def _apply_prefill_files():
+            nonlocal selected_files, parsed_files, parse_errors
+            if not prefill_files:
+                return
+            parsed_files = sorted(prefill_files, key=lambda x: x.get("num", 0))
+            parse_errors = []
+            selected_files = [p.get("path") for p in parsed_files if p.get("path")]
+            preview = ", ".join(os.path.basename(p) for p in selected_files[:5]) if selected_files else ""
+            if selected_files and (len(selected_files) > 5 and not preview_full):
+                preview += f"... (+{len(selected_files)-5})"
+            suffix = f": {preview}" if preview else ""
+            files_var.set(f"{len(selected_files)} file (auto){suffix}")
+            log_box.config(state="normal")
+            log_box.delete("1.0", tk.END)
+            log_box.config(state="disabled")
+            current_raw_title_only["value"] = True
+            _log(prefill_source_label or "Đã thêm file tự động", "ok")
+            # Hiển thị đầy đủ danh sách khi dữ liệu được thêm tự động
+            _log_parsed_preview(preview_all=True, use_raw_only=current_raw_title_only["value"])
+            _set_status("Đã thêm file tự động, sẵn sàng upload.")
+            _enable_actions()
+
+        def _do_upload():
+            sel = volume_list.curselection()
+            if not sel:
+                messagebox.showinfo("Chưa chọn", "Chọn một volume có thể sửa.", parent=win)
+                return
+            idx = sel[0]
+            vol = volumes_data[idx]
+            if not vol.get("volume_id"):
+                messagebox.showinfo("Thiếu Volume ID", "Không tìm thấy volume để upload trên trang chỉnh sửa.", parent=win)
+                return
+            if not vol.get("editable"):
+                messagebox.showerror("Quyển bị khóa", "Chọn quyển có nhãn 'Bổ sung' trước khi tải.", parent=win)
+                return
+            append_mode = bool(vol.get("appendable"))
+            if not parsed_files:
+                messagebox.showinfo("Chưa chọn file", "Chọn file .txt trước khi tải.", parent=win)
+                return
+            book_id = vol.get("book_id")
+            volume_id = vol.get("volume_id")
+            if not book_id:
+                messagebox.showerror("Thiếu Book ID", "Không tìm thấy bookId trên trang chỉnh sửa (có thể chưa đăng nhập hoặc trang lỗi).", parent=win)
+                return
+            sizes = []
+            try:
+                sizes = [os.path.getsize(p["path"]) for p in parsed_files if os.path.exists(p["path"])]
+            except Exception:
+                sizes = []
+            if sizes:
+                if len(sizes) == 1:
+                    if sizes[0] > 5 * 1024 * 1024:
+                        messagebox.showerror("File quá lớn", "File vượt quá 5MB, web sẽ từ chối.", parent=win)
+                        return
+                else:
+                    too_big = [s for s in sizes if s > 100 * 1024]
+                    if too_big:
+                        messagebox.showerror("File quá lớn", "Có file vượt quá 100KB, web sẽ từ chối.", parent=win)
+                        return
+            _set_status("Đang upload...")
+            upload_btn.config(state=tk.DISABLED)
+            pick_btn.config(state=tk.DISABLED)
+            # Log danh sách chương sẽ gửi
+            try:
+                tpl = parse_settings.get("template", "第{num}章 {title}")
+                preview = [tpl.replace("{num}", str(i["num"])).replace("{title}", i["raw_title"].strip()) for i in parsed_files]
+                _log(f"Gửi {len(parsed_files)} chương: " + "; ".join(preview[:10]) + ("..." if len(preview) > 10 else ""))
+            except Exception:
+                pass
+
+            def worker():
+                session, current_user, proxies = self._wd_build_wiki_session(include_user=True)
+                if not session or not current_user:
+                    self.after(0, lambda: messagebox.showerror("Lỗi", "Không đọc được cookie Wikidich hoặc chưa đăng nhập." , parent=win))
+                    self.after(0, lambda: (_set_status("Thiếu cookie / chưa đăng nhập"), _enable_actions()))
+                    return
+                # Xác thực lại user trước khi upload
+                try:
+                    user_check = wikidich_ext.fetch_current_user(session, base_url=self._wd_get_base_url(), proxies=proxies)
+                except Exception:
+                    user_check = None
+                if not user_check:
+                    self.after(0, lambda: (_set_status("Chưa đăng nhập"), messagebox.showerror("Lỗi", "Cookie không hợp lệ (không nhận diện được tài khoản).", parent=win)))
+                    self.after(0, _enable_actions)
+                    return
+                base_url = self._wd_get_base_url()
+                url = base_url.rstrip("/") + "/upload-content"
+                desc_text = desc_var.get().strip() or "Bổ sung"
+                append_flag = "true" if append_mode else None
+                form_fields = [
+                    ("bookId", book_id),
+                    ("volumeId", volume_id),
+                    ("numFile", str(len(parsed_files))),
+                ]
+                if append_flag:
+                    form_fields.append(("appendMode", append_flag))
+                    form_fields.append(("descCn", desc_text))
+
+                handles = []
+                if parse_settings.get("sort_by_number", True):
+                    files_sorted = sorted(parsed_files, key=lambda x: x["num"])
+                else:
+                    files_sorted = sorted(parsed_files, key=lambda x: os.path.basename(x["path"]).lower())
+                file_parts = []
+                try:
+                    tpl = "{title}" if current_raw_title_only["value"] else parse_settings.get("template", "第{num}章 {title}")
+                    for item in files_sorted:
+                        path = item["path"]
+                        raw_title = str(item.get("raw_title", "")).strip()
+                        chapter_name = tpl.replace("{num}", str(item["num"])).replace("{title}", raw_title)
+                        f = open(path, "rb")
+                        handles.append(f)
+                        form_fields.append(("name", chapter_name))
+                        file_parts.append(("files", (os.path.basename(path), f)))
+                except Exception as exc:
+                    for h in handles:
+                        try:
+                            h.close()
+                        except Exception:
+                            pass
+                    self.after(0, lambda: (_set_status("Lỗi đọc file"), messagebox.showerror("Lỗi", f"Không đọc được file: {exc}", parent=win)))
+                    self.after(0, _enable_actions)
+                    return
+                try:
+                    # Refresh cookies by touching trang chỉnh sửa trước khi upload
+                    try:
+                        session.get(edit_page_url, proxies=proxies or {}, timeout=15)
+                    except Exception:
+                        pass
+                    headers = dict(session.headers or {})
+                    headers.update({
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Referer": edit_page_url,
+                        "Origin": base_url.rstrip("/"),
+                        "Accept": "*/*",
+                        "Accept-Language": "vi-VN,vi;q=0.9,zh-CN;q=0.8,zh;q=0.7,en-US;q=0.4,en;q=0.3",
+                        "Cache-Control": "no-cache",
+                        "Pragma": "no-cache",
+                        "Priority": "u=1, i",
+                        "sec-ch-ua": '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+                        "sec-ch-ua-mobile": "?0",
+                        "sec-ch-ua-platform": '"Windows"',
+                        "Sec-Fetch-Site": "same-origin",
+                        "Sec-Fetch-Mode": "cors",
+                        "Sec-Fetch-Dest": "empty",
+                    })
+                    headers.pop("Content-Type", None)
+                    # Dump cookie names being sent để dễ debug
+                    sent_cookies = "; ".join(f"{c.name}={c.value}" for c in session.cookies if c.value)
+                    resp = session.post(url, data=form_fields, files=file_parts, proxies=proxies or {}, headers=headers)
+                    ok = False
+                    err_msg = resp.text
+                    try:
+                        js = resp.json()
+                        if js.get("err") == 0:
+                            ok = True
+                        else:
+                            err_msg = str(js)
+                    except Exception:
+                        pass
+                    total_fields = len(form_fields) + len(file_parts)
+                    summary_msg = f"[Wikidich] Upload {len(parsed_files)} file(s) -> vol {volume_id or '(mặc định)'} ({total_fields} fields) status={resp.status_code} err={err_msg[:200]}"
+                    self.after(0, lambda: _log(summary_msg, "info"))
+                    self.after(0, lambda: self.log(summary_msg))
+                    if ok:
+                        count_added = len(parsed_files)
+                        self.after(0, lambda: (
+                            _set_status("Upload thành công"),
+                            messagebox.showinfo("Thành công", "Đã upload file lên Wikidich.", parent=win),
+                            self._wd_handle_uploaded_chapters(book, count_added)
+                        ))
+                    else:
+                        self.after(0, lambda: (_set_status("Upload thất bại"), messagebox.showerror("Lỗi upload", err_msg, parent=win)))
+                except Exception as exc:
+                    self.after(0, lambda: (_set_status("Lỗi request"), messagebox.showerror("Lỗi", f"{exc}", parent=win)))
+                finally:
+                    for h in handles:
+                        try:
+                            h.close()
+                        except Exception:
+                            pass
+                    self.after(0, _enable_actions)
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        pick_btn.config(command=_on_select_files)
+        upload_btn.config(command=_do_upload)
+        pick_btn.grid(row=0, column=0, sticky="w")
+        upload_btn.grid(row=0, column=1, sticky="e")
+
+        def _populate(vols):
+            volume_list.delete(0, tk.END)
+            for v in vols:
+                labels = []
+                if v.get("appendable"):
+                    labels.append("Bổ sung")
+                if not v.get("editable"):
+                    labels.append("Khóa")
+                suffix = f" ({', '.join(labels)})" if labels else ""
+                display = f"{v.get('name') or 'Không tên'}{suffix}"
+                volume_list.insert(tk.END, display)
+            if vols:
+                preferred = None
+                if prefill_select_append:
+                    for idx, vol in enumerate(vols):
+                        if vol.get("appendable"):
+                            preferred = idx
+                            break
+                if preferred is None:
+                    for idx in range(len(vols) - 1, -1, -1):
+                        if vols[idx].get("appendable") or vols[idx].get("editable"):
+                            preferred = idx
+                            break
+                last = preferred if preferred is not None else len(vols) - 1
+                try:
+                    volume_list.selection_set(last)
+                    volume_list.see(last)
+                except Exception:
+                    pass
+            _enable_actions()
+
+        def _fetch():
+            session, _user, proxies = self._wd_build_wiki_session(include_user=False)
+            if not session:
+                self.after(0, lambda: (_set_status("Thiếu cookie"), messagebox.showerror("Lỗi", "Không đọc được cookie Wikidich.", parent=win)))
+                return
+            try:
+                resp = session.get(edit_page_url, proxies=proxies or {})
+                resp.raise_for_status()
+                html = resp.text
+                book_id = None
+                m = re.search(r'var\\s+bookId\\s*=\\s*"([^"]+)"', html)
+                if m:
+                    book_id = m.group(1)
+                soup = BeautifulSoup(html, "html.parser")
+                if not book_id:
+                    hidden_book = soup.select_one("input#bookId[name='bookId']") or soup.select_one("input[name='bookId']")
+                    if hidden_book:
+                        book_id = hidden_book.get("value", "").strip()
+                vols = []
+                for wrap in soup.select(".volume-info-wrapper"):
+                    vol_id = wrap.get("data-volume") or ""
+                    name_input = wrap.select_one("input[name='nameCn']")
+                    name_val = name_input.get("value", "").strip() if name_input else ""
+                    vol_div = wrap.select_one(".volume-wrapper")
+                    editable = True
+                    appendable = False
+                    if vol_div and "readonly" in (vol_div.get("class") or []):
+                        editable = False
+                    if vol_div and str(vol_div.get("data-append") or "").lower() == "true":
+                        appendable = True
+                        editable = True
+                    vols.append({
+                        "name": name_val or vol_id or "(Không tên)",
+                        "volume_id": vol_id,
+                        "editable": editable,
+                        "appendable": appendable,
+                        "book_id": book_id
+                    })
+                if not vols and book_id:
+                    vols.append({"name": "(Mặc định)", "volume_id": "", "editable": True, "appendable": False, "book_id": book_id})
+                self.after(0, lambda: (_set_status(f"Tải xong {len(vols)} volume"), volumes_data.extend(vols), _populate(vols), _apply_prefill_files()))
+            except Exception as exc:
+                self.after(0, lambda: (_set_status("Lỗi tải trang"), messagebox.showerror("Lỗi", f"{exc}", parent=win)))
+
+        volume_list.bind("<<ListboxSelect>>", lambda e: _enable_actions())
+        threading.Thread(target=_fetch, daemon=True).start()
 
     def _wd_update_update_button_state(self):
         btn = getattr(self, "wd_update_button", None)
@@ -7401,9 +8076,10 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         self._wd_refresh_tree(filtered)
         messagebox.showinfo("Đã xóa", "Đã xóa truyện khỏi dữ liệu local.", parent=self)
 
-    def _wd_reconcile_works(self, server_data: dict, action: str) -> Optional[dict]:
+    def _wd_reconcile_works(self, server_data: dict, action: str, proxies=None):
+        """Trả về (data_merged, needs_full_fetch)."""
         if action == "full_reset":
-            return server_data
+            return server_data, False
         local_data = self.wikidich_data or {}
         local_ids = list(local_data.get("book_ids") or [])
         server_ids = list(server_data.get("book_ids") or [])
@@ -7415,40 +8091,16 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 merged_books[bid] = self._wd_merge_book_data(base, local_books.get(bid, {}))
             server_data = dict(server_data)
             server_data["books"] = merged_books
-            return server_data
+            return server_data, False
         if action == "auto_more":
             total_server = server_data.get("total_count") or len(server_ids)
             additions = max(0, total_server - len(local_ids))
             local_latest = local_ids[0] if local_ids else None
-            if local_latest not in server_ids:
-                resp = self._wd_sync_prompt(lambda: simpledialog.askstring(
-                    "Không tìm thấy truyện neo",
-                    "Không tìm thấy truyện neo (truyện mới nhất trên local) trong danh sách server.\n"
-                    "1: Tải lại từ đầu\n"
-                    "2: Tự quét, giữ thứ tự server và gộp dữ liệu trùng\n"
-                    "3: Dừng để tự xử lý\n"
-                    "Nhập 1/2/3:",
-                    parent=self
-                ))
-                if not resp or resp.strip() not in ("1", "2", "3"):
-                    return None
-                resp = resp.strip()
-                if resp == "3":
-                    return None
-                if resp == "1":
-                    return server_data
-                merged_books = {}
-                local_books = local_data.get("books", {})
-                for bid in server_ids:
-                    base = server_data.get("books", {}).get(bid, {})
-                    merged_books[bid] = self._wd_merge_book_data(base, local_books.get(bid, {}))
-                server_data = dict(server_data)
-                server_data["books"] = merged_books
-                return server_data
+            if not local_latest or local_latest not in server_ids:
+                return server_data, True  # cần tải full
             anchor_idx = server_ids.index(local_latest)
-            prefix_len = anchor_idx
-            if additions == prefix_len:
-                # chỉ thêm mới, không xóa
+            # chỉ thêm mới, không xóa
+            if additions == anchor_idx:
                 merged_books = {}
                 local_books = local_data.get("books", {})
                 merged_ids = list(server_ids)
@@ -7468,43 +8120,45 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                         merged_books[bid] = local_book
                     else:
                         merged_books[bid] = {}
-                return {"username": self.wikidich_data.get("username"), "book_ids": merged_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}
-            # có xóa + thêm
-            removal_expected = prefix_len - additions
-            resp = self._wd_sync_prompt(lambda: simpledialog.askstring(
-                "Thay đổi phức tạp",
-                "Phát hiện vừa thêm vừa xóa truyện.\n"
-                "1: Hệ thống tự quét (giữ thứ tự server)\n"
-                "2: Tải lại từ đầu\n"
-                "3: Dừng để tự xử lý\n"
-                "Nhập 1/2/3:",
-                parent=self
-            ))
-            if not resp or resp.strip() not in ("1", "2", "3"):
-                return None
-            resp = resp.strip()
-            if resp == "3":
-                return None
-            if resp == "2":
-                return server_data
-            # Tự quét: kiểm tra đủ số truyện bị xóa
-            missing_local = [bid for bid in local_ids if bid not in server_ids]
-            if len(missing_local) != removal_expected:
-                self._wd_sync_prompt(lambda: messagebox.showerror(
-                    "Lỗi đối chiếu",
-                    "Không xác định rõ truyện bị xóa/thêm. Hãy tải lại từ đầu.",
-                    parent=self
-                ))
-                return None
-            merged_books = {}
+                return {"username": self.wikidich_data.get("username"), "book_ids": merged_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}, False
+            # vừa thêm vừa xóa: kiểm tra từ neo trở về sau
+            deletions_needed = max(0, anchor_idx - additions)
+            if deletions_needed == 0:
+                return server_data, True
             local_books = local_data.get("books", {})
+            local_tail = list(local_ids)
+            i_local = 0
+            j_server = anchor_idx
+            while deletions_needed > 0 and i_local < len(local_tail) and j_server < len(server_ids):
+                if local_tail[i_local] == server_ids[j_server]:
+                    i_local += 1
+                    j_server += 1
+                    continue
+                lid = local_tail[i_local]
+                url = None
+                if isinstance(local_books.get(lid), dict):
+                    url = local_books[lid].get("url")
+                if url and self._wd_is_book_deleted_on_server(url, proxies=proxies):
+                    deletions_needed -= 1
+                    local_tail.pop(i_local)
+                    continue
+                else:
+                    return server_data, True  # không chắc chắn -> tải full
+            if deletions_needed > 0:
+                return server_data, True
+            merged_books = {}
             for bid in server_ids:
                 base = server_data.get("books", {}).get(bid, {})
-                if bid in local_books:
-                    merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
-                else:
+                local_book = local_books.get(bid)
+                if base and local_book:
+                    merged_books[bid] = self._wd_merge_book_data(base, local_book)
+                elif base:
                     merged_books[bid] = base
-            return {"username": self.wikidich_data.get("username"), "book_ids": server_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}
+                elif local_book:
+                    merged_books[bid] = local_book
+                else:
+                    merged_books[bid] = {}
+            return {"username": self.wikidich_data.get("username"), "book_ids": server_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}, False
         if action == "autodiff":
             # server_data ở đây là dữ liệu quét từng phần (theo thứ tự server)
             merged_books = {}
@@ -7517,7 +8171,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     merged_books[bid] = base
             server_data = dict(server_data)
             server_data["books"] = merged_books
-            return server_data
+            return server_data, False
         if action == "auto_less_same_top":
             expected_removed = max(0, len(local_ids) - len(server_ids))
             missing_local = [bid for bid in local_ids if bid not in server_ids]
@@ -7538,7 +8192,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     merged_books[bid] = base
             server_data = dict(server_data)
             server_data["books"] = merged_books
-            return server_data
+            return server_data, False
         if action == "auto_less_diff_top":
             local_latest = local_ids[0] if local_ids else None
             new_on_server = []
@@ -7575,8 +8229,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     merged_books[bid] = base
             server_data = dict(server_data)
             server_data["books"] = merged_books
-            return server_data
-        return None
+            return server_data, False
+        return None, False
 
     def _wd_fetch_works_worker(self):
         pythoncom.CoInitialize()
@@ -7653,6 +8307,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0
             data = None
             local_latest = local_ids[0] if local_ids else None
+            # Nếu chỉ thêm mới (auto_more), thử dừng khi gặp neo; các trường hợp khác tải full
             stop_when_found_id = local_latest if action == "auto_more" else None
             if action in ("autodiff", "auto_less_same_top", "auto_less_diff_top", "auto_more"):
                 # Quét tối thiểu: lấy đủ số truyện (meta_total) theo thứ tự server
@@ -7689,7 +8344,24 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             if new_ids:
                 self._wd_fetch_details_for_new_books(session, data, new_ids, user_slug, delay_avg, proxies=proxies)
             self.log(f"[Wikidich] Đã lấy {len(data.get('book_ids', []))} works.")
-            reconciled = self._wd_reconcile_works(data, action)
+            reconciled, needs_full_fetch = self._wd_reconcile_works(data, action, proxies=proxies)
+            if needs_full_fetch and action == "auto_more":
+                # tải lại đầy đủ không dừng ở neo
+                self.log("[Wikidich] Phát hiện thay đổi phức tạp, tải lại toàn bộ danh sách...")
+                data = wikidich_ext.fetch_works(
+                    session,
+                    user_slug,
+                    base_url=self._wd_get_base_url(),
+                    proxies=proxies,
+                    progress_cb=self._wd_progress_callback,
+                    delay=delay_avg,
+                    existing_data=existing_data,
+                    start_offset=start_offset,
+                    page_size_hint=page_size_hint,
+                    stop_when_found_id=None
+                )
+                self._wd_ensure_not_cancelled()
+                reconciled, needs_full_fetch = self._wd_reconcile_works(data, action, proxies=proxies)
             if reconciled is None:
                 self.log("[Wikidich] Đã dừng tải Works theo yêu cầu/điều kiện không phù hợp.")
                 return
@@ -8145,6 +8817,16 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         fanqie_min = current.get('fanqie_delay_min', DEFAULT_API_SETTINGS['fanqie_delay_min'])
         fanqie_max = current.get('fanqie_delay_max', DEFAULT_API_SETTINGS['fanqie_delay_max'])
         open_mode_var = tk.StringVar(value=getattr(self, "wikidich_open_mode", "in_app"))
+        upload_cfg = self.wikidich_upload_settings if isinstance(getattr(self, "wikidich_upload_settings", None), dict) else {}
+        up_filename_var = tk.StringVar(value=upload_cfg.get("filename_regex", DEFAULT_UPLOAD_SETTINGS["filename_regex"]))
+        up_content_var = tk.StringVar(value=upload_cfg.get("content_regex", DEFAULT_UPLOAD_SETTINGS["content_regex"]))
+        up_template_var = tk.StringVar(value=upload_cfg.get("template", DEFAULT_UPLOAD_SETTINGS["template"]))
+        up_priority_var = tk.StringVar(value=upload_cfg.get("priority", DEFAULT_UPLOAD_SETTINGS["priority"]))
+        up_warn_var = tk.DoubleVar(value=upload_cfg.get("warn_kb", DEFAULT_UPLOAD_SETTINGS["warn_kb"]))
+        up_sort_var = tk.BooleanVar(value=upload_cfg.get("sort_by_number", DEFAULT_UPLOAD_SETTINGS["sort_by_number"]))
+        up_append_desc_var = tk.StringVar(value=upload_cfg.get("append_desc", DEFAULT_UPLOAD_SETTINGS["append_desc"]))
+        auto_credit_var = tk.BooleanVar(value=bool(current.get("auto_credit", True)))
+        auto_credit_var = tk.BooleanVar(value=bool(current.get("auto_credit", True)))
 
         win = tk.Toplevel(self)
         self._apply_window_icon(win)
@@ -8183,6 +8865,32 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         ttk.Radiobutton(open_mode_frame, text="Trình duyệt tích hợp (Overlay)", variable=open_mode_var, value="in_app").pack(anchor="w")
         ttk.Radiobutton(open_mode_frame, text="Trình duyệt ngoài (mặc định hệ thống)", variable=open_mode_var, value="external").pack(anchor="w", pady=(4, 0))
 
+        upload_frame = ttk.LabelFrame(container, text="Upload chương Wikidich", padding=10)
+        upload_frame.pack(fill="x", expand=True, pady=(10, 0))
+        ttk.Label(upload_frame, text="Regex tên file:").grid(row=0, column=0, sticky="w")
+        ttk.Entry(upload_frame, textvariable=up_filename_var, width=42).grid(row=0, column=1, sticky="ew", padx=(6, 0))
+        ttk.Label(upload_frame, text="Regex nội dung:").grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ttk.Entry(upload_frame, textvariable=up_content_var, width=42).grid(row=1, column=1, sticky="ew", padx=(6, 0), pady=(6, 0))
+        ttk.Label(upload_frame, text="Template tên chương:").grid(row=2, column=0, sticky="w", pady=(6, 0))
+        ttk.Entry(upload_frame, textvariable=up_template_var, width=42).grid(row=2, column=1, sticky="ew", padx=(6, 0), pady=(6, 0))
+        ttk.Label(upload_frame, text="Mô tả bổ sung mặc định:").grid(row=3, column=0, sticky="w", pady=(6, 0))
+        ttk.Entry(upload_frame, textvariable=up_append_desc_var, width=42).grid(row=3, column=1, sticky="ew", padx=(6, 0), pady=(6, 0))
+        priority_row = ttk.Frame(upload_frame)
+        priority_row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ttk.Label(priority_row, text="Ưu tiên parse:").pack(side=tk.LEFT)
+        ttk.Radiobutton(priority_row, text="Tên file", variable=up_priority_var, value="filename").pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Radiobutton(priority_row, text="Dòng đầu", variable=up_priority_var, value="content").pack(side=tk.LEFT, padx=(8, 0))
+        opts_row = ttk.Frame(upload_frame)
+        opts_row.grid(row=5, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ttk.Checkbutton(opts_row, text="Sắp xếp theo số chương", variable=up_sort_var).pack(side=tk.LEFT)
+        ttk.Label(opts_row, text="Cảnh báo nếu file <").pack(side=tk.LEFT, padx=(10, 4))
+        ttk.Entry(opts_row, textvariable=up_warn_var, width=6).pack(side=tk.LEFT)
+        ttk.Label(opts_row, text="KB").pack(side=tk.LEFT, padx=(4, 0))
+        credit_row = ttk.Frame(upload_frame)
+        credit_row.grid(row=6, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ttk.Checkbutton(credit_row, text="Auto update: tự động thêm Credit vào file tải bổ sung", variable=auto_credit_var).pack(side=tk.LEFT)
+        upload_frame.columnconfigure(1, weight=1)
+
         action_frame = ttk.Frame(container)
         action_frame.pack(fill="x", pady=(12, 0))
 
@@ -8192,6 +8900,14 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             fanqie_min_var.set(DEFAULT_API_SETTINGS['fanqie_delay_min'])
             fanqie_max_var.set(DEFAULT_API_SETTINGS['fanqie_delay_max'])
             open_mode_var.set("in_app")
+            up_filename_var.set(DEFAULT_UPLOAD_SETTINGS["filename_regex"])
+            up_content_var.set(DEFAULT_UPLOAD_SETTINGS["content_regex"])
+            up_template_var.set(DEFAULT_UPLOAD_SETTINGS["template"])
+            up_priority_var.set(DEFAULT_UPLOAD_SETTINGS["priority"])
+            up_warn_var.set(DEFAULT_UPLOAD_SETTINGS["warn_kb"])
+            up_sort_var.set(DEFAULT_UPLOAD_SETTINGS["sort_by_number"])
+            up_append_desc_var.set(DEFAULT_UPLOAD_SETTINGS["append_desc"])
+            auto_credit_var.set(True)
 
         def _save_settings():
             try:
@@ -8199,8 +8915,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 wiki_max_val = float(wiki_max_var.get())
                 fanqie_min_val = float(fanqie_min_var.get())
                 fanqie_max_val = float(fanqie_max_var.get())
+                warn_val = float(up_warn_var.get())
             except Exception:
-                messagebox.showerror("Lỗi", "Giá trị độ trễ phải là số.", parent=win)
+                messagebox.showerror("Lỗi", "Giá trị độ trễ/cảnh báo phải là số.", parent=win)
                 return
             if wiki_min_val < 0 or wiki_max_val < 0 or fanqie_min_val < 0 or fanqie_max_val < 0:
                 messagebox.showerror("Lỗi", "Độ trễ không được âm.", parent=win)
@@ -8209,6 +8926,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 wiki_max_val = wiki_min_val
             if fanqie_max_val < fanqie_min_val:
                 fanqie_max_val = fanqie_min_val
+            warn_val = max(0.0, warn_val)
 
             self.api_settings = {
                 'wiki_delay_min': wiki_min_val,
@@ -8216,10 +8934,22 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 'fanqie_delay_min': fanqie_min_val,
                 'fanqie_delay_max': fanqie_max_val,
                 'wiki_headers': dict(DEFAULT_API_SETTINGS['wiki_headers']),
-                'fanqie_headers': dict(DEFAULT_API_SETTINGS['fanqie_headers'])
+                'fanqie_headers': dict(DEFAULT_API_SETTINGS['fanqie_headers']),
+                'auto_credit': auto_credit_var.get()
             }
             self.wikidich_open_mode = open_mode_var.get() or "in_app"
+            priority_val = up_priority_var.get() if up_priority_var.get() in ("filename", "content") else DEFAULT_UPLOAD_SETTINGS["priority"]
+            self.wikidich_upload_settings = {
+                "filename_regex": up_filename_var.get().strip() or DEFAULT_UPLOAD_SETTINGS["filename_regex"],
+                "content_regex": up_content_var.get().strip() or DEFAULT_UPLOAD_SETTINGS["content_regex"],
+                "template": up_template_var.get().strip() or DEFAULT_UPLOAD_SETTINGS["template"],
+                "priority": priority_val,
+                "warn_kb": warn_val,
+                "append_desc": up_append_desc_var.get().strip(),
+                "sort_by_number": bool(up_sort_var.get()),
+            }
             self.app_config['api_settings'] = dict(self.api_settings)
+            self.app_config['wikidich_upload_settings'] = dict(self.wikidich_upload_settings)
             self.save_config()
             messagebox.showinfo("Đã lưu", "Đã lưu cài đặt request.", parent=win)
             win.destroy()
@@ -8363,6 +9093,351 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         except Exception:
             self._wd_status_ticker_job = None
 
+    def _wd_auto_update_fanqie(self):
+        book = getattr(self, "wd_selected_book", None)
+        if not book:
+            messagebox.showinfo("Chưa chọn truyện", "Chọn một truyện có link Fanqie trước.", parent=self)
+            return
+        fanqie_link = self._wd_get_fanqie_link(book)
+        if not fanqie_link:
+            messagebox.showinfo("Không có link Fanqie", "Chỉ hỗ trợ Auto update cho truyện có link Fanqie.", parent=self)
+            return
+        if self._wd_loading:
+            messagebox.showinfo("Đang chạy", "Vui lòng chờ tác vụ Wikidich hiện tại kết thúc.", parent=self)
+            return
+        threading.Thread(target=self._wd_auto_update_worker, args=(dict(book), fanqie_link), daemon=True).start()
+
+    def _wd_auto_update_worker(self, book: dict, fanqie_link: str):
+        pythoncom.CoInitialize()
+        self._wd_loading = True
+        desc_text = ""
+        try:
+            book_id = book.get("id")
+            self._wd_set_progress("Đang bật fanqie_bridge...", 0, 0)
+            if not self._ensure_fanqie_bridge_ready():
+                self._wd_set_progress("Không bật được fanqie_bridge", 0, 1)
+                self.after(0, lambda: messagebox.showerror("Lỗi", "Không khởi chạy được fanqie_bridge_win.exe.", parent=self))
+                return
+
+            self._wd_set_progress("Đang tải chi tiết Wikidich...", 0, 0)
+            fetched_detail = self._wd_fetch_detail_for_book(book)
+            updated_book = fetched_detail or book
+            if not fetched_detail:
+                self.log("[Fanqie][Auto] Không tải được chi tiết mới, dùng dữ liệu hiện có.")
+            if updated_book and updated_book.get("id"):
+                self.wd_selected_book = updated_book
+            book = updated_book or book
+            try:
+                wiki_chapters = int(book.get("chapters") or 0)
+            except Exception:
+                wiki_chapters = 0
+
+            proxies = self._get_proxy_for_request("fanqie")
+            fanqie_headers = self._get_fanqie_headers()
+            fanqie_book_id = self._fanqie_extract_book_id(fanqie_link)
+            if not fanqie_book_id:
+                self.after(0, lambda: messagebox.showerror("Lỗi", "Không tìm thấy book_id trong link Fanqie.", parent=self))
+                self._wd_set_progress("Thiếu book_id Fanqie", 0, 1)
+                return
+
+            self._wd_set_progress("Đang tải mục lục Fanqie...", 0, 0)
+            toc = self._fanqie_fetch_toc(fanqie_book_id, proxies=proxies, headers=fanqie_headers)
+            fanqie_total = len(toc)
+            if fanqie_total == 0:
+                self.after(0, lambda: messagebox.showerror("Lỗi", "Không lấy được mục lục Fanqie.", parent=self))
+                self._wd_set_progress("Không có mục lục Fanqie", 0, 1)
+                return
+
+            diff = max(0, fanqie_total - wiki_chapters)
+            def _update_new_count():
+                if not isinstance(self.wd_new_chapters, dict):
+                    self.wd_new_chapters = {}
+                if diff > 0 and book_id:
+                    self.wd_new_chapters[book_id] = diff
+                elif book_id and book_id in self.wd_new_chapters:
+                    self.wd_new_chapters.pop(book_id, None)
+                if getattr(self, "wikidich_filtered", None) is not None:
+                    self._wd_refresh_tree(self.wikidich_filtered)
+                else:
+                    self._wd_apply_filters()
+                if book_id:
+                    self._wd_select_tree_item(book_id)
+            self.after(0, _update_new_count)
+
+            if diff <= 0:
+                self._wd_set_progress("Không có chương mới", 0, 1)
+                self.after(0, lambda: messagebox.showinfo("Không có chương mới", f"Wiki: {wiki_chapters} | Fanqie: {fanqie_total}", parent=self))
+                return
+
+            new_items = toc[wiki_chapters:]
+            if not new_items:
+                self._wd_set_progress("Không tìm thấy chương mới", 0, 1)
+                return
+
+            tmp_dir = self._prepare_auto_update_dir(book_id or "auto")
+            fallback_titles = {str(item.get("id") or item["num"]): item.get("title") for item in new_items}
+            ids = [str(item.get("id") or item["num"]) for item in new_items if item.get("id") or item.get("num")]
+            fetched = {}
+            batch_size = 18
+            for idx in range(0, len(ids), batch_size):
+                batch_ids = ids[idx:idx + batch_size]
+                part = self._fanqie_download_batch(batch_ids, fallback_titles)
+                fetched.update(part)
+                self._wd_set_progress(f"Tải chương Fanqie {min(len(ids), idx + batch_size)}/{len(ids)}", idx + len(batch_ids), len(ids))
+            upload_cfg = {**DEFAULT_UPLOAD_SETTINGS, **(self.wikidich_upload_settings or {})}
+            tpl = upload_cfg.get("template", DEFAULT_UPLOAD_SETTINGS["template"]) or "第{num}章 {title}"
+            parsed_files = []
+            start_num = wiki_chapters + 1
+            for offset, item in enumerate(new_items):
+                chap_num = start_num + offset
+                cid = str(item.get("id") or item["num"])
+                payload = fetched.get(cid, {})
+                title = payload.get("title") or item.get("title") or f"Chương {chap_num}"
+                content = payload.get("content")
+                if content is None:
+                    self.log(f"[Fanqie][Auto] Thiếu nội dung cho chương {chap_num} (id={cid}).")
+                    content = ""
+                safe_title = re.sub(r'[\\/:*?"<>|]+', "_", title).strip() or f"{chap_num}"
+                filename = f"{safe_title}.txt"
+                path = os.path.join(tmp_dir, filename)
+                # Lưu file chỉ chứa tiêu đề Fanqie (không thêm số chương)
+                heading = title
+                final_text = f"{heading}\n\n{self._fanqie_content_to_text(content)}".strip() + "\n"
+                try:
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write(final_text)
+                except Exception as exc:
+                    self.log(f"[Fanqie][Auto] Lỗi ghi file {filename}: {exc}")
+                    continue
+                size = 0
+                try:
+                    size = os.path.getsize(path)
+                except Exception:
+                    size = 0
+                parsed_files.append({"path": path, "num": chap_num, "raw_title": title, "size": size})
+            try:
+                self._wd_apply_credit_to_files(parsed_files)
+            except Exception as exc:
+                self.log(f"[AutoCredit] Lỗi khi thêm credit tự động: {exc}")
+            if not parsed_files:
+                self._wd_set_progress("Không tạo được file mới", 0, 1)
+                self.after(0, lambda: messagebox.showerror("Lỗi", "Không tạo được file chương mới.", parent=self))
+                return
+            end_num = start_num + len(parsed_files) - 1
+            desc_text = f"{start_num}-{end_num}"
+            self._wd_set_progress("Sẵn sàng upload bổ sung", 0, 1)
+            self.after(0, lambda: self._wd_open_wiki_edit_uploader(prefill={
+                "parsed_files": parsed_files,
+                "desc": desc_text,
+                "select_append_volume": True,
+                "full_preview": True,
+                "raw_title_only": True,
+                "source_label": f"Tự động tải {len(parsed_files)} chương mới"
+            }))
+        except Exception as exc:
+            self.log(f"[Fanqie][Auto] Lỗi: {exc}")
+            self.after(0, lambda: messagebox.showerror("Lỗi", f"Tác vụ Auto update thất bại: {exc}", parent=self))
+        finally:
+            self._wd_loading = False
+            self._wd_progress_running = False
+            pythoncom.CoUninitialize()
+            self._wd_set_progress("Chờ thao tác...", 0, 1)
+
+    def _get_fanqie_headers(self):
+        headers = dict(DEFAULT_API_SETTINGS.get("fanqie_headers", {}))
+        custom = self.api_settings.get("fanqie_headers") if isinstance(self.api_settings, dict) else {}
+        if isinstance(custom, dict):
+            for k, v in custom.items():
+                if v:
+                    headers[k] = v
+        return headers
+
+    def _ensure_fanqie_bridge_ready(self, attempts: int = 6, delay: float = 0.8) -> bool:
+        """Khởi chạy bridge nếu cần và đợi healthz phản hồi."""
+        started = self._ensure_fanqie_bridge_running()
+        if not started:
+            return False
+        for _ in range(max(1, attempts)):
+            try:
+                resp = requests.get("http://127.0.0.1:9999/healthz", timeout=5)
+                if resp.ok:
+                    return True
+            except Exception:
+                pass
+            time.sleep(max(0.1, delay))
+        return False
+
+    def _fanqie_extract_book_id(self, raw_url: str):
+        if not raw_url:
+            return None
+        m = re.search(r"/(?:page|book|reader)/(\d+)", raw_url)
+        if m:
+            return m.group(1)
+        m = re.search(r"(\d{6,})", raw_url)
+        return m.group(1) if m else None
+
+    def _fanqie_fetch_toc(self, book_id: str, proxies=None, headers=None):
+        """Lấy mục lục Fanqie gồm id và tiêu đề."""
+        if not book_id:
+            return []
+        url = f"https://fanqienovel.com/page/{book_id}"
+        hdrs = dict(self._get_fanqie_headers())
+        if isinstance(headers, dict):
+            for k, v in headers.items():
+                if v:
+                    hdrs[k] = v
+        resp = requests.get(url, headers=hdrs, timeout=35, proxies=proxies)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        nodes = soup.select(".page-directory-content .chapter-item") or soup.select(".page-directory-content a.chapter-item-title")
+        toc = []
+        if nodes:
+            for idx, node in enumerate(nodes, start=1):
+                a_tag = node if getattr(node, "name", "") == "a" else node.select_one("a.chapter-item-title") or node.select_one("a")
+                href = a_tag.get("href", "") if a_tag else ""
+                cid_match = re.search(r"/reader/(\d+)", href) if href else None
+                cid = cid_match.group(1) if cid_match else None
+                title = a_tag.get_text(strip=True) if a_tag else (node.get_text(strip=True) if hasattr(node, "get_text") else f"Chương {idx}")
+                toc.append({"num": idx, "id": cid or str(idx), "title": title})
+        if not toc:
+            self.log("[Fanqie] Không tìm thấy mục lục bằng selector mặc định.")
+        return toc
+
+    def _fanqie_extract_chapter_payload(self, raw: dict, ids: list, fallback_titles: dict):
+        """Chuyển response bridge thành dict {cid: {title, content}}."""
+        results = {}
+        candidates = []
+        if isinstance(raw, dict):
+            if isinstance(raw.get("chapters"), dict):
+                candidates.append(raw["chapters"])
+            if isinstance(raw.get("data"), dict):
+                candidates.append(raw["data"])
+            if not candidates:
+                candidates.append(raw)
+        for cand in candidates:
+            if not isinstance(cand, dict):
+                continue
+            for cid in ids:
+                entry = cand.get(cid) or cand.get(str(cid))
+                if entry is None:
+                    continue
+                if isinstance(entry, str):
+                    title = fallback_titles.get(cid) or fallback_titles.get(str(cid))
+                    results[str(cid)] = {"title": title or f"Chương {cid}", "content": entry}
+                    continue
+                if isinstance(entry, dict):
+                    title = entry.get("title") or entry.get("chapter_title") or fallback_titles.get(cid) or fallback_titles.get(str(cid)) or f"Chương {cid}"
+                    content = (
+                        entry.get("content")
+                        or entry.get("data", {}).get("content")
+                        or entry.get("chapter", {}).get("content")
+                        or entry.get("text")
+                        or entry.get("value")
+                    )
+                    results[str(cid)] = {"title": title, "content": content}
+        if results:
+            return results
+        data_list = raw.get("data") if isinstance(raw, dict) else None
+        if isinstance(data_list, list):
+            for entry in data_list:
+                if not isinstance(entry, dict):
+                    continue
+                cid = str(entry.get("item_id") or entry.get("chapter_id") or entry.get("cid") or entry.get("id") or "")
+                if not cid:
+                    continue
+                title = entry.get("title") or fallback_titles.get(cid) or f"Chương {cid}"
+                content = entry.get("content") or entry.get("data", {}).get("content")
+                results[cid] = {"title": title, "content": content}
+        return results
+
+    def _fanqie_download_batch(self, ids: list, fallback_titles: dict):
+        if not ids:
+            return {}
+        try:
+            url = f"http://127.0.0.1:9999/content?item_id={','.join(ids)}"
+            resp = requests.get(url, timeout=120)
+            resp.raise_for_status()
+            payload = resp.json()
+            return self._fanqie_extract_chapter_payload(payload, ids, fallback_titles)
+        except Exception as exc:
+            self.log(f"[Fanqie] Lỗi tải batch {ids}: {exc}")
+            return {}
+
+    def _fanqie_content_to_text(self, content: str):
+        if content is None:
+            return ""
+        text = str(content)
+        if "<" in text and ">" in text:
+            try:
+                soup = BeautifulSoup(text, "html.parser")
+                paragraphs = [p.get_text(" ", strip=True) for p in soup.find_all("p")]
+                if paragraphs:
+                    return re.sub(r"\n{2,}", "\n", "\n\n".join(p for p in paragraphs if p))
+                return re.sub(r"\n{2,}", "\n", soup.get_text("\n", strip=True))
+            except Exception:
+                return re.sub(r"\n{2,}", "\n", text.replace("\r\n", "\n").replace("\r", "\n"))
+        return re.sub(r"\n{2,}", "\n", text.replace("\r\n", "\n").replace("\r", "\n"))
+
+    def _prepare_auto_update_dir(self, book_id: str):
+        root = getattr(self, "_auto_update_temp_root", os.path.join(BASE_DIR, "tmp_auto_update"))
+        os.makedirs(root, exist_ok=True)
+        safe = re.sub(r"[^A-Za-z0-9_-]+", "_", book_id or "auto")
+        target = os.path.join(root, safe)
+        try:
+            if os.path.isdir(target):
+                shutil.rmtree(target, ignore_errors=True)
+            os.makedirs(target, exist_ok=True)
+        except Exception:
+            pass
+        return target
+
+    def _should_auto_credit(self) -> bool:
+        return bool((self.api_settings or {}).get("auto_credit", True))
+
+    def _wd_apply_credit_to_files(self, files: list):
+        if not self._should_auto_credit() or not files:
+            return
+        credit_text = ""
+        pos = "top"
+        line_num = 1
+        try:
+            credit_text = self.credit_text_widget.get("1.0", tk.END).strip()
+            pos = self.credit_position.get()
+            line_num = int(self.credit_line_num.get())
+        except Exception:
+            cfg = self.app_config or {}
+            credit_text = str(cfg.get("credit_text", "")).strip()
+            pos = cfg.get("credit_position", "top")
+            try:
+                line_num = int(cfg.get("credit_line_num", 1))
+            except Exception:
+                line_num = 1
+        if not credit_text:
+            return
+        for item in files:
+            path = item.get("path")
+            if not path or not os.path.isfile(path):
+                continue
+            try:
+                logic.modify_content(path, credit_text, pos, line_num)
+            except Exception as exc:
+                self.log(f"[AutoCredit] Lỗi thêm credit vào {os.path.basename(path)}: {exc}")
+
+    def _wd_fetch_detail_for_book(self, book: dict):
+        if not book or not book.get("id"):
+            return None
+        session, current_user, proxies = self._wd_build_wiki_session(include_user=True)
+        if not session or not current_user:
+            return None
+        try:
+            updated = wikidich_ext.fetch_book_detail(session, book, current_user, base_url=self._wd_get_base_url(), proxies=proxies)
+            self.wikidich_data["books"][book["id"]] = updated
+            self._wd_save_cache()
+            return updated
+        except Exception as exc:
+            self.log(f"[Wikidich] Lỗi tải chi tiết nhanh: {exc}")
+            return None
+
     def _wd_get_selected_categories(self):
         listbox = getattr(self, "wd_category_listbox", None)
         if not listbox or not self._wd_category_options:
@@ -8455,6 +9530,815 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
     def _wd_clear_date(self, target_var):
         target_var.set("")
         self._wd_update_adv_status()
+
+    def _ensure_fanqie_bridge_running(self):
+        """Khởi chạy tools/fanqie_bridge_win.exe âm thầm nếu có."""
+        try:
+            exe_path = os.path.join(BASE_DIR, "tools", "fanqie_bridge_win.exe")
+            if not os.path.isfile(exe_path):
+                return False
+            if self._fanqie_bridge_proc and self._fanqie_bridge_proc.poll() is None:
+                return True
+            creation = 0
+            try:
+                creation = CREATE_NO_WINDOW
+            except Exception:
+                creation = 0
+            self._fanqie_bridge_proc = _Popen(
+                [exe_path],
+                creationflags=creation,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except Exception as exc:
+            self.log(f"[Fanqie] Không khởi chạy được bridge: {exc}")
+            return False
+
+    def _stop_fanqie_bridge(self):
+        """Tắt tiến trình fanqie_bridge nếu đang chạy."""
+        proc = getattr(self, "_fanqie_bridge_proc", None)
+        if not proc:
+            return
+        try:
+            if proc.poll() is None:
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
+                # chờ nhanh xem đã thoát chưa, sau đó kill nếu cần
+                for _ in range(5):
+                    if proc.poll() is not None:
+                        break
+                    time.sleep(0.2)
+                if proc.poll() is None:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+            self._fanqie_bridge_proc = None
+        except Exception as exc:
+            self.log(f"[Fanqie] Không tắt được bridge: {exc}")
+        # Nếu vẫn còn process (ví dụ handle mất), thử kill theo tên trên Windows
+        if sys.platform.startswith("win"):
+            try:
+                subprocess.run(
+                    ["taskkill", "/IM", "fanqie_bridge_win.exe", "/F", "/T"],
+                    check=False,
+                    creationflags=CREATE_NO_WINDOW if 'CREATE_NO_WINDOW' in globals() else 0,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            except Exception:
+                pass
+
+    def _fanqie_progress_dir(self) -> str:
+        path = os.path.join(BASE_DIR, "local", "fanqie_progress")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    def _fanqie_progress_path(self, book_id: str) -> str:
+        safe = re.sub(r"[^A-Za-z0-9_-]+", "_", book_id or "unknown")
+        return os.path.join(self._fanqie_progress_dir(), f"{safe}.json")
+
+    def _fanqie_load_progress(self, book_id: str):
+        if not book_id:
+            return None
+        try:
+            path = self._fanqie_progress_path(book_id)
+            if not os.path.isfile(path):
+                return None
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+    def _fanqie_save_progress(self, book_id: str, data: dict):
+        if not book_id or not isinstance(data, dict):
+            return
+        try:
+            path = self._fanqie_progress_path(book_id)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            self.log(f"[Fanqie] Không ghi được tiến độ: {exc}")
+
+    def _fanqie_clear_progress_cache(self):
+        try:
+            cache_dir = os.path.join(BASE_DIR, "local", "fanqie_progress")
+            if os.path.isdir(cache_dir):
+                shutil.rmtree(cache_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+    def _open_fanqie_downloader(self):
+        """Mở cửa sổ tải Fanqie, hỗ trợ bridge hoặc API ngoài (non-modal)."""
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title("Download Novel 5 (Fanqie/API)")
+        win.geometry("880x720")
+        win.transient(self)
+        win.columnconfigure(0, weight=1)
+        win.rowconfigure(4, weight=1)
+
+        ext_var = tk.StringVar(value="fanqie")
+        api_status_var = tk.StringVar(value="Chưa kiểm tra bridge.")
+        url_var = tk.StringVar()
+        opts = dict(self.nd5_options or DEFAULT_ND5_OPTIONS)
+        include_info_var = tk.BooleanVar(value=opts.get("include_info", True))
+        include_cover_var = tk.BooleanVar(value=opts.get("include_cover", True))
+        heading_in_zip_var = tk.BooleanVar(value=opts.get("heading_in_zip", True))
+        fmt_var = tk.StringVar(value=opts.get("format", "zip") or "zip")
+        out_dir_var = tk.StringVar(value=opts.get("out_dir") or self.folder_path.get() or BASE_DIR)
+        status_var = tk.StringVar(value="Nhập URL và bấm Lấy thông tin.")
+        title_tpl_var = tk.StringVar(value=opts.get("title_tpl", "{num}. {title}") or "{num}. {title}")
+        range_var = tk.StringVar(value=opts.get("range", ""))
+
+        current_book = {"meta": None, "toc": []}
+        cover_cache = {"bytes": None}
+
+        def _fanqie_headers():
+            headers = dict(DEFAULT_API_SETTINGS.get("fanqie_headers", {}))
+            try:
+                custom = self.api_settings.get("fanqie_headers", {})
+                if isinstance(custom, dict):
+                    for k, v in custom.items():
+                        if v:
+                            headers[k] = v
+            except Exception:
+                pass
+            return headers
+
+        def _extract_book_id(raw_url: str):
+            if not raw_url:
+                return None
+            m = re.search(r"/(?:page|book|reader)/(\d+)", raw_url)
+            if m:
+                return m.group(1)
+            m = re.search(r"(\d{6,})", raw_url)
+            return m.group(1) if m else None
+
+        def _safe_filename(name: str, default="fanqie_book"):
+            cleaned = re.sub(r'[\\\\/:*?"<>|]+', "_", name or "").strip()
+            return cleaned or default
+
+        def _normalize_newlines(text: str):
+            text = text.replace("\r\n", "\n").replace("\r", "\n")
+            return re.sub(r"\n{2,}", "\n", text)
+
+        def _resolve_output_path(path: str):
+            if not os.path.exists(path):
+                return path
+            filename = os.path.basename(path)
+            resp = messagebox.askyesnocancel(
+                "File đã tồn tại",
+                f"File '{filename}' đã tồn tại.\nYes: Ghi đè\nNo: Đổi tên\nCancel: Thoát",
+                parent=win
+            )
+            if resp is True:
+                return path
+            if resp is None:
+                return None
+            root, ext = os.path.splitext(path)
+            idx = 1
+            new_path = f"{root}({idx}){ext}"
+            while os.path.exists(new_path):
+                idx += 1
+                new_path = f"{root}({idx}){ext}"
+            return new_path
+
+        def _content_to_text(content: str):
+            if content is None:
+                return ""
+            text = str(content)
+            if "<" in text and ">" in text:
+                try:
+                    soup = BeautifulSoup(text, "html.parser")
+                    paragraphs = [p.get_text(" ", strip=True) for p in soup.find_all("p")]
+                    if paragraphs:
+                        return _normalize_newlines("\n\n".join(p for p in paragraphs if p))
+                    return _normalize_newlines(soup.get_text("\n", strip=True))
+                except Exception:
+                    return _normalize_newlines(text)
+            return _normalize_newlines(text)
+
+        def _content_to_html(content: str):
+            if content is None:
+                return ""
+            text = str(content)
+            if "<" in text and ">" in text:
+                return text
+            lines = [line.strip() for line in re.split(r"\r?\n+", text) if line.strip()]
+            escaped = [html.escape(line) for line in lines]
+            return "<p>" + "</p><p>".join(escaped) + "</p>" if escaped else ""
+
+        def _pick_output():
+            path = filedialog.askdirectory(title="Chọn thư mục lưu", initialdir=out_dir_var.get() or BASE_DIR)
+            if path:
+                out_dir_var.set(path)
+                _persist_nd5_options()
+
+        def _set_info(text: str):
+            info_text.config(state="normal")
+            info_text.delete("1.0", tk.END)
+            info_text.insert("1.0", text)
+            info_text.config(state="disabled")
+
+        def _update_status(msg: str):
+            status_var.set(msg)
+
+        def _update_api_status(msg: str, also_log=False):
+            api_status_var.set(msg)
+            if also_log:
+                self.log(f"[Fanqie] {msg}")
+
+        def _persist_nd5_options():
+            self.nd5_options = {
+                "include_info": include_info_var.get(),
+                "include_cover": include_cover_var.get(),
+                "heading_in_zip": heading_in_zip_var.get(),
+                "format": fmt_var.get(),
+                "title_tpl": title_tpl_var.get(),
+                "range": range_var.get(),
+                "out_dir": out_dir_var.get(),
+            }
+            self.app_config['novel_downloader5'] = dict(self.nd5_options)
+            try:
+                self.save_config()
+            except Exception:
+                pass
+
+        def _parse_range(raw: str):
+            raw = (raw or "").replace(" ", "").lower()
+            if not raw:
+                return []
+            result = set()
+            for part in raw.split(","):
+                if not part:
+                    continue
+                if "-" in part:
+                    try:
+                        start_s, end_s = part.split("-", 1)
+                        start_i = int(start_s)
+                        end_i = int(end_s)
+                        if end_i < start_i:
+                            start_i, end_i = end_i, start_i
+                        for i in range(start_i, end_i + 1):
+                            result.add(i)
+                    except Exception:
+                        continue
+                else:
+                    try:
+                        result.add(int(part))
+                    except Exception:
+                        continue
+            return sorted(result)
+
+        def _check_backend():
+            if not self._ensure_fanqie_bridge_running():
+                _update_api_status("Bridge chưa chạy hoặc thiếu tools/fanqie_bridge_win.exe.", also_log=True)
+                return False
+            try:
+                resp = requests.get("http://127.0.0.1:9999/healthz", timeout=5)
+                if resp.ok:
+                    data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+                    iid = data.get("install_id") or "unknown"
+                    _update_api_status(f"Bridge đang chạy (install_id={iid})", also_log=True)
+                else:
+                    _update_api_status(f"Bridge phản hồi mã {resp.status_code}", also_log=True)
+            except Exception as exc:
+                _update_api_status(f"Bridge không phản hồi: {exc}", also_log=True)
+            return True
+
+        def _start_bridge_async():
+            _update_api_status("Đang bật bridge (nền)...")
+
+            def runner():
+                started = self._ensure_fanqie_bridge_running()
+                if not started:
+                    self.after(0, lambda: _update_api_status("Không chạy được fanqie_bridge_win.exe.", also_log=True))
+                    return
+                # chờ bridge khởi động, thử healthz nhiều lần
+                attempts = 5
+                for _ in range(attempts):
+                    try:
+                        resp = requests.get("http://127.0.0.1:9999/healthz", timeout=5)
+                        if resp.ok:
+                            data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+                            iid = data.get("install_id") or "unknown"
+                            self.after(0, lambda: _update_api_status(f"Bridge đang chạy (install_id={iid})", also_log=True))
+                            return
+                        else:
+                            self.after(0, lambda code=resp.status_code: _update_api_status(f"Bridge phản hồi mã {code}", also_log=True))
+                            return
+                    except Exception:
+                        time.sleep(0.8)
+                self.after(0, lambda: _update_api_status("Bridge không phản hồi sau khi khởi động.", also_log=True))
+
+            threading.Thread(target=runner, daemon=True).start()
+            return
+
+        def _fetch_book_metadata(book_id: str, proxies=None):
+            api_url = f"https://api5-normal-sinfonlineb.fqnovel.com/reading/bookapi/multi-detail/v/?aid=2329&iid=1&version_code=999&book_id={book_id}"
+            headers = _fanqie_headers()
+            resp = requests.get(api_url, headers=headers, timeout=25, proxies=proxies)
+            resp.raise_for_status()
+            data = resp.json()
+            raw = None
+            if isinstance(data, dict):
+                if isinstance(data.get("data"), list) and data["data"]:
+                    raw = data["data"][0]
+                elif isinstance(data.get("data"), dict):
+                    # hỗ trợ dạng dict book_id -> info
+                    raw = data["data"].get(str(book_id)) or data["data"]
+            return {
+                "book_id": book_id,
+                "title": (raw or {}).get("book_name") or (raw or {}).get("title") or f"Fanqie_{book_id}",
+                "author": (raw or {}).get("author") or (raw or {}).get("author_name") or "",
+                "intro": (raw or {}).get("abstract") or (raw or {}).get("description") or "",
+                "cover": (raw or {}).get("thumb_url") or (raw or {}).get("cover") or "",
+                "raw": raw or data,
+            }
+
+        def _fetch_toc(book_id: str, proxies=None):
+            url = f"https://fanqienovel.com/page/{book_id}"
+            headers = _fanqie_headers()
+            resp = requests.get(url, headers=headers, timeout=35, proxies=proxies)
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, "html.parser")
+            nodes = soup.select(".page-directory-content .chapter-item") or soup.select(".page-directory-content a.chapter-item-title")
+            toc = []
+            if nodes:
+                for idx, node in enumerate(nodes, start=1):
+                    a_tag = node if node.name == "a" else node.select_one("a.chapter-item-title") or node.select_one("a")
+                    href = a_tag.get("href", "") if a_tag else ""
+                    cid_match = re.search(r"/reader/(\d+)", href) if href else None
+                    cid = cid_match.group(1) if cid_match else None
+                    title = a_tag.get_text(strip=True) if a_tag else (node.get_text(strip=True) if hasattr(node, "get_text") else f"Chương {idx}")
+                    toc.append({"num": idx, "id": cid or str(idx), "title": title})
+            if not toc:
+                self.log("[Fanqie] Không tìm thấy mục lục bằng selector mặc định.")
+            return toc
+
+        def _fetch_cover_bytes(url: str, proxies=None):
+            if not url:
+                return None
+            try:
+                resp = requests.get(url, timeout=25, proxies=proxies)
+                resp.raise_for_status()
+                return resp.content
+            except Exception as exc:
+                self.log(f"[Fanqie] Không tải được ảnh bìa: {exc}")
+                return None
+
+        def _format_info(meta: dict, toc: list):
+            lines = []
+            lines.append(f"Tiện ích: {ext_var.get()} | Backend: Mặc định (fanqie_bridge.exe)")
+            lines.append(f"Tên truyện: {meta.get('title', '')}")
+            lines.append(f"Tác giả: {meta.get('author', '')}")
+            if meta.get("cover"):
+                lines.append(f"Ảnh bìa: {meta['cover']}")
+            if meta.get("intro"):
+                lines.append("Giới thiệu:")
+                lines.append(meta["intro"].strip())
+            lines.append("")
+            lines.append("Mục lục (đánh số từ trên xuống):")
+            for item in toc:
+                lines.append(f"{item['num']:>4}: {item.get('title', '')} [ID: {item.get('id', '?')}]")
+            if include_info_var.get():
+                lines.append("\n* Sẽ thêm chương 0: Thông tin sách (nếu chọn).")
+            return "\n".join(lines)
+
+        def _extract_chapter_payload(raw: dict, ids: list, fallback_titles: dict):
+            results = {}
+            candidates = []
+            if isinstance(raw, dict):
+                if isinstance(raw.get("chapters"), dict):
+                    candidates.append(raw["chapters"])
+                if isinstance(raw.get("data"), dict):
+                    candidates.append(raw["data"])
+                if not candidates:
+                    candidates.append(raw)
+            for cand in candidates:
+                if not isinstance(cand, dict):
+                    continue
+                for cid in ids:
+                    entry = cand.get(cid) or cand.get(str(cid))
+                    if entry is None:
+                        continue
+                    if isinstance(entry, str):
+                        title = fallback_titles.get(cid) or fallback_titles.get(str(cid))
+                        results[str(cid)] = {"title": title or f"Chương {cid}", "content": entry}
+                        continue
+                    if isinstance(entry, dict):
+                        title = entry.get("title") or entry.get("chapter_title") or fallback_titles.get(cid) or fallback_titles.get(str(cid)) or f"Chương {cid}"
+                        content = (
+                            entry.get("content")
+                            or entry.get("data", {}).get("content")
+                            or entry.get("chapter", {}).get("content")
+                            or entry.get("text")
+                            or entry.get("value")
+                        )
+                        results[str(cid)] = {"title": title, "content": content}
+            if results:
+                return results
+            data_list = raw.get("data") if isinstance(raw, dict) else None
+            if isinstance(data_list, list):
+                for entry in data_list:
+                    if not isinstance(entry, dict):
+                        continue
+                    cid = str(entry.get("item_id") or entry.get("chapter_id") or entry.get("cid") or entry.get("id") or "")
+                    if not cid:
+                        continue
+                    title = entry.get("title") or fallback_titles.get(cid) or f"Chương {cid}"
+                    content = entry.get("content") or entry.get("data", {}).get("content")
+                    results[cid] = {"title": title, "content": content}
+            return results
+
+        def _download_batch(ids: list, fmt: str, fallback_titles: dict):
+            if not ids:
+                return {}
+            try:
+                url = f"http://127.0.0.1:9999/content?item_id={','.join(ids)}"
+                if fmt == "epub":
+                    url += "&format=epub"
+                resp = requests.get(url, timeout=120)
+                resp.raise_for_status()
+                payload = resp.json()
+                return _extract_chapter_payload(payload, ids, fallback_titles)
+            except Exception as exc:
+                self.log(f"[Fanqie] Lỗi tải batch {ids}: {exc}")
+                return {}
+
+        def _write_txt(chapters: list, meta: dict, out_dir: str, title_tpl: str):
+            filename = _safe_filename(meta.get("title")) + ".txt"
+            path = _resolve_output_path(os.path.join(out_dir, filename))
+            if not path:
+                return None
+            os.makedirs(out_dir, exist_ok=True)
+            parts = [
+                meta.get("title", ""),
+                f"Tác giả: {meta.get('author', '')}",
+                meta.get("intro", "").strip(),
+                "",
+            ]
+            for ch in chapters:
+                try:
+                    title_line = title_tpl.format(num=ch["num"], title=ch["title"])
+                except Exception:
+                    title_line = f"{ch['num']}. {ch['title']}"
+                parts.append(title_line)
+                parts.append(_content_to_text(ch.get("content") or ""))
+                parts.append("")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(parts))
+            return path
+
+        def _write_zip(chapters: list, meta: dict, out_dir: str, cover_bytes: bytes = None, add_heading: bool = True, title_tpl: str = "{num}. {title}"):
+            filename = _safe_filename(meta.get("title")) + ".zip"
+            path = _resolve_output_path(os.path.join(out_dir, filename))
+            if not path:
+                return None
+            os.makedirs(out_dir, exist_ok=True)
+            with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                if cover_bytes:
+                    zf.writestr("cover.jpg", cover_bytes)
+                for ch in chapters:
+                    name = f"{ch['num']:04d}-{_safe_filename(ch['title'] or str(ch['num']))}.txt"
+                    content_text = _content_to_text(ch.get("content") or "")
+                    if add_heading:
+                        try:
+                            heading = title_tpl.format(num=ch["num"], title=ch["title"])
+                        except Exception:
+                            heading = f"{ch['num']}. {ch['title']}"
+                        content_text = f"{heading}\n\n{content_text}"
+                    zf.writestr(name, content_text)
+            return path
+
+        def _write_epub(chapters: list, meta: dict, out_dir: str, cover_bytes: bytes = None):
+            filename = _safe_filename(meta.get("title")) + ".epub"
+            path = _resolve_output_path(os.path.join(out_dir, filename))
+            if not path:
+                return None
+            os.makedirs(out_dir, exist_ok=True)
+            with zipfile.ZipFile(path, "w") as zf:
+                zf.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
+                container_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>"""
+                zf.writestr("META-INF/container.xml", container_xml)
+
+                manifest_items = []
+                spine_items = []
+                nav_entries = []
+                for idx, ch in enumerate(chapters):
+                    href = f"chap{idx:05d}.xhtml"
+                    cid = f"c{idx}"
+                    title = ch.get("title") or f"{ch.get('num')}"
+                    display_title = f"0. {title}" if ch.get("num") == 0 else f"{ch.get('num')}. {title}"
+                    body_html = _content_to_html(ch.get("content") or "")
+                    chapter_html = f"""<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head><title>{html.escape(display_title)}</title></head>
+  <body>
+    <h2>{html.escape(display_title)}</h2>
+    {body_html}
+  </body>
+</html>"""
+                    zf.writestr(f"OEBPS/{href}", chapter_html)
+                    manifest_items.append(f'<item id="{cid}" href="{href}" media-type="application/xhtml+xml"/>')
+                    spine_items.append(f'<itemref idref="{cid}"/>')
+                    nav_label = f"0. {title}" if ch.get("num") == 0 else f"{ch.get('num')}. {title}"
+                    nav_entries.append(f'<li><a href="{href}">{html.escape(nav_label)}</a></li>')
+
+                if cover_bytes:
+                    zf.writestr("OEBPS/cover.jpg", cover_bytes)
+                    manifest_items.append('<item id="cover-image" href="cover.jpg" media-type="image/jpeg"/>')
+                    cover_meta = '<meta name="cover" content="cover-image"/>'
+                else:
+                    cover_meta = ""
+
+                nav_body = "\n        ".join(nav_entries)
+                nav_html = f"""<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head><title>Nav</title></head>
+  <body>
+    <nav epub:type="toc">
+      <h1>{html.escape(meta.get('title','Mục lục'))}</h1>
+      <ol>
+        {nav_body}
+      </ol>
+    </nav>
+  </body>
+</html>"""
+                zf.writestr("OEBPS/nav.xhtml", nav_html)
+                manifest_items.append('<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>')
+
+                manifest_text = "\n    ".join(manifest_items)
+                spine_text = "\n    ".join(spine_items)
+                opf = f"""<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="BookId">{html.escape(meta.get('book_id','fanqie'))}</dc:identifier>
+    <dc:title>{html.escape(meta.get('title','Fanqie'))}</dc:title>
+    <dc:creator>{html.escape(meta.get('author',''))}</dc:creator>
+    <dc:language>zh</dc:language>
+    {cover_meta}
+  </metadata>
+  <manifest>
+    {manifest_text}
+  </manifest>
+  <spine>
+    {spine_text}
+  </spine>
+</package>"""
+                zf.writestr("OEBPS/content.opf", opf)
+            return path
+
+        def _fetch_info():
+            if ext_var.get() != "fanqie":
+                messagebox.showinfo("Chưa hỗ trợ", "Hiện chỉ hỗ trợ Fanqie.", parent=win)
+                return
+            book_url = url_var.get().strip()
+            if not book_url:
+                messagebox.showinfo("Thiếu URL", "Nhập URL Fanqie trước.", parent=win)
+                return
+            book_id = _extract_book_id(book_url)
+            if not book_id:
+                messagebox.showerror("URL không hợp lệ", "Không tìm thấy book_id trong URL.", parent=win)
+                return
+            _persist_nd5_options()
+            _update_status("Đang lấy thông tin truyện...")
+            progress.config(mode="indeterminate")
+            progress.start()
+
+            def worker():
+                try:
+                    _check_backend()
+                    proxies = self._get_proxy_for_request("fanqie")
+                    meta = _fetch_book_metadata(book_id, proxies=proxies)
+                    toc = _fetch_toc(book_id, proxies=proxies)
+                    cover_cache["bytes"] = None
+                    if include_cover_var.get():
+                        cover_cache["bytes"] = _fetch_cover_bytes(meta.get("cover"), proxies=proxies)
+                    current_book["meta"] = meta
+                    current_book["toc"] = toc
+                    info_text_content = _format_info(meta, toc)
+                    self.after(0, lambda: _set_info(info_text_content))
+                    self.after(0, lambda: _update_status(f"Đã lấy {len(toc)} chương. Sẵn sàng tải."))
+                except Exception as exc:
+                    self.log(f"[Fanqie] Lỗi lấy thông tin: {exc}")
+                    self.after(0, lambda: messagebox.showerror("Lỗi", f"Lấy thông tin thất bại: {exc}", parent=win))
+                    self.after(0, lambda: _update_status("Lỗi khi lấy thông tin."))
+                finally:
+                    def _reset_bar():
+                        progress.stop()
+                        progress.config(mode="determinate", value=0, maximum=1)
+                    self.after(0, _reset_bar)
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        def _start_download():
+            meta = current_book.get("meta")
+            toc = current_book.get("toc") or []
+            if ext_var.get() != "fanqie":
+                messagebox.showinfo("Chưa hỗ trợ", "Hiện chỉ hỗ trợ Fanqie.", parent=win)
+                return
+            if not meta or not toc:
+                messagebox.showinfo("Thiếu dữ liệu", "Hãy Lấy thông tin trước khi tải.", parent=win)
+                return
+            numbers = _parse_range(range_var.get())
+            num_set = set(numbers) if numbers else set(item["num"] for item in toc)
+            include_info = include_info_var.get()
+            if include_info:
+                num_set.add(0)
+            if not self._ensure_fanqie_bridge_running():
+                messagebox.showerror("Không tìm thấy bridge", "Không chạy được tools/fanqie_bridge_win.exe. Kiểm tra lại file trong thư mục tools.", parent=win)
+                return
+            out_dir = out_dir_var.get().strip() or BASE_DIR
+            fmt = (fmt_var.get() or "zip").lower()
+
+            _update_status("Đang chuẩn bị tải...")
+            progress.config(mode="determinate", maximum=max(1, len(num_set)))
+            progress["value"] = 0
+
+            def worker():
+                try:
+                    _persist_nd5_options()
+                    tpl = title_tpl_var.get().strip()
+                    if fmt in ("txt", "zip") or (fmt == "epub" and heading_in_zip_var.get()):
+                        if not tpl:
+                            raise ValueError("Template tiêu đề không được rỗng.")
+                        if "{num}" not in tpl and "{title}" not in tpl:
+                            raise ValueError("Template phải chứa {num} hoặc {title}.")
+                    book_id = (meta or {}).get("book_id") or _extract_book_id(url_var.get())
+                    progress_data = {}
+                    progress_chapters = {}
+                    if book_id:
+                        progress_data = self._fanqie_load_progress(book_id) or {}
+                        progress_chapters = progress_data.get("chapters", {})
+                    tasks = []
+                    if include_info and 0 in num_set:
+                        info_content = (
+                            f"{meta.get('title','')}\nTác giả: {meta.get('author','')}\n\n{meta.get('intro','')}"
+                        )
+                        tasks.append({"num": 0, "id": "book-info", "title": "Thông tin sách", "content": info_content})
+                        if book_id:
+                            progress_chapters["book-info"] = {"title": "Thông tin sách", "content": info_content}
+                    id_map = {}
+                    for item in toc:
+                        if not num_set or item["num"] in num_set:
+                            tasks.append({"num": item["num"], "id": str(item.get("id") or item["num"]), "title": item.get("title")})
+                            id_map[str(item.get("id") or item["num"])] = item.get("title")
+                    total = len(tasks)
+                    done = 0
+                    self.after(0, lambda: progress.config(maximum=max(1, total)))
+
+                    # tải nội dung chương >=1
+                    real_chapters = [t for t in tasks if t["num"] != 0]
+                    fetched = dict(progress_chapters) if progress_chapters else {}
+                    batch_size = 20
+                    for i in range(0, len(real_chapters), batch_size):
+                        batch = real_chapters[i:i + batch_size]
+                        ids = [t["id"] for t in batch]
+                        ids_to_fetch = [cid for cid in ids if str(cid) not in fetched or not fetched.get(str(cid), {}).get("content")]
+                        partial = {}
+                        if ids_to_fetch:
+                            partial = _download_batch(ids_to_fetch, fmt, id_map)
+                        fetched.update(partial)
+                        if book_id:
+                            progress_chapters.update({str(k): v for k, v in fetched.items()})
+                            progress_data["chapters"] = progress_chapters
+                            progress_data["meta"] = meta
+                            self._fanqie_save_progress(book_id, progress_data)
+                        done += len(batch)
+                        self.after(0, lambda d=done, tot=total: (progress.config(value=d), _update_status(f"Đang tải {d}/{tot}...")))
+
+                    # hợp nhất nội dung
+                    for idx, ch in enumerate(tasks):
+                        if ch["num"] == 0:
+                            continue
+                        payload = fetched.get(str(ch["id"]))
+                        if payload:
+                            ch["title"] = payload.get("title") or ch.get("title") or f"Chương {ch['num']}"
+                            ch["content"] = payload.get("content") or ""
+                        else:
+                            ch["content"] = ""
+                    # sắp xếp theo số chương
+                    tasks.sort(key=lambda x: x["num"])
+
+                    # tải bìa nếu cần
+                    cover_bytes = cover_cache.get("bytes") if include_cover_var.get() else None
+                    if include_cover_var.get() and cover_bytes is None and meta.get("cover"):
+                        cover_bytes = _fetch_cover_bytes(meta["cover"], proxies=self._get_proxy_for_request("fanqie"))
+
+                    title_tpl = title_tpl_var.get().strip() or "{num}. {title}"
+                    saved_path = None
+                    if fmt == "txt":
+                        saved_path = _write_txt(tasks, meta, out_dir, title_tpl)
+                    elif fmt == "zip":
+                        saved_path = _write_zip(
+                            tasks,
+                            meta,
+                            out_dir,
+                            cover_bytes if include_cover_var.get() else None,
+                            heading_in_zip_var.get(),
+                            title_tpl
+                        )
+                    else:
+                        saved_path = _write_epub(tasks, meta, out_dir, cover_bytes if include_cover_var.get() else None)
+
+                    if not saved_path:
+                        self.after(0, lambda: _update_status("Đã hủy lưu file."))
+                        return
+
+                    self.log(f"[Fanqie] Đã tải xong {len(tasks)} mục. Lưu tại: {saved_path}")
+                    self.after(0, lambda: _update_status(f"Đã lưu: {saved_path}"))
+                    self.after(0, lambda: messagebox.showinfo("Hoàn tất", f"Tải xong. File: {saved_path}", parent=win))
+                except Exception as exc:
+                    self.log(f"[Fanqie] Lỗi tải: {exc}")
+                    self.after(0, lambda: messagebox.showerror("Lỗi tải", f"{exc}", parent=win))
+                    self.after(0, lambda: _update_status("Tải thất bại."))
+                finally:
+                    self.after(0, lambda: progress.config(value=0))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        # Khối UI trên cùng: chọn nguồn
+        top_frame = ttk.Frame(win, padding=(10, 8))
+        top_frame.grid(row=0, column=0, sticky="ew")
+        top_frame.columnconfigure(1, weight=1)
+        ttk.Label(top_frame, text="Nguồn:").grid(row=0, column=0, sticky="w", padx=(0, 6))
+        ttk.Combobox(top_frame, state="readonly", width=12, values=["fanqie"], textvariable=ext_var).grid(row=0, column=1, sticky="w")
+
+        backend_frame = ttk.Frame(win, padding=(10, 2))
+        backend_frame.grid(row=1, column=0, sticky="ew")
+        backend_frame.columnconfigure(1, weight=1)
+        ttk.Label(backend_frame, textvariable=api_status_var, foreground="#3b82f6").grid(row=0, column=0, sticky="w", pady=(4, 0))
+
+        # URL + lấy info
+        url_frame = ttk.Frame(win, padding=(10, 4))
+        url_frame.grid(row=2, column=0, sticky="ew")
+        url_frame.columnconfigure(1, weight=1)
+        ttk.Label(url_frame, text="URL Fanqie:").grid(row=0, column=0, sticky="w", padx=(0, 6))
+        ttk.Entry(url_frame, textvariable=url_var).grid(row=0, column=1, sticky="ew")
+        ttk.Button(url_frame, text="Lấy thông tin", command=_fetch_info).grid(row=0, column=2, padx=(6, 0))
+
+        # Tuỳ chọn tải
+        opt_frame = ttk.LabelFrame(win, text="Tuỳ chọn", padding=10)
+        opt_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=(4, 4))
+        opt_frame.columnconfigure(3, weight=1)
+        ttk.Checkbutton(opt_frame, text="Tải thông tin sách (chương 0)", variable=include_info_var).grid(row=0, column=0, sticky="w")
+        ttk.Checkbutton(opt_frame, text="Tải ảnh bìa", variable=include_cover_var).grid(row=0, column=1, sticky="w", padx=(10, 0))
+        ttk.Label(opt_frame, text="Định dạng:").grid(row=0, column=2, sticky="e", padx=(10, 4))
+        fmt_combo = ttk.Combobox(opt_frame, values=["epub", "txt", "zip"], width=8, state="readonly", textvariable=fmt_var)
+        fmt_combo.grid(row=0, column=3, sticky="w")
+
+        ttk.Label(opt_frame, text="Phạm vi tải (ví dụ 1-10,15, để trống = tất cả):").grid(row=1, column=0, sticky="w", pady=(8, 0), columnspan=2)
+        range_entry = ttk.Entry(opt_frame, textvariable=range_var)
+        range_entry.grid(row=1, column=2, columnspan=2, sticky="ew", padx=(6, 0), pady=(8, 0))
+
+        ttk.Label(opt_frame, text="Tiêu đề trong file (template):").grid(row=2, column=0, sticky="w", pady=(8, 0))
+        title_tpl_entry = ttk.Entry(opt_frame, textvariable=title_tpl_var)
+        title_tpl_entry.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(6, 0), pady=(8, 0))
+        ttk.Label(opt_frame, text="Dùng {num} và/hoặc {title}").grid(row=2, column=3, sticky="w", pady=(8, 0))
+
+        zip_heading_chk = ttk.Checkbutton(opt_frame, text="Ghi tiêu đề vào mỗi file (đối với ZIP)", variable=heading_in_zip_var)
+        zip_heading_chk.grid(row=3, column=0, columnspan=2, sticky="w")
+
+        ttk.Label(opt_frame, text="Thư mục lưu:").grid(row=4, column=0, sticky="w", pady=(8, 0))
+        out_entry = ttk.Entry(opt_frame, textvariable=out_dir_var)
+        out_entry.grid(row=4, column=1, columnspan=2, sticky="ew", padx=(6, 0), pady=(8, 0))
+        ttk.Button(opt_frame, text="Chọn...", command=_pick_output).grid(row=4, column=3, sticky="w", padx=(6, 0), pady=(8, 0))
+
+        # Khu vực hiển thị thông tin
+        info_frame = ttk.LabelFrame(win, text="Thông tin truyện", padding=10)
+        info_frame.grid(row=4, column=0, sticky="nsew", padx=10, pady=(4, 4))
+        info_frame.columnconfigure(0, weight=1)
+        info_frame.rowconfigure(0, weight=1)
+        info_text = scrolledtext.ScrolledText(info_frame, wrap=tk.WORD, state="disabled", height=14)
+        info_text.grid(row=0, column=0, sticky="nsew")
+
+        # Thanh tiến độ
+        progress_frame = ttk.Frame(win, padding=(10, 6))
+        progress_frame.grid(row=5, column=0, sticky="ew")
+        progress_frame.columnconfigure(0, weight=1)
+        progress = ttk.Progressbar(progress_frame, mode="determinate")
+        progress.grid(row=0, column=0, sticky="ew")
+        ttk.Label(progress_frame, textvariable=status_var).grid(row=1, column=0, sticky="w", pady=(4, 0))
+
+        # Nút hành động
+        action_frame = ttk.Frame(win, padding=(10, 6))
+        action_frame.grid(row=6, column=0, sticky="e")
+        ttk.Button(action_frame, text="Bắt đầu tải", command=_start_download).pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(action_frame, text="Đóng", command=lambda: (_persist_nd5_options(), win.destroy())).pack(side=tk.RIGHT)
+
+        self.after(200, _start_bridge_async)
+        win.protocol("WM_DELETE_WINDOW", lambda: (_persist_nd5_options(), win.destroy()))
 
     def _start_extraction(self):
         """Bắt đầu quá trình giải nén file trong một thread riêng."""

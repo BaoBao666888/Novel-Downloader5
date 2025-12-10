@@ -734,18 +734,14 @@ def _parse_additional_links(desc_block: BeautifulSoup, base_url: str, ignore_blo
     return links
 
 
-def fetch_book_detail(
-    session: requests.Session,
+def _parse_book_page(
+    doc: BeautifulSoup,
+    text: str,
     book: Dict[str, Any],
     current_user_slug: str,
-    base_url: str = BASE_URL,
-    proxies=None,
-) -> Dict[str, Any]:
-    resp = session.get(book["url"], timeout=50, proxies=proxies)
-    resp.raise_for_status()
-    doc = BeautifulSoup(resp.text, "html.parser")
-    text = resp.text
-
+    base_url: str,
+) -> Tuple[Dict[str, Any], str, str, int, Optional[Callable[[str], str]]]:
+    """Phân tích trang truyện -> trả về (book cập nhật, book_id, sign_key, size, fuzzy_ctx)."""
     info = doc.select_one(".cover-info") or doc
     title = info.select_one("h2").get_text(strip=True) if info.select_one("h2") else book.get("title", "")
     stats = {"views": None, "rating": None, "comments": None}
@@ -794,19 +790,6 @@ def fetch_book_detail(
     sign_key = sign_key_match.group(1) if sign_key_match else ""
     size = int(size_match.group(1)) if size_match else 500
     fuzzy_ctx = _build_fuzzy_ctx(text)
-    chapters = None
-    if book_id and sign_key:
-        chapters = _fetch_chapter_count(session, base_url, book_id, sign_key, size, fuzzy_ctx, proxies=proxies)
-    if chapters is None:
-        latest_link = next(
-            (a for a in info.select("p a") if "/chuong-" in a.get("href", "")),
-            None,
-        )
-        if latest_link:
-            m = re.search(r"(\d+)", latest_link.get_text(strip=True))
-            if m:
-                chapters = int(m.group(1))
-
     flags = _parse_manager_flags(doc, current_user_slug)
 
     updated_book = dict(book)
@@ -820,7 +803,7 @@ def fetch_book_detail(
             "status_norm": _normalize(status or book.get("status", "")),
             "stats": stats,
             "cover_url": cover_url,
-            "chapters": chapters if chapters is not None else book.get("chapters"),
+            "chapters": book.get("chapters"),
             "collections": collections or book.get("collections", []),
             "summary": summary,
             "summary_norm": summary_norm,
@@ -831,7 +814,241 @@ def fetch_book_detail(
             "flags": {**_default_flags(), **book.get("flags", {}), **flags},
         }
     )
+    return updated_book, book_id, sign_key, size, fuzzy_ctx
+
+
+def fetch_book_detail(
+    session: requests.Session,
+    book: Dict[str, Any],
+    current_user_slug: str,
+    base_url: str = BASE_URL,
+    proxies=None,
+) -> Dict[str, Any]:
+    resp = session.get(book["url"], timeout=50, proxies=proxies)
+    resp.raise_for_status()
+    doc = BeautifulSoup(resp.text, "html.parser")
+    text = resp.text
+
+    updated_book, book_id, sign_key, size, fuzzy_ctx = _parse_book_page(doc, text, book, current_user_slug, base_url)
+
+    chapters = None
+    if book_id and sign_key:
+        chapters = _fetch_chapter_count(session, base_url, book_id, sign_key, size, fuzzy_ctx, proxies=proxies)
+    if chapters is None:
+        latest_link = next(
+            (a for a in doc.select(".cover-info p a") if "/chuong-" in a.get("href", "")),
+            None,
+        )
+        if latest_link:
+            m = re.search(r"(\d+)", latest_link.get_text(strip=True))
+            if m:
+                chapters = int(m.group(1))
+    if chapters is not None:
+        updated_book["chapters"] = chapters
     return updated_book
+
+
+def _parse_chapter_nodes(doc: BeautifulSoup, base_url: str, start_offset: int = 0) -> List[Dict[str, Any]]:
+    anchors = (
+        doc.select("li.chapter-name a")
+        or doc.select("ul#chapters li a")
+        or doc.select(".chapter-name a")
+        or []
+    )
+    chapters: List[Dict[str, Any]] = []
+    for idx, a in enumerate(anchors, start=1):
+        title = a.get_text(strip=True)
+        href = urljoin(base_url, a.get("href", ""))
+        cid = a.get("data-id") or a.get("data-chapterid") or a.get("data-chapter-id") or ""
+        num = None
+        for attr in ("data-order", "data-chapter", "data-chapternum", "data-idx", "data-index"):
+            raw = a.get(attr)
+            if raw and str(raw).strip().lstrip("-").replace(".", "", 1).isdigit():
+                try:
+                    num = int(float(raw))
+                    break
+                except Exception:
+                    num = None
+        if num is None:
+            m = re.search(r"(\d+(?:\.\d+)?)", title)
+            if m:
+                try:
+                    num = int(float(m.group(1)))
+                except Exception:
+                    num = None
+        if num is None:
+            num = start_offset + idx
+        chapters.append({"id": cid, "number": num, "title": title, "url": href})
+    return chapters
+
+
+def _fetch_book_index(
+    session: requests.Session,
+    base_url: str,
+    book_id: str,
+    sign_key: str,
+    size: int,
+    fuzzy_ctx: Optional[Callable[[str], str]],
+    proxies=None,
+) -> List[Dict[str, Any]]:
+    chapters: List[Dict[str, Any]] = []
+    start = 0
+    max_pages = 200
+    for _ in range(max_pages):
+        params = {
+            "bookId": book_id,
+            "signKey": sign_key,
+            "sign": _gen_sign(sign_key, start, size, fuzzy_ctx),
+            "size": size,
+            "start": start,
+        }
+        resp = session.get(f"{base_url}/book/index", params=params, timeout=40, proxies=proxies)
+        if resp.status_code != 200:
+            break
+        doc = BeautifulSoup(resp.text, "html.parser")
+        chapters.extend(_parse_chapter_nodes(doc, base_url, start_offset=start))
+        pagination = doc.select("ul.pagination a[data-start]")
+        if not pagination:
+            break
+        last_start = max(int(a.get("data-start", "0") or 0) for a in pagination)
+        if start >= last_start:
+            break
+        start += size
+    seen = set()
+    unique: List[Dict[str, Any]] = []
+    for ch in chapters:
+        key = (ch.get("number"), ch.get("url"))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(ch)
+    unique.sort(key=lambda x: (x.get("number") if isinstance(x.get("number"), int) else 10**9, x.get("title", "")))
+    return unique
+
+
+def fetch_book_chapters(
+    session: requests.Session,
+    book: Dict[str, Any],
+    current_user_slug: str,
+    base_url: str = BASE_URL,
+    proxies=None,
+) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """Tải lại chi tiết truyện + danh sách chương mới nhất từ server."""
+    resp = session.get(book["url"], timeout=50, proxies=proxies)
+    resp.raise_for_status()
+    doc = BeautifulSoup(resp.text, "html.parser")
+    text = resp.text
+    updated_book, book_id, sign_key, size, fuzzy_ctx = _parse_book_page(doc, text, book, current_user_slug, base_url)
+    chapters: List[Dict[str, Any]] = []
+    if book_id and sign_key:
+        chapters = _fetch_book_index(session, base_url, book_id, sign_key, size, fuzzy_ctx, proxies=proxies)
+    if chapters:
+        updated_book["chapters"] = len(chapters)
+    return updated_book, chapters
+
+
+def fetch_chapter_content(
+    session: requests.Session,
+    chapter_url: str,
+    base_url: str = BASE_URL,
+    proxies=None,
+) -> Dict[str, str]:
+    """Tải nội dung chương (gộp các phần) và trả về html/text."""
+    resp = session.get(chapter_url, timeout=50, proxies=proxies)
+    resp.raise_for_status()
+    text = resp.text
+    doc = BeautifulSoup(text, "html.parser")
+    content_node = doc.select_one("div#bookContentBody") or doc.select_one(".book-content-body")
+    base_html = content_node.decode_contents() if content_node else ""
+    parts = doc.select(".chapter-part")
+    sign_key_match = re.search(r'signKey\s*=\s*"([^"]+)"', text)
+    sign_key = sign_key_match.group(1) if sign_key_match else ""
+    fuzzy_ctx = _build_fuzzy_ctx(text)
+    extra_parts: List[str] = []
+    if parts and sign_key:
+        for part in parts[1:]:
+            pid = part.get("data-id")
+            ptype = part.get("data-type") or part.get("data-type")
+            pn = part.get("data-pn")
+            if not (pid and ptype and pn):
+                continue
+            base = f"{sign_key}{ptype}{pn}false"
+            try:
+                fuzzy_input = fuzzy_ctx(base) if callable(fuzzy_ctx) else base
+            except Exception:
+                fuzzy_input = base
+            sign = hashlib.sha256(fuzzy_input.encode()).hexdigest()
+            try:
+                r = session.post(
+                    f"{base_url}/chapters/part",
+                    data={"id": pid, "type": ptype, "pn": pn, "en": "false", "signKey": sign_key, "sign": sign},
+                    timeout=40,
+                    proxies=proxies,
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    part_html = (data.get("data") or {}).get("content") or data.get("content")
+                    if part_html:
+                        extra_parts.append(part_html)
+            except Exception:
+                continue
+    combined_html = base_html
+    if extra_parts:
+        combined_html = (combined_html or "") + "<br/>" + "<br/>".join(extra_parts)
+    text_content = BeautifulSoup(combined_html, "html.parser").get_text("\n", strip=True) if combined_html else ""
+    return {"html": combined_html or "", "text": text_content}
+
+
+def fetch_chapter_edit(
+    session: requests.Session,
+    edit_url: str,
+    proxies=None,
+) -> Dict[str, str]:
+    """Tải trang chỉnh sửa chương và trích xuất form (nameCn, contentCn)."""
+    resp = session.get(edit_url, timeout=50, proxies=proxies)
+    resp.raise_for_status()
+    doc = BeautifulSoup(resp.text, "html.parser")
+    name_cn = ""
+    content_cn = ""
+    title_vn = ""
+    name_el = doc.select_one("#txtNameCn")
+    content_el = doc.select_one("#txtContentCn")
+    title_el = doc.select_one("#txtName") or doc.select_one("#txtNameVn")
+    if name_el:
+        name_cn = name_el.get("value", "") or name_el.get_text(strip=True)
+    if content_el:
+        content_cn = content_el.get("value", "") or content_el.get_text()
+    if title_el:
+        title_vn = title_el.get("value", "") or title_el.get_text(strip=True)
+    if not name_el or not content_el:
+        raise ValueError("Không tìm thấy form chỉnh sửa (có thể chưa đăng nhập?)")
+    return {"name_cn": name_cn, "content_cn": content_cn, "title_vn": title_vn}
+
+
+def save_chapter_edit(
+    session: requests.Session,
+    edit_url: str,
+    name_cn: str,
+    content_cn: str,
+    proxies=None,
+) -> Dict[str, Any]:
+    """Lưu nội dung chương lên server qua PUT giống giao diện web."""
+    data = {
+        "nameCn": name_cn or "",
+        "contentCn": content_cn or "",
+    }
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    resp = session.put(edit_url, data=data, headers=headers, timeout=50, proxies=proxies)
+    try:
+        payload = resp.json()
+    except Exception:
+        payload = None
+    if resp.status_code == 200 and isinstance(payload, dict) and payload.get("err") == 0:
+        return payload
+    raise ValueError(f"Lưu thất bại: {payload or {'status': resp.status_code, 'text': resp.text[:200]}}")
 
 
 def filter_books(data: Dict[str, Any], criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -841,6 +1058,7 @@ def filter_books(data: Dict[str, Any], criteria: Dict[str, Any]) -> List[Dict[st
     status = criteria.get("status", "all")
     search = _normalize(criteria.get("search", ""))
     summary_q = _normalize(criteria.get("summarySearch", ""))
+    extra_link_q = _normalize(criteria.get("extraLinkSearch", ""))
     categories: Iterable[str] = criteria.get("categories", [])
     roles: Iterable[str] = criteria.get("roles", [])
     flags: Iterable[str] = criteria.get("flags", [])
@@ -878,6 +1096,17 @@ def filter_books(data: Dict[str, Any], criteria: Dict[str, Any]) -> List[Dict[st
         if summary_q:
             summary_norm = book.get("summary_norm") or _normalize(book.get("summary", ""))
             if summary_q not in summary_norm:
+                continue
+        if extra_link_q:
+            links = book.get("extra_links") or []
+            matched_link = False
+            for link in links:
+                label = _normalize(link.get("label") if isinstance(link, dict) else "")
+                url = (link.get("url") if isinstance(link, dict) else link or "").lower()
+                if extra_link_q in label or extra_link_q in url:
+                    matched_link = True
+                    break
+            if not matched_link:
                 continue
         if categories:
             cols = book.get("collections", []) or []

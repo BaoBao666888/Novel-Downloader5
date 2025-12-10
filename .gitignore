@@ -19,4 +19,5 @@ wikidich/
 .env.example
 .env
 *.env
-rename_chapters/.env
+fanqie_bridge/
+tools/
