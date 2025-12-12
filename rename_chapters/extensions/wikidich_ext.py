@@ -823,6 +823,7 @@ def fetch_book_detail(
     current_user_slug: str,
     base_url: str = BASE_URL,
     proxies=None,
+    skip_chapter_count: bool = False,
 ) -> Dict[str, Any]:
     resp = session.get(book["url"], timeout=50, proxies=proxies)
     resp.raise_for_status()
@@ -832,17 +833,18 @@ def fetch_book_detail(
     updated_book, book_id, sign_key, size, fuzzy_ctx = _parse_book_page(doc, text, book, current_user_slug, base_url)
 
     chapters = None
-    if book_id and sign_key:
-        chapters = _fetch_chapter_count(session, base_url, book_id, sign_key, size, fuzzy_ctx, proxies=proxies)
-    if chapters is None:
-        latest_link = next(
-            (a for a in doc.select(".cover-info p a") if "/chuong-" in a.get("href", "")),
-            None,
-        )
-        if latest_link:
-            m = re.search(r"(\d+)", latest_link.get_text(strip=True))
-            if m:
-                chapters = int(m.group(1))
+    if not skip_chapter_count:
+        if book_id and sign_key:
+            chapters = _fetch_chapter_count(session, base_url, book_id, sign_key, size, fuzzy_ctx, proxies=proxies)
+        if chapters is None:
+            latest_link = next(
+                (a for a in doc.select(".cover-info p a") if "/chuong-" in a.get("href", "")),
+                None,
+            )
+            if latest_link:
+                m = re.search(r"(\d+)", latest_link.get_text(strip=True))
+                if m:
+                    chapters = int(m.group(1))
     if chapters is not None:
         updated_book["chapters"] = chapters
     return updated_book

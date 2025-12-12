@@ -1,19 +1,25 @@
-<h1>Phiên bản 0.2.4 — Fanqie Downloader Beta & ổn định Wikidich</h1>
+<h1>Phiên bản 0.2.4.1 — Fanqie Downloader & Wikidich</h1>
 
 <h2>Điểm mới</h2>
-  - <b>Download Novel 5 (Fanqie)</b>: mặc định lưu ZIP, có tùy chọn chèn tiêu đề vào từng file, template tiêu đề tùy chỉnh (bắt buộc chứa {num}/{title}), kiểm tra trùng file (ghi đè/đổi tên/hủy), nhớ các tùy chọn vào config.
-  - <b>Cache tiến độ tải Fanqie</b>: lưu JSON tạm cho từng book_id, tự dùng lại nội dung chương đã tải khi tải lại; xóa cache khi thoát app.
-  - <b>Reset UI</b>: thanh tiến độ Fanqie reset về 0 sau khi lấy info; chuẩn hóa xuống dòng (ghép nhiều dòng trống thành 1); dừng/cưỡng chế tắt fanqie_bridge khi thoát.
-  - <b>Wikidich</b>: dừng sớm tại neo chỉ với trường hợp “chỉ thêm mới”; nếu phát hiện vừa thêm vừa xóa sẽ tự tải full. Sửa ticker trạng thái không che nội dung.
-  - <b>Auto update Fanqie (Wikidich)</b>: nút “Auto update” chỉ hiện khi truyện có link Fanqie; tự bật bridge, tải chi tiết Wiki, lấy mục lục Fanqie, tính “New”, tải file chương mới vào thư mục tạm (đặt tên theo tiêu đề Fanqie, nội dung chỉ tiêu đề + text), tự thêm Credit (tuỳ chọn Cài đặt request), tự mở màn hình Upload với sẵn file/desc/volume “Bổ sung”, preview đầy đủ theo thứ tự Fanqie, mô tả file bổ sung dạng “start-end”.
+  - Download Novel 5: thêm reset bridge, cấu hình timeout, template tên file ({title}_{author} mặc định), tự điền URL Fanqie khi bấm Download từ Liên kết (dùng thư mục liên kết, không ghi config), cho chỉnh thư mục lưu tạm thời.
+  - Liên kết trang truyện: nút Download mở ND5 với thư mục liên kết; giữ link auto update để sẵn URL.
+  - Upload Wikidich: yêu cầu chọn tối thiểu 2 file; cảnh báo file nhỏ hiển thị đỏ trong log UI và ghi vào file log.
+  - Auto update Fanqie: dừng nếu thiếu nội dung, tối thiểu 2 chương mới; không tạo file khi thiếu; tự thêm Credit nếu bật; kiểm tra file nhỏ; chọn template tên chương chuẩn.
+  - ND5 lưu log ngày theo thư mục logs, tự dọn log cũ; thêm delay request cấu hình được.
+
+<h2>Wikidich</h2>
+  - Thêm chế độ “Chỉ đồng bộ số chương” khi tải chi tiết: chỉ lấy Works, không tải văn án.
+  - Đồng bộ số chương chỉ tăng; nếu server ít hơn local thì giữ số cũ và tô cam (cả ngày cập nhật), không giảm dữ liệu.
+  - 404: đánh cờ đỏ, popup danh sách 404 (double-click mở trình duyệt), tô đỏ ưu tiên hơn “New”, lưu dấu vết để tô lại sau refresh.
+  - Kiểm tra cập nhật: reset màu/flag đúng; cập nhật cột Cập nhật chỉ giữ phần ngày.
 
 <h2>Sửa lỗi & tối ưu</h2>
-  - Fix lỗi ticker gây vỡ hiển thị truyện.
-  - Thoát app sẽ taskkill fanqie_bridge_win.exe nếu còn chạy.
-  - Lưu/ràng buộc template, range, output path của Fanqie vào config.json.
-
+  - Ghi cache sau mỗi truyện khi tải chi tiết/kiểm tra để tránh mất dữ liệu nếu dừng giữa chừng.
+  - DS Chương đánh số tuần tự theo thứ tự server.
+  - Giảm lỗi timeout bridge bằng timeout cấu hình; log rõ lỗi bridge/batch.
+  - Chỉnh lại giao diện ND 5.
 
 <h2>Hướng dẫn cập nhật</h2>
 
- - Nhấn <b>Tải &Cài đặt</b> để lên 0.2.2 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
+ - Nhấn <b>Tải &Cài đặt</b> để lên 0.2.5 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
  - Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.

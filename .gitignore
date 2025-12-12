@@ -21,3 +21,4 @@ wikidich/
 *.env
 fanqie_bridge/
 tools/
+logs/
