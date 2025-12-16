@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.43.4
+// @version     3.5.447.43.5
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -370,6 +370,7 @@ function decryptDES(encrypted, key, iv) {
                                 const result = JSON.parse(response.responseText);
                                 if (result && result.processed_html) {
                                     console.log(`[Model Client] Nhận thành công HTML đã xử lý.`);
+                                    // console.log(result.processed_html);
                                     resolve(result.processed_html); // Thành công, trả về HTML
                                 } else {
                                     console.error('[Model Client] Lỗi: API không trả về "processed_html". Response:', result);
@@ -511,6 +512,7 @@ function decryptDES(encrypted, key, iv) {
             '.zp_li a', 'dd a', '.chapter-list a', '.directoryArea a',
 
             '[id*="list"] a', '[class*="list"] a',
+            '[id*="list"] dl',
             '[id*="chapter"] a', '[class*="chapter"] a',
         ].join(','),
         // vipChapter:选择器 或 async (doc)=>url[]或{url,title}[]
@@ -1404,6 +1406,33 @@ function decryptDES(encrypted, key, iv) {
             elementRemove: 'h1, div',
             chapterNext: '.page1 a:contains("上一章")',
             chapterNext: '.page1 a:contains("下一章")'
+        },
+
+        {
+            siteName: 'ixdzs',
+            filter: () => {
+                if (/(ixdzs8\.com|ixdzs\.tw)\/read\/\d+\/$/.test(window.location.href)) {
+                    const btn = document.querySelector('li.catalog-all');
+                    if (btn) {
+                        btn.click();
+                        console.log('[ND5] catalog-all clicked');
+                    } else {
+                        console.log('[ND5] catalog-all not found');
+                    }
+                    return 1; // trang mục lục
+                }
+                if (/(ixdzs8\.com|ixdzs\.tw)\/read\/\d+\/\w+\.html$/.test(window.location.href)) return 2;
+                return 0;
+            },
+            cover: 'div.novel div.n-img img',
+            title: 'div.novel div.n-text h1',
+            writer: 'div.novel div.n-text a.bauthor',
+            intro: 'p#intro',
+            chapter: 'div.clist ul.u-chapter a',
+            chapterTitle: 'article.page-content h3',
+            content: 'article.page-content section',
+            chapterNext: '.chapter-act a:contains("上一章")',
+            chapterNext: '.chapter-act a:contains("下一章")'
         },
 
         {
@@ -2815,10 +2844,18 @@ function decryptDES(encrypted, key, iv) {
                     }
                     textContent = lines.join('\n');
                 }
+                if (!textContent.trim()) {
+                    const tempDivRe = $('<div>').html(combinedHtmlContent);
+                    tempDivRe.find('script, ins, iframe, style, span, p').remove();
+                    tempDivRe.find('.gadBlock, .adBlock').remove();
+                    tempDivRe.find('br').replaceWith('\n');
 
+                    textContent = tempDivRe.text();
+                    textContent = textContent.replace(/\n[ \t]+\n/g, '\n\n');
+                    textContent = textContent.replace(/\n{3,}/g, '\n\n').trim();
+                }
 
                 console.log(`%cNovel543 Deal: Dọn dẹp và giải mã hoàn tất.`, "color: green;");
-
                 return {
                     title: mainChapterTitle,
                     content: textContent
