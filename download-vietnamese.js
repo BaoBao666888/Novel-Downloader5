@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        download
-// @version     1.2.7
+// @version     1.3.0
 // @include     *
 // ==/UserScript==
 // TODO: 支持fetch,xhr
@@ -42,7 +42,7 @@
         '#gmDownloadDialog>.task>div[status="load"]>[name="status"]::before{content:"Hoàn thành";color:#0f0;}',
 
         '#gmDownloadDialog>.task>div[status="downloading"]>[name="abort"]{width:32px;cursor:pointer;}',
-        '#gmDownloadDialog>.task>div[status="downloading"]>[name="abort"]::before{content:"abort";color:#f00;}'
+        '#gmDownloadDialog>.task>div[status="downloading"]>[name="abort"]::before{content:"Hủy";color:#f00;}'
       ].join(''),
       progress: '{order}{title}{progress}{status}{abort}',
       thread: 5,
@@ -224,6 +224,10 @@
       updateProgress(task);
 
       const request = Object.assign({}, task.request);
+      const safeAwaitHandler = async (fn, ...args) => {
+        if (typeof fn !== 'function') return;
+        return await fn(...args);
+      };
       const tryCallFailed = (res, type) => {
         delete task.abort;
         if (!navigator.onLine) {
@@ -247,21 +251,18 @@
       };
       request.onabort = (res) => {
         task.status = 'abort';
-        if (typeof task.request.onabort === 'function') {
-          task.request.onabort(res, task.request);
-        } else if (typeof storage.config.onabort === 'function') {
-          storage.config.onabort(res, task.request);
-        }
+        try {
+          // no await here: event callback origin doesn't await Promises
+          safeAwaitHandler(typeof task.request.onabort === 'function' ? task.request.onabort : storage.config.onabort, res, task.request).catch(() => {});
+        } catch (e) {}
         tryCallFailed(res, 'abort');
         updateProgress(task, res);
       };
       request.onerror = (res) => {
         task.status = 'error';
-        if (typeof task.request.onerror === 'function') {
-          task.request.onerror(res, task.request);
-        } else if (typeof storage.config.onerror === 'function') {
-          storage.config.onerror(res, task.request);
-        }
+        try {
+          safeAwaitHandler(typeof task.request.onerror === 'function' ? task.request.onerror : storage.config.onerror, res, task.request).catch(() => {});
+        } catch (e) {}
         tryCallFailed(res, 'error');
         updateProgress(task, res);
       };
@@ -277,10 +278,6 @@
           return;
         }
 
-        task.status = 'load';
-        task.response = res;
-        delete task.abort;
-        delete task.retry;
         const resNew = Object.assign({}, res); // FIX Violentmonkey
         for (const i of ['response', 'responseText', 'responseXML']) { // FIX Tamermonkey
           try {
@@ -299,11 +296,21 @@
             res.response = res.json;
           } catch (error) {}
         }
-        if (typeof task.request.onload === 'function') {
-          task.request.onload(res, task.request);
-        } else if (typeof storage.config.onload === 'function') {
-          storage.config.onload(res, task.request);
+        // Update UI early to show progress reached 100% even if onload handler is slow.
+        updateProgress(task, res);
+
+        try {
+          await safeAwaitHandler(typeof task.request.onload === 'function' ? task.request.onload : storage.config.onload, res, task.request);
+        } catch (error) {
+          res.error = error;
+          request.onerror(res);
+          return;
         }
+
+        task.status = 'load';
+        task.response = res;
+        delete task.abort;
+        delete task.retry;
         updateProgress(task, res);
       };
       request.onprogress = (res) => {
@@ -324,11 +331,9 @@
       };
       request.ontimeout = (res) => {
         task.status = 'timeout';
-        if (typeof task.request.ontimeout === 'function') {
-          task.request.ontimeout(res, task.request);
-        } else if (typeof storage.config.ontimeout === 'function') {
-          storage.config.ontimeout(res, task.request);
-        }
+        try {
+          safeAwaitHandler(typeof task.request.ontimeout === 'function' ? task.request.ontimeout : storage.config.ontimeout, res, task.request).catch(() => {});
+        } catch (e) {}
         tryCallFailed(res, 'timeout');
         updateProgress(task, res);
       };
@@ -403,6 +408,61 @@
       set: (name, value) => (storage.config[name] = value)
     },
     getSelf: () => storage
+  };
+
+  // Pause helper for external async workflows (deal/iframe/popup).
+  // Note: cannot abort arbitrary async tasks; it only prevents starting next tasks and pauses delays.
+  main.waitWhilePaused = async () => {
+    // eslint-disable-next-line no-unmodified-loop-condition
+    while (storage.pause) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  };
+
+  const ensureDialogMounted = () => {
+    try {
+      if (!storage.element || !storage.element.dialog) return;
+      if (!document.getElementById('gmDownloadDialog')) {
+        document.body.appendChild(storage.element.dialog);
+      }
+      storage.element.dialog.style.display = 'block';
+    } catch (e) {}
+  };
+
+  // Manual/virtual tasks (for rule.deal/iframe/popup flows)
+  // Lets the UI show per-chapter status even without XHR downloads.
+  main.manual = {
+    add (request = {}) {
+      ensureDialogMounted();
+      const req = Object.assign({ url: '', title: '' }, request);
+      req.index = storage.list.length;
+      const task = { request: req, status: 'downloading' };
+      storage.list.push(task);
+      try {
+        storage.element.dialog.querySelector('[name="total-progress"]').setAttribute('max', storage.list.length);
+      } catch (e) {}
+      updateProgress(task, { lengthComputable: true, total: 100, loaded: 0, statusText: '' });
+      return req.index;
+    },
+    set (index, patch = {}, res = null) {
+      ensureDialogMounted();
+      const task = storage.list.find(i => i && i.request && i.request.index === index);
+      if (!task) return;
+      task.request = Object.assign(task.request, patch);
+      if (patch.status) task.status = patch.status;
+      if (!res) {
+        if (task.status === 'load') res = { lengthComputable: true, total: 100, loaded: 100, statusText: 'OK' };
+        else if (task.status === 'downloading') res = { lengthComputable: true, total: 100, loaded: 0, statusText: '' };
+        else res = { lengthComputable: true, total: 100, loaded: 0, statusText: 'ERROR' };
+      }
+      updateProgress(task, res);
+    },
+    done (index, patch = {}) {
+      this.set(index, Object.assign({ status: 'load' }, patch), { lengthComputable: true, total: 100, loaded: 100, statusText: 'OK' });
+    },
+    fail (index, patch = {}) {
+      this.set(index, Object.assign({ status: 'error' }, patch), { lengthComputable: true, total: 100, loaded: 0, statusText: 'ERROR' });
+    }
   };
 
   function xhr (url, onload, data = null, opt = {}) {

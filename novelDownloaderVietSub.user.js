@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.43.5
+// @version     3.5.447.43.6
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -363,7 +363,7 @@ function decryptDES(encrypted, key, iv) {
                     data: JSON.stringify({ raw_html: rawHtml }), // Dữ liệu gửi đi phải là string
                     timeout: Config.timeout, // Timeout 60 giây
 
-                    onload: function(response) {
+                    onload: function (response) {
                         // Check status code
                         if (response.status >= 200 && response.status < 300) {
                             try {
@@ -388,20 +388,20 @@ function decryptDES(encrypted, key, iv) {
                                 // Cố gắng parse lỗi JSON từ server nếu có
                                 const errJson = JSON.parse(response.responseText);
                                 if (errJson.error) errorMsg += ` - ${errJson.error}`;
-                            } catch(e) {
+                            } catch (e) {
                                 // Bỏ qua nếu parse lỗi
                             }
                             reject(new Error(errorMsg));
                         }
                     },
 
-                    onerror: function(response) {
+                    onerror: function (response) {
                         // Lỗi mạng, không kết nối được
                         console.error('[Model Client] Lỗi GM_xmlhttpRequest (onerror):', response.statusText, response.error);
                         reject(new Error(`Network error or API server is down. ${response.error || ''}`));
                     },
 
-                    ontimeout: function() {
+                    ontimeout: function () {
                         // Lỗi timeout
                         console.error('[Model Client] Lỗi GM_xmlhttpRequest: Request timed out.');
                         reject(new Error('API request timed out (60s).'));
@@ -656,8 +656,8 @@ function decryptDES(encrypted, key, iv) {
         { // https://www.manhuabei.com/ https://www.manhuafen.com/
             siteName: '漫画堆',
             filter: () => ($('.dmzj-logo').length && $('.wrap_intro_l_comic').length && $('.wrap_intro_r').length && $('.list_con_li').length
-                           ? 1
-                           : $('.foot-detail:contains("漫画")').length && $('.dm_logo').length && $('.chapter-view').length ? 2 : 0),
+                ? 1
+                : $('.foot-detail:contains("漫画")').length && $('.dm_logo').length && $('.chapter-view').length ? 2 : 0),
             title: '.comic_deCon>h1',
             writer: '.comic_deCon_liO>li>a[href^="/author/"]',
             intro: '.comic_deCon_d',
@@ -727,8 +727,6 @@ function decryptDES(encrypted, key, iv) {
         { // https://www.52shuku.vip/  và https://www.52shuku.net/
             siteName: '52书库',
             filter: () => (/^www\.52shuku\.(vip|net)$/.test(window.location.host) ? ($('.list.clearfix').length ? 1 : 2) : 0),
-            url: '://www\\.52shuku\\.(vip|net)/\\w+/\\w+/\\w+\\.html$',
-            chapterUrl: '://www\\.52shuku\\.(vip|net)/\\w+/\\w+/\\w+_\\d+\\.html$',
             infoPage: () => {
                 const breadcrumbs = $('.content-wrap .breadcrumbs, .breadcrumbs');
                 return breadcrumbs.length ? breadcrumbs.find('a:last').attr('href') : '';
@@ -904,16 +902,16 @@ function decryptDES(encrypted, key, iv) {
                 }
 
                 const tags = $('.intro-honor-label p.all-label a', doc)
-                .map((i, el) => $(el).text().trim())
-                .get()
-                .filter(Boolean);
+                    .map((i, el) => $(el).text().trim())
+                    .get()
+                    .filter(Boolean);
 
                 const tagSection = tags.length
-                ? `标签：${tags.join(', ')}`
-                : '';
+                    ? `标签：${tags.join(', ')}`
+                    : '';
                 return [attrSection, introMain, tagSection, `Link cover: ${cover}`]
-                .filter(Boolean)
-                .join('\n\n');
+                    .filter(Boolean)
+                    .join('\n\n');
             },
             cover: (doc) => {
                 let cover = '';
@@ -1512,7 +1510,7 @@ function decryptDES(encrypted, key, iv) {
                         console.log("Hoàn tất lấy mục lục!");
                         break;
                     }
-                    currentPage ++;
+                    currentPage++;
                     if (Config.delayBetweenChapters > 0) {
                         console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
                         await sleep(Config.delayBetweenChapters);
@@ -1551,9 +1549,9 @@ function decryptDES(encrypted, key, iv) {
             //content: '[class="chapter-content px-3 pb-5"] > .content',
             deal: async (chapter) => {
                 const delayMs =
-                      typeof Config !== 'undefined' && Number(Config.delayBetweenChapters) > 0
-                ? Number(Config.delayBetweenChapters)
-                : 500;
+                    typeof Config !== 'undefined' && Number(Config.delayBetweenChapters) > 0
+                        ? Number(Config.delayBetweenChapters)
+                        : 500;
 
                 async function getHTML(url) {
                     const res = await fetch(url);
@@ -1595,10 +1593,10 @@ function decryptDES(encrypted, key, iv) {
                         if (ps.length > 0) {
                             pageText = Array.from(ps)
                                 .map(p =>
-                                     p.textContent
-                                     .replace(/\s+/g, ' ')
-                                     .trim()
-                                    )
+                                    p.textContent
+                                        .replace(/\s+/g, ' ')
+                                        .trim()
+                                )
                                 .filter(Boolean)
                                 .join('\n'); // mỗi <p> 1 dòng
                         } else {
@@ -1662,8 +1660,8 @@ function decryptDES(encrypted, key, iv) {
                 const h = window.location.host;
                 if (h === 'm.wfxs.tw') {
                     const target = window.location.href
-                    .replace(/^https?:\/\/m\./, 'https://www.')
-                    .replace(/\/+\.html$/, '.html');
+                        .replace(/^https?:\/\/m\./, 'https://www.')
+                        .replace(/\/+\.html$/, '.html');
 
                     if (confirm('Trang đang ở phiên bản mobile. Bạn muốn chuyển sang phiên bản desktop để tải đầy đủ nội dung?\n\n' + target)) {
                         window.location.href = target;
@@ -1691,8 +1689,8 @@ function decryptDES(encrypted, key, iv) {
 
                 const sleep = ms => new Promise(res => setTimeout(res, ms));
                 const delayMs = (typeof Config !== 'undefined' && Number(Config.delayBetweenChapters) > 0)
-                ? Number(Config.delayBetweenChapters)
-                : 500;
+                    ? Number(Config.delayBetweenChapters)
+                    : 500;
 
                 async function fetchWithPopupIfBlocked(url, verificationSelector = 'body', timeout = 30000) {
                     try {
@@ -1882,13 +1880,13 @@ function decryptDES(encrypted, key, iv) {
                 if (lines.length && lines[0].trim()) {
                     const firstLine = lines[0].trim();
                     const cleanedTitle = (mainTitle || '').replace(/[^\w\u4e00-\u9fff]/g, '');
-                    if (firstLine === mainTitle || firstLine.replace(/[^\w\u4e00-\u9fff]/g,'') === cleanedTitle) {
+                    if (firstLine === mainTitle || firstLine.replace(/[^\w\u4e00-\u9fff]/g, '') === cleanedTitle) {
                         lines.shift();
                         text = lines.join('\n');
                     } else text = lines.join('\n');
                 }
 
-                console.log('[wfxs.deal] done:', mainTitle, 'pagesFetched=', pagesFetched, 'len=', (text||'').length);
+                console.log('[wfxs.deal] done:', mainTitle, 'pagesFetched=', pagesFetched, 'len=', (text || '').length);
                 return { title: mainTitle, content: text };
             },
 
@@ -1904,7 +1902,7 @@ function decryptDES(encrypted, key, iv) {
                 return 0;
             },
 
-            _internalGetFanqieApiData: async function(ruleObject) {
+            _internalGetFanqieApiData: async function (ruleObject) {
                 const cacheKey = '_cachedFanqieBookApiData';
                 if (ruleObject[cacheKey]) return ruleObject[cacheKey];
 
@@ -2017,7 +2015,7 @@ function decryptDES(encrypted, key, iv) {
 
                 function decodeText(text) {
                     const CODE_ST = 58344, CODE_ED = 58715;
-                    const CHARSET = ['D', '在', '主', '特', '家', '军', '然', '表', '场', '4', '要', '只', 'v', '和', '?', '6', '别', '还', 'g', '现', '儿', '岁', '?', '?', '此', '象', '月', '3', '出', '战', '工', '相', 'o', '男', '首', '失', '世', 'F', '都', '平', '文', '什', 'V', 'O', '将', '真', 'T', '那', '当', '?', '会', '立', '些', 'u', '是', '十', '张', '学', '气', '大', '爱', '两', '命', '全', '后', '东', '性', '通', '被', '1', '它', '乐', '接', '而', '感', '车', '山', '公', '了', '常', '以', '何', '可', '话', '先', 'p', 'i', '叫', '轻', 'M', '士', 'w', '着', '变', '尔', '快', 'l', '个', '说', '少', '色', '里', '安', '花', '远', '7', '难', '师', '放', 't', '报', '认', '面', '道', 'S', '?', '克', '地', '度', 'I', '好', '机', 'U', '民', '写', '把', '万', '同', '水', '新', '没', '书', '电', '吃', '像', '斯', '5', '为', 'y', '白', '几', '日', '教', '看', '但', '第', '加', '候', '作', '上', '拉', '住', '有', '法', 'r', '事', '应', '位', '利', '你', '声', '身', '国', '问', '马', '女', '他', 'Y', '比', '父', 'x', 'A', 'H', 'N', 's', 'X', '边', '美', '对', '所', '金', '活', '回', '意', '到', 'z', '从', 'j', '知', '又', '内', '因', '点', 'Q', '三', '定', '8', 'R', 'b', '正', '或', '夫', '向', '德', '听', '更', '?', '得', '告', '并', '本', 'q', '过', '记', 'L', '让', '打', 'f', '人', '就', '者', '去', '原', '满', '体', '做', '经', 'K', '走', '如', '孩', 'c', 'G', '给', '使', '物', '?', '最', '笑', '部', '?', '员', '等', '受', 'k', '行', '一', '条', '果', '动', '光', '门', '头', '见', '往', '自', '解', '成', '处', '天', '能', '于', '名', '其', '发', '总', '母', '的', '死', '手', '入', '路', '进', '心', '来', 'h', '时', '力', '多', '开', '己', '许', 'd', '至', '由', '很', '界', 'n', '小', '与', 'Z', '想', '代', '么', '分', '生', '口', '再', '妈', '望', '次', '西', '风', '种', '带', 'J', '?', '实', '情', '才', '这', '?', 'E', '我', '神', '格', '长', '觉', '间', '年', '眼', '无', '不', '亲', '关', '结', '0', '友', '信', '下', '却', '重', '己', '老', '2', '音', '字', 'm', '呢', '明', '之', '前', '高', 'P', 'B', '目', '太', 'e', '9', '起', '稜', '她', '也','W', '用', '方', '子', '英', '每', '理', '便', '西', '数', '期', '中', 'C', '外', '样', 'a', '海', '们','任']
+                    const CHARSET = ['D', '在', '主', '特', '家', '军', '然', '表', '场', '4', '要', '只', 'v', '和', '?', '6', '别', '还', 'g', '现', '儿', '岁', '?', '?', '此', '象', '月', '3', '出', '战', '工', '相', 'o', '男', '首', '失', '世', 'F', '都', '平', '文', '什', 'V', 'O', '将', '真', 'T', '那', '当', '?', '会', '立', '些', 'u', '是', '十', '张', '学', '气', '大', '爱', '两', '命', '全', '后', '东', '性', '通', '被', '1', '它', '乐', '接', '而', '感', '车', '山', '公', '了', '常', '以', '何', '可', '话', '先', 'p', 'i', '叫', '轻', 'M', '士', 'w', '着', '变', '尔', '快', 'l', '个', '说', '少', '色', '里', '安', '花', '远', '7', '难', '师', '放', 't', '报', '认', '面', '道', 'S', '?', '克', '地', '度', 'I', '好', '机', 'U', '民', '写', '把', '万', '同', '水', '新', '没', '书', '电', '吃', '像', '斯', '5', '为', 'y', '白', '几', '日', '教', '看', '但', '第', '加', '候', '作', '上', '拉', '住', '有', '法', 'r', '事', '应', '位', '利', '你', '声', '身', '国', '问', '马', '女', '他', 'Y', '比', '父', 'x', 'A', 'H', 'N', 's', 'X', '边', '美', '对', '所', '金', '活', '回', '意', '到', 'z', '从', 'j', '知', '又', '内', '因', '点', 'Q', '三', '定', '8', 'R', 'b', '正', '或', '夫', '向', '德', '听', '更', '?', '得', '告', '并', '本', 'q', '过', '记', 'L', '让', '打', 'f', '人', '就', '者', '去', '原', '满', '体', '做', '经', 'K', '走', '如', '孩', 'c', 'G', '给', '使', '物', '?', '最', '笑', '部', '?', '员', '等', '受', 'k', '行', '一', '条', '果', '动', '光', '门', '头', '见', '往', '自', '解', '成', '处', '天', '能', '于', '名', '其', '发', '总', '母', '的', '死', '手', '入', '路', '进', '心', '来', 'h', '时', '力', '多', '开', '己', '许', 'd', '至', '由', '很', '界', 'n', '小', '与', 'Z', '想', '代', '么', '分', '生', '口', '再', '妈', '望', '次', '西', '风', '种', '带', 'J', '?', '实', '情', '才', '这', '?', 'E', '我', '神', '格', '长', '觉', '间', '年', '眼', '无', '不', '亲', '关', '结', '0', '友', '信', '下', '却', '重', '己', '老', '2', '音', '字', 'm', '呢', '明', '之', '前', '高', 'P', 'B', '目', '太', 'e', '9', '起', '稜', '她', '也', 'W', '用', '方', '子', '英', '每', '理', '便', '西', '数', '期', '中', 'C', '外', '样', 'a', '海', '们', '任']
                     let decodedText = "";
                     for (let i = 0; i < text.length; i++) {
                         const code = text.charCodeAt(i);
@@ -2303,7 +2301,7 @@ function decryptDES(encrypted, key, iv) {
             title: '.cover-info h2',
             writer: 'p:contains("Tác giả:") > a',
             intro: '.book-desc-detail',
-            cover: () => { return 'https://truyenwikidich.net' + $('.cover-wrapper img').attr('src')},
+            cover: () => { return 'https://truyenwikidich.net' + $('.cover-wrapper img').attr('src') },
 
             getChapters: async (doc) => {
                 // 1. Kiểm tra đăng nhập và quyền hạn
@@ -2414,8 +2412,8 @@ function decryptDES(encrypted, key, iv) {
                     // Logic dừng vòng lặp chính xác: Dựa vào thông tin phân trang
                     const paginationLinks = $(pageDoc).find("ul.pagination a[data-start]");
                     const lastPageStartValue = paginationLinks.length > 0
-                    ? parseInt(paginationLinks.last().attr("data-start"))
-                    : 0;
+                        ? parseInt(paginationLinks.last().attr("data-start"))
+                        : 0;
 
                     if (currentPage >= lastPageStartValue && chapterLinks.length > 0) {
                         console.log("Đã đạt hoặc vượt qua trang cuối cùng, kết thúc.");
@@ -2501,7 +2499,7 @@ function decryptDES(encrypted, key, iv) {
             },
 
             // Hàm helper để xử lý Cloudflare, sẽ được tái sử dụng
-            _fetchDiyibanzhuPage: async function(url, verificationSelector) {
+            _fetchDiyibanzhuPage: async function (url, verificationSelector) {
                 console.log(`[diyibanzhu] Sử dụng fetchPageContent cho: ${url}`);
                 // Gọi hàm fetchPageContent toàn cục đã thêm vào script ở các bước trước
                 async function fetchDiyibanzhuPage(url, selector) {
@@ -2568,7 +2566,7 @@ function decryptDES(encrypted, key, iv) {
                 return html;
             },
 
-            getChapters: async function() { // Đổi thành function() để có thể gọi this
+            getChapters: async function () { // Đổi thành function() để có thể gọi this
                 console.log("%c[diyibanzhu] Bắt đầu lấy danh sách chương...", "color: blue;");
 
                 let allChapters = [];
@@ -2634,7 +2632,7 @@ function decryptDES(encrypted, key, iv) {
                 return allChapters;
             },
 
-            deal: async function(chapter) {
+            deal: async function (chapter) {
                 console.log(`%c[diyibanzhu Deal] Bắt đầu xử lý chương: "${chapter.title}"`, "color: purple;");
 
                 let combinedContentHtml = '';
@@ -2672,7 +2670,7 @@ function decryptDES(encrypted, key, iv) {
                         }
 
                         if (nextUrl && Config.delayBetweenChapters > 0) {
-                            console.log(`%c[diyibanzhu Deal] Chờ ${Config.delayBetweenChapters/1000} giây trước khi tải trang tiếp theo...`, "color: orange;");
+                            console.log(`%c[diyibanzhu Deal] Chờ ${Config.delayBetweenChapters / 1000} giây trước khi tải trang tiếp theo...`, "color: orange;");
                             await new Promise(resolve => setTimeout(resolve, Config.delayBetweenChapters));
                         }
                         currentUrl = nextUrl;
@@ -3256,19 +3254,19 @@ function decryptDES(encrypted, key, iv) {
 
                     // 作品标签：.intro-honor-label p.all-label a
                     const tags = $doc
-                    .find('.intro-honor-label p.all-label a')
-                    .map((i, el) => $(el).text().trim())
-                    .get()
-                    .filter(Boolean);
+                        .find('.intro-honor-label p.all-label a')
+                        .map((i, el) => $(el).text().trim())
+                        .get()
+                        .filter(Boolean);
 
                     const tagSection = tags.length
-                    ? `作品标签：${tags.join(', ')}`
-                    : '';
+                        ? `作品标签：${tags.join(', ')}`
+                        : '';
 
                     //  Gộp intro tổng
                     const intro = [attrSection, introMain, tagSection, `Link cover: ${cover}`]
-                    .filter(Boolean)
-                    .join('\n\n');
+                        .filter(Boolean)
+                        .join('\n\n');
 
                     // Lưu vào Storage + fill form
                     Storage.book = Storage.book || {};
@@ -3332,8 +3330,8 @@ function decryptDES(encrypted, key, iv) {
 
                                     const coverRaw = novelCover;
                                     const modifiedCover = coverRaw
-                                    .replace(/_[0-9]+_[0-9]+(?=\.jpg)/, '')
-                                    .replace(/\.jpg.*/i, '.jpg');
+                                        .replace(/_[0-9]+_[0-9]+(?=\.jpg)/, '')
+                                        .replace(/\.jpg.*/i, '.jpg');
 
                                     const isValid = await checkImageUrlValid(modifiedCover);
                                     return isValid ? modifiedCover : coverRaw;
@@ -3472,7 +3470,7 @@ function decryptDES(encrypted, key, iv) {
 
                                 // Nếu không skip thì xóa [n] khỏi tiêu đề
                                 if (currentMatch) {
-                                    chapterTitleOri = chapterTitleOri.replace(/^\[\d+\]/, '').trim().replace(/ /g,'').replace(':', ' ');
+                                    chapterTitleOri = chapterTitleOri.replace(/^\[\d+\]/, '').trim().replace(/ /g, '').replace(':', ' ');
                                 }
                             }
 
@@ -3562,7 +3560,7 @@ function decryptDES(encrypted, key, iv) {
                 //     'bọn hắn': '他们',
                 // };
                 const punctuation_map = { /* ... bảng dấu câu ... */
-                    '，': '，', ',': '，', '.......': '……', '......': '……', '.....': '……', '....': '…','...': '…', '..': '…', '.': '。', '。': '。', '！': '！', '!': '！', '？': '？', '?': '？',
+                    '，': '，', ',': '，', '.......': '……', '......': '……', '.....': '……', '....': '…', '...': '…', '..': '…', '.': '。', '。': '。', '！': '！', '!': '！', '？': '？', '?': '？',
                     '：': '：', ':': '：', '；': '；', ';': '；', '“': '“', '”': '”', '"': '"',
                     '‘': '‘', '’': '’', "'": "'", '（': '（', '(': '（', '）': '）', ')': '）',
                     '…': '…', '—': '—', '-': '—', '《': '《', '》': '》',
@@ -3802,7 +3800,7 @@ function decryptDES(encrypted, key, iv) {
                     console.log(`STV Debug: Có ${Storage.book.debugLog.length} lỗi cần ghi vào file.`);
                     const title = Storage.book.title || chapters[0]?.title || 'Unknown';
                     const debugContent = `Log lỗi bù từ cho truyện: ${title}\nChương: ${chapters.map(c => c.chapterId || '?').join(', ')}\n------------------------------------\n`
-                    + Storage.book.debugLog.join('\n');
+                        + Storage.book.debugLog.join('\n');
                     const blob = new window.Blob([debugContent], { type: 'text/plain;charset=utf-8' });
                     // Gọi hàm download gốc của script (nếu có) hoặc saveAs
                     download(blob, `${title}_debug.txt`); // Giả sử có hàm download global
@@ -4939,7 +4937,7 @@ function decryptDES(encrypted, key, iv) {
                         url: $(i).prop('href'),
                         vip: $(i).is('.uk-list>li:not(:contains("免費"))>a[href^="/?act=showpaper&paperid="]'),
                         volume: $(i).parent().prevAll('.uk-list>li:not(:has(a[href^="/?act=showpaper&paperid="])):has(b>font)').eq(0)
-                        .text(),
+                            .text(),
                     })));
                     if ($('.uk-list>li:has([onclick^="showbooklistpage"])', res.response).length && $('.uk-list>li:has([onclick^="showbooklistpage"])', res.response).eq(0).find('font:has(b)').next('a').length) {
                         pages++;
@@ -5123,7 +5121,7 @@ function decryptDES(encrypted, key, iv) {
                     const json = await Rule.special.find((i) => i.siteName === '豆瓣阅读').fns.decrypt(content);
                     content = {
                         content: chapter.url.match('read.douban.com/reader/column') ? json.posts[0].contents.filter((i) => i.data && i.data.text).map((i) => i.data.text).flat().map((i) => i.content)
-                        .join('\n') : json.posts[0].contents.filter((i) => i.data && i.data.text).map((i) => (i.type === 'headline' ? '\n' : '') + i.data.text).join('\n'),
+                            .join('\n') : json.posts[0].contents.filter((i) => i.data && i.data.text).map((i) => (i.type === 'headline' ? '\n' : '') + i.data.text).join('\n'),
                         title: json.posts[0].title,
                     };
                 }
@@ -5330,10 +5328,10 @@ function decryptDES(encrypted, key, iv) {
             chapterTitle: '.panel-reading>h1.h2',
             content: '.part-content .page>div>pre',
             chapterPrev: (doc, res, request) => $('.table-of-contents>li.active', res.responseText).prevAll().find('a').toArray()
-            .map((i) => i.href)
-            .reverse(),
+                .map((i) => i.href)
+                .reverse(),
             chapterNext: (doc, res, request) => $('.table-of-contents>li.active', res.responseText).nextAll().find('a').toArray()
-            .map((i) => i.href),
+                .map((i) => i.href),
         },
         { // http://xs.kdays.net/index
             siteName: '萌文库',
@@ -5708,9 +5706,9 @@ function decryptDES(encrypted, key, iv) {
             chapter: '#chapter>a',
             chapterTitle: '.article>h2',
             content: (doc, res, request) => $('#txt>dd', res.responseText).toArray().map((i) => [$(i).data('id'), $(i).html()]).filter((i) => i[0] !== 999)
-            .sort((a, b) => a[0] - b[0])
-            .map((i) => i[1])
-            .join(''),
+                .sort((a, b) => a[0] - b[0])
+                .map((i) => i[1])
+                .join(''),
         },
         // 18X
         { // http://www.6mxs.com/ http://www.baxianxs.com/ http://www.iqqxs.com/
@@ -6722,9 +6720,9 @@ function decryptDES(encrypted, key, iv) {
             if (container.find('[name="limit"]>[name="batch"]').val()) {
                 Storage.book.chapters = container.find('[name="limit"]>[name="batch"]').val().split('\n').filter((i) => i)
                     .map((i) => {
-                    const url = new URL(i, window.location.href).href;
-                    return chaptersDownloaded.find((i) => i.url === url) || { url };
-                });
+                        const url = new URL(i, window.location.href).href;
+                        return chaptersDownloaded.find((i) => i.url === url) || { url };
+                    });
             }
             chaptersArr = Storage.book.chapters.map((i) => i.url);
 
@@ -6912,13 +6910,13 @@ function decryptDES(encrypted, key, iv) {
                 chapterRelative = [].concat(chapterRelative).map((i) => new URL(i, res.finalUrl || window.location.href).href)
                     .filter((url) => url && !url.match(/^(javascript:|#)/)).map((i) => new URL(i, chapter.url).href)
                     .filter((url) => {
-                    if (rule !== Rule && rule.ignoreUrl.some((i) => url.match(i))) return false;
-                    if (rule !== Rule && rule.url.some((i) => url.match(i))) return false;
-                    if (rule !== Rule && rule.chapterUrl.length) return rule.chapterUrl.some((i) => url.match(i));
-                    const pathurl = chapter.url.replace(/(.*\/).*/, '$1').replace(/.*?:\/\/(.*)/, '$1');
-                    const pathurlThis = url.replace(/(.*\/).*/, '$1');
-                    return pathurlThis !== url && pathurlThis.replace(/.*?:\/\/(.*)/, '$1') === pathurl;
-                });
+                        if (rule !== Rule && rule.ignoreUrl.some((i) => url.match(i))) return false;
+                        if (rule !== Rule && rule.url.some((i) => url.match(i))) return false;
+                        if (rule !== Rule && rule.chapterUrl.length) return rule.chapterUrl.some((i) => url.match(i));
+                        const pathurl = chapter.url.replace(/(.*\/).*/, '$1').replace(/.*?:\/\/(.*)/, '$1');
+                        const pathurlThis = url.replace(/(.*\/).*/, '$1');
+                        return pathurlThis !== url && pathurlThis.replace(/.*?:\/\/(.*)/, '$1') === pathurl;
+                    });
                 let anchor = chapter;
                 for (const url of chapterRelative) {
                     if (chaptersArr.includes(url) || vipChapters.includes(url)) continue;
@@ -6969,6 +6967,34 @@ function decryptDES(encrypted, key, iv) {
             // --- Hàm sleep ---
             function sleep(ms) {
                 return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            async function waitIfPaused() {
+                try {
+                    if (xhr && typeof xhr.waitWhilePaused === 'function') {
+                        await xhr.waitWhilePaused();
+                        return;
+                    }
+                    if (xhr && xhr.storage && typeof xhr.storage.get === 'function') {
+                        // eslint-disable-next-line no-unmodified-loop-condition
+                        while (xhr.storage.get('pause')) {
+                            await sleep(200);
+                        }
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            async function sleepWithPause(ms) {
+                const step = 250;
+                let remaining = ms;
+                while (remaining > 0) {
+                    await waitIfPaused();
+                    const t = Math.min(step, remaining);
+                    await sleep(t);
+                    remaining -= t;
+                }
             }
 
             // --- Hàm xử lý từng chương ---
@@ -7079,21 +7105,44 @@ function decryptDES(encrypted, key, iv) {
                     }
                     console.log(`%cLần thử lại ${attempt}/${Config.retry}: Còn lại ${chaptersToProcess.length} chương lỗi.`, "color: orange; font-weight: bold;");
                     console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
-                    await sleep(Config.delayBetweenChapters);
+                    await sleepWithPause(Config.delayBetweenChapters);
                 }
 
                 const currentRunList = classifyChapters(chaptersToProcess);
+
+                // Init xhr dialog once per attempt so progress UI works for both download + deal flows
+                try {
+                    const baseThread = Storage.rule.thread && Storage.rule.thread < Config.thread ? Storage.rule.thread : Config.thread;
+                    xhr.init({
+                        retry: 0,
+                        thread: Math.max(1, baseThread || 1),
+                        timeout: Config.timeout,
+                        onfailed: onChapterFailed,
+                        onfailedEvery: onChapterFailedEvery,
+                        checkLoad: async (res) => (res.status >= 200 && res.status < 300),
+                    });
+                    xhr.showDialog();
+                } catch (e) {
+                    // ignore: some environments might not have xhr dialog
+                }
 
                 // 1. Xử lý 'deal'
                 if (currentRunList.deal.length > 0) {
                     console.log(`Bắt đầu xử lý (deal) ${currentRunList.deal.length} chương.`);
                     for (const chapter of currentRunList.deal) {
                         if (chapter.contentRaw) continue; // Bỏ qua nếu đã được xử lý bởi logic khác trong cùng lần chạy
+                        await waitIfPaused();
                         if (Config.delayBetweenChapters > 0) {
                             console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
-                            await sleep(Config.delayBetweenChapters);
+                            await sleepWithPause(Config.delayBetweenChapters);
                         }
                         console.log(`%cBắt đầu xử lý (deal) chương: ${chapter.title || chapter.url}`, "color: purple;");
+                        let taskIndex = null;
+                        try {
+                            if (xhr.manual && typeof xhr.manual.add === 'function') {
+                                taskIndex = xhr.manual.add({ url: chapter.url, title: chapter.title || '' });
+                            }
+                        } catch (e) { /* ignore */ }
                         try {
                             const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
                             const result = await rule.deal(chapter);
@@ -7112,11 +7161,21 @@ function decryptDES(encrypted, key, iv) {
                                 throw new Error(result?.error || "Hàm deal không trả về nội dung");
                             }
                             updateProgress();
+                            try {
+                                if (taskIndex !== null && xhr.manual && typeof xhr.manual.done === 'function') {
+                                    xhr.manual.done(taskIndex, { title: chapter.title || '' });
+                                }
+                            } catch (e) { /* ignore */ }
                         } catch (error) {
                             console.error(`%cLỗi khi thực thi deal cho chương: ${chapter.title || chapter.url}`, "color: red;", error);
                             chapter.contentRaw = '';
                             chapter.content = '';
                             chapter.document = '';
+                            try {
+                                if (taskIndex !== null && xhr.manual && typeof xhr.manual.fail === 'function') {
+                                    xhr.manual.fail(taskIndex, { title: chapter.title || '' });
+                                }
+                            } catch (e) { /* ignore */ }
                         }
                     }
                 }
@@ -7135,40 +7194,18 @@ function decryptDES(encrypted, key, iv) {
                         const currentChunkNum = (i / chunkSize) + 1;
                         console.log(`%cĐang xử lý lô ${currentChunkNum} (gồm ${chunk.length} chương)`, "color: blue; font-weight: bold;");
 
+                        // Đồng bộ: đợi đến khi thư viện hoàn tất xử lý xong (đã await onload handler)
+                        xhr.storage.config.set('thread', Math.min(chunkSize, chunk.length));
                         await new Promise(resolveChunk => {
-                            // 1. Tạo bộ đếm và hàm kiểm tra hoàn thành cho riêng lô này
-                            let completedCount = 0;
-                            const checkCompletion = () => {
-                                completedCount++;
-                                if (completedCount >= chunk.length) {
-                                    console.log(`%cĐã hoàn thành lô ${currentChunkNum}.`, "color: green;");
-                                    // Dùng setTimeout để đảm bảo các tác vụ con đã xong hẳn
-                                    setTimeout(resolveChunk, 0);
-                                }
-                            };
-
-                            // 2. Bọc các hàm callback gốc để thêm bộ đếm vào
-                            const onloadWrapper = (res, request) => {
-                                originalOnChapterLoad(res, request).finally(checkCompletion);
-                            };
-
-                            const onfailedWrapper = (res, request) => {
-                                onChapterFailed(res, request).finally(checkCompletion);
-                            };
-
-                            // 3. Khởi tạo và chạy xhr với các hàm callback đã được bọc lại
-                            xhr.init({
-                                retry: 0,
-                                thread: Math.min(chunkSize, chunk.length), // Vẫn giữ fix từ lần trước
-                                timeout: Config.timeout,
-                                // Hoàn toàn không dùng onComplete của thư viện nữa
-                                onfailedEvery: onChapterFailedEvery,
-                                checkLoad: async (res) => (res.status >= 200 && res.status < 300),
+                            xhr.storage.config.set('onComplete', async () => {
+                                console.log(`%cĐã hoàn thành lô ${currentChunkNum}.`, "color: green;");
+                                resolveChunk();
                             });
 
                             xhr.list(chunk, {
-                                onload: onloadWrapper,
-                                onfailed: onfailedWrapper, // Dùng onfailed ở đây thay vì trong init
+                                onload: async (res, request) => {
+                                    await originalOnChapterLoad(res, request);
+                                },
                                 overrideMimeType
                             });
                             xhr.start();
@@ -7176,7 +7213,7 @@ function decryptDES(encrypted, key, iv) {
 
                         if (i + chunkSize < currentRunList.download.length && Config.delayBetweenChapters > 0) {
                             console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
-                            await sleep(Config.delayBetweenChapters);
+                            await sleepWithPause(Config.delayBetweenChapters);
                         }
                     }
                 }
@@ -7186,6 +7223,7 @@ function decryptDES(encrypted, key, iv) {
                     console.log(`Bắt đầu xử lý (iframe) ${currentRunList.iframe.length} chương.`);
                     for (const chapter of currentRunList.iframe) {
                         if (chapter.contentRaw) continue;
+                        await waitIfPaused();
                         const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
                         await new Promise((resolve) => {
                             $('<iframe>').on('load', async (e) => {
@@ -7193,7 +7231,7 @@ function decryptDES(encrypted, key, iv) {
                                 try {
                                     if (typeof rule.iframe === 'function') await rule.iframe(e.target.contentWindow);
                                     response = e.target.contentWindow.document;
-                                    responseText = e.target.contentWindow.document.documentElement.outerHTML;f
+                                    responseText = e.target.contentWindow.document.documentElement.outerHTML;
                                 } catch (error) {
                                     console.error(error);
                                     response = ''; responseText = '';
@@ -7203,7 +7241,7 @@ function decryptDES(encrypted, key, iv) {
                                 resolve();
                             }).attr('src', chapter.url).css('visibility', 'hidden').appendTo('body');
                         });
-                        if (Config.delayBetweenChapters > 0) await sleep(Config.delayBetweenChapters);
+                        if (Config.delayBetweenChapters > 0) await sleepWithPause(Config.delayBetweenChapters);
                     }
                 }
 
@@ -7212,6 +7250,7 @@ function decryptDES(encrypted, key, iv) {
                     console.log(`Bắt đầu xử lý (popup) ${currentRunList.popup.length} chương.`);
                     for (const chapter of currentRunList.popup) {
                         if (chapter.contentRaw) continue;
+                        await waitIfPaused();
                         var popupWindow = window.open(chapter.url, '', 'resizable,scrollbars,width=300,height=350');
                         window.localStorage.setItem('gm-nd-url', chapter.url);
                         await waitFor(() => window.localStorage.getItem('gm-nd-html') || !popupWindow || popupWindow.closed);
@@ -7220,7 +7259,7 @@ function decryptDES(encrypted, key, iv) {
                         if (popupWindow && !popupWindow.closed) popupWindow.close();
                         window.localStorage.removeItem('gm-nd-url');
                         window.localStorage.removeItem('gm-nd-html');
-                        if (Config.delayBetweenChapters > 0) await sleep(Config.delayBetweenChapters);
+                        if (Config.delayBetweenChapters > 0) await sleepWithPause(Config.delayBetweenChapters);
                     }
                 }
 
@@ -7381,8 +7420,8 @@ function decryptDES(encrypted, key, iv) {
         if (!Storage.rule.chapter && Storage.rule.chapterUrl.length) {
             let order = 1;
             const elems = Array.from(document.links).filter((i) => ((chapters.length || vipChapters.length)
-                                                                    ? (chapters.map((i) => i.url).includes(i.href) || vipChapters.includes(i.href))
-                                                                    : Storage.rule.chapterUrl.some((j) => i.href.match(j))));
+                ? (chapters.map((i) => i.url).includes(i.href) || vipChapters.includes(i.href))
+                : Storage.rule.chapterUrl.some((j) => i.href.match(j))));
             const temp = $(elems).toArray().map((i) => {
                 $(i).attr('novel-downloader-chapter', vipChapters.includes(i.href) ? 'vip' : '').attr('order', order++);
                 return {
