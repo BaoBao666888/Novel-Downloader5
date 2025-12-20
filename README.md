@@ -110,6 +110,35 @@ Script hỗ trợ một danh sách lớn các trang web. Danh sách các rule x�
 
 *(Bạn có thể tự thêm hoặc sửa rule trong code nếu muốn hỗ trợ trang web khác hoặc trang hiện tại có thay đổi cấu trúc).*
 
+## Tự viết Rule mới
+
+Bạn có thể dán rule mới trực tiếp trong giao diện (ô “Quy tắc tùy chỉnh”) hoặc sửa file. Rule là một object JS, tối thiểu cần `siteName`, `url`, `chapterUrl`, `chapter` (CSS selector lấy danh sách chương) và `content`/`deal`. Ví dụ khung đầy đủ:
+
+```js
+[{
+  siteName: 'MySite',
+  url: '://www.example.com/books/\\d+$',          // regex hoặc mảng regex cho trang mục lục
+  chapterUrl: '://www.example.com/books/\\d+/\\d+', // regex hoặc mảng regex cho trang chương
+  title: '.book-title',                           // selector tiêu đề truyện
+  writer: '.book-author',                         // selector tác giả
+  intro: '.book-intro',
+  cover: '.book-cover img',
+  chapter: '.chapter-list a',                     // selector danh sách chương (bắt buộc)
+  vipChapter: '.chapter-list li.vip a',           // (tùy chọn) selector chương VIP
+  chapterTitle: 'h1',                             // selector tiêu đề chương
+  content: '.article-body',                       // selector nội dung chương (nếu tải trực tiếp)
+  elementRemove: 'script,style',                  // selector cần loại bỏ khỏi nội dung
+  contentReplace: [['Quảng cáo.*', '']],          // mảng [pattern, replace] để làm sạch text
+  getChapters: async (doc) => { /* tùy chọn: tự build danh sách chương */ },
+  deal: async (chapter) => { /* tùy chọn: tự fetch/decrypt trả về string hoặc {title,content} */ },
+}]
+```
+
+Lưu ý:
+- Ô “Quy tắc tùy chỉnh” chấp nhận một chuỗi JSON/JS (ví dụ `[]` hoặc `[{}]`); script sẽ `eval` và nối vào `Rule.special`.
+- Nếu bật “Sử dụng quy tắc mẫu”, script sẽ tự thêm `Rule.template` để auto-match các site Biquge tương tự.
+- Với `deal`, nếu trả về string rỗng, script sẽ coi là lỗi và thử lại theo cấu hình `retry`.
+
 ## Các script & thư mục liên quan trong repo
 
 ### Userscript chính
@@ -177,7 +206,6 @@ Khi báo lỗi, vui lòng cung cấp các thông tin sau:
 
 *   Script này được phát triển dựa trên phiên bản gốc của **dodying**.
 *   Cảm ơn tất cả những người đã đóng góp ý tưởng, báo lỗi và sử dụng script.
-
 
 
 
