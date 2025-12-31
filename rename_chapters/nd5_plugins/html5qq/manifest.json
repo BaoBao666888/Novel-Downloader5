@@ -1,0 +1,13 @@
+{
+  "id": "html5qq",
+  "name": "html5.qq.com",
+  "entry": "plugin.py",
+  "version": 7,
+  "author": "Moleys",
+  "source": "https://bookshelf.html5.qq.com/",
+  "description": "Đọc truyện trên trang https://bookshelf.html5.qq.com",
+  "type": "chinese_novel",
+  "locale": "zh_CN",
+  "sample_url": "https://bookshelf.html5.qq.com/autojump/intro?bookid=123456",
+  "icon": "icon.png"
+}

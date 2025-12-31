@@ -138,8 +138,6 @@ def show_update_window(root, manifest):
         pass
     win.title(f"Cập nhật phiên bản {version}")
     win.geometry("780x520")
-    win.transient(root)
-    win.grab_set()
 
     header = ttk.Frame(win)
     header.pack(fill=tk.X, padx=12, pady=8)

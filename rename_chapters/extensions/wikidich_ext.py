@@ -924,7 +924,6 @@ def _fetch_book_index(
             continue
         seen.add(key)
         unique.append(ch)
-    unique.sort(key=lambda x: (x.get("number") if isinstance(x.get("number"), int) else 10**9, x.get("title", "")))
     return unique
 
 

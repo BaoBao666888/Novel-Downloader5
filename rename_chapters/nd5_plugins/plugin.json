@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "author": "QuocBao",
+    "description": ""
+  },
+  "data": [
+    {
+      "name": "html5.qq.com",
+      "version": 7,
+      "author": "Moleys",
+      "source": "https://bookshelf.html5.qq.com/",
+      "description": "Đọc truyện trên trang https://bookshelf.html5.qq.com",
+      "path": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/html5qq/plugin.zip",
+      "icon": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/html5qq/icon.png",
+      "type": "chinese_novel",
+      "locale": "zh_CN"
+    }
+  ]
+}
