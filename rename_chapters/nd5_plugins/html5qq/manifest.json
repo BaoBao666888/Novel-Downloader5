@@ -2,7 +2,7 @@
   "id": "html5qq",
   "name": "html5.qq.com",
   "entry": "plugin.py",
-  "version": 7,
+  "version": 8,
   "author": "Moleys",
   "source": "https://bookshelf.html5.qq.com/",
   "description": "Đọc truyện trên trang https://bookshelf.html5.qq.com",

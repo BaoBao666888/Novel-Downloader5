@@ -17,7 +17,7 @@ class Html5QQPlugin:
 
     id = "html5qq"
     name = "html5.qq.com"
-    version = 7
+    version = 8
     author = "Moleys"
     source = "https://bookshelf.html5.qq.com/"
     description = "Đọc truyện trên trang https://bookshelf.html5.qq.com"
@@ -115,12 +115,25 @@ class Html5QQPlugin:
         book_id = (book or {}).get("book_id") or (book or {}).get("id")
         if not book_id:
             return {}
+        results: Dict[str, Dict[str, Any]] = {}
+        for cid in ids:
+            text = self._fetch_single_chapter(book_id, cid, ctx)
+            if text is None:
+                continue
+            results[str(cid)] = {
+                "title": fallback_titles.get(cid) or fallback_titles.get(str(cid)) or f"Chương {cid}",
+                "content": text,
+            }
+        return results
 
+    def _fetch_single_chapter(self, book_id: str, chapter_id: str, ctx: ND5Context):
+        if not str(chapter_id).isdigit():
+            return None
         payload = {
             "ContentAnchorBatch": [
                 {
                     "BookID": int(book_id),
-                    "ChapterSeqNo": [int(cid) for cid in ids if str(cid).isdigit()],
+                    "ChapterSeqNo": [int(chapter_id)],
                 }
             ],
             "Scene": "chapter",
@@ -134,24 +147,29 @@ class Html5QQPlugin:
         )
         resp.raise_for_status()
         data = resp.json()
-        results: Dict[str, Dict[str, Any]] = {}
-        anchors = (data.get("data") or {}).get("Content") if isinstance(data, dict) else None
-        contents: List[Any] = []
-        if isinstance(anchors, list) and anchors:
-            if isinstance(anchors[0], dict):
-                contents = anchors[0].get("Content") or []
-            elif isinstance(anchors[0], list):
-                contents = anchors[0]
+        content = self._extract_ads_read_content(data)
+        if content is None:
+            return None
+        return str(content).replace("\r\n", "<br>")
 
-        for idx, cid in enumerate(ids):
-            text = contents[idx] if idx < len(contents) else None
-            if text is None:
-                continue
-            results[str(cid)] = {
-                "title": fallback_titles.get(cid) or fallback_titles.get(str(cid)) or f"Chương {cid}",
-                "content": text,
-            }
-        return results
+    def _extract_ads_read_content(self, payload: Any):
+        if not isinstance(payload, dict):
+            return None
+        data = payload.get("data") or {}
+        content = data.get("Content") if isinstance(data, dict) else None
+        if isinstance(content, list) and content:
+            first = content[0]
+            if isinstance(first, dict):
+                inner = first.get("Content")
+                if isinstance(inner, list) and inner:
+                    return inner[0]
+                if isinstance(inner, str):
+                    return inner
+            elif isinstance(first, list) and first:
+                return first[0]
+        if isinstance(data, dict):
+            return data.get("content") or data.get("text")
+        return None
 
     def _normalize_newlines(self, text: str) -> str:
         return re.sub(r"\n{2,}", "\n", str(text or "").replace("\r\n", "\n").replace("\r", "\n"))
