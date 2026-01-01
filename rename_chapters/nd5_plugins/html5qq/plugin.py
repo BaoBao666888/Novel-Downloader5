@@ -17,7 +17,7 @@ class Html5QQPlugin:
 
     id = "html5qq"
     name = "html5.qq.com"
-    version = 8
+    version = 9
     batch_size = 1
     author = "Moleys"
     source = "https://bookshelf.html5.qq.com/"
