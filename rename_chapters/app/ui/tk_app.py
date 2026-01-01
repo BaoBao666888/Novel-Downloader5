@@ -7,6 +7,7 @@ import gzip
 import time
 import html
 import zipfile
+import textwrap
 from datetime import datetime
 from typing import Optional
 import tkinter.font as tkfont
@@ -289,7 +290,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.6_beta')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.7')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -2316,7 +2317,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             tab = scrolledtext.ScrolledText(notebook, wrap=tk.WORD, padx=10, pady=10)
             notebook.add(tab, text=title)
             tabs_meta.append((tab, title))
-            self._render_markdown_guide(tab, content.strip())
+            self._render_markdown_guide(tab, textwrap.dedent(content).strip())
 
         browser_guide = """
         --- TRÌNH DUYỆT ---
@@ -2355,27 +2356,32 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         wikidich_guide = """
         --- WIKIDICH / KOANCHAY ---
-        - **Tải Works / Tải chi tiết**: dùng cookie trình duyệt; Cài đặt proxy/header trong **Cài đặt**. Bộ lọc cơ bản + nâng cao (ngày, thể loại, vai trò, thuộc tính Nhúng link/file). Tab Koanchay dùng đúng domain koanchay.org/net tự động.
-        - **Lọc cơ bản**: Tên/Tác giả, Văn án, Link bổ sung; trạng thái và sắp xếp. Dòng ticker dưới “Hiện lọc nâng cao” hiển thị trạng thái lọc, tự chạy chữ khi dài.
-        - **Lọc nâng cao**: ngày cập nhật, thể loại, vai trò, thuộc tính Nhúng link/file; có nút Đặt lại.
-        - **DS Chương**: tải danh sách chương mới nhất (đồng thời cập nhật chi tiết/số chương), xem nội dung gộp các phần, chỉnh sửa nội dung ngay trong app (PUT lên server bằng cookie sẵn có). Koanchay tự dùng domain koanchay; khi tải DS Chương sẽ tự trừ cột New theo số chương mới.
-        - **Ghi chú**: Ghi chú cục bộ (gắn ID truyện) và Ghi chú toàn cục; lưu ngay vào config, giữ cả khi xóa truyện. Ghi chú toàn cục có danh sách quản lý, cho xem/sửa/xóa.
-        - **Liên kết thư mục**: Liên kết per-truyện và quản lý Liên kết toàn cục (lưu trong config, độc lập cache). Nút “Chọn tự động” với 2 chế độ: “Giải nén rồi chọn” (lấy file nén mới nhất -> giải nén vào thư mục số kế tiếp) hoặc “Chọn thư mục mới nhất”; có nút “Mở thư mục...” để mở nhanh thư mục liên kết; nút chuyển Koanchay/Wikidich nằm mép phải.
-        - **Thêm link hỗ trợ**: mở trang sửa truyện -> thêm link đúng mẫu (Fanqie https://fanqienovel.com/page/123456 hoặc /book/123456; JJWXC https://www.jjwxc.net/onebook.php?novelid=123456; PO18 https://www.po18.tw/books/123456; Qidian https://www.qidian.com/book/1037076300/; Ihuaben https://www.ihuaben.com/book/9219715.html) rồi tải chi tiết / kiểm tra cập nhật.
+        - **Tải Works / Tải chi tiết**: dùng cookie từ trình duyệt tích hợp. Khi bị Cloudflare sẽ tạm dừng và **resume theo từng site**, kể cả sau khi mở lại app (thao tác lại Tải Works/Tải chi tiết). Koanchay tự dùng domain koanchay.org/net.
+        - **Cache theo site**: Wikidich dùng `local/wikidich_cache.json`, Koanchay dùng `local/koanchay_cache.json`. Khi chuyển tab, app tự nạp cache nếu chưa có dữ liệu.
+        - **Lọc cơ bản & nâng cao**: Tên/Tác giả, Văn án, Link bổ sung; trạng thái và sắp xếp. Lọc nâng cao có ngày cập nhật, thể loại, vai trò, thuộc tính Nhúng link/file; có nút Đặt lại.
+        - **DS Chương**: tải danh sách chương mới nhất (đồng thời cập nhật chi tiết/số chương), xem nội dung gộp các phần, sửa nội dung ngay trong app (PUT lên server). Koanchay tự dùng domain đúng và tự trừ cột “New”.
+        - **Mô tả bổ sung mặc định** (Cài đặt request): hỗ trợ `{num-d}`/`{num-c}` (tương đương `{num-đầu}`/`{num-cuối}`) để điền số chương đầu/cuối của batch đã parse khi upload thủ công.
+        - **Ghi chú & Liên kết**: Ghi chú cục bộ + toàn cục (lưu trong config). Liên kết thư mục per‑truyện + toàn cục, có “Chọn tự động” (giải nén rồi chọn / chọn thư mục mới nhất) và nút “Mở thư mục...”.
+        - **Thêm link hỗ trợ**: thêm link Fanqie/JJWXC/PO18/Qidian/Ihuaben vào trang sửa truyện rồi tải chi tiết/kiểm tra cập nhật để đồng bộ.
         - **Cập nhật chương**: nút chỉ sáng khi có “New”; nhập số để cộng tổng chương và trừ cột “New”. Sai lệch có thể tải lại chi tiết/DS Chương để đồng bộ.
-        - **Mở link/Trang truyện & nút nhanh**: double‑click link bổ sung hoặc bấm “Mở trang truyện”. Nút **Chỉnh sửa** mở màn hình upload Wikidich; nút **Auto update** (chỉ khi có link Fanqie) tự bật bridge, tải mục lục Fanqie, tạo file bổ sung, thêm Credit nếu bật, rồi mở cửa sổ upload đã điền sẵn.
-        - **Tiến độ & Hủy**: khung tiến độ ẩn, chỉ hiện khi chạy tác vụ, có nút **X** để hủy.
-        - **Proxy**: bật “Wikidich/Fanqie” trong tab Proxy để áp dụng cho Works/Chi tiết/Check cập nhật; Koanchay dùng cùng cấu hình proxy/cookie.
+        - **Auto update**: chỉ khi có link Fanqie, app tự bật bridge, tải mục lục, tạo file bổ sung, thêm Credit (nếu bật) rồi mở upload đã điền sẵn.
+        - **Proxy**: bật “Wikidich/Fanqie” trong tab Proxy để áp dụng cho Works/Chi tiết/Check cập nhật; Koanchay dùng cùng cấu hình.
         """
         create_tab("Wikidich", wikidich_guide)
 
         nd5_guide = """
-        --- NOVEL DOWNLOADER 5 (Fanqie/API) ---
+        --- NOVEL DOWNLOADER 5 (ND5) ---
         - Mở từ menu **Công cụ → Download Novel 5...** (cửa sổ riêng, không chặn UI).
-        - Chỉ hỗ trợ Fanqie qua `fanqie_bridge_win.exe` (auto bật, kiểm tra healthz); có ghi nhớ tùy chọn (include info/cover, template tiêu đề, định dạng zip/txt/epub, phạm vi tải, thư mục lưu).
-        - Nhập URL Fanqie, bấm **Lấy thông tin** để lấy meta + mục lục (đánh số theo trang). Có log đầy đủ và thanh tiến độ.
-        - Chọn phạm vi/tùy chọn, bấm **Bắt đầu tải**: tự tải nội dung qua bridge, thêm tiêu đề vào file (nếu chọn), lưu file zip/txt/epub. Cache tiến độ tải từng book_id để tiếp tục nếu ngắt giữa chừng.
-        - Auto update trong tab Wikidich dùng cùng bridge/mục lục Fanqie và tái sử dụng credit/tùy chọn từ đây (Cài đặt request).
+        - ND5 hỗ trợ **plugin** do người dùng cài. Chọn nguồn ở combo “Nguồn”, có nút **Cài đặt** góc phải để mở cấu hình.
+        - **Cài đặt ND5**: chỉnh template tiêu đề, tên file, delay/timeout/retry; quản lý **Kho plugin** (thêm link list, tải danh sách, cài/cập nhật), và **Plugin đã cài** (xem/gỡ/cập nhật).
+        - Nhập URL, bấm **Lấy thông tin**: ND5 sẽ kiểm tra URL có khớp nguồn không; nếu không khớp sẽ tự đổi nguồn phù hợp hoặc hỏi có tiếp tục dùng nguồn hiện tại. Khi không có plugin phù hợp, có thể mở **Cài đặt** để thêm plugin.
+        - Thông tin truyện hiển thị **ảnh bìa**, **chi tiết**, **trạng thái**; link ảnh bìa nằm trước mục lục để dễ copy.
+        - Nếu plugin có cờ VIP, mục lục sẽ đánh dấu **[VIP]**. ND5 ưu tiên tải VIP bằng hàm riêng và sẽ báo nếu thiếu giá trị bổ sung (token/cookie...).
+        - Nút **Giá trị bổ sung**: nhập các biến mà plugin yêu cầu (token/cookie/tuỳ chọn).
+        - **Phạm vi tải**: hỗ trợ nhiều phần bằng dấu `,` (bỏ qua khoảng trắng). `-5` = từ 1→5, `10-` = từ 10→hết, `7-8`/`15` là khoảng/điểm. Các khoảng chồng nhau sẽ tự gộp.
+        - Bấm **Bắt đầu tải**: tải theo batch do plugin quy định, thêm tiêu đề vào file (nếu chọn), lưu zip/txt/epub.
+        - Một số nguồn cần bridge; app tự bật/kiểm tra. Tiến độ tải được cache để resume nếu ngắt giữa chừng.
+        - Auto update trong tab Wikidich dùng cùng bridge/nguồn tương ứng và tái sử dụng credit/tùy chọn từ đây.
         """
         create_tab("Novel Downloader 5", nd5_guide)
 
@@ -2553,14 +2559,16 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   **Di chuyển ảnh**: **Nhấn và kéo chuột trái** để di chuyển ảnh trong khung xem.
 
         3.  **Công cụ & Lưu ảnh**:
+            -   **Thu gọn/Mở công cụ**: mặc định tab bị thu gọn; bấm **Mở công cụ** để hiện các chức năng tăng/giảm ảnh.
             -   **Công cụ**: Chọn một trong các hiệu ứng nâng cao chất lượng ảnh:
                 -   *Làm nét (Unsharp Mask)*: Tăng độ sắc nét của các chi tiết.
                 -   *Tăng chi tiết (Detail)*: Làm nổi bật các cạnh và vân bề mặt.
                 -   *Nâng cấp độ phân giải x2*: Tăng gấp đôi kích thước ảnh với thuật toán chất lượng cao.
             -   **Cường độ**: Dùng thanh trượt để điều chỉnh mức độ mạnh/yếu của hiệu ứng.
+            -   **Giảm kích thước**: giảm theo % hoặc theo kích thước (W/H), có tùy chọn giữ tỉ lệ.
             -   **Áp dụng**: Sau khi chọn công cụ và cường độ, nhấn **"Áp dụng"** để xem kết quả.
             -   **Hoàn tác về gốc**: Nhấn nút này để hủy bỏ mọi thay đổi và quay về ảnh gốc ban đầu.
-            -   **Lưu ảnh...**: Chọn định dạng và nhấn **"Lưu ảnh..."** để lưu lại ảnh đã qua xử lý.
+            -   **Lưu ảnh...**: Nút lưu nằm cùng hàng với trạng thái **Sẵn sàng.** bên dưới, chọn định dạng rồi lưu ảnh đã xử lý.
         """
         create_tab("Xử lý Ảnh", image_guide)
 
@@ -2591,6 +2599,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         """Render markdown đơn giản (heading dạng ---...---, bold **...**)."""
         text_widget.config(state='normal')
         text_widget.delete('1.0', tk.END)
+        markdown_text = markdown_text.replace("\r\n", "\n").replace("\r", "\n")
 
         base_font = tkfont.Font(font=text_widget.cget("font"))
         bold_font = tkfont.Font(font=base_font)
@@ -2601,7 +2610,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         text_widget.tag_configure('bold', font=bold_font)
         text_widget.tag_configure('heading', font=heading_font, foreground="#0b5394", spacing1=5, spacing3=10)
 
-        tag_regex = re.compile(r'^---(.*?)---$|\\*\\*(.*?)\\*\\*', re.MULTILINE)
+        tag_regex = re.compile(r'^[ \t]*---(.*?)---[ \t]*$|\*\*(.*?)\*\*', re.MULTILINE)
         last_end = 0
 
         for match in tag_regex.finditer(markdown_text):
@@ -2609,7 +2618,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
             if match.group(1) is not None:
                 content = match.group(1).strip()
-                text_widget.insert(tk.END, content + "\\n", 'heading')
+                text_widget.insert(tk.END, content + "\n", 'heading')
             elif match.group(2) is not None:
                 content = match.group(2)
                 text_widget.insert(tk.END, content, 'bold')

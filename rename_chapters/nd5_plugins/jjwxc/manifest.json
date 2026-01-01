@@ -1,0 +1,12 @@
+{
+  "id": "jjwxc",
+  "name": "JJWXC",
+  "entry": "plugin.py",
+  "sample_url": "https://www.jjwxc.net/onebook.php?novelid=123456",
+  "version": 1,
+  "author": "BaoBao",
+  "source": "https://www.jjwxc.net/",
+  "description": "Tải JJWXC",
+  "type": "chinese_novel",
+  "locale": "zh_CN"
+}

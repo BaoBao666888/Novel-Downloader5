@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 import requests
 
@@ -12,9 +12,19 @@ class ND5Context:
     Host (app chính) sẽ khởi tạo context với timeout/retries hiện tại.
     """
 
-    def __init__(self, host: Any, plugin_id: str, timeout: float = 20.0, retries: int = 3):
+    def __init__(
+        self,
+        host: Any,
+        plugin_id: str,
+        timeout: float = 20.0,
+        retries: int = 3,
+        extra: Optional[Dict[str, Any]] = None,
+        cookies: Optional[requests.cookies.RequestsCookieJar] = None,
+    ):
         self.host = host
         self.plugin_id = plugin_id
+        self.extra = dict(extra or {})
+        self.cookies = cookies
         try:
             self.timeout = max(1.0, float(timeout or 0))
         except Exception:
@@ -45,9 +55,17 @@ class ND5Context:
         except Exception:
             pass
 
+    def get_extra(self, key: str, default: Any = None):
+        return self.extra.get(key, default)
+
+    def get_cookies(self):
+        return self.cookies
+
     def request_with_retry(self, url: str, method: str = "get", **kwargs):
         timeout_val = kwargs.pop("timeout", self.timeout)
         proxies = kwargs.pop("proxies", self.get_proxy())
+        if "cookies" not in kwargs and self.cookies is not None:
+            kwargs["cookies"] = self.cookies
         last_exc = None
         for attempt in range(1, self.retries + 1):
             try:

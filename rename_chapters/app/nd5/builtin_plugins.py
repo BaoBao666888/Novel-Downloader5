@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import re
 from typing import Any, Dict, List
 from urllib.parse import quote_plus
@@ -12,6 +13,7 @@ from app.nd5.plugin_api import ND5Context
 class FanqieBridgePlugin:
     id = "fanqie"
     name = "Fanqie (bridge)"
+    batch_size = 20
     domains = ["fanqienovel.com"]
     sample_url = "https://fanqienovel.com/page/123456"
     icon = "icons/fanqie.png"
@@ -38,6 +40,17 @@ class FanqieBridgePlugin:
     def _headers(self):
         return dict(self._DEFAULT_HEADERS)
 
+    def _format_publish_time(self, raw_val):
+        if raw_val is None or raw_val == "":
+            return ""
+        try:
+            ts = int(float(raw_val))
+            if ts > 10**12:
+                ts = ts // 1000
+            return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            return str(raw_val)
+
     def fetch_book_and_toc(self, url: str, ctx: ND5Context) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
         book_id = self._extract_book_id(url)
         if not book_id:
@@ -61,12 +74,50 @@ class FanqieBridgePlugin:
                 raw = data["data"][0]
             elif isinstance(data.get("data"), dict):
                 raw = data["data"].get(str(book_id)) or data["data"]
+        raw = raw or {}
+        author = raw.get("author") or raw.get("author_name") or ""
+        score = raw.get("score")
+        serial_count = raw.get("serial_count")
+        word_number = raw.get("word_number")
+        read_count = raw.get("read_count")
+        last_publish_time = raw.get("last_publish_time") or raw.get("last_chapter_update_time")
+        last_publish_str = self._format_publish_time(last_publish_time)
+        last_chapter_title = raw.get("last_chapter_title") or ""
+        detail_lines = []
+        if author:
+            detail_lines.append(f"Tác giả: {author}")
+        if score is not None:
+            detail_lines.append(f"Đánh giá: {score} điểm")
+        if serial_count:
+            detail_lines.append(f"Số chương: {serial_count}")
+        if word_number:
+            detail_lines.append(f"Số chữ: {word_number}")
+        if read_count:
+            detail_lines.append(f"Lượt xem: {read_count}")
+        if last_publish_str:
+            detail_lines.append(f"Cập nhật: {last_publish_str}")
+        if last_chapter_title:
+            detail_lines.append(f"Chương mới nhất: {last_chapter_title}")
+        detail = "\n".join(detail_lines).strip()
+        creation_status = raw.get("creation_status")
+        ongoing = None
+        if creation_status is not None:
+            try:
+                ongoing = str(creation_status) == "1"
+            except Exception:
+                ongoing = None
+        status = None
+        if isinstance(ongoing, bool):
+            status = "Đang ra" if ongoing else "Hoàn thành"
         return {
             "book_id": book_id,
-            "title": (raw or {}).get("book_name") or (raw or {}).get("title") or f"Fanqie_{book_id}",
-            "author": (raw or {}).get("author") or (raw or {}).get("author_name") or "",
-            "intro": (raw or {}).get("abstract") or (raw or {}).get("description") or "",
-            "cover": (raw or {}).get("thumb_url") or (raw or {}).get("cover") or "",
+            "title": raw.get("book_name") or raw.get("title") or f"Fanqie_{book_id}",
+            "author": author,
+            "intro": raw.get("abstract") or raw.get("description") or "",
+            "cover": raw.get("thumb_url") or raw.get("cover") or "",
+            "detail": detail,
+            "status": status,
+            "ongoing": ongoing,
             "raw": raw or data,
         }
 

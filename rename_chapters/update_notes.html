@@ -1,23 +1,23 @@
-<h1>Phiên bản 0.2.5 — Fanqie Downloader & Wikidich</h1>
+<h1>Phiên bản 0.2.7 — Ổn định UI & ND5</h1>
 
 <h2>Điểm mới</h2>
-  - Download Novel 5: thêm reset bridge, cấu hình timeout, template tên file ({title}_{author} mặc định), tự điền URL Fanqie khi bấm Download từ Liên kết (dùng thư mục liên kết, không ghi config), cho chỉnh thư mục lưu tạm thời.
-  - Liên kết trang truyện: nút Download mở ND5 với thư mục liên kết; giữ link auto update để sẵn URL.
-  - Upload Wikidich: yêu cầu chọn tối thiểu 2 file; cảnh báo file nhỏ hiển thị đỏ trong log UI và ghi vào file log.
-  - Auto update Fanqie: dừng nếu thiếu nội dung, tối thiểu 2 chương mới; không tạo file khi thiếu; tự thêm Credit nếu bật; kiểm tra file nhỏ; chọn template tên chương chuẩn.
-  - ND5 lưu log ngày theo thư mục logs, tự dọn log cũ; thêm delay request cấu hình được.
+  - Hướng dẫn thao tác: sửa render chữ, bổ sung mục Wikidich/Koanchay, ND5, Xử lý ảnh.
+  - ND5: cửa sổ Cài đặt riêng, nút Giá trị bổ sung khi nguồn yêu cầu; phạm vi tải hỗ trợ `-5`/`10-` và nhiều khoảng; retry có delay.
+  - ND5: tự nhận nguồn theo URL (không khớp sẽ tự đổi hoặc gợi ý mở kho plugin).
+  - ND5: thiết kế lại khung thông tin truyện (ảnh bìa hiển thị trực tiếp, chi tiết/trạng thái, link bìa để copy).
+  - ND5: đánh dấu [VIP] trong mục lục khi nguồn cung cấp cờ VIP, ưu tiên xử lý theo loại chương.
+  - Xử lý ảnh: thêm giảm kích thước theo % hoặc W/H; nút Thu gọn/Mở công cụ; cụm Lưu ảnh chuyển xuống hàng trạng thái.
 
-<h2>Wikidich</h2>
-  - Thêm chế độ “Chỉ đồng bộ số chương” khi tải chi tiết: chỉ lấy Works, không tải văn án.
-  - Đồng bộ số chương chỉ tăng; nếu server ít hơn local thì giữ số cũ và tô cam (cả ngày cập nhật), không giảm dữ liệu.
-  - 404: đánh cờ đỏ, popup danh sách 404 (double-click mở trình duyệt), tô đỏ ưu tiên hơn “New”, lưu dấu vết để tô lại sau refresh.
-  - Kiểm tra cập nhật: reset màu/flag đúng; cập nhật cột Cập nhật chỉ giữ phần ngày.
+<h2>Wikidich / Koanchay</h2>
+  - Resume Works/Chi tiết theo từng site, giữ tiến độ qua restart.
+  - Tự nạp cache Koanchay khi chuyển tab; tải bìa kèm cookie.
+  - Mô tả bổ sung mặc định hỗ trợ {num-d}/{num-c} khi upload thủ công.
 
 <h2>Sửa lỗi & tối ưu</h2>
-  - Ghi cache sau mỗi truyện khi tải chi tiết/kiểm tra để tránh mất dữ liệu nếu dừng giữa chừng.
-  - DS Chương đánh số tuần tự theo thứ tự server.
-  - Giảm lỗi timeout bridge bằng timeout cấu hình; log rõ lỗi bridge/batch.
-  - Chỉnh lại giao diện ND 5.
+  - Sửa UI tab Xử lý văn bản và tab Cài đặt (scroll, bố cục).
+  - Các cửa sổ phụ mở dạng window thật (không modal) để phóng to/thu nhỏ.
+  - ND5 dùng batch size theo nguồn.
+  - ND5: ẩn thanh tiến độ khi không chạy; nút tải/đóng đặt cùng hàng trạng thái; “Thư mục lưu” cùng hàng “Phạm vi tải”.
 
 <h2>Hướng dẫn cập nhật</h2>
 

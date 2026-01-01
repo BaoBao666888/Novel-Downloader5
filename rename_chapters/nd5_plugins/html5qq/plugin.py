@@ -18,6 +18,7 @@ class Html5QQPlugin:
     id = "html5qq"
     name = "html5.qq.com"
     version = 8
+    batch_size = 1
     author = "Moleys"
     source = "https://bookshelf.html5.qq.com/"
     description = "Đọc truyện trên trang https://bookshelf.html5.qq.com"
@@ -80,12 +81,37 @@ class Html5QQPlugin:
         intro_resp.raise_for_status()
         intro_json = intro_resp.json()
         book_info = (intro_json.get("data") or {}).get("bookInfo") if isinstance(intro_json, dict) else {}
+        author = book_info.get("author") or ""
+        summary = book_info.get("summary") or ""
+        subject = book_info.get("subject") or ""
+        intro = summary.replace("\n", "\n\n")
+        detail_lines = []
+        if author:
+            detail_lines.append(f"Tác giả: {author}")
+        if subject:
+            detail_lines.append(str(subject).strip())
+        detail = "\n".join(detail_lines).strip()
+        is_finish = book_info.get("isfinish")
+        if is_finish is None:
+            is_finish = book_info.get("isFinish")
+        ongoing = None
+        if is_finish is not None:
+            try:
+                ongoing = not bool(int(is_finish))
+            except Exception:
+                ongoing = not bool(is_finish)
+        status = None
+        if isinstance(ongoing, bool):
+            status = "Đang ra" if ongoing else "Hoàn thành"
         meta = {
             "book_id": book_id,
             "title": book_info.get("resourceName") or book_info.get("bookName") or f"HTML5QQ_{book_id}",
-            "author": book_info.get("author") or "",
-            "intro": (book_info.get("summary") or "").replace("\n", "\n\n"),
+            "author": author,
+            "intro": intro,
             "cover": book_info.get("picurl") or "",
+            "detail": detail,
+            "status": status,
+            "ongoing": ongoing,
         }
 
         catalog_url = f"https://novel.html5.qq.com/cgi-bin/novel_reader/catalog?book_id={book_id}"
@@ -132,8 +158,8 @@ class Html5QQPlugin:
         payload = {
             "ContentAnchorBatch": [
                 {
-                    "BookID": int(book_id),
-                    "ChapterSeqNo": [int(chapter_id)],
+                    "BookID": str(book_id),
+                    "ChapterSeqNo": [str(chapter_id)],
                 }
             ],
             "Scene": "chapter",

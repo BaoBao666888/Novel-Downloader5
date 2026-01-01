@@ -43,13 +43,13 @@ class ImageTabMixin:
         self.image_canvas.bind("<ButtonPress-1>", self._on_image_drag_start)
         self.image_canvas.bind("<B1-Motion>", self._on_image_drag_move)
 
-        tools_frame = ttk.LabelFrame(img_tab, text="3. Công cụ & Lưu ảnh", padding=10)
-        tools_frame.grid(row=2, column=0, sticky="ew", pady=(10, 0))
-        tools_frame.columnconfigure(1, weight=1)
+        self.image_tools_frame = ttk.LabelFrame(img_tab, text="3. Công cụ", padding=10)
+        self.image_tools_frame.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        self.image_tools_frame.columnconfigure(1, weight=1)
 
-        ttk.Label(tools_frame, text="Công cụ:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.image_tools_frame, text="Công cụ:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.image_tool_combo = ttk.Combobox(
-            tools_frame,
+            self.image_tools_frame,
             state="readonly",
             values=[
                 "Làm nét (Unsharp Mask)",
@@ -60,32 +60,103 @@ class ImageTabMixin:
         self.image_tool_combo.grid(row=0, column=1, columnspan=2, sticky="ew", padx=5)
         self.image_tool_combo.set("Làm nét (Unsharp Mask)")
 
-        ttk.Label(tools_frame, text="Cường độ:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.image_tools_frame, text="Cường độ:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.intensity_var = tk.DoubleVar(value=50)
-        intensity_slider = ttk.Scale(tools_frame, from_=0, to=100, orient="horizontal", variable=self.intensity_var)
+        intensity_slider = ttk.Scale(self.image_tools_frame, from_=0, to=100, orient="horizontal", variable=self.intensity_var)
         intensity_slider.grid(row=1, column=1, sticky="ew", padx=5)
-        intensity_label = ttk.Label(tools_frame, text="50%")
+        intensity_label = ttk.Label(self.image_tools_frame, text="50%")
         intensity_label.grid(row=1, column=2, sticky="w", padx=5)
         self.intensity_var.trace_add("write", lambda *args: intensity_label.config(text=f"{int(self.intensity_var.get())}%"))
 
-        action_frame = ttk.Frame(tools_frame)
-        action_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        self.image_resize_mode_var = tk.StringVar(value="percent")
+        self.image_resize_percent_var = tk.DoubleVar(value=50)
+        self.image_resize_width_var = tk.IntVar(value=0)
+        self.image_resize_height_var = tk.IntVar(value=0)
+        self.image_keep_ratio_var = tk.BooleanVar(value=True)
+
+        resize_frame = ttk.Frame(self.image_tools_frame)
+        resize_frame.grid(row=2, column=0, columnspan=3, sticky="ew", padx=5, pady=(6, 0))
+        resize_frame.columnconfigure(6, weight=1)
+        ttk.Label(resize_frame, text="Giảm kích thước:").grid(row=0, column=0, sticky="w")
+
+        percent_radio = ttk.Radiobutton(
+            resize_frame,
+            text="Theo %",
+            variable=self.image_resize_mode_var,
+            value="percent",
+        )
+        percent_radio.grid(row=0, column=1, sticky="w", padx=(8, 0))
+        percent_entry = ttk.Entry(resize_frame, textvariable=self.image_resize_percent_var, width=6)
+        percent_entry.grid(row=0, column=2, sticky="w", padx=(4, 0))
+        ttk.Label(resize_frame, text="%").grid(row=0, column=3, sticky="w", padx=(4, 0))
+
+        size_radio = ttk.Radiobutton(
+            resize_frame,
+            text="Theo kích thước",
+            variable=self.image_resize_mode_var,
+            value="size",
+        )
+        size_radio.grid(row=1, column=1, sticky="w", padx=(8, 0))
+        ttk.Label(resize_frame, text="W").grid(row=1, column=2, sticky="w", padx=(4, 0))
+        width_entry = ttk.Entry(resize_frame, textvariable=self.image_resize_width_var, width=6)
+        width_entry.grid(row=1, column=3, sticky="w")
+        ttk.Label(resize_frame, text="H").grid(row=1, column=4, sticky="w", padx=(6, 0))
+        height_entry = ttk.Entry(resize_frame, textvariable=self.image_resize_height_var, width=6)
+        height_entry.grid(row=1, column=5, sticky="w")
+        keep_ratio_chk = ttk.Checkbutton(resize_frame, text="Giữ tỉ lệ", variable=self.image_keep_ratio_var)
+        keep_ratio_chk.grid(row=1, column=6, sticky="w", padx=(8, 0))
+        self.resize_image_btn = ttk.Button(resize_frame, text="Giảm", command=self._apply_image_resize, state="disabled")
+        self.resize_image_btn.grid(row=0, column=7, rowspan=2, sticky="e", padx=(8, 0))
+
+        def _toggle_resize_mode():
+            is_percent = self.image_resize_mode_var.get() == "percent"
+            percent_entry.config(state="normal" if is_percent else "disabled")
+            width_entry.config(state="disabled" if is_percent else "normal")
+            height_entry.config(state="disabled" if is_percent else "normal")
+            keep_ratio_chk.config(state="disabled" if is_percent else "normal")
+
+        percent_radio.configure(command=_toggle_resize_mode)
+        size_radio.configure(command=_toggle_resize_mode)
+        _toggle_resize_mode()
+
+        action_frame = ttk.Frame(self.image_tools_frame)
+        action_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(10, 0))
         self.apply_tool_btn = ttk.Button(action_frame, text="Áp dụng", command=self._apply_image_enhancement, state="disabled")
         self.apply_tool_btn.pack(side=tk.LEFT, padx=5)
         self.undo_image_btn = ttk.Button(action_frame, text="Hoàn tác về gốc", command=self._undo_image_enhancement, state="disabled")
         self.undo_image_btn.pack(side=tk.LEFT)
 
-        ttk.Separator(action_frame, orient="vertical").pack(side=tk.LEFT, fill="y", padx=15, pady=5)
+        status_frame = ttk.Frame(img_tab)
+        status_frame.grid(row=3, column=0, sticky="ew", pady=(5, 0))
+        status_frame.columnconfigure(0, weight=1)
+        self.image_status_label = ttk.Label(status_frame, text="Sẵn sàng.")
+        self.image_status_label.grid(row=0, column=0, sticky="w")
 
-        ttk.Label(action_frame, text="Lưu định dạng:").pack(side=tk.LEFT)
-        self.image_format_combo = ttk.Combobox(action_frame, state="readonly", values=["PNG", "JPEG", "WEBP", "BMP", "GIF"])
+        status_actions = ttk.Frame(status_frame)
+        status_actions.grid(row=0, column=1, sticky="e")
+        self.toggle_image_tools_btn = ttk.Button(status_actions, text="Thu gọn công cụ")
+        self.toggle_image_tools_btn.pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Label(status_actions, text="Lưu định dạng:").pack(side=tk.LEFT)
+        self.image_format_combo = ttk.Combobox(status_actions, state="readonly", values=["PNG", "JPEG", "WEBP", "BMP", "GIF"])
         self.image_format_combo.set("PNG")
-        self.image_format_combo.pack(side=tk.LEFT, padx=5)
-        self.save_image_btn = ttk.Button(action_frame, text="Lưu ảnh...", command=self._save_converted_image, state="disabled")
-        self.save_image_btn.pack(side=tk.RIGHT, padx=5)
+        self.image_format_combo.pack(side=tk.LEFT, padx=(4, 8))
+        self.save_image_btn = ttk.Button(status_actions, text="Lưu ảnh...", command=self._save_converted_image, state="disabled")
+        self.save_image_btn.pack(side=tk.LEFT)
 
-        self.image_status_label = ttk.Label(img_tab, text="Sẵn sàng.")
-        self.image_status_label.grid(row=3, column=0, sticky="w", pady=(5, 0))
+        self._image_tools_visible = False
+
+        def _toggle_image_tools():
+            self._image_tools_visible = not self._image_tools_visible
+            if self._image_tools_visible:
+                self.image_tools_frame.grid()
+                self.toggle_image_tools_btn.config(text="Thu gọn công cụ")
+            else:
+                self.image_tools_frame.grid_remove()
+                self.toggle_image_tools_btn.config(text="Mở công cụ")
+
+        self.image_tools_frame.grid_remove()
+        self.toggle_image_tools_btn.config(text="Mở công cụ")
+        self.toggle_image_tools_btn.config(command=_toggle_image_tools)
 
     def _start_image_download_thread(self):
         url = self.image_url_var.get().strip()
@@ -246,6 +317,8 @@ class ImageTabMixin:
             self._update_image_display()
             self.save_image_btn.config(state="normal")
             self.apply_tool_btn.config(state="normal")
+            if hasattr(self, "resize_image_btn"):
+                self.resize_image_btn.config(state="normal")
             self.undo_image_btn.config(state="disabled")
 
         self.after(0, update_ui_success)
@@ -321,3 +394,56 @@ class ImageTabMixin:
                 self.after(0, on_err)
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def _apply_image_resize(self):
+        source = getattr(self, "image_display_pil", None) or getattr(self, "image_original_pil", None)
+        if not source:
+            return
+        mode = self.image_resize_mode_var.get()
+        try:
+            if mode == "percent":
+                percent = float(self.image_resize_percent_var.get())
+                if percent <= 0:
+                    messagebox.showinfo("Giá trị không hợp lệ", "Phần trăm phải lớn hơn 0.", parent=self)
+                    return
+                if percent >= 100:
+                    messagebox.showinfo("Không phải giảm", "Nhập % nhỏ hơn 100 để giảm kích thước.", parent=self)
+                    return
+                scale = percent / 100.0
+                new_w = max(1, int(source.width * scale))
+                new_h = max(1, int(source.height * scale))
+            else:
+                width = int(self.image_resize_width_var.get() or 0)
+                height = int(self.image_resize_height_var.get() or 0)
+                if width <= 0 and height <= 0:
+                    messagebox.showinfo("Thiếu kích thước", "Nhập chiều rộng hoặc chiều cao.", parent=self)
+                    return
+                if self.image_keep_ratio_var.get():
+                    if width > 0 and height > 0:
+                        scale = min(width / source.width, height / source.height)
+                        new_w = max(1, int(source.width * scale))
+                        new_h = max(1, int(source.height * scale))
+                    elif width > 0:
+                        scale = width / source.width
+                        new_w = max(1, width)
+                        new_h = max(1, int(source.height * scale))
+                    else:
+                        scale = height / source.height
+                        new_h = max(1, height)
+                        new_w = max(1, int(source.width * scale))
+                else:
+                    if width <= 0 or height <= 0:
+                        messagebox.showinfo("Thiếu kích thước", "Nhập đủ chiều rộng và chiều cao.", parent=self)
+                        return
+                    new_w, new_h = max(1, width), max(1, height)
+            if new_w >= source.width and new_h >= source.height:
+                messagebox.showinfo("Không phải giảm", "Kích thước mới phải nhỏ hơn ảnh hiện tại.", parent=self)
+                return
+            resized = source.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            self.image_display_pil = resized
+            self.undo_image_btn.config(state="normal")
+            self.save_image_btn.config(state="normal")
+            self._update_image_display()
+            self.image_status_label.config(text=f"Đã giảm kích thước: {new_w}x{new_h}")
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể giảm kích thước: {e}", parent=self)

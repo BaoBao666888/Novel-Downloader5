@@ -34,6 +34,7 @@ from app.nd5.plugin_api import ND5Context
 class MySitePlugin:
     id = "mysite"
     name = "My Site Downloader"
+    batch_size = 20  # số chương mỗi batch (tùy site)
     domains = ["mysite.com"]
     sample_url = "https://mysite.com/book/123"
     icon = None

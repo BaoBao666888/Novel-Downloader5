@@ -1399,6 +1399,24 @@ class WikidichMixin:
             _set_status("Đã thêm file tự động, sẵn sàng upload.")
             _enable_actions()
 
+        def _apply_append_desc_template(template: str) -> str:
+            if not template:
+                return template
+            nums = []
+            for item in parsed_files:
+                try:
+                    nums.append(int(item.get("num")))
+                except Exception:
+                    continue
+            if not nums:
+                return template
+            start_num = min(nums)
+            end_num = max(nums)
+            rendered = template
+            rendered = rendered.replace("{num-d}", str(start_num)).replace("{num-đầu}", str(start_num))
+            rendered = rendered.replace("{num-c}", str(end_num)).replace("{num-cuối}", str(end_num))
+            return rendered
+
         def _do_upload():
             sel = volume_list.curselection()
             if not sel:
@@ -1464,7 +1482,8 @@ class WikidichMixin:
                     return
                 base_url = self._wd_get_base_url()
                 url = base_url.rstrip("/") + "/upload-content"
-                desc_text = desc_var.get().strip() or "Bổ sung"
+                desc_text = desc_var.get().strip() or DEFAULT_UPLOAD_SETTINGS["append_desc"]
+                desc_text = _apply_append_desc_template(desc_text)
                 append_flag = "true" if append_mode else None
                 form_fields = [
                     ("bookId", book_id),
@@ -2680,6 +2699,7 @@ class WikidichMixin:
         if self._wd_loading:
             messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.")
             return
+        self._wd_load_resume_state()
         self._wd_cancel_requested = False
         threading.Thread(target=self._wd_fetch_works_worker, daemon=True).start()
 
@@ -3233,6 +3253,7 @@ class WikidichMixin:
         if not self.wikidich_data.get('book_ids'):
             messagebox.showinfo("Chưa có dữ liệu", "Vui lòng tải works trước.")
             return
+        self._wd_load_detail_resume()
         self._wd_cancel_requested = False
         threading.Thread(target=self._wd_fetch_details_worker, args=(sync_counts_only,), daemon=True).start()
 
@@ -3300,10 +3321,13 @@ class WikidichMixin:
             if self.wd_missing_only_var.get():
                 target_ids = [bid for bid in target_ids if not self.wikidich_data.get('books', {}).get(bid, {}).get('summary')]
             resume_detail = self._wd_resume_details if isinstance(self._wd_resume_details, dict) else None
+            resume_total = len(target_ids)
+            resume_offset = 0
             if resume_detail and resume_detail.get("ids"):
                 resume_ids = [bid for bid in resume_detail.get("ids", []) if bid in target_ids]
                 if resume_ids:
                     target_ids = resume_ids
+                    resume_offset = max(0, resume_total - len(target_ids))
                     self.log(f"[Wikidich] Resume tải chi tiết còn {len(target_ids)} truyện.")
             total = len(target_ids)
             self._wd_ensure_not_cancelled()
@@ -3312,7 +3336,8 @@ class WikidichMixin:
                 self.after(0, lambda: messagebox.showinfo("Không có gì để tải", "Tất cả truyện đã có văn án/chi tiết."))
                 self.log("[Wikidich] Không có truyện cần tải chi tiết.")
                 return
-            self._wd_set_progress("Đang tải chi tiết...", 0, total)
+            display_total = resume_total if resume_total else total
+            self._wd_set_progress("Đang tải chi tiết...", resume_offset, display_total)
             wiki_delay_min, wiki_delay_max = self._get_delay_range(
                 'wiki_delay_min',
                 'wiki_delay_max',
@@ -3345,7 +3370,7 @@ class WikidichMixin:
                     if self._wd_detect_cloudflare(resp_cf):
                         cf_paused = True
                         self.log("[Wikidich] Bị Cloudflare khi tải chi tiết, tạm dừng.")
-                        self._wd_set_progress("Tạm dừng: cần vượt Cloudflare", idx - 1, total)
+                        self._wd_set_progress("Tạm dừng: cần vượt Cloudflare", resume_offset + idx - 1, display_total)
                         self._wd_pause_for_cloudflare(self._wd_get_base_url())
                         break
                     if resp_cf and resp_cf.status_code == 404:
@@ -3364,7 +3389,8 @@ class WikidichMixin:
                     had_error = True
                 if cf_paused:
                     break
-                self._wd_progress_callback("detail", idx, total, f"Đang tải chi tiết {idx}/{total}")
+                display_idx = resume_offset + idx
+                self._wd_progress_callback("detail", display_idx, display_total, f"Đang tải chi tiết {display_idx}/{display_total}")
                 if bid in remaining_ids:
                     remaining_ids = [x for x in remaining_ids if x != bid]
                 self._wd_save_detail_resume(remaining_ids)
@@ -3379,7 +3405,7 @@ class WikidichMixin:
             self._wd_save_cache()
             self.after(0, self._wd_apply_filters)
             final_status = "Hoàn tất tải chi tiết" if not not_found_books and not had_error else "Hoàn tất (có 404/lỗi)"
-            self._wd_set_progress(final_status, total, total)
+            self._wd_set_progress(final_status, display_total, display_total)
             self.log(f"[Wikidich] {final_status}.")
             if not_found_books:
                 self.after(0, lambda: self._wd_handle_not_found_books(list(not_found_books)))
@@ -3967,13 +3993,15 @@ class WikidichMixin:
             return
         if not skip_save and current in ("wikidich", "koanchay") and current != site:
             self._wd_save_site_state(current)
-            self._wd_clear_resume_state()
-            self._wd_clear_detail_resume()
         self.wd_site = site
         self._wd_resume_works = None
         self._wd_resume_details = None
         self._wd_bind_context(site)
         self._wd_restore_site_state(site)
+        self._wd_load_resume_state()
+        if not (self.wikidich_data.get("book_ids") or []):
+            self._wd_load_cache()
+        self._wd_load_detail_resume()
         if hasattr(self, "wd_site_button"):
             other = "koanchay" if site == "wikidich" else "wikidich"
             self.wd_site_button.config(text=other.capitalize(), command=lambda s=other: self._wd_switch_site(s))
@@ -3987,20 +4015,23 @@ class WikidichMixin:
         self._wd_update_progress_visibility(getattr(self, "wd_progress_label", None).cget("text") if hasattr(self, "wd_progress_label") else "")
         self.log(f"[Wikidich] Đang dùng site: {site}")
 
-    def _wd_resume_state_path(self) -> str:
-        return os.path.join(BASE_DIR, "local", "wd_resume_works.json")
+    def _wd_resume_state_path(self, site: Optional[str] = None) -> str:
+        site_val = (site or getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
+        safe_site = re.sub(r"[^a-z0-9_-]+", "_", site_val)
+        return os.path.join(BASE_DIR, "local", f"wd_resume_works_{safe_site}.json")
 
     def _wd_save_resume_state(self):
         """Lưu trạng thái tải Works để resume khi dính Cloudflare/thoát app."""
         state = getattr(self, "_wd_resume_works", None)
         if not state:
             return
+        site = getattr(self, "wd_site", "wikidich")
         payload = {
-            "site": getattr(self, "wd_site", "wikidich"),
+            "site": site,
             "state": state,
         }
         try:
-            path = self._wd_resume_state_path()
+            path = self._wd_resume_state_path(site)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
@@ -4013,14 +4044,33 @@ class WikidichMixin:
     def _wd_load_resume_state(self):
         """Đọc trạng thái resume Works từ file (chỉ khi khớp site hiện tại)."""
         try:
-            path = self._wd_resume_state_path()
-            if not os.path.isfile(path):
+            current_site = getattr(self, "wd_site", "wikidich")
+            path = self._wd_resume_state_path(current_site)
+            payload = None
+            if os.path.isfile(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    payload = json.load(f)
+            else:
+                legacy_path = os.path.join(BASE_DIR, "local", "wd_resume_works.json")
+                if os.path.isfile(legacy_path):
+                    with open(legacy_path, "r", encoding="utf-8") as f:
+                        payload = json.load(f)
+                    legacy_site = payload.get("site") if isinstance(payload, dict) else None
+                    if legacy_site and legacy_site != current_site:
+                        payload = None
+                    else:
+                        try:
+                            os.makedirs(os.path.dirname(path), exist_ok=True)
+                            with open(path, "w", encoding="utf-8") as f:
+                                json.dump(payload, f, ensure_ascii=False, indent=2)
+                            os.remove(legacy_path)
+                        except Exception:
+                            pass
+            if not isinstance(payload, dict):
                 return
-            with open(path, "r", encoding="utf-8") as f:
-                payload = json.load(f)
-            site = payload.get("site")
+            site = payload.get("site") or current_site
             state = payload.get("state")
-            if site and site != getattr(self, "wd_site", "wikidich"):
+            if site and site != current_site:
                 return
             if isinstance(state, dict):
                 self._wd_resume_works = state
@@ -4044,8 +4094,10 @@ class WikidichMixin:
             pass
         self._wd_resume_works = None
 
-    def _wd_detail_resume_path(self) -> str:
-        return os.path.join(BASE_DIR, "local", "wd_resume_details.json")
+    def _wd_detail_resume_path(self, site: Optional[str] = None) -> str:
+        site_val = (site or getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
+        safe_site = re.sub(r"[^a-z0-9_-]+", "_", site_val)
+        return os.path.join(BASE_DIR, "local", f"wd_resume_details_{safe_site}.json")
 
     def _wd_save_detail_resume(self, remaining_ids: list):
         """Lưu danh sách truyện còn lại khi tải chi tiết để resume."""
@@ -4053,11 +4105,12 @@ class WikidichMixin:
             if not remaining_ids:
                 self._wd_clear_detail_resume()
                 return
+            site = getattr(self, "wd_site", "wikidich")
             payload = {
-                "site": getattr(self, "wd_site", "wikidich"),
+                "site": site,
                 "ids": list(dict.fromkeys(remaining_ids)),
             }
-            path = self._wd_detail_resume_path()
+            path = self._wd_detail_resume_path(site)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
@@ -4071,13 +4124,32 @@ class WikidichMixin:
     def _wd_load_detail_resume(self):
         """Đọc danh sách truyện còn lại cần tải chi tiết (nếu cùng site)."""
         try:
-            path = self._wd_detail_resume_path()
-            if not os.path.isfile(path):
+            current_site = getattr(self, "wd_site", "wikidich")
+            path = self._wd_detail_resume_path(current_site)
+            payload = None
+            if os.path.isfile(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    payload = json.load(f)
+            else:
+                legacy_path = os.path.join(BASE_DIR, "local", "wd_resume_details.json")
+                if os.path.isfile(legacy_path):
+                    with open(legacy_path, "r", encoding="utf-8") as f:
+                        payload = json.load(f)
+                    legacy_site = payload.get("site") if isinstance(payload, dict) else None
+                    if legacy_site and legacy_site != current_site:
+                        payload = None
+                    else:
+                        try:
+                            os.makedirs(os.path.dirname(path), exist_ok=True)
+                            with open(path, "w", encoding="utf-8") as f:
+                                json.dump(payload, f, ensure_ascii=False, indent=2)
+                            os.remove(legacy_path)
+                        except Exception:
+                            pass
+            if not isinstance(payload, dict):
                 return
-            with open(path, "r", encoding="utf-8") as f:
-                payload = json.load(f)
-            site = payload.get("site")
-            if site and site != getattr(self, "wd_site", "wikidich"):
+            site = payload.get("site") or current_site
+            if site and site != current_site:
                 return
             ids = payload.get("ids")
             if isinstance(ids, list) and ids:
@@ -4168,7 +4240,14 @@ class WikidichMixin:
         def _worker():
             try:
                 proxies = self._get_proxy_for_request('images')
-                resp = requests.get(url, timeout=25, proxies=proxies)
+                cookies = load_browser_cookie_jar(self._wd_get_cookie_domains())
+                headers = {
+                    "Referer": self._wd_get_base_url() + "/",
+                    "User-Agent": self._browser_user_agent or DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent"),
+                    "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                }
+                headers = {k: v for k, v in headers.items() if v}
+                resp = requests.get(url, timeout=25, proxies=proxies, headers=headers, cookies=cookies)
                 resp.raise_for_status()
                 img = Image.open(io.BytesIO(resp.content))
                 img.thumbnail((220, 320))
@@ -4267,19 +4346,20 @@ class WikidichMixin:
         ttk.Entry(upload_frame, textvariable=up_template_var, width=42).grid(row=2, column=1, sticky="ew", padx=(6, 0), pady=(6, 0))
         ttk.Label(upload_frame, text="Mô tả bổ sung mặc định:").grid(row=3, column=0, sticky="w", pady=(6, 0))
         ttk.Entry(upload_frame, textvariable=up_append_desc_var, width=42).grid(row=3, column=1, sticky="ew", padx=(6, 0), pady=(6, 0))
+        ttk.Label(upload_frame, text="Hỗ trợ {num-d}/{num-c} ({num-đầu}/{num-cuối}).", foreground="#6b7280").grid(row=4, column=1, sticky="w", padx=(6, 0))
         priority_row = ttk.Frame(upload_frame)
-        priority_row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        priority_row.grid(row=5, column=0, columnspan=2, sticky="w", pady=(6, 0))
         ttk.Label(priority_row, text="Ưu tiên parse:").pack(side=tk.LEFT)
         ttk.Radiobutton(priority_row, text="Tên file", variable=up_priority_var, value="filename").pack(side=tk.LEFT, padx=(8, 0))
         ttk.Radiobutton(priority_row, text="Dòng đầu", variable=up_priority_var, value="content").pack(side=tk.LEFT, padx=(8, 0))
         opts_row = ttk.Frame(upload_frame)
-        opts_row.grid(row=5, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        opts_row.grid(row=6, column=0, columnspan=2, sticky="w", pady=(6, 0))
         ttk.Checkbutton(opts_row, text="Sắp xếp theo số chương", variable=up_sort_var).pack(side=tk.LEFT)
         ttk.Label(opts_row, text="Cảnh báo nếu file <").pack(side=tk.LEFT, padx=(10, 4))
         ttk.Entry(opts_row, textvariable=up_warn_var, width=6).pack(side=tk.LEFT)
         ttk.Label(opts_row, text="KB").pack(side=tk.LEFT, padx=(4, 0))
         credit_row = ttk.Frame(upload_frame)
-        credit_row.grid(row=6, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        credit_row.grid(row=7, column=0, columnspan=2, sticky="w", pady=(6, 0))
         ttk.Checkbutton(credit_row, text="Auto update: tự động thêm Credit vào file tải bổ sung", variable=auto_credit_var).pack(side=tk.LEFT)
         upload_frame.columnconfigure(1, weight=1)
 

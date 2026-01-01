@@ -83,7 +83,7 @@ DEFAULT_UPLOAD_SETTINGS = {
     "template": "第{num}章 {title}",
     "priority": "filename",  # filename | content
     "warn_kb": 4,
-    "append_desc": "Bổ sung",
+    "append_desc": "{num-d}-{num-c}",
     "sort_by_number": True,
 }
 

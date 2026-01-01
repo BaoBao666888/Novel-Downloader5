@@ -14,6 +14,17 @@
       "icon": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/html5qq/icon.png",
       "type": "chinese_novel",
       "locale": "zh_CN"
+    },
+    {
+      "name": "jjwxc.net",
+      "version": 1,
+      "author": "BaoBao",
+      "source": "https://www.jjwxc.net/",
+      "description": "Tải JJWXC",
+      "path": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/jjwxc/plugin.zip",
+      "icon": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/jjwxc/icon.png",
+      "type": "chinese_novel",
+      "locale": "zh_CN"
     }
   ]
 }

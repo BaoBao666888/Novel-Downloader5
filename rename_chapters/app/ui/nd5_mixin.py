@@ -12,6 +12,7 @@ import subprocess
 import sys
 import shutil
 import tempfile
+from typing import Optional
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
@@ -22,6 +23,7 @@ from packaging.version import parse as parse_version
 
 from app.nd5.loader import load_nd5_plugins
 from app.nd5.plugin_api import ND5Context
+from app.core.browser_cookies import load_browser_cookie_jar
 from app.paths import BASE_DIR
 from app.ui.constants import DEFAULT_API_SETTINGS, DEFAULT_ND5_OPTIONS
 
@@ -160,8 +162,12 @@ class ND5Mixin:
         # state
         current_book = {"meta": None, "toc": []}
         cover_cache = {"bytes": None}
+        cover_photo = {"image": None}
         api_status_var = tk.StringVar(value="Dùng HTTP trực tiếp (không cần bridge).")
         status_var = tk.StringVar(value="Sẵn sàng.")
+        book_title_var = tk.StringVar(value="")
+        book_meta_var = tk.StringVar(value="")
+        book_status_var = tk.StringVar(value="")
         url_var = tk.StringVar(value=prefill_url or "")
         ext_var = tk.StringVar(value=plugins[0].id)
         fmt_var = tk.StringVar(value="zip")
@@ -176,6 +182,10 @@ class ND5Mixin:
         req_timeout_var = tk.DoubleVar(value=self.nd5_options.get("request_timeout", DEFAULT_ND5_OPTIONS["request_timeout"]))
         req_retries_var = tk.IntVar(value=self.nd5_options.get("request_retries", DEFAULT_ND5_OPTIONS["request_retries"]))
         out_dir_var = tk.StringVar(value=out_dir_override or self.nd5_options.get("out_dir", ""))
+        plugin_values_cache = self.app_config.get("nd5_plugin_values")
+        if not isinstance(plugin_values_cache, dict):
+            plugin_values_cache = {}
+        plugin_values_cache = dict(plugin_values_cache)
 
         def _get_plugin_by_id(pid: str):
             for p in plugins:
@@ -185,6 +195,28 @@ class ND5Mixin:
 
         def _current_plugin():
             return _get_plugin_by_id(ext_var.get())
+
+        def _plugin_matches_url(plugin, url: str) -> bool:
+            if not plugin or not url:
+                return False
+            checker = getattr(plugin, "supports_url", None)
+            if callable(checker):
+                try:
+                    return bool(checker(url))
+                except Exception:
+                    return False
+            domains = getattr(plugin, "domains", None) or []
+            url_lower = url.lower()
+            for domain in domains:
+                if domain and domain.lower() in url_lower:
+                    return True
+            return False
+
+        def _find_plugin_for_url(url: str):
+            for plugin in plugins:
+                if _plugin_matches_url(plugin, url):
+                    return plugin
+            return None
 
         def _plugin_label():
             p = _current_plugin()
@@ -202,6 +234,81 @@ class ND5Mixin:
             p = _current_plugin()
             return callable(getattr(p, "search", None))
 
+        def _normalize_extra_fields(items):
+            results = []
+            if not isinstance(items, list):
+                return results
+            for item in items:
+                if isinstance(item, dict):
+                    key = item.get("key") or item.get("name")
+                    if not key:
+                        continue
+                    results.append(
+                        {
+                            "key": str(key),
+                            "label": item.get("label") or key,
+                            "description": item.get("description") or item.get("desc") or "",
+                            "default": item.get("default") or "",
+                            "secret": bool(item.get("secret") or item.get("password")),
+                        }
+                    )
+                elif isinstance(item, (list, tuple)) and len(item) >= 2:
+                    key = item[0]
+                    if not key:
+                        continue
+                    results.append(
+                        {
+                            "key": str(key),
+                            "label": item[1] or key,
+                            "description": item[2] if len(item) > 2 else "",
+                            "default": item[3] if len(item) > 3 else "",
+                            "secret": False,
+                        }
+                    )
+            return results
+
+        def _get_plugin_extra_fields():
+            plugin = _current_plugin()
+            if not plugin:
+                return []
+            fields = []
+            getter = getattr(plugin, "get_additional_fields", None)
+            if callable(getter):
+                try:
+                    fields = getter() or []
+                except Exception:
+                    fields = []
+            if not fields:
+                fields = getattr(plugin, "additional_fields", []) or []
+            return _normalize_extra_fields(fields)
+
+        def _get_plugin_extra_ui_builder():
+            plugin = _current_plugin()
+            if not plugin:
+                return None
+            builder = getattr(plugin, "build_additional_values_ui", None)
+            if callable(builder):
+                return builder
+            builder = getattr(plugin, "build_extra_values_ui", None)
+            if callable(builder):
+                return builder
+            return None
+
+        def _plugin_has_extra_values():
+            return bool(_get_plugin_extra_fields() or _get_plugin_extra_ui_builder())
+
+        def _get_plugin_values(plugin_id: str):
+            raw = plugin_values_cache.get(plugin_id)
+            return dict(raw) if isinstance(raw, dict) else {}
+
+        def _save_plugin_values(plugin_id: str, values: dict):
+            plugin_values_cache[plugin_id] = dict(values)
+            self.app_config["nd5_plugin_values"] = dict(plugin_values_cache)
+            try:
+                self.save_config()
+            except Exception:
+                pass
+
         def _build_ctx():
             plugin = _current_plugin()
             timeout_val = max(5.0, float(req_timeout_var.get() or DEFAULT_ND5_OPTIONS["request_timeout"]))
@@ -209,7 +316,26 @@ class ND5Mixin:
                 retries = int(req_retries_var.get())
             except Exception:
                 retries = DEFAULT_ND5_OPTIONS["request_retries"]
-            return ND5Context(self, plugin.id if plugin else "", timeout=timeout_val, retries=retries)
+            extra_values = {}
+            cookies = None
+            if plugin:
+                extra_values = _get_plugin_values(plugin.id)
+                for field in _get_plugin_extra_fields():
+                    key = field["key"]
+                    if key not in extra_values and field.get("default") not in (None, ""):
+                        extra_values[key] = field.get("default")
+                if getattr(plugin, "requires_cookies", False):
+                    domains = getattr(plugin, "cookie_domains", None) or getattr(plugin, "domains", None) or []
+                    try:
+                        cookies = load_browser_cookie_jar(domains)
+                    except Exception:
+                        cookies = None
+                    if cookies is None:
+                        try:
+                            self.log(f"[ND5][{plugin.id}] Không đọc được cookie cho plugin (domain={domains}).")
+                        except Exception:
+                            pass
+            return ND5Context(self, plugin.id if plugin else "", timeout=timeout_val, retries=retries, extra=extra_values, cookies=cookies)
 
         def _get_proxy():
             try:
@@ -342,7 +468,7 @@ class ND5Mixin:
 
                         self.after(0, _fill)
                     except Exception as exc:
-                        self.after(0, lambda: status_var2.set(f"Lỗi: {exc}"))
+                        self.after(0, lambda exc=exc: status_var2.set(f"Lỗi: {exc}"))
                         self.after(0, lambda: search_btn_local.state(["!disabled"]))
 
                 threading.Thread(target=worker, daemon=True).start()
@@ -597,7 +723,7 @@ class ND5Mixin:
                         self.after(0, lambda: plugin_status_var.set(f"{action_label} thành công: {plugin_id}"))
                         self.after(0, _refresh_installed_plugins)
                     except Exception as exc:
-                        self.after(0, lambda: messagebox.showerror("Plugin", f"{action_label} thất bại: {exc}", parent=dlg))
+                        self.after(0, lambda exc=exc: messagebox.showerror("Plugin", f"{action_label} thất bại: {exc}", parent=dlg))
                         self.after(0, lambda: plugin_status_var.set("Lỗi khi cài plugin."))
                     finally:
                         try:
@@ -916,7 +1042,11 @@ class ND5Mixin:
 
             btn_row = ttk.Frame(content)
             btn_row.grid(row=1, column=0, sticky="e", pady=(10, 0))
-            ttk.Button(btn_row, text="Lưu", command=_persist_nd5_options).pack(side=tk.RIGHT)
+            def _save_and_notify():
+                _persist_nd5_options()
+                messagebox.showinfo("ND5", "Đã lưu cài đặt.", parent=dlg)
+
+            ttk.Button(btn_row, text="Lưu", command=_save_and_notify).pack(side=tk.RIGHT)
             ttk.Button(btn_row, text="Đóng", command=dlg.destroy).pack(side=tk.RIGHT, padx=(0, 8))
 
             def _on_close():
@@ -924,6 +1054,170 @@ class ND5Mixin:
                 dlg.destroy()
 
             dlg.protocol("WM_DELETE_WINDOW", _on_close)
+
+        def _open_extra_values_dialog():
+            plugin = _current_plugin()
+            if not plugin:
+                messagebox.showinfo("ND5", "Chưa chọn plugin.", parent=win)
+                return
+            fields = _get_plugin_extra_fields()
+            builder = _get_plugin_extra_ui_builder()
+            if not fields and not builder:
+                messagebox.showinfo("ND5", "Plugin này không có giá trị bổ sung.", parent=win)
+                return
+            dlg = tk.Toplevel(win)
+            self._apply_window_icon(dlg)
+            dlg.title(f"Giá trị bổ sung ({plugin.id})")
+            dlg.geometry("560x420")
+            dlg.columnconfigure(0, weight=1)
+            dlg.rowconfigure(0, weight=1)
+
+            container = ttk.Frame(dlg, padding=12)
+            container.grid(row=0, column=0, sticky="nsew")
+            container.columnconfigure(0, weight=1)
+            container.rowconfigure(0, weight=1)
+
+            canvas = tk.Canvas(container, highlightthickness=0)
+            canvas.grid(row=0, column=0, sticky="nsew")
+            scroll = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+            scroll.grid(row=0, column=1, sticky="ns")
+            canvas.configure(yscrollcommand=scroll.set)
+
+            inner = ttk.Frame(canvas)
+            inner.columnconfigure(1, weight=1)
+            inner_id = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+            def _sync_inner(_event=None):
+                bbox = canvas.bbox("all")
+                if bbox:
+                    canvas.configure(scrollregion=bbox)
+                canvas.itemconfigure(inner_id, width=canvas.winfo_width())
+
+            inner.bind("<Configure>", _sync_inner)
+            canvas.bind("<Configure>", lambda e: canvas.itemconfigure(inner_id, width=e.width))
+
+            values = _get_plugin_values(plugin.id)
+            field_vars = {}
+
+            def _set_value(key: str, value):
+                if not key:
+                    return
+                if value is None:
+                    values.pop(key, None)
+                    return
+                text_val = str(value).strip()
+                if text_val:
+                    values[key] = text_val
+                else:
+                    values.pop(key, None)
+
+            def _delete_value(key: str):
+                if not key:
+                    return
+                values.pop(key, None)
+
+            def _collect_field_values():
+                for key, var in field_vars.items():
+                    raw = var.get().strip()
+                    if raw:
+                        values[key] = raw
+                    else:
+                        values.pop(key, None)
+
+            def _save_values(payload=None):
+                if payload is None:
+                    _collect_field_values()
+                    data = dict(values)
+                else:
+                    data = dict(payload)
+                _save_plugin_values(plugin.id, data)
+
+            def _run_task(task, on_done=None, on_error=None):
+                def worker():
+                    try:
+                        result = task()
+                    except Exception as exc:
+                        if on_error:
+                            self.after(0, lambda exc=exc: on_error(exc))
+                        return
+                    if on_done:
+                        self.after(0, lambda: on_done(result))
+                threading.Thread(target=worker, daemon=True).start()
+
+            def _open_browser(url: str):
+                opener = getattr(self, "_open_in_app_browser", None)
+                if callable(opener):
+                    try:
+                        opener(url, force_overlay=True)
+                        return
+                    except TypeError:
+                        try:
+                            opener(url)
+                            return
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+                try:
+                    import webbrowser
+
+                    webbrowser.open(url)
+                except Exception:
+                    messagebox.showerror("ND5", "Không mở được trình duyệt.", parent=dlg)
+
+            row = 0
+            skip_default = False
+            if builder:
+                custom_frame = ttk.Frame(inner)
+                custom_frame.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+                custom_frame.columnconfigure(0, weight=1)
+                try:
+                    result = builder(
+                        custom_frame,
+                        values,
+                        _set_value,
+                        _delete_value,
+                        _save_values,
+                        _run_task,
+                        _open_browser,
+                    )
+                    if result is False:
+                        skip_default = True
+                    elif isinstance(result, dict) and result.get("skip_default"):
+                        skip_default = True
+                except Exception as exc:
+                    messagebox.showerror("ND5", f"Lỗi plugin: {exc}", parent=dlg)
+                row += 1
+
+            if fields and not skip_default:
+                for field in fields:
+                    key = field["key"]
+                    label = field["label"] or key
+                    desc = field.get("description") or "Không có mô tả."
+                    default_val = field.get("default", "")
+                    var = tk.StringVar(value=str(values.get(key, default_val) or ""))
+                    field_vars[key] = var
+
+                    ttk.Label(inner, text=f"{label}:").grid(row=row, column=0, sticky="w", padx=(0, 8), pady=(2, 0))
+                    show_char = "*" if field.get("secret") else ""
+                    ttk.Entry(inner, textvariable=var, show=show_char).grid(row=row, column=1, sticky="ew", pady=(2, 0))
+                    row += 1
+                    ttk.Label(inner, text=desc, foreground="#6b7280", wraplength=460, justify="left").grid(
+                        row=row, column=1, sticky="w", pady=(0, 8)
+                    )
+                    row += 1
+
+            btn_row = ttk.Frame(container)
+            btn_row.grid(row=1, column=0, columnspan=2, sticky="e", pady=(10, 0))
+
+            def _save():
+                _save_values()
+                messagebox.showinfo("ND5", "Đã lưu giá trị bổ sung.", parent=dlg)
+
+            ttk.Button(btn_row, text="Lưu", command=_save).pack(side=tk.RIGHT)
+            ttk.Button(btn_row, text="Đóng", command=dlg.destroy).pack(side=tk.RIGHT, padx=(0, 8))
+
+            dlg.protocol("WM_DELETE_WINDOW", dlg.destroy)
 
         def _safe_filename(name: str, default="fanqie_book"):
             cleaned = re.sub(r'[\\\\/:*?"<>|]+', "_", name or "").strip()
@@ -1006,8 +1300,51 @@ class ND5Mixin:
         def _set_info(text: str):
             info_text.config(state="normal")
             info_text.delete("1.0", tk.END)
-            info_text.insert("1.0", text)
+            if text:
+                info_text.insert("1.0", text)
             info_text.config(state="disabled")
+
+        def _set_cover_image(data: Optional[bytes]):
+            if not data:
+                cover_label.config(image="", text="Không có bìa")
+                cover_photo["image"] = None
+                return
+            try:
+                from PIL import Image, ImageTk
+
+                img = Image.open(io.BytesIO(data))
+                img.thumbnail((140, 200), Image.LANCZOS)
+                photo = ImageTk.PhotoImage(img)
+            except Exception:
+                try:
+                    photo = tk.PhotoImage(data=data)
+                except Exception:
+                    cover_label.config(image="", text="Không có bìa")
+                    cover_photo["image"] = None
+                    return
+            cover_label.config(image=photo, text="")
+            cover_photo["image"] = photo
+
+        def _update_info_header(meta: Optional[dict]):
+            if not meta:
+                book_title_var.set("")
+                book_meta_var.set("")
+                book_status_var.set("")
+                _set_cover_image(None)
+                return
+            title = meta.get("title", "")
+            author = meta.get("author", "")
+            status = meta.get("status")
+            if not status and "ongoing" in meta:
+                ongoing = meta.get("ongoing")
+                if isinstance(ongoing, bool):
+                    status = "Đang ra" if ongoing else "Hoàn thành"
+            meta_lines = []
+            if author:
+                meta_lines.append(f"Tác giả: {author}")
+            book_title_var.set(title)
+            book_meta_var.set("\n".join(meta_lines))
+            book_status_var.set(f"Trạng thái: {status}" if status else "")
 
         def _update_status(msg: str):
             status_var.set(msg)
@@ -1019,6 +1356,20 @@ class ND5Mixin:
                     self.log(f"[ND5][{ext_var.get()}] {msg}")
                 except Exception:
                     pass
+
+        def _toggle_progress(active: bool, mode: str = "determinate"):
+            if active:
+                progress.grid()
+                progress.config(mode=mode)
+                if mode == "indeterminate":
+                    progress.start()
+            else:
+                try:
+                    progress.stop()
+                except Exception:
+                    pass
+                progress.grid_remove()
+                progress.config(mode="determinate", value=0, maximum=1)
 
         allow_save_out_dir = out_dir_override is None
 
@@ -1059,10 +1410,17 @@ class ND5Mixin:
             except Exception:
                 pass
 
-        def _parse_range(raw: str):
+        def _parse_range(raw: str, max_num: Optional[int] = None):
             raw = (raw or "").replace(" ", "").lower()
             if not raw:
                 return []
+            if max_num is not None:
+                try:
+                    max_num = int(max_num)
+                except Exception:
+                    max_num = None
+                if max_num is not None and max_num <= 0:
+                    max_num = None
             result = set()
             for part in raw.split(","):
                 if not part:
@@ -1070,10 +1428,20 @@ class ND5Mixin:
                 if "-" in part:
                     try:
                         start_s, end_s = part.split("-", 1)
+                        if not start_s and not end_s:
+                            continue
                         start_i = int(start_s) if start_s else 1
-                        end_i = int(end_s) if end_s else start_i
+                        end_i = int(end_s) if end_s else (max_num if max_num is not None else start_i)
+                        if end_i is None:
+                            end_i = start_i
                         if end_i < start_i:
                             start_i, end_i = end_i, start_i
+                        if max_num is not None:
+                            if start_i > max_num:
+                                continue
+                            end_i = min(end_i, max_num)
+                        if end_i < start_i:
+                            continue
                         for i in range(start_i, end_i + 1):
                             result.add(i)
                     except Exception:
@@ -1154,22 +1522,49 @@ class ND5Mixin:
 
         def _format_info(meta: dict, toc: list):
             lines = []
-            backend_label = "Bridge (fanqie_bridge.exe)" if _plugin_requires_bridge() else "HTTP trực tiếp"
-            lines.append(f"Tiện ích: {_plugin_label()} | Backend: {backend_label}")
-            lines.append(f"Tên truyện: {meta.get('title', '')}")
-            lines.append(f"Tác giả: {meta.get('author', '')}")
-            if meta.get("cover"):
-                lines.append(f"Ảnh bìa: {meta['cover']}")
-            if meta.get("intro"):
+            title = (meta or {}).get("title", "")
+            author = (meta or {}).get("author", "")
+            status = (meta or {}).get("status")
+            if not status and "ongoing" in (meta or {}):
+                ongoing = meta.get("ongoing")
+                if isinstance(ongoing, bool):
+                    status = "Đang ra" if ongoing else "Hoàn thành"
+            if title:
+                lines.append(f"Tên truyện: {title}")
+            if author:
+                lines.append(f"Tác giả: {author}")
+            if status:
+                lines.append(f"Trạng thái: {status}")
+            if lines:
+                lines.append("")
+            detail = (meta or {}).get("detail")
+            if detail:
+                detail_text = str(detail)
+                detail_text = detail_text.replace("<br/>", "\n").replace("<br />", "\n").replace("<br>", "\n")
+                detail_lines = [line.strip() for line in detail_text.splitlines() if line.strip()]
+                if detail_lines:
+                    lines.append("Chi tiết:")
+                    lines.extend(detail_lines)
+                    lines.append("")
+            intro = (meta or {}).get("intro") or ""
+            intro = str(intro).strip()
+            if intro:
                 lines.append("Giới thiệu:")
-                lines.append(meta["intro"].strip())
-            lines.append("")
+                lines.extend(intro.splitlines())
+                lines.append("")
+            if meta.get("cover"):
+                lines.append(f"Link ảnh bìa: {meta.get('cover')}")
+                lines.append("")
             lines.append("Mục lục (đánh số từ trên xuống):")
+            vip_map = (meta or {}).get("chapter_vip_map") or {}
             for item in toc:
-                lines.append(f"{item['num']:>4}: {item.get('title', '')} [ID: {item.get('id', '?')}]")
+                cid = str(item.get("id", "?"))
+                is_vip = bool(item.get("vip")) if "vip" in item else bool(vip_map.get(cid))
+                vip_mark = " [VIP]" if is_vip else ""
+                lines.append(f"{item['num']:>4}: {item.get('title', '')} [ID: {cid}]{vip_mark}")
             if include_info_var.get():
                 lines.append("\n* Sẽ thêm chương 0: Thông tin sách (nếu chọn).")
-            return "\n".join(lines)
+            return "\n".join(lines).strip()
 
         def _download_batch(book: dict, ids: list, fmt: str, fallback_titles: dict, ctx: ND5Context):
             if not ids:
@@ -1178,6 +1573,17 @@ class ND5Mixin:
             if not plugin:
                 return {}
             try:
+                vip_map = (book or {}).get("chapter_vip_map") or {}
+                vip_loader = getattr(plugin, "download_vip_chapter_batch", None)
+                if vip_map and callable(vip_loader):
+                    vip_ids = [cid for cid in ids if vip_map.get(str(cid))]
+                    normal_ids = [cid for cid in ids if not vip_map.get(str(cid))]
+                    results = {}
+                    if normal_ids:
+                        results.update(plugin.download_chapter_batch(book, normal_ids, fmt, fallback_titles, ctx))
+                    if vip_ids:
+                        results.update(vip_loader(book, vip_ids, fmt, fallback_titles, ctx))
+                    return results
                 return plugin.download_chapter_batch(book, ids, fmt, fallback_titles, ctx)
             except Exception as exc:
                 ctx.log(f"Lỗi tải batch {ids}: {exc}")
@@ -1320,10 +1726,32 @@ class ND5Mixin:
             if not book_url:
                 messagebox.showinfo("Thiếu URL", "Nhập URL truyện trước.", parent=win)
                 return
+            if not _plugin_matches_url(plugin, book_url):
+                matched = _find_plugin_for_url(book_url)
+                if matched and matched.id != ext_var.get():
+                    ext_var.set(matched.id)
+                    _refresh_plugin_ui()
+                    plugin = matched
+                    _update_status(f"Đã tự đổi nguồn sang {matched.id}.")
+                elif not matched:
+                    use_anyway = messagebox.askyesno(
+                        "Không khớp nguồn",
+                        "Link không khớp với nguồn hiện tại.\nBạn có muốn tiếp tục dùng nguồn hiện tại không?",
+                        parent=win,
+                    )
+                    if not use_anyway:
+                        open_store = messagebox.askyesno(
+                            "Cài thêm plugin",
+                            "Không tìm thấy plugin phù hợp.\nMở Cài đặt ND5 để thêm plugin?",
+                            parent=win,
+                        )
+                        if open_store:
+                            _open_settings_dialog()
+                        _update_status("Chọn lại nguồn hoặc link.")
+                        return
             _persist_nd5_options()
             _update_status("Đang lấy thông tin truyện...")
-            progress.config(mode="indeterminate")
-            progress.start()
+            _toggle_progress(True, "indeterminate")
 
             def worker():
                 ctx = _build_ctx()
@@ -1331,23 +1759,32 @@ class ND5Mixin:
                     if getattr(plugin, "requires_bridge", False) and not _check_backend():
                         return
                     meta, toc = plugin.fetch_book_and_toc(book_url, ctx)
+                    if meta is not None and not meta.get("chapter_vip_map"):
+                        inferred_vip = {
+                            str(item.get("id")): bool(item.get("vip"))
+                            for item in (toc or [])
+                            if "vip" in item
+                        }
+                        if inferred_vip:
+                            meta["chapter_vip_map"] = inferred_vip
                     cover_cache["bytes"] = None
-                    if include_cover_var.get():
-                        cover_cache["bytes"] = _fetch_cover_bytes(meta.get("cover"), ctx)
+                    cover_bytes = None
+                    if meta.get("cover"):
+                        cover_bytes = _fetch_cover_bytes(meta.get("cover"), ctx)
+                        cover_cache["bytes"] = cover_bytes
                     current_book["meta"] = meta
                     current_book["toc"] = toc
                     info_text_content = _format_info(meta, toc)
+                    self.after(0, lambda: _update_info_header(meta))
+                    self.after(0, lambda: _set_cover_image(cover_bytes))
                     self.after(0, lambda: _set_info(info_text_content))
                     self.after(0, lambda: _update_status(f"Đã lấy {len(toc)} chương. Sẵn sàng tải."))
                 except Exception as exc:
                     ctx.log(f"Lỗi lấy thông tin: {exc}")
-                    self.after(0, lambda: messagebox.showerror("Lỗi", f"Lấy thông tin thất bại: {exc}", parent=win))
+                    self.after(0, lambda exc=exc: messagebox.showerror("Lỗi", f"Lấy thông tin thất bại: {exc}", parent=win))
                     self.after(0, lambda: _update_status("Lỗi khi lấy thông tin."))
                 finally:
-                    def _reset_bar():
-                        progress.stop()
-                        progress.config(mode="determinate", value=0, maximum=1)
-                    self.after(0, _reset_bar)
+                    self.after(0, lambda: _toggle_progress(False))
 
             threading.Thread(target=worker, daemon=True).start()
 
@@ -1361,7 +1798,13 @@ class ND5Mixin:
             if not meta or not toc:
                 messagebox.showinfo("Thiếu dữ liệu", "Hãy Lấy thông tin trước khi tải.", parent=win)
                 return
-            numbers = _parse_range(range_var.get())
+            max_num = None
+            if toc:
+                try:
+                    max_num = max(item.get("num", 0) for item in toc)
+                except Exception:
+                    max_num = None
+            numbers = _parse_range(range_var.get(), max_num=max_num)
             num_set = set(numbers) if numbers else set(item["num"] for item in toc)
             include_info = include_info_var.get()
             if include_info:
@@ -1370,8 +1813,8 @@ class ND5Mixin:
             fmt = (fmt_var.get() or "zip").lower()
 
             _update_status("Đang chuẩn bị tải...")
-            progress.config(mode="determinate", maximum=max(1, len(num_set)))
-            progress["value"] = 0
+            _toggle_progress(True, "determinate")
+            progress.config(maximum=max(1, len(num_set)), value=0)
 
             def worker():
                 ctx = _build_ctx()
@@ -1407,7 +1850,14 @@ class ND5Mixin:
                     id_map = {}
                     for item in toc:
                         if not num_set or item["num"] in num_set:
-                            tasks.append({"num": item["num"], "id": str(item.get("id") or item["num"]), "title": item.get("title")})
+                            tasks.append(
+                                {
+                                    "num": item["num"],
+                                    "id": str(item.get("id") or item["num"]),
+                                    "title": item.get("title"),
+                                    "vip": bool(item.get("vip")),
+                                }
+                            )
                             id_map[str(item.get("id") or item["num"])] = item.get("title")
                     total = len(tasks)
                     done = 0
@@ -1415,7 +1865,14 @@ class ND5Mixin:
 
                     real_chapters = [t for t in tasks if t["num"] != 0]
                     fetched = dict(progress_chapters) if progress_chapters else {}
-                    batch_size = 20
+                    batch_size = getattr(plugin, "batch_size", 0)
+                    try:
+                        batch_size = int(batch_size)
+                    except Exception:
+                        batch_size = 0
+                    if batch_size <= 0:
+                        batch_size = 20
+                    vip_map = (meta or {}).get("chapter_vip_map") or {}
                     for i in range(0, len(real_chapters), batch_size):
                         batch = real_chapters[i:i + batch_size]
                         ids = [t["id"] for t in batch]
@@ -1435,7 +1892,17 @@ class ND5Mixin:
                                     ctx.log(f"[ND5] Thiếu nội dung {len(missing)} chương, thử lại ({attempt}/{max_attempts})...")
                                 except Exception:
                                     pass
+                                try:
+                                    ctx.sleep_between_requests()
+                                except Exception:
+                                    pass
                         if missing:
+                            vip_missing = [cid for cid in missing if vip_map.get(str(cid))]
+                            if vip_missing:
+                                raise RuntimeError(
+                                    f"Không tải được nội dung {len(missing)} chương sau {max_attempts} lần thử. "
+                                    f"Có {len(vip_missing)} chương VIP, hãy kiểm tra token Android."
+                                )
                             raise RuntimeError(f"Không tải được nội dung {len(missing)} chương sau {max_attempts} lần thử.")
                         if use_progress_cache and book_id:
                             progress_chapters.update({str(k): v for k, v in fetched.items()})
@@ -1490,10 +1957,10 @@ class ND5Mixin:
                     self.after(0, lambda: messagebox.showinfo("Hoàn tất", f"Tải xong. File: {saved_path}", parent=win))
                 except Exception as exc:
                     ctx.log(f"Lỗi tải: {exc}")
-                    self.after(0, lambda: messagebox.showerror("Lỗi tải", f"{exc}", parent=win))
+                    self.after(0, lambda exc=exc: messagebox.showerror("Lỗi tải", f"{exc}", parent=win))
                     self.after(0, lambda: _update_status("Tải thất bại."))
                 finally:
-                    self.after(0, lambda: progress.config(value=0))
+                    self.after(0, lambda: _toggle_progress(False))
 
             threading.Thread(target=worker, daemon=True).start()
 
@@ -1513,6 +1980,9 @@ class ND5Mixin:
         ttk.Label(top_frame, textvariable=source_desc_var, foreground="#6b7280").grid(row=0, column=2, sticky="w", padx=(10, 0))
         settings_btn = ttk.Button(top_frame, text="Cài đặt", command=_open_settings_dialog)
         settings_btn.grid(row=0, column=3, sticky="e")
+        extra_btn = ttk.Button(top_frame, text="Giá trị bổ sung", command=_open_extra_values_dialog)
+        extra_btn.grid(row=1, column=1, sticky="w", pady=(4, 0))
+        extra_btn.grid_remove()
 
         backend_frame = ttk.Frame(win, padding=(10, 2))
         backend_frame.grid(row=1, column=0, sticky="ew")
@@ -1555,14 +2025,20 @@ class ND5Mixin:
             current_book["meta"] = None
             current_book["toc"] = []
             cover_cache["bytes"] = None
+            _update_info_header(None)
             _set_info("")
             _update_status("Nhập URL và bấm Lấy thông tin.")
+            if _plugin_has_extra_values():
+                extra_btn.grid()
+            else:
+                extra_btn.grid_remove()
         source_combo.bind("<<ComboboxSelected>>", _refresh_plugin_ui)
 
         opt_frame = ttk.LabelFrame(win, text="Tuỳ chọn", padding=10)
         opt_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=(4, 4))
         for c in range(0, 6):
             opt_frame.columnconfigure(c, weight=0)
+        opt_frame.columnconfigure(1, weight=1)
         opt_frame.columnconfigure(3, weight=1)
         ttk.Checkbutton(opt_frame, text="Tải thông tin sách (chương 0)", variable=include_info_var).grid(row=0, column=0, sticky="w")
         ttk.Checkbutton(opt_frame, text="Tải ảnh bìa", variable=include_cover_var).grid(row=0, column=1, sticky="w", padx=(10, 0))
@@ -1582,20 +2058,39 @@ class ND5Mixin:
         fmt_combo.bind("<<ComboboxSelected>>", _toggle_zip_heading)
         _toggle_zip_heading()
 
-        ttk.Label(opt_frame, text="Phạm vi tải (ví dụ 1-10,15, để trống = tất cả):").grid(row=1, column=0, sticky="w", pady=(8, 0), columnspan=2)
+        ttk.Label(opt_frame, text="Phạm vi tải (vd 1-10,15, -5,10-; trống = tất cả):").grid(row=1, column=0, sticky="w", pady=(8, 0))
         range_entry = ttk.Entry(opt_frame, textvariable=range_var)
-        range_entry.grid(row=1, column=2, columnspan=2, sticky="ew", padx=(6, 0), pady=(8, 0))
+        range_entry.grid(row=1, column=1, sticky="ew", padx=(6, 12), pady=(8, 0))
 
-        ttk.Label(opt_frame, text="Thư mục lưu:").grid(row=2, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(opt_frame, text="Thư mục lưu:").grid(row=1, column=2, sticky="w", pady=(8, 0))
         out_entry = ttk.Entry(opt_frame, textvariable=out_dir_var)
-        out_entry.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(6, 0), pady=(8, 0))
-        ttk.Button(opt_frame, text="Chọn...", command=_pick_output).grid(row=2, column=3, sticky="w", padx=(6, 0), pady=(8, 0))
+        out_entry.grid(row=1, column=3, sticky="ew", padx=(6, 0), pady=(8, 0))
+        ttk.Button(opt_frame, text="Chọn...", command=_pick_output).grid(row=1, column=4, sticky="w", padx=(6, 0), pady=(8, 0))
 
         info_frame = ttk.LabelFrame(win, text="Thông tin truyện", padding=10)
         info_frame.grid(row=4, column=0, sticky="nsew", padx=10, pady=(4, 4))
-        info_frame.columnconfigure(0, weight=1)
+        info_frame.columnconfigure(1, weight=1)
         info_frame.rowconfigure(0, weight=1)
-        info_text = scrolledtext.ScrolledText(info_frame, wrap=tk.WORD, state="disabled", height=14)
+
+        cover_frame = ttk.Frame(info_frame)
+        cover_frame.grid(row=0, column=0, sticky="nsw", padx=(0, 12))
+        cover_frame.columnconfigure(0, weight=1)
+        cover_label = ttk.Label(cover_frame, text="Không có bìa", anchor="center", width=18)
+        cover_label.grid(row=0, column=0, sticky="n")
+
+        title_label = ttk.Label(cover_frame, textvariable=book_title_var, font=("TkDefaultFont", 11, "bold"), wraplength=180, justify="left")
+        title_label.grid(row=1, column=0, sticky="w", pady=(8, 0))
+        meta_label = ttk.Label(cover_frame, textvariable=book_meta_var, foreground="#6b7280", justify="left", wraplength=180)
+        meta_label.grid(row=2, column=0, sticky="w", pady=(4, 0))
+        status_label = ttk.Label(cover_frame, textvariable=book_status_var, foreground="#2563eb", justify="left", wraplength=180)
+        status_label.grid(row=3, column=0, sticky="w", pady=(4, 0))
+
+        info_body = ttk.Frame(info_frame)
+        info_body.grid(row=0, column=1, sticky="nsew")
+        info_body.columnconfigure(0, weight=1)
+        info_body.rowconfigure(0, weight=1)
+
+        info_text = scrolledtext.ScrolledText(info_body, wrap=tk.WORD, state="disabled", height=12)
         info_text.grid(row=0, column=0, sticky="nsew")
         _refresh_plugin_ui()
 
@@ -1604,12 +2099,12 @@ class ND5Mixin:
         progress_frame.columnconfigure(0, weight=1)
         progress = ttk.Progressbar(progress_frame, mode="determinate")
         progress.grid(row=0, column=0, sticky="ew")
+        progress.grid_remove()
         ttk.Label(progress_frame, textvariable=status_var).grid(row=1, column=0, sticky="w", pady=(4, 0))
-
-        action_frame = ttk.Frame(win, padding=(10, 6))
-        action_frame.grid(row=6, column=0, sticky="e")
-        ttk.Button(action_frame, text="Bắt đầu tải", command=_start_download).pack(side=tk.RIGHT, padx=(6, 0))
-        ttk.Button(action_frame, text="Đóng", command=lambda: (_persist_nd5_options(), win.destroy())).pack(side=tk.RIGHT)
+        action_inline = ttk.Frame(progress_frame)
+        action_inline.grid(row=1, column=1, sticky="e", pady=(4, 0))
+        ttk.Button(action_inline, text="Bắt đầu tải", command=_start_download).pack(side=tk.RIGHT, padx=(0, 6))
+        ttk.Button(action_inline, text="Đóng", command=lambda: (_persist_nd5_options(), win.destroy())).pack(side=tk.RIGHT)
 
         self.after(200, _start_bridge_async)
         win.protocol("WM_DELETE_WINDOW", lambda: (_persist_nd5_options(), win.destroy()))
