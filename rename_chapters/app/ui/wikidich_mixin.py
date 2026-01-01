@@ -998,7 +998,7 @@ class WikidichMixin:
                 break
 
     def _wd_handle_uploaded_chapters(self, book: dict, added: int):
-        """Sau khi upload bổ sung: cập nhật số chương và cột New."""
+        """Sau khi upload bổ sung: cập nhật số chương, ngày cập nhật và cột New."""
         if not added or added <= 0 or not book:
             return
         bid = book.get("id")
@@ -1009,14 +1009,26 @@ class WikidichMixin:
         except Exception:
             current = 0
         new_total = current + added
+        today_text = datetime.now().strftime("%d-%m-%Y")
+        try:
+            book["chapters"] = new_total
+            book["updated_text"] = today_text
+        except Exception:
+            pass
         if isinstance(self.wikidich_data, dict):
             books = self.wikidich_data.get("books") or {}
             if bid in books:
                 books[bid]["chapters"] = new_total
+                books[bid]["updated_text"] = today_text
         if getattr(self, "wd_selected_book", None) and self.wd_selected_book.get("id") == bid:
             self.wd_selected_book["chapters"] = new_total
+            self.wd_selected_book["updated_text"] = today_text
             try:
                 self.wd_info_vars["chapters"].set(str(new_total))
+            except Exception:
+                pass
+            try:
+                self.wd_info_vars["updated"].set(today_text)
             except Exception:
                 pass
         if isinstance(self.wd_new_chapters, dict):
@@ -1027,6 +1039,10 @@ class WikidichMixin:
                     self.wd_new_chapters[bid] = new_diff
                 else:
                     self.wd_new_chapters.pop(bid, None)
+        try:
+            self._wd_save_cache()
+        except Exception:
+            pass
         filtered = getattr(self, "wikidich_filtered", None)
         if filtered is not None:
             self._wd_refresh_tree(filtered)
@@ -1214,6 +1230,25 @@ class WikidichMixin:
             "warn_kb": upload_cfg.get("warn_kb", DEFAULT_UPLOAD_SETTINGS["warn_kb"]),
             "sort_by_number": bool(upload_cfg.get("sort_by_number", DEFAULT_UPLOAD_SETTINGS["sort_by_number"])),
         }
+        desc_template = {"value": desc_var.get()}
+        desc_template_active = {"value": False}
+        desc_update_lock = {"value": False}
+
+        def _desc_has_tokens(text: str) -> bool:
+            if not text:
+                return False
+            return any(token in text for token in ("{num-d}", "{num-c}", "{num-đầu}", "{num-cuối}"))
+
+        desc_template_active["value"] = _desc_has_tokens(desc_template["value"])
+
+        def _on_desc_change(*_args):
+            if desc_update_lock["value"]:
+                return
+            text = desc_var.get()
+            desc_template["value"] = text
+            desc_template_active["value"] = _desc_has_tokens(text)
+
+        desc_var.trace_add("write", _on_desc_change)
 
         def _set_status(text):
             status_var.set(text)
@@ -1244,8 +1279,7 @@ class WikidichMixin:
                 return
             tpl = parse_settings.get("template", "第{num}章 {title}")
             _log("Xem trước tên chương:", "ok")
-            items = parsed_files if preview_all else parsed_files[:10]
-            for item in items:
+            for item in parsed_files:
                 raw_title = str(item.get("raw_title", "")).strip()
                 if use_raw_only:
                     display = raw_title or f"{item['num']}"
@@ -1254,8 +1288,6 @@ class WikidichMixin:
                 num_label = f"#{item['num']}"
                 file_label = os.path.basename(item["path"])
                 _log(f"- {num_label}: {display} (file: {file_label})")
-            if not preview_all and len(parsed_files) > 10:
-                _log(f"... (+{len(parsed_files)-10} chương)", "ok")
 
         def _on_select_files():
             nonlocal selected_files, parsed_files, parse_errors
@@ -1369,7 +1401,8 @@ class WikidichMixin:
                     if missing:
                         _log("Thiếu chương: " + ", ".join(str(m) for m in missing), "warn")
                     if parsed_files:
-                        _log_parsed_preview(preview_all=preview_full, use_raw_only=current_raw_title_only["value"])
+                        _log_parsed_preview(preview_all=True, use_raw_only=current_raw_title_only["value"])
+                        _refresh_desc_preview()
                     _set_status(f"Đã phân tích {len(parsed_files)} file. {'Có lỗi' if parse_errors else 'Sẵn sàng upload'}.")
                     _enable_actions()
                 self.after(0, ui_update)
@@ -1396,6 +1429,7 @@ class WikidichMixin:
                 _log(wmsg, "warn")
             # Hiển thị đầy đủ danh sách khi dữ liệu được thêm tự động
             _log_parsed_preview(preview_all=True, use_raw_only=current_raw_title_only["value"])
+            _refresh_desc_preview()
             _set_status("Đã thêm file tự động, sẵn sàng upload.")
             _enable_actions()
 
@@ -1405,7 +1439,18 @@ class WikidichMixin:
             nums = []
             for item in parsed_files:
                 try:
-                    nums.append(int(item.get("num")))
+                    val = item.get("num")
+                    if isinstance(val, int):
+                        nums.append(val)
+                        continue
+                    if val is None:
+                        continue
+                    try:
+                        nums.append(int(val))
+                    except Exception:
+                        m = re.search(r"\\d+", str(val))
+                        if m:
+                            nums.append(int(m.group(0)))
                 except Exception:
                     continue
             if not nums:
@@ -1416,6 +1461,18 @@ class WikidichMixin:
             rendered = rendered.replace("{num-d}", str(start_num)).replace("{num-đầu}", str(start_num))
             rendered = rendered.replace("{num-c}", str(end_num)).replace("{num-cuối}", str(end_num))
             return rendered
+
+        def _refresh_desc_preview():
+            if not desc_template_active["value"]:
+                return
+            rendered = _apply_append_desc_template(desc_template["value"])
+            if rendered == desc_template["value"]:
+                return
+            desc_update_lock["value"] = True
+            try:
+                desc_var.set(rendered)
+            finally:
+                desc_update_lock["value"] = False
 
         def _do_upload():
             sel = volume_list.curselection()
@@ -4821,30 +4878,6 @@ class WikidichMixin:
                 return
             end_num = start_num + len(parsed_files) - 1
             desc_text = f"{start_num}-{end_num}"
-            # cập nhật ngày update về hiện tại sau auto update
-            try:
-                today_text = datetime.now().strftime("%d-%m-%Y")
-                if book_id and isinstance(self.wikidich_data.get("books"), dict) and book_id in self.wikidich_data["books"]:
-                    self.wikidich_data["books"][book_id]["updated_text"] = today_text
-                if isinstance(book, dict):
-                    book["updated_text"] = today_text
-                self._wd_save_cache()
-                def _refresh_updated():
-                    if getattr(self, "wikidich_filtered", None) is not None:
-                        self._wd_refresh_tree(self.wikidich_filtered)
-                        if book_id:
-                            self._wd_select_tree_item(book_id)
-                    else:
-                        self._wd_apply_filters()
-                    sel = getattr(self, "wd_selected_book", None)
-                    if sel and sel.get("id") == book_id:
-                        self._wd_show_detail(sel)
-                try:
-                    self.after(0, _refresh_updated)
-                except Exception:
-                    _refresh_updated()
-            except Exception:
-                pass
             self._wd_set_progress("Sẵn sàng upload bổ sung", 0, 1)
             self.after(0, lambda b=dict(book): self._wd_open_wiki_edit_uploader(prefill={
                 "parsed_files": parsed_files,
