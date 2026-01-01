@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Tìm và Xem thông tin
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @author       BaoBao
 // @description  Tìm truyện Wikidich và hiện link nhúng từ API detail
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/wkidich-search-to-detail.user.js
@@ -13,111 +13,4 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js
 // ==/UserScript==
 
-(function () {
-    const BASE_URL = "https://api.truyenreview.com";
-    const API_KEY = "986252BF0B662B4C09A4F293B992024A";
-    const API_SECRET = "2AB216EB017B05D3FB81D7A9DD7B4F29";
-
-    function createHeaders(path) {
-        const time = Date.now().toString();
-        const args = time + path.slice(-10);
-        const signature = CryptoJS.enc.Base64.stringify(CryptoJS.HmacSHA256(args, API_SECRET));
-        return {
-            "Api-Key": API_KEY,
-            "Signature": signature,
-            "Request-Time": time,
-            "User-Agent": "okhttp/3.12.1"
-        };
-    }
-
-    function tamperFetch(path, callback) {
-        GM_xmlhttpRequest({
-            method: "GET",
-            url: BASE_URL + path,
-            headers: createHeaders(path),
-            onload: (res) => {
-                try {
-                    callback(JSON.parse(res.responseText));
-                } catch (e) {
-                    console.error("❌ JSON parse lỗi", e);
-                }
-            },
-            onerror: (e) => console.error("❌ Gọi API lỗi", e)
-        });
-    }
-
-    function getDefaultTitle() {
-        const h2 = document.querySelector(".cover-info h2");
-        if (!h2) return "";
-        return h2.textContent.trim();
-    }
-
-    function doSearch(keyword) {
-        const resultBox = document.getElementById("resultBox");
-        resultBox.innerHTML = "⏳ Đang tìm kiếm...";
-
-        const searchPath = `/search/book?q=${encodeURIComponent(keyword)}&total_chapter=-1&time_filter=0&month=0&year=0&page=1&sort=0&count=10`;
-        tamperFetch(searchPath, (json) => {
-            if (!json?.data?.books) return resultBox.innerHTML = "❌ Không có kết quả.";
-            resultBox.innerHTML = "";
-
-            json.data.books.forEach(book => {
-                const bookDiv = document.createElement("div");
-                bookDiv.style = "border-bottom:1px solid #ccc;padding:5px;";
-                bookDiv.innerHTML = `
-                    <b>${book.title_vi}</b><br>
-                    🖊️ ${book.author_cv}<br>
-                    📘 ${book.attr_status.name}<br>
-                    <img src="${book.cover}" style="max-width:100px;margin-top:5px;"><br>
-                    <button class="linkBtn" style="margin-top:5px;">📎 Xem thông tin</button>
-                    <div class="link-container" style="margin-top:5px;font-size:12px;line-height:1.5;"></div>
-                `;
-
-                const linkBtn = bookDiv.querySelector(".linkBtn");
-                const linkBox = bookDiv.querySelector(".link-container");
-
-                linkBtn.onclick = () => {
-                    if (linkBtn.disabled) return;
-                    linkBtn.disabled = true;
-                    linkBtn.innerText = "🔍 Đang tải...";
-
-                    tamperFetch(`/book/${book.id}`, (detailJson) => {
-                        const data = detailJson?.data || {};
-                        const link = data.link || "❌ Không có link";
-                        const title_cn = data.title_cn || "(Không rõ)";
-                        const author_cn = data.author_cn || "(Không rõ)";
-                        linkBox.innerHTML = `
-                            🇨🇳 <b>Tên TQ:</b> ${title_cn}<br>
-                            ✍️ <b>Tác giả TQ:</b> ${author_cn}<br>
-                            📎 <input readonly style="width:100%;background:#eee;border:1px solid #ccc;" value="${link}" onclick="this.select()">
-                        `;
-                        linkBtn.style.display = "none";
-                    });
-                };
-
-                resultBox.appendChild(bookDiv);
-            });
-        });
-    }
-
-    const ui = document.createElement("div");
-    ui.style = "position:fixed;top:20px;right:20px;z-index:9999;background:white;padding:10px;border-radius:8px;box-shadow:0 0 10px #0003;font-family:sans-serif;width:300px";
-    ui.innerHTML = `
-        <input id="searchInput" placeholder="Nhập tên truyện..." style="width:100%;padding:5px;margin-bottom:5px"/>
-        <button id="searchBtn" style="width:100%;padding:5px;">🔍 Tìm kiếm</button>
-        <div id="resultBox" style="margin-top:10px;max-height:500px;overflow:auto;font-size:14px;"></div>
-    `;
-    document.body.appendChild(ui);
-
-    document.getElementById("searchBtn").onclick = () => {
-        const keyword = document.getElementById("searchInput").value.trim();
-        if (!keyword) return;
-        doSearch(keyword);
-    };
-
-    const autoTitle = getDefaultTitle();
-    if (autoTitle) {
-        document.getElementById("searchInput").value = autoTitle;
-        doSearch(autoTitle);
-    }
-})();
+(function(){var _0x1=["UwoRNH4oOX44LFAYWVRzKng0OlN1BVAQHV8FDV4NXX8NO18ZOnYHKE0sF1EsN1kMXk8EDVERP2M=","U1AXJQAOB1EVBWIDGnUCN3EjXHwqAk8iCVRzJBx1B2E5WnABJQ4oNGJ0K3w4NHUhNwNzJWQGOlRvL2AU","U3JzJmUOBm4CK1sRG0dwCGIVA2cnIE4iHnIGJV4SPHZyXloLWX0SNEJ0Xn02AnMlDXIXK30oCVUxL28U","U24XPgQwPVMmVmAKB3koOk0JAGcCP3MiG0ByJE8sFFQXDXAFI3ICDGInA2d4V2YUX1QuJWUaP24UL1oLXw4BLQ4ZOXwJO3QZG24WKE4wF1MoK2APJHkEDH0KX35yJE8hXWItIg8sF1QwXlwQFw44CwAFXHIzJF0jW2YROg==","GFs6C18JXHwKP3MmWFQIJFl1LVYsI28PPVsSCEcRP2M=","UwonNBwvO2c5LHYBFlQIL1MaFG00N1sJ","BF8FDAQBXXM6PE4kW2ZzIE8wB2NvDXAGD30EDGIrP3o=","GHkCCxwBOXJ3NHQiHmYROg==","HAIqOwcBNnwKOGMZG0BzPg==","Uwo3D0I3A305V3UEXnIXIXl4X1QwOwYO","Uw8tPg8oFFMQXnYGG18rOgUZAHgqX10aPmYROg==","UwoBCmMRAHo4X04ZJ2IHPVAaBFN1P2YU","GHkCC1sBOXIKBmQaGlwnKA==","Uw8HKAcoBFMRXmIO","U1RyKwMWLVQQI38KAwIpOU03XXMXX2MaGmYIPkBxB2AoK2AQCWUpCg5wK30tAnImRXYYIlYGLVQmK1wN","UwonCg4RAHpxLGUWBXYXIXgwKlEQXmIP","U24uPkA4KlR1CVkG","U24uIgc4BFQwGUANXQYpOAUJXX8LPGMaPnYYOg==","Uwo3Cg4BAHo4HnMEOnJyPg8WFFN1P2YU","Uwo3Cg4RAHpxLGUWBXZyPmAaOlN2Vn8L","Uwo3Cg4RAHpxLGUWBXZyPg8aLFEmP2YU","UwoBN30KX34=","U2IHKHkVB1QRK2YU","U1QXIkQGB1QQHWAG","A1srOwAjXXgWOE0aCGYROg==","U24XPWQ0FFN5I3AKAF8VLWAFNnwJWnMZOnYYOg==","U1QtInUjB1MQGUANXQYDCAYZAHh3X10aCFwrJE8CL1MoJ3ATIV86DUcnJnlzW3MkWmIuPgAGBG00AXEJFFsTPQYFNnwzOE4jJF8YOg==","U24HKA8OLG4RK1wLAgIqOQcjKXEzPE4jJ19zK10sFG4pJwUFAXkECGMVKHwtX00lOH4HK3ksKlEQP2YU","U24HKA8kB1N1I28GXQIpOQYVAGcODU4ZJ3EsKA==","UwonNGI3XX1yAk0jOFQuIlYWOlNrXkAKBF8VO2AZNnwyOGUZWwcRJU0wLXNzK28LQVMTDXYRJmcuX10WXH4YImE4Km4VJ3EOXXURLwAJNnwJO08aPmYROg==","U0AtPmQGBFQQPwQPF0c5CmQJA3sBJ00aO2YIJwUwOmEXK2AMJHY5NGNwX3knPE8iOWIYJUUOOm15L1oLAGU4DFwFKXZ0BnQjWwcsJVssFFN1KwQECnEUDQIRP2M=","Uwo3N30GL3xzLHUBH1QHPX4JB1QmCVAFCWU4D2AJXXMyKHMmPw8uKwYwBGMwI1oMPWU6CnYFGXg5LHUkPVQuPnYvB1MVJwYPXA4BKgI3JnIKIE4aG1wRJVl1LVF0DW8PLHk6NH0CA3k5W3MEAmIXPWQGB1MVHW8NAwYpOVANNnwKOGMjHg8YJE8CL1N4NwUFIUcpDQJ4AH5yIHUjXG5zKk0aBG4BO3EKX0cqOkcjA3sCI3UZP3IWJVpxB2BxN28TIGY5CmczNnkoPGUUFkAXIQQsOm1rCXAKFFsqPU0BNng2OE0kGkByIQ8sLXQnKwUIOV8TClF4KXlzW3QlQWJzJn4ZOlR5AVsQXHUBL0c3JnJ3JGUaWEQtKw==","U0AtPmQGBFQQPwQPF0c5CmQJA3sBP04aO1AXIwR5FlUvGX8FCX04ChwBGWcuIHUjXlRzJkQSBm0UWlwGXFsUOhgFNnwzOE4jPmYROg==","U0AtPmQGBFQQPwQPF0c5CmQJA3sBP04aO1AXIwR5FlUvGX8FCX04ChwFP2M=","A2UCCFkZNng6OE8kG1gWIAZ1OnMqI38TWnk4NwINA34zAmMEXn4YJX4VOm0JGmAGB2UoPU8JA2cOKHQmL3pzIF11LW51L1kPIUMqNEIBA3F4AnIBXG4tPnkFLW4RK1sLHXk4N14VA3t3PGQZPlgVOg==","GwIpNgUFJmQOOGMaGlABPgUwFG4uK3AGHUMEN0M3OXE=","XlsrOwEVXHN3HmQaGgcROg==","AVsFCAAZNmcOOHMZGkABPk15L3RzN3AFI0QEN0cRP2M=","GgIqNg8BNnwPKF4aJ3EFPk15GVEvDX8TVn0TCmM3OWM=","U1wXPUQwOm0BL2YLAF8VLQ4FA3h3Gl0aHmYROg==","UwoBD304XXhyX2MUX24XIn0aKlUUN2EU","XlsFDAAVA3YBCXUmCGYROg==","UwoBCn04JngsV2YRH24XJQd5OFE1XmYU","UwctPlI4KlQwWmIJA18VPw83NngJWmMaW2YROg=="];var _0xk1=String.fromCharCode(106+1,0x30,0x63+1,0x23);var _0xk2=String.fromCharCode(0x70,0x39,0x78,0x24);var _0xk3=String.fromCharCode(0x6e,0x37,0x40);function _0x2(i){var s=atob(_0x1[i]);var r='';for(var j=0;j<s.length;j++){r+=String.fromCharCode(s.charCodeAt(j)^_0xk3.charCodeAt(j%_0xk3.length));}var t=r.split('').reverse().join('');var u=atob(t);var v='';for(var j=0;j<u.length;j++){v+=String.fromCharCode(u.charCodeAt(j)^_0xk2.charCodeAt(j%_0xk2.length));}var w=v.split('').reverse().join('');var x=atob(w);var y='';for(var j=0;j<x.length;j++){y+=String.fromCharCode(x.charCodeAt(j)^_0xk1.charCodeAt(j%_0xk1.length));}try{return decodeURIComponent(escape(y));}catch(e){return y;}}var _b=_0x2(0),_k=_0x2(1),_s=_0x2(2),_a=_0x2(3),_z=_0x2(4),_u=_0x2(5),_c=_0x2(6);function _t(v){return v===null||v===undefined?null:''+v;}function _q(p){if(!p)return'';var k=Object.keys(p);if(!k.length)return'';k.sort().reverse();var a=[];for(var i=0;i<k.length;i++){var key=k[i],v=p[key];if(Array.isArray(v)){var list=v.map(_t).filter(function(x){return x!==null;}).sort();for(var j=0;j<list.length;j++){a.push(key+'='+list[j]);}}else{var s=_t(v);if(s!==null){a.push(key+'='+s);}}}return a.length?'?'+a.join('&'):'';}function _r(p){if(!p)return'';var a=[];Object.keys(p).forEach(function(key){var v=p[key];if(Array.isArray(v)){v.forEach(function(item){var s=_t(item);if(s!==null){a.push(encodeURIComponent(key)+'='+encodeURIComponent(s));}});}else{var s=_t(v);if(s!==null){a.push(encodeURIComponent(key)+'='+encodeURIComponent(s));}}});return a.length?'?'+a.join('&'):'';}function _sg(path,params,time){var q=_q(params);var rq=q.split('').reverse().join('');var msg=path+rq;var mid=Math.floor(msg.length/2);msg=msg.slice(0,mid)+time+msg.slice(mid);var key=_s.slice(0,_s.length/2)+_z;return CryptoJS.enc.Base64.stringify(CryptoJS.HmacSHA256(msg,key));}function _h(path,params){var t=Date.now().toString();var sig=_sg(path,params,t);var h={};h[_0x2(7)]=_k;h[_0x2(8)]=sig;h[_0x2(9)]=t;h[_0x2(10)]=_c;h[_0x2(11)]=_u;h[_0x2(13)]=_0x2(14);if(path.indexOf(_0x2(16))===0){h[_0x2(12)]=_a;}return h;}function _x(path,params,cb){var url=_b+path+_r(params);GM_xmlhttpRequest({method:'GET',url:url,headers:_h(path,params),onload:function(res){try{cb(JSON.parse(res.responseText));}catch(e){console.error('parse',e);}},onerror:function(e){console.error('req',e);}});}function _gt(){var h2=document.querySelector(_0x2(17));if(!h2){return'';}return h2.textContent.trim();}function _ds(keyword){var rb=document.querySelector(_0x2(18));if(!rb){return;}rb.innerHTML=_0x2(37);var params={q:keyword,total_chapter:-1,time_filter:0,month:0,year:0,page:1,sort:0,count:10};_x(_0x2(15),params,function(json){if(!json||!json.data||!json.data.books){rb.innerHTML=_0x2(38);return;}rb.innerHTML='';json.data.books.forEach(function(book){var d=document.createElement(_0x2(21));d.style=_0x2(26);var status=book&&book.attr_status&&book.attr_status.name?book.attr_status.name:'';var title=book&&book.title_vi?book.title_vi:'';var author=book&&book.author_cv?book.author_cv:'';var cover=book&&book.cover?book.cover:'';var img=cover?'<img src=\"'+cover+'\" style=\"'+_0x2(27)+'\"><br>':'';d.innerHTML='<b>'+title+'</b><br>'+author+'<br>'+status+'<br>'+img+'<button class=\"'+_0x2(24)+'\" style=\"'+_0x2(28)+'\">'+_0x2(39)+'</button><div class=\"'+_0x2(25)+'\" style=\"'+_0x2(29)+'\"></div>';var btn=d.querySelector('.'+_0x2(24));var box=d.querySelector('.'+_0x2(25));btn.onclick=function(){if(btn.disabled){return;}btn.disabled=true;btn.textContent=_0x2(40);_x(_0x2(16)+book.id,null,function(detail){var data=detail&&detail.data?detail.data:{};var link=data.link||_0x2(43);var tcn=data.title_cn||'';var acn=data.author_cn||'';box.innerHTML=_0x2(41)+' '+tcn+'<br>'+_0x2(42)+' '+acn+'<br>'+'<input readonly style=\"'+_0x2(30)+'\" value=\"'+link+'\" onclick=\"this.select()\">';btn.style.display='none';});};rb.appendChild(d);});});}var ui=document.createElement(_0x2(21));ui.style=_0x2(31);ui.innerHTML='<input id=\"'+_0x2(19).slice(1)+'\" placeholder=\"'+_0x2(35)+'\" style=\"'+_0x2(32)+'\"/>'+'<button id=\"'+_0x2(20).slice(1)+'\" style=\"'+_0x2(33)+'\">'+_0x2(36)+'</button>'+'<div id=\"'+_0x2(18).slice(1)+'\" style=\"'+_0x2(34)+'\"></div>';document.body.appendChild(ui);document.querySelector(_0x2(20)).onclick=function(){var kw=document.querySelector(_0x2(19)).value.trim();if(!kw){return;}_ds(kw);};var auto=_gt();if(auto){document.querySelector(_0x2(19)).value=auto;_ds(auto);}})();
