@@ -75,6 +75,7 @@ from app.ui.text_ops_mixin import TextOpsMixin
 from app.ui.translate_tab_mixin import TranslateTabMixin
 from app.ui.image_tab_mixin import ImageTabMixin
 from app.ui.proxy_mixin import ProxyMixin
+from app.ui.radical_checker import open_radical_checker_dialog
 
 # Đảm bảo chỉ một instance (dùng localhost TCP)
 _SINGLE_INSTANCE_HOST = "127.0.0.1"
@@ -290,7 +291,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.7.1')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.7.2')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -508,7 +509,9 @@ class RenamerApp(
             'api_settings': dict(DEFAULT_API_SETTINGS),
             'wikidich_upload_settings': dict(DEFAULT_UPLOAD_SETTINGS),
             'novel_downloader5': dict(DEFAULT_ND5_OPTIONS),
-            'background': dict(DEFAULT_BACKGROUND_SETTINGS)
+            'background': dict(DEFAULT_BACKGROUND_SETTINGS),
+            'radical_map': {},
+            'radical_output_dir': ""
         }
 
     def _cleanup_legacy_files(self):
@@ -2053,6 +2056,7 @@ class RenamerApp(
         tools_menu = tk.Menu(menubar, **menu_style)
         menubar.add_cascade(label="Công cụ", menu=tools_menu)
         tools_menu.add_command(label="Download Novel 5...", command=self._open_fanqie_downloader)
+        tools_menu.add_command(label="Kiểm tra Radical...", command=lambda: open_radical_checker_dialog(self))
         tools_menu.add_command(label="Giải nén file (.zip, .7z, .rar...)", command=self._start_extraction)
 
         menubar.add_command(label="Dịch", command=lambda: self._select_tab_by_name("Dịch"))
@@ -2302,22 +2306,19 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         main_frame = ttk.Frame(guide_win, padding="15")
         main_frame.pack(fill="both", expand=True)
 
-        notebook = ttk.Notebook(main_frame)
-        tabs_meta = []
-
         selector_frame = ttk.Frame(main_frame)
         selector_frame.pack(fill="x", pady=(0, 5))
         ttk.Label(selector_frame, text="Chọn mục:", padding=(0, 0, 8, 0)).pack(side=tk.LEFT)
         tab_selector = ttk.Combobox(selector_frame, state="readonly")
         tab_selector.pack(side=tk.LEFT, fill="x", expand=True)
 
-        notebook.pack(fill="both", expand=True, pady=(0, 10))
+        guide_text = scrolledtext.ScrolledText(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        guide_text.pack(fill="both", expand=True, pady=(0, 10))
+
+        tabs_meta = []
 
         def create_tab(title, content):
-            tab = scrolledtext.ScrolledText(notebook, wrap=tk.WORD, padx=10, pady=10)
-            notebook.add(tab, text=title)
-            tabs_meta.append((tab, title))
-            self._render_markdown_guide(tab, textwrap.dedent(content).strip())
+            tabs_meta.append((title, textwrap.dedent(content).strip()))
 
         browser_guide = """
         --- TRÌNH DUYỆT ---
@@ -2351,6 +2352,14 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             2.  Chọn file nén bạn muốn giải nén.
             3.  Chọn thư mục để chứa các file sau khi giải nén.
             4.  Chương trình sẽ tự động thực hiện và thông báo khi hoàn tất.
+
+        **2. Kiểm tra Radical**:
+        -   **Chức năng**: Quét file .txt để tìm ký tự thuộc Radical block và chuẩn hóa.
+        -   **Cách dùng**:
+            1.  Vào menu **Công cụ -> Kiểm tra Radical...** rồi chọn 1 hoặc nhiều file .txt.
+            2.  App tự kiểm tra và chia ra 3 nhóm: **NFKC tự chuyển**, **MAP đã có**, **cần nhập thủ công**.
+            3.  Dùng nút **Sao chép** để lấy mẫu JSON (có chú thích), điền vào `value`, rồi **Dán** lại để áp dụng.
+            4.  Chọn **Thư mục xuất** nếu muốn lưu riêng; bấm **Chuẩn hóa file** để tạo `.normalized.txt`.
         """
         create_tab("Công cụ", tools_guide)
 
@@ -2572,24 +2581,16 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         """
         create_tab("Xử lý Ảnh", image_guide)
 
-        tab_selector['values'] = [title for _tab, title in tabs_meta]
+        tab_selector['values'] = [title for title, _content in tabs_meta]
         if tabs_meta:
             tab_selector.current(0)
-            notebook.select(tabs_meta[0][0])
-
-        def on_tab_changed(event=None):
-            idx = notebook.index(notebook.select())
-            try:
-                tab_selector.current(idx)
-            except Exception:
-                pass
+            self._render_markdown_guide(guide_text, tabs_meta[0][1])
 
         def on_select_combo(event=None):
             idx = tab_selector.current()
             if 0 <= idx < len(tabs_meta):
-                notebook.select(tabs_meta[idx][0])
+                self._render_markdown_guide(guide_text, tabs_meta[idx][1])
 
-        notebook.bind("<<NotebookTabChanged>>", on_tab_changed)
         tab_selector.bind("<<ComboboxSelected>>", on_select_combo)
 
         close_button = ttk.Button(main_frame, text="Đóng", command=guide_win.destroy)
