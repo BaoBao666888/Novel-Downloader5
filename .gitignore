@@ -20,5 +20,5 @@ wikidich/
 .env
 *.env
 fanqie_bridge/
-tools/
+rename_chapters/tools/
 logs/
