@@ -3763,7 +3763,7 @@ function decryptDES(encrypted, key, iv) {
                         } // Kết thúc vòng lặp nodes
 
                         // *** BƯỚC 5: DỌN DẸP VÀ TRẢ VỀ ***
-                        finalChineseText = finalChineseText.replace(/\n+/g, '\n').replace(/\?\s*\?/g, '?').trim().replace('Vì vấn đề nội dung， nguồn này không hỗ trợ xem văn bản gốc。', '').replace('Bạn đang xem văn bản gốc chưa dịch， có thể kéo xuống cuối trang để chọn bản dịch。', '').replace('————————！！————————', '---------').replace('————————', '---------');
+                        finalChineseText = finalChineseText.replace(/\n+/g, '\n').replace(/\?\s*\?/g, '?').trim().replace('Vì vấn đề nội dung， nguồn này không hỗ trợ xem văn bản gốc。', '').replace('Bạn đang xem văn bản gốc chưa dịch， có thể kéo xuống cuối trang để chọn bản dịch。', '').replace('————————！！————————', '\n---------\n作者留言：\n').replace('————————', '---------');
                         console.log(`%cSTV Deal (Chương ${chapterId}): Tái tạo text gốc hoàn tất.`, "color: green;");
                         Storage.book.debugLog.push(...debugLog);
                         return { content: finalChineseText, title: chapterTitle };
@@ -3919,7 +3919,7 @@ function decryptDES(encrypted, key, iv) {
                 function getConent(chap_content, sayBody = "", chapterIntro = "") {
                     chap_content = chap_content.replace(/</g, "<").replace(/>/g, ">").replace(/\n　　/g, "<br>").replace(/<br><br>/g, "<br>");
                     if (sayBody && sayBody.trim().length > 0) {
-                        chap_content = chap_content + "<br>---------<br>作者留言：<br>" + sayBody.replace(/\r\n/g, "<br>")
+                        chap_content = chap_content + "\n---------\n作者留言：\n" + sayBody.replace(/\r\n/g, "\n")
                     }
                     // Bỏ qua intro chương nếu không cần
                     // if(chapterIntro && chapterIntro.trim().length>0){
