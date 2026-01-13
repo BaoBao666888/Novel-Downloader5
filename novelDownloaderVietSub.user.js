@@ -3204,7 +3204,7 @@ function decryptDES(encrypted, key, iv) {
 
                 try {
                     // respone = HTML string đầy đủ
-                    const respone = await fetchPageContent(apiUrl, '.book-info h1#bookName');
+                    const respone = await fetchPageContent(apiUrl, 'p#book-intro-detail');
                     const $doc = $(respone);
 
                     // 1Tiêu đề
