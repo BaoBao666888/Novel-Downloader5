@@ -34,7 +34,7 @@ Khi script hoạt động, bạn sẽ thấy các nút tròn nổi ở góc dư�
     *   **Font chữ:** Đổi font (Times New Roman, Arial, v.v.).
     *   **Cỡ chữ & Dãn dòng:** Tăng giảm kích thước chữ và khoảng cách dòng cho dễ đọc.
 
-### 🟡 Nút Khôi Phục / Restore (Màu Vàng - Góc trên hoặc dưới)
+### 🟡 Nút Khôi Phục / Restore (Màu Vàng - Góc trên)
 *   **Chức năng:** Quay trở lại trang gốc ban đầu (chưa dịch).
 *   **Cách dùng:** Bấm nút này nếu bạn muốn xem lại text gốc hoặc script vỡ giao diện web.
 
@@ -84,7 +84,7 @@ Chức năng OCR chạy hoàn toàn trên trình duyệt của bạn (không g�
 
 ### 📖 Chế Độ Đọc Rút Gọn (Simplified Mode)
 Script có khả năng ẩn đi các quảng cáo, banner, sidebar rườm rà của trang web gốc và chỉ giữ lại phần nội dung truyện chính. Điều này giúp trải nghiệm đọc giống như đang đọc Ebook. 
-*   *Lưu ý:* Chế độ này thường tự kích hoạt sau khi bấm Dịch, hoặc bạn có thể cài đặt trong Config.
+*   *Lưu ý:* Chế độ này thường tự kích hoạt sau khi bấm Dịch, hoặc bạn có thể sửa trong giao diện "Cài đặt".
 
 ### 📝 Quản Lý Name-Set (Nâng Cao)
 Script lưu trữ các tên bạn đã sửa vào bộ nhớ. Bạn có thể quản lý nhiều bộ Name-Set khác nhau (ví dụ: Bộ Name cho Tiên Hiệp, Bộ Name cho Đô Thị...).
@@ -102,4 +102,4 @@ Script cho phép tùy chỉnh nguồn dịch:
 *   **Máy chủ dịch:** `dichngay` (mặc định) hoặc `dichnhanh`.
 *   **Chế độ dịch:** Hán Việt (HV), Tiếng Việt (VI) nếu server hỗ trợ.
 
-Nếu gặp lỗi khi dịch, hãy thử tải lại trang và đợi vài giây trước khi bấm nút Dịch.
+Nếu gặp lỗi khi dịch, hãy thử tải lại trang và đợi vài giây trước khi bấm nút Dịch. Có lỗi nhớ báo nhoaaa!!!
