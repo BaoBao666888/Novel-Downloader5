@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.3.7_beta
+// @version      3.3.8_beta
 // @description  Dịch trang, quản lý name-sets, sửa tên, chế độ đọc rút gọn và tùy chỉnh giao diện.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -14,10 +14,24 @@
 // @grant        GM_setValue
 // @grant        GM_addStyle
 // @grant        GM_openInTab
+// @grant        GM_deleteValue
+// @connect      unpkg.com
+// @connect      cdn.jsdelivr.net
 // @connect      raw.githubusercontent.com
 // @connect      dichngay.com
+// @connect      github.com
+// @connect      ghfast.top
+// @connect      githubusercontent.com
+// @connect      objects.githubusercontent.com
+// @connect      drive.usercontent.google.com
 // @connect      api.dichnhanh.com
+// @connect      release-assets.githubusercontent.com
 // @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/translate/zh_to_vi/translateZhToVi.js
+// @require      https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js
+// @require      https://unpkg.com/fflate@0.8.2/umd/index.js
+// @require      https://unpkg.com/@oovz/esearch-ocr/dist/eSearchOCR.umd.js
+// @require      https://unpkg.com/onnxruntime-web@1.22.0/dist/ort.wasm.min.js
+// @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 // ==/UserScript==
 
 (function () {
@@ -65,6 +79,10 @@
         },
         overrideFontEnabled: false,
         overrideFontFamily: "Noto Serif, 'Times New Roman', serif",
+        showOcrButton: true,
+        ocrMode: 'overlay', // 'popup' | 'overlay'
+        ocrFont: 'Noto Serif', // Default font for OCR overlay
+        ocrTextScaleFactor: 1.8, // Factor tinh chỉnh kích thước chữ OCR (Càng lớn chữ càng nhỏ)
         showStartButton: true,
         showQuickTranslateButton: true,
         showRestoreButton: true,
@@ -128,17 +146,13 @@
     function unescapeHtml(s) { return (s || '').toString().replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); }
     function capitalizeFirstLetter(s) {
         if (typeof s !== 'string' || !s) return s;
-        // Regex này tìm một chữ cái (\p{L}) mà đứng sau:
-        // 1. (p1) Bắt đầu của chuỗi (^) HOẶC một dấu kết thúc câu ([.?!]).
-        // 2. (p2) Theo sau bởi bất kỳ khoảng trắng hoặc dấu mở ngoặc/nháy nào (kể cả không có).
-        // Nó sẽ viết hoa chữ cái đó (p3) và giữ nguyên các phần khác.
         return s.replace(/(^|[\.?!])(\s*["'“‘(\[]*)(\p{L})/gu, (match, p1, p2, p3) => {
             return p1 + p2 + p3.toUpperCase();
         });
     }
     /* ================== FANQIE NOVEL DECODING ================== */
     const fontMapFanqieLibrary = { 'E4B0': '0', 'E54F': '1', 'E4E7': '2', 'E504': '3', 'E49E': '4', 'E4F6': '5', 'E556': '6', 'E53C': '7', 'E47A': '8', 'E474': '9', 'E40D': 'a', 'E51C': 'b', 'E487': 'c', 'E436': 'd', 'E51A': 'e', 'E43B': 'f', 'E485': 'g', 'E4BA': 'h', 'E478': 'i', 'E445': 'j', 'E52F': 'k', 'E49A': 'l', 'E425': 'm', 'E4DB': 'n', 'E40B': 'o', 'E3FF': 'p', 'E488': 'q', 'E47B': 'r', 'E407': 's', 'E558': 't', 'E46B': 'u', 'E543': 'v', 'E417': 'w', 'E48F': 'x', 'E3E9': 'y', 'E52A': 'z', 'E428': 'A', 'E4C1': 'B', 'E481': 'C', 'E43E': 'D', 'E44A': 'E', 'E4D3': 'F', 'E43C': 'G', 'E4CB': 'H', 'E4E8': 'I', 'E410': 'J', 'E429': 'K', 'E4E6': 'L', 'E557': 'M', 'E51D': 'N', 'E3FC': 'O', 'E455': 'P', 'E470': 'Q', 'E4B2': 'R', 'E44E': 'S', 'E435': 'T', 'E41B': 'U', 'E4B4': 'V', 'E4EE': 'W', 'E4BB': 'X', 'E467': 'Y', 'E4B9': 'Z', 'E3F3': '的', 'E526': '一', 'E456': '是', 'E517': '了', 'E40E': '我', 'E511': '不', 'E41C': '人', 'E53F': '在', 'E54D': '他', 'E4C0': '有', 'E473': '这', 'E4FB': '个', 'E54A': '上', 'E453': '们', 'E528': '来', 'E44F': '到', 'E42B': '时', 'E440': '大', 'E480': '地', 'E4C2': '为', 'E53D': '子', 'E42C': '中', 'E489': '你', 'E47C': '说', 'E4A5': '生', 'E42A': '国', 'E4C5': '年', 'E548': '着', 'E443': '就', 'E553': '那', 'E47F': '和', 'E420': '要', 'E406': '她', 'E4C8': '出', 'E3FE': '也', 'E41F': '得', 'E4A8': '里', 'E534': '后', 'E4C4': '自', 'E4DF': '以', 'E51F': '会', 'E4E2': '家', 'E502': '可', 'E438': '下', 'E551': '而', 'E539': '过', 'E54C': '天', 'E44D': '去', 'E498': '能', 'E52C': '对', 'E431': '小', 'E45B': '多', 'E4A4': '然', 'E501': '于', 'E46C': '心', 'E4D5': '学', 'E42E': '么', 'E541': '之', 'E500': '都', 'E4FE': '好', 'E52E': '看', 'E448': '起', 'E45E': '发', 'E49B': '当', 'E427': '没', 'E545': '成', 'E464': '只', 'E41D': '如', 'E459': '事', 'E458': '把', 'E4D6': '还', 'E4FF': '用', 'E4F9': '第', 'E48C': '样', 'E450': '道', 'E54B': '想', 'E465': '作', 'E4B5': '种', 'E4FC': '开', 'E524': '美', 'E48D': '总', 'E512': '从', 'E457': '无', 'E40A': '情', 'E52D': '己', 'E441': '面', 'E404': '最', 'E50B': '女', 'E4DC': '但', 'E3EB': '现', 'E466': '前', 'E51B': '些', 'E4CF': '所', 'E503': '同', 'E508': '日', 'E49D': '手', 'E43F': '又', 'E559': '行', 'E4D8': '意', 'E4B6': '动', 'E4CD': '方', 'E4C3': '期', 'E44C': '它', 'E493': '头', 'E469': '经', 'E52B': '长', 'E521': '儿', 'E4AA': '回', 'E4F8': '位', 'E4D7': '分', 'E3F6': '爱', 'E3FD': '老', 'E531': '因', 'E4F4': '很', 'E446': '给', 'E49C': '名', 'E409': '法', 'E439': '间', 'E422': '斯', 'E3F5': '知', 'E53A': '世', 'E510': '什', 'E523': '两', 'E505': '次', 'E48A': '使', 'E4EB': '身', 'E4D1': '者', 'E525': '被', 'E4BF': '高', 'E41A': '已', 'E4B3': '亲', 'E4DA': '其', 'E546': '进', 'E515': '此', 'E3EE': '话', 'E400': '常', 'E50A': '与', 'E461': '活', 'E4CC': '正', 'E4CE': '感', 'E4F5': '见', 'E4D0': '明', 'E433': '问', 'E4A2': '力', 'E3FB': '理', 'E468': '尔', 'E4B1': '点', 'E550': '文', 'E403': '几', 'E542': '定', 'E4A9': '本', 'E527': '公', 'E4BD': '特', 'E4BC': '做', 'E460': '外', 'E463': '孩', 'E532': '相', 'E45A': '西', 'E475': '果', 'E42D': '走', 'E408': '将', 'E3F0': '月', 'E3EA': '十', 'E449': '实', 'E432': '向', 'E4A1': '声', 'E43A': '车', 'E472': '全', 'E509': '信', 'E49F': '重', 'E519': '三', 'E514': '机', 'E4FA': '工', 'E3F1': '物', 'E53B': '气', 'E413': '每', 'E50E': '并', 'E554': '别', 'E4AB': '真', 'E536': '打', 'E412': '太', 'E45F': '新', 'E4DD': '比', 'E520': '才', 'E3ED': '便', 'E51E': '夫', 'E4EF': '再', 'E540': '书', 'E50F': '部', 'E3F2': '水', 'E486': '像', 'E522': '眼', 'E46F': '等', 'E3E8': '体', 'E3EF': '却', 'E454': '加', 'E424': '电', 'E405': '主', 'E45C': '界', 'E423': '门', 'E418': '利', 'E4F2': '海', 'E415': '受', 'E4ED': '听', 'E3F9': '表', 'E555': '德', 'E421': '少', 'E401': '克', 'E4A6': '代', 'E411': '员', 'E530': '许', 'E4D2': '稜', 'E47E': '先', 'E430': '口', 'E4E0': '由', 'E4E1': '死', 'E476': '安', 'E444': '写', 'E490': '性', 'E4C6': '马', 'E40C': '光', 'E4F3': '白', 'E513': '或', 'E4D4': '住', 'E55B': '难', 'E414': '望', 'E416': '教', 'E4B8': '命', 'E499': '花', 'E537': '结', 'E496': '乐', 'E533': '色', 'E4D9': '更', 'E544': '拉', 'E549': '东', 'E437': '神', 'E518': '记', 'E491': '处', 'E4E3': '让', 'E479': '母', 'E46E': '父', 'E495': '应', 'E4F7': '直', 'E4A0': '字', 'E484': '场', 'E402': '平', 'E4EC': '报', 'E4A3': '友', 'E497': '关', 'E3F4': '放', 'E4CA': '至', 'E482': '张', 'E4C7': '认', 'E4C9': '接', 'E46D': '告', 'E4AC': '入', 'E50C': '笑', 'E4A7': '内', 'E4B7': '英', 'E419': '军', 'E55A': '候', 'E471': '民', 'E4FD': '岁', 'E535': '往', 'E42F': '何', 'E43D': '度', 'E4F1': '山', 'E4DE': '觉', 'E552': '路', 'E547': '带', 'E3F7': '万', 'E426': '男', 'E4BE': '边', 'E3FA': '风', 'E462': '解', 'E4EA': '叫', 'E47D': '任', 'E4E9': '金', 'E3EC': '快', 'E4F0': '原', 'E452': '吃', 'E54E': '妈', 'E41E': '变', 'E447': '通', 'E4AD': '师', 'E529': '立', 'E4AE': '象', 'E451': '数', 'E506': '四', 'E4E4': '失', 'E50D': '满', 'E483': '战', 'E442': '远', 'E538': '格', 'E4E5': '士', 'E492': '音', 'E434': '轻', 'E48E': '目', 'E53E': '条', 'E40F': '呢', };
-    const fontMapFanqieSearch = { 'E436' : '0', 'E420' : '1', 'E516' : '2', 'E40D' : '3', 'E3F3' : '4', 'E553' : '5', 'E4A2' : '6', 'E4AA' : '7', 'E53D' : '8', 'E42F' : '9', 'E4F6' : 'a', 'E4FC' : 'b', 'E477' : 'c', 'E454' : 'd', 'E532' : 'e', 'E4A7' : 'f', 'E426' : 'g', 'E407' : 'h', 'E4E9' : 'i', 'E482' : 'j', 'E554' : 'k', 'E46B' : 'l', 'E492' : 'm', 'E54C' : 'n', 'E4EE' : 'o', 'E51A' : 'p', 'E4D6' : 'q', 'E523' : 'r', 'E3E9' : 's', 'E555' : 't', 'E427' : 'u', 'E46A' : 'v', 'E408' : 'w', 'E4B2' : 'x', 'E4A1' : 'y', 'E47E' : 'z', 'E46C' : 'A', 'E3F1' : 'B', 'E4FE' : 'C', 'E4E2' : 'D', 'E4A3' : 'E', 'E4DE' : 'F', 'E415' : 'G', 'E533' : 'H', 'E4EF' : 'I', 'E48C' : 'J', 'E419' : 'K', 'E45C' : 'L', 'E42C' : 'M', 'E423' : 'N', 'E469' : 'O', 'E455' : 'P', 'E550' : 'Q', 'E497' : 'R', 'E462' : 'S', 'E522' : 'T', 'E3F4' : 'U', 'E49D' : 'V', 'E4B4' : 'W', 'E4CA' : 'X', 'E481' : 'Y', 'E429' : 'Z', 'E456' : '的', 'E4B5' : '一', 'E474' : '是', 'E488' : '了', 'E4D5' : '我', 'E520' : '不', 'E4D2' : '人', 'E3ED' : '在', 'E3EE' : '他', 'E557' : '有', 'E546' : '这', 'E4DB' : '个', 'E4A6' : '上', 'E3F8' : '们', 'E461' : '来', 'E4B3' : '到', 'E4E8' : '时', 'E513' : '大', 'E552' : '地', 'E4C8' : '为', 'E47F' : '子', 'E40C' : ' 中', 'E514' : '你', 'E425' : '说', 'E4B7' : '生', 'E467' : '国', 'E40A' : '年', 'E507' : '着', 'E47A' : '就', 'E491' : '那', 'E517' : '和', 'E412' : '要', 'E509' : '她', 'E510' : '出', 'E4DF' : '也', 'E478' : '得', 'E465' : '里', 'E4C3' : '后', 'E46F' : '自', 'E4C5' : '以', 'E558' : '会', 'E4E6' : '家', 'E496' : '可', 'E54E' : '下', 'E4C2' : '而', 'E480' : '过', 'E531' : '天', 'E4F4' : '去', 'E3EF' : '能', 'E4DA' : '对', 'E4C1' : '小', 'E404' : '多', 'E4F2' : '然', 'E40F' : '于', 'E46D' : '心', 'E4D0' : '学', 'E485' : '么', 'E4CF' : '之', 'E548' : '都', 'E475' : '好', 'E50F' : '看', 'E542' : '起', 'E4E7' : '发', 'E4ED' : '当', 'E48F' : '没', 'E4B6' : '成', 'E51D' : '只', 'E49E' : '如', 'E540' : '事', 'E53B' : '把', 'E4E4' : '还', 'E54A' : '用', 'E44E' : '第', 'E51B' : '样', 'E44D' : '道', 'E4AD' : '想', 'E3EB' : '作', 'E479' : '种', 'E4BC' : '开', 'E42B' : '美', 'E527' : '总', 'E52F' : '从', 'E470' : '无', 'E4F9' : '情', 'E41E' : '己', 'E416' : '面', 'E51F' : '最', 'E451' : '女', 'E4BA' : '但', 'E49A' : '现', 'E466' : '前', 'E468' : '些', 'E486' : '所', 'E414' : '同', 'E4C0' : '日', 'E545' : '手', 'E54F' : '又', 'E42D' : '行', 'E47B' : '意', 'E400' : '动', 'E418' : '方', 'E428' : '期', 'E448' : '它', 'E53F' : '头', 'E499' : '经', 'E4AB' : '长', 'E45B' : '儿', 'E45F' : '回', 'E4CE' : '位', 'E417' : '分', 'E528' : '爱', 'E4F7' : '老', 'E4E5' : '因', 'E4A5' : '很', 'E42E' : '给', 'E489' : '名', 'E54B' : '法', 'E444' : '间', 'E498' : '斯', 'E52C' : '知', 'E422' : '世', 'E41A' : '什', 'E432' : '两', 'E409' : '次', 'E44C' : '使', 'E529' : '身', 'E3FF' : '者', 'E4DC' : '被', 'E3FB' : '高', 'E450' : '已', 'E4F8' : '亲', 'E401' : '其', 'E521' : '进', 'E43B' : '此', 'E4AE' : '话', 'E442' : '常', 'E519' : '与', 'E3FE' : '活', 'E3F7' : '正', 'E50D' : '感', 'E446' : '见', 'E49C' : '明', 'E45E' : '问', 'E503' : '力', 'E500' : '理', 'E3FD' : '尔', 'E543' : '点', 'E430' : '文', 'E4C7' : '几', 'E443' : '定', 'E41D' : '本', 'E4F5' : '公', 'E40E' : '特', 'E524' : '做', 'E42A' : '外', 'E447' : '孩', 'E511' : '相', 'E4A9' : '西', 'E559' : '果', 'E49F' : '走', 'E431' : '将', 'E4A8' : '月', 'E410' : '十', 'E50B' : '实', 'E439' : '向', 'E3FA' : '声', 'E494' : '车', 'E3FC' : '全', 'E4B8' : '信', 'E4D9' : '重', 'E4C6' : '三', 'E4B1' : '机', 'E50A' : '工', 'E506' : '物', 'E441' : '气', 'E493' : '每', 'E3F0' : '并', 'E4DD' : '别', 'E544' : '真', 'E440' : '打', 'E4FB' : '太', 'E51C' : '新', 'E4F0' : '比', 'E3F6' : '才', 'E51E' : '便', 'E4AC' : '夫', 'E41B' : '再', 'E4E0' : '书', 'E490' : '部', 'E44F' : '水', 'E43A' : '像', 'E48E' : '眼', 'E421' : '等', 'E4FA' : '体', 'E476' : '却', 'E52E' : '加', 'E4FF' : ' 电', 'E402' : '主', 'E549' : '界', 'E49B' : '门', 'E55A' : '利', 'E4B0' : '海', 'E48B' : '受', 'E535' : '听', 'E483' : '表', 'E4EC' : '德', 'E43E' : '少', 'E3F5' : '克', 'E473' : '代', 'E4CC' : '员', 'E433' : '许', 'E4E1' : '稜', 'E47C' : '先', 'E3EC' : '口', 'E537' : '由', 'E4CB' : '死', 'E43D' : '安', 'E4E3' : '写', 'E459' : '性', 'E4BF' : '马', 'E472' : '光', 'E43C' : '白', 'E4EA' : '或', 'E4EB' : '住', 'E547' : '难', 'E405' : '望', 'E41C' : '教', 'E4A0' : '命', 'E445' : '花', 'E41F' : '结', 'E4D7' : '乐', 'E50C' : '色', 'E504' : '更', 'E505' : '拉', 'E4BE' : '东', 'E460' : '神', 'E50E' : '记', 'E54D' : '处', 'E53A' : '让', 'E526' : '母', 'E4BB' : '父', 'E438' : '应', 'E449' : '直', 'E3F9' : '字', 'E536' : '场', 'E46E' : '平', 'E403' : '报', 'E435' : '友', 'E458' : '关', 'E406' : '放', 'E541' : '至', 'E434' : '张', 'E4C9' : '认', 'E487' : '接', 'E551' : '告', 'E411' : '入', 'E4B9' : '笑', 'E4BD' : '内', 'E437' : '英', 'E471' : '军', 'E515' : '候', 'E55B' : '民', 'E556' : '岁', 'E52D' : '往', 'E43F' : '何', 'E495' : '度', 'E452' : '山', 'E4F1' : '觉', 'E512' : '路', 'E4C4' : '带', 'E4FD' : '万', 'E413' : '男', 'E539' : '边', 'E44A' : '风', 'E453' : '解', 'E45A' : '叫', 'E53C' : '任', 'E48A' : '金', 'E538' : '快', 'E508' : '原', 'E4F3' : '吃', 'E45D' : '妈', 'E4AF' : '变', 'E457' : '通', 'E52A' : '师', 'E47D' : '立', 'E4D8' : '象', 'E44B' : '数', 'E464' : '四', 'E502' : '失', 'E48D' : '满', 'E4A4' : '战', 'E4D1' : '远', 'E525' : '格', 'E3F2' : '士', 'E4D3' : '音', 'E52B' : '轻', 'E4CD' : '目', 'E53E' : '条', 'E4D4' : '呢', };
+    const fontMapFanqieSearch = { 'E436': '0', 'E420': '1', 'E516': '2', 'E40D': '3', 'E3F3': '4', 'E553': '5', 'E4A2': '6', 'E4AA': '7', 'E53D': '8', 'E42F': '9', 'E4F6': 'a', 'E4FC': 'b', 'E477': 'c', 'E454': 'd', 'E532': 'e', 'E4A7': 'f', 'E426': 'g', 'E407': 'h', 'E4E9': 'i', 'E482': 'j', 'E554': 'k', 'E46B': 'l', 'E492': 'm', 'E54C': 'n', 'E4EE': 'o', 'E51A': 'p', 'E4D6': 'q', 'E523': 'r', 'E3E9': 's', 'E555': 't', 'E427': 'u', 'E46A': 'v', 'E408': 'w', 'E4B2': 'x', 'E4A1': 'y', 'E47E': 'z', 'E46C': 'A', 'E3F1': 'B', 'E4FE': 'C', 'E4E2': 'D', 'E4A3': 'E', 'E4DE': 'F', 'E415': 'G', 'E533': 'H', 'E4EF': 'I', 'E48C': 'J', 'E419': 'K', 'E45C': 'L', 'E42C': 'M', 'E423': 'N', 'E469': 'O', 'E455': 'P', 'E550': 'Q', 'E497': 'R', 'E462': 'S', 'E522': 'T', 'E3F4': 'U', 'E49D': 'V', 'E4B4': 'W', 'E4CA': 'X', 'E481': 'Y', 'E429': 'Z', 'E456': '的', 'E4B5': '一', 'E474': '是', 'E488': '了', 'E4D5': '我', 'E520': '不', 'E4D2': '人', 'E3ED': '在', 'E3EE': '他', 'E557': '有', 'E546': '这', 'E4DB': '个', 'E4A6': '上', 'E3F8': '们', 'E461': '来', 'E4B3': '到', 'E4E8': '时', 'E513': '大', 'E552': '地', 'E4C8': '为', 'E47F': '子', 'E40C': ' 中', 'E514': '你', 'E425': '说', 'E4B7': '生', 'E467': '国', 'E40A': '年', 'E507': '着', 'E47A': '就', 'E491': '那', 'E517': '和', 'E412': '要', 'E509': '她', 'E510': '出', 'E4DF': '也', 'E478': '得', 'E465': '里', 'E4C3': '后', 'E46F': '自', 'E4C5': '以', 'E558': '会', 'E4E6': '家', 'E496': '可', 'E54E': '下', 'E4C2': '而', 'E480': '过', 'E531': '天', 'E4F4': '去', 'E3EF': '能', 'E4DA': '对', 'E4C1': '小', 'E404': '多', 'E4F2': '然', 'E40F': '于', 'E46D': '心', 'E4D0': '学', 'E485': '么', 'E4CF': '之', 'E548': '都', 'E475': '好', 'E50F': '看', 'E542': '起', 'E4E7': '发', 'E4ED': '当', 'E48F': '没', 'E4B6': '成', 'E51D': '只', 'E49E': '如', 'E540': '事', 'E53B': '把', 'E4E4': '还', 'E54A': '用', 'E44E': '第', 'E51B': '样', 'E44D': '道', 'E4AD': '想', 'E3EB': '作', 'E479': '种', 'E4BC': '开', 'E42B': '美', 'E527': '总', 'E52F': '从', 'E470': '无', 'E4F9': '情', 'E41E': '己', 'E416': '面', 'E51F': '最', 'E451': '女', 'E4BA': '但', 'E49A': '现', 'E466': '前', 'E468': '些', 'E486': '所', 'E414': '同', 'E4C0': '日', 'E545': '手', 'E54F': '又', 'E42D': '行', 'E47B': '意', 'E400': '动', 'E418': '方', 'E428': '期', 'E448': '它', 'E53F': '头', 'E499': '经', 'E4AB': '长', 'E45B': '儿', 'E45F': '回', 'E4CE': '位', 'E417': '分', 'E528': '爱', 'E4F7': '老', 'E4E5': '因', 'E4A5': '很', 'E42E': '给', 'E489': '名', 'E54B': '法', 'E444': '间', 'E498': '斯', 'E52C': '知', 'E422': '世', 'E41A': '什', 'E432': '两', 'E409': '次', 'E44C': '使', 'E529': '身', 'E3FF': '者', 'E4DC': '被', 'E3FB': '高', 'E450': '已', 'E4F8': '亲', 'E401': '其', 'E521': '进', 'E43B': '此', 'E4AE': '话', 'E442': '常', 'E519': '与', 'E3FE': '活', 'E3F7': '正', 'E50D': '感', 'E446': '见', 'E49C': '明', 'E45E': '问', 'E503': '力', 'E500': '理', 'E3FD': '尔', 'E543': '点', 'E430': '文', 'E4C7': '几', 'E443': '定', 'E41D': '本', 'E4F5': '公', 'E40E': '特', 'E524': '做', 'E42A': '外', 'E447': '孩', 'E511': '相', 'E4A9': '西', 'E559': '果', 'E49F': '走', 'E431': '将', 'E4A8': '月', 'E410': '十', 'E50B': '实', 'E439': '向', 'E3FA': '声', 'E494': '车', 'E3FC': '全', 'E4B8': '信', 'E4D9': '重', 'E4C6': '三', 'E4B1': '机', 'E50A': '工', 'E506': '物', 'E441': '气', 'E493': '每', 'E3F0': '并', 'E4DD': '别', 'E544': '真', 'E440': '打', 'E4FB': '太', 'E51C': '新', 'E4F0': '比', 'E3F6': '才', 'E51E': '便', 'E4AC': '夫', 'E41B': '再', 'E4E0': '书', 'E490': '部', 'E44F': '水', 'E43A': '像', 'E48E': '眼', 'E421': '等', 'E4FA': '体', 'E476': '却', 'E52E': '加', 'E4FF': ' 电', 'E402': '主', 'E549': '界', 'E49B': '门', 'E55A': '利', 'E4B0': '海', 'E48B': '受', 'E535': '听', 'E483': '表', 'E4EC': '德', 'E43E': '少', 'E3F5': '克', 'E473': '代', 'E4CC': '员', 'E433': '许', 'E4E1': '稜', 'E47C': '先', 'E3EC': '口', 'E537': '由', 'E4CB': '死', 'E43D': '安', 'E4E3': '写', 'E459': '性', 'E4BF': '马', 'E472': '光', 'E43C': '白', 'E4EA': '或', 'E4EB': '住', 'E547': '难', 'E405': '望', 'E41C': '教', 'E4A0': '命', 'E445': '花', 'E41F': '结', 'E4D7': '乐', 'E50C': '色', 'E504': '更', 'E505': '拉', 'E4BE': '东', 'E460': '神', 'E50E': '记', 'E54D': '处', 'E53A': '让', 'E526': '母', 'E4BB': '父', 'E438': '应', 'E449': '直', 'E3F9': '字', 'E536': '场', 'E46E': '平', 'E403': '报', 'E435': '友', 'E458': '关', 'E406': '放', 'E541': '至', 'E434': '张', 'E4C9': '认', 'E487': '接', 'E551': '告', 'E411': '入', 'E4B9': '笑', 'E4BD': '内', 'E437': '英', 'E471': '军', 'E515': '候', 'E55B': '民', 'E556': '岁', 'E52D': '往', 'E43F': '何', 'E495': '度', 'E452': '山', 'E4F1': '觉', 'E512': '路', 'E4C4': '带', 'E4FD': '万', 'E413': '男', 'E539': '边', 'E44A': '风', 'E453': '解', 'E45A': '叫', 'E53C': '任', 'E48A': '金', 'E538': '快', 'E508': '原', 'E4F3': '吃', 'E45D': '妈', 'E4AF': '变', 'E457': '通', 'E52A': '师', 'E47D': '立', 'E4D8': '象', 'E44B': '数', 'E464': '四', 'E502': '失', 'E48D': '满', 'E4A4': '战', 'E4D1': '远', 'E525': '格', 'E3F2': '士', 'E4D3': '音', 'E52B': '轻', 'E4CD': '目', 'E53E': '条', 'E4D4': '呢', };
     function decodeFanqieGeneralText(text, pageID) {
         let fontMap = {};
         if (pageID === "search") {
@@ -232,7 +246,6 @@
     }
 
     function unlockPageInteraction() {
-        // 1. Ghi đè CSS một cách tuyệt đối để BẮT BUỘC cho phép tô đen
         const css = '*, :after, :before { -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important; cursor: auto !important; }';
         removeElementById('tm-unlock-style');
         const style = document.createElement('style');
@@ -241,7 +254,6 @@
         style.appendChild(document.createTextNode(css));
         (document.head || document.documentElement).appendChild(style);
 
-        // 2. Vô hiệu hóa các trình xử lý sự kiện `on...` trên TOÀN BỘ trang
         const eventsToNullify = [
             'oncontextmenu', 'onselectstart', 'ondragstart', 'onmousedown', 'onkeydown'
         ];
@@ -251,8 +263,6 @@
             });
         });
 
-        // 3. Chặn đứng các sự kiện ở tầng sâu nhất (Capture Phase)
-        // Đây là bước quan trọng nhất, ngăn script của trang web nhận được sự kiện
         const eventsToStop = [
             'contextmenu', 'selectstart', 'dragstart', 'mousedown', 'keydown', 'copy', 'cut'
         ];
@@ -263,7 +273,6 @@
             document.addEventListener(event, interceptor, { capture: true });
         });
 
-        // 4. Ghi đè các hàm phổ biến dùng để khóa chuột
         try {
             if (typeof window.jQuery === 'function') {
                 window.jQuery(document).off('contextmenu');
@@ -275,10 +284,8 @@
     }
 
     function applyGlobalFontOverride() {
-        // Xóa style cũ nếu có để cập nhật
         removeElementById('tm-font-override-style');
 
-        // Chỉ chạy khi người dùng đã bật tính năng này trong cài đặt
         if (!config.overrideFontEnabled) {
             return;
         }
@@ -297,15 +304,10 @@
     }
     /* ================== DOM MANIPULATION & UI HELPERS ================== */
     function applyCopyabilityStyle() {
-        // Kiểm tra điều kiện "mạnh tay"
         if (config.nameEditingEnabled && config.allowCopyWhenEditing) {
-            // Nếu đủ điều kiện, gọi hàm unlock
             unlockPageInteraction();
         } else {
-            // Trong MỌI trường hợp khác, gỡ bỏ can thiệp
             removeElementById('tm-unlock-style');
-            // (Chúng ta không thể gỡ các event listener đã thêm một cách dễ dàng,
-            // nhưng việc gỡ bỏ CSS đã giải quyết 90% vấn đề hiển thị và hành vi)
             console.log('[tm-translate] Đã tắt chế độ can thiệp copy.');
         }
     }
@@ -323,17 +325,16 @@
     }
 
     function updateFloatingButtons() {
-        // 1. Xóa tất cả nút cũ
         removeElementById('tm-start-translate-btn');
         removeElementById('tm-edit-pencil');
         removeElementById('tm-style-button');
         removeElementById('tm-quick-translate-btn');
         removeElementById('tm-restore-original-btn');
-        removeStylePanel(); // Gỡ panel style nếu nó đang mở
+        removeElementById('tm-ocr-float-btn');
+        removeStylePanel();
 
-        let bottomOffset = 18; // Vị trí bắt đầu từ dưới lên
+        let bottomOffset = 18;
 
-        // 2. Thêm nút Bảng Dịch Nhanh (NÚT MỚI)
         if (config.showQuickTranslateButton) {
             const quickBtn = document.createElement('div');
             quickBtn.id = 'tm-quick-translate-btn';
@@ -345,12 +346,25 @@
             quickBtn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 11H7V9h2v2zm4 0h-2V9h2v2zm4 0h-2V9h2v2z"/></svg>`;
             quickBtn.addEventListener('click', showQuickTranslatePanel);
             document.body.appendChild(quickBtn);
-            bottomOffset += 64; // 48px (chiều cao nút) + 16px (khoảng cách)
+            document.body.appendChild(quickBtn);
+            bottomOffset += 64;
         }
 
-        // 3. Thêm nút Dịch Trang hoặc Sửa Tên (Nút cũ)
+        if (config.showOcrButton) {
+            const ocrBtn = document.createElement('div');
+            ocrBtn.id = 'tm-ocr-float-btn';
+            ocrBtn.className = 'tm-float-btn';
+            ocrBtn.title = 'OCR Vùng chọn (Dịch hình ảnh)';
+            ocrBtn.style.right = '18px';
+            ocrBtn.style.bottom = `${bottomOffset}px`;
+            ocrBtn.style.backgroundColor = '#17a2b8'; // Teal
+            ocrBtn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2-2v-2"/><path d="M10 10l4 4m0-4l-4 4"/></svg>`;
+            ocrBtn.addEventListener('click', activateAreaSelectionMode);
+            document.body.appendChild(ocrBtn);
+            bottomOffset += 64;
+        }
+
         if (!translatedBodyClone && config.showStartButton) {
-            // Nút "Dịch" (màu xanh lá)
             const startBtn = document.createElement('div');
             startBtn.id = 'tm-start-translate-btn';
             startBtn.className = 'tm-float-btn';
@@ -383,7 +397,6 @@
             bottomOffset += 64;
         }
 
-        // 3.5. Nút quay về trang gốc sau khi dịch (không áp dụng cho chế độ rút gọn)
         if (translatedBodyClone && !simplifiedActive && config.showRestoreButton !== false) {
             const restoreBtn = document.createElement('div');
             restoreBtn.id = 'tm-restore-original-btn';
@@ -397,7 +410,6 @@
             document.body.appendChild(restoreBtn);
         }
 
-        // 4. Thêm nút Style (nếu đang ở chế độ rút gọn)
         if (simplifiedActive) {
             const styleBtn = document.createElement('div');
             styleBtn.id = 'tm-style-button';
@@ -473,7 +485,6 @@
         } catch (e) { /* ignore */ }
     });
 
-    // Delegated handler cho nút edit-style — paste vào cuối file
     document.addEventListener('click', function delegatedEditStyle(e) {
         const btn = e.target.closest('.tm-edit-style-btn') || e.target.closest('#editStyleBtn') || e.target.closest('[data-tm-action="edit-style"]');
         if (!btn) return;
@@ -481,7 +492,6 @@
         e.preventDefault();
         e.stopPropagation();
 
-        // restore selection nếu bị mất khi click
         try {
             const sel = window.getSelection();
             if ((!sel || sel.toString().trim().length === 0) && window._lastSelectionSnapshot) {
@@ -491,13 +501,12 @@
             }
         } catch (err) { /* ignore */ }
 
-        // danh sách tên hàm có thể là handler chỉnh style trong script của bạn
         const candidateFns = [
             'openEditStyleModal',
             'openStyleModal',
             'openStyleEditor',
             'openEditModalForStyle',
-            'openEditModalForSelection', // fallback nếu dùng chung
+            'openEditModalForSelection',
         ];
 
         let called = false;
@@ -513,7 +522,6 @@
         }
 
         if (!called) {
-            // fallback: emit custom event để script khác lắng nghe (không gây lỗi)
             const ev = new CustomEvent('tm:edit-style-clicked', { detail: { button: btn } });
             document.dispatchEvent(ev);
             console.warn('Không tìm thấy hàm edit-style; phát event tm:edit-style-clicked để lắng nghe thay thế.');
@@ -687,9 +695,6 @@
                                 throw new Error("Server response 'content' was not a string.");
                             }
 
-                            // ** SỬA LỖI: Dọn dẹp chuỗi JSON trước khi parse **
-                            // 1. Loại bỏ các ký tự điều khiển ASCII không hợp lệ (0-31) ngoại trừ tab, newline...
-                            // 2. Thay thế các dấu \ đơn lẻ (nguyên nhân chính gây lỗi) bằng \\
                             const sanitizedString = translatedContentString
                                 .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
                                 .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
@@ -764,10 +769,8 @@
                             .replace(/'/g, '"')
                             .trim();
 
-                        console.log(sanitizedContent);
                         let parsed = [];
                         parsed = JSON.parse(`[${sanitizedContent}]`);
-                        console.log(parsed);
 
                         resolve(parsed);
                     } catch (e) {
@@ -801,7 +804,6 @@
     }
 
     function highlightNamesInText(translatedText, nameSet) {
-        // Tạo một bản đồ từ tên Tiếng Việt (viết thường) sang tên gốc Tiếng Trung.
         const vietToOrigMap = {};
         for (const orig in nameSet) {
             const vietName = nameSet[orig];
@@ -810,34 +812,24 @@
             }
         }
 
-        // Lấy danh sách các tên Việt để tạo regex
         const vietNames = Object.keys(vietToOrigMap);
         if (vietNames.length === 0) {
-            return escapeHtml(translatedText); // Nếu không có tên nào thì trả về luôn
+            return escapeHtml(translatedText);
         }
 
-        // Tạo một regex lớn duy nhất để tìm bất kỳ tên nào trong danh sách
-        // Ví dụ: /(Hạ Xuyên|Lý Mộc|...)/gi
         const namePattern = vietNames
             .map(name => name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'))
             .join('|');
         const regex = new RegExp(`(${namePattern})`, 'gi');
 
-        // Dùng hàm replace với một callback function.
-        // Đây là cách để giữ lại định dạng viết hoa của văn bản gốc.
         return escapeHtml(translatedText).replace(regex, (matchedText) => {
-            // matchedText là văn bản tìm được, ví dụ: "Xinh đẹp người chủ trì"
-            // Ta chuyển nó về chữ thường để tra cứu trong bản đồ
             const lowerCaseMatch = matchedText.toLowerCase();
             const origName = vietToOrigMap[lowerCaseMatch];
 
             if (origName) {
-                // Ta tạo thẻ span nhưng nội dung bên trong là matchedText,
-                // giữ nguyên việc nó được viết hoa.
                 return `<span class="tm-name" data-orig="${escapeHtml(origName)}">${matchedText}</span>`;
             }
 
-            // Nếu không tìm thấy (trường hợp hiếm), trả về nguyên bản
             return matchedText;
         });
     }
@@ -846,12 +838,10 @@
 
     function tokenizeString(str) {
         if (!str) return [];
-        // Regex này giờ sẽ chỉ coi những thứ như emoji hoặc ký tự lạ là "special".
         const specialCharsRegex = /([^a-zA-Z0-9\u4e00-\u9fa5\s。，、？！：；“”‘’（）《》]+)/g;
         const parts = str.split(specialCharsRegex).filter(Boolean);
         const tokens = [];
         for (const part of parts) {
-            // Dùng test() trên regex gốc để đảm bảo phân loại đúng
             if (/([^a-zA-Z0-9\u4e00-\u9fa5\s。，、？！：；“”‘’（）《》]+)/.test(part)) {
                 tokens.push({ type: 'special', value: part });
             } else {
@@ -880,26 +870,30 @@
                 } else {
                     result += token.value;
                 }
-            } else { 
+            } else {
                 result += token.value;
             }
         }
         return result;
     }
 
-    async function translatePanelText(fullInput) {
-        config = loadConfig(); // Đảm bảo config mới nhất
+    async function translatePanelText(fullInput, returnType = 'html') {
+        config = loadConfig();
         const nameSet = config.nameSets[config.activeNameSet] || {};
         const nameReplacer = buildNameSetReplacer(nameSet);
-        const placeholderMap = {}; // Một map cho toàn bộ lần dịch này
+        const placeholderMap = {};
 
-        // 1. Tách input thành các đoạn (giống như các thẻ <p>)
-        const paragraphs = fullInput.split(/\r?\n/).filter(Boolean);
+        const paragraphs = fullInput.split(/\r?\n/);
         const textsToSend = [];
-        const chunks = []; // Mảng để lưu cấu trúc đoạn văn
+        const chunks = [];
 
         for (const para of paragraphs) {
-            const decodedText = para; // Text thô, không cần giải mã
+            if (!para.trim()) {
+                chunks.push({ isEmpty: true });
+                continue;
+            }
+
+            const decodedText = para;
             const tokens = tokenizeString(decodedText);
             const textsForThisPara = [];
 
@@ -911,13 +905,11 @@
             });
 
             textsToSend.push(...textsForThisPara);
-            // Lưu lại cấu trúc của đoạn này để ráp lại sau
             chunks.push({ original: para, tokens: tokens, numTextTokens: textsForThisPara.length });
         }
 
-        if (textsToSend.length === 0) return '<p style="color:#888;">Không có gì để dịch.</p>';
+        if (textsToSend.length === 0) return returnType === 'html' ? '<p style="color:#888;">Không có gì để dịch.</p>' : '';
 
-        // 2. Chia batch và Gửi dịch (copy y hệt từ startTranslateAction)
         const batches = splitIntoBatches(textsToSend, config.maxCharsPerRequest);
         let allTranslatedTexts = [];
 
@@ -934,31 +926,35 @@
             }
         }
 
-        // 3. Ráp kết quả lại
         let translationIdx = 0;
-        let finalHtml = '';
+        let finalResult = '';
+        let resultArray = [];
 
         for (const chunk of chunks) {
-            // Lấy đúng số lượng text đã dịch cho đoạn này
-            const translatedParts = allTranslatedTexts.slice(translationIdx, translationIdx + chunk.numTextTokens);
-            // Ráp các text đặc biệt + text đã dịch lại
-            const reassembledText = reassembleTranslatedString(chunk.tokens, translatedParts);
+            if (chunk.isEmpty) {
+                if (returnType === 'html') finalResult += '<p><br></p>';
+                else resultArray.push(''); // Dòng trống
+                continue;
+            }
 
-            // Khôi phục name
+            const translatedParts = allTranslatedTexts.slice(translationIdx, translationIdx + chunk.numTextTokens);
+            const reassembledText = reassembleTranslatedString(chunk.tokens, translatedParts);
             const finalRestoredText = restoreNames(reassembledText, placeholderMap);
             const capitalizedText = capitalizeFirstLetter(finalRestoredText);
 
-            // Highlight name và bọc bằng .tm-chunk để sửa tên
-            const highlightedHtml = highlightNamesInText(capitalizedText, nameSet);
-            const chunkHtml = `<span class="tm-chunk" data-orig="${escapeHtml(chunk.original)}">${highlightedHtml}</span>`;
-
-            // Bọc mỗi đoạn trong thẻ <p>
-            finalHtml += `<p>${chunkHtml}</p>`;
+            if (returnType === 'html') {
+                const highlightedHtml = highlightNamesInText(capitalizedText, nameSet);
+                const chunkHtml = `<span class="tm-chunk" data-orig="${escapeHtml(chunk.original)}">${highlightedHtml}</span>`;
+                finalResult += `<p>${chunkHtml}</p>`;
+            } else {
+                // Với text thuần, ta chỉ lấy text đã xử lý name, không highlight HTML
+                resultArray.push(capitalizedText);
+            }
 
             translationIdx += chunk.numTextTokens;
         }
 
-        return finalHtml;
+        return returnType === 'html' ? finalResult : resultArray.join('\n');
     }
 
     async function startTranslateAction() {
@@ -1232,27 +1228,21 @@
 
             const originalTextToShow = item.decodedOriginal || item.original;
 
-            // Luôn chuẩn hóa bản dịch trước
             const finalTranslatedText = capitalizeFirstLetter((item.translated || '').trim());
 
             let p = document.createElement('p');
-            let finalContent; // Đây sẽ là node cuối cùng được chèn vào <p> hoặc <a>
+            let finalContent;
 
             if (showOriginal) {
-                // Nếu hiển thị bản gốc, chỉ chèn text đã được escape
                 finalContent = document.createTextNode(originalTextToShow);
             } else {
-                // Nếu hiển thị bản dịch...
                 if (config.nameEditingEnabled) {
-                    // ...và chế độ sửa tên BẬT:
                     const chunkSpan = document.createElement('span');
                     chunkSpan.className = 'tm-chunk';
                     chunkSpan.dataset.orig = originalTextToShow;
-                    // Nội dung bên trong là bản dịch đã được highlight name
                     chunkSpan.innerHTML = highlightNamesInText(finalTranslatedText, nameSet);
                     finalContent = chunkSpan;
                 } else {
-                    // ...và chế độ sửa tên TẮT:
                     finalContent = document.createTextNode(finalTranslatedText);
                 }
             }
@@ -1286,9 +1276,7 @@
 
         if (config.simplifiedBlockJS) {
             console.log('[tm-translate] Chặn JS được bật. Đang dọn dẹp script và event...');
-            // Xóa tất cả các thẻ script trên toàn bộ trang
             document.querySelectorAll('script, iframe').forEach(el => el.remove());
-            // Vô hiệu hóa tất cả các event handler inline
             const allElements = document.querySelectorAll('*');
             allElements.forEach(el => {
                 for (const attr of el.attributes) {
@@ -1299,18 +1287,15 @@
             });
         }
 
-        // Dọn dẹp head của trang gốc
         document.head.querySelectorAll('link[rel="stylesheet"], style').forEach(el => {
             if (!el.src?.includes('tampermonkey') && !el.id.startsWith('tm-')) {
                 el.remove();
             }
         });
 
-        // 2. Cài lại CSS toàn cục của script để đảm bảo giao diện không bị hỏng
         injectGlobalCSS();
         const cleanContentHtml = buildSimplifiedHtml(lastTranslationState.items);
 
-        // 3. Tạo lại trang rút gọn
         document.body.innerHTML = '';
         document.body.className = '';
         document.body.innerHTML = `
@@ -1333,19 +1318,16 @@
     function applySimplifiedStyle() {
         const s = config.simplifiedStyle;
 
-        // Áp dụng trực tiếp các style nền lên các thẻ gốc
         document.documentElement.style.backgroundColor = s.bgColor;
         document.body.style.backgroundColor = s.bgColor;
         document.body.style.color = s.textColor;
         document.body.style.margin = '0';
         document.body.style.padding = '0';
 
-        // Xóa thẻ style động cũ nếu có để tránh trùng lặp
         removeElementById('tm-simplified-dynamic-style');
 
         const linkColor = s.bgColor.includes('292a2d') ? '#79c0ff' : '#0056b3';
 
-        // *** CSS MỚI: Ghi đè mạnh mẽ hơn để đảm bảo style được áp dụng ***
         const dynamicCSS = `
         #tm-simplified-container {
             padding: 30px 5% !important;
@@ -1415,7 +1397,6 @@
         location.reload();
         //}
     }
-    // --- KẾT THÚC THAY THẾ KHU VỰC SIMPLIFIED VIEW ---
 
     /* ================== AUTO TRANSLATE NEW CONTENT ================== */
 
@@ -1477,7 +1458,7 @@
                     if (parent && parent.nodeType === 1) {
                         parent.setAttribute('title', `Dịch từ: ${it.decodedOriginal.trim()}`);
                     }
-                    
+
                     if (isLinkElement) {
                         // Nếu it.node là thẻ <a>, thay thế nội dung HTML của nó
                         it.node.innerHTML = highlightedHtml;
@@ -1561,8 +1542,6 @@
                 translationCache[item.decodedOriginal] = '';
             });
 
-            // Các bước còn lại (batch, post, reassemble) không thay đổi
-
             const batches = splitIntoBatches(textsToSend, config.maxCharsPerRequest);
             let allTranslatedTexts = [];
             if (config.translationMode === 'local') {
@@ -1572,7 +1551,6 @@
                     allTranslatedTexts.push(...translatedBatch);
                 }
             } else {
-                // Chế độ server (code gốc)
                 for (const batchArr of batches) {
                     const translatedBatch = await requestServerTranslation(batchArr);
                     allTranslatedTexts.push(...(translatedBatch || []));
@@ -1638,6 +1616,8 @@
         }
     }
     /* ================== EDIT MODAL & HELPERS ================== */
+    const yieldUI = () => new Promise(r => setTimeout(r, 0));
+
     function findDataOrigFromSelectionRange(range) {
         if (!range) return null;
         let container = range.commonAncestorContainer;
@@ -1657,6 +1637,7 @@
         const wrapper = document.createElement('div');
         wrapper.id = 'tm-edit-modal';
         wrapper.className = 'tm-modal-wrapper';
+        wrapper.style.zIndex = '2147483660'; // Ensure above OCR modal (usually ~650)
 
         wrapper.innerHTML = `
         <div class="tm-modal-backdrop"></div>
@@ -1713,10 +1694,8 @@
                 const key = origInput.value.trim();
                 const value = vietInput.value.trim();
 
-                // 1. Lấy "ảnh chụp" của name-set TRƯỚC KHI thay đổi
                 const oldNameSetSnapshot = JSON.parse(JSON.stringify(config.nameSets[setName] || {}));
 
-                // 2. Thực hiện thay đổi
                 if (action === 'add' || action === 'save') {
                     if (!key || !value) {
                         alert('Không được để trống.');
@@ -1728,14 +1707,10 @@
                     delete config.nameSets[setName][key];
                 }
 
-                // 3. Lưu config và đóng modal
                 saveConfig(config);
                 close();
 
-                // 4. Lấy name-set MỚI SAU KHI thay đổi
                 const newNameSet = config.nameSets[setName] || {};
-
-                // 5. Gọi hàm cập nhật thông minh với đầy đủ tham số
                 await applyNameChangeLive(newNameSet, oldNameSetSnapshot);
             };
 
@@ -1762,23 +1737,19 @@
     function findChunkFromRange(range) {
         if (!range) return null;
 
-        // Bắt đầu với node cụ thể nhất trong vùng chọn
         let node = range.startContainer;
 
-        // Nếu là text node, bắt đầu tìm kiếm từ thẻ cha của nó
         if (node.nodeType === 3) {
             node = node.parentElement;
         }
         if (!node) return null;
 
-        // Ưu tiên tìm thẻ name cụ thể, sau đó mới đến khối dịch lớn
         const nameSpan = node.closest('span.tm-name');
         if (nameSpan) return nameSpan;
 
         const chunkSpan = node.closest('span.tm-chunk');
         if (chunkSpan) return chunkSpan;
 
-        // Fallback: Kiểm tra thẻ cha chung nếu vùng chọn phức tạp
         const ancestor = range.commonAncestorContainer;
         if (ancestor && ancestor.nodeType === 1) {
             if (ancestor.matches('span.tm-chunk')) return ancestor;
@@ -1819,14 +1790,13 @@
 
     async function buildHanVietFromMap(chinese, map) {
         if (!map || !chinese) return '';
-        // Xử lý đa âm, lấy âm đầu tiên
         return Array.from(chinese).map(c => (map[c] || c).split('/')[0]).join(' ');
     }
 
     function progressiveCapitalizations(s) {
         const words = s.split(/\s+/).filter(Boolean);
         if (words.length === 0) return [];
-        const lines = [words.join(' ').toLowerCase()]; // Dòng đầu không in hoa
+        const lines = [words.join(' ').toLowerCase()];
         for (let i = 1; i <= words.length; i++) {
             const arr = words.map((w, idx) => (idx < i ? (w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()) : w.toLowerCase()));
             lines.push(arr.join(' '));
@@ -1839,7 +1809,7 @@
         const wrapper = document.createElement('div');
         wrapper.id = 'tm-suggest-modal';
         wrapper.className = 'tm-modal-wrapper';
-        wrapper.style.zIndex = '2147483647'; // Hiển thị trên cả modal edit
+        wrapper.style.zIndex = '2147483665';
 
         wrapper.innerHTML = `
         <div class="tm-modal-backdrop"></div>
@@ -1870,7 +1840,6 @@
         wrapper.querySelector('.tm-modal-backdrop').addEventListener('click', close);
         wrapper.querySelector('#tm-suggest-close').addEventListener('click', close);
 
-        // Xử lý cột gợi ý từ server
         const currentCol = wrapper.querySelector('#tm-suggest-current-col');
         currentCol.innerHTML = "<p>Đang tải gợi ý...</p>";
         (async () => {
@@ -1878,23 +1847,19 @@
                 let suggestionLines = [];
                 if (config.translationMode === 'local') {
                     await initializeLocalTranslator();
-                    const suggestions = TranslateZhToVi.suggest(chinese); // Dùng hàm suggest của thư viện
+                    const suggestions = TranslateZhToVi.suggest(chinese);
                     if (suggestions && suggestions.length > 0) {
-                        // Ưu tiên gợi ý từ từ điển
                         const mainSuggestion = suggestions[0].val;
                         suggestionLines = progressiveCapitalizations(mainSuggestion);
-                        // Thêm các phương án khác nếu có
                         const alts = suggestions[0].alts.filter(alt => alt !== mainSuggestion);
                         if (alts.length > 0) {
                             suggestionLines.push(...alts.map(alt => `- ${alt}`));
                         }
                     } else {
-                        // Nếu không có gợi ý, dịch chay
                         const translatedText = TranslateZhToVi.translateSentence(chinese);
                         suggestionLines = progressiveCapitalizations(translatedText);
                     }
                 } else {
-                    // Chế độ server (code gốc đã fix)
                     const translatedArray = await requestServerTranslation([chinese]);
                     const translatedText = translatedArray[0] || '';
                     if (!translatedText) throw new Error('Server đã trả về một bản dịch rỗng.');
@@ -1924,7 +1889,6 @@
             }
         })();
 
-        // Gắn listener cho các dòng gợi ý (giữ nguyên)
         wrapper.addEventListener('click', (e) => {
             if (e.target.classList.contains('tm-suggest-item')) {
                 onSelect(e.target.textContent);
@@ -1932,7 +1896,6 @@
             }
         });
 
-        // Các nút Google (giữ nguyên)
         wrapper.querySelector('#tm-suggest-google-search').addEventListener('click', () => {
             const q = encodeURIComponent(chinese);
             if (q) GM_openInTab(`https://www.google.com/search?q=${q}`);
@@ -1954,20 +1917,14 @@
             stopAutoTranslateObserver();
             const sourceBody = originalBodyElement || originalBodyClone;
             const restoredBody = originalBodyElement ? sourceBody : sourceBody.cloneNode(true);
-            // 1. Khôi phục lại body gốc từ bản sao
             document.body.replaceWith(restoredBody);
             originalBodyElement = restoredBody;
             originalBodyClone = restoredBody.cloneNode ? restoredBody.cloneNode(true) : restoredBody;
             console.log('[tm-translate] Đã phục hồi body gốc để dịch lại.');
-
-            // 2. Reset các trạng thái và giao diện
             lastTranslationState = null;
             translatedBodyClone = null;
             if (simplifiedActive) simplifiedActive = false;
             removeFloatingButtons();
-
-            // 3. Bắt đầu dịch lại toàn bộ trang từ đầu
-            // startTranslateAction sẽ tự động load config mới nhất
             console.log('Bắt đầu quy trình dịch lại...');
             await startTranslateAction();
         } else {
@@ -1987,7 +1944,6 @@
                 return;
             }
 
-            // --- GIAI ĐOẠN 1: THU THẬP TẤT CẢ CÁC CÂU CẦN DỊCH LẠI ---
             const textsToTranslate = [];
             const updatePlan = [];
 
@@ -2014,7 +1970,6 @@
                         translationType = 'placeholder';
                         placeholderMapForChunk = {};
                         let textWithPlaceholders = originalChinese;
-                        // Dùng newNamesInChunk để đảm bảo index đúng với ngữ cảnh câu
                         newNamesInChunk.forEach((name, index) => {
                             const placeholder = `__TM_NAME_${index}__`;
                             placeholderMapForChunk[placeholder] = { orig: name, viet: newNameSet[name] };
@@ -2042,16 +1997,13 @@
             }
             console.log(`Đã thu thập ${textsToTranslate.length} câu để dịch lại trong một lượt.`);
 
-            // --- GIAI ĐOẠN 2: GỬI ĐI DỊCH HÀNG LOẠT ---
             const allTranslatedTexts = await requestServerTranslation(textsToTranslate);
 
-            // --- GIAI ĐOẠN 3: ÁP DỤNG KẾT QUẢ ---
             updatePlan.forEach(plan => {
                 let translatedText = allTranslatedTexts[plan.translationIndex];
                 if (!translatedText) return;
 
                 if (plan.translationType === 'placeholder') {
-                    // *** SỬA ĐỔI: Sử dụng bản đồ đã lưu, không tạo lại nữa ***
                     translatedText = restoreNames(translatedText, plan.placeholderMap);
                 } else {
                     translationCache[plan.originalChinese] = translatedText;
@@ -2073,6 +2025,7 @@
         }
     }
     /* ================== HAN-VIET & NAME HELPERS ================== */
+
     async function loadHanVietJson() {
         if (hanvietMap) return hanvietMap;
         const url = config.hanvietJsonUrl.trim();
@@ -2194,7 +2147,6 @@
             config.simplifiedShowOriginal = panel.querySelector('#tm-style-view').value === 'original';
             saveConfig(config);
             if (simplifiedActive) {
-                // Cập nhật lại nội dung và style
                 const newContent = buildSimplifiedHtml(lastTranslationState.items);
                 const contentDiv = document.getElementById('tm-simplified-content');
                 if (contentDiv) {
@@ -2333,9 +2285,178 @@
             }
         });
     }
+    // --- Global Local Dict Logic (Refactored for OCR Access) ---
+    var localDictState = {
+        currentPage: 1,
+        itemsPerPage: 100,
+        filter: '',
+        dictKey: 'nameRaw',
+        filteredKeys: []
+    };
+
+    function buildBucketsFromDict(dictObj) {
+        const buckets = Object.create(null);
+        let maxLen = 0;
+        for (const k of Object.keys(dictObj)) {
+            const len = k.length; if (len === 0) continue;
+            if (!buckets[len]) buckets[len] = Object.create(null);
+            buckets[len][k] = dictObj[k];
+            if (len > maxLen) maxLen = len;
+        }
+        return { buckets, maxLen };
+    }
+
+    async function saveLocalDictChanges(dictKeyToUpdate) {
+        try {
+            const dictData = window.TranslateZhToVi._raw[dictKeyToUpdate];
+            if (dictKeyToUpdate === 'nameRaw') {
+                window.TranslateZhToVi._idx.nameIdx = buildBucketsFromDict(dictData);
+            } else if (dictKeyToUpdate === 'vpRaw') {
+                window.TranslateZhToVi._idx.vpIdx = buildBucketsFromDict(dictData);
+            } else if (dictKeyToUpdate === 'hvRaw') {
+                window.TranslateZhToVi._idx.hvDict = dictData;
+            }
+
+            // Trigger save
+            const DUMMY_KEY = '__TM_TRANSLATE_TRIGGER_SAVE__';
+            window.TranslateZhToVi.addEntry('name', DUMMY_KEY, '');
+            delete window.TranslateZhToVi._raw.nameRaw[DUMMY_KEY];
+            window.TranslateZhToVi.addEntry('name', DUMMY_KEY, '');
+            delete window.TranslateZhToVi._raw.nameRaw[DUMMY_KEY];
+            console.log(`Từ điển ${dictKeyToUpdate} đã được lưu vào cache.`);
+            return true;
+        } catch (e) {
+            alert('Lưu từ điển vào cache thất bại. Lỗi: ' + e.message);
+            return false;
+        }
+    }
+
+    function renderLocalDictPage() {
+        const localDictResults = document.getElementById('tm-local-dict-results');
+        const pageInfo = document.getElementById('tm-local-page-info');
+        const prevBtn = document.getElementById('tm-local-prev-btn');
+        const nextBtn = document.getElementById('tm-local-next-btn');
+
+        if (!localDictResults || !pageInfo) return; // UI not open
+
+        const dictData = window.TranslateZhToVi._raw[localDictState.dictKey];
+        if (!dictData) {
+            localDictResults.innerHTML = `<p style="color: #888; padding: 10px;">Không có dữ liệu cho từ điển này.</p>`;
+            return;
+        }
+
+        // Search/Filter Logic
+        if (localDictState.filter) {
+            const filterLower = localDictState.filter.toLowerCase();
+            localDictState.filteredKeys = Object.keys(dictData).filter(k => k.toLowerCase().includes(filterLower));
+        } else {
+            localDictState.filteredKeys = Object.keys(dictData);
+        }
+
+        const totalItems = localDictState.filteredKeys.length;
+        const totalPages = Math.ceil(totalItems / localDictState.itemsPerPage) || 1;
+        localDictState.currentPage = Math.max(1, Math.min(localDictState.currentPage, totalPages));
+
+        const start = (localDictState.currentPage - 1) * localDictState.itemsPerPage;
+        const end = start + localDictState.itemsPerPage;
+        const pageKeys = localDictState.filteredKeys.slice(start, end);
+
+        let html = '';
+        if (pageKeys.length === 0) {
+            html = `<p style="color: #888; padding: 10px;">Không tìm thấy kết quả nào.</p>`;
+        } else {
+            pageKeys.forEach(key => {
+                const valueObj = dictData[key];
+                const valueStr = (typeof valueObj === 'object' && valueObj.val !== undefined) ? valueObj.val : String(valueObj);
+                html += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #f0f0f0;">
+                    <div style="flex-grow: 1; user-select: text;">
+                        <strong>${escapeHtml(key)}</strong> → <em>${escapeHtml(valueStr)}</em>
+                    </div>
+                    <div style="flex-shrink: 0;">
+                        <button class="tm-btn" data-action="edit" data-key="${escapeHtml(key)}" style="padding: 2px 8px; margin-right: 5px;">Sửa</button>
+                        <button class="tm-btn" data-action="delete" data-key="${escapeHtml(key)}" style="padding: 2px 8px;">Xóa</button>
+                    </div>
+                </div>`;
+            });
+        }
+        localDictResults.innerHTML = html;
+
+        pageInfo.textContent = `Trang ${localDictState.currentPage} / ${totalPages} (${totalItems} mục)`;
+        if (prevBtn) prevBtn.disabled = localDictState.currentPage === 1;
+        if (nextBtn) nextBtn.disabled = localDictState.currentPage === totalPages;
+    }
+
+    function showLocalDictEntryModal(key = '', value = '') {
+        const isAdding = !key;
+        const modalId = 'tm-local-entry-modal';
+        removeElementById(modalId);
+
+        const modalHtml = `
+        <div id="${modalId}" class="tm-modal-wrapper" style="z-index: 2147483648;">
+            <div class="tm-modal-backdrop"></div>
+            <div class="tm-modal-box" style="width: 450px;">
+                <div class="tm-modal-header"><h3>${isAdding ? 'Thêm mục mới' : 'Sửa mục'}</h3></div>
+                <div class="tm-modal-content">
+                    <label class="tm-label">Tiếng Trung</label>
+                    <input id="tm-local-key" class="tm-input" value="${escapeHtml(key)}" ${isAdding ? '' : 'disabled'}>
+                    <label class="tm-label">Tiếng Việt (các nghĩa cách nhau bằng /)</label>
+                    <input id="tm-local-value" class="tm-input" value="${escapeHtml(value)}">
+                </div>
+                <div class="tm-modal-footer">
+                    <button id="tm-local-cancel" class="tm-btn">Hủy</button>
+                    <button id="tm-local-save" class="tm-btn tm-btn-primary">Lưu</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modal = document.getElementById(modalId);
+        const valueInput = modal.querySelector('#tm-local-value');
+        const keyInput = modal.querySelector('#tm-local-key');
+
+        // Focus logic
+        setTimeout(() => {
+            if (isAdding && keyInput) keyInput.focus();
+            else if (valueInput) valueInput.focus();
+        }, 50);
+
+        const close = () => modal.remove();
+        modal.querySelector('.tm-modal-backdrop').addEventListener('click', close);
+        modal.querySelector('#tm-local-cancel').addEventListener('click', close);
+
+        modal.querySelector('#tm-local-save').addEventListener('click', async () => {
+            const currentDictKey = localDictState.dictKey || 'nameRaw';
+
+            const newKey = modal.querySelector('#tm-local-key').value.trim();
+            const newValueRaw = valueInput.value;
+
+            if (!newKey) {
+                alert('Tiếng Trung không được để trống.');
+                return;
+            }
+
+            const parts = newValueRaw.split('/').map(x => x.trim());
+            const val = parts[0] || '';
+            const alts = parts.length > 0 ? parts : [val];
+            const newEntry = { val, alts };
+            if (val === '') newEntry.skip = true;
+
+            if (!window.TranslateZhToVi._raw[currentDictKey]) {
+                window.TranslateZhToVi._raw[currentDictKey] = {};
+            }
+
+            window.TranslateZhToVi._raw[currentDictKey][newKey] = newEntry;
+
+            if (await saveLocalDictChanges(currentDictKey)) {
+                close();
+                renderLocalDictPage();
+            }
+        });
+    }
+
     // --- Helper Kiểm tra Blacklist ---
     function checkBlacklistStatus() {
-        // Load lại config để đảm bảo dữ liệu mới nhất
         const cfg = loadConfig();
         const h = window.location.hostname;
         return cfg.blacklist && cfg.blacklist.some(domain => h.includes(domain));
@@ -2346,8 +2467,8 @@
         ensureServerEndpointStore();
         const oldNameSetSnapshot = JSON.parse(JSON.stringify(config.nameSets[config.activeNameSet] || {}));
 
-        const configSnapshot = JSON.stringify(config); // Chụp ảnh config lúc mở
-        let isSaving = false; // Cờ để tránh lặp vô tận
+        const configSnapshot = JSON.stringify(config);
+        let isSaving = false;
 
         const currentProvider = config.serverProvider || 'dichngay';
         const serverEndpointsForUi = config.serverEndpoints || {};
@@ -2357,7 +2478,6 @@
         wrapper.id = 'tm-settings-modal';
         wrapper.className = 'tm-modal-wrapper';
 
-        // Kiểm tra xem có đang bị chặn không
         const isBlocked = checkBlacklistStatus();
         const hiddenStyle = isBlocked ? 'display: none !important;' : '';
         const activeClass = (tab) => (isBlocked && tab === 'blacklist') || (!isBlocked && tab === 'namesets') ? 'active' : '';
@@ -2372,6 +2492,7 @@
         <div class="tm-tabs-nav">
             <button class="tm-tab-btn ${activeClass('namesets')}" data-tab="namesets" style="${hiddenStyle}">Bộ Tên</button>
             <button class="tm-tab-btn ${activeClass('general')}" data-tab="general" style="${hiddenStyle}">Chung</button>
+            <button class="tm-tab-btn ${activeClass('ocr')}" data-tab="ocr" style="${hiddenStyle}">OCR</button>
             <button class="tm-tab-btn ${activeClass('advanced')}" data-tab="advanced" style="${hiddenStyle}">Nâng cao</button>
             <button class="tm-tab-btn ${activeClass('blacklist')}" data-tab="blacklist">Blacklist</button>
             <button class="tm-tab-btn ${activeClass('localedit')}" data-tab="localedit" style="${hiddenStyle}">Từ điển Local</button>
@@ -2478,6 +2599,78 @@
                     <option value="Verdana, Geneva, sans-serif">Verdana</option>
                     <option value="'Segoe UI', Tahoma, sans-serif">Segoe UI</option>
                 </select>
+            </div>
+            <!-- OCR Tab -->
+            <div id="tab-ocr" class="tm-tab-content">
+                <label class="tm-label">Extension Hỗ Trợ (Khuyên dùng)</label>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <div id="tm-ext-status-indicator" style="padding: 6px 12px; border-radius: 4px; background: #eee; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                        <span id="tm-ext-status-icon">❓</span>
+                        <span id="tm-ext-status-text">Đang kiểm tra Extension...</span>
+                    </div>
+                    <button id="tm-ext-check-btn" class="tm-btn" title="Kiểm tra lại" style="width: 34px; height: 34px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                        🔄
+                    </button>
+                </div>
+
+                <details style="background: #f8f9fa; border: 1px solid #eee; border-radius: 6px; padding: 10px; margin-bottom: 20px;">
+                    <summary style="cursor: pointer; font-weight: 500; color: #007bff;">Hướng dẫn cài đặt Extension Helper</summary>
+                    <div style="margin-top: 10px; font-size: 13px; line-height: 1.6; color: #333;">
+                        <p>Extension giúp tăng tốc độ OCR, tránh lỗi CORS và giảm tải cho trình duyệt.</p>
+                        <ol style="padding-left: 20px; margin: 0;">
+                            <li>1. Tải file zip tại đây: <a href="https://drive.usercontent.google.com/u/0/uc?id=1c2ZdFYdBTUawSfwr1fOsGluwmSq1Ctgg&export=download" target="_blank" style="color: #007bff; text-decoration: underline;">Download</a></li>
+                            <li>2. Giải nén file vừa tải (Extract Here).</li>
+                            <li>3. Mở trình duyệt, truy cập vào <a href="chrome://extensions" target="_blank" style="color: #007bff; text-decoration: underline;">chrome://extensions</a> (hoặc <a href="edge://extensions" target="_blank" style="color: #007bff; text-decoration: underline;">edge://extensions</a>).</li>
+                            <li>4. Bật chế độ <b>Developer Mode</b> (Chế độ nhà phát triển) ở góc trên bên phải.</li>
+                            <li>5. Nhấn nút <b>Load Unpacked</b> (Tải tiện ích đã giải nén).</li>
+                            <li>6. Chọn thư mục <b>TM-Extension-Helper</b> vừa giải nén.</li>
+                            <li>7. Quay lại đây, tải lại trang và vào Cài đặt tab <b>OCR</b> nhấn nút 🔄 để kiểm tra.</li>
+                        </ol>
+                    </div>
+                </details>
+
+                <label class="tm-label">
+                     <input type="checkbox" id="tm-show-ocr-btn" style="margin-right: 5px;" />
+                     Hiển thị nút "OCR" trên trang
+                </label>
+                <p style="font-size:13px; color:#555">Hiển thị nút OCR nổi (hình máy ảnh/vùng chọn) để dịch vùng chọn nhanh chóng.</p>
+
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+
+                <label class="tm-label">Font chữ OCR (Overlay)</label>
+                <select id="tm-ocr-font" class="tm-select">
+                    <option value="Noto Serif" style="font-family: 'Noto Serif', serif;">Noto Serif (Mặc định)</option>
+                    <option value="Arial" style="font-family: Arial, sans-serif;">Arial</option>
+                    <option value="Times New Roman" style="font-family: 'Times New Roman', serif;">Times New Roman</option>
+                    <option value="Verdana" style="font-family: Verdana, sans-serif;">Verdana</option>
+                    <option value="Segoe UI" style="font-family: 'Segoe UI', sans-serif;">Segoe UI</option>
+                </select>
+                <p style="font-size:13px; color:#555">Chọn font chữ khi hiển thị kết quả dịch ở chế độ Overlay.</p>
+
+                <label class="tm-label" style="margin-top: 15px;">Chế độ hiển thị kết quả</label>
+                <select id="tm-ocr-mode" class="tm-select">
+                     <option value="overlay">Hiển thị đè lên ảnh (Overlay - Mặc định)</option>
+                     <option value="popup">Hiển thị dạng Popup</option>
+                </select>
+
+                <label class="tm-label">Hệ số thu nhỏ chữ (Scale Factor)</label>
+                <input id="tm-ocr-scale" type="number" step="0.1" min="0.5" max="5.0" class="tm-input" value="${config.ocrTextScaleFactor || 1.8}">
+                <p style="font-size:13px; color:#555">Giá trị càng lớn, chữ càng nhỏ. Nên chỉnh <strong>1.5 - 2.0</strong> cho tiếng Việt.</p>
+
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+
+                <label class="tm-label">Trạng thái Model OCR</label>
+                <div id="tm-ocr-status" style="background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee; font-size: 13px; font-family: monospace;">
+                    Local Model: Đang kiểm tra...
+                </div>
+                <button id="tm-ocr-clear-cache" class="tm-btn" style="margin-top: 10px; background-color: #fbecec; border-color: #e57373;">Xóa Cache Model & WASM</button>
+
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+
+                <label class="tm-label">Cài đặt thủ công (Offline)</label>
+                <p style="font-size:12px; color:#555; margin-bottom:8px;">Nếu tải tự động lỗi, hãy tải file <a href="https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ch.zip" target="_blank" style="color:#007bff">ch.zip tại đây</a> (hoặc release Github bất kỳ chứa ppocr_*.onnx), sau đó chọn file để cài.</p>
+                <input type="file" id="tm-ocr-import-input" accept=".zip" style="display:none">
+                <button id="tm-ocr-import-btn" class="tm-btn" style="background-color: #e2e6ea; width:100%">📂 Chọn file Zip Model để cài...</button>
             </div>
             <!-- Advanced Tab -->
             <div id="tab-advanced" class="tm-tab-content">
@@ -2596,7 +2789,72 @@
         const dnAnalyzeCheckbox = wrapper.querySelector('#tm-dichnhanh-analyze');
         const dnFanficCheckbox = wrapper.querySelector('#tm-dichnhanh-fanfic');
 
-        // --- Local Dictionary Editor Logic (PHIÊN BẢN MỚI CHỐNG TREO) ---
+        const ocrShowBtnCheckbox = wrapper.querySelector('#tm-show-ocr-btn');
+        const ocrModeSelect = wrapper.querySelector('#tm-ocr-mode');
+        const ocrStatusDiv = wrapper.querySelector('#tm-ocr-status');
+
+        const extStatusText = wrapper.querySelector('#tm-ext-status-text');
+        const extStatusIcon = wrapper.querySelector('#tm-ext-status-icon');
+        const extCheckBtn = wrapper.querySelector('#tm-ext-check-btn');
+        const extIndicator = wrapper.querySelector('#tm-ext-status-indicator');
+
+        const checkExtensionStatus = async () => {
+            extStatusText.textContent = "Đang kiểm tra...";
+            extStatusIcon.textContent = "⏳";
+            extIndicator.style.background = "#fff3cd";
+            extIndicator.style.color = "#856404";
+
+            await sleep(500);
+
+            const meta = document.querySelector('meta[name="tm-extension-id"]');
+            const isExtDetected = meta && meta.content;
+
+            if (isExtDetected && !window.tmExtensionId) {
+                window.tmExtensionId = meta.content;
+            }
+
+            if (isExtDetected) {
+                extStatusText.innerHTML = "<b>Extension: Đã kết nối</b> (Chạy nhanh)";
+                extStatusIcon.textContent = "✅";
+                extIndicator.style.background = "#d4edda";
+                extIndicator.style.color = "#155724";
+            } else {
+                extStatusText.innerHTML = "<b>Extension: Chưa cài</b> (Chạy chậm / Script Only)";
+                extStatusIcon.textContent = "⚠️";
+                extIndicator.style.background = "#fff3cd";
+                extIndicator.style.color = "#856404";
+            }
+        };
+
+        extCheckBtn.addEventListener('click', () => {
+            extCheckBtn.style.transform = 'rotate(360deg)';
+            extCheckBtn.style.transition = 'transform 0.5s';
+            checkExtensionStatus().then(() => {
+                setTimeout(() => { extCheckBtn.style.transform = 'none'; extCheckBtn.style.transition = 'none'; }, 500);
+            });
+        });
+
+        // Initial Check
+        checkExtensionStatus();
+        const ocrClearBtn = wrapper.querySelector('#tm-ocr-clear-cache');
+        const ocrImportBtn = wrapper.querySelector('#tm-ocr-import-btn');
+        const ocrImportInput = wrapper.querySelector('#tm-ocr-import-input');
+
+        ocrImportBtn.onclick = () => ocrImportInput.click();
+        ocrImportInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (confirm(`Bạn có chắc muốn cài model từ file "${file.name}"?`)) {
+                try {
+                    wrapper.remove(); // Close modal to show loading
+                    await paddleService.importZip(file);
+                } catch (err) {
+                    console.error(err);
+                    alert("Cài đặt thất bại: " + err.message);
+                }
+            }
+        };
+
         const localDictSelect = wrapper.querySelector('#tm-local-dict-select');
         const localDictSearch = wrapper.querySelector('#tm-local-dict-search');
         const localDictResults = wrapper.querySelector('#tm-local-dict-results');
@@ -2607,164 +2865,6 @@
         const addBtn = wrapper.querySelector('#tm-local-dict-add');
         const restoreBtn = wrapper.querySelector('#tm-local-dict-restore');
 
-        let localDictState = {
-            currentPage: 1,
-            itemsPerPage: 100, // Hiển thị 100 mục mỗi trang, đủ nhanh
-            filter: '',
-            dictKey: 'nameRaw',
-            filteredKeys: []
-        };
-
-        // Hàm buildBucketsFromDict vẫn cần thiết
-        function buildBucketsFromDict(dictObj) {
-            const buckets = Object.create(null);
-            let maxLen = 0;
-            for (const k of Object.keys(dictObj)) {
-                const len = k.length; if (len === 0) continue;
-                if (!buckets[len]) buckets[len] = Object.create(null);
-                buckets[len][k] = dictObj[k];
-                if (len > maxLen) maxLen = len;
-            }
-            return { buckets, maxLen };
-        }
-
-        // Hàm lưu thay đổi và re-index từ điển
-        async function saveLocalDictChanges(dictKeyToUpdate) {
-            try {
-                const dictData = window.TranslateZhToVi._raw[dictKeyToUpdate];
-                if (dictKeyToUpdate === 'nameRaw') {
-                    window.TranslateZhToVi._idx.nameIdx = buildBucketsFromDict(dictData);
-                } else if (dictKeyToUpdate === 'vpRaw') {
-                    window.TranslateZhToVi._idx.vpIdx = buildBucketsFromDict(dictData);
-                } else if (dictKeyToUpdate === 'hvRaw') {
-                    window.TranslateZhToVi._idx.hvDict = dictData;
-                }
-
-                // Dùng thủ thuật để trigger save cache
-                const DUMMY_KEY = '__TM_TRANSLATE_TRIGGER_SAVE__';
-                window.TranslateZhToVi.addEntry('name', DUMMY_KEY, '');
-                delete window.TranslateZhToVi._raw.nameRaw[DUMMY_KEY];
-                window.TranslateZhToVi.addEntry('name', DUMMY_KEY, '');
-                delete window.TranslateZhToVi._raw.nameRaw[DUMMY_KEY];
-                console.log(`Từ điển ${dictKeyToUpdate} đã được lưu vào cache.`);
-                return true;
-            } catch (e) {
-                alert('Lưu từ điển vào cache thất bại. Lỗi: ' + e.message);
-                return false;
-            }
-        }
-
-        // Hàm hiển thị kết quả cho trang hiện tại
-        function renderLocalDictPage() {
-            const dictData = window.TranslateZhToVi._raw[localDictState.dictKey];
-            if (!dictData) {
-                localDictResults.innerHTML = `<p style="color: #888; padding: 10px;">Không có dữ liệu cho từ điển này.</p>`;
-                return;
-            }
-
-            // Lọc danh sách keys dựa trên ô tìm kiếm
-            if (localDictState.filter) {
-                const filterLower = localDictState.filter.toLowerCase();
-                localDictState.filteredKeys = Object.keys(dictData).filter(k => k.toLowerCase().includes(filterLower));
-            } else {
-                localDictState.filteredKeys = Object.keys(dictData);
-            }
-
-            const totalItems = localDictState.filteredKeys.length;
-            const totalPages = Math.ceil(totalItems / localDictState.itemsPerPage) || 1;
-            localDictState.currentPage = Math.max(1, Math.min(localDictState.currentPage, totalPages));
-
-            const start = (localDictState.currentPage - 1) * localDictState.itemsPerPage;
-            const end = start + localDictState.itemsPerPage;
-            const pageKeys = localDictState.filteredKeys.slice(start, end);
-
-            let html = '';
-            if (pageKeys.length === 0) {
-                html = `<p style="color: #888; padding: 10px;">Không tìm thấy kết quả nào.</p>`;
-            } else {
-                pageKeys.forEach(key => {
-                    const valueObj = dictData[key];
-                    const valueStr = (typeof valueObj === 'object' && valueObj.val !== undefined) ? valueObj.val : String(valueObj);
-                    html += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #f0f0f0;">
-                        <div style="flex-grow: 1; user-select: text;">
-                            <strong>${escapeHtml(key)}</strong> → <em>${escapeHtml(valueStr)}</em>
-                        </div>
-                        <div style="flex-shrink: 0;">
-                            <button class="tm-btn" data-action="edit" data-key="${escapeHtml(key)}" style="padding: 2px 8px; margin-right: 5px;">Sửa</button>
-                            <button class="tm-btn" data-action="delete" data-key="${escapeHtml(key)}" style="padding: 2px 8px;">Xóa</button>
-                        </div>
-                    </div>`;
-                });
-            }
-            localDictResults.innerHTML = html;
-
-            // Cập nhật thông tin phân trang
-            pageInfo.textContent = `Trang ${localDictState.currentPage} / ${totalPages} (${totalItems} mục)`;
-            prevBtn.disabled = localDictState.currentPage === 1;
-            nextBtn.disabled = localDictState.currentPage === totalPages;
-        }
-
-        // Hàm để mở modal chỉnh sửa/thêm
-        function showLocalDictEntryModal(key = '', value = '') {
-            const isAdding = !key;
-            const modalId = 'tm-local-entry-modal';
-            removeElementById(modalId);
-
-            const modalHtml = `
-            <div id="${modalId}" class="tm-modal-wrapper" style="z-index: 2147483647;">
-                <div class="tm-modal-backdrop"></div>
-                <div class="tm-modal-box" style="width: 450px;">
-                    <div class="tm-modal-header"><h3>${isAdding ? 'Thêm mục mới' : 'Sửa mục'}</h3></div>
-                    <div class="tm-modal-content">
-                        <label class="tm-label">Tiếng Trung</label>
-                        <input id="tm-local-key" class="tm-input" value="${escapeHtml(key)}" ${isAdding ? '' : 'disabled'}>
-                        <label class="tm-label">Tiếng Việt (các nghĩa cách nhau bằng /)</label>
-                        <input id="tm-local-value" class="tm-input" value="${escapeHtml(value)}">
-                    </div>
-                    <div class="tm-modal-footer">
-                        <button id="tm-local-cancel" class="tm-btn">Hủy</button>
-                        <button id="tm-local-save" class="tm-btn tm-btn-primary">Lưu</button>
-                    </div>
-                </div>
-            </div>`;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-            const modal = document.getElementById(modalId);
-            const valueInput = modal.querySelector('#tm-local-value');
-            valueInput.focus();
-
-            const close = () => modal.remove();
-            modal.querySelector('.tm-modal-backdrop').addEventListener('click', close);
-            modal.querySelector('#tm-local-cancel').addEventListener('click', close);
-
-            modal.querySelector('#tm-local-save').addEventListener('click', async () => {
-                const newKey = modal.querySelector('#tm-local-key').value.trim();
-                const newValueRaw = valueInput.value; // Giữ nguyên dấu /
-                const dictKey = localDictState.dictKey;
-
-                if (!newKey) {
-                    alert('Tiếng Trung không được để trống.');
-                    return;
-                }
-
-                // Chuẩn hóa entry theo định dạng của thư viện
-                const parts = newValueRaw.split('/').map(x => x.trim());
-                const val = parts[0] || '';
-                const alts = parts.length > 0 ? parts : [val];
-                const newEntry = { val, alts };
-                if (val === '') newEntry.skip = true;
-
-                window.TranslateZhToVi._raw[dictKey][newKey] = newEntry;
-
-                if (await saveLocalDictChanges(dictKey)) {
-                    close();
-                    renderLocalDictPage(); // Re-render để thấy thay đổi
-                }
-            });
-        }
-
-        // Hàm khởi tạo khi mở tab
         async function initLocalDictTab() {
             if (!window.TranslateZhToVi || !window.TranslateZhToVi.isReady) {
                 localDictResults.innerHTML = `<p style="padding: 10px; color: #c0392b;">Chế độ dịch Local chưa được khởi tạo. Hãy chuyển sang chế độ "Local" ở tab Chung, sau đó dịch thử một lần để tải từ điển.</p>`;
@@ -2846,7 +2946,6 @@
             }
         });
 
-        // Gọi lần đầu để load dữ liệu khi người dùng click vào tab
         wrapper.querySelector('[data-tab="localedit"]').addEventListener('click', initLocalDictTab);
 
         document.body.appendChild(wrapper);
@@ -3069,7 +3168,6 @@
         const blAddBtn = wrapper.querySelector('#tm-blacklist-add');
         const blBlockCurrentBtn = wrapper.querySelector('#tm-blacklist-block-current');
 
-        // Biến tạm để lưu danh sách khi đang thao tác (chưa lưu vào config chính)
         let tempBlacklist = [...(config.blacklist || [])];
 
         function renderBlacklist() {
@@ -3088,7 +3186,6 @@
                 blContainer.appendChild(div);
             });
 
-            // Gán sự kiện xóa
             wrapper.querySelectorAll('.tm-blacklist-del').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const idx = parseInt(e.target.dataset.idx);
@@ -3167,13 +3264,75 @@
         refreshSetSelector();
         toggleCopyOptionVisibility();
 
+        // --- OCR Logic UI ---
+        const ocrFontSelect = wrapper.querySelector('#tm-ocr-font');
+        ocrShowBtnCheckbox.checked = !!config.showOcrButton;
+        ocrModeSelect.value = config.ocrMode || 'popup';
+        ocrFontSelect.value = config.ocrFont || 'Noto Serif';
+
+        async function updateOcrStatus() {
+            try {
+                // Check version first
+                const ver = await GM_getValue(paddleService.cacheKey + "_ver", null);
+                let allFilesExist = true;
+                let totalSize = 0;
+                let keys = [];
+
+                if (ver === paddleService.cacheVersion) {
+                    for (const file of paddleService.files) {
+                        const v = await GM_getValue(paddleService.cacheKey + ":" + file, null);
+                        if (!v) {
+                            allFilesExist = false;
+                            break;
+                        }
+                        keys.push(file);
+                        totalSize += v.length;
+                    }
+                } else {
+                    allFilesExist = false;
+                }
+
+                let text = '';
+                if (!allFilesExist) {
+                    text = '<span style="color:#d9534f">⚠️ Models chưa tải (Sẽ tự tải khi dùng lần đầu).</span>';
+                } else {
+                    const sizeMB = (totalSize * 0.75 / 1024 / 1024).toFixed(2); // Base64 ~1.33x -> 0.75
+                    text = `<span style="color:#28a745">✅ Đã tải Models (v${paddleService.cacheVersion}).</span><br>• Files: ${keys.join(', ')}<br>• Dung lượng thực: ~${sizeMB} MB`;
+                }
+
+                const wasmCacheKey = "paddleocr_ort_wasm_v1_18_0";
+                const wasmB64 = await GM_getValue(wasmCacheKey, null);
+                if (wasmB64) {
+                    const wSize = (wasmB64.length * 0.75 / 1024 / 1024).toFixed(2);
+                    text += `<br><span style="color:#28a745">✅ Đã Cache WASM Runtime.</span> (~${wSize} MB)`;
+                } else {
+                    text += `<br><span style="color:#f0ad4e">⚠️ Chưa cache WASM (Sẽ tải khi dùng lần đầu).</span>`;
+                }
+
+                ocrStatusDiv.innerHTML = text;
+            } catch (e) {
+                ocrStatusDiv.textContent = 'Không thể kiểm tra trạng thái: ' + e.message;
+            }
+        }
+        updateOcrStatus();
+
+        ocrClearBtn.addEventListener('click', async () => {
+            if (confirm("Bạn có chắc muốn xóa toàn bộ Cache OCR (Models & WASM)?\nLần sau sử dụng sẽ phải tải lại từ đầu.")) {
+                try {
+                    await GM_deleteValue(paddleService.cacheKey);
+                    await GM_deleteValue(paddleService.cacheKey + '_ver');
+                    await GM_deleteValue("paddleocr_ort_wasm_v1_18_0");
+                    await GM_deleteValue("paddleocr_ort_wasm_v1_18_0_meta");
+                    alert("Đã xóa cache thành công!");
+                    updateOcrStatus();
+                } catch (e) { alert("Lỗi xóa cache: " + e); }
+            }
+        });
+
         const close = () => {
-            if (isSaving) return; // Nếu đang lưu thì thôi, không hỏi nữa
+            if (isSaving) return;
 
-
-            const tempConfigCheck = JSON.parse(configSnapshot); // Bắt đầu từ bản gốc lúc mở
-
-            // Đọc các giá trị UI vào bản sao tạm
+            const tempConfigCheck = JSON.parse(configSnapshot);
             tempConfigCheck.translationMode = wrapper.querySelector('#tm-translation-mode').value;
             tempConfigCheck.nameEditingEnabled = wrapper.querySelector('#tm-name-editing-enabled').checked;
             tempConfigCheck.allowCopyWhenEditing = wrapper.querySelector('#tm-allow-copy-checkbox').checked;
@@ -3184,6 +3343,8 @@
             tempConfigCheck.simplifiedEnabled = wrapper.querySelector('#tm-simplified').value === '1';
             tempConfigCheck.overrideFontEnabled = wrapper.querySelector('#tm-override-font-enabled').checked;
             tempConfigCheck.overrideFontFamily = wrapper.querySelector('#tm-override-font-family').value;
+            tempConfigCheck.showOcrButton = wrapper.querySelector('#tm-show-ocr-btn').checked;
+            tempConfigCheck.ocrMode = wrapper.querySelector('#tm-ocr-mode').value;
 
             const provider = serverProviderSelect.value;
             const tempEndpoints = { ...tempConfigCheck.serverEndpoints };
@@ -3205,24 +3366,22 @@
             tempConfigCheck.nameSets = config.nameSets;
             tempConfigCheck.blacklist = tempBlacklist;
 
-            // So sánh
             const newConfigSnapshot = JSON.stringify(tempConfigCheck);
 
             if (newConfigSnapshot !== configSnapshot) {
                 if (confirm("Bạn đã thay đổi cài đặt! Bạn có muốn lưu lại không?")) {
-                    saveChanges(); // Nếu user "OK" -> gọi hàm lưu
+                    saveChanges();
                 } else {
-                    wrapper.remove(); // Nếu user "Cancel" -> cứ đóng
+                    wrapper.remove();
                 }
             } else {
-                wrapper.remove(); // Không có gì thay đổi -> cứ đóng
+                wrapper.remove();
             }
         };
         wrapper.querySelector('.tm-modal-backdrop').addEventListener('click', close);
         wrapper.querySelector('#tm-settings-cancel').addEventListener('click', close);
         wrapper.querySelector('#tm-settings-close').addEventListener('click', close);
 
-        // 1. Tách logic lưu ra một hàm riêng
         const saveChanges = () => {
             isSaving = true; // Đặt cờ, báo là đang lưu
 
@@ -3246,6 +3405,10 @@
             config.simplifiedEnabled = wrapper.querySelector('#tm-simplified').value === '1';
             config.overrideFontEnabled = wrapper.querySelector('#tm-override-font-enabled').checked;
             config.overrideFontFamily = wrapper.querySelector('#tm-override-font-family').value;
+            config.showOcrButton = wrapper.querySelector('#tm-show-ocr-btn').checked;
+            config.ocrMode = wrapper.querySelector('#tm-ocr-mode').value;
+            config.ocrFont = wrapper.querySelector('#tm-ocr-font').value;
+            config.ocrTextScaleFactor = parseFloat(wrapper.querySelector('#tm-ocr-scale').value) || 1.8;
             // Advanced
             config.serverEndpoints = { ...serverEndpointsState };
             config.serverUrl = config.serverEndpoints.dichngay || SERVER_PROVIDER_DEFAULTS.dichngay;
@@ -3267,7 +3430,9 @@
             wrapper.remove(); // Đóng modal sau khi lưu
             if (isBlacklistChanged) {
                 console.log('[tm-translate] Danh sách chặn đã thay đổi. Đang tải lại trang...');
-                location.reload();
+                syncBlacklistToExtension(config.blacklist).then(() => {
+                    location.reload();
+                });
                 return;
             }
             showNotification('Đã lưu cài đặt.', 2000);
@@ -3281,13 +3446,1215 @@
             }
         };
 
-        // 2. Gán hàm saveChanges cho nút "Lưu"
         wrapper.querySelector('#tm-settings-save').addEventListener('click', saveChanges);
+    }
+
+    function gmFetchArrayBuffer(url) {
+        return new Promise((resolve, reject) => {
+            let abortFn = null;
+            const safeTimeout = setTimeout(() => {
+                if (abortFn) abortFn();
+                reject(new Error("Request Timed Out (Safety)"));
+            }, 65000);
+
+            const request = GM_xmlhttpRequest({
+                method: "GET",
+                url,
+                responseType: "arraybuffer",
+                fetch: true, // Restore fetch as required
+                // anonymous: true, // Removed per user feedback
+                timeout: 60000,
+                headers: { "Cache-Control": "no-cache" },
+                onload: (r) => {
+                    clearTimeout(safeTimeout);
+                    if (r.status >= 200 && r.status < 300) resolve(r.response);
+                    else reject(new Error(`HTTP ${r.status}`));
+                },
+                onerror: (e) => {
+                    clearTimeout(safeTimeout);
+                    console.warn("[DL] Network Error:", e);
+                    reject(new Error("Network Error"));
+                },
+                ontimeout: () => {
+                    clearTimeout(safeTimeout);
+                    reject(new Error("Timeout"));
+                },
+                onprogress: (e) => {
+                    if (window.suppressDownloadUI) return; // Silent mode
+
+                    if (e.lengthComputable && e.total > 0) {
+                        let pct = (e.loaded / e.total * 100);
+                        if (pct > 99) pct = 99; // Cap at 99% until fully loaded
+                        showLoading(`Đang tải... ${pct.toFixed(0)}%`);
+                    } else {
+                        showLoading(`Đang tải... ${(e.loaded / 1024 / 1024).toFixed(1)}MB`);
+                    }
+                }
+            });
+            if (request && typeof request.abort === 'function') abortFn = request.abort;
+        });
+    }
+
+    function gmFetchText(url) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url,
+                responseType: "text",
+                onload: (r) => {
+                    if (r.status >= 200 && r.status < 300) resolve(r.responseText);
+                    else reject(new Error(`GET ${url} failed: ${r.status}`));
+                },
+                onerror: () => reject(new Error(`GET ${url} network error`)),
+            });
+        });
+    }
+
+    let __ortPromise = null;
+
+    async function ensureOrtSandbox() {
+        if (__ortPromise) return __ortPromise;
+
+        __ortPromise = (async () => {
+            if (typeof SharedArrayBuffer === 'undefined') {
+                const SafeBuffer = typeof ArrayBuffer !== 'undefined' ? ArrayBuffer : null;
+                if (SafeBuffer) {
+                    if (typeof window !== 'undefined') window.SharedArrayBuffer = SafeBuffer;
+                    if (typeof globalThis !== 'undefined') globalThis.SharedArrayBuffer = SafeBuffer;
+                    if (typeof self !== 'undefined') self.SharedArrayBuffer = SafeBuffer;
+                    console.log("[TM-Translate] Polyfilled SharedArrayBuffer -> ArrayBuffer");
+                }
+            }
+
+            // --- Monkey-Patch fetch & XHR for WASM Injection ---
+            if (!window.__tmFetchPatched) {
+                const patchTarget = (target) => {
+                    if (!target || target.__tmFetchPatched) return;
+
+                    const isOrtWasm = (url) => {
+                        return url &&
+                            (url.endsWith('.wasm') || url.includes('.wasm?')) &&
+                            url.includes('ort-wasm');
+                    };
+
+                    const originalFetch = target.fetch;
+                    target.fetch = async function (input, init) {
+                        const url = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url);
+                        const buffer = window.__TM_WASM_BUFFER || (typeof unsafeWindow !== 'undefined' ? unsafeWindow.__TM_WASM_BUFFER : null);
+
+                        if (isOrtWasm(url) && buffer) {
+                            console.log(`[TM-Translate] Intercepted ORT WASM fetch (${target === window ? 'window' : 'unsafe'}): ${url}`);
+                            return new Response(buffer, {
+                                status: 200,
+                                headers: { 'Content-Type': 'application/wasm' }
+                            });
+                        }
+                        return originalFetch.apply(this, arguments);
+                    };
+
+                    const originalOpen = target.XMLHttpRequest.prototype.open;
+                    target.XMLHttpRequest.prototype.open = function (method, url) {
+                        if (url && (typeof url === 'string') && isOrtWasm(url)) {
+                            this._isWasmRequest = true;
+                            this._wasmUrl = url;
+                        }
+                        return originalOpen.apply(this, arguments);
+                    };
+
+                    const originalSend = target.XMLHttpRequest.prototype.send;
+                    target.XMLHttpRequest.prototype.send = function (body) {
+                        const buffer = window.__TM_WASM_BUFFER || (typeof unsafeWindow !== 'undefined' ? unsafeWindow.__TM_WASM_BUFFER : null);
+                        if (this._isWasmRequest && buffer) {
+                            console.log(`[TM-Translate] Intercepted ORT WASM XHR (${target === window ? 'window' : 'unsafe'}): ${this._wasmUrl}`);
+
+                            Object.defineProperty(this, 'status', { value: 200 });
+                            Object.defineProperty(this, 'readyState', { value: 4 });
+                            Object.defineProperty(this, 'response', { value: buffer });
+                            Object.defineProperty(this, 'responseType', { value: 'arraybuffer' });
+
+                            const event = new Event('load');
+                            this.dispatchEvent(event);
+                            if (this.onload) this.onload(event);
+                            return;
+                        }
+                        return originalSend.apply(this, arguments);
+                    };
+
+                    target.__tmFetchPatched = true;
+                };
+
+                patchTarget(window);
+                patchTarget(self);
+                patchTarget(globalThis);
+                if (typeof unsafeWindow !== 'undefined') patchTarget(unsafeWindow);
+
+                console.log("[TM-Translate] Pre-patched fetch/XHR (All scopes) for WASM interception.");
+            }
+
+            const ortCode = await gmFetchText("https://unpkg.com/onnxruntime-web@1.18.0/dist/ort.wasm.min.js");
+            const ort = (0, eval)(`${ortCode}\n; ort;`);
+            if (!ort) throw new Error("Cannot obtain `ort` from ort.wasm.min.js");
+            window.ort = ort;
+            globalThis.ort = ort;
+            return ort;
+        })();
+
+        return __ortPromise;
+    }
+    // --- EXTENSION COMMUNICATION HELPERS ---
+
+    async function syncBlacklistToExtension(blacklist) {
+        const extId = window.tmExtensionId || "";
+        if (!extId) return;
+
+        try {
+            window.postMessage({ type: 'TM_EXT_UPDATE_BLACKLIST', domains: blacklist }, '*');
+        } catch (e) {
+            console.warn("Lỗi sync extension:", e);
+        }
+    }
+
+    /* ================== OCR SERVICE ================== */
+
+    const paddleService = {
+        modelLoaded: false,
+        ocrEngine: null,
+        cacheKey: "paddleocr_models_v4",
+        cacheVersion: "4.0.0",
+        zipUrl: "https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ch.zip",
+        zipUrls: [
+            "https://release-assets.githubusercontent.com/github-production-release-asset/439694660/f49fd7b8-78fa-4f1e-94c0-1c5235496edf?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-01-20T03%3A31%3A05Z&rscd=attachment%3B+filename%3Dch.zip&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-01-20T02%3A30%3A19Z&ske=2026-01-20T03%3A31%3A05Z&sks=b&skv=2018-11-09&sig=v%2Fihzcj4nsrsz%2F5HEV4xTAAoEpCQ3GcvShSq3YyBXf0%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc2ODg3ODE0NywibmJmIjoxNzY4ODc2MzQ3LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.xKZ9TVx9_LxSrpnlgj9lzNusgrbNbHFvzpQuEwV2fBM&response-content-disposition=attachment%3B%20filename%3Dch.zip&response-content-type=application%2Foctet-stream",
+            "https://drive.usercontent.google.com/u/0/uc?id=1J2xfRuEzDZpuXPnRcBiWhp7ajb-INoGa&export=download",
+            "https://ghfast.top/?q=https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ch.zip",
+            "https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ch.zip"
+        ],
+        files: ["ppocr_keys_v1.txt", "ppocr_det.onnx", "ppocr_rec.onnx"],
+
+        async init(quietMode = false) {
+            if (this.modelLoaded && this.ocrEngine) return;
+
+            if (!quietMode) showLoading('Đang khởi tạo PaddleOCR (Lần đầu sẽ tải model ~15MB)...');
+
+            const G = (typeof globalThis !== "undefined" ? globalThis : window);
+            const P = (typeof unsafeWindow !== "undefined" ? unsafeWindow : null);
+
+            const ort = await ensureOrtSandbox();
+            const eSearchOCR = G.eSearchOCR || G.ESearchOCR || G.eSearchOcr || (P && (P.eSearchOCR || P.ESearchOCR || P.eSearchOcr));
+
+            if (!ort || !eSearchOCR) {
+                console.log("DEBUG ort:", ort, "eSearchOCR:", eSearchOCR, "G keys ocr:", Object.keys(G).filter(k => k.toLowerCase().includes("ocr")));
+                throw new Error("PaddleOCR deps missing (ort/eSearchOCR). Check sandbox/page global name.");
+            }
+
+            const initFn = eSearchOCR.init || eSearchOCR;
+
+
+            if (ort.env && ort.env.wasm) {
+                const isPolyfilled = typeof SharedArrayBuffer !== 'undefined' && SharedArrayBuffer === ArrayBuffer;
+                const isSecureContext = typeof window !== 'undefined' && window.crossOriginIsolated;
+                const canUseThreading = false; // FORCE DISABLE THREADING TO FIX LINK ERROR
+                // const canUseThreading = typeof SharedArrayBuffer !== 'undefined' && !isPolyfilled && isSecureContext;
+                ort.env.wasm.numThreads = 0;
+                ort.env.wasm.simd = true;
+                ort.env.logLevel = "verbose";
+
+                console.log(`[TM-Translate] Fetching WASM via GM... Threading=${canUseThreading} (Polyfilled=${isPolyfilled}, Isolated=${isSecureContext})`);
+
+                try {
+                    const wasmCacheKey = "paddleocr_ort_wasm_v1_18_0";
+                    let wasmBuffer = null;
+                    let loadedCandidate = null;
+
+                    let cachedB64 = await GM_getValue(wasmCacheKey, null);
+                    let loadedFromCache = false;
+
+                    if (cachedB64) {
+                        try {
+                            const binStr = window.atob(cachedB64);
+                            const len = binStr.length;
+                            const bytes = new Uint8Array(len);
+                            for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+
+                            wasmBuffer = bytes.buffer;
+                            loadedCandidate = "Cached Model (v1.18.0)";
+                            loadedFromCache = true;
+                            console.log("[TM-Translate] Loaded WASM from Tampermonkey Storage.");
+                        } catch (e) {
+                            console.warn("[TM-Translate] Failed to parse cached WASM, cleaning up...", e);
+                            await GM_deleteValue(wasmCacheKey);
+                        }
+                    }
+
+                    if (!wasmBuffer) {
+                        const candidates = canUseThreading
+                            ? ["ort-wasm-simd-threaded.wasm", "ort-wasm-threaded.wasm", "ort-wasm-simd.wasm", "ort-wasm.wasm"]
+                            : ["ort-wasm.wasm", "ort-wasm-simd.wasm"];
+
+                        for (const fileName of candidates) {
+                            try {
+                                const url = `https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/${fileName}`;
+                                console.log(`[TM-Translate] Downloading WASM: ${fileName}`);
+                                const buffer = await gmFetchArrayBuffer(url);
+                                if (buffer && buffer.byteLength > 0) {
+                                    wasmBuffer = buffer;
+                                    loadedCandidate = fileName;
+                                    break;
+                                }
+                            } catch (e) {
+                                console.warn(`[TM-Translate] Failed to load ${fileName}:`, e.message);
+                            }
+                        }
+                    }
+
+                    if (!wasmBuffer) {
+                        throw new Error("All WASM candidates failed to download (v1.18.0).");
+                    }
+
+                    if (!loadedFromCache) {
+                        console.log(`[TM-Translate] Caching WASM (${loadedCandidate}) to storage...`);
+                        try {
+                            let binary = '';
+                            const bytes = new Uint8Array(wasmBuffer);
+                            const len = bytes.byteLength;
+                            const chunkSize = 8192;
+                            for (let i = 0; i < len; i += chunkSize) {
+                                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+                            }
+                            const b64 = window.btoa(binary);
+
+                            if (b64.length < 15 * 1024 * 1024) {
+                                await GM_setValue(wasmCacheKey, b64);
+                                await GM_setValue(wasmCacheKey + "_meta", { name: loadedCandidate });
+                                console.log("[TM-Translate] WASM Cached successfully.");
+                            } else {
+                                console.warn("[TM-Translate] WASM too large to cache safely.");
+                            }
+                        } catch (e) {
+                            console.warn("[TM-Translate] Failed to cache WASM:", e);
+                        }
+                    } else {
+                        const meta = await GM_getValue(wasmCacheKey + "_meta", {});
+                        if (meta.name) loadedCandidate = meta.name;
+                    }
+
+                    if (!wasmBuffer) {
+                        throw new Error("All WASM candidates failed to download (v1.18.0).");
+                    }
+                    ort.env.wasm.wasmBinary = new Uint8Array(wasmBuffer);
+
+                    window.__TM_WASM_BUFFER = wasmBuffer;
+                    if (typeof unsafeWindow !== 'undefined') unsafeWindow.__TM_WASM_BUFFER = wasmBuffer;
+                    console.log("[TM-Translate] Assigned window.__TM_WASM_BUFFER for interception.");
+
+                    ort.env.wasm.wasmPaths = undefined;
+
+                    if (!canUseThreading) {
+                        try {
+                            Object.defineProperty(ort.env.wasm, 'numThreads', {
+                                get: () => 0,
+                                set: (v) => { console.warn(`[TM-Translate] Blocked attempt to set numThreads=${v} (Force 0)`); },
+                                enumerable: true,
+                                configurable: true
+                            });
+                            console.log("[TM-Translate] Soft-locked ort.env.wasm.numThreads = 0");
+                        } catch (e) {
+                            console.warn("Could not lock numThreads:", e);
+                            ort.env.wasm.numThreads = 0;
+                        }
+                    } else {
+                        ort.env.wasm.numThreads = 4;
+                    }
+
+                    const isSimd = loadedCandidate.includes('simd');
+                    ort.env.wasm.simd = isSimd;
+                    console.log(`[TM-Translate] Configured ORT: SIMD=${isSimd}, Threads=${ort.env.wasm.numThreads}`);
+
+                    console.log(`[TM-Translate] ONNX WASM Loaded & Configured: ${loadedCandidate}`);
+
+                } catch (e) {
+                    console.error("[TM-Translate] Critical WASM Load Error:", e);
+                    alert("Lỗi tải thư viện AI (WASM). Vui lòng thử lại hoặc kiểm tra mạng.");
+                    throw e;
+                }
+            }
+
+            let models = null;
+            const version = await GM_getValue(this.cacheKey + "_ver", null);
+            if (version === this.cacheVersion) {
+                models = {};
+                for (const file of this.files) {
+                    const v = await GM_getValue(this.cacheKey + ":" + file, null);
+                    if (!v) { models = null; break; }
+                    models[file] = v;
+                }
+            }
+            if (!models) {
+                models = await this.downloadModels();
+            }
+
+            if (!quietMode) showLoading('Đang nạp Model vào bộ nhớ...');
+            const detBuffer = this.base64ToArrayBuffer(models['ppocr_det.onnx']);
+            const recBuffer = this.base64ToArrayBuffer(models['ppocr_rec.onnx']);
+            const keysText = this.base64ToUtf8(models['ppocr_keys_v1.txt']);
+
+            // --- Init Engine ---
+            this.ocrEngine = await initFn({
+                det: {
+                    input: detBuffer,
+                    ratio: 2.0,
+                },
+                rec: {
+                    input: recBuffer,
+                    decodeDic: keysText,
+                    optimize: {
+                        space: false,
+                    },
+                },
+                dev: false,
+                ort: ort,
+            });
+
+            this.modelLoaded = true;
+        },
+
+        async downloadModels() {
+            let lastError;
+            for (const url of this.zipUrls) {
+                try {
+                    console.log('Downloading model from:', url);
+                    return await this.downloadModelFromUrl(url);
+                } catch (e) {
+                    console.warn(`Failed to download from ${url}:`, e);
+                }
+            }
+        },
+
+        async downloadModelFromUrl(url) {
+            showLoading(`Đang tải model OCR từ ${new URL(url).hostname}...`);
+
+            let arrayBuffer;
+            let attempt = 0;
+            const maxRetries = 3;
+
+            while (attempt < maxRetries) {
+                try {
+                    arrayBuffer = await gmFetchArrayBuffer(url);
+                    break; // Success
+                } catch (e) {
+                    attempt++;
+                    console.warn(`[TM-Translate] Download failed (Attempt ${attempt}/${maxRetries}):`, e);
+                    if (attempt >= maxRetries) {
+                        alert(`Không thể tải Model sau ${maxRetries} lần thử.\nLỗi: ${e.message}\nVui lòng kiểm tra mạng và thử lại.`);
+                        throw e;
+                    }
+                    showLoading(`Lỗi mạng. Đang thử lại (${attempt}/${maxRetries})...`);
+                    await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retry
+                }
+            }
+
+            if (!arrayBuffer) throw new Error("Thất bại toàn tập khi tải Models.");
+
+            showLoading("Tải xong, đang giải nén (fflate)...");
+            return await this.processZipAndSave(arrayBuffer);
+        },
+
+        async importZip(file) {
+            window.suppressDownloadUI = true; // Stop background download notifications
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        await this.processZipAndSave(e.target.result);
+                        resolve();
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        },
+
+        async processZipAndSave(arrayBuffer) {
+            console.time("fflate.unzip");
+            let unzipped = {};
+            try {
+                const u8 = new Uint8Array(arrayBuffer);
+                unzipped = await new Promise((resolve, reject) => {
+                    fflate.unzip(u8, (err, res) => {
+                        if (err) reject(err);
+                        else resolve(res);
+                    });
+                });
+            } catch (e) {
+                console.error("Unzip error:", e);
+                alert("Lỗi giải nén ZIP: " + e.message);
+                throw e;
+            }
+            console.timeEnd("fflate.unzip");
+            await yieldUI();
+
+            const models = {};
+            showLoading("Đang xử lý file...");
+
+            for (const file of this.files) {
+                let fileData = unzipped[file];
+
+                // Fallback search if not found directly
+                if (!fileData) {
+                    const foundKey = Object.keys(unzipped).find(k => k.endsWith(file) && !k.startsWith('__MACOSX'));
+                    if (foundKey) fileData = unzipped[foundKey];
+                }
+
+                if (!fileData) {
+                    console.warn(`File ${file} was not found in the zip archive.`);
+                    continue;
+                }
+
+                console.log(`[TM-DEBUG] Processing ${file} (Size: ${fileData.length})`);
+                showLoading("Đang encode " + file + "...");
+                await yieldUI();
+
+                if (file.endsWith('.onnx') || file.endsWith('.txt')) {
+                    // Manual chunked conversion to Base64
+                    let binary = '';
+                    const len = fileData.byteLength;
+                    const chunkSize = 32768; // 32KB
+                    for (let i = 0; i < len; i += chunkSize) {
+                        binary += String.fromCharCode.apply(null, fileData.subarray(i, Math.min(i + chunkSize, len)));
+                    }
+                    models[file] = window.btoa(binary);
+                }
+            }
+
+            // Validation
+            if (!models['ppocr_rec.onnx'] || !models['ppocr_det.onnx']) {
+                throw new Error("File Zip không chứa đủ các model (ppocr_rec, ppocr_det).");
+            }
+
+            showLoading("Đang lưu cache...");
+            console.time("GM_setValue cache");
+            for (const [k, v] of Object.entries(models)) {
+                await GM_setValue(this.cacheKey + ":" + k, v);
+                await yieldUI();
+            }
+            await GM_setValue(this.cacheKey + "_ver", this.cacheVersion);
+            await yieldUI();
+            console.timeEnd("GM_setValue cache");
+
+            removeLoading();
+
+            if (typeof updateOcrStatus === 'function') updateOcrStatus();
+            alert("Cài đặt Model thành công!");
+            return models;
+        },
+
+        arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            const chunkSize = 0x8000; // 32KB
+            let binary = "";
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return window.btoa(binary);
+        },
+
+        base64ToArrayBuffer(base64) {
+            const binary_string = window.atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes.buffer;
+        },
+
+        utf8ToBase64(str) {
+            return window.btoa(unescape(encodeURIComponent(str)));
+        },
+
+        base64ToUtf8(base64) {
+            return decodeURIComponent(escape(window.atob(base64)));
+        },
+
+        async recognize(imageSrc) {
+            if (!this.modelLoaded) {
+                await this.init();
+            }
+            showLoading('Đang nhận diện văn bản...');
+            let result;
+            if (typeof this.ocrEngine === 'function') {
+                result = await this.ocrEngine(imageSrc);
+            } else if (typeof this.ocrEngine.recognize === 'function') {
+                result = await this.ocrEngine.recognize(imageSrc);
+            } else if (typeof this.ocrEngine.ocr === 'function') {
+                result = await this.ocrEngine.ocr(imageSrc);
+            } else {
+                console.error("Unknown OCR Engine type:", this.ocrEngine);
+                throw new Error("OCR Engine is not compatible.");
+            }
+
+            removeLoading();
+            return result;
+        }
+    };
+
+
+
+    async function handleOcrRequest(base64FullString, prefixToRemove, overlayContainer = null, screenRect = null) {
+        try {
+            const extMeta = document.querySelector('meta[name="tm-extension-id"]');
+            const extId = extMeta ? extMeta.content : window.__TM_EXTENSION_ID;
+
+            if (extId) {
+                console.log("[TM UserScript] Extension Detected via DOM:", extId);
+                if (overlayContainer) {
+                    const statusEl = overlayContainer.querySelector('.tm-ocr-loading');
+                    if (statusEl) statusEl.textContent = 'Đang gửi sang Ext...';
+                }
+
+                const ocrPromise = new Promise((resolve, reject) => {
+                    const rqId = 'req_' + Date.now() + Math.random();
+
+                    const handler = (event) => {
+                        if (event.data && event.data.type === 'TM_EXT_OCR_RESPONSE' && event.data.reqId === rqId) {
+                            console.log("[TM UserScript] Received Response from Content Script:", event.data);
+                            window.removeEventListener('message', handler);
+
+                            const res = event.data.data;
+                            if (res.success) resolve(res.data);
+                            else reject(new Error(res.error || "Unknown Extension Error"));
+                        }
+                    };
+                    window.addEventListener('message', handler);
+
+                    setTimeout(() => {
+                        window.removeEventListener('message', handler);
+                        reject(new Error("Extension Timeout (30s)"));
+                    }, 30000);
+                    console.log("[TM UserScript] Posting message to Content Script...", rqId);
+                    window.postMessage({
+                        type: 'TM_EXT_OCR_REQUEST',
+                        reqId: rqId,
+                        payload: { imageBase64: base64FullString }
+                    }, '*');
+                });
+
+                let ocrText = '';
+                let ocrData = null;
+
+                try {
+                    const response = await ocrPromise;
+                    if (typeof response === 'object' && response !== null) {
+                        ocrData = response;
+                        ocrText = response.text || '';
+                    } else {
+                        ocrText = response;
+                    }
+                } catch (extErr) {
+                    console.warn("Extension OCR failed, falling back to local...", extErr);
+                    if (!paddleService.modelLoaded) {
+                        await paddleService.init(!!overlayContainer);
+                    }
+                    const localRes = await paddleService.recognize(base64FullString);
+                    if (typeof localRes === 'object') ocrText = localRes.text;
+                    else ocrText = localRes;
+                }
+
+                if (!ocrText || (typeof ocrText === 'string' && !ocrText.trim())) {
+                    if (overlayContainer) {
+                        overlayContainer.remove();
+                        alert('Không tìm thấy chữ nào (Ext).');
+                    } else {
+                        alert('Không tìm thấy chữ nào (Ext).');
+                        removeLoading();
+                    }
+                    return;
+                }
+
+                if (overlayContainer) {
+                    const statusEl = overlayContainer.querySelector('.tm-ocr-loading');
+                    if (statusEl) statusEl.textContent = 'Đang dịch...';
+                } else {
+                    showLoading('Đang dịch văn bản...');
+                }
+
+                const cleanedText = ocrText.replace(/([^\x00-\xff])[^\S\r\n]+([^\x00-\xff])/g, '$1$2').trim();
+                const returnType = config.nameEditingEnabled ? 'html' : 'text'; // Return HTML if editing is ON to include spans
+                const translatedText = await translatePanelText(cleanedText, returnType);
+
+                if (!overlayContainer) removeLoading();
+
+                if (config.ocrMode === 'overlay' && overlayContainer && screenRect) {
+                    updateOcrOverlayContent(overlayContainer, translatedText, screenRect);
+                } else {
+                    if (overlayContainer) overlayContainer.remove();
+                    showImageTranslationResult(translatedText, ocrText, base64FullString);
+                }
+
+                return; // EXIT FUNCTION (EXTENSION PATH DONE)
+            }
+
+            const isOverlay = !!overlayContainer;
+
+            if (isOverlay) {
+                const statusEl = overlayContainer.querySelector('.tm-ocr-loading');
+                if (statusEl && !paddleService.modelLoaded) statusEl.textContent = 'Đang tải Model (Lần đầu)...';
+            }
+
+            await paddleService.init(isOverlay);
+
+            if (!overlayContainer) showLoading('Đang nhận diện chữ (Offline)...');
+            else {
+                const statusEl = overlayContainer.querySelector('.tm-ocr-loading');
+                if (statusEl) statusEl.textContent = 'Đang nhận diện...';
+            }
+
+            const img = new Image();
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = base64FullString;
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            const result = await paddleService.ocrEngine.ocr(imageData);
+
+            let ocrText = '';
+            if (result && result.parragraphs) {
+                ocrText = result.parragraphs.map(p => p.text).join('\n');
+            }
+
+            if (!ocrText || !ocrText.trim()) {
+                if (overlayContainer) {
+                    overlayContainer.remove();
+                    alert('Không tìm thấy chữ nào.');
+                } else {
+                    alert('Không tìm thấy chữ nào.');
+                    removeLoading();
+                }
+                return;
+            }
+
+            if (overlayContainer) {
+                const statusEl = overlayContainer.querySelector('.tm-ocr-loading');
+                if (statusEl) statusEl.textContent = 'Đang dịch...';
+            } else {
+                showLoading('Đang dịch văn bản (Quy trình chuẩn)...');
+            }
+
+            const cleanedText = ocrText.replace(/([^\x00-\xff])[^\S\r\n]+([^\x00-\xff])/g, '$1$2').trim();
+            const returnType = config.nameEditingEnabled ? 'html' : 'text';
+            const translatedText = await translatePanelText(cleanedText, returnType);
+
+            if (!overlayContainer) removeLoading();
+
+            if (config.ocrMode === 'overlay' && overlayContainer && screenRect) {
+                updateOcrOverlayContent(overlayContainer, translatedText, screenRect);
+            } else {
+                if (overlayContainer) overlayContainer.remove();
+                showImageTranslationResult(translatedText, ocrText, base64FullString);
+            }
+
+        } catch (e) {
+            console.error(e);
+            if (!overlayContainer) removeLoading();
+            if (overlayContainer) {
+                overlayContainer.style.borderColor = 'red';
+                overlayContainer.innerHTML = `<div style="padding:10px; color:red; font-size:12px;">Lỗi: ${e.message} <br><button onclick="this.parentElement.parentElement.remove()" style="margin-top:5px;">Đóng</button></div>`;
+            } else {
+                alert('Lỗi OCR: ' + e.message);
+            }
+        }
+    }
+
+    function createOcrOverlayPlaceholder(rect) {
+        const overlayId = 'tm-ocr-overlay-' + Date.now();
+        const container = document.createElement('div');
+        container.id = overlayId;
+        container.className = 'tm-ocr-overlay-box';
+
+        const scrollX = window.scrollX || window.pageXOffset;
+        const scrollY = window.scrollY || window.pageYOffset;
+
+        Object.assign(container.style, {
+            position: 'absolute',
+            left: (rect.left + scrollX) + 'px',
+            top: (rect.top + scrollY) + 'px',
+            width: rect.width + 'px',
+            height: rect.height + 'px',
+            maxWidth: rect.width + 'px',
+            maxHeight: rect.height + 'px',
+            backgroundColor: 'rgba(255, 255, 255, 0.6)',
+            border: '2px dashed #28a745',
+            borderRadius: '4px',
+            zIndex: '2147483648',
+            boxSizing: 'border-box', // Quan trọng
+            overflow: 'hidden',      // Không cho tràn
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: config.overrideFontFamily || 'Segoe UI, sans-serif'
+        });
+
+        container.innerHTML = `<div class="tm-ocr-loading" style="font-size:12px; color:#28a745; font-weight:bold; text-shadow: 1px 1px 2px white;">Đang chờ...</div>`;
+
+        document.body.appendChild(container);
+        return container;
+    }
+
+    function updateOcrOverlayContent(container, translatedHtml, rect) {
+        if (!container) return;
+
+        Object.assign(container.style, {
+            backgroundColor: 'fff',
+            border: '2px solid #28a745',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            justifyContent: 'flex-start',
+            height: 'auto',          // Reset height cứng lúc loading
+            minHeight: rect.height + 'px',
+            maxHeight: Math.max(rect.height, 400) + 'px', // Cho phép giãn tối đa 400px hoặc bằng box cũ
+            overflow: 'visible' // Để hiện nút close (nút close absolute âm)
+        });
+
+        container.innerHTML = '';
+
+        const closeBtn = document.createElement('div');
+        closeBtn.innerHTML = '&times;';
+        Object.assign(closeBtn.style, {
+            position: 'absolute',
+            top: '-15px',
+            right: '-15px',
+            width: '18px',
+            height: '18px',
+            backgroundColor: 'transparent',
+            color: '#333',
+            textAlign: 'center',
+            lineHeight: '16px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '20px',
+            zIndex: '30',
+            userSelect: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textShadow: '0 0 3px #fff'
+        });
+        closeBtn.title = 'Đóng';
+        closeBtn.onclick = () => container.remove();
+        container.appendChild(closeBtn);
+
+        const contentDiv = document.createElement('div');
+        const textContent = translatedHtml.replace(/<br>/g, '\n').replace(/<\/?[^>]+(>|$)/g, "");
+        contentDiv.innerHTML = translatedHtml.replace(/\n/g, '<br>');
+
+        const area = rect.width * Math.max(rect.height, 50);
+        const len = Math.max(textContent.length, 1);
+        let scaleFactor = config.ocrTextScaleFactor || 1.8;
+        let estimatedSize = Math.sqrt(area / (scaleFactor * len));
+
+        const minSize = 10;
+        const maxSize = Math.min(24, rect.width / 6);
+
+        let finalSize = Math.min(Math.max(estimatedSize, minSize), maxSize);
+        finalSize = Math.floor(finalSize);
+
+        Object.assign(contentDiv.style, {
+            padding: '4px', // Giảm padding tối đa
+            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+            color: '#000',
+            fontSize: finalSize + 'px',
+            lineHeight: '1.3',
+            textAlign: 'justify',
+            flex: '1',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            wordWrap: 'break-word',
+            wordBreak: 'break-word',
+            width: '100%', // Đảm bảo content không đẩy width cha
+            boxSizing: 'border-box',
+            userSelect: 'text',
+            cursor: 'text',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            fontFamily: config.ocrFont || 'Noto Serif, serif'
+        });
+        container.appendChild(contentDiv);
+
+        if (config.nameEditingEnabled) {
+            contentDiv.addEventListener('mouseup', (e) => {
+                setTimeout(() => {
+                    const sel = window.getSelection();
+                    if (sel && !sel.isCollapsed && contentDiv.contains(sel.anchorNode)) {
+                        const selectedText = sel.toString().trim();
+                        if (selectedText.length > 0 && selectedText.length < 50) {
+                            showAddToDictionaryPopup(selectedText, 'ocr');
+                        }
+                    }
+                }, 50);
+            });
+
+            contentDiv.addEventListener('mouseup', (e) => {
+                setTimeout(() => {
+                    const sel = window.getSelection();
+                    if (sel && !sel.isCollapsed && contentDiv.contains(sel.anchorNode)) {
+                        createFloatingEditBtn(e.clientX, e.clientY);
+                    }
+                }, 10);
+            });
+            contentDiv.addEventListener('click', (e) => {
+                const nameSpan = e.target.closest('.tm-name');
+                if (nameSpan) {
+                    const orig = nameSpan.dataset.orig;
+                    const text = nameSpan.textContent;
+                    showEditModal(orig, text);
+                    e.stopPropagation();
+                }
+            });
+
+            let floatBtn = null;
+            function createFloatingEditBtn(x, y) {
+                if (floatBtn) floatBtn.remove();
+                floatBtn = document.createElement('div');
+                floatBtn.innerHTML = '🖊 Sửa';
+                Object.assign(floatBtn.style, {
+                    position: 'fixed', left: x + 10 + 'px', top: y - 30 + 'px',
+                    background: '#333', color: '#fff', padding: '4px 8px', borderRadius: '4px',
+                    cursor: 'pointer', zIndex: '2147483660', fontSize: '12px'
+                });
+                floatBtn.onmousedown = (evt) => {
+                    evt.preventDefault();
+                    openEditModalForSelection(); // Gọi hàm chuẩn
+                    floatBtn.remove(); floatBtn = null;
+                };
+                document.body.appendChild(floatBtn);
+                setTimeout(() => { if (floatBtn) floatBtn.remove(); }, 3000);
+            }
+
+            contentDiv.addEventListener('mousedown', () => {
+                if (floatBtn) { floatBtn.remove(); floatBtn = null; }
+            });
+        }
+    }
+
+    function showImageTranslationResult(translatedHtml, originalText, imageUrl) {
+        const modalId = 'tm-ocr-result-modal';
+        removeElementById(modalId);
+
+        const modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'tm-modal-wrapper';
+        modal.style.zIndex = '2147483650';
+
+        modal.innerHTML = `
+        <div class="tm-modal-backdrop"></div>
+        <div class="tm-modal-box" style="width: 700px; max-width: 95vw; height: 80vh; display: flex; flex-direction: column;">
+            <div class="tm-modal-header">
+                <h3>Kết quả Dịch Ảnh (OCR)</h3>
+                <button id="tm-ocr-close" class="tm-btn">&times;</button>
+            </div>
+            <div class="tm-modal-content" style="display:flex; flex-direction:column; gap:15px; flex: 1; overflow-y: auto;">
+                <div style="flex-shrink: 0;">
+                    <span class="tm-label">Vùng đã chụp:</span>
+                    <div style="max-height: 120px; overflow:hidden; border:1px solid #ddd; border-radius:4px; text-align:center; background:#eee;">
+                        <img src="${imageUrl}" style="max-width:100%; max-height:120px; object-fit:contain;">
+                    </div>
+                </div>
+
+                <div class="tm-row" style="flex: 1; min-height: 0;">
+                     <div class="tm-col" style="height: 100%; display: flex; flex-direction: column;">
+                        <span class="tm-label">Nhận diện (Trung):</span>
+                        <textarea class="tm-textarea" style="flex: 1; resize: none;" readonly>${originalText}</textarea>
+                    </div>
+                    <div class="tm-col" style="height: 100%; display: flex; flex-direction: column;">
+                        <span class="tm-label">Kết quả dịch (Việt):</span>
+                        ${(translatedHtml.includes('<') && translatedHtml.includes('>'))
+                ? `<div id="tm-ocr-output" class="tm-preview-box" style="flex: 1; height: 100%; overflow-y: auto; background: var(--tm-white); padding: 10px; border: 1px solid #ccc; white-space: pre-wrap;">${translatedHtml}</div>`
+                : `<textarea id="tm-ocr-output" class="tm-textarea" style="flex: 1; resize: none;">${translatedHtml}</textarea>`
+            }
+                    </div>
+                </div>
+            </div>
+            <div class="tm-modal-footer">
+                <button class="tm-btn" id="tm-ocr-copy-orig">Copy Trung</button>
+                <button class="tm-btn tm-btn-primary" id="tm-ocr-copy">Copy Dịch</button>
+                <button class="tm-btn" id="tm-ocr-ok">Đóng</button>
+            </div>
+        </div>
+    `;
+
+
+
+        document.body.appendChild(modal);
+
+        // Add Click Listener for Names in HTML Mode
+        const outputBox = modal.querySelector('#tm-ocr-output');
+        if (outputBox && outputBox.tagName === 'DIV') {
+            outputBox.addEventListener('click', (e) => {
+                const nameSpan = e.target.closest('.tm-name');
+                if (nameSpan) {
+                    const orig = nameSpan.dataset.orig;
+                    const text = nameSpan.textContent;
+                    showEditModal(orig, text);
+                    e.stopPropagation();
+                }
+            });
+            // Also support selection-based edit
+            outputBox.addEventListener('mouseup', (e) => {
+                const sel = window.getSelection();
+                if (sel && !sel.isCollapsed && outputBox.contains(sel.anchorNode)) {
+                    requestAnimationFrame(() => {
+                        let floatBtn = document.getElementById('tm-ocr-float-edit');
+                        if (floatBtn) floatBtn.remove();
+
+                        floatBtn = document.createElement('div');
+                        floatBtn.id = 'tm-ocr-float-edit';
+                        floatBtn.innerHTML = '🖊 Sửa';
+                        Object.assign(floatBtn.style, {
+                            position: 'fixed', left: e.clientX + 10 + 'px', top: e.clientY - 30 + 'px',
+                            background: '#007bff', color: '#fff', padding: '4px 8px', borderRadius: '4px',
+                            cursor: 'pointer', zIndex: '2147483660', fontSize: '12px'
+                        });
+                        floatBtn.onmousedown = (evt) => {
+                            evt.preventDefault();
+                            openEditModalForSelection();
+                            floatBtn.remove();
+                        };
+                        document.body.appendChild(floatBtn);
+                        setTimeout(() => { if (floatBtn) floatBtn.remove(); }, 3000);
+                    });
+                }
+            });
+            outputBox.addEventListener('mousedown', () => {
+                const b = document.getElementById('tm-ocr-float-edit');
+                if (b) b.remove();
+            });
+        }
+
+        const close = () => modal.remove();
+        modal.querySelector('.tm-modal-backdrop').addEventListener('click', close);
+        modal.querySelector('#tm-ocr-close').addEventListener('click', close);
+        modal.querySelector('#tm-ocr-ok').addEventListener('click', close);
+
+        modal.querySelector('#tm-ocr-copy-orig').addEventListener('click', () => {
+            navigator.clipboard.writeText(originalText);
+            showNotification('Đã copy văn bản gốc!');
+        });
+
+        modal.querySelector('#tm-ocr-copy').addEventListener('click', () => {
+            const outputEl = modal.querySelector('#tm-ocr-output');
+            const val = outputEl.value || outputEl.innerText;
+            navigator.clipboard.writeText(val);
+            showNotification('Đã copy văn bản dịch!');
+        });
+    }
+
+    /* ================== INTERACTION HANDLERS ================== */
+
+    async function activateAreaSelectionMode() {
+        showNotification('Chế độ OCR: Kéo chuột để chọn vùng cần dịch. (Nhấn Esc để hủy)', 4000);
+
+        let overlay = document.createElement('div');
+        Object.assign(overlay.style, {
+            position: 'fixed', inset: '0', zIndex: '2147483646',
+            cursor: 'crosshair', background: 'rgba(0,0,0,0.1)'
+        });
+
+        let selectionBox = document.createElement('div');
+        Object.assign(selectionBox.style, {
+            position: 'fixed', border: '2px dashed red', background: 'rgba(255, 0, 0, 0.1)',
+            display: 'none', zIndex: '2147483647', pointerEvents: 'none'
+        });
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(selectionBox);
+
+        let startX, startY, endX, endY, isDragging = false;
+
+        function onMouseDown(e) {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            selectionBox.style.left = startX + 'px';
+            selectionBox.style.top = startY + 'px';
+            selectionBox.style.width = '0px';
+            selectionBox.style.height = '0px';
+            selectionBox.style.display = 'block';
+        }
+
+        function onMouseMove(e) {
+            if (!isDragging) return;
+            endX = e.clientX;
+            endY = e.clientY;
+
+            const left = Math.min(startX, endX);
+            const top = Math.min(startY, endY);
+            const width = Math.abs(endX - startX);
+            const height = Math.abs(endY - startY);
+
+            selectionBox.style.left = left + 'px';
+            selectionBox.style.top = top + 'px';
+            selectionBox.style.width = width + 'px';
+            selectionBox.style.height = height + 'px';
+
+        }
+
+        window.__tmIsCapturing = false;
+
+        async function captureVisibleTab(rect) {
+            if (window.__tmIsCapturing) {
+                console.log("Đang có tiến trình chụp khác chạy, bỏ qua.");
+                return null;
+            }
+            window.__tmIsCapturing = true;
+
+            let stream = window.__tmCachedStream;
+
+            if (stream) {
+                try {
+                    if (!stream.active || stream.getVideoTracks()[0].readyState === 'ended') {
+                        console.log("Stream cũ đã chết, reset.");
+                        stream = null;
+                        window.__tmCachedStream = null;
+                    }
+                } catch (e) { stream = null; }
+            }
+
+            try {
+                if (!stream) {
+                    stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: {
+                            displaySurface: "browser",
+                            cursor: "never"
+                        },
+                        audio: false,
+                        preferCurrentTab: true
+                    });
+
+                    window.__tmCachedStream = stream;
+
+                    stream.getVideoTracks()[0].addEventListener('ended', () => {
+                        window.__tmCachedStream = null;
+                        console.log("[TM-Translate] Stream chia sẻ đã bị tắt thủ công.");
+                    });
+                }
+
+                const track = stream.getVideoTracks()[0];
+                const imageCapture = new ImageCapture(track);
+
+                await sleep(50);
+                const bitmap = await imageCapture.grabFrame();
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                const zoomX = bitmap.width / window.innerWidth;
+                const zoomY = bitmap.height / window.innerHeight;
+
+                const cropX = rect.left * zoomX;
+                const cropY = rect.top * zoomY;
+                const cropW = rect.width * zoomX;
+                const cropH = rect.height * zoomY;
+
+                const scaleFactor = 2; // Upscale 2x
+
+                canvas.width = cropW * scaleFactor;
+                canvas.height = cropH * scaleFactor;
+
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+
+                ctx.drawImage(bitmap, cropX, cropY, cropW, cropH, 0, 0, cropW * scaleFactor, cropH * scaleFactor);
+
+                window.__tmIsCapturing = false;
+                return canvas.toDataURL('image/jpeg', 0.95);
+
+            } catch (err) {
+                window.__tmIsCapturing = false;
+                if (!window.__tmCachedStream && stream) {
+                    stream.getTracks().forEach(t => t.stop());
+                }
+                console.error(err);
+                if (err.name === 'NotAllowedError') { // User bấm Cancel
+                    throw new Error("Bạn đã hủy lệnh chụp. Hãy thử lại.");
+                }
+                throw new Error("Lỗi chụp màn hình: " + err.message);
+            }
+        }
+
+        async function onMouseUp(e) {
+            if (!isDragging) return;
+            isDragging = false;
+
+            const rect = selectionBox.getBoundingClientRect();
+            cleanup(); // Xóa UI ngay lập tức
+
+            if (rect.width < 10 || rect.height < 10) {
+                showNotification('Vùng chọn quá nhỏ, đã hủy.');
+                return;
+            }
+
+            removeLoading();
+
+            if (!window.__tmCachedStream) {
+                showNotification('⚠ Vui lòng chọn "Tab này" và nhấn Cho phép!', 4000);
+            }
+
+            try {
+                const base64Image = await captureVisibleTab(rect);
+                if (base64Image) {
+                    // Nếu mode là overlay thì tạo placeholder ngay
+                    let placeholderBox = null;
+                    if (config.ocrMode === 'overlay') {
+                        placeholderBox = createOcrOverlayPlaceholder(rect);
+                    } else {
+                        showLoading('Đang nhận diện văn bản...');
+                    }
+
+                    handleOcrRequest(base64Image, 'data:image/jpeg;base64,', placeholderBox, rect);
+                }
+            } catch (err) {
+                showNotification(err.message);
+            }
+        }
+
+        function onKeyDown(e) {
+            if (e.key === 'Escape') {
+                cleanup();
+                showNotification('Đã hủy OCR.');
+            }
+        }
+
+        function cleanup() {
+            if (overlay) { overlay.remove(); overlay = null; }
+            if (selectionBox) { selectionBox.remove(); selectionBox = null; }
+            // document.removeEventListener('mousedown', onMouseDown);
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('keydown', onKeyDown);
+            // Reset các biến cờ local
+            isDragging = false;
+        }
+
+        overlay.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        document.addEventListener('keydown', onKeyDown);
     }
 
     /* ================== MENU & INIT ================== */
 
-    // 1. Định nghĩa hàm khởi tạo Local (Cần thiết cho script)
     async function initializeLocalTranslator() {
         if (config.translationMode !== 'local' || (window.TranslateZhToVi && window.TranslateZhToVi.isReady)) {
             return;
@@ -3312,25 +4679,22 @@
     if (checkBlacklistStatus()) {
         console.log('[tm-translate] Trang này nằm trong Blacklist. Script đã dừng hoạt động.');
 
-        // Inject CSS tối thiểu để hiển thị được bảng Cài đặt
         injectGlobalCSS();
 
-        // Chỉ đăng ký ĐÚNG 1 MENU duy nhất
         GM_registerMenuCommand('🚫 Mở Cài đặt (Bỏ chặn)', () => {
             openSettingsUI();
-            // Tự động nhảy sang tab Blacklist
             setTimeout(() => {
                 const blTab = document.querySelector('[data-tab="blacklist"]');
                 if (blTab) blTab.click();
             }, 50);
         });
 
-        // DỪNG TOÀN BỘ SCRIPT TẠI ĐÂY (return thoát khỏi IIFE)
         return;
     }
 
     GM_registerMenuCommand('Dịch trang này', startTranslateAction);
     GM_registerMenuCommand('Bảng dịch nhanh', showQuickTranslatePanel);
+    GM_registerMenuCommand('Dịch vùng chọn (OCR)', activateAreaSelectionMode);
     GM_registerMenuCommand('Cài đặt', openSettingsUI);
 
     window._tm_translate = {

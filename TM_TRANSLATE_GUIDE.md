@@ -41,11 +41,46 @@ Khi script hoạt động, bạn sẽ thấy các nút tròn nổi ở góc dư�
 ### 🔘 Nút Dịch Nhanh (Màu Xám)
 *   **Chức năng:** Mở một bảng nhỏ để dán text vào và dịch nhanh một đoạn văn bản bất kỳ mà không cần dịch cả trang.
 
+### 📷 Nút Dịch Ảnh / OCR (Màu Xanh Xanh?? / Teal)
+*   **Chức năng:** Quét và dịch văn bản trực tiếp từ hình ảnh (truyện tranh, banner, nút bấm dạng ảnh...).
+*   **Cách dùng:**
+    1. Bấm vào nút **OCR** (biểu tượng vùng chọn).
+    2. Con trỏ chuột sẽ đổi thành hình chữ thập.
+    3. Nhấn và kéo chuột để **khoanh vùng** chứa chữ Trung cần dịch trên màn hình.
+    4. Thả chuột ra và đợi vài giây.
+*   **Lưu ý:**
+    *   Lần đầu tiên sử dụng, script sẽ cần tải bộ thư viện AI (khoảng ~15MB) nên sẽ hơi lâu. Các lần sau sẽ rất nhanh (offline).
+    *   Kết quả dịch sẽ hiện đè ngay lên vị trí bạn vừa khoanh (Overlay). Bạn có thể bôi đen copy hoặc dùng nút Sửa Tên ngay trong ô đó.
+
 ---
 
 ## 3. Các Tính Năng Nổi Bật Khác
 
 Để truy cập cài đặt đầy đủ, bạn có thể tìm menu lệnh của Tampermonkey -> tìm đến "TM Translate" -> chọn nút "Cài đặt".
+
+### 📷 Hướng Dẫn Cấu Hình OCR (Tab Cài Đặt)
+Trong bảng Cài đặt (Script Menu -> Cài đặt), tab **OCR** cung cấp các tùy chọn để tối ưu trải nghiệm dịch ảnh:
+
+**1. Extension Hỗ Trợ (Khuyên Dùng)**
+Script có khả năng kết nối với Extension hỗ trợ (nếu được cài đặt) để xử lý ảnh nhanh hơn và vượt qua các chặn tải (CORS) của trình duyệt.
+*   Nếu có Extension, script sẽ ưu tiên dùng nó để tải ảnh và OCR.
+*   Nếu không, script vẫn hoạt động tốt ở chế độ "Offline/Local".
+
+**2. Quản Lý Model (Bộ Thư Viện AI)**
+Chức năng OCR chạy hoàn toàn trên trình duyệt của bạn (không gửi ảnh đi server lạ), do đó cần tải bộ Model AI (~15MB) trong lần đầu tiên.
+*   **Tự động:** Script sẽ tự tải khi bạn bấm nút OCR lần đầu.
+*   **Lỗi tải:** Nếu mạng lag hoặc tải thất bại, hãy thử dùng lại nút OCR để script tự tải lại, hoặc tải lại trang và thử lại.
+*   **Cài thủ công:** Nếu tự động không được, bạn có thể tải file `ch.zip` từ link dự phòng và dùng nút **"📂 Chọn file Zip Model để cài..."** trong cài đặt để nạp thủ công.
+
+**3. Tinh Chỉnh Hiển Thị**
+*   **Chế độ (Mode):**
+    *   `Overlay` (Mặc định): Vẽ khung dịch đè lên ảnh. Phù hợp đọc truyện tranh.
+    *   `Popup`: Hiện bảng kết quả riêng. Dùng khi ảnh quá phức tạp hoặc muốn copy text dễ dàng.
+*   **Tỷ lệ cỡ chữ (Scale Factor):**
+    *   Mặc định là `1.8`.
+    *   Nếu chữ dịch bị **tràn ra ngoài** khung -> **Tăng** số này lên (ví dụ 2.2).
+    *   Nếu chữ dịch **quá bé** -> **Giảm** số này xuống (ví dụ 1.4).
+
 
 ### 📖 Chế Độ Đọc Rút Gọn (Simplified Mode)
 Script có khả năng ẩn đi các quảng cáo, banner, sidebar rườm rà của trang web gốc và chỉ giữ lại phần nội dung truyện chính. Điều này giúp trải nghiệm đọc giống như đang đọc Ebook. 
