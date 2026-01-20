@@ -72,8 +72,8 @@
 
         // API endpoint cho Fanqie (có thể giữ nguyên hoặc đổi nếu bạn có API riêng)
         Fanqie: [
-            {url: "http://192.168.1.2:8888/content?item_id={chapter_id}"},
-            {url: "url", key: "key"}, //key cần cho api doubi
+            //{url: "http://192.168.1.2:8888/content?item_id={chapter_id}"},
+            //{url: "url", key: "key"}, //key cần cho api doubi
         ], // Hoặc API khác, phải có {chapter_id}
       };
       // --- KẾT THÚC PHẦN CHỈNH SỬA ---
