@@ -14,7 +14,7 @@ rename_chapters/backgrounds/
 rename_chapters/icons/
 qt_browser_profile*/
 Tampermonkey_5.4.0_0/
-wikidich/
+rename_chapters/wikidich/
 *.iss
 .env.example
 .env
