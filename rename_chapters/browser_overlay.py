@@ -26,7 +26,14 @@ class BrowserOverlay:
         self.cmd_conn = None
         self.event_conn = None
         self.event_queue = queue.Queue()
+        self.event_queue = queue.Queue()
         self.listener_thread = None
+        self.profile_dir = None
+
+    def set_profile(self, path):
+        self.profile_dir = path
+        if self.proc:
+            self.hide()
 
     def available(self):
         return _QT_AVAILABLE
@@ -56,7 +63,7 @@ class BrowserOverlay:
         self.event_conn = parent_events
         self.proc = multiprocessing.Process(
             target=_run_qt_browser,
-            args=(self.current_url, child_conn, child_events),
+            args=(self.current_url, child_conn, child_events, self.profile_dir),
             daemon=True
         )
         self.proc.start()
@@ -153,5 +160,27 @@ class BrowserOverlay:
                         self.app._on_browser_cookies(event[1])
                     except Exception:
                         pass
+            elif event[0] == "PROFILE_SWITCH_REQUEST":
+                # Handle profile switch request from browser
+                try:
+                    new_profile_name = event[1]
+                    if hasattr(self.app, "_on_browser_profile_switched"):
+                        # Notify main app to update its state/UI.
+                        # Main app will update self.app.wd_profile_var, which calls _wd_on_profile_change,
+                        # which calls self.set_profile -> hide().
+                        # So we assume main app handles the logic.
+                        self.app._on_browser_profile_switched(new_profile_name)
+                    else:
+                        # Fallback if no main app handler
+                        self.hide()
+                        if new_profile_name == "Profile 1":
+                             self.profile_dir = None
+                        else:
+                             # We need base dir... assuming we can construct it or just rely on main app.
+                             # If main app didn't handle it, we might be lost on path.
+                             # But _on_browser_profile_switched should exist.
+                             pass
+                except Exception:
+                    pass
         if self.proc:
             self.app.after(200, self._poll_events)

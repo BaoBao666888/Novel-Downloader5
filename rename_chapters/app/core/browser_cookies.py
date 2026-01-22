@@ -17,13 +17,19 @@ def _domain_match(host_key: str, domain: str) -> bool:
     return host == domain or host.endswith("." + domain)
 
 
-def load_browser_cookie_jar(domains: Iterable[str], required_names: Optional[Iterable[str]] = None) -> Optional[RequestsCookieJar]:
+def load_browser_cookie_jar(
+    domains: Iterable[str],
+    required_names: Optional[Iterable[str]] = None,
+    cookie_db_path: Optional[str] = None
+) -> Optional[RequestsCookieJar]:
     """
     Đọc cookie từ profile của trình duyệt tích hợp (Qt WebEngine).
     Chỉ trả về những cookie thuộc các domain mong muốn.
     Nếu chỉ định `required_names`, tất cả cookie này (theo tên, không phân biệt hoa thường) phải tồn tại.
+    Có thể truyền `cookie_db_path` để đọc cookie từ profile khác.
     """
-    if not os.path.exists(COOKIES_DB_PATH):
+    db_path = cookie_db_path or COOKIES_DB_PATH
+    if not os.path.exists(db_path):
         return None
 
     normalized_domains = [d.lstrip(".").lower() for d in domains if d]
@@ -37,7 +43,7 @@ def load_browser_cookie_jar(domains: Iterable[str], required_names: Optional[Ite
     dedup_keys: Set[tuple] = set()
 
     try:
-        conn = sqlite3.connect(COOKIES_DB_PATH)
+        conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         for domain in normalized_domains:

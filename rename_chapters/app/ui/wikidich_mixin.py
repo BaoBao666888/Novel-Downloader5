@@ -47,10 +47,15 @@ class WikidichMixin:
         initial_data = self.wikidich_data
         initial_filtered = getattr(self, "wikidich_filtered", [])
         initial_new = dict(self.wd_new_chapters)
+        self._wd_data_store = {}
+        self._wd_filtered_store = {}
+        self._wd_new_chapters_store = {}
         for site in ("wikidich", "koanchay"):
             if site == "koanchay":
                 self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
-                self.wikidich_filters = dict(initial_filters)
+                # Load filters riêng cho Koanchay nếu có trong config
+                kc_cfg = getattr(self, "app_config", {}).get("koanchay", {})
+                self.wikidich_filters = dict(kc_cfg.get("advanced_filter", initial_filters))
                 self.wikidich_filtered = []
                 self.wd_new_chapters = {}
             tab = ttk.Frame(self.notebook, padding="10")
@@ -62,8 +67,22 @@ class WikidichMixin:
             self._build_wikidich_tab_ui(tab, site)
             self._wd_contexts[site] = self._wd_capture_context()
             self._wd_site_states[site] = self._wd_capture_site_state()
+            # Capture UI state mapping
+            self._wd_capture_ui_state(site)
+            # Init stores
+            self._wd_data_store[site] = self.wikidich_data
+            self._wd_filtered_store[site] = self.wikidich_filtered
+            self._wd_new_chapters_store[site] = self.wd_new_chapters
+
         self.wd_new_chapters = initial_new
-        self.wikidich_filters = dict(initial_filters)
+        # Initialize filter store from config
+        wd_cfg = getattr(self, "app_config", {}).get("wikidich", {})
+        kc_cfg = getattr(self, "app_config", {}).get("koanchay", {})
+        self._wd_filters_store = {
+            "wikidich": dict(wd_cfg.get("advanced_filter", initial_filters)),
+            "koanchay": dict(kc_cfg.get("advanced_filter", initial_filters))
+        }
+        
         self.wikidich_data = initial_data
         self.wikidich_filtered = list(initial_filtered) if initial_filtered else []
         self._wd_set_active_site("wikidich", skip_save=True)
@@ -81,24 +100,45 @@ class WikidichMixin:
 
         header = ttk.Frame(tab)
         header.grid(row=0, column=0, sticky="ew")
-        header.columnconfigure(6, weight=1)
-        self.wd_user_label = ttk.Label(header, text="Chưa kiểm tra đăng nhập")
+        header.columnconfigure(6, weight=0) # Reset weight 
+        self.wd_user_label = ttk.Label(header, text="Chưa kiểm tra đăng nhập", width=25, anchor="w")
         self.wd_user_label.grid(row=0, column=0, sticky="w")
-        ttk.Button(header, text="Tải Works", command=self._wd_start_fetch_works).grid(row=0, column=1, padx=(10, 0))
-        ttk.Button(header, text="Tải chi tiết", command=self._wd_prompt_detail_fetch).grid(row=0, column=2, padx=(6, 0))
-        ttk.Button(header, text="Ghi chú", command=self._wd_open_global_notes).grid(row=0, column=3, padx=(6, 0))
-        ttk.Button(header, text="Liên kết", command=self._wd_open_global_links).grid(row=0, column=4, padx=(6, 0))
-        ttk.Button(header, text="Cài đặt", command=self._open_api_settings_dialog).grid(row=0, column=5, padx=(6, 0))
-        header.columnconfigure(6, weight=1)
+        
+        sync_mb = ttk.Menubutton(header, text="Sync")
+        sync_menu = tk.Menu(sync_mb, tearoff=0)
+        sync_menu.add_command(label="Tải Works", command=self._wd_start_fetch_works)
+        sync_menu.add_command(label="Tải chi tiết", command=self._wd_prompt_detail_fetch)
+        sync_mb.config(menu=sync_menu)
+        sync_mb.grid(row=0, column=1, padx=(10, 0))
+
+        # Group Buttons into a toolbar frame
+        tools_frame = ttk.Frame(header)
+        tools_frame.grid(row=0, column=3, columnspan=4, padx=(6, 0))
+        
+        ttk.Button(tools_frame, text="Ghi chú", command=self._wd_open_global_notes).pack(side=tk.LEFT, padx=(0, 2))
+        if hasattr(self, "_lib_open_library_window"):
+             ttk.Button(tools_frame, text="Thư viện", command=self._lib_open_library_window).pack(side=tk.LEFT, padx=(2, 2))
+        
+        ttk.Button(tools_frame, text="Liên kết", command=self._wd_open_global_links).pack(side=tk.LEFT, padx=(2, 2))
+        ttk.Button(tools_frame, text="Cài đặt", command=self._open_api_settings_dialog).pack(side=tk.LEFT, padx=(2, 0))
+        
+        # Profile Select
+        self.wd_profile_var = tk.StringVar(value="Profile 1")
+        ttk.Label(header, text="Profile:").grid(row=0, column=7, padx=(10, 2))
+        self.wd_profile_cb = ttk.Combobox(header, textvariable=self.wd_profile_var, width=15, state="readonly")
+        self.wd_profile_cb.grid(row=0, column=8, padx=(0, 6))
+        self.wd_profile_cb.bind("<<ComboboxSelected>>", self._wd_on_profile_change)
+        
+        header.columnconfigure(9, weight=1)
         header_spacer = ttk.Frame(header)
-        header_spacer.grid(row=0, column=6, sticky="ew")
+        header_spacer.grid(row=0, column=9, sticky="ew")
         self.wd_count_var = tk.StringVar(value="Số truyện: 0")
         self._wd_count_header_label = ttk.Label(header, textvariable=self.wd_count_var)
-        self._wd_count_header_label.grid(row=0, column=7, padx=(0, 8), sticky="e")
+        self._wd_count_header_label.grid(row=0, column=10, padx=(0, 8), sticky="e")
         self.wd_basic_toggle_btn = ttk.Button(header, text="Thu gọn lọc cơ bản", command=self._wd_toggle_basic_section)
-        self.wd_basic_toggle_btn.grid(row=0, column=8, padx=(6, 0))
+        self.wd_basic_toggle_btn.grid(row=0, column=11, padx=(6, 0))
         self.wd_site_button = ttk.Button(header, text=other_site.capitalize(), command=lambda s=other_site: self._wd_switch_site(s))
-        self.wd_site_button.grid(row=0, column=9, padx=(12, 0))
+        self.wd_site_button.grid(row=0, column=12, padx=(12, 0))
 
         progress_frame = ttk.Frame(tab)
         progress_frame.grid(row=1, column=0, sticky="ew", pady=(6, 4))
@@ -114,49 +154,111 @@ class WikidichMixin:
         self._wd_progress_visible = False
         progress_frame.grid_remove()
 
-        filter_frame = ttk.LabelFrame(tab, text="Bộ lọc cơ bản", padding=10)
-        filter_frame.grid(row=2, column=0, sticky="ew")
-        filter_frame.columnconfigure(1, weight=1)
-        filter_frame.columnconfigure(3, weight=1)
-        filter_frame.columnconfigure(4, weight=0)
-        filter_frame.columnconfigure(5, weight=0)
-        self._wd_filter_frame = filter_frame
-        self._wd_filter_frame_grid_opts = {"row": 2, "column": 0, "sticky": "ew"}
-        lbl_title = ttk.Label(filter_frame, text="Tiêu đề / Tác giả:")
+        # Scrollable Filter Container
+        self._wd_filter_container = ttk.LabelFrame(tab, text="Bộ lọc cơ bản", padding=2)
+        self._wd_filter_container.grid(row=2, column=0, sticky="ew")
+        self._wd_filter_container.columnconfigure(0, weight=1)
+        self._wd_filter_container.rowconfigure(0, weight=1)
+        
+        # Max height for filter area (limit overflow when mở lọc nâng cao)
+        self._wd_filter_max_height = 220
+        filter_canvas = tk.Canvas(self._wd_filter_container, height=160, bd=0, highlightthickness=0)
+        filter_scrollbar = ttk.Scrollbar(self._wd_filter_container, orient="vertical", command=filter_canvas.yview)
+
+        self._wd_filter_frame = ttk.Frame(filter_canvas) # Inner frame
+        self._wd_filter_canvas = filter_canvas
+        self._wd_filter_window_id = filter_canvas.create_window((0, 0), window=self._wd_filter_frame, anchor="nw")
+        self._wd_filter_scroll_job = None
+        filter_canvas.configure(yscrollcommand=filter_scrollbar.set)
+        
+        filter_canvas.grid(row=0, column=0, sticky="nsew")
+        filter_scrollbar.grid(row=0, column=1, sticky="ns")
+        
+        # Check mousewheel
+        def _on_filter_frame_configure(_event):
+            self._wd_schedule_filter_scroll()
+
+        def _on_filter_canvas_configure(event):
+            filter_canvas.itemconfigure(self._wd_filter_window_id, width=event.width)
+            self._wd_schedule_filter_scroll()
+
+        def _on_filter_mousewheel(event):
+            if event.delta:
+                filter_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            elif getattr(event, "num", None) == 4:
+                filter_canvas.yview_scroll(-3, "units")
+            elif getattr(event, "num", None) == 5:
+                filter_canvas.yview_scroll(3, "units")
+
+        self._wd_filter_frame.bind("<Configure>", _on_filter_frame_configure)
+        filter_canvas.bind("<Configure>", _on_filter_canvas_configure)
+        filter_canvas.bind("<Enter>", lambda _e: filter_canvas.focus_set())
+        filter_canvas.bind("<MouseWheel>", _on_filter_mousewheel)
+        filter_canvas.bind("<Button-4>", _on_filter_mousewheel)
+        filter_canvas.bind("<Button-5>", _on_filter_mousewheel)
+        self._wd_filter_frame.bind("<MouseWheel>", _on_filter_mousewheel)
+        self._wd_filter_frame.bind("<Button-4>", _on_filter_mousewheel)
+        self._wd_filter_frame.bind("<Button-5>", _on_filter_mousewheel)
+
+        filter_frame = self._wd_filter_frame # Alias for existing code
+        filter_frame.columnconfigure(0, weight=1)
+        filter_frame.columnconfigure(1, weight=0)
+        
+        # Grid opts for the container (used for hiding/showing if needed, though we probably just grid/forget the container now)
+        # Input Frame (Left side)
+        input_frame = ttk.Frame(filter_frame)
+        input_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        input_frame.columnconfigure(1, weight=1)
+        input_frame.columnconfigure(3, weight=1)
+
+        lbl_title = ttk.Label(input_frame, text="Tiêu đề / Tác giả:")
         lbl_title.grid(row=0, column=0, sticky="w")
         self.wd_search_var = tk.StringVar(value=self.wikidich_filters.get('search', ''))
-        entry_title = ttk.Entry(filter_frame, textvariable=self.wd_search_var)
+        entry_title = ttk.Entry(input_frame, textvariable=self.wd_search_var)
         entry_title.grid(row=0, column=1, sticky="ew", padx=(4, 10))
-        lbl_status = ttk.Label(filter_frame, text="Trạng thái:")
+        lbl_status = ttk.Label(input_frame, text="Trạng thái:")
         lbl_status.grid(row=0, column=2, sticky="w")
         self.wd_status_var = tk.StringVar(value=self.wikidich_filters.get('status', 'all'))
         status_values = ["all"] + wikidich_ext.STATUS_OPTIONS
-        status_combo = ttk.Combobox(filter_frame, state="readonly", textvariable=self.wd_status_var, values=status_values, width=18)
+        status_combo = ttk.Combobox(input_frame, state="readonly", textvariable=self.wd_status_var, values=status_values, width=18)
         status_combo.grid(row=0, column=3, sticky="w")
 
-        lbl_summary = ttk.Label(filter_frame, text="Tìm trong văn án:")
+        lbl_summary = ttk.Label(input_frame, text="Tìm trong văn án:")
         lbl_summary.grid(row=1, column=0, sticky="w", pady=(6, 0))
         self.wd_summary_var = tk.StringVar(value=self.wikidich_filters.get('summarySearch', ''))
-        entry_summary = ttk.Entry(filter_frame, textvariable=self.wd_summary_var)
+        entry_summary = ttk.Entry(input_frame, textvariable=self.wd_summary_var)
         entry_summary.grid(row=1, column=1, sticky="ew", padx=(4, 10), pady=(6, 0))
-        lbl_sort = ttk.Label(filter_frame, text="Sắp xếp:")
+        lbl_sort = ttk.Label(input_frame, text="Sắp xếp:")
         lbl_sort.grid(row=1, column=2, sticky="w", pady=(6, 0))
         self._wd_sort_value_to_label = {value: label for value, label in WD_SORT_OPTIONS}
         self._wd_sort_label_to_value = {label: value for value, label in WD_SORT_OPTIONS}
         initial_sort_label = self._wd_sort_value_to_label.get(self.wikidich_filters.get('sortBy', 'recent'), WD_SORT_OPTIONS[0][1])
         self.wd_sort_label_var = tk.StringVar(value=initial_sort_label)
-        sort_combo = ttk.Combobox(filter_frame, state="readonly", textvariable=self.wd_sort_label_var,
+        sort_combo = ttk.Combobox(input_frame, state="readonly", textvariable=self.wd_sort_label_var,
                      values=[label for _, label in WD_SORT_OPTIONS], width=18)
         sort_combo.grid(row=1, column=3, sticky="w", pady=(6, 0))
 
-        lbl_extra = ttk.Label(filter_frame, text="Link bổ sung:")
+        lbl_extra = ttk.Label(input_frame, text="Link bổ sung:")
         lbl_extra.grid(row=2, column=0, sticky="w", pady=(6, 0))
         self.wd_extra_link_var = tk.StringVar(value=self.wikidich_filters.get('extraLinkSearch', ''))
-        entry_extra = ttk.Entry(filter_frame, textvariable=self.wd_extra_link_var)
+        entry_extra = ttk.Entry(input_frame, textvariable=self.wd_extra_link_var)
         entry_extra.grid(row=2, column=1, columnspan=3, sticky="ew", padx=(4, 10), pady=(6, 0))
 
+        flag_labels = {
+            "embedLink": "Có nhúng link",
+            "embedFile": "Có nhúng file"
+        }
+        lbl_flags = ttk.Label(input_frame, text="Thuộc tính:")
+        lbl_flags.grid(row=3, column=0, sticky="nw", pady=(8, 0))
+        self.wd_flag_vars = {flag: tk.BooleanVar(value=flag in self.wikidich_filters.get('flags', [])) for flag in flag_labels}
+        flag_frame = ttk.Frame(input_frame)
+        flag_frame.grid(row=3, column=1, columnspan=3, sticky="w", pady=(8, 0))
+        for flag, label in flag_labels.items():
+            ttk.Checkbutton(flag_frame, text=label, variable=self.wd_flag_vars[flag]).pack(side=tk.LEFT, padx=(0, 12))
+
+        # Action Frame (Right side)
         action_frame = ttk.Frame(filter_frame)
-        action_frame.grid(row=0, column=5, rowspan=4, sticky="ne", padx=(10, 0))
+        action_frame.grid(row=0, column=1, sticky="ne")
         action_frame.columnconfigure(0, weight=1)
         apply_btn = ttk.Button(action_frame, text="Áp dụng", command=self._wd_apply_filters)
         apply_btn.grid(row=0, column=0, sticky="ew")
@@ -164,10 +266,17 @@ class WikidichMixin:
         check_update_btn.grid(row=1, column=0, sticky="ew", pady=(6, 0))
         self.wd_adv_toggle_btn = ttk.Button(action_frame, text="Hiện lọc nâng cao", command=self._wd_toggle_advanced_section)
         self.wd_adv_toggle_btn.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        
+        # New: Advanced Status Label under the toggle button
         self.wd_basic_status_var = tk.StringVar(value="")
         self.wd_adv_status_var = tk.StringVar(value="")
+
+        # Advanced status text now shown via ticker only (avoid duplicate lines)
+        self.wd_adv_status_label = ttk.Label(action_frame, textvariable=self.wd_adv_status_var, foreground="blue", wraplength=140, anchor="c")
+        self.wd_adv_status_label.grid(row=3, column=0, sticky="ew", pady=(4, 0))
+        self.wd_adv_status_label.grid_remove()
         self.wd_status_ticker_var = tk.StringVar(value="")
-        self._wd_status_ticker_window = 60
+        self._wd_status_ticker_window = 36
         self._wd_status_ticker_job = None
         self._wd_status_ticker_index = 0
         self._wd_status_ticker_delay = 80
@@ -178,19 +287,12 @@ class WikidichMixin:
             anchor="w",
             foreground="#16a34a"
         )
-        ticker_label.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        ticker_label.grid(row=4, column=0, sticky="ew", pady=(4, 0))
 
-        flag_labels = {
-            "embedLink": "Có nhúng link",
-            "embedFile": "Có nhúng file"
-        }
-        lbl_flags = ttk.Label(filter_frame, text="Thuộc tính:")
-        lbl_flags.grid(row=3, column=0, sticky="nw", pady=(8, 0))
-        self.wd_flag_vars = {flag: tk.BooleanVar(value=flag in self.wikidich_filters.get('flags', [])) for flag in flag_labels}
-        flag_frame = ttk.Frame(filter_frame)
-        flag_frame.grid(row=3, column=1, columnspan=3, sticky="w", pady=(8, 0))
-        for flag, label in flag_labels.items():
-            ttk.Checkbutton(flag_frame, text=label, variable=self.wd_flag_vars[flag]).pack(side=tk.LEFT, padx=(0, 12))
+        # No longer used in this block as it was moved into input_frame logic above.
+        # But we need to remove the old flag UI code lines as they are replaced.
+        # Check original code structure.
+        pass
 
         # Thu gọn lọc cơ bản mặc định để mở rộng bảng
         self._wd_basic_collapsed = False
@@ -258,23 +360,45 @@ class WikidichMixin:
         self.wd_title_text.grid(row=0, column=0, sticky="ew")
         self._wd_make_text_readonly(self.wd_title_text)
         self._wd_set_text_content(self.wd_title_text, "Chưa chọn truyện")
-        btn_row = ttk.Frame(header_frame)
-        btn_row.grid(row=1, column=0, sticky="e", pady=(6, 0))
-        ttk.Button(btn_row, text="Mở trang truyện", command=self._wd_open_book_in_browser).pack(side=tk.LEFT)
-        self.wd_auto_update_btn = ttk.Button(btn_row, text="Auto update", command=self._wd_auto_update_fanqie, state=tk.DISABLED)
-        self._wd_auto_update_pack_opts = {"side": tk.LEFT, "padx": (8, 0)}
-        self.wd_auto_update_btn.pack(**self._wd_auto_update_pack_opts)
-        self.wd_auto_update_btn.pack_forget()
-        self.wd_edit_book_btn = ttk.Button(btn_row, text="Chỉnh sửa", command=self._wd_open_wiki_edit_uploader, state=tk.DISABLED)
-        self.wd_edit_book_btn.pack(side=tk.LEFT, padx=(8, 0))
-        self.wd_chapter_list_btn = ttk.Button(btn_row, text="DS Chương", command=self._wd_open_chapter_list, state=tk.DISABLED)
-        self.wd_chapter_list_btn.pack(side=tk.LEFT, padx=(8, 0))
-        self.wd_update_button = ttk.Button(btn_row, text="Cập nhật chương", command=self._wd_open_update_dialog, state=tk.DISABLED)
-        self.wd_update_button.pack(side=tk.LEFT, padx=(8, 0))
-        self.wd_note_button = ttk.Button(btn_row, text="Ghi chú", command=self._wd_open_local_note, state=tk.DISABLED)
-        self.wd_note_button.pack(side=tk.LEFT, padx=(8, 0))
-        self.wd_delete_button = ttk.Button(btn_row, text="Xóa", command=self._wd_delete_book, state=tk.DISABLED)
-        self.wd_delete_button.pack(side=tk.LEFT, padx=(8, 0))
+        # Flowing buttons layout (auto wrap by width)
+        self.wd_btn_flow = ttk.Frame(header_frame)
+        self.wd_btn_flow.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        self._wd_flow_buttons = []
+        self._wd_flow_padx = 8
+        self._wd_flow_pady = 4
+
+        def _register_flow_btn(btn, visible=True):
+            btn._wd_flow_hidden = not visible
+            self._wd_flow_buttons.append(btn)
+
+        b1 = ttk.Button(self.wd_btn_flow, text="Mở trang truyện", command=self._wd_open_book_in_browser)
+        _register_flow_btn(b1, True)
+
+        self.wd_auto_update_btn = ttk.Button(self.wd_btn_flow, text="Auto update", command=self._wd_auto_update_fanqie, state=tk.DISABLED)
+        _register_flow_btn(self.wd_auto_update_btn, False)
+
+        self.wd_edit_book_btn = ttk.Button(self.wd_btn_flow, text="Chỉnh sửa", command=self._wd_open_wiki_edit_uploader, state=tk.DISABLED)
+        _register_flow_btn(self.wd_edit_book_btn, True)
+
+        self.wd_chapter_list_btn = ttk.Button(self.wd_btn_flow, text="DS Chương", command=self._wd_open_chapter_list, state=tk.DISABLED)
+        _register_flow_btn(self.wd_chapter_list_btn, True)
+
+        self.wd_update_button = ttk.Button(self.wd_btn_flow, text="Cập nhật chương", command=self._wd_open_update_dialog, state=tk.DISABLED)
+        _register_flow_btn(self.wd_update_button, True)
+
+        self.wd_note_button = ttk.Button(self.wd_btn_flow, text="Ghi chú", command=self._wd_open_local_note, state=tk.DISABLED)
+        _register_flow_btn(self.wd_note_button, True)
+
+        self.wd_delete_button = ttk.Button(self.wd_btn_flow, text="Xóa", command=self._wd_delete_book, state=tk.DISABLED)
+        _register_flow_btn(self.wd_delete_button, True)
+
+        self.wd_add_lib_btn = ttk.Button(self.wd_btn_flow, text="Thêm thư viện", command=self._wd_add_to_library, state=tk.DISABLED)
+        _register_flow_btn(self.wd_add_lib_btn, True)
+
+        self._wd_flow_layout_job = None
+        self._wd_flow_layouting = False
+        self.wd_btn_flow.bind("<Configure>", lambda _e: self._wd_schedule_flow_layout())
+        self._wd_schedule_flow_layout()
 
         content_container = ttk.Frame(detail_container, padding=(6, 0, 6, 6))
         content_container.grid(row=1, column=0, sticky="nsew")
@@ -431,8 +555,164 @@ class WikidichMixin:
         self.wd_tree.configure(yscrollcommand=tree_scroll.set)
         tree_scroll.grid(row=0, column=1, sticky="ns")
 
+        self._wd_scan_profiles()
         self._wd_update_user_label()
         self._wd_apply_filters()
+        
+    def _wd_scan_profiles(self):
+        # Scan BASE_DIR for qt_browser_profile*
+        try:
+            profiles = ["Profile 1"]
+            for name in os.listdir(BASE_DIR):
+                full = os.path.join(BASE_DIR, name)
+                if os.path.isdir(full) and name.startswith("qt_browser_profile_"):
+                    pname = name.replace("qt_browser_profile_", "")
+                    pname = pname.replace("_", " ") # restore spaces
+                    if pname not in profiles:
+                        profiles.append(pname)
+            
+            # Sort: Profile 1 first, then alphabetical
+            profiles.sort(key=lambda x: (0 if x == "Profile 1" else 1, x))
+            
+            if hasattr(self, "wd_profile_cb"):
+                 self.wd_profile_cb['values'] = profiles
+                 current = self.wd_profile_var.get()
+                 if current not in profiles:
+                     self.wd_profile_var.set(profiles[0])
+        except Exception:
+            pass
+    
+    def _wd_capture_ui_state(self, site):
+        if not hasattr(self, "_wd_ui_state"):
+            self._wd_ui_state = {}
+        # List of attributes to save/restore per site
+        attrs = [
+            "wd_search_var", "wd_status_var", "wd_summary_var", "wd_sort_label_var",
+            "wd_extra_link_var", "wd_basic_status_var", "wd_adv_status_var", "wd_status_ticker_var",
+            "wd_from_date_var", "wd_to_date_var", "wd_link_path_var", "wd_auto_mode_var",
+            "wd_count_var", "wd_info_vars", "wd_flag_vars", "wd_role_vars",
+            "wd_user_label", "_wd_count_header_label", "wd_basic_toggle_btn", "wd_site_button",
+            "wd_progress", "wd_progress_label", "wd_cancel_btn", "wd_progress_frame",
+            "_wd_filter_frame", "wd_adv_toggle_btn", "wd_adv_container", "wd_category_listbox",
+            "wd_title_text", "wd_summary_text", "wd_collections_text", "wd_flags_text",
+            "wd_links_listbox", "wd_current_links", "wd_auto_pick_btn", "wd_open_link_btn",
+            "wd_download_btn", "wd_tree", "_wd_tree_index",
+            "wd_author_entry", "wd_status_entry", "wd_updated_entry", "wd_chapters_entry",
+            "wd_cover_label", "wd_detail_canvas", "wd_detail_scope_var", "wd_missing_only_var",
+            "wd_cover_label", "wd_detail_canvas", "wd_detail_scope_var", "wd_missing_only_var",
+            "wd_auto_update_btn", "wd_edit_book_btn", "wd_chapter_list_btn",
+            "wd_update_button", "wd_note_button", "wd_delete_button", "wd_profile_var"
+        ]
+        state = {}
+        for attr in attrs:
+            if hasattr(self, attr):
+                state[attr] = getattr(self, attr)
+        self._wd_ui_state[site] = state
+
+    def _wd_restore_ui_state(self, site):
+        if not hasattr(self, "_wd_ui_state") or site not in self._wd_ui_state:
+            return
+        state = self._wd_ui_state[site]
+        for attr, val in state.items():
+            setattr(self, attr, val)
+        # Also swap filters dict (use copy to prevent shared reference)
+        if hasattr(self, "_wd_filters_store"):
+            if site not in self._wd_filters_store:
+                 self._wd_filters_store[site] = dict(self.wikidich_filters) if hasattr(self, "wikidich_filters") else {}
+            self.wikidich_filters = dict(self._wd_filters_store[site])
+        # Sync UI controls from restored filters
+        self._wd_sync_filter_controls_from_filters()
+    
+    def _wd_switch_site(self, site):
+        if site == getattr(self, "wd_site", ""):
+            return
+        # Save current filters to store before switching (use copy)
+        current_site = getattr(self, "wd_site", "wikidich")
+        if hasattr(self, "_wd_filters_store") and hasattr(self, "wikidich_filters"):
+            self._wd_filters_store[current_site] = dict(self.wikidich_filters)
+
+        self._wd_set_active_site(site)
+
+    def _wd_set_active_site(self, site, skip_save=False):
+        # Save current data (if valid site set)
+        current = getattr(self, "wd_site", None)
+        if current and hasattr(self, "_wd_data_store"):
+             # Collect current filter values from UI controls before saving
+             try:
+                 self._wd_collect_advanced_filter_values()
+             except Exception:
+                 pass
+             # Save filters to store for current site
+             if hasattr(self, "_wd_filters_store") and hasattr(self, "wikidich_filters"):
+                 self._wd_filters_store[current] = dict(self.wikidich_filters)
+             self._wd_data_store[current] = self.wikidich_data
+             if hasattr(self, "_wd_filtered_store"): self._wd_filtered_store[current] = self.wikidich_filtered
+             if hasattr(self, "_wd_new_chapters_store"): self._wd_new_chapters_store[current] = self.wd_new_chapters
+
+        # Restore UI references for the new site
+        self._wd_restore_ui_state(site)
+        self.wd_site = site
+        
+        # Refresh profile list and set paths FIRST (before restoring data)
+        self._wd_scan_profiles()
+        # Apply profile settings (cookies path, cache paths) without reloading cache yet
+        self._wd_on_profile_change(reload_cache=False)
+        
+        # Switch notebook tab immediately for responsive UI
+        if hasattr(self, "notebook") and hasattr(self, "_wd_tabs"):
+            try:
+                tab = self._wd_tabs.get(site)
+                if tab:
+                    if self.notebook.index(tab) == "hidden":
+                         self.notebook.tab(tab, state="normal")
+                    self.notebook.select(tab)
+            except Exception:
+                pass
+
+        # Sync filter UI controls from the loaded filters dict (fast, no I/O)
+        try:
+            self._wd_sync_filter_controls_from_filters()
+        except Exception:
+            pass
+        
+        # Show loading state immediately
+        try:
+            self._wd_update_user_label()
+            if hasattr(self, "wd_count_var"):
+                self.wd_count_var.set("Đang tải...")
+        except Exception:
+            pass
+        
+        # Run heavy operations in background thread to prevent UI freeze
+        def _load_and_refresh():
+            try:
+                # Load cache from disk (I/O operation)
+                cached = wikidich_ext.load_cache(self._wd_get_cache_path())
+                if cached:
+                    self.wikidich_data = cached
+                else:
+                    self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
+                    self.wikidich_filtered = []
+                
+                # Schedule UI updates on main thread
+                self.after(0, self._wd_finish_site_switch)
+            except Exception as e:
+                self.after(0, lambda: self.log(f"Lỗi load cache: {e}"))
+        
+        threading.Thread(target=_load_and_refresh, daemon=True).start()
+
+    def _wd_finish_site_switch(self):
+        """Called on main thread after background cache load completes."""
+        try:
+            self._wd_update_user_label()
+            self._wd_refresh_category_options()
+            self._wd_apply_filters()
+            self._wd_update_adv_status()
+            self._wd_update_basic_status()
+        except Exception as e:
+            self.log(f"Lỗi refresh UI: {e}")
+
+
 
 
     def _wd_make_text_readonly(self, widget: tk.Text):
@@ -532,11 +812,16 @@ class WikidichMixin:
 
     def _wd_build_wiki_session(self, include_user=True):
         proxies = self._get_proxy_for_request('fetch_titles')
-        cookies = load_browser_cookie_jar(self._wd_get_cookie_domains())
+        cookies = load_browser_cookie_jar(
+            self._wd_get_cookie_domains(),
+            cookie_db_path=self._wd_get_cookie_db_path()
+        )
         if not cookies:
             return None, None, proxies
         session = wikidich_ext.build_session_with_cookies(cookies, proxies=proxies)
-        # Dedupe cookie trùng tên (ưu tiên domain truyenwikidich.net, giá trị không bị bọc ")
+        # Dedupe cookie trùng tên (ưu tiên domain của site hiện tại, giá trị không bị bọc ")
+        # Xác định domain ưu tiên dựa trên site hiện tại
+        preferred_domain = "koanchay.org" if getattr(self, "wd_site", "wikidich") == "koanchay" else "truyenwikidich.net"
         try:
             cleaned = requests.cookies.RequestsCookieJar()
             keep: dict[str, requests.cookies.Cookie] = {}
@@ -549,8 +834,9 @@ class WikidichMixin:
                 else:
                     cur_bad_quote = str(cur.value or "").startswith('"') and str(cur.value or "").endswith('"')
                     cand_bad_quote = str(c.value or "").startswith('"') and str(c.value or "").endswith('"')
-                    cur_good_domain = str(cur.domain or "").endswith("truyenwikidich.net")
-                    cand_good_domain = str(c.domain or "").endswith("truyenwikidich.net")
+                    # Ưu tiên domain phù hợp với site hiện tại
+                    cur_good_domain = str(cur.domain or "").endswith(preferred_domain)
+                    cand_good_domain = str(c.domain or "").endswith(preferred_domain)
                     if cand_good_domain and not cur_good_domain:
                         preferred = c
                     elif cur_good_domain == cand_good_domain:
@@ -635,39 +921,70 @@ class WikidichMixin:
             self.wd_user_label.config(text=text, foreground=color)
 
     def _wd_set_progress(self, message: str, current: int = 0, total: int = 0):
+        target_site = getattr(self, "_wd_loading_site", None) or getattr(self, "wd_site", "wikidich")
+
         def _update():
-            if not hasattr(self, "wd_progress"):
+            state = (getattr(self, "_wd_ui_state", {}) or {}).get(target_site, {})
+            progress = state.get("wd_progress") or getattr(self, "wd_progress", None)
+            label = state.get("wd_progress_label") or getattr(self, "wd_progress_label", None)
+            frame = state.get("wd_progress_frame") or getattr(self, "wd_progress_frame", None)
+            cancel_btn = state.get("wd_cancel_btn") or getattr(self, "wd_cancel_btn", None)
+            if not progress or not label:
                 return
-            self.wd_progress_label.config(text=message)
+
+            label.config(text=message)
+            running_map = getattr(self, "_wd_progress_running_by_site", {})
+            running = running_map.get(target_site, False)
             if total > 0:
-                self.wd_progress.config(mode="determinate", maximum=total, value=min(current, total))
-                if self._wd_progress_running:
-                    self.wd_progress.stop()
-                    self._wd_progress_running = False
+                progress.config(mode="determinate", maximum=total, value=min(current, total))
+                if running:
+                    progress.stop()
+                    running = False
             else:
-                self.wd_progress.config(mode="indeterminate", maximum=100, value=0)
-                if not self._wd_progress_running:
-                    self.wd_progress.start(12)
-                    self._wd_progress_running = True
-            self._wd_update_progress_visibility(message)
+                progress.config(mode="indeterminate", maximum=100, value=0)
+                if not running:
+                    progress.start(12)
+                    running = True
+
+            running_map[target_site] = running
+            self._wd_progress_running_by_site = running_map
+            if target_site == getattr(self, "wd_site", "wikidich"):
+                self._wd_progress_running = running
+            self._wd_update_progress_visibility_for_site(target_site, message, frame, cancel_btn)
         self.after(0, _update)
 
     def _wd_update_progress_visibility(self, message: str):
         frame = getattr(self, "wd_progress_frame", None)
+        cancel_btn = getattr(self, "wd_cancel_btn", None)
+        self._wd_update_progress_visibility_for_site(
+            getattr(self, "wd_site", "wikidich"),
+            message,
+            frame,
+            cancel_btn
+        )
+
+    def _wd_update_progress_visibility_for_site(self, site: str, message: str, frame=None, cancel_btn=None):
         if not frame:
             return
-        active = bool(self._wd_loading or (message and message.strip() and message != "Chờ thao tác..."))
-        visible = getattr(self, "_wd_progress_visible", False)
-        cancel_btn = getattr(self, "wd_cancel_btn", None)
+        visible_map = getattr(self, "_wd_progress_visible_by_site", {})
+        visible = visible_map.get(site, False)
+        loading_site = getattr(self, "_wd_loading_site", None)
+        active = bool(
+            (message and message.strip() and message != "Chờ thao tác...")
+            or (self._wd_loading and loading_site == site)
+        )
         if cancel_btn:
-            cancel_btn_state = tk.NORMAL if active and self._wd_loading else tk.DISABLED
+            cancel_btn_state = tk.NORMAL if active and self._wd_loading and loading_site == site else tk.DISABLED
             cancel_btn.config(state=cancel_btn_state)
         if active and not visible:
             frame.grid()
-            self._wd_progress_visible = True
+            visible_map[site] = True
         elif not active and visible:
             frame.grid_remove()
-            self._wd_progress_visible = False
+            visible_map[site] = False
+        self._wd_progress_visible_by_site = visible_map
+        if site == getattr(self, "wd_site", "wikidich"):
+            self._wd_progress_visible = visible_map.get(site, False)
 
     def _wd_request_cancel(self):
         if not self._wd_loading:
@@ -730,6 +1047,12 @@ class WikidichMixin:
         if not hasattr(self, "wd_flag_vars"):
             return
         filters = self.wikidich_filters
+        if hasattr(self, "wd_search_var"):
+            self.wd_search_var.set(filters.get('search', ''))
+        if hasattr(self, "wd_status_var"):
+            self.wd_status_var.set(filters.get('status', 'all'))
+        if hasattr(self, "wd_summary_var"):
+             self.wd_summary_var.set(filters.get('summarySearch', ''))
         for flag, var in self.wd_flag_vars.items():
             var.set(flag in filters.get('flags', []))
         for role, var in self.wd_role_vars.items():
@@ -920,6 +1243,16 @@ class WikidichMixin:
         self._wd_tree_index = {}
         new_map = getattr(self, "wd_new_chapters", {})
         not_found_ids = set()
+        
+        # Settings
+        cfg = getattr(self, "api_settings", {}) or {}
+        high_thresh = int(cfg.get("wiki_high_new_threshold", 50))
+        high_color = cfg.get("wiki_high_new_color", "#dc2626")
+        try:
+             self.wd_tree.tag_configure("high_new", foreground=high_color)
+        except Exception:
+             pass
+
         try:
             not_found_ids = {b.get("id") for b in (self.wd_not_found or []) if b.get("id")}
         except Exception:
@@ -932,16 +1265,20 @@ class WikidichMixin:
             if book_id and not book.get("deleted_404") and book_id in not_found_ids:
                 book["deleted_404"] = True
             new_count = ""  # default empty
+            is_high = False
             if book_id and isinstance(new_map, dict):
                 val = new_map.get(book_id)
                 if isinstance(val, int) and val > 0:
                     new_count = str(val)
+                    if val >= high_thresh:
+                        is_high = True
+            
             if book.get("deleted_404"):
                 tags = ("not_found",)
             elif book.get("server_lower"):
                 tags = ("server_lower",)
             elif new_count:
-                tags = ("has_new",)
+                tags = ("high_new",) if is_high else ("has_new",)
             else:
                 tags = ()
             item_id = self.wd_tree.insert(
@@ -1063,6 +1400,12 @@ class WikidichMixin:
         self._wd_show_detail(book)
 
 
+    def _wd_add_to_library(self):
+        if not getattr(self, "wd_selected_book", None):
+            return
+        if hasattr(self, "_lib_add_book_from_data"):
+             self._lib_add_book_from_data(self.wd_selected_book)
+
     def _wd_show_detail(self, book):
         self.wd_selected_book = book
         if not book:
@@ -1079,13 +1422,14 @@ class WikidichMixin:
             self.wd_info_vars['flags'].set("")
             self._wd_update_update_button_state()
             self._wd_update_delete_button_state()
+            if hasattr(self, "wd_add_lib_btn"):
+                self.wd_add_lib_btn.config(state=tk.DISABLED)
             if hasattr(self, "wd_edit_book_btn"):
                 self.wd_edit_book_btn.config(state=tk.DISABLED)
             btn = getattr(self, "wd_auto_update_btn", None)
             if btn:
                 btn.config(state=tk.DISABLED)
-                if btn.winfo_manager():
-                    btn.pack_forget()
+                self._wd_set_flow_button_visible(btn, False)
             self._wd_update_link_ui(None)
             return
 
@@ -1107,6 +1451,8 @@ class WikidichMixin:
             "embedLink": "Nhúng link",
             "embedFile": "Nhúng file"
         }
+        if hasattr(self, "wd_add_lib_btn"):
+            self.wd_add_lib_btn.config(state=tk.NORMAL)
         flag_labels = [flag_map.get(k, k) for k, v in (book.get('flags') or {}).items() if v]
         if book.get("deleted_404"):
             flag_labels.append("Cảnh báo: truyện có thể đã bị xóa (404)")
@@ -1131,14 +1477,11 @@ class WikidichMixin:
         if btn:
             has_fanqie = bool(self._wd_get_fanqie_link(book))
             if has_fanqie:
-                if not btn.winfo_manager():
-                    opts = getattr(self, "_wd_auto_update_pack_opts", {"side": tk.LEFT, "padx": (8, 0)})
-                    btn.pack(**opts)
+                self._wd_set_flow_button_visible(btn, True)
                 btn.config(state=tk.NORMAL)
             else:
                 btn.config(state=tk.DISABLED)
-                if btn.winfo_manager():
-                    btn.pack_forget()
+                self._wd_set_flow_button_visible(btn, False)
         self._wd_update_link_ui(book)
 
     def _wd_open_link(self, url: str):
@@ -2860,7 +3203,12 @@ class WikidichMixin:
 
     def _wd_is_book_deleted_on_server(self, url: str, proxies=None) -> bool:
         try:
-            resp = requests.get(url, timeout=20, proxies=proxies, allow_redirects=True)
+            # Dùng session với headers + cookies để vượt qua CF
+            session, _user, _proxies = self._wd_build_wiki_session(include_user=True)
+            if not session:
+                return False
+            url = self._wd_normalize_url_for_site(url)
+            resp = session.get(url, timeout=20, proxies=proxies or _proxies, allow_redirects=True)
             if resp.status_code == 404:
                 return True
             html = resp.text or ""
@@ -2942,25 +3290,92 @@ class WikidichMixin:
         )
         if not confirm:
             return
-        proxies = self._get_proxy_for_request('fetch_titles')
-        if not self._wd_is_book_deleted_on_server(url, proxies=proxies):
-            messagebox.showinfo("Chưa xóa trên server", "Trang truyện vẫn tồn tại, không thể xóa trên local.", parent=self)
-            return
-        # Xóa khỏi dữ liệu local
-        ids = list(self.wikidich_data.get("book_ids") or [])
-        if book_id in ids:
-            ids.remove(book_id)
-        self.wikidich_data["book_ids"] = ids
-        self.wikidich_data.get("books", {}).pop(book_id, None)
-        if isinstance(self.wd_new_chapters, dict):
-            self.wd_new_chapters.pop(book_id, None)
-        self._wd_save_cache()
-        self.log(f"[Wikidich] Đã xóa truyện khỏi local: {selected.get('title', book_id)}")
-        filtered = list(getattr(self, "wikidich_filtered", []) or [])
-        filtered = [b for b in filtered if b.get("id") != book_id]
-        self.wikidich_filtered = filtered
-        self._wd_refresh_tree(filtered)
-        messagebox.showinfo("Đã xóa", "Đã xóa truyện khỏi dữ liệu local.", parent=self)
+
+        # Disable nút xóa trong khi kiểm tra
+        if hasattr(self, "wd_delete_btn"):
+            self.wd_delete_btn.config(state=tk.DISABLED)
+        self.log(f"[Wikidich] Đang kiểm tra truyện '{selected.get('title', book_id)}' trên server...")
+
+        def _check_and_delete():
+            proxies = self._get_proxy_for_request('fetch_titles')
+            is_deleted = False
+            error_msg = None
+            try:
+                session, current_user, _proxies = self._wd_build_wiki_session(include_user=True)
+                if not session:
+                    error_msg = "Không đọc được cookie Wikidich để kiểm tra truyện."
+                    return
+                if not current_user:
+                    current_user = self.wikidich_data.get('username') or ""
+                # Gọi fetch_book_detail với skip_chapter_count=True để nhanh hơn
+                wikidich_ext.fetch_book_detail(
+                    session, selected, current_user,
+                    base_url=self._wd_get_base_url(),
+                    proxies=proxies or _proxies,
+                    skip_chapter_count=True
+                )
+                # Nếu không ném exception, truyện vẫn tồn tại
+                is_deleted = False
+            except ValueError as e:
+                # fetch_book_detail ném ValueError("Book deleted (redirected to home)") khi bị xóa
+                if "deleted" in str(e).lower() or "redirect" in str(e).lower():
+                    is_deleted = True
+                    self.log(f"[Wikidich] Truyện đã bị xóa (redirect về home)")
+                else:
+                    self.log(f"[Wikidich] Lỗi kiểm tra xóa: {e}")
+                    error_msg = str(e)
+            except requests.HTTPError as http_err:
+                # Xử lý 404 trực tiếp từ server
+                resp = getattr(http_err, "response", None)
+                if resp is not None and resp.status_code == 404:
+                    is_deleted = True
+                    self.log(f"[Wikidich] Truyện đã bị xóa (404)")
+                else:
+                    self.log(f"[Wikidich] Lỗi HTTP kiểm tra xóa: {http_err}")
+                    error_msg = f"HTTP {resp.status_code if resp else '?'}: {http_err}"
+            except Exception as e:
+                self.log(f"[Wikidich] Lỗi kiểm tra xóa: {type(e).__name__}: {e}")
+                # Fallback: dùng hàm cũ nếu có lỗi mạng khác
+                try:
+                    is_deleted = self._wd_is_book_deleted_on_server(url, proxies=proxies)
+                    if is_deleted:
+                        self.log(f"[Wikidich] Fallback xác nhận truyện đã bị xóa")
+                except Exception as fallback_err:
+                    self.log(f"[Wikidich] Fallback thất bại: {fallback_err}")
+                    error_msg = str(e)
+
+            def _finish():
+                # Re-enable nút xóa
+                if hasattr(self, "wd_delete_btn"):
+                    self.wd_delete_btn.config(state=tk.NORMAL)
+
+                if error_msg:
+                    messagebox.showerror("Lỗi kiểm tra", f"Không thể kiểm tra truyện:\n{error_msg}", parent=self)
+                    return
+
+                if not is_deleted:
+                    messagebox.showinfo("Chưa xóa trên server", "Trang truyện vẫn tồn tại, không thể xóa trên local.", parent=self)
+                    return
+
+                # Xóa khỏi dữ liệu local
+                ids = list(self.wikidich_data.get("book_ids") or [])
+                if book_id in ids:
+                    ids.remove(book_id)
+                self.wikidich_data["book_ids"] = ids
+                self.wikidich_data.get("books", {}).pop(book_id, None)
+                if isinstance(self.wd_new_chapters, dict):
+                    self.wd_new_chapters.pop(book_id, None)
+                self._wd_save_cache()
+                self.log(f"[Wikidich] Đã xóa truyện khỏi local: {selected.get('title', book_id)}")
+                filtered = list(getattr(self, "wikidich_filtered", []) or [])
+                filtered = [b for b in filtered if b.get("id") != book_id]
+                self.wikidich_filtered = filtered
+                self._wd_refresh_tree(filtered)
+                messagebox.showinfo("Đã xóa", "Đã xóa truyện khỏi dữ liệu local.", parent=self)
+
+            self.after(0, _finish)
+
+        threading.Thread(target=_check_and_delete, daemon=True).start()
 
     def _wd_reconcile_works(self, server_data: dict, action: str, proxies=None):
         """Trả về (data_merged, needs_full_fetch)."""
@@ -3121,6 +3536,7 @@ class WikidichMixin:
     def _wd_fetch_works_worker(self):
         pythoncom.CoInitialize()
         self._wd_loading = True
+        self._wd_loading_site = getattr(self, "wd_site", "wikidich")
         self._wd_cancel_requested = False
         cancelled = False
         self.log("[Wikidich] Bắt đầu tải Works...")
@@ -3137,7 +3553,10 @@ class WikidichMixin:
                 start_msg = start_offset if start_offset is not None else len(existing_data.get("book_ids", []))
                 self.log(f"[Wikidich] Tiếp tục Works từ vị trí {start_msg}")
             proxies = self._get_proxy_for_request('fetch_titles')
-            cookies = load_browser_cookie_jar(self._wd_get_cookie_domains())
+            cookies = load_browser_cookie_jar(
+                self._wd_get_cookie_domains(),
+                cookie_db_path=self._wd_get_cookie_db_path()
+            )
             if not cookies:
                 self.after(0, lambda: messagebox.showerror("Thiếu cookie", "Không đọc được cookie Wikidich từ trình duyệt tích hợp. Hãy mở trình duyệt, đăng nhập rồi thử lại."))
                 self.log("[Wikidich] Không có cookie, dừng tải.")
@@ -3295,6 +3714,7 @@ class WikidichMixin:
             self.after(0, lambda: messagebox.showerror("Lỗi Wikidich", f"Không thể tải works: {e}"))
         finally:
             self._wd_loading = False
+            self._wd_loading_site = None
             self._wd_cancel_requested = False
             pythoncom.CoUninitialize()
             self._wd_progress_running = False
@@ -3317,6 +3737,7 @@ class WikidichMixin:
     def _wd_fetch_details_worker(self, sync_counts_only: bool = False):
         pythoncom.CoInitialize()
         self._wd_loading = True
+        self._wd_loading_site = getattr(self, "wd_site", "wikidich")
         self._wd_cancel_requested = False
         cancelled = False
         cf_paused = False
@@ -3342,7 +3763,10 @@ class WikidichMixin:
                 self.after(0, lambda: self._wd_refresh_tree(getattr(self, "wikidich_filtered", [])))
                 return
             proxies = self._get_proxy_for_request('fetch_titles')
-            cookies = load_browser_cookie_jar(self._wd_get_cookie_domains())
+            cookies = load_browser_cookie_jar(
+                self._wd_get_cookie_domains(),
+                cookie_db_path=self._wd_get_cookie_db_path()
+            )
             if not cookies:
                 self.after(0, lambda: messagebox.showerror("Thiếu cookie", "Không đọc được cookie Wikidich từ trình duyệt tích hợp."))
                 self.log("[Wikidich] Không có cookie, dừng tải chi tiết.")
@@ -3415,13 +3839,26 @@ class WikidichMixin:
                         current_user,
                         base_url=self._wd_get_base_url(),
                         proxies=proxies,
-                        skip_chapter_count=True
+                        skip_chapter_count=True,
+                        max_retries=int(getattr(self, "api_settings", {}).get("wiki_retry_count", 5))
                     )
                     if isinstance(updated, dict):
                         updated.pop("server_lower", None)
                         updated.pop("server_lower_reason", None)
                     self.wikidich_data['books'][bid] = updated
                     self._wd_save_cache()
+                except ValueError as ve:
+                    if "Book deleted" in str(ve):
+                        not_found_books.append(dict(book))
+                        self._wd_record_not_found(book, prompt=False)
+                        had_error = True
+                        try:
+                            self.after(0, lambda b=dict(book): self._wd_handle_not_found_books([b]))
+                        except Exception:
+                             pass
+                        continue
+                    self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {ve}")
+                    had_error = True
                 except requests.HTTPError as http_err:
                     resp_cf = getattr(http_err, "response", None)
                     if self._wd_detect_cloudflare(resp_cf):
@@ -3478,6 +3915,7 @@ class WikidichMixin:
             if not cancelled and not cf_paused:
                 self._wd_clear_detail_resume()
             self._wd_loading = False
+            self._wd_loading_site = None
             self._wd_cancel_requested = False
             pythoncom.CoUninitialize()
             self._wd_progress_running = False
@@ -3511,6 +3949,7 @@ class WikidichMixin:
     def _wd_check_updates_worker(self, sync_counts: bool = False):
         pythoncom.CoInitialize()
         self._wd_loading = True
+        self._wd_loading_site = getattr(self, "wd_site", "wikidich")
         self._wd_cancel_requested = False
         cancelled = False
         pending_404 = []
@@ -3579,6 +4018,7 @@ class WikidichMixin:
             self.after(0, lambda: messagebox.showerror("Lỗi", f"Không thể kiểm tra cập nhật: {exc}", parent=self))
         finally:
             self._wd_loading = False
+            self._wd_loading_site = None
             self._wd_progress_running = False
             self._wd_cancel_requested = False
             pythoncom.CoUninitialize()
@@ -3687,13 +4127,24 @@ class WikidichMixin:
                             current_user,
                             base_url=self._wd_get_base_url(),
                             proxies=proxies,
-                            skip_chapter_count=False
+                            skip_chapter_count=False,
+                            max_retries=int(getattr(self, "api_settings", {}).get("wiki_retry_count", 5))
                         )
                         if isinstance(detail_counts, dict) and detail_counts.get("chapters") is not None:
                             server_chapters = detail_counts.get("chapters")
                             updated_info["chapters"] = server_chapters
                             if detail_counts.get("updated_text"):
                                 merged["updated_text"] = detail_counts.get("updated_text")
+                    except ValueError as ve:
+                        if "redirected to home" in str(ve):
+                             not_found.append(dict(book))
+                             self._wd_record_not_found(book, prompt=False)
+                             continue
+                    except ValueError as ve:
+                        if "redirected to home" in str(ve):
+                             not_found.append(dict(book))
+                             self._wd_record_not_found(book, prompt=False)
+                             continue
                     except Exception as exc:
                         self.log(f"[SyncCounts] Fallback detail when chapters missing thất bại: {exc}")
                 try:
@@ -3744,7 +4195,8 @@ class WikidichMixin:
                         current_user,
                         base_url=self._wd_get_base_url(),
                         proxies=proxies,
-                        skip_chapter_count=False
+                        skip_chapter_count=False,
+                        max_retries=int(getattr(self, "api_settings", {}).get("wiki_retry_count", 5))
                     )
                     if bid:
                         try:
@@ -3780,6 +4232,16 @@ class WikidichMixin:
                         self.wikidich_data["books"][bid] = fallback
                     self.log(f"[Wikidich] Fallback lấy chi tiết + chương cho {book.get('title','')}")
                     self._wd_save_cache()
+                except ValueError as ve:
+                    if "Book deleted" in str(ve):
+                        not_found.append(dict(book))
+                        self._wd_record_not_found(book, prompt=False)
+                        try:
+                            self.after(0, lambda b=dict(book): self._wd_handle_not_found_books([b]))
+                        except Exception:
+                            pass
+                        continue
+                    self.log(f"[Wikidich] Lỗi fallback {book.get('title','')}: {ve}")
                 except requests.HTTPError as http_err:
                     if getattr(http_err, "response", None) and http_err.response.status_code == 404:
                         not_found.append(dict(book))
@@ -3787,7 +4249,11 @@ class WikidichMixin:
                     else:
                         self.log(f"[Wikidich] Lỗi fallback detail {book.get('title','')}: {http_err}")
                 except Exception as exc:
-                    self.log(f"[Wikidich] Lỗi fallback detail {book.get('title','')}: {exc}")
+                    if "redirected to home" in str(exc):
+                         not_found.append(dict(book))
+                         self._wd_record_not_found(book, prompt=False)
+                    else:
+                         self.log(f"[Wikidich] Lỗi fallback detail {book.get('title','')}: {exc}")
             self._wd_progress_callback("check_update", idx, total, f"Đồng bộ {idx}/{total}")
             delay = random.uniform(wiki_delay_min, wiki_delay_max) if wiki_delay_max > 0 else 0
             if delay > 0:
@@ -3990,7 +4456,8 @@ class WikidichMixin:
             "_wd_tabs", "_wd_cover_cache", "_wd_contexts", "_wd_site_states",
             "_wd_cache_paths", "_wd_global_notes_win", "_wd_notes_tree",
             "_wd_notes_preview", "_wd_not_found_prompting", "_wd_not_found_prompted",
-            "_wd_link_tree", "_wd_global_links_win"
+            "_wd_link_tree", "_wd_global_links_win",
+            "_wd_loading_site", "_wd_progress_visible_by_site", "_wd_progress_running_by_site"
         }
         return {
             k: v for k, v in self.__dict__.items()
@@ -3999,6 +4466,9 @@ class WikidichMixin:
 
     def _wd_capture_site_state(self):
         """Lưu dữ liệu/tình trạng riêng cho từng site."""
+        visible_map = getattr(self, "_wd_progress_visible_by_site", {})
+        running_map = getattr(self, "_wd_progress_running_by_site", {})
+        current_site = getattr(self, "wd_site", "wikidich")
         return {
             "filters": dict(self.wikidich_filters),
             "data": self.wikidich_data,
@@ -4007,8 +4477,8 @@ class WikidichMixin:
             "pending_categories": list(getattr(self, "_wd_pending_categories", []) or []),
             "category_options": list(getattr(self, "_wd_category_options", []) or []),
             "adv_visible": bool(getattr(self, "_wd_adv_section_visible", False)),
-            "progress_visible": bool(getattr(self, "_wd_progress_visible", False)),
-            "progress_running": bool(getattr(self, "_wd_progress_running", False)),
+            "progress_visible": bool(visible_map.get(current_site, getattr(self, "_wd_progress_visible", False))),
+            "progress_running": bool(running_map.get(current_site, getattr(self, "_wd_progress_running", False))),
             "cancel_requested": bool(getattr(self, "_wd_cancel_requested", False)),
             "loading": bool(getattr(self, "_wd_loading", False)),
         }
@@ -4034,10 +4504,18 @@ class WikidichMixin:
         self._wd_pending_categories = list(state.get("pending_categories", []))
         self._wd_category_options = list(state.get("category_options", []))
         self._wd_adv_section_visible = state.get("adv_visible", False)
-        self._wd_progress_visible = state.get("progress_visible", False)
-        self._wd_progress_running = state.get("progress_running", False)
-        self._wd_cancel_requested = state.get("cancel_requested", False)
-        self._wd_loading = state.get("loading", False)
+        visible_map = getattr(self, "_wd_progress_visible_by_site", {})
+        running_map = getattr(self, "_wd_progress_running_by_site", {})
+        visible_map[site] = state.get("progress_visible", False)
+        running_map[site] = state.get("progress_running", False)
+        self._wd_progress_visible_by_site = visible_map
+        self._wd_progress_running_by_site = running_map
+        self._wd_progress_visible = visible_map.get(site, False)
+        self._wd_progress_running = running_map.get(site, False)
+        loading_site = getattr(self, "_wd_loading_site", None)
+        if not (loading_site and self._wd_loading and loading_site != site):
+            self._wd_cancel_requested = state.get("cancel_requested", False)
+            self._wd_loading = state.get("loading", False)
 
     def _wd_set_active_site(self, site: str, skip_save: bool = False):
         site = (site or "").strip().lower()
@@ -4284,12 +4762,78 @@ class WikidichMixin:
             if delay > 0:
                 time.sleep(delay)
 
+    def _wd_get_cover_cache_dir(self) -> str:
+        """Trả về đường dẫn thư mục cache ảnh bìa."""
+        cache_dir = os.path.join(BASE_DIR, "local", "cover_cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        return cache_dir
+
+    def _wd_get_cover_cache_path(self, url: str) -> str:
+        """Tạo đường dẫn file cache từ URL ảnh bìa."""
+        import hashlib
+        url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
+        return os.path.join(self._wd_get_cover_cache_dir(), f"{url_hash}.jpg")
+
+    def _wd_load_cover_from_disk(self, url: str):
+        """Đọc ảnh bìa từ cache đĩa. Trả về PhotoImage hoặc None."""
+        cache_path = self._wd_get_cover_cache_path(url)
+        if not os.path.isfile(cache_path):
+            return None
+        try:
+            img = Image.open(cache_path)
+            img.thumbnail((220, 320))
+            return ImageTk.PhotoImage(img)
+        except Exception:
+            return None
+
+    def _wd_save_cover_to_disk(self, url: str, img_bytes: bytes):
+        """Lưu ảnh bìa vào cache đĩa."""
+        try:
+            cache_path = self._wd_get_cover_cache_path(url)
+            with open(cache_path, 'wb') as f:
+                f.write(img_bytes)
+        except Exception:
+            pass
+
+    def _wd_clear_cover_cache(self):
+        """Xóa toàn bộ cache ảnh bìa (cả memory và đĩa)."""
+        self._wd_cover_cache.clear()
+        cache_dir = self._wd_get_cover_cache_dir()
+        try:
+            import shutil
+            if os.path.isdir(cache_dir):
+                shutil.rmtree(cache_dir, ignore_errors=True)
+                os.makedirs(cache_dir, exist_ok=True)
+        except Exception:
+            pass
+
+    def _wd_get_cover_cache_size(self) -> int:
+        """Trả về kích thước cache ảnh bìa (bytes)."""
+        cache_dir = self._wd_get_cover_cache_dir()
+        total = 0
+        try:
+            for f in os.listdir(cache_dir):
+                fp = os.path.join(cache_dir, f)
+                if os.path.isfile(fp):
+                    total += os.path.getsize(fp)
+        except Exception:
+            pass
+        return total
+
     def _wd_display_cover(self, url: str):
         if not url:
             self.wd_cover_label.config(image='', text="(Không có bìa)")
             return
+        # Kiểm tra cache memory trước
         if url in self._wd_cover_cache:
             photo = self._wd_cover_cache[url]
+            self.wd_cover_label.config(image=photo, text="")
+            self.wd_cover_label.image = photo
+            return
+        # Kiểm tra cache đĩa
+        photo = self._wd_load_cover_from_disk(url)
+        if photo:
+            self._wd_cover_cache[url] = photo
             self.wd_cover_label.config(image=photo, text="")
             self.wd_cover_label.image = photo
             return
@@ -4297,7 +4841,10 @@ class WikidichMixin:
         def _worker():
             try:
                 proxies = self._get_proxy_for_request('images')
-                cookies = load_browser_cookie_jar(self._wd_get_cookie_domains())
+                cookies = load_browser_cookie_jar(
+                    self._wd_get_cookie_domains(),
+                    cookie_db_path=self._wd_get_cookie_db_path()
+                )
                 headers = {
                     "Referer": self._wd_get_base_url() + "/",
                     "User-Agent": self._browser_user_agent or DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent"),
@@ -4306,7 +4853,10 @@ class WikidichMixin:
                 headers = {k: v for k, v in headers.items() if v}
                 resp = requests.get(url, timeout=25, proxies=proxies, headers=headers, cookies=cookies)
                 resp.raise_for_status()
-                img = Image.open(io.BytesIO(resp.content))
+                img_bytes = resp.content
+                # Lưu vào cache đĩa
+                self._wd_save_cover_to_disk(url, img_bytes)
+                img = Image.open(io.BytesIO(img_bytes))
                 img.thumbnail((220, 320))
                 photo = ImageTk.PhotoImage(img)
             except Exception:
@@ -4330,9 +4880,13 @@ class WikidichMixin:
         cached = wikidich_ext.load_cache(self._wd_get_cache_path())
         if cached:
             self.wikidich_data = cached
-            self._wd_update_user_label()
-            self._wd_refresh_category_options()
-            self._wd_apply_filters()
+        else:
+            # Reset về trống nếu không có cache (tránh giữ data cũ từ tab/profile khác)
+            self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
+            self.wikidich_filtered = []
+        self._wd_update_user_label()
+        self._wd_refresh_category_options()
+        self._wd_apply_filters()
 
     def _wd_save_cache(self):
         try:
@@ -4357,7 +4911,10 @@ class WikidichMixin:
         up_sort_var = tk.BooleanVar(value=upload_cfg.get("sort_by_number", DEFAULT_UPLOAD_SETTINGS["sort_by_number"]))
         up_append_desc_var = tk.StringVar(value=upload_cfg.get("append_desc", DEFAULT_UPLOAD_SETTINGS["append_desc"]))
         auto_credit_var = tk.BooleanVar(value=bool(current.get("auto_credit", True)))
-        auto_credit_var = tk.BooleanVar(value=bool(current.get("auto_credit", True)))
+        
+        wiki_retry_var = tk.IntVar(value=int(current.get("wiki_retry_count", 5)))
+        high_new_thresh_var = tk.IntVar(value=int(current.get("wiki_high_new_threshold", 50)))
+        high_new_color_var = tk.StringVar(value=current.get("wiki_high_new_color", "#dc2626"))
 
         win = tk.Toplevel(self)
         self._apply_window_icon(win)
@@ -4387,6 +4944,25 @@ class WikidichMixin:
         ttk.Entry(fanqie_row, textvariable=fanqie_min_var, width=8).pack(side=tk.LEFT)
         ttk.Label(fanqie_row, text="đến").pack(side=tk.LEFT, padx=(6, 2))
         ttk.Entry(fanqie_row, textvariable=fanqie_max_var, width=8).pack(side=tk.LEFT)
+        
+        # New Settings Frame
+        misc_frame = ttk.LabelFrame(container, text="Cấu hình khác", padding=10)
+        misc_frame.pack(fill="x", expand=True, pady=(10, 0))
+        
+        r_row = ttk.Frame(misc_frame)
+        r_row.pack(fill="x", pady=2)
+        ttk.Label(r_row, text="Retry request (Wiki):").pack(side=tk.LEFT)
+        ttk.Entry(r_row, textvariable=wiki_retry_var, width=5).pack(side=tk.LEFT, padx=(6, 2))
+        ttk.Label(r_row, text="lần").pack(side=tk.LEFT)
+
+        h_row = ttk.Frame(misc_frame)
+        h_row.pack(fill="x", pady=(6, 2))
+        ttk.Label(h_row, text="Highlight truyện có >").pack(side=tk.LEFT)
+        ttk.Entry(h_row, textvariable=high_new_thresh_var, width=5).pack(side=tk.LEFT, padx=(4, 4))
+        ttk.Label(h_row, text="chương mới, màu:").pack(side=tk.LEFT)
+        ttk.Entry(h_row, textvariable=high_new_color_var, width=8).pack(side=tk.LEFT, padx=(4, 0))
+        tk.Label(h_row, textvariable=high_new_color_var, width=4, relief="flat", bg=high_new_color_var.get()).pack(side=tk.LEFT, padx=(4, 0)) # Preview color
+        high_new_color_var.trace("w", lambda *args: h_row.children.values().__iter__().__next__().configure(bg=high_new_color_var.get()) if h_row.winfo_exists() else None) # Simple preview
 
         open_mode_frame = ttk.LabelFrame(container, text="Mở link Wikidich", padding=10)
         open_mode_frame.pack(fill="x", expand=True, pady=(10, 0))
@@ -4437,6 +5013,9 @@ class WikidichMixin:
             up_sort_var.set(DEFAULT_UPLOAD_SETTINGS["sort_by_number"])
             up_append_desc_var.set(DEFAULT_UPLOAD_SETTINGS["append_desc"])
             auto_credit_var.set(True)
+            wiki_retry_var.set(5)
+            high_new_thresh_var.set(50)
+            high_new_color_var.set("#dc2626")
 
         def _save_settings():
             try:
@@ -4445,8 +5024,11 @@ class WikidichMixin:
                 fanqie_min_val = float(fanqie_min_var.get())
                 fanqie_max_val = float(fanqie_max_var.get())
                 warn_val = float(up_warn_var.get())
+                retry_val = int(wiki_retry_var.get())
+                high_thresh_val = int(high_new_thresh_var.get())
+                high_color_val = high_new_color_var.get()
             except Exception:
-                messagebox.showerror("Lỗi", "Giá trị độ trễ/cảnh báo phải là số.", parent=win)
+                messagebox.showerror("Lỗi", "Giá trị số không hợp lệ.", parent=win)
                 return
             if wiki_min_val < 0 or wiki_max_val < 0 or fanqie_min_val < 0 or fanqie_max_val < 0:
                 messagebox.showerror("Lỗi", "Độ trễ không được âm.", parent=win)
@@ -4464,7 +5046,10 @@ class WikidichMixin:
                 'fanqie_delay_max': fanqie_max_val,
                 'wiki_headers': dict(DEFAULT_API_SETTINGS['wiki_headers']),
                 'fanqie_headers': dict(DEFAULT_API_SETTINGS['fanqie_headers']),
-                'auto_credit': auto_credit_var.get()
+                'auto_credit': auto_credit_var.get(),
+                'wiki_retry_count': retry_val,
+                'wiki_high_new_threshold': high_thresh_val,
+                'wiki_high_new_color': high_color_val
             }
             self.wikidich_open_mode = open_mode_var.get() or "in_app"
             priority_val = up_priority_var.get() if up_priority_var.get() in ("filename", "content") else DEFAULT_UPLOAD_SETTINGS["priority"]
@@ -4480,6 +5065,11 @@ class WikidichMixin:
             self.app_config['api_settings'] = dict(self.api_settings)
             self.app_config['wikidich_upload_settings'] = dict(self.wikidich_upload_settings)
             self.save_config()
+            try:
+                if getattr(self, "wikidich_filtered", None) is not None:
+                     self._wd_refresh_tree(self.wikidich_filtered)
+            except Exception:
+                pass
             messagebox.showinfo("Đã lưu", "Đã lưu cài đặt request.", parent=win)
             win.destroy()
 
@@ -4534,6 +5124,7 @@ class WikidichMixin:
         self._wd_adv_section_visible = show
         if hasattr(self, "wd_adv_toggle_btn"):
             self.wd_adv_toggle_btn.config(text="Ẩn lọc nâng cao" if show else "Hiện lọc nâng cao")
+        self._wd_update_filter_scroll()
 
     def _wd_has_advanced_filters(self):
         if not hasattr(self, "wd_role_vars"):
@@ -4576,6 +5167,14 @@ class WikidichMixin:
         status = self.wd_status_var.get()
         if status and status != "all":
             parts.append(f"Trạng thái: {status}")
+        if hasattr(self, "wd_flag_vars"):
+            flag_labels = {
+                "embedLink": "Có nhúng link",
+                "embedFile": "Có nhúng file"
+            }
+            active_flags = [flag_labels.get(flag, flag) for flag, var in self.wd_flag_vars.items() if var.get()]
+            if active_flags:
+                parts.append(f"Thuộc tính: {', '.join(active_flags)}")
         text = f"Đang lọc cơ bản ({', '.join(parts)})" if parts else ""
         self.wd_basic_status_var.set(text)
         self._wd_update_status_ticker()
@@ -4600,18 +5199,14 @@ class WikidichMixin:
         if not hasattr(self, "wd_status_ticker_var"):
             return
         text = getattr(self, "wd_status_ticker_text", "") or ""
-        window = getattr(self, "_wd_status_ticker_window", 60)
+        window = max(8, int(getattr(self, "_wd_status_ticker_window", 60)))
         if not text:
             self.wd_status_ticker_var.set("")
             self._wd_status_ticker_job = None
             return
-        if len(text) <= window:
-            self.wd_status_ticker_var.set(text)
-            self._wd_status_ticker_job = None
-            return
         buffer = text + "   |   "
         start = getattr(self, "_wd_status_ticker_index", 0) % len(buffer)
-        doubled = buffer + buffer
+        doubled = buffer + buffer + buffer
         display = doubled[start:start + window]
         self.wd_status_ticker_var.set(display)
         self._wd_status_ticker_index = (start + 1) % len(buffer)
@@ -4621,12 +5216,98 @@ class WikidichMixin:
         except Exception:
             self._wd_status_ticker_job = None
 
-    def _wd_expand_basic_section(self):
+    def _wd_update_filter_scroll(self):
+        canvas = getattr(self, "_wd_filter_canvas", None)
         frame = getattr(self, "_wd_filter_frame", None)
-        if frame:
+        window_id = getattr(self, "_wd_filter_window_id", None)
+        if not canvas or not frame or not window_id:
+            return
+        try:
+            self._wd_filter_scroll_job = None
+            canvas.update_idletasks()
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfigure(window_id, width=canvas.winfo_width())
+            max_h = getattr(self, "_wd_filter_max_height", 220)
+            req_h = frame.winfo_reqheight() + 6
+            target = min(max_h, max(80, req_h))
+            if int(canvas.cget("height")) != target:
+                canvas.configure(height=target)
+        except Exception:
+            pass
+
+    def _wd_schedule_filter_scroll(self):
+        if getattr(self, "_wd_filter_scroll_job", None):
             try:
-                opts = getattr(self, "_wd_filter_frame_grid_opts", {})
-                frame.grid(**opts) if opts else frame.grid()
+                self.after_cancel(self._wd_filter_scroll_job)
+            except Exception:
+                pass
+        self._wd_filter_scroll_job = self.after_idle(self._wd_update_filter_scroll)
+
+    def _wd_schedule_flow_layout(self):
+        if getattr(self, "_wd_flow_layout_job", None):
+            try:
+                self.after_cancel(self._wd_flow_layout_job)
+            except Exception:
+                pass
+        self._wd_flow_layout_job = self.after_idle(self._wd_layout_flow_buttons)
+
+    def _wd_layout_flow_buttons(self):
+        self._wd_flow_layout_job = None
+        if getattr(self, "_wd_flow_layouting", False):
+            return
+        self._wd_flow_layouting = True
+        try:
+            container = getattr(self, "wd_btn_flow", None)
+            buttons = getattr(self, "_wd_flow_buttons", [])
+            if not container or not buttons or not container.winfo_ismapped():
+                return
+            width = container.winfo_width()
+            if width <= 1:
+                self.after(60, self._wd_layout_flow_buttons)
+                return
+
+            for btn in buttons:
+                try:
+                    btn.grid_forget()
+                except Exception:
+                    pass
+
+            row = 0
+            col = 0
+            used = 0
+            pad_x = getattr(self, "_wd_flow_padx", 8)
+            pad_y = getattr(self, "_wd_flow_pady", 4)
+
+            for btn in buttons:
+                if getattr(btn, "_wd_flow_hidden", False):
+                    continue
+                try:
+                    req = btn.winfo_width() or btn.winfo_reqwidth()
+                except Exception:
+                    req = 80
+
+                if used and used + req + pad_x > width:
+                    row += 1
+                    col = 0
+                    used = 0
+
+                btn.grid(row=row, column=col, sticky="w", padx=(0, pad_x), pady=(0, pad_y))
+                used += req + pad_x
+                col += 1
+        finally:
+            self._wd_flow_layouting = False
+
+    def _wd_set_flow_button_visible(self, btn, visible: bool):
+        if not btn:
+            return
+        btn._wd_flow_hidden = not visible
+        self._wd_layout_flow_buttons()
+
+    def _wd_expand_basic_section(self):
+        container = getattr(self, "_wd_filter_container", None)
+        if container:
+            try:
+                container.grid()
             except Exception:
                 pass
         self._wd_basic_collapsed = False
@@ -4635,12 +5316,13 @@ class WikidichMixin:
                 self.wd_basic_toggle_btn.config(text="Thu gọn lọc cơ bản")
             except Exception:
                 pass
+        self._wd_update_filter_scroll()
 
     def _wd_collapse_basic_section(self):
-        frame = getattr(self, "_wd_filter_frame", None)
-        if frame:
+        container = getattr(self, "_wd_filter_container", None)
+        if container:
             try:
-                frame.grid_remove()
+                container.grid_remove()
             except Exception:
                 pass
         self._wd_basic_collapsed = True
@@ -4726,6 +5408,7 @@ class WikidichMixin:
     def _wd_auto_update_worker(self, book: dict, fanqie_link: str):
         pythoncom.CoInitialize()
         self._wd_loading = True
+        self._wd_loading_site = getattr(self, "wd_site", "wikidich")
         desc_text = ""
         try:
             book_id = book.get("id")
@@ -4893,6 +5576,119 @@ class WikidichMixin:
             self.after(0, lambda: messagebox.showerror("Lỗi", f"Tác vụ Auto update thất bại: {exc}", parent=self))
         finally:
             self._wd_loading = False
+            self._wd_loading_site = None
             self._wd_progress_running = False
             pythoncom.CoUninitialize()
             self._wd_set_progress("Chờ thao tác...", 0, 1)
+
+    def _wd_get_profile_dir(self, profile_name: Optional[str] = None) -> str:
+        name = profile_name
+        if not name and hasattr(self, "wd_profile_var"):
+            name = self.wd_profile_var.get()
+        name = (name or "Profile 1").strip()
+        safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", name).strip("_")
+        if not safe_name or safe_name == "Profile_1" or name == "Profile 1":
+            return os.path.join(BASE_DIR, "qt_browser_profile")
+        return os.path.join(BASE_DIR, f"qt_browser_profile_{safe_name}")
+
+    def _wd_get_cookie_db_path(self, profile_name: Optional[str] = None) -> str:
+        profile_dir = self._wd_get_profile_dir(profile_name)
+        return os.path.join(profile_dir, "storage", "Cookies")
+
+    def _wd_on_profile_change(self, event=None, reload_cache: bool = True):
+        if not hasattr(self, "wd_profile_var"):
+            return
+        profile_name = (self.wd_profile_var.get() or "Profile 1").strip()
+        profile_dir = self._wd_get_profile_dir(profile_name)
+        safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", profile_name).strip("_")
+        if not safe_name:
+            return
+
+        self.log(f"[App] Chuyển profile: {profile_name} (Dir: {os.path.basename(profile_dir)})")
+        
+        # 1. Update Cookie DB Path
+        self.cookies_db_path = self._wd_get_cookie_db_path(profile_name)
+        
+        # 2. Update BrowserOverlay if it exists
+        if hasattr(self, "browser_overlay") and self.browser_overlay:
+            was_running = self.browser_overlay.is_running()
+            self.browser_overlay.set_profile(profile_dir)
+            if was_running:
+                 self.log("[App] Khởi động lại trình duyệt với profile mới...")
+                 # Delay slightly to ensure process cleanup
+                 self.after(500, self.browser_overlay.show)
+            
+        # 3. Close Cookie Manager if open
+        if self.cookie_window and self.cookie_window.winfo_exists():
+            try:
+                self.cookie_window.destroy()
+            except Exception:
+                pass
+            self.cookie_window = None
+            self._update_cookie_menu_state()
+            
+        # 4. Clear memory cookies
+        self._browser_cookies = {}
+        
+        # 5. Switch Cache
+        base_wd = "wikidich_cache"
+        base_kc = "koanchay_cache"
+        if safe_name != "Profile_1" and profile_name != "Profile 1":
+             base_wd += f"_{safe_name}"
+             base_kc += f"_{safe_name}"
+        
+        self.wikidich_cache_path = os.path.join(BASE_DIR, "local", f"{base_wd}.json")
+        kc_path = os.path.join(BASE_DIR, "local", f"{base_kc}.json")
+        
+        if not hasattr(self, "_wd_cache_paths"): self._wd_cache_paths = {}
+        self._wd_cache_paths["wikidich"] = self.wikidich_cache_path
+        self._wd_cache_paths["koanchay"] = kc_path
+        
+        if reload_cache:
+            # Reload cache
+            self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
+            self._wd_load_cache()
+            if getattr(self, "wikidich_filtered", None) is not None:
+                 self._wd_refresh_tree(self.wikidich_filtered)
+            else:
+                 self._wd_refresh_tree()
+        self._wd_update_user_label()
+
+    def _wd_update_user_label(self):
+        if not hasattr(self, "wd_user_label"):
+            return
+        username = self.wikidich_data.get("username")
+        
+        # Color logic
+        site = getattr(self, "wd_site", "wikidich") or "wikidich"
+        if site == "koanchay":
+            self.wd_user_label.config(foreground="#ec4899") # Pink
+        else:
+            # Check theme? Or just default
+            fg = getattr(self, "_theme_colors", {}).get('text', 'black') if hasattr(self, "_theme_colors") else 'black'
+            self.wd_user_label.config(foreground=fg)
+            
+        full_text = f"User: {username}" if username else "Chưa đăng nhập / Chưa tải Works"
+        
+        # Truncate if too long (approx chars)
+        max_chars = 30
+        if len(full_text) > max_chars:
+             display_text = full_text[:max_chars-3] + "..."
+        else:
+             display_text = full_text
+             
+        self.wd_user_label.config(text=display_text)
+        # Tooltip for full text?
+        # Standard tooltip mechanism not present in mixin? 
+        # I'll modify the label width in creation instead (already done).
+
+    def _on_browser_profile_switched(self, name):
+        self.log(f"[App] Trình duyệt yêu cầu chuyển Profile: {name}")
+        # Rescan to ensure new profile exists in list if created
+        self._wd_scan_profiles()
+        
+        if hasattr(self, "wd_profile_var"):
+             current = self.wd_profile_var.get()
+             # We set the var and force update
+             self.wd_profile_var.set(name)
+             self._wd_on_profile_change()

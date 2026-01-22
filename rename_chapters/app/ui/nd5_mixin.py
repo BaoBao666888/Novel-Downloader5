@@ -327,7 +327,10 @@ class ND5Mixin:
                 if getattr(plugin, "requires_cookies", False):
                     domains = getattr(plugin, "cookie_domains", None) or getattr(plugin, "domains", None) or []
                     try:
-                        cookies = load_browser_cookie_jar(domains)
+                        cookies = load_browser_cookie_jar(
+                            domains,
+                            cookie_db_path=getattr(self, "cookies_db_path", None)
+                        )
                     except Exception:
                         cookies = None
                     if cookies is None:

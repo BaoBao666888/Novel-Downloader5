@@ -74,22 +74,27 @@ class _EditCookieDialog(simpledialog.Dialog):
 
 
 class CookieManagerWindow(tk.Toplevel):
-    def __init__(self, master, db_path: str, *, on_close=None):
+    def __init__(self, master, db_path: str, *, on_close=None, profiles: List[str] = None, current_profile: str = None, on_profile_change=None):
         super().__init__(master)
         try:
             if hasattr(master, "_apply_window_icon"):
                 master._apply_window_icon(self)
         except Exception:
             pass
+        self.master_app = master
         self.db_path = db_path
         self._on_close = on_close
+        self._on_profile_change = on_profile_change
+        self._profiles = profiles or ["Profile 1"]
+        self._current_profile = current_profile or "Profile 1"
         self.title("Quản lý cookie trình duyệt")
-        self.geometry("860x520")
-        self.minsize(640, 420)
+        self.geometry("860x560")
+        self.minsize(640, 460)
         self.cookies_by_domain: Dict[str, List[CookieRecord]] = {}
         self._domain_index: List[str] = []
         self.current_domain = None
         self.status_var = tk.StringVar(value="")
+        self.profile_var = tk.StringVar(value=self._current_profile)
 
         self._build_ui()
         self.refresh_cookies()
@@ -98,6 +103,15 @@ class CookieManagerWindow(tk.Toplevel):
     def _build_ui(self):
         container = ttk.Frame(self, padding=14)
         container.pack(fill=tk.BOTH, expand=True)
+
+        # Profile selector row
+        profile_frame = ttk.Frame(container)
+        profile_frame.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(profile_frame, text="Profile:").pack(side=tk.LEFT)
+        self.profile_cb = ttk.Combobox(profile_frame, textvariable=self.profile_var, values=self._profiles, width=20, state="readonly")
+        self.profile_cb.pack(side=tk.LEFT, padx=(6, 0))
+        self.profile_cb.bind("<<ComboboxSelected>>", self._on_profile_select)
+        ttk.Label(profile_frame, text="(Cookie được đọc theo profile đã chọn)", foreground="#8c8c8c").pack(side=tk.LEFT, padx=(10, 0))
 
         paned = ttk.PanedWindow(container, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True)
@@ -149,6 +163,23 @@ class CookieManagerWindow(tk.Toplevel):
         ttk.Button(button_frame, text="Sửa giá trị...", command=self._edit_selected_cookie).pack(side=tk.LEFT, padx=(6, 0))
 
         ttk.Label(container, textvariable=self.status_var, foreground="#8c8c8c").pack(anchor="w", pady=(8, 0))
+
+    def _on_profile_select(self, _event=None):
+        new_profile = self.profile_var.get()
+        if new_profile == self._current_profile:
+            return
+        self._current_profile = new_profile
+        # Notify parent to get new db_path
+        if callable(self._on_profile_change):
+            new_db_path = self._on_profile_change(new_profile)
+            if new_db_path:
+                self.db_path = new_db_path
+        self.refresh_cookies()
+
+    def update_db_path(self, new_db_path: str):
+        """Cho phép cập nhật db_path từ bên ngoài."""
+        self.db_path = new_db_path
+        self.refresh_cookies()
 
     def refresh_cookies(self):
         if not os.path.exists(self.db_path):

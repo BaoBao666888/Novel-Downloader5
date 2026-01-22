@@ -76,6 +76,7 @@ from app.ui.translate_tab_mixin import TranslateTabMixin
 from app.ui.image_tab_mixin import ImageTabMixin
 from app.ui.proxy_mixin import ProxyMixin
 from app.ui.radical_checker import open_radical_checker_dialog
+from app.ui.library_mixin import LibraryMixin
 
 # Đảm bảo chỉ một instance (dùng localhost TCP)
 _SINGLE_INSTANCE_HOST = "127.0.0.1"
@@ -337,6 +338,7 @@ class RenamerApp(
     TextOpsMixin,
     TranslateTabMixin,
     ImageTabMixin,
+    LibraryMixin,
 ):
     CURRENT_VERSION = APP_VERSION
     VERSION_CHECK_URL = os.environ.get(
@@ -497,6 +499,23 @@ class RenamerApp(
                 'categories': [],
                 'roles': [],
                 'flags': [],
+                    'fromDate': '',
+                    'toDate': '',
+                    'sortBy': 'recent'
+                },
+                'open_mode': 'in_app',
+                'auto_pick_mode': 'extract_then_pick'
+            },
+            'koanchay': {
+                'cache_path': os.path.join(BASE_DIR, "local", "koanchay_cache.json"),
+                'advanced_filter': {
+                    'status': 'all',
+                    'search': '',
+                    'summarySearch': '',
+                    'extraLinkSearch': '',
+                    'categories': [],
+                    'roles': [],
+                    'flags': [],
                     'fromDate': '',
                     'toDate': '',
                     'sortBy': 'recent'
@@ -831,15 +850,56 @@ class RenamerApp(
                 return
             except Exception:
                 self.cookie_window = None
-        cookie_dir = os.path.dirname(self.cookies_db_path)
+        
+        # Lấy danh sách profiles và profile hiện tại
+        profiles = self._get_all_profiles()
+        current_profile = self._get_current_browser_profile()
+        db_path = self._wd_get_cookie_db_path(current_profile)
+        
+        cookie_dir = os.path.dirname(db_path)
         if cookie_dir:
             os.makedirs(cookie_dir, exist_ok=True)
+        
         self.cookie_window = CookieManagerWindow(
             self,
-            self.cookies_db_path,
-            on_close=self._on_cookie_window_closed
+            db_path,
+            on_close=self._on_cookie_window_closed,
+            profiles=profiles,
+            current_profile=current_profile,
+            on_profile_change=self._on_cookie_profile_change
         )
         self._update_cookie_menu_state()
+
+    def _get_all_profiles(self):
+        """Lấy danh sách tất cả profiles."""
+        profiles = ["Profile 1"]
+        try:
+            for name in os.listdir(BASE_DIR):
+                full = os.path.join(BASE_DIR, name)
+                if os.path.isdir(full) and name.startswith("qt_browser_profile_"):
+                    pname = name.replace("qt_browser_profile_", "").replace("_", " ")
+                    if pname and pname not in profiles:
+                        profiles.append(pname)
+            profiles.sort(key=lambda x: (0 if x == "Profile 1" else 1, x))
+        except Exception:
+            pass
+        return profiles
+
+    def _get_current_browser_profile(self):
+        """Lấy profile hiện tại của browser overlay, hoặc mặc định."""
+        if hasattr(self, "browser_overlay") and self.browser_overlay and self.browser_overlay.profile_dir:
+            # Trích xuất tên profile từ path
+            profile_dir = self.browser_overlay.profile_dir
+            dir_name = os.path.basename(profile_dir)
+            if dir_name.startswith("qt_browser_profile_"):
+                return dir_name.replace("qt_browser_profile_", "").replace("_", " ")
+            elif dir_name == "qt_browser_profile":
+                return "Profile 1"
+        return "Profile 1"
+
+    def _on_cookie_profile_change(self, profile_name: str) -> str:
+        """Callback khi user đổi profile trong cửa sổ Cookie. Trả về db_path mới."""
+        return self._wd_get_cookie_db_path(profile_name)
 
     def _on_cookie_window_closed(self):
         self.cookie_window = None
@@ -1812,10 +1872,33 @@ class RenamerApp(
         self.app_config['ui_settings'] = self.ui_settings
         if hasattr(self, "wd_search_var"):
             self._wd_collect_advanced_filter_values()
+            # Update store for current site before saving
+            current_site = getattr(self, "wd_site", "wikidich")
+            if hasattr(self, "_wd_filters_store") and hasattr(self, "wikidich_filters"):
+                self._wd_filters_store[current_site] = dict(self.wikidich_filters)
+
+        # Helper to get filters for a site
+        def _get_filters(site_name):
+            if hasattr(self, "_wd_filters_store") and site_name in self._wd_filters_store:
+                return self._wd_filters_store[site_name]
+            if getattr(self, "wd_site", "wikidich") == site_name:
+                return self.wikidich_filters
+            # Fallback to existing config or default
+            return self.app_config.get(site_name, {}).get('advanced_filter', {})
+
+        # Save Wikidich config
         self.app_config['wikidich'] = {
             'cache_path': self.wikidich_cache_path,
-            'advanced_filter': dict(self.wikidich_filters),
+            'advanced_filter': dict(_get_filters('wikidich')),
             'open_mode': self.wikidich_open_mode,
+            'auto_pick_mode': getattr(self, "wikidich_auto_pick_mode", "extract_then_pick")
+        }
+        # Save Koanchay config
+        kc_cfg = self.app_config.get('koanchay', {})
+        self.app_config['koanchay'] = {
+            'cache_path': kc_cfg.get('cache_path', os.path.join(BASE_DIR, "local", "koanchay_cache.json")),
+            'advanced_filter': dict(_get_filters('koanchay')),
+            'open_mode': self.wikidich_open_mode, # Hiện tại dùng chung setting này
             'auto_pick_mode': getattr(self, "wikidich_auto_pick_mode", "extract_then_pick")
         }
         self.app_config['api_settings'] = dict(self.api_settings or {})
@@ -1906,6 +1989,20 @@ class RenamerApp(
                     self.wikidich_filters.update(adv_filter)
                 self._wd_cache_paths["wikidich"] = self.wikidich_cache_path
                 self._wd_cache_paths["koanchay"] = self._wd_cache_paths.get("koanchay") or os.path.join(BASE_DIR, "local", "koanchay_cache.json")
+            
+            # Update _wd_filters_store for both sites from config to ensure persistence
+            if hasattr(self, "_wd_filters_store"):
+                wd_adv = config_data.get('wikidich', {}).get('advanced_filter', {})
+                kc_adv = config_data.get('koanchay', {}).get('advanced_filter', {})
+                if isinstance(wd_adv, dict):
+                    self._wd_filters_store["wikidich"] = dict(wd_adv)
+                if isinstance(kc_adv, dict):
+                    self._wd_filters_store["koanchay"] = dict(kc_adv)
+                # Also update current wikidich_filters if we're on wikidich site
+                current_site = getattr(self, "wd_site", "wikidich")
+                if current_site in self._wd_filters_store:
+                    self.wikidich_filters = dict(self._wd_filters_store[current_site])
+            
             if hasattr(self, "wd_search_var"):
                 self.wd_search_var.set(self.wikidich_filters.get('search', ''))
                 self.wd_summary_var.set(self.wikidich_filters.get('summarySearch', ''))
@@ -2069,6 +2166,8 @@ class RenamerApp(
         menubar.add_cascade(label="Trợ giúp", menu=help_menu)
         help_menu.add_command(label="Hướng dẫn Regex", command=lambda: self.show_regex_guide("general"))
         help_menu.add_command(label="Hướng dẫn thao tác", command=self.show_operation_guide)
+        help_menu.add_separator()
+        help_menu.add_command(label="Xóa cache ảnh bìa...", command=self._clear_cover_cache_dialog)
         help_menu.add_separator()
         help_menu.add_command(label="Kiểm tra cập nhật...", command=lambda: self.check_for_updates(manual_check=True))
 
@@ -2296,6 +2395,21 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         close_button = ttk.Button(main_frame, text="Đã hiểu", command=help_window.destroy)
         close_button.pack()
+
+    def _clear_cover_cache_dialog(self):
+        """Hiển thị hộp thoại xác nhận và xóa cache ảnh bìa."""
+        cache_size = self._wd_get_cover_cache_size()
+        if cache_size < 1024:
+            size_str = f"{cache_size} bytes"
+        elif cache_size < 1024 * 1024:
+            size_str = f"{cache_size / 1024:.1f} KB"
+        else:
+            size_str = f"{cache_size / (1024 * 1024):.2f} MB"
+        
+        msg = f"Dung lượng cache ảnh bìa hiện tại: {size_str}\n\nBạn có muốn xóa toàn bộ cache không?"
+        if messagebox.askyesno("Xóa cache ảnh bìa", msg):
+            self._wd_clear_cover_cache()
+            messagebox.showinfo("Hoàn tất", "Đã xóa cache ảnh bìa.")
 
     def show_operation_guide(self):
         guide_win = tk.Toplevel(self)

@@ -63,6 +63,15 @@ USERSCRIPT_DIR = os.path.join(PROFILE_DIR, "userscripts")
 SCHEME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*://')
 DOMAIN_LIKE_RE = re.compile(r'^[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(/.*)?$')
 
+def set_profile_dir(path: str):
+    global PROFILE_DIR, HISTORY_FILE, DOWNLOAD_SETTINGS_FILE, DOWNLOAD_RECORDS_FILE, USERSCRIPT_REGISTRY_FILE, USERSCRIPT_DIR
+    PROFILE_DIR = path
+    HISTORY_FILE = os.path.join(PROFILE_DIR, "history.json")
+    DOWNLOAD_SETTINGS_FILE = os.path.join(PROFILE_DIR, "downloads.json")
+    DOWNLOAD_RECORDS_FILE = os.path.join(PROFILE_DIR, "download_records.json")
+    USERSCRIPT_REGISTRY_FILE = os.path.join(PROFILE_DIR, "userscripts_registry.json")
+    USERSCRIPT_DIR = os.path.join(PROFILE_DIR, "userscripts")
+
 
 def _find_app_icon() -> Optional[str]:
     candidates = [
@@ -681,9 +690,11 @@ class _BrowserWindow(QMainWindow):
         btn_downloads = QPushButton("⬇")
         btn_scripts = QPushButton("Script")
         btn_settings = QPushButton("⚙")
+        btn_profiles = QPushButton("👤")
         btn_settings.clicked.connect(self._open_settings_menu)
         btn_scripts.clicked.connect(self._show_userscript_menu)
         btn_downloads.clicked.connect(self._open_download_dialog)
+        btn_profiles.clicked.connect(self._open_profile_menu)
         self._script_button = btn_scripts
         self._tab_control_buttons = [btn_home, btn_back, btn_forward, btn_reload, btn_translate, btn_devtools, btn_downloads, btn_scripts]
 
@@ -697,7 +708,7 @@ class _BrowserWindow(QMainWindow):
         toolbar.addWidget(QLabel("URL:"))
         toolbar.addWidget(self.address_bar, stretch=1)
         for btn in (btn_home, btn_back, btn_forward, btn_reload, btn_go,
-                    btn_translate, btn_devtools, btn_downloads, btn_scripts, btn_settings):
+                    btn_translate, btn_devtools, btn_downloads, btn_scripts, btn_profiles, btn_settings):
             toolbar.addWidget(btn)
 
         toolbar_widget = QWidget()
@@ -1725,9 +1736,79 @@ class _BrowserWindow(QMainWindow):
         if isinstance(button, QPushButton):
             menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
 
+    def _open_profile_menu(self):
+        menu = QMenu(self)
+        
+        # Scan profiles
+        base_dir = os.path.dirname(PROFILE_DIR) if "qt_browser_profile" in PROFILE_DIR else os.path.join(PROFILE_DIR, "..")
+        # Actually PROFILE_DIR is full path.
+        # We assume BASE_DIR is parent of PROFILE_DIR.
+        # But we don't have BASE_DIR easily here except via imports if we had them or deducing.
+        # Let's deduce from PROFILE_DIR (which is Global).
+        parent_dir = os.path.dirname(PROFILE_DIR.rstrip(os.sep))
+        
+        current_name = "Profile 1"
+        try:
+             name = os.path.basename(PROFILE_DIR)
+             if name == "qt_browser_profile":
+                  current_name = "Profile 1"
+             elif name.startswith("qt_browser_profile_"):
+                  current_name = name.replace("qt_browser_profile_", "").replace("_", " ")
+        except Exception:
+             pass
+             
+        menu.addAction(f"Hiện tại: {current_name}").setEnabled(False)
+        menu.addSeparator()
 
-def run_browser(initial_url: Optional[str], cmd_conn, event_conn):
+        profiles = []
+        try:
+            for name in os.listdir(parent_dir):
+                full = os.path.join(parent_dir, name)
+                if os.path.isdir(full) and name.startswith("qt_browser_profile"):
+                    pname = "Profile 1" if name == "qt_browser_profile" else name.replace("qt_browser_profile_", "").replace("_", " ")
+                    profiles.append((pname, name))
+        except Exception:
+            profiles = [("Profile 1", "qt_browser_profile")]
+            
+        profiles.sort(key=lambda x: (0 if x[0] == "Profile 1" else 1, x[0]))
+        
+        for pname, dirname in profiles:
+             if pname == current_name:
+                 continue
+             action = menu.addAction(f"Chuyển sang: {pname}")
+             # We send the display name to parent, parent knows how to convert to dir or match it.
+             # Actually parent main app uses "Profile 1" style names.
+             action.triggered.connect(lambda checked=False, n=pname: self._request_switch_profile(n))
+             
+        menu.addSeparator()
+        menu.addAction("Thêm Profile mới", self._request_new_profile)
+        
+        button = self.sender()
+        if isinstance(button, QPushButton):
+            menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
+            
+    def _request_switch_profile(self, name):
+         if self.event_conn:
+             try:
+                 self.event_conn.send(("PROFILE_SWITCH_REQUEST", name))
+             except Exception:
+                 pass
+                 
+    def _request_new_profile(self):
+        name, ok = QInputDialog.getText(self, "Tạo Profile", "Tên Profile mới:")
+        if ok and name.strip():
+             # Basic validation
+             clean = re.sub(r"[^a-zA-Z0-9 _-]", "", name.strip())
+             if clean:
+                  self._request_switch_profile(clean)
+             else:
+                  QMessageBox.warning(self, "Lỗi", "Tên không hợp lệ.")
+
+
+def run_browser(initial_url: Optional[str], cmd_conn, event_conn, profile_dir: Optional[str] = None):
     """Entry-point for the multiprocessing worker."""
+    if profile_dir:
+        set_profile_dir(profile_dir)
     app = QApplication(sys.argv)
     window = _BrowserWindow(initial_url, cmd_conn, event_conn)
     window.show()

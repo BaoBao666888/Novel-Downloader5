@@ -400,19 +400,38 @@ def fetch_works_meta(
     return {"total": total, "latest_id": latest_id, "first_page_ids": first_page_ids}
 
 
-def _fetch_document(session: requests.Session, url: str, params: dict, proxies, max_retries: int, delay: float) -> BeautifulSoup:
+def _fetch_response(session: requests.Session, url: str, params: dict = None, proxies=None, max_retries: int = 5, delay: float = 1.5, method="GET", data=None, headers=None, allow_redirects=True) -> requests.Response:
     last_err = None
     for attempt in range(max_retries):
         try:
-            resp = session.get(url, params=params, timeout=60, proxies=proxies)
+            if method == "GET":
+                resp = session.get(url, params=params, timeout=60, proxies=proxies, headers=headers, allow_redirects=allow_redirects)
+            else:
+                resp = session.post(url, data=data, params=params, timeout=60, proxies=proxies, headers=headers, allow_redirects=allow_redirects)
+            # Không retry cho 4xx errors (client errors như 404) - raise ngay
+            if 400 <= resp.status_code < 500:
+                resp.raise_for_status()
+            # Retry cho 5xx errors (server errors)
             resp.raise_for_status()
-            return BeautifulSoup(resp.text, "html.parser")
+            return resp
+        except requests.HTTPError as http_err:
+            # Không retry cho 4xx errors
+            resp = getattr(http_err, "response", None)
+            if resp is not None and 400 <= resp.status_code < 500:
+                raise  # Raise ngay, không retry
+            last_err = http_err
+            time.sleep(delay * (attempt + 1))
         except Exception as e:
             last_err = e
             time.sleep(delay * (attempt + 1))
     if last_err:
         raise last_err
-    raise RuntimeError("fetch_document failed without exception")
+    raise RuntimeError("fetch failed without exception")
+
+
+def _fetch_document(session: requests.Session, url: str, params: dict, proxies, max_retries: int, delay: float) -> BeautifulSoup:
+    resp = _fetch_response(session, url, params=params, proxies=proxies, max_retries=max_retries, delay=delay)
+    return BeautifulSoup(resp.text, "html.parser")
 
 
 def analyze_filter_tasks(session: requests.Session, user_slug: str, base_url: str, proxies=None, delay: float = 1.5, max_retries: int = 5) -> List[Dict[str, Any]]:
@@ -824,8 +843,12 @@ def fetch_book_detail(
     base_url: str = BASE_URL,
     proxies=None,
     skip_chapter_count: bool = False,
+    max_retries: int = 5,
+    delay: float = 1.5,
 ) -> Dict[str, Any]:
-    resp = session.get(book["url"], timeout=50, proxies=proxies)
+    resp = _fetch_response(session, book["url"], proxies=proxies, max_retries=max_retries, delay=delay)
+    if resp.url.rstrip("/") == base_url.rstrip("/"):
+        raise ValueError("Book deleted (redirected to home)")
     resp.raise_for_status()
     doc = BeautifulSoup(resp.text, "html.parser")
     text = resp.text
