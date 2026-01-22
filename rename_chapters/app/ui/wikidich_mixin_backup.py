@@ -633,6 +633,92 @@ class WikidichMixin:
 
         self._wd_set_active_site(site)
 
+    def _wd_set_active_site(self, site, skip_save=False):
+        # Save current data (if valid site set)
+        current = getattr(self, "wd_site", None)
+        if current and hasattr(self, "_wd_data_store"):
+             # Collect current filter values from UI controls before saving
+             try:
+                 self._wd_collect_advanced_filter_values()
+             except Exception:
+                 pass
+             
+             # NEW: Sync filter vào Controller của site hiện tại trước khi chuyển
+             if hasattr(self, "_wd_controllers") and current in self._wd_controllers:
+                 self._wd_controllers[current].collect_filters_from_view()
+             
+             # Save filters to store for current site
+             if hasattr(self, "_wd_filters_store") and hasattr(self, "wikidich_filters"):
+                 self._wd_filters_store[current] = dict(self.wikidich_filters)
+             self._wd_data_store[current] = self.wikidich_data
+             if hasattr(self, "_wd_filtered_store"): self._wd_filtered_store[current] = self.wikidich_filtered
+             if hasattr(self, "_wd_new_chapters_store"): self._wd_new_chapters_store[current] = self.wd_new_chapters
+
+        # Restore UI references for the new site
+        self._wd_restore_ui_state(site)
+        self.wd_site = site
+        
+        # Refresh profile list and set paths FIRST (before restoring data)
+        self._wd_scan_profiles()
+        # Apply profile settings (cookies path, cache paths) without reloading cache yet
+        self._wd_on_profile_change(reload_cache=False)
+        
+        # Switch notebook tab immediately for responsive UI
+        if hasattr(self, "notebook") and hasattr(self, "_wd_tabs"):
+            try:
+                tab = self._wd_tabs.get(site)
+                if tab:
+                    if self.notebook.index(tab) == "hidden":
+                         self.notebook.tab(tab, state="normal")
+                    self.notebook.select(tab)
+            except Exception:
+                pass
+
+        # Sync filter UI controls from the loaded filters dict (fast, no I/O)
+        try:
+            self._wd_sync_filter_controls_from_filters()
+        except Exception:
+            pass
+        
+        # Show loading state immediately
+        try:
+            self._wd_update_user_label()
+            if hasattr(self, "wd_count_var"):
+                self.wd_count_var.set("Đang tải...")
+        except Exception:
+            pass
+        
+        # Run heavy operations in background thread to prevent UI freeze
+        def _load_and_refresh():
+            try:
+                # Load cache from disk (I/O operation)
+                cached = wikidich_ext.load_cache(self._wd_get_cache_path())
+                if cached:
+                    self.wikidich_data = cached
+                else:
+                    self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
+                    self.wikidich_filtered = []
+                
+                # Schedule UI updates on main thread
+                self.after(0, self._wd_finish_site_switch)
+            except Exception as e:
+                self.after(0, lambda: self.log(f"Lỗi load cache: {e}"))
+        
+        threading.Thread(target=_load_and_refresh, daemon=True).start()
+
+    def _wd_finish_site_switch(self):
+        """Called on main thread after background cache load completes."""
+        try:
+            self._wd_update_user_label()
+            self._wd_refresh_category_options()
+            self._wd_apply_filters()
+            self._wd_update_adv_status()
+            self._wd_update_basic_status()
+        except Exception as e:
+            self.log(f"Lỗi refresh UI: {e}")
+
+
+
 
     def _wd_make_text_readonly(self, widget: tk.Text):
         try:
@@ -965,14 +1051,7 @@ class WikidichMixin:
     def _wd_sync_filter_controls_from_filters(self):
         if not hasattr(self, "wd_flag_vars"):
             return
-        
-        # NEW: Đọc filter từ Controller nếu có
-        current_site = getattr(self, "wd_site", "wikidich")
-        if hasattr(self, "_wd_controllers") and current_site in self._wd_controllers:
-            filters = self._wd_controllers[current_site].state.filters
-        else:
-            filters = self.wikidich_filters
-        
+        filters = self.wikidich_filters
         if hasattr(self, "wd_search_var"):
             self.wd_search_var.set(filters.get('search', ''))
         if hasattr(self, "wd_status_var"):
@@ -1024,12 +1103,6 @@ class WikidichMixin:
             'status': self.wd_status_var.get(),
             'sortBy': self._wd_get_sort_value()
         })
-        
-        # NEW: Sync filters vào Controller để đảm bảo persistence
-        current_site = getattr(self, "wd_site", "wikidich")
-        if hasattr(self, "_wd_controllers") and current_site in self._wd_controllers:
-            self._wd_controllers[current_site].state.filters = dict(self.wikidich_filters)
-        
         filtered = wikidich_ext.filter_books(self.wikidich_data, self.wikidich_filters)
         self.wikidich_filtered = filtered
         self._wd_apply_not_found_flags()
@@ -4458,11 +4531,6 @@ class WikidichMixin:
         current = getattr(self, "wd_site", "wikidich")
         if current == site:
             return
-        
-        # NEW: Collect filters từ UI vào Controller của site cũ trước khi chuyển
-        if hasattr(self, "_wd_controllers") and current in self._wd_controllers:
-            self._wd_controllers[current].collect_filters_from_view()
-        
         if not skip_save and current in ("wikidich", "koanchay") and current != site:
             self._wd_save_site_state(current)
         self.wd_site = site
@@ -4470,30 +4538,6 @@ class WikidichMixin:
         self._wd_resume_details = None
         self._wd_bind_context(site)
         self._wd_restore_site_state(site)
-        
-        # NEW: Sync UI controls từ Controller của site mới
-        if hasattr(self, "_wd_controllers") and site in self._wd_controllers:
-            filters = self._wd_controllers[site].state.filters
-            if hasattr(self, "wd_search_var"):
-                self.wd_search_var.set(filters.get('search', ''))
-            if hasattr(self, "wd_status_var"):
-                self.wd_status_var.set(filters.get('status', 'all'))
-            if hasattr(self, "wd_summary_var"):
-                self.wd_summary_var.set(filters.get('summarySearch', ''))
-            if hasattr(self, "wd_extra_link_var"):
-                self.wd_extra_link_var.set(filters.get('extraLinkSearch', ''))
-            if hasattr(self, "wd_flag_vars"):
-                for flag, var in self.wd_flag_vars.items():
-                    var.set(flag in filters.get('flags', []))
-            if hasattr(self, "wd_role_vars"):
-                for role, var in self.wd_role_vars.items():
-                    var.set(role in filters.get('roles', []))
-            if hasattr(self, "wd_from_date_var"):
-                self.wd_from_date_var.set(filters.get('fromDate', ''))
-            if hasattr(self, "wd_to_date_var"):
-                self.wd_to_date_var.set(filters.get('toDate', ''))
-            self._wd_select_categories(filters.get('categories', []))
-        
         self._wd_load_resume_state()
         if not (self.wikidich_data.get("book_ids") or []):
             self._wd_load_cache()

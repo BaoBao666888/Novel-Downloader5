@@ -77,6 +77,7 @@ from app.ui.image_tab_mixin import ImageTabMixin
 from app.ui.proxy_mixin import ProxyMixin
 from app.ui.radical_checker import open_radical_checker_dialog
 from app.ui.library_mixin import LibraryMixin
+from app.ui.wikidich import WikidichController, WikidichState
 
 # Đảm bảo chỉ một instance (dùng localhost TCP)
 _SINGLE_INSTANCE_HOST = "127.0.0.1"
@@ -460,6 +461,18 @@ class RenamerApp(
         self._wd_load_detail_resume()
         self._fanqie_bridge_proc = None
         self._auto_update_temp_root = os.path.join(BASE_DIR, "tmp_auto_update")
+        
+        # NEW: Khởi tạo WikidichController cho mỗi site
+        self._wd_controllers = {
+            "wikidich": WikidichController("wikidich", self),
+            "koanchay": WikidichController("koanchay", self)
+        }
+        # Load config vào controllers
+        wd_cfg = self.app_config.get('wikidich', {})
+        kc_cfg = self.app_config.get('koanchay', {})
+        self._wd_controllers["wikidich"].load_from_config(wd_cfg)
+        self._wd_controllers["koanchay"].load_from_config(kc_cfg)
+        
         self.create_widgets()
         self._start_single_instance_listener()
         self.load_config()
@@ -1877,30 +1890,20 @@ class RenamerApp(
             if hasattr(self, "_wd_filters_store") and hasattr(self, "wikidich_filters"):
                 self._wd_filters_store[current_site] = dict(self.wikidich_filters)
 
-        # Helper to get filters for a site
-        def _get_filters(site_name):
-            if hasattr(self, "_wd_filters_store") and site_name in self._wd_filters_store:
-                return self._wd_filters_store[site_name]
-            if getattr(self, "wd_site", "wikidich") == site_name:
-                return self.wikidich_filters
-            # Fallback to existing config or default
-            return self.app_config.get(site_name, {}).get('advanced_filter', {})
-
-        # Save Wikidich config
-        self.app_config['wikidich'] = {
-            'cache_path': self.wikidich_cache_path,
-            'advanced_filter': dict(_get_filters('wikidich')),
-            'open_mode': self.wikidich_open_mode,
-            'auto_pick_mode': getattr(self, "wikidich_auto_pick_mode", "extract_then_pick")
-        }
-        # Save Koanchay config
-        kc_cfg = self.app_config.get('koanchay', {})
-        self.app_config['koanchay'] = {
-            'cache_path': kc_cfg.get('cache_path', os.path.join(BASE_DIR, "local", "koanchay_cache.json")),
-            'advanced_filter': dict(_get_filters('koanchay')),
-            'open_mode': self.wikidich_open_mode, # Hiện tại dùng chung setting này
-            'auto_pick_mode': getattr(self, "wikidich_auto_pick_mode", "extract_then_pick")
-        }
+        # Dùng Controllers mới để save config
+        if hasattr(self, "_wd_controllers"):
+            # Collect filter values từ view hiện tại trước khi save
+            current_site = getattr(self, "wd_site", "wikidich")
+            
+            if current_site in self._wd_controllers:
+                ctrl = self._wd_controllers[current_site]
+                ctrl.collect_filters_from_view()
+            
+            # Save cả 2 sites từ Controllers
+            wd_config = self._wd_controllers["wikidich"].save_to_config()
+            kc_config = self._wd_controllers["koanchay"].save_to_config()
+            self.app_config['wikidich'] = wd_config
+            self.app_config['koanchay'] = kc_config
         self.app_config['api_settings'] = dict(self.api_settings or {})
         self.app_config['wikidich_upload_settings'] = dict(self.wikidich_upload_settings or {})
         self.app_config['regex_pins'] = dict(self.regex_pins)
@@ -2002,6 +2005,13 @@ class RenamerApp(
                 current_site = getattr(self, "wd_site", "wikidich")
                 if current_site in self._wd_filters_store:
                     self.wikidich_filters = dict(self._wd_filters_store[current_site])
+            
+            # NEW: Load config vào Controllers mới nếu có
+            if hasattr(self, "_wd_controllers"):
+                wd_cfg = config_data.get('wikidich', {})
+                kc_cfg = config_data.get('koanchay', {})
+                self._wd_controllers["wikidich"].load_from_config(wd_cfg)
+                self._wd_controllers["koanchay"].load_from_config(kc_cfg)
             
             if hasattr(self, "wd_search_var"):
                 self.wd_search_var.set(self.wikidich_filters.get('search', ''))
