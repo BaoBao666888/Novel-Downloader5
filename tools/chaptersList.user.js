@@ -20,18 +20,18 @@
 (function () {
     "use strict";
 
-    // ======= HTTP =======
-    function gmGet(url) {
-        return new Promise((resolve, reject) => {
-            GM_xmlhttpRequest({
-                method: "GET",
-                url,
-                onload: (res) => resolve(res.responseText),
-                onerror: (err) => reject(err),
-                ontimeout: () => reject(new Error("Request timeout")),
-                timeout: 30000,
-            });
+    let isLoading = false;
+    let busyNoticeEl = null;
+
+    // ======= HTTP (use browser fetch to keep cookies/CF session) =======
+    async function gmGet(url) {
+        const res = await fetch(url, {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.text();
     }
 
     function toDoc(html) {
@@ -122,38 +122,46 @@
             loadingEl = null;
         };
 
-        while (true) {
-            const pageIndex = Math.floor(currentStart / size) + 1;
-            updateLoading(`Đang tải trang ${pageIndex}...`);
-            const sign = genSign(signKey, currentStart, size);
-            if (sign === undefined) throw new Error("Tạo sign thất bại.");
+        try {
+            while (true) {
+                const pageIndex = Math.floor(currentStart / size) + 1;
+                updateLoading(`Đang tải trang ${pageIndex}...`);
+                const sign = genSign(signKey, currentStart, size);
+                if (sign === undefined) throw new Error("Tạo sign thất bại.");
 
-            const url = buildIndexUrl({ bookId, signKey, sign, size, start: currentStart });
-            const html = await gmGet(url);
-            const doc = toDoc(html);
+                const url = buildIndexUrl({ bookId, signKey, sign, size, start: currentStart });
+                const html = await gmGet(url);
+                if (html.includes("Just a moment") || html.includes("__cf_chl_opt")) {
+                    throw new Error("Bị Cloudflare chặn khi tải mục lục. Hãy mở trang trong tab chính rồi chạy lại.");
+                }
+                const doc = toDoc(html);
 
-            const links = doc.querySelectorAll("li.chapter-name a[href]");
-            if (links.length === 0 && chapters.length > 0) break;
+                const links = doc.querySelectorAll("li.chapter-name a[href]");
+                if (links.length === 0 && chapters.length === 0) {
+                    throw new Error("Trang mục lục không có chương (có thể bị chặn hoặc đã đổi cấu trúc).");
+                }
+                if (links.length === 0 && chapters.length > 0) break;
 
-            links.forEach((a) => {
-                const title = (a.textContent || "").trim();
-                const href = a.getAttribute("href");
-                if (!href) return;
-                chapters.push({ title, url: new URL(href, location.origin).href });
-            });
+                links.forEach((a) => {
+                    const title = (a.textContent || "").trim();
+                    const href = a.getAttribute("href");
+                    if (!href) return;
+                    chapters.push({ title, url: new URL(href, location.origin).href });
+                });
 
-            const pageLinks = Array.from(doc.querySelectorAll("ul.pagination a[data-start]"));
-            const lastStart = pageLinks.length
-            ? parseInt(pageLinks[pageLinks.length - 1].getAttribute("data-start") || "0", 10)
-            : 0;
+                const pageLinks = Array.from(doc.querySelectorAll("ul.pagination a[data-start]"));
+                const lastStart = pageLinks.length
+                ? parseInt(pageLinks[pageLinks.length - 1].getAttribute("data-start") || "0", 10)
+                : 0;
 
-            if (currentStart >= lastStart && links.length > 0) break;
+                if (currentStart >= lastStart && links.length > 0) break;
 
-            currentStart += size;
-            await sleep(2000);
+                currentStart += size;
+                await sleep(2000);
+            }
+        } finally {
+            removeLoading();
         }
-
-        removeLoading();
         return chapters;
     }
 
@@ -255,8 +263,136 @@
         }, 300);
     }
 
-    async function run() {
+    function showBusyNotice() {
+        if (busyNoticeEl) {
+            busyNoticeEl.remove();
+            busyNoticeEl = null;
+        }
+        const notice = document.createElement("div");
+        notice.id = "nd-busy-notice";
+        notice.style.cssText = `
+      position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+      z-index:999999;background:#111;color:#fff;padding:14px 18px;
+      border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,0.25);
+      font:14px/1.4 "Be Vietnam Pro","Segoe UI","Tahoma",Arial,sans-serif;
+      text-align:center;max-width:86vw;
+    `;
+        notice.textContent = "Đang tải chương, xem tiến độ ở góc phải dưới. Đừng bấm nữa nhé. Biết ngay thế nào bạn cũng bấm mà :)))";
+        document.body.appendChild(notice);
+        busyNoticeEl = notice;
+        setTimeout(() => {
+            notice.remove();
+            if (busyNoticeEl === notice) busyNoticeEl = null;
+        }, 3200);
+    }
+
+    function initFloatingButton() {
+        const existing = document.getElementById("nd-floating-btn");
+        if (existing) return;
+
+        const size = 54;
+        const storageKey = "nd-chapter-btn-pos";
+        const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+        const btn = document.createElement("button");
+        btn.id = "nd-floating-btn";
+        btn.type = "button";
+        btn.textContent = "📖";
+        btn.title = "Mở danh sách chương";
+        btn.style.cssText = `
+      position:fixed;left:12px;top:12px;z-index:999999;
+      width:${size}px;height:${size}px;border-radius:999px;border:0;
+      background:linear-gradient(135deg,#1a73e8,#3a8bff);color:#fff;
+      box-shadow:0 10px 24px rgba(26,115,232,0.35);
+      font:20px/1 "Be Vietnam Pro","Segoe UI","Tahoma",Arial,sans-serif;
+      display:flex;align-items:center;justify-content:center;cursor:pointer;
+      user-select:none;touch-action:none;
+    `;
+
+        const saved = localStorage.getItem(storageKey);
+        let pos = { x: null, y: null };
         try {
+            if (saved) pos = JSON.parse(saved) || pos;
+        } catch {
+            pos = { x: null, y: null };
+        }
+
+        let x = typeof pos.x === "number" ? pos.x : window.innerWidth - size - 18;
+        let y = typeof pos.y === "number" ? pos.y : window.innerHeight - size - 80;
+        x = clamp(x, 8, window.innerWidth - size - 8);
+        y = clamp(y, 8, window.innerHeight - size - 8);
+
+        const applyPos = () => {
+            btn.style.left = `${x}px`;
+            btn.style.top = `${y}px`;
+        };
+
+        const savePos = () => {
+            localStorage.setItem(storageKey, JSON.stringify({ x, y }));
+        };
+
+        applyPos();
+
+        let dragging = false;
+        let moved = false;
+        let startX = 0;
+        let startY = 0;
+        let originX = 0;
+        let originY = 0;
+
+        btn.addEventListener("pointerdown", (e) => {
+            dragging = true;
+            moved = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            originX = x;
+            originY = y;
+            btn.setPointerCapture(e.pointerId);
+        });
+
+        btn.addEventListener("pointermove", (e) => {
+            if (!dragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+            x = clamp(originX + dx, 8, window.innerWidth - size - 8);
+            y = clamp(originY + dy, 8, window.innerHeight - size - 8);
+            applyPos();
+        });
+
+        btn.addEventListener("pointerup", (e) => {
+            if (!dragging) return;
+            dragging = false;
+            btn.releasePointerCapture(e.pointerId);
+            if (moved) savePos();
+        });
+
+        btn.addEventListener("click", (e) => {
+            if (moved) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            run();
+        });
+
+        window.addEventListener("resize", () => {
+            x = clamp(x, 8, window.innerWidth - size - 8);
+            y = clamp(y, 8, window.innerHeight - size - 8);
+            applyPos();
+            savePos();
+        });
+
+        document.body.appendChild(btn);
+    }
+
+    async function run() {
+        if (isLoading) {
+            showBusyNotice();
+            return;
+        }
+        try {
+            isLoading = true;
             removeOldUI();
             const chapters = await fetchAllChapters();
             if (!chapters.length) {
@@ -267,10 +403,13 @@
         } catch (e) {
             console.error(e);
             alert(`Fail: ${e?.message || e}`);
+        } finally {
+            isLoading = false;
         }
     }
 
     GM_registerMenuCommand("📖 Hiện bảng danh chương", run);
+    initFloatingButton();
 
     window.addEventListener("keydown", (e) => {
         if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "l") run();
