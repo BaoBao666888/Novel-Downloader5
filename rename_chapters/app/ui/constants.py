@@ -77,6 +77,23 @@ DEFAULT_API_SETTINGS = {
     }
 }
 
+# Column configuration for Wikidich/Koanchay table
+# Key: column id, Value: (label, default_width, visible_by_default)
+# Note: "title" is always visible and cannot be hidden
+WIKIDICH_COLUMNS_CONFIG = {
+    'title': ('Tiêu đề', 240, True),        # Always visible - mandatory
+    'status': ('Trạng thái', 110, True),
+    'updated': ('Cập nhật', 110, True),
+    'chapters': ('Wiki', 80, True),
+    'new_chapters': ('New', 90, True),
+    'notes': ('Ghi chú', 150, True),        # New column
+    'views': ('Lượt xem', 90, False),       # Hidden by default
+    'author': ('Tác giả', 160, False),      # Hidden by default
+}
+
+# Default visible columns (based on WIKIDICH_COLUMNS_CONFIG)
+DEFAULT_VISIBLE_COLUMNS = ['title', 'status', 'updated', 'chapters', 'new_chapters', 'notes']
+
 DEFAULT_UPLOAD_SETTINGS = {
     "filename_regex": r"第(\d+)章\s*(.*)",
     "content_regex": r"第(\d+)章\s*(.*)",

@@ -543,7 +543,8 @@ class RenamerApp(
             'novel_downloader5': dict(DEFAULT_ND5_OPTIONS),
             'background': dict(DEFAULT_BACKGROUND_SETTINGS),
             'radical_map': {},
-            'radical_output_dir': ""
+            'radical_output_dir': "",
+            'profile_recycle': {}
         }
 
     def _cleanup_legacy_files(self):
@@ -845,6 +846,17 @@ class RenamerApp(
             messagebox.showwarning("Trình duyệt", "Vui lòng đóng cửa sổ cookie trước khi mở trình duyệt.")
             return
         if hasattr(self, "browser_overlay") and self.browser_overlay:
+            if hasattr(self, "_wd_get_profile_dir") and hasattr(self, "wd_profile_var"):
+                profile_name = (self.wd_profile_var.get() or "Profile 1").strip()
+                profile_dir = self._wd_get_profile_dir(profile_name)
+                if not os.path.isdir(profile_dir):
+                    profiles = self._get_all_profiles()
+                    if profiles:
+                        profile_name = profiles[0]
+                        if hasattr(self, "wd_profile_var"):
+                            self.wd_profile_var.set(profile_name)
+                        profile_dir = self._wd_get_profile_dir(profile_name)
+                self.browser_overlay.set_profile(profile_dir)
             self.browser_overlay.toggle()
 
     def open_cookie_manager(self):
@@ -885,17 +897,27 @@ class RenamerApp(
 
     def _get_all_profiles(self):
         """Lấy danh sách tất cả profiles."""
-        profiles = ["Profile 1"]
+        profiles = []
+        deleted = set()
+        if hasattr(self, "_wd_get_deleted_profile_names"):
+            deleted = self._wd_get_deleted_profile_names()
         try:
+            default_dir = os.path.join(BASE_DIR, "qt_browser_profile")
+            if os.path.isdir(default_dir):
+                profiles.append("Profile 1")
             for name in os.listdir(BASE_DIR):
                 full = os.path.join(BASE_DIR, name)
                 if os.path.isdir(full) and name.startswith("qt_browser_profile_"):
                     pname = name.replace("qt_browser_profile_", "").replace("_", " ")
-                    if pname and pname not in profiles:
+                    if pname and pname not in profiles and pname not in deleted:
                         profiles.append(pname)
             profiles.sort(key=lambda x: (0 if x == "Profile 1" else 1, x))
         except Exception:
             pass
+        if "Profile 1" in deleted and "Profile 1" in profiles:
+            profiles = [p for p in profiles if p != "Profile 1"]
+        if not profiles:
+            profiles = ["Profile 1"]
         return profiles
 
     def _get_current_browser_profile(self):
@@ -1906,6 +1928,8 @@ class RenamerApp(
             self.app_config['koanchay'] = kc_config
         self.app_config['api_settings'] = dict(self.api_settings or {})
         self.app_config['wikidich_upload_settings'] = dict(self.wikidich_upload_settings or {})
+        if hasattr(self, "profile_recycle"):
+            self.app_config['profile_recycle'] = dict(self.profile_recycle or {})
         self.app_config['regex_pins'] = dict(self.regex_pins)
         try:
             with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
@@ -1939,6 +1963,8 @@ class RenamerApp(
             upload_cfg = config_data.get('wikidich_upload_settings', {}) if isinstance(config_data.get('wikidich_upload_settings'), dict) else {}
             self.wikidich_upload_settings = {**DEFAULT_UPLOAD_SETTINGS, **upload_cfg}
             self.wd_not_found = list(config_data.get('wd_not_found', []) or [])
+            recycle_cfg = config_data.get('profile_recycle', {})
+            self.profile_recycle = dict(recycle_cfg) if isinstance(recycle_cfg, dict) else {}
             self.folder_path.set(config_data.get('folder_path', ''))
             self.strategy.set(config_data.get('rename_strategy', 'content_first'))
             self.sort_strategy.set(config_data.get('sort_strategy', 'content'))
@@ -1982,6 +2008,10 @@ class RenamerApp(
                 self.translator_name_set_combo.set(name_sets_keys[0])
             self._refresh_translator_name_preview()
 
+            # Load wikidich notes & links
+            self.wikidich_notes = dict(config_data.get('wikidich_notes', {}) or {})
+            self.wikidich_links = dict(config_data.get('wikidich_links', {}) or {})
+
             wd_cfg = config_data.get('wikidich', {})
             if isinstance(wd_cfg, dict):
                 self.wikidich_cache_path = wd_cfg.get('cache_path', self.wikidich_cache_path)
@@ -2021,6 +2051,8 @@ class RenamerApp(
                 self.wd_status_var.set(self.wikidich_filters.get('status', 'all'))
                 self._wd_set_sort_label_from_value(self.wikidich_filters.get('sortBy', 'recent'))
             self._wd_sync_filter_controls_from_filters()
+            if hasattr(self, "_wd_sync_profile_for_startup"):
+                self._wd_sync_profile_for_startup()
             self._wd_load_cache()
 
             if self.folder_path.get(): self.schedule_preview_update()
@@ -2049,6 +2081,8 @@ class RenamerApp(
                 if hasattr(self, "_wd_mode_labels"):
                     label = self._wd_mode_labels.get(getattr(self, "wikidich_auto_pick_mode", "extract_then_pick"))
                 self.wd_auto_mode_var.set(label or getattr(self, "wikidich_auto_pick_mode", "extract_then_pick"))
+            if hasattr(self, "_wd_cleanup_profile_recycle"):
+                self._wd_cleanup_profile_recycle()
             self._maybe_start_hidden()
         except Exception as e:
             print(f"Không thể tải config: {e}")
@@ -2212,6 +2246,7 @@ class RenamerApp(
                                     insertbackground=colors.get("accent", "#6366f1"), highlightthickness=1,
                                     highlightbackground=colors.get("border", "#273553"), relief=tk.FLAT, bd=0)
         self.log_text.pack(fill=tk.BOTH, expand=True)
+        self._flush_pending_logs()
         self.main_paned_window.add(log_frame, weight=0)
         self._apply_mouse_glow_setting()
         self._apply_background_image()
@@ -2238,12 +2273,28 @@ class RenamerApp(
             pass
         widget = getattr(self, "log_text", None)
         if not widget:
+            pending = getattr(self, "_pending_logs", None)
+            if pending is None:
+                self._pending_logs = []
+            self._pending_logs.append(text)
             print(text)
             return
         widget.config(state='normal')
         widget.insert(tk.END, text + "\n")
         widget.see(tk.END)
         widget.config(state='disabled')
+
+    def _flush_pending_logs(self):
+        pending = getattr(self, "_pending_logs", None)
+        widget = getattr(self, "log_text", None)
+        if not pending or not widget:
+            return
+        widget.config(state='normal')
+        for text in pending:
+            widget.insert(tk.END, text + "\n")
+        widget.see(tk.END)
+        widget.config(state='disabled')
+        self._pending_logs = []
 
     def _cleanup_old_logs(self, logs_dir: str):
         """Xóa log cũ hơn 30 ngày để tránh phình ổ đĩa."""

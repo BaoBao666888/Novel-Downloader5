@@ -50,6 +50,7 @@ from PyQt6.QtWebEngineCore import (
 )
 
 from app.paths import BASE_DIR
+from app.ui.constants import CONFIG_PATH
 from app.userscripts import UserscriptHost
 
 DEFAULT_HOME = "https://www.google.com/"
@@ -62,6 +63,8 @@ USERSCRIPT_REGISTRY_FILE = os.path.join(PROFILE_DIR, "userscripts_registry.json"
 USERSCRIPT_DIR = os.path.join(PROFILE_DIR, "userscripts")
 SCHEME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*://')
 DOMAIN_LIKE_RE = re.compile(r'^[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(/.*)?$')
+PROFILE_NAME_CLEAN_RE = re.compile(r"[^a-zA-Z0-9 _-]")
+PROFILE_RESTORE_KEY = "profile_recycle"
 
 def set_profile_dir(path: str):
     global PROFILE_DIR, HISTORY_FILE, DOWNLOAD_SETTINGS_FILE, DOWNLOAD_RECORDS_FILE, USERSCRIPT_REGISTRY_FILE, USERSCRIPT_DIR
@@ -92,6 +95,23 @@ def build_persistent_profile(parent=None) -> QWebEngineProfile:
     profile.setCachePath(os.path.join(PROFILE_DIR, "cache"))
     profile.setPersistentStoragePath(os.path.join(PROFILE_DIR, "storage"))
     return profile
+
+
+def _sanitize_profile_name(name: str) -> str:
+    clean = PROFILE_NAME_CLEAN_RE.sub("", (name or "").strip())
+    return clean.strip()
+
+
+def _load_profile_recycle() -> dict:
+    try:
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, "r", encoding="utf-8") as cfg:
+                data = json.load(cfg)
+            recycle = data.get(PROFILE_RESTORE_KEY, {})
+            return recycle if isinstance(recycle, dict) else {}
+    except Exception:
+        pass
+    return {}
 
 
 def _default_download_directory() -> str:
@@ -1756,6 +1776,14 @@ class _BrowserWindow(QMainWindow):
                   current_name = name.replace("qt_browser_profile_", "").replace("_", " ")
         except Exception:
              pass
+
+        recycle_entries = _load_profile_recycle()
+        deleted_names = set()
+        for key, entry in recycle_entries.items():
+            if isinstance(entry, dict):
+                deleted_names.add(entry.get("profile") or key)
+            else:
+                deleted_names.add(key)
              
         menu.addAction(f"Hiện tại: {current_name}").setEnabled(False)
         menu.addSeparator()
@@ -1766,7 +1794,8 @@ class _BrowserWindow(QMainWindow):
                 full = os.path.join(parent_dir, name)
                 if os.path.isdir(full) and name.startswith("qt_browser_profile"):
                     pname = "Profile 1" if name == "qt_browser_profile" else name.replace("qt_browser_profile_", "").replace("_", " ")
-                    profiles.append((pname, name))
+                    if pname not in deleted_names:
+                        profiles.append((pname, name))
         except Exception:
             profiles = [("Profile 1", "qt_browser_profile")]
             
@@ -1782,6 +1811,16 @@ class _BrowserWindow(QMainWindow):
              
         menu.addSeparator()
         menu.addAction("Thêm Profile mới", self._request_new_profile)
+        menu.addAction("Đổi tên Profile hiện tại", lambda: self._request_rename_profile(current_name))
+        menu.addAction("Xóa Profile hiện tại", lambda: self._request_delete_profile(current_name))
+
+        restore_menu = menu.addMenu("Khôi phục Profile")
+        if not deleted_names:
+            restore_menu.setEnabled(False)
+        else:
+            for pname in sorted(deleted_names, key=lambda x: (0 if x == "Profile 1" else 1, x)):
+                action = restore_menu.addAction(pname)
+                action.triggered.connect(lambda checked=False, n=pname: self._request_restore_profile(n))
         
         button = self.sender()
         if isinstance(button, QPushButton):
@@ -1798,11 +1837,56 @@ class _BrowserWindow(QMainWindow):
         name, ok = QInputDialog.getText(self, "Tạo Profile", "Tên Profile mới:")
         if ok and name.strip():
              # Basic validation
-             clean = re.sub(r"[^a-zA-Z0-9 _-]", "", name.strip())
+             clean = _sanitize_profile_name(name)
              if clean:
                   self._request_switch_profile(clean)
              else:
                   QMessageBox.warning(self, "Lỗi", "Tên không hợp lệ.")
+
+    def _request_delete_profile(self, name: str):
+        target = (name or "").strip()
+        if not target:
+            return
+        if QMessageBox.question(
+            self,
+            "Xóa Profile",
+            f"Xóa profile '{target}'? Cache Wikidich/Koanchay sẽ được đưa vào thùng rác trong 7 ngày."
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        if self.event_conn:
+            try:
+                self.event_conn.send(("PROFILE_DELETE_REQUEST", target))
+            except Exception:
+                pass
+
+    def _request_rename_profile(self, current_name: str):
+        target = (current_name or "").strip()
+        if not target:
+            return
+        new_name, ok = QInputDialog.getText(self, "Đổi tên Profile", f"Đổi tên profile '{target}' thành:")
+        if not ok:
+            return
+        clean = _sanitize_profile_name(new_name)
+        if not clean:
+            QMessageBox.warning(self, "Lỗi", "Tên không hợp lệ.")
+            return
+        if clean == target:
+            return
+        if self.event_conn:
+            try:
+                self.event_conn.send(("PROFILE_RENAME_REQUEST", {"old": target, "new": clean}))
+            except Exception:
+                pass
+
+    def _request_restore_profile(self, name: str):
+        target = (name or "").strip()
+        if not target:
+            return
+        if self.event_conn:
+            try:
+                self.event_conn.send(("PROFILE_RESTORE_REQUEST", target))
+            except Exception:
+                pass
 
 
 def run_browser(initial_url: Optional[str], cmd_conn, event_conn, profile_dir: Optional[str] = None):

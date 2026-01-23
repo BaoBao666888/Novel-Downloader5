@@ -26,9 +26,9 @@ class BrowserOverlay:
         self.cmd_conn = None
         self.event_conn = None
         self.event_queue = queue.Queue()
-        self.event_queue = queue.Queue()
         self.listener_thread = None
         self.profile_dir = None
+        self._event_conn_id = 0
 
     def set_profile(self, path):
         self.profile_dir = path
@@ -61,13 +61,15 @@ class BrowserOverlay:
         parent_events, child_events = multiprocessing.Pipe()
         self.cmd_conn = parent_conn
         self.event_conn = parent_events
+        self._event_conn_id += 1
+        conn_id = self._event_conn_id
         self.proc = multiprocessing.Process(
             target=_run_qt_browser,
             args=(self.current_url, child_conn, child_events, self.profile_dir),
             daemon=True
         )
         self.proc.start()
-        self._start_listener_thread()
+        self._start_listener_thread(conn_id)
         if hasattr(self.app, "on_browser_overlay_opened"):
             self.app.on_browser_overlay_opened()
         if hasattr(self.app, "log"):
@@ -88,6 +90,7 @@ class BrowserOverlay:
         self.proc = None
         self.cmd_conn = None
         self.event_conn = None
+        self._event_conn_id += 1
         if hasattr(self.app, "on_browser_overlay_closed"):
             self.app.on_browser_overlay_closed()
         if hasattr(self.app, "log"):
@@ -118,17 +121,21 @@ class BrowserOverlay:
             url = "https://" + url
         return url
 
-    def _start_listener_thread(self):
+    def _start_listener_thread(self, conn_id: int):
         if not self.event_conn:
             return
 
+        conn = self.event_conn
+
         def _listen():
             try:
-                while self.event_conn:
-                    if self.event_conn.poll(0.2):
-                        event = self.event_conn.recv()
-                        self.event_queue.put(event)
+                while conn:
+                    if conn.poll(0.2):
+                        event = conn.recv()
+                        self.event_queue.put((conn_id, event))
             except EOFError:
+                pass
+            except OSError:
                 pass
 
         self.listener_thread = threading.Thread(target=_listen, daemon=True)
@@ -137,7 +144,15 @@ class BrowserOverlay:
 
     def _poll_events(self):
         while not self.event_queue.empty():
-            event = self.event_queue.get()
+            entry = self.event_queue.get()
+            if isinstance(entry, tuple) and len(entry) == 2 and isinstance(entry[0], int):
+                conn_id, event = entry
+                if conn_id != self._event_conn_id:
+                    continue
+            else:
+                event = entry
+            if not event:
+                continue
             if event[0] == "URL_CHANGED":
                 self.current_url = event[1]
             elif event[0] == "WINDOW_CLOSED":
@@ -180,6 +195,27 @@ class BrowserOverlay:
                              # If main app didn't handle it, we might be lost on path.
                              # But _on_browser_profile_switched should exist.
                              pass
+                except Exception:
+                    pass
+            elif event[0] == "PROFILE_DELETE_REQUEST":
+                try:
+                    profile_name = event[1]
+                    if hasattr(self.app, "_on_browser_profile_delete_request"):
+                        self.app._on_browser_profile_delete_request(profile_name)
+                except Exception:
+                    pass
+            elif event[0] == "PROFILE_RENAME_REQUEST":
+                try:
+                    payload = event[1]
+                    if hasattr(self.app, "_on_browser_profile_rename_request"):
+                        self.app._on_browser_profile_rename_request(payload)
+                except Exception:
+                    pass
+            elif event[0] == "PROFILE_RESTORE_REQUEST":
+                try:
+                    profile_name = event[1]
+                    if hasattr(self.app, "_on_browser_profile_restore_request"):
+                        self.app._on_browser_profile_restore_request(profile_name)
                 except Exception:
                     pass
         if self.proc:

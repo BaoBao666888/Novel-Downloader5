@@ -7,6 +7,7 @@ import json
 import threading
 import random
 import subprocess
+import shutil
 import sys
 import webbrowser
 from datetime import datetime
@@ -26,8 +27,9 @@ from app.core import renamer as logic
 from app.core.browser_cookies import load_browser_cookie_jar
 from app.core.text_ops import TextOperations
 from app.paths import BASE_DIR
-from app.ui.constants import DEFAULT_API_SETTINGS, DEFAULT_UPLOAD_SETTINGS, ONLINE_SOURCES, WD_SORT_OPTIONS, SOURCE_BY_ID
+from app.ui.constants import DEFAULT_API_SETTINGS, DEFAULT_UPLOAD_SETTINGS, ONLINE_SOURCES, WD_SORT_OPTIONS, SOURCE_BY_ID, WIKIDICH_COLUMNS_CONFIG, DEFAULT_VISIBLE_COLUMNS
 from extensions import wikidich_ext, jjwxc_ext, po18_ext, qidian_ext, fanqienovel_ext, ihuaben_ext
+from tkinter import colorchooser
 
 try:
     import pythoncom
@@ -104,7 +106,7 @@ class WikidichMixin:
         self.wd_user_label = ttk.Label(header, text="Chưa kiểm tra đăng nhập", width=25, anchor="w")
         self.wd_user_label.grid(row=0, column=0, sticky="w")
         
-        sync_mb = ttk.Menubutton(header, text="Sync")
+        sync_mb = ttk.Menubutton(header, text="Sync ▾", style="TButton")
         sync_menu = tk.Menu(sync_mb, tearoff=0)
         sync_menu.add_command(label="Tải Works", command=self._wd_start_fetch_works)
         sync_menu.add_command(label="Tải chi tiết", command=self._wd_prompt_detail_fetch)
@@ -132,13 +134,18 @@ class WikidichMixin:
         header.columnconfigure(9, weight=1)
         header_spacer = ttk.Frame(header)
         header_spacer.grid(row=0, column=9, sticky="ew")
+        
+
+        self.wd_refresh_btn = ttk.Button(header, text="↻", width=2, command=self._wd_refresh_table_from_ram)
+        self.wd_refresh_btn.grid(row=0, column=10, padx=(0, 2), sticky="e")
+        
         self.wd_count_var = tk.StringVar(value="Số truyện: 0")
         self._wd_count_header_label = ttk.Label(header, textvariable=self.wd_count_var)
-        self._wd_count_header_label.grid(row=0, column=10, padx=(0, 8), sticky="e")
+        self._wd_count_header_label.grid(row=0, column=11, padx=(0, 8), sticky="e")
         self.wd_basic_toggle_btn = ttk.Button(header, text="Thu gọn lọc cơ bản", command=self._wd_toggle_basic_section)
-        self.wd_basic_toggle_btn.grid(row=0, column=11, padx=(6, 0))
+        self.wd_basic_toggle_btn.grid(row=0, column=12, padx=(6, 0))
         self.wd_site_button = ttk.Button(header, text=other_site.capitalize(), command=lambda s=other_site: self._wd_switch_site(s))
-        self.wd_site_button.grid(row=0, column=12, padx=(12, 0))
+        self.wd_site_button.grid(row=0, column=13, padx=(12, 0))
 
         progress_frame = ttk.Frame(tab)
         progress_frame.grid(row=1, column=0, sticky="ew", pady=(6, 4))
@@ -532,25 +539,28 @@ class WikidichMixin:
         tree_frame.columnconfigure(0, weight=1)
         tree_frame.rowconfigure(0, weight=1)
 
-        columns = ("title", "status", "updated", "chapters", "new_chapters", "views", "author")
+        visible_cols = self.app_config.get('wikidich_visible_columns', list(DEFAULT_VISIBLE_COLUMNS))
+        # Ensure 'title' is always first and visible
+        if 'title' not in visible_cols:
+            visible_cols.insert(0, 'title')
+        elif visible_cols[0] != 'title':
+            visible_cols.remove('title')
+            visible_cols.insert(0, 'title')
+        # Filter to only valid columns
+        columns = tuple(col for col in visible_cols if col in WIKIDICH_COLUMNS_CONFIG)
+        self._wd_visible_columns = list(columns)  # Save for refresh
         self.wd_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", selectmode="browse")
-        column_labels = {
-            "title": "Tiêu đề",
-            "status": "Trạng thái",
-            "updated": "Cập nhật",
-            "chapters": "Wiki",
-            "new_chapters": "New",
-            "views": "Lượt xem",
-            "author": "Tác giả"
-        }
-        for col, width in zip(columns, [240, 110, 110, 80, 90, 90, 160]):
-            self.wd_tree.heading(col, text=column_labels.get(col, col.capitalize()))
+        for col in columns:
+            label, width, _ = WIKIDICH_COLUMNS_CONFIG[col]
+            self.wd_tree.heading(col, text=label)
             self.wd_tree.column(col, width=width, anchor="w")
         self.wd_tree.tag_configure("has_new", foreground="#16a34a")
         self.wd_tree.tag_configure("not_found", foreground="#ef4444")
         self.wd_tree.tag_configure("server_lower", foreground="#f97316")
         self.wd_tree.grid(row=0, column=0, sticky="nsew")
         self.wd_tree.bind("<<TreeviewSelect>>", self._wd_on_select)
+        self._wd_tree_fit_job = None
+        self.wd_tree.bind("<Configure>", self._wd_on_tree_configure_fit)
         tree_scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=self.wd_tree.yview)
         self.wd_tree.configure(yscrollcommand=tree_scroll.set)
         tree_scroll.grid(row=0, column=1, sticky="ns")
@@ -558,11 +568,15 @@ class WikidichMixin:
         self._wd_scan_profiles()
         self._wd_update_user_label()
         self._wd_apply_filters()
+        self.after(50, self._wd_fit_tree_columns)
         
     def _wd_scan_profiles(self):
         # Scan BASE_DIR for qt_browser_profile*
         try:
-            profiles = ["Profile 1"]
+            profiles = []
+            default_dir = os.path.join(BASE_DIR, "qt_browser_profile")
+            if os.path.isdir(default_dir):
+                profiles.append("Profile 1")
             for name in os.listdir(BASE_DIR):
                 full = os.path.join(BASE_DIR, name)
                 if os.path.isdir(full) and name.startswith("qt_browser_profile_"):
@@ -573,12 +587,17 @@ class WikidichMixin:
             
             # Sort: Profile 1 first, then alphabetical
             profiles.sort(key=lambda x: (0 if x == "Profile 1" else 1, x))
+            deleted = self._wd_get_deleted_profile_names()
+            if deleted:
+                profiles = [p for p in profiles if p not in deleted]
+            if not profiles:
+                profiles = ["Profile 1"]
             
             if hasattr(self, "wd_profile_cb"):
                  self.wd_profile_cb['values'] = profiles
                  current = self.wd_profile_var.get()
                  if current not in profiles:
-                     self.wd_profile_var.set(profiles[0])
+                     self.wd_profile_var.set(profiles[0] if profiles else "Profile 1")
         except Exception:
             pass
     
@@ -1213,19 +1232,34 @@ class WikidichMixin:
                 tags = ("high_new",) if is_high else ("has_new",)
             else:
                 tags = ()
+            # Build values dynamically based on visible columns
+            visible_cols = getattr(self, '_wd_visible_columns', ['title', 'status', 'updated', 'chapters', 'new_chapters', 'views', 'author'])
+            row_values = []
+            for col in visible_cols:
+                if col == 'title':
+                    row_values.append(book.get('title', ''))
+                elif col == 'status':
+                    row_values.append(book.get('status', ''))
+                elif col == 'updated':
+                    row_values.append(book.get('updated_text', ''))
+                elif col == 'chapters':
+                    row_values.append(book.get('chapters') or "")
+                elif col == 'new_chapters':
+                    row_values.append(new_count)
+                elif col == 'views':
+                    row_values.append(stats.get('views') or "")
+                elif col == 'author':
+                    row_values.append(book.get('author', ''))
+                elif col == 'notes':
+                    notes_val = self._wd_get_note_content(book_id).strip()
+                    row_values.append(notes_val if notes_val else '<Trống>')
+                else:
+                    row_values.append("")
             item_id = self.wd_tree.insert(
                 "",
                 "end",
                 tags=tags,
-                values=(
-                    book.get('title', ''),
-                    book.get('status', ''),
-                    book.get('updated_text', ''),
-                    book.get('chapters') or "",
-                    new_count,
-                    stats.get('views') or "",
-                    book.get('author', '')
-                )
+                values=tuple(row_values)
             )
             self._wd_tree_index[item_id] = book_id
         if books:
@@ -1254,6 +1288,49 @@ class WikidichMixin:
             except Exception:
                 pass
 
+    def _wd_on_tree_configure_fit(self, _event=None):
+        if not hasattr(self, "wd_tree"):
+            return
+        if self._wd_tree_fit_job is not None:
+            try:
+                self.after_cancel(self._wd_tree_fit_job)
+            except Exception:
+                pass
+        self._wd_tree_fit_job = self.after(80, self._wd_fit_tree_columns)
+
+    def _wd_fit_tree_columns(self):
+        if not hasattr(self, "wd_tree"):
+            return
+        visible_cols = getattr(self, "_wd_visible_columns", None)
+        if not visible_cols:
+            return
+        tree_width = self.wd_tree.winfo_width()
+        if tree_width <= 1:
+            return
+        base_widths = {}
+        total = 0
+        for col in visible_cols:
+            label, width, _ = WIKIDICH_COLUMNS_CONFIG.get(col, ("", 80, True))
+            base_widths[col] = int(width)
+            total += int(width)
+        if total <= 0:
+            return
+        scale = tree_width / total
+        widths = {}
+        used = 0
+        cols = list(visible_cols)
+        for col in cols[:-1]:
+            base = base_widths[col]
+            width = max(int(base * scale), 1)
+            widths[col] = width
+            used += width
+        if cols:
+            last_col = cols[-1]
+            width = max(tree_width - used, 1)
+            widths[last_col] = width
+        for col in cols:
+            width = widths.get(col, base_widths.get(col, 80))
+            self.wd_tree.column(col, width=width, minwidth=1, anchor="w")
     def _wd_select_tree_item(self, book_id: str):
         if not book_id or not hasattr(self, "wd_tree"):
             return
@@ -3579,7 +3656,15 @@ class WikidichMixin:
             new_ids = [bid for bid in data.get("book_ids", []) if bid not in (prior_data.get("book_ids") or [])]
             delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0
             if new_ids:
-                self._wd_fetch_details_for_new_books(session, data, new_ids, user_slug, delay_avg, proxies=proxies)
+                fetch_detail_now = self._wd_sync_prompt(lambda: messagebox.askyesno(
+                    "Tải chi tiết",
+                    f"Phát hiện {len(new_ids)} truyện mới.\nBạn có muốn tải chi tiết ngay không?",
+                    parent=self
+                ))
+                if fetch_detail_now:
+                    self._wd_fetch_details_for_new_books(session, data, new_ids, user_slug, delay_avg, proxies=proxies)
+                else:
+                    self.log("[Wikidich] Bỏ qua tải chi tiết tự động cho truyện mới.")
             self.log(f"[Wikidich] Đã lấy {len(data.get('book_ids', []))} works.")
             reconciled, needs_full_fetch = self._wd_reconcile_works(data, action, proxies=proxies)
             if needs_full_fetch and action == "auto_more":
@@ -4705,6 +4790,7 @@ class WikidichMixin:
             return
         self.log(f"[Wikidich] Lấy chi tiết cho {total} truyện mới thêm.")
         for idx, bid in enumerate(new_ids, start=1):
+            self._wd_ensure_not_cancelled()
             book = data.get("books", {}).get(bid)
             if not book:
                 continue
@@ -4719,7 +4805,7 @@ class WikidichMixin:
                 self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {http_err}")
             except Exception as exc:
                 self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {exc}")
-            self._wd_report_progress("detail", idx, total, f"Chi tiết mới {idx}/{total}")
+            self._wd_progress_callback("detail", idx, total, f"Chi tiết mới {idx}/{total}")
             if delay > 0:
                 time.sleep(delay)
 
@@ -4856,7 +4942,14 @@ class WikidichMixin:
         except Exception as e:
             self.log(f"[Wikidich] Không thể lưu cache: {e}")
 
-    def _open_api_settings_dialog(self):
+    def _wd_refresh_table_from_ram(self):
+        """Làm mới bảng từ data hiện có trong RAM (không tải lại từ đĩa/server)."""
+        try:
+            self._wd_apply_filters()
+        except Exception as e:
+            self.log(f"[Wikidich] Lỗi khi refresh bảng: {e}")
+
+    def _open_api_settings_dialog(self):        
         current = self.api_settings or {}
         wiki_min = current.get('wiki_delay_min', DEFAULT_API_SETTINGS['wiki_delay_min'])
         wiki_max = current.get('wiki_delay_max', DEFAULT_API_SETTINGS['wiki_delay_max'])
@@ -4880,8 +4973,42 @@ class WikidichMixin:
         win = tk.Toplevel(self)
         self._apply_window_icon(win)
         win.title("Cài đặt request")
-        container = ttk.Frame(win, padding=12)
-        container.pack(fill="both", expand=True)
+        win.geometry("520x550")
+        win.minsize(450, 400)
+        
+        # Main wrapper
+        main_wrapper = ttk.Frame(win)
+        main_wrapper.pack(fill="both", expand=True)
+        main_wrapper.rowconfigure(0, weight=1)
+        main_wrapper.columnconfigure(0, weight=1)
+        
+        # Scrollable area
+        scroll_canvas = tk.Canvas(main_wrapper, highlightthickness=0, bd=0)
+        scrollbar = ttk.Scrollbar(main_wrapper, orient="vertical", command=scroll_canvas.yview)
+        scroll_canvas.configure(yscrollcommand=scrollbar.set)
+        
+        scroll_canvas.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        
+        # Container inside canvas
+        container = ttk.Frame(scroll_canvas, padding=12)
+        container_window = scroll_canvas.create_window((0, 0), window=container, anchor="nw")
+        
+        def _on_container_configure(event):
+            scroll_canvas.configure(scrollregion=scroll_canvas.bbox("all"))
+        
+        def _on_canvas_configure(event):
+            scroll_canvas.itemconfigure(container_window, width=event.width)
+        
+        container.bind("<Configure>", _on_container_configure)
+        scroll_canvas.bind("<Configure>", _on_canvas_configure)
+        
+        # Bind mousewheel
+        def _on_mousewheel(event):
+            scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        scroll_canvas.bind("<MouseWheel>", _on_mousewheel)
+        container.bind("<MouseWheel>", _on_mousewheel)
+        scroll_canvas.bind("<Enter>", lambda e: scroll_canvas.focus_set())
 
         delay_frame = ttk.LabelFrame(container, text="Độ trễ giữa các request (giây)", padding=10)
         delay_frame.pack(fill="x", expand=True)
@@ -4914,16 +5041,71 @@ class WikidichMixin:
         r_row.pack(fill="x", pady=2)
         ttk.Label(r_row, text="Retry request (Wiki):").pack(side=tk.LEFT)
         ttk.Entry(r_row, textvariable=wiki_retry_var, width=5).pack(side=tk.LEFT, padx=(6, 2))
-        ttk.Label(r_row, text="lần").pack(side=tk.LEFT)
+        ttk.Label(r_row, text="lần (áp dụng khi tải Works/Chi tiết)").pack(side=tk.LEFT)
 
         h_row = ttk.Frame(misc_frame)
         h_row.pack(fill="x", pady=(6, 2))
         ttk.Label(h_row, text="Highlight truyện có >").pack(side=tk.LEFT)
         ttk.Entry(h_row, textvariable=high_new_thresh_var, width=5).pack(side=tk.LEFT, padx=(4, 4))
         ttk.Label(h_row, text="chương mới, màu:").pack(side=tk.LEFT)
-        ttk.Entry(h_row, textvariable=high_new_color_var, width=8).pack(side=tk.LEFT, padx=(4, 0))
-        tk.Label(h_row, textvariable=high_new_color_var, width=4, relief="flat", bg=high_new_color_var.get()).pack(side=tk.LEFT, padx=(4, 0)) # Preview color
-        high_new_color_var.trace("w", lambda *args: h_row.children.values().__iter__().__next__().configure(bg=high_new_color_var.get()) if h_row.winfo_exists() else None) # Simple preview
+        
+        # Color preview label
+        color_preview = tk.Label(h_row, text="  ", width=3, relief="solid", bg=high_new_color_var.get())
+        color_preview.pack(side=tk.LEFT, padx=(4, 4))
+        
+        def _pick_color():
+            initial = high_new_color_var.get()
+            result = colorchooser.askcolor(color=initial, title="Chọn màu highlight", parent=win)
+            if result and result[1]:
+                high_new_color_var.set(result[1])
+                color_preview.configure(bg=result[1])
+        
+        ttk.Button(h_row, text="Chọn màu", command=_pick_color).pack(side=tk.LEFT)
+        
+        # Update preview when var changes
+        def _update_color_preview(*args):
+            try:
+                color_preview.configure(bg=high_new_color_var.get())
+            except Exception:
+                pass
+        high_new_color_var.trace_add("write", _update_color_preview)
+
+        # Column visibility configuration
+        columns_frame = ttk.LabelFrame(container, text="Cột hiển thị bảng", padding=10)
+        columns_frame.pack(fill="x", expand=True, pady=(10, 0))
+        
+        # Get current visible columns
+        current_visible = self.app_config.get('wikidich_visible_columns', list(DEFAULT_VISIBLE_COLUMNS))
+        column_vars = {}  # Store checkbutton variables
+        
+        # Create checkbuttons for each column
+        col_row1 = ttk.Frame(columns_frame)
+        col_row1.pack(fill="x", pady=2)
+        col_row2 = ttk.Frame(columns_frame)
+        col_row2.pack(fill="x", pady=2)
+        
+        # Define column order for UI display
+        column_order = ['title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'author']
+        
+        for i, col_id in enumerate(column_order):
+            if col_id not in WIKIDICH_COLUMNS_CONFIG:
+                continue
+            label, _, _ = WIKIDICH_COLUMNS_CONFIG[col_id]
+            is_visible = col_id in current_visible
+            var = tk.BooleanVar(value=is_visible)
+            column_vars[col_id] = var
+            
+            parent_row = col_row1 if i < 4 else col_row2
+            cb = ttk.Checkbutton(parent_row, text=label, variable=var)
+            cb.pack(side=tk.LEFT, padx=(0, 12))
+            
+            # "title" column is mandatory - always checked and disabled
+            if col_id == 'title':
+                var.set(True)
+                cb.configure(state='disabled')
+        
+        # Store column_vars for save function
+        win.column_vars = column_vars
 
         open_mode_frame = ttk.LabelFrame(container, text="Mở link Wikidich", padding=10)
         open_mode_frame.pack(fill="x", expand=True, pady=(10, 0))
@@ -4957,8 +5139,9 @@ class WikidichMixin:
         ttk.Checkbutton(credit_row, text="Auto update: tự động thêm Credit vào file tải bổ sung", variable=auto_credit_var).pack(side=tk.LEFT)
         upload_frame.columnconfigure(1, weight=1)
 
-        action_frame = ttk.Frame(container)
-        action_frame.pack(fill="x", pady=(12, 0))
+        # Fixed action frame at bottom (outside scrollable area)
+        action_frame = ttk.Frame(main_wrapper, padding=(12, 8))
+        action_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
 
         def _reset_defaults():
             wiki_min_var.set(DEFAULT_API_SETTINGS['wiki_delay_min'])
@@ -4977,6 +5160,11 @@ class WikidichMixin:
             wiki_retry_var.set(5)
             high_new_thresh_var.set(50)
             high_new_color_var.set("#dc2626")
+            color_preview.configure(bg="#dc2626")
+            # Reset column visibility to defaults
+            if hasattr(win, 'column_vars'):
+                for col_id, var in win.column_vars.items():
+                    var.set(col_id in DEFAULT_VISIBLE_COLUMNS)
 
         def _save_settings():
             try:
@@ -5025,7 +5213,34 @@ class WikidichMixin:
             }
             self.app_config['api_settings'] = dict(self.api_settings)
             self.app_config['wikidich_upload_settings'] = dict(self.wikidich_upload_settings)
+            
+            # Save visible columns (in order)
+            if hasattr(win, 'column_vars'):
+                column_order = ['title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'author']
+                new_visible = [col for col in column_order if win.column_vars.get(col, tk.BooleanVar()).get()]
+                # Ensure 'title' is always first
+                if 'title' not in new_visible:
+                    new_visible.insert(0, 'title')
+                self.app_config['wikidich_visible_columns'] = new_visible
+                self._wd_visible_columns = new_visible
+            
             self.save_config()
+            
+            # Rebuild treeview with new columns if changed
+            if hasattr(self, 'wd_tree') and hasattr(win, 'column_vars'):
+                try:
+                    # Reconfigure tree columns
+                    visible_cols = self._wd_visible_columns
+                    self.wd_tree.configure(columns=tuple(visible_cols))
+                    for col in visible_cols:
+                        label, width, _ = WIKIDICH_COLUMNS_CONFIG[col]
+                        self.wd_tree.heading(col, text=label)
+                        self.wd_tree.column(col, width=width, anchor="w")
+                    self._wd_tree_fit_job = None
+                    self.after(50, self._wd_fit_tree_columns)
+                except Exception:
+                    pass
+            
             try:
                 if getattr(self, "wikidich_filtered", None) is not None:
                      self._wd_refresh_tree(self.wikidich_filtered)
@@ -5542,12 +5757,124 @@ class WikidichMixin:
             pythoncom.CoUninitialize()
             self._wd_set_progress("Chờ thao tác...", 0, 1)
 
+    def _wd_profile_safe_name(self, profile_name: Optional[str]) -> str:
+        name = (profile_name or "Profile 1").strip()
+        return re.sub(r"[^a-zA-Z0-9_-]+", "_", name).strip("_")
+
+    def _wd_list_existing_profiles(self) -> list:
+        profiles = []
+        try:
+            default_dir = os.path.join(BASE_DIR, "qt_browser_profile")
+            if os.path.isdir(default_dir):
+                profiles.append("Profile 1")
+            for name in os.listdir(BASE_DIR):
+                full = os.path.join(BASE_DIR, name)
+                if os.path.isdir(full) and name.startswith("qt_browser_profile_"):
+                    pname = name.replace("qt_browser_profile_", "").replace("_", " ")
+                    if pname and pname not in profiles:
+                        profiles.append(pname)
+            profiles.sort(key=lambda x: (0 if x == "Profile 1" else 1, x))
+        except Exception:
+            pass
+        deleted = self._wd_get_deleted_profile_names()
+        if deleted:
+            profiles = [p for p in profiles if p not in deleted]
+        return profiles
+
+    def _wd_sync_profile_for_startup(self):
+        if not hasattr(self, "wd_profile_var"):
+            return
+        profiles = self._wd_list_existing_profiles()
+        if not profiles:
+            profiles = ["Profile 1"]
+        current = (self.wd_profile_var.get() or "").strip()
+        if current not in profiles:
+            self.wd_profile_var.set(profiles[0])
+        self._wd_on_profile_change(update_browser=False, reload_cache=False)
+
+    def _wd_get_profile_cache_paths(self, profile_name: Optional[str] = None) -> dict:
+        name = (profile_name or "Profile 1").strip()
+        safe_name = self._wd_profile_safe_name(name)
+        base_wd = "wikidich_cache"
+        base_kc = "koanchay_cache"
+        if safe_name and safe_name != "Profile_1" and name != "Profile 1":
+            base_wd += f"_{safe_name}"
+            base_kc += f"_{safe_name}"
+        return {
+            "wikidich": os.path.join(BASE_DIR, "local", f"{base_wd}.json"),
+            "koanchay": os.path.join(BASE_DIR, "local", f"{base_kc}.json"),
+        }
+
+    def _wd_get_profile_recycle_dir(self, profile_name: Optional[str] = None) -> str:
+        safe_name = self._wd_profile_safe_name(profile_name or "")
+        if not safe_name:
+            safe_name = "unknown"
+        return os.path.join(BASE_DIR, "local", "profile_recycle", safe_name)
+
+    def _wd_get_profile_recycle_entries(self) -> dict:
+        entries = getattr(self, "profile_recycle", None)
+        if isinstance(entries, dict):
+            return entries
+        return {}
+
+    def _wd_get_deleted_profile_names(self) -> set:
+        deleted = set()
+        for key, entry in self._wd_get_profile_recycle_entries().items():
+            if isinstance(entry, dict):
+                deleted.add(entry.get("profile") or key)
+            else:
+                deleted.add(key)
+        return deleted
+
+    def _wd_find_profile_recycle_entry(self, profile_name: str):
+        target = (profile_name or "").strip()
+        if not target:
+            return None, None
+        for key, entry in self._wd_get_profile_recycle_entries().items():
+            if isinstance(entry, dict) and entry.get("profile") == target:
+                return key, entry
+        return None, None
+
+    def _wd_get_browser_profile_name(self) -> str:
+        if hasattr(self, "browser_overlay") and self.browser_overlay and self.browser_overlay.profile_dir:
+            dir_name = os.path.basename(self.browser_overlay.profile_dir)
+            if dir_name == "qt_browser_profile":
+                return "Profile 1"
+            if dir_name.startswith("qt_browser_profile_"):
+                return dir_name.replace("qt_browser_profile_", "").replace("_", " ")
+        return "Profile 1"
+
+    def _wd_restart_browser_overlay(self, profile_name: str, create_if_missing: bool = False):
+        if not hasattr(self, "browser_overlay") or not self.browser_overlay:
+            return
+        profile_dir = self._wd_get_profile_dir(profile_name)
+        if not os.path.isdir(profile_dir):
+            profiles = self._wd_list_existing_profiles()
+            fallback_name = None
+            for candidate in profiles:
+                candidate_dir = self._wd_get_profile_dir(candidate)
+                if os.path.isdir(candidate_dir):
+                    fallback_name = candidate
+                    profile_dir = candidate_dir
+                    break
+            if not fallback_name and create_if_missing:
+                try:
+                    os.makedirs(profile_dir, exist_ok=True)
+                except Exception:
+                    pass
+            elif not fallback_name:
+                return
+            if fallback_name and hasattr(self, "wd_profile_var") and self.wd_profile_var.get() != fallback_name:
+                self.wd_profile_var.set(fallback_name)
+        self.browser_overlay.set_profile(profile_dir)
+        self.after(200, self.browser_overlay.show)
+
     def _wd_get_profile_dir(self, profile_name: Optional[str] = None) -> str:
         name = profile_name
         if not name and hasattr(self, "wd_profile_var"):
             name = self.wd_profile_var.get()
         name = (name or "Profile 1").strip()
-        safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", name).strip("_")
+        safe_name = self._wd_profile_safe_name(name)
         if not safe_name or safe_name == "Profile_1" or name == "Profile 1":
             return os.path.join(BASE_DIR, "qt_browser_profile")
         return os.path.join(BASE_DIR, f"qt_browser_profile_{safe_name}")
@@ -5556,12 +5883,12 @@ class WikidichMixin:
         profile_dir = self._wd_get_profile_dir(profile_name)
         return os.path.join(profile_dir, "storage", "Cookies")
 
-    def _wd_on_profile_change(self, event=None, reload_cache: bool = True):
+    def _wd_on_profile_change(self, event=None, reload_cache: bool = True, update_browser: bool = True):
         if not hasattr(self, "wd_profile_var"):
             return
         profile_name = (self.wd_profile_var.get() or "Profile 1").strip()
         profile_dir = self._wd_get_profile_dir(profile_name)
-        safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", profile_name).strip("_")
+        safe_name = self._wd_profile_safe_name(profile_name)
         if not safe_name:
             return
 
@@ -5571,7 +5898,7 @@ class WikidichMixin:
         self.cookies_db_path = self._wd_get_cookie_db_path(profile_name)
         
         # 2. Update BrowserOverlay if it exists
-        if hasattr(self, "browser_overlay") and self.browser_overlay:
+        if update_browser and hasattr(self, "browser_overlay") and self.browser_overlay:
             was_running = self.browser_overlay.is_running()
             self.browser_overlay.set_profile(profile_dir)
             if was_running:
@@ -5592,18 +5919,18 @@ class WikidichMixin:
         self._browser_cookies = {}
         
         # 5. Switch Cache
-        base_wd = "wikidich_cache"
-        base_kc = "koanchay_cache"
-        if safe_name != "Profile_1" and profile_name != "Profile 1":
-             base_wd += f"_{safe_name}"
-             base_kc += f"_{safe_name}"
-        
-        self.wikidich_cache_path = os.path.join(BASE_DIR, "local", f"{base_wd}.json")
-        kc_path = os.path.join(BASE_DIR, "local", f"{base_kc}.json")
-        
-        if not hasattr(self, "_wd_cache_paths"): self._wd_cache_paths = {}
-        self._wd_cache_paths["wikidich"] = self.wikidich_cache_path
-        self._wd_cache_paths["koanchay"] = kc_path
+        cache_paths = self._wd_get_profile_cache_paths(profile_name)
+        self.wikidich_cache_path = cache_paths["wikidich"]
+        if not hasattr(self, "_wd_cache_paths"):
+            self._wd_cache_paths = {}
+        self._wd_cache_paths["wikidich"] = cache_paths["wikidich"]
+        self._wd_cache_paths["koanchay"] = cache_paths["koanchay"]
+        if hasattr(self, "_wd_controllers"):
+            for site in ("wikidich", "koanchay"):
+                ctrl = self._wd_controllers.get(site)
+                if ctrl:
+                    ctrl.state.cache_path = self._wd_cache_paths[site]
+                    ctrl.state.profile = profile_name
         
         if reload_cache:
             # Reload cache
@@ -5643,13 +5970,290 @@ class WikidichMixin:
         # Standard tooltip mechanism not present in mixin? 
         # I'll modify the label width in creation instead (already done).
 
+    def _wd_cleanup_profile_recycle(self):
+        entries = self._wd_get_profile_recycle_entries()
+        if not entries:
+            return
+        now = time.time()
+        ttl_seconds = 7 * 24 * 3600
+        changed = False
+        for key, entry in list(entries.items()):
+            if not isinstance(entry, dict):
+                entries.pop(key, None)
+                changed = True
+                continue
+            deleted_at = entry.get("deleted_at")
+            if not isinstance(deleted_at, (int, float)) or now - deleted_at < ttl_seconds:
+                continue
+            for path in (entry.get("cache_files") or {}).values():
+                if path and os.path.isfile(path):
+                    try:
+                        os.remove(path)
+                    except Exception:
+                        pass
+            recycle_dir = entry.get("recycle_dir") or self._wd_get_profile_recycle_dir(entry.get("profile") or key)
+            try:
+                if os.path.isdir(recycle_dir) and not os.listdir(recycle_dir):
+                    os.rmdir(recycle_dir)
+            except Exception:
+                pass
+            entries.pop(key, None)
+            changed = True
+        if changed:
+            self.profile_recycle = entries
+            if hasattr(self, "app_config"):
+                self.app_config['profile_recycle'] = dict(entries)
+            if hasattr(self, "save_config"):
+                try:
+                    self.save_config()
+                except Exception:
+                    pass
+
+    def _wd_restore_profile_from_recycle(self, profile_name: str, *, switch_after: bool = False) -> bool:
+        key, entry = self._wd_find_profile_recycle_entry(profile_name)
+        if not entry:
+            return False
+        was_running = False
+        browser_profile = self._wd_get_browser_profile_name()
+        if hasattr(self, "browser_overlay") and self.browser_overlay:
+            try:
+                was_running = self.browser_overlay.is_running()
+                if was_running:
+                    self.browser_overlay.hide()
+            except Exception:
+                pass
+        cache_paths = self._wd_get_profile_cache_paths(profile_name)
+        restored = False
+        for site, dest in cache_paths.items():
+            src = (entry.get("cache_files") or {}).get(site)
+            if src and os.path.isfile(src):
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                if os.path.isfile(dest):
+                    try:
+                        os.remove(dest)
+                    except Exception:
+                        pass
+                try:
+                    shutil.move(src, dest)
+                    restored = True
+                except Exception:
+                    pass
+        profile_dir = self._wd_get_profile_dir(profile_name)
+        os.makedirs(profile_dir, exist_ok=True)
+        recycle_dir = entry.get("recycle_dir") or self._wd_get_profile_recycle_dir(profile_name)
+        try:
+            if os.path.isdir(recycle_dir) and not os.listdir(recycle_dir):
+                os.rmdir(recycle_dir)
+        except Exception:
+            pass
+        entries = self._wd_get_profile_recycle_entries()
+        entries.pop(key, None)
+        self.profile_recycle = entries
+        if hasattr(self, "app_config"):
+            self.app_config['profile_recycle'] = dict(entries)
+        if hasattr(self, "save_config"):
+            try:
+                self.save_config()
+            except Exception:
+                pass
+        if switch_after and hasattr(self, "wd_profile_var"):
+            self.wd_profile_var.set(profile_name)
+            self._wd_on_profile_change(update_browser=False)
+            browser_profile = profile_name
+        if was_running:
+            self._wd_restart_browser_overlay(browser_profile, create_if_missing=True)
+        return restored
+
+    def _wd_offer_restore_for_profile(self, profile_name: str) -> bool:
+        _key, entry = self._wd_find_profile_recycle_entry(profile_name)
+        if not entry:
+            return False
+        if messagebox.askyesno(
+            "Khôi phục cache",
+            f"Tìm thấy cache Wikidich/Koanchay của profile '{profile_name}' đã xóa.\n"
+            "Bạn có muốn khôi phục không?"
+        ):
+            return self._wd_restore_profile_from_recycle(profile_name)
+        return False
+
+    def _wd_delete_profile(self, profile_name: str) -> bool:
+        name = (profile_name or "").strip()
+        if not name:
+            return False
+        current_profile = self.wd_profile_var.get() if hasattr(self, "wd_profile_var") else ""
+        fallback_profiles = None
+        was_running = False
+        browser_profile = self._wd_get_browser_profile_name()
+        if hasattr(self, "browser_overlay") and self.browser_overlay:
+            try:
+                was_running = self.browser_overlay.is_running()
+                if was_running:
+                    self.browser_overlay.hide()
+            except Exception:
+                pass
+        profile_dir = self._wd_get_profile_dir(name)
+        cache_paths = self._wd_get_profile_cache_paths(name)
+        recycle_dir = None
+        moved = {}
+        for site, src in cache_paths.items():
+            if src and os.path.isfile(src):
+                if not recycle_dir:
+                    recycle_dir = self._wd_get_profile_recycle_dir(name)
+                    os.makedirs(recycle_dir, exist_ok=True)
+                dest = os.path.join(recycle_dir, os.path.basename(src))
+                if os.path.isfile(dest):
+                    try:
+                        os.remove(dest)
+                    except Exception:
+                        pass
+                try:
+                    shutil.move(src, dest)
+                    moved[site] = dest
+                except Exception:
+                    pass
+        try:
+            if os.path.isdir(profile_dir):
+                shutil.rmtree(profile_dir)
+        except Exception:
+            pass
+        entries = self._wd_get_profile_recycle_entries()
+        changed = False
+        if moved:
+            entries[self._wd_profile_safe_name(name) or name] = {
+                "profile": name,
+                "deleted_at": time.time(),
+                "cache_files": moved,
+                "recycle_dir": recycle_dir,
+            }
+            changed = True
+        else:
+            key, _entry = self._wd_find_profile_recycle_entry(name)
+            if key:
+                entries.pop(key, None)
+                changed = True
+            if recycle_dir and os.path.isdir(recycle_dir):
+                try:
+                    if not os.listdir(recycle_dir):
+                        os.rmdir(recycle_dir)
+                except Exception:
+                    pass
+        if changed:
+            self.profile_recycle = entries
+            if hasattr(self, "app_config"):
+                self.app_config['profile_recycle'] = dict(entries)
+            if hasattr(self, "save_config"):
+                try:
+                    self.save_config()
+                except Exception:
+                    pass
+        self._wd_scan_profiles()
+        if current_profile == name and hasattr(self, "wd_profile_var"):
+            fallback_profiles = self._wd_list_existing_profiles()
+            fallback = fallback_profiles[0] if fallback_profiles else "Profile 1"
+            self.wd_profile_var.set(fallback)
+            self._wd_on_profile_change(update_browser=False)
+            browser_profile = fallback
+        if was_running:
+            create_if_missing = False
+            if fallback_profiles is not None:
+                create_if_missing = not bool(fallback_profiles)
+            self._wd_restart_browser_overlay(browser_profile, create_if_missing=create_if_missing)
+        return True
+
+    def _wd_rename_profile(self, old_name: str, new_name: str) -> bool:
+        old = (old_name or "").strip()
+        new = (new_name or "").strip()
+        if not old or not new or old == new:
+            return False
+        was_running = False
+        browser_profile = self._wd_get_browser_profile_name()
+        if hasattr(self, "browser_overlay") and self.browser_overlay:
+            try:
+                was_running = self.browser_overlay.is_running()
+                if was_running:
+                    self.browser_overlay.hide()
+            except Exception:
+                pass
+        deleted = self._wd_get_deleted_profile_names()
+        if new in deleted:
+            messagebox.showwarning("Profile đã xóa", "Tên profile này đang nằm trong thùng rác, hãy khôi phục hoặc chọn tên khác.")
+            return False
+        new_dir = self._wd_get_profile_dir(new)
+        if os.path.exists(new_dir):
+            messagebox.showwarning("Trùng tên", "Profile này đã tồn tại.")
+            return False
+        old_dir = self._wd_get_profile_dir(old)
+        if os.path.isdir(old_dir):
+            try:
+                shutil.move(old_dir, new_dir)
+            except Exception as exc:
+                messagebox.showerror("Lỗi", f"Không thể đổi tên profile: {exc}")
+                return False
+        old_paths = self._wd_get_profile_cache_paths(old)
+        new_paths = self._wd_get_profile_cache_paths(new)
+        for site, src in old_paths.items():
+            dest = new_paths.get(site)
+            if src and dest and os.path.isfile(src):
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                if os.path.isfile(dest):
+                    try:
+                        os.remove(dest)
+                    except Exception:
+                        pass
+                try:
+                    shutil.move(src, dest)
+                except Exception:
+                    pass
+        if hasattr(self, "wd_profile_var") and self.wd_profile_var.get() == old:
+            self.wd_profile_var.set(new)
+            self._wd_on_profile_change(update_browser=False)
+            browser_profile = new
+        self._wd_scan_profiles()
+        if hasattr(self, "save_config"):
+            try:
+                self.save_config()
+            except Exception:
+                pass
+        if was_running:
+            self._wd_restart_browser_overlay(browser_profile, create_if_missing=False)
+        return True
+
+    def _on_browser_profile_delete_request(self, profile_name: str):
+        if not profile_name:
+            return
+        ok = self._wd_delete_profile(profile_name)
+        if ok:
+            messagebox.showinfo(
+                "Đã xóa profile",
+                "Profile đã được xóa. Cache Wikidich/Koanchay được chuyển vào thùng rác và sẽ tự xóa sau 7 ngày."
+            )
+
+    def _on_browser_profile_rename_request(self, payload: dict):
+        if not isinstance(payload, dict):
+            return
+        old = payload.get("old")
+        new = payload.get("new")
+        if not old or not new:
+            return
+        self._wd_rename_profile(old, new)
+
+    def _on_browser_profile_restore_request(self, profile_name: str):
+        if not profile_name:
+            return
+        restored = self._wd_restore_profile_from_recycle(profile_name, switch_after=True)
+        if restored:
+            self._wd_scan_profiles()
+            messagebox.showinfo("Khôi phục", f"Đã khôi phục cache cho profile '{profile_name}'.")
+        else:
+            messagebox.showwarning("Khôi phục", "Không tìm thấy cache để khôi phục.")
+
     def _on_browser_profile_switched(self, name):
         self.log(f"[App] Trình duyệt yêu cầu chuyển Profile: {name}")
         # Rescan to ensure new profile exists in list if created
         self._wd_scan_profiles()
+        self._wd_offer_restore_for_profile(name)
         
         if hasattr(self, "wd_profile_var"):
-             current = self.wd_profile_var.get()
              # We set the var and force update
              self.wd_profile_var.set(name)
              self._wd_on_profile_change()
