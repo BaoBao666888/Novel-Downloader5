@@ -164,6 +164,22 @@ ONLINE_SOURCES = [
         "site_value": "ihuaben.com",
         "sample": "https://www.ihuaben.com/book/9219715.html",
         "icon": "icons/ihuaben.png"
+    },
+    {
+        "id": "douban",
+        "label": "Douban",
+        "domain": "read.douban.com",
+        "site_value": "read.douban.com",
+        "sample": "https://read.douban.com/column/69676484/",
+        "icon": "icons/douban.png"
+    },
+    {
+        "id": "qimao",
+        "label": "Qimao",
+        "domain": "qimao.com",
+        "site_value": "qimao.com",
+        "sample": "https://www.qimao.com/shuku/123456",
+        "icon": "icons/qimao.png"
     }
 ]
 

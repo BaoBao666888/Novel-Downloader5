@@ -28,7 +28,7 @@ from app.core.browser_cookies import load_browser_cookie_jar
 from app.core.text_ops import TextOperations
 from app.paths import BASE_DIR
 from app.ui.constants import DEFAULT_API_SETTINGS, DEFAULT_UPLOAD_SETTINGS, ONLINE_SOURCES, WD_SORT_OPTIONS, SOURCE_BY_ID, WIKIDICH_COLUMNS_CONFIG, DEFAULT_VISIBLE_COLUMNS
-from extensions import wikidich_ext, jjwxc_ext, po18_ext, qidian_ext, fanqienovel_ext, ihuaben_ext
+from extensions import wikidich_ext, jjwxc_ext, po18_ext, qidian_ext, fanqienovel_ext, ihuaben_ext, douban_ext, qimao_ext
 from tkinter import colorchooser
 
 try:
@@ -4876,6 +4876,8 @@ class WikidichMixin:
             ("po18.tw", po18_ext.fetch_chapters, {}),
             ("qidian.com", qidian_ext.fetch_chapters, {}),
             ("ihuaben.com", ihuaben_ext.fetch_chapters, {}),
+            ("read.douban.com", douban_ext.fetch_chapters, {}),
+            ("qimao.com", qimao_ext.fetch_chapters, {}),
         ]
         for domain, fetcher, extra_args in domains:
             url = self._wd_find_link_with_domain(book, domain)

@@ -7,8 +7,8 @@ from tkinter import ttk, messagebox
 import pythoncom
 import requests
 
-from app.ui.constants import ONLINE_SOURCES, SOURCE_BY_ID
-from extensions import fanqienovel_ext, ihuaben_ext, jjwxc_ext, po18_ext, qidian_ext
+from app.ui.constants import DEFAULT_API_SETTINGS, ONLINE_SOURCES, SOURCE_BY_ID
+from extensions import douban_ext, fanqienovel_ext, ihuaben_ext, jjwxc_ext, po18_ext, qidian_ext, qimao_ext
 
 
 class OnlineTabMixin:
@@ -136,6 +136,16 @@ class OnlineTabMixin:
                         result = fanqienovel_ext.fetch_chapters(url, proxies=proxies)
                     elif selected_site == "ihuaben.com":
                         result = ihuaben_ext.fetch_chapters(url, proxies=proxies)
+                    elif selected_site == "read.douban.com":
+                        wiki_min, wiki_max = self._get_delay_range(
+                            "wiki_delay_min",
+                            "wiki_delay_max",
+                            DEFAULT_API_SETTINGS["wiki_delay_min"],
+                            DEFAULT_API_SETTINGS["wiki_delay_max"],
+                        )
+                        result = douban_ext.fetch_chapters(url, proxies=proxies, delay_range=(wiki_min, wiki_max))
+                    elif selected_site == "qimao.com":
+                        result = qimao_ext.fetch_chapters(url, proxies=proxies)
                     else:
                         result = {"error": "Trang web không được hỗ trợ."}
 
