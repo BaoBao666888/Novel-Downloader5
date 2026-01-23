@@ -12,7 +12,7 @@ import sys
 import webbrowser
 from datetime import datetime
 from typing import Optional
-from urllib.parse import urlparse, urljoin, quote, unquote
+from urllib.parse import urlparse, urljoin, quote, unquote, parse_qs
 
 import tkinter as tk
 import tkinter.font as tkfont
@@ -109,9 +109,11 @@ class WikidichMixin:
         sync_mb = ttk.Menubutton(header, text="Sync ▾", style="TButton")
         sync_menu = tk.Menu(sync_mb, tearoff=0)
         sync_menu.add_command(label="Tải Works", command=self._wd_start_fetch_works)
+        sync_menu.add_command(label="Tải Works (không chính chủ)", command=self._wd_prompt_fetch_foreign_works)
         sync_menu.add_command(label="Tải chi tiết", command=self._wd_prompt_detail_fetch)
         sync_mb.config(menu=sync_menu)
         sync_mb.grid(row=0, column=1, padx=(10, 0))
+        self.wd_sync_menu = sync_menu
 
         # Group Buttons into a toolbar frame
         tools_frame = ttk.Frame(header)
@@ -121,7 +123,8 @@ class WikidichMixin:
         if hasattr(self, "_lib_open_library_window"):
              ttk.Button(tools_frame, text="Thư viện", command=self._lib_open_library_window).pack(side=tk.LEFT, padx=(2, 2))
         
-        ttk.Button(tools_frame, text="Liên kết", command=self._wd_open_global_links).pack(side=tk.LEFT, padx=(2, 2))
+        self.wd_global_link_btn = ttk.Button(tools_frame, text="Liên kết", command=self._wd_open_global_links)
+        self.wd_global_link_btn.pack(side=tk.LEFT, padx=(2, 2))
         ttk.Button(tools_frame, text="Cài đặt", command=self._open_api_settings_dialog).pack(side=tk.LEFT, padx=(2, 0))
         
         # Profile Select
@@ -491,6 +494,8 @@ class WikidichMixin:
         link_frame = ttk.LabelFrame(detail_frame, text="Liên kết", padding=6)
         link_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=(0, 0), pady=(6, 0))
         link_frame.columnconfigure(1, weight=1)
+        self.wd_link_frame = link_frame
+        self._wd_link_frame_grid = link_frame.grid_info()
         self.wd_link_path_var = tk.StringVar(value="Chưa liên kết")
         ttk.Label(link_frame, text="Thư mục:").grid(row=0, column=0, sticky="w")
         ttk.Label(link_frame, textvariable=self.wd_link_path_var).grid(row=0, column=1, sticky="w")
@@ -566,6 +571,8 @@ class WikidichMixin:
         tree_scroll.grid(row=0, column=1, sticky="ns")
 
         self._wd_scan_profiles()
+        self._wd_sync_profiles_all_sites()
+        self._wd_sync_profiles_all_sites()
         self._wd_update_user_label()
         self._wd_apply_filters()
         self.after(50, self._wd_fit_tree_columns)
@@ -598,6 +605,25 @@ class WikidichMixin:
                  current = self.wd_profile_var.get()
                  if current not in profiles:
                      self.wd_profile_var.set(profiles[0] if profiles else "Profile 1")
+        except Exception:
+            pass
+
+    def _wd_sync_profiles_all_sites(self, profiles=None):
+        try:
+            if profiles is None:
+                profiles = self._wd_list_existing_profiles()
+            if not profiles:
+                profiles = ["Profile 1"]
+            for site in ("wikidich", "koanchay"):
+                ctx = (self._wd_contexts or {}).get(site, {})
+                cb = ctx.get("wd_profile_cb") or getattr(self, "wd_profile_cb", None)
+                var = ctx.get("wd_profile_var") or getattr(self, "wd_profile_var", None)
+                if cb:
+                    cb["values"] = profiles
+                if var:
+                    current = var.get()
+                    if current not in profiles:
+                        var.set(profiles[0])
         except Exception:
             pass
     
@@ -1055,6 +1081,7 @@ class WikidichMixin:
         self._wd_update_adv_status()
         self._wd_update_basic_status()
         self._wd_refresh_tree(filtered)
+        self._wd_update_foreign_mode_ui()
 
     def _wd_get_selected_categories(self):
         listbox = getattr(self, "wd_category_listbox", None)
@@ -1440,6 +1467,8 @@ class WikidichMixin:
                 btn.config(state=tk.DISABLED)
                 self._wd_set_flow_button_visible(btn, False)
             self._wd_update_link_ui(None)
+            if not getattr(self, "_wd_foreign_ui_guard", False):
+                self._wd_update_foreign_mode_ui()
             return
 
         self._wd_set_text_content(self.wd_title_text, book.get('title', ''))
@@ -1492,6 +1521,8 @@ class WikidichMixin:
                 btn.config(state=tk.DISABLED)
                 self._wd_set_flow_button_visible(btn, False)
         self._wd_update_link_ui(book)
+        if not getattr(self, "_wd_foreign_ui_guard", False):
+            self._wd_update_foreign_mode_ui()
 
     def _wd_open_link(self, url: str):
         url = (url or "").strip()
@@ -2077,6 +2108,10 @@ class WikidichMixin:
         btn = getattr(self, "wd_update_button", None)
         if not btn:
             return
+        if self._wd_is_foreign_works():
+            btn.config(state=tk.DISABLED)
+            self._wd_update_delete_button_state()
+            return
         diff = 0
         selected = getattr(self, "wd_selected_book", None)
         if selected and isinstance(self.wd_new_chapters, dict):
@@ -2411,6 +2446,9 @@ class WikidichMixin:
             return False
 
     def _wd_open_global_links(self):
+        if self._wd_is_foreign_works():
+            messagebox.showinfo("Không hỗ trợ", "Liên kết tổng bị tắt khi dùng Works không chính chủ.", parent=self)
+            return
         try:
             if self._wd_global_links_win and tk.Toplevel.winfo_exists(self._wd_global_links_win):
                 self._wd_global_links_win.lift()
@@ -2652,6 +2690,8 @@ class WikidichMixin:
             self.after(0, lambda: self._wd_set_chapter_status("Không đọc được cookie Wikidich."))
             return
         try:
+            if self._wd_is_foreign_works():
+                self.after(0, lambda: self._wd_set_chapter_status("Đang lấy book_id để tải chương..."))
             updated, chapters = wikidich_ext.fetch_book_chapters(
                 session,
                 {**book, "url": self._wd_normalize_url_for_site(book.get("url", ""))},
@@ -2905,6 +2945,9 @@ class WikidichMixin:
             self.wd_download_btn.config(state=tk.NORMAL if path else tk.DISABLED)
 
     def _wd_choose_link_folder(self):
+        if self._wd_is_foreign_works():
+            messagebox.showinfo("Không hỗ trợ", "Liên kết truyện bị tắt khi dùng Works không chính chủ.", parent=self)
+            return
         book = getattr(self, "wd_selected_book", None)
         if not book or not book.get("id"):
             messagebox.showinfo("Chưa chọn truyện", "Chọn một truyện trước.", parent=self)
@@ -3107,6 +3150,13 @@ class WikidichMixin:
     def _wd_start_fetch_works(self):
         if self._wd_loading:
             messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.")
+            return
+        if self._wd_is_foreign_works():
+            messagebox.showinfo(
+                "Không hỗ trợ",
+                "Đang có Works không chính chủ trong profile.\nKhông thể tải Works chính chủ. Hãy dùng profile trống hoặc tải lại Works không chính chủ.",
+                parent=self
+            )
             return
         self._wd_load_resume_state()
         self._wd_cancel_requested = False
@@ -3688,6 +3738,8 @@ class WikidichMixin:
                 self.log("[Wikidich] Đã dừng tải Works theo yêu cầu/điều kiện không phù hợp.")
                 return
             self.wikidich_data = reconciled
+            if isinstance(self.wikidich_data, dict):
+                self.wikidich_data["works_source"] = {"type": "official"}
             if expected_total is None:
                 expected_total = reconciled.get("total_count") or data.get("total_count")
             final_count = len(self.wikidich_data.get("book_ids") or [])
@@ -3746,6 +3798,9 @@ class WikidichMixin:
             return
         if not self.wikidich_data.get('book_ids'):
             messagebox.showinfo("Chưa có dữ liệu", "Vui lòng tải works trước.")
+            return
+        if sync_counts_only and self._wd_is_foreign_works():
+            messagebox.showinfo("Không hỗ trợ", "Không thể chỉ đồng bộ số chương cho Works không chính chủ.", parent=self)
             return
         self._wd_load_detail_resume()
         self._wd_cancel_requested = False
@@ -4601,6 +4656,11 @@ class WikidichMixin:
         safe_site = re.sub(r"[^a-z0-9_-]+", "_", site_val)
         return os.path.join(BASE_DIR, "local", f"wd_resume_works_{safe_site}.json")
 
+    def _wd_resume_foreign_state_path(self, site: Optional[str] = None) -> str:
+        site_val = (site or getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
+        safe_site = re.sub(r"[^a-z0-9_-]+", "_", site_val)
+        return os.path.join(BASE_DIR, "local", f"wd_resume_works_foreign_{safe_site}.json")
+
     def _wd_save_resume_state(self):
         """Lưu trạng thái tải Works để resume khi dính Cloudflare/thoát app."""
         state = getattr(self, "_wd_resume_works", None)
@@ -4619,6 +4679,26 @@ class WikidichMixin:
         except Exception as exc:
             try:
                 self.log(f"[Wikidich] Không lưu được resume Works: {exc}")
+            except Exception:
+                pass
+
+    def _wd_save_foreign_resume_state(self):
+        state = getattr(self, "_wd_resume_foreign_works", None)
+        if not state:
+            return
+        site = getattr(self, "wd_site", "wikidich")
+        payload = {
+            "site": site,
+            "state": state,
+        }
+        try:
+            path = self._wd_resume_foreign_state_path(site)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            try:
+                self.log(f"[Wikidich] Không lưu được resume Works không chính chủ: {exc}")
             except Exception:
                 pass
 
@@ -4665,6 +4745,32 @@ class WikidichMixin:
             except Exception:
                 pass
 
+    def _wd_load_foreign_resume_state(self):
+        try:
+            current_site = getattr(self, "wd_site", "wikidich")
+            path = self._wd_resume_foreign_state_path(current_site)
+            if not os.path.isfile(path):
+                return
+            with open(path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            if not isinstance(payload, dict):
+                return
+            site = payload.get("site") or current_site
+            if site and site != current_site:
+                return
+            state = payload.get("state")
+            if isinstance(state, dict):
+                self._wd_resume_foreign_works = state
+                try:
+                    self.log(f"[Wikidich] Phát hiện tiến độ Works không chính chủ cần resume (site={site}).")
+                except Exception:
+                    pass
+        except Exception as exc:
+            try:
+                self.log(f"[Wikidich] Không đọc được resume Works không chính chủ: {exc}")
+            except Exception:
+                pass
+
     def _wd_clear_resume_state(self):
         """Xóa file resume Works khi đã hoàn tất."""
         try:
@@ -4674,6 +4780,15 @@ class WikidichMixin:
         except Exception:
             pass
         self._wd_resume_works = None
+
+    def _wd_clear_foreign_resume_state(self):
+        try:
+            path = self._wd_resume_foreign_state_path()
+            if os.path.isfile(path):
+                os.remove(path)
+        except Exception:
+            pass
+        self._wd_resume_foreign_works = None
 
     def _wd_detail_resume_path(self, site: Optional[str] = None) -> str:
         site_val = (site or getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
@@ -4941,6 +5056,470 @@ class WikidichMixin:
                 wikidich_ext.save_cache(self._wd_get_cache_path(), self.wikidich_data)
         except Exception as e:
             self.log(f"[Wikidich] Không thể lưu cache: {e}")
+
+    def _wd_get_works_source(self) -> dict:
+        if not isinstance(self.wikidich_data, dict):
+            return {}
+        source = self.wikidich_data.get("works_source")
+        if isinstance(source, dict):
+            return source
+        if self.wikidich_data.get("book_ids"):
+            return {"type": "official"}
+        return {}
+
+    def _wd_is_foreign_works(self) -> bool:
+        source = self._wd_get_works_source()
+        if source.get("type") != "foreign":
+            return False
+        return bool(self.wikidich_data.get("book_ids") or [])
+
+    def _wd_can_fetch_foreign_works(self) -> bool:
+        if not (self.wikidich_data.get("book_ids") or []):
+            return True
+        return self._wd_is_foreign_works()
+
+    def _wd_set_link_frame_visible(self, visible: bool):
+        frame = getattr(self, "wd_link_frame", None)
+        if not frame:
+            return
+        if visible:
+            if getattr(self, "_wd_link_frame_grid", None):
+                try:
+                    frame.grid(**self._wd_link_frame_grid)
+                except Exception:
+                    frame.grid()
+            else:
+                frame.grid()
+        else:
+            if not getattr(self, "_wd_link_frame_grid", None):
+                try:
+                    self._wd_link_frame_grid = frame.grid_info()
+                except Exception:
+                    self._wd_link_frame_grid = None
+            try:
+                frame.grid_remove()
+            except Exception:
+                pass
+
+    def _wd_update_foreign_mode_ui(self):
+        if getattr(self, "_wd_foreign_ui_guard", False):
+            return
+        foreign = self._wd_is_foreign_works()
+        can_foreign = self._wd_can_fetch_foreign_works()
+        was_foreign = getattr(self, "_wd_foreign_ui_active", False)
+        menu = getattr(self, "wd_sync_menu", None)
+        if menu:
+            try:
+                menu.entryconfig("Tải Works", state=tk.DISABLED if foreign else tk.NORMAL)
+            except Exception:
+                pass
+            try:
+                menu.entryconfig("Tải Works (không chính chủ)", state=tk.NORMAL if can_foreign else tk.DISABLED)
+            except Exception:
+                pass
+        if foreign:
+            self._wd_foreign_ui_active = True
+            if hasattr(self, "wd_global_link_btn"):
+                self.wd_global_link_btn.config(state=tk.DISABLED)
+            self._wd_set_link_frame_visible(False)
+            for btn in (getattr(self, "wd_auto_update_btn", None), getattr(self, "wd_edit_book_btn", None), getattr(self, "wd_update_button", None)):
+                if btn:
+                    btn.config(state=tk.DISABLED)
+                    self._wd_set_flow_button_visible(btn, False)
+            return
+        if was_foreign:
+            self._wd_foreign_ui_active = False
+        if hasattr(self, "wd_global_link_btn"):
+            self.wd_global_link_btn.config(state=tk.NORMAL)
+        self._wd_set_link_frame_visible(True)
+        if was_foreign:
+            for btn in (getattr(self, "wd_edit_book_btn", None), getattr(self, "wd_update_button", None)):
+                if btn:
+                    self._wd_set_flow_button_visible(btn, True)
+            self._wd_foreign_ui_guard = True
+            try:
+                self._wd_show_detail(getattr(self, "wd_selected_book", None))
+            finally:
+                self._wd_foreign_ui_guard = False
+
+    def _wd_parse_foreign_user_input(self, raw: str) -> str:
+        raw = (raw or "").strip()
+        if not raw:
+            return ""
+        slug = ""
+        try:
+            parsed = urlparse(raw)
+            if parsed.scheme or parsed.netloc:
+                path = parsed.path or ""
+                match = re.search(r"/user/([^/]+)", path)
+                if match:
+                    slug = match.group(1)
+        except Exception:
+            slug = ""
+        if not slug:
+            match = re.search(r"/user/([^/]+)/works", raw)
+            if match:
+                slug = match.group(1)
+        if not slug:
+            slug = raw.split()[0]
+        return unquote(slug).strip()
+
+    def _wd_extract_book_id_from_url(self, url: str) -> str:
+        url = (url or "").strip()
+        if not url:
+            return ""
+        try:
+            path = urlparse(url).path.rstrip("/")
+            slug = path.split("/")[-1]
+            if not slug:
+                return ""
+            slug = unquote(slug)
+            if "-" in slug:
+                return slug.rsplit("-", 1)[-1]
+            return slug
+        except Exception:
+            return ""
+
+    def _wd_parse_foreign_work_item(self, node, base_url: str) -> Optional[dict]:
+        try:
+            title_anchor = node.select_one(".info-col a[href]") or node.select_one(".cover-wrapper[href]")
+            title_el = node.select_one(".book-title")
+            title = title_el.get_text(strip=True) if title_el else ""
+            url = urljoin(base_url, title_anchor.get("href", "")) if title_anchor else ""
+            book_id = ""
+            for holder in (title_anchor, node):
+                if not holder:
+                    continue
+                book_id = (
+                    holder.get("data-book-id")
+                    or holder.get("data-bookid")
+                    or holder.get("data-book")
+                    or ""
+                )
+                if book_id:
+                    break
+            if not book_id:
+                book_id = self._wd_extract_book_id_from_url(url)
+            if not book_id or not url:
+                return None
+            cover_img = node.select_one(".cover-col img") or node.select_one(".cover-wrapper img")
+            cover_url = urljoin(base_url, cover_img.get("src", "")) if cover_img else ""
+            author_el = node.select_one(".book-author a") or node.select_one(".book-author")
+            author = author_el.get_text(strip=True) if author_el else ""
+
+            status = ""
+            tags = []
+            publisher_id = ""
+            for p in node.select(".book-publisher"):
+                text = p.get_text(strip=True)
+                if not text:
+                    continue
+                anchor = p.select_one("a")
+                href = anchor.get("href", "") if anchor else ""
+                if href.startswith("/user/") and not publisher_id:
+                    publisher_id = unquote(href.split("/user/", 1)[-1].split("/", 1)[0])
+                    continue
+                if "status=" in href:
+                    status = text
+                    continue
+                tags.append(text)
+
+            stats = {"views": None, "rating": None, "comments": None}
+            for span in node.select(".book-stats"):
+                icon = span.select_one("i")
+                value_node = span.select_one("[data-ready]") or span
+                raw = value_node.get_text(strip=True)
+                icon_name = (
+                    icon.get_text(strip=True)
+                    if icon and "material-icons" in (icon.get("class") or [])
+                    else (icon.get("class", [""])[0] if icon else "")
+                )
+                if icon_name == "visibility":
+                    stats["views"] = wikidich_ext._parse_abbr(raw)
+                elif icon_name == "star":
+                    stats["rating"] = wikidich_ext._parse_abbr(raw)
+                elif "fa-comment" in icon_name:
+                    stats["comments"] = wikidich_ext._parse_abbr(raw)
+
+            return {
+                "id": book_id,
+                "title": title,
+                "title_norm": wikidich_ext._normalize(title),
+                "author": author,
+                "author_norm": wikidich_ext._normalize(author),
+                "status": status,
+                "status_norm": wikidich_ext._normalize(status),
+                "url": url,
+                "cover_url": cover_url,
+                "stats": stats,
+                "chapters": None,
+                "updated_text": "",
+                "updated_iso": "",
+                "updated_ts": 0,
+                "collections": [],
+                "tags": tags,
+                "summary": "",
+                "summary_norm": "",
+                "flags": wikidich_ext._default_flags(),
+                "extra_links": [],
+                "collected_at": datetime.utcnow().isoformat(),
+                "publisher_id": publisher_id,
+            }
+        except Exception:
+            return None
+
+    def _wd_parse_foreign_works_page(self, html_text: str, base_url: str):
+        soup = BeautifulSoup(html_text, "html.parser")
+        items = []
+        for node in soup.select(".book-list .book-item"):
+            item = self._wd_parse_foreign_work_item(node, base_url)
+            if item:
+                items.append(item)
+        if not items:
+            for node in soup.select(".book-list .book-info"):
+                try:
+                    item = wikidich_ext._parse_book_node(node, base_url)
+                except Exception:
+                    item = None
+                if item:
+                    items.append(item)
+        total = None
+        starts = []
+        for a in soup.select("ul.pagination a[href]"):
+            href = (a.get("href") or "").strip()
+            if "start=" not in href:
+                continue
+            parsed = urlparse(href)
+            qs = parse_qs(parsed.query)
+            start_vals = qs.get("start") or []
+            if start_vals and str(start_vals[0]).lstrip("-").isdigit():
+                starts.append(int(start_vals[0]))
+        if starts:
+            page_size = len(items)
+            if page_size:
+                total = max(starts) + page_size
+        return items, total
+
+    def _wd_prompt_fetch_foreign_works(self):
+        if self._wd_loading:
+            messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.")
+            return
+        if not self._wd_can_fetch_foreign_works():
+            messagebox.showinfo(
+                "Không thể tải",
+                "Profile này đang có Works chính chủ. Hãy dùng profile trống hoặc profile đã tải Works không chính chủ.",
+                parent=self
+            )
+            return
+        raw = simpledialog.askstring(
+            "Tải Works không chính chủ",
+            "Nhập URL Works hoặc user_id cần tải:",
+            parent=self
+        )
+        if not raw:
+            return
+        user_slug = self._wd_parse_foreign_user_input(raw)
+        if not user_slug:
+            messagebox.showerror("Không hợp lệ", "Không đọc được user_id từ input.", parent=self)
+            return
+        self._wd_load_foreign_resume_state()
+        resume_state = getattr(self, "_wd_resume_foreign_works", None) or {}
+        resume_slug = (resume_state.get("user_slug") or "").strip()
+        if resume_slug and resume_slug != user_slug:
+            self._wd_clear_foreign_resume_state()
+        if self.wikidich_data.get("book_ids"):
+            confirm = messagebox.askyesno(
+                "Ghi đè Works",
+                "Đang có Works không chính chủ trong profile.\nBạn muốn tải lại và ghi đè dữ liệu hiện có?",
+                parent=self
+            )
+            if not confirm:
+                return
+        self._wd_cancel_requested = False
+        threading.Thread(target=self._wd_fetch_foreign_works_worker, args=(user_slug, raw), daemon=True).start()
+
+    def _wd_fetch_foreign_works_worker(self, user_slug: str, input_label: str):
+        pythoncom.CoInitialize()
+        self._wd_loading = True
+        self._wd_loading_site = getattr(self, "wd_site", "wikidich")
+        self._wd_cancel_requested = False
+        cancelled = False
+        self.log(f"[Wikidich] Bắt đầu tải Works (không chính chủ): {user_slug}")
+        self._wd_set_progress("Đang tải Works (không chính chủ)...", 0, 0)
+        try:
+            self._wd_load_foreign_resume_state()
+            resume_state = getattr(self, "_wd_resume_foreign_works", None) or {}
+            resume_slug = (resume_state.get("user_slug") or "").strip()
+            existing_data = resume_state.get("data") if resume_slug == user_slug else None
+            start_offset = resume_state.get("next_start") if resume_slug == user_slug else None
+            page_size_hint = resume_state.get("page_size") if resume_slug == user_slug else None
+            if existing_data:
+                start_msg = start_offset if start_offset is not None else len(existing_data.get("book_ids", []))
+                self.log(f"[Wikidich] Tiếp tục Works (không chính chủ) từ vị trí {start_msg}")
+            session, _user, proxies = self._wd_build_wiki_session(include_user=False)
+            if not session:
+                self.after(0, lambda: messagebox.showerror(
+                    "Thiếu cookie",
+                    "Không đọc được cookie Wikidich từ trình duyệt tích hợp. Hãy đăng nhập rồi thử lại.",
+                    parent=self
+                ))
+                self.log("[Wikidich] Không có cookie, dừng tải.")
+                return
+            try:
+                user_check = wikidich_ext.fetch_current_user(session, base_url=self._wd_get_base_url(), proxies=proxies) or ""
+            except Exception:
+                user_check = ""
+            if user_check:
+                self.log(f"[Wikidich] Đăng nhập: {user_check}")
+            else:
+                self.log("[Wikidich] Không tìm thấy 'Hồ sơ của tôi' -> chưa đăng nhập.")
+            try:
+                resp_probe = session.get(self._wd_get_base_url(), timeout=25, proxies=proxies)
+                self._wd_log_request_headers(resp_probe, "Probe")
+                if self._wd_detect_cloudflare(resp_probe):
+                    self._wd_pause_for_cloudflare(self._wd_get_base_url())
+                    return
+            except Exception:
+                pass
+            wiki_delay_min, wiki_delay_max = self._get_delay_range(
+                'wiki_delay_min',
+                'wiki_delay_max',
+                DEFAULT_API_SETTINGS['wiki_delay_min'],
+                DEFAULT_API_SETTINGS['wiki_delay_max']
+            )
+            delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0
+            base_url = self._wd_get_base_url()
+            works_url = f"{base_url}/user/{quote(user_slug)}/works"
+            book_ids = list(existing_data.get("book_ids") or []) if existing_data else []
+            books = dict(existing_data.get("books") or {}) if existing_data else {}
+            total_count = None
+            start = start_offset if start_offset is not None else len(book_ids)
+            page_size = page_size_hint
+            while True:
+                params = {"start": start} if start else {}
+                resp = session.get(works_url, params=params, timeout=50, proxies=proxies)
+                if self._wd_detect_cloudflare(resp):
+                    partial = {
+                        "username": user_slug,
+                        "book_ids": book_ids,
+                        "books": books,
+                        "synced_at": datetime.utcnow().isoformat(),
+                        "total_count": total_count if total_count is not None else len(book_ids),
+                    }
+                    raise wikidich_ext.CloudflareBlocked(partial, next_start=start, page_size=page_size or 0)
+                resp.raise_for_status()
+                items, total = self._wd_parse_foreign_works_page(resp.text, base_url)
+                if start == 0 and not items:
+                    self.log(f"[Wikidich] Không tìm thấy Works cho user '{user_slug}' (danh sách rỗng).")
+                    self.after(0, lambda: messagebox.showinfo(
+                        "Không có Works",
+                        f"Không tìm thấy Works cho user '{user_slug}'.\n"
+                        "Có thể user không có truyện hoặc bạn chưa đăng nhập đúng tài khoản.",
+                        parent=self
+                    ))
+                if total is not None and total_count is None:
+                    total_count = total
+                if not items:
+                    break
+                for item in items:
+                    bid = item.get("id")
+                    if not bid:
+                        continue
+                    if bid not in books:
+                        book_ids.append(bid)
+                    books[bid] = item
+                if page_size is None:
+                    page_size = len(items)
+                next_start = start + (page_size or 0)
+                partial = {
+                    "username": user_slug,
+                    "book_ids": book_ids,
+                    "books": books,
+                    "synced_at": datetime.utcnow().isoformat(),
+                    "total_count": total_count if total_count is not None else len(book_ids),
+                }
+                self._wd_resume_foreign_works = {
+                    "user_slug": user_slug,
+                    "data": partial,
+                    "next_start": next_start,
+                    "page_size": page_size or 0,
+                }
+                self._wd_save_foreign_resume_state()
+                if total_count is None:
+                    self._wd_progress_callback("works", len(book_ids), 0, f"Đã lấy {len(book_ids)} truyện")
+                else:
+                    self._wd_progress_callback("works", len(book_ids), total_count, f"Đã lấy {len(book_ids)} truyện")
+                if not page_size:
+                    break
+                if total_count is not None and len(book_ids) >= total_count:
+                    break
+                start = next_start
+                if delay_avg:
+                    time.sleep(delay_avg)
+            self._wd_ensure_not_cancelled()
+            data = {
+                "username": user_slug,
+                "book_ids": book_ids,
+                "books": books,
+                "synced_at": datetime.utcnow().isoformat(),
+                "total_count": total_count if total_count is not None else len(book_ids),
+            }
+            self.log(f"[Wikidich] Đã lấy {len(book_ids)} works (không chính chủ).")
+            self.wikidich_data = data
+            self.wikidich_data["works_source"] = {
+                "type": "foreign",
+                "user_slug": user_slug,
+                "input": input_label,
+                "site": getattr(self, "wd_site", "wikidich"),
+                "fetched_at": datetime.utcnow().isoformat(),
+            }
+            self._wd_update_user_label()
+            self._wd_save_cache()
+            self.after(0, self._wd_refresh_category_options)
+            self.after(0, self._wd_apply_filters)
+            self._wd_set_progress(f"Đã tải {len(data.get('book_ids', []))} works", len(data.get('book_ids', [])), len(data.get('book_ids', [])))
+            self._wd_clear_foreign_resume_state()
+        except wikidich_ext.CloudflareBlocked as cf_exc:
+            partial = cf_exc.partial_data or {}
+            self.wikidich_data = partial or self.wikidich_data
+            if isinstance(self.wikidich_data, dict):
+                self.wikidich_data["works_source"] = {
+                    "type": "foreign",
+                    "user_slug": user_slug,
+                    "input": input_label,
+                    "site": getattr(self, "wd_site", "wikidich"),
+                    "fetched_at": datetime.utcnow().isoformat(),
+                }
+            self._wd_resume_foreign_works = {
+                "user_slug": user_slug,
+                "data": partial,
+                "next_start": cf_exc.next_start,
+                "page_size": cf_exc.page_size,
+            }
+            self._wd_save_foreign_resume_state()
+            total = partial.get("total_count") or 0
+            current = len(partial.get("book_ids") or [])
+            self._wd_set_progress("Tạm dừng: cần vượt Cloudflare", current, total or 1)
+            self._wd_save_cache()
+            self._wd_pause_for_cloudflare(self._wd_get_base_url())
+            return
+        except WikidichCancelled:
+            cancelled = True
+            self.log("[Wikidich] Đã hủy tải Works theo yêu cầu người dùng.")
+            self._wd_mark_cancelled()
+        except Exception as e:
+            self.log(f"[Wikidich] Lỗi tải works không chính chủ: {e}")
+            self.after(0, lambda: messagebox.showerror("Lỗi Wikidich", f"Không thể tải works: {e}", parent=self))
+        finally:
+            self._wd_loading = False
+            self._wd_loading_site = None
+            self._wd_cancel_requested = False
+            pythoncom.CoUninitialize()
+            self._wd_progress_running = False
+            if not cancelled:
+                self._wd_set_progress("Chờ thao tác...", 0, 1)
+            if not getattr(self, "_wd_resume_foreign_works", None):
+                self._wd_clear_foreign_resume_state()
 
     def _wd_refresh_table_from_ram(self):
         """Làm mới bảng từ data hiện có trong RAM (không tải lại từ đĩa/server)."""
@@ -5269,7 +5848,12 @@ class WikidichMixin:
         missing_var = tk.BooleanVar(value=self.wd_missing_only_var.get())
         ttk.Checkbutton(container, text="Chỉ bổ sung chi tiết còn thiếu", variable=missing_var).pack(anchor="w", pady=(6, 0))
         sync_counts_only_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(container, text="Chỉ đồng bộ số chương (dùng Works, không tải văn án)", variable=sync_counts_only_var).pack(anchor="w", pady=(6, 0))
+        sync_counts_only_cb = ttk.Checkbutton(container, text="Chỉ đồng bộ số chương (dùng Works, không tải văn án)", variable=sync_counts_only_var)
+        sync_counts_only_cb.pack(anchor="w", pady=(6, 0))
+        if self._wd_is_foreign_works():
+            sync_counts_only_var.set(False)
+            sync_counts_only_cb.config(state=tk.DISABLED)
+            ttk.Label(container, text="(Không hỗ trợ đồng bộ số chương cho Works không chính chủ)", foreground="#b45309").pack(anchor="w", pady=(2, 0))
 
         scope_var = tk.StringVar(value=self.wd_detail_scope_var.get())
         ttk.Label(container, text="Phạm vi:").pack(anchor="w", pady=(12, 4))
@@ -5941,6 +6525,7 @@ class WikidichMixin:
             else:
                  self._wd_refresh_tree()
         self._wd_update_user_label()
+        self._wd_update_foreign_mode_ui()
 
     def _wd_update_user_label(self):
         if not hasattr(self, "wd_user_label"):
@@ -6147,6 +6732,7 @@ class WikidichMixin:
                 except Exception:
                     pass
         self._wd_scan_profiles()
+        self._wd_sync_profiles_all_sites()
         if current_profile == name and hasattr(self, "wd_profile_var"):
             fallback_profiles = self._wd_list_existing_profiles()
             fallback = fallback_profiles[0] if fallback_profiles else "Profile 1"
@@ -6243,6 +6829,7 @@ class WikidichMixin:
         restored = self._wd_restore_profile_from_recycle(profile_name, switch_after=True)
         if restored:
             self._wd_scan_profiles()
+            self._wd_sync_profiles_all_sites()
             messagebox.showinfo("Khôi phục", f"Đã khôi phục cache cho profile '{profile_name}'.")
         else:
             messagebox.showwarning("Khôi phục", "Không tìm thấy cache để khôi phục.")

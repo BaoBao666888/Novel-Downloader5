@@ -798,12 +798,12 @@ def _parse_book_page(
     summary_norm = _normalize(summary)
     extra_links = _parse_additional_links(desc_block, base_url, genre_p)
 
-    book_id = book.get("id") or (
-        doc.select_one('input[name="bookId"]') or {}
-    ).get("value", "")
+    book_id = (doc.select_one('input[name="bookId"]') or {}).get("value", "")
     if not book_id:
         match = re.search(r'bookId\s*=\s*"([^"]+)"', text)
         book_id = match.group(1) if match else ""
+    if not book_id:
+        book_id = book.get("id", "")
     sign_key_match = re.search(r'signKey\s*=\s*"([^"]+)"', text)
     size_match = re.search(r"loadBookIndex\(\s*0\s*,\s*(\d+)", text)
     sign_key = sign_key_match.group(1) if sign_key_match else ""
@@ -964,6 +964,8 @@ def fetch_book_chapters(
     text = resp.text
     updated_book, book_id, sign_key, size, fuzzy_ctx = _parse_book_page(doc, text, book, current_user_slug, base_url)
     chapters: List[Dict[str, Any]] = []
+    if book_id:
+        updated_book["id"] = book_id
     if book_id and sign_key:
         chapters = _fetch_book_index(session, base_url, book_id, sign_key, size, fuzzy_ctx, proxies=proxies)
     if chapters:
