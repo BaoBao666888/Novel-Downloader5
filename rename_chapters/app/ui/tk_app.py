@@ -293,7 +293,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.7.2')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.8')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -2503,14 +2503,19 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         - Tabs: click để chuyển, click nút “x” để đóng; có tab ẩn auto đóng khi cần.
         - DevTools: nút F12 để bật/tắt.
         - Tải xuống: nút ⬇ mở danh sách download, có thể hủy/tải lại/mở file/thư mục/copy link; trạng thái được lưu lại khi mở lại app.
+        - Profile: menu Trình duyệt cho phép đổi tên/xóa/khôi phục. Khi thao tác, app sẽ tự đóng trình duyệt trước để tránh khóa file rồi mở lại.
+        - Profile đã xóa sẽ ẩn khỏi danh sách chính; muốn xem/khôi phục thì dùng mục Khôi phục.
+        - Nếu xóa profile có cache Wikidich/Koanchay, cache sẽ chuyển vào `local/profile_recycle/<profile>` và tự xóa sau 7 ngày. Nếu profile không có cache thì xóa vĩnh viễn.
+        - Khi tạo profile mới trùng tên profile cũ có cache, app sẽ hỏi có phục hồi hay không.
         """
         create_tab("Trình duyệt", browser_guide)
 
         cookie_guide = """
         --- COOKIE ---
         - Menu Trình duyệt → Cookie: mở trình quản lý cookie.
+        - Mặc định mở theo profile của trình duyệt tích hợp đang dùng; có combobox để chọn profile khác.
         - Cho phép nhập/xóa cookie cho các domain, hỗ trợ tải cookie từ trình duyệt hệ thống nếu đã đăng nhập.
-        - Khi cần đăng nhập trang bảo vệ, mở trình duyệt tích hợp, đăng nhập, sau đó dùng cookie đã lưu cho các request/tải về.
+        - Khi cần đăng nhập trang bảo vệ, mở trình duyệt tích hợp, đăng nhập, đóng trình duyệt rồi dùng cookie đã lưu cho các request/tải về.
         """
         create_tab("Cookie", cookie_guide)
 
@@ -2541,7 +2546,10 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         wikidich_guide = """
         --- WIKIDICH / KOANCHAY ---
         - **Tải Works / Tải chi tiết**: dùng cookie từ trình duyệt tích hợp. Khi bị Cloudflare sẽ tạm dừng và **resume theo từng site**, kể cả sau khi mở lại app (thao tác lại Tải Works/Tải chi tiết). Koanchay tự dùng domain koanchay.org/net.
-        - **Cache theo site**: Wikidich dùng `local/wikidich_cache.json`, Koanchay dùng `local/koanchay_cache.json`. Khi chuyển tab, app tự nạp cache nếu chưa có dữ liệu.
+        - **Works không chính chủ**: Sync ▾ → “Tải Works (không chính chủ)” (nhập URL/user_id). Chỉ chạy khi profile trống hoặc đang dùng Works không chính chủ; sẽ tắt “Chỉ đồng bộ số chương”, ẩn Auto Update/Chỉnh sửa/Cập nhật chương và ẩn khu Liên kết.
+        - **DS Chương cho Works không chính chủ**: app sẽ tự lấy `bookId` thật trước khi tải danh sách chương.
+        - **Cache theo profile**: mỗi profile có cache riêng; xóa profile có cache sẽ được chuyển vào `profile_recycle` và tự dọn sau 7 ngày.
+        - **Cache ảnh bìa**: ảnh bìa được lưu xuống `local/cover_cache/`. Menu Trợ giúp → “Xóa cache ảnh bìa...” để xem dung lượng và dọn.
         - **Lọc cơ bản & nâng cao**: Tên/Tác giả, Văn án, Link bổ sung; trạng thái và sắp xếp. Lọc nâng cao có ngày cập nhật, thể loại, vai trò, thuộc tính Nhúng link/file; có nút Đặt lại.
         - **DS Chương**: tải danh sách chương mới nhất (đồng thời cập nhật chi tiết/số chương), xem nội dung gộp các phần, sửa nội dung ngay trong app (PUT lên server). Koanchay tự dùng domain đúng và tự trừ cột “New”.
         - **Mô tả bổ sung mặc định** (Cài đặt request): hỗ trợ `{num-d}`/`{num-c}` (tương đương `{num-đầu}`/`{num-cuối}`) để điền số chương đầu/cuối của batch đã parse khi upload thủ công.

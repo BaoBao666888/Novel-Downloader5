@@ -1,12 +1,17 @@
-<h1>Phiên bản 0.2.7.2 - Bổ sung tool check radical</h1>
+<h1>Phiên bản 0.2.8 - Cải tiến Wikidich/Koanchay & trình duyệt</h1>
 
 <h2>Thay đổi</h2>
 
- - Thêm công cụ <b>Kiểm tra Radical</b> trong menu Công cụ để quét/chuẩn hóa ký tự radical trong file .txt.
- - Hỗ trợ xuất file chuẩn hóa theo thư mục tùy chọn, lưu cấu hình thư mục xuất.
- - Bổ sung luồng sao chép/dán mapping dạng JSON để nhập nhanh các ký tự cần thay thế.
+ - Trình duyệt Qt: thêm quản lý profile (đổi tên/xóa/khôi phục), thao tác sẽ tự đóng/mở lại để tránh khóa file; profile đã xóa được ẩn khỏi danh sách chính và có cơ chế khôi phục.
+ - Cache Wikidich/Koanchay theo profile: khi xóa profile có cache sẽ chuyển vào thư mục recycle và tự dọn sau 7 ngày; nếu không có cache thì xóa vĩnh viễn.
+ - Cookie Manager mở theo profile trình duyệt hiện tại, có combobox để chọn profile khác.
+ - Wikidich/Koanchay: filter tách riêng và lưu độc lập giữa 2 tab; dữ liệu tự nạp đúng profile khi chuyển tab; log sớm được buffer để không mất nhật ký.
+ - Thêm Sync “Tải Works (không chính chủ)”: nhập URL/user_id, có resume; tự lấy bookId thật khi mở DS Chương; các nút Auto Update/Chỉnh sửa/Cập nhật chương và Liên kết sẽ bị ẩn khi dùng chế độ này.
+ - Cache ảnh bìa được lưu xuống đĩa, có menu “Xóa cache ảnh bìa...” trong Trợ giúp.
+ - Bổ sung nguồn lấy tiêu đề online: Douban Column và Qimao.
+ - Sửa lỗi Xóa truyện (Cloudflare/404) và rút ngắn thời gian chờ khi gặp 4xx.
 
 <h2>Hướng dẫn cập nhật</h2>
 
- - Nhấn <b>Tải &Cài đặt</b> để lên 0.2.7.2 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
+ - Nhấn <b>Tải &Cài đặt</b> để lên 0.2.8 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
  - Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.
