@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.3.8_beta
+// @version      3.3.9_beta
 // @description  Dịch trang, quản lý name-sets, sửa tên, chế độ đọc rút gọn và tùy chỉnh giao diện.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -33,6 +33,8 @@
 // @require      https://unpkg.com/onnxruntime-web@1.22.0/dist/ort.wasm.min.js
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 // ==/UserScript==
+
+/* global chrome */
 
 (function () {
     'use strict';
@@ -80,7 +82,9 @@
         overrideFontEnabled: false,
         overrideFontFamily: "Noto Serif, 'Times New Roman', serif",
         showOcrButton: true,
-        ocrMode: 'overlay', // 'popup' | 'overlay'
+        ocrMode: 'overlay', // 'popup' | 'overlay' (Output Mode)
+        ocrActionMode: 'region', // 'region' (Khoanh vùng) | 'image' (Dịch ảnh) - NEW
+        ocrImageSource: 'screen', // 'screen' (Toàn màn hình) | 'import' (File/URL) - NEW
         ocrFont: 'Noto Serif', // Default font for OCR overlay
         ocrTextScaleFactor: 1.8, // Factor tinh chỉnh kích thước chữ OCR (Càng lớn chữ càng nhỏ)
         showStartButton: true,
@@ -91,6 +95,7 @@
         allowCopyWhenEditing: true,
         blacklist: [], // Thêm dòng này
     };
+    let updateOcrStatus = null;
 
     /* ================== STORAGE ================== */
     function loadConfig() {
@@ -359,7 +364,7 @@
             ocrBtn.style.bottom = `${bottomOffset}px`;
             ocrBtn.style.backgroundColor = '#17a2b8'; // Teal
             ocrBtn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2-2v-2"/><path d="M10 10l4 4m0-4l-4 4"/></svg>`;
-            ocrBtn.addEventListener('click', activateAreaSelectionMode);
+            ocrBtn.addEventListener('click', handleOcrButtonClick);
             document.body.appendChild(ocrBtn);
             bottomOffset += 64;
         }
@@ -425,6 +430,16 @@
     }
 
     function removeElementById(id) { document.getElementById(id)?.remove(); }
+    function removeFloatingButtons() {
+        removeElementById('tm-start-translate-btn');
+        removeElementById('tm-edit-pencil');
+        removeElementById('tm-style-button');
+        removeElementById('tm-quick-translate-btn');
+        removeElementById('tm-restore-original-btn');
+        removeElementById('tm-ocr-float-btn');
+        removeStylePanel();
+    }
+
     function updateStartButtonVisibility() {
         if (config.showStartButton) {
             updateFloatingButtons();
@@ -2647,10 +2662,24 @@
                 </select>
                 <p style="font-size:13px; color:#555">Chọn font chữ khi hiển thị kết quả dịch ở chế độ Overlay.</p>
 
-                <label class="tm-label" style="margin-top: 15px;">Chế độ hiển thị kết quả</label>
+                <label class="tm-label" style="margin-top: 15px;">Chế độ d/động (Action Mode)</label>
+                <select id="tm-ocr-action-mode" class="tm-select">
+                    <option value="region">Khoanh vùng (Crop)</option>
+                    <option value="image">Dịch ảnh (Image Trans)</option>
+                </select>
+
+                <div id="tm-ocr-source-group" style="display:none; margin-top: 10px; padding-left: 10px; border-left: 2px solid #ddd;">
+                    <label class="tm-label">Nguồn dữ liệu (Source)</label>
+                    <select id="tm-ocr-image-source" class="tm-select">
+                        <option value="screen">Toàn màn hình (Screen)</option>
+                        <option value="import">Nhập ảnh (Import File/URL)</option>
+                    </select>
+                </div>
+
+                <label class="tm-label" style="margin-top: 15px;">Kiểu hiển thị kết quả (Display)</label>
                 <select id="tm-ocr-mode" class="tm-select">
-                     <option value="overlay">Hiển thị đè lên ảnh (Overlay - Mặc định)</option>
-                     <option value="popup">Hiển thị dạng Popup</option>
+                     <option value="overlay">Hiển thị đè lên ảnh (Overlay)</option>
+                     <option value="popup">Hiển thị dạng Popup (Split View)</option>
                 </select>
 
                 <label class="tm-label">Hệ số thu nhỏ chữ (Scale Factor)</label>
@@ -2790,9 +2819,58 @@
         const dnFanficCheckbox = wrapper.querySelector('#tm-dichnhanh-fanfic');
 
         const ocrShowBtnCheckbox = wrapper.querySelector('#tm-show-ocr-btn');
+        const ocrActionModeSelect = wrapper.querySelector('#tm-ocr-action-mode');
+        const ocrImageSourceSelect = wrapper.querySelector('#tm-ocr-image-source');
+        const ocrSourceGroup = wrapper.querySelector('#tm-ocr-source-group');
         const ocrModeSelect = wrapper.querySelector('#tm-ocr-mode');
         const ocrStatusDiv = wrapper.querySelector('#tm-ocr-status');
 
+        const updateOcrUiState = () => {
+            const actionMode = ocrActionModeSelect.value;
+            const source = ocrImageSourceSelect.value;
+
+            // 1. Show/Hide Source Group
+            if (actionMode === 'image') {
+                ocrSourceGroup.style.display = 'block';
+            } else {
+                ocrSourceGroup.style.display = 'none';
+            }
+
+            // 2. Constraint Logic
+            // Reset options first
+            Array.from(ocrModeSelect.options).forEach(opt => opt.disabled = false);
+
+            if (actionMode === 'image') {
+                if (source === 'screen') {
+                    // Screen -> Force Overlay
+                    ocrModeSelect.value = 'overlay';
+                    // Disable Popup option
+                    Array.from(ocrModeSelect.options).find(o => o.value === 'popup').disabled = true;
+                } else if (source === 'import') {
+                    // Import -> Force Popup
+                    ocrModeSelect.value = 'popup';
+                    // Disable Overlay option
+                    Array.from(ocrModeSelect.options).find(o => o.value === 'overlay').disabled = true;
+                }
+            } else {
+                // Region mode -> Allow both? Region usually implies overlay or popup.
+                // Current behavior supports both.
+            }
+        };
+
+        // Init Values
+        ocrActionModeSelect.value = config.ocrActionMode || 'region';
+        ocrImageSourceSelect.value = config.ocrImageSource || 'screen';
+        ocrModeSelect.value = config.ocrMode || 'overlay';
+
+        // Add Listeners
+        ocrActionModeSelect.addEventListener('change', updateOcrUiState);
+        ocrImageSourceSelect.addEventListener('change', updateOcrUiState);
+
+        // Initial Update
+        updateOcrUiState();
+
+        // ... (Existing code below)
         const extStatusText = wrapper.querySelector('#tm-ext-status-text');
         const extStatusIcon = wrapper.querySelector('#tm-ext-status-icon');
         const extCheckBtn = wrapper.querySelector('#tm-ext-check-btn');
@@ -2814,7 +2892,38 @@
             }
 
             if (isExtDetected) {
-                extStatusText.innerHTML = "<b>Extension: Đã kết nối</b> (Chạy nhanh)";
+                // Check Version
+                let versionText = "";
+                let ver = null;
+                try {
+                    ver = await new Promise(r => chrome.runtime.sendMessage(window.tmExtensionId, { cmd: 'CMD_GET_VERSION' }, res => {
+                        if (chrome.runtime.lastError) {
+                            console.warn("[TM-Translate] Check Version Failed:", chrome.runtime.lastError.message);
+                            r(null);
+                        } else {
+                            r(res?.version);
+                        }
+                    }));
+                    if (ver) versionText = ` (v${ver})`;
+                } catch (e) { console.warn("Check Ver Err:", e); }
+
+                let warningHtml = "";
+                const minVer = "2.1";
+                let isOutdated = true;
+
+                if (ver) {
+                    const v1 = ver.split('.').map(n => parseInt(n, 10) || 0);
+                    const v2 = minVer.split('.').map(n => parseInt(n, 10) || 0);
+                    // Compare logic
+                    if (v1[0] > v2[0]) isOutdated = false;
+                    else if (v1[0] === v2[0] && v1[1] >= v2[1]) isOutdated = false;
+                }
+
+                if (isOutdated) {
+                    warningHtml = `<div style="color: #c0392b; font-size: 12px; margin-top: 4px; font-weight: bold;">⚠️ Extension đã cũ (Yêu cầu v${minVer}+). Hãy cập nhật ngay!</div>`;
+                }
+
+                extStatusText.innerHTML = `<b>Extension: Đã kết nối${versionText}</b> (Chạy nhanh)${warningHtml}`;
                 extStatusIcon.textContent = "✅";
                 extIndicator.style.background = "#d4edda";
                 extIndicator.style.color = "#155724";
@@ -3270,7 +3379,7 @@
         ocrModeSelect.value = config.ocrMode || 'popup';
         ocrFontSelect.value = config.ocrFont || 'Noto Serif';
 
-        async function updateOcrStatus() {
+        updateOcrStatus = async function () {
             try {
                 // Check version first
                 const ver = await GM_getValue(paddleService.cacheKey + "_ver", null);
@@ -3313,7 +3422,7 @@
             } catch (e) {
                 ocrStatusDiv.textContent = 'Không thể kiểm tra trạng thái: ' + e.message;
             }
-        }
+        };
         updateOcrStatus();
 
         ocrClearBtn.addEventListener('click', async () => {
@@ -3345,6 +3454,9 @@
             tempConfigCheck.overrideFontFamily = wrapper.querySelector('#tm-override-font-family').value;
             tempConfigCheck.showOcrButton = wrapper.querySelector('#tm-show-ocr-btn').checked;
             tempConfigCheck.ocrMode = wrapper.querySelector('#tm-ocr-mode').value;
+            tempConfigCheck.ocrActionMode = wrapper.querySelector('#tm-ocr-action-mode').value;
+            tempConfigCheck.ocrImageSource = wrapper.querySelector('#tm-ocr-image-source').value;
+            tempConfigCheck.ocrTextScaleFactor = parseFloat(wrapper.querySelector('#tm-ocr-scale').value) || 1.8;
 
             const provider = serverProviderSelect.value;
             const tempEndpoints = { ...tempConfigCheck.serverEndpoints };
@@ -3407,6 +3519,8 @@
             config.overrideFontFamily = wrapper.querySelector('#tm-override-font-family').value;
             config.showOcrButton = wrapper.querySelector('#tm-show-ocr-btn').checked;
             config.ocrMode = wrapper.querySelector('#tm-ocr-mode').value;
+            config.ocrActionMode = wrapper.querySelector('#tm-ocr-action-mode').value;
+            config.ocrImageSource = wrapper.querySelector('#tm-ocr-image-source').value;
             config.ocrFont = wrapper.querySelector('#tm-ocr-font').value;
             config.ocrTextScaleFactor = parseFloat(wrapper.querySelector('#tm-ocr-scale').value) || 1.8;
             // Advanced
@@ -3978,10 +4092,40 @@
         },
 
         async recognize(imageSrc) {
+            // Priority: Check Extension First
+            const extMeta = document.querySelector('meta[name="tm-extension-id"]');
+            const extId = window.tmExtensionId || (extMeta ? extMeta.content : null);
+
+            if (extId) {
+                console.log("[paddleService] Delegating to Extension:", extId);
+                try {
+                    const result = await new Promise((resolve, reject) => {
+                        chrome.runtime.sendMessage(extId, {
+                            cmd: 'CMD_OCR_RECOGNIZE',
+                            image: imageSrc
+                        }, response => {
+                            if (chrome.runtime.lastError) {
+                                console.warn("[paddleService] Extension Error:", chrome.runtime.lastError);
+                                reject(chrome.runtime.lastError);
+                            } else if (response && response.success) {
+                                resolve(response.data);
+                            } else {
+                                reject(new Error(response ? response.error : 'Unknown Extension Error'));
+                            }
+                        });
+                    });
+                    return result;
+                } catch (e) {
+                    console.warn("[paddleService] Extension failed, falling back to Local WASM...", e);
+                    // Fallback to local below
+                }
+            }
+
+            // Fallback: Local WASM
             if (!this.modelLoaded) {
                 await this.init();
             }
-            showLoading('Đang nhận diện văn bản...');
+            showLoading('Đang nhận diện văn bản (Local WASM)...');
             let result;
             if (typeof this.ocrEngine === 'function') {
                 result = await this.ocrEngine(imageSrc);
@@ -4088,7 +4232,9 @@
                 if (config.ocrMode === 'overlay' && overlayContainer && screenRect) {
                     updateOcrOverlayContent(overlayContainer, translatedText, screenRect);
                 } else {
-                    if (overlayContainer) overlayContainer.remove();
+                    if (overlayContainer) {
+                        overlayContainer.remove();
+                    }
                     showImageTranslationResult(translatedText, ocrText, base64FullString);
                 }
 
@@ -4158,7 +4304,9 @@
             if (config.ocrMode === 'overlay' && overlayContainer && screenRect) {
                 updateOcrOverlayContent(overlayContainer, translatedText, screenRect);
             } else {
-                if (overlayContainer) overlayContainer.remove();
+                if (overlayContainer) {
+                    overlayContainer.remove();
+                }
                 showImageTranslationResult(translatedText, ocrText, base64FullString);
             }
 
@@ -4293,18 +4441,6 @@
         container.appendChild(contentDiv);
 
         if (config.nameEditingEnabled) {
-            contentDiv.addEventListener('mouseup', (e) => {
-                setTimeout(() => {
-                    const sel = window.getSelection();
-                    if (sel && !sel.isCollapsed && contentDiv.contains(sel.anchorNode)) {
-                        const selectedText = sel.toString().trim();
-                        if (selectedText.length > 0 && selectedText.length < 50) {
-                            showAddToDictionaryPopup(selectedText, 'ocr');
-                        }
-                    }
-                }, 50);
-            });
-
             contentDiv.addEventListener('mouseup', (e) => {
                 setTimeout(() => {
                     const sel = window.getSelection();
@@ -4462,6 +4598,808 @@
 
     /* ================== INTERACTION HANDLERS ================== */
 
+    async function handleOcrButtonClick() {
+        const actionMode = config.ocrActionMode || 'region';
+        const source = config.ocrImageSource || 'screen';
+
+        if (actionMode === 'region') {
+            await activateAreaSelectionMode();
+        } else if (actionMode === 'image') {
+            if (source === 'screen') {
+                await handleOcrScreenMode();
+            } else if (source === 'import') {
+                await handleOcrImportMode();
+            }
+        }
+    }
+
+    async function grabFrameFromStream(track, stream) {
+        try {
+            const imageCapture = new ImageCapture(track);
+            return await imageCapture.grabFrame();
+        } catch (e) {
+            // Firefox fallback: draw from video element
+            const video = document.createElement('video');
+            video.muted = true;
+            video.srcObject = stream;
+            video.playsInline = true;
+            await video.play();
+            await new Promise(r => setTimeout(r, 80));
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 1;
+            canvas.height = video.videoHeight || 1;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            video.pause();
+            video.srcObject = null;
+            const blob = await new Promise(res => canvas.toBlob(res));
+            return await createImageBitmap(blob);
+        }
+    }
+
+    async function handleOcrScreenMode() {
+        showLoading('Đang lấy quyền chia sẻ màn hình...');
+        try {
+            // Need user interaction to get stream
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: { cursor: "never" },
+                audio: false,
+                preferCurrentTab: true
+            });
+
+            const track = stream.getVideoTracks()[0];
+
+            // Hack cursor hide if possible (reusing logic or simplified)
+            const styleId = 'tm-hide-cursor-style-scr';
+            let styleTag = document.getElementById(styleId);
+            if (!styleTag) {
+                styleTag = document.createElement('style');
+                styleTag.id = styleId;
+                styleTag.innerHTML = '* { cursor: none !important; }';
+                document.head.appendChild(styleTag);
+            }
+            await sleep(100);
+
+            removeLoading(); // Avoid capturing loading UI into screenshot
+            await sleep(80); // Wait a frame so the UI fully clears before capture
+            const bitmap = await grabFrameFromStream(track, stream);
+
+            if (styleTag) styleTag.remove();
+            track.stop(); // Stop immediately after grab
+
+            const canvas = document.createElement('canvas');
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(bitmap, 0, 0);
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+            showLoading('Đang nhận diện văn bản (Toàn màn hình)...');
+            const captureViewport = {
+                scrollX: window.scrollX,
+                scrollY: window.scrollY,
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+            const result = await paddleService.recognize(dataUrl);
+
+            removeLoading();
+            renderScreenOverlay(result, canvas.width, canvas.height, captureViewport); // Map OCR boxes to captured viewport
+            // Note: getDisplayMedia returns physical pixels. Window scroll is CSS pixels. DevicePixelRatio matters.
+
+        } catch (e) {
+            console.error(e);
+            removeLoading();
+            alert("Lỗi chụp màn hình: " + e.message);
+        }
+    }
+
+    async function handleOcrImportMode() {
+        // Create a modal to ask for File, URL or Paste
+        const modalId = 'tm-ocr-import-modal';
+        if (document.getElementById(modalId)) return;
+
+        const modal = document.createElement('div');
+        modal.id = modalId;
+        Object.assign(modal.style, {
+            position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: '100000',
+            display: 'flex', justifyContent: 'center', alignItems: 'center'
+        });
+
+        modal.innerHTML = `
+            <div style="background:white; padding:20px; border-radius:8px; width:400px; text-align:center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h3 style="margin-top:0; color:#333;">Nhập ảnh để dịch</h3>
+                <div style="margin: 20px 0;">
+                    <button id="tm-ocr-btn-file" class="tm-btn" style="width:100%; margin-bottom:10px;">📂 Chọn File Ảnh</button>
+                    <button id="tm-ocr-btn-url" class="tm-btn" style="width:100%; margin-bottom:10px; background:#17a2b8;">🔗 Dán URL Ảnh</button>
+                    <button id="tm-ocr-btn-paste" class="tm-btn" style="width:100%; background:#ffc107; color:#000;">📋 Dán từ Clipboard (Ctrl+V)</button>
+                </div>
+                <button id="tm-ocr-btn-cancel" class="tm-btn" style="background:#6c757d;">Hủy</button>
+                <input type="file" id="tm-ocr-file-input" accept="image/*" style="display:none">
+            </div>
+         `;
+
+        const close = () => modal.remove();
+        modal.querySelector('#tm-ocr-btn-cancel').onclick = close;
+        modal.onclick = (e) => { if (e.target === modal) close(); };
+
+        // File
+        const fileInput = modal.querySelector('#tm-ocr-file-input');
+        modal.querySelector('#tm-ocr-btn-file').onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                close();
+                processImageForOcr(file);
+            }
+        };
+
+        // URL
+        modal.querySelector('#tm-ocr-btn-url').onclick = async () => {
+            const url = prompt("Nhập URL ảnh:");
+            if (url) {
+                close();
+                // Load URL to base64/blob
+                try {
+                    showLoading("Đang tải ảnh...");
+                    const resp = await fetch(url);
+                    const blob = await resp.blob();
+                    processImageForOcr(blob);
+                } catch (e) {
+                    removeLoading();
+                    alert("Không tải được ảnh từ URL này.");
+                }
+            }
+        };
+
+        // Paste (Pseudo-listener on window or button)
+        // Better: Just listen to paste on the modal? OR the button triggers a "listening mode"?
+        // Let's attach paste listener to window while modal is open.
+        const pasteHandler = (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (const item of items) {
+                if (item.type.indexOf("image") === 0) {
+                    const blob = item.getAsFile();
+                    e.preventDefault();
+                    document.removeEventListener('paste', pasteHandler);
+                    close();
+                    processImageForOcr(blob);
+                    return;
+                }
+            }
+        };
+        document.addEventListener('paste', pasteHandler);
+        modal.querySelector('#tm-ocr-btn-paste').onclick = () => {
+            alert("Hãy nhấn Ctrl+V ngay bây giờ để dán ảnh!");
+        };
+
+        // Cleanup listener on close
+        const originalClose = close;
+        modal.querySelector('#tm-ocr-btn-cancel').onclick = () => { document.removeEventListener('paste', pasteHandler); originalClose(); };
+
+        document.body.appendChild(modal);
+    }
+
+    async function processImageForOcr(blobKey) {
+        // Convert blob to base64
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const dataUrl = reader.result;
+
+            // Create an Image object to get dimensions for Popup
+            const img = new Image();
+            img.onload = async () => {
+                showLoading("Đang nhận diện văn bản...");
+                try {
+                    const result = await paddleService.recognize(dataUrl);
+                    removeLoading();
+                    renderSplitViewPopup(img, result);
+                } catch (e) {
+                    removeLoading();
+                    alert("Lỗi OCR: " + e.message);
+                }
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(blobKey);
+    }
+
+    // --- Render Functions (Placeholder for next step) ---
+    function mergeNearbyBlocks(blocks) {
+        if (!blocks || blocks.length === 0) return [];
+        const rects = blocks.map((b) => {
+            const xs = b.box.map(p => p[0]);
+            const ys = b.box.map(p => p[1]);
+            const l = Math.min(...xs);
+            const r = Math.max(...xs);
+            const t = Math.min(...ys);
+            const btm = Math.max(...ys);
+            return {
+                block: b,
+                l,
+                r,
+                t,
+                b: btm,
+                w: Math.max(1, r - l),
+                h: Math.max(1, btm - t)
+            };
+        });
+
+        rects.sort((a, b) => (a.t - b.t) || (a.l - b.l));
+
+        const xOverlapRatio = (a, b) => {
+            const overlap = Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l));
+            return overlap / Math.max(1, Math.min(a.w, b.w));
+        };
+
+        const gaps = [];
+        for (let i = 0; i < rects.length - 1; i++) {
+            const gapY = Math.max(0, rects[i + 1].t - rects[i].b);
+            gaps.push(gapY);
+        }
+        const maxAdjacentGap = gaps.length ? Math.max(...gaps) : 0;
+        const threshold = maxAdjacentGap * 0.9;
+
+        const groups = [];
+        let current = [rects[0]];
+        for (let i = 0; i < rects.length - 1; i++) {
+            const cur = rects[i];
+            const next = rects[i + 1];
+            const gapY = Math.max(0, next.t - cur.b);
+            const overlapX = xOverlapRatio(cur, next);
+
+            if (gapY <= threshold && overlapX >= 0.2) {
+                current.push(next);
+            } else {
+                groups.push(current);
+                current = [next];
+            }
+        }
+        if (current.length) groups.push(current);
+
+        return groups.map((members) => {
+            const texts = members
+                .map(m => (m.block.text || '').replace(/\s+/g, ' ').trim())
+                .filter(Boolean);
+            const allPoints = members.flatMap(m => m.block.box);
+            const xs = allPoints.map(p => p[0]);
+            const ys = allPoints.map(p => p[1]);
+            const mergedBox = [
+                [Math.min(...xs), Math.min(...ys)],
+                [Math.max(...xs), Math.min(...ys)],
+                [Math.max(...xs), Math.max(...ys)],
+                [Math.min(...xs), Math.max(...ys)]
+            ];
+            return {
+                text: texts.join(' ').replace(/\s+/g, ' ').trim(),
+                box: mergedBox
+            };
+        });
+    }
+
+    async function renderScreenOverlay(ocrResult, imgW, imgH, viewport) {
+        // 1. Data Cleaning
+        let blocks = [];
+        const raw = ocrResult.raw || ocrResult;
+
+        // Normalize structure
+        if (Array.isArray(raw)) {
+            blocks = raw;
+        } else if (raw && raw.src && Array.isArray(raw.src)) {
+            blocks = raw.src;
+        } else if (raw && raw.data && raw.data.text) {
+            // Maybe single block?
+        }
+
+        if (blocks.length === 0) {
+            alert("Không tìm thấy văn bản nào!");
+            return;
+        }
+
+        // 2. Container
+        const containerId = 'tm-screen-overlay-wrapper';
+        let container = document.getElementById(containerId);
+        if (container) container.remove();
+
+        const view = viewport || {
+            scrollX: window.scrollX,
+            scrollY: window.scrollY,
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
+
+        container = document.createElement('div');
+        container.id = containerId;
+        Object.assign(container.style, {
+            position: 'absolute',
+            left: view.scrollX + 'px',
+            top: view.scrollY + 'px',
+            width: view.width + 'px',
+            height: view.height + 'px',
+            pointerEvents: 'none',
+            zIndex: '2000000'
+        });
+        document.body.appendChild(container);
+
+        // Close Button (Fixed on Screen)
+        const closeBtn = document.createElement('div');
+        closeBtn.innerHTML = "❌ Đóng Overlay";
+        Object.assign(closeBtn.style, {
+            position: 'absolute', top: '20px', right: '20px',
+            backgroundColor: '#dc3545', color: 'white', padding: '10px 20px',
+            borderRadius: '5px', cursor: 'pointer', pointerEvents: 'auto',
+            zIndex: '2000001', fontWeight: 'bold', boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+        });
+        closeBtn.onclick = () => container.remove();
+        container.appendChild(closeBtn);
+
+        const mergedBlocks = mergeNearbyBlocks(blocks);
+        // 3. Process Blocks
+        const scaleX = view.width / imgW;
+        const scaleY = view.height / imgH;
+
+        const measureCtx = document.createElement('canvas').getContext('2d');
+        const fitTextToBox = (text, width, height, fontFamily) => {
+            const minSize = 8;
+            const maxByHeight = Math.max(9, Math.floor(height * 0.35));
+            const maxByWidth = Math.max(9, Math.floor(width / 14));
+            const maxSize = Math.min(18, maxByHeight, maxByWidth);
+            const padding = 4;
+            const maxW = Math.max(1, width - padding);
+            const maxH = Math.max(1, height - padding);
+
+            const wrapLines = (t, fontSize) => {
+                measureCtx.font = `${fontSize}px ${fontFamily}`;
+                const words = t.split(/\s+/).filter(Boolean);
+                if (words.length === 0) return [''];
+                const lines = [];
+                let line = '';
+                for (const word of words) {
+                    const testLine = line ? `${line} ${word}` : word;
+                    if (measureCtx.measureText(testLine).width <= maxW) {
+                        line = testLine;
+                        continue;
+                    }
+                    if (line) lines.push(line);
+                    if (measureCtx.measureText(word).width > maxW) {
+                        let chunk = '';
+                        for (const ch of word) {
+                            const testChunk = chunk + ch;
+                            if (measureCtx.measureText(testChunk).width > maxW) {
+                                if (chunk) lines.push(chunk);
+                                chunk = ch;
+                            } else {
+                                chunk = testChunk;
+                            }
+                        }
+                        if (chunk) lines.push(chunk);
+                        line = '';
+                    } else {
+                        line = word;
+                    }
+                }
+                if (line) lines.push(line);
+                return lines;
+            };
+
+            let bestSize = minSize;
+            let low = minSize;
+            let high = maxSize;
+            while (low <= high) {
+                const mid = Math.floor((low + high) / 2);
+                const lines = wrapLines(text, mid);
+                const lineHeight = mid * 1.2;
+                const totalH = lines.length * lineHeight;
+                if (totalH <= maxH) {
+                    bestSize = mid;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            return bestSize;
+        };
+
+        const applyTextToBox = (box, text, width, height) => {
+            const fontFamily = config.ocrFont || 'Noto Serif, serif';
+            const size = fitTextToBox(text, width, height, fontFamily);
+            box.style.fontFamily = fontFamily;
+            box.style.fontSize = size + 'px';
+            box.style.lineHeight = '1.2';
+            box.textContent = text;
+        };
+
+        // Batch Translate
+        const textsToTranslate = mergedBlocks.map(b => b.text);
+        // FIXME: batch translate function needed. For now parallel single calls.
+        // Or if translatePanelText supports batch? It does string only.
+        // We will loop.
+
+        for (const block of mergedBlocks) {
+            if (!block.box || !block.text) continue;
+
+            // Calculate Rect from 4 points [[x,y]...]
+            const xs = block.box.map(p => p[0]);
+            const ys = block.box.map(p => p[1]);
+            const l = Math.min(...xs);
+            const t = Math.min(...ys);
+            const w = Math.max(...xs) - l;
+            const h = Math.max(...ys) - t;
+
+            const boxDiv = document.createElement('div');
+            Object.assign(boxDiv.style, {
+                position: 'absolute',
+                left: (l * scaleX) + 'px',
+                top: (t * scaleY) + 'px',
+                width: (w * scaleX) + 'px',
+                height: (h * scaleY) + 'px',
+                backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                border: '1px solid #17a2b8',
+                color: '#000',
+                padding: '2px',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+                pointerEvents: 'auto',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                textAlign: 'center',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            });
+            boxDiv.title = "Gốc: " + block.text;
+            boxDiv.textContent = '...';
+
+            container.appendChild(boxDiv);
+
+            // Translate individually (async)
+            translatePanelText(block.text, 'text').then(res => {
+                applyTextToBox(boxDiv, res, w * scaleX, h * scaleY);
+            });
+        }
+    }
+    async function renderSplitViewPopup(imgObj, ocrResult) {
+        // 1. Data Cleaning
+        let blocks = [];
+        const raw = ocrResult.raw || ocrResult;
+        if (Array.isArray(raw)) blocks = raw;
+        else if (raw && raw.src && Array.isArray(raw.src)) blocks = raw.src;
+
+        if (blocks.length === 0) {
+            alert("Không tìm thấy văn bản nào trong ảnh!");
+            return;
+        }
+
+        const mergedBlocks = mergeNearbyBlocks(blocks);
+
+        // 2. UI Setup
+        const modalId = 'tm-ocr-split-view';
+        if (document.getElementById(modalId)) document.getElementById(modalId).remove();
+
+        const modal = document.createElement('div');
+        modal.id = modalId;
+        Object.assign(modal.style, {
+            position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+            backgroundColor: '#222', zIndex: '2000000',
+            display: 'flex', flexDirection: 'column'
+        });
+
+        // Header
+        const header = document.createElement('div');
+        Object.assign(header.style, {
+            height: '40px', backgroundColor: '#333', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px'
+        });
+        header.innerHTML = `<span><b>TM OCR Split View</b> - ${mergedBlocks.length} vùng văn bản</span>`;
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = "Đóng";
+        Object.assign(closeBtn.style, { padding: '5px 15px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' });
+        closeBtn.onclick = () => modal.remove();
+        header.appendChild(closeBtn);
+        modal.appendChild(header);
+
+        // Content Area
+        const content = document.createElement('div');
+        Object.assign(content.style, {
+            flex: '1', display: 'flex', overflow: 'hidden'
+        });
+        modal.appendChild(content);
+
+        // Panes
+        const createPane = (title) => {
+            const wrapper = document.createElement('div');
+            Object.assign(wrapper.style, {
+                flex: '1', display: 'flex', flexDirection: 'column',
+                borderRight: '1px solid #444', overflow: 'hidden', position: 'relative'
+            });
+            const head = document.createElement('div');
+            head.textContent = title;
+            Object.assign(head.style, {
+                background: '#444', color: '#ccc', padding: '5px', textAlign: 'center', fontSize: '12px'
+            });
+            wrapper.appendChild(head);
+            const scrollArea = document.createElement('div');
+            Object.assign(scrollArea.style, {
+                flex: '1', overflow: 'auto', backgroundColor: '#555', display: 'flex', justifyContent: 'center', alignItems: 'start', padding: '10px'
+            });
+            wrapper.appendChild(scrollArea);
+            return { wrapper, scrollArea };
+        };
+
+        const leftPane = createPane("Ảnh Gốc + Vùng Nhận Diện");
+        const rightPane = createPane("Kết Quả Dịch (Đè Ảnh)");
+        content.appendChild(leftPane.wrapper);
+        content.appendChild(rightPane.wrapper);
+
+        // Canvases
+        const createSyncedCanvas = () => {
+            const c = document.createElement('canvas');
+            c.width = imgObj.width;
+            c.height = imgObj.height;
+            c.style.display = 'block';
+            // Draw Initial Image
+            const ctx = c.getContext('2d');
+            ctx.drawImage(imgObj, 0, 0);
+            return c;
+        };
+
+        const createStage = () => {
+            const stage = document.createElement('div');
+            Object.assign(stage.style, {
+                position: 'relative',
+                width: imgObj.width + 'px',
+                height: imgObj.height + 'px',
+                flex: '0 0 auto'
+            });
+            const canvas = createSyncedCanvas();
+            const overlay = document.createElement('div');
+            Object.assign(overlay.style, {
+                position: 'absolute',
+                inset: '0',
+                pointerEvents: 'auto',
+                userSelect: 'text'
+            });
+            stage.appendChild(canvas);
+            stage.appendChild(overlay);
+            return { stage, canvas, overlay };
+        };
+
+        const leftStage = createStage();
+        const rightStage = createStage();
+        leftPane.scrollArea.appendChild(leftStage.stage);
+        rightPane.scrollArea.appendChild(rightStage.stage);
+
+        // Sync Scroll (Simple version)
+        const sL = leftPane.scrollArea;
+        const sR = rightPane.scrollArea;
+        let isSyncingLeft = false;
+        let isSyncingRight = false;
+
+        sL.onscroll = () => {
+            if (!isSyncingLeft) {
+                isSyncingRight = true;
+                sR.scrollTop = sL.scrollTop;
+                sR.scrollLeft = sL.scrollLeft;
+            }
+            isSyncingLeft = false;
+        };
+        sR.onscroll = () => {
+            if (!isSyncingRight) {
+                isSyncingLeft = true;
+                sL.scrollTop = sR.scrollTop;
+                sL.scrollLeft = sR.scrollLeft;
+            }
+            isSyncingRight = false;
+        };
+
+        document.body.appendChild(modal);
+
+        // 3. Draw Left (Chinese Boxes)
+        const ctxL = leftStage.canvas.getContext('2d');
+        const baseCanvas = document.createElement('canvas');
+        baseCanvas.width = imgObj.width;
+        baseCanvas.height = imgObj.height;
+        const baseCtx = baseCanvas.getContext('2d');
+        baseCtx.drawImage(imgObj, 0, 0);
+        ctxL.strokeStyle = 'red';
+        ctxL.lineWidth = 2;
+        ctxL.font = '12px Arial';
+        ctxL.fillStyle = 'red'; // For text number or debug
+
+        for (const block of mergedBlocks) {
+            if (!block.box) continue;
+            // Draw box
+            ctxL.beginPath();
+            ctxL.moveTo(block.box[0][0], block.box[0][1]);
+            for (let i = 1; i < block.box.length; i++) ctxL.lineTo(block.box[i][0], block.box[i][1]);
+            ctxL.closePath();
+            ctxL.stroke();
+        }
+
+        // 4. Draw Right (Translation)
+        // Helper to get rect
+        const getRect = (box) => {
+            const xs = box.map(p => p[0]);
+            const ys = box.map(p => p[1]);
+            const l = Math.min(...xs);
+            const t = Math.min(...ys);
+            const w = Math.max(...xs) - l;
+            const h = Math.max(...ys) - t;
+            return { l, t, w, h };
+        };
+
+        const getAverageColor = (ctx, rect) => {
+            const maxSample = 64;
+            const padding = 8;
+            const outerL = Math.max(0, Math.floor(rect.l - padding));
+            const outerT = Math.max(0, Math.floor(rect.t - padding));
+            const outerR = Math.min(ctx.canvas.width, Math.ceil(rect.l + rect.w + padding));
+            const outerB = Math.min(ctx.canvas.height, Math.ceil(rect.t + rect.h + padding));
+            const innerL = Math.max(0, Math.floor(rect.l));
+            const innerT = Math.max(0, Math.floor(rect.t));
+            const innerR = Math.min(ctx.canvas.width, Math.ceil(rect.l + rect.w));
+            const innerB = Math.min(ctx.canvas.height, Math.ceil(rect.t + rect.h));
+            const sw = Math.max(1, outerR - outerL);
+            const sh = Math.max(1, outerB - outerT);
+            const sampleW = Math.min(sw, maxSample);
+            const sampleH = Math.min(sh, maxSample);
+            const stepX = Math.max(1, Math.floor(sw / sampleW));
+            const stepY = Math.max(1, Math.floor(sh / sampleH));
+            const data = ctx.getImageData(outerL, outerT, sw, sh).data;
+
+            let r = 0, g = 0, b = 0, count = 0;
+            for (let y = 0; y < sh; y += stepY) {
+                for (let x = 0; x < sw; x += stepX) {
+                    const px = outerL + x;
+                    const py = outerT + y;
+                    if (px >= innerL && px <= innerR && py >= innerT && py <= innerB) {
+                        continue;
+                    }
+                    const idx = (y * sw + x) * 4;
+                    r += data[idx];
+                    g += data[idx + 1];
+                    b += data[idx + 2];
+                    count++;
+                }
+            }
+            if (!count) return { r: 255, g: 255, b: 255 };
+            return { r: Math.round(r / count), g: Math.round(g / count), b: Math.round(b / count) };
+        };
+
+        const getTextColor = (rgb) => {
+            const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+            return luminance > 0.6 ? '#111' : '#f8f8f8';
+        };
+
+        const measureCtx = document.createElement('canvas').getContext('2d');
+        const fitTextToBox = (text, width, height, fontFamily) => {
+            const minSize = 8;
+            const maxByHeight = Math.max(9, Math.floor(height * 0.3));
+            const maxByWidth = Math.max(9, Math.floor(width / 14));
+            const charCount = Math.max(1, text.length);
+            const maxByChars = Math.max(9, Math.floor(Math.sqrt((width * height) / charCount) * 0.7));
+            const maxSize = Math.min(16, maxByHeight, maxByWidth, maxByChars);
+            const padding = 4;
+            const maxW = Math.max(1, width - padding);
+            const maxH = Math.max(1, height - padding);
+
+            const wrapLines = (t, fontSize) => {
+                measureCtx.font = `${fontSize}px ${fontFamily}`;
+                const words = t.split(/\s+/).filter(Boolean);
+                if (words.length === 0) return [''];
+                const lines = [];
+                let line = '';
+                for (const word of words) {
+                    const testLine = line ? `${line} ${word}` : word;
+                    if (measureCtx.measureText(testLine).width <= maxW) {
+                        line = testLine;
+                        continue;
+                    }
+                    if (line) lines.push(line);
+                    if (measureCtx.measureText(word).width > maxW) {
+                        let chunk = '';
+                        for (const ch of word) {
+                            const testChunk = chunk + ch;
+                            if (measureCtx.measureText(testChunk).width > maxW) {
+                                if (chunk) lines.push(chunk);
+                                chunk = ch;
+                            } else {
+                                chunk = testChunk;
+                            }
+                        }
+                        if (chunk) lines.push(chunk);
+                        line = '';
+                    } else {
+                        line = word;
+                    }
+                }
+                if (line) lines.push(line);
+                return lines;
+            };
+
+            let bestSize = minSize;
+            let low = minSize;
+            let high = maxSize;
+            while (low <= high) {
+                const mid = Math.floor((low + high) / 2);
+                const lines = wrapLines(text, mid);
+                const lineHeight = mid * 1.15;
+                const totalH = lines.length * lineHeight;
+                if (totalH <= maxH) {
+                    bestSize = mid;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            return bestSize;
+        };
+
+        const applyFitTextToOverlay = (el, text, rect) => {
+            const fontFamily = config.ocrFont || 'Noto Serif, serif';
+            const size = Math.min(Math.floor(fitTextToBox(text, rect.w, rect.h, fontFamily) * 1.5), rect.h);
+            el.style.fontFamily = fontFamily;
+            el.style.fontSize = size + 'px';
+            el.style.lineHeight = '1.15';
+            el.textContent = text;
+        };
+
+        const createTextOverlayBlock = (text, rect, options = {}) => {
+            const div = document.createElement('div');
+            Object.assign(div.style, {
+                position: 'absolute',
+                left: rect.l + 'px',
+                top: rect.t + 'px',
+                width: rect.w + 'px',
+                height: rect.h + 'px',
+                padding: '2px',
+                boxSizing: 'border-box',
+                background: options.background || 'rgba(255,255,255,0.6)',
+                border: options.border || '1px solid rgba(0,0,0,0.2)',
+                color: options.color || '#000',
+                fontFamily: config.ocrFont || 'Noto Serif',
+                fontSize: '12px',
+                lineHeight: '1.15',
+                whiteSpace: 'pre-wrap',
+                overflow: 'hidden',
+                pointerEvents: 'auto',
+                userSelect: 'text'
+            });
+            div.textContent = text;
+            return div;
+        };
+
+        // Translate and Draw Loop
+        for (const block of mergedBlocks) {
+            if (!block.box || !block.text) continue;
+            const { l, t, w, h } = getRect(block.box);
+
+            const rect = { l, t, w, h };
+            const avgColor = getAverageColor(baseCtx, rect);
+            const textColor = getTextColor(avgColor);
+            const bgColor = `rgba(${avgColor.r}, ${avgColor.g}, ${avgColor.b}, 0.95)`;
+            const leftTextBox = createTextOverlayBlock(block.text, rect, {
+                background: bgColor,
+                border: '1px solid rgba(255,0,0,0.55)',
+                color: textColor
+            });
+            leftStage.overlay.appendChild(leftTextBox);
+            applyFitTextToOverlay(leftTextBox, block.text, rect);
+
+            const rightTextBox = createTextOverlayBlock('...', rect, {
+                background: bgColor,
+                border: '1px solid rgba(0,0,0,0.25)',
+                color: textColor
+            });
+            rightStage.overlay.appendChild(rightTextBox);
+
+            // Async Translate
+            translatePanelText(block.text, 'text').then(translated => {
+                applyFitTextToOverlay(rightTextBox, translated, rect);
+            });
+        }
+    }
+
     async function activateAreaSelectionMode() {
         showNotification('Chế độ OCR: Kéo chuột để chọn vùng cần dịch. (Nhấn Esc để hủy)', 4000);
 
@@ -4551,10 +5489,20 @@
                 }
 
                 const track = stream.getVideoTracks()[0];
-                const imageCapture = new ImageCapture(track);
 
-                await sleep(50);
-                const bitmap = await imageCapture.grabFrame();
+                const styleId = 'tm-hide-cursor-style';
+                let styleTag = document.getElementById(styleId);
+                if (!styleTag) {
+                    styleTag = document.createElement('style');
+                    styleTag.id = styleId;
+                    styleTag.innerHTML = '* { cursor: none !important; }';
+                    document.head.appendChild(styleTag);
+                }
+
+                await sleep(100); // Wait for browser repaint
+                const bitmap = await grabFrameFromStream(track, stream);
+
+                if (styleTag) styleTag.remove(); // Restore cursor
 
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
