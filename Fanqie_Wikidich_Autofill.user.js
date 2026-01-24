@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Wikidich Autofill
 // @namespace    http://tampermonkey.net/
-// @version      0.1.1
-// @description  Lấy thông tin từ web Trung, dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
+// @version      0.1.2
+// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Fanqie_Wikidich_Autofill.user.js
@@ -14,6 +14,7 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @connect      api5-normal-sinfonlineb.fqnovel.com
+// @connect      app.jjwxc.net
 // @connect      dichngay.com
 // @connect      fanqiesdkpic.com
 // @connect      *
@@ -40,6 +41,9 @@
     const state = {
         groups: null,
         rawData: null,
+        sourceData: null,
+        sourceType: null,
+        sourceLabel: null,
         translated: null,
         suggestions: null,
     };
@@ -99,6 +103,83 @@
 
     function splitTokens(text) {
         return normalizeText(text).split(' ').filter(Boolean);
+    }
+
+    function buildNameSetReplacer(nameSet) {
+        const keys = Object.keys(nameSet || {}).sort((a, b) => b.length - a.length);
+        return function (text, placeholderMap) {
+            let out = text;
+            for (const k of keys) {
+                if (!k) continue;
+                if (out.includes(k)) {
+                    const id = `__FWDA_NAME_${Object.keys(placeholderMap).length}__`;
+                    placeholderMap[id] = { orig: k, viet: nameSet[k] };
+                    out = out.split(k).join(id);
+                }
+            }
+            return out;
+        };
+    }
+
+    function restoreNames(text, placeholderMap) {
+        if (!text || !placeholderMap) return text;
+        let result = text;
+        for (const placeholder in placeholderMap) {
+            const regex = new RegExp(placeholder.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+            result = result.replace(regex, placeholderMap[placeholder].viet + ' ');
+        }
+        return result;
+    }
+
+    function capitalizeFirstLetter(s) {
+        if (typeof s !== 'string' || !s) return s;
+        return s.replace(/(^|[\.?!])(\s*["'“‘(\[]*)(\p{L})/gu, (match, p1, p2, p3) => {
+            return p1 + p2 + p3.toUpperCase();
+        });
+    }
+
+    function fixSpacing(text) {
+        let result = (text || '').toString();
+        result = result.replace(/\s+([,.;!?\)]|”|’|:)/g, '$1');
+        result = result.replace(/([\(\[“‘])\s+/g, '$1');
+        result = result.replace(/\s+/g, ' ').trim();
+        return result;
+    }
+
+    function cleanupText(text, preserveLineBreaks) {
+        if (!preserveLineBreaks) return capitalizeFirstLetter(fixSpacing(text));
+        const normalized = (text || '').toString().replace(/\r\n/g, '\n');
+        const lines = normalized.split('\n');
+        const cleaned = lines.map(line => {
+            if (!line.trim()) return '';
+            return capitalizeFirstLetter(fixSpacing(line));
+        });
+        return cleaned.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function parseNameSet(raw) {
+        const lines = (raw || '').split(/\r?\n/);
+        const map = {};
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+            let sep = '=>';
+            if (trimmed.includes(sep)) {
+                const [orig, viet] = trimmed.split(sep).map(s => s.trim());
+                if (orig && viet) map[orig] = viet;
+                continue;
+            }
+            if (trimmed.includes('=')) {
+                const [orig, viet] = trimmed.split('=').map(s => s.trim());
+                if (orig && viet) map[orig] = viet;
+                continue;
+            }
+            if (trimmed.includes('|')) {
+                const [orig, viet] = trimmed.split('|').map(s => s.trim());
+                if (orig && viet) map[orig] = viet;
+            }
+        }
+        return map;
     }
 
     function resolveNegationConflicts(labels) {
@@ -233,11 +314,71 @@
         return translatedParts.join('\n\n');
     }
 
+    async function translateTextWithNameSet(text, nameSet, preserveLineBreaks) {
+        const raw = safeText(text);
+        if (!raw) return '';
+        const nameMap = nameSet || {};
+        const nameReplacer = buildNameSetReplacer(nameMap);
+        const placeholderMap = {};
+        const processed = nameReplacer(raw, placeholderMap);
+        let translated = '';
+        if (preserveLineBreaks) {
+            const lines = processed.replace(/\r\n/g, '\n').split('\n');
+            const translatedLines = await translateList(lines);
+            translated = translatedLines.join('\n');
+        } else if (processed.length <= MAX_CHARS) {
+            const [result] = await translateList([processed]);
+            translated = result || processed;
+        } else {
+            translated = await translateLongText(processed);
+        }
+        const restored = Object.keys(placeholderMap).length ? restoreNames(translated, placeholderMap) : translated;
+        return cleanupText(restored, preserveLineBreaks);
+    }
+
     function extractBookId(url) {
         const m = safeText(url).match(/\/(?:page|reader)\/(\d+)/);
         if (m) return m[1];
         const onlyDigits = safeText(url).match(/(\d{10,})/);
         return onlyDigits ? onlyDigits[1] : '';
+    }
+
+    function extractJjwxcId(url) {
+        const raw = safeText(url);
+        let m = raw.match(/book2\/(\d+)/i);
+        if (m) return m[1];
+        m = raw.match(/novelid=(\d+)/i);
+        if (m) return m[1];
+        m = raw.match(/\/(\d+)(?:\.html|\/)?$/i);
+        if (m) return m[1];
+        return '';
+    }
+
+    function detectSource(url) {
+        const raw = safeText(url);
+        if (/fanqienovel\.com/i.test(raw)) {
+            return { type: 'fanqie', id: extractBookId(raw) };
+        }
+        if (/jjwxc\.net/i.test(raw) || /novelid=/i.test(raw) || /book2\//i.test(raw)) {
+            return { type: 'jjwxc', id: extractJjwxcId(raw) };
+        }
+        return null;
+    }
+
+    function parseTagList(text) {
+        return safeText(text)
+            .split(/[，,、/|]/)
+            .map(s => s.trim())
+            .filter(Boolean);
+    }
+
+    function htmlToText(html) {
+        let out = (html || '').toString();
+        out = out.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+        out = out.replace(/<br\s*\/?>/gi, '\n');
+        out = out.replace(/<[^>]+>/g, '');
+        out = out.replace(/\n{3,}/g, '\n\n');
+        return out.trim();
     }
 
     function fetchFanqieData(bookId) {
@@ -266,6 +407,140 @@
         });
     }
 
+    function fetchJjwxcData(bookId) {
+        const apiUrl = `http://app.jjwxc.net/androidapi/novelbasicinfo?novelId=${bookId}`;
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: apiUrl,
+                responseType: 'json',
+                onload(res) {
+                    let parsed = res.response;
+                    if (!parsed && res.responseText) {
+                        try { parsed = JSON.parse(res.responseText); } catch { parsed = null; }
+                    }
+                    if (!parsed) {
+                        reject(new Error('JJWXC API không có dữ liệu.'));
+                        return;
+                    }
+                    resolve(parsed);
+                },
+                onerror(err) {
+                    reject(err);
+                },
+            });
+        });
+    }
+
+    function checkImageUrlValid(url) {
+        return new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'HEAD',
+                url,
+                onload: (res) => {
+                    const contentType = (res.responseHeaders || '')
+                        .match(/content-type:\s*([^\r\n]+)/i)?.[1] || '';
+                    resolve(res.status === 200 && contentType.toLowerCase().startsWith('image/'));
+                },
+                onerror: () => resolve(false),
+                ontimeout: () => resolve(false),
+            });
+        });
+    }
+
+    async function processJjwxcCover(novelCover) {
+        if (!novelCover) return '';
+        const coverRaw = novelCover;
+        const modifiedCover = coverRaw
+            .replace(/_[0-9]+_[0-9]+(?=\.jpg)/, '')
+            .replace(/\.jpg.*/i, '.jpg');
+        const isValid = await checkImageUrlValid(modifiedCover);
+        return isValid ? modifiedCover : coverRaw;
+    }
+
+    function describeCharacterRelationsJJWXC(data) {
+        if (!data || !Array.isArray(data.characters) || !Array.isArray(data.character_relations)) return '';
+        const genderLabel = (g) => {
+            if (g === '1') return '【男】';
+            if (g === '0') return '【女】';
+            return '【其他】';
+        };
+        const charactersById = {};
+        data.characters.forEach(c => { charactersById[c.character_id] = c; });
+        const pov = data.characters.find(c => c.is_pov === '1');
+        if (!pov) return '';
+
+        const lovers = [];
+        const loverIds = new Set();
+        data.character_relations.forEach(rel => {
+            if (rel.start === pov.character_id && charactersById[rel.end]) {
+                lovers.push(charactersById[rel.end]);
+                loverIds.add(rel.end);
+            }
+        });
+        let mainLine = `主角视角：${pov.character_name}${genderLabel(pov.character_gender)}`;
+        if (lovers.length > 0) {
+            const loverStr = lovers.map(l => `${l.character_name}${genderLabel(l.character_gender)}`).join(', ');
+            mainLine += `(互动)${loverStr}`;
+        }
+        const otherLines = data.characters
+            .filter(c => c.character_id !== pov.character_id && !loverIds.has(c.character_id))
+            .map(c => `配角: ${c.character_name} ${genderLabel(c.character_gender)}`);
+        return [mainLine].concat(otherLines).join('\n');
+    }
+
+    function normalizeFanqieData(raw) {
+        const titleCn = safeText(raw.book_name || raw.original_book_name);
+        const authorCn = safeText(raw.author);
+        const descCn = safeText(raw.book_abstract_v2 || raw.abstract);
+        const tags = parseTagList(raw.tags).concat(parseTagList(raw.pure_category_tags));
+        const categoryV2 = Array.isArray(raw.category_v2)
+            ? raw.category_v2
+            : (() => {
+                try { return JSON.parse(raw.category_v2 || '[]'); } catch { return []; }
+            })();
+        const categories = categoryV2.map(c => c?.Name).filter(Boolean);
+        if (raw.category) categories.push(raw.category);
+        return {
+            sourceType: 'fanqie',
+            sourceLabel: 'Cà Chua',
+            titleCn,
+            authorCn,
+            descCn,
+            tags: Array.from(new Set(tags)),
+            categories: Array.from(new Set(categories)),
+            coverUrl: raw.expand_thumb_url || raw.thumb_url || '',
+            statusHint: '',
+            update_status: raw.update_status,
+            extraKeywords: [],
+        };
+    }
+
+    function normalizeJjwxcData(raw) {
+        const titleCn = safeText(raw.novelName);
+        const authorCn = safeText(raw.authorName);
+        const introText = htmlToText(raw.novelIntro || '');
+        const relText = describeCharacterRelationsJJWXC(raw);
+        const descCn = [introText, relText].filter(Boolean).join('\n');
+        const tags = parseTagList(raw.novelTags);
+        const categories = parseTagList(raw.novelClass);
+        const statusHint = safeText(raw.novelStatus || raw.novelStep || raw.isFinished || raw.novelComplete);
+        const extraKeywords = parseTagList(raw.novelType || raw.novelTypeName || '');
+        return {
+            sourceType: 'jjwxc',
+            sourceLabel: 'Tấn Giang',
+            titleCn,
+            authorCn,
+            descCn,
+            tags,
+            categories,
+            coverUrl: safeText(raw.novelCover),
+            statusHint,
+            update_status: undefined,
+            extraKeywords,
+        };
+    }
+
     function getGroupOptions() {
         const groups = {
             status: [],
@@ -287,39 +562,48 @@
         return groups;
     }
 
-    function buildKeywordList(raw, translated) {
-        const tags = safeText(raw.tags)
-            .split(',')
-            .map(s => s.trim())
-            .filter(Boolean);
-        const pureTags = safeText(raw.pure_category_tags)
-            .split(',')
-            .map(s => s.trim())
-            .filter(Boolean);
-        const categoryV2 = Array.isArray(raw.category_v2)
-            ? raw.category_v2
-            : (() => {
-                try { return JSON.parse(raw.category_v2 || '[]'); } catch { return []; }
-            })();
-        const categoryNames = categoryV2.map(c => c?.Name).filter(Boolean);
-        const cat = safeText(raw.category) ? [safeText(raw.category)] : [];
-        const rawList = [...tags, ...pureTags, ...categoryNames, ...cat];
+    function buildKeywordList(sourceData, translated) {
+        const rawList = []
+            .concat(sourceData?.tags || [])
+            .concat(sourceData?.categories || [])
+            .concat(sourceData?.extraKeywords || []);
         const translatedList = translated?.tags || [];
         const translatedCats = translated?.categories || [];
-        const combined = [...rawList, ...translatedList, ...translatedCats]
+        const combined = expandKeywordAliases([...rawList, ...translatedList, ...translatedCats])
             .map(safeText)
             .filter(Boolean);
         return Array.from(new Set(combined));
     }
 
+    function expandKeywordAliases(list) {
+        const expanded = [];
+        for (const item of list || []) {
+            const text = safeText(item);
+            if (!text) continue;
+            expanded.push(text);
+            const norm = normalizeText(text);
+            if (norm.includes('主受') || norm.includes('chu thiu')) {
+                expanded.push('Chủ thụ');
+            }
+            if (norm.includes('互攻') || norm.includes('ho cong')) {
+                expanded.push('Hỗ công');
+            }
+            if (norm.includes('纯爱') || norm.includes('thuan ai')) {
+                expanded.push('Đam mỹ');
+            }
+        }
+        return expanded;
+    }
+
     function detectStatus(raw, textBlob) {
-        const cn = normalizeText(textBlob);
+        const cn = normalizeText(textBlob + ' ' + safeText(raw.statusHint || ''));
         const hasDone = /hoan thanh|da xong|da hoan thanh|完结|完本|已完结/.test(cn);
         const hasPause = /tam ngung|暂停|断更|停更/.test(cn);
+        const hasOngoing = /连载|连載|更新中|dang cap nhat|con tiep/.test(cn);
         if (hasDone) return 'Hoàn thành';
         if (hasPause) return 'Tạm ngưng';
-        if (raw.update_status === 1) return 'Hoàn thành';
-        if (raw.update_status === 0) return 'Còn tiếp';
+        if (raw.update_status === 1 || raw.isFinished === '1' || raw.is_finished === '1') return 'Hoàn thành';
+        if (raw.update_status === 0 || hasOngoing) return 'Còn tiếp';
         return 'Còn tiếp';
     }
 
@@ -332,6 +616,7 @@
     function detectGender(keywords) {
         const blob = normalizeText(keywords.join(' '));
         if (/(song nam chu|双男主)/.test(blob)) return 'Đam mỹ';
+        if (/(纯爱|thuan ai)/.test(blob)) return 'Đam mỹ';
         if (/(bach hop|百合|双女主)/.test(blob)) return 'Bách hợp';
         if (/(nu ton|女尊)/.test(blob)) return 'Nữ tôn';
         if (/(khong cp|无cp|无 c p)/.test(blob)) return 'Không CP';
@@ -387,16 +672,16 @@
         return '';
     }
 
-    function buildSuggestions(raw, translated, groups) {
-        const descCn = safeText(raw.book_abstract_v2 || raw.abstract);
+    function buildSuggestions(sourceData, translated, groups) {
+        const descCn = safeText(sourceData.descCn);
         const descVi = safeText(translated?.desc || '');
         const tagsVi = translated?.tags || [];
         const catsVi = translated?.categories || [];
 
-        const keywords = buildKeywordList(raw, translated);
+        const keywords = buildKeywordList(sourceData, translated);
         const textBlob = [descCn, descVi, keywords.join(' ')].join(' ');
 
-        const statusLabel = detectStatus(raw, textBlob);
+        const statusLabel = detectStatus(sourceData, textBlob);
         const officialLabel = detectOfficial(keywords);
         const genderLabel = detectGender(keywords);
 
@@ -602,6 +887,10 @@
                         <input id="${APP_PREFIX}extraKeywords" class="${APP_PREFIX}input" placeholder="ví dụ: tiên hiệp, HE, hiện đại" />
                     </div>
                     <div class="${APP_PREFIX}row">
+                        <label class="${APP_PREFIX}label">Bộ name (mỗi dòng: gốc=dịch)</label>
+                        <textarea id="${APP_PREFIX}nameSet" class="${APP_PREFIX}textarea" placeholder="Ví dụ:\n张三=Trương Tam\n李四=Lý Tứ"></textarea>
+                    </div>
+                    <div class="${APP_PREFIX}row">
                         <label class="${APP_PREFIX}label">Tên gốc (CN)</label>
                         <input id="${APP_PREFIX}titleCn" class="${APP_PREFIX}input" />
                     </div>
@@ -718,35 +1007,61 @@
             try {
                 if (!state.groups) state.groups = getGroupOptions();
                 const urlInput = shadowRoot.getElementById(`${APP_PREFIX}url`);
-                const bookId = extractBookId(urlInput.value);
-                if (!bookId) {
+                const sourceInfo = detectSource(urlInput.value);
+                if (!sourceInfo || !sourceInfo.id) {
                     log('URL không hợp lệ.', 'error');
                     return;
                 }
+                log(`Nguồn: ${sourceInfo.type} | ID: ${sourceInfo.id}`);
                 GM_setValue(`${APP_PREFIX}last_url`, urlInput.value);
-                log('Đang gọi API Fanqie...');
-                const raw = await fetchFanqieData(bookId);
+                let raw = null;
+                let sourceData = null;
+                if (sourceInfo.type === 'fanqie') {
+                    log('Đang gọi API Fanqie...');
+                    raw = await fetchFanqieData(sourceInfo.id);
+                    sourceData = normalizeFanqieData(raw);
+                    log(`Fanqie OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
+                } else if (sourceInfo.type === 'jjwxc') {
+                    log('Đang gọi API JJWXC...');
+                    raw = await fetchJjwxcData(sourceInfo.id);
+                    sourceData = normalizeJjwxcData(raw);
+                    if (sourceData.coverUrl) {
+                        log('Đang xử lý ảnh bìa JJWXC...');
+                        sourceData.coverUrl = await processJjwxcCover(sourceData.coverUrl);
+                    }
+                    log(`JJWXC OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
+                } else {
+                    log('Nguồn chưa hỗ trợ.', 'error');
+                    return;
+                }
                 state.rawData = raw;
+                state.sourceData = sourceData;
+                state.sourceType = sourceInfo.type;
+                state.sourceLabel = sourceData.sourceLabel;
                 log('Đã lấy dữ liệu. Đang dịch...');
 
-                const titleCn = safeText(raw.book_name || raw.original_book_name);
-                const authorCn = safeText(raw.author);
-                const descCn = safeText(raw.book_abstract_v2 || raw.abstract);
-                const tagsRaw = safeText(raw.tags)
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-                const categoryV2 = Array.isArray(raw.category_v2)
-                    ? raw.category_v2
-                    : (() => {
-                        try { return JSON.parse(raw.category_v2 || '[]'); } catch { return []; }
-                    })();
-                const categoryNames = categoryV2.map(c => c?.Name).filter(Boolean);
+                const titleCn = safeText(sourceData.titleCn);
+                const authorCn = safeText(sourceData.authorCn);
+                const descCn = safeText(sourceData.descCn);
+                const nameSetRaw = shadowRoot.getElementById(`${APP_PREFIX}nameSet`).value;
+                const nameSet = parseNameSet(nameSetRaw);
+                state.nameSet = nameSet;
+                GM_setValue(`${APP_PREFIX}name_set`, nameSetRaw);
+                const tagsRaw = sourceData.tags || [];
+                const categoryNames = sourceData.categories || [];
 
-                const titleVi = (await translateList([titleCn]))[0] || titleCn;
-                const descVi = await translateLongText(descCn);
+                log(`Dịch tiêu đề (${titleCn.length} ký tự)...`);
+                const titleVi = await translateTextWithNameSet(titleCn, nameSet, false);
+                log('Dịch tiêu đề xong.', 'ok');
+                log(`Dịch mô tả (${descCn.length} ký tự)...`);
+                const descVi = await translateTextWithNameSet(descCn, nameSet, true);
+                log('Dịch mô tả xong.', 'ok');
+                if (tagsRaw.length) log(`Dịch tags (${tagsRaw.length})...`);
                 const tagsVi = await translateList(tagsRaw);
+                if (tagsRaw.length) log('Dịch tags xong.', 'ok');
+                if (categoryNames.length) log(`Dịch thể loại (${categoryNames.length})...`);
                 const catsVi = await translateList(categoryNames);
+                if (categoryNames.length) log('Dịch thể loại xong.', 'ok');
 
                 state.translated = {
                     titleVi,
@@ -755,15 +1070,17 @@
                     categories: catsVi,
                 };
 
-                const suggestions = buildSuggestions(raw, state.translated, state.groups);
+                log('Đang tạo gợi ý tick...');
+                const suggestions = buildSuggestions(sourceData, state.translated, state.groups);
                 state.suggestions = suggestions;
+                log('Tạo gợi ý xong.', 'ok');
 
                 log('Dịch xong. Đang tạo gợi ý...');
                 fillText(`${APP_PREFIX}titleCn`, titleCn);
                 fillText(`${APP_PREFIX}authorCn`, authorCn);
                 fillText(`${APP_PREFIX}titleVi`, titleVi);
                 fillText(`${APP_PREFIX}descVi`, descVi);
-                fillText(`${APP_PREFIX}coverUrl`, raw.expand_thumb_url || raw.thumb_url || '');
+                fillText(`${APP_PREFIX}coverUrl`, sourceData.coverUrl || '');
 
                 fillSelect(shadowRoot.getElementById(`${APP_PREFIX}status`), state.groups.status, suggestions.status);
                 fillSelect(shadowRoot.getElementById(`${APP_PREFIX}official`), state.groups.official, suggestions.official);
@@ -781,14 +1098,14 @@
         }
 
         function handleRecompute() {
-            if (!state.rawData || !state.groups) {
+            if (!state.sourceData || !state.groups) {
                 log('Chưa có dữ liệu để recompute.', 'warn');
                 return;
             }
             const extra = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}extraKeywords`).value);
-            const baseKeywords = buildKeywordList(state.rawData, state.translated);
+            const baseKeywords = buildKeywordList(state.sourceData, state.translated);
             const combinedKeywords = baseKeywords.concat(extra);
-            const descCn = safeText(state.rawData.book_abstract_v2 || state.rawData.abstract);
+            const descCn = safeText(state.sourceData.descCn);
             const descVi = safeText(state.translated?.desc || '');
             const textBlob = [descCn, descVi, combinedKeywords.join(' ')].join(' ');
 
@@ -841,7 +1158,8 @@
             applyCheckboxes(state.groups.genre, genreList.length ? genreList : state.suggestions?.genre || []);
             applyCheckboxes(state.groups.tag, tagList.length ? tagList : state.suggestions?.tag || []);
 
-            setMoreLink('Cà chua', sourceUrl);
+            const sourceLabel = state.sourceLabel || 'Nguồn';
+            setMoreLink(sourceLabel, sourceUrl);
             await applyCover(coverUrl, log);
             log('Đã áp dữ liệu vào form.', 'ok');
         }
@@ -926,6 +1244,11 @@
 
         const last = GM_getValue(`${APP_PREFIX}last_url`, '');
         if (last) shadowRoot.getElementById(`${APP_PREFIX}url`).value = last;
+        const nameSetSaved = GM_getValue(`${APP_PREFIX}name_set`, '');
+        if (nameSetSaved) shadowRoot.getElementById(`${APP_PREFIX}nameSet`).value = nameSetSaved;
+        shadowRoot.getElementById(`${APP_PREFIX}nameSet`).addEventListener('input', (ev) => {
+            GM_setValue(`${APP_PREFIX}name_set`, ev.target.value || '');
+        });
         log('Sẵn sàng. Dán link Fanqie rồi bấm "Lấy dữ liệu".');
     }
 
