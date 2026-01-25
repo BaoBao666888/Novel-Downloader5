@@ -3,6 +3,7 @@ import re
 import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
+from urllib.parse import urlparse
 
 import pythoncom
 import requests
@@ -41,7 +42,17 @@ class OnlineTabMixin:
         ttk.Label(current_frame, text="Nguồn hiện tại:").grid(row=0, column=0, sticky="w")
         self.source_current_label = ttk.Label(current_frame, text="", font=("Segoe UI", 10, "bold"))
         self.source_current_label.grid(row=0, column=1, sticky="w", padx=(6, 0))
-        ttk.Button(current_frame, text="Chọn nguồn...", command=self._open_source_selector).grid(row=0, column=2, padx=(10,0))
+        ttk.Label(current_frame, text="Cookie:").grid(row=0, column=2, sticky="w", padx=(12, 0))
+        self.online_cookie_profile_var = tk.StringVar()
+        self.online_cookie_profile_cb = ttk.Combobox(
+            current_frame,
+            textvariable=self.online_cookie_profile_var,
+            state="readonly",
+            width=16,
+        )
+        self.online_cookie_profile_cb.grid(row=0, column=3, sticky="w", padx=(6, 4))
+        ttk.Button(current_frame, text="↻", width=2, command=self._refresh_online_cookie_profiles).grid(row=0, column=4)
+        ttk.Button(current_frame, text="Chọn nguồn...", command=self._open_source_selector).grid(row=0, column=5, padx=(10, 0))
 
         info_frame = ttk.Frame(fetch_frame)
         info_frame.grid(row=1, column=0, sticky="ew")
@@ -61,6 +72,8 @@ class OnlineTabMixin:
         url_frame.columnconfigure(0, weight=1)
         ttk.Entry(url_frame, textvariable=self.source_url).grid(row=0, column=0, sticky="ew")
         ttk.Button(url_frame, text="Bắt đầu lấy dữ liệu", command=self._fetch_online_titles).grid(row=0, column=1, padx=(8,0))
+
+        self._refresh_online_cookie_profiles()
         self._update_source_info_labels()
 
         # Frame 2: Kết quả
@@ -112,12 +125,30 @@ class OnlineTabMixin:
         if not url:
             messagebox.showerror("Lỗi", "Vui lòng nhập URL mục lục.")
             return
+        url = url.strip()
+        if not url:
+            messagebox.showerror("Lỗi", "Vui lòng nhập URL mục lục.")
+            return
+
+        matched = self._find_online_source_by_url(url)
+        current_id = self.selected_online_source.get()
+        current_config = SOURCE_BY_ID.get(current_id)
+        if matched:
+            if current_config and matched.get("id") != current_config.get("id"):
+                self.selected_online_source.set(matched["id"])
+                self._update_source_info_labels()
+            config = matched
+        else:
+            if current_config:
+                messagebox.showerror("Lỗi", "Không tìm thấy nguồn phù hợp với domain của URL.")
+            else:
+                messagebox.showerror("Lỗi", "Không tìm thấy cấu hình nguồn phù hợp.")
+            return
 
         def _worker():
             pythoncom.CoInitialize()
             try:
                 self.log(f"Đang lấy dữ liệu từ {url}...")
-                config = SOURCE_BY_ID.get(self.selected_online_source.get())
                 if not config:
                     result = {"error": "Không tìm thấy cấu hình nguồn. Vui lòng chọn lại."}
                 else:
@@ -125,13 +156,22 @@ class OnlineTabMixin:
                     proxies = self._get_proxy_for_request("fetch_titles")
                     if proxies:
                         self.log(f"Sử dụng proxy: {proxies['http']}")
+                    profile_name = ""
+                    if hasattr(self, "online_cookie_profile_var"):
+                        profile_name = (self.online_cookie_profile_var.get() or "").strip()
+                    cookie_db_path = None
+                    if profile_name and hasattr(self, "_wd_get_cookie_db_path"):
+                        try:
+                            cookie_db_path = self._wd_get_cookie_db_path(profile_name)
+                        except Exception:
+                            cookie_db_path = None
 
                     if selected_site == "jjwxc.net":
                         result = jjwxc_ext.fetch_chapters(url, proxies=proxies)
                     elif selected_site == "po18.tw":
-                        result = po18_ext.fetch_chapters(url, root_window=self, proxies=proxies)
+                        result = po18_ext.fetch_chapters(url, root_window=self, proxies=proxies, cookie_db_path=cookie_db_path)
                     elif selected_site == "qidian.com":
-                        result = qidian_ext.fetch_chapters(url, root_window=self, proxies=proxies)
+                        result = qidian_ext.fetch_chapters(url, root_window=self, proxies=proxies, cookie_db_path=cookie_db_path)
                     elif selected_site == "fanqienovel.com":
                         result = fanqienovel_ext.fetch_chapters(url, proxies=proxies)
                     elif selected_site == "ihuaben.com":
@@ -154,6 +194,26 @@ class OnlineTabMixin:
                 pythoncom.CoUninitialize()
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    def _find_online_source_by_url(self, url: str):
+        if not url:
+            return None
+        try:
+            parsed = urlparse(url)
+            if not parsed.scheme:
+                parsed = urlparse("https://" + url)
+            host = (parsed.hostname or "").lower()
+            if not host:
+                return None
+            for src in ONLINE_SOURCES:
+                domain = (src.get("domain") or "").lower()
+                if not domain:
+                    continue
+                if host == domain or host.endswith("." + domain):
+                    return src
+        except Exception:
+            return None
+        return None
 
     def _update_online_tree(self, result):
         self.online_tree.delete(*self.online_tree.get_children())
@@ -245,7 +305,7 @@ class OnlineTabMixin:
                 return None
             if tok in ("all", "*"):
                 return ("all", None)
-            m = re.match(r"^(\\d+)?\\s*-\\s*(\\d+)?$", tok)
+            m = re.match(r"^(\d+)?\s*-\s*(\d+)?$", tok)
             if m:
                 start = int(m.group(1)) if m.group(1) else 1
                 end = int(m.group(2)) if m.group(2) else float("inf")
@@ -290,3 +350,27 @@ class OnlineTabMixin:
 
         if items_to_select:
             self.online_tree.selection_add(items_to_select)
+
+    def _refresh_online_cookie_profiles(self):
+        profiles = ["Profile 1"]
+        if hasattr(self, "_get_all_profiles"):
+            try:
+                profiles = self._get_all_profiles() or profiles
+            except Exception:
+                profiles = profiles or ["Profile 1"]
+        current_profile = ""
+        if hasattr(self, "_get_current_browser_profile"):
+            try:
+                current_profile = self._get_current_browser_profile() or ""
+            except Exception:
+                current_profile = ""
+        if hasattr(self, "online_cookie_profile_cb"):
+            self.online_cookie_profile_cb["values"] = profiles
+        current = (self.online_cookie_profile_var.get() or "").strip() if hasattr(self, "online_cookie_profile_var") else ""
+        if current and current in profiles:
+            return
+        if current_profile and current_profile in profiles:
+            if hasattr(self, "online_cookie_profile_var"):
+                self.online_cookie_profile_var.set(current_profile)
+        elif profiles and hasattr(self, "online_cookie_profile_var"):
+            self.online_cookie_profile_var.set(profiles[0])

@@ -3834,25 +3834,12 @@ class WikidichMixin:
                     self.after(0, lambda: self._wd_handle_not_found_books(list(not_found)))
                 self.after(0, lambda: self._wd_refresh_tree(getattr(self, "wikidich_filtered", [])))
                 return
-            proxies = self._get_proxy_for_request('fetch_titles')
-            cookies = load_browser_cookie_jar(
-                self._wd_get_cookie_domains(),
-                cookie_db_path=self._wd_get_cookie_db_path()
-            )
-            if not cookies:
+            session, current_user, proxies = self._wd_build_wiki_session(include_user=True)
+            if not session:
                 self.after(0, lambda: messagebox.showerror("Thiếu cookie", "Không đọc được cookie Wikidich từ trình duyệt tích hợp."))
                 self.log("[Wikidich] Không có cookie, dừng tải chi tiết.")
                 return
-            session = wikidich_ext.build_session_with_cookies(cookies, proxies=proxies)
-            wiki_headers = self.api_settings.get('wiki_headers') if isinstance(self.api_settings, dict) else {}
-            merged_headers = self._wd_default_headers()
-            if isinstance(wiki_headers, dict):
-                for k, v in wiki_headers.items():
-                    if v and k not in merged_headers and k.lower() not in ("x-requested-with", "connection"):
-                        merged_headers[k] = v
-            session.headers.clear()
-            session.headers.update(merged_headers)
-            current_user = self.wikidich_data.get('username') or wikidich_ext.fetch_current_user(session, base_url=self._wd_get_base_url(), proxies=proxies) or ""
+            current_user = self.wikidich_data.get('username') or current_user or ""
             try:
                 dummy_resp = requests.Response()
                 dummy_resp.request = type("Req", (), {"headers": session.headers})()

@@ -6,8 +6,8 @@ from bs4 import BeautifulSoup
 from app.core.browser_cookies import load_browser_cookie_jar
 
 
-def _load_browser_cookies():
-    return load_browser_cookie_jar(["qidian.com"], required_names=["_csrftoken"])
+def _load_browser_cookies(cookie_db_path=None):
+    return load_browser_cookie_jar(["qidian.com"], required_names=["_csrftoken"], cookie_db_path=cookie_db_path)
 
 def get_clean_url(url: str):
     match = re.search(r'/book/(\d+)', url)
@@ -33,12 +33,12 @@ def parse_chapters_from_page(html_content: str):
             chapters.append({'num': chapter_counter, 'title1': title1, 'title2': title2})
     return chapters
 
-def fetch_chapters(url: str, root_window=None, proxies=None):
+def fetch_chapters(url: str, root_window=None, proxies=None, cookie_db_path=None):
     base_url = get_clean_url(url)
     if not base_url:
         return {'error': 'URL Qidian không hợp lệ. URL phải có dạng .../book/#######/...'}
 
-    cookie_jar = _load_browser_cookies()
+    cookie_jar = _load_browser_cookies(cookie_db_path=cookie_db_path)
     if not cookie_jar:
         return {'error': 'Không tìm thấy cookie Qidian trong trình duyệt tích hợp. Vui lòng mở menu Trình duyệt, đăng nhập Qidian rồi thử lại. Lưu ý: Phải tắt trình duyệt để sử dụng.'}
 

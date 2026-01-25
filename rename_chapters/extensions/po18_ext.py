@@ -19,8 +19,8 @@ def _validate_cookies(cookie_jar, validation_url):
     except Exception:
         return False
 
-def _load_browser_cookies():
-    jar = load_browser_cookie_jar(["po18.tw", "members.po18.tw"])
+def _load_browser_cookies(cookie_db_path=None):
+    jar = load_browser_cookie_jar(["po18.tw", "members.po18.tw"], cookie_db_path=cookie_db_path)
     if not jar:
         return None
     for cookie in jar:
@@ -53,12 +53,12 @@ def parse_chapters_from_page(soup):
 
 # ========== HÀM CHÍNH (GIAO TIẾP VỚI UI - Giữ nguyên logic) ==========
 
-def fetch_chapters(url: str, root_window=None, proxies=None):
+def fetch_chapters(url: str, root_window=None, proxies=None, cookie_db_path=None):
     base_url = get_clean_url(url)
     if not base_url:
         return {'error': 'URL không hợp lệ. URL phải có dạng .../books/#######/...'}
 
-    cookie_jar = _load_browser_cookies()
+    cookie_jar = _load_browser_cookies(cookie_db_path=cookie_db_path)
     if not cookie_jar:
         return {'error': 'Không tìm thấy cookie đăng nhập PO18 trong trình duyệt tích hợp. Vui lòng mở menu Trình duyệt, đăng nhập tài khoản PO18 rồi thử lại. Lưu ý: Phải tắt trình duyệt để sử dụng.'}
 
