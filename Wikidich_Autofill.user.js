@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.1.2
+// @version      0.1.3
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -14,7 +14,7 @@
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const REQUEST_DELAY_MS = 350;
-    const SCORE_THRESHOLD = 0.9;
+    const DEFAULT_SCORE_THRESHOLD = 0.9;
     const SCORE_FALLBACK = 0.65;
     const MAX_TAGS_SELECT = 25;
     const ROOT_NEG_WORDS = ['vo', 'khong', 'phi', 'chong', 'phan', 'non', 'no'];
@@ -22,6 +22,14 @@
         'song', 'nhieu', 'main', 'ca', 'nha', 'nu', 'nam', 'trang', 'phan', 'sat',
         'la', 'toan', 'tap', 'the'
     ]);
+
+    const DEFAULT_SETTINGS = {
+        scoreThreshold: DEFAULT_SCORE_THRESHOLD,
+        useDescByDomain: {
+            fanqie: true,
+            jjwxc: false,
+        },
+    };
 
     const state = {
         groups: null,
@@ -31,10 +39,63 @@
         sourceLabel: null,
         translated: null,
         suggestions: null,
+        settings: null,
     };
 
     function sleep(ms) {
         return new Promise(r => setTimeout(r, ms));
+    }
+
+    function clampNumber(value, min, max, fallback) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return fallback;
+        return Math.min(max, Math.max(min, num));
+    }
+
+    function normalizeSettings(raw) {
+        const base = {
+            scoreThreshold: DEFAULT_SETTINGS.scoreThreshold,
+            useDescByDomain: { ...DEFAULT_SETTINGS.useDescByDomain },
+        };
+        if (raw && typeof raw === 'object') {
+            if ('scoreThreshold' in raw) base.scoreThreshold = raw.scoreThreshold;
+            if (raw.useDescByDomain && typeof raw.useDescByDomain === 'object') {
+                Object.keys(base.useDescByDomain).forEach((key) => {
+                    if (key in raw.useDescByDomain) {
+                        base.useDescByDomain[key] = !!raw.useDescByDomain[key];
+                    }
+                });
+            }
+        }
+        base.scoreThreshold = clampNumber(base.scoreThreshold, 0.5, 0.99, DEFAULT_SCORE_THRESHOLD);
+        return base;
+    }
+
+    function loadSettings() {
+        const saved = GM_getValue(`${APP_PREFIX}settings`, null);
+        return normalizeSettings(saved);
+    }
+
+    function saveSettings(next) {
+        const normalized = normalizeSettings(next);
+        GM_setValue(`${APP_PREFIX}settings`, normalized);
+        state.settings = normalized;
+        return normalized;
+    }
+
+    function getScoreThreshold() {
+        if (state.settings && Number.isFinite(state.settings.scoreThreshold)) {
+            return state.settings.scoreThreshold;
+        }
+        return DEFAULT_SCORE_THRESHOLD;
+    }
+
+    function shouldUseDescForSource(sourceType) {
+        const map = state.settings?.useDescByDomain || {};
+        if (typeof map[sourceType] === 'boolean') return map[sourceType];
+        const fallback = DEFAULT_SETTINGS.useDescByDomain;
+        if (typeof fallback[sourceType] === 'boolean') return fallback[sourceType];
+        return true;
     }
 
     function safeText(v) {
@@ -444,7 +505,9 @@
     }
 
     function describeCharacterRelationsJJWXC(data) {
-        if (!data || !Array.isArray(data.characters) || !Array.isArray(data.character_relations)) return '';
+        if (!data || !Array.isArray(data.characters) || !Array.isArray(data.character_relations)) {
+            return { mainLine: '', otherNames: [] };
+        }
         const genderLabel = (g) => {
             if (g === '1') return '【男】';
             if (g === '0') return '【女】';
@@ -453,7 +516,7 @@
         const charactersById = {};
         data.characters.forEach(c => { charactersById[c.character_id] = c; });
         const pov = data.characters.find(c => c.is_pov === '1');
-        if (!pov) return '';
+        if (!pov) return { mainLine: '', otherNames: [] };
 
         const lovers = [];
         const loverIds = new Set();
@@ -466,12 +529,12 @@
         let mainLine = `主角视角：${pov.character_name}${genderLabel(pov.character_gender)}`;
         if (lovers.length > 0) {
             const loverStr = lovers.map(l => `${l.character_name}${genderLabel(l.character_gender)}`).join(', ');
-            mainLine += `(互动)${loverStr}`;
+            mainLine += `(互动) ${loverStr}`;
         }
-        const otherLines = data.characters
+        const otherNames = data.characters
             .filter(c => c.character_id !== pov.character_id && !loverIds.has(c.character_id))
-            .map(c => `配角: ${c.character_name} ${genderLabel(c.character_gender)}`);
-        return [mainLine].concat(otherLines).join('\n');
+            .map(c => `${c.character_name}${genderLabel(c.character_gender)}`);
+        return { mainLine, otherNames };
     }
 
     function normalizeFanqieData(raw) {
@@ -505,8 +568,24 @@
         const titleCn = safeText(raw.novelName);
         const authorCn = safeText(raw.authorName);
         const introText = htmlToText(raw.novelIntro || '');
-        const relText = describeCharacterRelationsJJWXC(raw);
-        const descCn = [introText, relText].filter(Boolean).join('\n');
+        const tagsRaw = safeText(raw.novelTags);
+        const tagsLine = tagsRaw ? `内容标签：${tagsRaw}` : '';
+        const rel = describeCharacterRelationsJJWXC(raw);
+        const relLines = [];
+        if (rel.mainLine) relLines.push(rel.mainLine);
+        if (rel.otherNames && rel.otherNames.length) {
+            relLines.push(`配角: ${rel.otherNames.join('，')}`);
+        }
+        const otherText = safeText(raw.other);
+        const introShortRaw = safeText(raw.novelIntroShort);
+        const introShort = introShortRaw ? `一句话简介：${introShortRaw}` : '';
+        const descCn = [
+            introText,
+            tagsLine,
+            ...relLines,
+            otherText,
+            introShort,
+        ].filter(Boolean).join('\n');
         const tags = parseTagList(raw.novelTags);
         const categories = parseTagList(raw.novelClass);
         const statusHint = safeText(raw.novelStatus || raw.novelStep || raw.isFinished || raw.novelComplete);
@@ -567,7 +646,7 @@
             if (!text) continue;
             expanded.push(text);
             const norm = normalizeText(text);
-            if (norm.includes('主受') || norm.includes('chu thiu')) {
+            if (norm.includes('主受') || norm.includes('chu chiu')) {
                 expanded.push('Chủ thụ');
             }
             if (norm.includes('互攻') || norm.includes('ho cong')) {
@@ -637,8 +716,9 @@
         return scored;
     }
 
-    function pickMulti(scored, limit, requireOne, collapseRoot) {
-        const selected = scored.filter(o => o.score >= SCORE_THRESHOLD);
+    function pickMulti(scored, limit, requireOne, collapseRoot, threshold) {
+        const minScore = Number.isFinite(threshold) ? threshold : getScoreThreshold();
+        const selected = scored.filter(o => o.score >= minScore);
         let picked = selected;
         if (!picked.length && requireOne && scored.length) {
             const fallback = scored[0];
@@ -649,22 +729,26 @@
         return resolveNegationConflicts(picked.map(o => o.label));
     }
 
-    function pickRadio(scored, requireOne) {
+    function pickRadio(scored, requireOne, threshold) {
         if (!scored.length) return '';
         const best = scored[0];
-        if (best.score >= SCORE_THRESHOLD) return best.label;
+        const minScore = Number.isFinite(threshold) ? threshold : getScoreThreshold();
+        if (best.score >= minScore) return best.label;
         if (requireOne) return best.label;
         return '';
     }
 
     function buildSuggestions(sourceData, translated, groups) {
+        const useDesc = shouldUseDescForSource(sourceData?.sourceType);
         const descCn = safeText(sourceData.descCn);
         const descVi = safeText(translated?.desc || '');
         const tagsVi = translated?.tags || [];
         const catsVi = translated?.categories || [];
 
         const keywords = buildKeywordList(sourceData, translated);
-        const textBlob = [descCn, descVi, keywords.join(' ')].join(' ');
+        const textParts = [keywords.join(' ')];
+        if (useDesc) textParts.unshift(descCn, descVi);
+        const textBlob = textParts.join(' ');
 
         const statusLabel = detectStatus(sourceData, textBlob);
         const officialLabel = detectOfficial(keywords);
@@ -679,14 +763,15 @@
         const genreScored = scoreOptions(groups.genre, keywords, textBlob);
         const tagScored = scoreOptions(groups.tag, keywords.concat(tagsVi, catsVi), textBlob);
 
+        const threshold = getScoreThreshold();
         return {
-            status: pickRadio(statusScored, true),
-            official: pickRadio(officialScored, true),
-            gender: pickRadio(genderScored, false),
-            age: pickMulti(ageScored, 4, true),
-            ending: pickMulti(endingScored, 3, true),
-            genre: pickMulti(genreScored, 8, true),
-            tag: pickMulti(tagScored, MAX_TAGS_SELECT, true, true),
+            status: pickRadio(statusScored, true, threshold),
+            official: pickRadio(officialScored, true, threshold),
+            gender: pickRadio(genderScored, false, threshold),
+            age: pickMulti(ageScored, 4, true, false, threshold),
+            ending: pickMulti(endingScored, 3, true, false, threshold),
+            genre: pickMulti(genreScored, 8, true, false, threshold),
+            tag: pickMulti(tagScored, MAX_TAGS_SELECT, true, true, threshold),
         };
     }
 
@@ -779,6 +864,7 @@
     }
 
     function createUI(options = {}) {
+        state.settings = loadSettings();
         const shadowHost = document.createElement('div');
         shadowHost.id = `${APP_PREFIX}host`;
         document.body.appendChild(shadowHost);
@@ -805,6 +891,7 @@
             #${APP_PREFIX}header {
                 padding: 10px 14px; background: #f7f7f7; border-bottom: 1px solid #e3e3e3;
                 font-weight: bold; font-size: 14px; display: flex; justify-content: space-between;
+                cursor: move;
             }
             #${APP_PREFIX}content { padding: 12px 14px; overflow: auto; }
             .${APP_PREFIX}row { margin-bottom: 10px; }
@@ -825,6 +912,8 @@
                 display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
                 margin-right: 8px;
             }
+            .${APP_PREFIX}settings-group { display: flex; flex-direction: column; gap: 6px; }
+            .${APP_PREFIX}settings-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
             .${APP_PREFIX}log {
                 background: #111; color: #0f0; padding: 8px; border-radius: 6px;
                 font-family: "Courier New", monospace; font-size: 11px; max-height: 100px; overflow: auto;
@@ -850,15 +939,16 @@
             <button id="${APP_PREFIX}btn">AF</button>
             <div id="${APP_PREFIX}panel">
                 <div id="${APP_PREFIX}header">
-                    <span>Fanqie → Wikidich</span>
+                    <span>Web Trung → Wikidich</span>
                     <div>
                         <button id="${APP_PREFIX}help" class="${APP_PREFIX}icon-btn">?</button>
+                        <button id="${APP_PREFIX}settings" class="${APP_PREFIX}icon-btn" title="Cài đặt">⚙</button>
                         <button id="${APP_PREFIX}close" class="${APP_PREFIX}btn secondary">Đóng</button>
                     </div>
                 </div>
                 <div id="${APP_PREFIX}content">
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Fanqie URL</label>
+                        <label class="${APP_PREFIX}label">URL Web Trung</label>
                         <input id="${APP_PREFIX}url" class="${APP_PREFIX}input" placeholder="https://fanqienovel.com/page/..." />
                     </div>
                     <div class="${APP_PREFIX}row">
@@ -938,14 +1028,45 @@
                 <div class="${APP_PREFIX}modal-card">
                     <div class="${APP_PREFIX}modal-title">Hướng dẫn nhanh</div>
                     <div class="${APP_PREFIX}modal-body">
-1) Dán link Fanqie vào ô URL rồi bấm "Lấy dữ liệu".
+Các web hỗ trợ: Fanqie (Cà Chua), JJWXC (Tấn Giang).
+Các bước sử dụng:
+1) Dán link Web Trung vào ô URL rồi bấm "Lấy dữ liệu".
 2) Script sẽ dịch tên/mô tả/tag và gợi ý tick các mục phù hợp.
 3) Bạn có thể chỉnh lại nội dung, tag, thể loại trước khi áp.
 4) Bấm "Áp vào form" để điền và tick tự động + upload ảnh bìa.
 5) Nếu sai gợi ý, sửa trực tiếp trong panel rồi áp lại.
+Lưu ý: Phải là link có thông tin sách, không phải link chương.
                     </div>
                     <div class="${APP_PREFIX}modal-actions">
                         <button id="${APP_PREFIX}helpClose" class="${APP_PREFIX}btn secondary">Đóng</button>
+                    </div>
+                </div>
+            </div>
+            <div id="${APP_PREFIX}settingsModal" class="${APP_PREFIX}modal">
+                <div class="${APP_PREFIX}modal-card">
+                    <div class="${APP_PREFIX}modal-title">Cài đặt</div>
+                    <div class="${APP_PREFIX}modal-body">
+                        <div class="${APP_PREFIX}row">
+                            <label class="${APP_PREFIX}label">Độ chính xác gợi ý (0.50 - 0.99)</label>
+                            <input id="${APP_PREFIX}settingThreshold" class="${APP_PREFIX}input" type="number" min="0.5" max="0.99" step="0.01" />
+                        </div>
+                        <div class="${APP_PREFIX}row">
+                            <label class="${APP_PREFIX}label">Quét văn án để gợi ý</label>
+                            <div class="${APP_PREFIX}settings-group">
+                                <label class="${APP_PREFIX}settings-item">
+                                    <input id="${APP_PREFIX}settingUseDescFanqie" type="checkbox" />
+                                    Fanqie (Cà Chua)
+                                </label>
+                                <label class="${APP_PREFIX}settings-item">
+                                    <input id="${APP_PREFIX}settingUseDescJjwxc" type="checkbox" />
+                                    JJWXC (Tấn Giang)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="${APP_PREFIX}modal-actions">
+                        <button id="${APP_PREFIX}settingsSave" class="${APP_PREFIX}btn">Lưu</button>
+                        <button id="${APP_PREFIX}settingsClose" class="${APP_PREFIX}btn secondary">Đóng</button>
                     </div>
                 </div>
             </div>
@@ -953,10 +1074,18 @@
 
         const btn = shadowRoot.getElementById(`${APP_PREFIX}btn`);
         const panel = shadowRoot.getElementById(`${APP_PREFIX}panel`);
+        const headerEl = shadowRoot.getElementById(`${APP_PREFIX}header`);
         const close = shadowRoot.getElementById(`${APP_PREFIX}close`);
         const helpBtn = shadowRoot.getElementById(`${APP_PREFIX}help`);
         const helpModal = shadowRoot.getElementById(`${APP_PREFIX}helpModal`);
         const helpClose = shadowRoot.getElementById(`${APP_PREFIX}helpClose`);
+        const settingsBtn = shadowRoot.getElementById(`${APP_PREFIX}settings`);
+        const settingsModal = shadowRoot.getElementById(`${APP_PREFIX}settingsModal`);
+        const settingsSave = shadowRoot.getElementById(`${APP_PREFIX}settingsSave`);
+        const settingsClose = shadowRoot.getElementById(`${APP_PREFIX}settingsClose`);
+        const settingsThreshold = shadowRoot.getElementById(`${APP_PREFIX}settingThreshold`);
+        const settingsUseDescFanqie = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescFanqie`);
+        const settingsUseDescJjwxc = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescJjwxc`);
         const logBox = shadowRoot.getElementById(`${APP_PREFIX}log`);
         if (!showFloatingButton) btn.style.display = 'none';
 
@@ -987,6 +1116,24 @@
 
         function fillText(id, value) {
             shadowRoot.getElementById(id).value = value || '';
+        }
+
+        function applySettingsToUi(settings) {
+            settingsThreshold.value = Number.isFinite(settings.scoreThreshold)
+                ? settings.scoreThreshold.toFixed(2)
+                : DEFAULT_SCORE_THRESHOLD.toFixed(2);
+            settingsUseDescFanqie.checked = !!settings.useDescByDomain?.fanqie;
+            settingsUseDescJjwxc.checked = !!settings.useDescByDomain?.jjwxc;
+        }
+
+        function readSettingsFromUi() {
+            return {
+                scoreThreshold: parseFloat(settingsThreshold.value),
+                useDescByDomain: {
+                    fanqie: settingsUseDescFanqie.checked,
+                    jjwxc: settingsUseDescJjwxc.checked,
+                },
+            };
         }
 
         async function handleFetch() {
@@ -1094,16 +1241,20 @@
             const combinedKeywords = baseKeywords.concat(extra);
             const descCn = safeText(state.sourceData.descCn);
             const descVi = safeText(state.translated?.desc || '');
-            const textBlob = [descCn, descVi, combinedKeywords.join(' ')].join(' ');
+            const useDesc = shouldUseDescForSource(state.sourceData?.sourceType);
+            const textParts = [combinedKeywords.join(' ')];
+            if (useDesc) textParts.unshift(descCn, descVi);
+            const textBlob = textParts.join(' ');
 
+            const threshold = getScoreThreshold();
             const suggestions = {
                 status: state.suggestions?.status || '',
                 official: state.suggestions?.official || '',
                 gender: state.suggestions?.gender || '',
-                age: pickMulti(scoreOptions(state.groups.age, combinedKeywords, textBlob), 4, true),
-                ending: pickMulti(scoreOptions(state.groups.ending, combinedKeywords, textBlob), 3, true),
-                genre: pickMulti(scoreOptions(state.groups.genre, combinedKeywords, textBlob), 8, true),
-                tag: pickMulti(scoreOptions(state.groups.tag, combinedKeywords, textBlob), MAX_TAGS_SELECT, true, true),
+                age: pickMulti(scoreOptions(state.groups.age, combinedKeywords, textBlob), 4, true, false, threshold),
+                ending: pickMulti(scoreOptions(state.groups.ending, combinedKeywords, textBlob), 3, true, false, threshold),
+                genre: pickMulti(scoreOptions(state.groups.genre, combinedKeywords, textBlob), 8, true, false, threshold),
+                tag: pickMulti(scoreOptions(state.groups.tag, combinedKeywords, textBlob), MAX_TAGS_SELECT, true, true, threshold),
             };
             state.suggestions = { ...state.suggestions, ...suggestions };
             fillText(`${APP_PREFIX}age`, suggestions.age.join(', '));
@@ -1214,6 +1365,64 @@
             panel.style.display = isHidden ? 'flex' : 'none';
         };
 
+        function enableDrag(panelEl, handleEl, storageKey) {
+            let dragging = false;
+            let offsetX = 0;
+            let offsetY = 0;
+            const saved = GM_getValue(storageKey, null);
+            if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+                panelEl.style.left = `${saved.left}px`;
+                panelEl.style.top = `${saved.top}px`;
+                panelEl.style.right = 'auto';
+                panelEl.style.bottom = 'auto';
+            }
+
+            const getPoint = (ev) => (ev.touches && ev.touches.length ? ev.touches[0] : ev);
+
+            const onStart = (ev) => {
+                if (ev.target && ev.target.closest('button')) return;
+                const point = getPoint(ev);
+                const rect = panelEl.getBoundingClientRect();
+                dragging = true;
+                offsetX = point.clientX - rect.left;
+                offsetY = point.clientY - rect.top;
+                panelEl.style.left = rect.left + 'px';
+                panelEl.style.top = rect.top + 'px';
+                panelEl.style.right = 'auto';
+                panelEl.style.bottom = 'auto';
+                ev.preventDefault();
+            };
+
+            const onMove = (ev) => {
+                if (!dragging) return;
+                const point = getPoint(ev);
+                const rect = panelEl.getBoundingClientRect();
+                const maxLeft = Math.max(0, window.innerWidth - rect.width);
+                const maxTop = Math.max(0, window.innerHeight - rect.height);
+                const left = Math.max(0, Math.min(maxLeft, point.clientX - offsetX));
+                const top = Math.max(0, Math.min(maxTop, point.clientY - offsetY));
+                panelEl.style.left = `${left}px`;
+                panelEl.style.top = `${top}px`;
+                ev.preventDefault();
+            };
+
+            const onEnd = () => {
+                if (!dragging) return;
+                dragging = false;
+                const rect = panelEl.getBoundingClientRect();
+                GM_setValue(storageKey, { left: Math.round(rect.left), top: Math.round(rect.top) });
+            };
+
+            handleEl.addEventListener('mousedown', onStart);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
+            handleEl.addEventListener('touchstart', onStart, { passive: false });
+            window.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('touchend', onEnd);
+        }
+
+        enableDrag(panel, headerEl, `${APP_PREFIX}panel_pos`);
+
         btn.addEventListener('click', () => {
             if (dragMoved) return;
             togglePanel();
@@ -1229,6 +1438,22 @@
         });
         helpModal.addEventListener('click', (ev) => {
             if (ev.target === helpModal) helpModal.style.display = 'none';
+        });
+        settingsBtn.addEventListener('click', () => {
+            applySettingsToUi(state.settings || DEFAULT_SETTINGS);
+            settingsModal.style.display = 'flex';
+        });
+        settingsClose.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+        settingsModal.addEventListener('click', (ev) => {
+            if (ev.target === settingsModal) settingsModal.style.display = 'none';
+        });
+        settingsSave.addEventListener('click', () => {
+            const next = readSettingsFromUi();
+            saveSettings(next);
+            settingsModal.style.display = 'none';
+            log('Đã lưu cài đặt.', 'ok');
         });
 
         shadowRoot.getElementById(`${APP_PREFIX}fetch`).addEventListener('click', handleFetch);
