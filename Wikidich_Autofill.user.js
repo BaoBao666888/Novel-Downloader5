@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.1.3
-// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
+// @version      0.2.0
+// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
 // @author       QuocBao
 // ==/UserScript==
 
@@ -28,6 +28,10 @@
         useDescByDomain: {
             fanqie: true,
             jjwxc: false,
+            po18: true,
+            ihuaben: true,
+            qidian: true,
+            qimao: true,
         },
     };
 
@@ -400,6 +404,32 @@
         return '';
     }
 
+    function extractPo18Id(url) {
+        const raw = safeText(url);
+        const m = raw.match(/\/books\/(\d+)/i);
+        return m ? m[1] : '';
+    }
+
+    function extractIhuabenId(url) {
+        const raw = safeText(url);
+        const m = raw.match(/\/book\/(\d+)/i);
+        return m ? m[1] : '';
+    }
+
+    function extractQidianId(url) {
+        const raw = safeText(url);
+        const m = raw.match(/\/book\/(\d+)/i);
+        return m ? m[1] : '';
+    }
+
+    function extractQimaoId(url) {
+        const raw = safeText(url);
+        let m = raw.match(/\/shuku\/(\d+)/i);
+        if (m) return m[1];
+        m = raw.match(/(\d+)(?:-\d+)?\/?$/i);
+        return m ? m[1] : '';
+    }
+
     function detectSource(url) {
         const raw = safeText(url);
         if (/fanqienovel\.com/i.test(raw)) {
@@ -407,6 +437,18 @@
         }
         if (/jjwxc\.net/i.test(raw) || /novelid=/i.test(raw) || /book2\//i.test(raw)) {
             return { type: 'jjwxc', id: extractJjwxcId(raw) };
+        }
+        if (/po18\.tw/i.test(raw)) {
+            return { type: 'po18', id: extractPo18Id(raw) };
+        }
+        if (/ihuaben\.com/i.test(raw)) {
+            return { type: 'ihuaben', id: extractIhuabenId(raw) };
+        }
+        if (/qidian\.com/i.test(raw)) {
+            return { type: 'qidian', id: extractQidianId(raw) };
+        }
+        if (/qimao\.com/i.test(raw)) {
+            return { type: 'qimao', id: extractQimaoId(raw) };
         }
         return null;
     }
@@ -425,6 +467,78 @@
         out = out.replace(/<[^>]+>/g, '');
         out = out.replace(/\n{3,}/g, '\n\n');
         return out.trim();
+    }
+
+    function toAbsoluteUrl(url, baseUrl) {
+        const raw = safeText(url);
+        if (!raw) return '';
+        if (/^https?:\/\//i.test(raw)) return raw;
+        if (raw.startsWith('//')) return `https:${raw}`;
+        try {
+            return new URL(raw, baseUrl).toString();
+        } catch {
+            return raw;
+        }
+    }
+
+    function queryText(doc, selectors) {
+        for (const sel of selectors) {
+            const el = doc.querySelector(sel);
+            const text = safeText(el?.textContent || '');
+            if (text) return text;
+        }
+        return '';
+    }
+
+    function queryHtml(doc, selectors) {
+        for (const sel of selectors) {
+            const el = doc.querySelector(sel);
+            const html = safeText(el?.innerHTML || '');
+            if (html) return html;
+        }
+        return '';
+    }
+
+    function queryAttr(doc, selectors, attr) {
+        for (const sel of selectors) {
+            const el = doc.querySelector(sel);
+            if (!el) continue;
+            const val = el.getAttribute(attr)
+                || el.getAttribute('data-src')
+                || el.getAttribute('data-original')
+                || el.getAttribute('data-lazy');
+            const text = safeText(val || '');
+            if (text) return text;
+        }
+        return '';
+    }
+
+    function collectTexts(doc, selectors) {
+        const results = [];
+        selectors.forEach((sel) => {
+            doc.querySelectorAll(sel).forEach((el) => {
+                const text = safeText(el.textContent || '');
+                if (text) results.push(text);
+            });
+        });
+        return results;
+    }
+
+    function extractInfoPairs(doc) {
+        const pairs = [];
+        const items = doc.querySelectorAll(
+            '.book_info li, .book_info .info, .book_info .item, .book_data li, .book_detail li, .book_detail .info, .book_detail .item'
+        );
+        items.forEach((el) => {
+            const text = safeText(el.textContent || '');
+            if (!text) return;
+            const parts = text.split(/[:：]/);
+            if (parts.length < 2) return;
+            const key = safeText(parts.shift());
+            const value = safeText(parts.join(':'));
+            if (key && value) pairs.push({ key, value });
+        });
+        return pairs;
     }
 
     function fetchFanqieData(bookId) {
@@ -478,6 +592,347 @@
         });
     }
 
+    function fetchPo18Data(bookId) {
+        const baseUrl = 'https://www.po18.tw';
+        const primaryUrl = `${baseUrl}/books/${bookId}`;
+        const fallbackUrl = `${baseUrl}/books/${bookId}/articles`;
+
+        const guardLogin = (html) => {
+            if (!html) return;
+            const lower = html.toLowerCase();
+            if (html.includes('會員登入') || html.includes('會員登錄') || lower.includes('login.php')) {
+                throw new Error('Cookie PO18 hết hạn / chưa đăng nhập.');
+            }
+        };
+
+        const parseHtml = (html, url) => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html || '', 'text/html');
+            const title = queryText(doc, ['h1.book_name', '.book_name', '.book_title', 'h1']);
+            const author = queryText(doc, ['.book_author', '.book_author a', '.book_info .author', '.author']);
+            const cover = queryAttr(doc, [
+                '.book_cover img',
+                '.book_cover>img',
+                '.cover img',
+                'meta[property="og:image"]',
+            ], 'content') || queryAttr(doc, ['.book_cover img', '.book_cover>img', '.cover img'], 'src');
+            const introHtml = queryHtml(doc, [
+                '.book_intro .B_I_content',
+                '.book_intro',
+                '#book_intro',
+                '.book_intro_txt',
+                '.book_desc',
+                '.book_introduction',
+                '.intro',
+            ]);
+            let intro = introHtml ? htmlToText(introHtml) : '';
+
+            const tagTexts = collectTexts(doc, [
+                '.book_intro_tags a',
+                '.book_tag a',
+                '.book_tag span',
+                '.book_tags a',
+                '.book_tags span',
+                '.tag_list a',
+                '.tag_list span',
+                '.tags a',
+                '.tags span',
+                'a[href*="tag"]',
+                'a[href*="tags"]',
+            ]);
+
+            let statusHint = queryText(doc, ['.book_info .statu', '.book_info .status', '.statu', '.status']);
+            const categories = [];
+            const tags = [];
+            extractInfoPairs(doc).forEach(({ key, value }) => {
+                if (/(標籤|标签|tag)/i.test(key)) {
+                    tags.push(...parseTagList(value));
+                } else if (/(分類|类别|類別|题材|題材|类型|類型)/i.test(key)) {
+                    categories.push(...parseTagList(value));
+                } else if (/(狀態|状态|進度|连载|連載|完結|完本|已完结|已完結)/i.test(key)) {
+                    statusHint = value;
+                }
+            });
+
+            if (tagTexts.length) tags.push(...tagTexts);
+            const metaKeywords = queryAttr(doc, ['meta[name="keywords"]'], 'content');
+            if (metaKeywords) tags.push(...parseTagList(metaKeywords));
+            if (!intro) {
+                const metaDesc = queryAttr(doc, ['meta[name="description"]', 'meta[property="og:description"]'], 'content');
+                if (metaDesc) {
+                    intro = htmlToText(metaDesc);
+                }
+            }
+
+            const coverUrl = toAbsoluteUrl(cover, url);
+            return {
+                title,
+                author,
+                intro,
+                coverUrl,
+                tags: Array.from(new Set(parseTagList(tags.join(',')))),
+                categories: Array.from(new Set(categories)),
+                statusHint,
+            };
+        };
+
+        return new Promise((resolve, reject) => {
+            const request = (url, fallback) => {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url,
+                    responseType: 'text',
+                    onload(res) {
+                        const html = res.responseText || res.response || '';
+                        try {
+                            guardLogin(html);
+                        } catch (err) {
+                            reject(err);
+                            return;
+                        }
+                        const parsed = parseHtml(html, url);
+                        if ((!parsed.title && !parsed.author) && fallback) {
+                            request(fallback, null);
+                            return;
+                        }
+                        resolve(parsed);
+                    },
+                    onerror(err) {
+                        if (fallback) {
+                            request(fallback, null);
+                        } else {
+                            reject(err);
+                        }
+                    },
+                });
+            };
+            request(primaryUrl, fallbackUrl);
+        });
+    }
+
+    function fetchIhuabenData(bookId) {
+        const url = `https://www.ihuaben.com/book/${bookId}.html`;
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url,
+                responseType: 'text',
+                onload(res) {
+                    const html = res.responseText || res.response || '';
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+                    const title = queryText(doc, [
+                        '.infodetail .simpleinfo h1.text-danger',
+                        '.infodetail .simpleinfo h1',
+                        'h1.text-danger',
+                        'h1',
+                    ]) || queryAttr(doc, [
+                        'meta[property="og:title"]',
+                        'meta[property="og:novel:book_name"]',
+                    ], 'content');
+
+                    const author = queryText(doc, [
+                        '.infodetail .simpleinfo a.text-muted',
+                        '.infodetail .simpleinfo a',
+                        '.simpleinfo a.text-muted',
+                    ]);
+
+                    let cover = queryAttr(doc, [
+                        '.biginfo .cover img',
+                        '.cover img',
+                        'meta[property="og:image"]',
+                    ], 'content');
+                    if (cover && cover.includes('?')) cover = cover.split('?')[0];
+                    cover = toAbsoluteUrl(cover, url);
+
+                    const introHtml = queryHtml(doc, [
+                        '.infodetail .aboutbook',
+                        '.infodetail .text-muted.aboutbook',
+                        '.aboutbook',
+                    ]);
+                    let intro = introHtml ? htmlToText(introHtml) : '';
+                    intro = intro.replace(/^简介[:：]\s*/i, '');
+                    if (!intro) {
+                        const metaDesc = queryAttr(doc, [
+                            'meta[property="og:description"]',
+                            'meta[name="description"]',
+                        ], 'content');
+                        if (metaDesc) intro = htmlToText(metaDesc);
+                    }
+
+                    const tagTexts = collectTexts(doc, [
+                        '#tagList a',
+                        '#tagList .text-muted',
+                        '.HuabenListUL#tagList a',
+                    ]);
+
+                    const statusHint = queryText(doc, [
+                        '.simpleinfo label',
+                        '.infodetail .simpleinfo label',
+                    ]);
+
+                    resolve({
+                        title,
+                        author,
+                        intro,
+                        coverUrl: cover,
+                        tags: Array.from(new Set(parseTagList(tagTexts.join(',')))),
+                        categories: [],
+                        statusHint,
+                    });
+                },
+                onerror(err) {
+                    reject(err);
+                },
+            });
+        });
+    }
+
+    function fetchQidianData(bookId) {
+        const url = `https://www.qidian.com/book/${bookId}/`;
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url,
+                responseType: 'text',
+                onload(res) {
+                    const html = res.responseText || res.response || '';
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+                    const title = queryText(doc, ['h1#bookName', '.book-info-top h1#bookName'])
+                        || queryAttr(doc, ['meta[property="og:novel:book_name"]', 'meta[property="og:title"]'], 'content');
+
+                    let author = queryText(doc, ['.book-meta .author', 'span.author', 'a.writer-name']);
+                    if (!author) {
+                        author = queryAttr(doc, ['meta[property="og:novel:author"]'], 'content');
+                    }
+                    author = author.replace(/^作者[:：]\s*/i, '');
+
+                    let cover = queryAttr(doc, ['meta[property="og:image"]'], 'content');
+                    if (!cover) {
+                        cover = queryAttr(doc, ['.book-detail-img img', '.book-author img', '#bookImg img'], 'src');
+                    }
+                    cover = toAbsoluteUrl(cover, url);
+                    cover = cover.replace(/\/\d+(\.\w+)?$/, '/600.webp');
+
+                    const introHtml = queryHtml(doc, [
+                        '.intro-detail p#book-intro-detail',
+                        '.intro-detail',
+                        'p.intro',
+                    ]);
+                    let intro = introHtml ? htmlToText(introHtml) : '';
+                    if (!intro) {
+                        const metaDesc = queryAttr(doc, [
+                            'meta[property="og:description"]',
+                            'meta[name="description"]',
+                        ], 'content');
+                        if (metaDesc) intro = htmlToText(metaDesc);
+                    }
+
+                    const tagTexts = collectTexts(doc, [
+                        '.intro-honor-label p.all-label a',
+                        '.intro-honor-label a',
+                        '.all-label a',
+                    ]);
+
+                    const categories = collectTexts(doc, [
+                        '.book-attribute a',
+                    ]);
+
+                    let statusHint = queryAttr(doc, ['meta[property="og:novel:status"]'], 'content');
+                    if (!statusHint) {
+                        statusHint = queryText(doc, ['.book-attribute span']);
+                    }
+
+                    resolve({
+                        title,
+                        author,
+                        intro,
+                        coverUrl: cover,
+                        tags: Array.from(new Set(parseTagList(tagTexts.join(',')))),
+                        categories: Array.from(new Set(parseTagList(categories.join(',')))),
+                        statusHint,
+                    });
+                },
+                onerror(err) {
+                    reject(err);
+                },
+            });
+        });
+    }
+
+    function fetchQimaoData(bookId) {
+        const url = `https://www.qimao.com/shuku/${bookId}/`;
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url,
+                responseType: 'text',
+                onload(res) {
+                    const html = res.responseText || res.response || '';
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+                    const title = queryText(doc, [
+                        '.book-information .wrap-txt .title .txt',
+                        '.book-detail-info .title .txt',
+                        '.book-detail-info .title',
+                    ]) || queryAttr(doc, ['meta[property="og:title"]'], 'content');
+
+                    const author = queryText(doc, [
+                        '.book-information .sub-title em a',
+                        '.book-information .sub-title em',
+                        '.author-information .author-name a',
+                    ]);
+
+                    const cover = toAbsoluteUrl(queryAttr(doc, [
+                        '.book-information .wrap-pic img',
+                        '.wrap-pic img',
+                        'meta[property="og:image"]',
+                    ], 'src'), url);
+
+                    const introHtml = queryHtml(doc, [
+                        '.book-introduction p.intro',
+                        '.book-introduction .intro',
+                    ]);
+                    let intro = introHtml ? htmlToText(introHtml) : '';
+                    if (!intro) {
+                        const metaDesc = queryAttr(doc, ['meta[name="description"]'], 'content');
+                        if (metaDesc) intro = htmlToText(metaDesc);
+                    }
+
+                    const categoryTexts = collectTexts(doc, [
+                        '.book-information .tags-wrap a',
+                        '.tags-wrap a',
+                    ]);
+                    const tagTexts = collectTexts(doc, [
+                        '.book-information .tags-wrap .qm-tag',
+                        '.tags-wrap .qm-tag',
+                    ]);
+
+                    let statusHint = '';
+                    const statusTag = tagTexts.find(t => /(连载|完结|完本|已完结|完結)/.test(t));
+                    if (statusTag) statusHint = statusTag;
+
+                    const tags = Array.from(new Set(parseTagList(tagTexts.join(','))));
+                    const categories = Array.from(new Set(parseTagList(categoryTexts.join(','))));
+
+                    resolve({
+                        title,
+                        author,
+                        intro,
+                        coverUrl: cover,
+                        tags,
+                        categories,
+                        statusHint,
+                    });
+                },
+                onerror(err) {
+                    reject(err);
+                },
+            });
+        });
+    }
+
     function checkImageUrlValid(url) {
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
@@ -497,11 +952,31 @@
     async function processJjwxcCover(novelCover) {
         if (!novelCover) return '';
         const coverRaw = novelCover;
-        const modifiedCover = coverRaw
-            .replace(/_[0-9]+_[0-9]+(?=\.jpg)/, '')
-            .replace(/\.jpg.*/i, '.jpg');
-        const isValid = await checkImageUrlValid(modifiedCover);
-        return isValid ? modifiedCover : coverRaw;
+        const cleaned = coverRaw.split('?')[0];
+        const base = cleaned.replace(/_[0-9]+_[0-9]+(?=\.(?:jpg|jpeg|png|webp))/i, '');
+        const baseStem = base.replace(/\.(jpg|jpeg|png|webp)$/i, '');
+        const candidates = [];
+        const pushUnique = (url) => {
+            if (!url || candidates.includes(url)) return;
+            candidates.push(url);
+        };
+        pushUnique(base);
+        ['jpg', 'jpeg', 'png', 'webp'].forEach((ext) => pushUnique(`${baseStem}.${ext}`));
+
+        for (const url of candidates) {
+            if (await checkImageUrlValid(url)) return url;
+        }
+        return coverRaw;
+    }
+
+    async function processQimaoCover(coverUrl) {
+        if (!coverUrl) return '';
+        const raw = coverUrl;
+        const cleaned = raw.split('?')[0];
+        const modified = cleaned.replace(/_[0-9]+x[0-9]+(?=\.(?:jpg|jpeg|png|webp))/i, '');
+        if (modified === cleaned) return raw;
+        const isValid = await checkImageUrlValid(modified);
+        return isValid ? modified : raw;
     }
 
     function describeCharacterRelationsJJWXC(data) {
@@ -588,7 +1063,7 @@
         ].filter(Boolean).join('\n');
         const tags = parseTagList(raw.novelTags);
         const categories = parseTagList(raw.novelClass);
-        const statusHint = safeText(raw.novelStatus || raw.novelStep || raw.isFinished || raw.novelComplete);
+        const statusHint = safeText(raw.novelStep || raw.novelStatus || raw.isFinished || raw.novelComplete);
         const extraKeywords = parseTagList(raw.novelType || raw.novelTypeName || '');
         return {
             sourceType: 'jjwxc',
@@ -602,6 +1077,94 @@
             statusHint,
             update_status: undefined,
             extraKeywords,
+        };
+    }
+
+    function normalizePo18Data(raw) {
+        const titleCn = safeText(raw.title).replace(/^作品名稱[:：]\s*/i, '');
+        const authorCn = safeText(raw.author).replace(/^作者[:：]\s*/i, '');
+        const descCn = safeText(raw.intro);
+        const tags = parseTagList((raw.tags || []).join(','));
+        const categories = parseTagList((raw.categories || []).join(','));
+        const statusHint = safeText(raw.statusHint);
+        return {
+            sourceType: 'po18',
+            sourceLabel: 'PO18',
+            titleCn,
+            authorCn,
+            descCn,
+            tags,
+            categories,
+            coverUrl: safeText(raw.coverUrl),
+            statusHint,
+            update_status: undefined,
+            extraKeywords: [],
+        };
+    }
+
+    function normalizeIhuabenData(raw) {
+        const titleCn = safeText(raw.title);
+        const authorCn = safeText(raw.author);
+        const descCn = safeText(raw.intro);
+        const tags = parseTagList((raw.tags || []).join(','));
+        const categories = parseTagList((raw.categories || []).join(','));
+        const statusHint = safeText(raw.statusHint);
+        return {
+            sourceType: 'ihuaben',
+            sourceLabel: 'Ihuaben',
+            titleCn,
+            authorCn,
+            descCn,
+            tags,
+            categories,
+            coverUrl: safeText(raw.coverUrl),
+            statusHint,
+            update_status: undefined,
+            extraKeywords: [],
+        };
+    }
+
+    function normalizeQidianData(raw) {
+        const titleCn = safeText(raw.title);
+        const authorCn = safeText(raw.author);
+        const descCn = safeText(raw.intro);
+        const tags = parseTagList((raw.tags || []).join(','));
+        const categories = parseTagList((raw.categories || []).join(','));
+        const statusHint = safeText(raw.statusHint);
+        return {
+            sourceType: 'qidian',
+            sourceLabel: 'Khởi Điểm',
+            titleCn,
+            authorCn,
+            descCn,
+            tags,
+            categories,
+            coverUrl: safeText(raw.coverUrl),
+            statusHint,
+            update_status: undefined,
+            extraKeywords: [],
+        };
+    }
+
+    function normalizeQimaoData(raw) {
+        const titleCn = safeText(raw.title);
+        const authorCn = safeText(raw.author);
+        const descCn = safeText(raw.intro);
+        const tags = parseTagList((raw.tags || []).join(','));
+        const categories = parseTagList((raw.categories || []).join(','));
+        const statusHint = safeText(raw.statusHint);
+        return {
+            sourceType: 'qimao',
+            sourceLabel: 'Thất Miêu',
+            titleCn,
+            authorCn,
+            descCn,
+            tags,
+            categories,
+            coverUrl: safeText(raw.coverUrl),
+            statusHint,
+            update_status: undefined,
+            extraKeywords: [],
         };
     }
 
@@ -646,6 +1209,7 @@
             if (!text) continue;
             expanded.push(text);
             const norm = normalizeText(text);
+            const tokens = splitTokens(norm);
             if (norm.includes('主受') || norm.includes('chu chiu')) {
                 expanded.push('Chủ thụ');
             }
@@ -655,12 +1219,21 @@
             if (norm.includes('纯爱') || norm.includes('thuan ai')) {
                 expanded.push('Đam mỹ');
             }
+            if (tokens.includes('bg')) {
+                expanded.push('Ngôn tình');
+            }
+            if (tokens.includes('bl')) {
+                expanded.push('Đam mỹ');
+            }
         }
         return expanded;
     }
 
     function detectStatus(raw, textBlob) {
         const cn = normalizeText(textBlob + ' ' + safeText(raw.statusHint || ''));
+        const step = safeText(raw.statusHint);
+        if (step === '2') return 'Hoàn thành';
+        if (step === '1') return 'Còn tiếp';
         const hasDone = /hoan thanh|da xong|da hoan thanh|完结|完本|已完结/.test(cn);
         const hasPause = /tam ngung|暂停|断更|停更/.test(cn);
         const hasOngoing = /连载|连載|更新中|dang cap nhat|con tiep/.test(cn);
@@ -949,7 +1522,7 @@
                 <div id="${APP_PREFIX}content">
                     <div class="${APP_PREFIX}row">
                         <label class="${APP_PREFIX}label">URL Web Trung</label>
-                        <input id="${APP_PREFIX}url" class="${APP_PREFIX}input" placeholder="https://fanqienovel.com/page/..." />
+                        <input id="${APP_PREFIX}url" class="${APP_PREFIX}input" placeholder="https://fanqienovel.com/page/... hoặc https://www.po18.tw/books/... hoặc https://www.ihuaben.com/book/... hoặc https://www.qidian.com/book/... hoặc https://www.qimao.com/shuku/..." />
                     </div>
                     <div class="${APP_PREFIX}row">
                         <button id="${APP_PREFIX}fetch" class="${APP_PREFIX}btn">Lấy dữ liệu</button>
@@ -1017,6 +1590,21 @@
                         <textarea id="${APP_PREFIX}tag" class="${APP_PREFIX}textarea"></textarea>
                     </div>
                     <div class="${APP_PREFIX}row">
+                        <label class="${APP_PREFIX}label">Liên kết bổ sung</label>
+                        <div class="${APP_PREFIX}grid">
+                            <input id="${APP_PREFIX}moreLinkDesc" class="${APP_PREFIX}input" placeholder="Mô tả (Cà Chua/Tấn Giang/PO18/Ihuaben)" list="${APP_PREFIX}moreLinkOptions" />
+                            <input id="${APP_PREFIX}moreLinkUrl" class="${APP_PREFIX}input" placeholder="URL nguồn" />
+                        </div>
+                        <datalist id="${APP_PREFIX}moreLinkOptions">
+                            <option value="Cà Chua"></option>
+                            <option value="Tấn Giang"></option>
+                            <option value="PO18"></option>
+                            <option value="Ihuaben"></option>
+                            <option value="Khởi Điểm"></option>
+                            <option value="Thất Miêu"></option>
+                        </datalist>
+                    </div>
+                    <div class="${APP_PREFIX}row">
                         <button id="${APP_PREFIX}apply" class="${APP_PREFIX}btn">Áp vào form</button>
                     </div>
                     <div class="${APP_PREFIX}row ${APP_PREFIX}hint">
@@ -1028,7 +1616,7 @@
                 <div class="${APP_PREFIX}modal-card">
                     <div class="${APP_PREFIX}modal-title">Hướng dẫn nhanh</div>
                     <div class="${APP_PREFIX}modal-body">
-Các web hỗ trợ: Fanqie (Cà Chua), JJWXC (Tấn Giang).
+Các web hỗ trợ: Fanqie (Cà Chua), JJWXC (Tấn Giang), PO18 (cần đăng nhập), Ihuaben, Khởi Điểm, Thất Miêu.
 Các bước sử dụng:
 1) Dán link Web Trung vào ô URL rồi bấm "Lấy dữ liệu".
 2) Script sẽ dịch tên/mô tả/tag và gợi ý tick các mục phù hợp.
@@ -1061,6 +1649,22 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                                     <input id="${APP_PREFIX}settingUseDescJjwxc" type="checkbox" />
                                     JJWXC (Tấn Giang)
                                 </label>
+                                <label class="${APP_PREFIX}settings-item">
+                                    <input id="${APP_PREFIX}settingUseDescPo18" type="checkbox" />
+                                    PO18
+                                </label>
+                                <label class="${APP_PREFIX}settings-item">
+                                    <input id="${APP_PREFIX}settingUseDescIhuaben" type="checkbox" />
+                                    Ihuaben
+                                </label>
+                                <label class="${APP_PREFIX}settings-item">
+                                    <input id="${APP_PREFIX}settingUseDescQidian" type="checkbox" />
+                                    Khởi Điểm
+                                </label>
+                                <label class="${APP_PREFIX}settings-item">
+                                    <input id="${APP_PREFIX}settingUseDescQimao" type="checkbox" />
+                                    Thất Miêu
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -1086,6 +1690,10 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
         const settingsThreshold = shadowRoot.getElementById(`${APP_PREFIX}settingThreshold`);
         const settingsUseDescFanqie = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescFanqie`);
         const settingsUseDescJjwxc = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescJjwxc`);
+        const settingsUseDescPo18 = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescPo18`);
+        const settingsUseDescIhuaben = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescIhuaben`);
+        const settingsUseDescQidian = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescQidian`);
+        const settingsUseDescQimao = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescQimao`);
         const logBox = shadowRoot.getElementById(`${APP_PREFIX}log`);
         if (!showFloatingButton) btn.style.display = 'none';
 
@@ -1124,6 +1732,10 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                 : DEFAULT_SCORE_THRESHOLD.toFixed(2);
             settingsUseDescFanqie.checked = !!settings.useDescByDomain?.fanqie;
             settingsUseDescJjwxc.checked = !!settings.useDescByDomain?.jjwxc;
+            settingsUseDescPo18.checked = !!settings.useDescByDomain?.po18;
+            settingsUseDescIhuaben.checked = !!settings.useDescByDomain?.ihuaben;
+            settingsUseDescQidian.checked = !!settings.useDescByDomain?.qidian;
+            settingsUseDescQimao.checked = !!settings.useDescByDomain?.qimao;
         }
 
         function readSettingsFromUi() {
@@ -1132,6 +1744,10 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                 useDescByDomain: {
                     fanqie: settingsUseDescFanqie.checked,
                     jjwxc: settingsUseDescJjwxc.checked,
+                    po18: settingsUseDescPo18.checked,
+                    ihuaben: settingsUseDescIhuaben.checked,
+                    qidian: settingsUseDescQidian.checked,
+                    qimao: settingsUseDescQimao.checked,
                 },
             };
         }
@@ -1164,6 +1780,30 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                         sourceData.coverUrl = await processJjwxcCover(sourceData.coverUrl);
                     }
                     log(`JJWXC OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
+                } else if (sourceInfo.type === 'po18') {
+                    log('Đang gọi PO18...');
+                    raw = await fetchPo18Data(sourceInfo.id);
+                    sourceData = normalizePo18Data(raw);
+                    log(`PO18 OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
+                } else if (sourceInfo.type === 'ihuaben') {
+                    log('Đang gọi Ihuaben...');
+                    raw = await fetchIhuabenData(sourceInfo.id);
+                    sourceData = normalizeIhuabenData(raw);
+                    log(`Ihuaben OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
+                } else if (sourceInfo.type === 'qidian') {
+                    log('Đang gọi Qidian...');
+                    raw = await fetchQidianData(sourceInfo.id);
+                    sourceData = normalizeQidianData(raw);
+                    log(`Qidian OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
+                } else if (sourceInfo.type === 'qimao') {
+                    log('Đang gọi Qimao...');
+                    raw = await fetchQimaoData(sourceInfo.id);
+                    sourceData = normalizeQimaoData(raw);
+                    if (sourceData.coverUrl) {
+                        log('Đang xử lý ảnh bìa Qimao...');
+                        sourceData.coverUrl = await processQimaoCover(sourceData.coverUrl);
+                    }
+                    log(`Qimao OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
                 } else {
                     log('Nguồn chưa hỗ trợ.', 'error');
                     return;
@@ -1215,6 +1855,8 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                 fillText(`${APP_PREFIX}titleVi`, titleVi);
                 fillText(`${APP_PREFIX}descVi`, descVi);
                 fillText(`${APP_PREFIX}coverUrl`, sourceData.coverUrl || '');
+                fillText(`${APP_PREFIX}moreLinkDesc`, sourceData.sourceLabel || '');
+                fillText(`${APP_PREFIX}moreLinkUrl`, urlInput.value || '');
 
                 fillSelect(shadowRoot.getElementById(`${APP_PREFIX}status`), state.groups.status, suggestions.status);
                 fillSelect(shadowRoot.getElementById(`${APP_PREFIX}official`), state.groups.official, suggestions.official);
@@ -1272,6 +1914,8 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
             const descVi = shadowRoot.getElementById(`${APP_PREFIX}descVi`).value;
             const coverUrl = shadowRoot.getElementById(`${APP_PREFIX}coverUrl`).value;
             const sourceUrl = shadowRoot.getElementById(`${APP_PREFIX}url`).value;
+            const moreLinkDesc = shadowRoot.getElementById(`${APP_PREFIX}moreLinkDesc`).value;
+            const moreLinkUrl = shadowRoot.getElementById(`${APP_PREFIX}moreLinkUrl`).value;
 
             setInputValue(document.getElementById('txtTitleCn'), titleCn);
             setInputValue(document.getElementById('txtAuthorCn'), authorCn);
@@ -1297,7 +1941,9 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
             applyCheckboxes(state.groups.tag, tagList.length ? tagList : state.suggestions?.tag || []);
 
             const sourceLabel = state.sourceLabel || 'Nguồn';
-            setMoreLink(sourceLabel, sourceUrl);
+            const finalLinkDesc = safeText(moreLinkDesc) || sourceLabel;
+            const finalLinkUrl = safeText(moreLinkUrl) || sourceUrl;
+            setMoreLink(finalLinkDesc, finalLinkUrl);
             await applyCover(coverUrl, log);
             log('Đã áp dữ liệu vào form.', 'ok');
         }
@@ -1467,7 +2113,7 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
         shadowRoot.getElementById(`${APP_PREFIX}nameSet`).addEventListener('input', (ev) => {
             GM_setValue(`${APP_PREFIX}name_set`, ev.target.value || '');
         });
-        log('Sẵn sàng. Dán link Fanqie rồi bấm "Lấy dữ liệu".');
+        log('Sẵn sàng. Dán link Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao rồi bấm "Lấy dữ liệu".');
 
         return {
             open: openPanel,
