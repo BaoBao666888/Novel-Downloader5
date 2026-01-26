@@ -293,7 +293,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.8')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.9')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -1867,6 +1867,11 @@ class RenamerApp(
             elif response is None:
                 self._force_exit = False
                 return
+        if hasattr(self, "_image_ai_clear_cache"):
+            try:
+                self._image_ai_clear_cache()
+            except Exception:
+                pass
         self.save_config()
         if self.background_settings.get('enable') and not self._force_exit:
             self._hide_to_tray(close_on_fail=True)
@@ -2554,6 +2559,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         - **DS Chương**: tải danh sách chương mới nhất (đồng thời cập nhật chi tiết/số chương), xem nội dung gộp các phần, sửa nội dung ngay trong app (PUT lên server). Koanchay tự dùng domain đúng và tự trừ cột “New”.
         - **Mô tả bổ sung mặc định** (Cài đặt request): hỗ trợ `{num-d}`/`{num-c}` (tương đương `{num-đầu}`/`{num-cuối}`) để điền số chương đầu/cuối của batch đã parse khi upload thủ công.
         - **Ghi chú & Liên kết**: Ghi chú cục bộ + toàn cục (lưu trong config). Liên kết thư mục per‑truyện + toàn cục, có “Chọn tự động” (giải nén rồi chọn / chọn thư mục mới nhất) và nút “Mở thư mục...”.
+        - **Thêm vào thư viện**: trong trang truyện, bấm “Thêm vào thư viện” để chọn một hoặc nhiều thư viện muốn lưu.
         - **Thêm link hỗ trợ**: thêm link Fanqie/JJWXC/PO18/Qidian/Ihuaben vào trang sửa truyện rồi tải chi tiết/kiểm tra cập nhật để đồng bộ.
         - **Cập nhật chương**: nút chỉ sáng khi có “New”; nhập số để cộng tổng chương và trừ cột “New”. Sai lệch có thể tải lại chi tiết/DS Chương để đồng bộ.
         - **Auto update**: chỉ khi có link Fanqie, app tự bật bridge, tải mục lục, tạo file bổ sung, thêm Credit (nếu bật) rồi mở upload đã điền sẵn.
@@ -2639,8 +2645,10 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         1.  **Nguồn**:
             -   **Trang web**: Chọn trang bạn muốn lấy dữ liệu (ví dụ: jjwxc.net).
+            -   **Cookie profile**: chọn profile cookie để dùng khi tải dữ liệu; có thể đổi nhanh giữa các profile.
             -   **URL mục lục**: Dán đường link của trang mục lục truyện vào đây.
             -   **Bắt đầu lấy dữ liệu**: Nhấn để chương trình truy cập URL và lấy về danh sách chương.
+            -   **Reset profile**: Ngay lập tức cập nhận combox theo danh sách profile mới nhất.
             -   **Lưu ý**: Đảm bảo URL hợp lệ và có kết nối mạng. Nếu trang web yêu cầu đăng nhập, app sẽ mở trình duyệt để bạn đăng nhập hoặc tải cookie trước khi lấy dữ liệu.
 
         2.  **Kết quả**:
@@ -2750,17 +2758,15 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   **Phóng to / Thu nhỏ**: Sử dụng **con lăn chuột** trên ảnh để phóng to hoặc thu nhỏ.
             -   **Di chuyển ảnh**: **Nhấn và kéo chuột trái** để di chuyển ảnh trong khung xem.
 
-        3.  **Công cụ & Lưu ảnh**:
-            -   **Thu gọn/Mở công cụ**: mặc định tab bị thu gọn; bấm **Mở công cụ** để hiện các chức năng tăng/giảm ảnh.
-            -   **Công cụ**: Chọn một trong các hiệu ứng nâng cao chất lượng ảnh:
-                -   *Làm nét (Unsharp Mask)*: Tăng độ sắc nét của các chi tiết.
-                -   *Tăng chi tiết (Detail)*: Làm nổi bật các cạnh và vân bề mặt.
-                -   *Nâng cấp độ phân giải x2*: Tăng gấp đôi kích thước ảnh với thuật toán chất lượng cao.
-            -   **Cường độ**: Dùng thanh trượt để điều chỉnh mức độ mạnh/yếu của hiệu ứng.
+        3.  **Tăng cường AI & Lưu ảnh**:
+            -   **Mở tăng cường AI**: bấm nút để hiện khối AI (mặc định ẩn).
+            -   **Cài tool & Quản lý model**: nếu chưa có tool/model thì bấm cài hoặc vào **Quản lý** để tải model.
+            -   **Chọn model**: xem mô tả để chọn đúng loại ảnh cần xử lý.
+            -   **Tham số**: chỉnh Tile/Pad/Pre pad; **Reset mặc định** để quay về thông số gốc. Scale cố định 4x.
+            -   **Áp dụng**: chạy tăng cường AI, theo dõi trạng thái ở nhãn thông báo.
+            -   **Hoàn tác về gốc**: quay lại ảnh ban đầu.
             -   **Giảm kích thước**: giảm theo % hoặc theo kích thước (W/H), có tùy chọn giữ tỉ lệ.
-            -   **Áp dụng**: Sau khi chọn công cụ và cường độ, nhấn **"Áp dụng"** để xem kết quả.
-            -   **Hoàn tác về gốc**: Nhấn nút này để hủy bỏ mọi thay đổi và quay về ảnh gốc ban đầu.
-            -   **Lưu ảnh...**: Nút lưu nằm cùng hàng với trạng thái **Sẵn sàng.** bên dưới, chọn định dạng rồi lưu ảnh đã xử lý.
+            -   **Lưu ảnh...**: chọn định dạng rồi lưu ảnh đã xử lý.
         """
         create_tab("Xử lý Ảnh", image_guide)
 
@@ -2836,6 +2842,10 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     if getattr(self, "_last_loaded_file", "") != filepath:
                         self._select_file_for_ops(filepath=filepath)
                         self._last_loaded_file = filepath
+            if tab_text == "Xử lý Ảnh" and hasattr(self, "_image_ai_check_tool_state"):
+                if not getattr(self, "_image_ai_tool_checked_on_tab", False):
+                    self._image_ai_tool_checked_on_tab = True
+                    self._image_ai_check_tool_state(force=True)
         except Exception as e:
             print(f"Lỗi trong _on_notebook_tab_changed: {e}")
 

@@ -7,6 +7,24 @@ from app.paths import BASE_DIR
 LIBRARY_FILE = os.path.join(BASE_DIR, "local", "library.json")
 
 class LibraryMixin:
+    def _lib_get_book_folders(self, book):
+        folders = book.get("folders")
+        if isinstance(folders, list):
+            return [f for f in folders if isinstance(f, str) and f]
+        folder = book.get("folder")
+        if isinstance(folder, str) and folder:
+            return [folder]
+        return []
+
+    def _lib_set_book_folders(self, book, folders):
+        clean = [f for f in folders if isinstance(f, str) and f]
+        book["folders"] = clean
+        book["folder"] = clean[0] if len(clean) == 1 else ""
+
+    def _lib_ensure_data(self):
+        if not hasattr(self, "_lib_data") or not isinstance(self._lib_data, dict):
+            self._lib_data = self._lib_load_data()
+
     def _lib_open_library_window(self):
         if hasattr(self, "_lib_window") and self._lib_window.winfo_exists():
             self._lib_window.lift()
@@ -116,12 +134,21 @@ class LibraryMixin:
         self._lib_on_folder_select()
 
     def _lib_refresh_tree(self, filter_folder=None):
-        # If not init called yet
-        if not hasattr(self, "lib_folder_list"): return
+        # If not init called yet or window closed
+        if not hasattr(self, "lib_folder_list"):
+            return
+        try:
+            if not self.lib_folder_list.winfo_exists():
+                return
+        except Exception:
+            return
         
         # Reload folders list if needed (basic check)
-        if self.lib_folder_list.size() == 0:
-            self._lib_refresh_folders()
+        try:
+            if self.lib_folder_list.size() == 0:
+                self._lib_refresh_folders()
+                return
+        except Exception:
             return
 
         self.lib_tree.delete(*self.lib_tree.get_children())
@@ -129,8 +156,9 @@ class LibraryMixin:
         
         for book in books:
             if filter_folder and filter_folder != "Tất cả":
-                 if book.get("folder") != filter_folder:
-                     continue
+                folders = self._lib_get_book_folders(book)
+                if filter_folder not in folders:
+                    continue
             
             self.lib_tree.insert("", "end", values=(
                 book.get("title", ""),
@@ -184,14 +212,21 @@ class LibraryMixin:
             return
             
         folder = getattr(self, "_lib_current_folder", "")
-        if folder == "Tất cả": folder = ""
+        if folder == "Tất cả":
+            folder = ""
         
         count = 0
-        current_ids = {b["id"] for b in self._lib_data["books"] if b.get("id")}
-        
         for b in books:
             bid = b.get("id")
-            if not bid or bid in current_ids:
+            if not bid:
+                continue
+            existing = next((x for x in self._lib_data["books"] if x.get("id") == bid), None)
+            if existing:
+                if folder:
+                    current_folders = self._lib_get_book_folders(existing)
+                    if folder not in current_folders:
+                        self._lib_set_book_folders(existing, current_folders + [folder])
+                        count += 1
                 continue
             new_entry = {
                 "id": bid,
@@ -200,11 +235,10 @@ class LibraryMixin:
                 "chapters": b.get("chapters"),
                 "status": b.get("status"),
                 "updated_text": b.get("updated_text"),
-                "folder": folder,
+                "folders": [folder] if folder else [],
                 "url": b.get("url")
             }
             self._lib_data["books"].append(new_entry)
-            current_ids.add(bid)
             count += 1
             
         if count > 0:
@@ -222,7 +256,11 @@ class LibraryMixin:
             # Get IDs
             target_ids = []
             for b in self._lib_data["books"]:
-                if current_folder == "Tất cả" or b.get("folder") == current_folder:
+                if current_folder == "Tất cả":
+                    target_ids.append(b.get("id"))
+                    continue
+                folders = self._lib_get_book_folders(b)
+                if current_folder in folders:
                     target_ids.append(b.get("id"))
             
             if not target_ids:
@@ -284,8 +322,10 @@ class LibraryMixin:
         
         # Update books
         for book in self._lib_data["books"]:
-            if book.get("folder") == folder:
-                book["folder"] = ""
+            folders = self._lib_get_book_folders(book)
+            if folder in folders:
+                folders = [f for f in folders if f != folder]
+                self._lib_set_book_folders(book, folders)
         
         self._lib_save_data()
         self._lib_refresh_folders()
@@ -320,7 +360,7 @@ class LibraryMixin:
             count = 0
             for book in self._lib_data["books"]:
                 if book.get("id") in target_ids:
-                    book["folder"] = target
+                    self._lib_set_book_folders(book, [target] if target else [])
                     count += 1
             
             self._lib_save_data()
@@ -349,28 +389,82 @@ class LibraryMixin:
             self._lib_save_data()
             self._lib_refresh_tree(getattr(self, "_lib_current_folder", "Tất cả"))
 
-    def _lib_add_book_from_data(self, book_data):
-        # Check duplicate
-        exists = any(b["id"] == book_data["id"] for b in self._lib_data["books"] if b.get("id"))
-        if exists:
-            messagebox.showinfo("Đã có", "Truyện này đã có trong thư viện.", parent=self)
+    def _lib_add_book_from_data(self, book_data, folders=None):
+        self._lib_ensure_data()
+        book_id = book_data.get("id")
+        if not book_id:
             return
-            
-        # Minimal data copy
+        if folders is None:
+            current = getattr(self, "_lib_current_folder", "")
+            if current == "Tất cả":
+                current = ""
+            folders = [current] if current else []
+        folders = [f for f in folders if isinstance(f, str) and f]
+
+        existing = next((b for b in self._lib_data["books"] if b.get("id") == book_id), None)
+        if existing:
+            current_folders = self._lib_get_book_folders(existing)
+            merged = list(dict.fromkeys(current_folders + folders))
+            self._lib_set_book_folders(existing, merged)
+            self._lib_save_data()
+            if hasattr(self, "lib_folder_list") and self.lib_folder_list.winfo_exists():
+                self._lib_refresh_tree(getattr(self, "_lib_current_folder", "Tất cả"))
+            if folders:
+                messagebox.showinfo("Đã cập nhật", "Đã thêm truyện vào thư viện đã chọn.", parent=self)
+            else:
+                messagebox.showinfo("Đã có", "Truyện này đã có trong thư viện.", parent=self)
+            return
+
         new_entry = {
-            "id": book_data.get("id"),
+            "id": book_id,
             "title": book_data.get("title"),
             "author": book_data.get("author"),
             "chapters": book_data.get("chapters"),
             "status": book_data.get("status"),
             "updated_text": book_data.get("updated_text"),
-            "folder": getattr(self, "_lib_current_folder", "") if getattr(self, "_lib_current_folder", "Tất cả") != "Tất cả" else "",
+            "folders": folders,
             "url": book_data.get("url")
         }
         self._lib_data["books"].append(new_entry)
         self._lib_save_data()
-        self._lib_refresh_tree(getattr(self, "_lib_current_folder", "Tất cả"))
+        if hasattr(self, "lib_folder_list") and self.lib_folder_list.winfo_exists():
+            self._lib_refresh_tree(getattr(self, "_lib_current_folder", "Tất cả"))
         messagebox.showinfo("Thành công", "Đã thêm vào thư viện.", parent=self)
+
+    def _lib_prompt_add_to_folders(self, book_data):
+        self._lib_ensure_data()
+        folders = [f for f in self._lib_data.get("folders", []) if isinstance(f, str) and f]
+        if not folders:
+            messagebox.showinfo("Trống", "Chưa có thư viện nào. Vui lòng tạo thư viện trước.", parent=self)
+            return
+
+        win = tk.Toplevel(self)
+        win.title("Chọn thư viện")
+        win.geometry("360x360")
+        win.transient(self)
+        win.grab_set()
+
+        ttk.Label(win, text="Chọn thư viện để thêm:").pack(anchor="w", padx=10, pady=(10, 6))
+        listbox = tk.Listbox(win, selectmode="multiple")
+        listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+        for name in folders:
+            listbox.insert(tk.END, name)
+
+        btn_frame = ttk.Frame(win)
+        btn_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+        btn_frame.columnconfigure(1, weight=1)
+
+        def _confirm():
+            sel = listbox.curselection()
+            if not sel:
+                messagebox.showinfo("Thiếu lựa chọn", "Chọn ít nhất một thư viện.", parent=win)
+                return
+            selected = [folders[i] for i in sel]
+            self._lib_add_book_from_data(book_data, folders=selected)
+            win.destroy()
+
+        ttk.Button(btn_frame, text="Hủy", command=win.destroy).grid(row=0, column=0, sticky="w")
+        ttk.Button(btn_frame, text="OK", command=_confirm).grid(row=0, column=2, sticky="e")
 
     def _lib_open_book(self):
         sel = self.lib_tree.selection()

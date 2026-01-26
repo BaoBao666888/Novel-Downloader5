@@ -1439,8 +1439,10 @@ class WikidichMixin:
     def _wd_add_to_library(self):
         if not getattr(self, "wd_selected_book", None):
             return
-        if hasattr(self, "_lib_add_book_from_data"):
-             self._lib_add_book_from_data(self.wd_selected_book)
+        if hasattr(self, "_lib_prompt_add_to_folders"):
+            self._lib_prompt_add_to_folders(self.wd_selected_book)
+        elif hasattr(self, "_lib_add_book_from_data"):
+            self._lib_add_book_from_data(self.wd_selected_book)
 
     def _wd_show_detail(self, book):
         self.wd_selected_book = book
