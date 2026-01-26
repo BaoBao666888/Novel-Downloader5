@@ -475,6 +475,11 @@ class ImageTabMixin:
         _log(f"[ImageAI] Dùng gdown tools: {gdown_cmd}")
         cmd = [gdown_cmd, "--fuzzy", "-O", dest_path, url]
         result = _run_with_progress(lambda: subprocess.run(cmd, capture_output=True, text=True))
+        _log(f"[ImageAI] gdown exit: {result.returncode}")
+        if result.stdout:
+            _log(f"[ImageAI] gdown stdout: {result.stdout.strip()}")
+        if result.stderr:
+            _log(f"[ImageAI] gdown stderr: {result.stderr.strip()}")
         if result.returncode == 0 and os.path.isfile(dest_path):
             if self._image_ai_is_html_file(dest_path):
                 try:
@@ -489,7 +494,10 @@ class ImageTabMixin:
         msg = (result.stderr or result.stdout or "").strip()
         if msg:
             raise RuntimeError(msg)
-        raise RuntimeError("Không tải được file từ Google Drive.")
+        raise RuntimeError(
+            f"Gdown thất bại (exit {result.returncode}). "
+            "gdown.exe có thể là launcher cần Python trên máy hoặc thiếu runtime."
+        )
 
     def _image_ai_models_dir(self) -> str:
         return os.path.join(BASE_DIR, "local", "image_ai_models")
