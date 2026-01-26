@@ -3,7 +3,7 @@
   "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.2.9/Rename-Chapters-setup.exe",
   "notes_file": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/update_notes.html",
   "image_ai_tool": {
-    "version": "0.1.1",
+    "version": "0.1.2",
     "url": "https://drive.google.com/file/d/1PTirisPyjBWh2kzqxfIPAkAUg41v4fWQ/view?usp=drive_link",
     "models": [
       {
@@ -22,13 +22,13 @@
         "id": "realesr-general-wdn-x4v3",
         "name": "realesr-general-wdn-x4v3.pth",
         "url": "https://drive.google.com/file/d/1fKORjYqTGW2GnmjtyKjQ1HM1YkY9m1Lv/view?usp=drive_link",
-        "desc": "Model tổng quát có khử nhiễu (WDN), hợp ảnh bị noise/mờ."
+        "desc": "Model tổng quát có khử nhiễu (WDN), hợp ảnh bị noise/mờ. Hoạt động tốt với tool v0.1.2."
       },
       {
         "id": "realesr-general-x4v3",
         "name": "realesr-general-x4v3.pth",
         "url": "https://drive.google.com/file/d/1xljTda2jd8vRmAAE0fBxiJnwJ8lIr5Kq/view?usp=drive_link",
-        "desc": "Model tổng quát cho ảnh thật, giữ chi tiết tự nhiên."
+        "desc": "Model tổng quát cho ảnh thật, giữ chi tiết tự nhiên. Hoạt động tốt với tool v0.1.2."
       },
       {
         "id": "realesrgan_x4plus_anime_6b",
