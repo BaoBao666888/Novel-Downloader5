@@ -77,6 +77,7 @@ from app.ui.image_tab_mixin import ImageTabMixin
 from app.ui.proxy_mixin import ProxyMixin
 from app.ui.radical_checker import open_radical_checker_dialog
 from app.ui.library_mixin import LibraryMixin
+from app.ui.forum_tab_mixin import ForumTabMixin
 from app.ui.wikidich import WikidichController, WikidichState
 
 # Đảm bảo chỉ một instance (dùng localhost TCP)
@@ -335,6 +336,7 @@ class RenamerApp(
     RenameTabMixin,
     CreditTabMixin,
     OnlineTabMixin,
+    ForumTabMixin,
     SettingsTabMixin,
     TextOpsMixin,
     TranslateTabMixin,
@@ -2215,6 +2217,7 @@ class RenamerApp(
         menubar.add_cascade(label="Trợ giúp", menu=help_menu)
         help_menu.add_command(label="Hướng dẫn Regex", command=lambda: self.show_regex_guide("general"))
         help_menu.add_command(label="Hướng dẫn thao tác", command=self.show_operation_guide)
+        help_menu.add_command(label="Gửi phản hồi...", command=self._open_feedback_issue)
         help_menu.add_separator()
         help_menu.add_command(label="Xóa cache ảnh bìa...", command=self._clear_cover_cache_dialog)
         help_menu.add_separator()
@@ -2242,6 +2245,7 @@ class RenamerApp(
         self.create_translator_tab()
         self.create_image_processing_tab()
         self.create_wikidich_tab()
+        self.create_forum_tab()
         self.create_settings_tab()
 
         log_frame = ttk.LabelFrame(self.main_paned_window, text="Nhật ký hoạt động", padding="8", style="Section.TLabelframe")
@@ -2818,6 +2822,37 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         text_widget.insert(tk.END, markdown_text[last_end:])
         text_widget.config(state='disabled')
 
+    def _open_feedback_issue(self):
+        base_url = "https://github.com/BaoBao666888/Novel-Downloader5/issues/new"
+        title = f"[Feedback] Rename Chapters {self.CURRENT_VERSION}"
+        log_text = ""
+        widget = getattr(self, "log_text", None)
+        if widget:
+            try:
+                log_text = widget.get("1.0", tk.END).strip()
+            except Exception:
+                log_text = ""
+        if log_text:
+            lines = log_text.splitlines()
+            if len(lines) > 120:
+                log_text = "\n".join(lines[-120:])
+        body = (
+            f"Phiên bản: {self.CURRENT_VERSION}\n"
+            f"Hệ điều hành: {sys.platform}\n\n"
+            "Mô tả vấn đề / góp ý:\n"
+            "- \n\n"
+            "Cách tái hiện (nếu là lỗi):\n"
+            "1. \n"
+            "2. \n\n"
+            "Log liên quan (nếu có):\n"
+            f"{log_text}\n"
+        )
+        url = f"{base_url}?title={quote(title)}&body={quote(body)}"
+        try:
+            webbrowser.open(url)
+        except Exception:
+            messagebox.showerror("Lỗi", "Không thể mở trình duyệt để gửi phản hồi.")
+
     def _on_notebook_tab_changed(self, event=None):
         """Ẩn/hiện khung chọn thư mục và đồng bộ khi chuyển tab."""
         try:
@@ -2846,6 +2881,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 if not getattr(self, "_image_ai_tool_checked_on_tab", False):
                     self._image_ai_tool_checked_on_tab = True
                     self._image_ai_check_tool_state(force=True)
+            if tab_text == "Diễn đàn" and hasattr(self, "_forum_render_index_stats"):
+                self._forum_render_index_stats()
         except Exception as e:
             print(f"Lỗi trong _on_notebook_tab_changed: {e}")
 

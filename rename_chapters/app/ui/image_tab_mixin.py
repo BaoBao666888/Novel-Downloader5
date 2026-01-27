@@ -2,6 +2,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shlex
 import subprocess
 import shutil
@@ -393,6 +394,41 @@ class ImageTabMixin:
         self._image_ai_tool_meta_cache = tool_meta or {}
         return self._image_ai_tool_meta_cache
 
+    def _image_ai_query_tool_version(self) -> str:
+        tool_path = self._image_ai_tool_path()
+        if not os.path.isfile(tool_path):
+            return ""
+        try:
+            result = subprocess.run(
+                [tool_path, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+        except Exception:
+            return ""
+        output = (result.stdout or result.stderr or "").strip()
+        match = re.search(r"\b\d+\.\d+\.\d+\b", output)
+        if match:
+            return match.group(0)
+        if result.returncode == 0 and output:
+            return output.splitlines()[0].strip()
+        return ""
+
+    def _image_ai_get_installed_tool_version(self, force: bool = False) -> str:
+        if not force and hasattr(self, "_image_ai_tool_version_cache"):
+            return self._image_ai_tool_version_cache or ""
+        tool_path = self._image_ai_tool_path()
+        version = ""
+        if os.path.isfile(tool_path):
+            version = self._image_ai_query_tool_version()
+            if version and isinstance(getattr(self, "app_config", None), dict):
+                self.app_config["image_ai_tool_version"] = version
+        if not version and isinstance(getattr(self, "app_config", None), dict):
+            version = self.app_config.get("image_ai_tool_version", "") or ""
+        self._image_ai_tool_version_cache = version
+        return version
+
     def _image_ai_models_meta(self) -> list:
         meta = self._image_ai_tool_meta()
         models = meta.get("models") if isinstance(meta, dict) else []
@@ -513,9 +549,7 @@ class ImageTabMixin:
         target_version = meta.get("version") if isinstance(meta, dict) else ""
         tool_path = self._image_ai_tool_path()
         installed = os.path.isfile(tool_path)
-        installed_version = ""
-        if isinstance(getattr(self, "app_config", None), dict):
-            installed_version = self.app_config.get("image_ai_tool_version", "") or ""
+        installed_version = self._image_ai_get_installed_tool_version()
         needs_update = bool(installed and target_version and installed_version != target_version)
 
         if not installed:
@@ -567,6 +601,7 @@ class ImageTabMixin:
                 os.replace(tmp_path, self._image_ai_tool_path())
                 if isinstance(getattr(self, "app_config", None), dict) and version:
                     self.app_config["image_ai_tool_version"] = version
+                    self._image_ai_tool_version_cache = version
                 self.after(0, lambda: self.image_ai_status_label.config(text="Đã cài/cập nhật tool tăng cường."))
             except Exception as exc:
                 try:
@@ -996,8 +1031,13 @@ class ImageTabMixin:
                 msg = str(exc)
 
                 def on_err(error_msg=msg):
-                    messagebox.showerror("Lỗi", f"Không thể tăng cường ảnh: {error_msg}", parent=self)
-                    self.image_ai_status_label.config(text=f"Lỗi: {error_msg}")
+                    display_msg = error_msg
+                    if len(display_msg) > 1200:
+                        head = display_msg[:800].rstrip()
+                        tail = display_msg[-300:].lstrip()
+                        display_msg = f"{head}\n...\n{tail}"
+                    messagebox.showerror("Lỗi", f"Không thể tăng cường ảnh: {display_msg}", parent=self)
+                    self.image_ai_status_label.config(text="Lỗi: Tool tăng cường ảnh.")
                     self.image_ai_apply_btn.config(state=tk.NORMAL)
 
                 self.after(0, on_err)

@@ -23,3 +23,9 @@ fanqie_bridge/
 rename_chapters/tools/
 logs/
 novelDownloaderVietSub.beta.user.js
+forum_tab_mixin.py
+*.pth
+TM-translate/
+imageAI/
+tmp/
+gdown/

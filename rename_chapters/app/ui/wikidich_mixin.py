@@ -450,6 +450,33 @@ class WikidichMixin:
         cover_frame.grid(row=0, column=0, rowspan=2, sticky="nw", pady=(6, 0))
         self.wd_cover_label = tk.Label(cover_frame, text="(Bìa)", bd=0)
         self.wd_cover_label.pack()
+        self.wd_cover_refresh_btn = tk.Button(
+            cover_frame,
+            text="⟳",
+            width=2,
+            height=1,
+            command=self._wd_refresh_current_cover,
+            takefocus=0,
+        )
+        self.wd_cover_refresh_btn.place(x=2, y=2)
+        self.wd_cover_refresh_btn.place_forget()
+
+        def _show_cover_actions(_event=None):
+            if hasattr(self, "wd_cover_refresh_btn"):
+                try:
+                    self.wd_cover_refresh_btn.place(x=2, y=2)
+                except Exception:
+                    pass
+
+        def _hide_cover_actions(_event=None):
+            if hasattr(self, "wd_cover_refresh_btn"):
+                try:
+                    self.wd_cover_refresh_btn.place_forget()
+                except Exception:
+                    pass
+
+        cover_frame.bind("<Enter>", _show_cover_actions)
+        cover_frame.bind("<Leave>", _hide_cover_actions)
 
         info_frame = ttk.Frame(detail_frame)
         info_frame.grid(row=0, column=1, sticky="new", padx=(10, 0), pady=(6, 0))
@@ -5025,6 +5052,44 @@ class WikidichMixin:
         else:
             self.wd_cover_label.config(image='', text="(Không tải được bìa)")
             self.wd_cover_label.image = None
+
+    def _wd_refresh_current_cover(self):
+        book = getattr(self, "wd_selected_book", None)
+        if not book:
+            return
+        url = book.get("cover_url") or ""
+        if not url:
+            return
+        self.log("[Wikidich] Refresh bìa: bắt đầu tải lại.")
+        self.wd_cover_label.config(text="(Đang tải...)")
+
+        def _worker():
+            try:
+                proxies = self._get_proxy_for_request('images')
+                cookies = load_browser_cookie_jar(
+                    self._wd_get_cookie_domains(),
+                    cookie_db_path=self._wd_get_cookie_db_path()
+                )
+                headers = {
+                    "Referer": self._wd_get_base_url() + "/",
+                    "User-Agent": self._browser_user_agent or DEFAULT_API_SETTINGS['wiki_headers'].get("User-Agent"),
+                    "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                }
+                headers = {k: v for k, v in headers.items() if v}
+                resp = requests.get(url, timeout=25, proxies=proxies, headers=headers, cookies=cookies)
+                resp.raise_for_status()
+                img_bytes = resp.content
+                self._wd_save_cover_to_disk(url, img_bytes)
+                img = Image.open(io.BytesIO(img_bytes))
+                img.thumbnail((220, 320))
+                photo = ImageTk.PhotoImage(img)
+                self.log("[Wikidich] Refresh bìa: tải thành công.")
+                self.after(0, lambda: self._wd_set_cover_image(url, photo))
+            except Exception:
+                self.log("[Wikidich] Refresh bìa: lỗi, dùng lại cache cũ.")
+                self.after(0, lambda: self._wd_display_cover(url))
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     def _wd_get_cache_path(self):
         return (self._wd_cache_paths or {}).get(getattr(self, "wd_site", "wikidich"), self.wikidich_cache_path)
