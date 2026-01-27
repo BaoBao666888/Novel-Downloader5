@@ -294,7 +294,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.2.9.1')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.0')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -2571,6 +2571,46 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         """
         create_tab("Wikidich", wikidich_guide)
 
+        forum_guide = """
+        --- DIỄN ĐÀN ---
+        Tab này giúp lưu chỉ mục bài viết và tìm nhanh theo chuyên khu/chủ đề.
+
+        1. **Cookie profile**:
+           - Chọn profile có đăng nhập diễn đàn để tải dữ liệu.
+           - Nút ↻ dùng để làm mới danh sách profile.
+
+        2. **Sync**:
+           - **Đồng bộ gần đây**: tải các bài viết mới từ trang gần đây.
+           - **Lấy data forum**: tải file dữ liệu mẫu về máy rồi nhập vào chỉ mục (cần đăng nhập).
+           - Nếu có quyền, menu Sync sẽ có thêm **Đồng bộ chuyên khu**.
+
+        3. **Thao tác**:
+           - **Xuất**: xuất chỉ mục ra JSON để lưu/backup.
+           - **Nhập**: nhập JSON và chọn gộp hoặc thay thế.
+
+        4. **Mở lọc**:
+           - Bật/tắt khung lọc. Có Từ khóa, User, Từ ngày/Đến ngày và Loại.
+           - User gợi ý theo danh sách đã có trong chỉ mục.
+
+        5. **Cài đặt**:
+           - Chỉnh thời gian chờ giữa các lần tải, giới hạn trang, và số lần thử lại.
+
+        6. **Chuyên khu / Chủ đề**:
+           - Danh sách bên trái (Chuyên khu) và bên phải (Chủ đề).
+           - Có nút mũi tên ở mép để thu gọn/mở rộng nhanh.
+           - Chọn chuyên khu để xem chủ đề, chọn chủ đề để xem bài viết.
+
+        7. **Kết quả & Nội dung**:
+           - Bảng Kết quả hiển thị danh sách bài viết. Dòng đầu tô xanh để biết người mở chủ đề.
+           - Chuột phải vào một dòng để sao chép nhanh (link/tiêu đề/toàn bộ).
+           - Khung Nội dung hiển thị bài viết chi tiết.
+           - Kéo đường phân cách giữa Kết quả/Nội dung để thay đổi kích thước.
+
+        8. **Dừng**:
+           - Dừng tác vụ đang chạy nếu cần.
+        """
+        create_tab("Diễn đàn", forum_guide)
+
         nd5_guide = """
         --- NOVEL DOWNLOADER 5 (ND5) ---
         - Mở từ menu **Công cụ → Download Novel 5...** (cửa sổ riêng, không chặn UI).
@@ -2881,8 +2921,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 if not getattr(self, "_image_ai_tool_checked_on_tab", False):
                     self._image_ai_tool_checked_on_tab = True
                     self._image_ai_check_tool_state(force=True)
-            if tab_text == "Diễn đàn" and hasattr(self, "_forum_render_index_stats"):
-                self._forum_render_index_stats()
+            if tab_text == "Diễn đàn" and hasattr(self, "_forum_ensure_loaded"):
+                self._forum_ensure_loaded()
         except Exception as e:
             print(f"Lỗi trong _on_notebook_tab_changed: {e}")
 
