@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.0
+// @version      0.3.1
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -11,7 +11,7 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.0'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.1'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const REQUEST_DELAY_MS = 350;
@@ -29,6 +29,7 @@
         aiMode: 'auto', // 'auto' or 'ai'
         geminiApiKey: '',
         geminiModel: 'gemini-2.5-flash',
+        autoExtractNames: true, // AI auto-extract character names
         domainSettings: {
             fanqie: { label: 'Fanqie (Cà Chua)', useDesc: true, target: 'wiki' },
             jjwxc: { label: 'Tấn Giang (JJWXC)', useDesc: false, target: 'wiki' },
@@ -73,6 +74,7 @@
         if (raw.aiMode) base.aiMode = raw.aiMode;
         if (raw.geminiApiKey) base.geminiApiKey = raw.geminiApiKey;
         if (raw.geminiModel) base.geminiModel = raw.geminiModel;
+        if (typeof raw.autoExtractNames === 'boolean') base.autoExtractNames = raw.autoExtractNames;
         // old
         const oldMap = raw.useDescByDomain;
         if (oldMap && typeof oldMap === 'object') {
@@ -148,12 +150,20 @@
 
     // --- HELP & CHANGELOG CONTENT ---
     const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">🚀 Phiên bản 0.3.0 - Big Update!</span></h2>
+<h2><span style="color:#673ab7; font-size: 1.2em;">🚀 Phiên bản 0.3.1 - AI Name Extraction!</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li><b>🌊 Trường Bội (Gongzicp):</b> Hỗ trợ "tận răng" (Cover HD, Tự động lọc query).</li>
-    <li><b>🧠 Auto Smart:</b> Chuẩn hóa logic nhận diện, thông minh hơn gấp 3 lần!</li>
-    <li><b>📊 Bảng Điều Khiển:</b> Tùy chỉnh "Hiển thị" & "Quét văn án" visual cực mạnh trong Settings.</li>
-    <li><b>✨ AI Gemini:</b> "Bảo bối" phân tích tag/thể loại siêu chuẩn (cần API Key).</li>
+    <li>🪄 <b>Auto Tách Tên (MỚI!):</b> AI tự động trích xuất <span style="color:#e91e63;">tên nhân vật, địa danh</span> → điền "Bộ name" → dịch lại văn án với bộ tên chuẩn Hán-Việt!</li>
+    <li>🔗 <b>1 Request Thông Minh:</b> Gộp tách tên + chọn tag trong 1 lần gọi AI → <span style="color:#4caf50;">context đầy đủ, chính xác hơn!</span></li>
+    <li>🌊 <b>Gongzicp Fix:</b> Sửa lỗi status (Hoàn thành/Còn tiếp) từ <code>novel_process</code>.</li>
+    <li>⚙️ <b>Cài đặt mới:</b> Toggle "Auto Tách Names" trong Settings (mặc định BẬT).</li>
+</ul>
+
+<h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.0 (Trước đó)</h3>
+<ul style="list-style-type: none; padding-left: 0; font-size: 13px; color: #666;">
+    <li>🌊 Trường Bội (Gongzicp): Cover HD, Tự động lọc query.</li>
+    <li>🧠 Auto Smart: Chuẩn hóa logic nhận diện.</li>
+    <li>📊 Bảng Điều Khiển: Tùy chỉnh "Hiển thị" & "Quét văn án".</li>
+    <li>✨ AI Gemini: Phân tích tag/thể loại siêu chuẩn.</li>
 </ul>`;
 
     const WELCOME_CONTENT = `
@@ -179,10 +189,21 @@
     <li>🛡️ <b>Kiểm duyệt:</b> Tự động lọc bỏ các tag "rác" không có trong hệ thống Wikidich.</li>
 </ul>
 
+<div style="background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%); padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #e91e63;">
+    <h3 style="margin-top:0; color:#ad1457;">🪄 Auto Tách Tên (v0.3.1):</h3>
+    <p style="margin: 5px 0; font-size: 13px;">Khi bấm nút <b style="color:#e91e63;">AI</b>, hệ thống sẽ:</p>
+    <ol style="margin-left: 15px; padding-left: 0; font-size: 13px;">
+        <li>Gửi văn án tiếng Trung cho AI phân tích</li>
+        <li>AI trích xuất <b>tên nhân vật, địa danh</b> → phiên âm <span style="color:#673ab7;">Hán-Việt</span></li>
+        <li>Tự động điền vào ô <b>"Bộ name"</b> (dạng: <code>Tên_Trung=Hán_Việt</code>)</li>
+        <li>Dịch lại văn án với bộ tên mới → tên được giữ nguyên!</li>
+    </ol>
+    <p style="margin: 5px 0; font-size: 12px; color: #666;">💡 <i>Toggle: Vào ⚙️ Cài đặt → "Auto Tách Names" để bật/tắt.</i></p>
+</div>
 
 <h3>🌍 Các Trang Hỗ Trợ:</h3>
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-    
+
     <!-- Fanqie -->
     <div style="background: #fff3e0; padding: 8px; border-radius: 6px; border-left: 3px solid #ff9800;">
         <strong style="color: #ef6c00;">🍅 Fanqie (Cà Chua)</strong><br>
@@ -1293,6 +1314,11 @@
     }
 
     function normalizeGongzicpData(data) {
+        let update_status = '';
+        const process = data.novel_process || '';
+        if (process === '完结') update_status = 1;
+        else if (process === '连载') update_status = 0;
+
         return {
             titleCn: data.novel_name || '',
             authorCn: data.author_nickname || '',
@@ -1300,6 +1326,7 @@
             tags: data.tag_list || [],
             categories: data.type_list || [],
             coverUrl: data.novel_cover || '',
+            update_status: update_status,
             sourceType: 'gongzicp',
             sourceLabel: 'Trường Bội'
         };
@@ -1872,6 +1899,11 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                                         <option value="ai">AI (Ưu tiên)</option>
                                     </select>
                                 </label>
+                                <label class="${APP_PREFIX}settings-item" style="margin-top: 4px;">
+                                    <span style="min-width: 80px;">Auto Tách Names:</span>
+                                    <input id="${APP_PREFIX}settingAutoExtractNames" type="checkbox" style="margin-left: 8px;" />
+                                    <small style="color: #888; margin-left: 8px;">(Khi dùng AI, tự động tách tên nhân vật/địa danh)</small>
+                                </label>
                             </div>
                         </div>
                         <div class="${APP_PREFIX}row">
@@ -1970,6 +2002,7 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
         const settingsFetchModels = shadowRoot.getElementById(`${APP_PREFIX}fetchModels`);
         const settingsGeminiModel = shadowRoot.getElementById(`${APP_PREFIX}settingGeminiModel`);
         const settingsAiMode = shadowRoot.getElementById(`${APP_PREFIX}settingAiMode`);
+        const settingsAutoExtractNames = shadowRoot.getElementById(`${APP_PREFIX}settingAutoExtractNames`);
 
         const confDesc_fanqie = shadowRoot.getElementById(`${APP_PREFIX}confDesc_fanqie`);
         const confTarget_fanqie = shadowRoot.getElementById(`${APP_PREFIX}confTarget_fanqie`);
@@ -2088,6 +2121,7 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
             settingsGeminiModel.appendChild(option);
 
             settingsAiMode.value = s.aiMode || 'auto';
+            settingsAutoExtractNames.checked = s.autoExtractNames !== false; // default true
 
             const d = s.domainSettings || DEFAULT_SETTINGS.domainSettings;
             if (d.fanqie) { confDesc_fanqie.checked = d.fanqie.useDesc; confTarget_fanqie.value = d.fanqie.target; }
@@ -2201,6 +2235,23 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
             });
         }
 
+        async function extractNamesWithAI(descCn, apiKey, model) {
+            const prompt = `Văn án tiếng Trung:
+${descCn}
+
+Hãy trích xuất tất cả tên nhân vật (nam/nữ chính, nam/nữ phụ), địa danh, danh xưng quan trọng từ văn án trên.
+Trả về dạng JSON array: [{"cn": "Tên_Trung", "vi": "Hán_Việt"}]
+Ưu tiên phiên âm Hán-Việt cho phần "vi". Chỉ trả JSON, không giải thích gì thêm.`;
+            try {
+                const result = await callGemini(prompt, apiKey, model);
+                if (Array.isArray(result)) return result;
+                return [];
+            } catch (e) {
+                log('Lỗi tách tên AI: ' + e.message, 'error');
+                return [];
+            }
+        }
+
         async function runAIAnalysis() {
             if (!state.sourceData) {
                 log('Chưa có dữ liệu truyện (Fetch data trước).', 'error');
@@ -2211,6 +2262,9 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                 log('Chưa nhập API Key Gemini trong Cài đặt.', 'error');
                 return;
             }
+
+            // --- Auto Extract Names (combined with tag selection) ---
+            const shouldExtractNames = state.settings.autoExtractNames !== false && state.sourceData.descCn;
 
             log('Đang gửi dữ liệu sang Gemini AI...', 'info');
 
@@ -2234,7 +2288,47 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                 tags: (state.sourceData.tags || []).join(', ')
             };
 
-            const prompt = `
+            // Build prompt based on whether we need name extraction
+            let prompt;
+            if (shouldExtractNames) {
+                prompt = `
+You are a novel classifier and name extractor for Wikidich. Analyze the novel info, extract character names, and map categories to the provided JSON lists.
+
+Novel Info:
+Title: ${novelInfo.title}
+Author: ${novelInfo.author}
+Tags: ${novelInfo.tags}
+Description (Chinese): ${state.sourceData.descCn}
+Description (Vietnamese): ${state.translated?.desc || ''}
+
+TASK 1: Extract all important names (characters, locations, titles) from the Chinese description.
+Return them as "names" array with format: [{"cn": "中文名", "vi": "Hán-Việt"}]
+Prioritize Hán-Việt pronunciation for "vi" field.
+
+TASK 2: Classify the novel using ONLY the provided lists:
+- status: ${JSON.stringify(availableOptions.status)} // Pick 1
+- gender: ${JSON.stringify(availableOptions.gender)} // Pick 1
+- official: ${JSON.stringify(availableOptions.official)} // Pick 1
+- age: ${JSON.stringify(availableOptions.age)} // Pick multiple
+- ending: ${JSON.stringify(availableOptions.ending)} // Pick multiple
+- genre: ${JSON.stringify(availableOptions.genre)} // Pick multiple
+- tag: ${JSON.stringify(availableOptions.tag)} // Pick multiple
+
+Output JSON format:
+{
+  "names": [{"cn": "...", "vi": "..."}],
+  "status": "...",
+  "gender": "...",
+  "official": "...",
+  "age": [...],
+  "ending": [...],
+  "genre": [...],
+  "tag": [...]
+}
+For arrays, return list of strings. If none fit, return empty array.
+                `.trim();
+            } else {
+                prompt = `
 You are a novel classifier for Wikidich. Analyze the novel info and map it to the provided JSON lists.
 Info:
 Title: ${novelInfo.title}
@@ -2253,12 +2347,43 @@ Available Lists (Choose from these ONLY):
 
 Output JSON format: { "status": "...", "gender": "...", "official": "...", "age": [...], "ending": [...], "genre": [...], "tag": [...] }
 For arrays, return list of strings. If none fit, return empty array.
-            `.trim();
+                `.trim();
+            }
 
             try {
                 const result = await callGemini(prompt, apiKey, state.settings.geminiModel);
                 log('AI đã phân tích xong. Đang áp dụng...');
                 console.log('AI Result:', result);
+
+                // Process extracted names if available
+                if (shouldExtractNames && result.names && Array.isArray(result.names) && result.names.length > 0) {
+                    const extractedNames = result.names;
+                    const nameSetEl = shadowRoot.getElementById(`${APP_PREFIX}nameSet`);
+                    if (nameSetEl) {
+                        const existingLines = nameSetEl.value.trim().split('\n').filter(Boolean);
+                        const existingKeys = new Set(existingLines.map(l => l.split('=')[0]));
+                        const newLines = extractedNames
+                            .filter(n => n.cn && n.vi && !existingKeys.has(n.cn))
+                            .map(n => `${n.cn}=${n.vi}`);
+                        if (newLines.length > 0) {
+                            nameSetEl.value = [...existingLines, ...newLines].join('\n');
+                        }
+                    }
+                    log(`Đã tách ${extractedNames.length} tên.`, 'ok');
+
+                    // Re-translate description with new name set
+                    log('Đang dịch lại văn án với bộ tên mới...', 'info');
+                    const newNameSet = {};
+                    extractedNames.forEach(n => { if (n.cn && n.vi) newNameSet[n.cn] = n.vi; });
+                    const reTranslatedDesc = await translateTextWithNameSet(state.sourceData.descCn, newNameSet, true);
+                    if (reTranslatedDesc) {
+                        state.translated = state.translated || {};
+                        state.translated.desc = reTranslatedDesc;
+                        const descViEl = shadowRoot.getElementById(`${APP_PREFIX}descVi`);
+                        if (descViEl) descViEl.value = reTranslatedDesc;
+                        log('Đã dịch lại văn án với bộ tên.', 'ok');
+                    }
+                }
 
                 // Helper to validate against available options
                 const validateParams = (key, value, isArray) => {
@@ -2350,6 +2475,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 aiMode: settingsAiMode.value,
                 geminiApiKey: settingsGeminiKey.value.trim(),
                 geminiModel: settingsGeminiModel.value.trim(),
+                autoExtractNames: settingsAutoExtractNames.checked,
                 domainSettings: {
                     fanqie: { label: 'Fanqie', useDesc: confDesc_fanqie.checked, target: confTarget_fanqie.value },
                     jjwxc: { label: 'Tấn Giang', useDesc: confDesc_jjwxc.checked, target: confTarget_jjwxc.value },
