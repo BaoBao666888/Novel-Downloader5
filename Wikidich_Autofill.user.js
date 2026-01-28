@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.2.0
-// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
+// @version      0.3.0
+// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
 // @author       QuocBao
 // ==/UserScript==
 
@@ -11,10 +11,11 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.0'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const REQUEST_DELAY_MS = 350;
-    const DEFAULT_SCORE_THRESHOLD = 0.9;
+    const DEFAULT_SCORE_THRESHOLD = 0.90;
     const SCORE_FALLBACK = 0.65;
     const MAX_TAGS_SELECT = 25;
     const ROOT_NEG_WORDS = ['vo', 'khong', 'phi', 'chong', 'phan', 'non', 'no'];
@@ -25,15 +26,21 @@
 
     const DEFAULT_SETTINGS = {
         scoreThreshold: DEFAULT_SCORE_THRESHOLD,
-        useDescByDomain: {
-            fanqie: true,
-            jjwxc: false,
-            po18: true,
-            ihuaben: true,
-            qidian: true,
-            qimao: true,
+        aiMode: 'auto', // 'auto' or 'ai'
+        geminiApiKey: '',
+        geminiModel: 'gemini-2.5-flash',
+        domainSettings: {
+            fanqie: { label: 'Fanqie (Cà Chua)', useDesc: true, target: 'wiki' },
+            jjwxc: { label: 'Tấn Giang (JJWXC)', useDesc: false, target: 'wiki' },
+            po18: { label: 'PO18', useDesc: true, target: 'webhong' },
+            ihuaben: { label: 'Ihuaben', useDesc: true, target: 'wiki' },
+            qidian: { label: 'Khởi Điểm (Qidian)', useDesc: true, target: 'wiki' },
+            qimao: { label: 'Thất Miêu (Qimao)', useDesc: true, target: 'wiki' },
+            gongzicp: { label: 'Trường Bội (Gongzicp)', useDesc: true, target: 'wiki' }, // New
         },
     };
+
+    const SETTINGS_KEY = 'Wikidich_Autofill_Config';
 
     const state = {
         groups: null,
@@ -45,46 +52,61 @@
         suggestions: null,
         settings: null,
     };
-
+    // --- UTILS ---
     function sleep(ms) {
-        return new Promise(r => setTimeout(r, ms));
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    function clampNumber(value, min, max, fallback) {
-        const num = Number(value);
-        if (!Number.isFinite(num)) return fallback;
-        return Math.min(max, Math.max(min, num));
+    function clampNumber(val, min, max, def) {
+        const n = parseFloat(val);
+        if (isNaN(n)) return def;
+        return Math.max(min, Math.min(n, max));
     }
 
     function normalizeSettings(raw) {
-        const base = {
-            scoreThreshold: DEFAULT_SETTINGS.scoreThreshold,
-            useDescByDomain: { ...DEFAULT_SETTINGS.useDescByDomain },
-        };
-        if (raw && typeof raw === 'object') {
-            if ('scoreThreshold' in raw) base.scoreThreshold = raw.scoreThreshold;
-            if (raw.useDescByDomain && typeof raw.useDescByDomain === 'object') {
-                Object.keys(base.useDescByDomain).forEach((key) => {
-                    if (key in raw.useDescByDomain) {
-                        base.useDescByDomain[key] = !!raw.useDescByDomain[key];
-                    }
-                });
-            }
+        // Deep copy default
+        const base = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+
+        if (!raw || typeof raw !== 'object') return base;
+
+        if ('scoreThreshold' in raw) base.scoreThreshold = raw.scoreThreshold;
+        if (raw.aiMode) base.aiMode = raw.aiMode;
+        if (raw.geminiApiKey) base.geminiApiKey = raw.geminiApiKey;
+        if (raw.geminiModel) base.geminiModel = raw.geminiModel;
+        // old
+        const oldMap = raw.useDescByDomain;
+        if (oldMap && typeof oldMap === 'object') {
+            Object.keys(base.domainSettings).forEach(key => {
+                if (typeof oldMap[key] === 'boolean') {
+                    base.domainSettings[key].useDesc = oldMap[key];
+                }
+            });
         }
-        base.scoreThreshold = clampNumber(base.scoreThreshold, 0.5, 0.99, DEFAULT_SCORE_THRESHOLD);
+        // new
+        if (raw.domainSettings && typeof raw.domainSettings === 'object') {
+            Object.keys(base.domainSettings).forEach(key => {
+                if (raw.domainSettings[key]) {
+                    const saved = raw.domainSettings[key];
+                    if (typeof saved.useDesc === 'boolean') base.domainSettings[key].useDesc = saved.useDesc;
+                    if (saved.target) base.domainSettings[key].target = saved.target;
+                }
+            });
+        }
+
         return base;
     }
 
     function loadSettings() {
-        const saved = GM_getValue(`${APP_PREFIX}settings`, null);
-        return normalizeSettings(saved);
+        const raw = GM_getValue(SETTINGS_KEY, {});
+        const s = normalizeSettings(raw);
+        s.scoreThreshold = clampNumber(s.scoreThreshold, 0.5, 0.99, DEFAULT_SCORE_THRESHOLD);
+        return s;
     }
 
-    function saveSettings(next) {
-        const normalized = normalizeSettings(next);
-        GM_setValue(`${APP_PREFIX}settings`, normalized);
-        state.settings = normalized;
-        return normalized;
+    function saveSettings(newSettings) {
+        const s = normalizeSettings(newSettings);
+        GM_setValue(SETTINGS_KEY, s);
+        state.settings = s;
     }
 
     function getScoreThreshold() {
@@ -94,12 +116,15 @@
         return DEFAULT_SCORE_THRESHOLD;
     }
 
+    function getDomainSetting(sourceType) {
+        const def = DEFAULT_SETTINGS.domainSettings[sourceType];
+        if (!state.settings || !state.settings.domainSettings) return def;
+        return state.settings.domainSettings[sourceType] || def;
+    }
+
     function shouldUseDescForSource(sourceType) {
-        const map = state.settings?.useDescByDomain || {};
-        if (typeof map[sourceType] === 'boolean') return map[sourceType];
-        const fallback = DEFAULT_SETTINGS.useDescByDomain;
-        if (typeof fallback[sourceType] === 'boolean') return fallback[sourceType];
-        return true;
+        const conf = getDomainSetting(sourceType);
+        return conf ? conf.useDesc : true;
     }
 
     function safeText(v) {
@@ -117,43 +142,93 @@
             .trim();
     }
 
-    function bigramDice(a, b) {
-        if (!a || !b) return 0;
-        if (a === b) return 1;
-        if (a.length < 2 || b.length < 2) return 0;
-        const map = new Map();
-        for (let i = 0; i < a.length - 1; i++) {
-            const g = a.slice(i, i + 2);
-            map.set(g, (map.get(g) || 0) + 1);
-        }
-        let intersection = 0;
-        for (let i = 0; i < b.length - 1; i++) {
-            const g = b.slice(i, i + 2);
-            const count = map.get(g) || 0;
-            if (count > 0) {
-                map.set(g, count - 1);
-                intersection++;
-            }
-        }
-        return (2 * intersection) / ((a.length - 1) + (b.length - 1));
-    }
-
-    function similarityScore(a, b) {
-        const na = normalizeText(a).replace(/\s+/g, '');
-        const nb = normalizeText(b).replace(/\s+/g, '');
-        if (!na || !nb) return 0;
-        if (na === nb) return 1;
-        if (na.includes(nb) || nb.includes(na)) {
-            const shortLen = Math.min(na.length, nb.length);
-            const longLen = Math.max(na.length, nb.length);
-            return 0.98 * (shortLen / longLen);
-        }
-        return bigramDice(na, nb);
-    }
-
     function splitTokens(text) {
         return normalizeText(text).split(' ').filter(Boolean);
     }
+
+    // --- HELP & CHANGELOG CONTENT ---
+    const CHANGELOG_CONTENT = `
+<h2><span style="color:#673ab7; font-size: 1.2em;">🚀 Phiên bản 0.3.0 - Big Update!</span></h2>
+<ul style="list-style-type: none; padding-left: 0;">
+    <li><b>🌊 Trường Bội (Gongzicp):</b> Hỗ trợ "tận răng" (Cover HD, Tự động lọc query).</li>
+    <li><b>🧠 Auto Smart:</b> Chuẩn hóa logic nhận diện, thông minh hơn gấp 3 lần!</li>
+    <li><b>📊 Bảng Điều Khiển:</b> Tùy chỉnh "Hiển thị" & "Quét văn án" visual cực mạnh trong Settings.</li>
+    <li><b>✨ AI Gemini:</b> "Bảo bối" phân tích tag/thể loại siêu chuẩn (cần API Key).</li>
+</ul>`;
+
+    const WELCOME_CONTENT = `
+<h2 style="text-align:center; color:#2196f3;">Chào mừng đến với <span style="color:#e91e63;">Wikidich Autofill</span>!</h2>
+<p style="text-align:center; font-style:italic; color:#666;">Tool "thần thánh" hỗ trợ convert web Trung sang Wikidich 1 chạm.</p>
+
+<div style="background:#f4f6f8; padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #4caf50;">
+    <h3 style="margin-top:0; color:#2e7d32;">🌟 Quy trình sử dụng chuẩn:</h3>
+    <ol style="margin-left: 15px; padding-left: 0;">
+        <li><b>Bước 1:</b> Copy link truyện (Fanqie/JJWXC/PO18/...).</li>
+        <li><b>Bước 2:</b> Dán vào ô URL > Bấm nút <b style="color:#2196f3;">Lấy dữ liệu</b> (hoặc nút <b style="color:#e91e63;">AI</b>).</li>
+        <li><b>Bước 3:</b> Chờ tool chạy dịch và phân tích (Auto hoặc AI).</li>
+        <li><b>Bước 4:</b> Kiểm tra các ô thông tin trên bảng Panel (Tag, Thể loại...).</li>
+        <li><b>Bước 5:</b> Nếu OK, bấm nút <b style="color:#ff9800;">Áp vào form</b> dưới cùng.</li>
+        <li><b>Bước 6:</b> Bấm <b style="color:green;">Nhúng</b> của Web để đăng!</li>
+    </ol>
+</div>
+
+<h3>🔥 Tính năng AI (Mới):</h3>
+<ul style="list-style-type: none; padding-left: 5px;">
+    <li>🔑 <b>Cần API Key:</b> Vào ⚙️ Cài đặt nhập Key từ Google AI Studio.</li>
+    <li>🧠 <b>Thông minh hơn:</b> AI đọc hiểu văn án để chọn tag (VD: "Gương vỡ lại lành" dù văn án không ghi rõ).</li>
+    <li>🛡️ <b>Kiểm duyệt:</b> Tự động lọc bỏ các tag "rác" không có trong hệ thống Wikidich.</li>
+</ul>
+
+
+<h3>🌍 Các Trang Hỗ Trợ:</h3>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+    
+    <!-- Fanqie -->
+    <div style="background: #fff3e0; padding: 8px; border-radius: 6px; border-left: 3px solid #ff9800;">
+        <strong style="color: #ef6c00;">🍅 Fanqie (Cà Chua)</strong><br>
+        <small style="color: #666;">• Link: <code>fanqienovel.com/page/123...</code></small><br>
+        <span style="font-size:11px; color:#444;">✨ Full info + Cover gốc (Full HD)</span>
+    </div>
+
+    <!-- JJWXC -->
+    <div style="background: #e3f2fd; padding: 8px; border-radius: 6px; border-left: 3px solid #2196f3;">
+        <strong style="color: #1565c0;">🌿 Tấn Giang (JJWXC)</strong><br>
+        <small style="color: #666;">• Link: <code>jjwxc.net/onebook.php?novelid=...</code></small><br>
+        <span style="font-size:11px; color:#444;">✨ Cover HD + Full info + Tag chuẩn</span>
+    </div>
+
+    <!-- Gongzicp -->
+    <div style="background: #f3e5f5; padding: 8px; border-radius: 6px; border-left: 3px solid #9c27b0;">
+        <strong style="color: #7b1fa2;">🌊 Trường Bội (Gongzicp)</strong><br>
+        <small style="color: #666;">• Link: <code>gongzicp.com/novel-123...</code></small><br>
+        <span style="font-size:11px; color:#444;">✨ Cover HD (nếu có) + Lọc Tag xịn</span>
+    </div>
+
+    <!-- PO18 -->
+    <div style="background: #ffebee; padding: 8px; border-radius: 6px; border-left: 3px solid #e91e63;">
+        <strong style="color: #c2185b;">🔞 PO18</strong><br>
+        <small style="color: #666;">• Link: <code>po18.tw/books/123...</code></small><br>
+        <span style="font-size:11px; color:#444;">✨ Lấy info cơ bản</span>
+    </div>
+
+    <!-- Qidian -->
+    <div style="background: #eceff1; padding: 8px; border-radius: 6px; border-left: 3px solid #607d8b;">
+        <strong style="color: #455a64;">📖 Khởi Điểm (Qidian)</strong><br>
+        <small style="color: #666;">• Link: <code>qidian.com/book/123...</code></small><br>
+        <span style="font-size:11px; color:#444;">✨ Full info</span>
+    </div>
+
+    <!-- Others -->
+    <div style="background: #f1f8e9; padding: 8px; border-radius: 6px; border-left: 3px solid #8bc34a;">
+        <strong style="color: #558b2f;">📚 IHuaben & Thất Miêu</strong><br>
+        <small style="color: #666;">• Hỗ trợ cơ bản</small><br>
+        <span style="font-size:11px; color:#444;">✨ Tự động nhận diện</span>
+    </div>
+
+</div>
+
+<hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;">
+` + CHANGELOG_CONTENT;
 
     function buildNameSetReplacer(nameSet) {
         const keys = Object.keys(nameSet || {}).sort((a, b) => b.length - a.length);
@@ -430,6 +505,12 @@
         return m ? m[1] : '';
     }
 
+    function extractGongzicpId(url) {
+        const raw = safeText(url);
+        const m = raw.match(/novel-?(\d+)/);
+        return m ? m[1] : '';
+    }
+
     function detectSource(url) {
         const raw = safeText(url);
         if (/fanqienovel\.com/i.test(raw)) {
@@ -449,6 +530,9 @@
         }
         if (/qimao\.com/i.test(raw)) {
             return { type: 'qimao', id: extractQimaoId(raw) };
+        }
+        if (/gongzicp\.com/i.test(raw)) {
+            return { type: 'gongzicp', id: extractGongzicpId(raw) };
         }
         return null;
     }
@@ -979,6 +1063,15 @@
         return isValid ? modified : raw;
     }
 
+    async function processGongzicpCover(coverUrl) {
+        if (!coverUrl) return '';
+        const raw = coverUrl;
+        let hdUrl = raw.split('?')[0].split('@')[0];
+        if (hdUrl.startsWith('//')) hdUrl = 'https:' + hdUrl;
+        hdUrl = hdUrl.replace('http:', 'https:');
+        return hdUrl;
+    }
+
     function describeCharacterRelationsJJWXC(data) {
         if (!data || !Array.isArray(data.characters) || !Array.isArray(data.character_relations)) {
             return { mainLine: '', otherNames: [] };
@@ -1168,6 +1261,50 @@
         };
     }
 
+    // --- GONGZICP ---
+    function fetchGongzicpData(novelId) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: `https://gongzicp.com/webapi/novel/novelInfo?id=${novelId}`,
+                headers: {
+                    'Referer': 'https://gongzicp.com/',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                },
+                onload: (response) => {
+                    if (response.status === 200) {
+                        try {
+                            const json = JSON.parse(response.responseText);
+                            if (json.code === 200 && json.data) {
+                                resolve(json.data);
+                            } else {
+                                reject(new Error('Gongzicp Error: ' + (json.msg || 'Unknown')));
+                            }
+                        } catch (e) {
+                            reject(e);
+                        }
+                    } else {
+                        reject(new Error('Gongzicp HTTP ' + response.status));
+                    }
+                },
+                onerror: (err) => reject(err)
+            });
+        });
+    }
+
+    function normalizeGongzicpData(data) {
+        return {
+            titleCn: data.novel_name || '',
+            authorCn: data.author_nickname || '',
+            descCn: (data.novel_info || '').replace(/<[^>]*>/g, '\n').trim(),
+            tags: data.tag_list || [],
+            categories: data.type_list || [],
+            coverUrl: data.novel_cover || '',
+            sourceType: 'gongzicp',
+            sourceLabel: 'Trường Bội'
+        };
+    }
+
     function getGroupOptions() {
         const groups = {
             status: [],
@@ -1225,6 +1362,9 @@
             if (tokens.includes('bl')) {
                 expanded.push('Đam mỹ');
             }
+            if (norm.includes('xuyen qua')) {
+                expanded.push('Xuyên việt');
+            }
         }
         return expanded;
     }
@@ -1262,40 +1402,74 @@
         return '';
     }
 
-    function scoreOptions(options, keywords, textBlob) {
-        const normalizedText = normalizeText(textBlob);
-        const scored = options.map(opt => {
+    function normalizeKeepAccents(text = '') {
+        return text
+            .toString()
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function calculateMatchScore(label, text, normText) {
+        const labelNorm = normalizeText(label);
+        const labelKeepAccents = normalizeKeepAccents(label);
+
+        if (!labelNorm) return 0;
+
+        const regexExact = new RegExp(`(^|\\s)${escapeRegExp(labelKeepAccents)}($|\\s)`, 'i');
+        if (regexExact.test(text)) return 1.0;
+
+        const regexNorm = new RegExp(`(^|\\s)${escapeRegExp(labelNorm)}($|\\s)`, 'i');
+        if (regexNorm.test(normText)) return 0.9;
+
+        if (normText.includes(labelNorm)) return 0.6;
+
+        return 0;
+    }
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function scoreOptions(options, contexts) {
+        // Contexts: [{ text, normText, weight }]
+        return options.map(opt => {
             const label = safeText(opt.label);
-            const normLabel = normalizeText(label);
-            const labelLen = normLabel.replace(/\s+/g, '').length;
-            const labelTokens = splitTokens(normLabel);
-            let score = 0;
-            if (normLabel && labelLen >= 4 && normalizedText.includes(normLabel)) score = 1;
-            if (normLabel && labelTokens.length > 1 && !ROOT_NEG_WORDS.includes(labelTokens[0])) {
-                for (const w of ROOT_NEG_WORDS) {
-                    if (normalizedText.includes(`${w} ${normLabel}`)) {
-                        score = Math.min(score, 0.1);
-                        break;
-                    }
-                }
+            let maxScore = 0;
+
+            for (const ctx of contexts) {
+                const baseScore = calculateMatchScore(label, ctx.text, ctx.normText);
+                const weightedScore = baseScore * ctx.weight;
+                if (weightedScore > maxScore) maxScore = weightedScore;
             }
-            for (const kw of keywords) {
-                const s = similarityScore(label, kw);
-                if (s > score) score = s;
-            }
-            return { ...opt, score };
+
+            return { ...opt, score: maxScore };
+        }).sort((a, b) => b.score - a.score);
+    }
+
+    function filterSubstrings(items) {
+        const sorted = [...items].sort((a, b) => {
+            const lenA = normalizeText(a.label).length;
+            const lenB = normalizeText(b.label).length;
+            return lenB - lenA;
         });
-        scored.sort((a, b) => b.score - a.score);
-        return scored;
+        const accepted = [];
+        for (const item of sorted) {
+            const label = normalizeText(item.label);
+            const isRedundant = accepted.some(acc => normalizeText(acc.label).includes(label));
+            if (!isRedundant) accepted.push(item);
+        }
+        return accepted;
     }
 
     function pickMulti(scored, limit, requireOne, collapseRoot, threshold) {
         const minScore = Number.isFinite(threshold) ? threshold : getScoreThreshold();
-        const selected = scored.filter(o => o.score >= minScore);
+        let selected = scored.filter(o => o.score >= minScore);
+        selected = filterSubstrings(selected);
         let picked = selected;
         if (!picked.length && requireOne && scored.length) {
-            const fallback = scored[0];
-            picked = [fallback];
+            picked = [scored[0]];
         }
         if (collapseRoot) picked = collapseByRoot(picked);
         if (limit && picked.length > limit) picked = picked.slice(0, limit);
@@ -1313,38 +1487,62 @@
 
     function buildSuggestions(sourceData, translated, groups) {
         const useDesc = shouldUseDescForSource(sourceData?.sourceType);
-        const descCn = safeText(sourceData.descCn);
-        const descVi = safeText(translated?.desc || '');
-        const tagsVi = translated?.tags || [];
-        const catsVi = translated?.categories || [];
 
-        const keywords = buildKeywordList(sourceData, translated);
-        const textParts = [keywords.join(' ')];
-        if (useDesc) textParts.unshift(descCn, descVi);
-        const textBlob = textParts.join(' ');
+        const contexts = [];
 
-        const statusLabel = detectStatus(sourceData, textBlob);
-        const officialLabel = detectOfficial(keywords);
-        const genderLabel = detectGender(keywords);
+        const keywordList = buildKeywordList(sourceData, translated);
+        const metaText = keywordList.join(' ');
+        if (metaText) {
+            contexts.push({
+                text: normalizeKeepAccents(metaText),
+                normText: normalizeText(metaText),
+                weight: 1.5
+            });
+        }
 
-        const statusScored = scoreOptions(groups.status, [statusLabel], textBlob);
-        const officialScored = scoreOptions(groups.official, [officialLabel], textBlob);
-        const genderScored = scoreOptions(groups.gender, [genderLabel], textBlob);
+        if (useDesc) {
+            const descCn = safeText(sourceData.descCn);
+            const descVi = safeText(translated?.desc || '');
+            const descText = `${descCn} \n ${descVi}`;
+            contexts.push({
+                text: normalizeKeepAccents(descText),
+                normText: normalizeText(descText),
+                weight: 1.0
+            });
+        }
 
-        const ageScored = scoreOptions(groups.age, keywords, textBlob);
-        const endingScored = scoreOptions(groups.ending, keywords, textBlob);
-        const genreScored = scoreOptions(groups.genre, keywords, textBlob);
-        const tagScored = scoreOptions(groups.tag, keywords.concat(tagsVi, catsVi), textBlob);
+        const getMulti = (group, limit, isMandatory, collapse) => {
+            const scored = scoreOptions(group, contexts);
+            return pickMulti(scored, limit, isMandatory, collapse);
+        };
+
+        const fullTextBlob = contexts.map(c => c.normText).join(' ');
+
+        const statusLabel = detectStatus(sourceData, fullTextBlob);
+        const officialLabel = detectOfficial(keywordList);
+        const genderLabel = detectGender(keywordList);
+
+        const boostDetect = (group, detectedLabel) => {
+            if (!detectedLabel) return scoreOptions(group, contexts);
+            return group.map(opt => {
+                if (opt.label === detectedLabel) return { ...opt, score: 2.0 };
+                return { ...opt, score: 0 };
+            }).sort((a, b) => b.score - a.score);
+        };
+
+        const statusScored = boostDetect(groups.status, statusLabel);
 
         const threshold = getScoreThreshold();
+
         return {
             status: pickRadio(statusScored, true, threshold),
-            official: pickRadio(officialScored, true, threshold),
-            gender: pickRadio(genderScored, false, threshold),
-            age: pickMulti(ageScored, 4, true, false, threshold),
-            ending: pickMulti(endingScored, 3, true, false, threshold),
-            genre: pickMulti(genreScored, 8, true, false, threshold),
-            tag: pickMulti(tagScored, MAX_TAGS_SELECT, true, true, threshold),
+            official: pickRadio(boostDetect(groups.official, officialLabel), true, threshold),
+            gender: pickRadio(boostDetect(groups.gender, genderLabel), false, threshold),
+
+            age: getMulti(groups.age, 4, true, false),
+            ending: getMulti(groups.ending, 3, true, false),
+            genre: getMulti(groups.genre, 8, true, false),
+            tag: getMulti(groups.tag, MAX_TAGS_SELECT, true, true),
         };
     }
 
@@ -1368,7 +1566,8 @@
 
     function applyRadio(group, label) {
         if (!group || !label) return;
-        const scored = scoreOptions(group, [label], label);
+        const ctx = { text: label, normText: normalizeText(label), weight: 1.0 };
+        const scored = scoreOptions(group, [ctx]);
         const best = scored[0];
         if (!best) return;
         best.input.checked = true;
@@ -1382,7 +1581,8 @@
             opt.input.dispatchEvent(new Event('change', { bubbles: true }));
         });
         for (const label of labels) {
-            const scored = scoreOptions(group, [label], label);
+            const ctx = { text: label, normText: normalizeText(label), weight: 1.0 };
+            const scored = scoreOptions(group, [ctx]);
             const best = scored[0];
             if (!best || best.score < SCORE_FALLBACK) continue;
             best.input.checked = true;
@@ -1499,12 +1699,26 @@
                 font-family: Arial, sans-serif;
             }
             .${APP_PREFIX}modal-card {
-                background: #fff; color: #222; border-radius: 10px; width: 520px; max-width: 92vw;
-                padding: 16px; box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+                background: #fff; color: #333; border-radius: 12px; width: 550px; max-width: 95vw;
+                max-height: 90vh; display: flex; flex-direction: column;
+                box-shadow: 0 15px 40px rgba(0,0,0,0.3); border-top: 5px solid #673ab7;
             }
-            .${APP_PREFIX}modal-title { font-weight: bold; margin-bottom: 8px; }
-            .${APP_PREFIX}modal-body { font-size: 13px; line-height: 1.45; white-space: pre-line; }
-            .${APP_PREFIX}modal-actions { margin-top: 12px; text-align: right; }
+            .${APP_PREFIX}modal-title {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+                font-weight: bold; font-size: 18px; margin-bottom: 0px;
+                flex-shrink: 0; padding: 16px 20px 10px 20px;
+                color: #444; border-bottom: 1px solid #eee;
+                background: linear-gradient(to right, #fff, #f9f9f9);
+            }
+            .${APP_PREFIX}modal-body {
+                font-size: 14px; line-height: 1.6;
+                flex: 1; overflow-y: auto; padding: 12px 20px;
+                color: #444;
+            }
+            .${APP_PREFIX}modal-body h2 { font-size: 16px; margin: 10px 0 8px 0; color: #333; }
+            .${APP_PREFIX}modal-body h3 { font-size: 15px; margin: 12px 0 6px 0; color: #555; }
+            .${APP_PREFIX}modal-body li { margin-bottom: 4px; }
+            .${APP_PREFIX}modal-actions { margin-top: 12px; text-align: right; flex-shrink: 0; padding: 0 16px 16px 16px; }
         `;
 
         shadowRoot.innerHTML = `
@@ -1514,6 +1728,7 @@
                 <div id="${APP_PREFIX}header">
                     <span>Web Trung → Wikidich</span>
                     <div>
+                        <button id="${APP_PREFIX}ai" class="${APP_PREFIX}icon-btn" title="Chạy AI Analyze" style="color: #673ab7;">AI</button>
                         <button id="${APP_PREFIX}help" class="${APP_PREFIX}icon-btn">?</button>
                         <button id="${APP_PREFIX}settings" class="${APP_PREFIX}icon-btn" title="Cài đặt">⚙</button>
                         <button id="${APP_PREFIX}close" class="${APP_PREFIX}btn secondary">Đóng</button>
@@ -1639,32 +1854,95 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                             <input id="${APP_PREFIX}settingThreshold" class="${APP_PREFIX}input" type="number" min="0.5" max="0.99" step="0.01" />
                         </div>
                         <div class="${APP_PREFIX}row">
-                            <label class="${APP_PREFIX}label">Quét văn án để gợi ý</label>
+                            <label class="${APP_PREFIX}label">Cấu hình AI (Hiện chỉ hỗ trợ Gemini)</label>
                             <div class="${APP_PREFIX}settings-group">
                                 <label class="${APP_PREFIX}settings-item">
-                                    <input id="${APP_PREFIX}settingUseDescFanqie" type="checkbox" />
-                                    Fanqie (Cà Chua)
+                                    <span style="min-width: 80px;">API Key:</span>
+                                    <input id="${APP_PREFIX}settingGeminiKey" class="${APP_PREFIX}input" type="password" placeholder="AIza..." style="flex:1;" />
+                                    <button id="${APP_PREFIX}fetchModels" class="${APP_PREFIX}btn secondary" style="margin-right:0; padding: 4px 8px; font-size: 11px;">Lấy Model</button>
                                 </label>
                                 <label class="${APP_PREFIX}settings-item">
-                                    <input id="${APP_PREFIX}settingUseDescJjwxc" type="checkbox" />
-                                    JJWXC (Tấn Giang)
+                                    <span style="min-width: 80px;">Model:</span>
+                                    <select id="${APP_PREFIX}settingGeminiModel" class="${APP_PREFIX}select"></select>
                                 </label>
                                 <label class="${APP_PREFIX}settings-item">
-                                    <input id="${APP_PREFIX}settingUseDescPo18" type="checkbox" />
-                                    PO18
+                                    <span style="min-width: 80px;">Chế độ:</span>
+                                    <select id="${APP_PREFIX}settingAiMode" class="${APP_PREFIX}select" style="width: auto;">
+                                        <option value="auto">Tự động (Keyword)</option>
+                                        <option value="ai">AI (Ưu tiên)</option>
+                                    </select>
                                 </label>
-                                <label class="${APP_PREFIX}settings-item">
-                                    <input id="${APP_PREFIX}settingUseDescIhuaben" type="checkbox" />
-                                    Ihuaben
-                                </label>
-                                <label class="${APP_PREFIX}settings-item">
-                                    <input id="${APP_PREFIX}settingUseDescQidian" type="checkbox" />
-                                    Khởi Điểm
-                                </label>
-                                <label class="${APP_PREFIX}settings-item">
-                                    <input id="${APP_PREFIX}settingUseDescQimao" type="checkbox" />
-                                    Thất Miêu
-                                </label>
+                            </div>
+                        </div>
+                        <div class="${APP_PREFIX}row">
+                            <label class="${APP_PREFIX}label">Cấu hình Nguồn (Quét văn án & Nơi hiển thị)</label>
+                            <div class="${APP_PREFIX}settings-group" style="display:grid; grid-template-columns: 1.5fr 0.8fr 2fr; gap: 6px 12px; font-size: 13px; align-items:center;">
+                                <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666;">Nguồn</div>
+                                <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666; text-align:center;">Quét</div>
+                                <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666;">Hiển thị</div>
+
+                                <!-- Fanqie -->
+                                <span>Fanqie</span>
+                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_fanqie" type="checkbox" /></div>
+                                <select id="${APP_PREFIX}confTarget_fanqie" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
+                                     <option value="all">Tất cả</option>
+                                     <option value="wiki">Chỉ Wiki</option>
+                                     <option value="webhong">Chỉ Web Hồng</option>
+                                </select>
+
+                                <!-- JJWXC -->
+                                <span>Tấn Giang</span>
+                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_jjwxc" type="checkbox" /></div>
+                                <select id="${APP_PREFIX}confTarget_jjwxc" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
+                                     <option value="all">Tất cả</option>
+                                     <option value="wiki">Chỉ Wiki</option>
+                                     <option value="webhong">Chỉ Web Hồng</option>
+                                </select>
+
+                                <!-- PO18 -->
+                                <span>PO18</span>
+                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_po18" type="checkbox" /></div>
+                                <select id="${APP_PREFIX}confTarget_po18" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
+                                     <option value="all">Tất cả</option>
+                                     <option value="wiki">Chỉ Wiki</option>
+                                     <option value="webhong">Chỉ Web Hồng</option>
+                                </select>
+
+                                <!-- Ihuaben -->
+                                <span>Ihuaben</span>
+                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_ihuaben" type="checkbox" /></div>
+                                <select id="${APP_PREFIX}confTarget_ihuaben" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
+                                     <option value="all">Tất cả</option>
+                                     <option value="wiki">Chỉ Wiki</option>
+                                     <option value="webhong">Chỉ Web Hồng</option>
+                                </select>
+
+                                <!-- Qidian -->
+                                <span>Khởi Điểm</span>
+                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_qidian" type="checkbox" /></div>
+                                <select id="${APP_PREFIX}confTarget_qidian" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
+                                     <option value="all">Tất cả</option>
+                                     <option value="wiki">Chỉ Wiki</option>
+                                     <option value="webhong">Chỉ Web Hồng</option>
+                                </select>
+
+                                <!-- Qimao -->
+                                <span>Thất Miêu</span>
+                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_qimao" type="checkbox" /></div>
+                                <select id="${APP_PREFIX}confTarget_qimao" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
+                                     <option value="all">Tất cả</option>
+                                     <option value="wiki">Chỉ Wiki</option>
+                                     <option value="webhong">Chỉ Web Hồng</option>
+                                </select>
+
+                                <!-- Gongzicp -->
+                                <span>Trường Bội</span>
+                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_gongzicp" type="checkbox" /></div>
+                                <select id="${APP_PREFIX}confTarget_gongzicp" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
+                                     <option value="all">Tất cả</option>
+                                     <option value="wiki">Chỉ Wiki</option>
+                                     <option value="webhong">Chỉ Web Hồng</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -1680,22 +1958,91 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
         const panel = shadowRoot.getElementById(`${APP_PREFIX}panel`);
         const headerEl = shadowRoot.getElementById(`${APP_PREFIX}header`);
         const close = shadowRoot.getElementById(`${APP_PREFIX}close`);
+        const aiBtn = shadowRoot.getElementById(`${APP_PREFIX}ai`);
         const helpBtn = shadowRoot.getElementById(`${APP_PREFIX}help`);
-        const helpModal = shadowRoot.getElementById(`${APP_PREFIX}helpModal`);
-        const helpClose = shadowRoot.getElementById(`${APP_PREFIX}helpClose`);
+
         const settingsBtn = shadowRoot.getElementById(`${APP_PREFIX}settings`);
         const settingsModal = shadowRoot.getElementById(`${APP_PREFIX}settingsModal`);
         const settingsSave = shadowRoot.getElementById(`${APP_PREFIX}settingsSave`);
         const settingsClose = shadowRoot.getElementById(`${APP_PREFIX}settingsClose`);
         const settingsThreshold = shadowRoot.getElementById(`${APP_PREFIX}settingThreshold`);
-        const settingsUseDescFanqie = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescFanqie`);
-        const settingsUseDescJjwxc = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescJjwxc`);
-        const settingsUseDescPo18 = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescPo18`);
-        const settingsUseDescIhuaben = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescIhuaben`);
-        const settingsUseDescQidian = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescQidian`);
-        const settingsUseDescQimao = shadowRoot.getElementById(`${APP_PREFIX}settingUseDescQimao`);
+        const settingsGeminiKey = shadowRoot.getElementById(`${APP_PREFIX}settingGeminiKey`);
+        const settingsFetchModels = shadowRoot.getElementById(`${APP_PREFIX}fetchModels`);
+        const settingsGeminiModel = shadowRoot.getElementById(`${APP_PREFIX}settingGeminiModel`);
+        const settingsAiMode = shadowRoot.getElementById(`${APP_PREFIX}settingAiMode`);
+
+        const confDesc_fanqie = shadowRoot.getElementById(`${APP_PREFIX}confDesc_fanqie`);
+        const confTarget_fanqie = shadowRoot.getElementById(`${APP_PREFIX}confTarget_fanqie`);
+
+        const confDesc_jjwxc = shadowRoot.getElementById(`${APP_PREFIX}confDesc_jjwxc`);
+        const confTarget_jjwxc = shadowRoot.getElementById(`${APP_PREFIX}confTarget_jjwxc`);
+
+        const confDesc_po18 = shadowRoot.getElementById(`${APP_PREFIX}confDesc_po18`);
+        const confTarget_po18 = shadowRoot.getElementById(`${APP_PREFIX}confTarget_po18`);
+
+        const confDesc_ihuaben = shadowRoot.getElementById(`${APP_PREFIX}confDesc_ihuaben`);
+        const confTarget_ihuaben = shadowRoot.getElementById(`${APP_PREFIX}confTarget_ihuaben`);
+
+        const confDesc_qidian = shadowRoot.getElementById(`${APP_PREFIX}confDesc_qidian`);
+        const confTarget_qidian = shadowRoot.getElementById(`${APP_PREFIX}confTarget_qidian`);
+
+        const confDesc_qimao = shadowRoot.getElementById(`${APP_PREFIX}confDesc_qimao`);
+        const confTarget_qimao = shadowRoot.getElementById(`${APP_PREFIX}confTarget_qimao`);
+
+        const confDesc_gongzicp = shadowRoot.getElementById(`${APP_PREFIX}confDesc_gongzicp`);
+        const confTarget_gongzicp = shadowRoot.getElementById(`${APP_PREFIX}confTarget_gongzicp`);
+
         const logBox = shadowRoot.getElementById(`${APP_PREFIX}log`);
         if (!showFloatingButton) btn.style.display = 'none';
+
+        // Help UI (Reused logic for Changelog)
+        const helpModal = document.createElement('div');
+        helpModal.id = `${APP_PREFIX}helpModal`;
+        helpModal.className = `${APP_PREFIX}modal`;
+        helpModal.innerHTML = `
+            <div class="${APP_PREFIX}modal-card">
+                <div class="${APP_PREFIX}modal-title">Hướng dẫn & Cập nhật</div>
+                <div class="${APP_PREFIX}modal-body" id="${APP_PREFIX}helpContent" style="font-size: 14px; line-height: 1.5;"></div>
+                <div class="${APP_PREFIX}modal-actions">
+                    <button id="${APP_PREFIX}helpClose" class="${APP_PREFIX}btn secondary">Đóng</button>
+                </div>
+            </div>
+        `;
+        shadowRoot.appendChild(helpModal);
+        const helpContentDiv = helpModal.querySelector(`#${APP_PREFIX}helpContent`);
+        const helpClose = helpModal.querySelector(`#${APP_PREFIX}helpClose`);
+
+        helpClose.addEventListener('click', () => {
+            helpModal.style.display = 'none';
+        });
+        helpModal.addEventListener('click', (ev) => {
+            if (ev.target === helpModal) helpModal.style.display = 'none';
+        });
+
+        // Show Help (User clicked ?)
+        helpBtn.addEventListener('click', () => {
+            helpContentDiv.innerHTML = WELCOME_CONTENT; // Show full guide
+            helpModal.style.display = 'flex';
+        });
+
+        // Version Check Logic
+        setTimeout(() => {
+            // GM_setValue(`${APP_PREFIX}version`, null); //test
+            const currentVer = AUTOFILL_WIKIDICH_VERSION;
+            const storedVer = GM_getValue(`${APP_PREFIX}version`, null);
+
+            if (!storedVer) {
+                // New Install
+                helpContentDiv.innerHTML = WELCOME_CONTENT;
+                helpModal.style.display = 'flex';
+                GM_setValue(`${APP_PREFIX}version`, currentVer);
+            } else if (storedVer !== currentVer) {
+                // Update
+                helpContentDiv.innerHTML = CHANGELOG_CONTENT;
+                helpModal.style.display = 'flex';
+                GM_setValue(`${APP_PREFIX}version`, currentVer);
+            }
+        }, 1500);
 
         function log(message, type) {
             const line = document.createElement('div');
@@ -1726,29 +2073,292 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
             shadowRoot.getElementById(id).value = value || '';
         }
 
-        function applySettingsToUi(settings) {
-            settingsThreshold.value = Number.isFinite(settings.scoreThreshold)
-                ? settings.scoreThreshold.toFixed(2)
-                : DEFAULT_SCORE_THRESHOLD.toFixed(2);
-            settingsUseDescFanqie.checked = !!settings.useDescByDomain?.fanqie;
-            settingsUseDescJjwxc.checked = !!settings.useDescByDomain?.jjwxc;
-            settingsUseDescPo18.checked = !!settings.useDescByDomain?.po18;
-            settingsUseDescIhuaben.checked = !!settings.useDescByDomain?.ihuaben;
-            settingsUseDescQidian.checked = !!settings.useDescByDomain?.qidian;
-            settingsUseDescQimao.checked = !!settings.useDescByDomain?.qimao;
+        settingsBtn.addEventListener('click', () => {
+            const s = state.settings;
+            settingsThreshold.value = s.scoreThreshold;
+            settingsGeminiKey.value = s.geminiApiKey || '';
+
+            // Populate models
+            settingsGeminiModel.innerHTML = '';
+            const currentModel = s.geminiModel || 'gemini-2.5-flash';
+            const option = document.createElement('option');
+            option.value = currentModel;
+            option.textContent = currentModel;
+            option.selected = true;
+            settingsGeminiModel.appendChild(option);
+
+            settingsAiMode.value = s.aiMode || 'auto';
+
+            const d = s.domainSettings || DEFAULT_SETTINGS.domainSettings;
+            if (d.fanqie) { confDesc_fanqie.checked = d.fanqie.useDesc; confTarget_fanqie.value = d.fanqie.target; }
+            if (d.jjwxc) { confDesc_jjwxc.checked = d.jjwxc.useDesc; confTarget_jjwxc.value = d.jjwxc.target; }
+            if (d.po18) { confDesc_po18.checked = d.po18.useDesc; confTarget_po18.value = d.po18.target; }
+            if (d.ihuaben) { confDesc_ihuaben.checked = d.ihuaben.useDesc; confTarget_ihuaben.value = d.ihuaben.target; }
+            if (d.qidian) { confDesc_qidian.checked = d.qidian.useDesc; confTarget_qidian.value = d.qidian.target; }
+            if (d.qimao) { confDesc_qimao.checked = d.qimao.useDesc; confTarget_qimao.value = d.qimao.target; }
+            if (d.gongzicp) { confDesc_gongzicp.checked = d.gongzicp.useDesc; confTarget_gongzicp.value = d.gongzicp.target; }
+            settingsModal.style.display = 'flex';
+        });
+
+        settingsSave.addEventListener('click', () => {
+            const next = readSettingsFromUi();
+            saveSettings(next);
+            settingsModal.style.display = 'none';
+            log('Đã lưu cài đặt.', 'info');
+        });
+
+        settingsClose.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+
+        // Fetch Models Logic
+        settingsFetchModels.addEventListener('click', () => {
+            const key = settingsGeminiKey.value.trim();
+            if (!key) {
+                alert('Vui lòng nhập API Key trước.');
+                return;
+            }
+            settingsFetchModels.textContent = 'Đang lấy...';
+            settingsFetchModels.disabled = true;
+
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`,
+                onload: (res) => {
+                    settingsFetchModels.textContent = 'Lấy Model';
+                    settingsFetchModels.disabled = false;
+                    if (res.status >= 200 && res.status < 300) {
+                        try {
+                            const data = JSON.parse(res.responseText);
+                            if (data.models && Array.isArray(data.models)) {
+                                settingsGeminiModel.innerHTML = '';
+                                const models = data.models
+                                    .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+                                    .sort((a, b) => b.displayName.localeCompare(a.displayName)); // Sort desirable
+
+                                if (!models.length) {
+                                    alert('Không tìm thấy model nào hỗ trợ generateContent.');
+                                    return;
+                                }
+
+                                models.forEach(m => {
+                                    const name = m.name.replace('models/', '');
+                                    const opt = document.createElement('option');
+                                    opt.value = name;
+                                    opt.textContent = `${m.displayName} (${name})`;
+                                    if (name === 'gemini-2.5-flash') opt.selected = true;
+                                    settingsGeminiModel.appendChild(opt);
+                                });
+                                alert(`Đã tìm thấy ${models.length} maps.`);
+                            }
+                        } catch (e) {
+                            alert('Lỗi parse: ' + e.message);
+                        }
+                    } else {
+                        alert(`Lỗi API: ${res.statusText}`);
+                    }
+                },
+                onerror: () => {
+                    settingsFetchModels.textContent = 'Lấy Model';
+                    settingsFetchModels.disabled = false;
+                    alert('Lỗi kết nối.');
+                }
+            });
+        });
+
+        // --- GEMINI AI IMPLEMENTATION ---
+
+        async function callGemini(prompt, apiKey, model = 'gemini-2.5-flash') {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            };
+            return new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: 'POST',
+                    url: url,
+                    headers: { 'Content-Type': 'application/json' },
+                    data: JSON.stringify(payload),
+                    onload: (res) => {
+                        if (res.status >= 200 && res.status < 300) {
+                            try {
+                                const data = JSON.parse(res.responseText);
+                                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                                if (!text) throw new Error('No text in response');
+                                resolve(JSON.parse(text));
+                            } catch (e) {
+                                reject(new Error('AI Response Parse Error: ' + e.message));
+                            }
+                        } else {
+                            reject(new Error(`Gemini Error ${res.status}: ${res.statusText}`));
+                        }
+                    },
+                    onerror: (err) => reject(err)
+                });
+            });
         }
 
+        async function runAIAnalysis() {
+            if (!state.sourceData) {
+                log('Chưa có dữ liệu truyện (Fetch data trước).', 'error');
+                return;
+            }
+            const apiKey = state.settings.geminiApiKey;
+            if (!apiKey) {
+                log('Chưa nhập API Key Gemini trong Cài đặt.', 'error');
+                return;
+            }
+
+            log('Đang gửi dữ liệu sang Gemini AI...', 'info');
+
+            const groups = getGroupOptions();
+            const getLabels = (grp) => grp ? grp.map(x => x.label) : [];
+
+            const availableOptions = {
+                status: getLabels(groups.status),
+                gender: getLabels(groups.gender),
+                official: getLabels(groups.official),
+                age: getLabels(groups.age),
+                ending: getLabels(groups.ending),
+                genre: getLabels(groups.genre),
+                tag: getLabels(groups.tag),
+            };
+
+            const novelInfo = {
+                title: state.sourceData.titleCn,
+                author: state.sourceData.authorCn,
+                desc: state.sourceData.descCn + '\n' + (state.translated?.desc || ''),
+                tags: (state.sourceData.tags || []).join(', ')
+            };
+
+            const prompt = `
+You are a novel classifier for Wikidich. Analyze the novel info and map it to the provided JSON lists.
+Info:
+Title: ${novelInfo.title}
+Author: ${novelInfo.author}
+Tags: ${novelInfo.tags}
+Description: ${novelInfo.desc}
+
+Available Lists (Choose from these ONLY):
+- status: ${JSON.stringify(availableOptions.status)}
+- gender: ${JSON.stringify(availableOptions.gender)} // Pick 1
+- official: ${JSON.stringify(availableOptions.official)} // Pick 1
+- age: ${JSON.stringify(availableOptions.age)} // Pick multiple
+- ending: ${JSON.stringify(availableOptions.ending)} // Pick multiple
+- genre: ${JSON.stringify(availableOptions.genre)} // Pick multiple
+- tag: ${JSON.stringify(availableOptions.tag)} // Pick multiple
+
+Output JSON format: { "status": "...", "gender": "...", "official": "...", "age": [...], "ending": [...], "genre": [...], "tag": [...] }
+For arrays, return list of strings. If none fit, return empty array.
+            `.trim();
+
+            try {
+                const result = await callGemini(prompt, apiKey, state.settings.geminiModel);
+                log('AI đã phân tích xong. Đang áp dụng...');
+                console.log('AI Result:', result);
+
+                // Helper to validate against available options
+                const validateParams = (key, value, isArray) => {
+                    const validList = availableOptions[key] || [];
+                    const validSet = new Set(validList.map(x => x.toLowerCase().trim()));
+
+                    if (!value) return isArray ? [] : '';
+
+                    if (isArray) {
+                        if (!Array.isArray(value)) return [];
+                        const valid = [];
+                        const invalid = [];
+                        value.forEach(v => {
+                            const strV = String(v); // Force string
+                            if (validSet.has(strV.toLowerCase().trim())) {
+                                // Find exact original case
+                                const exact = validList.find(x => x.toLowerCase().trim() === strV.toLowerCase().trim());
+                                valid.push(exact || strV);
+                            } else {
+                                invalid.push(strV);
+                            }
+                        });
+                        if (invalid.length) log(`AI suggest rác [${key}]: ${invalid.join(', ')}`, 'warn');
+                        return valid;
+                    } else {
+                        // Single value
+                        const strValue = String(value);
+                        if (validSet.has(strValue.toLowerCase().trim())) {
+                            const exact = validList.find(x => x.toLowerCase().trim() === strValue.toLowerCase().trim());
+                            return exact || strValue;
+                        } else {
+                            log(`AI suggest rác [${key}]: ${strValue}`, 'warn');
+                            return '';
+                        }
+                    }
+                };
+
+                // Validate and Clean result
+                result.status = validateParams('status', result.status, false);
+                result.gender = validateParams('gender', result.gender, false);
+                result.official = validateParams('official', result.official, false);
+
+                result.age = validateParams('age', result.age, true);
+                result.ending = validateParams('ending', result.ending, true);
+                result.genre = validateParams('genre', result.genre, true);
+                result.tag = validateParams('tag', result.tag, true);
+
+                if (result.status) shadowRoot.getElementById(`${APP_PREFIX}status`).value = result.status;
+                if (result.gender) shadowRoot.getElementById(`${APP_PREFIX}gender`).value = result.gender;
+                if (result.official) shadowRoot.getElementById(`${APP_PREFIX}official`).value = result.official;
+
+                if (result.age && result.age.length) {
+                    shadowRoot.getElementById(`${APP_PREFIX}age`).value = result.age.join(', ');
+                }
+                if (result.ending && result.ending.length) {
+                    shadowRoot.getElementById(`${APP_PREFIX}ending`).value = result.ending.join(', ');
+                }
+                if (result.genre && result.genre.length) {
+                    shadowRoot.getElementById(`${APP_PREFIX}genre`).value = result.genre.join(', ');
+                }
+                if (result.tag && result.tag.length) {
+                    shadowRoot.getElementById(`${APP_PREFIX}tag`).value = result.tag.join(', ');
+                }
+
+                state.suggestions = {
+                    status: result.status || '',
+                    official: result.official || '',
+                    gender: result.gender || '',
+                    age: result.age || [],
+                    ending: result.ending || [],
+                    genre: result.genre || [],
+                    tag: result.tag || [],
+                };
+
+                log('AI đã đề xuất xong. Hãy kiểm tra lại và bấm "Áp vào form".', 'ok');
+            } catch (err) {
+                log('Lỗi AI: ' + err.message, 'error');
+            }
+        }
+
+        aiBtn.addEventListener('click', () => {
+            runAIAnalysis();
+        });
+
+        // ------------------------------------
         function readSettingsFromUi() {
             return {
                 scoreThreshold: parseFloat(settingsThreshold.value),
-                useDescByDomain: {
-                    fanqie: settingsUseDescFanqie.checked,
-                    jjwxc: settingsUseDescJjwxc.checked,
-                    po18: settingsUseDescPo18.checked,
-                    ihuaben: settingsUseDescIhuaben.checked,
-                    qidian: settingsUseDescQidian.checked,
-                    qimao: settingsUseDescQimao.checked,
-                },
+                aiMode: settingsAiMode.value,
+                geminiApiKey: settingsGeminiKey.value.trim(),
+                geminiModel: settingsGeminiModel.value.trim(),
+                domainSettings: {
+                    fanqie: { label: 'Fanqie', useDesc: confDesc_fanqie.checked, target: confTarget_fanqie.value },
+                    jjwxc: { label: 'Tấn Giang', useDesc: confDesc_jjwxc.checked, target: confTarget_jjwxc.value },
+                    po18: { label: 'PO18', useDesc: confDesc_po18.checked, target: confTarget_po18.value },
+                    ihuaben: { label: 'Ihuaben', useDesc: confDesc_ihuaben.checked, target: confTarget_ihuaben.value },
+                    qidian: { label: 'Khởi Điểm', useDesc: confDesc_qidian.checked, target: confTarget_qidian.value },
+                    qimao: { label: 'Thất Miêu', useDesc: confDesc_qimao.checked, target: confTarget_qimao.value },
+                    gongzicp: { label: 'Trường Bội', useDesc: confDesc_gongzicp.checked, target: confTarget_gongzicp.value },
+                }
             };
         }
 
@@ -1762,6 +2372,22 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                     log('URL không hợp lệ.', 'error');
                     return;
                 }
+
+                // --- BLOCKING LOGIC ---
+                const domainSetting = getDomainSetting(sourceInfo.type);
+                const isWikidich = location.hostname.includes('wikidich');
+                const target = domainSetting.target || 'wiki';
+
+                if (target === 'wiki' && !isWikidich) {
+                    alert(`Trang này (${domainSetting.label}) được cấu hình chỉ lấy khi ở Wikidich.\nVui lòng vào Wikidich > Nhúng file để sử dụng.`);
+                    return;
+                }
+                if (target === 'webhong' && isWikidich) {
+                    alert(`Trang này (${domainSetting.label}) được cấu hình chỉ lấy khi ở Web Hồng.\nVui lòng không dùng ở Wikidich.`);
+                    return;
+                }
+                // ---------------------
+
                 log(`Nguồn: ${sourceInfo.type} | ID: ${sourceInfo.id}`);
                 GM_setValue(`${APP_PREFIX}last_url`, urlInput.value);
                 let raw = null;
@@ -1804,6 +2430,15 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                         sourceData.coverUrl = await processQimaoCover(sourceData.coverUrl);
                     }
                     log(`Qimao OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
+                } else if (sourceInfo.type === 'gongzicp') {
+                    log('Đang gọi API Trường Bội...');
+                    raw = await fetchGongzicpData(sourceInfo.id);
+                    sourceData = normalizeGongzicpData(raw);
+                    if (sourceData.coverUrl) {
+                        log('Đang xử lý ảnh bìa Gongzicp...');
+                        sourceData.coverUrl = await processGongzicpCover(sourceData.coverUrl);
+                    }
+                    log(`Gongzicp OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
                 } else {
                     log('Nguồn chưa hỗ trợ.', 'error');
                     return;
@@ -1868,11 +2503,18 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                 fillText(`${APP_PREFIX}tag`, suggestions.tag.join(', '));
 
                 log('Gợi ý sẵn sàng. Bạn có thể chỉnh rồi bấm "Áp vào form".', 'ok');
+
+                // --- AUTO AI TRIGGER ---
+                if (state.settings.aiMode === 'ai' && state.settings.geminiApiKey) {
+                    log('Chế độ AI: Đang tự động chạy phân tích...');
+                    runAIAnalysis();
+                }
+                // -----------------------
             } catch (err) {
                 log('Lỗi: ' + err.message, 'error');
+                console.error(err);
             }
         }
-
         function handleRecompute() {
             if (!state.sourceData || !state.groups) {
                 log('Chưa có dữ liệu để recompute.', 'warn');
@@ -2077,6 +2719,7 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
             closePanel();
         });
         helpBtn.addEventListener('click', () => {
+            helpContentDiv.innerHTML = WELCOME_CONTENT;
             helpModal.style.display = 'flex';
         });
         helpClose.addEventListener('click', () => {
@@ -2085,22 +2728,10 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
         helpModal.addEventListener('click', (ev) => {
             if (ev.target === helpModal) helpModal.style.display = 'none';
         });
-        settingsBtn.addEventListener('click', () => {
-            applySettingsToUi(state.settings || DEFAULT_SETTINGS);
-            settingsModal.style.display = 'flex';
-        });
-        settingsClose.addEventListener('click', () => {
-            settingsModal.style.display = 'none';
-        });
         settingsModal.addEventListener('click', (ev) => {
             if (ev.target === settingsModal) settingsModal.style.display = 'none';
         });
-        settingsSave.addEventListener('click', () => {
-            const next = readSettingsFromUi();
-            saveSettings(next);
-            settingsModal.style.display = 'none';
-            log('Đã lưu cài đặt.', 'ok');
-        });
+
 
         shadowRoot.getElementById(`${APP_PREFIX}fetch`).addEventListener('click', handleFetch);
         shadowRoot.getElementById(`${APP_PREFIX}recompute`).addEventListener('click', handleRecompute);
@@ -2113,7 +2744,7 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
         shadowRoot.getElementById(`${APP_PREFIX}nameSet`).addEventListener('input', (ev) => {
             GM_setValue(`${APP_PREFIX}name_set`, ev.target.value || '');
         });
-        log('Sẵn sàng. Dán link Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao rồi bấm "Lấy dữ liệu".');
+        log('Sẵn sàng. Dán link Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp rồi bấm "Lấy dữ liệu".');
 
         return {
             open: openPanel,
