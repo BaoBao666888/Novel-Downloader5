@@ -1,13 +1,13 @@
-# Rename Chapters + Auto Volume/Chapter Uploader
+# Novel Studio + Auto Volume/Chapter Uploader
 
 Tài liệu nhanh cho app đổi tên/chia file và userscript upload chương lên Wikidich/Web hồng.
 
-## 1) Cài đặt app (Rename Chapters)
+## 1) Cài đặt app (Novel Studio)
 
 Khuyến nghị: cài bản setup chính thức để đầy đủ tính năng (fanqie_bridge và một số phần bảo mật chỉ có trong bản setup).
 
 - Vào trang release: [Releases](https://github.com/BaoBao666888/Novel-Downloader5/releases)
-- Tải file `Rename-Chapters-setup.exe`
+- Tải file `Novel-Studio-setup.exe`
 - Cài đặt và chạy app từ shortcut
 
 ## 2) Hướng dẫn nhanh app 

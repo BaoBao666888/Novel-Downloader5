@@ -23,6 +23,8 @@ fanqie_bridge/
 rename_chapters/tools/
 logs/
 novelDownloaderVietSub.beta.user.js
+junk_patterns.json
+utils_data.py
 forum_tab_mixin.py
 qimao_ext.py
 *.pth

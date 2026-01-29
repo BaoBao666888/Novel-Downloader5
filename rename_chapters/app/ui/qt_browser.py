@@ -11,7 +11,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, List, Optional
-
+from app.core.utils_data import transform_str, revert_str
 import requests
 from PyQt6.QtCore import Qt, QTimer, QUrl, QStringListModel
 from PyQt6.QtGui import QDesktopServices, QIcon
@@ -47,6 +47,7 @@ from PyQt6.QtWebEngineCore import (
     QWebEngineDownloadRequest,
     QWebEngineUrlRequestInterceptor,
     QWebEngineCookieStore,
+    QWebEngineScript,
 )
 
 from app.paths import BASE_DIR
@@ -65,15 +66,17 @@ SCHEME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*://')
 DOMAIN_LIKE_RE = re.compile(r'^[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(/.*)?$')
 PROFILE_NAME_CLEAN_RE = re.compile(r"[^a-zA-Z0-9 _-]")
 PROFILE_RESTORE_KEY = "profile_recycle"
+PASSWORDS_FILE = os.path.join(PROFILE_DIR, "passwords.json")
 
 def set_profile_dir(path: str):
-    global PROFILE_DIR, HISTORY_FILE, DOWNLOAD_SETTINGS_FILE, DOWNLOAD_RECORDS_FILE, USERSCRIPT_REGISTRY_FILE, USERSCRIPT_DIR
+    global PROFILE_DIR, HISTORY_FILE, DOWNLOAD_SETTINGS_FILE, DOWNLOAD_RECORDS_FILE, USERSCRIPT_REGISTRY_FILE, USERSCRIPT_DIR, PASSWORDS_FILE
     PROFILE_DIR = path
     HISTORY_FILE = os.path.join(PROFILE_DIR, "history.json")
     DOWNLOAD_SETTINGS_FILE = os.path.join(PROFILE_DIR, "downloads.json")
     DOWNLOAD_RECORDS_FILE = os.path.join(PROFILE_DIR, "download_records.json")
     USERSCRIPT_REGISTRY_FILE = os.path.join(PROFILE_DIR, "userscripts_registry.json")
     USERSCRIPT_DIR = os.path.join(PROFILE_DIR, "userscripts")
+    PASSWORDS_FILE = os.path.join(PROFILE_DIR, "passwords.json")
 
 
 def _find_app_icon() -> Optional[str]:
@@ -125,7 +128,7 @@ class BrowserView(QWebEngineView):
     def __init__(self, profile: QWebEngineProfile, window: "_BrowserWindow"):
         super().__init__(window)
         self.window = window
-        self.setPage(QWebEnginePage(profile, self))
+        self.setPage(BrowserPage(profile, self))
         self._devtools_view = None
         self._devtools_page = None
         self._inspect_hooked = False
@@ -623,6 +626,202 @@ class _HeaderSpy(QWebEngineUrlRequestInterceptor):
                     pass
         except Exception:
             pass
+
+PASSWORD_DETECTOR_JS = r"""
+(function() {
+    function tryCapture(element) {
+        try {
+            var passInput = null;
+            // 1. Look for password field in the same form
+            if (element.form) {
+                var passInputs = element.form.querySelectorAll("input[type='password']");
+                if (passInputs.length > 0) passInput = passInputs[0];
+            }
+            // 2. If no form or not found, look near the element (siblings or parent's siblings)
+            if (!passInput) {
+                var wrapper = element.closest("div, form, fieldset, body");
+                if (wrapper) {
+                    var passInputs = wrapper.querySelectorAll("input[type='password']");
+                    if (passInputs.length > 0) passInput = passInputs[0];
+                }
+            }
+            // 3. Document wide search if active element is involved
+            if (!passInput) {
+                var all = document.querySelectorAll("input[type='password']");
+                for(var i=0; i<all.length; i++) {
+                    if (all[i].value) { passInput = all[i]; break; }
+                }
+            }
+
+            if (passInput && passInput.value) {
+                var userInput = null;
+                // findUsernameField logic inline or reused? function defined below. 
+                // Wait, findUsernameField is needed. I will keep it but remove logs.
+                
+                if (passInput.form) {
+                     var inputs = passInput.form.querySelectorAll("input");
+                     var passIdx = -1;
+                     for (var i = 0; i < inputs.length; i++) {
+                         if (inputs[i] === passInput) { passIdx = i; break; }
+                     }
+                     for (var i = passIdx - 1; i >= 0; i--) {
+                         var t = inputs[i].type ? inputs[i].type.toLowerCase() : "";
+                         if (t === "text" || t === "email" || t === "tel") { userInput=inputs[i]; break; }
+                     }
+                }
+                
+                if (!userInput) {
+                    // Fallback
+                    var all = document.querySelectorAll("input");
+                    var passIdx = -1;
+                    for (var i = 0; i < all.length; i++) {
+                         if (all[i] === passInput) { passIdx = i; break; }
+                    }
+                    for (var i = passIdx - 1; i >= 0; i--) {
+                         var t = all[i].type ? all[i].type.toLowerCase() : "";
+                         if (t === "text" || t === "email" || t === "tel") { userInput=all[i]; break; }
+                    }
+                }
+
+                var userVal = userInput ? userInput.value : "";
+                
+                if (passInput.value.length < 1) return;
+
+                var data = {
+                    url: window.location.href,
+                    domain: window.location.hostname,
+                    username: userVal,
+                    password: passInput.value
+                };
+                console.log("PASSWORD_CAPTURE:" + JSON.stringify(data));
+            }
+        } catch(e) {}
+    }
+
+    document.addEventListener("submit", function(e) {
+        tryCapture(e.target);
+    }, true);
+
+    document.addEventListener("click", function(e) {
+        var t = e.target;
+        if (t.tagName === "BUTTON" || (t.tagName === "INPUT" && (t.type === "submit" || t.type === "button"))) {
+             setTimeout(function() { tryCapture(t); }, 100);
+        }
+    }, true);
+
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+             setTimeout(function() { tryCapture(e.target); }, 100);
+        }
+    }, true);
+})();
+"""
+
+from PyQt6.QtCore import pyqtSignal
+
+class BrowserPage(QWebEnginePage):
+    passwordCaptured = pyqtSignal(dict)
+
+    def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+        if message and message.startswith("PASSWORD_CAPTURE:"):
+            try:
+                json_str = message[len("PASSWORD_CAPTURE:"):]
+                data = json.loads(json_str)
+                self.passwordCaptured.emit(data)
+            except Exception:
+                pass
+        super().javaScriptConsoleMessage(level, message, lineNumber, sourceID)
+
+
+class PasswordManagerDialog(QDialog):
+    def __init__(self, load_passwords_cb, delete_password_cb, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Quản lý Mật khẩu")
+        self.resize(500, 400)
+        self._load_passwords_cb = load_passwords_cb
+        self._delete_password_cb = delete_password_cb
+        
+        layout = QVBoxLayout(self)
+        
+        # Search bar
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(QLabel("Tìm kiếm:"))
+        self.search_input = QLineEdit()
+        self.search_input.textChanged.connect(self._refresh_list)
+        search_layout.addWidget(self.search_input)
+        layout.addLayout(search_layout)
+
+        self.list_widget = QListWidget()
+        layout.addWidget(self.list_widget)
+        
+        btn_layout = QHBoxLayout()
+        self.btn_show = QPushButton("Hiện mật khẩu")
+        self.btn_delete = QPushButton("Xóa mục chọn")
+        self.btn_close = QPushButton("Đóng")
+        btn_layout.addWidget(self.btn_show)
+        btn_layout.addWidget(self.btn_delete)
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_close)
+        layout.addLayout(btn_layout)
+        
+        self.btn_show.clicked.connect(self._show_password)
+        self.btn_delete.clicked.connect(self._delete_selected)
+        self.btn_close.clicked.connect(self.accept)
+        
+        self.password_data = {}  # {domain: [{user, pass, ...}]}
+        self._load_data()
+
+    def _load_data(self):
+        if self._load_passwords_cb:
+            self.password_data = self._load_passwords_cb()
+        self._refresh_list()
+
+    def _refresh_list(self):
+        self.list_widget.clear()
+        query = self.search_input.text().strip().lower()
+        
+        for domain, accounts in self.password_data.items():
+            for acc in accounts:
+                user = acc.get("username", "")
+                if query:
+                    if query not in domain.lower() and query not in user.lower():
+                        continue
+                
+                item_text = f"{domain} | {user}"
+                item = QListWidgetItem(item_text)
+                item.setData(Qt.ItemDataRole.UserRole, (domain, acc))
+                self.list_widget.addItem(item)
+
+    def _show_password(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        domain, acc = item.data(Qt.ItemDataRole.UserRole)
+        password = acc.get("password", "")
+        username = acc.get("username", "")
+        
+        # Display password in a read-only dialog for copying
+        QInputDialog.getText(
+            self, 
+            "Xem mật khẩu", 
+            f"Mật khẩu cho {domain} ({username}):", 
+            QLineEdit.EchoMode.Normal, 
+            password
+        )
+
+    def _delete_selected(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        domain, acc = item.data(Qt.ItemDataRole.UserRole)
+        username = acc.get("username")
+        
+        if QMessageBox.question(self, "Xác nhận", f"Xóa mật khẩu cho {domain} ({username})?") == QMessageBox.StandardButton.Yes:
+            if self._delete_password_cb:
+                self._delete_password_cb(domain, username)
+            self._load_data()
+
+
 class _BrowserWindow(QMainWindow):
     def __init__(self, initial_url: Optional[str], cmd_conn, event_conn):
         super().__init__()
@@ -657,6 +856,17 @@ class _BrowserWindow(QMainWindow):
         self.userscript_host: Optional[UserscriptHost] = None
         self._script_button: Optional[QPushButton] = None
         self._userscript_dialog: Optional[UserscriptManagerDialog] = None
+
+        self.passwords = {} # {domain: [accounts]}
+        self._load_passwords()
+        
+        # Inject Password Detector
+        script = QWebEngineScript()
+        script.setName("_password_detector")
+        script.setSourceCode(PASSWORD_DETECTOR_JS)
+        script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
+        script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        self.profile.scripts().insert(script)
 
         # Gửi user-agent và headers thực tế về tiến trình cha để tái sử dụng cho requests
         try:
@@ -1296,9 +1506,14 @@ class _BrowserWindow(QMainWindow):
     # --- Tab management ---------------------------------------------------------
     def _create_tab(self, start_url: Optional[str] = None, switch: bool = True, auto_close=False):
         view = BrowserView(self.profile, self)
+        # Handle password capture
+        if hasattr(view.page(), "passwordCaptured"):
+            view.page().passwordCaptured.connect(self._on_password_captured)
+
         view.urlChanged.connect(lambda url, v=view: self._handle_tab_url_change(v, url))
         view.titleChanged.connect(lambda title, v=view: self._update_tab_title(v, title))
         view.loadProgress.connect(lambda value, v=view: self._handle_view_progress(v, value))
+        view.loadFinished.connect(lambda ok, v=view: self._on_page_load_finished(v, ok))
         if auto_close:
             view.page().windowCloseRequested.connect(lambda v=view: self._close_view(v))
 
@@ -1748,6 +1963,10 @@ class _BrowserWindow(QMainWindow):
     def _open_settings_menu(self):
         menu = QMenu(self)
         menu.addAction("Lịch sử", self._show_history_dialog)
+        
+        act_pass = menu.addAction("Quản lý mật khẩu")
+        act_pass.triggered.connect(self._open_password_manager)
+        
         menu.addSeparator()
         menu.addAction("Quản lý userscript", self._open_userscript_manager)
         menu.addSeparator()
@@ -1888,6 +2107,145 @@ class _BrowserWindow(QMainWindow):
             except Exception:
                 pass
 
+
+    def _load_passwords(self):
+        if not os.path.exists(PASSWORDS_FILE):
+             return
+        try:
+            with open(PASSWORDS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            # Decrypt loaded passwords
+            for domain, accounts in data.items():
+                for acc in accounts:
+                    if "password" in acc:
+                        acc["password"] = revert_str(acc["password"])
+            self.passwords = data
+        except Exception as e:
+            print(f"Error loading passwords: {e}")
+
+    def _save_passwords_to_file(self):
+        try:
+            # Create a copy with encrypted passwords
+            import copy
+            data_to_save = copy.deepcopy(self.passwords)
+            for domain, accounts in data_to_save.items():
+                for acc in accounts:
+                    if "password" in acc:
+                        acc["password"] = transform_str(acc["password"])
+            
+            with open(PASSWORDS_FILE, "w", encoding="utf-8") as f:
+                json.dump(data_to_save, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    def _open_password_manager(self):
+        dlg = PasswordManagerDialog(
+            load_passwords_cb=lambda: self.passwords,
+            delete_password_cb=self._delete_password,
+            parent=self
+        )
+        dlg.exec()
+
+    def _delete_password(self, domain, username):
+        if domain in self.passwords:
+            self.passwords[domain] = [acc for acc in self.passwords[domain] if acc.get("username") != username]
+            if not self.passwords[domain]:
+                del self.passwords[domain]
+            self._save_passwords_to_file()
+
+    def _on_password_captured(self, data):
+        domain = data.get("domain")
+        username = data.get("username")
+        password = data.get("password")
+        if not domain or not password:
+            return
+
+        # Check if already saved
+        if domain in self.passwords:
+            for acc in self.passwords[domain]:
+                if acc.get("username") == username and acc.get("password") == password:
+                    return # Already saved
+
+        # Prompt user
+        msg = f"Bạn có muốn lưu mật khẩu cho trang {domain} không?\nTài khoản: {username or '(Không tên)'}"
+        if QMessageBox.question(self, "Lưu mật khẩu", msg) == QMessageBox.StandardButton.Yes:
+            if domain not in self.passwords:
+                self.passwords[domain] = []
+            
+            # Update if username exists, else append
+            existing = False
+            for acc in self.passwords[domain]:
+                if acc.get("username") == username:
+                    acc["password"] = password
+                    acc["updated_at"] = datetime.now().isoformat()
+                    existing = True
+                    break
+            
+            if not existing:
+                self.passwords[domain].append({
+                    "username": username,
+                    "password": password,
+                    "created_at": datetime.now().isoformat()
+                })
+            
+            self._save_passwords_to_file()
+
+    def _on_page_load_finished(self, view, ok):
+        if not ok:
+            return
+        try:
+            url = view.url()
+            domain = url.host()
+            if domain in self.passwords and self.passwords[domain]:
+                # Auto-fill using the first account (or most recently updated)
+                # Sort by updated_at desc if possible, or just take last
+                acc = self.passwords[domain][-1]
+                u = acc.get("username", "")
+                p = acc.get("password", "")
+                if p:
+                    js = f"""
+                    (function() {{
+                        var u = {json.dumps(u)};
+                        var p = {json.dumps(p)};
+                        var inputs = Array.from(document.querySelectorAll("input"));
+                        var pass = null;
+                        
+                        // Find password field
+                        for(var i=0; i<inputs.length; i++) {{
+                            if(inputs[i].type == "password") {{ pass=inputs[i]; break; }}
+                        }}
+                        
+                        if(pass) {{
+                            // Fill password
+                            pass.value = p;
+                            pass.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                            pass.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                            
+                            // Find user field by searching backwards from password field
+                            var userField = null;
+                            var passIdx = inputs.indexOf(pass);
+                            for (var i = passIdx - 1; i >= 0; i--) {{
+                                var t = inputs[i].type ? inputs[i].type.toLowerCase() : "";
+                                if (t === "text" || t === "email" || t === "tel") {{
+                                    userField = inputs[i];
+                                    break;
+                                }}
+                            }}
+                            
+                            if (userField) {{
+                                console.log("DEBUG: Auto-filling username on", userField);
+                                userField.value = u;
+                                userField.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                userField.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                            }} else {{
+                                console.log("DEBUG: No username field found to fill");
+                            }}
+                        }}
+                    }})();
+                    """
+                    view.page().runJavaScript(js)
+        except Exception:
+            pass
 
 def run_browser(initial_url: Optional[str], cmd_conn, event_conn, profile_dir: Optional[str] = None):
     """Entry-point for the multiprocessing worker."""

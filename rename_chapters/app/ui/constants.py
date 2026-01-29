@@ -45,6 +45,16 @@ THEME_PRESETS = {
         "muted": "#6b7280",
         "input_bg": "#edf1fb",
         "disabled": "#c3c8d7"
+    },
+    "Custom": {
+        "bg": "#ffffff",
+        "card": "#ffffff",
+        "card_alt": "#f7f7f7",
+        "border": "#e5e7eb",
+        "text": "#000000",
+        "muted": "#6b7280",
+        "input_bg": "#ffffff",
+        "disabled": "#e5e7eb"
     }
 }
 

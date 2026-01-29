@@ -294,7 +294,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.0')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.1')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -350,7 +350,7 @@ class RenamerApp(
     )
     def __init__(self, instance_server=None):
         super().__init__()
-        self.title(f"Rename Chapters v{self.CURRENT_VERSION} (by BaoBao)")
+        self.title(f"Novel Studio v{self.CURRENT_VERSION} (by BaoBao)")
         self.geometry("1200x800")
         self._style = ttk.Style(self)
         self._base_theme = self._style.theme_use()
@@ -651,6 +651,14 @@ class RenamerApp(
             text_color = _normalize_hex_color(text_override, colors["text"])
             colors["text"] = text_color
             colors["muted"] = _adjust_color_luminance(text_color, 0.4)
+        
+        bg_override = settings.get('background_color')
+        if bg_override:
+            bg_color = _normalize_hex_color(bg_override, colors["bg"])
+            colors["bg"] = bg_color
+            # Optionally darken card/input based on bg?
+            # For now, just override bg.
+            
         self._theme_colors = colors
         font_size = int(settings.get('font_size', 10))
         base_font = ("Segoe UI", font_size)
@@ -1160,6 +1168,8 @@ class RenamerApp(
             self.ui_accent_var.set(self.ui_settings.get('accent_color', DEFAULT_UI_SETTINGS['accent_color']))
         if hasattr(self, "ui_text_color_var"):
             self.ui_text_color_var.set(self.ui_settings.get('text_color', DEFAULT_UI_SETTINGS.get('text_color', '')))
+        if hasattr(self, "ui_bg_color_var"):
+            self.ui_bg_color_var.set(self.ui_settings.get('background_color', DEFAULT_UI_SETTINGS.get('background_color', '')))
         if hasattr(self, "ui_font_var"):
             self.ui_font_var.set(int(self.ui_settings.get('font_size', DEFAULT_UI_SETTINGS['font_size'])))
         if hasattr(self, "ui_glow_var"):
@@ -1178,6 +1188,8 @@ class RenamerApp(
             getattr(self, "accent_button", None),
             getattr(self, "text_color_entry", None),
             getattr(self, "text_color_button", None),
+            getattr(self, "bg_color_entry", None),
+            getattr(self, "bg_color_button", None),
         ]
         state = "disabled" if self.ui_settings.get('use_classic_theme') else "normal"
         for ctrl in controls:
@@ -1196,6 +1208,13 @@ class RenamerApp(
             text_color = self.ui_settings.get('text_color') or self._theme_colors.get('text', '#f5f7ff')
             text_color = _normalize_hex_color(text_color, '#f5f7ff')
             self.text_color_preview.config(bg=text_color)
+        self._update_bg_color_preview()
+
+    def _update_bg_color_preview(self):
+        if hasattr(self, "bg_color_preview"):
+            bg_color = self.ui_settings.get('background_color') or self._theme_colors.get('bg', '#ffffff')
+            bg_color = _normalize_hex_color(bg_color, '#ffffff')
+            self.bg_color_preview.config(bg=bg_color)
 
     def _sync_background_controls(self):
         if hasattr(self, "bg_enable_var"):
@@ -1283,6 +1302,30 @@ class RenamerApp(
         if color and color[1]:
             self.ui_text_color_var.set(color[1])
             self._update_ui_settings(text_color=color[1])
+
+    def _open_bg_color_picker(self):
+        initial = self.ui_settings.get('background_color') or self._theme_colors.get('bg', '#ffffff')
+        color = colorchooser.askcolor(color=initial, parent=self)
+        if color and color[1]:
+            self.ui_bg_color_var.set(color[1])
+            self._update_ui_settings(background_color=color[1])
+
+    def _commit_bg_color_entry(self):
+        entered = self.ui_bg_color_var.get()
+        current = self.ui_settings.get('background_color', '')
+        if not entered:
+            if current:
+                self._update_ui_settings(background_color='')
+            else:
+                self._update_bg_color_preview()
+            return
+        normalized = _normalize_hex_color(entered, current or '#ffffff')
+        if normalized != entered:
+            self.ui_bg_color_var.set(normalized)
+        if normalized != current:
+            self._update_ui_settings(background_color=normalized)
+        else:
+            self._update_bg_color_preview()
 
     def _on_font_scale_change(self, value):
         val = int(round(float(value)))
@@ -1616,7 +1659,7 @@ class RenamerApp(
             self._tray_icon = pystray.Icon(
                 "rename_chapters",
                 image=image.copy(),
-                title=f"Rename Chapters v{self.CURRENT_VERSION}",
+                title=f"Novel Studio v{self.CURRENT_VERSION}",
                 menu=menu
             )
             # Explicitly set icon once to ensure driver has data before run()
@@ -2519,6 +2562,11 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         - Profile đã xóa sẽ ẩn khỏi danh sách chính; muốn xem/khôi phục thì dùng mục Khôi phục.
         - Nếu xóa profile có cache Wikidich/Koanchay, cache sẽ chuyển vào `local/profile_recycle/<profile>` và tự xóa sau 7 ngày. Nếu profile không có cache thì xóa vĩnh viễn.
         - Khi tạo profile mới trùng tên profile cũ có cache, app sẽ hỏi có phục hồi hay không.
+        - Quản lý mật khẩu:
+          + Tự động phát hiện khi đăng nhập và hỏi lưu mật khẩu.
+          + Tự động điền (Auto-fill) khi truy cập lại trang web.
+          + Vào Menu Trình duyệt -> Quản lý mật khẩu để xem/xóa tài khoản đã lưu (có thể xem pass nếu cần).
+          + Mật khẩu được lưu mã hóa nhẹ để tránh lộ trực tiếp.
         """
         create_tab("Trình duyệt", browser_guide)
 
