@@ -450,6 +450,7 @@ class TextOpsMixin:
 
     def _create_quick_tools_widgets(self, parent):
         parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(1, weight=1)
 
         renumber_frame = ttk.LabelFrame(parent, text="1. Đánh lại số chương", padding=10)
         renumber_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
@@ -458,20 +459,29 @@ class TextOpsMixin:
         self.renumber_find_regex = ttk.Entry(renumber_frame)
         self.renumber_find_regex.insert(0, r"第\d+章")
         self.renumber_find_regex.grid(row=0, column=1, sticky="ew", padx=5)
+
+        self.renumber_source_var = tk.StringVar(value="current")
+        source_frame = ttk.Frame(renumber_frame)
+        source_frame.grid(row=0, column=2, columnspan=2, sticky="w", padx=5)
+        ttk.Radiobutton(source_frame, text="File hiện tại", variable=self.renumber_source_var, value="current").pack(side=tk.LEFT)
+        ttk.Radiobutton(source_frame, text="Mục lục", variable=self.renumber_source_var, value="toc").pack(side=tk.LEFT, padx=5)
+
         ttk.Label(renumber_frame, text="Cấu trúc thay thế:").grid(row=1, column=0, sticky="w", padx=5, pady=2)
         self.renumber_replace_format = ttk.Entry(renumber_frame)
         self.renumber_replace_format.insert(0, "第{num}章")
         self.renumber_replace_format.grid(row=1, column=1, sticky="ew", padx=5)
-        ttk.Label(renumber_frame, text="(Phải chứa {num})").grid(row=1, column=2, sticky="w")
+        ttk.Label(renumber_frame, text="(Phải chứa {num})").grid(row=1, column=2, sticky="w", padx=5)
+        
+        # Moved action controls to the same row
         action_frame1 = ttk.Frame(renumber_frame)
-        action_frame1.grid(row=2, column=1, sticky="e", pady=(5, 0))
+        action_frame1.grid(row=1, column=3, sticky="e", padx=5)
         ttk.Label(action_frame1, text="Bắt đầu từ số:").pack(side=tk.LEFT)
         self.renumber_start_var = tk.StringVar(value="1")
         ttk.Entry(action_frame1, textvariable=self.renumber_start_var, width=5).pack(side=tk.LEFT, padx=5)
         ttk.Button(action_frame1, text="Thực hiện", command=self._renumber_chapters_in_text).pack(side=tk.LEFT)
 
         toc_frame = ttk.LabelFrame(parent, text="2. Thêm tiêu đề từ Mục lục", padding=10)
-        toc_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=10)
+        toc_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=10)
         toc_frame.columnconfigure(0, weight=1)
         toc_frame.rowconfigure(1, weight=1)
 
@@ -480,7 +490,7 @@ class TextOpsMixin:
         ttk.Label(toc_input_header, text="Dán hoặc tải nội dung Mục lục vào ô bên dưới:").pack(side=tk.LEFT)
         ttk.Button(toc_input_header, text="Tải file Mục lục...", command=self._load_toc_into_text).pack(side=tk.RIGHT)
 
-        self.toc_content_text = scrolledtext.ScrolledText(toc_frame, wrap=tk.WORD, height=8)
+        self.toc_content_text = scrolledtext.ScrolledText(toc_frame, wrap=tk.WORD, height=4)
         self.toc_content_text.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=5)
 
         regex_frame = ttk.Frame(toc_frame)
@@ -517,9 +527,13 @@ class TextOpsMixin:
             messagebox.showerror("Lỗi", f"Không thể đọc file: {e}", parent=self)
 
     def _renumber_chapters_in_text(self):
-        current_content = self.text_content.get("1.0", tk.END)
+        source = self.renumber_source_var.get()
+        target_widget = self.text_content if source == "current" else self.toc_content_text
+        source_name = "File hiện tại" if source == "current" else "Mục lục"
+
+        current_content = target_widget.get("1.0", tk.END)
         if not current_content.strip():
-            messagebox.showwarning("Thông báo", "Không có nội dung để xử lý.", parent=self)
+            messagebox.showwarning("Thông báo", f"Không có nội dung trong {source_name} để xử lý.", parent=self)
             return
 
         find_regex = self.renumber_find_regex.get()
@@ -531,7 +545,7 @@ class TextOpsMixin:
             messagebox.showerror("Lỗi", "Số bắt đầu phải là số nguyên.", parent=self)
             return
 
-        if not messagebox.askyesno("Xác nhận", "Hành động này sẽ thay đổi nội dung hiện tại. Bạn có chắc muốn tiếp tục?"):
+        if not messagebox.askyesno("Xác nhận", f"Hành động này sẽ thay đổi nội dung {source_name}. Bạn có chắc muốn tiếp tục?"):
             return
 
         new_content, count, error = TextOperations.renumber_chapters(current_content, find_regex, replace_format, start_num)
@@ -540,10 +554,10 @@ class TextOpsMixin:
             messagebox.showerror("Lỗi", error, parent=self)
             return
 
-        self.text_content.delete("1.0", tk.END)
-        self.text_content.insert("1.0", new_content)
-        self.log(f"[Công cụ nhanh] Đã đánh số lại {count} chương.")
-        messagebox.showinfo("Hoàn tất", f"Đã đánh số lại thành công {count} chương.", parent=self)
+        target_widget.delete("1.0", tk.END)
+        target_widget.insert("1.0", new_content)
+        self.log(f"[Công cụ nhanh] Đã đánh số lại {count} chương trong {source_name}.")
+        messagebox.showinfo("Hoàn tất", f"Đã đánh số lại thành công {count} chương trong {source_name}.", parent=self)
 
     def _add_titles_from_toc_in_text(self):
         current_content = self.text_content.get("1.0", tk.END)

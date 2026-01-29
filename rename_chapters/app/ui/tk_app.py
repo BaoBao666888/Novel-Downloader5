@@ -1910,6 +1910,7 @@ class RenamerApp(
             'wikidich_links': dict(self.wikidich_links or {}),
             'wd_not_found': list(self.wd_not_found or []),
             'novel_downloader5': dict(self.nd5_options or {}),
+            'online_title_choice': self.title_choice.get(),
         })
         self.app_config['ui_settings'] = self.ui_settings
         if hasattr(self, "wd_search_var"):
@@ -2014,6 +2015,8 @@ class RenamerApp(
             elif name_sets_keys:
                 self.translator_name_set_combo.set(name_sets_keys[0])
             self._refresh_translator_name_preview()
+            
+            self.title_choice.set(config_data.get('online_title_choice', 'title2'))
 
             # Load wikidich notes & links
             self.wikidich_notes = dict(config_data.get('wikidich_notes', {}) or {})
@@ -2580,8 +2583,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
            - Nút ↻ dùng để làm mới danh sách profile.
 
         2. **Sync**:
-           - **Đồng bộ gần đây**: tải các bài viết mới từ trang gần đây.
-           - **Lấy data forum**: tải file dữ liệu mẫu về máy rồi nhập vào chỉ mục (cần đăng nhập).
+           - **Đồng bộ gần đây**: tải các bài viết mới từ trang gần đây (chỉ mở sau khi đã Lấy data forum).
+           - **Lấy data forum**: tải file dữ liệu mẫu về máy rồi nhập vào chỉ mục (cần đăng nhập, thao tác bắt buộc lần đầu).
            - Nếu có quyền, menu Sync sẽ có thêm **Đồng bộ chuyên khu**.
 
         3. **Thao tác**:
@@ -2699,13 +2702,13 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   Bảng này sẽ hiển thị danh sách các chương lấy được, bao gồm số chương, tiêu đề chính và tiêu đề phụ (nếu có).
             -   Có thể chọn nhiều dòng bằng **Ctrl + Click chuột trái** hoặc chọn 1 hàng sau đó đến hàng mới nhấn **Shift +  Click chuột trái** để chọn khoảng từ hàng trước tới hàng này.
 
-        3.  **Áp dụng**:
-            -   **Chọn nhanh theo khoảng**: Hỗ trợ nhiều khoảng, nhập `1-5,7,10-` để chọn 1-5,7 và từ 10 trở đi; `-100`, `80-`, `all/*` đều được.
-            -   **Gộp 2 tiêu đề**:
-                -   Kích hoạt tùy chọn này nếu bạn muốn kết hợp tiêu đề chính và phụ.
-                -   Sử dụng `{t1}` cho tiêu đề chính và `{t2}` cho tiêu đề phụ trong ô cấu trúc.
-            -   **Nếu không gộp, sử dụng cột**: Chọn cột tiêu đề bạn muốn dùng (chính hoặc phụ).
-            -   **Sao chép tiêu đề...**: Sau khi đã chọn các chương mong muốn, nhấn nút này. Các tiêu đề tương ứng sẽ được tự động sao chép vào ô "Tiêu đề tùy chỉnh" ở Tab cần thiết.
+        3.  **Áp dụng và Xử lý**:
+            -   **Chọn nhanh theo khoảng**: Nhập khoảng chương muốn chọn (ví dụ: `1-50`, `100-`, `all`).
+            -   **Loại trừ**: Nhập các chương hoặc khoảng muốn bỏ qua khỏi vùng chọn trên (ví dụ: `10, 20-30`).
+            -   **Gộp tiêu đề**: Nếu chọn, sẽ gộp tiêu đề chính và phụ theo cấu trúc (ví dụ `{t1} - {t2}`).
+            -   **Sử dụng cột**: Nếu không gộp, chọn chỉ dùng Tiêu đề chính hoặc Tiêu đề phụ (lựa chọn này sẽ được tự động lưu).
+            -   **Sao chép vào Công cụ Nhanh**: Chuyển danh sách đã chọn sang tab "Xử lý văn bản" để thêm vào file.
+            -   **Sao chép... vào Tab Đổi Tên**: Chuyển danh sách sang tab Đổi Tên để dùng làm tiêu đề tùy chỉnh.
         """
         create_tab("Lấy Tiêu Đề Online", online_guide)
 
@@ -2746,8 +2749,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         -   **Cách dùng**:
             1.  **Regex tìm kiếm**: Nhập mẫu để tìm dòng chương. Ví dụ: `第\\d+章` hoặc `Chương \\d+`.
             2.  **Cấu trúc thay thế**: Nhập định dạng bạn muốn cho dòng chương mới. **Bắt buộc** phải chứa `{num}`. Ví dụ: `第{num}章` hoặc `Chương {num}:`.
-            3.  **Bắt đầu từ số**: Nhập số chương bắt đầu.
-            4.  Nhấn **"Thực hiện"**.
+            3.  **Nguồn**: Chọn **File hiện tại** (sửa trực tiếp file đang mở) hoặc **Mục lục** (sửa nội dung khung Mục lục bên dưới).
+            4.  **Bắt đầu từ số**: Nhập số chương bắt đầu.
+            5.  Nhấn **"Thực hiện"**.
 
         **b. Thêm tiêu đề từ Mục lục:**
         -   **Chức năng**: Dùng một danh sách mục lục (dán vào hoặc tải từ file) để cập nhật tiêu đề cho file truyện chính.

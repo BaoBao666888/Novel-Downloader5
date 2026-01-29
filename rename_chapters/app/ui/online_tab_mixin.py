@@ -38,11 +38,21 @@ class OnlineTabMixin:
 
         current_frame = ttk.Frame(fetch_frame)
         current_frame.grid(row=0, column=0, sticky="ew", pady=(0, 6))
-        current_frame.columnconfigure(1, weight=1)
+        
+        self.source_domain_var = tk.StringVar()
+        self.source_sample_var = tk.StringVar()
+        
         ttk.Label(current_frame, text="Nguồn hiện tại:").grid(row=0, column=0, sticky="w")
         self.source_current_label = ttk.Label(current_frame, text="", font=("Segoe UI", 10, "bold"))
         self.source_current_label.grid(row=0, column=1, sticky="w", padx=(6, 0))
-        ttk.Label(current_frame, text="Cookie:").grid(row=0, column=2, sticky="w", padx=(12, 0))
+        
+        ttk.Label(current_frame, textvariable=self.source_domain_var, font=("Segoe UI", 10, "italic")).grid(row=0, column=2, sticky="w", padx=(5, 0))
+        self.source_sample_label = ttk.Label(current_frame, textvariable=self.source_sample_var)
+        self.source_sample_label.grid(row=0, column=3, sticky="w", padx=(5, 0))
+        
+        current_frame.columnconfigure(3, weight=1) # Sample/Space expands
+
+        ttk.Label(current_frame, text="Cookie:").grid(row=0, column=4, sticky="w", padx=(12, 0))
         self.online_cookie_profile_var = tk.StringVar()
         self.online_cookie_profile_cb = ttk.Combobox(
             current_frame,
@@ -50,18 +60,10 @@ class OnlineTabMixin:
             state="readonly",
             width=16,
         )
-        self.online_cookie_profile_cb.grid(row=0, column=3, sticky="w", padx=(6, 4))
-        ttk.Button(current_frame, text="↻", width=2, command=self._refresh_online_cookie_profiles).grid(row=0, column=4)
-        ttk.Button(current_frame, text="Chọn nguồn...", command=self._open_source_selector).grid(row=0, column=5, padx=(10, 0))
+        self.online_cookie_profile_cb.grid(row=0, column=5, sticky="w", padx=(6, 4))
+        ttk.Button(current_frame, text="↻", width=2, command=self._refresh_online_cookie_profiles).grid(row=0, column=6)
+        ttk.Button(current_frame, text="Chọn nguồn...", command=self._open_source_selector).grid(row=0, column=7, padx=(10, 0))
 
-        info_frame = ttk.Frame(fetch_frame)
-        info_frame.grid(row=1, column=0, sticky="ew")
-        info_frame.columnconfigure(2, weight=1)
-        self.source_domain_var = tk.StringVar()
-        ttk.Label(info_frame, textvariable=self.source_domain_var, font=("Segoe UI", 10, "italic")).grid(row=0, column=0, sticky="w", padx=5, pady=(0,4))
-        self.source_sample_var = tk.StringVar()
-        self.source_sample_label = ttk.Label(info_frame, textvariable=self.source_sample_var)
-        self.source_sample_label.grid(row=0, column=2, sticky="w", padx=5, pady=(0,4))
         url_row = ttk.Frame(fetch_frame)
         url_row.grid(row=2, column=0, sticky="ew", padx=5, pady=(8, 5))
         url_row.columnconfigure(1, weight=1)
@@ -71,7 +73,8 @@ class OnlineTabMixin:
         url_frame.grid(row=0, column=1, sticky="ew", padx=(6,0))
         url_frame.columnconfigure(0, weight=1)
         ttk.Entry(url_frame, textvariable=self.source_url).grid(row=0, column=0, sticky="ew")
-        ttk.Button(url_frame, text="Bắt đầu lấy dữ liệu", command=self._fetch_online_titles).grid(row=0, column=1, padx=(8,0))
+        self.fetch_source_btn = ttk.Button(url_frame, text="Bắt đầu lấy dữ liệu", command=self._fetch_online_titles)
+        self.fetch_source_btn.grid(row=0, column=1, padx=(8,0))
 
         self._refresh_online_cookie_profiles()
         self._update_source_info_labels()
@@ -102,6 +105,11 @@ class OnlineTabMixin:
         range_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Button(select_frame, text="Chọn", command=self._select_online_range).pack(side=tk.LEFT, padx=5)
 
+        ttk.Label(select_frame, text="Loại trừ:").pack(side=tk.LEFT, padx=(10, 5))
+        self.online_exclude_var = tk.StringVar()
+        exclude_entry = ttk.Entry(select_frame, textvariable=self.online_exclude_var, width=15)
+        exclude_entry.pack(side=tk.LEFT)
+
         combine_frame = ttk.Frame(apply_frame)
         combine_frame.grid(row=0, column=1, sticky="ew", padx=(10, 0))
         ttk.Checkbutton(combine_frame, text="Gộp 2 tiêu đề theo cấu trúc:", variable=self.combine_titles_var).pack(side=tk.LEFT, padx=(0, 5))
@@ -113,7 +121,9 @@ class OnlineTabMixin:
         action_row_frame = ttk.Frame(apply_frame)
         action_row_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10,0))
         ttk.Label(action_row_frame, text="Nếu không gộp, sử dụng cột:").pack(side=tk.LEFT, padx=5)
-        self.title_choice = tk.StringVar(value="title2")
+        
+        saved_choice = self.app_config.get('online_title_choice', 'title2')
+        self.title_choice = tk.StringVar(value=saved_choice)
         ttk.Radiobutton(action_row_frame, text="Tiêu đề chính", variable=self.title_choice, value="title1").pack(side=tk.LEFT)
         ttk.Radiobutton(action_row_frame, text="Tiêu đề phụ", variable=self.title_choice, value="title2").pack(side=tk.LEFT)
         ttk.Button(action_row_frame, text="Sao chép vào Công cụ Nhanh", command=self._copy_titles_to_quick_tools).pack(side=tk.LEFT, padx=20)
@@ -145,49 +155,55 @@ class OnlineTabMixin:
                 messagebox.showerror("Lỗi", "Không tìm thấy cấu hình nguồn phù hợp.")
             return
 
+        self.fetch_source_btn.config(state="disabled")
+
+
         def _worker():
             pythoncom.CoInitialize()
             try:
-                self.log(f"Đang lấy dữ liệu từ {url}...")
-                if not config:
-                    result = {"error": "Không tìm thấy cấu hình nguồn. Vui lòng chọn lại."}
-                else:
-                    selected_site = config["site_value"]
-                    proxies = self._get_proxy_for_request("fetch_titles")
-                    if proxies:
-                        self.log(f"Sử dụng proxy: {proxies['http']}")
-                    profile_name = ""
-                    if hasattr(self, "online_cookie_profile_var"):
-                        profile_name = (self.online_cookie_profile_var.get() or "").strip()
-                    cookie_db_path = None
-                    if profile_name and hasattr(self, "_wd_get_cookie_db_path"):
-                        try:
-                            cookie_db_path = self._wd_get_cookie_db_path(profile_name)
-                        except Exception:
-                            cookie_db_path = None
-
-                    if selected_site == "jjwxc.net":
-                        result = jjwxc_ext.fetch_chapters(url, proxies=proxies)
-                    elif selected_site == "po18.tw":
-                        result = po18_ext.fetch_chapters(url, root_window=self, proxies=proxies, cookie_db_path=cookie_db_path)
-                    elif selected_site == "qidian.com":
-                        result = qidian_ext.fetch_chapters(url, root_window=self, proxies=proxies, cookie_db_path=cookie_db_path)
-                    elif selected_site == "fanqienovel.com":
-                        result = fanqienovel_ext.fetch_chapters(url, proxies=proxies)
-                    elif selected_site == "ihuaben.com":
-                        result = ihuaben_ext.fetch_chapters(url, proxies=proxies)
-                    elif selected_site == "read.douban.com":
-                        wiki_min, wiki_max = self._get_delay_range(
-                            "wiki_delay_min",
-                            "wiki_delay_max",
-                            DEFAULT_API_SETTINGS["wiki_delay_min"],
-                            DEFAULT_API_SETTINGS["wiki_delay_max"],
-                        )
-                        result = douban_ext.fetch_chapters(url, proxies=proxies, delay_range=(wiki_min, wiki_max))
-                    elif selected_site == "qimao.com":
-                        result = qimao_ext.fetch_chapters(url, proxies=proxies)
+                try:
+                    self.log(f"Đang lấy dữ liệu từ {url}...")
+                    if not config:
+                        result = {"error": "Không tìm thấy cấu hình nguồn. Vui lòng chọn lại."}
                     else:
-                        result = {"error": "Trang web không được hỗ trợ."}
+                        selected_site = config["site_value"]
+                        proxies = self._get_proxy_for_request("fetch_titles")
+                        if proxies:
+                            self.log(f"Sử dụng proxy: {proxies['http']}")
+                        profile_name = ""
+                        if hasattr(self, "online_cookie_profile_var"):
+                            profile_name = (self.online_cookie_profile_var.get() or "").strip()
+                        cookie_db_path = None
+                        if profile_name and hasattr(self, "_wd_get_cookie_db_path"):
+                            try:
+                                cookie_db_path = self._wd_get_cookie_db_path(profile_name)
+                            except Exception:
+                                cookie_db_path = None
+
+                        if selected_site == "jjwxc.net":
+                            result = jjwxc_ext.fetch_chapters(url, proxies=proxies)
+                        elif selected_site == "po18.tw":
+                            result = po18_ext.fetch_chapters(url, root_window=self, proxies=proxies, cookie_db_path=cookie_db_path)
+                        elif selected_site == "qidian.com":
+                            result = qidian_ext.fetch_chapters(url, root_window=self, proxies=proxies, cookie_db_path=cookie_db_path)
+                        elif selected_site == "fanqienovel.com":
+                            result = fanqienovel_ext.fetch_chapters(url, proxies=proxies)
+                        elif selected_site == "ihuaben.com":
+                            result = ihuaben_ext.fetch_chapters(url, proxies=proxies)
+                        elif selected_site == "read.douban.com":
+                            wiki_min, wiki_max = self._get_delay_range(
+                                "wiki_delay_min",
+                                "wiki_delay_max",
+                                DEFAULT_API_SETTINGS["wiki_delay_min"],
+                                DEFAULT_API_SETTINGS["wiki_delay_max"],
+                            )
+                            result = douban_ext.fetch_chapters(url, proxies=proxies, delay_range=(wiki_min, wiki_max))
+                        elif selected_site == "qimao.com":
+                            result = qimao_ext.fetch_chapters(url, proxies=proxies)
+                        else:
+                            result = {"error": "Trang web không được hỗ trợ."}
+                except Exception as e:
+                    result = {"error": f"Lỗi không xác định: {str(e)}"}
 
                 self.after(0, self._update_online_tree, result)
             finally:
@@ -216,6 +232,7 @@ class OnlineTabMixin:
         return None
 
     def _update_online_tree(self, result):
+        self.fetch_source_btn.config(state="normal")
         self.online_tree.delete(*self.online_tree.get_children())
         if "error" in result:
             error_msg = result["error"]
@@ -333,23 +350,57 @@ class OnlineTabMixin:
 
         self.online_tree.selection_remove(self.online_tree.selection())
 
-        if ranges and ranges[0][0] == "all":
-            self.online_tree.selection_add(all_items)
-            return
-
         items_to_select = []
-        for item_id in all_items:
-            try:
-                chap_num = int(self.online_tree.item(item_id, "values")[0])
-            except Exception:
-                continue
-            for start, end in ranges:
-                if start <= chap_num <= end:
-                    items_to_select.append(item_id)
-                    break
+        if ranges and ranges[0][0] == "all":
+            items_to_select = list(all_items)
+        else:
+            for item_id in all_items:
+                try:
+                    chap_num = int(self.online_tree.item(item_id, "values")[0])
+                except Exception:
+                    continue
+                for start, end in ranges:
+                    if start <= chap_num <= end:
+                        items_to_select.append(item_id)
+                        break
 
         if items_to_select:
-            self.online_tree.selection_add(items_to_select)
+            # Handle exclusion
+            exclude_str = self.online_exclude_var.get().strip().lower()
+            if exclude_str:
+                exclude_tokens = [t for t in re.split(r"[\s,]+", exclude_str) if t.strip()]
+                exclude_ids = set()
+                processed_items_to_select = []
+                
+                # Setup ranges/set for exclusion
+                exclude_ranges = []
+                for tok in exclude_tokens:
+                    parsed = parse_token(tok)
+                    if parsed:
+                        if parsed[0] == "all":
+                             exclude_ranges = [("all", None)]
+                             break
+                        exclude_ranges.append(parsed)
+
+                for item_id in items_to_select:
+                     try:
+                        chap_num = int(self.online_tree.item(item_id, "values")[0])
+                        is_excluded = False
+                        if exclude_ranges and exclude_ranges[0][0] == "all":
+                             is_excluded = True
+                        else:
+                            for start, end in exclude_ranges:
+                                if start <= chap_num <= end:
+                                    is_excluded = True
+                                    break
+                        if not is_excluded:
+                             processed_items_to_select.append(item_id)
+                     except Exception:
+                         continue
+                items_to_select = processed_items_to_select
+
+            if items_to_select:
+                self.online_tree.selection_add(items_to_select)
 
     def _refresh_online_cookie_profiles(self):
         profiles = ["Profile 1"]

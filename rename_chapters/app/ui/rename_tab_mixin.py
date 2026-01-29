@@ -1,4 +1,6 @@
 import os
+import re
+import json
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog, messagebox
 
@@ -112,6 +114,7 @@ class RenameTabMixin:
         search_entry = ttk.Entry(actions_bar, textvariable=self.search_var)
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         search_entry.bind("<KeyRelease>", self._search_files)
+        ttk.Button(actions_bar, text="Xóa rác", command=self._open_junk_remover).pack(side=tk.LEFT, padx=5)
         ttk.Button(actions_bar, text="Loại trừ file đã chọn", command=lambda: self._toggle_exclusion(exclude=True)).pack(side=tk.LEFT, padx=5)
         ttk.Button(actions_bar, text="Bao gồm lại", command=lambda: self._toggle_exclusion(exclude=False)).pack(side=tk.LEFT, padx=5)
         ttk.Button(actions_bar, text="BẮT ĐẦU ĐỔI TÊN", command=self.start_renaming).pack(side=tk.LEFT, padx=5)
@@ -523,3 +526,205 @@ class RenameTabMixin:
 
         ttk.Button(btns, text="Lưu", command=_apply).pack(side=tk.RIGHT)
         ttk.Button(btns, text="Hủy", command=win.destroy).pack(side=tk.RIGHT, padx=(0, 8))
+
+    # =========================================================================
+    # JUNK REMOVER FEATURE
+    # =========================================================================
+
+    def _open_junk_remover(self):
+        """Mở dialog công cụ xóa rác."""
+        dialog = tk.Toplevel(self)
+        dialog.title("Công cụ Xóa Rác")
+        dialog.geometry("600x500")
+
+        # Variables
+        scope_var = tk.StringVar(value="all")
+        mode_var = tk.StringVar(value="string")
+        match_var = tk.StringVar(value="exact")
+        
+        # UI Layout
+        # 1. Options Frame
+        opts_frame = ttk.LabelFrame(dialog, text="Tùy chọn", padding=10)
+        opts_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Scope
+        ttk.Label(opts_frame, text="Phạm vi:").grid(row=0, column=0, sticky="w", padx=5)
+        ttk.Radiobutton(opts_frame, text="Tất cả file", variable=scope_var, value="all").grid(row=0, column=1, sticky="w")
+        ttk.Radiobutton(opts_frame, text="File đang chọn", variable=scope_var, value="selected").grid(row=0, column=2, sticky="w")
+
+        # Mode
+        ttk.Label(opts_frame, text="Chế độ:").grid(row=1, column=0, sticky="w", padx=5)
+        ttk.Radiobutton(opts_frame, text="Chỉ xóa chuỗi", variable=mode_var, value="string").grid(row=1, column=1, sticky="w")
+        ttk.Radiobutton(opts_frame, text="Xóa cả dòng chứa chuỗi", variable=mode_var, value="line").grid(row=1, column=2, sticky="w")
+
+        # Match
+        ttk.Label(opts_frame, text="Matching:").grid(row=2, column=0, sticky="w", padx=5)
+        ttk.Radiobutton(opts_frame, text="Chính xác (Exact)", variable=match_var, value="exact").grid(row=2, column=1, sticky="w")
+        ttk.Radiobutton(opts_frame, text="Regex", variable=match_var, value="regex").grid(row=2, column=2, sticky="w")
+
+        # 2. Pattern Input
+        pat_frame = ttk.LabelFrame(dialog, text="Nội dung cần xóa (Mỗi dòng một pattern)", padding=10)
+        pat_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        pattern_text = tk.Text(pat_frame, height=10)
+        pattern_text.pack(fill=tk.BOTH, expand=True)
+
+        # Load saved patterns
+        saved_patterns = self._load_junk_patterns()
+        if saved_patterns:
+            pattern_text.insert("1.0", "\n".join(saved_patterns))
+
+        # 3. Actions
+        btn_frame = ttk.Frame(dialog, padding=10)
+        btn_frame.pack(fill=tk.X)
+
+        # Warning Label
+        warning_lbl = ttk.Label(dialog, text="", foreground="red", wraplength=550)
+        warning_lbl.pack(pady=(0, 5))
+
+        def update_warning(*args):
+             if mode_var.get() == "line" and match_var.get() == "regex":
+                 warning_lbl.config(text="⚠️ Cẩn thận: Chế độ 'Regex' + 'Xóa cả dòng' có thể xóa nhầm nhiều nội dung nếu pattern quá rộng (ví dụ match cả dòng trắng). Hãy kiểm tra kỹ Regex!")
+             else:
+                 warning_lbl.config(text="")
+        
+        mode_var.trace_add("write", update_warning)
+        match_var.trace_add("write", update_warning)
+        update_warning()
+
+        def on_apply():
+            raw_patterns = pattern_text.get("1.0", tk.END).strip().split('\n')
+            patterns = [p for p in raw_patterns if p.strip()]
+            if not patterns:
+                messagebox.showwarning("Cảnh báo", "Vui lòng nhập ít nhất một pattern!", parent=dialog)
+                return
+            
+            # Save patterns
+            self._save_junk_patterns(patterns)
+
+            # Determine files
+            target_files = []
+            if scope_var.get() == "all":
+                 # Lấy tất cả file hiện có trong thư mục
+                 path = self.folder_path.get()
+                 if os.path.isdir(path):
+                     target_files = logic.get_files(path)
+            else:
+                selected_items = self.tree.selection()
+                if not selected_items:
+                    messagebox.showwarning("Cảnh báo", "Chưa chọn file nào trong bảng!", parent=dialog)
+                    return
+                # Map item ID -> file path
+                target_files = []
+                for item in selected_items:
+                    if item in self.tree_filepaths:
+                        target_files.append(self.tree_filepaths[item])
+                
+
+            if not target_files:
+                messagebox.showwarning("Cảnh báo", "Không tìm thấy file để xử lý!", parent=dialog)
+                return
+
+            # Confirm
+            msg = f"Sẽ quét {len(target_files)} file.\n" \
+                  f"Pattern: {len(patterns)} mẫu.\n" \
+                  f"Mode: {mode_var.get()}\n" \
+                  f"Match: {match_var.get()}\n\n" \
+                  "TIẾN HÀNH?"
+            if not messagebox.askyesno("Xác nhận", msg, parent=dialog):
+                return
+
+            # Execute
+            count_files, count_matches = self._remove_junk_from_files(
+                target_files, patterns, mode_var.get(), match_var.get() == "regex"
+            )
+            
+            messagebox.showinfo("Hoàn tất", f"Đã xử lý {count_files} file.\nXóa thành công {count_matches} vị trí/dòng.", parent=dialog)
+            self.log(f"Xóa rác: {count_matches} matches trong {count_files} files.")
+            
+            # Refresh preview text for opened file if any? 
+            # Currently preview logic is separate, so maybe cleaner to just close dialog.
+            # But the user might want to try other patterns.
+            # dialog.destroy()
+
+        ttk.Button(btn_frame, text="Thực hiện", command=on_apply).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Đóng", command=dialog.destroy).pack(side=tk.RIGHT, padx=5)
+
+    def _remove_junk_from_files(self, files, patterns, mode, use_regex):
+        """Logic xóa rác khỏi file."""
+        count_files = 0
+        total_matches = 0
+        
+        for file_path in files:
+            if not os.path.exists(file_path):
+                continue
+            
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                
+                original_content = content
+                matches_in_file = 0
+
+                for pattern in patterns:
+                    if not pattern: continue
+                    
+                    if use_regex:
+                        try:
+                            if mode == "line":
+                                # Xóa cả dòng chứa pattern (multiline mode)
+                                # (?m) bật multiline, ^.*pattern.*$ match cả dòng
+                                regex = f'(?m)^.*{pattern}.*$\\n?'
+                                matches = len(re.findall(regex, content))
+                                content = re.sub(regex, "", content)
+                                matches_in_file += matches
+                            else:
+                                # String mode
+                                matches = len(re.findall(pattern, content))
+                                content = re.sub(pattern, "", content)
+                                matches_in_file += matches
+                        except re.error as e:
+                            print(f"Regex error: {e}") 
+                    else:
+                        # Exact match
+                        if mode == "line":
+                            lines = content.splitlines(keepends=True)
+                            new_lines = []
+                            for line in lines:
+                                if pattern in line:
+                                    matches_in_file += 1
+                                else:
+                                    new_lines.append(line)
+                            content = "".join(new_lines)
+                        else:
+                            matches = content.count(pattern)
+                            if matches > 0:
+                                content = content.replace(pattern, "")
+                                matches_in_file += matches
+
+                if content != original_content:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    count_files += 1
+                    total_matches += matches_in_file
+            
+            except Exception as e:
+                print(f"Error processing file {file_path}: {e}")
+
+        return count_files, total_matches
+
+    def _load_junk_patterns(self):
+        try:
+            if os.path.exists("junk_patterns.json"):
+                with open("junk_patterns.json", "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except:
+            return []
+        return []
+
+    def _save_junk_patterns(self, patterns):
+        try:
+            with open("junk_patterns.json", "w", encoding="utf-8") as f:
+                json.dump(patterns, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Failed to save junk patterns: {e}")
