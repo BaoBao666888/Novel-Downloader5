@@ -53,6 +53,10 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    function isEditPage() {
+        return /\/chinh-sua$/.test(location.pathname);
+    }
+
     function logUi(message, type) {
         if (state && typeof state.log === 'function') {
             state.log(message, type);
@@ -214,6 +218,54 @@
             return capitalizeFirstLetter(fixSpacing(line));
         });
         return cleaned.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function normalizeCompareText(text) {
+        return safeText(text).replace(/\s+/g, ' ').trim();
+    }
+
+    function normalizeCompareList(list) {
+        if (!Array.isArray(list)) return [];
+        return list.map(item => normalizeText(item)).filter(Boolean);
+    }
+
+    function arraysEqualNormalized(a, b) {
+        const na = normalizeCompareList(a);
+        const nb = normalizeCompareList(b);
+        if (na.length !== nb.length) return false;
+        const setA = new Set(na);
+        for (const v of nb) {
+            if (!setA.has(v)) return false;
+        }
+        return true;
+    }
+
+    const EDIT_EXCLUDE_KEY = `${APP_PREFIX}exclude_fields_edit`;
+    const EDIT_EXCLUDE_DEFAULT = { coverUrl: true, moreLink: true };
+    const EDIT_FIELDS = [
+        { key: 'titleCn', label: 'Tên gốc (CN)', type: 'text' },
+        { key: 'authorCn', label: 'Tên tác giả (CN)', type: 'text' },
+        { key: 'titleVi', label: 'Tên dịch (VI)', type: 'text' },
+        { key: 'descVi', label: 'Mô tả dịch (VI)', type: 'text' },
+        { key: 'coverUrl', label: 'Cover URL', type: 'text' },
+        { key: 'status', label: 'Tình trạng', type: 'radio' },
+        { key: 'official', label: 'Tính chất', type: 'radio' },
+        { key: 'gender', label: 'Giới tính', type: 'radio' },
+        { key: 'age', label: 'Thời đại', type: 'checkbox' },
+        { key: 'ending', label: 'Kết thúc', type: 'checkbox' },
+        { key: 'genre', label: 'Loại hình', type: 'checkbox' },
+        { key: 'tag', label: 'Tag', type: 'checkbox' },
+        { key: 'moreLink', label: 'Liên kết bổ sung', type: 'text' },
+    ];
+
+    function loadExcludedFields() {
+        const raw = GM_getValue(EDIT_EXCLUDE_KEY, null);
+        if (!raw || typeof raw !== 'object') return { ...EDIT_EXCLUDE_DEFAULT };
+        return { ...EDIT_EXCLUDE_DEFAULT, ...raw };
+    }
+
+    function saveExcludedFields(excludes) {
+        GM_setValue(EDIT_EXCLUDE_KEY, excludes || {});
     }
 
     function parseNameSet(raw) {
@@ -1609,6 +1661,13 @@
         return '';
     }
 
+    function hasXuyenNhanh(textOrList) {
+        const blob = Array.isArray(textOrList)
+            ? T.normalizeText(textOrList.join(' '))
+            : T.normalizeText(textOrList || '');
+        return /(xuyen nhanh|快穿)/.test(blob);
+    }
+
     function normalizeKeepAccents(text = '') {
         return text
             .toString()
@@ -1741,13 +1800,15 @@
 
         const threshold = getScoreThreshold();
 
+        const allowMultiEnding = hasXuyenNhanh(keywordList);
+
         return {
             status: pickRadio(statusScored, true, threshold),
             official: pickRadio(boostDetect(groups.official, officialLabel), true, threshold),
             gender: pickRadio(boostDetect(groups.gender, genderLabel), false, threshold),
 
             age: getMulti(groups.age, 4, true, false),
-            ending: getMulti(groups.ending, 3, true, false),
+            ending: getMulti(groups.ending, allowMultiEnding ? 3 : 1, true, false),
             genre: getMulti(groups.genre, 8, true, false),
             tag: getMulti(groups.tag, MAX_TAGS_SELECT, true, true),
         };
@@ -1850,9 +1911,10 @@
     const CHANGELOG_CONTENT = `
 <h2><span style="color:#673ab7; font-size: 1.2em;">🚀 Phiên bản 0.3.2</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li>🌸 <b>Ihuaben:</b> Bổ sung ảnh bìa HD, nét căng như sương mai đầu ngõ.</li>
     <li>🧚 <b>AI thủ công:</b> Thêm nút “AI thủ công” để bạn tự tay copy prompt, dán JSON — chủ động, mượt mà, đậm chất phù thủy.</li>
+    <li>🎨 <b>Trang chỉnh sửa:</b> Thêm hỗ trợ trang sửa truyện. Popup so sánh mới (rộng, đẹp), diff văn án theo từng từ + xuống dòng chuẩn, màu sắc dịu mắt.</li>
     <li>🛡️ <b>Qidian:</b> Giảm báo sai captcha (TCaptcha vẫn có thể xuất hiện nhưng data vẫn đọc được).</li>
+    <li>🌸 <b>Ihuaben:</b> Bổ sung ảnh bìa HD, nét căng như sương mai đầu ngõ.</li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.1</h3>
@@ -1910,13 +1972,23 @@
 
 <h3>🔥 Tính năng AI (Mới):</h3>
 <ul style="list-style-type: none; padding-left: 5px;">
-    <li>🔑 <b>Cần API Key:</b> Vào ⚙️ Cài đặt nhập Key từ Google AI Studio.</li>
+    <li>🔑 <b>AI tự động:</b> Cần API Key (⚙️ Cài đặt) để tool tự phân tích/tag.</li>
     <li>🧠 <b>Thông minh hơn:</b> AI đọc hiểu văn án để chọn tag (VD: "Gương vỡ lại lành" dù văn án không ghi rõ).</li>
     <li>🛡️ <b>Kiểm duyệt:</b> Tự động lọc bỏ các tag "rác" không có trong hệ thống Wikidich.</li>
+    <li>🧾 <b>AI thủ công:</b> Bấm <b>AI thủ công</b> → copy prompt → dán JSON kết quả vào tool (không cần API Key).</li>
 </ul>
 
+<div style="background: linear-gradient(135deg, #e3f2fd 0%, #fff8e1 100%); padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #42a5f5;">
+    <h3 style="margin-top:0; color:#1565c0;">✨ Trang chỉnh sửa (chinh-sua):</h3>
+    <ul style="list-style-type: none; padding-left: 5px; font-size: 13px;">
+        <li>✅/❌ <b>So khớp nhanh:</b> Dấu tick xanh = khớp web, dấu X đỏ = lệch; rê chuột để xem chi tiết.</li>
+        <li>🎯 <b>Loại trừ thông minh:</b> Nút <b>Loại trừ</b> cho phép bỏ qua trường khi áp (mặc định bỏ Cover URL), lưu lại cho lần sau.</li>
+        <li>🧩 <b>Popup so sánh:</b> Bảng đối chiếu trước khi áp, tô màu phần thêm/bớt; văn án diff theo từng từ và giữ xuống dòng chuẩn.</li>
+    </ul>
+</div>
+
 <div style="background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%); padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #e91e63;">
-    <h3 style="margin-top:0; color:#ad1457;">🪄 Auto Tách Tên (v0.3.1):</h3>
+    <h3 style="margin-top:0; color:#ad1457;">🪄 Auto Tách Tên:</h3>
     <p style="margin: 5px 0; font-size: 13px;">Khi bấm nút <b style="color:#e91e63;">AI</b>, hệ thống sẽ:</p>
     <ol style="margin-left: 15px; padding-left: 0; font-size: 13px;">
         <li>Gửi văn án tiếng Trung cho AI phân tích</li>
@@ -1945,6 +2017,8 @@
         document.body.appendChild(shadowHost);
         const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
         const showFloatingButton = options.showFloatingButton !== false;
+        const showEditExtras = isEditPage();
+        state.excludeFields = loadExcludedFields();
 
         const css = `
             :host { all: initial; }
@@ -1971,6 +2045,15 @@
             #${APP_PREFIX}content { padding: 12px 14px; overflow: auto; }
             .${APP_PREFIX}row { margin-bottom: 10px; }
             .${APP_PREFIX}label { font-size: 12px; color: #555; margin-bottom: 4px; display: block; }
+            .${APP_PREFIX}match {
+                display: inline-flex; align-items: center; justify-content: center;
+                width: 16px; height: 16px; border-radius: 50%;
+                font-size: 11px; margin-left: 6px; border: 1px solid transparent;
+                vertical-align: middle;
+            }
+            .${APP_PREFIX}match.ok { color: #1b5e20; background: #c8e6c9; border-color: #81c784; }
+            .${APP_PREFIX}match.bad { color: #b71c1c; background: #ffcdd2; border-color: #e57373; }
+            .${APP_PREFIX}match.na { color: #666; background: #eee; border-color: #ccc; }
             .${APP_PREFIX}input, .${APP_PREFIX}textarea, .${APP_PREFIX}select {
                 width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #ccc;
                 border-radius: 6px; font-size: 13px; font-family: inherit;
@@ -2024,6 +2107,47 @@
             .${APP_PREFIX}modal-body h3 { font-size: 15px; margin: 12px 0 6px 0; color: #555; }
             .${APP_PREFIX}modal-body li { margin-bottom: 4px; }
             .${APP_PREFIX}modal-actions { margin-top: 12px; text-align: right; flex-shrink: 0; padding: 0 16px 16px 16px; }
+            .${APP_PREFIX}diff-card {
+                width: 90vw; max-width: 1200px; max-height: 90vh;
+                border-radius: 16px; border: 1px solid rgba(0,0,0,0.06);
+                box-shadow: 0 20px 50px rgba(63, 81, 181, 0.25);
+                background: linear-gradient(135deg, #fffafc 0%, #f3f7ff 100%);
+                overflow: hidden;
+                font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
+            }
+            .${APP_PREFIX}diff-title {
+                padding: 16px 20px; font-weight: 600; font-size: 18px;
+                color: #3c1c73; letter-spacing: 0.2px;
+                background: linear-gradient(90deg, #fce4ec, #e3f2fd);
+                border-bottom: 1px solid rgba(0,0,0,0.05);
+            }
+            .${APP_PREFIX}diff-sub {
+                font-size: 12px; color: #6a5b9a; margin-top: 4px; font-weight: 500;
+            }
+            .${APP_PREFIX}diff-body { padding: 10px 16px 4px 16px; max-height: 60vh; overflow: auto; }
+            .${APP_PREFIX}diff-row {
+                display: grid; grid-template-columns: 160px 1fr 1fr; gap: 12px;
+                padding: 10px 8px; border-bottom: 1px dashed rgba(0,0,0,0.08);
+            }
+            .${APP_PREFIX}diff-row:last-child { border-bottom: none; }
+            .${APP_PREFIX}diff-label { font-weight: 600; color: #5d3b8f; }
+            .${APP_PREFIX}diff-col { background: #fff; border-radius: 10px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.06); }
+            .${APP_PREFIX}diff-col-title { font-size: 11px; color: #777; margin-bottom: 6px; }
+            .${APP_PREFIX}diff-old.change { color: inherit; font-weight: 500; box-shadow: inset 0 0 0 1px rgba(183, 28, 28, 0.12); }
+            .${APP_PREFIX}diff-new.change { color: inherit; font-weight: 500; box-shadow: inset 0 0 0 1px rgba(27, 94, 32, 0.12); }
+            .${APP_PREFIX}diff-text { white-space: pre-wrap; line-height: 1.5; }
+            .${APP_PREFIX}diff-del { background: rgba(244, 67, 54, 0.15); color: #b71c1c; padding: 0 2px; border-radius: 4px; }
+            .${APP_PREFIX}diff-ins { background: rgba(76, 175, 80, 0.18); color: #1b5e20; padding: 0 2px; border-radius: 4px; }
+            .${APP_PREFIX}diff-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; margin: 2px 4px 2px 0; font-size: 12px; }
+            .${APP_PREFIX}diff-add { background: #d7f7dc; color: #1b5e20; border: 1px solid #a7e6b2; }
+            .${APP_PREFIX}diff-remove { background: #ffe0e0; color: #b71c1c; border: 1px solid #ffb4b4; }
+            .${APP_PREFIX}diff-neutral { background: #eef1ff; color: #3b3b7a; border: 1px solid #c7d2ff; }
+            .${APP_PREFIX}diff-actions {
+                padding: 12px 16px 16px 16px; text-align: right;
+                background: linear-gradient(90deg, #fff, #f7f7ff);
+                border-top: 1px solid rgba(0,0,0,0.05);
+            }
+            .${APP_PREFIX}btn.diff-confirm { background: linear-gradient(135deg, #7b1fa2, #42a5f5); }
         `;
 
         shadowRoot.innerHTML = `
@@ -2061,57 +2185,57 @@
                         <textarea id="${APP_PREFIX}nameSet" class="${APP_PREFIX}textarea" placeholder="Ví dụ:\n张三=Trương Tam\n李四=Lý Tứ"></textarea>
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Tên gốc (CN)</label>
+                        <label class="${APP_PREFIX}label">Tên gốc (CN)<span class="${APP_PREFIX}match" data-key="titleCn">?</span></label>
                         <input id="${APP_PREFIX}titleCn" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Tên tác giả (CN)</label>
+                        <label class="${APP_PREFIX}label">Tên tác giả (CN)<span class="${APP_PREFIX}match" data-key="authorCn">?</span></label>
                         <input id="${APP_PREFIX}authorCn" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Tên dịch (VI)</label>
+                        <label class="${APP_PREFIX}label">Tên dịch (VI)<span class="${APP_PREFIX}match" data-key="titleVi">?</span></label>
                         <input id="${APP_PREFIX}titleVi" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Mô tả dịch (VI)</label>
+                        <label class="${APP_PREFIX}label">Mô tả dịch (VI)<span class="${APP_PREFIX}match" data-key="descVi">?</span></label>
                         <textarea id="${APP_PREFIX}descVi" class="${APP_PREFIX}textarea"></textarea>
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Cover URL</label>
+                        <label class="${APP_PREFIX}label">Cover URL<span class="${APP_PREFIX}match" data-key="coverUrl">?</span></label>
                         <input id="${APP_PREFIX}coverUrl" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}grid ${APP_PREFIX}row">
                         <div>
-                            <label class="${APP_PREFIX}label">Tình trạng (radio)</label>
+                            <label class="${APP_PREFIX}label">Tình trạng (radio)<span class="${APP_PREFIX}match" data-key="status">?</span></label>
                             <select id="${APP_PREFIX}status" class="${APP_PREFIX}select"></select>
                         </div>
                         <div>
-                            <label class="${APP_PREFIX}label">Tính chất (radio)</label>
+                            <label class="${APP_PREFIX}label">Tính chất (radio)<span class="${APP_PREFIX}match" data-key="official">?</span></label>
                             <select id="${APP_PREFIX}official" class="${APP_PREFIX}select"></select>
                         </div>
                         <div>
-                            <label class="${APP_PREFIX}label">Giới tính (radio)</label>
+                            <label class="${APP_PREFIX}label">Giới tính (radio)<span class="${APP_PREFIX}match" data-key="gender">?</span></label>
                             <select id="${APP_PREFIX}gender" class="${APP_PREFIX}select"></select>
                         </div>
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Thời đại (nhập label, phân cách dấu phẩy)</label>
+                        <label class="${APP_PREFIX}label">Thời đại (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="age">?</span></label>
                         <input id="${APP_PREFIX}age" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Kết thúc (nhập label, phân cách dấu phẩy)</label>
+                        <label class="${APP_PREFIX}label">Kết thúc (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="ending">?</span></label>
                         <input id="${APP_PREFIX}ending" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Loại hình (nhập label, phân cách dấu phẩy)</label>
+                        <label class="${APP_PREFIX}label">Loại hình (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="genre">?</span></label>
                         <input id="${APP_PREFIX}genre" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Tag (nhập label, phân cách dấu phẩy)</label>
+                        <label class="${APP_PREFIX}label">Tag (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="tag">?</span></label>
                         <textarea id="${APP_PREFIX}tag" class="${APP_PREFIX}textarea"></textarea>
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Liên kết bổ sung</label>
+                        <label class="${APP_PREFIX}label">Liên kết bổ sung<span class="${APP_PREFIX}match" data-key="moreLink">?</span></label>
                         <div class="${APP_PREFIX}grid">
                             <input id="${APP_PREFIX}moreLinkDesc" class="${APP_PREFIX}input" placeholder="Mô tả (vd: Cà Chua, Tấn Giang...)" list="${APP_PREFIX}moreLinkOptions" />
                             <input id="${APP_PREFIX}moreLinkUrl" class="${APP_PREFIX}input" placeholder="URL nguồn" />
@@ -2120,6 +2244,7 @@
                     </div>
                     <div class="${APP_PREFIX}row">
                         <button id="${APP_PREFIX}apply" class="${APP_PREFIX}btn">Áp vào form</button>
+                        ${showEditExtras ? `<button id="${APP_PREFIX}exclude" class="${APP_PREFIX}btn secondary">Loại trừ</button>` : ''}
                     </div>
                     <div class="${APP_PREFIX}row ${APP_PREFIX}hint">
                         Tip: có thể sửa text/label trong panel rồi bấm "Áp vào form".
@@ -2196,6 +2321,33 @@
                     </div>
                 </div>
             </div>
+            ${showEditExtras ? `
+            <div id="${APP_PREFIX}excludeModal" class="${APP_PREFIX}modal">
+                <div class="${APP_PREFIX}modal-card">
+                    <div class="${APP_PREFIX}modal-title">Loại trừ trường khi áp</div>
+                    <div class="${APP_PREFIX}modal-body">
+                        <div id="${APP_PREFIX}excludeList" class="${APP_PREFIX}settings-group"></div>
+                    </div>
+                    <div class="${APP_PREFIX}modal-actions">
+                        <button id="${APP_PREFIX}excludeSave" class="${APP_PREFIX}btn">Lưu</button>
+                        <button id="${APP_PREFIX}excludeClose" class="${APP_PREFIX}btn secondary">Đóng</button>
+                    </div>
+                </div>
+            </div>
+            <div id="${APP_PREFIX}diffModal" class="${APP_PREFIX}modal">
+                <div class="${APP_PREFIX}diff-card">
+                    <div class="${APP_PREFIX}diff-title">
+                        So sánh thay đổi trước khi áp
+                        <div class="${APP_PREFIX}diff-sub">Ghi chú: Đỏ là bị bỏ, xanh là mới thêm ✨</div>
+                    </div>
+                    <div class="${APP_PREFIX}diff-body" id="${APP_PREFIX}diffBody"></div>
+                    <div class="${APP_PREFIX}diff-actions">
+                        <button id="${APP_PREFIX}diffConfirm" class="${APP_PREFIX}btn diff-confirm">Áp dụng</button>
+                        <button id="${APP_PREFIX}diffCancel" class="${APP_PREFIX}btn secondary">Hủy</button>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
         `;
 
         const btn = shadowRoot.getElementById(`${APP_PREFIX}btn`);
@@ -2220,12 +2372,309 @@
         const manualAiCopy = shadowRoot.getElementById(`${APP_PREFIX}manualAiCopy`);
         const manualAiPaste = shadowRoot.getElementById(`${APP_PREFIX}manualAiPaste`);
         const manualAiClose = shadowRoot.getElementById(`${APP_PREFIX}manualAiClose`);
+        const excludeBtn = shadowRoot.getElementById(`${APP_PREFIX}exclude`);
+        const excludeModal = shadowRoot.getElementById(`${APP_PREFIX}excludeModal`);
+        const excludeList = shadowRoot.getElementById(`${APP_PREFIX}excludeList`);
+        const excludeSave = shadowRoot.getElementById(`${APP_PREFIX}excludeSave`);
+        const excludeClose = shadowRoot.getElementById(`${APP_PREFIX}excludeClose`);
+        const diffModal = shadowRoot.getElementById(`${APP_PREFIX}diffModal`);
+        const diffBody = shadowRoot.getElementById(`${APP_PREFIX}diffBody`);
+        const diffConfirm = shadowRoot.getElementById(`${APP_PREFIX}diffConfirm`);
+        const diffCancel = shadowRoot.getElementById(`${APP_PREFIX}diffCancel`);
 
         const domainConfig = shadowRoot.getElementById(`${APP_PREFIX}domainConfig`);
         const getDomainInputs = (id) => ({
             desc: shadowRoot.getElementById(`${APP_PREFIX}confDesc_${id}`),
             target: shadowRoot.getElementById(`${APP_PREFIX}confTarget_${id}`),
         });
+
+        const getCurrentFormValues = () => {
+            const groups = state.groups || getGroupOptions();
+            const getSelectedRadio = (name) => {
+                const opt = groups[name]?.find(item => item.input.checked);
+                return opt ? opt.label : '';
+            };
+            const getChecked = (name) => {
+                return (groups[name] || []).filter(item => item.input.checked).map(item => item.label);
+            };
+            const coverFromImg = document.getElementById('imgCover')?.getAttribute('src') || '';
+            const coverInput = document.getElementById('imgUrl')?.value || '';
+            const moreLinkDesc = document.querySelector('input[name="moreLinkDesc"]')?.value || '';
+            const moreLinkUrl = document.querySelector('input[name="moreLinkUrl"]')?.value || '';
+            return {
+                titleCn: document.getElementById('txtTitleCn')?.value || '',
+                authorCn: document.getElementById('txtAuthorCn')?.value || '',
+                titleVi: document.getElementById('txtTitleVi')?.value || '',
+                descVi: document.getElementById('txtDescVi')?.value || '',
+                coverUrl: coverInput || coverFromImg,
+                status: getSelectedRadio('status'),
+                official: getSelectedRadio('official'),
+                gender: getSelectedRadio('gender'),
+                age: getChecked('age'),
+                ending: getChecked('ending'),
+                genre: getChecked('genre'),
+                tag: getChecked('tag'),
+                moreLink: `${moreLinkDesc} | ${moreLinkUrl}`.trim(),
+            };
+        };
+
+        const getPlannedValues = () => {
+            const titleCn = shadowRoot.getElementById(`${APP_PREFIX}titleCn`)?.value || '';
+            const authorCn = shadowRoot.getElementById(`${APP_PREFIX}authorCn`)?.value || '';
+            const titleVi = shadowRoot.getElementById(`${APP_PREFIX}titleVi`)?.value || '';
+            const descVi = shadowRoot.getElementById(`${APP_PREFIX}descVi`)?.value || '';
+            const coverUrl = shadowRoot.getElementById(`${APP_PREFIX}coverUrl`)?.value || '';
+            const statusSel = shadowRoot.getElementById(`${APP_PREFIX}status`)?.value || '';
+            const officialSel = shadowRoot.getElementById(`${APP_PREFIX}official`)?.value || '';
+            const genderSel = shadowRoot.getElementById(`${APP_PREFIX}gender`)?.value || '';
+            const ageList = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}age`)?.value || '');
+            const endingList = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}ending`)?.value || '');
+            const genreList = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}genre`)?.value || '');
+            const tagList = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}tag`)?.value || '');
+            const sourceUrl = shadowRoot.getElementById(`${APP_PREFIX}url`)?.value || '';
+            const moreLinkDesc = shadowRoot.getElementById(`${APP_PREFIX}moreLinkDesc`)?.value || '';
+            const moreLinkUrl = shadowRoot.getElementById(`${APP_PREFIX}moreLinkUrl`)?.value || '';
+            const sourceLabel = state.sourceLabel || 'Nguồn';
+            const finalLinkDesc = T.safeText(moreLinkDesc) || sourceLabel;
+            const finalLinkUrl = T.safeText(moreLinkUrl) || sourceUrl;
+            return {
+                titleCn,
+                authorCn,
+                titleVi,
+                descVi,
+                coverUrl,
+                status: statusSel || state.suggestions?.status || '',
+                official: officialSel || state.suggestions?.official || '',
+                gender: genderSel || state.suggestions?.gender || '',
+                age: ageList.length ? ageList : state.suggestions?.age || [],
+                ending: endingList.length ? endingList : state.suggestions?.ending || [],
+                genre: genreList.length ? genreList : state.suggestions?.genre || [],
+                tag: tagList.length ? tagList : state.suggestions?.tag || [],
+                moreLink: `${finalLinkDesc} | ${finalLinkUrl}`.trim(),
+            };
+        };
+
+        const updateMatchIndicators = () => {
+            if (!isEditPage()) return;
+            const current = getCurrentFormValues();
+            const planned = getPlannedValues();
+            const badges = shadowRoot.querySelectorAll(`.${APP_PREFIX}match[data-key]`);
+            badges.forEach((el) => {
+                const key = el.getAttribute('data-key');
+                const curVal = current[key];
+                const newVal = planned[key];
+                let match = false;
+                if (Array.isArray(curVal) || Array.isArray(newVal)) {
+                    match = arraysEqualNormalized(Array.isArray(curVal) ? curVal : [], Array.isArray(newVal) ? newVal : []);
+                } else {
+                    match = normalizeCompareText(curVal) === normalizeCompareText(newVal);
+                }
+                el.classList.remove('ok', 'bad', 'na');
+                if (normalizeCompareText(curVal) === '' && normalizeCompareText(newVal) === '') {
+                    el.textContent = '—';
+                    el.classList.add('na');
+                    el.title = 'Chưa có dữ liệu để so khớp';
+                    return;
+                }
+                el.textContent = match ? '✔' : '✖';
+                el.classList.add(match ? 'ok' : 'bad');
+                el.title = match ? 'Khớp với web hiện tại' : `Không khớp web.\nWeb: ${curVal}\nTool: ${newVal}`;
+            });
+        };
+
+        const renderExcludeList = () => {
+            if (!excludeList) return;
+            excludeList.innerHTML = '';
+            const excludes = state.excludeFields || loadExcludedFields();
+            EDIT_FIELDS.forEach((field) => {
+                const row = document.createElement('label');
+                row.className = `${APP_PREFIX}settings-item`;
+                row.style.gap = '10px';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = !!excludes[field.key];
+                checkbox.dataset.key = field.key;
+                const span = document.createElement('span');
+                span.textContent = field.label;
+                row.appendChild(checkbox);
+                row.appendChild(span);
+                excludeList.appendChild(row);
+            });
+        };
+
+        const escapeHtml = (str) => T.safeText(str).replace(/[&<>"']/g, (ch) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+        }[ch]));
+
+        const diffTextHtml = (oldText, newText) => {
+            const normalizeNewlines = (text) => (text || '').toString().replace(/\r\n/g, '\n').replace(/\n{2,}/g, '\n');
+            const tokenize = (text) => {
+                const raw = normalizeNewlines(text);
+                const lines = raw.split(/\r?\n/);
+                const tokens = [];
+                lines.forEach((line, idx) => {
+                    const words = line.split(/\s+/).filter(Boolean);
+                    words.forEach((word) => tokens.push({ type: 'word', value: word }));
+                    if (idx < lines.length - 1) tokens.push({ type: 'nl', value: '\n' });
+                });
+                return tokens;
+            };
+            const a = tokenize(oldText);
+            const b = tokenize(newText);
+            const n = a.length;
+            const m = b.length;
+            const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+            for (let i = n - 1; i >= 0; i--) {
+                for (let j = m - 1; j >= 0; j--) {
+                    if (a[i].type === b[j].type && a[i].value === b[j].value) dp[i][j] = dp[i + 1][j + 1] + 1;
+                    else dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+                }
+            }
+            const oldParts = [];
+            const newParts = [];
+            let i = 0;
+            let j = 0;
+            while (i < n && j < m) {
+                if (a[i].type === b[j].type && a[i].value === b[j].value) {
+                    oldParts.push({ type: a[i].type, value: a[i].value, kind: 'eq' });
+                    newParts.push({ type: b[j].type, value: b[j].value, kind: 'eq' });
+                    i++;
+                    j++;
+                } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+                    oldParts.push({ type: a[i].type, value: a[i].value, kind: 'del' });
+                    i++;
+                } else {
+                    newParts.push({ type: b[j].type, value: b[j].value, kind: 'ins' });
+                    j++;
+                }
+            }
+            while (i < n) {
+                oldParts.push({ type: a[i].type, value: a[i].value, kind: 'del' });
+                i++;
+            }
+            while (j < m) {
+                newParts.push({ type: b[j].type, value: b[j].value, kind: 'ins' });
+                j++;
+            }
+            const renderTokens = (tokens) => {
+                const out = [];
+                for (let idx = 0; idx < tokens.length; idx++) {
+                    const tok = tokens[idx];
+                    if (tok.type === 'nl') {
+                        out.push('\n');
+                        continue;
+                    }
+                    const escaped = escapeHtml(tok.value);
+                    let rendered = escaped;
+                    if (tok.kind === 'del') rendered = `<span class="${APP_PREFIX}diff-del">${escaped}</span>`;
+                    if (tok.kind === 'ins') rendered = `<span class="${APP_PREFIX}diff-ins">${escaped}</span>`;
+                    out.push(rendered);
+                    const next = tokens[idx + 1];
+                    if (next && next.type === 'word') out.push(' ');
+                }
+                return out.join('');
+            };
+            return { oldHtml: renderTokens(oldParts), newHtml: renderTokens(newParts) };
+        };
+
+        const renderDiffTable = (diffs) => {
+            if (!diffBody) return;
+            diffBody.innerHTML = diffs.map((item) => {
+                let oldHtml = item.type === 'list' ? item.oldHtml : escapeHtml(item.old || '');
+                let newHtml = item.type === 'list' ? item.newHtml : escapeHtml(item.new || '');
+                if (item.key === 'descVi') {
+                    const diffText = diffTextHtml(item.old || '', item.new || '');
+                    oldHtml = `<div class="${APP_PREFIX}diff-text">${diffText.oldHtml || ''}</div>`;
+                    newHtml = `<div class="${APP_PREFIX}diff-text">${diffText.newHtml || ''}</div>`;
+                }
+                const oldClass = item.changed ? `${APP_PREFIX}diff-old change` : `${APP_PREFIX}diff-old`;
+                const newClass = item.changed ? `${APP_PREFIX}diff-new change` : `${APP_PREFIX}diff-new`;
+                const oldCell = oldHtml ? oldHtml : `<span class="${APP_PREFIX}diff-chip ${APP_PREFIX}diff-neutral">Trống</span>`;
+                const newCell = newHtml ? newHtml : `<span class="${APP_PREFIX}diff-chip ${APP_PREFIX}diff-neutral">Trống</span>`;
+                return `
+                    <div class="${APP_PREFIX}diff-row">
+                        <div class="${APP_PREFIX}diff-label">${escapeHtml(item.label)}</div>
+                        <div class="${APP_PREFIX}diff-col ${oldClass}">
+                            <div class="${APP_PREFIX}diff-col-title">Hiện tại</div>
+                            ${oldCell}
+                        </div>
+                        <div class="${APP_PREFIX}diff-col ${newClass}">
+                            <div class="${APP_PREFIX}diff-col-title">Sau khi áp</div>
+                            ${newCell}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        let pendingDiffResolve = null;
+        const showDiffModal = (diffs) => {
+            renderDiffTable(diffs);
+            if (!diffModal) return Promise.resolve(true);
+            diffModal.style.display = 'flex';
+            return new Promise((resolve) => {
+                pendingDiffResolve = resolve;
+            });
+        };
+
+        const buildListDiff = (oldList, newList) => {
+            const oldNorm = normalizeCompareList(oldList);
+            const newNorm = normalizeCompareList(newList);
+            const oldMap = new Map();
+            (oldList || []).forEach((item) => oldMap.set(normalizeText(item), item));
+            const newMap = new Map();
+            (newList || []).forEach((item) => newMap.set(normalizeText(item), item));
+            const oldSet = new Set(oldNorm);
+            const newSet = new Set(newNorm);
+            const removed = oldNorm.filter(v => !newSet.has(v)).map(v => oldMap.get(v) || v);
+            const added = newNorm.filter(v => !oldSet.has(v)).map(v => newMap.get(v) || v);
+            const kept = oldNorm.filter(v => newSet.has(v)).map(v => oldMap.get(v) || v);
+            const changed = removed.length > 0 || added.length > 0;
+            const oldHtml = changed
+                ? [
+                    ...kept.map(v => `<span class="${APP_PREFIX}diff-chip">${escapeHtml(v)}</span>`),
+                    ...removed.map(v => `<span class="${APP_PREFIX}diff-chip ${APP_PREFIX}diff-remove">${escapeHtml(v)}</span>`),
+                ].join(' ')
+                : kept.map(v => `<span class="${APP_PREFIX}diff-chip ${APP_PREFIX}diff-neutral">${escapeHtml(v)}</span>`).join(' ');
+            const newHtml = changed
+                ? [
+                    ...kept.map(v => `<span class="${APP_PREFIX}diff-chip">${escapeHtml(v)}</span>`),
+                    ...added.map(v => `<span class="${APP_PREFIX}diff-chip ${APP_PREFIX}diff-add">${escapeHtml(v)}</span>`),
+                ].join(' ')
+                : kept.map(v => `<span class="${APP_PREFIX}diff-chip ${APP_PREFIX}diff-neutral">${escapeHtml(v)}</span>`).join(' ');
+            return { oldHtml, newHtml, changed };
+        };
+
+        const buildDiffs = (current, planned, excludes) => {
+            return EDIT_FIELDS.filter(f => !excludes?.[f.key]).map((field) => {
+                const curVal = current[field.key];
+                const newVal = planned[field.key];
+                if (field.type === 'checkbox') {
+                    const diff = buildListDiff(curVal, newVal);
+                    return {
+                        key: field.key,
+                        label: field.label,
+                        type: 'list',
+                        oldHtml: diff.oldHtml || '-',
+                        newHtml: diff.newHtml || '-',
+                        changed: diff.changed,
+                    };
+                }
+                const changed = normalizeCompareText(curVal) !== normalizeCompareText(newVal);
+                return {
+                    key: field.key,
+                    label: field.label,
+                    type: 'text',
+                    old: curVal || '',
+                    new: newVal || '',
+                    changed,
+                };
+            });
+        };
 
         const renderDomainConfig = () => {
             if (!domainConfig) return;
@@ -2313,6 +2762,20 @@
         helpModal.addEventListener('click', (ev) => {
             if (ev.target === helpModal) helpModal.style.display = 'none';
         });
+        if (excludeModal) {
+            excludeModal.addEventListener('click', (ev) => {
+                if (ev.target === excludeModal) excludeModal.style.display = 'none';
+            });
+        }
+        if (diffModal) {
+            diffModal.addEventListener('click', (ev) => {
+                if (ev.target === diffModal) {
+                    diffModal.style.display = 'none';
+                    if (pendingDiffResolve) pendingDiffResolve(false);
+                    pendingDiffResolve = null;
+                }
+            });
+        }
 
         manualAiBtn.addEventListener('click', () => {
             if (!state.sourceData) {
@@ -2384,6 +2847,43 @@
                 log('Lỗi dán kết quả AI: ' + err.message, 'error');
             }
         });
+        if (excludeBtn && excludeModal) {
+            excludeBtn.addEventListener('click', () => {
+                renderExcludeList();
+                excludeModal.style.display = 'flex';
+            });
+        }
+        if (excludeClose && excludeModal) {
+            excludeClose.addEventListener('click', () => {
+                excludeModal.style.display = 'none';
+            });
+        }
+        if (excludeSave) {
+            excludeSave.addEventListener('click', () => {
+                const excludes = {};
+                excludeList?.querySelectorAll('input[type="checkbox"][data-key]').forEach((input) => {
+                    excludes[input.dataset.key] = input.checked;
+                });
+                state.excludeFields = { ...EDIT_EXCLUDE_DEFAULT, ...excludes };
+                saveExcludedFields(state.excludeFields);
+                if (excludeModal) excludeModal.style.display = 'none';
+                updateMatchIndicators();
+            });
+        }
+        if (diffConfirm) {
+            diffConfirm.addEventListener('click', () => {
+                if (diffModal) diffModal.style.display = 'none';
+                if (pendingDiffResolve) pendingDiffResolve(true);
+                pendingDiffResolve = null;
+            });
+        }
+        if (diffCancel) {
+            diffCancel.addEventListener('click', () => {
+                if (diffModal) diffModal.style.display = 'none';
+                if (pendingDiffResolve) pendingDiffResolve(false);
+                pendingDiffResolve = null;
+            });
+        }
 
         // Show Help (User clicked ?)
         helpBtn.addEventListener('click', () => {
@@ -2614,13 +3114,14 @@ Prioritize Hán-Việt pronunciation for "vi" field.
 - EXCLUDE pronouns/titles/common-role phrases (not proper names): 女主, 男主, 女配, 男配, 男二, 女二, 反派, 系统, 师尊, 师父, 徒弟, 兄长, 师兄, 师妹, 小姐, 少爷, 公爵, 王爷, 皇帝, 皇后, 太子, 贵妃, 圣女, 侍女, 侍卫, 丫鬟, 书童, 管家, 大人, 先生, 小姐, 夫人, 公子, 少主, 掌门, 宗主, 长老, 魔尊, 大妖, 等等.
 - Vietnamese name casing: do NOT Title-Case generic roles/kinship terms. Example: "女主" should NOT become "Nữ Chủ" (skip entirely). "叶哥哥" should map to "Diệp ca ca" (not "Diệp Ca Ca").
 - If a term is just a common phrase with meaning (not a unique proper name), skip it.
+- If a name is likely non-Chinese in context (Japanese/English/etc.), prefer Latin transliteration instead of Hán-Việt. Example: "瑞苏泽尔" => "Risuzel" (NOT "Thụy Tô Trạch Nhĩ").
 
 TASK 2: Classify the novel using ONLY the provided lists:
 - status: ${JSON.stringify(availableOptions.status)} // Pick 1
 - gender: ${JSON.stringify(availableOptions.gender)} // Pick 1
 - official: ${JSON.stringify(availableOptions.official)} // Pick 1
 - age: ${JSON.stringify(availableOptions.age)} // Pick multiple
-- ending: ${JSON.stringify(availableOptions.ending)} // Pick multiple
+- ending: ${JSON.stringify(availableOptions.ending)} // Pick 1 (if unclear, you may choose OE or HE). Pick multiple ONLY when tag/genre includes "Xuyên nhanh"/"快穿".
 - genre: ${JSON.stringify(availableOptions.genre)} // Pick multiple
 - tag: ${JSON.stringify(availableOptions.tag)} // Pick multiple
 
@@ -2652,7 +3153,7 @@ Available Lists (Choose from these ONLY):
 - gender: ${JSON.stringify(availableOptions.gender)} // Pick 1
 - official: ${JSON.stringify(availableOptions.official)} // Pick 1
 - age: ${JSON.stringify(availableOptions.age)} // Pick multiple
-- ending: ${JSON.stringify(availableOptions.ending)} // Pick multiple
+- ending: ${JSON.stringify(availableOptions.ending)} // Pick 1 (if unclear, you may choose OE or HE). Pick multiple ONLY when tag/genre includes "Xuyên nhanh"/"快穿".
 - genre: ${JSON.stringify(availableOptions.genre)} // Pick multiple
 - tag: ${JSON.stringify(availableOptions.tag)} // Pick multiple
 
@@ -2687,6 +3188,16 @@ For arrays, return list of strings. If none fit, return empty array.
                     const descViEl = shadowRoot.getElementById(`${APP_PREFIX}descVi`);
                     if (descViEl) descViEl.value = reTranslatedDesc;
                     log('Đã dịch lại văn án với bộ tên.', 'ok');
+                }
+
+                log('Đang dịch lại tiêu đề với bộ tên mới...', 'info');
+                const reTranslatedTitle = await translateTextWithNameSet(state.sourceData.titleCn, newNameSet, false);
+                if (reTranslatedTitle) {
+                    state.translated = state.translated || {};
+                    state.translated.titleVi = reTranslatedTitle;
+                    const titleViEl = shadowRoot.getElementById(`${APP_PREFIX}titleVi`);
+                    if (titleViEl) titleViEl.value = reTranslatedTitle;
+                    log('Đã dịch lại tiêu đề với bộ tên.', 'ok');
                 }
             }
 
@@ -2731,6 +3242,16 @@ For arrays, return list of strings. If none fit, return empty array.
             result.ending = validateParams('ending', result.ending, true);
             result.genre = validateParams('genre', result.genre, true);
             result.tag = validateParams('tag', result.tag, true);
+
+            const endingKeywordBlob = buildKeywordList(state.sourceData, state.translated)
+                .concat(result.genre || [])
+                .concat(result.tag || [])
+                .join(' ');
+            const allowMultiEnding = hasXuyenNhanh(endingKeywordBlob);
+            if (!allowMultiEnding && Array.isArray(result.ending) && result.ending.length > 1) {
+                result.ending = [result.ending[0]];
+                log('AI: Kết thúc chỉ chọn 1 (trừ khi có tag/thể loại Xuyên nhanh).', 'warn');
+            }
 
             if (result.status) shadowRoot.getElementById(`${APP_PREFIX}status`).value = result.status;
             if (result.gender) shadowRoot.getElementById(`${APP_PREFIX}gender`).value = result.gender;
@@ -2926,6 +3447,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 fillText(`${APP_PREFIX}genre`, suggestions.genre.join(', '));
                 fillText(`${APP_PREFIX}tag`, suggestions.tag.join(', '));
 
+                updateMatchIndicators();
                 log('Gợi ý sẵn sàng. Bạn có thể chỉnh rồi bấm "Áp vào form".', 'ok');
 
                 // --- AUTO AI TRIGGER ---
@@ -2969,12 +3491,13 @@ For arrays, return list of strings. If none fit, return empty array.
             }
 
             const threshold = getScoreThreshold();
+            const allowMultiEnding = hasXuyenNhanh(combinedKeywords);
             const suggestions = {
                 status: state.suggestions?.status || '',
                 official: state.suggestions?.official || '',
                 gender: state.suggestions?.gender || '',
                 age: pickMulti(scoreOptions(state.groups.age, contexts), 4, true, false, threshold),
-                ending: pickMulti(scoreOptions(state.groups.ending, contexts), 3, true, false, threshold),
+                ending: pickMulti(scoreOptions(state.groups.ending, contexts), allowMultiEnding ? 3 : 1, true, false, threshold),
                 genre: pickMulti(scoreOptions(state.groups.genre, contexts), 8, true, false, threshold),
                 tag: pickMulti(scoreOptions(state.groups.tag, contexts), MAX_TAGS_SELECT, true, true, threshold),
             };
@@ -2983,48 +3506,44 @@ For arrays, return list of strings. If none fit, return empty array.
             fillText(`${APP_PREFIX}ending`, suggestions.ending.join(', '));
             fillText(`${APP_PREFIX}genre`, suggestions.genre.join(', '));
             fillText(`${APP_PREFIX}tag`, suggestions.tag.join(', '));
+            updateMatchIndicators();
             log('Đã recompute theo từ khóa bổ sung.', 'ok');
         }
 
         async function handleApply() {
             if (!state.groups) state.groups = getGroupOptions();
-            const titleCn = shadowRoot.getElementById(`${APP_PREFIX}titleCn`).value;
-            const authorCn = shadowRoot.getElementById(`${APP_PREFIX}authorCn`).value;
-            const titleVi = shadowRoot.getElementById(`${APP_PREFIX}titleVi`).value;
-            const descVi = shadowRoot.getElementById(`${APP_PREFIX}descVi`).value;
-            const coverUrl = shadowRoot.getElementById(`${APP_PREFIX}coverUrl`).value;
-            const sourceUrl = shadowRoot.getElementById(`${APP_PREFIX}url`).value;
-            const moreLinkDesc = shadowRoot.getElementById(`${APP_PREFIX}moreLinkDesc`).value;
-            const moreLinkUrl = shadowRoot.getElementById(`${APP_PREFIX}moreLinkUrl`).value;
+            const planned = getPlannedValues();
+            const excludes = state.excludeFields || loadExcludedFields();
 
-            setInputValue(document.getElementById('txtTitleCn'), titleCn);
-            setInputValue(document.getElementById('txtAuthorCn'), authorCn);
-            setInputValue(document.getElementById('txtTitleVi'), titleVi);
-            setInputValue(document.getElementById('txtDescVi'), descVi);
+            if (isEditPage()) {
+                const current = getCurrentFormValues();
+                const diffs = buildDiffs(current, planned, excludes);
+                const ok = await showDiffModal(diffs);
+                if (!ok) return;
+            }
 
-            const statusSel = shadowRoot.getElementById(`${APP_PREFIX}status`).value;
-            const officialSel = shadowRoot.getElementById(`${APP_PREFIX}official`).value;
-            const genderSel = shadowRoot.getElementById(`${APP_PREFIX}gender`).value;
+            if (!excludes.titleCn) setInputValue(document.getElementById('txtTitleCn'), planned.titleCn);
+            if (!excludes.authorCn) setInputValue(document.getElementById('txtAuthorCn'), planned.authorCn);
+            if (!excludes.titleVi) setInputValue(document.getElementById('txtTitleVi'), planned.titleVi);
+            if (!excludes.descVi) setInputValue(document.getElementById('txtDescVi'), planned.descVi);
 
-            applyRadio(state.groups.status, statusSel || state.suggestions?.status);
-            applyRadio(state.groups.official, officialSel || state.suggestions?.official);
-            applyRadio(state.groups.gender, genderSel || state.suggestions?.gender);
+            if (!excludes.status) applyRadio(state.groups.status, planned.status);
+            if (!excludes.official) applyRadio(state.groups.official, planned.official);
+            if (!excludes.gender) applyRadio(state.groups.gender, planned.gender);
 
-            const ageList = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}age`).value);
-            const endingList = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}ending`).value);
-            const genreList = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}genre`).value);
-            const tagList = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}tag`).value);
+            if (!excludes.age) applyCheckboxes(state.groups.age, planned.age || []);
+            if (!excludes.ending) applyCheckboxes(state.groups.ending, planned.ending || []);
+            if (!excludes.genre) applyCheckboxes(state.groups.genre, planned.genre || []);
+            if (!excludes.tag) applyCheckboxes(state.groups.tag, planned.tag || []);
 
-            applyCheckboxes(state.groups.age, ageList.length ? ageList : state.suggestions?.age || []);
-            applyCheckboxes(state.groups.ending, endingList.length ? endingList : state.suggestions?.ending || []);
-            applyCheckboxes(state.groups.genre, genreList.length ? genreList : state.suggestions?.genre || []);
-            applyCheckboxes(state.groups.tag, tagList.length ? tagList : state.suggestions?.tag || []);
-
-            const sourceLabel = state.sourceLabel || 'Nguồn';
-            const finalLinkDesc = T.safeText(moreLinkDesc) || sourceLabel;
-            const finalLinkUrl = T.safeText(moreLinkUrl) || sourceUrl;
-            setMoreLink(finalLinkDesc, finalLinkUrl);
-            await applyCover(coverUrl, log);
+            if (!excludes.moreLink) {
+                const parts = planned.moreLink.split('|').map(v => v.trim());
+                const finalLinkDesc = parts[0] || '';
+                const finalLinkUrl = parts[1] || '';
+                setMoreLink(finalLinkDesc, finalLinkUrl);
+            }
+            if (!excludes.coverUrl) await applyCover(planned.coverUrl, log);
+            updateMatchIndicators();
             log('Đã áp dữ liệu vào form.', 'ok');
         }
 
@@ -3084,11 +3603,15 @@ For arrays, return list of strings. If none fit, return empty array.
         window.addEventListener('touchmove', onDragMove, { passive: false });
         window.addEventListener('touchend', onDragEnd);
 
-        const openPanel = () => { panel.style.display = 'flex'; };
+        const openPanel = () => {
+            panel.style.display = 'flex';
+            updateMatchIndicators();
+        };
         const closePanel = () => { panel.style.display = 'none'; };
         const togglePanel = () => {
             const isHidden = getComputedStyle(panel).display === 'none';
             panel.style.display = isHidden ? 'flex' : 'none';
+            if (isHidden) updateMatchIndicators();
         };
 
         function enableDrag(panelEl, handleEl, storageKey) {
@@ -3174,6 +3697,8 @@ For arrays, return list of strings. If none fit, return empty array.
         shadowRoot.getElementById(`${APP_PREFIX}fetch`).addEventListener('click', handleFetch);
         shadowRoot.getElementById(`${APP_PREFIX}recompute`).addEventListener('click', handleRecompute);
         shadowRoot.getElementById(`${APP_PREFIX}apply`).addEventListener('click', handleApply);
+        panel.addEventListener('input', updateMatchIndicators);
+        panel.addEventListener('change', updateMatchIndicators);
 
         const last = GM_getValue(`${APP_PREFIX}last_url`, '');
         if (last) shadowRoot.getElementById(`${APP_PREFIX}url`).value = last;
@@ -3193,7 +3718,7 @@ For arrays, return list of strings. If none fit, return empty array.
     }
 
     function initAutofill(options = {}) {
-        if (!/\/nhung-file$/.test(location.pathname)) return null;
+        if (!/\/nhung-file$/.test(location.pathname) && !/\/chinh-sua$/.test(location.pathname)) return null;
         if (instance) {
             if (options.openOnInit && instance.open) instance.open();
             return instance;
