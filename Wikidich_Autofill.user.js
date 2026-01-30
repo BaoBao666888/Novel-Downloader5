@@ -30,19 +30,14 @@
         geminiApiKey: '',
         geminiModel: 'gemini-2.5-flash',
         autoExtractNames: true, // AI auto-extract character names
-        domainSettings: {
-            fanqie: { label: 'Fanqie (Cà Chua)', useDesc: true, target: 'wiki' },
-            jjwxc: { label: 'Tấn Giang (JJWXC)', useDesc: false, target: 'wiki' },
-            po18: { label: 'PO18', useDesc: true, target: 'webhong' },
-            ihuaben: { label: 'Ihuaben', useDesc: true, target: 'wiki' },
-            qidian: { label: 'Khởi Điểm (Qidian)', useDesc: true, target: 'wiki' },
-            qimao: { label: 'Thất Miêu (Qimao)', useDesc: true, target: 'wiki' },
-            gongzicp: { label: 'Trường Bội (Gongzicp)', useDesc: true, target: 'wiki' }, // New
-        },
+        domainSettings: {},
     };
 
     const SETTINGS_KEY = 'Wikidich_Autofill_Config';
 
+    // ================================================
+    // SETTINGS + STATE
+    // ================================================
     const state = {
         groups: null,
         rawData: null,
@@ -148,109 +143,9 @@
         return normalizeText(text).split(' ').filter(Boolean);
     }
 
-    // --- HELP & CHANGELOG CONTENT ---
-    const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">🚀 Phiên bản 0.3.1 - AI Name Extraction!</span></h2>
-<ul style="list-style-type: none; padding-left: 0;">
-    <li>🪄 <b>Auto Tách Tên (MỚI!):</b> AI tự động trích xuất <span style="color:#e91e63;">tên nhân vật, địa danh</span> → điền "Bộ name" → dịch lại văn án với bộ tên chuẩn Hán-Việt!</li>
-    <li>🔗 <b>1 Request Thông Minh:</b> Gộp tách tên + chọn tag trong 1 lần gọi AI → <span style="color:#4caf50;">context đầy đủ, chính xác hơn!</span></li>
-    <li>🌊 <b>Gongzicp Fix:</b> Sửa lỗi status (Hoàn thành/Còn tiếp) từ <code>novel_process</code>.</li>
-    <li>⚙️ <b>Cài đặt mới:</b> Toggle "Auto Tách Names" trong Settings (mặc định BẬT).</li>
-</ul>
-
-<h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.0 (Trước đó)</h3>
-<ul style="list-style-type: none; padding-left: 0; font-size: 13px; color: #666;">
-    <li>🌊 Trường Bội (Gongzicp): Cover HD, Tự động lọc query.</li>
-    <li>🧠 Auto Smart: Chuẩn hóa logic nhận diện.</li>
-    <li>📊 Bảng Điều Khiển: Tùy chỉnh "Hiển thị" & "Quét văn án".</li>
-    <li>✨ AI Gemini: Phân tích tag/thể loại siêu chuẩn.</li>
-</ul>`;
-
-    const WELCOME_CONTENT = `
-<h2 style="text-align:center; color:#2196f3;">Chào mừng đến với <span style="color:#e91e63;">Wikidich Autofill</span>!</h2>
-<p style="text-align:center; font-style:italic; color:#666;">Tool "thần thánh" hỗ trợ convert web Trung sang Wikidich 1 chạm.</p>
-
-<div style="background:#f4f6f8; padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #4caf50;">
-    <h3 style="margin-top:0; color:#2e7d32;">🌟 Quy trình sử dụng chuẩn:</h3>
-    <ol style="margin-left: 15px; padding-left: 0;">
-        <li><b>Bước 1:</b> Copy link truyện (Fanqie/JJWXC/PO18/...).</li>
-        <li><b>Bước 2:</b> Dán vào ô URL > Bấm nút <b style="color:#2196f3;">Lấy dữ liệu</b> (hoặc nút <b style="color:#e91e63;">AI</b>).</li>
-        <li><b>Bước 3:</b> Chờ tool chạy dịch và phân tích (Auto hoặc AI).</li>
-        <li><b>Bước 4:</b> Kiểm tra các ô thông tin trên bảng Panel (Tag, Thể loại...).</li>
-        <li><b>Bước 5:</b> Nếu OK, bấm nút <b style="color:#ff9800;">Áp vào form</b> dưới cùng.</li>
-        <li><b>Bước 6:</b> Bấm <b style="color:green;">Nhúng</b> của Web để đăng!</li>
-    </ol>
-</div>
-
-<h3>🔥 Tính năng AI (Mới):</h3>
-<ul style="list-style-type: none; padding-left: 5px;">
-    <li>🔑 <b>Cần API Key:</b> Vào ⚙️ Cài đặt nhập Key từ Google AI Studio.</li>
-    <li>🧠 <b>Thông minh hơn:</b> AI đọc hiểu văn án để chọn tag (VD: "Gương vỡ lại lành" dù văn án không ghi rõ).</li>
-    <li>🛡️ <b>Kiểm duyệt:</b> Tự động lọc bỏ các tag "rác" không có trong hệ thống Wikidich.</li>
-</ul>
-
-<div style="background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%); padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #e91e63;">
-    <h3 style="margin-top:0; color:#ad1457;">🪄 Auto Tách Tên (v0.3.1):</h3>
-    <p style="margin: 5px 0; font-size: 13px;">Khi bấm nút <b style="color:#e91e63;">AI</b>, hệ thống sẽ:</p>
-    <ol style="margin-left: 15px; padding-left: 0; font-size: 13px;">
-        <li>Gửi văn án tiếng Trung cho AI phân tích</li>
-        <li>AI trích xuất <b>tên nhân vật, địa danh</b> → phiên âm <span style="color:#673ab7;">Hán-Việt</span></li>
-        <li>Tự động điền vào ô <b>"Bộ name"</b> (dạng: <code>Tên_Trung=Hán_Việt</code>)</li>
-        <li>Dịch lại văn án với bộ tên mới → tên được giữ nguyên!</li>
-    </ol>
-    <p style="margin: 5px 0; font-size: 12px; color: #666;">💡 <i>Toggle: Vào ⚙️ Cài đặt → "Auto Tách Names" để bật/tắt.</i></p>
-</div>
-
-<h3>🌍 Các Trang Hỗ Trợ:</h3>
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-
-    <!-- Fanqie -->
-    <div style="background: #fff3e0; padding: 8px; border-radius: 6px; border-left: 3px solid #ff9800;">
-        <strong style="color: #ef6c00;">🍅 Fanqie (Cà Chua)</strong><br>
-        <small style="color: #666;">• Link: <code>fanqienovel.com/page/123...</code></small><br>
-        <span style="font-size:11px; color:#444;">✨ Full info + Cover gốc (Full HD)</span>
-    </div>
-
-    <!-- JJWXC -->
-    <div style="background: #e3f2fd; padding: 8px; border-radius: 6px; border-left: 3px solid #2196f3;">
-        <strong style="color: #1565c0;">🌿 Tấn Giang (JJWXC)</strong><br>
-        <small style="color: #666;">• Link: <code>jjwxc.net/onebook.php?novelid=...</code></small><br>
-        <span style="font-size:11px; color:#444;">✨ Cover HD + Full info + Tag chuẩn</span>
-    </div>
-
-    <!-- Gongzicp -->
-    <div style="background: #f3e5f5; padding: 8px; border-radius: 6px; border-left: 3px solid #9c27b0;">
-        <strong style="color: #7b1fa2;">🌊 Trường Bội (Gongzicp)</strong><br>
-        <small style="color: #666;">• Link: <code>gongzicp.com/novel-123...</code></small><br>
-        <span style="font-size:11px; color:#444;">✨ Cover HD (nếu có) + Lọc Tag xịn</span>
-    </div>
-
-    <!-- PO18 -->
-    <div style="background: #ffebee; padding: 8px; border-radius: 6px; border-left: 3px solid #e91e63;">
-        <strong style="color: #c2185b;">🔞 PO18</strong><br>
-        <small style="color: #666;">• Link: <code>po18.tw/books/123...</code></small><br>
-        <span style="font-size:11px; color:#444;">✨ Lấy info cơ bản</span>
-    </div>
-
-    <!-- Qidian -->
-    <div style="background: #eceff1; padding: 8px; border-radius: 6px; border-left: 3px solid #607d8b;">
-        <strong style="color: #455a64;">📖 Khởi Điểm (Qidian)</strong><br>
-        <small style="color: #666;">• Link: <code>qidian.com/book/123...</code></small><br>
-        <span style="font-size:11px; color:#444;">✨ Full info</span>
-    </div>
-
-    <!-- Others -->
-    <div style="background: #f1f8e9; padding: 8px; border-radius: 6px; border-left: 3px solid #8bc34a;">
-        <strong style="color: #558b2f;">📚 IHuaben & Thất Miêu</strong><br>
-        <small style="color: #666;">• Hỗ trợ cơ bản</small><br>
-        <span style="font-size:11px; color:#444;">✨ Tự động nhận diện</span>
-    </div>
-
-</div>
-
-<hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;">
-` + CHANGELOG_CONTENT;
-
+    // ================================================
+    // TEXT + NAMESET HELPERS
+    // ================================================
     function buildNameSetReplacer(nameSet) {
         const keys = Object.keys(nameSet || {}).sort((a, b) => b.length - a.length);
         return function (text, placeholderMap) {
@@ -330,11 +225,11 @@
 
     function resolveNegationConflicts(labels) {
         const normalizedMap = new Map();
-        labels.forEach(label => normalizedMap.set(normalizeText(label), label));
+        labels.forEach(label => normalizedMap.set(T.normalizeText(label), label));
         const toRemove = new Set();
 
         normalizedMap.forEach((origLabel, normLabel) => {
-            const tokens = splitTokens(normLabel);
+            const tokens = T.splitTokens(normLabel);
             if (tokens.length < 2) return;
             if (!ROOT_NEG_WORDS.includes(tokens[0])) return;
             const base = tokens.slice(1).join(' ');
@@ -347,12 +242,12 @@
     }
 
     function rootKey(label) {
-        let tokens = splitTokens(label);
+        let tokens = T.splitTokens(label);
         while (tokens.length && ROOT_NEG_WORDS.includes(tokens[0])) {
             tokens.shift();
         }
         tokens = tokens.filter(tok => !ROOT_MODIFIERS.has(tok));
-        if (!tokens.length) return normalizeText(label);
+        if (!tokens.length) return T.normalizeText(label);
         return tokens.join(' ');
     }
 
@@ -370,196 +265,19 @@
                 return;
             }
             if (item.score === existing.score) {
-                const curLen = normalizeText(item.label).replace(/\s+/g, '').length;
-                const prevLen = normalizeText(existing.label).replace(/\s+/g, '').length;
+                const curLen = T.normalizeText(item.label).replace(/\s+/g, '').length;
+                const prevLen = T.normalizeText(existing.label).replace(/\s+/g, '').length;
                 if (curLen > prevLen) bestByRoot.set(key, item);
             }
         });
         return Array.from(bestByRoot.values());
     }
 
-    function splitIntoBatches(arr, maxChars) {
-        const batches = [];
-        let current = [];
-        let currentLen = 0;
-        for (const s of arr) {
-            const len = (s || '').length;
-            if (current.length && currentLen + len + current.length > maxChars) {
-                batches.push(current);
-                current = [s];
-                currentLen = len;
-            } else {
-                current.push(s);
-                currentLen += len;
-            }
-        }
-        if (current.length) batches.push(current);
-        return batches;
-    }
-
-    function postTranslate(serverUrl, contentArray, targetLang) {
-        return new Promise((resolve, reject) => {
-            const payload = { content: JSON.stringify(contentArray), tl: targetLang };
-            GM_xmlhttpRequest({
-                method: 'POST',
-                url: serverUrl,
-                headers: { 'Content-Type': 'application/json', 'referer': 'https://dichngay.com/' },
-                data: JSON.stringify(payload),
-                onload(res) {
-                    if (res.status < 200 || res.status >= 300) {
-                        reject(new Error('HTTP Error: ' + res.status));
-                        return;
-                    }
-                    try {
-                        const jsonResponse = JSON.parse(res.responseText);
-                        const translatedContentString = jsonResponse?.data?.content ?? jsonResponse?.translatedText;
-                        if (typeof translatedContentString !== 'string') {
-                            throw new Error('Bad translation response.');
-                        }
-                        const sanitizedString = translatedContentString
-                            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-                            .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
-                        resolve(JSON.parse(sanitizedString));
-                    } catch (e) {
-                        reject(e);
-                    }
-                },
-                onerror(err) {
-                    reject(err);
-                },
-            });
-        });
-    }
-
-    async function translateList(list) {
-        const items = Array.isArray(list) ? list : [];
-        const batches = splitIntoBatches(items, MAX_CHARS);
-        const result = [];
-        for (const batch of batches) {
-            try {
-                const translated = await postTranslate(SERVER_URL, batch, 'vi');
-                result.push(...translated);
-            } catch (err) {
-                // fallback: giữ nguyên đoạn lỗi
-                result.push(...batch);
-            }
-            await sleep(REQUEST_DELAY_MS);
-        }
-        return result;
-    }
-
-    async function translateLongText(text) {
-        const raw = safeText(text);
-        if (!raw) return '';
-        if (raw.length <= MAX_CHARS) {
-            const [translated] = await translateList([raw]);
-            return translated || raw;
-        }
-        const parts = raw.split(/\n{2,}/g).map(s => s.trim()).filter(Boolean);
-        const translatedParts = await translateList(parts);
-        return translatedParts.join('\n\n');
-    }
-
-    async function translateTextWithNameSet(text, nameSet, preserveLineBreaks) {
-        const raw = safeText(text);
-        if (!raw) return '';
-        const nameMap = nameSet || {};
-        const nameReplacer = buildNameSetReplacer(nameMap);
-        const placeholderMap = {};
-        const processed = nameReplacer(raw, placeholderMap);
-        let translated = '';
-        if (preserveLineBreaks) {
-            const lines = processed.replace(/\r\n/g, '\n').split('\n');
-            const translatedLines = await translateList(lines);
-            translated = translatedLines.join('\n');
-        } else if (processed.length <= MAX_CHARS) {
-            const [result] = await translateList([processed]);
-            translated = result || processed;
-        } else {
-            translated = await translateLongText(processed);
-        }
-        const restored = Object.keys(placeholderMap).length ? restoreNames(translated, placeholderMap) : translated;
-        return cleanupText(restored, preserveLineBreaks);
-    }
-
-    function extractBookId(url) {
-        const m = safeText(url).match(/\/(?:page|reader)\/(\d+)/);
-        if (m) return m[1];
-        const onlyDigits = safeText(url).match(/(\d{10,})/);
-        return onlyDigits ? onlyDigits[1] : '';
-    }
-
-    function extractJjwxcId(url) {
-        const raw = safeText(url);
-        let m = raw.match(/book2\/(\d+)/i);
-        if (m) return m[1];
-        m = raw.match(/novelid=(\d+)/i);
-        if (m) return m[1];
-        m = raw.match(/\/(\d+)(?:\.html|\/)?$/i);
-        if (m) return m[1];
-        return '';
-    }
-
-    function extractPo18Id(url) {
-        const raw = safeText(url);
-        const m = raw.match(/\/books\/(\d+)/i);
-        return m ? m[1] : '';
-    }
-
-    function extractIhuabenId(url) {
-        const raw = safeText(url);
-        const m = raw.match(/\/book\/(\d+)/i);
-        return m ? m[1] : '';
-    }
-
-    function extractQidianId(url) {
-        const raw = safeText(url);
-        const m = raw.match(/\/book\/(\d+)/i);
-        return m ? m[1] : '';
-    }
-
-    function extractQimaoId(url) {
-        const raw = safeText(url);
-        let m = raw.match(/\/shuku\/(\d+)/i);
-        if (m) return m[1];
-        m = raw.match(/(\d+)(?:-\d+)?\/?$/i);
-        return m ? m[1] : '';
-    }
-
-    function extractGongzicpId(url) {
-        const raw = safeText(url);
-        const m = raw.match(/novel-?(\d+)/);
-        return m ? m[1] : '';
-    }
-
-    function detectSource(url) {
-        const raw = safeText(url);
-        if (/fanqienovel\.com/i.test(raw)) {
-            return { type: 'fanqie', id: extractBookId(raw) };
-        }
-        if (/jjwxc\.net/i.test(raw) || /novelid=/i.test(raw) || /book2\//i.test(raw)) {
-            return { type: 'jjwxc', id: extractJjwxcId(raw) };
-        }
-        if (/po18\.tw/i.test(raw)) {
-            return { type: 'po18', id: extractPo18Id(raw) };
-        }
-        if (/ihuaben\.com/i.test(raw)) {
-            return { type: 'ihuaben', id: extractIhuabenId(raw) };
-        }
-        if (/qidian\.com/i.test(raw)) {
-            return { type: 'qidian', id: extractQidianId(raw) };
-        }
-        if (/qimao\.com/i.test(raw)) {
-            return { type: 'qimao', id: extractQimaoId(raw) };
-        }
-        if (/gongzicp\.com/i.test(raw)) {
-            return { type: 'gongzicp', id: extractGongzicpId(raw) };
-        }
-        return null;
-    }
-
+    // ================================================
+    // TEXT + DOM HELPERS
+    // ================================================
     function parseTagList(text) {
-        return safeText(text)
+        return T.safeText(text)
             .split(/[，,、/|]/)
             .map(s => s.trim())
             .filter(Boolean);
@@ -575,7 +293,7 @@
     }
 
     function toAbsoluteUrl(url, baseUrl) {
-        const raw = safeText(url);
+        const raw = T.safeText(url);
         if (!raw) return '';
         if (/^https?:\/\//i.test(raw)) return raw;
         if (raw.startsWith('//')) return `https:${raw}`;
@@ -589,7 +307,7 @@
     function queryText(doc, selectors) {
         for (const sel of selectors) {
             const el = doc.querySelector(sel);
-            const text = safeText(el?.textContent || '');
+            const text = T.safeText(el?.textContent || '');
             if (text) return text;
         }
         return '';
@@ -598,7 +316,7 @@
     function queryHtml(doc, selectors) {
         for (const sel of selectors) {
             const el = doc.querySelector(sel);
-            const html = safeText(el?.innerHTML || '');
+            const html = T.safeText(el?.innerHTML || '');
             if (html) return html;
         }
         return '';
@@ -612,7 +330,7 @@
                 || el.getAttribute('data-src')
                 || el.getAttribute('data-original')
                 || el.getAttribute('data-lazy');
-            const text = safeText(val || '');
+            const text = T.safeText(val || '');
             if (text) return text;
         }
         return '';
@@ -622,12 +340,32 @@
         const results = [];
         selectors.forEach((sel) => {
             doc.querySelectorAll(sel).forEach((el) => {
-                const text = safeText(el.textContent || '');
+                const text = T.safeText(el.textContent || '');
                 if (text) results.push(text);
             });
         });
         return results;
     }
+
+    const HELPERS = {
+        text: {
+            safeText,
+            normalizeText,
+            splitTokens,
+            parseTagList,
+            htmlToText,
+        },
+        dom: {
+            toAbsoluteUrl,
+            queryText,
+            queryHtml,
+            queryAttr,
+            collectTexts,
+        },
+    };
+
+    const T = HELPERS.text;
+    const D = HELPERS.dom;
 
     function extractInfoPairs(doc) {
         const pairs = [];
@@ -635,17 +373,307 @@
             '.book_info li, .book_info .info, .book_info .item, .book_data li, .book_detail li, .book_detail .info, .book_detail .item'
         );
         items.forEach((el) => {
-            const text = safeText(el.textContent || '');
+            const text = T.safeText(el.textContent || '');
             if (!text) return;
             const parts = text.split(/[:：]/);
             if (parts.length < 2) return;
-            const key = safeText(parts.shift());
-            const value = safeText(parts.join(':'));
+            const key = T.safeText(parts.shift());
+            const value = T.safeText(parts.join(':'));
             if (key && value) pairs.push({ key, value });
         });
         return pairs;
     }
 
+    // ================================================
+    // ADAPTERS: EXTRACT IDs + RULES
+    // ================================================
+    function extractBookId(url) {
+        const m = T.safeText(url).match(/\/(?:page|reader)\/(\d+)/);
+        if (m) return m[1];
+        const onlyDigits = T.safeText(url).match(/(\d{10,})/);
+        return onlyDigits ? onlyDigits[1] : '';
+    }
+
+    function extractJjwxcId(url) {
+        const raw = T.safeText(url);
+        let m = raw.match(/book2\/(\d+)/i);
+        if (m) return m[1];
+        m = raw.match(/novelid=(\d+)/i);
+        if (m) return m[1];
+        m = raw.match(/\/(\d+)(?:\.html|\/)?$/i);
+        if (m) return m[1];
+        return '';
+    }
+
+    function extractPo18Id(url) {
+        const raw = T.safeText(url);
+        const m = raw.match(/\/books\/(\d+)/i);
+        return m ? m[1] : '';
+    }
+
+    function extractIhuabenId(url) {
+        const raw = T.safeText(url);
+        const m = raw.match(/\/book\/(\d+)/i);
+        return m ? m[1] : '';
+    }
+
+    function extractQidianId(url) {
+        const raw = T.safeText(url);
+        const m = raw.match(/\/book\/(\d+)/i);
+        return m ? m[1] : '';
+    }
+
+    function extractQimaoId(url) {
+        const raw = T.safeText(url);
+        let m = raw.match(/\/shuku\/(\d+)/i);
+        if (m) return m[1];
+        m = raw.match(/(\d+)(?:-\d+)?\/?$/i);
+        return m ? m[1] : '';
+    }
+
+    function extractGongzicpId(url) {
+        const raw = T.safeText(url);
+        const m = raw.match(/novel-?(\d+)/);
+        return m ? m[1] : '';
+    }
+
+    const SITE_RULES = [
+        {
+            id: 'fanqie',
+            name: 'Cà Chua',
+            host: /fanqienovel\.com/i,
+            label: 'Fanqie (Cà Chua)',
+            urlExample: 'https://fanqienovel.com/page/123...',
+            useDescDefault: true,
+            targetDefault: 'wiki',
+            display: {
+                emoji: '🍅',
+                bg: '#fff3e0',
+                border: '#ff9800',
+                color: '#ef6c00',
+                note: 'Full info + Cover gốc (Full HD)',
+            },
+            extractId: extractBookId,
+            fetch: fetchFanqieData,
+            normalize: normalizeFanqieData,
+        },
+        {
+            id: 'jjwxc',
+            name: 'Tấn Giang',
+            host: /jjwxc\.net|novelid=|book2\//i,
+            label: 'Tấn Giang (JJWXC)',
+            urlExample: 'https://www.jjwxc.net/onebook.php?novelid=...',
+            useDescDefault: false,
+            targetDefault: 'wiki',
+            display: {
+                emoji: '🌿',
+                bg: '#e3f2fd',
+                border: '#2196f3',
+                color: '#1565c0',
+                note: 'Cover HD + Full info + Tag chuẩn',
+            },
+            extractId: extractJjwxcId,
+            fetch: fetchJjwxcData,
+            normalize: normalizeJjwxcData,
+            coverProcess: processJjwxcCover,
+        },
+        {
+            id: 'po18',
+            name: 'PO18',
+            host: /po18\.tw/i,
+            label: 'PO18',
+            urlExample: 'https://www.po18.tw/books/123...',
+            useDescDefault: true,
+            targetDefault: 'webhong',
+            display: {
+                emoji: '🔞',
+                bg: '#ffebee',
+                border: '#e91e63',
+                color: '#c2185b',
+                note: 'Lấy info cơ bản (cần đăng nhập)',
+            },
+            extractId: extractPo18Id,
+            fetch: fetchPo18Data,
+            normalize: normalizePo18Data,
+        },
+        {
+            id: 'ihuaben',
+            name: 'Ihuaben',
+            host: /ihuaben\.com/i,
+            label: 'Ihuaben',
+            urlExample: 'https://www.ihuaben.com/book/123...',
+            useDescDefault: true,
+            targetDefault: 'wiki',
+            display: {
+                emoji: '📚',
+                bg: '#f1f8e9',
+                border: '#8bc34a',
+                color: '#558b2f',
+                note: 'Hỗ trợ cơ bản',
+            },
+            extractId: extractIhuabenId,
+            fetch: fetchIhuabenData,
+            normalize: normalizeIhuabenData,
+        },
+        {
+            id: 'qidian',
+            name: 'Khởi Điểm',
+            host: /qidian\.com/i,
+            label: 'Khởi Điểm (Qidian)',
+            urlExample: 'https://www.qidian.com/book/123...',
+            useDescDefault: true,
+            targetDefault: 'wiki',
+            display: {
+                emoji: '📖',
+                bg: '#eceff1',
+                border: '#607d8b',
+                color: '#455a64',
+                note: 'Full info',
+            },
+            extractId: extractQidianId,
+            fetch: fetchQidianData,
+            normalize: normalizeQidianData,
+        },
+        {
+            id: 'qimao',
+            name: 'Thất Miêu',
+            host: /qimao\.com/i,
+            label: 'Thất Miêu (Qimao)',
+            urlExample: 'https://www.qimao.com/shuku/123...',
+            useDescDefault: true,
+            targetDefault: 'wiki',
+            display: {
+                emoji: '🐱',
+                bg: '#e8f5e9',
+                border: '#43a047',
+                color: '#2e7d32',
+                note: 'Hỗ trợ cơ bản',
+            },
+            extractId: extractQimaoId,
+            fetch: fetchQimaoData,
+            normalize: normalizeQimaoData,
+            coverProcess: processQimaoCover,
+        },
+        {
+            id: 'gongzicp',
+            name: 'Trường Bội',
+            host: /gongzicp\.com/i,
+            label: 'Trường Bội (Gongzicp)',
+            urlExample: 'https://www.gongzicp.com/novel-123...',
+            useDescDefault: true,
+            targetDefault: 'wiki',
+            display: {
+                emoji: '🌊',
+                bg: '#f3e5f5',
+                border: '#9c27b0',
+                color: '#7b1fa2',
+                note: 'Cover HD (nếu có) + Lọc Tag xịn',
+            },
+            extractId: extractGongzicpId,
+            fetch: fetchGongzicpData,
+            normalize: normalizeGongzicpData,
+            coverProcess: processGongzicpCover,
+        },
+    ];
+
+    function getSiteRule(type) {
+        return SITE_RULES.find(rule => rule.id === type) || null;
+    }
+
+    function buildDefaultDomainSettings() {
+        const out = {};
+        SITE_RULES.forEach((rule) => {
+            out[rule.id] = {
+                label: rule.label || rule.name || rule.id,
+                useDesc: typeof rule.useDescDefault === 'boolean'
+                    ? rule.useDescDefault
+                    : true,
+                target: rule.targetDefault || 'wiki',
+            };
+        });
+        return out;
+    }
+
+    DEFAULT_SETTINGS.domainSettings = buildDefaultDomainSettings();
+
+    function detectSource(url) {
+        const raw = T.safeText(url);
+        for (const rule of SITE_RULES) {
+            if (!rule.host.test(raw)) continue;
+            const id = rule.extractId(raw);
+            return { type: rule.id, id };
+        }
+        return null;
+    }
+
+    // ================================================
+    // COVER HELPERS
+    // ================================================
+    function checkImageUrlValid(url) {
+        return new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'HEAD',
+                url,
+                onload: (res) => {
+                    const contentType = (res.responseHeaders || '')
+                        .match(/content-type:\s*([^\r\n]+)/i)?.[1] || '';
+                    resolve(res.status === 200 && contentType.toLowerCase().startsWith('image/'));
+                },
+                onerror: () => resolve(false),
+                ontimeout: () => resolve(false),
+            });
+        });
+    }
+
+    async function processJjwxcCover(novelCover) {
+        if (!novelCover) return '';
+        const coverRaw = novelCover;
+        const cleaned = coverRaw.split('?')[0];
+        const base = cleaned.replace(/_[0-9]+_[0-9]+(?=\.(?:jpg|jpeg|png|webp))/i, '');
+        const baseStem = base.replace(/\.(jpg|jpeg|png|webp)$/i, '');
+        const candidates = [];
+        const pushUnique = (url) => {
+            if (!url || candidates.includes(url)) return;
+            candidates.push(url);
+        };
+        pushUnique(base);
+        ['jpg', 'jpeg', 'png', 'webp'].forEach((ext) => pushUnique(`${baseStem}.${ext}`));
+
+        for (const url of candidates) {
+            if (await checkImageUrlValid(url)) return url;
+        }
+        return coverRaw;
+    }
+
+    async function processQimaoCover(coverUrl) {
+        if (!coverUrl) return '';
+        const raw = coverUrl;
+        const cleaned = raw.split('?')[0];
+        const modified = cleaned.replace(/_[0-9]+x[0-9]+(?=\.(?:jpg|jpeg|png|webp))/i, '');
+        if (modified === cleaned) return raw;
+        const isValid = await checkImageUrlValid(modified);
+        return isValid ? modified : raw;
+    }
+
+    async function processGongzicpCover(coverUrl) {
+        if (!coverUrl) return '';
+        const raw = coverUrl;
+        let hdUrl = raw.split('?')[0].split('@')[0];
+        if (hdUrl.startsWith('//')) hdUrl = 'https:' + hdUrl;
+        hdUrl = hdUrl.replace('http:', 'https:');
+        return hdUrl;
+    }
+
+    HELPERS.cover = {
+        checkImageUrlValid,
+        processJjwxcCover,
+        processQimaoCover,
+        processGongzicpCover,
+    };
+
+    // ================================================
+    // ADAPTERS: FETCH (RAW)
+    // ================================================
     function fetchFanqieData(bookId) {
         const apiUrl = `https://api5-normal-sinfonlineb.fqnovel.com/reading/bookapi/multi-detail/v/?aid=2329&iid=1&version_code=999&book_id=${bookId}`;
         return new Promise((resolve, reject) => {
@@ -713,15 +741,15 @@
         const parseHtml = (html, url) => {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html || '', 'text/html');
-            const title = queryText(doc, ['h1.book_name', '.book_name', '.book_title', 'h1']);
-            const author = queryText(doc, ['.book_author', '.book_author a', '.book_info .author', '.author']);
-            const cover = queryAttr(doc, [
+            const title = D.queryText(doc, ['h1.book_name', '.book_name', '.book_title', 'h1']);
+            const author = D.queryText(doc, ['.book_author', '.book_author a', '.book_info .author', '.author']);
+            const cover = D.queryAttr(doc, [
                 '.book_cover img',
                 '.book_cover>img',
                 '.cover img',
                 'meta[property="og:image"]',
-            ], 'content') || queryAttr(doc, ['.book_cover img', '.book_cover>img', '.cover img'], 'src');
-            const introHtml = queryHtml(doc, [
+            ], 'content') || D.queryAttr(doc, ['.book_cover img', '.book_cover>img', '.cover img'], 'src');
+            const introHtml = D.queryHtml(doc, [
                 '.book_intro .B_I_content',
                 '.book_intro',
                 '#book_intro',
@@ -730,9 +758,9 @@
                 '.book_introduction',
                 '.intro',
             ]);
-            let intro = introHtml ? htmlToText(introHtml) : '';
+            let intro = introHtml ? T.htmlToText(introHtml) : '';
 
-            const tagTexts = collectTexts(doc, [
+            const tagTexts = D.collectTexts(doc, [
                 '.book_intro_tags a',
                 '.book_tag a',
                 '.book_tag span',
@@ -746,36 +774,36 @@
                 'a[href*="tags"]',
             ]);
 
-            let statusHint = queryText(doc, ['.book_info .statu', '.book_info .status', '.statu', '.status']);
+            let statusHint = D.queryText(doc, ['.book_info .statu', '.book_info .status', '.statu', '.status']);
             const categories = [];
             const tags = [];
             extractInfoPairs(doc).forEach(({ key, value }) => {
                 if (/(標籤|标签|tag)/i.test(key)) {
-                    tags.push(...parseTagList(value));
+                    tags.push(...T.parseTagList(value));
                 } else if (/(分類|类别|類別|题材|題材|类型|類型)/i.test(key)) {
-                    categories.push(...parseTagList(value));
+                    categories.push(...T.parseTagList(value));
                 } else if (/(狀態|状态|進度|连载|連載|完結|完本|已完结|已完結)/i.test(key)) {
                     statusHint = value;
                 }
             });
 
             if (tagTexts.length) tags.push(...tagTexts);
-            const metaKeywords = queryAttr(doc, ['meta[name="keywords"]'], 'content');
-            if (metaKeywords) tags.push(...parseTagList(metaKeywords));
+            const metaKeywords = D.queryAttr(doc, ['meta[name="keywords"]'], 'content');
+            if (metaKeywords) tags.push(...T.parseTagList(metaKeywords));
             if (!intro) {
-                const metaDesc = queryAttr(doc, ['meta[name="description"]', 'meta[property="og:description"]'], 'content');
+                const metaDesc = D.queryAttr(doc, ['meta[name="description"]', 'meta[property="og:description"]'], 'content');
                 if (metaDesc) {
-                    intro = htmlToText(metaDesc);
+                    intro = T.htmlToText(metaDesc);
                 }
             }
 
-            const coverUrl = toAbsoluteUrl(cover, url);
+            const coverUrl = D.toAbsoluteUrl(cover, url);
             return {
                 title,
                 author,
                 intro,
                 coverUrl,
-                tags: Array.from(new Set(parseTagList(tags.join(',')))),
+                tags: Array.from(new Set(T.parseTagList(tags.join(',')))),
                 categories: Array.from(new Set(categories)),
                 statusHint,
             };
@@ -826,52 +854,52 @@
                     const html = res.responseText || res.response || '';
                     const doc = new DOMParser().parseFromString(html, 'text/html');
 
-                    const title = queryText(doc, [
+                    const title = D.queryText(doc, [
                         '.infodetail .simpleinfo h1.text-danger',
                         '.infodetail .simpleinfo h1',
                         'h1.text-danger',
                         'h1',
-                    ]) || queryAttr(doc, [
+                    ]) || D.queryAttr(doc, [
                         'meta[property="og:title"]',
                         'meta[property="og:novel:book_name"]',
                     ], 'content');
 
-                    const author = queryText(doc, [
+                    const author = D.queryText(doc, [
                         '.infodetail .simpleinfo a.text-muted',
                         '.infodetail .simpleinfo a',
                         '.simpleinfo a.text-muted',
                     ]);
 
-                    let cover = queryAttr(doc, [
+                    let cover = D.queryAttr(doc, [
                         '.biginfo .cover img',
                         '.cover img',
                         'meta[property="og:image"]',
                     ], 'content');
                     if (cover && cover.includes('?')) cover = cover.split('?')[0];
-                    cover = toAbsoluteUrl(cover, url);
+                    cover = D.toAbsoluteUrl(cover, url);
 
-                    const introHtml = queryHtml(doc, [
+                    const introHtml = D.queryHtml(doc, [
                         '.infodetail .aboutbook',
                         '.infodetail .text-muted.aboutbook',
                         '.aboutbook',
                     ]);
-                    let intro = introHtml ? htmlToText(introHtml) : '';
+                    let intro = introHtml ? T.htmlToText(introHtml) : '';
                     intro = intro.replace(/^简介[:：]\s*/i, '');
                     if (!intro) {
-                        const metaDesc = queryAttr(doc, [
+                        const metaDesc = D.queryAttr(doc, [
                             'meta[property="og:description"]',
                             'meta[name="description"]',
                         ], 'content');
-                        if (metaDesc) intro = htmlToText(metaDesc);
+                        if (metaDesc) intro = T.htmlToText(metaDesc);
                     }
 
-                    const tagTexts = collectTexts(doc, [
+                    const tagTexts = D.collectTexts(doc, [
                         '#tagList a',
                         '#tagList .text-muted',
                         '.HuabenListUL#tagList a',
                     ]);
 
-                    const statusHint = queryText(doc, [
+                    const statusHint = D.queryText(doc, [
                         '.simpleinfo label',
                         '.infodetail .simpleinfo label',
                     ]);
@@ -881,7 +909,7 @@
                         author,
                         intro,
                         coverUrl: cover,
-                        tags: Array.from(new Set(parseTagList(tagTexts.join(',')))),
+                        tags: Array.from(new Set(T.parseTagList(tagTexts.join(',')))),
                         categories: [],
                         statusHint,
                     });
@@ -904,49 +932,49 @@
                     const html = res.responseText || res.response || '';
                     const doc = new DOMParser().parseFromString(html, 'text/html');
 
-                    const title = queryText(doc, ['h1#bookName', '.book-info-top h1#bookName'])
-                        || queryAttr(doc, ['meta[property="og:novel:book_name"]', 'meta[property="og:title"]'], 'content');
+                    const title = D.queryText(doc, ['h1#bookName', '.book-info-top h1#bookName'])
+                        || D.queryAttr(doc, ['meta[property="og:novel:book_name"]', 'meta[property="og:title"]'], 'content');
 
-                    let author = queryText(doc, ['.book-meta .author', 'span.author', 'a.writer-name']);
+                    let author = D.queryText(doc, ['.book-meta .author', 'span.author', 'a.writer-name']);
                     if (!author) {
-                        author = queryAttr(doc, ['meta[property="og:novel:author"]'], 'content');
+                        author = D.queryAttr(doc, ['meta[property="og:novel:author"]'], 'content');
                     }
                     author = author.replace(/^作者[:：]\s*/i, '');
 
-                    let cover = queryAttr(doc, ['meta[property="og:image"]'], 'content');
+                    let cover = D.queryAttr(doc, ['meta[property="og:image"]'], 'content');
                     if (!cover) {
-                        cover = queryAttr(doc, ['.book-detail-img img', '.book-author img', '#bookImg img'], 'src');
+                        cover = D.queryAttr(doc, ['.book-detail-img img', '.book-author img', '#bookImg img'], 'src');
                     }
-                    cover = toAbsoluteUrl(cover, url);
+                    cover = D.toAbsoluteUrl(cover, url);
                     cover = cover.replace(/\/\d+(\.\w+)?$/, '/600.webp');
 
-                    const introHtml = queryHtml(doc, [
+                    const introHtml = D.queryHtml(doc, [
                         '.intro-detail p#book-intro-detail',
                         '.intro-detail',
                         'p.intro',
                     ]);
-                    let intro = introHtml ? htmlToText(introHtml) : '';
+                    let intro = introHtml ? T.htmlToText(introHtml) : '';
                     if (!intro) {
-                        const metaDesc = queryAttr(doc, [
+                        const metaDesc = D.queryAttr(doc, [
                             'meta[property="og:description"]',
                             'meta[name="description"]',
                         ], 'content');
-                        if (metaDesc) intro = htmlToText(metaDesc);
+                        if (metaDesc) intro = T.htmlToText(metaDesc);
                     }
 
-                    const tagTexts = collectTexts(doc, [
+                    const tagTexts = D.collectTexts(doc, [
                         '.intro-honor-label p.all-label a',
                         '.intro-honor-label a',
                         '.all-label a',
                     ]);
 
-                    const categories = collectTexts(doc, [
+                    const categories = D.collectTexts(doc, [
                         '.book-attribute a',
                     ]);
 
-                    let statusHint = queryAttr(doc, ['meta[property="og:novel:status"]'], 'content');
+                    let statusHint = D.queryAttr(doc, ['meta[property="og:novel:status"]'], 'content');
                     if (!statusHint) {
-                        statusHint = queryText(doc, ['.book-attribute span']);
+                        statusHint = D.queryText(doc, ['.book-attribute span']);
                     }
 
                     resolve({
@@ -954,8 +982,8 @@
                         author,
                         intro,
                         coverUrl: cover,
-                        tags: Array.from(new Set(parseTagList(tagTexts.join(',')))),
-                        categories: Array.from(new Set(parseTagList(categories.join(',')))),
+                        tags: Array.from(new Set(T.parseTagList(tagTexts.join(',')))),
+                        categories: Array.from(new Set(T.parseTagList(categories.join(',')))),
                         statusHint,
                     });
                 },
@@ -977,39 +1005,39 @@
                     const html = res.responseText || res.response || '';
                     const doc = new DOMParser().parseFromString(html, 'text/html');
 
-                    const title = queryText(doc, [
+                    const title = D.queryText(doc, [
                         '.book-information .wrap-txt .title .txt',
                         '.book-detail-info .title .txt',
                         '.book-detail-info .title',
-                    ]) || queryAttr(doc, ['meta[property="og:title"]'], 'content');
+                    ]) || D.queryAttr(doc, ['meta[property="og:title"]'], 'content');
 
-                    const author = queryText(doc, [
+                    const author = D.queryText(doc, [
                         '.book-information .sub-title em a',
                         '.book-information .sub-title em',
                         '.author-information .author-name a',
                     ]);
 
-                    const cover = toAbsoluteUrl(queryAttr(doc, [
+                    const cover = D.toAbsoluteUrl(D.queryAttr(doc, [
                         '.book-information .wrap-pic img',
                         '.wrap-pic img',
                         'meta[property="og:image"]',
                     ], 'src'), url);
 
-                    const introHtml = queryHtml(doc, [
+                    const introHtml = D.queryHtml(doc, [
                         '.book-introduction p.intro',
                         '.book-introduction .intro',
                     ]);
-                    let intro = introHtml ? htmlToText(introHtml) : '';
+                    let intro = introHtml ? T.htmlToText(introHtml) : '';
                     if (!intro) {
-                        const metaDesc = queryAttr(doc, ['meta[name="description"]'], 'content');
-                        if (metaDesc) intro = htmlToText(metaDesc);
+                        const metaDesc = D.queryAttr(doc, ['meta[name="description"]'], 'content');
+                        if (metaDesc) intro = T.htmlToText(metaDesc);
                     }
 
-                    const categoryTexts = collectTexts(doc, [
+                    const categoryTexts = D.collectTexts(doc, [
                         '.book-information .tags-wrap a',
                         '.tags-wrap a',
                     ]);
-                    const tagTexts = collectTexts(doc, [
+                    const tagTexts = D.collectTexts(doc, [
                         '.book-information .tags-wrap .qm-tag',
                         '.tags-wrap .qm-tag',
                     ]);
@@ -1018,8 +1046,8 @@
                     const statusTag = tagTexts.find(t => /(连载|完结|完本|已完结|完結)/.test(t));
                     if (statusTag) statusHint = statusTag;
 
-                    const tags = Array.from(new Set(parseTagList(tagTexts.join(','))));
-                    const categories = Array.from(new Set(parseTagList(categoryTexts.join(','))));
+                    const tags = Array.from(new Set(T.parseTagList(tagTexts.join(','))));
+                    const categories = Array.from(new Set(T.parseTagList(categoryTexts.join(','))));
 
                     resolve({
                         title,
@@ -1036,61 +1064,6 @@
                 },
             });
         });
-    }
-
-    function checkImageUrlValid(url) {
-        return new Promise((resolve) => {
-            GM_xmlhttpRequest({
-                method: 'HEAD',
-                url,
-                onload: (res) => {
-                    const contentType = (res.responseHeaders || '')
-                        .match(/content-type:\s*([^\r\n]+)/i)?.[1] || '';
-                    resolve(res.status === 200 && contentType.toLowerCase().startsWith('image/'));
-                },
-                onerror: () => resolve(false),
-                ontimeout: () => resolve(false),
-            });
-        });
-    }
-
-    async function processJjwxcCover(novelCover) {
-        if (!novelCover) return '';
-        const coverRaw = novelCover;
-        const cleaned = coverRaw.split('?')[0];
-        const base = cleaned.replace(/_[0-9]+_[0-9]+(?=\.(?:jpg|jpeg|png|webp))/i, '');
-        const baseStem = base.replace(/\.(jpg|jpeg|png|webp)$/i, '');
-        const candidates = [];
-        const pushUnique = (url) => {
-            if (!url || candidates.includes(url)) return;
-            candidates.push(url);
-        };
-        pushUnique(base);
-        ['jpg', 'jpeg', 'png', 'webp'].forEach((ext) => pushUnique(`${baseStem}.${ext}`));
-
-        for (const url of candidates) {
-            if (await checkImageUrlValid(url)) return url;
-        }
-        return coverRaw;
-    }
-
-    async function processQimaoCover(coverUrl) {
-        if (!coverUrl) return '';
-        const raw = coverUrl;
-        const cleaned = raw.split('?')[0];
-        const modified = cleaned.replace(/_[0-9]+x[0-9]+(?=\.(?:jpg|jpeg|png|webp))/i, '');
-        if (modified === cleaned) return raw;
-        const isValid = await checkImageUrlValid(modified);
-        return isValid ? modified : raw;
-    }
-
-    async function processGongzicpCover(coverUrl) {
-        if (!coverUrl) return '';
-        const raw = coverUrl;
-        let hdUrl = raw.split('?')[0].split('@')[0];
-        if (hdUrl.startsWith('//')) hdUrl = 'https:' + hdUrl;
-        hdUrl = hdUrl.replace('http:', 'https:');
-        return hdUrl;
     }
 
     function describeCharacterRelationsJJWXC(data) {
@@ -1126,11 +1099,14 @@
         return { mainLine, otherNames };
     }
 
+    // ================================================
+    // ADAPTERS: NORMALIZE
+    // ================================================
     function normalizeFanqieData(raw) {
-        const titleCn = safeText(raw.book_name || raw.original_book_name);
-        const authorCn = safeText(raw.author);
-        const descCn = safeText(raw.book_abstract_v2 || raw.abstract);
-        const tags = parseTagList(raw.tags).concat(parseTagList(raw.pure_category_tags));
+        const titleCn = T.safeText(raw.book_name || raw.original_book_name);
+        const authorCn = T.safeText(raw.author);
+        const descCn = T.safeText(raw.book_abstract_v2 || raw.abstract);
+        const tags = T.parseTagList(raw.tags).concat(T.parseTagList(raw.pure_category_tags));
         const categoryV2 = Array.isArray(raw.category_v2)
             ? raw.category_v2
             : (() => {
@@ -1154,10 +1130,10 @@
     }
 
     function normalizeJjwxcData(raw) {
-        const titleCn = safeText(raw.novelName);
-        const authorCn = safeText(raw.authorName);
-        const introText = htmlToText(raw.novelIntro || '');
-        const tagsRaw = safeText(raw.novelTags);
+        const titleCn = T.safeText(raw.novelName);
+        const authorCn = T.safeText(raw.authorName);
+        const introText = T.htmlToText(raw.novelIntro || '');
+        const tagsRaw = T.safeText(raw.novelTags);
         const tagsLine = tagsRaw ? `内容标签：${tagsRaw}` : '';
         const rel = describeCharacterRelationsJJWXC(raw);
         const relLines = [];
@@ -1165,8 +1141,8 @@
         if (rel.otherNames && rel.otherNames.length) {
             relLines.push(`配角: ${rel.otherNames.join('，')}`);
         }
-        const otherText = safeText(raw.other);
-        const introShortRaw = safeText(raw.novelIntroShort);
+        const otherText = T.safeText(raw.other);
+        const introShortRaw = T.safeText(raw.novelIntroShort);
         const introShort = introShortRaw ? `一句话简介：${introShortRaw}` : '';
         const descCn = [
             introText,
@@ -1175,10 +1151,10 @@
             otherText,
             introShort,
         ].filter(Boolean).join('\n');
-        const tags = parseTagList(raw.novelTags);
-        const categories = parseTagList(raw.novelClass);
-        const statusHint = safeText(raw.novelStep || raw.novelStatus || raw.isFinished || raw.novelComplete);
-        const extraKeywords = parseTagList(raw.novelType || raw.novelTypeName || '');
+        const tags = T.parseTagList(raw.novelTags);
+        const categories = T.parseTagList(raw.novelClass);
+        const statusHint = T.safeText(raw.novelStep || raw.novelStatus || raw.isFinished || raw.novelComplete);
+        const extraKeywords = T.parseTagList(raw.novelType || raw.novelTypeName || '');
         return {
             sourceType: 'jjwxc',
             sourceLabel: 'Tấn Giang',
@@ -1187,7 +1163,7 @@
             descCn,
             tags,
             categories,
-            coverUrl: safeText(raw.novelCover),
+            coverUrl: T.safeText(raw.novelCover),
             statusHint,
             update_status: undefined,
             extraKeywords,
@@ -1195,12 +1171,12 @@
     }
 
     function normalizePo18Data(raw) {
-        const titleCn = safeText(raw.title).replace(/^作品名稱[:：]\s*/i, '');
-        const authorCn = safeText(raw.author).replace(/^作者[:：]\s*/i, '');
-        const descCn = safeText(raw.intro);
-        const tags = parseTagList((raw.tags || []).join(','));
-        const categories = parseTagList((raw.categories || []).join(','));
-        const statusHint = safeText(raw.statusHint);
+        const titleCn = T.safeText(raw.title).replace(/^作品名稱[:：]\s*/i, '');
+        const authorCn = T.safeText(raw.author).replace(/^作者[:：]\s*/i, '');
+        const descCn = T.safeText(raw.intro);
+        const tags = T.parseTagList((raw.tags || []).join(','));
+        const categories = T.parseTagList((raw.categories || []).join(','));
+        const statusHint = T.safeText(raw.statusHint);
         return {
             sourceType: 'po18',
             sourceLabel: 'PO18',
@@ -1209,7 +1185,7 @@
             descCn,
             tags,
             categories,
-            coverUrl: safeText(raw.coverUrl),
+            coverUrl: T.safeText(raw.coverUrl),
             statusHint,
             update_status: undefined,
             extraKeywords: [],
@@ -1217,12 +1193,12 @@
     }
 
     function normalizeIhuabenData(raw) {
-        const titleCn = safeText(raw.title);
-        const authorCn = safeText(raw.author);
-        const descCn = safeText(raw.intro);
-        const tags = parseTagList((raw.tags || []).join(','));
-        const categories = parseTagList((raw.categories || []).join(','));
-        const statusHint = safeText(raw.statusHint);
+        const titleCn = T.safeText(raw.title);
+        const authorCn = T.safeText(raw.author);
+        const descCn = T.safeText(raw.intro);
+        const tags = T.parseTagList((raw.tags || []).join(','));
+        const categories = T.parseTagList((raw.categories || []).join(','));
+        const statusHint = T.safeText(raw.statusHint);
         return {
             sourceType: 'ihuaben',
             sourceLabel: 'Ihuaben',
@@ -1231,7 +1207,7 @@
             descCn,
             tags,
             categories,
-            coverUrl: safeText(raw.coverUrl),
+            coverUrl: T.safeText(raw.coverUrl),
             statusHint,
             update_status: undefined,
             extraKeywords: [],
@@ -1239,12 +1215,12 @@
     }
 
     function normalizeQidianData(raw) {
-        const titleCn = safeText(raw.title);
-        const authorCn = safeText(raw.author);
-        const descCn = safeText(raw.intro);
-        const tags = parseTagList((raw.tags || []).join(','));
-        const categories = parseTagList((raw.categories || []).join(','));
-        const statusHint = safeText(raw.statusHint);
+        const titleCn = T.safeText(raw.title);
+        const authorCn = T.safeText(raw.author);
+        const descCn = T.safeText(raw.intro);
+        const tags = T.parseTagList((raw.tags || []).join(','));
+        const categories = T.parseTagList((raw.categories || []).join(','));
+        const statusHint = T.safeText(raw.statusHint);
         return {
             sourceType: 'qidian',
             sourceLabel: 'Khởi Điểm',
@@ -1253,7 +1229,7 @@
             descCn,
             tags,
             categories,
-            coverUrl: safeText(raw.coverUrl),
+            coverUrl: T.safeText(raw.coverUrl),
             statusHint,
             update_status: undefined,
             extraKeywords: [],
@@ -1261,12 +1237,12 @@
     }
 
     function normalizeQimaoData(raw) {
-        const titleCn = safeText(raw.title);
-        const authorCn = safeText(raw.author);
-        const descCn = safeText(raw.intro);
-        const tags = parseTagList((raw.tags || []).join(','));
-        const categories = parseTagList((raw.categories || []).join(','));
-        const statusHint = safeText(raw.statusHint);
+        const titleCn = T.safeText(raw.title);
+        const authorCn = T.safeText(raw.author);
+        const descCn = T.safeText(raw.intro);
+        const tags = T.parseTagList((raw.tags || []).join(','));
+        const categories = T.parseTagList((raw.categories || []).join(','));
+        const statusHint = T.safeText(raw.statusHint);
         return {
             sourceType: 'qimao',
             sourceLabel: 'Thất Miêu',
@@ -1275,7 +1251,7 @@
             descCn,
             tags,
             categories,
-            coverUrl: safeText(raw.coverUrl),
+            coverUrl: T.safeText(raw.coverUrl),
             statusHint,
             update_status: undefined,
             extraKeywords: [],
@@ -1322,7 +1298,7 @@
         return {
             titleCn: data.novel_name || '',
             authorCn: data.author_nickname || '',
-            descCn: (data.novel_info || '').replace(/<[^>]*>/g, '\n').trim(),
+            descCn: T.htmlToText(data.novel_info || ''),
             tags: data.tag_list || [],
             categories: data.type_list || [],
             coverUrl: data.novel_cover || '',
@@ -1353,6 +1329,118 @@
         return groups;
     }
 
+    // ================================================
+    // TRANSLATE + NAMESET
+    // ================================================
+    function splitIntoBatches(arr, maxChars) {
+        const batches = [];
+        let current = [];
+        let currentLen = 0;
+        for (const s of arr) {
+            const len = (s || '').length;
+            if (current.length && currentLen + len + current.length > maxChars) {
+                batches.push(current);
+                current = [s];
+                currentLen = len;
+            } else {
+                current.push(s);
+                currentLen += len;
+            }
+        }
+        if (current.length) batches.push(current);
+        return batches;
+    }
+
+    function postTranslate(serverUrl, contentArray, targetLang) {
+        return new Promise((resolve, reject) => {
+            const payload = { content: JSON.stringify(contentArray), tl: targetLang };
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: serverUrl,
+                headers: { 'Content-Type': 'application/json', 'referer': 'https://dichngay.com/' },
+                data: JSON.stringify(payload),
+                onload(res) {
+                    if (res.status < 200 || res.status >= 300) {
+                        reject(new Error('HTTP Error: ' + res.status));
+                        return;
+                    }
+                    try {
+                        const jsonResponse = JSON.parse(res.responseText);
+                        const translatedContentString = jsonResponse?.data?.content ?? jsonResponse?.translatedText;
+                        if (typeof translatedContentString !== 'string') {
+                            throw new Error('Bad translation response.');
+                        }
+                        const sanitizedString = translatedContentString
+                            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+                            .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+                        resolve(JSON.parse(sanitizedString));
+                    } catch (e) {
+                        reject(e);
+                    }
+                },
+                onerror(err) {
+                    reject(err);
+                },
+            });
+        });
+    }
+
+    HELPERS.http = { postTranslate };
+
+    async function translateList(list) {
+        const items = Array.isArray(list) ? list : [];
+        const batches = splitIntoBatches(items, MAX_CHARS);
+        const result = [];
+        for (const batch of batches) {
+            try {
+                const translated = await postTranslate(SERVER_URL, batch, 'vi');
+                result.push(...translated);
+            } catch (err) {
+                // fallback: giữ nguyên đoạn lỗi
+                result.push(...batch);
+            }
+            await sleep(REQUEST_DELAY_MS);
+        }
+        return result;
+    }
+
+    async function translateLongText(text) {
+        const raw = T.safeText(text);
+        if (!raw) return '';
+        if (raw.length <= MAX_CHARS) {
+            const [translated] = await translateList([raw]);
+            return translated || raw;
+        }
+        const parts = raw.split(/\n{2,}/g).map(s => s.trim()).filter(Boolean);
+        const translatedParts = await translateList(parts);
+        return translatedParts.join('\n\n');
+    }
+
+    async function translateTextWithNameSet(text, nameSet, preserveLineBreaks) {
+        const raw = T.safeText(text);
+        if (!raw) return '';
+        const nameMap = nameSet || {};
+        const nameReplacer = buildNameSetReplacer(nameMap);
+        const placeholderMap = {};
+        const processed = nameReplacer(raw, placeholderMap);
+        let translated = '';
+        if (preserveLineBreaks) {
+            const lines = processed.replace(/\r\n/g, '\n').split('\n');
+            const translatedLines = await translateList(lines);
+            translated = translatedLines.join('\n');
+        } else if (processed.length <= MAX_CHARS) {
+            const [result] = await translateList([processed]);
+            translated = result || processed;
+        } else {
+            translated = await translateLongText(processed);
+        }
+        const restored = Object.keys(placeholderMap).length ? restoreNames(translated, placeholderMap) : translated;
+        return cleanupText(restored, preserveLineBreaks);
+    }
+
+    // ================================================
+    // MATCH + SUGGEST + APPLY
+    // ================================================
     function buildKeywordList(sourceData, translated) {
         const rawList = []
             .concat(sourceData?.tags || [])
@@ -1361,7 +1449,7 @@
         const translatedList = translated?.tags || [];
         const translatedCats = translated?.categories || [];
         const combined = expandKeywordAliases([...rawList, ...translatedList, ...translatedCats])
-            .map(safeText)
+            .map(T.safeText)
             .filter(Boolean);
         return Array.from(new Set(combined));
     }
@@ -1369,11 +1457,11 @@
     function expandKeywordAliases(list) {
         const expanded = [];
         for (const item of list || []) {
-            const text = safeText(item);
+            const text = T.safeText(item);
             if (!text) continue;
             expanded.push(text);
-            const norm = normalizeText(text);
-            const tokens = splitTokens(norm);
+            const norm = T.normalizeText(text);
+            const tokens = T.splitTokens(norm);
             if (norm.includes('主受') || norm.includes('chu chiu')) {
                 expanded.push('Chủ thụ');
             }
@@ -1397,8 +1485,8 @@
     }
 
     function detectStatus(raw, textBlob) {
-        const cn = normalizeText(textBlob + ' ' + safeText(raw.statusHint || ''));
-        const step = safeText(raw.statusHint);
+        const cn = T.normalizeText(textBlob + ' ' + T.safeText(raw.statusHint || ''));
+        const step = T.safeText(raw.statusHint);
         if (step === '2') return 'Hoàn thành';
         if (step === '1') return 'Còn tiếp';
         const hasDone = /hoan thanh|da xong|da hoan thanh|完结|完本|已完结/.test(cn);
@@ -1412,13 +1500,13 @@
     }
 
     function detectOfficial(keywords) {
-        const blob = normalizeText(keywords.join(' '));
+        const blob = T.normalizeText(keywords.join(' '));
         if (/(dong nhan|dien sinh|衍生|同人)/.test(blob)) return 'Diễn sinh';
         return 'Nguyên sang';
     }
 
     function detectGender(keywords) {
-        const blob = normalizeText(keywords.join(' '));
+        const blob = T.normalizeText(keywords.join(' '));
         if (/(song nam chu|双男主)/.test(blob)) return 'Đam mỹ';
         if (/(纯爱|thuan ai)/.test(blob)) return 'Đam mỹ';
         if (/(bach hop|百合|双女主)/.test(blob)) return 'Bách hợp';
@@ -1439,7 +1527,7 @@
     }
 
     function calculateMatchScore(label, text, normText) {
-        const labelNorm = normalizeText(label);
+        const labelNorm = T.normalizeText(label);
         const labelKeepAccents = normalizeKeepAccents(label);
 
         if (!labelNorm) return 0;
@@ -1462,7 +1550,7 @@
     function scoreOptions(options, contexts) {
         // Contexts: [{ text, normText, weight }]
         return options.map(opt => {
-            const label = safeText(opt.label);
+            const label = T.safeText(opt.label);
             let maxScore = 0;
 
             for (const ctx of contexts) {
@@ -1477,14 +1565,14 @@
 
     function filterSubstrings(items) {
         const sorted = [...items].sort((a, b) => {
-            const lenA = normalizeText(a.label).length;
-            const lenB = normalizeText(b.label).length;
+            const lenA = T.normalizeText(a.label).length;
+            const lenB = T.normalizeText(b.label).length;
             return lenB - lenA;
         });
         const accepted = [];
         for (const item of sorted) {
-            const label = normalizeText(item.label);
-            const isRedundant = accepted.some(acc => normalizeText(acc.label).includes(label));
+            const label = T.normalizeText(item.label);
+            const isRedundant = accepted.some(acc => T.normalizeText(acc.label).includes(label));
             if (!isRedundant) accepted.push(item);
         }
         return accepted;
@@ -1522,18 +1610,18 @@
         if (metaText) {
             contexts.push({
                 text: normalizeKeepAccents(metaText),
-                normText: normalizeText(metaText),
+                normText: T.normalizeText(metaText),
                 weight: 1.5
             });
         }
 
         if (useDesc) {
-            const descCn = safeText(sourceData.descCn);
-            const descVi = safeText(translated?.desc || '');
+            const descCn = T.safeText(sourceData.descCn);
+            const descVi = T.safeText(translated?.desc || '');
             const descText = `${descCn} \n ${descVi}`;
             contexts.push({
                 text: normalizeKeepAccents(descText),
-                normText: normalizeText(descText),
+                normText: T.normalizeText(descText),
                 weight: 1.0
             });
         }
@@ -1584,7 +1672,7 @@
         const linkInputs = Array.from(document.querySelectorAll('input[name="moreLinkUrl"]'));
         const descInputs = Array.from(document.querySelectorAll('input[name="moreLinkDesc"]'));
         if (!linkInputs.length || !descInputs.length || !url) return;
-        let idx = linkInputs.findIndex(input => safeText(input.value) === '');
+        let idx = linkInputs.findIndex(input => T.safeText(input.value) === '');
         if (idx < 0) idx = 0;
         if (idx >= descInputs.length) idx = descInputs.length - 1;
         setInputValue(linkInputs[idx], url);
@@ -1593,7 +1681,7 @@
 
     function applyRadio(group, label) {
         if (!group || !label) return;
-        const ctx = { text: label, normText: normalizeText(label), weight: 1.0 };
+        const ctx = { text: label, normText: T.normalizeText(label), weight: 1.0 };
         const scored = scoreOptions(group, [ctx]);
         const best = scored[0];
         if (!best) return;
@@ -1608,7 +1696,7 @@
             opt.input.dispatchEvent(new Event('change', { bubbles: true }));
         });
         for (const label of labels) {
-            const ctx = { text: label, normText: normalizeText(label), weight: 1.0 };
+            const ctx = { text: label, normText: T.normalizeText(label), weight: 1.0 };
             const scored = scoreOptions(group, [ctx]);
             const best = scored[0];
             if (!best || best.score < SCORE_FALLBACK) continue;
@@ -1618,7 +1706,7 @@
     }
 
     function parseLabelList(text) {
-        return safeText(text)
+        return T.safeText(text)
             .split(',')
             .map(s => s.trim())
             .filter(Boolean);
@@ -1663,6 +1751,93 @@
         }
     }
 
+    // ================================================
+    // HELP + CHANGELOG CONTENT
+    // ================================================
+
+    const CHANGELOG_CONTENT = `
+<h2><span style="color:#673ab7; font-size: 1.2em;">🚀 Phiên bản 0.3.1 - AI Name Extraction!</span></h2>
+<ul style="list-style-type: none; padding-left: 0;">
+    <li>🪄 <b>Auto Tách Tên (MỚI!):</b> AI tự động trích xuất <span style="color:#e91e63;">tên nhân vật, địa danh</span> → điền "Bộ name" → dịch lại văn án với bộ tên chuẩn Hán-Việt!</li>
+    <li>🔗 <b>1 Request Thông Minh:</b> Gộp tách tên + chọn tag trong 1 lần gọi AI → <span style="color:#4caf50;">context đầy đủ, chính xác hơn!</span></li>
+    <li>🌊 <b>Gongzicp Fix:</b> Sửa lỗi status (Hoàn thành/Còn tiếp) từ <code>novel_process</code>.</li>
+    <li>⚙️ <b>Cài đặt mới:</b> Toggle "Auto Tách Names" trong Settings (mặc định BẬT).</li>
+</ul>
+
+<h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.0 (Trước đó)</h3>
+<ul style="list-style-type: none; padding-left: 0; font-size: 13px; color: #666;">
+    <li>🌊 Trường Bội (Gongzicp): Cover HD, Tự động lọc query.</li>
+    <li>🧠 Auto Smart: Chuẩn hóa logic nhận diện.</li>
+    <li>📊 Bảng Điều Khiển: Tùy chỉnh "Hiển thị" & "Quét văn án".</li>
+    <li>✨ AI Gemini: Phân tích tag/thể loại siêu chuẩn.</li>
+</ul>`;
+
+    const buildSiteDisplayList = () => SITE_RULES.map(rule => rule.label || rule.name || rule.id).filter(Boolean).join(', ');
+    const buildSiteOptionsHtml = () => SITE_RULES.map(rule => {
+        const label = rule.label || rule.name || rule.id;
+        const example = rule.urlExample || '';
+        const display = rule.display || {};
+        const emoji = display.emoji || '🔗';
+        const bg = display.bg || '#f5f5f5';
+        const border = display.border || '#90a4ae';
+        const color = display.color || '#37474f';
+        const note = display.note ? `<span style="font-size:11px; color:#444;">✨ ${display.note}</span>` : '';
+        return `
+            <div style="background: ${bg}; padding: 8px; border-radius: 6px; border-left: 3px solid ${border};">
+                <strong style="color: ${color};">${emoji} ${label}</strong><br>
+                ${example ? `<small style="color: #666;">• Link: <code>${example}</code></small><br>` : ''}
+                ${note}
+            </div>
+        `;
+    }).join('');
+
+    const buildWelcomeContent = () => `
+<h2 style="text-align:center; color:#2196f3;">Chào mừng đến với <span style="color:#e91e63;">Wikidich Autofill</span>!</h2>
+<p style="text-align:center; font-style:italic; color:#666;">Tool "thần thánh" hỗ trợ convert web Trung sang Wikidich 1 chạm.</p>
+
+<div style="background:#f4f6f8; padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #4caf50;">
+    <h3 style="margin-top:0; color:#2e7d32;">🌟 Quy trình sử dụng chuẩn:</h3>
+    <ol style="margin-left: 15px; padding-left: 0;">
+        <li><b>Bước 1:</b> Copy link truyện (${buildSiteDisplayList()}).</li>
+        <li><b>Bước 2:</b> Dán vào ô URL > Bấm nút <b style="color:#2196f3;">Lấy dữ liệu</b> (hoặc nút <b style="color:#e91e63;">AI</b>).</li>
+        <li><b>Bước 3:</b> Chờ tool chạy dịch và phân tích (Auto hoặc AI).</li>
+        <li><b>Bước 4:</b> Kiểm tra các ô thông tin trên bảng Panel (Tag, Thể loại...).</li>
+        <li><b>Mẹo:</b> Dùng nút <b>Recompute</b> khi bạn thêm "Từ khóa bổ sung" để gợi ý lại tag/thể loại.</li>
+        <li><b>Bước 5:</b> Nếu OK, bấm nút <b style="color:#ff9800;">Áp vào form</b> dưới cùng.</li>
+        <li><b>Bước 6:</b> Bấm <b style="color:green;">Nhúng</b> của Web để đăng!</li>
+    </ol>
+</div>
+
+<h3>🔥 Tính năng AI (Mới):</h3>
+<ul style="list-style-type: none; padding-left: 5px;">
+    <li>🔑 <b>Cần API Key:</b> Vào ⚙️ Cài đặt nhập Key từ Google AI Studio.</li>
+    <li>🧠 <b>Thông minh hơn:</b> AI đọc hiểu văn án để chọn tag (VD: "Gương vỡ lại lành" dù văn án không ghi rõ).</li>
+    <li>🛡️ <b>Kiểm duyệt:</b> Tự động lọc bỏ các tag "rác" không có trong hệ thống Wikidich.</li>
+</ul>
+
+<div style="background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%); padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #e91e63;">
+    <h3 style="margin-top:0; color:#ad1457;">🪄 Auto Tách Tên (v0.3.1):</h3>
+    <p style="margin: 5px 0; font-size: 13px;">Khi bấm nút <b style="color:#e91e63;">AI</b>, hệ thống sẽ:</p>
+    <ol style="margin-left: 15px; padding-left: 0; font-size: 13px;">
+        <li>Gửi văn án tiếng Trung cho AI phân tích</li>
+        <li>AI trích xuất <b>tên nhân vật, địa danh</b> → phiên âm <span style="color:#673ab7;">Hán-Việt</span></li>
+        <li>Tự động điền vào ô <b>"Bộ name"</b> (dạng: <code>Tên_Trung=Hán_Việt</code>)</li>
+        <li>Dịch lại văn án với bộ tên mới → tên được giữ nguyên!</li>
+    </ol>
+    <p style="margin: 5px 0; font-size: 12px; color: #666;">💡 <i>Toggle: Vào ⚙️ Cài đặt → "Auto Tách Names" để bật/tắt.</i></p>
+</div>
+
+<h3>🌍 Các Trang Hỗ Trợ:</h3>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+    ${buildSiteOptionsHtml()}
+</div>
+
+<hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;">
+` + CHANGELOG_CONTENT;
+
+    // ================================================
+    // UI
+    // ================================================
     function createUI(options = {}) {
         state.settings = loadSettings();
         const shadowHost = document.createElement('div');
@@ -1834,41 +2009,16 @@
                     <div class="${APP_PREFIX}row">
                         <label class="${APP_PREFIX}label">Liên kết bổ sung</label>
                         <div class="${APP_PREFIX}grid">
-                            <input id="${APP_PREFIX}moreLinkDesc" class="${APP_PREFIX}input" placeholder="Mô tả (Cà Chua/Tấn Giang/PO18/Ihuaben)" list="${APP_PREFIX}moreLinkOptions" />
+                            <input id="${APP_PREFIX}moreLinkDesc" class="${APP_PREFIX}input" placeholder="Mô tả (vd: Cà Chua, Tấn Giang...)" list="${APP_PREFIX}moreLinkOptions" />
                             <input id="${APP_PREFIX}moreLinkUrl" class="${APP_PREFIX}input" placeholder="URL nguồn" />
                         </div>
-                        <datalist id="${APP_PREFIX}moreLinkOptions">
-                            <option value="Cà Chua"></option>
-                            <option value="Tấn Giang"></option>
-                            <option value="PO18"></option>
-                            <option value="Ihuaben"></option>
-                            <option value="Khởi Điểm"></option>
-                            <option value="Thất Miêu"></option>
-                        </datalist>
+                        <datalist id="${APP_PREFIX}moreLinkOptions"></datalist>
                     </div>
                     <div class="${APP_PREFIX}row">
                         <button id="${APP_PREFIX}apply" class="${APP_PREFIX}btn">Áp vào form</button>
                     </div>
                     <div class="${APP_PREFIX}row ${APP_PREFIX}hint">
                         Tip: có thể sửa text/label trong panel rồi bấm "Áp vào form".
-                    </div>
-                </div>
-            </div>
-            <div id="${APP_PREFIX}helpModal" class="${APP_PREFIX}modal">
-                <div class="${APP_PREFIX}modal-card">
-                    <div class="${APP_PREFIX}modal-title">Hướng dẫn nhanh</div>
-                    <div class="${APP_PREFIX}modal-body">
-Các web hỗ trợ: Fanqie (Cà Chua), JJWXC (Tấn Giang), PO18 (cần đăng nhập), Ihuaben, Khởi Điểm, Thất Miêu.
-Các bước sử dụng:
-1) Dán link Web Trung vào ô URL rồi bấm "Lấy dữ liệu".
-2) Script sẽ dịch tên/mô tả/tag và gợi ý tick các mục phù hợp.
-3) Bạn có thể chỉnh lại nội dung, tag, thể loại trước khi áp.
-4) Bấm "Áp vào form" để điền và tick tự động + upload ảnh bìa.
-5) Nếu sai gợi ý, sửa trực tiếp trong panel rồi áp lại.
-Lưu ý: Phải là link có thông tin sách, không phải link chương.
-                    </div>
-                    <div class="${APP_PREFIX}modal-actions">
-                        <button id="${APP_PREFIX}helpClose" class="${APP_PREFIX}btn secondary">Đóng</button>
                     </div>
                 </div>
             </div>
@@ -1908,73 +2058,10 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
                         </div>
                         <div class="${APP_PREFIX}row">
                             <label class="${APP_PREFIX}label">Cấu hình Nguồn (Quét văn án & Nơi hiển thị)</label>
-                            <div class="${APP_PREFIX}settings-group" style="display:grid; grid-template-columns: 1.5fr 0.8fr 2fr; gap: 6px 12px; font-size: 13px; align-items:center;">
+                            <div id="${APP_PREFIX}domainConfig" class="${APP_PREFIX}settings-group" style="display:grid; grid-template-columns: 1.5fr 0.8fr 2fr; gap: 6px 12px; font-size: 13px; align-items:center;">
                                 <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666;">Nguồn</div>
                                 <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666; text-align:center;">Quét</div>
                                 <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666;">Hiển thị</div>
-
-                                <!-- Fanqie -->
-                                <span>Fanqie</span>
-                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_fanqie" type="checkbox" /></div>
-                                <select id="${APP_PREFIX}confTarget_fanqie" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
-                                     <option value="all">Tất cả</option>
-                                     <option value="wiki">Chỉ Wiki</option>
-                                     <option value="webhong">Chỉ Web Hồng</option>
-                                </select>
-
-                                <!-- JJWXC -->
-                                <span>Tấn Giang</span>
-                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_jjwxc" type="checkbox" /></div>
-                                <select id="${APP_PREFIX}confTarget_jjwxc" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
-                                     <option value="all">Tất cả</option>
-                                     <option value="wiki">Chỉ Wiki</option>
-                                     <option value="webhong">Chỉ Web Hồng</option>
-                                </select>
-
-                                <!-- PO18 -->
-                                <span>PO18</span>
-                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_po18" type="checkbox" /></div>
-                                <select id="${APP_PREFIX}confTarget_po18" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
-                                     <option value="all">Tất cả</option>
-                                     <option value="wiki">Chỉ Wiki</option>
-                                     <option value="webhong">Chỉ Web Hồng</option>
-                                </select>
-
-                                <!-- Ihuaben -->
-                                <span>Ihuaben</span>
-                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_ihuaben" type="checkbox" /></div>
-                                <select id="${APP_PREFIX}confTarget_ihuaben" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
-                                     <option value="all">Tất cả</option>
-                                     <option value="wiki">Chỉ Wiki</option>
-                                     <option value="webhong">Chỉ Web Hồng</option>
-                                </select>
-
-                                <!-- Qidian -->
-                                <span>Khởi Điểm</span>
-                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_qidian" type="checkbox" /></div>
-                                <select id="${APP_PREFIX}confTarget_qidian" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
-                                     <option value="all">Tất cả</option>
-                                     <option value="wiki">Chỉ Wiki</option>
-                                     <option value="webhong">Chỉ Web Hồng</option>
-                                </select>
-
-                                <!-- Qimao -->
-                                <span>Thất Miêu</span>
-                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_qimao" type="checkbox" /></div>
-                                <select id="${APP_PREFIX}confTarget_qimao" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
-                                     <option value="all">Tất cả</option>
-                                     <option value="wiki">Chỉ Wiki</option>
-                                     <option value="webhong">Chỉ Web Hồng</option>
-                                </select>
-
-                                <!-- Gongzicp -->
-                                <span>Trường Bội</span>
-                                <div style="text-align:center;"><input id="${APP_PREFIX}confDesc_gongzicp" type="checkbox" /></div>
-                                <select id="${APP_PREFIX}confTarget_gongzicp" class="${APP_PREFIX}select" style="padding: 2px; height: 26px;">
-                                     <option value="all">Tất cả</option>
-                                     <option value="wiki">Chỉ Wiki</option>
-                                     <option value="webhong">Chỉ Web Hồng</option>
-                                </select>
                             </div>
                         </div>
                     </div>
@@ -2004,26 +2091,71 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
         const settingsAiMode = shadowRoot.getElementById(`${APP_PREFIX}settingAiMode`);
         const settingsAutoExtractNames = shadowRoot.getElementById(`${APP_PREFIX}settingAutoExtractNames`);
 
-        const confDesc_fanqie = shadowRoot.getElementById(`${APP_PREFIX}confDesc_fanqie`);
-        const confTarget_fanqie = shadowRoot.getElementById(`${APP_PREFIX}confTarget_fanqie`);
+        const domainConfig = shadowRoot.getElementById(`${APP_PREFIX}domainConfig`);
+        const getDomainInputs = (id) => ({
+            desc: shadowRoot.getElementById(`${APP_PREFIX}confDesc_${id}`),
+            target: shadowRoot.getElementById(`${APP_PREFIX}confTarget_${id}`),
+        });
 
-        const confDesc_jjwxc = shadowRoot.getElementById(`${APP_PREFIX}confDesc_jjwxc`);
-        const confTarget_jjwxc = shadowRoot.getElementById(`${APP_PREFIX}confTarget_jjwxc`);
+        const renderDomainConfig = () => {
+            if (!domainConfig) return;
+            domainConfig.innerHTML = `
+                <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666;">Nguồn</div>
+                <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666; text-align:center;">Quét</div>
+                <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666;">Hiển thị</div>
+            `;
+            SITE_RULES.forEach((rule) => {
+                const def = DEFAULT_SETTINGS.domainSettings[rule.id] || {};
+                const labelText = def.label || rule.name || rule.id;
 
-        const confDesc_po18 = shadowRoot.getElementById(`${APP_PREFIX}confDesc_po18`);
-        const confTarget_po18 = shadowRoot.getElementById(`${APP_PREFIX}confTarget_po18`);
+                const label = document.createElement('div');
+                label.textContent = labelText;
 
-        const confDesc_ihuaben = shadowRoot.getElementById(`${APP_PREFIX}confDesc_ihuaben`);
-        const confTarget_ihuaben = shadowRoot.getElementById(`${APP_PREFIX}confTarget_ihuaben`);
+                const descWrap = document.createElement('div');
+                descWrap.style.textAlign = 'center';
+                const descInput = document.createElement('input');
+                descInput.type = 'checkbox';
+                descInput.id = `${APP_PREFIX}confDesc_${rule.id}`;
+                descInput.title = 'Quét văn án';
+                descWrap.appendChild(descInput);
 
-        const confDesc_qidian = shadowRoot.getElementById(`${APP_PREFIX}confDesc_qidian`);
-        const confTarget_qidian = shadowRoot.getElementById(`${APP_PREFIX}confTarget_qidian`);
+                const targetWrap = document.createElement('div');
+                const targetSelect = document.createElement('select');
+                targetSelect.id = `${APP_PREFIX}confTarget_${rule.id}`;
+                targetSelect.className = `${APP_PREFIX}select`;
+                targetSelect.style.width = '100%';
+                targetSelect.innerHTML = `
+                    <option value="">--- Tự động ---</option>
+                    <option value="wiki">Wikidich</option>
+                    <option value="webhong">Webhong</option>
+                `;
+                targetWrap.appendChild(targetSelect);
 
-        const confDesc_qimao = shadowRoot.getElementById(`${APP_PREFIX}confDesc_qimao`);
-        const confTarget_qimao = shadowRoot.getElementById(`${APP_PREFIX}confTarget_qimao`);
+                domainConfig.appendChild(label);
+                domainConfig.appendChild(descWrap);
+                domainConfig.appendChild(targetWrap);
+            });
+        };
 
-        const confDesc_gongzicp = shadowRoot.getElementById(`${APP_PREFIX}confDesc_gongzicp`);
-        const confTarget_gongzicp = shadowRoot.getElementById(`${APP_PREFIX}confTarget_gongzicp`);
+        const renderMoreLinkOptions = () => {
+            const listEl = shadowRoot.getElementById(`${APP_PREFIX}moreLinkOptions`);
+            if (listEl) {
+                const options = SITE_RULES.map(rule => {
+                    const label = rule.label || rule.name || rule.id;
+                    return `<option value="${label}"></option>`;
+                }).join('');
+                listEl.innerHTML = options;
+            }
+            const descInput = shadowRoot.getElementById(`${APP_PREFIX}moreLinkDesc`);
+            if (descInput) {
+                const labels = SITE_RULES.map(rule => rule.label || rule.name || rule.id).filter(Boolean);
+                const sample = labels.slice(0, 4).join(', ');
+                descInput.placeholder = `Mô tả (vd: ${sample}${labels.length > 4 ? ', ...' : ''})`;
+            }
+        };
+
+        renderDomainConfig();
+        renderMoreLinkOptions();
 
         const logBox = shadowRoot.getElementById(`${APP_PREFIX}log`);
         if (!showFloatingButton) btn.style.display = 'none';
@@ -2054,7 +2186,7 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
 
         // Show Help (User clicked ?)
         helpBtn.addEventListener('click', () => {
-            helpContentDiv.innerHTML = WELCOME_CONTENT; // Show full guide
+            helpContentDiv.innerHTML = buildWelcomeContent(); // Show full guide
             helpModal.style.display = 'flex';
         });
 
@@ -2066,7 +2198,7 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
 
             if (!storedVer) {
                 // New Install
-                helpContentDiv.innerHTML = WELCOME_CONTENT;
+                helpContentDiv.innerHTML = buildWelcomeContent();
                 helpModal.style.display = 'flex';
                 GM_setValue(`${APP_PREFIX}version`, currentVer);
             } else if (storedVer !== currentVer) {
@@ -2124,13 +2256,13 @@ Lưu ý: Phải là link có thông tin sách, không phải link chương.
             settingsAutoExtractNames.checked = s.autoExtractNames !== false; // default true
 
             const d = s.domainSettings || DEFAULT_SETTINGS.domainSettings;
-            if (d.fanqie) { confDesc_fanqie.checked = d.fanqie.useDesc; confTarget_fanqie.value = d.fanqie.target; }
-            if (d.jjwxc) { confDesc_jjwxc.checked = d.jjwxc.useDesc; confTarget_jjwxc.value = d.jjwxc.target; }
-            if (d.po18) { confDesc_po18.checked = d.po18.useDesc; confTarget_po18.value = d.po18.target; }
-            if (d.ihuaben) { confDesc_ihuaben.checked = d.ihuaben.useDesc; confTarget_ihuaben.value = d.ihuaben.target; }
-            if (d.qidian) { confDesc_qidian.checked = d.qidian.useDesc; confTarget_qidian.value = d.qidian.target; }
-            if (d.qimao) { confDesc_qimao.checked = d.qimao.useDesc; confTarget_qimao.value = d.qimao.target; }
-            if (d.gongzicp) { confDesc_gongzicp.checked = d.gongzicp.useDesc; confTarget_gongzicp.value = d.gongzicp.target; }
+            SITE_RULES.forEach((rule) => {
+                const inputs = getDomainInputs(rule.id);
+                const conf = d[rule.id];
+                if (!inputs.desc || !inputs.target || !conf) return;
+                inputs.desc.checked = !!conf.useDesc;
+                inputs.target.value = conf.target === 'all' ? '' : conf.target;
+            });
             settingsModal.style.display = 'flex';
         });
 
@@ -2470,21 +2602,25 @@ For arrays, return list of strings. If none fit, return empty array.
 
         // ------------------------------------
         function readSettingsFromUi() {
+            const domainSettings = {};
+            SITE_RULES.forEach((rule) => {
+                const inputs = getDomainInputs(rule.id);
+                if (!inputs.desc || !inputs.target) return;
+                const def = DEFAULT_SETTINGS.domainSettings[rule.id] || {};
+                const selectedTarget = inputs.target.value || 'all';
+                domainSettings[rule.id] = {
+                    label: def.label || rule.name || rule.id,
+                    useDesc: inputs.desc.checked,
+                    target: selectedTarget,
+                };
+            });
             return {
                 scoreThreshold: parseFloat(settingsThreshold.value),
                 aiMode: settingsAiMode.value,
                 geminiApiKey: settingsGeminiKey.value.trim(),
                 geminiModel: settingsGeminiModel.value.trim(),
                 autoExtractNames: settingsAutoExtractNames.checked,
-                domainSettings: {
-                    fanqie: { label: 'Fanqie', useDesc: confDesc_fanqie.checked, target: confTarget_fanqie.value },
-                    jjwxc: { label: 'Tấn Giang', useDesc: confDesc_jjwxc.checked, target: confTarget_jjwxc.value },
-                    po18: { label: 'PO18', useDesc: confDesc_po18.checked, target: confTarget_po18.value },
-                    ihuaben: { label: 'Ihuaben', useDesc: confDesc_ihuaben.checked, target: confTarget_ihuaben.value },
-                    qidian: { label: 'Khởi Điểm', useDesc: confDesc_qidian.checked, target: confTarget_qidian.value },
-                    qimao: { label: 'Thất Miêu', useDesc: confDesc_qimao.checked, target: confTarget_qimao.value },
-                    gongzicp: { label: 'Trường Bội', useDesc: confDesc_gongzicp.checked, target: confTarget_gongzicp.value },
-                }
+                domainSettings,
             };
         }
 
@@ -2514,60 +2650,25 @@ For arrays, return list of strings. If none fit, return empty array.
                 }
                 // ---------------------
 
-                log(`Nguồn: ${sourceInfo.type} | ID: ${sourceInfo.id}`);
+                const rule = getSiteRule(sourceInfo.type);
+                const ruleName = rule?.name ? ` (${rule.name})` : '';
+                log(`Nguồn: ${sourceInfo.type}${ruleName} | ID: ${sourceInfo.id}`);
                 GM_setValue(`${APP_PREFIX}last_url`, urlInput.value);
                 let raw = null;
                 let sourceData = null;
-                if (sourceInfo.type === 'fanqie') {
-                    log('Đang gọi API Fanqie...');
-                    raw = await fetchFanqieData(sourceInfo.id);
-                    sourceData = normalizeFanqieData(raw);
-                    log(`Fanqie OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
-                } else if (sourceInfo.type === 'jjwxc') {
-                    log('Đang gọi API JJWXC...');
-                    raw = await fetchJjwxcData(sourceInfo.id);
-                    sourceData = normalizeJjwxcData(raw);
-                    if (sourceData.coverUrl) {
-                        log('Đang xử lý ảnh bìa JJWXC...');
-                        sourceData.coverUrl = await processJjwxcCover(sourceData.coverUrl);
-                    }
-                    log(`JJWXC OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
-                } else if (sourceInfo.type === 'po18') {
-                    log('Đang gọi PO18...');
-                    raw = await fetchPo18Data(sourceInfo.id);
-                    sourceData = normalizePo18Data(raw);
-                    log(`PO18 OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
-                } else if (sourceInfo.type === 'ihuaben') {
-                    log('Đang gọi Ihuaben...');
-                    raw = await fetchIhuabenData(sourceInfo.id);
-                    sourceData = normalizeIhuabenData(raw);
-                    log(`Ihuaben OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
-                } else if (sourceInfo.type === 'qidian') {
-                    log('Đang gọi Qidian...');
-                    raw = await fetchQidianData(sourceInfo.id);
-                    sourceData = normalizeQidianData(raw);
-                    log(`Qidian OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
-                } else if (sourceInfo.type === 'qimao') {
-                    log('Đang gọi Qimao...');
-                    raw = await fetchQimaoData(sourceInfo.id);
-                    sourceData = normalizeQimaoData(raw);
-                    if (sourceData.coverUrl) {
-                        log('Đang xử lý ảnh bìa Qimao...');
-                        sourceData.coverUrl = await processQimaoCover(sourceData.coverUrl);
-                    }
-                    log(`Qimao OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
-                } else if (sourceInfo.type === 'gongzicp') {
-                    log('Đang gọi API Trường Bội...');
-                    raw = await fetchGongzicpData(sourceInfo.id);
-                    sourceData = normalizeGongzicpData(raw);
-                    if (sourceData.coverUrl) {
-                        log('Đang xử lý ảnh bìa Gongzicp...');
-                        sourceData.coverUrl = await processGongzicpCover(sourceData.coverUrl);
-                    }
-                    log(`Gongzicp OK: ${sourceData.titleCn || '(no title)'}`, 'ok');
-                } else {
+                if (!rule || !rule.fetch || !rule.normalize) {
                     log('Nguồn chưa hỗ trợ.', 'error');
                     return;
+                }
+                const fetchLabel = rule.name ? `Đang gọi ${rule.name}...` : 'Đang gọi nguồn...';
+                log(fetchLabel);
+                raw = await rule.fetch(sourceInfo.id);
+                sourceData = rule.normalize(raw);
+                const okLabel = rule.name ? `${rule.name} OK` : 'Nguồn OK';
+                log(`${okLabel}: ${sourceData.titleCn || '(no title)'}`, 'ok');
+                if (sourceData?.coverUrl && rule?.coverProcess) {
+                    log(`Đang xử lý ảnh bìa ${rule.name || sourceInfo.type}...`);
+                    sourceData.coverUrl = await rule.coverProcess(sourceData.coverUrl);
                 }
                 state.rawData = raw;
                 state.sourceData = sourceData;
@@ -2575,9 +2676,9 @@ For arrays, return list of strings. If none fit, return empty array.
                 state.sourceLabel = sourceData.sourceLabel;
                 log('Đã lấy dữ liệu. Đang dịch...');
 
-                const titleCn = safeText(sourceData.titleCn);
-                const authorCn = safeText(sourceData.authorCn);
-                const descCn = safeText(sourceData.descCn);
+                const titleCn = T.safeText(sourceData.titleCn);
+                const authorCn = T.safeText(sourceData.authorCn);
+                const descCn = T.safeText(sourceData.descCn);
                 const nameSetRaw = shadowRoot.getElementById(`${APP_PREFIX}nameSet`).value;
                 const nameSet = parseNameSet(nameSetRaw);
                 state.nameSet = nameSet;
@@ -2649,22 +2750,36 @@ For arrays, return list of strings. If none fit, return empty array.
             const extra = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}extraKeywords`).value);
             const baseKeywords = buildKeywordList(state.sourceData, state.translated);
             const combinedKeywords = baseKeywords.concat(extra);
-            const descCn = safeText(state.sourceData.descCn);
-            const descVi = safeText(state.translated?.desc || '');
+            const descCn = T.safeText(state.sourceData.descCn);
+            const descVi = T.safeText(state.translated?.desc || '');
             const useDesc = shouldUseDescForSource(state.sourceData?.sourceType);
-            const textParts = [combinedKeywords.join(' ')];
-            if (useDesc) textParts.unshift(descCn, descVi);
-            const textBlob = textParts.join(' ');
+            const contexts = [];
+            const metaText = combinedKeywords.join(' ');
+            if (metaText) {
+                contexts.push({
+                    text: normalizeKeepAccents(metaText),
+                    normText: T.normalizeText(metaText),
+                    weight: 1.5
+                });
+            }
+            if (useDesc) {
+                const descText = `${descCn} \n ${descVi}`;
+                contexts.push({
+                    text: normalizeKeepAccents(descText),
+                    normText: T.normalizeText(descText),
+                    weight: 1.0
+                });
+            }
 
             const threshold = getScoreThreshold();
             const suggestions = {
                 status: state.suggestions?.status || '',
                 official: state.suggestions?.official || '',
                 gender: state.suggestions?.gender || '',
-                age: pickMulti(scoreOptions(state.groups.age, combinedKeywords, textBlob), 4, true, false, threshold),
-                ending: pickMulti(scoreOptions(state.groups.ending, combinedKeywords, textBlob), 3, true, false, threshold),
-                genre: pickMulti(scoreOptions(state.groups.genre, combinedKeywords, textBlob), 8, true, false, threshold),
-                tag: pickMulti(scoreOptions(state.groups.tag, combinedKeywords, textBlob), MAX_TAGS_SELECT, true, true, threshold),
+                age: pickMulti(scoreOptions(state.groups.age, contexts), 4, true, false, threshold),
+                ending: pickMulti(scoreOptions(state.groups.ending, contexts), 3, true, false, threshold),
+                genre: pickMulti(scoreOptions(state.groups.genre, contexts), 8, true, false, threshold),
+                tag: pickMulti(scoreOptions(state.groups.tag, contexts), MAX_TAGS_SELECT, true, true, threshold),
             };
             state.suggestions = { ...state.suggestions, ...suggestions };
             fillText(`${APP_PREFIX}age`, suggestions.age.join(', '));
@@ -2709,8 +2824,8 @@ For arrays, return list of strings. If none fit, return empty array.
             applyCheckboxes(state.groups.tag, tagList.length ? tagList : state.suggestions?.tag || []);
 
             const sourceLabel = state.sourceLabel || 'Nguồn';
-            const finalLinkDesc = safeText(moreLinkDesc) || sourceLabel;
-            const finalLinkUrl = safeText(moreLinkUrl) || sourceUrl;
+            const finalLinkDesc = T.safeText(moreLinkDesc) || sourceLabel;
+            const finalLinkUrl = T.safeText(moreLinkUrl) || sourceUrl;
             setMoreLink(finalLinkDesc, finalLinkUrl);
             await applyCover(coverUrl, log);
             log('Đã áp dữ liệu vào form.', 'ok');
@@ -2845,7 +2960,7 @@ For arrays, return list of strings. If none fit, return empty array.
             closePanel();
         });
         helpBtn.addEventListener('click', () => {
-            helpContentDiv.innerHTML = WELCOME_CONTENT;
+            helpContentDiv.innerHTML = buildWelcomeContent();
             helpModal.style.display = 'flex';
         });
         helpClose.addEventListener('click', () => {
@@ -2870,7 +2985,7 @@ For arrays, return list of strings. If none fit, return empty array.
         shadowRoot.getElementById(`${APP_PREFIX}nameSet`).addEventListener('input', (ev) => {
             GM_setValue(`${APP_PREFIX}name_set`, ev.target.value || '');
         });
-        log('Sẵn sàng. Dán link Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp rồi bấm "Lấy dữ liệu".');
+        log(`Sẵn sàng. Dán link ${buildSiteDisplayList()} rồi bấm "Lấy dữ liệu".`);
 
         return {
             open: openPanel,
