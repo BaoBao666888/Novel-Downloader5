@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.1
+// @version      0.3.2
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -11,7 +11,7 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.1'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.2'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const REQUEST_DELAY_MS = 350;
@@ -51,6 +51,24 @@
     // --- UTILS ---
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function logUi(message, type) {
+        if (state && typeof state.log === 'function') {
+            state.log(message, type);
+            return;
+        }
+        if (type === 'error') console.error(message);
+        else if (type === 'warn') console.warn(message);
+        else console.log(message);
+    }
+
+    function openInBrowserTab(url) {
+        if (typeof GM_openInTab === 'function') {
+            GM_openInTab(url, { active: true, insert: true, setParent: true });
+            return;
+        }
+        window.open(url, '_blank', 'noopener');
     }
 
     function clampNumber(val, min, max, def) {
@@ -509,7 +527,7 @@
                 bg: '#f1f8e9',
                 border: '#8bc34a',
                 color: '#558b2f',
-                note: 'Hỗ trợ cơ bản',
+                note: 'Cover HD lấp lánh + Hỗ trợ cơ bản',
             },
             extractId: extractIhuabenId,
             fetch: fetchIhuabenData,
@@ -664,11 +682,17 @@
         return hdUrl;
     }
 
+    function processIhuabenCover(coverUrl) {
+        if (!coverUrl) return '';
+        return coverUrl.split('?')[0].split('@')[0];
+    }
+
     HELPERS.cover = {
         checkImageUrlValid,
         processJjwxcCover,
         processQimaoCover,
         processGongzicpCover,
+        processIhuabenCover,
     };
 
     // ================================================
@@ -875,8 +899,8 @@
                         '.cover img',
                         'meta[property="og:image"]',
                     ], 'content');
-                    if (cover && cover.includes('?')) cover = cover.split('?')[0];
                     cover = D.toAbsoluteUrl(cover, url);
+                    cover = processIhuabenCover(cover);
 
                     const introHtml = D.queryHtml(doc, [
                         '.infodetail .aboutbook',
@@ -921,76 +945,144 @@
         });
     }
 
+    function detectQidianCaptcha(html = '') {
+        const raw = (html || '').toString();
+        const lower = raw.toLowerCase();
+        return (
+            lower.includes('tcaptcha') ||
+            lower.includes('turing') ||
+            lower.includes('captcha') ||
+            lower.includes('waf') ||
+            raw.includes('安全验证') ||
+            raw.includes('验证码') ||
+            raw.includes('滑动验证') ||
+            raw.includes('访问过于频繁')
+        );
+    }
+
     function fetchQidianData(bookId) {
         const url = `https://www.qidian.com/book/${bookId}/`;
         return new Promise((resolve, reject) => {
-            GM_xmlhttpRequest({
-                method: 'GET',
-                url,
-                responseType: 'text',
-                onload(res) {
-                    const html = res.responseText || res.response || '';
-                    const doc = new DOMParser().parseFromString(html, 'text/html');
+            const maxRetry = 2;
+            const parseHtml = (html) => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
 
-                    const title = D.queryText(doc, ['h1#bookName', '.book-info-top h1#bookName'])
-                        || D.queryAttr(doc, ['meta[property="og:novel:book_name"]', 'meta[property="og:title"]'], 'content');
+                const title = D.queryText(doc, ['h1#bookName', '.book-info-top h1#bookName'])
+                    || D.queryAttr(doc, ['meta[property="og:novel:book_name"]', 'meta[property="og:title"]'], 'content');
 
-                    let author = D.queryText(doc, ['.book-meta .author', 'span.author', 'a.writer-name']);
-                    if (!author) {
-                        author = D.queryAttr(doc, ['meta[property="og:novel:author"]'], 'content');
-                    }
-                    author = author.replace(/^作者[:：]\s*/i, '');
+                let author = D.queryText(doc, ['.book-meta .author', 'span.author', 'a.writer-name']);
+                if (!author) {
+                    author = D.queryAttr(doc, ['meta[property="og:novel:author"]'], 'content');
+                }
+                author = author.replace(/^作者[:：]\s*/i, '');
 
-                    let cover = D.queryAttr(doc, ['meta[property="og:image"]'], 'content');
-                    if (!cover) {
-                        cover = D.queryAttr(doc, ['.book-detail-img img', '.book-author img', '#bookImg img'], 'src');
-                    }
-                    cover = D.toAbsoluteUrl(cover, url);
-                    cover = cover.replace(/\/\d+(\.\w+)?$/, '/600.webp');
+                let cover = D.queryAttr(doc, ['meta[property="og:image"]'], 'content');
+                if (!cover) {
+                    cover = D.queryAttr(doc, ['.book-detail-img img', '.book-author img', '#bookImg img'], 'src');
+                }
+                cover = D.toAbsoluteUrl(cover, url);
+                cover = cover.replace(/\/\d+(\.\w+)?$/, '/600.webp');
 
-                    const introHtml = D.queryHtml(doc, [
-                        '.intro-detail p#book-intro-detail',
-                        '.intro-detail',
-                        'p.intro',
-                    ]);
-                    let intro = introHtml ? T.htmlToText(introHtml) : '';
-                    if (!intro) {
-                        const metaDesc = D.queryAttr(doc, [
-                            'meta[property="og:description"]',
-                            'meta[name="description"]',
-                        ], 'content');
-                        if (metaDesc) intro = T.htmlToText(metaDesc);
-                    }
+                const introHtml = D.queryHtml(doc, [
+                    '.intro-detail p#book-intro-detail',
+                    '.intro-detail',
+                    'p.intro',
+                ]);
+                let intro = introHtml ? T.htmlToText(introHtml) : '';
+                if (!intro) {
+                    const metaDesc = D.queryAttr(doc, [
+                        'meta[property="og:description"]',
+                        'meta[name="description"]',
+                    ], 'content');
+                    if (metaDesc) intro = T.htmlToText(metaDesc);
+                }
 
-                    const tagTexts = D.collectTexts(doc, [
-                        '.intro-honor-label p.all-label a',
-                        '.intro-honor-label a',
-                        '.all-label a',
-                    ]);
+                const tagTexts = D.collectTexts(doc, [
+                    '.intro-honor-label p.all-label a',
+                    '.intro-honor-label a',
+                    '.all-label a',
+                ]);
 
-                    const categories = D.collectTexts(doc, [
-                        '.book-attribute a',
-                    ]);
+                const categories = D.collectTexts(doc, [
+                    '.book-attribute a',
+                ]);
 
-                    let statusHint = D.queryAttr(doc, ['meta[property="og:novel:status"]'], 'content');
-                    if (!statusHint) {
-                        statusHint = D.queryText(doc, ['.book-attribute span']);
-                    }
+                let statusHint = D.queryAttr(doc, ['meta[property="og:novel:status"]'], 'content');
+                if (!statusHint) {
+                    statusHint = D.queryText(doc, ['.book-attribute span']);
+                }
 
-                    resolve({
-                        title,
-                        author,
-                        intro,
-                        coverUrl: cover,
-                        tags: Array.from(new Set(T.parseTagList(tagTexts.join(',')))),
-                        categories: Array.from(new Set(T.parseTagList(categories.join(',')))),
-                        statusHint,
-                    });
-                },
-                onerror(err) {
-                    reject(err);
-                },
+                return {
+                    title,
+                    author,
+                    intro,
+                    coverUrl: cover,
+                    tags: Array.from(new Set(T.parseTagList(tagTexts.join(',')))),
+                    categories: Array.from(new Set(T.parseTagList(categories.join(',')))),
+                    statusHint,
+                };
+            };
+
+            const requestHtml = () => new Promise((resolve, reject) => {
+                if (typeof GM_xmlhttpRequest !== 'function') {
+                    reject(new Error('GM_xmlhttpRequest không tồn tại.'));
+                    return;
+                }
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url,
+                    responseType: 'text',
+                    timeout: 12000,
+                    headers: {
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache',
+                        'Upgrade-Insecure-Requests': '1',
+                        'Referer': url,
+                    },
+                    anonymous: false,
+                    withCredentials: true,
+                    onload(res) {
+                        resolve(res.responseText || res.response || '');
+                    },
+                    onerror(err) {
+                        reject(err);
+                    },
+                    ontimeout() {
+                        reject(new Error('Qidian request timeout'));
+                    },
+                });
             });
+
+            const tryFetch = async (attempt) => {
+                const html = await requestHtml();
+                const isCaptcha = detectQidianCaptcha(html);
+                const data = parseHtml(html);
+                if (!data.title && !data.author) {
+                    if (attempt < maxRetry) {
+                        if (attempt === 1) {
+                            const msg = isCaptcha
+                                ? 'Fallback dùng trình duyệt: mở tab Qidian để xác thực/cập nhật cookie...'
+                                : 'Fallback dùng trình duyệt: mở tab Qidian để tải lại dữ liệu...';
+                            logUi(msg, 'warn');
+                            openInBrowserTab(url);
+                            await sleep(6000);
+                        }
+                        return tryFetch(attempt + 1);
+                    }
+                    throw new Error('Qidian bị chặn. Vui lòng xác thực trong tab Qidian rồi thử lại.');
+                }
+                return data;
+            };
+
+            (async () => {
+                try {
+                    const data = await tryFetch(1);
+                    resolve(data);
+                } catch (err) {
+                    reject(err);
+                }
+            })();
         });
     }
 
@@ -1756,15 +1848,22 @@
     // ================================================
 
     const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">🚀 Phiên bản 0.3.1 - AI Name Extraction!</span></h2>
+<h2><span style="color:#673ab7; font-size: 1.2em;">🚀 Phiên bản 0.3.2</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li>🪄 <b>Auto Tách Tên (MỚI!):</b> AI tự động trích xuất <span style="color:#e91e63;">tên nhân vật, địa danh</span> → điền "Bộ name" → dịch lại văn án với bộ tên chuẩn Hán-Việt!</li>
-    <li>🔗 <b>1 Request Thông Minh:</b> Gộp tách tên + chọn tag trong 1 lần gọi AI → <span style="color:#4caf50;">context đầy đủ, chính xác hơn!</span></li>
-    <li>🌊 <b>Gongzicp Fix:</b> Sửa lỗi status (Hoàn thành/Còn tiếp) từ <code>novel_process</code>.</li>
-    <li>⚙️ <b>Cài đặt mới:</b> Toggle "Auto Tách Names" trong Settings (mặc định BẬT).</li>
+    <li>🌸 <b>Ihuaben:</b> Bổ sung ảnh bìa HD, nét căng như sương mai đầu ngõ.</li>
+    <li>🧚 <b>AI thủ công:</b> Thêm nút “AI thủ công” để bạn tự tay copy prompt, dán JSON — chủ động, mượt mà, đậm chất phù thủy.</li>
+    <li>🛡️ <b>Qidian:</b> Giảm báo sai captcha (TCaptcha vẫn có thể xuất hiện nhưng data vẫn đọc được).</li>
 </ul>
 
-<h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.0 (Trước đó)</h3>
+<h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.1</h3>
+<ul style="list-style-type: none; padding-left: 0; font-size: 13px; color: #666;">
+    <li>🪄 Auto Tách Tên (AI trích xuất tên nhân vật/địa danh → điền "Bộ name").</li>
+    <li>🔗 Gộp tách tên + chọn tag trong 1 lần gọi AI.</li>
+    <li>🌊 Sửa lỗi status Gongzicp (Hoàn thành/Còn tiếp).</li>
+    <li>⚙️ Thêm tùy chọn Auto Tách Names trong Settings.</li>
+</ul>
+
+<h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.0</h3>
 <ul style="list-style-type: none; padding-left: 0; font-size: 13px; color: #666;">
     <li>🌊 Trường Bội (Gongzicp): Cover HD, Tự động lọc query.</li>
     <li>🧠 Auto Smart: Chuẩn hóa logic nhận diện.</li>
@@ -1803,6 +1902,7 @@
         <li><b>Bước 3:</b> Chờ tool chạy dịch và phân tích (Auto hoặc AI).</li>
         <li><b>Bước 4:</b> Kiểm tra các ô thông tin trên bảng Panel (Tag, Thể loại...).</li>
         <li><b>Mẹo:</b> Dùng nút <b>Recompute</b> khi bạn thêm "Từ khóa bổ sung" để gợi ý lại tag/thể loại.</li>
+        <li><b>Qidian:</b> Nếu không có kết quả, hãy thử lại vài lần.</li>
         <li><b>Bước 5:</b> Nếu OK, bấm nút <b style="color:#ff9800;">Áp vào form</b> dưới cùng.</li>
         <li><b>Bước 6:</b> Bấm <b style="color:green;">Nhúng</b> của Web để đăng!</li>
     </ol>
@@ -1881,6 +1981,9 @@
                 padding: 8px 10px; cursor: pointer; font-size: 13px; margin-right: 6px;
             }
             .${APP_PREFIX}btn.secondary { background: #6c757d; }
+            .${APP_PREFIX}btn.manual-ai { background: linear-gradient(135deg, #7e57c2, #42a5f5); color: #fff; }
+            .${APP_PREFIX}btn.manual-ai-copy { background: linear-gradient(135deg, #26c6da, #26a69a); color: #fff; }
+            .${APP_PREFIX}btn.manual-ai-paste { background: linear-gradient(135deg, #ff7043, #ffb74d); color: #fff; }
             .${APP_PREFIX}icon-btn {
                 background: #fff; border: 1px solid #bbb; color: #333; border-radius: 50%;
                 width: 26px; height: 26px; font-weight: bold; font-size: 14px;
@@ -1944,6 +2047,7 @@
                     <div class="${APP_PREFIX}row">
                         <button id="${APP_PREFIX}fetch" class="${APP_PREFIX}btn">Lấy dữ liệu</button>
                         <button id="${APP_PREFIX}recompute" class="${APP_PREFIX}btn secondary">Recompute</button>
+                        <button id="${APP_PREFIX}manualAi" class="${APP_PREFIX}btn manual-ai">AI thủ công</button>
                     </div>
                     <div class="${APP_PREFIX}row">
                         <div id="${APP_PREFIX}log" class="${APP_PREFIX}log"></div>
@@ -2071,6 +2175,27 @@
                     </div>
                 </div>
             </div>
+            <div id="${APP_PREFIX}manualAiModal" class="${APP_PREFIX}modal">
+                <div class="${APP_PREFIX}modal-card">
+                    <div class="${APP_PREFIX}modal-title" style="color:#3b2c8a;">AI thủ công ✨</div>
+                    <div class="${APP_PREFIX}modal-body">
+                        <div style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); padding: 12px; border-radius: 10px; border-left: 4px solid #7e57c2;">
+                            <ol style="margin-left: 15px; padding-left: 0;">
+                                <li><b>Bước 1:</b> Copy prompt để dán vào AI của bạn.</li>
+                                <li><b>Bước 2:</b> Nhận kết quả JSON từ AI, rồi dán lại vào tool.</li>
+                                <li><b>Bước 3:</b> Tool sẽ áp kết quả ngay lập tức.</li>
+                            </ol>
+                            <div style="display:flex; gap:10px; margin-top: 8px; flex-wrap: wrap;">
+                                <button id="${APP_PREFIX}manualAiCopy" class="${APP_PREFIX}btn manual-ai-copy">Copy Prompt</button>
+                                <button id="${APP_PREFIX}manualAiPaste" class="${APP_PREFIX}btn manual-ai-paste">Dán Kết Quả</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="${APP_PREFIX}modal-actions">
+                        <button id="${APP_PREFIX}manualAiClose" class="${APP_PREFIX}btn secondary">Đóng</button>
+                    </div>
+                </div>
+            </div>
         `;
 
         const btn = shadowRoot.getElementById(`${APP_PREFIX}btn`);
@@ -2090,6 +2215,11 @@
         const settingsGeminiModel = shadowRoot.getElementById(`${APP_PREFIX}settingGeminiModel`);
         const settingsAiMode = shadowRoot.getElementById(`${APP_PREFIX}settingAiMode`);
         const settingsAutoExtractNames = shadowRoot.getElementById(`${APP_PREFIX}settingAutoExtractNames`);
+        const manualAiBtn = shadowRoot.getElementById(`${APP_PREFIX}manualAi`);
+        const manualAiModal = shadowRoot.getElementById(`${APP_PREFIX}manualAiModal`);
+        const manualAiCopy = shadowRoot.getElementById(`${APP_PREFIX}manualAiCopy`);
+        const manualAiPaste = shadowRoot.getElementById(`${APP_PREFIX}manualAiPaste`);
+        const manualAiClose = shadowRoot.getElementById(`${APP_PREFIX}manualAiClose`);
 
         const domainConfig = shadowRoot.getElementById(`${APP_PREFIX}domainConfig`);
         const getDomainInputs = (id) => ({
@@ -2184,6 +2314,77 @@
             if (ev.target === helpModal) helpModal.style.display = 'none';
         });
 
+        manualAiBtn.addEventListener('click', () => {
+            if (!state.sourceData) {
+                log('Chưa có dữ liệu truyện (Fetch data trước).', 'error');
+                return;
+            }
+            manualAiModal.style.display = 'flex';
+        });
+        manualAiClose.addEventListener('click', () => {
+            manualAiModal.style.display = 'none';
+        });
+        manualAiCopy.addEventListener('click', async () => {
+            const context = buildAiContext();
+            if (!context) return;
+            const prompt = buildAiPrompt(context.shouldExtractNames, context.availableOptions);
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(prompt);
+                } else {
+                    window.prompt('Copy prompt', prompt);
+                }
+                log('Đã copy prompt AI.', 'ok');
+            } catch (err) {
+                log('Lỗi copy prompt: ' + err.message, 'error');
+            }
+        });
+        const handleManualAiText = async (text, context) => {
+            const raw = (text || '').toString().trim();
+            if (!raw) {
+                log('Không có dữ liệu để dán.', 'warn');
+                return false;
+            }
+            let result = null;
+            try {
+                result = JSON.parse(raw);
+            } catch (err) {
+                throw new Error('JSON không hợp lệ: ' + err.message);
+            }
+            await applyAiResult(result, context.shouldExtractNames, context.availableOptions);
+            return true;
+        };
+        manualAiPaste.addEventListener('click', async () => {
+            const context = buildAiContext();
+            if (!context) return;
+            try {
+                let text = '';
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    text = await navigator.clipboard.readText();
+                } else {
+                    text = window.prompt('Dán kết quả AI (JSON) vào đây') || '';
+                }
+                const ok = await handleManualAiText(text, context);
+                if (ok) manualAiModal.style.display = 'none';
+            } catch (err) {
+                log('Lỗi dán kết quả AI: ' + err.message, 'error');
+            }
+        });
+        manualAiModal.addEventListener('paste', async (ev) => {
+            if (manualAiModal.style.display !== 'flex') return;
+            const text = ev.clipboardData?.getData('text') || '';
+            if (!text) return;
+            ev.preventDefault();
+            const context = buildAiContext();
+            if (!context) return;
+            try {
+                const ok = await handleManualAiText(text, context);
+                if (ok) manualAiModal.style.display = 'none';
+            } catch (err) {
+                log('Lỗi dán kết quả AI: ' + err.message, 'error');
+            }
+        });
+
         // Show Help (User clicked ?)
         helpBtn.addEventListener('click', () => {
             helpContentDiv.innerHTML = buildWelcomeContent(); // Show full guide
@@ -2218,6 +2419,7 @@
             logBox.appendChild(line);
             logBox.scrollTop = logBox.scrollHeight;
         }
+        state.log = log;
 
         function fillSelect(selectEl, options, suggested) {
             selectEl.innerHTML = '';
@@ -2384,25 +2586,14 @@ Trả về dạng JSON array: [{"cn": "Tên_Trung", "vi": "Hán_Việt"}]
             }
         }
 
-        async function runAIAnalysis() {
+        const buildAiContext = () => {
             if (!state.sourceData) {
                 log('Chưa có dữ liệu truyện (Fetch data trước).', 'error');
-                return;
+                return null;
             }
-            const apiKey = state.settings.geminiApiKey;
-            if (!apiKey) {
-                log('Chưa nhập API Key Gemini trong Cài đặt.', 'error');
-                return;
-            }
-
-            // --- Auto Extract Names (combined with tag selection) ---
             const shouldExtractNames = state.settings.autoExtractNames !== false && state.sourceData.descCn;
-
-            log('Đang gửi dữ liệu sang Gemini AI...', 'info');
-
             const groups = getGroupOptions();
             const getLabels = (grp) => grp ? grp.map(x => x.label) : [];
-
             const availableOptions = {
                 status: getLabels(groups.status),
                 gender: getLabels(groups.gender),
@@ -2412,7 +2603,10 @@ Trả về dạng JSON array: [{"cn": "Tên_Trung", "vi": "Hán_Việt"}]
                 genre: getLabels(groups.genre),
                 tag: getLabels(groups.tag),
             };
+            return { shouldExtractNames, availableOptions };
+        };
 
+        const buildAiPrompt = (shouldExtractNames, availableOptions) => {
             const novelInfo = {
                 title: state.sourceData.titleCn,
                 author: state.sourceData.authorCn,
@@ -2420,10 +2614,8 @@ Trả về dạng JSON array: [{"cn": "Tên_Trung", "vi": "Hán_Việt"}]
                 tags: (state.sourceData.tags || []).join(', ')
             };
 
-            // Build prompt based on whether we need name extraction
-            let prompt;
             if (shouldExtractNames) {
-                prompt = `
+                return `
 You are a novel classifier and name extractor for Wikidich. Analyze the novel info, extract character names, and map categories to the provided JSON lists.
 
 Novel Info:
@@ -2459,8 +2651,9 @@ Output JSON format:
 }
 For arrays, return list of strings. If none fit, return empty array.
                 `.trim();
-            } else {
-                prompt = `
+            }
+
+            return `
 You are a novel classifier for Wikidich. Analyze the novel info and map it to the provided JSON lists.
 Info:
 Title: ${novelInfo.title}
@@ -2480,117 +2673,135 @@ Available Lists (Choose from these ONLY):
 Output JSON format: { "status": "...", "gender": "...", "official": "...", "age": [...], "ending": [...], "genre": [...], "tag": [...] }
 For arrays, return list of strings. If none fit, return empty array.
                 `.trim();
+        };
+
+        const applyAiResult = async (result, shouldExtractNames, availableOptions) => {
+            if (shouldExtractNames && result.names && Array.isArray(result.names) && result.names.length > 0) {
+                const extractedNames = result.names;
+                const nameSetEl = shadowRoot.getElementById(`${APP_PREFIX}nameSet`);
+                if (nameSetEl) {
+                    const existingLines = nameSetEl.value.trim().split('\n').filter(Boolean);
+                    const existingKeys = new Set(existingLines.map(l => l.split('=')[0]));
+                    const newLines = extractedNames
+                        .filter(n => n.cn && n.vi && !existingKeys.has(n.cn))
+                        .map(n => `${n.cn}=${n.vi}`);
+                    if (newLines.length > 0) {
+                        nameSetEl.value = [...existingLines, ...newLines].join('\n');
+                    }
+                }
+                log(`Đã tách ${extractedNames.length} tên.`, 'ok');
+
+                log('Đang dịch lại văn án với bộ tên mới...', 'info');
+                const newNameSet = {};
+                extractedNames.forEach(n => { if (n.cn && n.vi) newNameSet[n.cn] = n.vi; });
+                const reTranslatedDesc = await translateTextWithNameSet(state.sourceData.descCn, newNameSet, true);
+                if (reTranslatedDesc) {
+                    state.translated = state.translated || {};
+                    state.translated.desc = reTranslatedDesc;
+                    const descViEl = shadowRoot.getElementById(`${APP_PREFIX}descVi`);
+                    if (descViEl) descViEl.value = reTranslatedDesc;
+                    log('Đã dịch lại văn án với bộ tên.', 'ok');
+                }
             }
+
+            const validateParams = (key, value, isArray) => {
+                const validList = availableOptions[key] || [];
+                const validSet = new Set(validList.map(x => x.toLowerCase().trim()));
+
+                if (!value) return isArray ? [] : '';
+
+                if (isArray) {
+                    if (!Array.isArray(value)) return [];
+                    const valid = [];
+                    const invalid = [];
+                    value.forEach(v => {
+                        const strV = String(v);
+                        if (validSet.has(strV.toLowerCase().trim())) {
+                            const exact = validList.find(x => x.toLowerCase().trim() === strV.toLowerCase().trim());
+                            valid.push(exact || strV);
+                        } else {
+                            invalid.push(strV);
+                        }
+                    });
+                    if (invalid.length) log(`AI suggest rác [${key}]: ${invalid.join(', ')}`, 'warn');
+                    return valid;
+                } else {
+                    const strValue = String(value);
+                    if (validSet.has(strValue.toLowerCase().trim())) {
+                        const exact = validList.find(x => x.toLowerCase().trim() === strValue.toLowerCase().trim());
+                        return exact || strValue;
+                    } else {
+                        log(`AI suggest rác [${key}]: ${strValue}`, 'warn');
+                        return '';
+                    }
+                }
+            };
+
+            result.status = validateParams('status', result.status, false);
+            result.gender = validateParams('gender', result.gender, false);
+            result.official = validateParams('official', result.official, false);
+
+            result.age = validateParams('age', result.age, true);
+            result.ending = validateParams('ending', result.ending, true);
+            result.genre = validateParams('genre', result.genre, true);
+            result.tag = validateParams('tag', result.tag, true);
+
+            if (result.status) shadowRoot.getElementById(`${APP_PREFIX}status`).value = result.status;
+            if (result.gender) shadowRoot.getElementById(`${APP_PREFIX}gender`).value = result.gender;
+            if (result.official) shadowRoot.getElementById(`${APP_PREFIX}official`).value = result.official;
+
+            if (result.age && result.age.length) {
+                shadowRoot.getElementById(`${APP_PREFIX}age`).value = result.age.join(', ');
+            }
+            if (result.ending && result.ending.length) {
+                shadowRoot.getElementById(`${APP_PREFIX}ending`).value = result.ending.join(', ');
+            }
+            if (result.genre && result.genre.length) {
+                shadowRoot.getElementById(`${APP_PREFIX}genre`).value = result.genre.join(', ');
+            }
+            if (result.tag && result.tag.length) {
+                shadowRoot.getElementById(`${APP_PREFIX}tag`).value = result.tag.join(', ');
+            }
+
+            state.suggestions = {
+                status: result.status || '',
+                official: result.official || '',
+                gender: result.gender || '',
+                age: result.age || [],
+                ending: result.ending || [],
+                genre: result.genre || [],
+                tag: result.tag || [],
+            };
+
+            log('AI đã đề xuất xong. Hãy kiểm tra lại và bấm "Áp vào form".', 'ok');
+        };
+
+        async function runAIAnalysis() {
+            if (!state.sourceData) {
+                log('Chưa có dữ liệu truyện (Fetch data trước).', 'error');
+                return;
+            }
+            const apiKey = state.settings.geminiApiKey;
+            if (!apiKey) {
+                log('Chưa nhập API Key Gemini trong Cài đặt.', 'error');
+                return;
+            }
+
+            const context = buildAiContext();
+            if (!context) return;
+            const shouldExtractNames = context.shouldExtractNames;
+
+            log('Đang gửi dữ liệu sang Gemini AI...', 'info');
+
+            const availableOptions = context.availableOptions;
+            const prompt = buildAiPrompt(shouldExtractNames, availableOptions);
 
             try {
                 const result = await callGemini(prompt, apiKey, state.settings.geminiModel);
                 log('AI đã phân tích xong. Đang áp dụng...');
                 console.log('AI Result:', result);
 
-                // Process extracted names if available
-                if (shouldExtractNames && result.names && Array.isArray(result.names) && result.names.length > 0) {
-                    const extractedNames = result.names;
-                    const nameSetEl = shadowRoot.getElementById(`${APP_PREFIX}nameSet`);
-                    if (nameSetEl) {
-                        const existingLines = nameSetEl.value.trim().split('\n').filter(Boolean);
-                        const existingKeys = new Set(existingLines.map(l => l.split('=')[0]));
-                        const newLines = extractedNames
-                            .filter(n => n.cn && n.vi && !existingKeys.has(n.cn))
-                            .map(n => `${n.cn}=${n.vi}`);
-                        if (newLines.length > 0) {
-                            nameSetEl.value = [...existingLines, ...newLines].join('\n');
-                        }
-                    }
-                    log(`Đã tách ${extractedNames.length} tên.`, 'ok');
-
-                    // Re-translate description with new name set
-                    log('Đang dịch lại văn án với bộ tên mới...', 'info');
-                    const newNameSet = {};
-                    extractedNames.forEach(n => { if (n.cn && n.vi) newNameSet[n.cn] = n.vi; });
-                    const reTranslatedDesc = await translateTextWithNameSet(state.sourceData.descCn, newNameSet, true);
-                    if (reTranslatedDesc) {
-                        state.translated = state.translated || {};
-                        state.translated.desc = reTranslatedDesc;
-                        const descViEl = shadowRoot.getElementById(`${APP_PREFIX}descVi`);
-                        if (descViEl) descViEl.value = reTranslatedDesc;
-                        log('Đã dịch lại văn án với bộ tên.', 'ok');
-                    }
-                }
-
-                // Helper to validate against available options
-                const validateParams = (key, value, isArray) => {
-                    const validList = availableOptions[key] || [];
-                    const validSet = new Set(validList.map(x => x.toLowerCase().trim()));
-
-                    if (!value) return isArray ? [] : '';
-
-                    if (isArray) {
-                        if (!Array.isArray(value)) return [];
-                        const valid = [];
-                        const invalid = [];
-                        value.forEach(v => {
-                            const strV = String(v); // Force string
-                            if (validSet.has(strV.toLowerCase().trim())) {
-                                // Find exact original case
-                                const exact = validList.find(x => x.toLowerCase().trim() === strV.toLowerCase().trim());
-                                valid.push(exact || strV);
-                            } else {
-                                invalid.push(strV);
-                            }
-                        });
-                        if (invalid.length) log(`AI suggest rác [${key}]: ${invalid.join(', ')}`, 'warn');
-                        return valid;
-                    } else {
-                        // Single value
-                        const strValue = String(value);
-                        if (validSet.has(strValue.toLowerCase().trim())) {
-                            const exact = validList.find(x => x.toLowerCase().trim() === strValue.toLowerCase().trim());
-                            return exact || strValue;
-                        } else {
-                            log(`AI suggest rác [${key}]: ${strValue}`, 'warn');
-                            return '';
-                        }
-                    }
-                };
-
-                // Validate and Clean result
-                result.status = validateParams('status', result.status, false);
-                result.gender = validateParams('gender', result.gender, false);
-                result.official = validateParams('official', result.official, false);
-
-                result.age = validateParams('age', result.age, true);
-                result.ending = validateParams('ending', result.ending, true);
-                result.genre = validateParams('genre', result.genre, true);
-                result.tag = validateParams('tag', result.tag, true);
-
-                if (result.status) shadowRoot.getElementById(`${APP_PREFIX}status`).value = result.status;
-                if (result.gender) shadowRoot.getElementById(`${APP_PREFIX}gender`).value = result.gender;
-                if (result.official) shadowRoot.getElementById(`${APP_PREFIX}official`).value = result.official;
-
-                if (result.age && result.age.length) {
-                    shadowRoot.getElementById(`${APP_PREFIX}age`).value = result.age.join(', ');
-                }
-                if (result.ending && result.ending.length) {
-                    shadowRoot.getElementById(`${APP_PREFIX}ending`).value = result.ending.join(', ');
-                }
-                if (result.genre && result.genre.length) {
-                    shadowRoot.getElementById(`${APP_PREFIX}genre`).value = result.genre.join(', ');
-                }
-                if (result.tag && result.tag.length) {
-                    shadowRoot.getElementById(`${APP_PREFIX}tag`).value = result.tag.join(', ');
-                }
-
-                state.suggestions = {
-                    status: result.status || '',
-                    official: result.official || '',
-                    gender: result.gender || '',
-                    age: result.age || [],
-                    ending: result.ending || [],
-                    genre: result.genre || [],
-                    tag: result.tag || [],
-                };
-
-                log('AI đã đề xuất xong. Hãy kiểm tra lại và bấm "Áp vào form".', 'ok');
+                await applyAiResult(result, shouldExtractNames, availableOptions);
             } catch (err) {
                 log('Lỗi AI: ' + err.message, 'error');
             }
