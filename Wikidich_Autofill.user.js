@@ -2569,23 +2569,6 @@
             });
         }
 
-        async function extractNamesWithAI(descCn, apiKey, model) {
-            const prompt = `Văn án tiếng Trung:
-${descCn}
-
-Hãy trích xuất tất cả tên nhân vật (nam/nữ chính, nam/nữ phụ), địa danh, danh xưng quan trọng từ văn án trên.
-Trả về dạng JSON array: [{"cn": "Tên_Trung", "vi": "Hán_Việt"}]
-Ưu tiên phiên âm Hán-Việt cho phần "vi". Chỉ trả JSON, không giải thích gì thêm.`;
-            try {
-                const result = await callGemini(prompt, apiKey, model);
-                if (Array.isArray(result)) return result;
-                return [];
-            } catch (e) {
-                log('Lỗi tách tên AI: ' + e.message, 'error');
-                return [];
-            }
-        }
-
         const buildAiContext = () => {
             if (!state.sourceData) {
                 log('Chưa có dữ liệu truyện (Fetch data trước).', 'error');
@@ -2628,6 +2611,9 @@ Description (Vietnamese): ${state.translated?.desc || ''}
 TASK 1: Extract all important names (characters, locations, titles) from the Chinese description.
 Return them as "names" array with format: [{"cn": "中文名", "vi": "Hán-Việt"}]
 Prioritize Hán-Việt pronunciation for "vi" field.
+- EXCLUDE pronouns/titles/common-role phrases (not proper names): 女主, 男主, 女配, 男配, 男二, 女二, 反派, 系统, 师尊, 师父, 徒弟, 兄长, 师兄, 师妹, 小姐, 少爷, 公爵, 王爷, 皇帝, 皇后, 太子, 贵妃, 圣女, 侍女, 侍卫, 丫鬟, 书童, 管家, 大人, 先生, 小姐, 夫人, 公子, 少主, 掌门, 宗主, 长老, 魔尊, 大妖, 等等.
+- Vietnamese name casing: do NOT Title-Case generic roles/kinship terms. Example: "女主" should NOT become "Nữ Chủ" (skip entirely). "叶哥哥" should map to "Diệp ca ca" (not "Diệp Ca Ca").
+- If a term is just a common phrase with meaning (not a unique proper name), skip it.
 
 TASK 2: Classify the novel using ONLY the provided lists:
 - status: ${JSON.stringify(availableOptions.status)} // Pick 1
