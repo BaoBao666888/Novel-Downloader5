@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.3.9_beta
+// @version      3.5.0_beta
 // @description  Dịch trang, quản lý name-sets, sửa tên, chế độ đọc rút gọn và tùy chỉnh giao diện.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -28,10 +28,9 @@
 // @connect      release-assets.githubusercontent.com
 // @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/translate/zh_to_vi/translateZhToVi.js
 // @require      https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js
-// @require      https://unpkg.com/fflate@0.8.2/umd/index.js
 // @require      https://unpkg.com/@oovz/esearch-ocr/dist/eSearchOCR.umd.js
 // @require      https://unpkg.com/onnxruntime-web@1.22.0/dist/ort.wasm.min.js
-// @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
+// @require      https://unpkg.com/fflate@0.8.2/umd/index.js
 // ==/UserScript==
 
 /* global chrome */
@@ -60,6 +59,7 @@
         },
         targetLang: 'vi',
         delayMs: 400,
+        retryCount: 3,
         maxCharsPerRequest: 4500,
         includeScriptStyle: false,
         activeNameSet: 'Mặc định',
@@ -67,6 +67,7 @@
             'Mặc định': {
             }
         },
+        nameSetVersion: 1,
         hanvietJsonUrl: 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/han_viet/output.json',
         simplifiedEnabled: false,
         simplifiedBlockJS: true,
@@ -93,11 +94,33 @@
         autoTranslateOnScroll: true,
         nameEditingEnabled: true,
         allowCopyWhenEditing: true,
+        showLibraryButton: true,
+        readerPrefetchPercent: 50,
+        readerMode: 'vertical', // single | vertical
+        readerFullscreen: false,
+        readerStyle: {
+            fontFamily: "Noto Serif, 'Times New Roman', serif",
+            fontSize: 18,
+            lineHeight: 1.9,
+            bgColor: '#f7f4ee',
+            textColor: '#1f1f1f',
+            paddingX: 40,
+            textAlign: 'justify'
+        },
         blacklist: [], // Thêm dòng này
     };
     let updateOcrStatus = null;
 
     /* ================== STORAGE ================== */
+    // NEW: stable stringify for name-set versioning
+    function stableStringify(value) {
+        if (value === null || typeof value !== 'object') return JSON.stringify(value);
+        if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+        const keys = Object.keys(value).sort();
+        return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(value[k])).join(',') + '}';
+    }
+    let lastNameSetsHash = null;
+
     function loadConfig() {
         const c = GM_getValue('tm_translate_config_v2');
         if (!c) {
@@ -109,7 +132,11 @@
         if (!merged.activeNameSet || !merged.nameSets[merged.activeNameSet]) {
             merged.activeNameSet = Object.keys(merged.nameSets)[0] || 'Mặc định';
         }
+        if (!merged.nameSetVersion || typeof merged.nameSetVersion !== 'number') {
+            merged.nameSetVersion = 1;
+        }
         merged.simplifiedStyle = { ...DEFAULT_CONFIG.simplifiedStyle, ...(c.simplifiedStyle || {}) };
+        merged.readerStyle = { ...DEFAULT_CONFIG.readerStyle, ...(c.readerStyle || {}) };
         merged.serverEndpoints = { ...SERVER_PROVIDER_DEFAULTS, ...(c.serverEndpoints || {}) };
         if (c.serverUrl && !merged.serverEndpoints.dichngay) {
             merged.serverEndpoints.dichngay = c.serverUrl;
@@ -123,9 +150,19 @@
             ...(c.dichnhanhOptions || {})
         };
         merged.blacklist = c.blacklist || [];
+        lastNameSetsHash = stableStringify(merged.nameSets || {});
         return merged;
     }
-    function saveConfig(cfg) { GM_setValue('tm_translate_config_v2', cfg); }
+    function saveConfig(cfg) {
+        const nextHash = stableStringify(cfg.nameSets || {});
+        if (lastNameSetsHash !== null && nextHash !== lastNameSetsHash) {
+            cfg.nameSetVersion = (cfg.nameSetVersion || 1) + 1;
+        } else if (!cfg.nameSetVersion || typeof cfg.nameSetVersion !== 'number') {
+            cfg.nameSetVersion = 1;
+        }
+        lastNameSetsHash = nextHash;
+        GM_setValue('tm_translate_config_v2', cfg);
+    }
     let config = loadConfig();
 
     /* ================== GLOBAL STATE ================== */
@@ -134,6 +171,8 @@
     let lastTranslationState = null; // { items, placeholderMaps, translatedResults }
     let hanvietMap = null;
     let lastSelectionRange = null;
+    // NEW: Nút bút cho Edit Name khi bôi đen
+    let selectionEditBtn = null;
     let simplifiedActive = false;
     let originalBodyElement = null; // Giữ body gốc để khôi phục không cần reload
     let originalScrollPosition = 0;
@@ -206,6 +245,22 @@
         }
         .tm-float-btn:hover { transform: scale(1.1); }
         #tm-edit-pencil { right: 18px; bottom: 18px; background-color: var(--tm-primary); }
+        #tm-selection-edit-btn {
+            position: fixed;
+            z-index: 2147483661;
+            background-color: var(--tm-primary);
+            color: var(--tm-white);
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            box-shadow: var(--tm-shadow);
+            user-select: none;
+        }
+        #tm-selection-edit-btn svg { width: 14px; height: 14px; }
         #tm-style-button { right: 18px; bottom: 80px; background-color: var(--tm-dark); }
         .tm-modal-wrapper {
             position: fixed; inset: 0; z-index: 2147483645;
@@ -243,6 +298,54 @@
         #tm-simplified-topbar { max-width: 800px; margin: 0 auto 24px auto; display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid rgba(128,128,128,0.3); }
         .tm-preview-box { border: 1px solid var(--tm-border-color); padding: 8px; min-height: 200px; max-height: 400px; overflow: auto; background: #fafafa; border-radius: 6px; color: var(--tm-dark); } /* SỬA ĐỔI: Thêm màu chữ */
         #tm-loading-indicator { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: var(--tm-dark); color: white; padding: 10px 20px; border-radius: 8px; z-index: 2147483647; font-size: 16px; box-shadow: var(--tm-shadow); }
+        /* NEW: Reader UI */
+        .tm-reader-overlay { position: fixed; inset: 0; z-index: 2147483646; display: flex; flex-direction: column; background: var(--tm-reader-bg, #f7f4ee); color: var(--tm-reader-text, #1f1f1f); font-family: var(--tm-reader-font, "Noto Serif", "Times New Roman", serif); }
+        .tm-reader-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--tm-reader-border, rgba(0,0,0,0.08)); background: var(--tm-reader-surface, #fbf9f4); }
+        .tm-reader-title { display: flex; flex-direction: column; gap: 4px; }
+        .tm-reader-book { font-size: 18px; font-weight: 700; }
+        .tm-reader-chapter { font-size: 14px; color: var(--tm-reader-muted, #5c5c5c); }
+        .tm-reader-actions { display: flex; align-items: center; gap: 8px; }
+        .tm-reader-actions .tm-btn { padding: 6px 12px; }
+        .tm-reader-actions .tm-btn.active { background: var(--tm-reader-text, #222); color: var(--tm-reader-bg, #fff); border-color: var(--tm-reader-text, #222); }
+        .tm-reader-body { flex: 1; display: flex; overflow: hidden; }
+        .tm-reader-toc { width: 280px; background: var(--tm-reader-surface, #f1ede4); border-right: 1px solid var(--tm-reader-border, rgba(0,0,0,0.08)); overflow-y: auto; }
+        .tm-reader-toc.hidden { display: none; }
+        .tm-reader-toc-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--tm-reader-border, rgba(0,0,0,0.05)); font-size: 14px; }
+        .tm-reader-toc-item:hover { background: var(--tm-reader-hover, rgba(0,0,0,0.04)); }
+        .tm-reader-toc-item.active { background: var(--tm-reader-active, rgba(0,0,0,0.08)); font-weight: 600; }
+        .tm-reader-content { flex: 1; overflow-y: auto; padding: 24px var(--tm-reader-padding-x, 28px); }
+        .tm-reader-content h2 { margin: 0 0 16px 0; font-size: 22px; }
+        .tm-reader-text { white-space: pre-wrap; font-size: var(--tm-reader-font-size, 18px); line-height: var(--tm-reader-line-height, 1.9); text-align: var(--tm-reader-text-align, justify); }
+        .tm-reader-text p, .tm-reader-block-text p { margin: 0 0 calc(var(--tm-reader-line-height, 1.9) * 1em) 0; }
+        .tm-reader-block { margin-bottom: 28px; }
+        .tm-reader-sep { margin: 24px 0 12px; text-align: center; color: var(--tm-reader-muted, #6b6b6b); font-size: 13px; }
+        .tm-reader-block-title { margin: 0 0 12px 0; font-size: 20px; font-weight: 700; text-align: var(--tm-reader-text-align, justify); }
+        .tm-reader-block-text { white-space: pre-wrap; font-size: var(--tm-reader-font-size, 18px); line-height: var(--tm-reader-line-height, 1.9); text-align: var(--tm-reader-text-align, justify); }
+        .tm-reader-spacer { height: var(--tm-reader-spacer, 120px); display: flex; align-items: center; justify-content: center; color: var(--tm-reader-muted, #6b6b6b); font-size: 12px; }
+        .tm-reader-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--tm-reader-border, rgba(0,0,0,0.08)); background: var(--tm-reader-surface, #fbf9f4); }
+        .tm-reader-footer .tm-btn { min-width: 140px; }
+        .tm-reader-progress { font-size: 13px; color: var(--tm-reader-muted, #5c5c5c); }
+        .tm-reader-no-translate #tm-reader-raw-btn,
+        .tm-reader-no-translate #tm-reader-trans-btn { display: none; }
+        .tm-reader-fullscreen .tm-reader-header,
+        .tm-reader-fullscreen .tm-reader-footer,
+        .tm-reader-fullscreen .tm-reader-toc { display: none; }
+        .tm-reader-fullscreen .tm-reader-content { padding: 28px var(--tm-reader-padding-x, 10vw); }
+        .tm-reader-overlay .tm-btn { background: transparent; color: var(--tm-reader-text, #1f1f1f); border-color: var(--tm-reader-border, #ccc); }
+        .tm-reader-overlay .tm-btn:hover { background: var(--tm-reader-hover, rgba(0,0,0,0.06)); }
+        /* Reader scrollbar (modern) */
+        .tm-reader-overlay * { scrollbar-width: thin; scrollbar-color: var(--tm-reader-border, #999) transparent; }
+        .tm-reader-overlay ::-webkit-scrollbar { width: 10px; height: 10px; }
+        .tm-reader-overlay ::-webkit-scrollbar-track { background: transparent; }
+        .tm-reader-overlay ::-webkit-scrollbar-thumb {
+            background: color-mix(in srgb, var(--tm-reader-text, #555) 30%, transparent);
+            border-radius: 8px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        .tm-reader-overlay ::-webkit-scrollbar-thumb:hover {
+            background: color-mix(in srgb, var(--tm-reader-text, #555) 45%, transparent);
+        }
     `;
         const styleEl = document.createElement('style');
         styleEl.id = 'tm-global-styles';
@@ -336,6 +439,7 @@
         removeElementById('tm-quick-translate-btn');
         removeElementById('tm-restore-original-btn');
         removeElementById('tm-ocr-float-btn');
+        removeElementById('tm-library-btn');
         removeStylePanel();
 
         let bottomOffset = 18;
@@ -366,6 +470,20 @@
             ocrBtn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2-2v-2"/><path d="M10 10l4 4m0-4l-4 4"/></svg>`;
             ocrBtn.addEventListener('click', handleOcrButtonClick);
             document.body.appendChild(ocrBtn);
+            bottomOffset += 64;
+        }
+
+        if (config.showLibraryButton) {
+            const libBtn = document.createElement('div');
+            libBtn.id = 'tm-library-btn';
+            libBtn.className = 'tm-float-btn';
+            libBtn.title = 'Thư viện';
+            libBtn.style.right = '18px';
+            libBtn.style.bottom = `${bottomOffset}px`;
+            libBtn.style.backgroundColor = '#20c997';
+            libBtn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 5.5C3 4.12 4.12 3 5.5 3H20v16h-1.5a2.5 2.5 0 0 0 0 5H20v1H5.5C4.12 25 3 23.88 3 22.5v-17zM5.5 5a.5.5 0 0 0-.5.5v17a.5.5 0 0 0 .5.5H18a1.5 1.5 0 0 1 0-3H5.5a.5.5 0 0 1-.5-.5v-14A.5.5 0 0 1 5.5 5H18V4H5.5z"/></svg>`;
+            libBtn.addEventListener('click', openLibraryListModal);
+            document.body.appendChild(libBtn);
             bottomOffset += 64;
         }
 
@@ -437,6 +555,7 @@
         removeElementById('tm-quick-translate-btn');
         removeElementById('tm-restore-original-btn');
         removeElementById('tm-ocr-float-btn');
+        removeElementById('tm-library-btn');
         removeStylePanel();
     }
 
@@ -488,6 +607,73 @@
     }
 
     /* ================== SELECTION TRACKING ================== */
+    // --- NEW: Selection pencil for Edit Name ---
+    function hideSelectionEditButton() {
+        if (selectionEditBtn) selectionEditBtn.remove();
+        selectionEditBtn = null;
+    }
+    function getSelectionContainer(range) {
+        if (!range) return null;
+        const node = range.commonAncestorContainer;
+        if (!node) return null;
+        return node.nodeType === 3 ? node.parentElement : node;
+    }
+    function shouldIgnoreSelectionForEdit(range) {
+        const el = getSelectionContainer(range);
+        if (!el) return true;
+        if (el.closest('#tm-settings-modal, #tm-edit-modal, #tm-style-panel, #tm-quick-translate-panel, #tm-ocr-result-modal')) return true;
+        if (el.closest('input, textarea, [contenteditable="true"]')) return true;
+        return false;
+    }
+    function updateSelectionEditButton() {
+        if (!config.nameEditingEnabled) {
+            hideSelectionEditButton();
+            return;
+        }
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+            hideSelectionEditButton();
+            return;
+        }
+        const text = sel.toString().trim();
+        if (!text) {
+            hideSelectionEditButton();
+            return;
+        }
+        const range = sel.getRangeAt(0);
+        if (shouldIgnoreSelectionForEdit(range)) {
+            hideSelectionEditButton();
+            return;
+        }
+        const readerRoot = document.getElementById('tm-reader-overlay');
+        const rangeContainer = range.commonAncestorContainer?.nodeType === 3 ? range.commonAncestorContainer.parentElement : range.commonAncestorContainer;
+        const readerContent = readerRoot ? readerRoot.querySelector('.tm-reader-content') : null;
+        const isReaderSelection = !!(readerContent && rangeContainer && readerContent.contains(rangeContainer));
+        if (!isReaderSelection) {
+            hideSelectionEditButton();
+            return;
+        }
+        const rect = range.getBoundingClientRect();
+        if (!rect || (rect.width === 0 && rect.height === 0)) {
+            hideSelectionEditButton();
+            return;
+        }
+        if (!selectionEditBtn) {
+            selectionEditBtn = document.createElement('div');
+            selectionEditBtn.id = 'tm-selection-edit-btn';
+            selectionEditBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg><span>Sửa tên</span>`;
+            selectionEditBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                openEditModalForSelection();
+                hideSelectionEditButton();
+            });
+            document.body.appendChild(selectionEditBtn);
+        }
+        const left = Math.min(window.innerWidth - 140, Math.max(8, rect.left + rect.width / 2 - 50));
+        const top = Math.max(8, rect.top - 42);
+        selectionEditBtn.style.left = `${left}px`;
+        selectionEditBtn.style.top = `${top}px`;
+    }
     document.addEventListener('selectionchange', () => {
         try {
             const sel = window.getSelection();
@@ -497,6 +683,7 @@
                 lastSelectionRange = r.cloneRange();
                 lastSelectionRange._textSnapshot = r.toString();
             }
+            updateSelectionEditButton();
         } catch (e) { /* ignore */ }
     });
 
@@ -557,7 +744,7 @@
         const items = [];
         const seenNodes = new WeakSet();
         const skipTags = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'PRE', 'CODE', 'TEXTAREA'];
-        const ignoreRootIds = ['tm-edit-pencil', 'tm-style-button', 'tm-edit-modal', 'tm-settings-modal', 'tm-style-panel'];
+        const ignoreRootIds = ['tm-edit-pencil', 'tm-selection-edit-btn', 'tm-style-button', 'tm-edit-modal', 'tm-settings-modal', 'tm-style-panel', 'tm-library-btn'];
         const isFanqie = window.location.hostname.includes('fanqienovel.com');
         const hasMeaningfulTextRegex = isFanqie ? /\S/ : /[a-zA-Z\u4e00-\u9fa5\d]/;
 
@@ -648,6 +835,13 @@
         }
         result = result.replace(/\s+([,.;!?\)]|”|’|:)/g, '$1');
         result = result.replace(/([\(\[“‘])\s+/g, '$1');
+        result = result.replace(/:([^\s])/g, (match, nextChar, offset, str) => {
+            const prevChar = str[offset - 1] || '';
+            if (nextChar === '/' || (/\d/.test(prevChar) && /\d/.test(nextChar))) {
+                return match;
+            }
+            return `: ${nextChar}`;
+        });
         result = result.replace(/\s+/g, ' ');
         return result.trim();
     }
@@ -809,13 +1003,29 @@
         return { char: map[next] ?? next, advance: 2 };
     }
 
-    async function requestServerTranslation(contentArray) {
+    async function requestServerTranslationOnce(contentArray) {
         const provider = (config.serverProvider || 'dichngay');
         const endpoint = getServerEndpoint(provider);
         if (provider === 'dichnhanh') {
             return await postTranslateDichnhanh(contentArray, config.dichnhanhOptions, endpoint);
         }
         return await postTranslate(endpoint, contentArray, config.targetLang);
+    }
+    async function requestServerTranslation(contentArray) {
+        const retries = Math.max(0, parseInt(config.retryCount, 10) || 0);
+        let attempt = 0;
+        let lastError = null;
+        while (attempt <= retries) {
+            try {
+                return await requestServerTranslationOnce(contentArray);
+            } catch (err) {
+                lastError = err;
+                if (attempt >= retries) break;
+                await sleep(config.delayMs || 0);
+            }
+            attempt++;
+        }
+        throw lastError || new Error('Dịch thất bại.');
     }
 
     function highlightNamesInText(translatedText, nameSet) {
@@ -903,12 +1113,13 @@
         const chunks = [];
 
         for (const para of paragraphs) {
-            if (!para.trim()) {
+            const paraTrimmed = para.trim();
+            if (!paraTrimmed) {
                 chunks.push({ isEmpty: true });
                 continue;
             }
 
-            const decodedText = para;
+            const decodedText = paraTrimmed;
             const tokens = tokenizeString(decodedText);
             const textsForThisPara = [];
 
@@ -1647,7 +1858,7 @@
         return null;
     }
 
-    function showEditModal(chinese, vietnamese) {
+    function showEditModal(chinese, vietnamese, options = {}) {
         removeElementById('tm-edit-modal');
         const wrapper = document.createElement('div');
         wrapper.id = 'tm-edit-modal';
@@ -1676,6 +1887,52 @@
         </div>
     `;
         document.body.appendChild(wrapper);
+
+        // NEW: Áp dụng theme của UI đọc truyện nếu đang mở reader
+        const readerRoot = document.getElementById('tm-reader-overlay');
+        if (options.readerTheme && readerRoot) {
+            const readerStyles = getComputedStyle(readerRoot);
+            const themeBg = (readerStyles.getPropertyValue('--tm-reader-bg') || '#f7f4ee').trim();
+            const themeText = (readerStyles.getPropertyValue('--tm-reader-text') || '#1f1f1f').trim();
+            const themeSurface = (readerStyles.getPropertyValue('--tm-reader-surface') || '#fbf9f4').trim();
+            const themeBorder = (readerStyles.getPropertyValue('--tm-reader-border') || '#ddd').trim();
+            const themeFont = (readerStyles.getPropertyValue('--tm-reader-font') || '"Noto Serif", "Times New Roman", serif').trim();
+
+            wrapper.style.fontFamily = themeFont;
+            wrapper.style.color = themeText;
+            const modalBox = wrapper.querySelector('.tm-modal-box');
+            const modalHeader = wrapper.querySelector('.tm-modal-header');
+            const modalContent = wrapper.querySelector('.tm-modal-content');
+            const modalFooter = wrapper.querySelector('.tm-modal-footer');
+
+            if (modalBox) {
+                modalBox.style.background = themeBg;
+                modalBox.style.color = themeText;
+                modalBox.style.border = `1px solid ${themeBorder}`;
+            }
+            if (modalHeader) {
+                modalHeader.style.background = themeSurface;
+                modalHeader.style.borderBottomColor = themeBorder;
+            }
+            if (modalContent) {
+                modalContent.style.background = themeBg;
+                modalContent.style.color = themeText;
+            }
+            if (modalFooter) {
+                modalFooter.style.background = themeSurface;
+                modalFooter.style.borderTopColor = themeBorder;
+            }
+            wrapper.querySelectorAll('.tm-input, .tm-textarea, .tm-select').forEach(input => {
+                input.style.background = themeSurface;
+                input.style.color = themeText;
+                input.style.borderColor = themeBorder;
+            });
+            wrapper.querySelectorAll('.tm-btn').forEach(btn => {
+                btn.style.background = 'transparent';
+                btn.style.color = themeText;
+                btn.style.borderColor = themeBorder;
+            });
+        }
 
         const origInput = wrapper.querySelector('#tm-edit-orig-input');
         const vietInput = wrapper.querySelector('#tm-edit-viet-input');
@@ -1788,6 +2045,9 @@
         }
 
         const range = sel.getRangeAt(0);
+        const readerRoot = document.getElementById('tm-reader-overlay');
+        const rangeContainer = range.commonAncestorContainer?.nodeType === 3 ? range.commonAncestorContainer.parentElement : range.commonAncestorContainer;
+        const isReaderSelection = !!(readerRoot && rangeContainer && readerRoot.contains(rangeContainer));
         const targetSpan = findChunkFromRange(range);
 
         if (targetSpan) {
@@ -1796,11 +2056,49 @@
             const translatedText = isNameSpan ? targetSpan.textContent : targetSpan.textContent;
 
             console.log(`Đã tìm thấy khối dịch. Gốc: ${originalText}`);
-            showEditModal(originalText, translatedText);
+            showEditModal(originalText, translatedText, { readerTheme: isReaderSelection });
             return;
         }
 
-        alert('Không tìm thấy khối dữ liệu dịch tương ứng. Hãy thử bôi đen chính xác hơn một chút.');
+        if (!isReaderSelection) {
+            alert('Không tìm thấy khối dữ liệu dịch tương ứng. Hãy thử bôi đen chính xác hơn một chút.');
+            return;
+        }
+
+        const selectedText = sel.toString().trim();
+        if (!selectedText) {
+            alert('Không tìm thấy khối dữ liệu dịch tương ứng. Hãy thử bôi đen chính xác hơn một chút.');
+            return;
+        }
+
+        const currentNameSet = config.nameSets[config.activeNameSet] || {};
+        const hasCjk = /[\u4e00-\u9fff]/.test(selectedText);
+        let chinese = '';
+        let vietnamese = '';
+
+        if (hasCjk) {
+            chinese = selectedText;
+            vietnamese = currentNameSet[chinese] || '';
+        } else {
+            vietnamese = selectedText;
+            const lowered = vietnamese.toLowerCase();
+            let matchKey = null;
+            for (const [k, v] of Object.entries(currentNameSet)) {
+                if (!v) continue;
+                if (v === vietnamese || v.toLowerCase() === lowered) {
+                    matchKey = k;
+                    break;
+                }
+                const parts = v.split('/').map(p => p.trim()).filter(Boolean);
+                if (parts.some(p => p === vietnamese || p.toLowerCase() === lowered)) {
+                    matchKey = k;
+                    break;
+                }
+            }
+            if (matchKey) chinese = matchKey;
+        }
+
+        showEditModal(chinese, vietnamese, { readerTheme: isReaderSelection });
     }
 
     async function buildHanVietFromMap(chinese, map) {
@@ -2476,7 +2774,7 @@
         const h = window.location.hostname;
         return cfg.blacklist && cfg.blacklist.some(domain => h.includes(domain));
     }
-    function openSettingsUI() {
+    function openSettingsUI(initialTab) {
         removeElementById('tm-settings-modal');
         config = loadConfig();
         ensureServerEndpointStore();
@@ -2492,10 +2790,14 @@
         const wrapper = document.createElement('div');
         wrapper.id = 'tm-settings-modal';
         wrapper.className = 'tm-modal-wrapper';
+        wrapper.style.zIndex = '2147483670';
 
         const isBlocked = checkBlacklistStatus();
         const hiddenStyle = isBlocked ? 'display: none !important;' : '';
-        const activeClass = (tab) => (isBlocked && tab === 'blacklist') || (!isBlocked && tab === 'namesets') ? 'active' : '';
+        const validTabs = ['namesets', 'general', 'library', 'ocr', 'advanced', 'blacklist', 'localedit'];
+        const preferredTab = (!isBlocked && typeof initialTab === 'string' && validTabs.includes(initialTab)) ? initialTab : null;
+        const defaultTab = isBlocked ? 'blacklist' : (preferredTab || 'namesets');
+        const activeClass = (tab) => tab === defaultTab ? 'active' : '';
 
         wrapper.innerHTML = `
     <div class="tm-modal-backdrop"></div>
@@ -2507,6 +2809,7 @@
         <div class="tm-tabs-nav">
             <button class="tm-tab-btn ${activeClass('namesets')}" data-tab="namesets" style="${hiddenStyle}">Bộ Tên</button>
             <button class="tm-tab-btn ${activeClass('general')}" data-tab="general" style="${hiddenStyle}">Chung</button>
+            <button class="tm-tab-btn ${activeClass('library')}" data-tab="library" style="${hiddenStyle}">Thư viện</button>
             <button class="tm-tab-btn ${activeClass('ocr')}" data-tab="ocr" style="${hiddenStyle}">OCR</button>
             <button class="tm-tab-btn ${activeClass('advanced')}" data-tab="advanced" style="${hiddenStyle}">Nâng cao</button>
             <button class="tm-tab-btn ${activeClass('blacklist')}" data-tab="blacklist">Blacklist</button>
@@ -2514,7 +2817,7 @@
         </div>
         <div class="tm-modal-content">
             <!-- Name Sets Tab -->
-            <div id="tab-namesets" class="tm-tab-content active">
+            <div id="tab-namesets" class="tm-tab-content ${activeClass('namesets')}">
                 <div class="tm-row">
                     <div class="tm-col">
                         <label class="tm-label">Bộ tên đang hoạt động</label>
@@ -2542,7 +2845,7 @@
                 </div>
             </div>
             <!-- General Tab -->
-            <div id="tab-general" class="tm-tab-content">
+            <div id="tab-general" class="tm-tab-content ${activeClass('general')}">
                 <label class="tm-label">Chế độ dịch</label>
                 <select id="tm-translation-mode" class="tm-select">
                      <option value="server">Server</option>
@@ -2615,8 +2918,75 @@
                     <option value="'Segoe UI', Tahoma, sans-serif">Segoe UI</option>
                 </select>
             </div>
+            <!-- Library Tab -->
+            <div id="tab-library" class="tm-tab-content ${activeClass('library')}">
+                <label class="tm-label">Prefetch chương sau khi đọc đến (%)</label>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <input id="tm-lib-prefetch" type="range" min="10" max="90" step="5" value="${config.readerPrefetchPercent || 50}" style="flex:1;">
+                    <div id="tm-lib-prefetch-value" style="min-width:48px; font-weight:600;">${config.readerPrefetchPercent || 50}%</div>
+                </div>
+                <p style="font-size:13px; color:#555">Khi đọc vượt mức này, script sẽ dịch ngầm chương kế tiếp (nếu chưa có cache).</p>
+                <label class="tm-label" style="margin-top: 12px;">
+                    <input type="checkbox" id="tm-show-library-btn" style="margin-right: 6px;" />
+                    Hiển thị nút "Thư viện" trên trang
+                </label>
+                <p style="font-size:13px; color:#555">Hiển thị nút nổi để mở thư viện nhanh.</p>
+                <hr style="margin: 16px 0; border: none; border-top: 1px solid #eee;">
+                <label class="tm-label">Kiểu đọc chương</label>
+                <select id="tm-reader-mode" class="tm-select">
+                    <option value="single">Theo chương (một chương một trang)</option>
+                    <option value="vertical">Cuộn dọc liên tục</option>
+                </select>
+                <label class="tm-label" style="margin-top: 12px;">Giao diện đọc</label>
+                <div class="tm-row">
+                    <div class="tm-col">
+                        <label class="tm-label">Font chữ</label>
+                        <select id="tm-reader-font" class="tm-select">
+                            <option value="Noto Serif, 'Times New Roman', serif">Noto Serif (Mặc định)</option>
+                            <option value="Arial, 'Helvetica Neue', sans-serif">Arial</option>
+                            <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                            <option value="Verdana, Geneva, sans-serif">Verdana</option>
+                            <option value="'Segoe UI', Tahoma, sans-serif">Segoe UI</option>
+                        </select>
+                    </div>
+                    <div class="tm-col">
+                        <label class="tm-label">Cỡ chữ</label>
+                        <input id="tm-reader-font-size" type="number" min="12" max="40" class="tm-input" value="${config.readerStyle?.fontSize || 18}">
+                    </div>
+                    <div class="tm-col">
+                        <label class="tm-label">Giãn dòng</label>
+                        <input id="tm-reader-line-height" type="number" step="0.1" min="1.2" max="3" class="tm-input" value="${config.readerStyle?.lineHeight || 1.9}">
+                    </div>
+                </div>
+                <div class="tm-row">
+                    <div class="tm-col">
+                        <label class="tm-label">Màu nền</label>
+                        <input id="tm-reader-bg" type="color" class="tm-input" value="${config.readerStyle?.bgColor || '#f7f4ee'}">
+                    </div>
+                    <div class="tm-col">
+                        <label class="tm-label">Màu chữ</label>
+                        <input id="tm-reader-text-color" type="color" class="tm-input" value="${config.readerStyle?.textColor || '#1f1f1f'}">
+                    </div>
+                    <div class="tm-col">
+                        <label class="tm-label">Lề ngang</label>
+                        <input id="tm-reader-padding" type="number" min="0" max="120" class="tm-input" value="${config.readerStyle?.paddingX ?? 28}">
+                    </div>
+                    <div class="tm-col">
+                        <label class="tm-label">Căn lề</label>
+                        <select id="tm-reader-align" class="tm-select">
+                            <option value="left">Trái</option>
+                            <option value="right">Phải</option>
+                            <option value="center">Giữa</option>
+                            <option value="justify">Đều 2 bên</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top: 12px; display:flex; justify-content:flex-end;">
+                    <button id="tm-reader-reset" class="tm-btn">Mặc định</button>
+                </div>
+            </div>
             <!-- OCR Tab -->
-            <div id="tab-ocr" class="tm-tab-content">
+            <div id="tab-ocr" class="tm-tab-content ${activeClass('ocr')}">
                 <label class="tm-label">Extension Hỗ Trợ (Khuyên dùng)</label>
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
                     <div id="tm-ext-status-indicator" style="padding: 6px 12px; border-radius: 4px; background: #eee; font-size: 14px; display: flex; align-items: center; gap: 8px;">
@@ -2702,7 +3072,7 @@
                 <button id="tm-ocr-import-btn" class="tm-btn" style="background-color: #e2e6ea; width:100%">📂 Chọn file Zip Model để cài...</button>
             </div>
             <!-- Advanced Tab -->
-            <div id="tab-advanced" class="tm-tab-content">
+            <div id="tab-advanced" class="tm-tab-content ${activeClass('advanced')}">
                 <label class="tm-label">Nguồn server dịch</label>
                 <select id="tm-server-provider" class="tm-select">
                     <option value="dichngay">dichngay.com (mặc định)</option>
@@ -2751,6 +3121,9 @@
                     <div class="tm-col"><label class="tm-label">Delay giữa các request (ms)</label><input id="tm-delay" type="number" class="tm-input" value="${config.delayMs}" /></div>
                     <div class="tm-col"><label class="tm-label">Số ký tự tối đa / request</label><input id="tm-max" type="number" class="tm-input" value="${config.maxCharsPerRequest}" /></div>
                 </div>
+                <div class="tm-row">
+                    <div class="tm-col"><label class="tm-label">Số lần retry khi lỗi</label><input id="tm-retry" type="number" min="0" max="10" class="tm-input" value="${config.retryCount ?? 3}" /></div>
+                </div>
             </div>
             <div id="tab-blacklist" class="tm-tab-content ${activeClass('blacklist')}">
                 <p style="font-size:13px; color:#555">
@@ -2767,7 +3140,7 @@
                 <div id="tm-blacklist-container" class="tm-preview-box" style="height: 250px;">
                     </div>
             </div>
-            <div id="tab-localedit" class="tm-tab-content">
+            <div id="tab-localedit" class="tm-tab-content ${activeClass('localedit')}">
                 <p style="font-size:13px; color:#555">
                     Tìm kiếm, chỉnh sửa hoặc xóa các mục trong từ điển Local.
                     <br><b>Lưu ý:</b> Thay đổi sẽ được lưu vào cache và có hiệu lực ngay.
@@ -2824,6 +3197,53 @@
         const ocrSourceGroup = wrapper.querySelector('#tm-ocr-source-group');
         const ocrModeSelect = wrapper.querySelector('#tm-ocr-mode');
         const ocrStatusDiv = wrapper.querySelector('#tm-ocr-status');
+        const libPrefetchRange = wrapper.querySelector('#tm-lib-prefetch');
+        const libPrefetchValue = wrapper.querySelector('#tm-lib-prefetch-value');
+        const showLibraryBtnCheckbox = wrapper.querySelector('#tm-show-library-btn');
+        const readerModeSelect = wrapper.querySelector('#tm-reader-mode');
+        const readerFontSelect = wrapper.querySelector('#tm-reader-font');
+        const readerFontSizeInput = wrapper.querySelector('#tm-reader-font-size');
+        const readerLineHeightInput = wrapper.querySelector('#tm-reader-line-height');
+        const readerBgInput = wrapper.querySelector('#tm-reader-bg');
+        const readerTextColorInput = wrapper.querySelector('#tm-reader-text-color');
+        const readerPaddingInput = wrapper.querySelector('#tm-reader-padding');
+        const readerAlignSelect = wrapper.querySelector('#tm-reader-align');
+        const readerResetBtn = wrapper.querySelector('#tm-reader-reset');
+
+        if (libPrefetchRange && libPrefetchValue) {
+            libPrefetchValue.textContent = `${libPrefetchRange.value}%`;
+            libPrefetchRange.addEventListener('input', () => {
+                libPrefetchValue.textContent = `${libPrefetchRange.value}%`;
+            });
+        }
+
+        if (readerModeSelect) readerModeSelect.value = config.readerMode || 'single';
+        if (showLibraryBtnCheckbox) showLibraryBtnCheckbox.checked = !!config.showLibraryButton;
+        if (readerFontSelect) readerFontSelect.value = config.readerStyle?.fontFamily || DEFAULT_CONFIG.readerStyle.fontFamily;
+        if (readerFontSizeInput) readerFontSizeInput.value = config.readerStyle?.fontSize || DEFAULT_CONFIG.readerStyle.fontSize;
+        if (readerLineHeightInput) readerLineHeightInput.value = config.readerStyle?.lineHeight || DEFAULT_CONFIG.readerStyle.lineHeight;
+        if (readerBgInput) readerBgInput.value = config.readerStyle?.bgColor || DEFAULT_CONFIG.readerStyle.bgColor;
+        if (readerTextColorInput) readerTextColorInput.value = config.readerStyle?.textColor || DEFAULT_CONFIG.readerStyle.textColor;
+        if (readerPaddingInput) readerPaddingInput.value = config.readerStyle?.paddingX ?? DEFAULT_CONFIG.readerStyle.paddingX;
+        if (readerAlignSelect) readerAlignSelect.value = config.readerStyle?.textAlign || DEFAULT_CONFIG.readerStyle.textAlign;
+
+        if (readerResetBtn) {
+            readerResetBtn.addEventListener('click', () => {
+                if (readerModeSelect) readerModeSelect.value = DEFAULT_CONFIG.readerMode;
+                if (showLibraryBtnCheckbox) showLibraryBtnCheckbox.checked = DEFAULT_CONFIG.showLibraryButton;
+                if (readerFontSelect) readerFontSelect.value = DEFAULT_CONFIG.readerStyle.fontFamily;
+                if (readerFontSizeInput) readerFontSizeInput.value = DEFAULT_CONFIG.readerStyle.fontSize;
+                if (readerLineHeightInput) readerLineHeightInput.value = DEFAULT_CONFIG.readerStyle.lineHeight;
+                if (readerBgInput) readerBgInput.value = DEFAULT_CONFIG.readerStyle.bgColor;
+                if (readerTextColorInput) readerTextColorInput.value = DEFAULT_CONFIG.readerStyle.textColor;
+                if (readerPaddingInput) readerPaddingInput.value = DEFAULT_CONFIG.readerStyle.paddingX;
+                if (readerAlignSelect) readerAlignSelect.value = DEFAULT_CONFIG.readerStyle.textAlign;
+                if (libPrefetchRange && libPrefetchValue) {
+                    libPrefetchRange.value = DEFAULT_CONFIG.readerPrefetchPercent;
+                    libPrefetchValue.textContent = `${DEFAULT_CONFIG.readerPrefetchPercent}%`;
+                }
+            });
+        }
 
         const updateOcrUiState = () => {
             const actionMode = ocrActionModeSelect.value;
@@ -3457,6 +3877,20 @@
             tempConfigCheck.ocrActionMode = wrapper.querySelector('#tm-ocr-action-mode').value;
             tempConfigCheck.ocrImageSource = wrapper.querySelector('#tm-ocr-image-source').value;
             tempConfigCheck.ocrTextScaleFactor = parseFloat(wrapper.querySelector('#tm-ocr-scale').value) || 1.8;
+            tempConfigCheck.readerPrefetchPercent = parseInt(wrapper.querySelector('#tm-lib-prefetch')?.value, 10) || 50;
+            tempConfigCheck.showLibraryButton = !!wrapper.querySelector('#tm-show-library-btn')?.checked;
+            tempConfigCheck.readerMode = wrapper.querySelector('#tm-reader-mode')?.value || 'single';
+            const readerFullscreenEl = wrapper.querySelector('#tm-reader-fullscreen');
+            if (readerFullscreenEl) tempConfigCheck.readerFullscreen = !!readerFullscreenEl.checked;
+            tempConfigCheck.readerStyle = {
+                fontFamily: wrapper.querySelector('#tm-reader-font')?.value || DEFAULT_CONFIG.readerStyle.fontFamily,
+                fontSize: parseInt(wrapper.querySelector('#tm-reader-font-size')?.value, 10) || DEFAULT_CONFIG.readerStyle.fontSize,
+                lineHeight: parseFloat(wrapper.querySelector('#tm-reader-line-height')?.value) || DEFAULT_CONFIG.readerStyle.lineHeight,
+                bgColor: wrapper.querySelector('#tm-reader-bg')?.value || DEFAULT_CONFIG.readerStyle.bgColor,
+                textColor: wrapper.querySelector('#tm-reader-text-color')?.value || DEFAULT_CONFIG.readerStyle.textColor,
+                paddingX: Math.max(0, parseInt(wrapper.querySelector('#tm-reader-padding')?.value, 10) || DEFAULT_CONFIG.readerStyle.paddingX),
+                textAlign: wrapper.querySelector('#tm-reader-align')?.value || DEFAULT_CONFIG.readerStyle.textAlign
+            };
 
             const provider = serverProviderSelect.value;
             const tempEndpoints = { ...tempConfigCheck.serverEndpoints };
@@ -3473,6 +3907,7 @@
             tempConfigCheck.hanvietJsonUrl = wrapper.querySelector('#tm-hv-url').value.trim();
             tempConfigCheck.delayMs = parseInt(wrapper.querySelector('#tm-delay').value, 10);
             tempConfigCheck.maxCharsPerRequest = parseInt(wrapper.querySelector('#tm-max').value, 10);
+            tempConfigCheck.retryCount = Math.max(0, parseInt(wrapper.querySelector('#tm-retry')?.value, 10) || 0);
             tempConfigCheck.activeNameSet = setSelect.value;
 
             tempConfigCheck.nameSets = config.nameSets;
@@ -3523,6 +3958,20 @@
             config.ocrImageSource = wrapper.querySelector('#tm-ocr-image-source').value;
             config.ocrFont = wrapper.querySelector('#tm-ocr-font').value;
             config.ocrTextScaleFactor = parseFloat(wrapper.querySelector('#tm-ocr-scale').value) || 1.8;
+            config.readerPrefetchPercent = parseInt(wrapper.querySelector('#tm-lib-prefetch')?.value, 10) || 50;
+            config.showLibraryButton = !!wrapper.querySelector('#tm-show-library-btn')?.checked;
+            config.readerMode = wrapper.querySelector('#tm-reader-mode')?.value || 'single';
+            const saveReaderFullscreenEl = wrapper.querySelector('#tm-reader-fullscreen');
+            if (saveReaderFullscreenEl) config.readerFullscreen = !!saveReaderFullscreenEl.checked;
+            config.readerStyle = {
+                fontFamily: wrapper.querySelector('#tm-reader-font')?.value || DEFAULT_CONFIG.readerStyle.fontFamily,
+                fontSize: parseInt(wrapper.querySelector('#tm-reader-font-size')?.value, 10) || DEFAULT_CONFIG.readerStyle.fontSize,
+                lineHeight: parseFloat(wrapper.querySelector('#tm-reader-line-height')?.value) || DEFAULT_CONFIG.readerStyle.lineHeight,
+                bgColor: wrapper.querySelector('#tm-reader-bg')?.value || DEFAULT_CONFIG.readerStyle.bgColor,
+                textColor: wrapper.querySelector('#tm-reader-text-color')?.value || DEFAULT_CONFIG.readerStyle.textColor,
+                paddingX: Math.max(0, parseInt(wrapper.querySelector('#tm-reader-padding')?.value, 10) || DEFAULT_CONFIG.readerStyle.paddingX),
+                textAlign: wrapper.querySelector('#tm-reader-align')?.value || DEFAULT_CONFIG.readerStyle.textAlign
+            };
             // Advanced
             config.serverEndpoints = { ...serverEndpointsState };
             config.serverUrl = config.serverEndpoints.dichngay || SERVER_PROVIDER_DEFAULTS.dichngay;
@@ -3535,6 +3984,7 @@
             config.hanvietJsonUrl = wrapper.querySelector('#tm-hv-url').value.trim();
             config.delayMs = parseInt(wrapper.querySelector('#tm-delay').value, 10);
             config.maxCharsPerRequest = parseInt(wrapper.querySelector('#tm-max').value, 10);
+            config.retryCount = Math.max(0, parseInt(wrapper.querySelector('#tm-retry')?.value, 10) || 0);
 
             config.blacklist = tempBlacklist;
 
@@ -3552,6 +4002,11 @@
             showNotification('Đã lưu cài đặt.', 2000);
 
             updateFloatingButtons(); // Cập nhật nút nổi
+
+            if (libReaderUI && libReaderState) {
+                libReaderApplySettings();
+                libReaderLoadCurrentChapter();
+            }
 
             if (translatedBodyClone) {
                 console.log("Phát hiện thay đổi cài đặt khi trang đã dịch. Bắt đầu dịch lại thông minh...");
@@ -5601,6 +6056,1814 @@
         document.addEventListener('keydown', onKeyDown);
     }
 
+    /* ================== LIBRARY STORAGE (NEW) ================== */
+    const LIB_DB_NAME = 'tm_translate_library_v1';
+    const LIB_DB_VERSION = 1;
+    const LIB_INDEX_KEY = 'tm_lib_index_v1';
+    let libDbPromise = null;
+    const libTitleCache = new Map();
+
+    // NEW: small hash helper for IDs
+    function libHashString(str) {
+        let h1 = 0xdeadbeef ^ str.length, h2 = 0x41c6ce57 ^ str.length;
+        for (let i = 0; i < str.length; i++) {
+            const ch = str.charCodeAt(i);
+            h1 = Math.imul(h1 ^ ch, 2654435761);
+            h2 = Math.imul(h2 ^ ch, 1597334677);
+        }
+        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+        return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+    }
+
+    function libMakeBookId(title, author, createdAt) {
+        return 'bk_' + libHashString(`${title}|${author || ''}|${createdAt}`);
+    }
+    function libMakeChapterId(bookId, order, title) {
+        return 'ch_' + libHashString(`${bookId}|${order}|${title}`);
+    }
+    function libMakeRawKey(chapterId, text) {
+        return 'raw_' + libHashString(`${chapterId}|${text}`);
+    }
+    function libMakeTransKey(chapterId, rawKey) {
+        const version = config.nameSetVersion || 1;
+        return 'tr_' + libHashString(`${chapterId}|${rawKey}|${version}`);
+    }
+
+    function libOpenDb() {
+        if (libDbPromise) return libDbPromise;
+        libDbPromise = new Promise((resolve, reject) => {
+            const req = indexedDB.open(LIB_DB_NAME, LIB_DB_VERSION);
+            req.onupgradeneeded = () => {
+                const db = req.result;
+                if (!db.objectStoreNames.contains('tm_chapters')) {
+                    db.createObjectStore('tm_chapters', { keyPath: 'chapterId' });
+                }
+                if (!db.objectStoreNames.contains('tm_content')) {
+                    db.createObjectStore('tm_content', { keyPath: 'key' });
+                }
+            };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+        return libDbPromise;
+    }
+
+    function libWaitTx(tx) {
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = () => resolve();
+            tx.onabort = () => reject(tx.error);
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+
+    async function libPutMany(storeName, items) {
+        if (!items || items.length === 0) return;
+        const db = await libOpenDb();
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        items.forEach(item => store.put(item));
+        await libWaitTx(tx);
+    }
+
+    async function libGet(storeName, key) {
+        const db = await libOpenDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readonly');
+            const req = tx.objectStore(storeName).get(key);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function libClearTranslatedContent() {
+        const db = await libOpenDb();
+        const now = Date.now();
+
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction('tm_chapters', 'readwrite');
+            const store = tx.objectStore('tm_chapters');
+            const req = store.openCursor();
+            req.onsuccess = () => {
+                const cursor = req.result;
+                if (cursor) {
+                    const value = cursor.value;
+                    if (value.transKey) {
+                        value.transKey = null;
+                        value.updatedAt = now;
+                        cursor.update(value);
+                    }
+                    cursor.continue();
+                }
+            };
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction('tm_content', 'readwrite');
+            const store = tx.objectStore('tm_content');
+            const req = store.openCursor();
+            req.onsuccess = () => {
+                const cursor = req.result;
+                if (cursor) {
+                    const key = cursor.key;
+                    if (typeof key === 'string' && key.startsWith('tr_')) {
+                        cursor.delete();
+                    }
+                    cursor.continue();
+                }
+            };
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+
+    async function libGetTranslatedCacheSizeBytes() {
+        const db = await libOpenDb();
+        const encoder = new TextEncoder();
+        let total = 0;
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction('tm_content', 'readonly');
+            const store = tx.objectStore('tm_content');
+            const req = store.openCursor();
+            req.onsuccess = () => {
+                const cursor = req.result;
+                if (cursor) {
+                    const key = cursor.key;
+                    if (typeof key === 'string' && key.startsWith('tr_')) {
+                        const text = cursor.value?.text || '';
+                        total += encoder.encode(text).length;
+                    }
+                    cursor.continue();
+                }
+            };
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+        return total;
+    }
+
+    function libFormatBytes(bytes) {
+        if (!bytes || bytes <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = bytes;
+        let unit = 0;
+        while (size >= 1024 && unit < units.length - 1) {
+            size /= 1024;
+            unit++;
+        }
+        return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+    }
+
+    function libLoadIndex() {
+        const fallback = { books: [], nameSetVersion: config.nameSetVersion || 1, configVersion: 1 };
+        const index = GM_getValue(LIB_INDEX_KEY);
+        if (!index || !index.books) return fallback;
+        return { ...fallback, ...index };
+    }
+
+    function libSaveIndex(index) {
+        GM_setValue(LIB_INDEX_KEY, index);
+    }
+
+    async function libTranslateLibraryTitles(wrapper, books) {
+        if (!wrapper || !books || books.length === 0) return;
+        config = loadConfig();
+        const zhBooks = books.filter(b => b && b.langSource === 'zh' && b.title);
+        if (zhBooks.length === 0) return;
+
+        const version = config.nameSetVersion || 1;
+        const rawTitles = zhBooks.map(b => b.title);
+        const cacheable = [];
+        const toTranslate = [];
+        zhBooks.forEach((b, i) => {
+            const key = `book:${b.bookId || ''}:${version}:${b.title}`;
+            if (libTitleCache.has(key)) {
+                cacheable[i] = libTitleCache.get(key);
+            } else {
+                toTranslate.push({ idx: i, title: b.title, key });
+            }
+        });
+
+        let translatedLines = [];
+        if (toTranslate.length > 0) {
+            try {
+                const text = await translatePanelText(toTranslate.map(t => t.title).join('\n'), 'text');
+                translatedLines = text.split(/\r?\n/);
+                toTranslate.forEach((t, i) => {
+                    const title = translatedLines[i] || t.title;
+                    libTitleCache.set(t.key, title);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        const cssEscape = (window.CSS && CSS.escape) ? CSS.escape : (s) => String(s).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+        zhBooks.forEach((b, i) => {
+            const key = `book:${b.bookId || ''}:${version}:${b.title}`;
+            const translated = libTitleCache.get(key);
+            if (!translated) return;
+            const card = wrapper.querySelector(`.tm-card[data-book-id="${cssEscape(b.bookId)}"]`);
+            const titleEl = card?.querySelector('.tm-lib-book-title');
+            if (titleEl) titleEl.textContent = translated;
+        });
+    }
+
+    // NEW: export helpers
+    function libSafeFileName(name) {
+        const cleaned = (name || 'book').replace(/[\\/:*?"<>|]+/g, '_').trim();
+        return cleaned.slice(0, 120) || 'book';
+    }
+
+    function libDownloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function libTextToHtml(text) {
+        const escaped = escapeHtml(text || '');
+        return escaped.split(/\n+/).map(line => {
+            if (!line.trim()) return '<p><br/></p>';
+            return `<p>${line}</p>`;
+        }).join('\n');
+    }
+
+    async function libCheckMissingTranslations(book, chapters) {
+        if (!book || book.langSource !== 'zh') return false;
+        for (const chapter of chapters) {
+            const expectedKey = libMakeTransKey(chapter.chapterId, chapter.rawKey);
+            if (chapter.transKey !== expectedKey) return true;
+            const cached = await libGet('tm_content', expectedKey);
+            if (!cached) return true;
+        }
+        return false;
+    }
+
+    async function libGetExportTextForChapter(book, chapter, ensureTranslated) {
+        const raw = await libGet('tm_content', chapter.rawKey);
+        const rawText = raw?.text || '';
+
+        if (!book || book.langSource === 'vi') return rawText;
+
+        const expectedKey = libMakeTransKey(chapter.chapterId, chapter.rawKey);
+        if (chapter.transKey === expectedKey) {
+            const cached = await libGet('tm_content', expectedKey);
+            if (cached?.text) return cached.text;
+        }
+
+        if (ensureTranslated) {
+            return await libTranslateAndCacheChapter(chapter.chapterId);
+        }
+
+        return '';
+    }
+
+    async function libExportBookTxt(bookId) {
+        const book = libFindBookInIndex(bookId);
+        if (!book) {
+            showNotification('Không tìm thấy truyện.');
+            return;
+        }
+        const chapters = await libGetChaptersByBook(bookId);
+        if (!chapters.length) {
+            showNotification('Truyện chưa có chương.');
+            return;
+        }
+
+        const needsTranslate = await libCheckMissingTranslations(book, chapters);
+        let ensureTranslated = false;
+        if (needsTranslate) {
+            ensureTranslated = confirm('Có chương chưa có cache dịch. Dịch và cache trước khi xuất?');
+            if (!ensureTranslated) {
+                showNotification('Hủy xuất do thiếu cache dịch.');
+                return;
+            }
+        }
+
+        showLoading('Đang xuất TXT...');
+        try {
+            const lines = [];
+            for (let i = 0; i < chapters.length; i++) {
+                const ch = chapters[i];
+                const title = ch.title || `Chương ${i + 1}`;
+                if (ensureTranslated && book.langSource === 'zh') {
+                    showLoading(`Đang dịch chương ${i + 1}/${chapters.length}...`);
+                }
+                const text = await libGetExportTextForChapter(book, ch, ensureTranslated);
+                lines.push(title);
+                lines.push('');
+                lines.push(text || '');
+                lines.push('\n');
+            }
+            showLoading('Đang đóng gói TXT...');
+            const filename = `${libSafeFileName(book.title)}.txt`;
+            libDownloadBlob(new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' }), filename);
+            showNotification('Đã xuất TXT.');
+        } catch (err) {
+            console.error(err);
+            showNotification('Xuất TXT thất bại.');
+        } finally {
+            removeLoading();
+        }
+    }
+
+    async function libExportBookEpub(bookId) {
+        const book = libFindBookInIndex(bookId);
+        if (!book) {
+            showNotification('Không tìm thấy truyện.');
+            return;
+        }
+        const chapters = await libGetChaptersByBook(bookId);
+        if (!chapters.length) {
+            showNotification('Truyện chưa có chương.');
+            return;
+        }
+
+        const needsTranslate = await libCheckMissingTranslations(book, chapters);
+        let ensureTranslated = false;
+        if (needsTranslate) {
+            ensureTranslated = confirm('Có chương chưa có cache dịch. Dịch và cache trước khi xuất?');
+            if (!ensureTranslated) {
+                showNotification('Hủy xuất do thiếu cache dịch.');
+                return;
+            }
+        }
+
+        showLoading('Đang xuất EPUB...');
+        try {
+            if (!window.fflate || !fflate.zipSync || !fflate.strToU8) {
+                throw new Error('fflate chưa sẵn sàng.');
+            }
+            const { zipSync, strToU8 } = fflate;
+            const files = {};
+            files['mimetype'] = [strToU8('application/epub+zip'), { level: 0 }];
+            files['META-INF/container.xml'] = strToU8(`<?xml version="1.0" encoding="UTF-8"?>\n<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">\n  <rootfiles>\n    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>\n  </rootfiles>\n</container>`);
+
+            const manifestItems = [];
+            const spineItems = [];
+            const navPoints = [];
+
+            for (let i = 0; i < chapters.length; i++) {
+                const ch = chapters[i];
+                const title = ch.title || `Chương ${i + 1}`;
+                if (ensureTranslated && book.langSource === 'zh') {
+                    showLoading(`Đang dịch chương ${i + 1}/${chapters.length}...`);
+                }
+                const text = await libGetExportTextForChapter(book, ch, ensureTranslated);
+                const filename = `Text/chapter_${i + 1}.xhtml`;
+                const html = `<?xml version="1.0" encoding="utf-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml">\n<head><title>${escapeHtml(title)}</title></head>\n<body>\n<h2>${escapeHtml(title)}</h2>\n${libTextToHtml(text || '')}\n</body>\n</html>`;
+                files[`OEBPS/${filename}`] = strToU8(html);
+
+                manifestItems.push(`<item id="chap${i + 1}" href="${filename}" media-type="application/xhtml+xml"/>`);
+                spineItems.push(`<itemref idref="chap${i + 1}"/>`);
+                navPoints.push(`    <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">\n      <navLabel><text>${escapeHtml(title)}</text></navLabel>\n      <content src="${filename}"/>\n    </navPoint>`);
+            }
+
+            const language = 'vi';
+            const uid = escapeHtml(book.bookId || libHashString(book.title || 'book'));
+            const author = escapeHtml(book.author || '');
+
+            files['OEBPS/toc.ncx'] = strToU8(`<?xml version="1.0" encoding="UTF-8"?>\n<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">\n  <head>\n    <meta name="dtb:uid" content="${uid}"/>\n    <meta name="dtb:depth" content="1"/>\n    <meta name="dtb:totalPageCount" content="0"/>\n    <meta name="dtb:maxPageNumber" content="0"/>\n  </head>\n  <docTitle><text>${escapeHtml(book.title || 'Untitled')}</text></docTitle>\n  <navMap>\n${navPoints.join('\n')}\n  </navMap>\n</ncx>`);
+
+            files['OEBPS/content.opf'] = strToU8(`<?xml version="1.0" encoding="UTF-8"?>\n<package xmlns=\"http://www.idpf.org/2007/opf\" unique-identifier=\"BookId\" version=\"2.0\">\n  <metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n    <dc:title>${escapeHtml(book.title || 'Untitled')}</dc:title>\n    <dc:language>${language}</dc:language>\n    <dc:identifier id=\"BookId\">${uid}</dc:identifier>\n    ${author ? `<dc:creator>${author}</dc:creator>` : ''}\n  </metadata>\n  <manifest>\n    <item id=\"ncx\" href=\"toc.ncx\" media-type=\"application/x-dtbncx+xml\"/>\n    ${manifestItems.join('\n    ')}\n  </manifest>\n  <spine toc=\"ncx\">\n    ${spineItems.join('\n    ')}\n  </spine>\n</package>`);
+
+            showLoading('Đang đóng gói EPUB...');
+            const zipped = zipSync(files, { level: 6 });
+            const blob = new Blob([zipped], { type: 'application/epub+zip' });
+            const filename = `${libSafeFileName(book.title)}.epub`;
+            libDownloadBlob(blob, filename);
+            showNotification('Đã xuất EPUB.');
+        } catch (err) {
+            console.error(err);
+            showNotification('Xuất EPUB thất bại.');
+        } finally {
+            removeLoading();
+        }
+    }
+
+    async function libDeleteBook(bookId) {
+        const book = libFindBookInIndex(bookId);
+        if (!book) {
+            showNotification('Không tìm thấy truyện.');
+            return;
+        }
+        if (!confirm(`Xóa truyện "${book.title || 'Untitled'}"? Dữ liệu sẽ bị xóa vĩnh viễn.`)) {
+            return;
+        }
+
+        showLoading('Đang xóa truyện...');
+        try {
+            const db = await libOpenDb();
+            const contentKeys = new Set();
+
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction('tm_chapters', 'readwrite');
+                const store = tx.objectStore('tm_chapters');
+                const req = store.openCursor();
+                req.onsuccess = () => {
+                    const cursor = req.result;
+                    if (cursor) {
+                        const value = cursor.value;
+                        if (value.bookId === bookId) {
+                            if (value.rawKey) contentKeys.add(value.rawKey);
+                            if (value.transKey) contentKeys.add(value.transKey);
+                            store.delete(cursor.key);
+                        }
+                        cursor.continue();
+                    }
+                };
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+
+            if (contentKeys.size > 0) {
+                const tx = db.transaction('tm_content', 'readwrite');
+                const store = tx.objectStore('tm_content');
+                contentKeys.forEach(key => store.delete(key));
+                await libWaitTx(tx);
+            }
+
+            const index = libLoadIndex();
+            index.books = (index.books || []).filter(b => b.bookId !== bookId);
+            libSaveIndex(index);
+
+            showNotification('Đã xóa truyện.');
+        } catch (err) {
+            console.error(err);
+            showNotification('Xóa truyện thất bại.');
+        } finally {
+            removeLoading();
+        }
+    }
+
+    // NEW: EPUB import helpers
+    function libParseXml(xmlText) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xmlText, 'application/xml');
+        const parserErrors = doc.getElementsByTagName('parsererror');
+        if (parserErrors && parserErrors.length) {
+            throw new Error('XML không hợp lệ.');
+        }
+        return doc;
+    }
+
+    function libFindFirstByLocalName(root, localName) {
+        if (!root) return null;
+        const all = root.getElementsByTagName('*');
+        for (let i = 0; i < all.length; i++) {
+            const el = all[i];
+            if (el.localName === localName) return el;
+        }
+        return null;
+    }
+
+    function libFindAllByLocalName(root, localName) {
+        if (!root) return [];
+        const all = root.getElementsByTagName('*');
+        const result = [];
+        for (let i = 0; i < all.length; i++) {
+            const el = all[i];
+            if (el.localName === localName) result.push(el);
+        }
+        return result;
+    }
+
+    function libResolveZipPath(basePath, href) {
+        if (!href) return '';
+        let path = href.split('#')[0];
+        if (path.startsWith('/')) path = path.slice(1);
+        const baseDir = basePath && basePath.includes('/') ? basePath.slice(0, basePath.lastIndexOf('/') + 1) : '';
+        const combined = path.startsWith('/') ? path.slice(1) : `${baseDir}${path}`;
+        const parts = combined.split('/').filter(Boolean);
+        const stack = [];
+        for (const part of parts) {
+            if (part === '.') continue;
+            if (part === '..') stack.pop();
+            else stack.push(part);
+        }
+        return stack.join('/');
+    }
+
+    function libExtractTextFromHtml(htmlText) {
+        const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+        if (!doc || !doc.body) return '';
+        const blockTags = new Set([
+            'p', 'div', 'section', 'article', 'header', 'footer', 'aside',
+            'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'ul', 'ol',
+            'table', 'thead', 'tbody', 'tr', 'td', 'th', 'blockquote'
+        ]);
+        let out = '';
+        function walk(node) {
+            if (node.nodeType === 3) {
+                out += node.nodeValue || '';
+                return;
+            }
+            if (node.nodeType !== 1) return;
+            const tag = (node.tagName || '').toLowerCase();
+            if (tag === 'br') {
+                out += '\n';
+                return;
+            }
+            const isBlock = blockTags.has(tag);
+            if (isBlock) out += '\n';
+            let child = node.firstChild;
+            while (child) {
+                walk(child);
+                child = child.nextSibling;
+            }
+            if (isBlock) out += '\n';
+        }
+        walk(doc.body);
+        return out
+            .replace(/\u00a0/g, ' ')
+            .replace(/[ \t]+\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    async function libImportChaptersToLibrary(chapters, langSource, title, author) {
+        const now = Date.now();
+        const bookId = libMakeBookId(title, author, now);
+        const lang = langSource === 'vi' ? 'vi' : 'zh';
+
+        const chapterItems = [];
+        const contentItems = [];
+
+        chapters.forEach((ch, idx) => {
+            const chapterId = libMakeChapterId(bookId, idx + 1, ch.title);
+            const rawKey = libMakeRawKey(chapterId, ch.text || '');
+            contentItems.push({
+                key: rawKey,
+                text: ch.text || '',
+                lang: lang,
+                createdAt: now,
+                updatedAt: now
+            });
+            chapterItems.push({
+                chapterId: chapterId,
+                bookId: bookId,
+                order: idx + 1,
+                title: ch.title || `Chương ${idx + 1}`,
+                rawKey: rawKey,
+                transKey: null,
+                updatedAt: now
+            });
+        });
+
+        const index = libLoadIndex();
+        index.books = index.books || [];
+        index.books.unshift({
+            bookId: bookId,
+            title: title,
+            author: author || '',
+            langSource: lang,
+            createdAt: now,
+            updatedAt: now,
+            chapterCount: chapters.length
+        });
+        index.nameSetVersion = config.nameSetVersion || 1;
+        libSaveIndex(index);
+
+        await libPutMany('tm_content', contentItems);
+        await libPutMany('tm_chapters', chapterItems);
+
+        return { bookId, title, chapterCount: chapters.length };
+    }
+
+    async function libImportEpubToLibrary(file, langSource, customTitle) {
+        if (!window.fflate || !fflate.unzipSync) {
+            throw new Error('fflate chưa sẵn sàng.');
+        }
+
+        showLoading('Đang mở EPUB...');
+        await sleep(0);
+        const buffer = await file.arrayBuffer();
+        showLoading('Đang giải nén EPUB...');
+        const u8 = new Uint8Array(buffer);
+        const zip = fflate.unzipSync(u8);
+        const decoder = new TextDecoder('utf-8');
+        const getEntry = (path) => zip[path] || zip[decodeURIComponent(path)] || zip[path.replace(/\\/g, '/')];
+        const getText = (path) => {
+            const data = getEntry(path);
+            if (!data) return null;
+            return decoder.decode(data);
+        };
+
+        showLoading('Đang đọc container.xml...');
+        const containerXml = getText('META-INF/container.xml');
+        if (!containerXml) throw new Error('Không tìm thấy container.xml');
+        const containerDoc = libParseXml(containerXml);
+        const rootfile = libFindFirstByLocalName(containerDoc, 'rootfile');
+        if (!rootfile) throw new Error('Không tìm thấy rootfile trong container.xml');
+        const opfPath = rootfile.getAttribute('full-path');
+        if (!opfPath) throw new Error('Thiếu đường dẫn OPF.');
+
+        showLoading('Đang đọc content.opf...');
+        const opfXml = getText(opfPath);
+        if (!opfXml) throw new Error('Không tìm thấy file OPF.');
+        const opfDoc = libParseXml(opfXml);
+
+        const metadataEl = libFindFirstByLocalName(opfDoc, 'metadata') || opfDoc;
+        const dcTitle = libFindFirstByLocalName(metadataEl, 'title');
+        const dcCreator = libFindFirstByLocalName(metadataEl, 'creator');
+        const title = (customTitle && customTitle.trim()) || (dcTitle?.textContent || '').trim() || file.name.replace(/\.[^.]+$/, '') || 'Untitled';
+        const author = (dcCreator?.textContent || '').trim();
+
+        const manifest = new Map();
+        libFindAllByLocalName(opfDoc, 'item').forEach(item => {
+            if (item.parentNode && item.parentNode.localName !== 'manifest') return;
+            const id = item.getAttribute('id');
+            const href = item.getAttribute('href');
+            const mediaType = item.getAttribute('media-type') || '';
+            if (id && href) {
+                const resolved = libResolveZipPath(opfPath, href);
+                manifest.set(id, { href, resolved, mediaType });
+            }
+        });
+
+        const spine = [];
+        libFindAllByLocalName(opfDoc, 'itemref').forEach(itemref => {
+            if (itemref.parentNode && itemref.parentNode.localName !== 'spine') return;
+            const idref = itemref.getAttribute('idref');
+            if (idref && manifest.has(idref)) spine.push(idref);
+        });
+
+        let tocMap = new Map();
+        const spineEl = libFindFirstByLocalName(opfDoc, 'spine');
+        const tocId = spineEl?.getAttribute('toc');
+        let tocItem = null;
+        if (tocId && manifest.has(tocId)) tocItem = manifest.get(tocId);
+        if (!tocItem) {
+            for (const item of manifest.values()) {
+                if ((item.mediaType || '').includes('ncx')) {
+                    tocItem = item;
+                    break;
+                }
+            }
+        }
+
+        if (tocItem) {
+            const tocXml = getText(tocItem.resolved);
+            if (tocXml) {
+                const tocDoc = libParseXml(tocXml);
+                const navPoints = libFindAllByLocalName(tocDoc, 'navPoint');
+                navPoints.forEach(navPoint => {
+                    const textEl = libFindFirstByLocalName(navPoint, 'text');
+                    const contentEl = libFindFirstByLocalName(navPoint, 'content');
+                    const src = contentEl?.getAttribute('src') || '';
+                    const label = (textEl?.textContent || '').trim();
+                    if (src) {
+                        const resolved = libResolveZipPath(tocItem.resolved, src);
+                        tocMap.set(resolved, label);
+                    }
+                });
+            }
+        }
+
+        const chapters = [];
+        for (let i = 0; i < spine.length; i++) {
+            showLoading(`Đang đọc EPUB... (${i + 1}/${spine.length})`);
+            const idref = spine[i];
+            const item = manifest.get(idref);
+            if (!item) continue;
+            const filePath = item.resolved;
+            const htmlText = getText(filePath);
+            if (!htmlText) continue;
+            const text = libExtractTextFromHtml(htmlText);
+            if (!text) continue;
+
+            let chapterTitle = tocMap.get(filePath) || '';
+            if (!chapterTitle) {
+                const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+                chapterTitle = doc.querySelector('h1, h2, title')?.textContent?.trim() || '';
+            }
+            if (!chapterTitle) chapterTitle = `Chương ${chapters.length + 1}`;
+            chapters.push({ title: chapterTitle, text });
+        }
+
+        if (!chapters.length) throw new Error('Không tìm thấy chương trong EPUB.');
+        return await libImportChaptersToLibrary(chapters, langSource, title, author);
+    }
+
+    function libNormalizeTextForSplit(text) {
+        let normalized = (text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        normalized = normalized.replace(/[ \t]+\n/g, '\n');
+        normalized = normalized.replace(/\n{3,}/g, '\n\n');
+        return normalized.trim();
+    }
+
+    function libMergeShortChapters(chapters, minLen) {
+        if (!Array.isArray(chapters) || chapters.length === 0) return chapters || [];
+        const merged = [];
+        let buffer = null;
+
+        for (const ch of chapters) {
+            if (!ch || !ch.text || !ch.text.trim()) continue;
+            if (!buffer) {
+                buffer = { ...ch };
+                continue;
+            }
+            if ((buffer.text || '').length < minLen) {
+                buffer.text = `${buffer.text}\n\n${ch.text}`.trim();
+            } else {
+                merged.push(buffer);
+                buffer = { ...ch };
+            }
+        }
+        if (buffer) {
+            if (buffer.text.length < minLen && merged.length > 0) {
+                merged[merged.length - 1].text = `${merged[merged.length - 1].text}\n\n${buffer.text}`.trim();
+            } else {
+                merged.push(buffer);
+            }
+        }
+        return merged;
+    }
+
+    function libSplitLongBlock(text, maxLen) {
+        const cleaned = (text || '').trim();
+        if (!cleaned) return [];
+        const chunks = [];
+        let buf = '';
+        const seps = new Set(['。', '！', '？', '!', '?', '；', ';', '…', '.', '，', ',', '、', ':', '：']);
+        for (let i = 0; i < cleaned.length; i++) {
+            const ch = cleaned[i];
+            buf += ch;
+            if (buf.length >= maxLen) {
+                chunks.push(buf.trim());
+                buf = '';
+                continue;
+            }
+            if (seps.has(ch) && buf.length >= Math.floor(maxLen * 0.5)) {
+                chunks.push(buf.trim());
+                buf = '';
+            }
+        }
+        if (buf.trim()) chunks.push(buf.trim());
+
+        const finalChunks = [];
+        for (const chunk of chunks) {
+            if (chunk.length <= maxLen) {
+                finalChunks.push(chunk);
+            } else {
+                for (let i = 0; i < chunk.length; i += maxLen) {
+                    finalChunks.push(chunk.slice(i, i + maxLen));
+                }
+            }
+        }
+        return finalChunks;
+    }
+
+    function libSplitByNewlines(normalized, cfg) {
+        if (!normalized) return [];
+        const targetSize = Math.max(4000, (cfg?.maxCharsPerRequest || 4500));
+        const maxChapterLen = Math.max(targetSize * 2, 9000);
+        let parts = normalized.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+        let joiner = '\n\n';
+        if (parts.length <= 1) {
+            parts = normalized.split(/\n+/).map(s => s.trim()).filter(Boolean);
+            joiner = '\n';
+        }
+        const expandedParts = [];
+        for (const part of parts) {
+            if (part.length > maxChapterLen) {
+                expandedParts.push(...libSplitLongBlock(part, maxChapterLen));
+            } else {
+                expandedParts.push(part);
+            }
+        }
+        parts = expandedParts;
+        const total = parts.reduce((sum, s) => sum + s.length, 0);
+        const desired = Math.max(1, Math.round(total / targetSize));
+        const avgSize = Math.max(1, Math.ceil(total / desired));
+        const chapters = [];
+        let cur = [];
+        let curLen = 0;
+        for (const part of parts) {
+            const addLen = part.length + (cur.length ? joiner.length : 0);
+            if (cur.length > 0 && curLen + addLen > avgSize && chapters.length < desired - 1) {
+                chapters.push(cur.join(joiner));
+                cur = [part];
+                curLen = part.length;
+            } else {
+                cur.push(part);
+                curLen += addLen;
+            }
+        }
+        if (cur.length) chapters.push(cur.join(joiner));
+        const minLen = Math.max(800, Math.floor(targetSize * 0.25));
+        return libMergeShortChapters(
+            chapters.map((content, idx) => ({ title: `Chương ${idx + 1}`, text: content.trim() })),
+            minLen
+        );
+    }
+
+    function libSplitChaptersFromText(text) {
+        const cfg = config || loadConfig();
+        const normalized = libNormalizeTextForSplit(text);
+        const headingRegex = /^(?:\s*)(?:Chương|CHƯƠNG|Chuong|CHUONG|Chapter|CHAPTER|卷|第\s*[\d一二三四五六七八九十百千零]+?\s*章)[^\n]{0,80}$/gm;
+        const matches = Array.from(normalized.matchAll(headingRegex));
+        if (matches.length === 0) {
+            return libSplitByNewlines(normalized, cfg);
+        }
+
+        const chapters = [];
+        if (matches[0].index > 0) {
+            const preface = libNormalizeTextForSplit(normalized.slice(0, matches[0].index));
+            if (preface) chapters.push({ title: 'Mở đầu', text: preface });
+        }
+        for (let i = 0; i < matches.length; i++) {
+            const title = matches[i][0].trim();
+            const start = matches[i].index + matches[i][0].length;
+            const end = i + 1 < matches.length ? matches[i + 1].index : normalized.length;
+            const content = libNormalizeTextForSplit(normalized.slice(start, end));
+            if (!content) continue;
+            chapters.push({ title: title || `Chương ${i + 1}`, text: content });
+        }
+        const targetSize = Math.max(4000, (cfg?.maxCharsPerRequest || 4500));
+        const minLen = Math.max(800, Math.floor(targetSize * 0.25));
+        const maxChapterLen = Math.max(targetSize * 2, 9000);
+        const avgLen = chapters.length ? chapters.reduce((sum, c) => sum + (c.text || '').length, 0) / chapters.length : 0;
+        const tooShortCount = chapters.filter(c => (c.text || '').length < minLen / 2).length;
+        const tooLongCount = chapters.filter(c => (c.text || '').length > maxChapterLen).length;
+        const shouldFallback = chapters.length > 5 && (
+            avgLen < minLen * 0.6 ||
+            tooShortCount / chapters.length > 0.6 ||
+            tooLongCount > 0
+        );
+        if (shouldFallback) {
+            return libSplitByNewlines(normalized, cfg);
+        }
+        return libMergeShortChapters(chapters, minLen);
+    }
+
+    async function libImportTextToLibrary(file, langSource, customTitle) {
+        const text = await file.text();
+        const title = (customTitle && customTitle.trim()) || file.name.replace(/\.[^.]+$/, '') || 'Untitled';
+        const chapters = libSplitChaptersFromText(text);
+        return await libImportChaptersToLibrary(chapters, langSource, title, '');
+    }
+
+    async function libTranslateAndCacheChapter(chapterId) {
+        const chapter = await libGet('tm_chapters', chapterId);
+        if (!chapter || !chapter.rawKey) throw new Error('Không tìm thấy chương.');
+        const raw = await libGet('tm_content', chapter.rawKey);
+        if (!raw) throw new Error('Không tìm thấy nội dung gốc.');
+
+        const translated = await translatePanelText(raw.text || '', 'text');
+        const transKey = libMakeTransKey(chapterId, chapter.rawKey);
+        const now = Date.now();
+
+        await libPutMany('tm_content', [{
+            key: transKey,
+            text: translated,
+            lang: 'vi',
+            createdAt: now,
+            updatedAt: now
+        }]);
+
+        chapter.transKey = transKey;
+        chapter.updatedAt = now;
+        await libPutMany('tm_chapters', [chapter]);
+
+        return translated;
+    }
+
+    function openLibraryImportModal() {
+        removeElementById('tm-lib-import-modal');
+        const wrapper = document.createElement('div');
+        wrapper.id = 'tm-lib-import-modal';
+        wrapper.className = 'tm-modal-wrapper';
+        wrapper.style.zIndex = '2147483661';
+
+        wrapper.innerHTML = `
+        <div class="tm-modal-backdrop"></div>
+        <div class="tm-modal-box" style="width: 520px;">
+            <div class="tm-modal-header">
+                <h3>Nhập truyện vào thư viện</h3>
+                <button class="tm-btn" id="tm-lib-import-close">&times;</button>
+            </div>
+            <div class="tm-modal-content">
+                <label class="tm-label">File TXT/EPUB</label>
+                <input id="tm-lib-file" class="tm-input" type="file" accept=".txt,.epub" />
+                <label class="tm-label">Nguồn văn bản</label>
+                <select id="tm-lib-lang" class="tm-input">
+                    <option value="zh">Tiếng Trung (RAW)</option>
+                    <option value="vi">Tiếng Việt (KHÔNG dịch)</option>
+                </select>
+                <label class="tm-label">Tiêu đề truyện (tùy chọn)</label>
+                <input id="tm-lib-title" class="tm-input" placeholder="Để trống để lấy theo tên file" />
+            </div>
+            <div class="tm-modal-footer">
+                <button class="tm-btn" id="tm-lib-import-start">Import</button>
+            </div>
+        </div>
+        `;
+
+        document.body.appendChild(wrapper);
+
+        const fileInput = wrapper.querySelector('#tm-lib-file');
+        const titleInput = wrapper.querySelector('#tm-lib-title');
+        const langSelect = wrapper.querySelector('#tm-lib-lang');
+        const close = () => wrapper.remove();
+
+        fileInput.addEventListener('change', () => {
+            if (!titleInput.value && fileInput.files && fileInput.files[0]) {
+                titleInput.value = fileInput.files[0].name.replace(/\.[^.]+$/, '');
+            }
+        });
+
+        wrapper.querySelector('#tm-lib-import-close').addEventListener('click', close);
+        wrapper.querySelector('.tm-modal-backdrop').addEventListener('click', close);
+
+        wrapper.querySelector('#tm-lib-import-start').addEventListener('click', async () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+                showNotification('Chưa chọn file.');
+                return;
+            }
+            const ext = file.name.split('.').pop().toLowerCase();
+            const langSource = langSelect.value === 'vi' ? 'vi' : 'zh';
+            const title = titleInput.value;
+            let isSuccess = false;
+
+            try {
+                showLoading('Đang import...');
+                if (ext === 'epub') {
+                    const result = await libImportEpubToLibrary(file, langSource, title);
+                    showNotification(`Đã import: ${result.title} (${result.chapterCount} chương)`);
+                    isSuccess = true;
+                } else if (ext === 'txt') {
+                    const result = await libImportTextToLibrary(file, langSource, title);
+                    showNotification(`Đã import: ${result.title} (${result.chapterCount} chương)`);
+                    isSuccess = true;
+                } else {
+                    showNotification('Chỉ hỗ trợ TXT/EPUB.');
+                }
+            } catch (err) {
+                console.error(err);
+                showNotification('Import thất bại: ' + (err.message || 'Lỗi không rõ'));
+            } finally {
+                removeLoading();
+                if (isSuccess) {
+                    close();
+                    openLibraryListModal();
+                }
+            }
+        });
+    }
+
+    function openLibraryListModal() {
+        removeElementById('tm-lib-list-modal');
+        const index = libLoadIndex();
+
+        const listHtml = (index.books || []).map(b => `
+            <div class="tm-card" style="padding:10px; margin-bottom:10px;" data-book-id="${b.bookId}">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                    <div>
+                        <div class="tm-lib-book-title" data-raw-title="${escapeHtml(b.title || 'Untitled')}" style="font-weight:600;">${escapeHtml(b.title || 'Untitled')}</div>
+                        <div style="font-size:12px; color:#555;">
+                            Chương: ${b.chapterCount || 0} | Nguồn: ${b.langSource || 'zh'}
+                        </div>
+                    </div>
+                    <button class="tm-btn tm-btn-primary tm-lib-open" data-book-id="${b.bookId}">Mở</button>
+                </div>
+                <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="tm-btn tm-lib-export-txt" data-book-id="${b.bookId}">Xuất TXT</button>
+                    <button class="tm-btn tm-lib-export-epub" data-book-id="${b.bookId}">Xuất EPUB</button>
+                    <button class="tm-btn tm-lib-delete" data-book-id="${b.bookId}" style="border-color:#dc3545; color:#dc3545;">Xóa</button>
+                </div>
+            </div>
+        `).join('') || '<div>Chưa có truyện trong thư viện.</div>';
+
+        const wrapper = document.createElement('div');
+        wrapper.id = 'tm-lib-list-modal';
+        wrapper.className = 'tm-modal-wrapper';
+        wrapper.style.zIndex = '2147483661';
+        wrapper.innerHTML = `
+        <div class="tm-modal-backdrop"></div>
+        <div class="tm-modal-box" style="width: 520px;">
+            <div class="tm-modal-header">
+                <h3>Thư viện (Beta)</h3>
+                <button class="tm-btn" id="tm-lib-list-close">&times;</button>
+            </div>
+            <div class="tm-modal-content">
+                ${listHtml}
+            </div>
+            <div class="tm-modal-footer">
+                <button class="tm-btn" id="tm-lib-clear-cache">Xóa cache dịch</button>
+                <button class="tm-btn tm-btn-primary" id="tm-lib-import-open">Import</button>
+            </div>
+        </div>
+        `;
+        document.body.appendChild(wrapper);
+        libTranslateLibraryTitles(wrapper, index.books || []);
+
+        const close = () => wrapper.remove();
+        wrapper.querySelector('#tm-lib-list-close').addEventListener('click', close);
+        wrapper.querySelector('.tm-modal-backdrop').addEventListener('click', close);
+        wrapper.querySelectorAll('.tm-lib-open').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const bookId = btn.getAttribute('data-book-id');
+                close();
+                if (bookId) openLibraryReader(bookId);
+            });
+        });
+        wrapper.querySelectorAll('.tm-lib-export-txt').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const bookId = btn.getAttribute('data-book-id');
+                if (bookId) await libExportBookTxt(bookId);
+            });
+        });
+        wrapper.querySelectorAll('.tm-lib-export-epub').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const bookId = btn.getAttribute('data-book-id');
+                if (bookId) await libExportBookEpub(bookId);
+            });
+        });
+        wrapper.querySelectorAll('.tm-lib-delete').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const bookId = btn.getAttribute('data-book-id');
+                if (!bookId) return;
+                await libDeleteBook(bookId);
+                // refresh modal after delete
+                close();
+                openLibraryListModal();
+            });
+        });
+        wrapper.querySelector('#tm-lib-import-open').addEventListener('click', () => {
+            close();
+            openLibraryImportModal();
+        });
+        wrapper.querySelector('#tm-lib-clear-cache').addEventListener('click', async () => {
+            showLoading('Đang tính dung lượng cache...');
+            let sizeText = '0 B';
+            try {
+                const bytes = await libGetTranslatedCacheSizeBytes();
+                sizeText = libFormatBytes(bytes);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                removeLoading();
+            }
+            if (!confirm(`Xóa toàn bộ cache dịch? (Dung lượng: ${sizeText})`)) return;
+            showLoading('Đang xóa cache...');
+            try {
+                await libClearTranslatedContent();
+                showNotification('Đã xóa cache dịch.');
+            } catch (err) {
+                console.error(err);
+                showNotification('Xóa cache thất bại.');
+            } finally {
+                removeLoading();
+            }
+        });
+    }
+
+    /* ================== READER UI (NEW) ================== */
+    let libReaderState = null;
+    let libReaderUI = null;
+
+    async function libGetChaptersByBook(bookId) {
+        const db = await libOpenDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction('tm_chapters', 'readonly');
+            const store = tx.objectStore('tm_chapters');
+            const result = [];
+            const req = store.openCursor();
+            req.onsuccess = () => {
+                const cursor = req.result;
+                if (cursor) {
+                    const value = cursor.value;
+                    if (value.bookId === bookId) result.push(value);
+                    cursor.continue();
+                }
+            };
+            tx.oncomplete = () => resolve(result.sort((a, b) => (a.order || 0) - (b.order || 0)));
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+
+    function libFindBookInIndex(bookId) {
+        const index = libLoadIndex();
+        return (index.books || []).find(b => b.bookId === bookId) || null;
+    }
+
+    function libUpdateBookLastRead(bookId, chapterId, scrollRatio) {
+        const index = libLoadIndex();
+        const book = (index.books || []).find(b => b.bookId === bookId);
+        if (!book) return;
+        book.lastReadChapterId = chapterId;
+        if (typeof scrollRatio === 'number' && !Number.isNaN(scrollRatio)) {
+            book.lastReadScrollRatio = Math.max(0, Math.min(1, scrollRatio));
+        }
+        book.updatedAt = Date.now();
+        libSaveIndex(index);
+    }
+
+    function libReaderEnsureUI() {
+        const existing = document.getElementById('tm-reader-overlay');
+        if (existing && libReaderUI) return libReaderUI;
+        if (existing) existing.remove();
+
+        const root = document.createElement('div');
+        root.id = 'tm-reader-overlay';
+        root.className = 'tm-reader-overlay';
+        root.innerHTML = `
+            <div class="tm-reader-header">
+                <div class="tm-reader-title">
+                    <div id="tm-reader-book-title" class="tm-reader-book"></div>
+                    <div id="tm-reader-chapter-sub" class="tm-reader-chapter"></div>
+                </div>
+                <div class="tm-reader-actions">
+                    <button id="tm-reader-raw-btn" class="tm-btn">RAW</button>
+                    <button id="tm-reader-trans-btn" class="tm-btn">DỊCH</button>
+                    <button id="tm-reader-fullscreen" class="tm-btn">Fullscreen</button>
+                    <button id="tm-reader-settings" class="tm-btn">Cài đặt</button>
+                    <button id="tm-reader-toc-btn" class="tm-btn">Mục lục</button>
+                    <button id="tm-reader-close" class="tm-btn">×</button>
+                </div>
+            </div>
+            <div class="tm-reader-body">
+                <aside id="tm-reader-toc" class="tm-reader-toc"></aside>
+                <main class="tm-reader-content">
+                    <h2 id="tm-reader-chapter-title"></h2>
+                    <div id="tm-reader-text" class="tm-reader-text"></div>
+                </main>
+            </div>
+            <div class="tm-reader-footer">
+                <button id="tm-reader-prev" class="tm-btn">← Chương trước</button>
+                <div id="tm-reader-progress" class="tm-reader-progress"></div>
+                <button id="tm-reader-next" class="tm-btn">Chương sau →</button>
+            </div>
+        `;
+        document.body.appendChild(root);
+
+        libReaderUI = {
+            root,
+            bookTitle: root.querySelector('#tm-reader-book-title'),
+            chapterSub: root.querySelector('#tm-reader-chapter-sub'),
+            chapterTitle: root.querySelector('#tm-reader-chapter-title'),
+            contentWrap: root.querySelector('.tm-reader-content'),
+            content: root.querySelector('#tm-reader-text'),
+            toc: root.querySelector('#tm-reader-toc'),
+            progress: root.querySelector('#tm-reader-progress'),
+            btnPrev: root.querySelector('#tm-reader-prev'),
+            btnNext: root.querySelector('#tm-reader-next'),
+            btnRaw: root.querySelector('#tm-reader-raw-btn'),
+            btnTrans: root.querySelector('#tm-reader-trans-btn'),
+            btnFullscreen: root.querySelector('#tm-reader-fullscreen'),
+            btnSettings: root.querySelector('#tm-reader-settings'),
+            btnToc: root.querySelector('#tm-reader-toc-btn'),
+            btnClose: root.querySelector('#tm-reader-close')
+        };
+
+        libReaderUI.btnClose.addEventListener('click', libReaderClose);
+        libReaderUI.btnPrev.addEventListener('click', () => libReaderGo(-1));
+        libReaderUI.btnNext.addEventListener('click', () => libReaderGo(1));
+        libReaderUI.btnToc.addEventListener('click', () => {
+            libReaderUI.toc.classList.toggle('hidden');
+        });
+        libReaderUI.btnRaw.addEventListener('click', () => libReaderSetMode('raw'));
+        libReaderUI.btnTrans.addEventListener('click', () => libReaderSetMode('trans'));
+        libReaderUI.btnFullscreen.addEventListener('click', () => {
+            libReaderState = libReaderState || {};
+            libReaderState.fullscreen = !libReaderState.fullscreen;
+            libReaderApplySettings();
+            if (libReaderState.fullscreen) {
+                showNotification('Đã bật fullscreen. Nhấn ESC để thoát.');
+            }
+        });
+        libReaderUI.btnSettings.addEventListener('click', () => openSettingsUI('library'));
+        if (libReaderUI.contentWrap) {
+            libReaderUI.contentWrap.addEventListener('click', (e) => {
+                const nameSpan = e.target.closest('.tm-name');
+                if (!nameSpan) return;
+                const sel = window.getSelection();
+                if (sel && !sel.isCollapsed) {
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                const orig = nameSpan.dataset.orig || '';
+                const text = nameSpan.textContent || '';
+                showEditModal(orig, text, { readerTheme: true });
+            });
+        }
+        if (libReaderUI.contentWrap) {
+            libReaderUI.contentWrap.addEventListener('scroll', libReaderHandleScroll);
+            libReaderUI.contentWrap.addEventListener('wheel', libReaderHandleWheel, { passive: true });
+        }
+        if (!libReaderState) libReaderState = {};
+        if (!libReaderState.keyHandler) {
+            libReaderState.keyHandler = (e) => {
+                if (e.key === 'Escape' && libReaderState?.fullscreen) {
+                    libReaderState.fullscreen = false;
+                    libReaderApplySettings();
+                }
+            };
+            document.addEventListener('keydown', libReaderState.keyHandler);
+        }
+
+        return libReaderUI;
+    }
+
+    function libReaderEnterCleanMode() {
+        if (libReaderState?.cleanMode) return;
+        libReaderState = libReaderState || {};
+        libReaderState.cleanMode = true;
+        try { window.stop(); } catch (e) { /* ignore */ }
+        try {
+            document.querySelectorAll('iframe, script').forEach(el => el.remove());
+            document.querySelectorAll('video, audio').forEach(el => {
+                try { el.pause(); } catch (e) { /* ignore */ }
+                el.remove();
+            });
+        } catch (e) { /* ignore */ }
+        if (document.head) document.head.innerHTML = '';
+        if (document.body) document.body.innerHTML = '';
+        if (!document.head) {
+            const head = document.createElement('head');
+            document.documentElement.prepend(head);
+        }
+        if (!document.body) {
+            const body = document.createElement('body');
+            document.documentElement.appendChild(body);
+        }
+        injectGlobalCSS();
+    }
+
+    function libReaderApplySettings() {
+        if (!libReaderUI) return;
+        config = loadConfig();
+        const style = config.readerStyle || DEFAULT_CONFIG.readerStyle;
+        const bg = (style.bgColor || '#f7f4ee').trim();
+        const text = (style.textColor || '#1f1f1f').trim();
+        const rgb = (hex) => {
+            const clean = hex.replace('#', '');
+            if (clean.length !== 6) return null;
+            const r = parseInt(clean.slice(0, 2), 16);
+            const g = parseInt(clean.slice(2, 4), 16);
+            const b = parseInt(clean.slice(4, 6), 16);
+            return { r, g, b };
+        };
+        const mix = (c1, c2, t) => ({
+            r: Math.round(c1.r + (c2.r - c1.r) * t),
+            g: Math.round(c1.g + (c2.g - c1.g) * t),
+            b: Math.round(c1.b + (c2.b - c1.b) * t)
+        });
+        const toHex = (c) => `#${[c.r, c.g, c.b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+        const bgRgb = rgb(bg) || { r: 247, g: 244, b: 238 };
+        const luminance = (c) => (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255;
+        const isLight = luminance(bgRgb) > 0.6;
+        const surface = toHex(mix(bgRgb, isLight ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 }, isLight ? 0.08 : 0.2));
+        const border = toHex(mix(bgRgb, isLight ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 }, isLight ? 0.15 : 0.25));
+        const textRgb = rgb(text) || { r: 31, g: 31, b: 31 };
+        const muted = toHex(mix(textRgb, bgRgb, 0.45));
+        const hover = toHex(mix(bgRgb, textRgb, isLight ? 0.08 : 0.2));
+        const active = toHex(mix(bgRgb, textRgb, isLight ? 0.12 : 0.28));
+
+        libReaderUI.root.style.setProperty('--tm-reader-bg', bg);
+        libReaderUI.root.style.setProperty('--tm-reader-text', text);
+        libReaderUI.root.style.setProperty('--tm-reader-surface', surface);
+        libReaderUI.root.style.setProperty('--tm-reader-border', border);
+        libReaderUI.root.style.setProperty('--tm-reader-muted', muted);
+        libReaderUI.root.style.setProperty('--tm-reader-hover', hover);
+        libReaderUI.root.style.setProperty('--tm-reader-active', active);
+        libReaderUI.root.style.setProperty('--tm-reader-spacer', '120px');
+        libReaderUI.root.style.setProperty('--tm-reader-font', style.fontFamily || DEFAULT_CONFIG.readerStyle.fontFamily);
+        libReaderUI.root.style.setProperty('--tm-reader-font-size', `${style.fontSize || DEFAULT_CONFIG.readerStyle.fontSize}px`);
+        libReaderUI.root.style.setProperty('--tm-reader-line-height', style.lineHeight || DEFAULT_CONFIG.readerStyle.lineHeight);
+        libReaderUI.root.style.setProperty('--tm-reader-padding-x', `${(style.paddingX ?? DEFAULT_CONFIG.readerStyle.paddingX)}px`);
+        libReaderUI.root.style.setProperty('--tm-reader-text-align', style.textAlign || DEFAULT_CONFIG.readerStyle.textAlign);
+        const isFullscreen = !!(libReaderState && libReaderState.fullscreen);
+        libReaderUI.root.classList.toggle('tm-reader-fullscreen', isFullscreen);
+        if (libReaderUI.btnFullscreen) {
+            libReaderUI.btnFullscreen.textContent = isFullscreen ? 'Thoát full' : 'Fullscreen';
+        }
+
+        const viewMode = config.readerMode === 'vertical' ? 'vertical' : 'single';
+        libReaderUI.root.classList.remove('tm-reader-mode-single', 'tm-reader-mode-vertical');
+        libReaderUI.root.classList.add(`tm-reader-mode-${viewMode}`);
+        if (libReaderState) libReaderState.viewMode = viewMode;
+    }
+
+    function libReaderClose() {
+        const el = document.getElementById('tm-reader-overlay');
+        if (el) el.remove();
+        libReaderState = null;
+        libReaderUI = null;
+        location.reload();
+    }
+
+    function libReaderSetMode(mode) {
+        if (!libReaderState) return;
+        if (libReaderState.book.langSource === 'vi') return;
+        libReaderState.mode = mode === 'raw' ? 'raw' : 'trans';
+        libReaderUpdateModeButtons();
+        libReaderLoadCurrentChapter();
+    }
+
+    function libReaderUpdateModeButtons() {
+        if (!libReaderUI || !libReaderState) return;
+        libReaderUI.btnRaw.classList.toggle('active', libReaderState.mode === 'raw');
+        libReaderUI.btnTrans.classList.toggle('active', libReaderState.mode === 'trans');
+    }
+
+    async function libReaderGo(offset, options = {}) {
+        if (!libReaderState || libReaderState.isSwitching) return;
+        const nextIndex = libReaderState.currentIndex + offset;
+        if (nextIndex < 0 || nextIndex >= libReaderState.chapters.length) return;
+        libReaderState.currentIndex = nextIndex;
+        libReaderState.isSwitching = true;
+        await libReaderLoadCurrentChapter(options);
+        libReaderState.isSwitching = false;
+    }
+
+    async function libReaderGoTo(index, options = {}) {
+        if (!libReaderState || libReaderState.isSwitching) return;
+        if (index < 0 || index >= libReaderState.chapters.length) return;
+        libReaderState.currentIndex = index;
+        libReaderState.isSwitching = true;
+        await libReaderLoadCurrentChapter(options);
+        libReaderState.isSwitching = false;
+    }
+
+    async function libReaderRenderToc() {
+        if (!libReaderUI || !libReaderState) return;
+        const chapters = libReaderState.chapters;
+        const activeIndex = libReaderState.currentIndex;
+        libReaderUI.toc.innerHTML = chapters.map((ch, idx) => {
+            const title = escapeHtml(ch.title || `Chương ${idx + 1}`);
+            const active = idx === activeIndex ? 'active' : '';
+            return `<div class="tm-reader-toc-item ${active}" data-index="${idx}">${title}</div>`;
+        }).join('');
+        libReaderUI.toc.querySelectorAll('.tm-reader-toc-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const idx = parseInt(item.getAttribute('data-index') || '0', 10);
+                libReaderGoTo(idx);
+            });
+        });
+
+        if (libReaderState.book.langSource === 'vi' || libReaderState.mode === 'raw') return;
+
+        const version = config.nameSetVersion || 1;
+        const rawTitles = chapters.map((ch, idx) => ch.title || `Chương ${idx + 1}`);
+        try {
+            const translatedText = await translatePanelText(rawTitles.join('\n'), 'text');
+            const lines = translatedText.split(/\r?\n/);
+            libReaderUI.toc.querySelectorAll('.tm-reader-toc-item').forEach((item, idx) => {
+                const title = lines[idx] || rawTitles[idx];
+                const cacheKey = `chap:${chapters[idx].chapterId}:${version}:${rawTitles[idx]}`;
+                libTitleCache.set(cacheKey, title);
+                libReaderState.titleCache = libReaderState.titleCache || new Map();
+                libReaderState.titleCache.set(cacheKey, title);
+                item.textContent = title;
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    function libReaderHandleScroll() {
+        if (!libReaderState || !libReaderUI?.contentWrap) return;
+        const wrap = libReaderUI.contentWrap;
+        const viewMode = libReaderState.viewMode || 'single';
+        const prevTop = libReaderState.prevScrollTop ?? wrap.scrollTop;
+        const delta = wrap.scrollTop - prevTop;
+        if (libReaderState.ignoreScrollUntil && Date.now() < libReaderState.ignoreScrollUntil) {
+            libReaderState.prevScrollTop = wrap.scrollTop;
+            libReaderState.prevScrollLeft = wrap.scrollLeft;
+            return;
+        }
+        let ratio = 0;
+        const max = wrap.scrollHeight - wrap.clientHeight;
+        ratio = max > 0 ? wrap.scrollTop / max : 0;
+        libReaderState.lastScrollRatio = ratio;
+        libReaderState.lastScrollTop = wrap.scrollTop;
+        libReaderState.lastScrollLeft = wrap.scrollLeft;
+        if (libReaderState.scrollSaveTimer) clearTimeout(libReaderState.scrollSaveTimer);
+        libReaderState.scrollSaveTimer = setTimeout(() => {
+            if (!libReaderState) return;
+            const currentChapter = libReaderState.chapters[libReaderState.currentIndex];
+            if (currentChapter) {
+                libUpdateBookLastRead(libReaderState.book.bookId, currentChapter.chapterId, ratio);
+            }
+        }, 300);
+
+        const threshold = (config.readerPrefetchPercent || 50) / 100;
+        if (ratio >= threshold && libReaderState.book.langSource === 'zh') {
+            libReaderPrefetchNextChapter();
+        }
+
+        if (viewMode === 'vertical') {
+            const max = wrap.scrollHeight - wrap.clientHeight;
+            const nearBottom = max > 0 && wrap.scrollTop >= max - 8;
+            const nearTop = wrap.scrollTop <= 2;
+            const direction = delta;
+            libReaderState.prevScrollTop = wrap.scrollTop;
+            if (nearBottom && direction > 0 && libReaderState.currentIndex < libReaderState.chapters.length - 1) {
+                libReaderGo(1, { scrollTo: 'top' });
+            } else if (nearTop && direction < 0 && libReaderState.currentIndex > 0) {
+                libReaderGo(-1, { scrollTo: 'bottom' });
+            }
+        }
+    }
+
+    function libReaderHandleWheel(e) {
+        if (!libReaderState || !libReaderUI?.contentWrap) return;
+        const wrap = libReaderUI.contentWrap;
+        const viewMode = libReaderState.viewMode || 'single';
+        if (viewMode !== 'vertical') return;
+
+        const max = wrap.scrollHeight - wrap.clientHeight;
+        const atTop = wrap.scrollTop <= 2;
+        const atBottom = max > 0 && wrap.scrollTop >= max - 2;
+        const deltaY = e.deltaY || 0;
+
+        libReaderState.boundaryScroll = libReaderState.boundaryScroll || { top: 0, bottom: 0 };
+
+        if (atTop && deltaY < 0) {
+            libReaderState.boundaryScroll.top += Math.abs(deltaY);
+            libReaderState.boundaryScroll.bottom = 0;
+            if (libReaderState.boundaryScroll.top >= 120 && libReaderState.currentIndex > 0) {
+                libReaderState.boundaryScroll.top = 0;
+                libReaderGo(-1, { scrollTo: 'bottom' });
+            }
+            return;
+        }
+
+        if (atBottom && deltaY > 0) {
+            libReaderState.boundaryScroll.bottom += Math.abs(deltaY);
+            libReaderState.boundaryScroll.top = 0;
+            if (libReaderState.boundaryScroll.bottom >= 120 && libReaderState.currentIndex < libReaderState.chapters.length - 1) {
+                libReaderState.boundaryScroll.bottom = 0;
+                libReaderGo(1, { scrollTo: 'top' });
+            }
+            return;
+        }
+
+        libReaderState.boundaryScroll.top = 0;
+        libReaderState.boundaryScroll.bottom = 0;
+    }
+
+    async function libReaderPrefetchNextChapter() {
+        if (!libReaderState) return;
+        const nextIndex = libReaderState.currentIndex + 1;
+        if (nextIndex >= libReaderState.chapters.length) return;
+        const nextChapter = libReaderState.chapters[nextIndex];
+        if (!nextChapter || !nextChapter.rawKey) return;
+        const expectedKey = libMakeTransKey(nextChapter.chapterId, nextChapter.rawKey);
+        if (nextChapter.transKey === expectedKey) {
+            const cached = await libGet('tm_content', expectedKey);
+            if (cached?.text) return;
+        }
+        libReaderState.prefetching = libReaderState.prefetching || new Set();
+        if (libReaderState.prefetching.has(nextChapter.chapterId)) return;
+        libReaderState.prefetching.add(nextChapter.chapterId);
+        try {
+            await libTranslateAndCacheChapter(nextChapter.chapterId);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function libReaderResolveChapterText(chapter) {
+        const raw = await libGet('tm_content', chapter.rawKey);
+        const rawText = raw?.text || '';
+        if (libReaderState.book.langSource === 'vi' || libReaderState.mode === 'raw') {
+            return rawText;
+        }
+        const expectedKey = libMakeTransKey(chapter.chapterId, chapter.rawKey);
+        if (chapter.transKey === expectedKey) {
+            const cached = await libGet('tm_content', expectedKey);
+            if (cached?.text) return cached.text;
+        }
+        try {
+            return await libTranslateAndCacheChapter(chapter.chapterId);
+        } catch (err) {
+            console.error(err);
+            showNotification('Dịch chương thất bại.');
+            return '';
+        }
+    }
+
+    function libReaderBuildHtmlFromRawAndTrans(rawText, transText) {
+        config = loadConfig();
+        const nameSet = config.nameSets[config.activeNameSet] || {};
+        const normalize = (s) => (s || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const normalizedRaw = normalize(rawText);
+        const normalizedTrans = normalize(transText);
+        const rawParas = normalizedRaw ? normalizedRaw.split(/\n/) : [];
+        const transParas = normalizedTrans ? normalizedTrans.split(/\n/) : [];
+        const max = Math.max(rawParas.length, transParas.length);
+        let html = '';
+        let lastWasEmpty = false;
+        for (let i = 0; i < max; i++) {
+            const rawPara = rawParas[i] ?? '';
+            const transPara = transParas[i] ?? '';
+            if (!rawPara.trim() && !transPara.trim()) {
+                if (!lastWasEmpty) {
+                    html += '<p><br></p>';
+                }
+                lastWasEmpty = true;
+                continue;
+            }
+            lastWasEmpty = false;
+            const highlighted = highlightNamesInText(transPara || '', nameSet);
+            const chunkHtml = `<span class="tm-chunk" data-orig="${escapeHtml(rawPara)}">${highlighted || ''}</span>`;
+            html += `<p>${chunkHtml}</p>`;
+        }
+        return html;
+    }
+
+    async function libReaderResolveChapterDisplay(chapter, options = {}) {
+        const raw = await libGet('tm_content', chapter.rawKey);
+        const rawText = raw?.text || '';
+        if (libReaderState.book.langSource === 'vi' || libReaderState.mode === 'raw') {
+            return { text: rawText, html: null, rawText };
+        }
+        const expectedKey = libMakeTransKey(chapter.chapterId, chapter.rawKey);
+        let transText = '';
+        if (chapter.transKey === expectedKey) {
+            const cached = await libGet('tm_content', expectedKey);
+            if (cached?.text) transText = cached.text;
+        }
+        if (!transText) {
+            if (typeof options.onTranslateStart === 'function') {
+                options.onTranslateStart();
+            }
+            try {
+                transText = await libTranslateAndCacheChapter(chapter.chapterId);
+            } catch (err) {
+                console.error(err);
+                showNotification('Dịch chương thất bại.');
+                transText = '';
+            } finally {
+                if (typeof options.onTranslateEnd === 'function') {
+                    options.onTranslateEnd();
+                }
+            }
+        }
+        const html = libReaderBuildHtmlFromRawAndTrans(rawText, transText);
+        return { text: transText, html, rawText };
+    }
+
+    async function libReaderResolveChapterTitle(chapter, indexHint) {
+        const fallbackTitle = chapter.title || `Chương ${(indexHint ?? libReaderState?.currentIndex ?? 0) + 1}`;
+        if (!libReaderState || libReaderState.book.langSource === 'vi' || libReaderState.mode === 'raw') {
+            return fallbackTitle;
+        }
+        const version = config.nameSetVersion || 1;
+        libReaderState.titleCache = libReaderState.titleCache || new Map();
+        const cacheKey = `chap:${chapter.chapterId}:${version}:${fallbackTitle}`;
+        if (libReaderState.titleCache.has(cacheKey)) {
+            return libReaderState.titleCache.get(cacheKey);
+        }
+        if (libTitleCache.has(cacheKey)) {
+            const cached = libTitleCache.get(cacheKey);
+            libReaderState.titleCache.set(cacheKey, cached);
+            return cached;
+        }
+        try {
+            const translated = await translatePanelText(fallbackTitle, 'text');
+            const title = (translated || fallbackTitle).split(/\r?\n/)[0];
+            libReaderState.titleCache.set(cacheKey, title);
+            libTitleCache.set(cacheKey, title);
+            return title;
+        } catch (err) {
+            console.error(err);
+            return fallbackTitle;
+        }
+    }
+
+    async function libReaderResolveBookTitle(book) {
+        const fallbackTitle = book?.title || 'Untitled';
+        if (!libReaderState || book?.langSource === 'vi' || libReaderState.mode === 'raw') {
+            return fallbackTitle;
+        }
+        const version = config.nameSetVersion || 1;
+        libReaderState.bookTitleCache = libReaderState.bookTitleCache || new Map();
+        const cacheKey = `book:${book.bookId || ''}:${version}:${fallbackTitle}`;
+        if (libReaderState.bookTitleCache.has(cacheKey)) {
+            return libReaderState.bookTitleCache.get(cacheKey);
+        }
+        if (libTitleCache.has(cacheKey)) {
+            const cached = libTitleCache.get(cacheKey);
+            libReaderState.bookTitleCache.set(cacheKey, cached);
+            return cached;
+        }
+        try {
+            const translated = await translatePanelText(fallbackTitle, 'text');
+            const title = (translated || fallbackTitle).split(/\r?\n/)[0];
+            libReaderState.bookTitleCache.set(cacheKey, title);
+            libTitleCache.set(cacheKey, title);
+            return title;
+        } catch (err) {
+            console.error(err);
+            return fallbackTitle;
+        }
+    }
+
+    async function libReaderRenderVerticalChapter(index, options = {}) {
+        if (!libReaderState || !libReaderUI) return;
+        const chapter = libReaderState.chapters[index];
+        if (!chapter) return;
+
+        const prev = index > 0 ? libReaderState.chapters[index - 1] : null;
+        const next = index + 1 < libReaderState.chapters.length ? libReaderState.chapters[index + 1] : null;
+
+        const title = await libReaderResolveChapterTitle(chapter, index);
+
+        libReaderUI.content.innerHTML = '';
+
+        const topSpacer = document.createElement('div');
+        topSpacer.className = 'tm-reader-spacer';
+        topSpacer.textContent = prev ? `Kéo lên để về: ${await libReaderResolveChapterTitle(prev, index - 1)}` : 'Đầu truyện';
+        libReaderUI.content.appendChild(topSpacer);
+
+        if (prev) {
+            const sepTop = document.createElement('div');
+            sepTop.className = 'tm-reader-sep';
+            sepTop.textContent = `Chương trước: ${await libReaderResolveChapterTitle(prev, index - 1)}`;
+            libReaderUI.content.appendChild(sepTop);
+        }
+
+        const blockTitle = document.createElement('div');
+        blockTitle.className = 'tm-reader-block-title';
+        blockTitle.textContent = title || `Chương ${index + 1}`;
+        libReaderUI.content.appendChild(blockTitle);
+
+        const blockText = document.createElement('div');
+        blockText.className = 'tm-reader-block-text';
+        const display = await libReaderResolveChapterDisplay(chapter, {
+            onTranslateStart: () => { blockText.textContent = 'Đang dịch...'; }
+        });
+        if (display.html && libReaderState.mode === 'trans' && libReaderState.book.langSource === 'zh') {
+            blockText.innerHTML = display.html;
+        } else {
+            blockText.textContent = display.text || 'Chương trống.';
+        }
+        libReaderUI.content.appendChild(blockText);
+
+        if (next) {
+            const sepBottom = document.createElement('div');
+            sepBottom.className = 'tm-reader-sep';
+            sepBottom.textContent = `Chương tiếp: ${await libReaderResolveChapterTitle(next, index + 1)}`;
+            libReaderUI.content.appendChild(sepBottom);
+        }
+
+        const bottomSpacer = document.createElement('div');
+        bottomSpacer.className = 'tm-reader-spacer';
+        bottomSpacer.textContent = next ? `Kéo xuống để sang: ${await libReaderResolveChapterTitle(next, index + 1)}` : 'Hết truyện';
+        libReaderUI.content.appendChild(bottomSpacer);
+
+        if (libReaderUI.contentWrap) {
+            if (options.scrollTo === 'bottom') {
+                const max = libReaderUI.contentWrap.scrollHeight - libReaderUI.contentWrap.clientHeight;
+                const spacer = 120;
+                libReaderUI.contentWrap.scrollTop = Math.max(0, max - spacer - 2);
+                if (libReaderState) libReaderState.ignoreScrollUntil = Date.now() + 400;
+            } else if (options.scrollTo === 'restore' && libReaderState.book.lastReadChapterId === chapter.chapterId && typeof libReaderState.book.lastReadScrollRatio === 'number') {
+                const max = libReaderUI.contentWrap.scrollHeight - libReaderUI.contentWrap.clientHeight;
+                if (max > 0) {
+                    libReaderUI.contentWrap.scrollTop = Math.floor(max * libReaderState.book.lastReadScrollRatio);
+                }
+                if (libReaderState) libReaderState.ignoreScrollUntil = Date.now() + 400;
+            } else {
+                const spacer = 120;
+                libReaderUI.contentWrap.scrollTop = spacer;
+                if (libReaderState) libReaderState.ignoreScrollUntil = Date.now() + 200;
+            }
+        }
+    }
+
+    async function libReaderAppendChapterBlock(index) {
+        if (!libReaderState || !libReaderUI) return;
+        if (index < 0 || index >= libReaderState.chapters.length) return;
+        libReaderState.renderedIndices = libReaderState.renderedIndices || new Set();
+        if (libReaderState.renderedIndices.has(index)) return;
+
+        const chapter = libReaderState.chapters[index];
+        const block = document.createElement('section');
+        block.className = 'tm-reader-block';
+        block.dataset.chapterId = chapter.chapterId;
+        block.innerHTML = `
+            <div class="tm-reader-sep">— Chương ${index + 1} —</div>
+            <div class="tm-reader-block-title">${escapeHtml(chapter.title || `Chương ${index + 1}`)}</div>
+            <div class="tm-reader-block-text">Đang dịch...</div>
+        `;
+        libReaderUI.content.appendChild(block);
+        const blockText = block.querySelector('.tm-reader-block-text');
+        const display = await libReaderResolveChapterDisplay(chapter, {
+            onTranslateStart: () => { if (blockText) blockText.textContent = 'Đang dịch...'; }
+        });
+        if (blockText) {
+            if (display.html && libReaderState.mode === 'trans' && libReaderState.book.langSource === 'zh') {
+                blockText.innerHTML = display.html;
+            } else {
+                blockText.textContent = display.text || '';
+            }
+        }
+        libReaderState.renderedIndices.add(index);
+    }
+
+    async function libReaderLoadCurrentChapter(options = {}) {
+        if (!libReaderState || !libReaderUI) return;
+        const { book, chapters, currentIndex } = libReaderState;
+        const chapter = chapters[currentIndex];
+        if (!chapter) return;
+
+        libReaderApplySettings();
+        libReaderUI.bookTitle.textContent = await libReaderResolveBookTitle(book);
+        libReaderUI.chapterSub.textContent = `Chương ${currentIndex + 1} / ${chapters.length}`;
+        libReaderUI.chapterTitle.textContent = chapter.title || `Chương ${currentIndex + 1}`;
+        libReaderUI.progress.textContent = `Chương ${currentIndex + 1} / ${chapters.length}`;
+
+        libReaderUI.btnPrev.disabled = currentIndex === 0;
+        libReaderUI.btnNext.disabled = currentIndex >= chapters.length - 1;
+
+        await libReaderRenderToc();
+        libReaderUpdateModeButtons();
+        libUpdateBookLastRead(book.bookId, chapter.chapterId);
+
+        const viewMode = libReaderState.viewMode || 'single';
+        libReaderState.renderedIndices = new Set();
+        libReaderUI.content.innerHTML = '';
+
+        if (viewMode === 'vertical') {
+            const title = await libReaderResolveChapterTitle(chapter, currentIndex);
+            libReaderUI.chapterTitle.textContent = title;
+            await libReaderRenderVerticalChapter(currentIndex, options.scrollTo ? options : { scrollTo: 'restore' });
+            return;
+        }
+
+        const title = await libReaderResolveChapterTitle(chapter, currentIndex);
+        libReaderUI.chapterTitle.textContent = title;
+        const display = await libReaderResolveChapterDisplay(chapter, {
+            onTranslateStart: () => {
+                libReaderUI.content.textContent = 'Đang dịch...';
+            }
+        });
+        if (display.html && libReaderState.mode === 'trans' && libReaderState.book.langSource === 'zh') {
+            libReaderUI.content.innerHTML = display.html;
+        } else {
+            libReaderUI.content.textContent = display.text || 'Chương trống.';
+        }
+        if (libReaderUI.contentWrap && book.lastReadChapterId === chapter.chapterId && typeof book.lastReadScrollRatio === 'number') {
+            const max = libReaderUI.contentWrap.scrollHeight - libReaderUI.contentWrap.clientHeight;
+            if (max > 0) {
+                libReaderUI.contentWrap.scrollTop = Math.floor(max * book.lastReadScrollRatio);
+            }
+        }
+    }
+
+    async function openLibraryReader(bookId) {
+        const book = libFindBookInIndex(bookId);
+        if (!book) {
+            showNotification('Không tìm thấy truyện.');
+            return;
+        }
+        const chapters = await libGetChaptersByBook(bookId);
+        if (!chapters.length) {
+            showNotification('Truyện chưa có chương.');
+            return;
+        }
+        libReaderEnterCleanMode();
+        const ui = libReaderEnsureUI();
+        ui.root.classList.toggle('tm-reader-no-translate', book.langSource === 'vi');
+
+        let startIndex = 0;
+        if (book.lastReadChapterId) {
+            const found = chapters.findIndex(ch => ch.chapterId === book.lastReadChapterId);
+            if (found >= 0) startIndex = found;
+        }
+
+        libReaderState = {
+            book,
+            chapters,
+            currentIndex: startIndex,
+            mode: book.langSource === 'vi' ? 'raw' : 'trans',
+            lastScrollRatio: typeof book.lastReadScrollRatio === 'number' ? book.lastReadScrollRatio : 0,
+            prefetching: new Set(),
+            scrollSaveTimer: null,
+            boundaryScroll: { top: 0, bottom: 0 },
+            fullscreen: false
+        };
+
+        libReaderApplySettings();
+        libReaderUpdateModeButtons();
+        await libReaderLoadCurrentChapter();
+    }
+
     /* ================== MENU & INIT ================== */
 
     async function initializeLocalTranslator() {
@@ -5643,7 +7906,9 @@
     GM_registerMenuCommand('Dịch trang này', startTranslateAction);
     GM_registerMenuCommand('Bảng dịch nhanh', showQuickTranslatePanel);
     GM_registerMenuCommand('Dịch vùng chọn (OCR)', activateAreaSelectionMode);
+    GM_registerMenuCommand('Thư viện (Beta)', openLibraryListModal);
     GM_registerMenuCommand('Cài đặt', openSettingsUI);
+    // GM_registerMenuCommand('Thư viện: Import TXT/EPUB', openLibraryImportModal);
 
     window._tm_translate = {
         start: startTranslateAction,
@@ -5661,6 +7926,6 @@
         initializeLocalTranslator();
     }
 
-    console.log('[tm-translate 3.3.4_beta] Đã tải thành công.');
+    console.log('[tm-translate 3.5.0_beta] Đã tải thành công.');
 
 })();
