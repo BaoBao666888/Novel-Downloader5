@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.2
+// @version      0.3.3
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -11,7 +11,7 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.2'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.3'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const REQUEST_DELAY_MS = 350;
@@ -1909,12 +1909,17 @@
     // ================================================
 
     const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">🚀 Phiên bản 0.3.2</span></h2>
+<h2><span style="color:#673ab7; font-size: 1.2em;">🧯 Phiên bản 0.3.3 (Hotfix)</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li>🧚 <b>AI thủ công:</b> Thêm nút “AI thủ công” để bạn tự tay copy prompt, dán JSON — chủ động, mượt mà, đậm chất phù thủy.</li>
-    <li>🎨 <b>Trang chỉnh sửa:</b> Thêm hỗ trợ trang sửa truyện. Popup so sánh mới (rộng, đẹp), diff văn án theo từng từ + xuống dòng chuẩn, màu sắc dịu mắt.</li>
-    <li>🛡️ <b>Qidian:</b> Giảm báo sai captcha (TCaptcha vẫn có thể xuất hiện nhưng data vẫn đọc được).</li>
-    <li>🌸 <b>Ihuaben:</b> Bổ sung ảnh bìa HD, nét căng như sương mai đầu ngõ.</li>
+    <li>🧩 <b>Chỉnh sửa vs Nhúng:</b> Loại trừ chỉ hoạt động ở <code>/chinh-sua</code>, không ảnh hưởng sang <code>/nhung-file</code>.</li>
+    <li>🌸 <b>Popup so sánh:</b> Chỉnh lại layout/độ rộng + diff văn án theo từng từ, màu dịu mắt hơn.</li>
+</ul>
+
+<h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.2</h3>
+<ul style="list-style-type: none; padding-left: 0; font-size: 13px; color: #666;">
+    <li>🧚 Thêm AI thủ công (copy prompt → dán JSON).</li>
+    <li>🎨 Bổ sung trang chỉnh sửa + popup so sánh.</li>
+    <li>🛡️ Qidian giảm báo sai captcha, Ihuaben có cover HD.</li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.1</h3>
@@ -2018,7 +2023,8 @@
         const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
         const showFloatingButton = options.showFloatingButton !== false;
         const showEditExtras = isEditPage();
-        state.excludeFields = loadExcludedFields();
+        // Exclude rules are for /chinh-sua only. Do not let them affect /nhung-file.
+        state.excludeFields = showEditExtras ? loadExcludedFields() : {};
 
         const css = `
             :host { all: initial; }
@@ -3513,7 +3519,9 @@ For arrays, return list of strings. If none fit, return empty array.
         async function handleApply() {
             if (!state.groups) state.groups = getGroupOptions();
             const planned = getPlannedValues();
-            const excludes = state.excludeFields || loadExcludedFields();
+            const excludes = isEditPage()
+                ? (state.excludeFields && typeof state.excludeFields === 'object' ? state.excludeFields : loadExcludedFields())
+                : {};
 
             if (isEditPage()) {
                 const current = getCurrentFormValues();
