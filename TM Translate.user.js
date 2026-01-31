@@ -6216,6 +6216,45 @@
         return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
     }
 
+    async function libUpdateLibraryProgress(wrapper, books) {
+        if (!wrapper || !Array.isArray(books)) return;
+        const index = libLoadIndex();
+        let updated = false;
+
+        for (const book of books) {
+            const el = wrapper.querySelector(`#tm-lib-progress-${book.bookId}`);
+            if (!el) continue;
+            const total = book.chapterCount || 0;
+            if (!total || !book.lastReadChapterId) {
+                el.textContent = 'Tiến độ: Chưa đọc';
+                continue;
+            }
+            let order = book.lastReadOrder;
+            if (!order) {
+                const ch = await libGet('tm_chapters', book.lastReadChapterId);
+                if (ch?.order) {
+                    order = ch.order;
+                    const idxBook = (index.books || []).find(b => b.bookId === book.bookId);
+                    if (idxBook) {
+                        idxBook.lastReadOrder = order;
+                        updated = true;
+                    }
+                }
+            }
+            if (!order) {
+                el.textContent = 'Tiến độ: Đang đọc...';
+                continue;
+            }
+            const ratio = typeof book.lastReadScrollRatio === 'number' ? book.lastReadScrollRatio : 0;
+            const percent = Math.max(0, Math.min(100, (((order - 1) + ratio) / Math.max(1, total)) * 100));
+            el.textContent = `Tiến độ: Chương ${order}/${total} (${percent.toFixed(1)}%)`;
+        }
+
+        if (updated) {
+            libSaveIndex(index);
+        }
+    }
+
     function libLoadIndex() {
         const fallback = { books: [], nameSetVersion: config.nameSetVersion || 1, configVersion: 1 };
         const index = GM_getValue(LIB_INDEX_KEY);
@@ -6311,19 +6350,20 @@
         const raw = await libGet('tm_content', chapter.rawKey);
         const rawText = raw?.text || '';
 
-        if (!book || book.langSource === 'vi') return rawText;
+        if (!book || book.langSource === 'vi') return { text: rawText, translated: false };
 
         const expectedKey = libMakeTransKey(chapter.chapterId, chapter.rawKey);
         if (chapter.transKey === expectedKey) {
             const cached = await libGet('tm_content', expectedKey);
-            if (cached?.text) return cached.text;
+            if (cached?.text) return { text: cached.text, translated: false };
         }
 
         if (ensureTranslated) {
-            return await libTranslateAndCacheChapter(chapter.chapterId);
+            const translated = await libTranslateAndCacheChapter(chapter.chapterId);
+            return { text: translated, translated: true };
         }
 
-        return '';
+        return { text: '', translated: false };
     }
 
     async function libExportBookTxt(bookId) {
@@ -6350,6 +6390,7 @@
 
         showLoading('Đang xuất TXT...');
         try {
+            const cfg = loadConfig();
             const lines = [];
             for (let i = 0; i < chapters.length; i++) {
                 const ch = chapters[i];
@@ -6357,11 +6398,14 @@
                 if (ensureTranslated && book.langSource === 'zh') {
                     showLoading(`Đang dịch chương ${i + 1}/${chapters.length}...`);
                 }
-                const text = await libGetExportTextForChapter(book, ch, ensureTranslated);
+                const { text, translated } = await libGetExportTextForChapter(book, ch, ensureTranslated);
                 lines.push(title);
                 lines.push('');
                 lines.push(text || '');
                 lines.push('\n');
+                if (ensureTranslated && book.langSource === 'zh' && translated && i < chapters.length - 1) {
+                    await sleep(cfg.delayMs || 0);
+                }
             }
             showLoading('Đang đóng gói TXT...');
             const filename = `${libSafeFileName(book.title)}.txt`;
@@ -6397,8 +6441,10 @@
             }
         }
 
+        showNotification('Đang xuất EPUB... Vui lòng chờ', 4000);
         showLoading('Đang xuất EPUB...');
         try {
+            const cfg = loadConfig();
             if (!window.fflate || !fflate.zipSync || !fflate.strToU8) {
                 throw new Error('fflate chưa sẵn sàng.');
             }
@@ -6417,7 +6463,7 @@
                 if (ensureTranslated && book.langSource === 'zh') {
                     showLoading(`Đang dịch chương ${i + 1}/${chapters.length}...`);
                 }
-                const text = await libGetExportTextForChapter(book, ch, ensureTranslated);
+                const { text, translated } = await libGetExportTextForChapter(book, ch, ensureTranslated);
                 const filename = `Text/chapter_${i + 1}.xhtml`;
                 const html = `<?xml version="1.0" encoding="utf-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml">\n<head><title>${escapeHtml(title)}</title></head>\n<body>\n<h2>${escapeHtml(title)}</h2>\n${libTextToHtml(text || '')}\n</body>\n</html>`;
                 files[`OEBPS/${filename}`] = strToU8(html);
@@ -6425,6 +6471,9 @@
                 manifestItems.push(`<item id="chap${i + 1}" href="${filename}" media-type="application/xhtml+xml"/>`);
                 spineItems.push(`<itemref idref="chap${i + 1}"/>`);
                 navPoints.push(`    <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">\n      <navLabel><text>${escapeHtml(title)}</text></navLabel>\n      <content src="${filename}"/>\n    </navPoint>`);
+                if (ensureTranslated && book.langSource === 'zh' && translated && i < chapters.length - 1) {
+                    await sleep(cfg.delayMs || 0);
+                }
             }
 
             const language = 'vi';
@@ -7025,6 +7074,20 @@
         removeElementById('tm-lib-list-modal');
         const index = libLoadIndex();
 
+        const formatProgressText = (book) => {
+            const total = book?.chapterCount || 0;
+            if (!total || !book?.lastReadChapterId) {
+                return 'Tiến độ: Chưa đọc';
+            }
+            const order = book.lastReadOrder;
+            if (!order) {
+                return 'Tiến độ: Đang đọc...';
+            }
+            const ratio = typeof book.lastReadScrollRatio === 'number' ? book.lastReadScrollRatio : 0;
+            const percent = Math.max(0, Math.min(100, (((order - 1) + ratio) / Math.max(1, total)) * 100));
+            return `Tiến độ: Chương ${order}/${total} (${percent.toFixed(1)}%)`;
+        };
+
         const listHtml = (index.books || []).map(b => `
             <div class="tm-card" style="padding:10px; margin-bottom:10px;" data-book-id="${b.bookId}">
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
@@ -7032,6 +7095,9 @@
                         <div class="tm-lib-book-title" data-raw-title="${escapeHtml(b.title || 'Untitled')}" style="font-weight:600;">${escapeHtml(b.title || 'Untitled')}</div>
                         <div style="font-size:12px; color:#555;">
                             Chương: ${b.chapterCount || 0} | Nguồn: ${b.langSource || 'zh'}
+                        </div>
+                        <div id="tm-lib-progress-${b.bookId}" style="font-size:12px; color:#777;">
+                            ${formatProgressText(b)}
                         </div>
                     </div>
                     <button class="tm-btn tm-btn-primary tm-lib-open" data-book-id="${b.bookId}">Mở</button>
@@ -7066,6 +7132,7 @@
         `;
         document.body.appendChild(wrapper);
         libTranslateLibraryTitles(wrapper, index.books || []);
+        libUpdateLibraryProgress(wrapper, index.books || []);
 
         const close = () => wrapper.remove();
         wrapper.querySelector('#tm-lib-list-close').addEventListener('click', close);
@@ -7157,11 +7224,14 @@
         return (index.books || []).find(b => b.bookId === bookId) || null;
     }
 
-    function libUpdateBookLastRead(bookId, chapterId, scrollRatio) {
+    function libUpdateBookLastRead(bookId, chapterId, scrollRatio, chapterOrder) {
         const index = libLoadIndex();
         const book = (index.books || []).find(b => b.bookId === bookId);
         if (!book) return;
         book.lastReadChapterId = chapterId;
+        if (typeof chapterOrder === 'number' && !Number.isNaN(chapterOrder)) {
+            book.lastReadOrder = chapterOrder;
+        }
         if (typeof scrollRatio === 'number' && !Number.isNaN(scrollRatio)) {
             book.lastReadScrollRatio = Math.max(0, Math.min(1, scrollRatio));
         }
@@ -7455,7 +7525,8 @@
             if (!libReaderState) return;
             const currentChapter = libReaderState.chapters[libReaderState.currentIndex];
             if (currentChapter) {
-                libUpdateBookLastRead(libReaderState.book.bookId, currentChapter.chapterId, ratio);
+                const order = currentChapter.order || (libReaderState.currentIndex + 1);
+                libUpdateBookLastRead(libReaderState.book.bookId, currentChapter.chapterId, ratio, order);
             }
         }, 300);
 
@@ -7793,7 +7864,7 @@
 
         await libReaderRenderToc();
         libReaderUpdateModeButtons();
-        libUpdateBookLastRead(book.bookId, chapter.chapterId);
+        libUpdateBookLastRead(book.bookId, chapter.chapterId, undefined, chapter.order || (currentIndex + 1));
 
         const viewMode = libReaderState.viewMode || 'single';
         libReaderState.renderedIndices = new Set();
