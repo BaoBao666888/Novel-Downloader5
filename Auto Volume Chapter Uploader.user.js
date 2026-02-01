@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume/Chapter Uploader
 // @namespace    http://tampermonkey.net/
-// @version      1.1.9
+// @version      1.2
 // @description  Tự động hóa quá trình thêm/bổ sung chương trên wiki và web hồng
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
@@ -34,7 +34,7 @@
     const { hostname, pathname } = window.location;
     const parts = pathname.split('/').filter(p => p.length > 0);
     if (parts[0] === 'truyen' && parts.at(-1) === 'chinh-sua') {
-        const count = parts.length; // độ dài mảng
+        const count = parts.length;
         if (count === 4) {
             console.log('[WDU] Trang chỉnh sửa CHƯƠNG → không chạy script.');
             return;
@@ -42,6 +42,8 @@
     }
     // --- Cấu hình ---
     const APP_PREFIX = 'WDU_';
+    const CURRENT_VERSION = '1.2';
+    const VERSION_KEY = `${APP_PREFIX}version`;
     let settings = {
         LOG_MAX_LINES: 1000,
         FILE_SIZE_WARNING_KB: 4,
@@ -73,51 +75,96 @@
     const css = `
         :host {
             all: initial;
+            --wdu-primary: #ff8a65;
+            --wdu-primary-strong: #ff7043;
+            --wdu-secondary: #26c6da;
+            --wdu-secondary-strong: #00acc1;
+            --wdu-danger: #ef5350;
+            --wdu-danger-strong: #e53935;
+            --wdu-surface: #ffffff;
+            --wdu-surface-2: #f6f8ff;
+            --wdu-border: rgba(98, 110, 140, 0.18);
+            --wdu-shadow: 0 18px 40px rgba(53, 64, 90, 0.2);
+            --wdu-text: #2f2a36;
+            --wdu-muted: #6b6f80;
+            --wdu-radius: 14px;
         }
         #${APP_PREFIX}panel {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            width: 350px;
-            max-height: 450px;
-            background-color: #f9f9f9;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            width: 360px;
+            max-height: 480px;
+            background: linear-gradient(180deg, #ffffff 0%, #f6f8ff 100%);
+            border: 1px solid var(--wdu-border);
+            border-radius: var(--wdu-radius);
+            box-shadow: var(--wdu-shadow);
             z-index: 99999;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
             font-size: 14px;
-            color: #333;
+            color: var(--wdu-text);
             display: flex;
             flex-direction: column;
+            backdrop-filter: blur(2px);
         }
         #${APP_PREFIX}header {
-            padding: 10px 15px;
-            background-color: #f1f1f1;
-            border-bottom: 1px solid #ddd;
-            font-size: 16px;
-            font-weight: bold;
+            padding: 10px 14px;
+            background: linear-gradient(90deg, #ffe4f4 0%, #e5f3ff 100%);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            font-size: 15px;
+            font-weight: 600;
             cursor: move;
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
+            border-top-left-radius: var(--wdu-radius);
+            border-top-right-radius: var(--wdu-radius);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #${APP_PREFIX}header-title {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            flex: 1;
+            color: #4a2c6f;
+            letter-spacing: 0.2px;
+        }
+        #${APP_PREFIX}header-title span {
+            display: inline-flex;
+        }
+        #${APP_PREFIX}header-badge {
+            font-size: 11px;
+            font-weight: 700;
+            color: #5a4a82;
+            background: rgba(255,255,255,0.7);
+            padding: 2px 6px;
+            border-radius: 999px;
+            border: 1px solid rgba(90, 90, 130, 0.2);
+        }
+        #${APP_PREFIX}header-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         #${APP_PREFIX}content {
-            padding: 15px;
+            padding: 14px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(245,248,255,0.85) 100%);
+            border-top: 1px solid rgba(255,255,255,0.7);
         }
         #${APP_PREFIX}log-container {
-            background-color: #1a1a1a;
-            color: #0f0;
-            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+            color: #e2e8f0;
+            font-family: "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
             font-size: 12px;
             height: 200px;
-            overflow-y: scroll;
+            overflow-y: auto;
             padding: 10px;
-            border-radius: 4px;
-            border: 1px solid #444;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
             margin-top: 10px;
         }
         #${APP_PREFIX}log-container div {
@@ -126,33 +173,68 @@
             overflow-wrap: break-word; /* Tùy chọn ngắt từ hiện đại */
             word-wrap: break-word;     /* Tương thích ngược */
         }
-        .${APP_PREFIX}log-time { color: #888; margin-right: 5px; }
-        .${APP_PREFIX}log-warn { color: #ffc107; }
-        .${APP_PREFIX}log-error { color: #f44336; }
-        .${APP_PREFIX}log-success { color: #4CAF50; }
+        .${APP_PREFIX}log-time { color: #94a3b8; margin-right: 5px; }
+        .${APP_PREFIX}log-warn { color: #fbbf24; }
+        .${APP_PREFIX}log-error { color: #f87171; }
+        .${APP_PREFIX}log-success { color: #34d399; }
         .${APP_PREFIX}btn {
-            background-color: #ff9800;
-            color: white !important;
+            background: linear-gradient(135deg, var(--wdu-primary) 0%, #ffb74d 100%);
+            color: #fff !important;
             border: none;
-            padding: 10px 15px;
+            padding: 10px 14px;
             text-align: center;
             text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
             margin: 4px 0;
             cursor: pointer;
-            border-radius: 4px;
+            border-radius: 10px;
             width: 100%;
             box-sizing: border-box;
-            font-weight: bold;
+            font-weight: 600;
+            gap: 6px;
+            box-shadow: 0 10px 18px rgba(255, 138, 101, 0.25);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
         }
-        .${APP_PREFIX}btn:hover { background-color: #fb8c00; }
-        .${APP_PREFIX}btn:disabled { background-color: #9e9e9e; cursor: not-allowed; }
+        .${APP_PREFIX}btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 20px rgba(255, 138, 101, 0.32);
+        }
+        .${APP_PREFIX}btn:active { transform: translateY(0); }
+        .${APP_PREFIX}btn:disabled {
+            background: #b0b7c3;
+            box-shadow: none;
+            cursor: not-allowed;
+            opacity: 0.75;
+        }
+        .${APP_PREFIX}btn-secondary {
+            background: linear-gradient(135deg, var(--wdu-secondary) 0%, #42a5f5 100%);
+            box-shadow: 0 10px 18px rgba(38, 198, 218, 0.26);
+        }
+        .${APP_PREFIX}btn-secondary:hover {
+            box-shadow: 0 12px 20px rgba(38, 198, 218, 0.34);
+        }
+        .${APP_PREFIX}btn-danger {
+            background: linear-gradient(135deg, var(--wdu-danger) 0%, #ff8a80 100%);
+            box-shadow: 0 10px 18px rgba(239, 83, 80, 0.28);
+        }
+        .${APP_PREFIX}btn-danger:hover {
+            box-shadow: 0 12px 20px rgba(239, 83, 80, 0.36);
+        }
+        .${APP_PREFIX}btn-ghost {
+            background: rgba(255,255,255,0.75);
+            color: #3f3d56 !important;
+            border: 1px solid rgba(90, 96, 116, 0.25);
+            box-shadow: none;
+        }
         .${APP_PREFIX}btn-autofill {
             position: relative;
-            background-color: #2196f3;
+            background: linear-gradient(135deg, #4fc3f7 0%, #7e57c2 100%);
+            box-shadow: 0 12px 22px rgba(79, 195, 247, 0.25);
         }
-        .${APP_PREFIX}btn-autofill:hover { background-color: #1e88e5; }
+        .${APP_PREFIX}btn-autofill:hover { box-shadow: 0 14px 26px rgba(79, 195, 247, 0.32); }
         .${APP_PREFIX}autofill-icon {
             width: 18px;
             height: 18px;
@@ -177,8 +259,8 @@
             position: absolute;
             inset: -6px;
             border-radius: 6px;
-            border: 2px solid rgba(33, 150, 243, 0.7);
-            box-shadow: 0 0 8px rgba(33, 150, 243, 0.7);
+            border: 2px solid rgba(79, 195, 247, 0.7);
+            box-shadow: 0 0 8px rgba(79, 195, 247, 0.65);
             animation: ${APP_PREFIX}sparkle 1.8s ease-in-out infinite;
             pointer-events: none;
         }
@@ -209,17 +291,18 @@
             width: 100%;
             padding: 8px;
             margin-bottom: 5px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: white;
-            color: #333;
+            border: 1px solid rgba(110, 120, 150, 0.25);
+            border-radius: 10px;
+            background-color: #fff;
+            color: #2f2a36;
+            box-shadow: inset 0 1px 2px rgba(16, 24, 40, 0.06);
             box-sizing: border-box;
             font-family: inherit;
             font-size: 13px;
         }
         .${APP_PREFIX}notice {
             font-size: 12px;
-            color: #555;
+            color: var(--wdu-muted);
             margin-top: 5px;
             line-height: 1.4;
         }
@@ -244,44 +327,77 @@
         .${APP_PREFIX}button-group {
             display: flex;
             gap: 10px;
+            align-items: center;
+        }
+        .${APP_PREFIX}button-group .${APP_PREFIX}btn {
+            width: auto;
+            margin: 0;
+            flex: 1;
+        }
+        .${APP_PREFIX}btn-add-volume {
+            flex: 1.1;
+        }
+        .${APP_PREFIX}button-group .${APP_PREFIX}btn-danger {
+            flex: 0 0 92px;
         }
         #${APP_PREFIX}settings-btn {
-            background: none;
-            border: none;
-            padding: 0 5px;
+            background: rgba(255,255,255,0.8);
+            border: 1px solid rgba(90, 100, 120, 0.2);
+            padding: 4px;
             margin: 0;
             cursor: pointer;
-            color: #555;
+            color: #4a4a6a;
             line-height: 1;
+            border-radius: 8px;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         #${APP_PREFIX}settings-btn:hover {
-            color: #000;
+            color: #1f1f2b;
+            background: #fff;
         }
         #${APP_PREFIX}help-btn {
-            background: none;
-            border: none;
-            padding: 0 5px;
+            background: rgba(255,255,255,0.8);
+            border: 1px solid rgba(90, 100, 120, 0.2);
+            padding: 4px;
             margin: 0;
             cursor: pointer;
-            color: #555;
+            color: #4a4a6a;
             line-height: 1;
-            font-weight: bold;
+            font-weight: 700;
+            border-radius: 8px;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         #${APP_PREFIX}help-btn:hover {
-            color: #000;
+            color: #1f1f2b;
+            background: #fff;
         }
         #${APP_PREFIX}minimize-btn {
-            background: none;
-            border: none;
-            padding: 0 5px;
+            background: rgba(255,255,255,0.8);
+            border: 1px solid rgba(90, 100, 120, 0.2);
+            padding: 4px;
             margin: 0;
             cursor: pointer;
-            color: #555;
+            color: #4a4a6a;
             line-height: 1;
-            font-weight: bold;
+            font-weight: 700;
+            border-radius: 8px;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         #${APP_PREFIX}minimize-btn:hover {
-            color: #000;
+            color: #1f1f2b;
+            background: #fff;
         }
 
         .${APP_PREFIX}hide {
@@ -295,13 +411,13 @@
             width: 56px;
             height: 56px;
             border-radius: 50%;
-            background: #ff9800;
+            background: linear-gradient(135deg, #ff9a8b 0%, #ff6a88 60%, #ff99ac 100%);
             color: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.2);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            box-shadow: 0 10px 24px rgba(255, 105, 135, 0.35);
+            font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
             font-size: 16px;
             font-weight: bold;
             cursor: move;
@@ -386,24 +502,27 @@
             width: 640px;
             max-width: 92vw;
             max-height: 82vh;
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+            background: linear-gradient(135deg, #fff7fb 0%, #f2f8ff 100%);
+            border-radius: 14px;
+            border: 1px solid rgba(0,0,0,0.06);
+            box-shadow: 0 18px 40px rgba(63, 81, 181, 0.25);
             z-index: 100002;
             display: flex;
             flex-direction: column;
             color: #222;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
             font-size: 14px;
         }
         #${APP_PREFIX}help-header {
             padding: 12px 16px;
             font-size: 16px;
-            font-weight: bold;
-            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            background: linear-gradient(90deg, #fce4ec, #e3f2fd);
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 10px;
         }
         #${APP_PREFIX}help-content {
             padding: 14px 16px;
@@ -413,16 +532,133 @@
         #${APP_PREFIX}help-content h3 {
             margin: 12px 0 6px;
             font-size: 15px;
-            color: #0b5394;
+            color: #6a1b9a;
         }
         #${APP_PREFIX}help-content code {
-            background: #f5f5f5;
+            background: #fff0f6;
             padding: 1px 4px;
             border-radius: 4px;
         }
         #${APP_PREFIX}help-content ul {
             padding-left: 20px;
             margin: 6px 0 12px;
+        }
+        #${APP_PREFIX}help-content::-webkit-scrollbar,
+        #${APP_PREFIX}content::-webkit-scrollbar,
+        #${APP_PREFIX}log-container::-webkit-scrollbar,
+        #${APP_PREFIX}settings-modal .${APP_PREFIX}modal-content::-webkit-scrollbar {
+            width: 10px;
+        }
+        #${APP_PREFIX}help-content::-webkit-scrollbar-track,
+        #${APP_PREFIX}content::-webkit-scrollbar-track,
+        #${APP_PREFIX}log-container::-webkit-scrollbar-track,
+        #${APP_PREFIX}settings-modal .${APP_PREFIX}modal-content::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.7);
+            border-radius: 999px;
+        }
+        #${APP_PREFIX}help-content::-webkit-scrollbar-thumb,
+        #${APP_PREFIX}content::-webkit-scrollbar-thumb,
+        #${APP_PREFIX}settings-modal .${APP_PREFIX}modal-content::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #ffb3d5 0%, #a6c8ff 100%);
+            border-radius: 999px;
+            border: 2px solid rgba(255,255,255,0.8);
+        }
+        #${APP_PREFIX}log-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
+            border-radius: 999px;
+            border: 2px solid rgba(15, 23, 42, 0.9);
+        }
+        #${APP_PREFIX}help-content,
+        #${APP_PREFIX}content,
+        #${APP_PREFIX}log-container,
+        #${APP_PREFIX}settings-modal .${APP_PREFIX}modal-content {
+            scrollbar-width: thin;
+            scrollbar-color: #ffb3d5 rgba(255,255,255,0.7);
+        }
+        #${APP_PREFIX}log-container {
+            scrollbar-color: #38bdf8 rgba(15, 23, 42, 0.8);
+        }
+        #${APP_PREFIX}update-banner {
+            margin: 8px 0 12px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #ffe7f3 0%, #e8f3ff 100%);
+            border: 1px solid rgba(255, 143, 194, 0.4);
+            box-shadow: 0 8px 18px rgba(255, 143, 194, 0.2);
+        }
+        #${APP_PREFIX}update-banner strong {
+            color: #7a1d5a;
+        }
+        #${APP_PREFIX}help-close {
+            padding: 4px 10px;
+            font-size: 12px;
+            min-height: unset;
+            width: auto;
+            flex: 0 0 auto;
+        }
+        #${APP_PREFIX}controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #${APP_PREFIX}controls label {
+            font-weight: 600;
+            color: #4a2c6f;
+        }
+        #${APP_PREFIX}fake-upload {
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+        #${APP_PREFIX}confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 16, 28, 0.45);
+            backdrop-filter: blur(2px);
+            z-index: 100003;
+        }
+        #${APP_PREFIX}confirm-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 380px;
+            max-width: 92vw;
+            background: linear-gradient(180deg, #fff7f9 0%, #fff 100%);
+            border-radius: 14px;
+            border: 1px solid rgba(231, 88, 120, 0.25);
+            box-shadow: 0 20px 40px rgba(120, 43, 64, 0.3);
+            z-index: 100004;
+            color: #3b2d33;
+            font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
+            overflow: hidden;
+        }
+        #${APP_PREFIX}confirm-header {
+            padding: 12px 16px;
+            font-weight: 700;
+            color: #7a1d2f;
+            background: linear-gradient(90deg, #ffe8ee, #ffeefd);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        #${APP_PREFIX}confirm-body {
+            padding: 12px 16px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        #${APP_PREFIX}confirm-body strong {
+            color: #c62828;
+        }
+        #${APP_PREFIX}confirm-actions {
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            border-top: 1px solid rgba(0,0,0,0.06);
+            background: rgba(255,255,255,0.8);
+        }
+        #${APP_PREFIX}confirm-actions .${APP_PREFIX}btn {
+            width: auto;
+            margin: 0;
+            min-width: 90px;
         }
     `;
 
@@ -434,21 +670,30 @@
         </div>
         <div id="${APP_PREFIX}panel">
             <div id="${APP_PREFIX}header">
-                Auto Uploader v1.0
-                <button id="${APP_PREFIX}settings-btn" title="Cài đặt">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18px" height="18px"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.58-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.49.49 0 0 0-.49-.41h-3.84a.49.49 0 0 0-.49.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.58.22L2.73 9.42a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.07.61-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.2.37.29.58.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54a.49.49 0 0 0 .49.41h3.84c.27 0 .49-.18.49-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.21.08.47 0 .58-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.03-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
-                </button>
-                <button id="${APP_PREFIX}help-btn" title="Hướng dẫn">?</button>
-                <button id="${APP_PREFIX}minimize-btn" title="Thu nhỏ">✕</button>
+                <div id="${APP_PREFIX}header-title">
+                    <span>Auto Uploader</span>
+                    <span id="${APP_PREFIX}header-badge">v1.2</span>
+                </div>
+                <div id="${APP_PREFIX}header-actions">
+                    <button id="${APP_PREFIX}settings-btn" title="Cài đặt">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18px" height="18px"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.58-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.49.49 0 0 0-.49-.41h-3.84a.49.49 0 0 0-.49.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.58.22L2.73 9.42a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.07.61-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.2.37.29.58.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54a.49.49 0 0 0 .49.41h3.84c.27 0 .49-.18.49-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.21.08.47 0 .58-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.03-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                    </button>
+                    <button id="${APP_PREFIX}help-btn" title="Hướng dẫn">?</button>
+                    <button id="${APP_PREFIX}minimize-btn" title="Thu nhỏ">✕</button>
+                </div>
             </div>
-            <div id="${APP_PREFIX}content">
-                <div id="${APP_PREFIX}controls">
-                    <label for="${APP_PREFIX}volume-select"><b>1. Chọn Quyển:</b></label>
-                    <select id="${APP_PREFIX}volume-select" class="${APP_PREFIX}select">
-                        <option value="-1" disabled selected>-- Chọn quyển để thêm chương --</option>
-                    </select>
-                    <button id="${APP_PREFIX}upload-btn" class="${APP_PREFIX}btn" disabled>2. Chọn Files TXT</button>
-                    <button id="${APP_PREFIX}fake-upload" class="${APP_PREFIX}btn">→ Ấn nút Tải lên (web)</button>
+                <div id="${APP_PREFIX}content">
+                    <div id="${APP_PREFIX}controls">
+                        <label for="${APP_PREFIX}volume-select"><b>1. Chọn Quyển:</b></label>
+                        <select id="${APP_PREFIX}volume-select" class="${APP_PREFIX}select">
+                            <option value="-1" disabled selected>-- Chọn quyển để thêm chương --</option>
+                        </select>
+                    <div class="${APP_PREFIX}button-group">
+                        <button id="${APP_PREFIX}upload-btn" class="${APP_PREFIX}btn" disabled>Files TXT</button>
+                        <button id="${APP_PREFIX}add-volume" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary ${APP_PREFIX}btn-add-volume">Add New</button>
+                        <button id="${APP_PREFIX}delete-volume" class="${APP_PREFIX}btn ${APP_PREFIX}btn-danger" disabled>🗑 Xóa</button>
+                    </div>
+                    <button id="${APP_PREFIX}fake-upload" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">🚀 Tải lên (web)</button>
                     <button id="${APP_PREFIX}autofill-btn" class="${APP_PREFIX}btn ${APP_PREFIX}btn-autofill">
                         <svg class="${APP_PREFIX}autofill-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <circle class="${APP_PREFIX}lens" cx="11" cy="11" r="6"></circle>
@@ -470,9 +715,20 @@
         <div id="${APP_PREFIX}help-modal" class="${APP_PREFIX}hide">
             <div id="${APP_PREFIX}help-header">
                 <span>Hướng dẫn Auto Volume/Chapter Uploader</span>
-                <button id="${APP_PREFIX}help-close" class="${APP_PREFIX}btn" style="background:#757575;">Đóng</button>
+                <button id="${APP_PREFIX}help-close" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Đóng</button>
             </div>
             <div id="${APP_PREFIX}help-content"></div>
+        </div>
+        <div id="${APP_PREFIX}confirm-overlay" class="${APP_PREFIX}hide"></div>
+        <div id="${APP_PREFIX}confirm-modal" class="${APP_PREFIX}hide">
+            <div id="${APP_PREFIX}confirm-header">Xóa quyển này?</div>
+            <div id="${APP_PREFIX}confirm-body">
+                <div id="${APP_PREFIX}confirm-text">Bạn chắc chắn muốn xóa quyển đã chọn?</div>
+            </div>
+            <div id="${APP_PREFIX}confirm-actions">
+                <button id="${APP_PREFIX}confirm-cancel" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Hủy</button>
+                <button id="${APP_PREFIX}confirm-ok" class="${APP_PREFIX}btn ${APP_PREFIX}btn-danger">Xóa</button>
+            </div>
         </div>
         <div id="${APP_PREFIX}settings-modal" class="${APP_PREFIX}hide">
             <div class="${APP_PREFIX}modal-header">Cài đặt</div>
@@ -586,7 +842,6 @@
                         pointer-events:none;
                     ">
 
-
                     <span class="${APP_PREFIX}notice">
                         Ví dụ Regex: <code>第(\\d+)章\\s*(.*)</code> → "第188章 禅说.txt"
                     </span>
@@ -612,35 +867,28 @@
     shadowRoot.innerHTML = panelHTML;
 
     // --- Kéo thả panel qua header ---
-    // Lấy phần tử panel và header trong Shadow DOM
     const panelEl = shadowRoot.querySelector(`#${APP_PREFIX}panel`);
     const headerEl = shadowRoot.querySelector(`#${APP_PREFIX}header`);
     const floatingIconEl = shadowRoot.querySelector(`#${APP_PREFIX}floating-icon`);
 
     function enableDrag(panel, handle, storageKey) {
         const storagePosKey = storageKey || `${APP_PREFIX}panel_pos`;
-        // --- HÀM CON: Kiểm tra xem panel có bị bay ra ngoài màn hình không ---
         const ensureOnScreen = () => {
             const rect = panel.getBoundingClientRect();
             const vw = window.innerWidth;
             const vh = window.innerHeight;
 
-            // Nếu panel bay quá lề phải hoặc lề dưới
-            // (Ví dụ: Left > chiều rộng màn hình - 50px)
             if (rect.left > vw - 50 || rect.top > vh - 50 || rect.left < 0 || rect.top < 0) {
                 console.log('[WDU] Panel nằm ngoài vùng nhìn thấy -> Reset về mặc định.');
-                // Reset về CSS mặc định (Góc dưới phải)
                 panel.style.left = '';
                 panel.style.top = '';
                 panel.style.right = '20px';
                 panel.style.bottom = '20px';
-                // Xóa luôn lưu trữ bị lỗi
                 localStorage.removeItem(storagePosKey);
                 return;
             }
         };
 
-        // 1. Khôi phục vị trí đã lưu
         try {
             const saved = JSON.parse(localStorage.getItem(storagePosKey) || 'null');
             if (saved && typeof saved.left === 'string' && typeof saved.top === 'string') {
@@ -649,39 +897,29 @@
                 panel.style.right = 'auto';
                 panel.style.bottom = 'auto';
 
-                // Kiểm tra ngay sau khi khôi phục: Nếu vị trí cũ bị "lố", reset ngay
-                // Phải setTimeout 0 để đợi DOM render xong mới lấy được kích thước thật
                 setTimeout(ensureOnScreen, 0);
             }
         } catch { }
 
-        // 2. Lắng nghe sự kiện thay đổi kích thước màn hình (Resize)
-        // Để khi bạn thu nhỏ trình duyệt, cái bảng nó tự chạy theo vào trong
         window.addEventListener('resize', () => {
-            // Lấy vị trí hiện tại
             const rect = panel.getBoundingClientRect();
             const vw = window.innerWidth;
             const vh = window.innerHeight;
 
-            // Tính toán giới hạn mới
             let newLeft = rect.left;
             let newTop = rect.top;
 
-            // Nếu vượt quá chiều rộng mới, ép nó sát lề phải
             if (newLeft + rect.width > vw) {
-                newLeft = vw - rect.width - 10; // Cách lề 10px
+                newLeft = vw - rect.width - 10; 
             }
-            // Nếu vượt quá chiều cao mới, ép nó sát lề dưới
             if (newTop + rect.height > vh) {
                 newTop = vh - rect.height - 10;
             }
 
-            // Cập nhật lại
             panel.style.left = Math.max(0, newLeft) + 'px';
             panel.style.top = Math.max(0, newTop) + 'px';
         });
 
-        // --- Logic Kéo thả (Giữ nguyên, chỉ tối ưu một chút) ---
         let rect0 = null;
         let startX = 0, startY = 0;
 
@@ -710,11 +948,9 @@
                 const pw = rect0.width;
                 const ph = rect0.height;
 
-                // Giới hạn không cho kéo ra khỏi màn hình
                 let newLeft = rect0.left + dx;
                 let newTop = rect0.top + dy;
 
-                // Ràng buộc biên (không cho < 0 hoặc > màn hình)
                 newLeft = Math.max(0, Math.min(newLeft, vw - pw));
                 newTop = Math.max(0, Math.min(newTop, vh - ph));
 
@@ -741,14 +977,13 @@
         handle.addEventListener('pointerdown', onPointerDown);
     }
 
-    // Kích hoạt kéo–thả
     enableDrag(panelEl, headerEl, `${APP_PREFIX}panel_pos`);
     enableDrag(floatingIconEl, floatingIconEl, `${APP_PREFIX}icon_pos`);
 
-
-    // --- Lấy các phần tử DOM (từ bên trong Shadow DOM) ---
     const logBox = shadowRoot.querySelector(`#${APP_PREFIX}log-container`);
     const uploadBtn = shadowRoot.querySelector(`#${APP_PREFIX}upload-btn`);
+    const addVolumeBtn = shadowRoot.querySelector(`#${APP_PREFIX}add-volume`);
+    const deleteVolumeBtn = shadowRoot.querySelector(`#${APP_PREFIX}delete-volume`);
     const volumeSelect = shadowRoot.querySelector(`#${APP_PREFIX}volume-select`);
     const manualInputContainer = shadowRoot.querySelector(`#${APP_PREFIX}manual-input`);
     const autofillBtn = shadowRoot.querySelector(`#${APP_PREFIX}autofill-btn`);
@@ -756,6 +991,11 @@
     fileInput.type = 'file';
     fileInput.accept = '.txt';
     fileInput.multiple = true;
+
+    if (!state.isNewBookPage) {
+        if (addVolumeBtn) addVolumeBtn.classList.add(`${APP_PREFIX}hide`);
+        if (deleteVolumeBtn) deleteVolumeBtn.classList.add(`${APP_PREFIX}hide`);
+    }
 
     // --- Biến cho Modal Cài đặt ---
     const settingsBtn = shadowRoot.querySelector(`#${APP_PREFIX}settings-btn`);
@@ -766,6 +1006,11 @@
     const helpModal = shadowRoot.querySelector(`#${APP_PREFIX}help-modal`);
     const helpCloseBtn = shadowRoot.querySelector(`#${APP_PREFIX}help-close`);
     const helpContent = shadowRoot.querySelector(`#${APP_PREFIX}help-content`);
+    const confirmOverlay = shadowRoot.querySelector(`#${APP_PREFIX}confirm-overlay`);
+    const confirmModal = shadowRoot.querySelector(`#${APP_PREFIX}confirm-modal`);
+    const confirmText = shadowRoot.querySelector(`#${APP_PREFIX}confirm-text`);
+    const confirmCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}confirm-cancel`);
+    const confirmOkBtn = shadowRoot.querySelector(`#${APP_PREFIX}confirm-ok`);
     const settingsSaveBtn = shadowRoot.querySelector(`#${APP_PREFIX}settings-save`);
     const settingsCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}settings-cancel`);
     const logMaxInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-log-max`);
@@ -845,49 +1090,214 @@
         return html;
     }
 
-    const helpMarkdown = `
-### Tổng quan
-- Script hỗ trợ tự điền upload chương trên Wikidich/Koanchay.
-- Có panel nổi, kéo thả được; bấm ✕ để thu nhỏ về icon tròn.
-- Bấm icon tròn để mở lại panel.
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
 
-### Luồng thao tác cơ bản
+    let pendingDelete = null;
+
+    function getVolumeDisplayName(wrapper, fallbackIndex = 0) {
+        if (!wrapper) return `Quyển ${fallbackIndex + 1}`;
+        const nameInput = wrapper.querySelector('input[name="nameCn"], input[name="name"]');
+        const nameValue = nameInput ? nameInput.value.trim() : '';
+        if (nameValue) return nameValue;
+        const descEl = wrapper.querySelector('.volume-name-desc');
+        const descText = descEl ? descEl.textContent.trim() : '';
+        if (descText) return descText.replace(/^Ví dụ:\s*/i, '').trim();
+        return `Quyển ${fallbackIndex + 1}`;
+    }
+
+    function openDeleteConfirm() {
+        if (!state.isNewBookPage) {
+            log('⚠️ Nút xóa quyển chỉ dùng ở trang Nhúng file.', 'warn');
+            return;
+        }
+        if (!state.selectedVolumeWrapper) {
+            log('⚠️ Hãy chọn quyển trước khi xóa.', 'warn');
+            return;
+        }
+        const wrappers = [...document.querySelectorAll('.volume-info-wrapper')];
+        const selectedIndex = wrappers.indexOf(state.selectedVolumeWrapper);
+        const displayName = getVolumeDisplayName(state.selectedVolumeWrapper, Math.max(selectedIndex, 0));
+        pendingDelete = {
+            wrapper: state.selectedVolumeWrapper,
+            name: displayName
+        };
+        if (confirmText) {
+            confirmText.innerHTML = `Bạn có chắc muốn xóa quyển <strong>${escapeHtml(displayName)}</strong>?<br>Hành động này không thể hoàn tác.`;
+        }
+        if (confirmOverlay) confirmOverlay.classList.remove(`${APP_PREFIX}hide`);
+        if (confirmModal) confirmModal.classList.remove(`${APP_PREFIX}hide`);
+    }
+
+    function closeDeleteConfirm() {
+        if (confirmModal) confirmModal.classList.add(`${APP_PREFIX}hide`);
+        if (confirmOverlay) confirmOverlay.classList.add(`${APP_PREFIX}hide`);
+        pendingDelete = null;
+    }
+
+    function confirmDeleteVolume() {
+        if (!pendingDelete || !pendingDelete.wrapper) {
+            closeDeleteConfirm();
+            return;
+        }
+        const removeBtn = pendingDelete.wrapper.querySelector('[data-action="removeVolume"]');
+        if (!removeBtn) {
+            log('❌ Không tìm thấy nút xóa của quyển.', 'error');
+            pendingDelete = null;
+            closeDeleteConfirm();
+            return;
+        }
+        removeBtn.click();
+        log(`🗑 Đã yêu cầu xóa quyển "${pendingDelete.name}".`, 'warn');
+        pendingDelete = null;
+        closeDeleteConfirm();
+        setTimeout(() => {
+            rebuildVolumeOptions('none');
+            state.selectedVolumeWrapper = null;
+            uploadBtn.disabled = true;
+            if (deleteVolumeBtn) deleteVolumeBtn.disabled = true;
+        }, 200);
+    }
+
+    function ensureSelectedVolumeValid() {
+        if (!state.selectedVolumeWrapper || !document.contains(state.selectedVolumeWrapper)) {
+            state.selectedVolumeWrapper = null;
+            uploadBtn.disabled = true;
+            if (deleteVolumeBtn) deleteVolumeBtn.disabled = true;
+            log('⚠️ Quyển đã bị xóa/đổi. Vui lòng chọn lại quyển.', 'warn');
+            rebuildVolumeOptions('none');
+            return false;
+        }
+        return true;
+    }
+
+    function addNewVolumeAndSelect() {
+        if (!state.isNewBookPage) {
+            log('⚠️ Thêm quyển chỉ dùng ở trang Nhúng file.', 'warn');
+            return;
+        }
+        const addBtn = document.querySelector('.btn-add-volume[data-action="addVolumeWrapper"]');
+        if (!addBtn) {
+            log('❌ Không tìm thấy nút "Thêm quyển" trên web.', 'error');
+            return;
+        }
+        addBtn.click();
+        setTimeout(() => {
+            rebuildVolumeOptions('none');
+            const wrappers = [...document.querySelectorAll('.volume-info-wrapper')];
+            if (wrappers.length <= 1) {
+                log('❌ Không tìm thấy quyển mới sau khi thêm.', 'error');
+                return;
+            }
+            const lastRealIndex = wrappers.length - 2;
+            const option = volumeSelect.options[lastRealIndex + 1];
+            if (option && !option.disabled) {
+                volumeSelect.value = String(lastRealIndex);
+                handleVolumeChange();
+                log('✅ Đã thêm và chọn quyển mới.', 'success');
+                return;
+            }
+            rebuildVolumeOptions('lastAppendable');
+            log('✅ Đã thêm quyển mới. Hãy chọn lại nếu cần.', 'success');
+        }, 250);
+    }
+
+
+
+    const welcomeHtml = `
+<div style="text-align:center; font-size:18px; font-weight:700; color:#7b1fa2;">
+  🌸 Chào mừng đến với Auto Volume/Chapter Uploader 🌸
+</div>
+<div style="text-align:center; color:#6a5b9a; margin:6px 0 10px 0;">
+  Bộ trợ thủ giúp upload chương nhanh, gọn, chuẩn!
+</div>
+<div style="background:linear-gradient(135deg,#fce4ec,#e3f2fd); padding:10px; border-radius:10px; border-left:4px solid #ec407a;">
+  <strong>✨ WELCOME:</strong> Kéo thả panel, bấm ✕ để thu nhỏ, bấm icon tròn để mở lại.
+</div>
+<div style="height:8px;"></div>
+    `.trim();
+
+    const guideMarkdown = `
+### 🌟 Luồng thao tác cơ bản
 - Mở trang nhúng file hoặc chỉnh sửa truyện.
 - **Chọn Quyển** cần bổ sung/chỉnh.
-- Bấm **Chọn Files TXT** và chọn nhiều file.
+- Bấm **Files TXT** và chọn nhiều file.
 - Script tự sắp xếp, kiểm tra, rồi điền tên chương + file.
-- Bấm **→ Ấn nút Tải lên (web)** để nhấn nút upload thật.
+- Bấm **Tải lên (web)** để nhấn nút upload thật.
+- Nút **Xóa** dùng để xóa quyển đang chọn (chỉ có ở trang Nhúng file).
+- Nút **Thêm Quyển** để tạo quyển mới và tự chọn vào đó.
 
-### Cảnh báo file nhỏ
+### 🚦 Cảnh báo file nhỏ
 - Nếu file < ngưỡng KB sẽ cảnh báo trước khi tiếp tục.
 - Có thể đặt ngưỡng = 0 để tắt cảnh báo.
 
-### Chế độ "File tên số, dùng dòng đầu"
+### 🧩 Chế độ "File tên số, dùng dòng đầu"
 - Dùng cho file kiểu: 000.txt, 001.txt...
 - Script **không parse số chương**, chỉ sắp xếp theo tên file.
 - **Dòng đầu** của file sẽ được dùng làm **tên chương**.
 - Không check trùng/thiếu chương và không điền mô tả bổ sung.
 
-### Regex & ưu tiên parse (mặc định)
+### 🧠 Regex & ưu tiên parse (mặc định)
 - **Ưu tiên lấy thông tin từ**:
   - Tên file (fallback dòng đầu) hoặc Dòng đầu (fallback tên file).
 - Regex phải có **2 nhóm**: num + title.
 - Ví dụ: \`第(\\d+)章\\s*(.*)\` hoặc \`(\\d+)-(.*)\`.
 - Mẫu tên chương: \`第{num}章 {title}\`.
 
-### Khi có lỗi parse
+### 🧯 Khi có lỗi parse
 - Script sẽ liệt kê file lỗi và cho phép chèn thủ công.
 - Bạn có thể **tiếp tục** hoặc **hủy** nếu thấy không ổn.
 
-### Tips
+### 🍃 Tips nhỏ
 - Đổi encoding sang GBK nếu nội dung bị lỗi font.
 - Nếu thiếu nút upload, thử reload trang.
     `.trim();
 
-    function openHelpModal() {
-        helpContent.innerHTML = renderHelpMarkdown(helpMarkdown);
+    const changelogMarkdown = `
+### ✨ v1.2
+- Thêm nút **Xóa** quyển (nhúng file) và popup xác nhận.
+- Thêm nút **Thêm Quyển** và tự chọn quyển mới.
+- Chặn lỗi treo khi quyển cũ đã bị xóa.
+- Sửa lỗi upload lần 2 bị dính số file cũ.
+- Làm mới giao diện panel hiện đại hơn.
+
+### 🧯 v1.1.9 (Hotfix)
+- Cập nhật Auto Fill
+
+### 📦 v1.1.8
+- Ổn định luồng upload, tối ưu trải nghiệm.
+    `.trim();
+
+    function openHelpModal(contentHtml) {
+        helpContent.innerHTML = contentHtml || '';
         settingsOverlay.classList.remove(`${APP_PREFIX}hide`);
         helpModal.classList.remove(`${APP_PREFIX}hide`);
+    }
+
+    function openHelpModalFull() {
+        const html = [
+            welcomeHtml,
+            renderHelpMarkdown(guideMarkdown),
+            '<div style="height:8px;"></div>',
+            renderHelpMarkdown(changelogMarkdown)
+        ].join('\n');
+        openHelpModal(html);
+    }
+
+    function openHelpModalUpdateOnly() {
+        const updateBanner = `
+<div id="${APP_PREFIX}update-banner">
+  <div style="font-size:15px;font-weight:700;">🌈 Bản cập nhật mới đã sẵn sàng!</div>
+  <div style="font-size:12px;color:#6a4f7a;">Tóm tắt thay đổi quan trọng ở bên dưới ✨</div>
+</div>
+        `.trim();
+        openHelpModal([updateBanner, renderHelpMarkdown(changelogMarkdown)].join('\n'));
     }
 
     function closeHelpModal() {
@@ -912,7 +1322,6 @@
             el.style.opacity = enabled ? '' : '0.6';
         });
     }
-
 
     // --- Chức năng Ghi log ---
     const log = (message, type = 'info') => {
@@ -1065,7 +1474,7 @@ Lưu ý:
             return;
         }
 
-        // bỏ đuôi .txt nếu có
+        
         const baseName = sampleRaw.replace(/\.txt$/i, '');
         const m = baseName.match(re);
 
@@ -1083,7 +1492,7 @@ Lưu ý:
             return;
         }
 
-        // Hiển thị chi tiết các nhóm
+        
         const lines = [];
         lines.push(`Tên file: "${sampleRaw}"`);
         lines.push(`Chuỗi match: "${m[0]}"`);
@@ -1103,10 +1512,10 @@ Lưu ý:
     if (filenameRegexTestBtn) {
         filenameRegexTestBtn.addEventListener('click', () => {
 
-            // Nếu ô đang ẩn → hiện nó
+            
             if (filenameSampleInput && filenameSampleInput.style.opacity === '0') {
 
-                // Hiện đẹp
+                
                 filenameSampleInput.style.height = '32px';
                 filenameSampleInput.style.padding = '6px 8px';
                 filenameSampleInput.style.margin = '6px 0';
@@ -1118,16 +1527,16 @@ Lưu ý:
                 return;
             }
 
-            // Nếu đã hiện thì chạy test
+            
             runFilenameRegexTest();
         });
     }
 
     if (contentRegexTestBtn) {
         contentRegexTestBtn.addEventListener('click', () => {
-            // Kiểm tra trạng thái ẩn hiện bằng opacity giống hàm filename
+            
             if (contentSampleInput.style.opacity === '0') {
-                // Hiện lên
+                
                 contentSampleInput.style.height = '32px';
                 contentSampleInput.style.padding = '6px 8px';
                 contentSampleInput.style.margin = '6px 0';
@@ -1139,7 +1548,7 @@ Lưu ý:
                 return;
             }
 
-            // Chạy test
+            
             const pattern = contentRegexInput.value.trim();
             const sample = contentSampleInput.value.trim();
             if (!pattern) { contentRegexResult.textContent = '❌ Chưa nhập Regex.'; return; }
@@ -1162,8 +1571,7 @@ Lưu ý:
         filenameRegexTestBtn.addEventListener('click', runFilenameRegexTest);
     }
 
-
-    // --- Fake Upload Button ---
+    
     const fakeUploadBtn = shadowRoot.querySelector(`#${APP_PREFIX}fake-upload`);
     fakeUploadBtn.disabled = true;
 
@@ -1184,6 +1592,9 @@ Lưu ý:
     }
 
     fakeUploadBtn.addEventListener("click", () => {
+        if (!ensureSelectedVolumeValid()) {
+            return;
+        }
         const realBtn = document.querySelector("#btnGetInfo");
 
         if (!realBtn) {
@@ -1214,12 +1625,11 @@ Lưu ý:
 
         log("⏳ Đang nhấn nút Tải lên thật trên web...", "warn");
 
-        // Nhấn nút thật
+        
         realBtn.click();
 
         log("✅ Đã nhấn nút Tải lên!", "success");
     });
-
 
     // --- Chức năng Cài đặt ---
     function saveSettings() {
@@ -1236,7 +1646,7 @@ Lưu ý:
             const saved = localStorage.getItem(SETTINGS_KEY);
             if (saved) {
                 const loadedSettings = JSON.parse(saved);
-                // Hợp nhất, ghi đè mặc định bằng cái đã lưu
+                
                 settings = { ...settings, ...loadedSettings };
                 log('Tải cài đặt đã lưu.');
             }
@@ -1245,7 +1655,7 @@ Lưu ý:
         }
     }
 
-    // Tải cài đặt ngay khi script chạy
+    
     loadSettings();
     installFormDataPatch();
 
@@ -1265,7 +1675,7 @@ Lưu ý:
             let name = nameEl ? nameEl.value.trim() : `Quyển ${index + 1}`;
             const isAppendable = !!(trueWrapper && trueWrapper.getAttribute('data-append') === 'true');
 
-            // Nhận biết quyển không thể bổ sung/chỉnh (giống logic trước)
+            
             const descEl = wrapper.querySelector('.volume-name-desc');
             const descText = (descEl ? descEl.textContent : '').trim();
             const cannotModify =
@@ -1291,32 +1701,34 @@ Lưu ý:
             volumeSelect.appendChild(opt);
         });
 
-        // Chọn mặc định sau khi rebuild
+        
         if (defaultSelectStrategy === 'preserve' && state._prevSelectValue != null) {
-            // cố gắng giữ nguyên selection cũ nếu còn tồn tại
+            
             const exists = [...volumeSelect.options].some(o => o.value === state._prevSelectValue && !o.disabled);
             if (exists) volumeSelect.value = state._prevSelectValue;
         } else if (defaultSelectStrategy === 'lastAppendable' && state.isEditPage && lastAppendableIndex !== -1) {
             volumeSelect.value = String(lastAppendableIndex);
         }
     }
-    // MỚI: sau khi người dùng đổi chọn → cập nhật wrapper đúng theo DOM hiện tại
+    
     function handleVolumeChange() {
         const selectedOption = volumeSelect.options[volumeSelect.selectedIndex];
         if (!selectedOption || selectedOption.value === '-1' || selectedOption.disabled || selectedOption.dataset.cannotModify === 'true') {
             state.selectedVolumeWrapper = null;
             uploadBtn.disabled = true;
+            if (deleteVolumeBtn) deleteVolumeBtn.disabled = true;
             log('⛔ Quyển này không thể bổ sung/chỉnh. Hãy chọn quyển khác.', 'warn');
             return;
         }
 
-        // LẤY LẠI wrappers MỖI LẦN (tránh map sai khi DOM vừa đổi)
+        
         const wrappers = document.querySelectorAll('.volume-info-wrapper');
         const selectedIndex = parseInt(selectedOption.value, 10);
         state.selectedVolumeWrapper = wrappers[selectedIndex];
 
         if (!state.selectedVolumeWrapper) {
             uploadBtn.disabled = true;
+            if (deleteVolumeBtn) deleteVolumeBtn.disabled = true;
             log('❌ Không lấy được quyển đã chọn.', 'error');
             return;
         }
@@ -1324,14 +1736,14 @@ Lưu ý:
         const trueWrapper = state.selectedVolumeWrapper.querySelector('.volume-wrapper');
         const isAppendable = selectedOption.dataset.isAppendable === 'true';
 
-        // Bỏ readonly để thao tác
+        
         if (state.isEditPage && trueWrapper && trueWrapper.classList.contains('readonly')) {
             trueWrapper.classList.remove('readonly');
             log('🔓 Đã bỏ readonly của quyển.');
         }
 
         if (isAppendable) {
-            // Quyển bổ sung → mở vùng append đúng quyển này
+            
             const addButton = state.selectedVolumeWrapper.querySelector('.btn-add-volume[data-action="appendLastVolume"]');
             const appendSection = state.selectedVolumeWrapper.querySelector('.append-last-volume');
             if (addButton && appendSection && appendSection.classList.contains('hide')) {
@@ -1341,29 +1753,33 @@ Lưu ý:
                 log(`Đã chọn quyển "${selectedOption.textContent}".`);
             }
         } else {
-            // Quyển thường → không bấm append
+            
             log(`Đã chọn quyển "${selectedOption.textContent}" (không bổ sung).`);
         }
 
-        // Reset vùng nhập tay
+        
         manualInputContainer.style.display = 'none';
         manualInputContainer.innerHTML = '';
 
         uploadBtn.disabled = false;
+        if (deleteVolumeBtn) {
+            deleteVolumeBtn.disabled = !state.isNewBookPage;
+        }
     }
 
-    // Khởi tạo: Tìm các quyển và điền vào dropdown
+    
     function initialize() {
         log('Khởi tạo... 🚀');
 
-        // Chỉ rebuild danh sách quyển, KHÔNG auto chọn quyển nào
-        rebuildVolumeOptions('none'); // truyền strategy không khớp để bỏ qua auto-select
+        
+        rebuildVolumeOptions('none'); 
 
-        // Reset trạng thái lựa chọn
+        
         state.selectedVolumeWrapper = null;
         uploadBtn.disabled = true;
+        if (deleteVolumeBtn) deleteVolumeBtn.disabled = true;
 
-        // Ẩn + reset vùng nhập tay (cho chắc)
+        
         manualInputContainer.style.display = 'none';
         manualInputContainer.innerHTML = '';
 
@@ -1387,13 +1803,13 @@ Lưu ý:
         });
     }
 
-    // Hàm parse Regex chung
+    
     function matchRegex(text, regexStr) {
         if (!text || !regexStr) return null;
         try {
             const re = new RegExp(regexStr, 'i');
             const m = text.match(re);
-            if (m && m[1]) { // Ít nhất phải bắt được num (group 1)
+            if (m && m[1]) { 
                 return { num: parseInt(m[1], 10), title: m[2] || '' };
             }
         } catch (e) { return null; }
@@ -1407,31 +1823,31 @@ Lưu ý:
         let result = null;
         let firstLine = '';
 
-        // --- CACHE 1: Ưu tiên FILE NAME ---
+        
         if (priority === 'filename') {
-            // Thử parse tên file
+            
             result = matchRegex(filenameBase, settings.FILENAME_REGEX);
             if (result) return { ...result, source: 'filename' };
 
-            // Fallback: Tên file tạch -> Đọc dòng đầu
+            
             firstLine = await readFirstLineOfFile(file);
             result = matchRegex(firstLine, settings.CONTENT_REGEX);
             if (result) return { ...result, source: 'content' };
         }
 
-        // --- CACHE 2: Ưu tiên CONTENT (Dòng đầu) ---
+        
         else {
             firstLine = await readFirstLineOfFile(file);
-            // Thử parse dòng đầu
+            
             result = matchRegex(firstLine, settings.CONTENT_REGEX);
             if (result) return { ...result, source: 'content' };
 
-            // Fallback: Dòng đầu tạch -> Parse tên file
+            
             result = matchRegex(filenameBase, settings.FILENAME_REGEX);
             if (result) return { ...result, source: 'filename' };
         }
 
-        return null; // Không parse được cả 2 cách
+        return null; 
     }
 
     function applyTemplate(template, num, title) {
@@ -1440,12 +1856,15 @@ Lưu ý:
             .replace(/{title}/g, title || '');
     }
 
-    // Xử lý khi người dùng chọn file
+    
     async function handleFileSelect(event) {
-        if (!state.selectedVolumeWrapper) {
-            log('Lỗi: state.selectedVolumeWrapper không tồn tại.', 'error');
+        if (!ensureSelectedVolumeValid()) {
+            fileInput.value = "";
             return;
         }
+        state.previewOrder = null;
+        state.remainingInvalidFiles = [];
+        state._previewWrapperEl = null;
 
         const files = Array.from(event.target.files);
         if (files.length === 0) {
@@ -1454,25 +1873,25 @@ Lưu ý:
         }
 
         log(`Đã chọn ${files.length} file. Đang xử lý...`);
-        manualInputContainer.innerHTML = ''; // Xóa sạch UI cũ
+        manualInputContainer.innerHTML = ''; 
         state.validFiles = [];
         state.invalidFiles = [];
 
-        // Kiểm tra file nhỏ
+        
         const warningSize = settings.FILE_SIZE_WARNING_KB * 1024;
         const smallFiles = files.filter(f => f.size < warningSize);
 
-        if (smallFiles.length > 0 && warningSize > 0) { // Thêm check warningSize > 0 để cho phép tắt
+        if (smallFiles.length > 0 && warningSize > 0) { 
             log(`⚠️ Phát hiện ${smallFiles.length} file dưới ${settings.FILE_SIZE_WARNING_KB}KB.`, 'warn');
             smallFiles.forEach(f => log(`- ${f.name} (${(f.size / 1024).toFixed(2)} KB)`, 'warn'));
             if (!confirm(`Có ${smallFiles.length} file nhỏ hơn ${settings.FILE_SIZE_WARNING_KB}KB. Bạn có chắc chắn muốn tiếp tục không?`)) {
                 log('⛔ Đã hủy tải lên.');
-                fileInput.value = ""; // Reset input
+                fileInput.value = ""; 
                 return;
             }
         }
 
-        // Sắp xếp file theo tên
+        
         files.sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true, sensitivity: 'base' }));
         state.allFiles = files;
 
@@ -1522,27 +1941,27 @@ Lưu ý:
             }
 
             chapterNumbers.set(num, file);
-            // Lưu rawTitle để tý nữa dùng code fix lỗi
+            
             state.validFiles.push({ file, chapterNumber: num, rawTitle: title });
         }
 
         state.validFiles.sort((a, b) => a.chapterNumber - b.chapterNumber);
 
-        let hasError = false; // Cờ chung cho TẤT CẢ các loại lỗi
+        let hasError = false; 
 
-        // 1. Kiểm tra trùng lặp (và lưu lại message)
-        const duplicateMessages = []; // Mảng lưu message
+        
+        const duplicateMessages = []; 
         chapterNumbers.forEach((fileList, number) => {
             if (fileList.length > 1) {
                 const msg = `TRÙNG LẶP: Chương ${number} có ${fileList.length} file: ${fileList.join(', ')}`;
                 log(msg, 'error');
-                duplicateMessages.push(msg); // Thêm message vào mảng
+                duplicateMessages.push(msg); 
                 hasError = true;
             }
         });
 
-        // 2. Kiểm tra thiếu chương (và lưu lại message)
-        let missingMessage = null; // Biến lưu message
+        
+        let missingMessage = null; 
         let minChapter, maxChapter;
         if (state.validFiles.length > 0) {
             const allChapterNums = state.validFiles.map(item => item.chapterNumber);
@@ -1559,13 +1978,13 @@ Lưu ý:
             if (missingChapters.length > 0) {
                 const msg = `THIẾU CHƯƠNG: ${missingChapters.join(', ')}`;
                 log(msg, 'warn');
-                missingMessage = msg; // Lưu lại message
+                missingMessage = msg; 
                 hasError = true;
             }
         }
 
-        // 3. Đẩy thông báo (trùng/thiếu) lên UI
-        // Phải đảm bảo container được hiển thị nếu có lỗi
+        
+        
         if (hasError) {
             manualInputContainer.style.display = 'block';
         }
@@ -1578,7 +1997,7 @@ Lưu ý:
             manualInputContainer.appendChild(createUIWarning(missingMessage, 'warn'));
         }
 
-        // 4. Xử lý file không hợp lệ
+        
 
         if (state.invalidFiles.length > 0) {
             log(`Có ${state.invalidFiles.length} file không parse được num, cần chèn thủ công:`, 'warn');
@@ -1598,8 +2017,7 @@ Lưu ý:
             hasError = true;
         }
 
-
-        // 5. Cập nhật mô tả (logic cũ, không đổi)
+        
         const trueWrapper = state.selectedVolumeWrapper.querySelector('.volume-wrapper');
         const descInfo = computeDescInfo();
         if (descInfo.text) {
@@ -1613,7 +2031,7 @@ Lưu ý:
             log('Không tìm thấy số chương để điền mô tả.', 'warn');
         }
 
-        // 6. Tạo nút xác nhận (logic cũ, nhưng giờ nó bắt được mọi `hasError`)
+        
         if (hasError) {
             const buttonWrapper = document.createElement('div');
             buttonWrapper.className = `${APP_PREFIX}button-group`;
@@ -1641,12 +2059,12 @@ Lưu ý:
                 log('⛔ Đã dừng quá trình.');
                 manualInputContainer.innerHTML = '';
                 manualInputContainer.style.display = 'none';
-                fileInput.value = ""; // Reset input
+                fileInput.value = ""; 
             };
         } else {
-            // Chỉ chạy khi không có BẤT KỲ lỗi nào
+            
             log('Tất cả file hợp lệ. Bắt đầu tải lên...');
-            manualInputContainer.style.display = 'none'; // Ẩn đi nếu không có lỗi
+            manualInputContainer.style.display = 'none'; 
             startUploading();
         }
     }
@@ -1660,7 +2078,7 @@ Lưu ý:
         const overlay = document.createElement('div');
         overlay.style.position = 'fixed';
         overlay.style.inset = '0';
-        overlay.style.background = 'rgba(0,0,0,0.4)'; // vẫn mờ nền sau
+        overlay.style.background = 'rgba(0,0,0,0.4)'; 
         overlay.style.display = 'flex';
         overlay.style.alignItems = 'center';
         overlay.style.justifyContent = 'center';
@@ -1673,7 +2091,6 @@ Lưu ý:
         box.style.borderRadius = '8px';
         box.style.width = '350px';
         box.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-
 
         const title = document.createElement('div');
         title.textContent = 'Chọn 1 file để chèn';
@@ -1692,7 +2109,6 @@ Lưu ý:
             row.style.cursor = 'pointer';
 
             if (idx === 0) row.style.background = '#f5f5f5';
-
 
             const radio = document.createElement('input');
             radio.type = 'radio';
@@ -1735,7 +2151,7 @@ Lưu ý:
             const file = state.remainingInvalidFiles[selected];
             if (!file) return;
 
-            // Chèn
+            
             state.previewOrder.splice(insertIndex, 0, {
                 type: 'insert',
                 file,
@@ -1743,7 +2159,7 @@ Lưu ý:
                 rawTitle: null
             });
 
-            // Xóa khỏi remaining
+            
             state.remainingInvalidFiles.splice(selected, 1);
 
             document.body.removeChild(overlay);
@@ -1758,7 +2174,6 @@ Lưu ý:
         document.body.appendChild(overlay);
     }
 
-
     function createPlusRow(index, label) {
         const row = document.createElement('div');
         row.style.display = 'flex';
@@ -1766,23 +2181,22 @@ Lưu ý:
         row.style.alignItems = 'center';
         row.style.padding = '4px 0';
 
-        // + bên trái
+        
         const leftBtn = createPlusButton(index);
         row.appendChild(leftBtn);
 
-        // text ở giữa
+        
         const span = document.createElement('span');
         span.style.color = '#888';
         span.textContent = label || '';
         row.appendChild(span);
 
-        // + bên phải (cùng insertIndex, chèn vào cùng vị trí)
+        
         const rightBtn = createPlusButton(index);
         row.appendChild(rightBtn);
 
         return row;
     }
-
 
 
     function createPlusButton(insertIndex) {
@@ -1796,13 +2210,11 @@ Lưu ý:
         btn.style.background = '#fffbe6';
         btn.style.color = '#e65100';
 
-
         btn.style.cursor = 'pointer';
 
         btn.onclick = () => openInsertPopup(insertIndex);
         return btn;
     }
-
 
     function buildInsertPreviewUI(container) {
         container.innerHTML = `
@@ -1812,7 +2224,6 @@ Lưu ý:
             Nếu chèn nhầm, hãy nhấn vào ô màu cam để bỏ file đó khỏi sắp xếp.
         </div>
     `;
-
 
         const wrap = document.createElement('div');
         wrap.id = `${APP_PREFIX}preview-wrapper`;
@@ -1830,8 +2241,8 @@ Lưu ý:
 
         const list = state.previewOrder;
 
-        // nút + đầu danh sách
-        // wrapper.appendChild(createPlusRow(0, 'Đầu'));
+        
+        
 
         list.forEach((item, idx) => {
             const row = document.createElement('div');
@@ -1847,9 +2258,9 @@ Lưu ý:
                 row.style.cursor = 'pointer';
                 row.title = 'Nhấn để bỏ file này khỏi sắp xếp';
 
-                // Cho phép nhấn vào hàng cam để bỏ chèn
+                
                 row.addEventListener('click', (ev) => {
-                    // Nếu bấm vào nút + thì không xử lý “bỏ chèn”
+                    
                     const target = ev.target;
                     if (target && target.tagName && target.tagName.toLowerCase() === 'button') {
                         return;
@@ -1859,11 +2270,11 @@ Lưu ý:
                         return;
                     }
 
-                    // Xoá khỏi previewOrder
+                    
                     const removedList = state.previewOrder.splice(idx, 1);
                     const removed = removedList && removedList[0];
 
-                    // Đưa lại file vào remainingInvalidFiles (nếu có)
+                    
                     if (removed && removed.file) {
                         if (!Array.isArray(state.remainingInvalidFiles)) {
                             state.remainingInvalidFiles = [];
@@ -1876,8 +2287,7 @@ Lưu ý:
             }
 
 
-
-            // + trước
+            
             row.appendChild(createPlusButton(idx));
 
             const text = document.createElement('span');
@@ -1890,28 +2300,27 @@ Lưu ý:
                 text.textContent = `C.${item.chapterNumber} - ${item.file.name}`;
             } else {
                 text.textContent = item.file.name;
-                text.style.color = '#e65100'; // cam đậm cho dễ thấy
+                text.style.color = '#e65100'; 
             }
             row.appendChild(text);
 
-            // + sau (nút này sẽ luôn nằm sát bên phải)
+            
             row.appendChild(createPlusButton(idx + 1));
-
 
             wrapper.appendChild(row);
         });
 
-        // wrapper.appendChild(createPlusRow(list.length, 'Cuối'));
+        
     }
 
-    // Tạo thông báo lỗi/cảnh báo trên UI
+    
     function createUIWarning(message, type = 'error') {
         const wrapper = document.createElement('div');
-        wrapper.className = `${APP_PREFIX}manual-file-entry`; // Dùng chung class để có padding/margin
+        wrapper.className = `${APP_PREFIX}manual-file-entry`; 
 
         const label = document.createElement('label');
-        // Dùng màu đỏ (error) hoặc màu cam (warning)
-        label.style.color = (type === 'error') ? '#d9534f' : '#f0ad4e'; // Màu đỏ (giống) hoặc màu cam (cảnh báo)
+        
+        label.style.color = (type === 'error') ? '#d9534f' : '#f0ad4e'; 
         label.style.fontSize = '13px';
         label.style.fontWeight = 'bold';
         label.innerText = message;
@@ -1920,7 +2329,7 @@ Lưu ý:
         return wrapper;
     }
 
-    // Bắt đầu quá trình điền file vào form
+    
     async function startUploading() {
         log('🚀 Bắt đầu quá trình điền file...');
         const trueWrapper = state.selectedVolumeWrapper.querySelector('.volume-wrapper');
@@ -1945,36 +2354,16 @@ Lưu ý:
             }));
         }
 
-
-        // Cập nhật lại tổng số file
-        const numFiles = mergedFiles.length;
-        if (numFiles === 0) {
+        
+        const targetCount = mergedFiles.length;
+        if (targetCount === 0) {
             log('Không có file nào để tải lên. Đã dừng.', 'warn');
             return;
         }
 
-        log(`Tổng cộng sẽ tải lên ${numFiles} file.`);
+        log(`Tổng cộng sẽ tải lên ${targetCount} file.`);
 
-        // Đặt số lượng file vào input
-        const numFileInput = trueWrapper.querySelector('input[name="numFile"]');
-        if (numFileInput) {
-            numFileInput.value = numFiles;
-            log('✅ Đã cập nhật ô "Số file".');
-            // Kích hoạt sự kiện 'change' để Materialize cập nhật UI (nhãn nổi lên)
-            const event = new Event('change', { bubbles: true });
-            numFileInput.dispatchEvent(event);
-        } else {
-            log('⚠️ Không tìm thấy ô "Số file".', 'warn');
-        }
-
-        // Tắt tự động đánh số
-        const autoNumberCheckbox = trueWrapper.querySelector('input[name="autoNumber"]');
-        if (autoNumberCheckbox && autoNumberCheckbox.checked) {
-            autoNumberCheckbox.click();
-            log('✅ Đã tắt "Đánh số tự động".');
-        }
-
-        // Thêm các hàng nhập chương
+        
         const addChapterBtn = trueWrapper.querySelector('[data-action="addChapterInfo"]');
         const chapterWrapperContainer = trueWrapper.querySelector('.chapter-wrapper');
 
@@ -1983,34 +2372,155 @@ Lưu ý:
             return;
         }
 
-        //         // Xóa các hàng cũ nếu có
-        //         chapterWrapperContainer.innerHTML = '';
-        //         log('Đã dọn dẹp các hàng chương cũ (nếu có).');
-
-        //         // Tạo các hàng mới
-        //         for (let i = 0; i < numFiles; i++) {
-        //             addChapterBtn.click();
-        //         }
-
-        // Đợi DOM cập nhật
-        await new Promise(resolve => {
-            const checkInterval = setInterval(() => {
-                if (chapterWrapperContainer.querySelectorAll('.chapter-info-wrapper').length === numFiles) {
-                    clearInterval(checkInterval);
-                    resolve();
+        const numFileInput = trueWrapper.querySelector('input[name="numFile"]');
+        const getRowCount = () => chapterWrapperContainer.querySelectorAll('.chapter-info-wrapper').length;
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+        const getTiming = () => {
+            if (targetCount <= 10) {
+                return { waitTimeout: 1000, stableMs: 120, settleMs: 40, verifyMs: 60, clickDelay: 0 };
+            }
+            if (targetCount <= 100) {
+                return { waitTimeout: 1500, stableMs: 180, settleMs: 100, verifyMs: 120, clickDelay: 10 };
+            }
+            return { waitTimeout: 5000, stableMs: 220, settleMs: 160, verifyMs: 120, clickDelay: 30 };
+        };
+        const timing = getTiming();
+        const waitForRowCount = async (count, timeout = timing.waitTimeout) => {
+            const start = Date.now();
+            while (Date.now() - start < timeout) {
+                if (getRowCount() === count) {
+                    return true;
                 }
-            }, 50); // Kiểm tra mỗi 50ms
-        });
+                await sleep(60);
+            }
+            return false;
+        };
 
-        log(`✅ Đã tạo ${numFiles} hàng nhập liệu.`);
+        const resetChapterRows = async () => {
+            const rows = [...chapterWrapperContainer.querySelectorAll('.chapter-info-wrapper')];
+            if (rows.length === 0) return;
+            rows.forEach(row => {
+                const removeBtn = row.querySelector('[data-action="removeChapter"]');
+                if (removeBtn) removeBtn.click();
+                else row.remove();
+            });
+            const cleared = await waitForRowCount(0, 1200);
+            if (!cleared) {
+                [...chapterWrapperContainer.querySelectorAll('.chapter-info-wrapper')].forEach(row => row.remove());
+            }
+            log('🧹 Đã làm sạch danh sách chương cũ.');
+        };
 
-        // Điền thông tin vào từng hàng
+        const trimExtraRows = async (count) => {
+            const rows = [...chapterWrapperContainer.querySelectorAll('.chapter-info-wrapper')];
+            if (rows.length <= count) return;
+            rows.slice(count).forEach(row => {
+                const removeBtn = row.querySelector('[data-action="removeChapter"]');
+                if (removeBtn) removeBtn.click();
+                else row.remove();
+            });
+            await waitForRowCount(count, 1200);
+        };
+
+        const waitForStableRowCount = async (count, timeout = timing.waitTimeout, stableMs = timing.stableMs) => {
+            const start = Date.now();
+            let stableStart = null;
+            while (Date.now() - start < timeout) {
+                const current = getRowCount();
+                if (current === count) {
+                    if (stableStart == null) stableStart = Date.now();
+                    if (Date.now() - stableStart >= stableMs) return true;
+                } else {
+                    stableStart = null;
+                }
+                await sleep(80);
+            }
+            return false;
+        };
+
+        const tryGenerateByNumInput = async () => {
+            if (!numFileInput) return false;
+            numFileInput.value = String(targetCount);
+            numFileInput.dispatchEvent(new Event('input', { bubbles: true }));
+            numFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+            return waitForStableRowCount(targetCount, timing.waitTimeout, timing.stableMs);
+        };
+
+        const ensureRows = async () => {
+            let ok = false;
+            if (numFileInput) {
+                ok = await tryGenerateByNumInput();
+            }
+            if (!ok) {
+                let current = getRowCount();
+                if (current > targetCount) {
+                    await trimExtraRows(targetCount);
+                    current = getRowCount();
+                }
+                const toAdd = Math.max(0, targetCount - current);
+                for (let i = 0; i < toAdd; i += 1) {
+                    addChapterBtn.click();
+                    if (timing.clickDelay && (i + 1) % 10 === 0) {
+                        await sleep(timing.clickDelay);
+                    }
+                }
+                ok = await waitForStableRowCount(targetCount, timing.waitTimeout, timing.stableMs);
+            }
+            return ok;
+        };
+
+        const existingRows = getRowCount();
+        if (targetCount > 0 && existingRows > 0) {
+            await resetChapterRows();
+        }
+
+        const rowsReady = await ensureRows();
+        const currentCount = getRowCount();
+        const fillCount = Math.min(targetCount, currentCount);
+        if (!rowsReady || currentCount !== targetCount) {
+            log(`⚠️ Số hàng nhập liệu (${currentCount}) chưa khớp số file (${targetCount}).`, 'warn');
+        }
+
+        if (numFileInput) {
+            const desired = String(fillCount);
+            if (numFileInput.value !== desired) {
+                numFileInput.value = desired;
+                numFileInput.dispatchEvent(new Event('input', { bubbles: true }));
+                numFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            log('✅ Đã cập nhật ô "Số file".');
+        } else {
+            log('⚠️ Không tìm thấy ô "Số file".', 'warn');
+        }
+
+        const autoNumberCheckbox = trueWrapper.querySelector('input[name="autoNumber"]');
+        if (autoNumberCheckbox && autoNumberCheckbox.checked) {
+            autoNumberCheckbox.click();
+            log('✅ Đã tắt "Đánh số tự động".');
+        }
+
+        log(`✅ Đã tạo ${fillCount} hàng nhập liệu.`);
+
+        await sleep(timing.settleMs);
+
+        
+        const buildChapterName = (item) => {
+            if (item.chapterNumber != null) {
+                const titleFromName = (typeof item.rawTitle === 'string') ? item.rawTitle.trim() : item.file.name.replace(/\.txt$/i, '').trim();
+                const tpl = settings.CHAPTER_NAME_TEMPLATE || '第{num}章 {title}';
+                return applyTemplate(tpl, item.chapterNumber, titleFromName).trim();
+            }
+            const directTitle = (typeof item.rawTitle === 'string') ? item.rawTitle.trim() : '';
+            return directTitle || item.file.name.replace(/\.txt$/i, '');
+        };
+
         const chapterRows = chapterWrapperContainer.querySelectorAll('.chapter-info-wrapper');
-        mergedFiles.forEach((item, idx) => {
+        for (let idx = 0; idx < fillCount; idx += 1) {
+            const item = mergedFiles[idx];
             const row = chapterRows[idx];
             if (!row) {
                 log(`Lỗi: Hàng ${idx + 1} không tồn tại!`, 'error');
-                return;
+                continue;
             }
 
             const file = item.file;
@@ -2018,26 +2528,18 @@ Lưu ý:
             const fileTextInput = row.querySelector('input.file-path');
             const fileInputReal = row.querySelector('input[type="file"]');
 
-            let chapterName;
-
-            if (item.chapterNumber != null) {
-                const titleFromName = (typeof item.rawTitle === 'string') ? item.rawTitle.trim() : file.name.replace(/\.txt$/i, '').trim();
-                const tpl = settings.CHAPTER_NAME_TEMPLATE || '第{num}章 {title}';
-                chapterName = applyTemplate(tpl, item.chapterNumber, titleFromName);
-                chapterName = chapterName.trim();
-            } else {
-                const directTitle = (typeof item.rawTitle === 'string') ? item.rawTitle.trim() : '';
-                chapterName = directTitle || file.name.replace(/\.txt$/i, '');
-            }
+            const chapterName = buildChapterName(item);
 
             if (nameInput) {
                 nameInput.value = chapterName;
-                const event = new Event('change', { bubbles: true });
-                nameInput.dispatchEvent(event);
+                nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+                nameInput.dispatchEvent(new Event('change', { bubbles: true }));
             }
-            if (fileTextInput) fileTextInput.value = file.name;
+            if (fileTextInput) {
+                fileTextInput.value = file.name;
+                fileTextInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
 
-            // Tạo DataTransfer để gán file vào input
             try {
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(file);
@@ -2046,15 +2548,44 @@ Lưu ý:
                 log(`Lỗi khi gán file: ${e.message}`, 'error');
             }
 
-            log(`...Đã gán file "${file.name}" vào hàng ${idx + 1}`);
-        });
+            if (timing.clickDelay && idx > 0 && idx % 20 === 0) {
+                await sleep(0);
+            }
+            log(`...Đã gán file \"${file.name}\" vào hàng ${idx + 1}`);
+        }
+
+        await sleep(timing.verifyMs);
+        const verifyRows = chapterWrapperContainer.querySelectorAll('.chapter-info-wrapper');
+        let missingNameCount = 0;
+        let missingFileCount = 0;
+        for (let idx = 0; idx < fillCount; idx += 1) {
+            const item = mergedFiles[idx];
+            const row = verifyRows[idx];
+            if (!row) continue;
+            const nameInput = row.querySelector('input[name="name"]');
+            const fileTextInput = row.querySelector('input.file-path');
+            if (nameInput && !nameInput.value.trim()) {
+                const chapterName = buildChapterName(item);
+                nameInput.value = chapterName;
+                nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+                nameInput.dispatchEvent(new Event('change', { bubbles: true }));
+                missingNameCount += 1;
+            }
+            if (fileTextInput && !fileTextInput.value.trim()) {
+                fileTextInput.value = item.file.name;
+                fileTextInput.dispatchEvent(new Event('input', { bubbles: true }));
+                missingFileCount += 1;
+            }
+        }
+        if (missingNameCount || missingFileCount) {
+            log(`⚠️ Đã bù lại ${missingNameCount} tên chương và ${missingFileCount} file bị trống.`, 'warn');
+        }
 
         log('🎉 Hoàn tất! Tất cả các file đã sẵn sàng để tải lên.', 'success');
         fakeUploadBtn.disabled = false;
         log("✔ Sẵn sàng để Upload. Nút Tải lên đã được bật!", "success");
 
-
-        // Đặt lại input file để có thể chọn lại cùng 1 file (nếu cần)
+        
         fileInput.value = "";
     }
 
@@ -2081,9 +2612,17 @@ Lưu ý:
             showPanel();
         });
         minimizeBtn.addEventListener('click', hidePanel);
-        helpBtn.addEventListener('click', openHelpModal);
+        helpBtn.addEventListener('click', openHelpModalFull);
         helpCloseBtn.addEventListener('click', closeHelpModal);
-        uploadBtn.addEventListener('click', () => fileInput.click());
+        uploadBtn.addEventListener('click', () => {
+            if (!ensureSelectedVolumeValid()) return;
+            fileInput.click();
+        });
+        if (addVolumeBtn) addVolumeBtn.addEventListener('click', addNewVolumeAndSelect);
+        if (deleteVolumeBtn) deleteVolumeBtn.addEventListener('click', openDeleteConfirm);
+        if (confirmCancelBtn) confirmCancelBtn.addEventListener('click', closeDeleteConfirm);
+        if (confirmOverlay) confirmOverlay.addEventListener('click', closeDeleteConfirm);
+        if (confirmOkBtn) confirmOkBtn.addEventListener('click', confirmDeleteVolume);
         fileInput.addEventListener('change', handleFileSelect);
         volumeSelect.addEventListener('change', handleVolumeChange);
         volumeSelect.addEventListener('mousedown', () => {
@@ -2094,10 +2633,10 @@ Lưu ý:
         // --- Khai báo thêm biến DOM ---
         const encodingSelect = shadowRoot.querySelector(`#${APP_PREFIX}setting-encoding`);
 
-        // Biến lưu trạng thái ban đầu
+        
         let initialFormValues = {};
 
-        // Hàm lấy tất cả giá trị hiện tại trong Form
+        
         function getFormValues() {
             return {
                 logMax: logMaxInput.value,
@@ -2112,7 +2651,7 @@ Lưu ý:
         }
 
         function showSettingsModal() {
-            // Tải cài đặt hiện tại vào input
+            
             logMaxInput.value = settings.LOG_MAX_LINES;
             fileSizeKbInput.value = settings.FILE_SIZE_WARNING_KB;
             firstLineOnlyInput.checked = !!settings.USE_FIRST_LINE_ONLY;
@@ -2146,23 +2685,14 @@ Lưu ý:
             const currentValues = getFormValues();
             if (JSON.stringify(currentValues) !== JSON.stringify(initialFormValues)) {
                 if (!confirm('Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy không?')) {
-                    return; // Không đóng
+                    return; 
                 }
             }
             hideSettingsModal();
         }
 
-        function handleOverlayClick() {
-            if (!helpModal.classList.contains(`${APP_PREFIX}hide`)) {
-                closeHelpModal();
-            } else {
-                tryCloseSettingsModal();
-            }
-        }
-
         settingsBtn.addEventListener('click', showSettingsModal);
         settingsCancelBtn.addEventListener('click', tryCloseSettingsModal);
-        settingsOverlay.addEventListener('click', handleOverlayClick);
         firstLineOnlyInput.addEventListener('change', () => {
             setParseControlsEnabled(!firstLineOnlyInput.checked);
         });
@@ -2173,13 +2703,13 @@ Lưu ý:
             const newChapTpl = chapterTemplateInput.value.trim() || '第{num}章 {title}';
             const useFirstLineOnly = firstLineOnlyInput.checked;
 
-            // Bắt buộc phải có {num}
+            
             if (!useFirstLineOnly && !newChapTpl.includes('{num}')) {
                 alert('Template phải chứa {num}.');
                 return;
             }
 
-            // Test regex có hợp lệ không
+            
             if (!useFirstLineOnly) {
                 try {
                     new RegExp(newRegex);
@@ -2194,7 +2724,7 @@ Lưu ý:
                 return;
             }
             if (isNaN(newFileKb) || newFileKb < 0) {
-                // Cho phép 0 để tắt cảnh báo
+                
                 alert('Kích thước file (KB) phải là số không âm (0 hoặc lớn hơn).');
                 return;
             }
@@ -2209,11 +2739,25 @@ Lưu ý:
             settings.CONTENT_REGEX = contentRegexInput.value.trim();
             settings.FILE_ENCODING = encodingSelect.value;
 
-            saveSettings(); // Lưu vào localStorage
+            saveSettings(); 
             initialFormValues = getFormValues();
             hideSettingsModal();
             log('Cài đặt đã được cập nhật.');
         });
+
+        
+        setTimeout(() => {
+            const storedVer = GM_getValue(VERSION_KEY, null);
+            if (!storedVer) {
+                openHelpModalFull();
+                GM_setValue(VERSION_KEY, CURRENT_VERSION);
+                return;
+            }
+            if (storedVer !== CURRENT_VERSION) {
+                openHelpModalUpdateOnly();
+                GM_setValue(VERSION_KEY, CURRENT_VERSION);
+            }
+        }, 1200);
 
         initialize();
     }
