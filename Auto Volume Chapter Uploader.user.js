@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume/Chapter Uploader
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.2.1
 // @description  Tự động hóa quá trình thêm/bổ sung chương trên wiki và web hồng
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
@@ -42,7 +42,7 @@
     }
     // --- Cấu hình ---
     const APP_PREFIX = 'WDU_';
-    const CURRENT_VERSION = '1.2';
+    const CURRENT_VERSION = '1.2.1';
     const VERSION_KEY = `${APP_PREFIX}version`;
     let settings = {
         LOG_MAX_LINES: 1000,
@@ -910,7 +910,7 @@
             let newTop = rect.top;
 
             if (newLeft + rect.width > vw) {
-                newLeft = vw - rect.width - 10; 
+                newLeft = vw - rect.width - 10;
             }
             if (newTop + rect.height > vh) {
                 newTop = vh - rect.height - 10;
@@ -1260,6 +1260,12 @@
     `.trim();
 
     const changelogMarkdown = `
+### 🧯 v1.2.1 (Hotfix)
+- Sửa lỗi **auto upload không gán file thật vào input**, gây treo khi nhấn Upload.
+- Đồng bộ lại logic kiểm tra file giữa script và web.
+- Vá lỗi web crash khi gặp chương thiếu file.
+- Cải thiện độ ổn định khi upload nhiều chương liên tiếp.
+
 ### ✨ v1.2
 - Thêm nút **Xóa** quyển (nhúng file) và popup xác nhận.
 - Thêm nút **Thêm Quyển** và tự chọn quyển mới.
@@ -1272,7 +1278,8 @@
 
 ### 📦 v1.1.8
 - Ổn định luồng upload, tối ưu trải nghiệm.
-    `.trim();
+`.trim();
+
 
     function openHelpModal(contentHtml) {
         helpContent.innerHTML = contentHtml || '';
@@ -1474,7 +1481,7 @@ Lưu ý:
             return;
         }
 
-        
+
         const baseName = sampleRaw.replace(/\.txt$/i, '');
         const m = baseName.match(re);
 
@@ -1492,7 +1499,7 @@ Lưu ý:
             return;
         }
 
-        
+
         const lines = [];
         lines.push(`Tên file: "${sampleRaw}"`);
         lines.push(`Chuỗi match: "${m[0]}"`);
@@ -1512,10 +1519,10 @@ Lưu ý:
     if (filenameRegexTestBtn) {
         filenameRegexTestBtn.addEventListener('click', () => {
 
-            
+
             if (filenameSampleInput && filenameSampleInput.style.opacity === '0') {
 
-                
+
                 filenameSampleInput.style.height = '32px';
                 filenameSampleInput.style.padding = '6px 8px';
                 filenameSampleInput.style.margin = '6px 0';
@@ -1527,16 +1534,16 @@ Lưu ý:
                 return;
             }
 
-            
+
             runFilenameRegexTest();
         });
     }
 
     if (contentRegexTestBtn) {
         contentRegexTestBtn.addEventListener('click', () => {
-            
+
             if (contentSampleInput.style.opacity === '0') {
-                
+
                 contentSampleInput.style.height = '32px';
                 contentSampleInput.style.padding = '6px 8px';
                 contentSampleInput.style.margin = '6px 0';
@@ -1548,7 +1555,7 @@ Lưu ý:
                 return;
             }
 
-            
+
             const pattern = contentRegexInput.value.trim();
             const sample = contentSampleInput.value.trim();
             if (!pattern) { contentRegexResult.textContent = '❌ Chưa nhập Regex.'; return; }
@@ -1571,7 +1578,7 @@ Lưu ý:
         filenameRegexTestBtn.addEventListener('click', runFilenameRegexTest);
     }
 
-    
+
     const fakeUploadBtn = shadowRoot.querySelector(`#${APP_PREFIX}fake-upload`);
     fakeUploadBtn.disabled = true;
 
@@ -1625,7 +1632,7 @@ Lưu ý:
 
         log("⏳ Đang nhấn nút Tải lên thật trên web...", "warn");
 
-        
+
         realBtn.click();
 
         log("✅ Đã nhấn nút Tải lên!", "success");
@@ -1646,7 +1653,7 @@ Lưu ý:
             const saved = localStorage.getItem(SETTINGS_KEY);
             if (saved) {
                 const loadedSettings = JSON.parse(saved);
-                
+
                 settings = { ...settings, ...loadedSettings };
                 log('Tải cài đặt đã lưu.');
             }
@@ -1655,7 +1662,7 @@ Lưu ý:
         }
     }
 
-    
+
     loadSettings();
     installFormDataPatch();
 
@@ -1675,7 +1682,7 @@ Lưu ý:
             let name = nameEl ? nameEl.value.trim() : `Quyển ${index + 1}`;
             const isAppendable = !!(trueWrapper && trueWrapper.getAttribute('data-append') === 'true');
 
-            
+
             const descEl = wrapper.querySelector('.volume-name-desc');
             const descText = (descEl ? descEl.textContent : '').trim();
             const cannotModify =
@@ -1701,16 +1708,16 @@ Lưu ý:
             volumeSelect.appendChild(opt);
         });
 
-        
+
         if (defaultSelectStrategy === 'preserve' && state._prevSelectValue != null) {
-            
+
             const exists = [...volumeSelect.options].some(o => o.value === state._prevSelectValue && !o.disabled);
             if (exists) volumeSelect.value = state._prevSelectValue;
         } else if (defaultSelectStrategy === 'lastAppendable' && state.isEditPage && lastAppendableIndex !== -1) {
             volumeSelect.value = String(lastAppendableIndex);
         }
     }
-    
+
     function handleVolumeChange() {
         const selectedOption = volumeSelect.options[volumeSelect.selectedIndex];
         if (!selectedOption || selectedOption.value === '-1' || selectedOption.disabled || selectedOption.dataset.cannotModify === 'true') {
@@ -1721,7 +1728,7 @@ Lưu ý:
             return;
         }
 
-        
+
         const wrappers = document.querySelectorAll('.volume-info-wrapper');
         const selectedIndex = parseInt(selectedOption.value, 10);
         state.selectedVolumeWrapper = wrappers[selectedIndex];
@@ -1736,14 +1743,14 @@ Lưu ý:
         const trueWrapper = state.selectedVolumeWrapper.querySelector('.volume-wrapper');
         const isAppendable = selectedOption.dataset.isAppendable === 'true';
 
-        
+
         if (state.isEditPage && trueWrapper && trueWrapper.classList.contains('readonly')) {
             trueWrapper.classList.remove('readonly');
             log('🔓 Đã bỏ readonly của quyển.');
         }
 
         if (isAppendable) {
-            
+
             const addButton = state.selectedVolumeWrapper.querySelector('.btn-add-volume[data-action="appendLastVolume"]');
             const appendSection = state.selectedVolumeWrapper.querySelector('.append-last-volume');
             if (addButton && appendSection && appendSection.classList.contains('hide')) {
@@ -1753,11 +1760,11 @@ Lưu ý:
                 log(`Đã chọn quyển "${selectedOption.textContent}".`);
             }
         } else {
-            
+
             log(`Đã chọn quyển "${selectedOption.textContent}" (không bổ sung).`);
         }
 
-        
+
         manualInputContainer.style.display = 'none';
         manualInputContainer.innerHTML = '';
 
@@ -1767,19 +1774,19 @@ Lưu ý:
         }
     }
 
-    
+
     function initialize() {
         log('Khởi tạo... 🚀');
 
-        
-        rebuildVolumeOptions('none'); 
 
-        
+        rebuildVolumeOptions('none');
+
+
         state.selectedVolumeWrapper = null;
         uploadBtn.disabled = true;
         if (deleteVolumeBtn) deleteVolumeBtn.disabled = true;
 
-        
+
         manualInputContainer.style.display = 'none';
         manualInputContainer.innerHTML = '';
 
@@ -1803,13 +1810,13 @@ Lưu ý:
         });
     }
 
-    
+
     function matchRegex(text, regexStr) {
         if (!text || !regexStr) return null;
         try {
             const re = new RegExp(regexStr, 'i');
             const m = text.match(re);
-            if (m && m[1]) { 
+            if (m && m[1]) {
                 return { num: parseInt(m[1], 10), title: m[2] || '' };
             }
         } catch (e) { return null; }
@@ -1823,31 +1830,31 @@ Lưu ý:
         let result = null;
         let firstLine = '';
 
-        
+
         if (priority === 'filename') {
-            
+
             result = matchRegex(filenameBase, settings.FILENAME_REGEX);
             if (result) return { ...result, source: 'filename' };
 
-            
+
             firstLine = await readFirstLineOfFile(file);
             result = matchRegex(firstLine, settings.CONTENT_REGEX);
             if (result) return { ...result, source: 'content' };
         }
 
-        
+
         else {
             firstLine = await readFirstLineOfFile(file);
-            
+
             result = matchRegex(firstLine, settings.CONTENT_REGEX);
             if (result) return { ...result, source: 'content' };
 
-            
+
             result = matchRegex(filenameBase, settings.FILENAME_REGEX);
             if (result) return { ...result, source: 'filename' };
         }
 
-        return null; 
+        return null;
     }
 
     function applyTemplate(template, num, title) {
@@ -1856,7 +1863,7 @@ Lưu ý:
             .replace(/{title}/g, title || '');
     }
 
-    
+
     async function handleFileSelect(event) {
         if (!ensureSelectedVolumeValid()) {
             fileInput.value = "";
@@ -1873,25 +1880,25 @@ Lưu ý:
         }
 
         log(`Đã chọn ${files.length} file. Đang xử lý...`);
-        manualInputContainer.innerHTML = ''; 
+        manualInputContainer.innerHTML = '';
         state.validFiles = [];
         state.invalidFiles = [];
 
-        
+
         const warningSize = settings.FILE_SIZE_WARNING_KB * 1024;
         const smallFiles = files.filter(f => f.size < warningSize);
 
-        if (smallFiles.length > 0 && warningSize > 0) { 
+        if (smallFiles.length > 0 && warningSize > 0) {
             log(`⚠️ Phát hiện ${smallFiles.length} file dưới ${settings.FILE_SIZE_WARNING_KB}KB.`, 'warn');
             smallFiles.forEach(f => log(`- ${f.name} (${(f.size / 1024).toFixed(2)} KB)`, 'warn'));
             if (!confirm(`Có ${smallFiles.length} file nhỏ hơn ${settings.FILE_SIZE_WARNING_KB}KB. Bạn có chắc chắn muốn tiếp tục không?`)) {
                 log('⛔ Đã hủy tải lên.');
-                fileInput.value = ""; 
+                fileInput.value = "";
                 return;
             }
         }
 
-        
+
         files.sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true, sensitivity: 'base' }));
         state.allFiles = files;
 
@@ -1941,27 +1948,27 @@ Lưu ý:
             }
 
             chapterNumbers.set(num, file);
-            
+
             state.validFiles.push({ file, chapterNumber: num, rawTitle: title });
         }
 
         state.validFiles.sort((a, b) => a.chapterNumber - b.chapterNumber);
 
-        let hasError = false; 
+        let hasError = false;
 
-        
-        const duplicateMessages = []; 
+
+        const duplicateMessages = [];
         chapterNumbers.forEach((fileList, number) => {
             if (fileList.length > 1) {
                 const msg = `TRÙNG LẶP: Chương ${number} có ${fileList.length} file: ${fileList.join(', ')}`;
                 log(msg, 'error');
-                duplicateMessages.push(msg); 
+                duplicateMessages.push(msg);
                 hasError = true;
             }
         });
 
-        
-        let missingMessage = null; 
+
+        let missingMessage = null;
         let minChapter, maxChapter;
         if (state.validFiles.length > 0) {
             const allChapterNums = state.validFiles.map(item => item.chapterNumber);
@@ -1978,13 +1985,13 @@ Lưu ý:
             if (missingChapters.length > 0) {
                 const msg = `THIẾU CHƯƠNG: ${missingChapters.join(', ')}`;
                 log(msg, 'warn');
-                missingMessage = msg; 
+                missingMessage = msg;
                 hasError = true;
             }
         }
 
-        
-        
+
+
         if (hasError) {
             manualInputContainer.style.display = 'block';
         }
@@ -1997,7 +2004,7 @@ Lưu ý:
             manualInputContainer.appendChild(createUIWarning(missingMessage, 'warn'));
         }
 
-        
+
 
         if (state.invalidFiles.length > 0) {
             log(`Có ${state.invalidFiles.length} file không parse được num, cần chèn thủ công:`, 'warn');
@@ -2017,7 +2024,7 @@ Lưu ý:
             hasError = true;
         }
 
-        
+
         const trueWrapper = state.selectedVolumeWrapper.querySelector('.volume-wrapper');
         const descInfo = computeDescInfo();
         if (descInfo.text) {
@@ -2031,7 +2038,7 @@ Lưu ý:
             log('Không tìm thấy số chương để điền mô tả.', 'warn');
         }
 
-        
+
         if (hasError) {
             const buttonWrapper = document.createElement('div');
             buttonWrapper.className = `${APP_PREFIX}button-group`;
@@ -2059,12 +2066,12 @@ Lưu ý:
                 log('⛔ Đã dừng quá trình.');
                 manualInputContainer.innerHTML = '';
                 manualInputContainer.style.display = 'none';
-                fileInput.value = ""; 
+                fileInput.value = "";
             };
         } else {
-            
+
             log('Tất cả file hợp lệ. Bắt đầu tải lên...');
-            manualInputContainer.style.display = 'none'; 
+            manualInputContainer.style.display = 'none';
             startUploading();
         }
     }
@@ -2078,7 +2085,7 @@ Lưu ý:
         const overlay = document.createElement('div');
         overlay.style.position = 'fixed';
         overlay.style.inset = '0';
-        overlay.style.background = 'rgba(0,0,0,0.4)'; 
+        overlay.style.background = 'rgba(0,0,0,0.4)';
         overlay.style.display = 'flex';
         overlay.style.alignItems = 'center';
         overlay.style.justifyContent = 'center';
@@ -2151,7 +2158,7 @@ Lưu ý:
             const file = state.remainingInvalidFiles[selected];
             if (!file) return;
 
-            
+
             state.previewOrder.splice(insertIndex, 0, {
                 type: 'insert',
                 file,
@@ -2159,7 +2166,7 @@ Lưu ý:
                 rawTitle: null
             });
 
-            
+
             state.remainingInvalidFiles.splice(selected, 1);
 
             document.body.removeChild(overlay);
@@ -2181,17 +2188,17 @@ Lưu ý:
         row.style.alignItems = 'center';
         row.style.padding = '4px 0';
 
-        
+
         const leftBtn = createPlusButton(index);
         row.appendChild(leftBtn);
 
-        
+
         const span = document.createElement('span');
         span.style.color = '#888';
         span.textContent = label || '';
         row.appendChild(span);
 
-        
+
         const rightBtn = createPlusButton(index);
         row.appendChild(rightBtn);
 
@@ -2241,8 +2248,8 @@ Lưu ý:
 
         const list = state.previewOrder;
 
-        
-        
+
+
 
         list.forEach((item, idx) => {
             const row = document.createElement('div');
@@ -2258,9 +2265,9 @@ Lưu ý:
                 row.style.cursor = 'pointer';
                 row.title = 'Nhấn để bỏ file này khỏi sắp xếp';
 
-                
+
                 row.addEventListener('click', (ev) => {
-                    
+
                     const target = ev.target;
                     if (target && target.tagName && target.tagName.toLowerCase() === 'button') {
                         return;
@@ -2270,11 +2277,11 @@ Lưu ý:
                         return;
                     }
 
-                    
+
                     const removedList = state.previewOrder.splice(idx, 1);
                     const removed = removedList && removedList[0];
 
-                    
+
                     if (removed && removed.file) {
                         if (!Array.isArray(state.remainingInvalidFiles)) {
                             state.remainingInvalidFiles = [];
@@ -2287,7 +2294,7 @@ Lưu ý:
             }
 
 
-            
+
             row.appendChild(createPlusButton(idx));
 
             const text = document.createElement('span');
@@ -2300,27 +2307,27 @@ Lưu ý:
                 text.textContent = `C.${item.chapterNumber} - ${item.file.name}`;
             } else {
                 text.textContent = item.file.name;
-                text.style.color = '#e65100'; 
+                text.style.color = '#e65100';
             }
             row.appendChild(text);
 
-            
+
             row.appendChild(createPlusButton(idx + 1));
 
             wrapper.appendChild(row);
         });
 
-        
+
     }
 
-    
+
     function createUIWarning(message, type = 'error') {
         const wrapper = document.createElement('div');
-        wrapper.className = `${APP_PREFIX}manual-file-entry`; 
+        wrapper.className = `${APP_PREFIX}manual-file-entry`;
 
         const label = document.createElement('label');
-        
-        label.style.color = (type === 'error') ? '#d9534f' : '#f0ad4e'; 
+
+        label.style.color = (type === 'error') ? '#d9534f' : '#f0ad4e';
         label.style.fontSize = '13px';
         label.style.fontWeight = 'bold';
         label.innerText = message;
@@ -2329,7 +2336,7 @@ Lưu ý:
         return wrapper;
     }
 
-    
+
     async function startUploading() {
         log('🚀 Bắt đầu quá trình điền file...');
         const trueWrapper = state.selectedVolumeWrapper.querySelector('.volume-wrapper');
@@ -2354,7 +2361,7 @@ Lưu ý:
             }));
         }
 
-        
+
         const targetCount = mergedFiles.length;
         if (targetCount === 0) {
             log('Không có file nào để tải lên. Đã dừng.', 'warn');
@@ -2363,7 +2370,7 @@ Lưu ý:
 
         log(`Tổng cộng sẽ tải lên ${targetCount} file.`);
 
-        
+
         const addChapterBtn = trueWrapper.querySelector('[data-action="addChapterInfo"]');
         const chapterWrapperContainer = trueWrapper.querySelector('.chapter-wrapper');
 
@@ -2503,7 +2510,7 @@ Lưu ý:
 
         await sleep(timing.settleMs);
 
-        
+
         const buildChapterName = (item) => {
             if (item.chapterNumber != null) {
                 const titleFromName = (typeof item.rawTitle === 'string') ? item.rawTitle.trim() : item.file.name.replace(/\.txt$/i, '').trim();
@@ -2526,7 +2533,7 @@ Lưu ý:
             const file = item.file;
             const nameInput = row.querySelector('input[name="name"]');
             const fileTextInput = row.querySelector('input.file-path');
-            const fileInputReal = row.querySelector('input[type="file"]');
+            const fileInputReal = row.querySelector('input[type="file"][name="file"], input[name="file"][type="file"]') || row.querySelector('input[type="file"]');
 
             const chapterName = buildChapterName(item);
 
@@ -2541,11 +2548,18 @@ Lưu ý:
             }
 
             try {
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                if (fileInputReal) fileInputReal.files = dataTransfer.files;
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                if (fileInputReal) {
+                    fileInputReal.files = dt.files;
+
+                    fileInputReal.dispatchEvent(new Event('input',  { bubbles: true }));
+                    fileInputReal.dispatchEvent(new Event('change', { bubbles: true }));
+                } else {
+                    log(`❌ Không tìm thấy input file ở hàng ${idx + 1}`, 'error');
+                }
             } catch (e) {
-                log(`Lỗi khi gán file: ${e.message}`, 'error');
+            log(`Lỗi khi gán file: ${e.message}`, 'error');
             }
 
             if (timing.clickDelay && idx > 0 && idx % 20 === 0) {
@@ -2571,11 +2585,29 @@ Lưu ý:
                 nameInput.dispatchEvent(new Event('change', { bubbles: true }));
                 missingNameCount += 1;
             }
+
+            const fileInputReal2 =
+                row.querySelector('input[type="file"][name="file"], input[name="file"][type="file"]') ||
+                row.querySelector('input[type="file"]');
+
             if (fileTextInput && !fileTextInput.value.trim()) {
                 fileTextInput.value = item.file.name;
                 fileTextInput.dispatchEvent(new Event('input', { bubbles: true }));
-                missingFileCount += 1;
             }
+
+            if (fileInputReal2 && (!fileInputReal2.files || fileInputReal2.files.length < 1)) {
+                try {
+                    const dt2 = new DataTransfer();
+                    dt2.items.add(item.file);
+                    fileInputReal2.files = dt2.files;
+                    fileInputReal2.dispatchEvent(new Event('input',  { bubbles: true }));
+                    fileInputReal2.dispatchEvent(new Event('change', { bubbles: true }));
+                    missingFileCount += 1;
+                } catch (e) {
+                    log(`❌ Verify gán lại file lỗi ở hàng ${idx + 1}: ${e.message}`, 'error');
+                }
+            }
+
         }
         if (missingNameCount || missingFileCount) {
             log(`⚠️ Đã bù lại ${missingNameCount} tên chương và ${missingFileCount} file bị trống.`, 'warn');
@@ -2585,7 +2617,7 @@ Lưu ý:
         fakeUploadBtn.disabled = false;
         log("✔ Sẵn sàng để Upload. Nút Tải lên đã được bật!", "success");
 
-        
+
         fileInput.value = "";
     }
 
@@ -2633,10 +2665,10 @@ Lưu ý:
         // --- Khai báo thêm biến DOM ---
         const encodingSelect = shadowRoot.querySelector(`#${APP_PREFIX}setting-encoding`);
 
-        
+
         let initialFormValues = {};
 
-        
+
         function getFormValues() {
             return {
                 logMax: logMaxInput.value,
@@ -2651,7 +2683,7 @@ Lưu ý:
         }
 
         function showSettingsModal() {
-            
+
             logMaxInput.value = settings.LOG_MAX_LINES;
             fileSizeKbInput.value = settings.FILE_SIZE_WARNING_KB;
             firstLineOnlyInput.checked = !!settings.USE_FIRST_LINE_ONLY;
@@ -2685,7 +2717,7 @@ Lưu ý:
             const currentValues = getFormValues();
             if (JSON.stringify(currentValues) !== JSON.stringify(initialFormValues)) {
                 if (!confirm('Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy không?')) {
-                    return; 
+                    return;
                 }
             }
             hideSettingsModal();
@@ -2703,13 +2735,13 @@ Lưu ý:
             const newChapTpl = chapterTemplateInput.value.trim() || '第{num}章 {title}';
             const useFirstLineOnly = firstLineOnlyInput.checked;
 
-            
+
             if (!useFirstLineOnly && !newChapTpl.includes('{num}')) {
                 alert('Template phải chứa {num}.');
                 return;
             }
 
-            
+
             if (!useFirstLineOnly) {
                 try {
                     new RegExp(newRegex);
@@ -2724,7 +2756,7 @@ Lưu ý:
                 return;
             }
             if (isNaN(newFileKb) || newFileKb < 0) {
-                
+
                 alert('Kích thước file (KB) phải là số không âm (0 hoặc lớn hơn).');
                 return;
             }
@@ -2739,13 +2771,13 @@ Lưu ý:
             settings.CONTENT_REGEX = contentRegexInput.value.trim();
             settings.FILE_ENCODING = encodingSelect.value;
 
-            saveSettings(); 
+            saveSettings();
             initialFormValues = getFormValues();
             hideSettingsModal();
             log('Cài đặt đã được cập nhật.');
         });
 
-        
+
         setTimeout(() => {
             const storedVer = GM_getValue(VERSION_KEY, null);
             if (!storedVer) {
