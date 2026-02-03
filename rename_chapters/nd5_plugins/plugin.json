@@ -25,6 +25,17 @@
       "icon": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/jjwxc/icon.png",
       "type": "chinese_novel",
       "locale": "zh_CN"
+    },
+    {
+      "name": "Ihuaben",
+      "version": 1,
+      "author": "BaoBao",
+      "source": "https://www.ihuaben.com/",
+      "description": "Tải truyện từ Ihuaben",
+      "path": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/ihuaben/plugin.zip",
+      "icon": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/ihuaben/icon.png",
+      "type": "chinese_novel",
+      "locale": "zh_CN"
     }
   ]
 }
