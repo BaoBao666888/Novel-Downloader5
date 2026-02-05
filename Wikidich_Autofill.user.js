@@ -34,6 +34,8 @@
     };
 
     const SETTINGS_KEY = 'Wikidich_Autofill_Config';
+    const SHARED_THEME_KEY = 'WDX_theme';
+    const DEFAULT_THEME_MODE = 'light';
 
     // ================================================
     // SETTINGS + STATE
@@ -51,6 +53,18 @@
     // --- UTILS ---
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    function getSharedThemeMode() {
+        try {
+            return localStorage.getItem(SHARED_THEME_KEY) || DEFAULT_THEME_MODE;
+        } catch {
+            return DEFAULT_THEME_MODE;
+        }
+    }
+    function resolveThemeMode(mode) {
+        if (mode === 'dark' || mode === 'light') return mode;
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+        return 'light';
     }
 
     function isEditPage() {
@@ -1211,36 +1225,14 @@
     }
 
     function describeCharacterRelationsJJWXC(data) {
-        if (!data || !Array.isArray(data.characters) || !Array.isArray(data.character_relations)) {
-            return { mainLine: '', otherNames: [] };
+        if (!data) {
+            return { protagonist: '', costar: '' };
         }
-        const genderLabel = (g) => {
-            if (g === '1') return '【男】';
-            if (g === '0') return '【女】';
-            return '【其他】';
+        // Return raw protagonist and costar fields as-is
+        return {
+            protagonist: T.safeText(data.protagonist || ''),
+            costar: T.safeText(data.costar || '')
         };
-        const charactersById = {};
-        data.characters.forEach(c => { charactersById[c.character_id] = c; });
-        const pov = data.characters.find(c => c.is_pov === '1');
-        if (!pov) return { mainLine: '', otherNames: [] };
-
-        const lovers = [];
-        const loverIds = new Set();
-        data.character_relations.forEach(rel => {
-            if (rel.start === pov.character_id && charactersById[rel.end]) {
-                lovers.push(charactersById[rel.end]);
-                loverIds.add(rel.end);
-            }
-        });
-        let mainLine = `主角视角：${pov.character_name}${genderLabel(pov.character_gender)}`;
-        if (lovers.length > 0) {
-            const loverStr = lovers.map(l => `${l.character_name}${genderLabel(l.character_gender)}`).join(', ');
-            mainLine += `(互动) ${loverStr}`;
-        }
-        const otherNames = data.characters
-            .filter(c => c.character_id !== pov.character_id && !loverIds.has(c.character_id))
-            .map(c => `${c.character_name}${genderLabel(c.character_gender)}`);
-        return { mainLine, otherNames };
     }
 
     // ================================================
@@ -1280,11 +1272,7 @@
         const tagsRaw = T.safeText(raw.novelTags);
         const tagsLine = tagsRaw ? `内容标签：${tagsRaw}` : '';
         const rel = describeCharacterRelationsJJWXC(raw);
-        const relLines = [];
-        if (rel.mainLine) relLines.push(rel.mainLine);
-        if (rel.otherNames && rel.otherNames.length) {
-            relLines.push(`配角: ${rel.otherNames.join('，')}`);
-        }
+        const relLines = [rel.protagonist, rel.costar].filter(Boolean);
         const otherText = T.safeText(raw.other);
         const introShortRaw = T.safeText(raw.novelIntroShort);
         const introShort = introShortRaw ? `一句话简介：${introShortRaw}` : '';
@@ -2023,96 +2011,259 @@
         const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
         const showFloatingButton = options.showFloatingButton !== false;
         const showEditExtras = isEditPage();
+        let themeMedia = null;
+        let themeListener = null;
+        const applyThemeMode = (mode) => {
+            const resolved = resolveThemeMode(mode);
+            shadowHost.setAttribute('data-theme', resolved);
+            if (mode === 'auto' && window.matchMedia) {
+                if (!themeMedia) {
+                    themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+                    themeListener = () => {
+                        shadowHost.setAttribute('data-theme', themeMedia.matches ? 'dark' : 'light');
+                    };
+                    themeMedia.addEventListener('change', themeListener);
+                }
+            } else if (themeMedia && themeListener) {
+                themeMedia.removeEventListener('change', themeListener);
+                themeMedia = null;
+                themeListener = null;
+            }
+        };
+        applyThemeMode(getSharedThemeMode());
+        shadowHost.setAttribute('data-page', showEditExtras ? 'edit' : 'new');
         // Exclude rules are for /chinh-sua only. Do not let them affect /nhung-file.
         state.excludeFields = showEditExtras ? loadExcludedFields() : {};
 
         const css = `
-            :host { all: initial; }
+            :host {
+                all: initial;
+                --wda-primary: #ff8a65;
+                --wda-primary-strong: #ff7043;
+                --wda-secondary: #26c6da;
+                --wda-secondary-strong: #00acc1;
+                --wda-danger: #ef5350;
+                --wda-danger-strong: #e53935;
+                --wda-surface: #ffffff;
+                --wda-surface-2: #f6f8ff;
+                --wda-border: rgba(98, 110, 140, 0.18);
+                --wda-shadow: 0 18px 40px rgba(53, 64, 90, 0.2);
+                --wda-text: #2f2a36;
+                --wda-muted: #6b6f80;
+                --wda-radius: 14px;
+            }
+            :host([data-theme="dark"]) {
+                --wda-surface: #0b1220;
+                --wda-surface-2: #111827;
+                --wda-border: rgba(148, 163, 184, 0.25);
+                --wda-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+                --wda-text: #e5e7eb;
+                --wda-muted: #a3a3b5;
+            }
             #${APP_PREFIX}btn {
                 position: fixed; bottom: 20px; right: 20px; z-index: 99999;
-                width: 48px; height: 48px; border-radius: 50%;
-                background: #ff9800; color: #fff; border: none;
-                font-size: 14px; cursor: grab; font-family: Arial, sans-serif;
+                width: 52px; height: 52px; border-radius: 50%;
+                background: linear-gradient(135deg, #ff9a8b 0%, #ff6a88 60%, #ff99ac 100%);
+                color: #fff; border: none;
+                font-size: 14px; cursor: grab;
+                font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
                 display: flex; align-items: center; justify-content: center;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                box-shadow: 0 10px 24px rgba(255, 105, 135, 0.35);
             }
             #${APP_PREFIX}btn:active { cursor: grabbing; }
             #${APP_PREFIX}panel {
                 position: fixed; bottom: 70px; right: 20px; width: 420px; max-height: 75vh;
-                background: #fff; color: #222; border: 1px solid #ddd; border-radius: 10px;
-                box-shadow: 0 10px 24px rgba(0,0,0,0.18); font-family: Arial, sans-serif;
+                background: linear-gradient(180deg, #ffffff 0%, #f6f8ff 100%);
+                color: var(--wda-text); border: 1px solid var(--wda-border);
+                border-radius: var(--wda-radius);
+                box-shadow: var(--wda-shadow);
+                font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
                 z-index: 99999; display: none; flex-direction: column;
             }
+            :host([data-theme="dark"]) #${APP_PREFIX}panel {
+                background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+                border-color: var(--wda-border);
+                color: var(--wda-text);
+            }
             #${APP_PREFIX}header {
-                padding: 10px 14px; background: #f7f7f7; border-bottom: 1px solid #e3e3e3;
-                font-weight: bold; font-size: 14px; display: flex; justify-content: space-between;
-                cursor: move;
+                padding: 10px 14px;
+                background: linear-gradient(90deg, #e8f0ff 0%, #e6fff8 100%);
+                border-bottom: 1px solid rgba(0,0,0,0.06);
+                font-weight: 600; font-size: 14px; display: flex; justify-content: space-between;
+                color: #4a2c6f; cursor: move; align-items: center; gap: 10px;
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}header {
+                background: linear-gradient(90deg, #111827 0%, #0f172a 100%);
+                border-bottom-color: rgba(148, 163, 184, 0.15);
+                color: #e5e7eb;
+            }
+            #${APP_PREFIX}header-title {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                flex: 1;
+                color: #4a2c6f;
+                letter-spacing: 0.2px;
+                background: transparent;
+                padding: 0;
+                border-radius: 0;
+                border: none;
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}header-title {
+                color: #e5e7eb;
+            }
+            #${APP_PREFIX}header-title span { display: inline-flex; }
+            #${APP_PREFIX}header-badge {
+                font-size: 11px;
+                font-weight: 700;
+                color: #5a4a82;
+                background: rgba(255,255,255,0.7);
+                padding: 2px 6px;
+                border-radius: 999px;
+                border: 1px solid rgba(90, 90, 130, 0.2);
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}header-badge {
+                color: #c7d2fe;
+                background: rgba(15, 23, 42, 0.8);
+                border-color: rgba(148, 163, 184, 0.25);
+            }
+            #${APP_PREFIX}header-actions {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
             }
             #${APP_PREFIX}content { padding: 12px 14px; overflow: auto; }
             .${APP_PREFIX}row { margin-bottom: 10px; }
-            .${APP_PREFIX}label { font-size: 12px; color: #555; margin-bottom: 4px; display: block; }
-            .${APP_PREFIX}match {
-                display: inline-flex; align-items: center; justify-content: center;
-                width: 16px; height: 16px; border-radius: 50%;
-                font-size: 11px; margin-left: 6px; border: 1px solid transparent;
-                vertical-align: middle;
+            .${APP_PREFIX}label {
+                font-size: 12px; color: #3f3d56;
+                margin-bottom: 4px; display: block; font-weight: 700; letter-spacing: 0.2px;
             }
-            .${APP_PREFIX}match.ok { color: #1b5e20; background: #c8e6c9; border-color: #81c784; }
-            .${APP_PREFIX}match.bad { color: #b71c1c; background: #ffcdd2; border-color: #e57373; }
-            .${APP_PREFIX}match.na { color: #666; background: #eee; border-color: #ccc; }
+            :host([data-theme="dark"]) .${APP_PREFIX}label { color: #d1d5db; }
+            .${APP_PREFIX}match {
+                display: inline; font-size: 12px; margin-left: 6px;
+                font-weight: 700; border: none; background: transparent;
+            }
+            .${APP_PREFIX}match.ok { color: #0f766e; }
+            .${APP_PREFIX}match.bad { color: #b91c1c; }
+            .${APP_PREFIX}match.na { color: #94a3b8; }
+            :host([data-page="new"]) .${APP_PREFIX}match { display: none; }
             .${APP_PREFIX}input, .${APP_PREFIX}textarea, .${APP_PREFIX}select {
-                width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #ccc;
-                border-radius: 6px; font-size: 13px; font-family: inherit;
+                width: 100%; box-sizing: border-box; padding: 7px 9px;
+                border: 1px solid rgba(110, 120, 150, 0.25);
+                border-radius: 10px; font-size: 13px; font-family: inherit;
+                background: #fff; color: var(--wda-text);
+                box-shadow: inset 0 1px 2px rgba(16, 24, 40, 0.06);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}input,
+            :host([data-theme="dark"]) .${APP_PREFIX}textarea,
+            :host([data-theme="dark"]) .${APP_PREFIX}select {
+                background: #0f172a;
+                color: #e5e7eb;
+                border-color: rgba(148, 163, 184, 0.3);
+                box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
             }
             .${APP_PREFIX}textarea { min-height: 80px; resize: vertical; }
             .${APP_PREFIX}btn {
-                background: #2196f3; color: #fff; border: none; border-radius: 6px;
-                padding: 8px 10px; cursor: pointer; font-size: 13px; margin-right: 6px;
+                background: linear-gradient(135deg, var(--wda-primary) 0%, #ffb74d 100%);
+                color: #fff; border: none; border-radius: 10px;
+                padding: 8px 12px; cursor: pointer; font-size: 13px; margin-right: 6px;
+                font-weight: 600; box-shadow: 0 10px 18px rgba(255, 138, 101, 0.25);
+                transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
             }
-            .${APP_PREFIX}btn.secondary { background: #6c757d; }
+            .${APP_PREFIX}btn:hover { transform: translateY(-1px); box-shadow: 0 12px 20px rgba(255, 138, 101, 0.32); }
+            .${APP_PREFIX}btn:active { transform: translateY(0); }
+            .${APP_PREFIX}btn.secondary {
+                background: linear-gradient(135deg, var(--wda-secondary) 0%, #42a5f5 100%);
+                box-shadow: 0 10px 18px rgba(38, 198, 218, 0.26);
+            }
             .${APP_PREFIX}btn.manual-ai { background: linear-gradient(135deg, #7e57c2, #42a5f5); color: #fff; }
             .${APP_PREFIX}btn.manual-ai-copy { background: linear-gradient(135deg, #26c6da, #26a69a); color: #fff; }
             .${APP_PREFIX}btn.manual-ai-paste { background: linear-gradient(135deg, #ff7043, #ffb74d); color: #fff; }
             .${APP_PREFIX}icon-btn {
-                background: #fff; border: 1px solid #bbb; color: #333; border-radius: 50%;
-                width: 26px; height: 26px; font-weight: bold; font-size: 14px;
+                background: rgba(255,255,255,0.8); border: 1px solid rgba(90, 100, 120, 0.2);
+                color: #4a4a6a; border-radius: 8px;
+                width: 30px; height: 30px; font-weight: 700; font-size: 14px;
                 display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
-                margin-right: 8px;
+                margin-right: 0; transition: all 0.2s ease;
+            }
+            .${APP_PREFIX}icon-btn:hover { color: #1f1f2b; background: #fff; transform: scale(1.05); }
+            :host([data-theme="dark"]) .${APP_PREFIX}icon-btn {
+                background: rgba(30, 41, 59, 0.85);
+                border-color: rgba(148, 163, 184, 0.25);
+                color: #e2e8f0;
             }
             .${APP_PREFIX}settings-group { display: flex; flex-direction: column; gap: 6px; }
             .${APP_PREFIX}settings-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
             .${APP_PREFIX}log {
-                background: #111; color: #0f0; padding: 8px; border-radius: 6px;
-                font-family: "Courier New", monospace; font-size: 11px; max-height: 100px; overflow: auto;
+                background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+                color: #e2e8f0; padding: 8px; border-radius: 10px;
+                font-family: "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+                font-size: 11px; max-height: 120px; overflow: auto;
+                border: 1px solid rgba(148, 163, 184, 0.2);
+                box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
             }
-            .${APP_PREFIX}hint { font-size: 11px; color: #777; }
+            .${APP_PREFIX}hint { font-size: 11px; color: var(--wda-muted); }
             .${APP_PREFIX}grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
             .${APP_PREFIX}modal {
                 position: fixed; inset: 0; background: rgba(0,0,0,0.45);
                 display: none; align-items: center; justify-content: center; z-index: 100000;
-                font-family: Arial, sans-serif;
+                font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
             }
             .${APP_PREFIX}modal-card {
-                background: #fff; color: #333; border-radius: 12px; width: 550px; max-width: 95vw;
+                background: linear-gradient(180deg, #fff7fb 0%, #f6f8ff 100%);
+                color: #333; border-radius: 14px; width: 550px; max-width: 95vw;
                 max-height: 90vh; display: flex; flex-direction: column;
-                box-shadow: 0 15px 40px rgba(0,0,0,0.3); border-top: 5px solid #673ab7;
+                box-shadow: 0 20px 40px rgba(63, 81, 181, 0.25);
+                border: 1px solid rgba(0,0,0,0.06);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}modal-card {
+                background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+                color: #e5e7eb;
+                border-color: rgba(148, 163, 184, 0.2);
             }
             .${APP_PREFIX}modal-title {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-                font-weight: bold; font-size: 18px; margin-bottom: 0px;
-                flex-shrink: 0; padding: 16px 20px 10px 20px;
-                color: #444; border-bottom: 1px solid #eee;
-                background: linear-gradient(to right, #fff, #f9f9f9);
+                font-weight: 700; font-size: 16px; margin-bottom: 0px;
+                flex-shrink: 0; padding: 14px 18px 10px 18px;
+                color: #1e3a8a; border-bottom: 1px solid rgba(0,0,0,0.08);
+                background: linear-gradient(90deg, #f0f4ff, #e6f0ff);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}modal-title {
+                color: #e2e8f0;
+                border-bottom-color: rgba(148, 163, 184, 0.2);
+                background: linear-gradient(90deg, #0f172a, #111827);
             }
             .${APP_PREFIX}modal-body {
                 font-size: 14px; line-height: 1.6;
-                flex: 1; overflow-y: auto; padding: 12px 20px;
-                color: #444;
+                flex: 1; overflow-y: auto; padding: 12px 18px;
+                color: #4a4a6a;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}modal-body { color: #cbd5f5; }
+            :host([data-theme="dark"]) #${APP_PREFIX}helpModal .${APP_PREFIX}modal-body {
+                background: #f8fafc;
+                color: #1f2937;
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}helpModal .${APP_PREFIX}modal-body h2,
+            :host([data-theme="dark"]) #${APP_PREFIX}helpModal .${APP_PREFIX}modal-body h3 {
+                color: #1e293b;
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}helpModal .${APP_PREFIX}modal-body code {
+                background: #e2e8f0;
+                color: #1f2937;
+                border-radius: 4px;
+                padding: 1px 4px;
             }
             .${APP_PREFIX}modal-body h2 { font-size: 16px; margin: 10px 0 8px 0; color: #333; }
             .${APP_PREFIX}modal-body h3 { font-size: 15px; margin: 12px 0 6px 0; color: #555; }
             .${APP_PREFIX}modal-body li { margin-bottom: 4px; }
-            .${APP_PREFIX}modal-actions { margin-top: 12px; text-align: right; flex-shrink: 0; padding: 0 16px 16px 16px; }
+            .${APP_PREFIX}modal-actions {
+                margin-top: 12px; text-align: right; flex-shrink: 0; padding: 0 16px 16px 16px;
+                background: rgba(255,255,255,0.7);
+                border-top: 1px solid rgba(0,0,0,0.06);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}modal-actions {
+                background: rgba(15, 23, 42, 0.7);
+                border-top-color: rgba(148, 163, 184, 0.2);
+            }
             .${APP_PREFIX}diff-card {
                 width: 90vw; max-width: 1200px; max-height: 90vh;
                 border-radius: 16px; border: 1px solid rgba(0,0,0,0.06);
@@ -2121,15 +2272,25 @@
                 overflow: hidden;
                 font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
             }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-card {
+                background: linear-gradient(135deg, #0b1220 0%, #111827 100%);
+                border-color: rgba(148, 163, 184, 0.2);
+            }
             .${APP_PREFIX}diff-title {
                 padding: 16px 20px; font-weight: 600; font-size: 18px;
                 color: #3c1c73; letter-spacing: 0.2px;
                 background: linear-gradient(90deg, #fce4ec, #e3f2fd);
                 border-bottom: 1px solid rgba(0,0,0,0.05);
             }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-title {
+                color: #e2e8f0;
+                background: linear-gradient(90deg, #0f172a, #111827);
+                border-bottom-color: rgba(148, 163, 184, 0.2);
+            }
             .${APP_PREFIX}diff-sub {
                 font-size: 12px; color: #6a5b9a; margin-top: 4px; font-weight: 500;
             }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-sub { color: #a5b4fc; }
             .${APP_PREFIX}diff-body { padding: 10px 16px 4px 16px; max-height: 60vh; overflow: auto; }
             .${APP_PREFIX}diff-row {
                 display: grid; grid-template-columns: 160px 1fr 1fr; gap: 12px;
@@ -2137,8 +2298,11 @@
             }
             .${APP_PREFIX}diff-row:last-child { border-bottom: none; }
             .${APP_PREFIX}diff-label { font-weight: 600; color: #5d3b8f; }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-label { color: #c7d2fe; }
             .${APP_PREFIX}diff-col { background: #fff; border-radius: 10px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.06); }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-col { background: #0f172a; border-color: rgba(148, 163, 184, 0.2); }
             .${APP_PREFIX}diff-col-title { font-size: 11px; color: #777; margin-bottom: 6px; }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-col-title { color: #94a3b8; }
             .${APP_PREFIX}diff-old.change { color: inherit; font-weight: 500; box-shadow: inset 0 0 0 1px rgba(183, 28, 28, 0.12); }
             .${APP_PREFIX}diff-new.change { color: inherit; font-weight: 500; box-shadow: inset 0 0 0 1px rgba(27, 94, 32, 0.12); }
             .${APP_PREFIX}diff-text { white-space: pre-wrap; line-height: 1.5; }
@@ -2153,7 +2317,63 @@
                 background: linear-gradient(90deg, #fff, #f7f7ff);
                 border-top: 1px solid rgba(0,0,0,0.05);
             }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-actions {
+                background: linear-gradient(90deg, #0b1220, #111827);
+                border-top-color: rgba(148, 163, 184, 0.2);
+            }
             .${APP_PREFIX}btn.diff-confirm { background: linear-gradient(135deg, #7b1fa2, #42a5f5); }
+            #${APP_PREFIX}content::-webkit-scrollbar,
+            .${APP_PREFIX}modal-body::-webkit-scrollbar,
+            .${APP_PREFIX}diff-body::-webkit-scrollbar,
+            .${APP_PREFIX}log::-webkit-scrollbar {
+                width: 10px;
+            }
+            #${APP_PREFIX}content::-webkit-scrollbar-track,
+            .${APP_PREFIX}modal-body::-webkit-scrollbar-track,
+            .${APP_PREFIX}diff-body::-webkit-scrollbar-track,
+            .${APP_PREFIX}log::-webkit-scrollbar-track {
+                background: rgba(255,255,255,0.7);
+                border-radius: 999px;
+            }
+            #${APP_PREFIX}content::-webkit-scrollbar-thumb,
+            .${APP_PREFIX}modal-body::-webkit-scrollbar-thumb,
+            .${APP_PREFIX}diff-body::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #ffb3d5 0%, #a6c8ff 100%);
+                border-radius: 999px;
+                border: 2px solid rgba(255,255,255,0.8);
+            }
+            .${APP_PREFIX}log::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
+                border-radius: 999px;
+                border: 2px solid rgba(15, 23, 42, 0.9);
+            }
+            #${APP_PREFIX}content,
+            .${APP_PREFIX}modal-body,
+            .${APP_PREFIX}diff-body,
+            .${APP_PREFIX}log {
+                scrollbar-width: thin;
+                scrollbar-color: #ffb3d5 rgba(255,255,255,0.7);
+            }
+            .${APP_PREFIX}log {
+                scrollbar-color: #38bdf8 rgba(15, 23, 42, 0.8);
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}content::-webkit-scrollbar-track,
+            :host([data-theme="dark"]) .${APP_PREFIX}modal-body::-webkit-scrollbar-track,
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-body::-webkit-scrollbar-track,
+            :host([data-theme="dark"]) .${APP_PREFIX}log::-webkit-scrollbar-track {
+                background: rgba(15, 23, 42, 0.8);
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}content::-webkit-scrollbar-thumb,
+            :host([data-theme="dark"]) .${APP_PREFIX}modal-body::-webkit-scrollbar-thumb,
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-body::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #64748b 0%, #1f2937 100%);
+                border: 2px solid rgba(15, 23, 42, 0.9);
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}content,
+            :host([data-theme="dark"]) .${APP_PREFIX}modal-body,
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-body {
+                scrollbar-color: #64748b rgba(15, 23, 42, 0.8);
+            }
         `;
 
         shadowRoot.innerHTML = `
@@ -2161,12 +2381,15 @@
             <button id="${APP_PREFIX}btn">AF</button>
             <div id="${APP_PREFIX}panel">
                 <div id="${APP_PREFIX}header">
-                    <span>Web Trung → Wikidich</span>
-                    <div>
+                    <div id="${APP_PREFIX}header-title">
+                        <span id="${APP_PREFIX}header-title-text">Auto Fill Info</span>
+                        <span id="${APP_PREFIX}header-badge">v${AUTOFILL_WIKIDICH_VERSION}</span>
+                    </div>
+                    <div id="${APP_PREFIX}header-actions">
                         <button id="${APP_PREFIX}ai" class="${APP_PREFIX}icon-btn" title="Chạy AI Analyze" style="color: #673ab7;">AI</button>
-                        <button id="${APP_PREFIX}help" class="${APP_PREFIX}icon-btn">?</button>
+                        <button id="${APP_PREFIX}help" class="${APP_PREFIX}icon-btn" title="Hướng dẫn">?</button>
                         <button id="${APP_PREFIX}settings" class="${APP_PREFIX}icon-btn" title="Cài đặt">⚙</button>
-                        <button id="${APP_PREFIX}close" class="${APP_PREFIX}btn secondary">Đóng</button>
+                        <button id="${APP_PREFIX}close" class="${APP_PREFIX}icon-btn" title="Thu nhỏ">✕</button>
                     </div>
                 </div>
                 <div id="${APP_PREFIX}content">

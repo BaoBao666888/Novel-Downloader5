@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Auto Volume/Chapter Uploader
 // @namespace    http://tampermonkey.net/
-// @version      1.2.2
+// @version      1.2.3
 // @description  Tự động hóa quá trình thêm/bổ sung chương trên wiki và web hồng
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js
-// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich_Autofill.user.js?v=0.3.3
+// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich_Autofill.user.js?v=0.3.3.1
 // @match        https://truyenwikidich.net/nhung-file
 // @match        https://truyenwikidich.net/truyen/*/chinh-sua
 // @match        https://koanchay.org/nhung-file
@@ -42,9 +42,11 @@
     }
     // --- Cấu hình ---
     const APP_PREFIX = 'WDU_';
-    const CURRENT_VERSION = '1.2.2';
+    const CURRENT_VERSION = '1.2.3';
     const VERSION_KEY = `${APP_PREFIX}version`;
     const VOLUME_STATS_KEY = `${APP_PREFIX}volume_stats_enabled`;
+    const SHARED_THEME_KEY = 'WDX_theme';
+    const DEFAULT_THEME_MODE = 'light';
     let settings = {
         LOG_MAX_LINES: 1000,
         FILE_SIZE_WARNING_KB: 4,
@@ -53,6 +55,7 @@
         CONTENT_REGEX: String.raw`第(\d+)章\s*(.*)`,
         CHAPTER_NAME_TEMPLATE: '第{num}章 {title}',
         PARSE_PRIORITY: 'filename',
+        THEME_MODE: DEFAULT_THEME_MODE,
     };
     const SETTINGS_KEY = `${APP_PREFIX}settings`;
 
@@ -75,6 +78,30 @@
     shadowHost.id = `${APP_PREFIX}host`;
     document.body.appendChild(shadowHost);
     const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+    let themeMedia = null;
+    let themeListener = null;
+    const resolveTheme = (mode) => {
+        if (mode === 'dark' || mode === 'light') return mode;
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+        return 'light';
+    };
+    const applyTheme = (mode) => {
+        const resolved = resolveTheme(mode);
+        shadowHost.setAttribute('data-theme', resolved);
+        if (mode === 'auto' && window.matchMedia) {
+            if (!themeMedia) {
+                themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+                themeListener = () => {
+                    shadowHost.setAttribute('data-theme', themeMedia.matches ? 'dark' : 'light');
+                };
+                themeMedia.addEventListener('change', themeListener);
+            }
+        } else if (themeMedia && themeListener) {
+            themeMedia.removeEventListener('change', themeListener);
+            themeMedia = null;
+            themeListener = null;
+        }
+    };
     const pageStyle = document.createElement('style');
     pageStyle.textContent = `
         .${APP_PREFIX}volume-stats {
@@ -114,6 +141,14 @@
             --wdu-muted: #6b6f80;
             --wdu-radius: 14px;
         }
+        :host([data-theme="dark"]) {
+            --wdu-surface: #0b1220;
+            --wdu-surface-2: #111827;
+            --wdu-border: rgba(148, 163, 184, 0.25);
+            --wdu-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+            --wdu-text: #e5e7eb;
+            --wdu-muted: #a3a3b5;
+        }
         #${APP_PREFIX}panel {
             position: fixed;
             bottom: 20px;
@@ -132,6 +167,11 @@
             flex-direction: column;
             backdrop-filter: blur(2px);
         }
+        :host([data-theme="dark"]) #${APP_PREFIX}panel {
+            background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+            border-color: var(--wdu-border);
+            color: var(--wdu-text);
+        }
         #${APP_PREFIX}header {
             padding: 10px 14px;
             background: linear-gradient(90deg, #ffe4f4 0%, #e5f3ff 100%);
@@ -145,6 +185,11 @@
             align-items: center;
             gap: 10px;
         }
+        :host([data-theme="dark"]) #${APP_PREFIX}header {
+            background: linear-gradient(90deg, #111827 0%, #0f172a 100%);
+            border-bottom-color: rgba(148, 163, 184, 0.15);
+            color: #e5e7eb;
+        }
         #${APP_PREFIX}header-title {
             display: flex;
             align-items: baseline;
@@ -152,6 +197,9 @@
             flex: 1;
             color: #4a2c6f;
             letter-spacing: 0.2px;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}header-title {
+            color: #e5e7eb;
         }
         #${APP_PREFIX}header-title span {
             display: inline-flex;
@@ -164,6 +212,11 @@
             padding: 2px 6px;
             border-radius: 999px;
             border: 1px solid rgba(90, 90, 130, 0.2);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}header-badge {
+            color: #c7d2fe;
+            background: rgba(15, 23, 42, 0.8);
+            border-color: rgba(148, 163, 184, 0.25);
         }
         #${APP_PREFIX}header-actions {
             display: flex;
@@ -178,6 +231,10 @@
             gap: 12px;
             background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(245,248,255,0.85) 100%);
             border-top: 1px solid rgba(255,255,255,0.7);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}content {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(17, 24, 39, 0.92) 100%);
+            border-top-color: rgba(148, 163, 184, 0.12);
         }
         #${APP_PREFIX}log-container {
             background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
@@ -325,6 +382,13 @@
             font-family: inherit;
             font-size: 13px;
         }
+        :host([data-theme="dark"]) .${APP_PREFIX}select,
+        :host([data-theme="dark"]) .${APP_PREFIX}text-input {
+            background-color: #0f172a;
+            color: #e5e7eb;
+            border-color: rgba(148, 163, 184, 0.3);
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+        }
         .${APP_PREFIX}notice {
             font-size: 12px;
             color: var(--wdu-muted);
@@ -379,6 +443,13 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}settings-btn,
+        :host([data-theme="dark"]) #${APP_PREFIX}help-btn,
+        :host([data-theme="dark"]) #${APP_PREFIX}minimize-btn {
+            background: rgba(30, 41, 59, 0.85);
+            border-color: rgba(148, 163, 184, 0.25);
+            color: #e2e8f0;
         }
         #${APP_PREFIX}settings-btn:hover {
             color: #1f1f2b;
@@ -449,6 +520,10 @@
             z-index: 99999;
             user-select: none;
         }
+        :host([data-theme="dark"]) #${APP_PREFIX}floating-icon {
+            background: linear-gradient(135deg, #0ea5e9 0%, #1d4ed8 60%, #1e3a8a 100%);
+            box-shadow: 0 10px 24px rgba(30, 64, 175, 0.45);
+        }
         #${APP_PREFIX}floating-icon span {
             pointer-events: none;
         }
@@ -480,12 +555,22 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             font-size: 14px;
         }
+        :host([data-theme="dark"]) #${APP_PREFIX}settings-modal {
+            background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+            color: #e5e7eb;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+        }
         .${APP_PREFIX}modal-header {
             padding: 12px 15px;
             font-size: 16px;
             font-weight: bold;
             border-bottom: 1px solid #e5e5e5;
             flex: 0 0 auto;
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}modal-header {
+            border-bottom-color: rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
         }
         .${APP_PREFIX}modal-content {
             padding: 15px;
@@ -494,6 +579,9 @@
             gap: 15px;
             flex: 1 1 auto;
             overflow-y: auto;
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}modal-content {
+            color: #cbd5f5;
         }
         .${APP_PREFIX}setting-item label {
             font-weight: bold;
@@ -538,6 +626,11 @@
             font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
             font-size: 14px;
         }
+        :host([data-theme="dark"]) #${APP_PREFIX}help-modal {
+            background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+            color: #e5e7eb;
+            border-color: rgba(148, 163, 184, 0.2);
+        }
         #${APP_PREFIX}help-header {
             padding: 12px 16px;
             font-size: 16px;
@@ -548,6 +641,14 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}help-header {
+            background: linear-gradient(90deg, #0f172a, #111827);
+            border-bottom-color: rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}help-title {
+            color: #e2e8f0;
         }
         #${APP_PREFIX}help-content {
             padding: 14px 16px;
@@ -603,6 +704,42 @@
         #${APP_PREFIX}log-container {
             scrollbar-color: #38bdf8 rgba(15, 23, 42, 0.8);
         }
+        :host([data-theme="dark"]) #${APP_PREFIX}help-content {
+            color: #e5e7eb;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}help-content h3 {
+            color: #c7d2fe;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}help-content code {
+            background: #1f2937;
+            color: #f9a8d4;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}welcome-banner {
+            background: linear-gradient(135deg, #1f2937, #111827) !important;
+            border-left-color: #38bdf8 !important;
+            color: #e5e7eb;
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}welcome-banner strong {
+            color: #f9a8d4;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}help-content::-webkit-scrollbar-track,
+        :host([data-theme="dark"]) #${APP_PREFIX}content::-webkit-scrollbar-track,
+        :host([data-theme="dark"]) #${APP_PREFIX}log-container::-webkit-scrollbar-track,
+        :host([data-theme="dark"]) #${APP_PREFIX}settings-modal .${APP_PREFIX}modal-content::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}help-content::-webkit-scrollbar-thumb,
+        :host([data-theme="dark"]) #${APP_PREFIX}content::-webkit-scrollbar-thumb,
+        :host([data-theme="dark"]) #${APP_PREFIX}settings-modal .${APP_PREFIX}modal-content::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #64748b 0%, #1f2937 100%);
+            border: 2px solid rgba(15, 23, 42, 0.9);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}help-content,
+        :host([data-theme="dark"]) #${APP_PREFIX}content,
+        :host([data-theme="dark"]) #${APP_PREFIX}settings-modal .${APP_PREFIX}modal-content {
+            scrollbar-color: #64748b rgba(15, 23, 42, 0.8);
+        }
         #${APP_PREFIX}update-banner {
             margin: 8px 0 12px;
             padding: 10px 12px;
@@ -656,6 +793,12 @@
             color: #3b2d33;
             font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
             overflow: hidden;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}confirm-modal {
+            background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+            color: #e5e7eb;
+            border-color: rgba(148, 163, 184, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
         }
         #${APP_PREFIX}confirm-header {
             padding: 12px 16px;
@@ -751,6 +894,12 @@
             color: #2f223a;
             font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
         }
+        :host([data-theme="dark"]) #${APP_PREFIX}pref-modal {
+            background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+            color: #e5e7eb;
+            border-color: rgba(148, 163, 184, 0.2);
+            box-shadow: 0 22px 46px rgba(0, 0, 0, 0.45);
+        }
         #${APP_PREFIX}pref-header {
             padding: 12px 16px;
             font-weight: 700;
@@ -770,6 +919,67 @@
             border-top: 1px solid rgba(0,0,0,0.06);
             background: rgba(255,255,255,0.85);
         }
+        #${APP_PREFIX}theme-pref-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(18, 16, 30, 0.55);
+            backdrop-filter: blur(2px);
+            z-index: 100007;
+        }
+        #${APP_PREFIX}theme-pref-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 420px;
+            max-width: 92vw;
+            background: linear-gradient(160deg, #fff1f8 0%, #f2f7ff 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 151, 205, 0.4);
+            box-shadow: 0 22px 46px rgba(83, 56, 112, 0.32);
+            z-index: 100008;
+            overflow: hidden;
+            color: #2f223a;
+            font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}theme-pref-modal {
+            background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+            color: #e5e7eb;
+            border-color: rgba(148, 163, 184, 0.2);
+            box-shadow: 0 22px 46px rgba(0, 0, 0, 0.45);
+        }
+        #${APP_PREFIX}theme-pref-header {
+            padding: 12px 16px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #ffd7eb 0%, #dcedff 100%);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}theme-pref-header {
+            background: linear-gradient(90deg, #0f172a 0%, #1f2937 100%);
+            color: #f3f4f6;
+        }
+        #${APP_PREFIX}theme-pref-body {
+            padding: 12px 16px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        #${APP_PREFIX}theme-pref-actions {
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            border-top: 1px solid rgba(0,0,0,0.06);
+            background: rgba(255,255,255,0.85);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}theme-pref-actions {
+            background: rgba(15, 23, 42, 0.9);
+            border-top-color: rgba(148, 163, 184, 0.2);
+        }
+        #${APP_PREFIX}theme-pref-actions .${APP_PREFIX}btn {
+            width: auto;
+            margin: 0;
+            min-width: 90px;
+        }
     `;
 
     // --- HTML cho giao diện ---
@@ -782,7 +992,7 @@
             <div id="${APP_PREFIX}header">
                 <div id="${APP_PREFIX}header-title">
                     <span>Auto Uploader</span>
-                    <span id="${APP_PREFIX}header-badge">v1.2.2</span>
+                    <span id="${APP_PREFIX}header-badge">v1.2.3</span>
                 </div>
                 <div id="${APP_PREFIX}header-actions">
                     <button id="${APP_PREFIX}settings-btn" title="Cài đặt">
@@ -824,7 +1034,7 @@
         <div id="${APP_PREFIX}settings-overlay" class="${APP_PREFIX}hide"></div>
         <div id="${APP_PREFIX}help-modal" class="${APP_PREFIX}hide">
             <div id="${APP_PREFIX}help-header">
-                <span>Hướng dẫn Auto Volume/Chapter Uploader</span>
+                <span id="${APP_PREFIX}help-title">Hướng dẫn Auto Volume/Chapter Uploader</span>
                 <button id="${APP_PREFIX}help-close" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Đóng</button>
             </div>
             <div id="${APP_PREFIX}help-content"></div>
@@ -852,6 +1062,18 @@
                 <button id="${APP_PREFIX}pref-enable" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">Bật</button>
             </div>
         </div>
+        <div id="${APP_PREFIX}theme-pref-overlay" class="${APP_PREFIX}hide"></div>
+        <div id="${APP_PREFIX}theme-pref-modal" class="${APP_PREFIX}hide">
+            <div id="${APP_PREFIX}theme-pref-header">Chọn giao diện</div>
+            <div id="${APP_PREFIX}theme-pref-body">
+                Bạn muốn dùng giao diện nào? Có thể đổi lại trong Cài đặt.
+            </div>
+            <div id="${APP_PREFIX}theme-pref-actions">
+                <button id="${APP_PREFIX}theme-pref-light" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Sáng</button>
+                <button id="${APP_PREFIX}theme-pref-dark" class="${APP_PREFIX}btn">Tối</button>
+                <button id="${APP_PREFIX}theme-pref-auto" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">Tự động</button>
+            </div>
+        </div>
         <div id="${APP_PREFIX}settings-modal" class="${APP_PREFIX}hide">
             <div class="${APP_PREFIX}modal-header">Cài đặt</div>
             <div class="${APP_PREFIX}modal-content">
@@ -864,6 +1086,14 @@
                     <label for="${APP_PREFIX}setting-file-kb">Cảnh báo file nhỏ (KB):</label>
                     <input type="number" id="${APP_PREFIX}setting-file-kb" class="${APP_PREFIX}text-input">
                     <span class="${APP_PREFIX}notice">Cảnh báo nếu file nhỏ hơn X KB. (Mặc định: 4)</span>
+                </div>
+                <div class="${APP_PREFIX}setting-item">
+                    <label for="${APP_PREFIX}setting-theme">Giao diện:</label>
+                    <select id="${APP_PREFIX}setting-theme" class="${APP_PREFIX}select">
+                        <option value="light">Sáng</option>
+                        <option value="dark">Tối</option>
+                        <option value="auto">Tự động (theo hệ thống)</option>
+                    </select>
                 </div>
 
                 <div class="${APP_PREFIX}setting-item" style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
@@ -1145,10 +1375,16 @@
     const prefModal = shadowRoot.querySelector(`#${APP_PREFIX}pref-modal`);
     const prefEnableBtn = shadowRoot.querySelector(`#${APP_PREFIX}pref-enable`);
     const prefDisableBtn = shadowRoot.querySelector(`#${APP_PREFIX}pref-disable`);
+    const themePrefOverlay = shadowRoot.querySelector(`#${APP_PREFIX}theme-pref-overlay`);
+    const themePrefModal = shadowRoot.querySelector(`#${APP_PREFIX}theme-pref-modal`);
+    const themePrefLightBtn = shadowRoot.querySelector(`#${APP_PREFIX}theme-pref-light`);
+    const themePrefDarkBtn = shadowRoot.querySelector(`#${APP_PREFIX}theme-pref-dark`);
+    const themePrefAutoBtn = shadowRoot.querySelector(`#${APP_PREFIX}theme-pref-auto`);
     const settingsSaveBtn = shadowRoot.querySelector(`#${APP_PREFIX}settings-save`);
     const settingsCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}settings-cancel`);
     const logMaxInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-log-max`);
     const fileSizeKbInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-file-kb`);
+    const themeSelect = shadowRoot.querySelector(`#${APP_PREFIX}setting-theme`);
     const firstLineOnlyInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-first-line-only`);
     const filenameRegexInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex`);
     const filenameSampleInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-sample`);
@@ -1492,6 +1728,44 @@
         }
     }
 
+    function isThemePrefUnset() {
+        const raw = localStorage.getItem(SHARED_THEME_KEY);
+        const val = (raw || '').toLowerCase();
+        return !['light', 'dark', 'auto'].includes(val);
+    }
+
+    function setThemeMode(mode) {
+        const next = ['light', 'dark', 'auto'].includes(mode) ? mode : DEFAULT_THEME_MODE;
+        settings.THEME_MODE = next;
+        localStorage.setItem(SHARED_THEME_KEY, next);
+        if (themeSelect) themeSelect.value = next;
+        applyTheme(next);
+        saveSettings();
+    }
+
+    function openThemePref() {
+        if (!themePrefModal || !themePrefOverlay) return;
+        if (!isThemePrefUnset()) return;
+        themePrefOverlay.classList.remove(`${APP_PREFIX}hide`);
+        themePrefModal.classList.remove(`${APP_PREFIX}hide`);
+    }
+
+    function closeThemePref() {
+        if (themePrefModal) themePrefModal.classList.add(`${APP_PREFIX}hide`);
+        if (themePrefOverlay) themePrefOverlay.classList.add(`${APP_PREFIX}hide`);
+    }
+
+    function maybeShowThemePref() {
+        if (!isThemePrefUnset()) {
+            maybeShowVolumeStatsPref();
+            return;
+        }
+        if (helpModal && !helpModal.classList.contains(`${APP_PREFIX}hide`)) return;
+        if (themePrefModal && !themePrefModal.classList.contains(`${APP_PREFIX}hide`)) return;
+        if (prefModal && !prefModal.classList.contains(`${APP_PREFIX}hide`)) return;
+        openThemePref();
+    }
+
     function openVolumeStatsPref() {
         if (!prefModal || !prefOverlay) return;
         if (!isVolumeStatsPrefUnset()) return;
@@ -1766,7 +2040,7 @@
 <div style="text-align:center; color:#6a5b9a; margin:6px 0 10px 0;">
   Bộ trợ thủ giúp upload chương nhanh, gọn, chuẩn!
 </div>
-<div style="background:linear-gradient(135deg,#fce4ec,#e3f2fd); padding:10px; border-radius:10px; border-left:4px solid #ec407a;">
+<div class="${APP_PREFIX}welcome-banner" style="background:linear-gradient(135deg,#fce4ec,#e3f2fd); padding:10px; border-radius:10px; border-left:4px solid #ec407a;">
   <strong>✨ WELCOME:</strong> Kéo thả panel, bấm ✕ để thu nhỏ, bấm icon tròn để mở lại.
 </div>
 <div style="height:8px;"></div>
@@ -1810,7 +2084,10 @@
     `.trim();
 
     const changelogMarkdown = `
-### ✨ v1.2.2
+### ✨ v1.2.3
+- Tối ưu giao diện + thêm theme tối.
+
+### 📦 v1.2.2
 - Thêm thống kê chương theo quyển + tên chương cuối (bật/tắt).
 - Hiển thị tổng số chương trong Cài đặt.
 - Trang chỉnh sửa: chọn được quyển không thể bổ sung, chỉ dùng Add New/Xóa.
@@ -1867,7 +2144,7 @@
     function closeHelpModal() {
         helpModal.classList.add(`${APP_PREFIX}hide`);
         settingsOverlay.classList.add(`${APP_PREFIX}hide`);
-        maybeShowVolumeStatsPref();
+        maybeShowThemePref();
     }
     function setParseControlsEnabled(enabled) {
         const fields = [
@@ -2200,6 +2477,9 @@ Lưu ý:
     function saveSettings() {
         try {
             localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+            if (settings.THEME_MODE) {
+                localStorage.setItem(SHARED_THEME_KEY, settings.THEME_MODE);
+            }
             log('✅ Đã lưu cài đặt.');
         } catch (e) {
             log('❌ Lỗi khi lưu cài đặt: ' + e.message, 'error');
@@ -2215,6 +2495,10 @@ Lưu ý:
                 settings = { ...settings, ...loadedSettings };
                 log('Tải cài đặt đã lưu.');
             }
+            const sharedTheme = localStorage.getItem(SHARED_THEME_KEY);
+            if (sharedTheme) {
+                settings.THEME_MODE = sharedTheme;
+            }
         } catch (e) {
             log('⚠️ Lỗi khi tải cài đặt, dùng mặc định.', 'warn');
         }
@@ -2222,6 +2506,7 @@ Lưu ý:
 
 
     loadSettings();
+    applyTheme(settings.THEME_MODE || DEFAULT_THEME_MODE);
     installFormDataPatch();
 
     // --- Chức năng chính ---
@@ -3243,6 +3528,21 @@ Lưu ý:
             setVolumeStatsEnabled(false);
             closeVolumeStatsPref();
         });
+        if (themePrefLightBtn) themePrefLightBtn.addEventListener('click', () => {
+            setThemeMode('light');
+            closeThemePref();
+            maybeShowVolumeStatsPref();
+        });
+        if (themePrefDarkBtn) themePrefDarkBtn.addEventListener('click', () => {
+            setThemeMode('dark');
+            closeThemePref();
+            maybeShowVolumeStatsPref();
+        });
+        if (themePrefAutoBtn) themePrefAutoBtn.addEventListener('click', () => {
+            setThemeMode('auto');
+            closeThemePref();
+            maybeShowVolumeStatsPref();
+        });
         fileInput.addEventListener('change', handleFileSelect);
         volumeSelect.addEventListener('change', handleVolumeChange);
         volumeSelect.addEventListener('mousedown', () => {
@@ -3261,6 +3561,7 @@ Lưu ý:
             return {
                 logMax: logMaxInput.value,
                 fileKb: fileSizeKbInput.value,
+                theme: themeSelect ? themeSelect.value : '',
                 firstLineOnly: firstLineOnlyInput.checked,
                 priority: prioritySelect.value,
                 encoding: encodingSelect.value,
@@ -3275,6 +3576,9 @@ Lưu ý:
 
             logMaxInput.value = settings.LOG_MAX_LINES;
             fileSizeKbInput.value = settings.FILE_SIZE_WARNING_KB;
+            if (themeSelect) {
+                themeSelect.value = settings.THEME_MODE || DEFAULT_THEME_MODE;
+            }
             firstLineOnlyInput.checked = !!settings.USE_FIRST_LINE_ONLY;
             prioritySelect.value = settings.PARSE_PRIORITY || 'filename';
             contentRegexInput.value = settings.CONTENT_REGEX || '';
@@ -3367,8 +3671,12 @@ Lưu ý:
             settings.PARSE_PRIORITY = prioritySelect.value;
             settings.CONTENT_REGEX = contentRegexInput.value.trim();
             settings.FILE_ENCODING = encodingSelect.value;
+            if (themeSelect) {
+                settings.THEME_MODE = themeSelect.value || DEFAULT_THEME_MODE;
+            }
 
             saveSettings();
+            applyTheme(settings.THEME_MODE);
             initialFormValues = getFormValues();
             hideSettingsModal();
             if (volumeStatsCheckbox) {
@@ -3396,7 +3704,7 @@ Lưu ý:
             loadVolumeStats(false);
         }
         setTimeout(() => {
-            maybeShowVolumeStatsPref();
+            maybeShowThemePref();
         }, 1600);
     }
 })();
