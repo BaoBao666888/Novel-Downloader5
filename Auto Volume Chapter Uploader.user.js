@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume/Chapter Uploader
 // @namespace    http://tampermonkey.net/
-// @version      1.2.1
+// @version      1.2.2
 // @description  Tự động hóa quá trình thêm/bổ sung chương trên wiki và web hồng
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
@@ -42,8 +42,9 @@
     }
     // --- Cấu hình ---
     const APP_PREFIX = 'WDU_';
-    const CURRENT_VERSION = '1.2.1';
+    const CURRENT_VERSION = '1.2.2';
     const VERSION_KEY = `${APP_PREFIX}version`;
+    const VOLUME_STATS_KEY = `${APP_PREFIX}volume_stats_enabled`;
     let settings = {
         LOG_MAX_LINES: 1000,
         FILE_SIZE_WARNING_KB: 4,
@@ -63,6 +64,10 @@
         allFiles: [],
         validFiles: [],
         invalidFiles: [],
+        volumeStatsEnabled: GM_getValue(VOLUME_STATS_KEY, null),
+        volumeStatsData: null,
+        bookOwner: null,
+        bookOwnerPromise: null,
     };
 
     // --- Tạo UI trong Shadow DOM để tránh xung đột CSS ---
@@ -70,6 +75,26 @@
     shadowHost.id = `${APP_PREFIX}host`;
     document.body.appendChild(shadowHost);
     const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+    const pageStyle = document.createElement('style');
+    pageStyle.textContent = `
+        .${APP_PREFIX}volume-stats {
+            margin-top: 6px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #fef6ff 0%, #eef5ff 100%);
+            border: 1px solid rgba(123, 76, 255, 0.12);
+            color: #563a7c;
+            font-size: 12px;
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .${APP_PREFIX}volume-stats b {
+            color: #1f1b2e;
+        }
+    `;
+    document.head.appendChild(pageStyle);
 
     // --- CSS cho giao diện ---
     const css = `
@@ -647,6 +672,33 @@
         #${APP_PREFIX}confirm-body strong {
             color: #c62828;
         }
+        #${APP_PREFIX}confirm-extra {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        #${APP_PREFIX}confirm-extra label {
+            font-weight: 600;
+            color: #7a1d2f;
+        }
+        #${APP_PREFIX}confirm-extra .${APP_PREFIX}confirm-hint {
+            font-size: 12px;
+            color: #7c6b78;
+        }
+        #${APP_PREFIX}confirm-warning {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: #ffe9e9;
+            border: 1px solid #f3b1b1;
+            color: #b71c1c;
+            font-size: 12px;
+        }
+        #${APP_PREFIX}confirm-owner-error {
+            font-size: 12px;
+            color: #c62828;
+        }
         #${APP_PREFIX}confirm-actions {
             padding: 12px 16px;
             display: flex;
@@ -660,6 +712,64 @@
             margin: 0;
             min-width: 90px;
         }
+        .${APP_PREFIX}volume-stats {
+            margin-top: 6px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #fef6ff 0%, #eef5ff 100%);
+            border: 1px solid rgba(123, 76, 255, 0.12);
+            color: #563a7c;
+            font-size: 12px;
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .${APP_PREFIX}volume-stats b {
+            color: #1f1b2e;
+        }
+        #${APP_PREFIX}pref-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(18, 16, 30, 0.55);
+            backdrop-filter: blur(2px);
+            z-index: 100005;
+        }
+        #${APP_PREFIX}pref-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 380px;
+            max-width: 92vw;
+            background: linear-gradient(160deg, #fff1f8 0%, #f2f7ff 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 151, 205, 0.4);
+            box-shadow: 0 22px 46px rgba(83, 56, 112, 0.32);
+            z-index: 100006;
+            overflow: hidden;
+            color: #2f223a;
+            font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
+        }
+        #${APP_PREFIX}pref-header {
+            padding: 12px 16px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #ffd7eb 0%, #dcedff 100%);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        #${APP_PREFIX}pref-body {
+            padding: 12px 16px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        #${APP_PREFIX}pref-actions {
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            border-top: 1px solid rgba(0,0,0,0.06);
+            background: rgba(255,255,255,0.85);
+        }
     `;
 
     // --- HTML cho giao diện ---
@@ -672,7 +782,7 @@
             <div id="${APP_PREFIX}header">
                 <div id="${APP_PREFIX}header-title">
                     <span>Auto Uploader</span>
-                    <span id="${APP_PREFIX}header-badge">v1.2</span>
+                    <span id="${APP_PREFIX}header-badge">v1.2.2</span>
                 </div>
                 <div id="${APP_PREFIX}header-actions">
                     <button id="${APP_PREFIX}settings-btn" title="Cài đặt">
@@ -724,10 +834,22 @@
             <div id="${APP_PREFIX}confirm-header">Xóa quyển này?</div>
             <div id="${APP_PREFIX}confirm-body">
                 <div id="${APP_PREFIX}confirm-text">Bạn chắc chắn muốn xóa quyển đã chọn?</div>
+                <div id="${APP_PREFIX}confirm-extra"></div>
             </div>
             <div id="${APP_PREFIX}confirm-actions">
                 <button id="${APP_PREFIX}confirm-cancel" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Hủy</button>
                 <button id="${APP_PREFIX}confirm-ok" class="${APP_PREFIX}btn ${APP_PREFIX}btn-danger">Xóa</button>
+            </div>
+        </div>
+        <div id="${APP_PREFIX}pref-overlay" class="${APP_PREFIX}hide"></div>
+        <div id="${APP_PREFIX}pref-modal" class="${APP_PREFIX}hide">
+            <div id="${APP_PREFIX}pref-header">Bật thống kê chương theo quyển?</div>
+            <div id="${APP_PREFIX}pref-body">
+                Hiển thị số chương + chương cuối cho từng quyển, và tổng số chương trong phần Cài đặt.
+            </div>
+            <div id="${APP_PREFIX}pref-actions">
+                <button id="${APP_PREFIX}pref-disable" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Tắt</button>
+                <button id="${APP_PREFIX}pref-enable" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">Bật</button>
             </div>
         </div>
         <div id="${APP_PREFIX}settings-modal" class="${APP_PREFIX}hide">
@@ -771,6 +893,13 @@
                         <option value="UTF-16">UTF-16</option>
                     </select>
                     <span class="${APP_PREFIX}notice">Đổi sang GBK nếu nội dung bị lỗi font dạng ♦.</span>
+                </div>
+                <div class="${APP_PREFIX}setting-item" style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                    <label>
+                        <input type="checkbox" id="${APP_PREFIX}setting-volume-stats">
+                        Hiện thống kê chương theo quyển
+                    </label>
+                    <div class="${APP_PREFIX}notice">Tổng số chương: <span id="${APP_PREFIX}setting-total-chapters">...</span></div>
                 </div>
 
                 <div class="${APP_PREFIX}setting-item">
@@ -992,7 +1121,7 @@
     fileInput.accept = '.txt';
     fileInput.multiple = true;
 
-    if (!state.isNewBookPage) {
+    if (!state.isNewBookPage && !state.isEditPage) {
         if (addVolumeBtn) addVolumeBtn.classList.add(`${APP_PREFIX}hide`);
         if (deleteVolumeBtn) deleteVolumeBtn.classList.add(`${APP_PREFIX}hide`);
     }
@@ -1009,8 +1138,13 @@
     const confirmOverlay = shadowRoot.querySelector(`#${APP_PREFIX}confirm-overlay`);
     const confirmModal = shadowRoot.querySelector(`#${APP_PREFIX}confirm-modal`);
     const confirmText = shadowRoot.querySelector(`#${APP_PREFIX}confirm-text`);
+    const confirmExtra = shadowRoot.querySelector(`#${APP_PREFIX}confirm-extra`);
     const confirmCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}confirm-cancel`);
     const confirmOkBtn = shadowRoot.querySelector(`#${APP_PREFIX}confirm-ok`);
+    const prefOverlay = shadowRoot.querySelector(`#${APP_PREFIX}pref-overlay`);
+    const prefModal = shadowRoot.querySelector(`#${APP_PREFIX}pref-modal`);
+    const prefEnableBtn = shadowRoot.querySelector(`#${APP_PREFIX}pref-enable`);
+    const prefDisableBtn = shadowRoot.querySelector(`#${APP_PREFIX}pref-disable`);
     const settingsSaveBtn = shadowRoot.querySelector(`#${APP_PREFIX}settings-save`);
     const settingsCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}settings-cancel`);
     const logMaxInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-log-max`);
@@ -1019,6 +1153,8 @@
     const filenameRegexInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex`);
     const filenameSampleInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-sample`);
     const chapterTemplateInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-chapter-template`);
+    const volumeStatsCheckbox = shadowRoot.querySelector(`#${APP_PREFIX}setting-volume-stats`);
+    const totalChaptersEl = shadowRoot.querySelector(`#${APP_PREFIX}setting-total-chapters`);
 
     const filenameRegexHelpBtn = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex-help`);
     const filenameRegexTestBtn = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex-test`);
@@ -1099,7 +1235,84 @@
             .replace(/'/g, '&#39;');
     }
 
+    function normalizeText(value) {
+        return String(value || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function decodeMaybe(text) {
+        try {
+            return decodeURIComponent(text);
+        } catch {
+            return text;
+        }
+    }
+
+    function normalizeUserInput(value) {
+        const raw = normalizeText(value);
+        const decoded = normalizeText(decodeMaybe(raw));
+        return decoded.toLowerCase();
+    }
+
+    function parseBookOwnerFromDoc(doc) {
+        const managerDivs = Array.from(doc.querySelectorAll('.book-manager'));
+        const getRole = (div) => normalizeText(div?.querySelector('.manager-role')?.textContent);
+        const getSlug = (div) => {
+            const a = div?.querySelector('.manager-name a[href^="/user/"]');
+            if (!a) return '';
+            const href = a.getAttribute('href') || '';
+            const m = href.match(/\/user\/([^/]+)/);
+            return m ? decodeMaybe(m[1]) : '';
+        };
+        const getName = (div) => normalizeText(div?.querySelector('.manager-name')?.textContent);
+
+        const posterDiv = managerDivs.find(div => getRole(div) === 'Người đăng');
+        let poster = posterDiv ? { slug: getSlug(posterDiv), name: getName(posterDiv) } : null;
+
+        const adminItems = Array.from(doc.querySelectorAll('.book-admin-list .book-admin-item'));
+        if ((!poster || (!poster.slug && !poster.name)) && adminItems.length > 0) {
+            const ownerItem = adminItems.find(li => li.classList.contains('book-owner'));
+            if (ownerItem) {
+                const a = ownerItem.querySelector('.book-admin-link[href^="/user/"]');
+                const href = a?.getAttribute('href') || '';
+                const slugMatch = href.match(/\/user\/([^/]+)/);
+                const slug = slugMatch ? decodeMaybe(slugMatch[1]) : (ownerItem.getAttribute('data-value') || '');
+                const name = normalizeText(ownerItem.querySelector('.book-admin-name')?.textContent);
+                poster = { slug, name };
+            }
+        }
+
+        if (poster && (poster.slug || poster.name)) return poster;
+        return null;
+    }
+
+    async function fetchBookOwner() {
+        if (state.bookOwner) return state.bookOwner;
+        if (state.bookOwnerPromise) return await state.bookOwnerPromise;
+        if (!state.isEditPage) return null;
+        const detailUrl = location.origin + location.pathname.replace(/\/chinh-sua$/, '');
+        state.bookOwnerPromise = (async () => {
+            try {
+                const html = await fetchHtml(detailUrl);
+                const detailDoc = toDoc(html);
+                const owner = parseBookOwnerFromDoc(detailDoc);
+                if (owner) state.bookOwner = owner;
+                return owner;
+            } catch (e) {
+                log(`❌ Không tải được thông tin người đăng: ${e.message}`, 'error');
+                return null;
+            } finally {
+                state.bookOwnerPromise = null;
+            }
+        })();
+        return await state.bookOwnerPromise;
+    }
+
     let pendingDelete = null;
+
+    function getRealVolumeWrappers() {
+        return Array.from(document.querySelectorAll('.volume-info-wrapper'))
+            .filter(w => !w.closest('#volumeWrapperSample'));
+    }
 
     function getVolumeDisplayName(wrapper, fallbackIndex = 0) {
         if (!wrapper) return `Quyển ${fallbackIndex + 1}`;
@@ -1112,24 +1325,54 @@
         return `Quyển ${fallbackIndex + 1}`;
     }
 
+    function isNewVolumeWrapper(wrapper) {
+        if (!wrapper) return false;
+        const id = wrapper.getAttribute('data-volume');
+        if (!id) return true;
+        return false;
+    }
+
     function openDeleteConfirm() {
-        if (!state.isNewBookPage) {
-            log('⚠️ Nút xóa quyển chỉ dùng ở trang Nhúng file.', 'warn');
+        if (!state.isNewBookPage && !state.isEditPage) {
+            log('⚠️ Nút xóa quyển chỉ dùng ở trang Nhúng file hoặc Chỉnh sửa.', 'warn');
             return;
         }
         if (!state.selectedVolumeWrapper) {
             log('⚠️ Hãy chọn quyển trước khi xóa.', 'warn');
             return;
         }
-        const wrappers = [...document.querySelectorAll('.volume-info-wrapper')];
+        const wrappers = getRealVolumeWrappers();
         const selectedIndex = wrappers.indexOf(state.selectedVolumeWrapper);
+        const selectedOption = volumeSelect.options[volumeSelect.selectedIndex];
+        const cannotModify = selectedOption?.dataset?.cannotModify === 'true';
+        const isAppendable = selectedOption?.dataset?.isAppendable === 'true';
+        const isNewVolume = state.isEditPage ? isNewVolumeWrapper(state.selectedVolumeWrapper) : false;
+        const requireOwner = state.isEditPage && !isNewVolume && (cannotModify || isAppendable);
         const displayName = getVolumeDisplayName(state.selectedVolumeWrapper, Math.max(selectedIndex, 0));
         pendingDelete = {
             wrapper: state.selectedVolumeWrapper,
-            name: displayName
+            name: displayName,
+            requireOwner,
+            volumeIndex: selectedIndex,
+            statsApplied: false
         };
         if (confirmText) {
             confirmText.innerHTML = `Bạn có chắc muốn xóa quyển <strong>${escapeHtml(displayName)}</strong>?<br>Hành động này không thể hoàn tác.`;
+        }
+        if (confirmExtra) {
+            confirmExtra.innerHTML = '';
+            if (requireOwner) {
+                confirmExtra.innerHTML = `
+                    <label for="${APP_PREFIX}confirm-owner">Xác nhận chủ truyện (Người đăng)</label>
+                    <input id="${APP_PREFIX}confirm-owner" class="${APP_PREFIX}text-input" type="text" placeholder="Nhập username chủ truyện">
+                    <div class="${APP_PREFIX}confirm-hint">Chấp nhận nhập dạng thường hoặc dạng encode.</div>
+                    <div id="${APP_PREFIX}confirm-owner-error"></div>
+                `;
+                confirmExtra.insertAdjacentHTML(
+                    'beforeend',
+                    `<div id="${APP_PREFIX}confirm-warning">⚠️ Đây là bước xác nhận cuối. Sau khi bấm Xóa, hệ thống sẽ xóa quyển này trên web.</div>`
+                );
+            }
         }
         if (confirmOverlay) confirmOverlay.classList.remove(`${APP_PREFIX}hide`);
         if (confirmModal) confirmModal.classList.remove(`${APP_PREFIX}hide`);
@@ -1141,10 +1384,32 @@
         pendingDelete = null;
     }
 
-    function confirmDeleteVolume() {
+    async function confirmDeleteVolume() {
         if (!pendingDelete || !pendingDelete.wrapper) {
             closeDeleteConfirm();
             return;
+        }
+        if (pendingDelete.requireOwner) {
+            const inputEl = confirmExtra ? confirmExtra.querySelector(`#${APP_PREFIX}confirm-owner`) : null;
+            const errorEl = confirmExtra ? confirmExtra.querySelector(`#${APP_PREFIX}confirm-owner-error`) : null;
+            const inputValue = inputEl ? inputEl.value : '';
+            const inputNorm = normalizeUserInput(inputValue);
+            if (!inputNorm) {
+                if (errorEl) errorEl.textContent = 'Vui lòng nhập username chủ truyện.';
+                return;
+            }
+            if (errorEl) errorEl.textContent = '';
+
+            const owner = state.bookOwner || await fetchBookOwner();
+            if (!owner) {
+                if (errorEl) errorEl.textContent = 'Không lấy được thông tin chủ truyện. Thử lại sau.';
+                return;
+            }
+            const candidates = [owner.slug, owner.name].filter(Boolean).map(normalizeUserInput);
+            if (!candidates.includes(inputNorm)) {
+                if (errorEl) errorEl.textContent = 'Username không khớp với chủ truyện.';
+                return;
+            }
         }
         const removeBtn = pendingDelete.wrapper.querySelector('[data-action="removeVolume"]');
         if (!removeBtn) {
@@ -1153,8 +1418,53 @@
             closeDeleteConfirm();
             return;
         }
+        const applyVolumeStatsRemoval = () => {
+            if (!state.isEditPage || !state.volumeStatsData || pendingDelete?.statsApplied) return;
+            const idx = pendingDelete.volumeIndex;
+            if (typeof idx !== 'number' || idx < 0) return;
+            const removed = state.volumeStatsData.volumes?.[idx];
+            if (removed) {
+                state.volumeStatsData.total = Math.max(
+                    0,
+                    (state.volumeStatsData.total || 0) - (removed.count || 0)
+                );
+                state.volumeStatsData.volumes.splice(idx, 1);
+                updateTotalChaptersDisplay(state.volumeStatsData.total);
+            }
+            const statsEl = pendingDelete.wrapper.querySelector(`.${APP_PREFIX}volume-stats`);
+            if (statsEl) statsEl.remove();
+            pendingDelete.statsApplied = true;
+            setTimeout(() => {
+                if (state.volumeStatsData) {
+                    injectVolumeStatsToPage(state.volumeStatsData);
+                }
+            }, 200);
+        };
+        const clickWebConfirm = () => {
+            const modal = document.querySelector('#mdRemoveVolume');
+            if (!modal) return false;
+            const okBtn = modal.querySelector('[data-action="confirmRemoveVolume"], .btn-confirm');
+            if (!okBtn) return false;
+            okBtn.click();
+            applyVolumeStatsRemoval();
+            return true;
+        };
         removeBtn.click();
         log(`🗑 Đã yêu cầu xóa quyển "${pendingDelete.name}".`, 'warn');
+        let tries = 0;
+        const tryClick = () => {
+            if (clickWebConfirm()) {
+                log('✅ Đã xác nhận xóa trên web.', 'warn');
+                return;
+            }
+            tries += 1;
+            if (tries < 10) {
+                setTimeout(tryClick, 200);
+            } else {
+                log('⚠️ Không tìm thấy popup xác nhận xóa của web. Vui lòng kiểm tra thủ công.', 'warn');
+            }
+        };
+        setTimeout(tryClick, 120);
         pendingDelete = null;
         closeDeleteConfirm();
         setTimeout(() => {
@@ -1163,6 +1473,240 @@
             uploadBtn.disabled = true;
             if (deleteVolumeBtn) deleteVolumeBtn.disabled = true;
         }, 200);
+    }
+
+    function isVolumeStatsPrefUnset() {
+        const val = GM_getValue(VOLUME_STATS_KEY, null);
+        return val === null || typeof val === 'undefined';
+    }
+
+    function setVolumeStatsEnabled(enabled) {
+        const value = !!enabled;
+        GM_setValue(VOLUME_STATS_KEY, value);
+        state.volumeStatsEnabled = value;
+        if (volumeStatsCheckbox) volumeStatsCheckbox.checked = value;
+        if (value) {
+            loadVolumeStats(true);
+        } else {
+            clearVolumeStatsUI();
+        }
+    }
+
+    function openVolumeStatsPref() {
+        if (!prefModal || !prefOverlay) return;
+        if (!isVolumeStatsPrefUnset()) return;
+        prefOverlay.classList.remove(`${APP_PREFIX}hide`);
+        prefModal.classList.remove(`${APP_PREFIX}hide`);
+    }
+
+    function closeVolumeStatsPref() {
+        if (prefModal) prefModal.classList.add(`${APP_PREFIX}hide`);
+        if (prefOverlay) prefOverlay.classList.add(`${APP_PREFIX}hide`);
+    }
+
+    function maybeShowVolumeStatsPref() {
+        if (!isVolumeStatsPrefUnset()) return;
+        if (helpModal && !helpModal.classList.contains(`${APP_PREFIX}hide`)) return;
+        if (prefModal && !prefModal.classList.contains(`${APP_PREFIX}hide`)) return;
+        openVolumeStatsPref();
+    }
+
+    function updateTotalChaptersDisplay(total) {
+        if (!totalChaptersEl) return;
+        totalChaptersEl.textContent = (total === null || typeof total === 'undefined') ? '...' : String(total);
+    }
+
+    function clearVolumeStatsUI() {
+        state.volumeStatsData = null;
+        updateTotalChaptersDisplay(null);
+        document.querySelectorAll(`.${APP_PREFIX}volume-stats`).forEach(el => el.remove());
+    }
+
+    function normalizeVolumeName(text) {
+        return (text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    function buildWikidichParams(doc) {
+        const html = doc.documentElement.outerHTML;
+        const bookId =
+            doc.querySelector('input#bookId')?.value ||
+            doc.querySelector('input[name="bookId"]')?.value ||
+            html.match(/var\s+bookId\s*=\s*"(.*?)"/)?.[1] ||
+            null;
+        const size = parseInt(html.match(/loadBookIndex\s*\(\s*0\s*,\s*(\d+)/)?.[1] || '50', 10);
+        const signKey = html.match(/signKey\s*=\s*"(.*?)"/)?.[1] || null;
+        const fuzzyMatch = html.match(/function\s+fuzzySign\s*\(\s*\w+\s*\)\s*\{([\s\S]*?)\}/);
+        let shift = null;
+        if (fuzzyMatch) {
+            const body = fuzzyMatch[1];
+            const rot = body.match(/text\.substring\(\s*(\d+)\s*\)\s*\+\s*text\.substring\(\s*0\s*,?\s*\1?\s*\)/);
+            if (rot) shift = parseInt(rot[1], 10);
+        }
+        const fuzzy = (shift === null || Number.isNaN(shift)) ? null : (text) => text.substring(shift) + text.substring(0, shift);
+        return { bookId, size, signKey, fuzzy };
+    }
+
+    async function sha256Hex(text) {
+        if (!window.crypto || !window.crypto.subtle) return null;
+        const data = new TextEncoder().encode(text);
+        const hash = await window.crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function fetchHtml(url) {
+        const res = await fetch(url, { method: 'GET', credentials: 'include', cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.text();
+    }
+
+    function toDoc(html) {
+        return new DOMParser().parseFromString(html, 'text/html');
+    }
+
+    function buildIndexUrl({ bookId, signKey, sign, size, start }) {
+        const params = new URLSearchParams({
+            bookId,
+            signKey,
+            sign,
+            size: String(size),
+            start: String(start),
+        });
+        return `${location.origin}/book/index?${params.toString()}`;
+    }
+
+    function parseBookIndexPage(html) {
+        const doc = toDoc(html);
+        const volumes = [];
+        const headers = Array.from(doc.querySelectorAll('h5.volume-name'));
+        headers.forEach((h5) => {
+            const name = h5.textContent.trim();
+            const col = h5.closest('.col');
+            let listCol = col ? col.nextElementSibling : null;
+            if (!listCol || !listCol.querySelector('li.chapter-name')) {
+                listCol = h5.parentElement?.parentElement?.querySelector('ul');
+            }
+            const anchors = listCol ? Array.from(listCol.querySelectorAll('li.chapter-name a')) : [];
+            const titles = anchors.map(a => a.textContent.trim()).filter(Boolean);
+            volumes.push({
+                name,
+                count: titles.length,
+                lastTitle: titles.length ? titles[titles.length - 1] : '',
+            });
+        });
+        const pageCount = doc.querySelectorAll('li.chapter-name a').length;
+        const starts = Array.from(doc.querySelectorAll('ul.pagination a[data-start]'))
+            .map(a => parseInt(a.getAttribute('data-start') || '0', 10))
+            .filter(n => !Number.isNaN(n));
+        const maxStart = starts.length ? Math.max(...starts) : 0;
+        return { volumes, pageCount, maxStart };
+    }
+
+    async function fetchVolumeStats() {
+        if (!state.isEditPage) return null;
+        let params = buildWikidichParams(document);
+        let detailDoc = null;
+        const needOwner = !state.bookOwner;
+        if (!params.signKey || !params.bookId || (state.volumeStatsEnabled && needOwner)) {
+            const detailUrl = location.origin + location.pathname.replace(/\/chinh-sua$/, '');
+            try {
+                const html = await fetchHtml(detailUrl);
+                detailDoc = toDoc(html);
+                params = { ...params, ...buildWikidichParams(detailDoc) };
+            } catch (e) {
+                log(`❌ Không tải được trang thông tin truyện: ${e.message}`, 'error');
+                return null;
+            }
+        }
+        if (detailDoc) {
+            const owner = parseBookOwnerFromDoc(detailDoc);
+            if (owner) state.bookOwner = owner;
+        }
+        if (!params.bookId || !params.signKey) {
+            log('⚠️ Thiếu bookId hoặc signKey để lấy mục lục.', 'warn');
+            return null;
+        }
+        const size = params.size || 50;
+        const volumes = [];
+        const volumeIndex = new Map();
+        let total = 0;
+        let start = 0;
+        let maxStart = 0;
+        let guard = 0;
+        while (guard < 200) {
+            const base = `${params.signKey}${start}${size}`;
+            const fuzzed = typeof params.fuzzy === 'function' ? params.fuzzy(base) : base;
+            const sign = await sha256Hex(fuzzed);
+            if (!sign) {
+                log('❌ Trình duyệt không hỗ trợ SHA-256 để lấy mục lục.', 'error');
+                break;
+            }
+            const url = buildIndexUrl({ bookId: params.bookId, signKey: params.signKey, sign, size, start });
+            let html = '';
+            try {
+                html = await fetchHtml(url);
+            } catch (e) {
+                log(`❌ Lỗi tải mục lục: ${e.message}`, 'error');
+                break;
+            }
+            const page = parseBookIndexPage(html);
+            total += page.pageCount;
+            maxStart = Math.max(maxStart, page.maxStart);
+            page.volumes.forEach((vol) => {
+                const key = normalizeVolumeName(vol.name);
+                let idx = volumeIndex.get(key);
+                if (idx === undefined) {
+                    idx = volumes.length;
+                    volumeIndex.set(key, idx);
+                    volumes.push({ name: vol.name, count: 0, lastTitle: '' });
+                }
+                volumes[idx].count += vol.count;
+                if (vol.lastTitle) volumes[idx].lastTitle = vol.lastTitle;
+            });
+            if (start >= maxStart) break;
+            start += size;
+            guard += 1;
+        }
+        return { total, volumes };
+    }
+
+    function injectVolumeStatsToPage(stats) {
+        if (!stats || !Array.isArray(stats.volumes)) return;
+        const wrappers = Array.from(document.querySelectorAll('.volume-info-wrapper'))
+            .filter(w => !w.closest('#volumeWrapperSample'));
+        stats.volumes.forEach((vol, idx) => {
+            const wrapper = wrappers[idx];
+            if (!wrapper) return;
+            let statsEl = wrapper.querySelector(`.${APP_PREFIX}volume-stats`);
+            if (!statsEl) {
+                statsEl = document.createElement('div');
+                statsEl.className = `${APP_PREFIX}volume-stats`;
+                const desc = wrapper.querySelector('.volume-name-desc');
+                if (desc && desc.parentNode) {
+                    desc.parentNode.insertBefore(statsEl, desc.nextSibling);
+                } else {
+                    const info = wrapper.querySelector('.volume-info') || wrapper;
+                    info.appendChild(statsEl);
+                }
+            }
+            const lastTitle = vol.lastTitle ? escapeHtml(vol.lastTitle) : '...';
+            statsEl.innerHTML = `Chương: <b>${vol.count}</b> • Cuối: <b>${lastTitle}</b>`;
+        });
+    }
+
+    async function loadVolumeStats(force) {
+        if (!state.isEditPage) return;
+        if (!state.volumeStatsEnabled && !force) return;
+        if (state.volumeStatsData && !force) {
+            updateTotalChaptersDisplay(state.volumeStatsData.total);
+            injectVolumeStatsToPage(state.volumeStatsData);
+            return;
+        }
+        updateTotalChaptersDisplay('...');
+        const stats = await fetchVolumeStats();
+        if (!stats) return;
+        state.volumeStatsData = stats;
+        updateTotalChaptersDisplay(stats.total);
+        injectVolumeStatsToPage(stats);
     }
 
     function ensureSelectedVolumeValid() {
@@ -1174,12 +1718,17 @@
             rebuildVolumeOptions('none');
             return false;
         }
+        const selectedOption = volumeSelect.options[volumeSelect.selectedIndex];
+        if (selectedOption && selectedOption.dataset.cannotModify === 'true') {
+            log('⛔ Quyển này không thể bổ sung/chỉnh. Chỉ dùng Add New hoặc Xóa.', 'warn');
+            return false;
+        }
         return true;
     }
 
     function addNewVolumeAndSelect() {
-        if (!state.isNewBookPage) {
-            log('⚠️ Thêm quyển chỉ dùng ở trang Nhúng file.', 'warn');
+        if (!state.isNewBookPage && !state.isEditPage) {
+            log('⚠️ Thêm quyển chỉ dùng ở trang Nhúng file hoặc Chỉnh sửa.', 'warn');
             return;
         }
         const addBtn = document.querySelector('.btn-add-volume[data-action="addVolumeWrapper"]');
@@ -1230,7 +1779,7 @@
 - Bấm **Files TXT** và chọn nhiều file.
 - Script tự sắp xếp, kiểm tra, rồi điền tên chương + file.
 - Bấm **Tải lên (web)** để nhấn nút upload thật.
-- Nút **Xóa** dùng để xóa quyển đang chọn (chỉ có ở trang Nhúng file).
+- Nút **Xóa** dùng để xóa quyển đang chọn (Nhúng file hoặc Chỉnh sửa). Ở Chỉnh sửa, quyển **bổ sung** hoặc **không thể bổ sung** cần nhập **username chủ truyện** để xác nhận.
 - Nút **Thêm Quyển** để tạo quyển mới và tự chọn vào đó.
 
 ### 🚦 Cảnh báo file nhỏ
@@ -1257,23 +1806,31 @@
 ### 🍃 Tips nhỏ
 - Đổi encoding sang GBK nếu nội dung bị lỗi font.
 - Nếu thiếu nút upload, thử reload trang.
+- Có thể bật thống kê chương theo quyển trong Cài đặt để xem tổng số chương.
     `.trim();
 
     const changelogMarkdown = `
-### 🧯 v1.2.1 (Hotfix)
+### ✨ v1.2.2
+- Thêm thống kê chương theo quyển + tên chương cuối (bật/tắt).
+- Hiển thị tổng số chương trong Cài đặt.
+- Trang chỉnh sửa: chọn được quyển không thể bổ sung, chỉ dùng Add New/Xóa.
+- Xóa quyển cũ/bổ sung yêu cầu xác nhận username chủ truyện.
+- Khi xóa quyển đã có, cập nhật lại tổng chương và thẻ thống kê của quyển.
+
+### 📦 v1.2.1 (Hotfix)
 - Sửa lỗi **auto upload không gán file thật vào input**, gây treo khi nhấn Upload.
 - Đồng bộ lại logic kiểm tra file giữa script và web.
 - Vá lỗi web crash khi gặp chương thiếu file.
 - Cải thiện độ ổn định khi upload nhiều chương liên tiếp.
 
-### ✨ v1.2
+### 📦 v1.2
 - Thêm nút **Xóa** quyển (nhúng file) và popup xác nhận.
 - Thêm nút **Thêm Quyển** và tự chọn quyển mới.
 - Chặn lỗi treo khi quyển cũ đã bị xóa.
 - Sửa lỗi upload lần 2 bị dính số file cũ.
 - Làm mới giao diện panel hiện đại hơn.
 
-### 🧯 v1.1.9 (Hotfix)
+### 📦 v1.1.9 (Hotfix)
 - Cập nhật Auto Fill
 
 ### 📦 v1.1.8
@@ -1310,6 +1867,7 @@
     function closeHelpModal() {
         helpModal.classList.add(`${APP_PREFIX}hide`);
         settingsOverlay.classList.add(`${APP_PREFIX}hide`);
+        maybeShowVolumeStatsPref();
     }
     function setParseControlsEnabled(enabled) {
         const fields = [
@@ -1701,7 +2259,6 @@ Lưu ý:
             opt.dataset.cannotModify = String(!!cannotModify);
 
             if (cannotModify) {
-                opt.disabled = true;
                 opt.textContent += ' — Không thể bổ sung';
             }
 
@@ -1716,15 +2273,20 @@ Lưu ý:
         } else if (defaultSelectStrategy === 'lastAppendable' && state.isEditPage && lastAppendableIndex !== -1) {
             volumeSelect.value = String(lastAppendableIndex);
         }
+        if (state.volumeStatsEnabled && state.volumeStatsData) {
+            injectVolumeStatsToPage(state.volumeStatsData);
+        }
     }
 
     function handleVolumeChange() {
         const selectedOption = volumeSelect.options[volumeSelect.selectedIndex];
-        if (!selectedOption || selectedOption.value === '-1' || selectedOption.disabled || selectedOption.dataset.cannotModify === 'true') {
+        if (!selectedOption || selectedOption.value === '-1' || selectedOption.disabled) {
             state.selectedVolumeWrapper = null;
             uploadBtn.disabled = true;
             if (deleteVolumeBtn) deleteVolumeBtn.disabled = true;
-            log('⛔ Quyển này không thể bổ sung/chỉnh. Hãy chọn quyển khác.', 'warn');
+            if (autofillBtn) autofillBtn.disabled = true;
+            if (fakeUploadBtn) fakeUploadBtn.disabled = true;
+            log('⛔ Hãy chọn một quyển hợp lệ.', 'warn');
             return;
         }
 
@@ -1742,7 +2304,19 @@ Lưu ý:
 
         const trueWrapper = state.selectedVolumeWrapper.querySelector('.volume-wrapper');
         const isAppendable = selectedOption.dataset.isAppendable === 'true';
+        const cannotModify = selectedOption.dataset.cannotModify === 'true';
 
+
+        if (cannotModify) {
+            manualInputContainer.style.display = 'none';
+            manualInputContainer.innerHTML = '';
+            uploadBtn.disabled = true;
+            if (fakeUploadBtn) fakeUploadBtn.disabled = true;
+            if (autofillBtn) autofillBtn.disabled = true;
+            if (deleteVolumeBtn) deleteVolumeBtn.disabled = false;
+            log(`⛔ Quyển "${selectedOption.textContent}" không thể bổ sung. Chỉ dùng Add New hoặc Xóa.`, 'warn');
+            return;
+        }
 
         if (state.isEditPage && trueWrapper && trueWrapper.classList.contains('readonly')) {
             trueWrapper.classList.remove('readonly');
@@ -1770,8 +2344,9 @@ Lưu ý:
 
         uploadBtn.disabled = false;
         if (deleteVolumeBtn) {
-            deleteVolumeBtn.disabled = !state.isNewBookPage;
+            deleteVolumeBtn.disabled = !(state.isNewBookPage || state.isEditPage);
         }
+        if (autofillBtn) autofillBtn.disabled = false;
     }
 
 
@@ -2568,6 +3143,9 @@ Lưu ý:
             log(`...Đã gán file \"${file.name}\" vào hàng ${idx + 1}`);
         }
 
+        if (window.M && typeof window.M.updateTextFields === 'function') {
+            try { window.M.updateTextFields(); } catch {}
+        }
         await sleep(timing.verifyMs);
         const verifyRows = chapterWrapperContainer.querySelectorAll('.chapter-info-wrapper');
         let missingNameCount = 0;
@@ -2583,7 +3161,7 @@ Lưu ý:
                 nameInput.value = chapterName;
                 nameInput.dispatchEvent(new Event('input', { bubbles: true }));
                 nameInput.dispatchEvent(new Event('change', { bubbles: true }));
-                missingNameCount += 1;
+                if (!nameInput.value.trim()) missingNameCount += 1;
             }
 
             const fileInputReal2 =
@@ -2602,7 +3180,9 @@ Lưu ý:
                     fileInputReal2.files = dt2.files;
                     fileInputReal2.dispatchEvent(new Event('input',  { bubbles: true }));
                     fileInputReal2.dispatchEvent(new Event('change', { bubbles: true }));
-                    missingFileCount += 1;
+                    if (!fileInputReal2.files || fileInputReal2.files.length < 1) {
+                        missingFileCount += 1;
+                    }
                 } catch (e) {
                     log(`❌ Verify gán lại file lỗi ở hàng ${idx + 1}: ${e.message}`, 'error');
                 }
@@ -2655,6 +3235,14 @@ Lưu ý:
         if (confirmCancelBtn) confirmCancelBtn.addEventListener('click', closeDeleteConfirm);
         if (confirmOverlay) confirmOverlay.addEventListener('click', closeDeleteConfirm);
         if (confirmOkBtn) confirmOkBtn.addEventListener('click', confirmDeleteVolume);
+        if (prefEnableBtn) prefEnableBtn.addEventListener('click', () => {
+            setVolumeStatsEnabled(true);
+            closeVolumeStatsPref();
+        });
+        if (prefDisableBtn) prefDisableBtn.addEventListener('click', () => {
+            setVolumeStatsEnabled(false);
+            closeVolumeStatsPref();
+        });
         fileInput.addEventListener('change', handleFileSelect);
         volumeSelect.addEventListener('change', handleVolumeChange);
         volumeSelect.addEventListener('mousedown', () => {
@@ -2678,7 +3266,8 @@ Lưu ý:
                 encoding: encodingSelect.value,
                 contentRegex: contentRegexInput.value,
                 filenameRegex: filenameRegexInput.value,
-                chapTemplate: chapterTemplateInput.value
+                chapTemplate: chapterTemplateInput.value,
+                volumeStats: volumeStatsCheckbox ? volumeStatsCheckbox.checked : null
             };
         }
 
@@ -2692,6 +3281,14 @@ Lưu ý:
             encodingSelect.value = settings.FILE_ENCODING || 'UTF-8';
             filenameRegexInput.value = settings.FILENAME_REGEX;
             chapterTemplateInput.value = settings.CHAPTER_NAME_TEMPLATE;
+            if (volumeStatsCheckbox) {
+                volumeStatsCheckbox.checked = state.volumeStatsEnabled === true;
+            }
+            if (state.volumeStatsData && typeof state.volumeStatsData.total !== 'undefined') {
+                updateTotalChaptersDisplay(state.volumeStatsData.total);
+            } else {
+                updateTotalChaptersDisplay(null);
+            }
 
             setParseControlsEnabled(!firstLineOnlyInput.checked);
             if (filenameSampleInput && !filenameSampleInput.value) filenameSampleInput.value = '第188章 禅说.txt';
@@ -2774,6 +3371,9 @@ Lưu ý:
             saveSettings();
             initialFormValues = getFormValues();
             hideSettingsModal();
+            if (volumeStatsCheckbox) {
+                setVolumeStatsEnabled(volumeStatsCheckbox.checked);
+            }
             log('Cài đặt đã được cập nhật.');
         });
 
@@ -2792,5 +3392,11 @@ Lưu ý:
         }, 1200);
 
         initialize();
+        if (state.volumeStatsEnabled === true) {
+            loadVolumeStats(false);
+        }
+        setTimeout(() => {
+            maybeShowVolumeStatsPref();
+        }, 1600);
     }
 })();
