@@ -2275,6 +2275,7 @@
             :host([data-theme="dark"]) .${APP_PREFIX}diff-card {
                 background: linear-gradient(135deg, #0b1220 0%, #111827 100%);
                 border-color: rgba(148, 163, 184, 0.2);
+                color: #e5e7eb;
             }
             .${APP_PREFIX}diff-title {
                 padding: 16px 20px; font-weight: 600; font-size: 18px;
@@ -2292,6 +2293,7 @@
             }
             :host([data-theme="dark"]) .${APP_PREFIX}diff-sub { color: #a5b4fc; }
             .${APP_PREFIX}diff-body { padding: 10px 16px 4px 16px; max-height: 60vh; overflow: auto; }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-body { color: #e5e7eb; }
             .${APP_PREFIX}diff-row {
                 display: grid; grid-template-columns: 160px 1fr 1fr; gap: 12px;
                 padding: 10px 8px; border-bottom: 1px dashed rgba(0,0,0,0.08);
@@ -2312,6 +2314,34 @@
             .${APP_PREFIX}diff-add { background: #d7f7dc; color: #1b5e20; border: 1px solid #a7e6b2; }
             .${APP_PREFIX}diff-remove { background: #ffe0e0; color: #b71c1c; border: 1px solid #ffb4b4; }
             .${APP_PREFIX}diff-neutral { background: #eef1ff; color: #3b3b7a; border: 1px solid #c7d2ff; }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-del {
+                background: rgba(248, 113, 113, 0.18);
+                color: #fecaca;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-ins {
+                background: rgba(34, 197, 94, 0.18);
+                color: #bbf7d0;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-chip {
+                background: rgba(30, 41, 59, 0.8);
+                color: #e2e8f0;
+                border-color: rgba(148, 163, 184, 0.35);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-add {
+                background: rgba(34, 197, 94, 0.18);
+                color: #bbf7d0;
+                border-color: rgba(34, 197, 94, 0.35);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-remove {
+                background: rgba(248, 113, 113, 0.18);
+                color: #fecaca;
+                border-color: rgba(248, 113, 113, 0.35);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}diff-neutral {
+                background: rgba(148, 163, 184, 0.14);
+                color: #e2e8f0;
+                border-color: rgba(148, 163, 184, 0.3);
+            }
             .${APP_PREFIX}diff-actions {
                 padding: 12px 16px 16px 16px; text-align: right;
                 background: linear-gradient(90deg, #fff, #f7f7ff);
