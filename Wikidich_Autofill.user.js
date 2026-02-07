@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.3
+// @version      0.3.3.2
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -1946,10 +1946,10 @@
     }).join('');
 
     const buildWelcomeContent = () => `
-<h2 style="text-align:center; color:#2196f3;">Chào mừng đến với <span style="color:#e91e63;">Wikidich Autofill</span>!</h2>
-<p style="text-align:center; font-style:italic; color:#666;">Tool "thần thánh" hỗ trợ convert web Trung sang Wikidich 1 chạm.</p>
+<h2 class="${APP_PREFIX}welcome-heading">Chào mừng đến với <span>Wikidich Autofill</span>!</h2>
+<p class="${APP_PREFIX}welcome-subtitle">Tool "thần thánh" hỗ trợ convert web Trung sang Wikidich 1 chạm.</p>
 
-<div style="background:#f4f6f8; padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #4caf50;">
+<div class="${APP_PREFIX}guide-box-green">
     <h3 style="margin-top:0; color:#2e7d32;">🌟 Quy trình sử dụng chuẩn:</h3>
     <ol style="margin-left: 15px; padding-left: 0;">
         <li><b>Bước 1:</b> Copy link truyện (${buildSiteDisplayList()}).</li>
@@ -1971,7 +1971,7 @@
     <li>🧾 <b>AI thủ công:</b> Bấm <b>AI thủ công</b> → copy prompt → dán JSON kết quả vào tool (không cần API Key).</li>
 </ul>
 
-<div style="background: linear-gradient(135deg, #e3f2fd 0%, #fff8e1 100%); padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #42a5f5;">
+<div class="${APP_PREFIX}guide-box-blue">
     <h3 style="margin-top:0; color:#1565c0;">✨ Trang chỉnh sửa (chinh-sua):</h3>
     <ul style="list-style-type: none; padding-left: 5px; font-size: 13px;">
         <li>✅/❌ <b>So khớp nhanh:</b> Dấu tick xanh = khớp web, dấu X đỏ = lệch; rê chuột để xem chi tiết.</li>
@@ -1980,12 +1980,12 @@
     </ul>
 </div>
 
-<div style="background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%); padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #e91e63;">
+<div class="${APP_PREFIX}guide-box-pink">
     <h3 style="margin-top:0; color:#ad1457;">🪄 Auto Tách Tên:</h3>
     <p style="margin: 5px 0; font-size: 13px;">Khi bấm nút <b style="color:#e91e63;">AI</b>, hệ thống sẽ:</p>
     <ol style="margin-left: 15px; padding-left: 0; font-size: 13px;">
         <li>Gửi văn án tiếng Trung cho AI phân tích</li>
-        <li>AI trích xuất <b>tên nhân vật, địa danh</b> → phiên âm <span style="color:#673ab7;">Hán-Việt</span></li>
+        <li>AI trích xuất <b>tên nhân vật, địa danh</b> → phiên âm <span class="${APP_PREFIX}highlight-violet">Hán-Việt</span></li>
         <li>Tự động điền vào ô <b>"Bộ name"</b> (dạng: <code>Tên_Trung=Hán_Việt</code>)</li>
         <li>Dịch lại văn án với bộ tên mới → tên được giữ nguyên!</li>
     </ol>
@@ -2239,18 +2239,19 @@
             }
             :host([data-theme="dark"]) .${APP_PREFIX}modal-body { color: #cbd5f5; }
             :host([data-theme="dark"]) #${APP_PREFIX}helpModal .${APP_PREFIX}modal-body {
-                background: #f8fafc;
-                color: #1f2937;
+                background: transparent;
+                color: #e5e7eb;
             }
             :host([data-theme="dark"]) #${APP_PREFIX}helpModal .${APP_PREFIX}modal-body h2,
             :host([data-theme="dark"]) #${APP_PREFIX}helpModal .${APP_PREFIX}modal-body h3 {
-                color: #1e293b;
+                color: #f0abfc;
             }
             :host([data-theme="dark"]) #${APP_PREFIX}helpModal .${APP_PREFIX}modal-body code {
-                background: #e2e8f0;
-                color: #1f2937;
+                background: #1f2937;
+                color: #f9a8d4;
                 border-radius: 4px;
                 padding: 1px 4px;
+                border: 1px solid rgba(148, 163, 184, 0.2);
             }
             .${APP_PREFIX}modal-body h2 { font-size: 16px; margin: 10px 0 8px 0; color: #333; }
             .${APP_PREFIX}modal-body h3 { font-size: 15px; margin: 12px 0 6px 0; color: #555; }
@@ -2404,6 +2405,95 @@
             :host([data-theme="dark"]) .${APP_PREFIX}diff-body {
                 scrollbar-color: #64748b rgba(15, 23, 42, 0.8);
             }
+            .${APP_PREFIX}manual-ai-card {
+                background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+                padding: 12px;
+                border-radius: 10px;
+                border-left: 4px solid #7e57c2;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}manual-ai-card {
+                background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+                border-left-color: #818cf8;
+                color: #e0e7ff;
+            }
+            .${APP_PREFIX}guide-box-green {
+                background: #f4f6f8;
+                padding: 12px;
+                border-radius: 8px;
+                margin: 10px 0;
+                border-left: 4px solid #4caf50;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}guide-box-green {
+                background: #1e3a2f;
+                border-left-color: #34d399;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}guide-box-green h3 {
+                color: #6ee7b7 !important;
+            }
+            .${APP_PREFIX}guide-box-blue {
+                background: linear-gradient(135deg, #e3f2fd 0%, #fff8e1 100%);
+                padding: 12px;
+                border-radius: 8px;
+                margin: 10px 0;
+                border-left: 4px solid #42a5f5;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}guide-box-blue {
+                background: linear-gradient(135deg, #1e3a5f 0%, #312e2f 100%);
+                border-left-color: #60a5fa;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}guide-box-blue h3 {
+                color: #93c5fd !important;
+            }
+            .${APP_PREFIX}guide-box-pink {
+                background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%);
+                padding: 12px;
+                border-radius: 8px;
+                margin: 10px 0;
+                border-left: 4px solid #e91e63;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}guide-box-pink {
+                background: linear-gradient(135deg, #4a1942 0%, #312e81 100%);
+                border-left-color: #f472b6;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}guide-box-pink h3 {
+                color: #f9a8d4 !important;
+            }
+            .${APP_PREFIX}welcome-heading {
+                text-align: center;
+                color: #2196f3;
+            }
+            .${APP_PREFIX}welcome-heading span {
+                color: #e91e63;
+            }
+            .${APP_PREFIX}welcome-subtitle {
+                text-align: center;
+                font-style: italic;
+                color: #666;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}welcome-subtitle {
+                color: #a3a3b5;
+            }
+            .${APP_PREFIX}domain-header {
+                font-weight: bold;
+                border-bottom: 1px solid #eee;
+                color: #666;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}domain-header {
+                border-bottom-color: rgba(148, 163, 184, 0.3);
+                color: #94a3b8;
+            }
+            .${APP_PREFIX}highlight-violet {
+                color: #673ab7;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}highlight-violet {
+                color: #b39ddb;
+            }
+            .${APP_PREFIX}ai-btn-color {
+                color: #673ab7;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}ai-btn-color {
+                color: #b39ddb;
+            }
         `;
 
         shadowRoot.innerHTML = `
@@ -2416,7 +2506,7 @@
                         <span id="${APP_PREFIX}header-badge">v${AUTOFILL_WIKIDICH_VERSION}</span>
                     </div>
                     <div id="${APP_PREFIX}header-actions">
-                        <button id="${APP_PREFIX}ai" class="${APP_PREFIX}icon-btn" title="Chạy AI Analyze" style="color: #673ab7;">AI</button>
+                        <button id="${APP_PREFIX}ai" class="${APP_PREFIX}icon-btn ${APP_PREFIX}ai-btn-color" title="Chạy AI Analyze">AI</button>
                         <button id="${APP_PREFIX}help" class="${APP_PREFIX}icon-btn" title="Hướng dẫn">?</button>
                         <button id="${APP_PREFIX}settings" class="${APP_PREFIX}icon-btn" title="Cài đặt">⚙</button>
                         <button id="${APP_PREFIX}close" class="${APP_PREFIX}icon-btn" title="Thu nhỏ">✕</button>
@@ -2547,9 +2637,9 @@
                         <div class="${APP_PREFIX}row">
                             <label class="${APP_PREFIX}label">Cấu hình Nguồn (Quét văn án & Nơi hiển thị)</label>
                             <div id="${APP_PREFIX}domainConfig" class="${APP_PREFIX}settings-group" style="display:grid; grid-template-columns: 1.5fr 0.8fr 2fr; gap: 6px 12px; font-size: 13px; align-items:center;">
-                                <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666;">Nguồn</div>
-                                <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666; text-align:center;">Quét</div>
-                                <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666;">Hiển thị</div>
+                                <div class="${APP_PREFIX}domain-header">Nguồn</div>
+                                <div class="${APP_PREFIX}domain-header" style="text-align:center;">Quét</div>
+                                <div class="${APP_PREFIX}domain-header">Hiển thị</div>
                             </div>
                         </div>
                     </div>
@@ -2561,9 +2651,9 @@
             </div>
             <div id="${APP_PREFIX}manualAiModal" class="${APP_PREFIX}modal">
                 <div class="${APP_PREFIX}modal-card">
-                    <div class="${APP_PREFIX}modal-title" style="color:#3b2c8a;">AI thủ công ✨</div>
+                    <div class="${APP_PREFIX}modal-title">AI thủ công ✨</div>
                     <div class="${APP_PREFIX}modal-body">
-                        <div style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); padding: 12px; border-radius: 10px; border-left: 4px solid #7e57c2;">
+                        <div class="${APP_PREFIX}manual-ai-card">
                             <ol style="margin-left: 15px; padding-left: 0;">
                                 <li><b>Bước 1:</b> Copy prompt để dán vào AI của bạn.</li>
                                 <li><b>Bước 2:</b> Nhận kết quả JSON từ AI, rồi dán lại vào tool.</li>
