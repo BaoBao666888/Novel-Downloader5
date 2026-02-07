@@ -68,6 +68,7 @@ from app.ui.constants import CONFIG_PATH, DEFAULT_API_SETTINGS, DEFAULT_BACKGROU
 from app.ui.wikidich_mixin import WikidichMixin
 from app.ui.nd5_mixin import ND5Mixin
 from app.ui.rename_tab_mixin import RenameTabMixin
+from app.ui.junk_remover_mixin import JunkRemoverMixin
 from app.ui.credit_tab_mixin import CreditTabMixin
 from app.ui.online_tab_mixin import OnlineTabMixin
 from app.ui.settings_tab_mixin import SettingsTabMixin
@@ -334,6 +335,7 @@ class RenamerApp(
     WikidichMixin,
     ND5Mixin,
     RenameTabMixin,
+    JunkRemoverMixin,
     CreditTabMixin,
     OnlineTabMixin,
     ForumTabMixin,
@@ -652,16 +654,27 @@ class RenamerApp(
             colors["text"] = text_color
             colors["muted"] = _adjust_color_luminance(text_color, 0.4)
         
-        bg_override = settings.get('background_color')
+        bg_override = settings.get('background_color') if theme_name == "Custom" else ""
         if bg_override:
             bg_color = _normalize_hex_color(bg_override, colors["bg"])
             colors["bg"] = bg_color
-            # Optionally darken card/input based on bg?
-            # For now, just override bg.
+            r, g, b = _hex_to_rgb(bg_color, (18, 18, 18))
+            luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+            if luminance < 0.5:
+                colors["card"] = _adjust_color_luminance(bg_color, 0.08)
+                colors["card_alt"] = _adjust_color_luminance(bg_color, 0.12)
+                colors["input_bg"] = _adjust_color_luminance(bg_color, 0.06)
+                colors["border"] = _adjust_color_luminance(bg_color, 0.18)
+            else:
+                colors["card"] = _adjust_color_luminance(bg_color, -0.04)
+                colors["card_alt"] = _adjust_color_luminance(bg_color, -0.06)
+                colors["input_bg"] = _adjust_color_luminance(bg_color, -0.08)
+                colors["border"] = _adjust_color_luminance(bg_color, -0.15)
             
         self._theme_colors = colors
         font_size = int(settings.get('font_size', 10))
-        base_font = ("Segoe UI", font_size)
+        font_family = settings.get('font_family') or "Segoe UI"
+        base_font = (font_family, font_size)
         self.configure(bg=colors["bg"])
         if self._background_canvas:
             self._background_canvas.config(bg=colors["bg"])
@@ -683,21 +696,22 @@ class RenamerApp(
         style.configure("Card.TFrame", background=colors["card"])
         style.configure("App.TFrame", background=colors["bg"])
         style.configure("TLabelframe", background=colors["card"], foreground=colors["muted"], borderwidth=1, relief="solid")
-        style.configure("TLabelframe.Label", background=colors["card"], foreground=colors["accent"], font=("Segoe UI", 10, "bold"))
+        style.configure("TLabelframe.Label", background=colors["card"], foreground=colors["accent"], font=(font_family, 10, "bold"))
         style.configure("Section.TLabelframe", background=colors["card"], foreground=colors["muted"], borderwidth=1,
                         relief="solid")
         style.configure("Section.TLabelframe.Label", background=colors["card"], foreground=colors["accent"],
-                        font=("Segoe UI", 10, "bold"))
+                        font=(font_family, 10, "bold"))
         style.configure("TLabel", background=colors["card"], foreground=colors["text"])
         style.configure("TCheckbutton", background=colors["card"], foreground=colors["text"], padding=2)
         style.configure("TRadiobutton", background=colors["card"], foreground=colors["text"], padding=2)
         style.configure("TPanedwindow", background=colors["bg"], borderwidth=0)
         style.configure("TNotebook", background=colors["bg"], borderwidth=0, padding=0)
-        style.configure("TNotebook.Tab", background=colors["bg"], foreground=colors["muted"], padding=(16, 8))
+        style.configure("TNotebook.Tab", background=colors["bg"], foreground=colors["muted"], padding=(16, 8), borderwidth=1, relief="solid")
         style.map("TNotebook.Tab",
                   background=[("selected", colors["card_alt"])],
-                  foreground=[("selected", colors["text"])])
-        style.configure("TButton", font=("Segoe UI Semibold", 10), background=colors["accent"],
+                  foreground=[("selected", colors["accent"])],
+                  bordercolor=[("selected", colors["accent"])])
+        style.configure("TButton", font=(font_family, 10, "bold"), background=colors["accent"],
                         foreground="#ffffff", borderwidth=0, padding=(12, 6), relief="flat")
         style.map("TButton",
                   background=[("active", colors["accent_hover"]), ("pressed", colors["accent_hover"]),
@@ -1183,6 +1197,8 @@ class RenamerApp(
         if hasattr(self, "ui_theme_combo"):
             state = "disabled" if self.ui_settings.get('use_classic_theme') else "readonly"
             self.ui_theme_combo.configure(state=state)
+        if hasattr(self, "ui_font_family_var"):
+            self.ui_font_family_var.set(self.ui_settings.get('font_family', 'Segoe UI'))
         controls = [
             getattr(self, "accent_entry", None),
             getattr(self, "accent_button", None),
@@ -1195,6 +1211,14 @@ class RenamerApp(
         for ctrl in controls:
             if ctrl:
                 ctrl.configure(state=state)
+        if hasattr(self, "bg_color_entry"):
+            theme_name = self.ui_settings.get('theme', DEFAULT_UI_SETTINGS['theme'])
+            bg_state = "normal" if (state == "normal" and theme_name == "Custom") else "disabled"
+            self.bg_color_entry.configure(state=bg_state)
+        if hasattr(self, "bg_color_button"):
+            theme_name = self.ui_settings.get('theme', DEFAULT_UI_SETTINGS['theme'])
+            bg_state = "normal" if (state == "normal" and theme_name == "Custom") else "disabled"
+            self.bg_color_button.configure(state=bg_state)
         self._update_accent_preview()
 
     def _update_accent_preview(self):
@@ -1212,7 +1236,11 @@ class RenamerApp(
 
     def _update_bg_color_preview(self):
         if hasattr(self, "bg_color_preview"):
-            bg_color = self.ui_settings.get('background_color') or self._theme_colors.get('bg', '#ffffff')
+            theme_name = self.ui_settings.get('theme', DEFAULT_UI_SETTINGS['theme'])
+            if theme_name == "Custom":
+                bg_color = self.ui_settings.get('background_color') or self._theme_colors.get('bg', '#ffffff')
+            else:
+                bg_color = self._theme_colors.get('bg', '#ffffff')
             bg_color = _normalize_hex_color(bg_color, '#ffffff')
             self.bg_color_preview.config(bg=bg_color)
 
@@ -1304,6 +1332,9 @@ class RenamerApp(
             self._update_ui_settings(text_color=color[1])
 
     def _open_bg_color_picker(self):
+        theme_name = self.ui_settings.get('theme', DEFAULT_UI_SETTINGS['theme'])
+        if theme_name != "Custom":
+            return
         initial = self.ui_settings.get('background_color') or self._theme_colors.get('bg', '#ffffff')
         color = colorchooser.askcolor(color=initial, parent=self)
         if color and color[1]:
@@ -1311,6 +1342,10 @@ class RenamerApp(
             self._update_ui_settings(background_color=color[1])
 
     def _commit_bg_color_entry(self):
+        theme_name = self.ui_settings.get('theme', DEFAULT_UI_SETTINGS['theme'])
+        if theme_name != "Custom":
+            self._update_bg_color_preview()
+            return
         entered = self.ui_bg_color_var.get()
         current = self.ui_settings.get('background_color', '')
         if not entered:

@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+import tkinter.font as tkfont
 
 from app.ui.constants import THEME_PRESETS
 
@@ -83,7 +84,34 @@ class SettingsTabMixin:
         self.text_color_preview = tk.Label(appearance_frame, width=4, height=1, relief=tk.FLAT, borderwidth=0)
         self.text_color_preview.grid(row=2, column=3, padx=(10, 0))
 
-        ttk.Label(appearance_frame, text="Kích thước chữ:").grid(row=3, column=0, sticky="w", pady=(10, 0))
+        ttk.Label(appearance_frame, text="Màu nền:").grid(row=3, column=0, sticky="w", pady=(6, 0))
+        self.ui_bg_color_var = tk.StringVar(value=self.ui_settings.get('background_color', ''))
+        self.bg_color_entry = ttk.Entry(appearance_frame, textvariable=self.ui_bg_color_var)
+        self.bg_color_entry.grid(row=3, column=1, sticky="ew", padx=(0, 8), pady=(6, 0))
+        self.bg_color_entry.bind("<FocusOut>", lambda _e: self._commit_bg_color_entry())
+        self.bg_color_button = ttk.Button(appearance_frame, text="Chọn màu", command=self._open_bg_color_picker)
+        self.bg_color_button.grid(row=3, column=2, sticky="w", pady=(6, 0))
+        self.bg_color_preview = tk.Label(appearance_frame, width=4, height=1, relief=tk.FLAT, borderwidth=0)
+        self.bg_color_preview.grid(row=3, column=3, padx=(10, 0), pady=(6, 0))
+
+        ttk.Label(appearance_frame, text="Font chữ:").grid(row=4, column=0, sticky="w", pady=(10, 0))
+        font_candidates = [
+            "Segoe UI",
+            "Segoe UI Variable",
+            "Inter",
+            "Arial",
+            "Calibri",
+            "Tahoma",
+            "Times New Roman",
+        ]
+        available_fonts = set(tkfont.families())
+        font_values = [f for f in font_candidates if f in available_fonts] or sorted(list(available_fonts))[:10]
+        self.ui_font_family_var = tk.StringVar(value=self.ui_settings.get('font_family', 'Segoe UI'))
+        font_combo = ttk.Combobox(appearance_frame, textvariable=self.ui_font_family_var, values=font_values, state="readonly")
+        font_combo.grid(row=4, column=1, sticky="ew", padx=(0, 8), pady=(10, 0))
+        font_combo.bind("<<ComboboxSelected>>", lambda _e: self._update_ui_settings(font_family=self.ui_font_family_var.get()))
+
+        ttk.Label(appearance_frame, text="Kích thước chữ:").grid(row=5, column=0, sticky="w", pady=(10, 0))
         self.ui_font_var = tk.IntVar(value=int(self.ui_settings.get('font_size', 10)))
         font_scale = ttk.Scale(
             appearance_frame,
@@ -93,10 +121,10 @@ class SettingsTabMixin:
             command=self._on_font_scale_change,
         )
         font_scale.set(self.ui_font_var.get())
-        font_scale.grid(row=3, column=1, columnspan=2, sticky="ew", pady=(10, 0))
+        font_scale.grid(row=5, column=1, columnspan=2, sticky="ew", pady=(10, 0))
         font_scale.bind("<ButtonRelease-1>", self._commit_font_scale)
         self.font_size_label = ttk.Label(appearance_frame, text=f"{self.ui_font_var.get()} pt")
-        self.font_size_label.grid(row=3, column=3, sticky="w", padx=(10, 0))
+        self.font_size_label.grid(row=5, column=3, sticky="w", padx=(10, 0))
 
         self.ui_classic_var = tk.BooleanVar(value=bool(self.ui_settings.get('use_classic_theme', False)))
         ttk.Checkbutton(
@@ -104,7 +132,7 @@ class SettingsTabMixin:
             text="Sử dụng giao diện cổ điển (ttk gốc)",
             variable=self.ui_classic_var,
             command=self._toggle_classic_theme,
-        ).grid(row=4, column=0, columnspan=3, sticky="w", pady=(12, 0))
+        ).grid(row=6, column=0, columnspan=3, sticky="w", pady=(12, 0))
 
         animation_frame = ttk.LabelFrame(content, text="Hiệu ứng chuột", padding=14, style="Section.TLabelframe")
         animation_frame.grid(row=1, column=0, sticky="ew", pady=(12, 0), columnspan=2)

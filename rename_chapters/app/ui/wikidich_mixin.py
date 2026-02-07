@@ -3208,6 +3208,7 @@ class WikidichMixin:
             "updated_iso",
             "updated_ts",
             "collected_at",
+            "manual_added",
         ]
         for key in keep_fields:
             val = local_book.get(key)
@@ -3488,6 +3489,21 @@ class WikidichMixin:
             if not local_latest or local_latest not in server_ids:
                 return server_data, True  # cần tải full
             anchor_idx = server_ids.index(local_latest)
+            # Nếu server vừa thêm vừa xóa (dù tổng vẫn tăng), loại bỏ ID local bị thiếu.
+            missing_local = [bid for bid in local_ids if bid not in server_ids]
+            if missing_local:
+                self.log(f"[Wikidich] Phát hiện {len(missing_local)} truyện đã bị xóa trên server, sẽ loại khỏi local.")
+                merged_books = {}
+                local_books = local_data.get("books", {})
+                for bid in server_ids:
+                    base = server_data.get("books", {}).get(bid, {})
+                    if bid in local_books:
+                        merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
+                    else:
+                        merged_books[bid] = base
+                server_data = dict(server_data)
+                server_data["books"] = merged_books
+                return {"username": self.wikidich_data.get("username"), "book_ids": server_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}, False
             # chỉ thêm mới, không xóa
             if additions == anchor_idx:
                 merged_books = {}
@@ -3564,6 +3580,7 @@ class WikidichMixin:
         if action == "auto_less_same_top":
             expected_removed = max(0, len(local_ids) - len(server_ids))
             missing_local = [bid for bid in local_ids if bid not in server_ids]
+            self.log(f"[Wikidich] Server ít hơn local {expected_removed} truyện, thiếu {len(missing_local)} ID trong local.")
             if len(missing_local) != expected_removed:
                 self._wd_sync_prompt(lambda: messagebox.showerror(
                     "Lỗi đối chiếu",
@@ -3601,6 +3618,7 @@ class WikidichMixin:
                 return None
             expected_removed = (len(local_ids) - len(server_ids)) + len(new_on_server)
             missing_local = [bid for bid in local_ids if bid not in server_ids]
+            self.log(f"[Wikidich] Server ít hơn local {expected_removed} truyện (kèm {len(new_on_server)} mới), thiếu {len(missing_local)} ID trong local.")
             if len(missing_local) != expected_removed:
                 self._wd_sync_prompt(lambda: messagebox.showerror(
                     "Lỗi đối chiếu",
@@ -3732,6 +3750,39 @@ class WikidichMixin:
                     stop_when_found_id=stop_when_found_id
                 )
             self._wd_ensure_not_cancelled()
+            if action == "auto_more" and meta_total and stop_when_found_id and len(data.get("book_ids", []) or []) < meta_total:
+                missing_count = meta_total - len(data.get("book_ids", []) or [])
+                self.log(f"[Wikidich] Đã gặp neo nhưng vẫn thiếu {missing_count} truyện so với server.")
+                urls = self._wd_prompt_deep_add_urls(missing_count)
+                if urls:
+                    added = self._wd_fetch_deep_books_by_urls(session, urls, user_slug, proxies=proxies)
+                    if added:
+                        books = data.get("books") or {}
+                        ids = list(data.get("book_ids") or [])
+                        added_ids = []
+                        for book in added:
+                            bid = book.get("id")
+                            if not bid or bid in ids:
+                                continue
+                            ids.append(bid)
+                            books[bid] = book
+                            added_ids.append(bid)
+                        if added_ids:
+                            data["book_ids"] = ids
+                            data["books"] = books
+                            manual_ids = list(data.get("manual_added_ids") or [])
+                            for bid in added_ids:
+                                if bid not in manual_ids:
+                                    manual_ids.append(bid)
+                            if manual_ids:
+                                data["manual_added_ids"] = manual_ids
+                            self.log(f"[Wikidich] Đã thêm {len(added_ids)} truyện từ URL thủ công.")
+                        else:
+                            self.log("[Wikidich] Không có truyện mới được thêm từ URL.")
+                    else:
+                        self.log("[Wikidich] Không thêm được truyện từ URL (không có quyền hoặc lỗi).")
+                else:
+                    self.log("[Wikidich] Bỏ qua nhập URL truyện mới nằm sâu.")
             new_ids = [bid for bid in data.get("book_ids", []) if bid not in (prior_data.get("book_ids") or [])]
             delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0
             if new_ids:
@@ -5235,6 +5286,57 @@ class WikidichMixin:
             return slug
         except Exception:
             return ""
+
+    def _wd_has_manage_rights(self, flags: dict) -> bool:
+        if not isinstance(flags, dict):
+            return False
+        return bool(flags.get("poster") or flags.get("managerOwner") or flags.get("managerGuest"))
+
+    def _wd_prompt_deep_add_urls(self, missing_count: int) -> list:
+        prompt = (
+            f"Đã gặp truyện mới nhất trong local nhưng vẫn thiếu {missing_count} truyện so với server.\n"
+            "Nếu bạn vừa thêm truyện nằm sâu, hãy nhập URL (mỗi dòng 1 URL).\n"
+            "Bỏ trống để bỏ qua."
+        )
+        raw = self._wd_sync_prompt(lambda: simpledialog.askstring("Nhập URL truyện mới", prompt, parent=self))
+        if not raw:
+            return []
+        parts = re.split(r"[\\s,]+", raw.strip())
+        return [p.strip() for p in parts if p.strip()]
+
+    def _wd_fetch_deep_books_by_urls(self, session, urls: list, user_slug: str, proxies=None) -> list:
+        added = []
+        if not urls:
+            return added
+        base_url = self._wd_get_base_url()
+        for raw in urls:
+            url = self._wd_normalize_url_for_site(raw)
+            bid = self._wd_extract_book_id_from_url(url)
+            if not url or not bid:
+                self.log(f"[Wikidich] URL không hợp lệ: {raw}")
+                continue
+            book = {"id": bid, "url": url, "title": ""}
+            try:
+                updated = wikidich_ext.fetch_book_detail(
+                    session,
+                    book,
+                    user_slug,
+                    base_url=base_url,
+                    proxies=proxies,
+                    skip_chapter_count=False
+                )
+                flags = updated.get("flags") or {}
+                if not self._wd_has_manage_rights(flags):
+                    self.log(f"[Wikidich] Bỏ qua '{updated.get('title') or bid}': không có quyền (chủ/đồng quản lý).")
+                    continue
+                updated = dict(updated)
+                updated["id"] = bid
+                updated["url"] = url
+                updated["manual_added"] = True
+                added.append(updated)
+            except Exception as e:
+                self.log(f"[Wikidich] Không thể thêm truyện từ URL {raw}: {e}")
+        return added
 
     def _wd_parse_foreign_work_item(self, node, base_url: str) -> Optional[dict]:
         try:

@@ -1,0 +1,13 @@
+{
+  "id": "ihuaben",
+  "name": "Ihuaben",
+  "entry": "plugin.py",
+  "sample_url": "https://www.ihuaben.com/book/1343385.html",
+  "version": 1,
+  "author": "BaoBao",
+  "source": "https://www.ihuaben.com/",
+  "description": "Tải truyện từ Ihuaben",
+  "type": "chinese_novel",
+  "locale": "zh_CN",
+  "icon": "icon.png"
+}

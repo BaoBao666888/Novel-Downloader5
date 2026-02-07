@@ -63,6 +63,7 @@ DEFAULT_UI_SETTINGS = {
     'accent_color': '#6366f1',
     'text_color': '',
     'font_size': 10,
+    'font_family': 'Segoe UI',
     'mouse_glow': False,
     'background_image': '',
     'use_classic_theme': False

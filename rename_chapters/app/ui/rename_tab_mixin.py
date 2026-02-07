@@ -4,6 +4,8 @@ import json
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog, messagebox
 
+from typing import Optional
+
 from app.core import renamer as logic
 
 
@@ -23,6 +25,7 @@ class RenameTabMixin:
         options_frame = ttk.LabelFrame(rename_paned_window, text="2. Tùy chọn", padding="10")
         rename_paned_window.add(options_frame, weight=1)
         options_frame.columnconfigure(1, weight=1)
+        options_frame.columnconfigure(2, weight=0)
 
         # === KHU VỰC ĐƯỢC THAY ĐỔI ===
         # Frame chính cho hàng tùy chọn đầu tiên
@@ -70,24 +73,53 @@ class RenameTabMixin:
         
         ttk.Label(options_frame, text="Cấu trúc mới:").grid(row=1, column=0, sticky="w", padx=5, pady=(10, 5))
         self.format_combobox = ttk.Combobox(options_frame, values=["Chương {num} - {title}.txt"])
-        self.format_combobox.grid(row=1, column=1, columnspan=2, sticky="we", padx=5)
+        self.format_combobox.grid(row=1, column=1, sticky="we", padx=5)
         self.format_combobox.set("Chương {num} - {title}.txt")
         self.format_combobox.bind("<KeyRelease>", self.schedule_preview_update)
+        self.rename_adv_btn = ttk.Button(options_frame, text="Nâng cao", command=self._toggle_rename_advanced)
+        self.rename_adv_btn.grid(row=1, column=2, sticky="e", padx=(0, 5))
         ttk.Label(options_frame, text="(Dùng {num}, {title}, và {num + n} hoặc {num - n})").grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
         
-        ttk.Label(options_frame, text="Regex (tên file):").grid(row=3, column=0, sticky="nw", padx=5, pady=(10, 5))
+        self.filename_regex_label = ttk.Label(options_frame, text="Regex (tên file):")
+        self.filename_regex_label.grid(row=3, column=0, sticky="nw", padx=5, pady=(10, 5))
         self.filename_regex_text = tk.Text(options_frame, height=2, wrap=tk.WORD, undo=True)
         self.filename_regex_text.grid(row=3, column=1, sticky="we", padx=5)
         self.filename_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
-        ttk.Button(options_frame, text="?", width=1, command=self.show_regex_guide).grid(row=3, column=2, sticky="n", padx=(0, 5), pady=(10, 0))
-        ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=4, column=1, sticky="w", padx=5)
+        self.filename_regex_btns = ttk.Frame(options_frame)
+        self.filename_regex_btns.grid(row=3, column=2, sticky="n", padx=(0, 5), pady=(10, 0))
+        self.filename_regex_help_btn = ttk.Button(self.filename_regex_btns, text="?", width=1, command=self.show_regex_guide)
+        self.filename_regex_help_btn.pack(side=tk.LEFT)
+        self.filename_regex_suggest_btn = ttk.Button(self.filename_regex_btns, text="Gợi ý", width=6, command=self._suggest_filename_regex)
+        self.filename_regex_suggest_btn.pack(side=tk.LEFT, padx=(4, 0))
+        self.filename_regex_hint = ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)")
+        self.filename_regex_hint.grid(row=4, column=1, sticky="w", padx=5)
 
-        ttk.Label(options_frame, text="Regex (nội dung):").grid(row=5, column=0, sticky="nw", padx=5, pady=5)
+        self.content_regex_label = ttk.Label(options_frame, text="Regex (nội dung):")
+        self.content_regex_label.grid(row=5, column=0, sticky="nw", padx=5, pady=5)
         self.content_regex_text = tk.Text(options_frame, height=2, wrap=tk.WORD, undo=True)
         self.content_regex_text.grid(row=5, column=1, sticky="we", padx=5, pady=5)
         self.content_regex_text.bind("<KeyRelease>", self.schedule_preview_update)
-        ttk.Button(options_frame, text="?", width=1, command=self.show_regex_guide).grid(row=5, column=2, sticky="n", padx=(0, 5), pady=(5, 0))
-        ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)").grid(row=6, column=1, sticky="w", padx=5)
+        self.content_regex_btns = ttk.Frame(options_frame)
+        self.content_regex_btns.grid(row=5, column=2, sticky="n", padx=(0, 5), pady=(5, 0))
+        self.content_regex_help_btn = ttk.Button(self.content_regex_btns, text="?", width=1, command=self.show_regex_guide)
+        self.content_regex_help_btn.pack(side=tk.LEFT)
+        self.content_regex_suggest_btn = ttk.Button(self.content_regex_btns, text="Gợi ý", width=6, command=self._suggest_content_regex)
+        self.content_regex_suggest_btn.pack(side=tk.LEFT, padx=(4, 0))
+        self.content_regex_hint = ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)")
+        self.content_regex_hint.grid(row=6, column=1, sticky="w", padx=5)
+
+        self._rename_adv_widgets = [
+            self.filename_regex_label,
+            self.filename_regex_text,
+            self.filename_regex_btns,
+            self.filename_regex_hint,
+            self.content_regex_label,
+            self.content_regex_text,
+            self.content_regex_btns,
+            self.content_regex_hint,
+        ]
+        self._rename_adv_visible = False
+        self._toggle_rename_advanced(force=False)
 
         # Custom title frame (giữ nguyên)
         custom_title_frame = ttk.LabelFrame(rename_paned_window, text="3. Sử dụng tiêu đề tùy chỉnh (Tùy chọn)", padding=10)
@@ -114,10 +146,15 @@ class RenameTabMixin:
         search_entry = ttk.Entry(actions_bar, textvariable=self.search_var)
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         search_entry.bind("<KeyRelease>", self._search_files)
-        ttk.Button(actions_bar, text="Xóa rác", command=self._open_junk_remover).pack(side=tk.LEFT, padx=5)
+        ttk.Button(
+            actions_bar,
+            text="Xóa rác",
+            command=lambda: self._open_junk_remover(source_label="Đổi tên", folder_path=self.folder_path.get()),
+        ).pack(side=tk.LEFT, padx=5)
         ttk.Button(actions_bar, text="Loại trừ file đã chọn", command=lambda: self._toggle_exclusion(exclude=True)).pack(side=tk.LEFT, padx=5)
         ttk.Button(actions_bar, text="Bao gồm lại", command=lambda: self._toggle_exclusion(exclude=False)).pack(side=tk.LEFT, padx=5)
         ttk.Button(actions_bar, text="BẮT ĐẦU ĐỔI TÊN", command=self.start_renaming).pack(side=tk.LEFT, padx=5)
+
         cols = ("Trạng thái", "Tên file gốc", "Số (tên file)", "Số (nội dung)", "Tên file mới")
         self.tree = ttk.Treeview(preview_frame, columns=cols, show='headings', selectmode='extended')
 
@@ -132,6 +169,249 @@ class RenameTabMixin:
         vsb = ttk.Scrollbar(preview_frame, orient="vertical", command=self.tree.yview)
         vsb.grid(row=1, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=vsb.set)
+
+    def _toggle_rename_advanced(self, force: Optional[bool] = None):
+        target = (not self._rename_adv_visible) if force is None else bool(force)
+        self._rename_adv_visible = target
+        if target:
+            for widget in self._rename_adv_widgets:
+                widget.grid()
+            self.rename_adv_btn.config(text="Ẩn nâng cao")
+        else:
+            for widget in self._rename_adv_widgets:
+                widget.grid_remove()
+            self.rename_adv_btn.config(text="Nâng cao")
+
+    def _load_regex_dataset(self) -> dict:
+        dataset_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "regex_dataset.json")
+        try:
+            with open(dataset_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def _parse_num(self, raw: str) -> Optional[int]:
+        if raw is None:
+            return None
+        raw = str(raw).strip()
+        if not raw:
+            return None
+        if raw.isdigit():
+            try:
+                return int(raw)
+            except Exception:
+                return None
+        try:
+            return logic.chinese_to_arabic(raw)
+        except Exception:
+            return None
+
+    def _looks_number_only(self, line: str, num_raw: str, title: str) -> bool:
+        if title:
+            return False
+        stripped = re.sub(r"[\\s\\-|:|｜\\|\\.\\[\\]\\(\\)【】]+", "", line)
+        return stripped == str(num_raw).strip()
+
+    def _score_regex_candidates(self, samples: list, patterns: list) -> list:
+        scored = []
+        total = len(samples)
+        if total == 0:
+            return scored
+        for pattern in patterns:
+            try:
+                regex = re.compile(pattern, re.IGNORECASE)
+            except Exception:
+                continue
+            match_count = 0
+            capture_count = 0
+            title_ok = 0
+            num_ok = 0
+            nums = []
+            noise_count = 0
+            for line in samples:
+                line = line.strip()
+                if not line:
+                    continue
+                m = regex.search(line)
+                if not m:
+                    continue
+                match_count += 1
+                if m.lastindex and m.lastindex >= 2:
+                    num_raw = m.group(1)
+                    title = (m.group(2) or "").strip()
+                    num_val = self._parse_num(num_raw)
+                    if num_val and num_val > 0:
+                        num_ok += 1
+                        nums.append(num_val)
+                    if title or self._looks_number_only(line, num_raw, title):
+                        title_ok += 1
+                    capture_count += 1
+                    if re.search(r"https?://|www\\.", title):
+                        noise_count += 1
+            if match_count == 0:
+                continue
+            match_rate = match_count / total
+            capture_rate = capture_count / match_count if match_count else 0
+            num_rate = num_ok / match_count if match_count else 0
+            title_rate = title_ok / match_count if match_count else 0
+            unique_rate = (len(set(nums)) / len(nums)) if nums else 0
+            noise_rate = noise_count / match_count if match_count else 0
+            score = 0.35 * match_rate + 0.25 * num_rate + 0.15 * title_rate + 0.15 * unique_rate - 0.10 * noise_rate
+            scored.append({
+                "pattern": pattern,
+                "score": score,
+                "match_rate": match_rate,
+                "capture_rate": capture_rate,
+                "num_rate": num_rate,
+                "title_rate": title_rate,
+                "unique_rate": unique_rate,
+            })
+        scored.sort(key=lambda x: x["score"], reverse=True)
+        return scored
+
+    def _get_candidate_patterns(self) -> list:
+        dataset = self._load_regex_dataset()
+        patterns = []
+        for item in dataset.get("patterns", []):
+            pat = item.get("regex")
+            if pat:
+                patterns.append(pat)
+        # fallback built-in
+        patterns.extend([
+            r"^第\\s*([一二三四五六七八九十百千万两零\\d]+)\\s*章\\s*[\\-:|｜\\|]*\\s*(.*)$",
+            r"^(\\d+)\\s*[\\.|\\-:|｜\\|]?\\s*(.*)$",
+            r"^\\[?(\\d+)\\]?\\s*[\\-:|｜\\|]?\\s*(.*)$",
+            r"^(\\d+)\\s+[\\-|:|｜\\|]?\\s*(.*)$",
+        ])
+        # remove duplicates
+        unique = []
+        for p in patterns:
+            if p not in unique:
+                unique.append(p)
+        return unique
+
+    def _suggest_regex_from_samples(self, samples: list) -> list:
+        patterns = self._get_candidate_patterns()
+        scored = self._score_regex_candidates(samples, patterns)
+        return scored[:3]
+
+    def _collect_filename_samples(self) -> list:
+        path = self.folder_path.get()
+        if not os.path.isdir(path):
+            return []
+        try:
+            files = [f for f in os.listdir(path) if f.lower().endswith(".txt")]
+        except Exception:
+            return []
+        samples = []
+        for filename in files:
+            samples.append(os.path.splitext(filename)[0])
+        return samples
+
+    def _collect_content_samples(self) -> list:
+        path = self.folder_path.get()
+        if not os.path.isdir(path):
+            return []
+        try:
+            files = [f for f in os.listdir(path) if f.lower().endswith(".txt")]
+        except Exception:
+            return []
+        samples = []
+        for filename in files:
+            filepath = os.path.join(path, filename)
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    line = f.readline().strip()
+                    if line:
+                        samples.append(line)
+            except Exception:
+                continue
+        return samples
+
+    def _choose_regex_from_suggestions(self, text_widget: tk.Text, suggestions: list):
+        if not suggestions:
+            messagebox.showwarning("Không có gợi ý", "Không tìm được regex phù hợp từ dữ liệu hiện tại.")
+            return
+        win = tk.Toplevel(self)
+        win.title("Chọn regex gợi ý")
+        win.geometry("760x420")
+        win.transient(self)
+        win.grab_set()
+
+        ttk.Label(win, text="Chọn 1 regex trong top 3 và xem thống kê:").pack(anchor="w", padx=10, pady=(10, 5))
+        list_frame = ttk.Frame(win)
+        list_frame.pack(fill="both", expand=True, padx=10)
+        cols = ("Regex", "Match", "Num", "Title", "Unique", "Score")
+        tree = ttk.Treeview(list_frame, columns=cols, show="headings", height=6)
+        for col, width in zip(cols, [360, 70, 70, 70, 70, 70]):
+            tree.heading(col, text=col)
+            tree.column(col, width=width, stretch=(col == "Regex"))
+        vsb = ttk.Scrollbar(list_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=vsb.set)
+        tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        list_frame.columnconfigure(0, weight=1)
+        list_frame.rowconfigure(0, weight=1)
+
+        for idx, item in enumerate(suggestions):
+            tree.insert(
+                "",
+                "end",
+                iid=str(idx),
+                values=(
+                    item["pattern"],
+                    f"{item['match_rate']:.0%}",
+                    f"{item['num_rate']:.0%}",
+                    f"{item['title_rate']:.0%}",
+                    f"{item['unique_rate']:.0%}",
+                    f"{item['score']:.2f}",
+                ),
+            )
+        if suggestions:
+            tree.selection_set("0")
+
+        btn_frame = ttk.Frame(win)
+        btn_frame.pack(fill="x", padx=10, pady=(8, 10))
+        stats_var = tk.StringVar(value="")
+        ttk.Label(btn_frame, textvariable=stats_var).pack(side=tk.LEFT, fill="x", expand=True)
+
+        def _update_stats():
+            sel = tree.selection()
+            if not sel:
+                stats_var.set("")
+                return
+            item = suggestions[int(sel[0])]
+            stats_var.set(
+                f"Match: {item['match_rate']:.0%} | Num: {item['num_rate']:.0%} | Title: {item['title_rate']:.0%} | Unique: {item['unique_rate']:.0%} | Score: {item['score']:.2f}"
+            )
+
+        def _apply():
+            sel = tree.selection()
+            if not sel:
+                return
+            item = suggestions[int(sel[0])]
+            text_widget.delete("1.0", tk.END)
+            text_widget.insert("1.0", item["pattern"])
+            self.schedule_preview_update()
+            self.log(
+                f"[Regex] Chọn regex: {item['pattern']} | Match {item['match_rate']:.0%}, Num {item['num_rate']:.0%}, Title {item['title_rate']:.0%}"
+            )
+            win.destroy()
+
+        tree.bind("<<TreeviewSelect>>", lambda _e: _update_stats())
+        _update_stats()
+        ttk.Button(btn_frame, text="Chọn", command=_apply).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="Đóng", command=win.destroy).pack(side=tk.RIGHT, padx=(0, 6))
+
+    def _suggest_filename_regex(self):
+        samples = self._collect_filename_samples()
+        suggestions = self._suggest_regex_from_samples(samples)
+        self._choose_regex_from_suggestions(self.filename_regex_text, suggestions)
+
+    def _suggest_content_regex(self):
+        samples = self._collect_content_samples()
+        suggestions = self._suggest_regex_from_samples(samples)
+        self._choose_regex_from_suggestions(self.content_regex_text, suggestions)
 
     # ==== Logic cho tab Đổi Tên ====
     def select_folder(self):
@@ -527,204 +807,3 @@ class RenameTabMixin:
         ttk.Button(btns, text="Lưu", command=_apply).pack(side=tk.RIGHT)
         ttk.Button(btns, text="Hủy", command=win.destroy).pack(side=tk.RIGHT, padx=(0, 8))
 
-    # =========================================================================
-    # JUNK REMOVER FEATURE
-    # =========================================================================
-
-    def _open_junk_remover(self):
-        """Mở dialog công cụ xóa rác."""
-        dialog = tk.Toplevel(self)
-        dialog.title("Công cụ Xóa Rác")
-        dialog.geometry("600x500")
-
-        # Variables
-        scope_var = tk.StringVar(value="all")
-        mode_var = tk.StringVar(value="string")
-        match_var = tk.StringVar(value="exact")
-        
-        # UI Layout
-        # 1. Options Frame
-        opts_frame = ttk.LabelFrame(dialog, text="Tùy chọn", padding=10)
-        opts_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        # Scope
-        ttk.Label(opts_frame, text="Phạm vi:").grid(row=0, column=0, sticky="w", padx=5)
-        ttk.Radiobutton(opts_frame, text="Tất cả file", variable=scope_var, value="all").grid(row=0, column=1, sticky="w")
-        ttk.Radiobutton(opts_frame, text="File đang chọn", variable=scope_var, value="selected").grid(row=0, column=2, sticky="w")
-
-        # Mode
-        ttk.Label(opts_frame, text="Chế độ:").grid(row=1, column=0, sticky="w", padx=5)
-        ttk.Radiobutton(opts_frame, text="Chỉ xóa chuỗi", variable=mode_var, value="string").grid(row=1, column=1, sticky="w")
-        ttk.Radiobutton(opts_frame, text="Xóa cả dòng chứa chuỗi", variable=mode_var, value="line").grid(row=1, column=2, sticky="w")
-
-        # Match
-        ttk.Label(opts_frame, text="Matching:").grid(row=2, column=0, sticky="w", padx=5)
-        ttk.Radiobutton(opts_frame, text="Chính xác (Exact)", variable=match_var, value="exact").grid(row=2, column=1, sticky="w")
-        ttk.Radiobutton(opts_frame, text="Regex", variable=match_var, value="regex").grid(row=2, column=2, sticky="w")
-
-        # 2. Pattern Input
-        pat_frame = ttk.LabelFrame(dialog, text="Nội dung cần xóa (Mỗi dòng một pattern)", padding=10)
-        pat_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-
-        pattern_text = tk.Text(pat_frame, height=10)
-        pattern_text.pack(fill=tk.BOTH, expand=True)
-
-        # Load saved patterns
-        saved_patterns = self._load_junk_patterns()
-        if saved_patterns:
-            pattern_text.insert("1.0", "\n".join(saved_patterns))
-
-        # 3. Actions
-        btn_frame = ttk.Frame(dialog, padding=10)
-        btn_frame.pack(fill=tk.X)
-
-        # Warning Label
-        warning_lbl = ttk.Label(dialog, text="", foreground="red", wraplength=550)
-        warning_lbl.pack(pady=(0, 5))
-
-        def update_warning(*args):
-             if mode_var.get() == "line" and match_var.get() == "regex":
-                 warning_lbl.config(text="⚠️ Cẩn thận: Chế độ 'Regex' + 'Xóa cả dòng' có thể xóa nhầm nhiều nội dung nếu pattern quá rộng (ví dụ match cả dòng trắng). Hãy kiểm tra kỹ Regex!")
-             else:
-                 warning_lbl.config(text="")
-        
-        mode_var.trace_add("write", update_warning)
-        match_var.trace_add("write", update_warning)
-        update_warning()
-
-        def on_apply():
-            raw_patterns = pattern_text.get("1.0", tk.END).strip().split('\n')
-            patterns = [p for p in raw_patterns if p.strip()]
-            if not patterns:
-                messagebox.showwarning("Cảnh báo", "Vui lòng nhập ít nhất một pattern!", parent=dialog)
-                return
-            
-            # Save patterns
-            self._save_junk_patterns(patterns)
-
-            # Determine files
-            target_files = []
-            if scope_var.get() == "all":
-                 # Lấy tất cả file hiện có trong thư mục
-                 path = self.folder_path.get()
-                 if os.path.isdir(path):
-                     target_files = logic.get_files(path)
-            else:
-                selected_items = self.tree.selection()
-                if not selected_items:
-                    messagebox.showwarning("Cảnh báo", "Chưa chọn file nào trong bảng!", parent=dialog)
-                    return
-                # Map item ID -> file path
-                target_files = []
-                for item in selected_items:
-                    if item in self.tree_filepaths:
-                        target_files.append(self.tree_filepaths[item])
-                
-
-            if not target_files:
-                messagebox.showwarning("Cảnh báo", "Không tìm thấy file để xử lý!", parent=dialog)
-                return
-
-            # Confirm
-            msg = f"Sẽ quét {len(target_files)} file.\n" \
-                  f"Pattern: {len(patterns)} mẫu.\n" \
-                  f"Mode: {mode_var.get()}\n" \
-                  f"Match: {match_var.get()}\n\n" \
-                  "TIẾN HÀNH?"
-            if not messagebox.askyesno("Xác nhận", msg, parent=dialog):
-                return
-
-            # Execute
-            count_files, count_matches = self._remove_junk_from_files(
-                target_files, patterns, mode_var.get(), match_var.get() == "regex"
-            )
-            
-            messagebox.showinfo("Hoàn tất", f"Đã xử lý {count_files} file.\nXóa thành công {count_matches} vị trí/dòng.", parent=dialog)
-            self.log(f"Xóa rác: {count_matches} matches trong {count_files} files.")
-            
-            # Refresh preview text for opened file if any? 
-            # Currently preview logic is separate, so maybe cleaner to just close dialog.
-            # But the user might want to try other patterns.
-            # dialog.destroy()
-
-        ttk.Button(btn_frame, text="Thực hiện", command=on_apply).pack(side=tk.RIGHT)
-        ttk.Button(btn_frame, text="Đóng", command=dialog.destroy).pack(side=tk.RIGHT, padx=5)
-
-    def _remove_junk_from_files(self, files, patterns, mode, use_regex):
-        """Logic xóa rác khỏi file."""
-        count_files = 0
-        total_matches = 0
-        
-        for file_path in files:
-            if not os.path.exists(file_path):
-                continue
-            
-            try:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                
-                original_content = content
-                matches_in_file = 0
-
-                for pattern in patterns:
-                    if not pattern: continue
-                    
-                    if use_regex:
-                        try:
-                            if mode == "line":
-                                # Xóa cả dòng chứa pattern (multiline mode)
-                                # (?m) bật multiline, ^.*pattern.*$ match cả dòng
-                                regex = f'(?m)^.*{pattern}.*$\\n?'
-                                matches = len(re.findall(regex, content))
-                                content = re.sub(regex, "", content)
-                                matches_in_file += matches
-                            else:
-                                # String mode
-                                matches = len(re.findall(pattern, content))
-                                content = re.sub(pattern, "", content)
-                                matches_in_file += matches
-                        except re.error as e:
-                            print(f"Regex error: {e}") 
-                    else:
-                        # Exact match
-                        if mode == "line":
-                            lines = content.splitlines(keepends=True)
-                            new_lines = []
-                            for line in lines:
-                                if pattern in line:
-                                    matches_in_file += 1
-                                else:
-                                    new_lines.append(line)
-                            content = "".join(new_lines)
-                        else:
-                            matches = content.count(pattern)
-                            if matches > 0:
-                                content = content.replace(pattern, "")
-                                matches_in_file += matches
-
-                if content != original_content:
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                        f.write(content)
-                    count_files += 1
-                    total_matches += matches_in_file
-            
-            except Exception as e:
-                print(f"Error processing file {file_path}: {e}")
-
-        return count_files, total_matches
-
-    def _load_junk_patterns(self):
-        try:
-            if os.path.exists("junk_patterns.json"):
-                with open("junk_patterns.json", "r", encoding="utf-8") as f:
-                    return json.load(f)
-        except:
-            return []
-        return []
-
-    def _save_junk_patterns(self, patterns):
-        try:
-            with open("junk_patterns.json", "w", encoding="utf-8") as f:
-                json.dump(patterns, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print(f"Failed to save junk patterns: {e}")
