@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.3.2
+// @version      0.3.4
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -11,9 +11,10 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.3'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.4'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
+    const MAX_COVER_FILE_SIZE = 500 * 1024;
     const REQUEST_DELAY_MS = 350;
     const DEFAULT_SCORE_THRESHOLD = 0.90;
     const SCORE_FALLBACK = 0.65;
@@ -49,6 +50,15 @@
         translated: null,
         suggestions: null,
         settings: null,
+        hasFetchedData: false,
+        duplicateCheck: {
+            pending: false,
+            blocked: false,
+            runId: 0,
+            lastKey: '',
+            checked: false,
+            failed: false,
+        },
     };
     // --- UTILS ---
     function sleep(ms) {
@@ -69,6 +79,10 @@
 
     function isEditPage() {
         return /\/chinh-sua$/.test(location.pathname);
+    }
+
+    function isEmbedPage() {
+        return /\/nhung-file$/.test(location.pathname);
     }
 
     function logUi(message, type) {
@@ -1893,14 +1907,136 @@
         });
     }
 
+    function loadImageFromBlob(blob) {
+        return new Promise((resolve, reject) => {
+            const objectUrl = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                resolve(img);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                reject(new Error('Không đọc được ảnh bìa.'));
+            };
+            img.src = objectUrl;
+        });
+    }
+
+    function canvasToBlob(canvas, type, quality) {
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error('Không thể xuất ảnh sau khi tối ưu.'));
+                    return;
+                }
+                resolve(blob);
+            }, type, quality);
+        });
+    }
+
+    function mimeToExt(type) {
+        const normalized = (type || '').toLowerCase().split(';')[0].trim();
+        if (normalized === 'image/jpeg') return 'jpg';
+        if (normalized === 'image/jpg') return 'jpg';
+        if (normalized === 'image/webp') return 'webp';
+        if (normalized === 'image/png') return 'png';
+        if (normalized === 'image/gif') return 'gif';
+        return 'jpg';
+    }
+
+    async function downscaleCoverBlobIfNeeded(blob, log) {
+        if (!(blob instanceof Blob)) return blob;
+        if (blob.size <= MAX_COVER_FILE_SIZE) return blob;
+        const type = (blob.type || '').toLowerCase();
+        if (!type.startsWith('image/')) return blob;
+
+        const originalKb = Math.round(blob.size / 1024);
+        log(`Ảnh bìa ${originalKb}KB > 500KB, đang tối ưu để giữ nét...`, 'warn');
+
+        let img = null;
+        try {
+            img = await loadImageFromBlob(blob);
+        } catch (err) {
+            log('Không thể đọc ảnh để tối ưu, dùng ảnh gốc.', 'warn');
+            return blob;
+        }
+        const originalWidth = img.naturalWidth || img.width || 0;
+        const originalHeight = img.naturalHeight || img.height || 0;
+        if (!originalWidth || !originalHeight) return blob;
+
+        const minWidth = Math.max(1, Math.min(640, originalWidth));
+        const minHeight = Math.max(1, Math.min(640, originalHeight));
+        let width = originalWidth;
+        let height = originalHeight;
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        if (!ctx) return blob;
+
+        let outputType = /png|gif|bmp/i.test(type) ? 'image/webp' : (type === 'image/webp' ? 'image/webp' : 'image/jpeg');
+        let quality = outputType === 'image/png' ? undefined : 0.92;
+        let best = blob;
+
+        for (let i = 0; i < 10; i++) {
+            canvas.width = Math.max(minWidth, Math.round(width));
+            canvas.height = Math.max(minHeight, Math.round(height));
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            let candidate = null;
+            try {
+                candidate = await canvasToBlob(canvas, outputType, quality);
+            } catch {
+                break;
+            }
+            if (candidate.size < best.size) best = candidate;
+            if (candidate.size <= MAX_COVER_FILE_SIZE) {
+                const finalKb = Math.round(candidate.size / 1024);
+                log(`Đã tối ưu ảnh bìa: ${originalKb}KB -> ${finalKb}KB.`, 'ok');
+                return candidate;
+            }
+
+            const ratio = Math.sqrt(MAX_COVER_FILE_SIZE / candidate.size);
+            const scale = Math.max(0.72, Math.min(0.95, ratio * 0.98));
+            const canShrink = canvas.width > minWidth || canvas.height > minHeight;
+            if (canShrink) {
+                width = Math.max(minWidth, Math.round(canvas.width * scale));
+                height = Math.max(minHeight, Math.round(canvas.height * scale));
+                continue;
+            }
+            if (typeof quality === 'number' && quality > 0.72) {
+                quality = Math.max(0.72, quality - 0.06);
+                continue;
+            }
+            if (outputType !== 'image/jpeg') {
+                outputType = 'image/jpeg';
+                quality = 0.84;
+                continue;
+            }
+            break;
+        }
+
+        if (best.size < blob.size) {
+            const bestKb = Math.round(best.size / 1024);
+            log(`Đã tối ưu ảnh bìa xuống ${bestKb}KB (chưa dưới 500KB).`, 'warn');
+            return best;
+        }
+        log('Không thể tối ưu ảnh bìa, giữ ảnh gốc.', 'warn');
+        return blob;
+    }
+
     async function applyCover(url, log) {
         const fileInput = document.querySelector('input[type="file"][data-change="changeCoverFile"]');
         if (!fileInput || !url) return;
         try {
             log('Đang tải ảnh bìa...');
-            const blob = await fetchCoverBlob(url);
-            const type = blob.type || 'image/jpeg';
-            const ext = type.includes('/') ? type.split('/')[1] : 'jpg';
+            const sourceBlob = await fetchCoverBlob(url);
+            const blob = await downscaleCoverBlobIfNeeded(sourceBlob, log);
+            const type = blob.type || sourceBlob.type || 'image/jpeg';
+            const ext = mimeToExt(type);
             const file = new File([blob], 'cover.' + ext, { type });
             const dt = new DataTransfer();
             dt.items.add(file);
@@ -1917,33 +2053,22 @@
     // ================================================
 
     const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">🧯 Phiên bản 0.3.3 (Hotfix)</span></h2>
+<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.4</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li>🧩 <b>Chỉnh sửa vs Nhúng:</b> Loại trừ chỉ hoạt động ở <code>/chinh-sua</code>, không ảnh hưởng sang <code>/nhung-file</code>.</li>
-    <li>🌸 <b>Popup so sánh:</b> Chỉnh lại layout/độ rộng + diff văn án theo từng từ, màu dịu mắt hơn.</li>
+    <li>🧠 <b>PO18 chuẩn hơn:</b> Sửa nhận diện trạng thái <code>未完結/已完結</code>, tinh chỉnh rule giới tính (Đam/Bách/Ngôn/Đa nguyên) và diễn sinh (<code>同人/二創</code>).</li>
+    <li>📝 <b>PO18 văn án:</b> Chèn thêm dòng <code>Tags: ...</code> từ <code>book_intro_tags</code> trước khi dịch/AI.</li>
+    <li>🛡️ <b>Check trùng truyện:</b> Ở <code>/nhung-file</code> tự gọi <code>/book/check</code> (retry 3 lần), phát hiện trùng sẽ khóa <b>Áp vào form</b> + popup cảnh báo.</li>
+    <li>🔒 <b>Khóa thao tác:</b> Chỉ cho bấm <b>Recompute</b>, <b>AI</b>, <b>AI thủ công</b>, <b>Áp vào form</b> sau khi <b>Lấy dữ liệu</b> thành công.</li>
+    <li>🎬 <b>Toast mới:</b> Thêm animation thông báo cho Lấy dữ liệu / AI / AI thủ công / Áp form, hỗ trợ cả theme sáng và tối.</li>
+    <li>🖼️ <b>Tối ưu ảnh bìa:</b> Nếu > <code>500KB</code> sẽ tự giảm kích thước thông minh để giữ nét rồi mới upload.</li>
 </ul>
 
-<h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.2</h3>
-<ul style="list-style-type: none; padding-left: 0; font-size: 13px; color: #666;">
-    <li>🧚 Thêm AI thủ công (copy prompt → dán JSON).</li>
-    <li>🎨 Bổ sung trang chỉnh sửa + popup so sánh.</li>
-    <li>🛡️ Qidian giảm báo sai captcha, Ihuaben có cover HD.</li>
-</ul>
-
-<h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.1</h3>
-<ul style="list-style-type: none; padding-left: 0; font-size: 13px; color: #666;">
-    <li>🪄 Auto Tách Tên (AI trích xuất tên nhân vật/địa danh → điền "Bộ name").</li>
-    <li>🔗 Gộp tách tên + chọn tag trong 1 lần gọi AI.</li>
-    <li>🌊 Sửa lỗi status Gongzicp (Hoàn thành/Còn tiếp).</li>
-    <li>⚙️ Thêm tùy chọn Auto Tách Names trong Settings.</li>
-</ul>
-
-<h3 style="color:#ff9800; margin-top: 16px;">📦 v0.3.0</h3>
-<ul style="list-style-type: none; padding-left: 0; font-size: 13px; color: #666;">
-    <li>🌊 Trường Bội (Gongzicp): Cover HD, Tự động lọc query.</li>
-    <li>🧠 Auto Smart: Chuẩn hóa logic nhận diện.</li>
-    <li>📊 Bảng Điều Khiển: Tùy chỉnh "Hiển thị" & "Quét văn án".</li>
-    <li>✨ AI Gemini: Phân tích tag/thể loại siêu chuẩn.</li>
+<h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
+<ul style="list-style-type: none; padding-left: 0; font-size: 13px;">
+    <li><b>v0.3.3:</b> Hotfix popup so sánh + tách riêng logic loại trừ giữa <code>/chinh-sua</code> và <code>/nhung-file</code>.</li>
+    <li><b>v0.3.2:</b> Thêm AI thủ công, mở rộng hỗ trợ trang chỉnh sửa, cải thiện Qidian/Ihuaben.</li>
+    <li><b>v0.3.1:</b> Auto tách names, gộp luồng AI, nâng chất lượng nhận diện status/tag.</li>
+    <li><b>v0.3.0:</b> Nền tảng AI Gemini + bảng cấu hình nguồn + tối ưu đa nguồn dữ liệu.</li>
 </ul>`;
 
     const buildSiteDisplayList = () => SITE_RULES.map(rule => rule.label || rule.name || rule.id).filter(Boolean).join(', ');
@@ -2199,6 +2324,12 @@
             .${APP_PREFIX}btn.manual-ai { background: linear-gradient(135deg, #7e57c2, #42a5f5); color: #fff; }
             .${APP_PREFIX}btn.manual-ai-copy { background: linear-gradient(135deg, #26c6da, #26a69a); color: #fff; }
             .${APP_PREFIX}btn.manual-ai-paste { background: linear-gradient(135deg, #ff7043, #ffb74d); color: #fff; }
+            .${APP_PREFIX}btn:disabled {
+                opacity: 0.55;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
             .${APP_PREFIX}icon-btn {
                 background: rgba(255,255,255,0.8); border: 1px solid rgba(90, 100, 120, 0.2);
                 color: #4a4a6a; border-radius: 8px;
@@ -2207,6 +2338,11 @@
                 margin-right: 0; transition: all 0.2s ease;
             }
             .${APP_PREFIX}icon-btn:hover { color: #1f1f2b; background: #fff; transform: scale(1.05); }
+            .${APP_PREFIX}icon-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }
             :host([data-theme="dark"]) .${APP_PREFIX}icon-btn {
                 background: rgba(30, 41, 59, 0.85);
                 border-color: rgba(148, 163, 184, 0.25);
@@ -2514,11 +2650,85 @@
             :host([data-theme="dark"]) .${APP_PREFIX}ai-btn-color {
                 color: #b39ddb;
             }
+            #${APP_PREFIX}applyToast {
+                position: fixed;
+                left: 50%;
+                top: calc(env(safe-area-inset-top, 0px) + 14px);
+                transform: translate(-50%, -16px) scale(0.92);
+                opacity: 0;
+                z-index: 100002;
+                pointer-events: none;
+                padding: 10px 16px;
+                border-radius: 999px;
+                border: 1px solid rgba(255,255,255,0.62);
+                color: #fff;
+                font-weight: 700;
+                font-size: 13px;
+                letter-spacing: 0.15px;
+                font-family: "Be Vietnam Pro", "Nunito", "Noto Sans", "Segoe UI", Arial, sans-serif;
+                box-shadow: 0 14px 28px rgba(25, 35, 70, 0.3);
+                background: linear-gradient(135deg, #ff7eb3 0%, #7afcff 100%);
+                backdrop-filter: blur(6px);
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                transition: opacity 0.26s ease, transform 0.3s ease;
+            }
+            #${APP_PREFIX}applyToast::before {
+                content: '✦';
+                font-size: 14px;
+                animation: ${APP_PREFIX}toast-spin 1.15s linear infinite;
+            }
+            #${APP_PREFIX}applyToast.enter {
+                opacity: 1;
+                transform: translate(-50%, 0) scale(1);
+                animation: ${APP_PREFIX}toast-float 1.25s ease-in-out infinite;
+            }
+            #${APP_PREFIX}applyToast.exit {
+                opacity: 0;
+                transform: translate(-50%, -22px) scale(0.94);
+                animation: none;
+            }
+            #${APP_PREFIX}applyToast[data-state="success"] {
+                background: linear-gradient(135deg, #43a047, #26c6da);
+            }
+            #${APP_PREFIX}applyToast[data-state="success"]::before {
+                content: '✓';
+                animation: none;
+            }
+            #${APP_PREFIX}applyToast[data-state="error"] {
+                background: linear-gradient(135deg, #e53935, #ef5350);
+            }
+            #${APP_PREFIX}applyToast[data-state="error"]::before {
+                content: '!';
+                animation: none;
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}applyToast {
+                border-color: rgba(148, 163, 184, 0.35);
+                color: #f8fafc;
+                box-shadow: 0 16px 30px rgba(2, 6, 23, 0.62);
+                background: linear-gradient(135deg, #7c3aed 0%, #0ea5e9 100%);
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}applyToast[data-state="success"] {
+                background: linear-gradient(135deg, #16a34a, #0f766e);
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}applyToast[data-state="error"] {
+                background: linear-gradient(135deg, #dc2626, #be123c);
+            }
+            @keyframes ${APP_PREFIX}toast-float {
+                0%, 100% { box-shadow: 0 14px 28px rgba(25, 35, 70, 0.3); }
+                50% { box-shadow: 0 18px 34px rgba(66, 165, 245, 0.36); }
+            }
+            @keyframes ${APP_PREFIX}toast-spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
         `;
 
         shadowRoot.innerHTML = `
             <style>${css}</style>
             <button id="${APP_PREFIX}btn">AF</button>
+            <div id="${APP_PREFIX}applyToast" data-state="loading"></div>
             <div id="${APP_PREFIX}panel">
                 <div id="${APP_PREFIX}header">
                     <div id="${APP_PREFIX}header-title">
@@ -2690,6 +2900,15 @@
                     </div>
                 </div>
             </div>
+            <div id="${APP_PREFIX}duplicateModal" class="${APP_PREFIX}modal">
+                <div class="${APP_PREFIX}modal-card">
+                    <div class="${APP_PREFIX}modal-title" style="color:#c62828;">Cảnh báo truyện trùng</div>
+                    <div class="${APP_PREFIX}modal-body" id="${APP_PREFIX}duplicateBody"></div>
+                    <div class="${APP_PREFIX}modal-actions">
+                        <button id="${APP_PREFIX}duplicateClose" class="${APP_PREFIX}btn secondary">Đã hiểu</button>
+                    </div>
+                </div>
+            </div>
             ${showEditExtras ? `
             <div id="${APP_PREFIX}excludeModal" class="${APP_PREFIX}modal">
                 <div class="${APP_PREFIX}modal-card">
@@ -2741,6 +2960,9 @@
         const manualAiCopy = shadowRoot.getElementById(`${APP_PREFIX}manualAiCopy`);
         const manualAiPaste = shadowRoot.getElementById(`${APP_PREFIX}manualAiPaste`);
         const manualAiClose = shadowRoot.getElementById(`${APP_PREFIX}manualAiClose`);
+        const duplicateModal = shadowRoot.getElementById(`${APP_PREFIX}duplicateModal`);
+        const duplicateBody = shadowRoot.getElementById(`${APP_PREFIX}duplicateBody`);
+        const duplicateClose = shadowRoot.getElementById(`${APP_PREFIX}duplicateClose`);
         const excludeBtn = shadowRoot.getElementById(`${APP_PREFIX}exclude`);
         const excludeModal = shadowRoot.getElementById(`${APP_PREFIX}excludeModal`);
         const excludeList = shadowRoot.getElementById(`${APP_PREFIX}excludeList`);
@@ -2750,12 +2972,59 @@
         const diffBody = shadowRoot.getElementById(`${APP_PREFIX}diffBody`);
         const diffConfirm = shadowRoot.getElementById(`${APP_PREFIX}diffConfirm`);
         const diffCancel = shadowRoot.getElementById(`${APP_PREFIX}diffCancel`);
+        const fetchBtn = shadowRoot.getElementById(`${APP_PREFIX}fetch`);
+        const recomputeBtn = shadowRoot.getElementById(`${APP_PREFIX}recompute`);
+        const applyToast = shadowRoot.getElementById(`${APP_PREFIX}applyToast`);
 
         const domainConfig = shadowRoot.getElementById(`${APP_PREFIX}domainConfig`);
         const getDomainInputs = (id) => ({
             desc: shadowRoot.getElementById(`${APP_PREFIX}confDesc_${id}`),
             target: shadowRoot.getElementById(`${APP_PREFIX}confTarget_${id}`),
         });
+        const titleCnInput = shadowRoot.getElementById(`${APP_PREFIX}titleCn`);
+        const authorCnInput = shadowRoot.getElementById(`${APP_PREFIX}authorCn`);
+        const applyBtn = shadowRoot.getElementById(`${APP_PREFIX}apply`);
+
+        const setDataActionButtonsEnabled = (enabled) => {
+            const ready = !!enabled;
+            if (recomputeBtn) {
+                recomputeBtn.disabled = !ready;
+                recomputeBtn.title = ready ? '' : 'Hãy bấm "Lấy dữ liệu" thành công trước.';
+            }
+            if (manualAiBtn) {
+                manualAiBtn.disabled = !ready;
+                manualAiBtn.title = ready ? '' : 'Hãy bấm "Lấy dữ liệu" thành công trước.';
+            }
+            if (aiBtn) {
+                aiBtn.disabled = !ready;
+                aiBtn.title = ready ? '' : 'Hãy bấm "Lấy dữ liệu" thành công trước.';
+            }
+        };
+
+        let applyToastTimer = null;
+        const hideApplyToast = () => {
+            if (!applyToast) return;
+            applyToast.classList.remove('enter');
+            applyToast.classList.add('exit');
+        };
+        const showApplyToast = (message, stateName, autoHideMs) => {
+            if (!applyToast) return;
+            if (applyToastTimer) {
+                clearTimeout(applyToastTimer);
+                applyToastTimer = null;
+            }
+            applyToast.textContent = message || '';
+            applyToast.setAttribute('data-state', stateName || 'loading');
+            applyToast.classList.remove('exit');
+            void applyToast.offsetWidth;
+            applyToast.classList.add('enter');
+            if (autoHideMs && autoHideMs > 0) {
+                applyToastTimer = setTimeout(() => {
+                    hideApplyToast();
+                    applyToastTimer = null;
+                }, autoHideMs);
+            }
+        };
 
         const getCurrentFormValues = () => {
             const groups = state.groups || getGroupOptions();
@@ -3145,6 +3414,16 @@
                 }
             });
         }
+        if (duplicateClose && duplicateModal) {
+            duplicateClose.addEventListener('click', () => {
+                duplicateModal.style.display = 'none';
+            });
+        }
+        if (duplicateModal) {
+            duplicateModal.addEventListener('click', (ev) => {
+                if (ev.target === duplicateModal) duplicateModal.style.display = 'none';
+            });
+        }
 
         manualAiBtn.addEventListener('click', () => {
             if (!state.sourceData) {
@@ -3196,10 +3475,15 @@
                 } else {
                     text = window.prompt('Dán kết quả AI (JSON) vào đây') || '';
                 }
+                showApplyToast('AI thủ công đang xử lý...', 'loading');
                 const ok = await handleManualAiText(text, context);
-                if (ok) manualAiModal.style.display = 'none';
+                if (ok) {
+                    manualAiModal.style.display = 'none';
+                    showApplyToast('AI thủ công đã áp xong.', 'success', 1300);
+                }
             } catch (err) {
                 log('Lỗi dán kết quả AI: ' + err.message, 'error');
+                showApplyToast('AI thủ công lỗi, xem log để xử lý.', 'error', 1600);
             }
         });
         manualAiModal.addEventListener('paste', async (ev) => {
@@ -3210,10 +3494,15 @@
             const context = buildAiContext();
             if (!context) return;
             try {
+                showApplyToast('AI thủ công đang xử lý...', 'loading');
                 const ok = await handleManualAiText(text, context);
-                if (ok) manualAiModal.style.display = 'none';
+                if (ok) {
+                    manualAiModal.style.display = 'none';
+                    showApplyToast('AI thủ công đã áp xong.', 'success', 1300);
+                }
             } catch (err) {
                 log('Lỗi dán kết quả AI: ' + err.message, 'error');
+                showApplyToast('AI thủ công lỗi, xem log để xử lý.', 'error', 1600);
             }
         });
         if (excludeBtn && excludeModal) {
@@ -3668,6 +3957,7 @@ For arrays, return list of strings. If none fit, return empty array.
             const shouldExtractNames = context.shouldExtractNames;
 
             log('Đang gửi dữ liệu sang Gemini AI...', 'info');
+            showApplyToast('AI đang phân tích dữ liệu...', 'loading');
 
             const availableOptions = context.availableOptions;
             const prompt = buildAiPrompt(shouldExtractNames, availableOptions);
@@ -3678,8 +3968,10 @@ For arrays, return list of strings. If none fit, return empty array.
                 console.log('AI Result:', result);
 
                 await applyAiResult(result, shouldExtractNames, availableOptions);
+                showApplyToast('AI đã phân tích xong.', 'success', 1300);
             } catch (err) {
                 log('Lỗi AI: ' + err.message, 'error');
+                showApplyToast('AI lỗi, xem log để xử lý.', 'error', 1600);
             }
         }
 
@@ -3713,12 +4005,16 @@ For arrays, return list of strings. If none fit, return empty array.
 
         async function handleFetch() {
             logBox.innerHTML = '';
+            state.hasFetchedData = false;
+            setDataActionButtonsEnabled(false);
+            setApplyByDuplicateState();
             try {
                 if (!state.groups) state.groups = getGroupOptions();
                 const urlInput = shadowRoot.getElementById(`${APP_PREFIX}url`);
                 const sourceInfo = detectSource(urlInput.value);
                 if (!sourceInfo || !sourceInfo.id) {
                     log('URL không hợp lệ.', 'error');
+                    showApplyToast('URL không hợp lệ.', 'error', 1400);
                     return;
                 }
 
@@ -3729,10 +4025,12 @@ For arrays, return list of strings. If none fit, return empty array.
 
                 if (target === 'wiki' && !isWikidich) {
                     alert(`Trang này (${domainSetting.label}) được cấu hình chỉ lấy khi ở Wikidich.\nVui lòng vào Wikidich > Nhúng file để sử dụng.`);
+                    showApplyToast('Nguồn này chỉ dùng ở Wikidich.', 'error', 1500);
                     return;
                 }
                 if (target === 'webhong' && isWikidich) {
                     alert(`Trang này (${domainSetting.label}) được cấu hình chỉ lấy khi ở Web Hồng.\nVui lòng không dùng ở Wikidich.`);
+                    showApplyToast('Nguồn này chỉ dùng ở Web Hồng.', 'error', 1500);
                     return;
                 }
                 // ---------------------
@@ -3745,10 +4043,12 @@ For arrays, return list of strings. If none fit, return empty array.
                 let sourceData = null;
                 if (!rule || !rule.fetch || !rule.normalize) {
                     log('Nguồn chưa hỗ trợ.', 'error');
+                    showApplyToast('Nguồn chưa hỗ trợ.', 'error', 1500);
                     return;
                 }
                 const fetchLabel = rule.name ? `Đang gọi ${rule.name}...` : 'Đang gọi nguồn...';
                 log(fetchLabel);
+                showApplyToast('Đang lấy dữ liệu từ nguồn...', 'loading');
                 raw = await rule.fetch(sourceInfo.id);
                 sourceData = rule.normalize(raw);
                 const okLabel = rule.name ? `${rule.name} OK` : 'Nguồn OK';
@@ -3815,6 +4115,11 @@ For arrays, return list of strings. If none fit, return empty array.
                 fillText(`${APP_PREFIX}ending`, suggestions.ending.join(', '));
                 fillText(`${APP_PREFIX}genre`, suggestions.genre.join(', '));
                 fillText(`${APP_PREFIX}tag`, suggestions.tag.join(', '));
+                state.hasFetchedData = true;
+                setApplyByDuplicateState();
+                triggerDuplicateCheck('fetch', true);
+                setDataActionButtonsEnabled(true);
+                showApplyToast('Lấy dữ liệu hoàn tất.', 'success', 1200);
 
                 updateMatchIndicators();
                 log('Gợi ý sẵn sàng. Bạn có thể chỉnh rồi bấm "Áp vào form".', 'ok');
@@ -3826,7 +4131,11 @@ For arrays, return list of strings. If none fit, return empty array.
                 }
                 // -----------------------
             } catch (err) {
+                state.hasFetchedData = false;
+                setDataActionButtonsEnabled(false);
+                setApplyByDuplicateState();
                 log('Lỗi: ' + err.message, 'error');
+                showApplyToast('Lấy dữ liệu thất bại, xem log.', 'error', 1700);
                 console.error(err);
             }
         }
@@ -3880,43 +4189,211 @@ For arrays, return list of strings. If none fit, return empty array.
         }
 
         async function handleApply() {
-            if (!state.groups) state.groups = getGroupOptions();
-            const planned = getPlannedValues();
-            const excludes = isEditPage()
-                ? (state.excludeFields && typeof state.excludeFields === 'object' ? state.excludeFields : loadExcludedFields())
-                : {};
-
-            if (isEditPage()) {
-                const current = getCurrentFormValues();
-                const diffs = buildDiffs(current, planned, excludes);
-                const ok = await showDiffModal(diffs);
-                if (!ok) return;
+            if (!state.hasFetchedData) {
+                log('Hãy bấm "Lấy dữ liệu" thành công trước khi áp vào form.', 'warn');
+                return;
             }
-
-            if (!excludes.titleCn) setInputValue(document.getElementById('txtTitleCn'), planned.titleCn);
-            if (!excludes.authorCn) setInputValue(document.getElementById('txtAuthorCn'), planned.authorCn);
-            if (!excludes.titleVi) setInputValue(document.getElementById('txtTitleVi'), planned.titleVi);
-            if (!excludes.descVi) setInputValue(document.getElementById('txtDescVi'), planned.descVi);
-
-            if (!excludes.status) applyRadio(state.groups.status, planned.status);
-            if (!excludes.official) applyRadio(state.groups.official, planned.official);
-            if (!excludes.gender) applyRadio(state.groups.gender, planned.gender);
-
-            if (!excludes.age) applyCheckboxes(state.groups.age, planned.age || []);
-            if (!excludes.ending) applyCheckboxes(state.groups.ending, planned.ending || []);
-            if (!excludes.genre) applyCheckboxes(state.groups.genre, planned.genre || []);
-            if (!excludes.tag) applyCheckboxes(state.groups.tag, planned.tag || []);
-
-            if (!excludes.moreLink) {
-                const parts = planned.moreLink.split('|').map(v => v.trim());
-                const finalLinkDesc = parts[0] || '';
-                const finalLinkUrl = parts[1] || '';
-                setMoreLink(finalLinkDesc, finalLinkUrl);
+            if (isEmbedPage()) {
+                const checkState = state.duplicateCheck || {};
+                if (checkState.pending) {
+                    log('Đang kiểm tra trùng truyện, vui lòng đợi...', 'warn');
+                    return;
+                }
+                if (checkState.blocked) {
+                    showDuplicateWarning();
+                    log('Đã chặn áp vào form vì phát hiện truyện trùng.', 'error');
+                    return;
+                }
             }
-            if (!excludes.coverUrl) await applyCover(planned.coverUrl, log);
-            updateMatchIndicators();
-            log('Đã áp dữ liệu vào form.', 'ok');
+            try {
+                if (!state.groups) state.groups = getGroupOptions();
+                const planned = getPlannedValues();
+                const excludes = isEditPage()
+                    ? (state.excludeFields && typeof state.excludeFields === 'object' ? state.excludeFields : loadExcludedFields())
+                    : {};
+
+                if (isEditPage()) {
+                    const current = getCurrentFormValues();
+                    const diffs = buildDiffs(current, planned, excludes);
+                    const ok = await showDiffModal(diffs);
+                    if (!ok) return;
+                }
+
+                showApplyToast('Đang áp vào form...', 'loading');
+
+                if (!excludes.titleCn) setInputValue(document.getElementById('txtTitleCn'), planned.titleCn);
+                if (!excludes.authorCn) setInputValue(document.getElementById('txtAuthorCn'), planned.authorCn);
+                if (!excludes.titleVi) setInputValue(document.getElementById('txtTitleVi'), planned.titleVi);
+                if (!excludes.descVi) setInputValue(document.getElementById('txtDescVi'), planned.descVi);
+
+                if (!excludes.status) applyRadio(state.groups.status, planned.status);
+                if (!excludes.official) applyRadio(state.groups.official, planned.official);
+                if (!excludes.gender) applyRadio(state.groups.gender, planned.gender);
+
+                if (!excludes.age) applyCheckboxes(state.groups.age, planned.age || []);
+                if (!excludes.ending) applyCheckboxes(state.groups.ending, planned.ending || []);
+                if (!excludes.genre) applyCheckboxes(state.groups.genre, planned.genre || []);
+                if (!excludes.tag) applyCheckboxes(state.groups.tag, planned.tag || []);
+
+                if (!excludes.moreLink) {
+                    const parts = planned.moreLink.split('|').map(v => v.trim());
+                    const finalLinkDesc = parts[0] || '';
+                    const finalLinkUrl = parts[1] || '';
+                    setMoreLink(finalLinkDesc, finalLinkUrl);
+                }
+                if (!excludes.coverUrl) await applyCover(planned.coverUrl, log);
+                updateMatchIndicators();
+                log('Đã áp dữ liệu vào form.', 'ok');
+                showApplyToast('Áp xong, dữ liệu đã vào form.', 'success', 1300);
+            } catch (err) {
+                log('Lỗi khi áp dữ liệu: ' + err.message, 'error');
+                showApplyToast('Áp thất bại, xem log để sửa.', 'error', 1600);
+            }
         }
+
+        let duplicateCheckTimer = null;
+        const hasCjk = (text) => /[\u3400-\u9fff]/.test((text || '').toString());
+        const getDuplicateInputs = () => ({
+            titleCn: T.safeText(titleCnInput?.value || ''),
+            authorCn: T.safeText(authorCnInput?.value || ''),
+        });
+        const shouldCheckDuplicate = ({ titleCn, authorCn }) => {
+            if (!isEmbedPage()) return false;
+            if (!titleCn || !authorCn) return false;
+            return hasCjk(titleCn) && hasCjk(authorCn);
+        };
+        const setApplyByDuplicateState = () => {
+            if (!applyBtn) return;
+            if (!state.hasFetchedData) {
+                applyBtn.disabled = true;
+                applyBtn.title = 'Hãy bấm "Lấy dữ liệu" thành công trước.';
+                return;
+            }
+            if (!isEmbedPage()) {
+                applyBtn.disabled = false;
+                applyBtn.title = '';
+                return;
+            }
+            const check = state.duplicateCheck || {};
+            if (check.pending) {
+                applyBtn.disabled = true;
+                applyBtn.title = 'Đang kiểm tra truyện trùng trên server...';
+                return;
+            }
+            if (check.blocked) {
+                applyBtn.disabled = true;
+                applyBtn.title = 'Phát hiện truyện trùng. Không thể áp vào form.';
+                return;
+            }
+            applyBtn.disabled = false;
+            applyBtn.title = '';
+        };
+        const showDuplicateWarning = () => {
+            const { titleCn, authorCn } = getDuplicateInputs();
+            if (duplicateBody) {
+                duplicateBody.innerHTML = `
+                    <div style="margin-bottom:8px;">Phát hiện truyện trùng trên server, đã khóa nút <b>Áp vào form</b>.</div>
+                    <div><b>Tên gốc:</b> ${escapeHtml(titleCn)}</div>
+                    <div><b>Tác giả:</b> ${escapeHtml(authorCn)}</div>
+                    <div style="margin-top:8px; color:#b71c1c;">Vui lòng kiểm tra lại dữ liệu trước khi tiếp tục.</div>
+                `;
+            }
+            if (duplicateModal) duplicateModal.style.display = 'flex';
+        };
+        const parseDuplicateResponse = (payload) => {
+            if (payload && typeof payload === 'object') {
+                if (typeof payload?.data?.exists === 'boolean') return payload.data.exists;
+                if (typeof payload.exists === 'boolean') return payload.exists;
+            }
+            throw new Error('Dữ liệu check trùng không hợp lệ.');
+        };
+        const fetchDuplicateExists = async (titleCn, authorCn) => {
+            const url = `${location.origin}/book/check?${new URLSearchParams({ titleCn, authorCn }).toString()}`;
+            const res = await fetch(url, {
+                method: 'GET',
+                credentials: 'include',
+                cache: 'no-store',
+                headers: {
+                    'accept': '*/*',
+                    'x-requested-with': 'XMLHttpRequest',
+                    'cache-control': 'no-cache',
+                    'pragma': 'no-cache',
+                },
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const payload = await res.json();
+            return parseDuplicateResponse(payload);
+        };
+        const triggerDuplicateCheck = (reason = 'input', force = false) => {
+            if (!isEmbedPage()) return;
+            const check = state.duplicateCheck;
+            const { titleCn, authorCn } = getDuplicateInputs();
+            if (!shouldCheckDuplicate({ titleCn, authorCn })) {
+                check.pending = false;
+                check.blocked = false;
+                check.checked = false;
+                check.failed = false;
+                check.lastKey = '';
+                setApplyByDuplicateState();
+                return;
+            }
+            const currentKey = `${titleCn}|||${authorCn}`;
+            if (!force && !check.pending && check.checked && !check.failed && check.lastKey === currentKey) {
+                setApplyByDuplicateState();
+                return;
+            }
+            check.pending = true;
+            check.blocked = false;
+            check.failed = false;
+            check.checked = false;
+            check.lastKey = currentKey;
+            const runId = (check.runId || 0) + 1;
+            check.runId = runId;
+            setApplyByDuplicateState();
+            log(`Đang kiểm tra trùng truyện trên server (${reason})...`, 'info');
+
+            const doCheck = async () => {
+                const maxRetry = 3;
+                for (let attempt = 1; attempt <= maxRetry; attempt++) {
+                    if (check.runId !== runId) return;
+                    try {
+                        const exists = await fetchDuplicateExists(titleCn, authorCn);
+                        if (check.runId !== runId) return;
+                        check.pending = false;
+                        check.checked = true;
+                        check.failed = false;
+                        check.blocked = !!exists;
+                        setApplyByDuplicateState();
+                        if (exists) {
+                            log('Phát hiện truyện trùng trên server. Đã khóa nút Áp vào form.', 'error');
+                            showDuplicateWarning();
+                        } else {
+                            log('Check trùng xong: không có truyện trùng.', 'ok');
+                        }
+                        return;
+                    } catch (err) {
+                        if (check.runId !== runId) return;
+                        log(`Check trùng lỗi lần ${attempt}/3: ${err.message}`, 'warn');
+                        if (attempt < maxRetry) await sleep(500);
+                    }
+                }
+                if (check.runId !== runId) return;
+                check.pending = false;
+                check.checked = false;
+                check.failed = true;
+                check.blocked = false;
+                setApplyByDuplicateState();
+                log('Check trùng thất bại sau 3 lần, cho phép Áp vào form.', 'warn');
+            };
+            doCheck();
+        };
+        const scheduleDuplicateCheck = (reason = 'input') => {
+            if (!isEmbedPage()) return;
+            if (duplicateCheckTimer) clearTimeout(duplicateCheckTimer);
+            duplicateCheckTimer = setTimeout(() => {
+                triggerDuplicateCheck(reason);
+            }, 450);
+        };
 
         let dragging = false;
         let dragMoved = false;
@@ -4065,11 +4542,21 @@ For arrays, return list of strings. If none fit, return empty array.
         });
 
 
-        shadowRoot.getElementById(`${APP_PREFIX}fetch`).addEventListener('click', handleFetch);
-        shadowRoot.getElementById(`${APP_PREFIX}recompute`).addEventListener('click', handleRecompute);
-        shadowRoot.getElementById(`${APP_PREFIX}apply`).addEventListener('click', handleApply);
+        if (fetchBtn) fetchBtn.addEventListener('click', handleFetch);
+        if (recomputeBtn) recomputeBtn.addEventListener('click', handleRecompute);
+        if (applyBtn) applyBtn.addEventListener('click', handleApply);
         panel.addEventListener('input', updateMatchIndicators);
         panel.addEventListener('change', updateMatchIndicators);
+        if (titleCnInput) {
+            titleCnInput.addEventListener('input', () => scheduleDuplicateCheck('input'));
+            titleCnInput.addEventListener('change', () => scheduleDuplicateCheck('change'));
+        }
+        if (authorCnInput) {
+            authorCnInput.addEventListener('input', () => scheduleDuplicateCheck('input'));
+            authorCnInput.addEventListener('change', () => scheduleDuplicateCheck('change'));
+        }
+        setDataActionButtonsEnabled(false);
+        setApplyByDuplicateState();
 
         const last = GM_getValue(`${APP_PREFIX}last_url`, '');
         if (last) shadowRoot.getElementById(`${APP_PREFIX}url`).value = last;
