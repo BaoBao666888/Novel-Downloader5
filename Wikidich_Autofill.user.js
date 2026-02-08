@@ -850,8 +850,11 @@
             ]);
             let intro = introHtml ? T.htmlToText(introHtml) : '';
 
-            const tagTexts = D.collectTexts(doc, [
+            const introTagTexts = D.collectTexts(doc, [
                 '.book_intro_tags a',
+                '.book_intro_tags span',
+            ]);
+            const tagTexts = D.collectTexts(doc, [
                 '.book_tag a',
                 '.book_tag span',
                 '.book_tags a',
@@ -877,6 +880,7 @@
                 }
             });
 
+            if (introTagTexts.length) tags.push(...introTagTexts);
             if (tagTexts.length) tags.push(...tagTexts);
             const metaKeywords = D.queryAttr(doc, ['meta[name="keywords"]'], 'content');
             if (metaKeywords) tags.push(...T.parseTagList(metaKeywords));
@@ -894,6 +898,7 @@
                 intro,
                 coverUrl,
                 tags: Array.from(new Set(T.parseTagList(tags.join(',')))),
+                introTags: Array.from(new Set(T.parseTagList(introTagTexts.join(',')))),
                 categories: Array.from(new Set(categories)),
                 statusHint,
             };
@@ -1305,9 +1310,12 @@
     function normalizePo18Data(raw) {
         const titleCn = T.safeText(raw.title).replace(/^作品名稱[:：]\s*/i, '');
         const authorCn = T.safeText(raw.author).replace(/^作者[:：]\s*/i, '');
-        const descCn = T.safeText(raw.intro);
         const tags = T.parseTagList((raw.tags || []).join(','));
+        const introTags = T.parseTagList((raw.introTags || []).join(','));
         const categories = T.parseTagList((raw.categories || []).join(','));
+        const intro = T.safeText(raw.intro);
+        const tagLine = introTags.length ? `Tags: ${introTags.join(', ')}` : '';
+        const descCn = intro && tagLine ? `${intro}\n${tagLine}` : (intro || tagLine);
         const statusHint = T.safeText(raw.statusHint);
         return {
             sourceType: 'po18',
@@ -1619,11 +1627,13 @@
     function detectStatus(raw, textBlob) {
         const cn = T.normalizeText(textBlob + ' ' + T.safeText(raw.statusHint || ''));
         const step = T.safeText(raw.statusHint);
+        if (/未完結|未完结/i.test(step)) return 'Còn tiếp';
+        if (/已完結|已完结/i.test(step)) return 'Hoàn thành';
         if (step === '2') return 'Hoàn thành';
         if (step === '1') return 'Còn tiếp';
-        const hasDone = /hoan thanh|da xong|da hoan thanh|完结|完本|已完结/.test(cn);
+        const hasDone = /hoan thanh|da xong|da hoan thanh|完结|完本|已完结|已完結/.test(cn);
         const hasPause = /tam ngung|暂停|断更|停更/.test(cn);
-        const hasOngoing = /连载|连載|更新中|dang cap nhat|con tiep/.test(cn);
+        const hasOngoing = /连载|连載|更新中|dang cap nhat|con tiep|未完结|未完結/.test(cn);
         if (hasDone) return 'Hoàn thành';
         if (hasPause) return 'Tạm ngưng';
         if (raw.update_status === 1 || raw.isFinished === '1' || raw.is_finished === '1') return 'Hoàn thành';
@@ -1633,12 +1643,22 @@
 
     function detectOfficial(keywords) {
         const blob = T.normalizeText(keywords.join(' '));
-        if (/(dong nhan|dien sinh|衍生|同人)/.test(blob)) return 'Diễn sinh';
+        if (/(dong nhan|dien sinh|衍生|同人|二創|二创)/.test(blob)) return 'Diễn sinh';
         return 'Nguyên sang';
     }
 
-    function detectGender(keywords) {
+    function detectGender(keywords, sourceType) {
         const blob = T.normalizeText(keywords.join(' '));
+        if (sourceType === 'po18') {
+            const hasBach = /\bgl\b/.test(blob) || /\bfuta\b/.test(blob) || /百合/.test(blob);
+            const hasDam = /\bbl\b/.test(blob) || /耽美/.test(blob);
+            const hasNgon = /\bbg\b/.test(blob);
+            const picked = [hasBach, hasDam, hasNgon].filter(Boolean).length;
+            if (picked >= 2) return 'Đa nguyên';
+            if (hasBach) return 'Bách hợp';
+            if (hasDam) return 'Đam mỹ';
+            return 'Ngôn tình';
+        }
         if (/(song nam chu|双男主)/.test(blob)) return 'Đam mỹ';
         if (/(纯爱|thuan ai)/.test(blob)) return 'Đam mỹ';
         if (/(bach hop|百合|双女主)/.test(blob)) return 'Bách hợp';
@@ -1774,7 +1794,7 @@
 
         const statusLabel = detectStatus(sourceData, fullTextBlob);
         const officialLabel = detectOfficial(keywordList);
-        const genderLabel = detectGender(keywordList);
+        const genderLabel = detectGender(keywordList, sourceData?.sourceType);
 
         const boostDetect = (group, detectedLabel) => {
             if (!detectedLabel) return scoreOptions(group, contexts);
