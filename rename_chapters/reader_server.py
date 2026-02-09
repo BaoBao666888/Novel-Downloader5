@@ -16,6 +16,7 @@ import sqlite3
 import traceback
 import uuid
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -37,6 +38,12 @@ DEFAULT_UI_DIR = ROOT_DIR / "reader_ui"
 APP_CONFIG_PATH = ROOT_DIR / "config.json"
 APP_STATE_THEME_ACTIVE_KEY = "theme.active"
 APP_STATE_NAME_SET_STATE_KEY = "reader.name_set_state"
+
+# Ép MIME chuẩn cho JS module trên Windows/registry lạ để tránh trang trắng
+# (module script bị chặn nếu server trả text/plain).
+mimetypes.add_type("text/javascript", ".js")
+mimetypes.add_type("text/javascript", ".mjs")
+mimetypes.add_type("text/css", ".css")
 
 
 def _load_translator_module():
@@ -317,6 +324,13 @@ def smart_capitalize_vi(text: str) -> str:
     return value.strip()
 
 
+def normalize_vi_display_text(text: str) -> str:
+    value = normalize_newlines(text or "")
+    if not value:
+        return ""
+    return smart_capitalize_vi(value)
+
+
 NAME_PLACEHOLDER_PREFIX = "__TM_NAME_"
 
 
@@ -455,6 +469,62 @@ def local_translate_preserve_placeholders(
     return joined.strip()
 
 
+def normalize_translation_cache_source(text: str) -> str:
+    return normalize_newlines(text or "").strip()
+
+
+def split_text_for_translation_cache(text: str) -> list[tuple[str, str]]:
+    source = text or ""
+    if not source:
+        return []
+    out: list[tuple[str, str]] = []
+    for line_token in re.split(r"(\n+)", source):
+        if not line_token:
+            continue
+        if re.fullmatch(r"\n+", line_token):
+            out.append(("sep", line_token))
+            continue
+
+        consumed = 0
+        for m in re.finditer(r"[^。！？!?；;]+[。！？!?；;]?", line_token):
+            if m.start() > consumed:
+                gap = line_token[consumed : m.start()]
+                if gap:
+                    out.append(("sep", gap))
+            token = m.group(0)
+            if token:
+                out.append(("text", token))
+            consumed = m.end()
+        if consumed < len(line_token):
+            tail = line_token[consumed:]
+            if tail:
+                out.append(("sep", tail))
+    return out
+
+
+def split_space_edges(text: str) -> tuple[str, str, str]:
+    value = text or ""
+    if not value:
+        return "", "", ""
+    left_m = re.match(r"^\s*", value)
+    right_m = re.search(r"\s*$", value)
+    left = left_m.group(0) if left_m else ""
+    right = right_m.group(0) if right_m else ""
+    start = len(left)
+    end = len(value) - len(right) if right else len(value)
+    if end < start:
+        end = start
+    core = value[start:end]
+    return left, core, right
+
+
+def needs_server_translation(text: str) -> bool:
+    value = text or ""
+    if not value:
+        return False
+    return bool(re.search(r"[\u3400-\u9fff]", value) or NAME_PLACEHOLDER_PREFIX in value)
+
+
 CJK_TOKEN_RE = re.compile(r"[\u3400-\u9fff]{2,}")
 
 
@@ -491,6 +561,44 @@ def _pick_name_set_source_from_target(selected_text: str, name_set: dict[str, st
                 ratio = difflib.SequenceMatcher(None, selected_norm, opt_norm).ratio()
                 if ratio >= 0.78:
                     score = ratio
+            if score <= 0:
+                continue
+            if best is None or score > best[2]:
+                best = (source, target, score)
+    if not best:
+        return None
+    return best[0], best[1]
+
+
+def _pick_name_set_source_in_text(target_text: str, name_set: dict[str, str]) -> tuple[str, str] | None:
+    haystack = (target_text or "").strip()
+    if not haystack:
+        return None
+    haystack_low = haystack.lower()
+    haystack_norm = normalize_for_compare(haystack)
+    if not haystack_norm:
+        return None
+
+    best: tuple[str, str, float] | None = None
+    for source, target_raw in normalize_name_set(name_set).items():
+        target = str(target_raw or "").strip()
+        if not target:
+            continue
+        options = [target] + [x.strip() for x in target.split("/") if x.strip()]
+        for opt in options:
+            if not opt:
+                continue
+            opt_low = opt.lower()
+            opt_norm = normalize_for_compare(opt)
+            if not opt_norm:
+                continue
+            score = 0.0
+            if opt in haystack:
+                score = 1.0 + len(opt_norm) * 0.01
+            elif opt_low in haystack_low:
+                score = 0.98 + len(opt_norm) * 0.01
+            elif opt_norm in haystack_norm:
+                score = 0.9 + len(opt_norm) * 0.01
             if score <= 0:
                 continue
             if best is None or score > best[2]:
@@ -543,6 +651,67 @@ def _best_match_position(target_text: str, selected_text: str) -> tuple[int, int
     return best
 
 
+def _split_segments_with_positions(text: str) -> list[dict[str, Any]]:
+    source = normalize_newlines(text or "")
+    if not source:
+        return []
+    breaks = {"。", "！", "？", "!", "?", "；", ";", "\n"}
+    segments: list[dict[str, Any]] = []
+    seg_start: int | None = None
+    for idx, ch in enumerate(source):
+        if seg_start is None and not ch.isspace():
+            seg_start = idx
+        if ch not in breaks:
+            continue
+        if seg_start is None:
+            continue
+        raw_seg = source[seg_start : idx + 1].strip()
+        if raw_seg:
+            segments.append({"text": raw_seg, "start": seg_start, "end": idx + 1})
+        seg_start = None
+    if seg_start is not None:
+        raw_seg = source[seg_start:].strip()
+        if raw_seg:
+            segments.append({"text": raw_seg, "start": seg_start, "end": len(source)})
+    if not segments:
+        segments.append({"text": source, "start": 0, "end": len(source)})
+    return segments
+
+
+def _align_segment_pairs(raw_text: str, translated_text: str) -> list[dict[str, Any]]:
+    src_segments = _split_segments_with_positions(raw_text)
+    tgt_segments = _split_segments_with_positions(translated_text)
+    if not src_segments or not tgt_segments:
+        return []
+
+    pairs: list[dict[str, Any]] = []
+    src_len = len(src_segments)
+    tgt_len = len(tgt_segments)
+
+    for idx, tgt in enumerate(tgt_segments):
+        if src_len <= 1:
+            src_idx = 0
+        elif tgt_len <= 1:
+            src_idx = 0
+        else:
+            src_idx = int(round(idx * (src_len - 1) / max(1, tgt_len - 1)))
+        src_idx = max(0, min(src_idx, src_len - 1))
+        src = src_segments[src_idx]
+        pairs.append(
+            {
+                "source": src["text"],
+                "source_start": int(src["start"]),
+                "source_end": int(src["end"]),
+                "target": tgt["text"],
+                "target_start": int(tgt["start"]),
+                "target_end": int(tgt["end"]),
+                "src_index": src_idx,
+                "tgt_index": idx,
+            }
+        )
+    return pairs
+
+
 def _extract_cjk_candidates(
     raw_text: str,
     center_pos: int,
@@ -567,7 +736,13 @@ def _extract_cjk_candidates(
             return
         local_center = (start + end) // 2
         distance = abs(local_center - center)
-        score = max(0.0, 260.0 - float(distance)) + float(len(token) * 7) + float(bonus)
+        score = max(0.0, 260.0 - float(distance)) + float(bonus)
+        if 2 <= len(token) <= 4:
+            score += 55.0
+        elif len(token) <= 6:
+            score += 25.0
+        else:
+            score += 8.0
         cur = scored.get(token)
         data = {
             "source": token,
@@ -587,9 +762,9 @@ def _extract_cjk_candidates(
             if not src:
                 continue
             for m in re.finditer(re.escape(src), segment):
-                push_candidate(src, left + m.start(), left + m.end(), bonus=42.0)
+                push_candidate(src, left + m.start(), left + m.end(), bonus=120.0)
 
-    items = sorted(scored.values(), key=lambda x: (-float(x["score"]), int(x["start"])))
+    items = sorted(scored.values(), key=lambda x: (-float(x["score"]), len(str(x["source"])), int(x["start"])))
     return items[:max_items]
 
 
@@ -656,6 +831,87 @@ def map_selection_to_name_source(
             "candidates": [{"source": source_key, "score": 1.0}],
         }
 
+    selected_norm = normalize_for_compare(selected)
+    aligned_pairs = _align_segment_pairs(source_raw, source_trans)
+    if aligned_pairs:
+        best_pair: dict[str, Any] | None = None
+        best_metric = -10**9
+        for pair in aligned_pairs:
+            target_seg = str(pair.get("target") or "").strip()
+            if not target_seg:
+                continue
+            score = 0.0
+            if selected in target_seg:
+                score = 1.0
+            elif selected.lower() in target_seg.lower():
+                score = 0.95
+            elif selected_norm and selected_norm in normalize_for_compare(target_seg):
+                score = 0.9
+            else:
+                ratio = difflib.SequenceMatcher(None, selected_norm, normalize_for_compare(target_seg)).ratio() if selected_norm else 0.0
+                if ratio >= 0.56:
+                    score = ratio * 0.85
+            if score <= 0:
+                continue
+            metric = score * 1000.0 - float(len(target_seg))
+            if metric > best_metric:
+                best_metric = metric
+                best_pair = pair
+
+        # Fallback nhẹ: nếu không khớp rõ, vẫn bám vào đoạn gần nhất để tránh trả rỗng.
+        if best_pair is None and selected_norm:
+            for pair in aligned_pairs:
+                target_seg = str(pair.get("target") or "").strip()
+                if not target_seg:
+                    continue
+                ratio = difflib.SequenceMatcher(None, selected_norm, normalize_for_compare(target_seg)).ratio()
+                metric = ratio * 1000.0 - float(len(target_seg))
+                if metric > best_metric:
+                    best_metric = metric
+                    best_pair = pair
+
+        if best_pair is not None:
+            pair_target = str(best_pair.get("target") or "").strip()
+            pair_source = str(best_pair.get("source") or "").strip()
+            pair_source_start = int(best_pair["source_start"])
+            pair_source_end = int(best_pair["source_end"])
+            source_center = int((pair_source_start + pair_source_end) // 2)
+
+            # Ưu tiên cụm Trung nhỏ nhất gần vị trí user bôi đen trong đoạn Việt.
+            pair_target_norm = normalize_for_compare(pair_target)
+            selected_in_pair = normalize_for_compare(selected)
+            if pair_target_norm and selected_in_pair:
+                pidx = pair_target_norm.find(selected_in_pair)
+                if pidx >= 0:
+                    rel = (pidx + max(1, len(selected_in_pair)) * 0.5) / max(1, len(pair_target_norm))
+                    rel = max(0.0, min(1.0, rel))
+                    span = max(1, pair_source_end - pair_source_start)
+                    source_center = pair_source_start + int(round(rel * span))
+            pair_candidates = _extract_cjk_candidates(source_raw, source_center, name_set=cleaned_set, max_items=10)
+            mapped_pair = _pick_name_set_source_in_text(pair_target, cleaned_set)
+            if mapped_pair:
+                source_candidate = mapped_pair[0]
+                target_candidate = mapped_pair[1] or pair_target
+                match_type = "segment_name_set"
+            else:
+                preferred = [c for c in pair_candidates if 2 <= len(str(c.get("source") or "")) <= 4]
+                if preferred:
+                    source_candidate = preferred[0]["source"]
+                else:
+                    source_candidate = pair_candidates[0]["source"] if pair_candidates else (pair_source or "")
+                target_candidate = pair_target or selected
+                match_type = "segment_aligned"
+            return {
+                "selected_text": selected,
+                "source_candidate": source_candidate,
+                "target_candidate": target_candidate,
+                "match_type": match_type,
+                "score": float(round(max(0.0, best_metric / 1000.0), 4)),
+                "source_context": _text_snippet(source_raw, int(best_pair["source_start"]), int(best_pair["source_end"])),
+                "translated_context": _text_snippet(source_trans, int(best_pair["target_start"]), int(best_pair["target_end"])),
+                "candidates": [{"source": c["source"], "score": c["score"]} for c in pair_candidates],
+            }
+
     match_pos = _best_match_position(source_trans, selected)
     if match_pos is not None:
         tr_start, tr_end, tr_score = match_pos
@@ -667,6 +923,13 @@ def map_selection_to_name_source(
 
     candidates = _extract_cjk_candidates(source_raw, raw_center, name_set=cleaned_set, max_items=10)
     source_candidate = candidates[0]["source"] if candidates else ""
+    if not source_candidate and source_raw:
+        near = _text_snippet(source_raw, raw_center, raw_center + 1, radius=42)
+        m = re.search(r"[\u3400-\u9fff]{2,8}", near)
+        if m:
+            source_candidate = m.group(0).strip()
+        elif near:
+            source_candidate = near.strip().split()[0][:20]
     source_context = ""
     if candidates:
         source_context = _text_snippet(source_raw, int(candidates[0]["start"]), int(candidates[0]["end"]))
@@ -963,6 +1226,8 @@ class TranslationAdapter:
     active_name_set: dict[str, str] | None = None
     active_set_name: str = "Mặc định"
     name_set_version: int = 1
+    cache_lookup_batch: Callable[[list[str], str, str], dict[str, str]] | None = None
+    cache_store_batch: Callable[[list[tuple[str, str]], str, str], int] | None = None
 
     def _settings(self) -> dict[str, Any]:
         cfg = self.app_config.get("translator_settings") or {}
@@ -1049,14 +1314,88 @@ class TranslationAdapter:
                 placeholder_map,
             )
         else:
-            translated_list = translator_logic.translate_text_chunks(
-                [processed_text],
-                name_set={},
-                settings=settings,
-                update_progress_callback=None,
-                target_lang="vi",
-            )
-            translated_with_placeholders = (translated_list[0] if translated_list and translated_list[0] else processed_text)
+            trans_sig = self.translation_signature(mode=mode_norm, name_set_override=name_set_override)
+            units = split_text_for_translation_cache(processed_text)
+            if not units:
+                units = [("text", processed_text)]
+
+            resolved_core: dict[str, str] = {}
+            lookup_candidates: list[str] = []
+
+            for kind, unit in units:
+                if kind != "text":
+                    continue
+                _, core, _ = split_space_edges(unit)
+                key = normalize_translation_cache_source(core)
+                if not key:
+                    continue
+                if key in resolved_core:
+                    continue
+                if not needs_server_translation(key):
+                    resolved_core[key] = key
+                    continue
+                lookup_candidates.append(key)
+
+            uniq_lookup: list[str] = []
+            seen_lookup: set[str] = set()
+            for item in lookup_candidates:
+                if item in seen_lookup:
+                    continue
+                seen_lookup.add(item)
+                uniq_lookup.append(item)
+
+            if uniq_lookup and self.cache_lookup_batch:
+                try:
+                    cached = self.cache_lookup_batch(uniq_lookup, mode_norm, trans_sig)
+                except Exception:
+                    cached = {}
+                for src_key, trans_val in (cached or {}).items():
+                    key = normalize_translation_cache_source(src_key)
+                    val = normalize_newlines(trans_val or "")
+                    if key and val:
+                        resolved_core[key] = val
+
+            missing = [x for x in uniq_lookup if x not in resolved_core]
+            if missing:
+                translated_list = translator_logic.translate_text_chunks(
+                    missing,
+                    name_set={},
+                    settings=settings,
+                    update_progress_callback=None,
+                    target_lang="vi",
+                )
+                to_store: list[tuple[str, str]] = []
+                for idx, source_key in enumerate(missing):
+                    translated_piece = translated_list[idx] if idx < len(translated_list) else source_key
+                    translated_piece = normalize_newlines(translated_piece or "")
+                    if not translated_piece or translated_piece.startswith("[Lỗi"):
+                        translated_piece = source_key
+                    resolved_core[source_key] = translated_piece
+                    if (
+                        self.cache_store_batch
+                        and translated_piece
+                        and translated_piece != source_key
+                        and not translated_piece.startswith("[Lỗi")
+                    ):
+                        to_store.append((source_key, translated_piece))
+                if to_store and self.cache_store_batch:
+                    try:
+                        self.cache_store_batch(to_store, mode_norm, trans_sig)
+                    except Exception:
+                        pass
+
+            resolved_units: list[str] = []
+            for kind, unit in units:
+                if kind != "text":
+                    resolved_units.append(unit)
+                    continue
+                left, core, right = split_space_edges(unit)
+                key = normalize_translation_cache_source(core)
+                if not key:
+                    resolved_units.append(unit)
+                    continue
+                resolved_units.append(f"{left}{resolved_core.get(key, key)}{right}")
+            translated_with_placeholders = "".join(resolved_units) if resolved_units else processed_text
 
         translated = restore_name_placeholders(translated_with_placeholders, placeholder_map)
         translated = normalize_newlines(translated)
@@ -1158,6 +1497,21 @@ class ReaderStorage:
                     updated_at TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS translation_memory (
+                    source_hash TEXT NOT NULL,
+                    source_text TEXT NOT NULL,
+                    mode TEXT NOT NULL,
+                    trans_sig TEXT NOT NULL,
+                    translated_text TEXT NOT NULL,
+                    hit_count INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(source_hash, mode, trans_sig)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_translation_memory_lookup
+                ON translation_memory(mode, trans_sig, source_hash);
+
                 CREATE TABLE IF NOT EXISTS jobs (
                     job_id TEXT PRIMARY KEY,
                     type TEXT NOT NULL,
@@ -1233,8 +1587,105 @@ class ReaderStorage:
             return None
         path = Path(row["text_path"])
         if not path.exists():
-            return None
+            fallback = self._cache_path_for_key(cache_key)
+            if not fallback.exists():
+                return None
+            path = fallback
+            with self._connect() as conn:
+                conn.execute(
+                    "UPDATE content_cache SET text_path = ?, updated_at = ? WHERE cache_key = ?",
+                    (str(path), utc_now_iso(), cache_key),
+                )
         return decode_text_with_fallback(path.read_bytes())
+
+    def get_translation_memory_batch(self, source_texts: list[str], mode: str, trans_sig: str) -> dict[str, str]:
+        mode_norm = (mode or "server").strip().lower() or "server"
+        sig = (trans_sig or "").strip()
+        if not sig:
+            return {}
+
+        clean_keys: list[str] = []
+        seen: set[str] = set()
+        for raw in source_texts or []:
+            key = normalize_translation_cache_source(raw)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            clean_keys.append(key)
+        if not clean_keys:
+            return {}
+
+        hash_map = {key: hashlib.sha1(key.encode("utf-8", errors="ignore")).hexdigest() for key in clean_keys}
+        rows_out: dict[str, str] = {}
+        hits_to_update: list[str] = []
+
+        placeholders = ",".join("?" for _ in hash_map)
+        params: list[Any] = [mode_norm, sig, *hash_map.values()]
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT source_hash, source_text, translated_text
+                FROM translation_memory
+                WHERE mode = ? AND trans_sig = ? AND source_hash IN ({placeholders})
+                """,
+                tuple(params),
+            ).fetchall()
+            for row in rows:
+                source_text = normalize_translation_cache_source(row["source_text"])
+                translated = normalize_newlines(row["translated_text"] or "")
+                if not source_text or not translated:
+                    continue
+                if hash_map.get(source_text) != row["source_hash"]:
+                    continue
+                rows_out[source_text] = translated
+                hits_to_update.append(str(row["source_hash"]))
+
+            if hits_to_update:
+                now = utc_now_iso()
+                conn.executemany(
+                    """
+                    UPDATE translation_memory
+                    SET hit_count = hit_count + 1, updated_at = ?
+                    WHERE source_hash = ? AND mode = ? AND trans_sig = ?
+                    """,
+                    [(now, h, mode_norm, sig) for h in hits_to_update],
+                )
+        return rows_out
+
+    def set_translation_memory_batch(self, entries: list[tuple[str, str]], mode: str, trans_sig: str) -> int:
+        mode_norm = (mode or "server").strip().lower() or "server"
+        sig = (trans_sig or "").strip()
+        if not sig:
+            return 0
+        prepared: dict[str, str] = {}
+        for source_text, translated_text in entries or []:
+            source_key = normalize_translation_cache_source(source_text)
+            translated = normalize_newlines(translated_text or "")
+            if not source_key or not translated:
+                continue
+            prepared[source_key] = translated
+        if not prepared:
+            return 0
+
+        now = utc_now_iso()
+        rows = []
+        for source_key, translated in prepared.items():
+            source_hash = hashlib.sha1(source_key.encode("utf-8", errors="ignore")).hexdigest()
+            rows.append((source_hash, source_key, mode_norm, sig, translated, now, now))
+        with self._connect() as conn:
+            conn.executemany(
+                """
+                INSERT INTO translation_memory(
+                    source_hash, source_text, mode, trans_sig, translated_text, hit_count, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+                ON CONFLICT(source_hash, mode, trans_sig) DO UPDATE SET
+                    source_text = excluded.source_text,
+                    translated_text = excluded.translated_text,
+                    updated_at = excluded.updated_at
+                """,
+                rows,
+            )
+        return len(rows)
 
     def _get_app_state_value(self, key: str) -> str | None:
         with self._connect() as conn:
@@ -1475,6 +1926,8 @@ class ReaderStorage:
         output: list[dict[str, Any]] = []
         for row in rows:
             item = dict(row)
+            item["title_vi"] = normalize_vi_display_text(item.get("title_vi") or "")
+            item["author_vi"] = normalize_vi_display_text(item.get("author_vi") or "")
             item["title_display"] = item.get("title_vi") or item.get("title")
             item["author_display"] = item.get("author_vi") or item.get("author")
             item["cover_url"] = self._book_cover_url(item)
@@ -1550,18 +2003,18 @@ class ReaderStorage:
                 raw_title = (book.get("title") or "").strip()
                 vi_title = (book.get("title_vi") or "").strip()
                 if raw_title and (not vi_title):
-                    translated_title = smart_capitalize_vi(normalize_newlines(translator.translate(raw_title, mode=translate_mode)))
-                    if translated_title:
-                        conn.execute(
-                            "UPDATE books SET title_vi = ?, updated_at = ? WHERE book_id = ?",
-                            (translated_title, now, book_id),
-                        )
+                    vi_title = normalize_vi_display_text(translator.translate(raw_title, mode=translate_mode))
+                elif vi_title:
+                    vi_title = normalize_vi_display_text(vi_title)
+                if vi_title:
+                    conn.execute(
+                        "UPDATE books SET title_vi = ?, updated_at = ? WHERE book_id = ?",
+                        (vi_title, now, book_id),
+                    )
                 raw_author = (book.get("author") or "").strip()
                 vi_author = (book.get("author_vi") or "").strip()
                 if raw_author and (not vi_author):
-                    translated_author = smart_capitalize_vi(
-                        normalize_newlines(translator.translate(raw_author, mode=translate_mode))
-                    )
+                    translated_author = normalize_vi_display_text(translator.translate(raw_author, mode=translate_mode))
                     if translated_author:
                         conn.execute(
                             "UPDATE books SET author_vi = ?, updated_at = ? WHERE book_id = ?",
@@ -1575,9 +2028,12 @@ class ReaderStorage:
             for row in rows:
                 raw_title = (row["title_raw"] or "").strip()
                 vi_title = (row["title_vi"] or "").strip()
-                if not raw_title or vi_title:
+                if not raw_title and not vi_title:
                     continue
-                translated = smart_capitalize_vi(normalize_newlines(translator.translate(raw_title, mode=translate_mode)))
+                if raw_title and not vi_title:
+                    translated = normalize_vi_display_text(translator.translate(raw_title, mode=translate_mode))
+                else:
+                    translated = normalize_vi_display_text(vi_title)
                 if translated:
                     conn.execute(
                         "UPDATE chapters SET title_vi = ?, updated_at = ? WHERE chapter_id = ?",
@@ -1615,6 +2071,7 @@ class ReaderStorage:
         items = []
         for r in rows:
             rdict = dict(r)
+            rdict["title_vi"] = normalize_vi_display_text(rdict.get("title_vi") or "")
             display_title = rdict["title_vi"] if mode == "trans" and rdict.get("title_vi") else rdict["title_raw"]
             items.append(
                 {
@@ -1695,6 +2152,8 @@ class ReaderStorage:
         if not book:
             return None
         chapters = self.get_chapter_rows(book_id)
+        book["title_vi"] = normalize_vi_display_text(book.get("title_vi") or "")
+        book["author_vi"] = normalize_vi_display_text(book.get("author_vi") or "")
         book["title_display"] = book.get("title_vi") or book.get("title")
         book["author_display"] = book.get("author_vi") or book.get("author")
         book["cover_url"] = self._book_cover_url(book)
@@ -1703,8 +2162,8 @@ class ReaderStorage:
                 "chapter_id": ch["chapter_id"],
                 "chapter_order": ch["chapter_order"],
                 "title_raw": ch["title_raw"],
-                "title_vi": ch["title_vi"],
-                "title_display": ch["title_vi"] or ch["title_raw"],
+                "title_vi": normalize_vi_display_text(ch["title_vi"] or ""),
+                "title_display": normalize_vi_display_text(ch["title_vi"] or "") or ch["title_raw"],
                 "updated_at": ch["updated_at"],
                 "word_count": ch["word_count"],
                 "has_trans": bool(ch.get("trans_key")),
@@ -1773,6 +2232,8 @@ class ReaderStorage:
                 "SELECT cache_key, text_path FROM content_cache WHERE cache_key LIKE 'tr_%'"
             ).fetchall()
             conn.execute("DELETE FROM content_cache WHERE cache_key LIKE 'tr_%'")
+            tm_count = conn.execute("SELECT COUNT(1) AS c FROM translation_memory").fetchone()["c"]
+            conn.execute("DELETE FROM translation_memory")
             conn.execute("UPDATE chapters SET trans_key = NULL, trans_sig = NULL, updated_at = ?", (utc_now_iso(),))
 
         deleted_files = 0
@@ -1786,7 +2247,7 @@ class ReaderStorage:
                     deleted_files += 1
                 except Exception:
                     pass
-        return {"deleted_files": deleted_files, "bytes_deleted": bytes_deleted}
+        return {"deleted_files": deleted_files, "bytes_deleted": bytes_deleted, "tm_deleted": int(tm_count or 0)}
 
     def search(self, query: str) -> dict[str, Any]:
         key = (query or "").strip().lower()
@@ -1822,20 +2283,24 @@ class ReaderStorage:
         return {
             "books": [
                 {
-                    **dict(r),
-                    "title_display": (dict(r).get("title_vi") or dict(r).get("title")),
-                    "author_display": (dict(r).get("author_vi") or dict(r).get("author")),
-                    "cover_url": self._book_cover_url(dict(r)),
+                    **row,
+                    "title_vi": normalize_vi_display_text(row.get("title_vi") or ""),
+                    "author_vi": normalize_vi_display_text(row.get("author_vi") or ""),
+                    "title_display": normalize_vi_display_text(row.get("title_vi") or "") or row.get("title"),
+                    "author_display": normalize_vi_display_text(row.get("author_vi") or "") or row.get("author"),
+                    "cover_url": self._book_cover_url(row),
                 }
-                for r in book_rows
+                for row in (dict(r) for r in book_rows)
             ],
             "chapters": [
                 {
-                    **dict(r),
-                    "title_display": (dict(r).get("title_vi") or dict(r).get("title_raw")),
-                    "book_title_display": (dict(r).get("book_title_vi") or dict(r).get("book_title")),
+                    **row,
+                    "title_vi": normalize_vi_display_text(row.get("title_vi") or ""),
+                    "book_title_vi": normalize_vi_display_text(row.get("book_title_vi") or ""),
+                    "title_display": normalize_vi_display_text(row.get("title_vi") or "") or row.get("title_raw"),
+                    "book_title_display": normalize_vi_display_text(row.get("book_title_vi") or "") or row.get("book_title"),
                 }
-                for r in chapter_rows
+                for row in (dict(r) for r in chapter_rows)
             ],
         }
 
@@ -2030,6 +2495,8 @@ class ReaderService:
             active_name_set=active_name_set,
             active_set_name=active_set_name,
             name_set_version=int(self.name_set_state.get("version") or 1),
+            cache_lookup_batch=self.storage.get_translation_memory_batch,
+            cache_store_batch=self.storage.set_translation_memory_batch,
         )
 
     def import_file(self, filename: str, file_bytes: bytes, lang_source: str, title: str, author: str) -> dict[str, Any]:
@@ -2123,6 +2590,13 @@ class MultipartForm:
 
 class ReaderApiHandler(SimpleHTTPRequestHandler):
     server_version = "ReaderServer/1.0"
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".js": "text/javascript",
+        ".mjs": "text/javascript",
+        ".css": "text/css",
+        ".json": "application/json",
+    }
 
     def __init__(self, *args, ui_dir: Path, service: ReaderService, **kwargs):
         self.ui_dir = ui_dir
@@ -2132,6 +2606,15 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
     def log_message(self, fmt: str, *args):  # noqa: A003
         return super().log_message(fmt, *args)
 
+    def end_headers(self):  # noqa: N802
+        path = urlparse(self.path).path
+        if not path.startswith("/api/") and not path.startswith("/media/"):
+            # Tránh mismatch file mới/cũ do browser giữ cache module HTML/CSS/JS.
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+        super().end_headers()
+
     def do_GET(self):  # noqa: N802
         parsed = urlparse(self.path)
         if parsed.path.startswith("/api/"):
@@ -2139,6 +2622,16 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             return
         if parsed.path.startswith("/media/"):
             self._serve_media(parsed.path)
+            return
+        if parsed.path == "/favicon.ico":
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self.send_header("Content-Length", "0")
+            try:
+                self.end_headers()
+            except OSError as exc:
+                if self._is_client_disconnect_error(exc):
+                    return
+                raise
             return
 
         route_map = {
@@ -2183,16 +2676,28 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             data = self._handle_api(method, parsed)
             self._send_json(data, trace_id=trace_id)
         except ApiError as exc:
-            self._send_error_json(exc, trace_id=trace_id)
+            try:
+                self._send_error_json(exc, trace_id=trace_id)
+            except OSError as send_exc:
+                if self._is_client_disconnect_error(send_exc):
+                    return
+                raise
         except Exception as exc:
+            if self._is_client_disconnect_error(exc):
+                return
             details = {
                 "exception": exc.__class__.__name__,
                 "traceback": traceback.format_exc(limit=5),
             }
-            self._send_error_json(
-                ApiError(HTTPStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Lỗi hệ thống nội bộ.", details),
-                trace_id=trace_id,
-            )
+            try:
+                self._send_error_json(
+                    ApiError(HTTPStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Lỗi hệ thống nội bộ.", details),
+                    trace_id=trace_id,
+                )
+            except OSError as send_exc:
+                if self._is_client_disconnect_error(send_exc):
+                    return
+                raise
 
     def _handle_api(self, method: str, parsed):
         path = parsed.path
@@ -2582,8 +3087,12 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 "book_id": chapter["book_id"],
                 "chapter_order": chapter["chapter_order"],
                 "title_raw": chapter["title_raw"],
-                "title_vi": chapter.get("title_vi"),
-                "title": chapter["title_vi"] if mode == "trans" and chapter.get("title_vi") else chapter["title_raw"],
+                "title_vi": normalize_vi_display_text(chapter.get("title_vi") or ""),
+                "title": (
+                    normalize_vi_display_text(chapter.get("title_vi") or "")
+                    if mode == "trans" and chapter.get("title_vi")
+                    else chapter["title_raw"]
+                ),
                 "mode": "raw" if book["lang_source"] == "vi" else mode,
                 "content": text,
             }
@@ -2752,8 +3261,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.end_headers()
+            self.wfile.write(body)
+        except OSError as exc:
+            if self._is_client_disconnect_error(exc):
+                return True
+            raise
         return True
 
     def _serve_media(self, path: str):
@@ -2780,8 +3294,24 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(data)
+        try:
+            self.end_headers()
+            self.wfile.write(data)
+        except OSError as exc:
+            if self._is_client_disconnect_error(exc):
+                return
+            raise
+
+    def _is_client_disconnect_error(self, exc: BaseException) -> bool:
+        if isinstance(exc, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
+            return True
+        if not isinstance(exc, OSError):
+            return False
+        if getattr(exc, "errno", None) in {32, 104}:
+            return True
+        if getattr(exc, "winerror", None) in {10053, 10054, 10058}:
+            return True
+        return False
 
     def _send_json(self, payload: dict[str, Any], trace_id: str | None = None):
         result = dict(payload)
@@ -2792,8 +3322,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.end_headers()
+            self.wfile.write(body)
+        except OSError as exc:
+            if self._is_client_disconnect_error(exc):
+                return
+            raise
 
     def _send_error_json(self, error: ApiError, trace_id: str | None = None):
         payload = {
@@ -2807,8 +3342,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.end_headers()
+            self.wfile.write(body)
+        except OSError as exc:
+            if self._is_client_disconnect_error(exc):
+                return
+            raise
 
 
 def build_handler(ui_dir: Path, service: ReaderService):
