@@ -66,7 +66,7 @@
       root.classList.toggle("effects-paused", (settings.backgroundMotion || "on") !== "on");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=20260210-r13">
 </head>
 <body data-page="reader" class="mpa-body">
   <script>
@@ -120,6 +120,7 @@
           <button id="btn-mode-raw" class="btn btn-small" type="button"></button>
           <button id="btn-mode-trans" class="btn btn-small" type="button"></button>
           <button id="btn-translate-mode" class="btn btn-small" type="button"></button>
+          <button id="btn-reload-chapter" class="btn btn-small" type="button"></button>
           <button id="btn-open-name-editor" class="btn btn-small" type="button"></button>
           <button id="btn-fullscreen" class="btn btn-small" type="button"></button>
         </div>
@@ -238,6 +239,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260210-r13"></script>
 </body>
 </html>

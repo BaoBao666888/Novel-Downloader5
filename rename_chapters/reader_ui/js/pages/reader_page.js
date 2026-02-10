@@ -1,5 +1,5 @@
-import { initShell } from "../site_common.js";
-import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js";
+import { initShell } from "../site_common.js?v=20260210-r13";
+import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260210-r13";
 
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),
@@ -15,6 +15,7 @@ const refs = {
   btnModeRaw: document.getElementById("btn-mode-raw"),
   btnModeTrans: document.getElementById("btn-mode-trans"),
   btnTranslateMode: document.getElementById("btn-translate-mode"),
+  btnReloadChapter: document.getElementById("btn-reload-chapter"),
   btnOpenNameEditor: document.getElementById("btn-open-name-editor"),
   btnFullscreen: document.getElementById("btn-fullscreen"),
   btnPrev: document.getElementById("btn-prev"),
@@ -64,6 +65,8 @@ const refs = {
 
   selectionNameBtn: document.getElementById("selection-name-btn"),
   readerPageProgress: document.getElementById("reader-page-progress"),
+  readerHead: document.querySelector(".reader-head"),
+  readerFooter: document.querySelector(".reader-footer"),
 };
 
 const state = {
@@ -85,6 +88,7 @@ const state = {
   activeChapterController: null,
   chapterLoadSeq: 0,
   fullscreenUiTimer: null,
+  fullscreenFallback: false,
 };
 
 function effectiveMode() {
@@ -130,6 +134,26 @@ function isAbortError(error) {
 function clearChapterCache() {
   state.chapterCache.clear();
   state.chapterPending.clear();
+}
+
+function dropChapterCacheById(chapterId) {
+  const keyPrefix = `${String(chapterId || "")}::`;
+  if (!keyPrefix.trim()) return;
+  for (const key of Array.from(state.chapterCache.keys())) {
+    if (key.startsWith(keyPrefix)) state.chapterCache.delete(key);
+  }
+  for (const key of Array.from(state.chapterPending.keys())) {
+    if (key.startsWith(keyPrefix)) state.chapterPending.delete(key);
+  }
+  for (const [key, controller] of Array.from(state.prefetchControllers.entries())) {
+    if (!key.startsWith(keyPrefix)) continue;
+    try {
+      controller.abort();
+    } catch {
+      // ignore
+    }
+    state.prefetchControllers.delete(key);
+  }
 }
 
 function cancelPrefetch(exceptKeys = new Set()) {
@@ -489,7 +513,7 @@ async function loadChapter({ resetFlip = true } = {}) {
     renderToc();
     updateProgress();
     prefetchNearbyChapters();
-    if (document.fullscreenElement) {
+    if (isFullscreenActive()) {
       setFullscreenUiVisible(true, { autoHideMs: 1800 });
     }
   } catch (error) {
@@ -509,7 +533,10 @@ function openToc() {
   refs.readerTocDrawer.classList.add("open");
   refs.readerTocDrawer.setAttribute("aria-hidden", "false");
   const backdrop = document.getElementById("settings-backdrop");
-  if (backdrop) backdrop.hidden = false;
+  if (backdrop) {
+    backdrop.hidden = false;
+    backdrop.classList.add("open");
+  }
 }
 
 function closeToc() {
@@ -519,6 +546,7 @@ function closeToc() {
   const settingsDrawer = document.getElementById("settings-drawer");
   if (backdrop && (!settingsDrawer || !settingsDrawer.classList.contains("open"))) {
     backdrop.hidden = true;
+    backdrop.classList.remove("open");
   }
 }
 
@@ -1172,6 +1200,30 @@ async function goChapter(step) {
   await openChapterById(state.book.chapters[next].chapter_id, { updateHistory: true, resetFlip: true });
 }
 
+async function reloadCurrentChapter() {
+  if (!state.chapterId) return;
+  state.shell.showStatus(state.shell.t("statusReloadingChapter"));
+  try {
+    if (state.activeChapterController) {
+      try {
+        state.activeChapterController.abort();
+      } catch {
+        // ignore
+      }
+    }
+    await state.shell.api(`/api/library/chapter/${encodeURIComponent(state.chapterId)}/reload`, {
+      method: "POST",
+    });
+    dropChapterCacheById(state.chapterId);
+    await loadChapter({ resetFlip: true });
+    state.shell.showToast(state.shell.t("toastChapterReloaded"));
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
 async function goPrevAction() {
   if (currentReadingMode() !== "flip") return;
   if (!(state.flipPages.length > 1 && state.flipPageIndex > 0)) return;
@@ -1289,20 +1341,55 @@ function clearFullscreenUiTimer() {
   state.fullscreenUiTimer = null;
 }
 
+function isFullscreenActive() {
+  return Boolean(document.fullscreenElement) || state.fullscreenFallback;
+}
+
 function setFullscreenUiVisible(visible, { autoHideMs = 0 } = {}) {
   clearFullscreenUiTimer();
   document.body.classList.toggle("fullscreen-ui-visible", Boolean(visible));
+  const top = refs.readerHead;
+  const bottom = refs.readerFooter;
+  if (isFullscreenActive() && top && bottom) {
+    const applyVisible = Boolean(visible);
+    top.style.opacity = applyVisible ? "1" : "0";
+    top.style.transform = applyVisible ? "translateY(0)" : "translateY(-12px)";
+    top.style.pointerEvents = applyVisible ? "auto" : "none";
+    bottom.style.opacity = applyVisible ? "1" : "0";
+    bottom.style.transform = applyVisible ? "translateY(0)" : "translateY(12px)";
+    bottom.style.pointerEvents = applyVisible ? "auto" : "none";
+  } else {
+    if (top) {
+      top.style.opacity = "";
+      top.style.transform = "";
+      top.style.pointerEvents = "";
+    }
+    if (bottom) {
+      bottom.style.opacity = "";
+      bottom.style.transform = "";
+      bottom.style.pointerEvents = "";
+    }
+  }
   if (visible && autoHideMs > 0) {
     state.fullscreenUiTimer = window.setTimeout(() => {
       state.fullscreenUiTimer = null;
-      if (!document.fullscreenElement) return;
+      if (!isFullscreenActive()) return;
       document.body.classList.remove("fullscreen-ui-visible");
+      if (top && bottom) {
+        top.style.opacity = "0";
+        top.style.transform = "translateY(-12px)";
+        top.style.pointerEvents = "none";
+        bottom.style.opacity = "0";
+        bottom.style.transform = "translateY(12px)";
+        bottom.style.pointerEvents = "none";
+      }
     }, autoHideMs);
   }
 }
 
 function refreshFullscreenMode() {
-  const isFs = Boolean(document.fullscreenElement);
+  if (document.fullscreenElement) state.fullscreenFallback = false;
+  const isFs = isFullscreenActive();
   document.body.classList.toggle("fullscreen-reading", isFs);
   if (isFs) {
     refs.btnFullscreen.textContent = state.shell.t("fullscreenExit");
@@ -1314,27 +1401,107 @@ function refreshFullscreenMode() {
 }
 
 async function toggleFullscreenMode() {
+  if (isFullscreenActive()) {
+    state.fullscreenFallback = false;
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch {
+        // ignore
+      }
+    }
+    refreshFullscreenMode();
+    return;
+  }
+
   try {
-    if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-    else await document.exitFullscreen();
+    await document.documentElement.requestFullscreen();
   } catch {
     // ignore
   }
+  if (!document.fullscreenElement) {
+    await new Promise((resolve) => window.setTimeout(resolve, 80));
+  }
+  if (document.fullscreenElement) {
+    state.fullscreenFallback = false;
+    refreshFullscreenMode();
+    return;
+  }
+
+  // Fallback cho môi trường chặn Fullscreen API (hoặc browser từ chối).
+  state.fullscreenFallback = true;
+  refreshFullscreenMode();
+}
+
+function exitFullscreenFallback() {
+  if (!state.fullscreenFallback || document.fullscreenElement) return;
+  state.fullscreenFallback = false;
+  refreshFullscreenMode();
+}
+
+function revealFullscreenUiFromEvent(event, autoHideMs = 2200) {
+  if (!isFullscreenActive()) return;
+  setFullscreenUiVisible(true, { autoHideMs });
 }
 
 function onFullscreenContentClick(event) {
-  if (!document.fullscreenElement) return;
-  const target = event.target;
-  if (target && target.closest && target.closest("button,a,input,textarea,select,label")) return;
+  revealFullscreenUiFromEvent(event, 2200);
+}
 
-  const rect = refs.readerContentScroll.getBoundingClientRect();
-  if (!rect || rect.width <= 0 || rect.height <= 0) return;
-  const rx = (event.clientX - rect.left) / rect.width;
-  const ry = (event.clientY - rect.top) / rect.height;
-  if (rx < 0.3 || rx > 0.7 || ry < 0.3 || ry > 0.7) return;
+function onFullscreenPointerDown(event) {
+  revealFullscreenUiFromEvent(event, 2200);
+}
 
-  const nextVisible = !document.body.classList.contains("fullscreen-ui-visible");
-  setFullscreenUiVisible(nextVisible, { autoHideMs: nextVisible ? 2200 : 0 });
+function onFullscreenPointerUp(event) {
+  revealFullscreenUiFromEvent(event, 2200);
+}
+
+function onFullscreenKeydown(event) {
+  const key = String(event.key || "");
+  if (key !== "Escape") return;
+  exitFullscreenFallback();
+}
+
+function onReaderWheel(event) {
+  const mode = currentReadingMode();
+  const wrap = refs.readerContentScroll;
+  if (!wrap) return;
+
+  if (mode === "flip") {
+    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (Math.abs(delta) < 1.5) return;
+    event.preventDefault();
+    if (delta > 0) {
+      goNextAction().catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
+    } else {
+      goPrevAction().catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
+    }
+    if (isFullscreenActive()) {
+      setFullscreenUiVisible(true, { autoHideMs: 1800 });
+    }
+    return;
+  }
+
+  if (mode === "horizontal") {
+    const canScrollX = wrap.scrollWidth > wrap.clientWidth + 2;
+    if (!canScrollX) {
+      if (isFullscreenActive()) setFullscreenUiVisible(true, { autoHideMs: 1800 });
+      return;
+    }
+    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (Math.abs(delta) < 0.5) return;
+    event.preventDefault();
+    wrap.scrollLeft += delta;
+    if (isFullscreenActive()) {
+      setFullscreenUiVisible(true, { autoHideMs: 1800 });
+    }
+    return;
+  }
+
+  // vertical / hybrid: trả về native scroll để tránh chặn con lăn trên vài browser/webview.
+  if (isFullscreenActive()) {
+    setFullscreenUiVisible(true, { autoHideMs: 1800 });
+  }
 }
 
 async function init() {
@@ -1360,6 +1527,7 @@ async function init() {
   refs.btnModeRaw.textContent = state.shell.t("raw");
   refs.btnModeTrans.textContent = state.shell.t("trans");
   refs.btnTranslateMode.textContent = state.shell.t("modeServer");
+  if (refs.btnReloadChapter) refs.btnReloadChapter.textContent = state.shell.t("reloadChapter");
   refs.btnOpenNameEditor.textContent = state.shell.t("bookPrivateNames");
   refs.btnFullscreen.textContent = state.shell.t("fullscreen");
   refs.btnPrev.textContent = state.shell.t("prev");
@@ -1403,6 +1571,17 @@ async function init() {
   }
   refs.btnCloseReaderToc.addEventListener("click", closeToc);
   const backdrop = document.getElementById("settings-backdrop");
+  const settingsDrawer = document.getElementById("settings-drawer");
+  if (settingsDrawer) {
+    settingsDrawer.classList.remove("open");
+    settingsDrawer.setAttribute("aria-hidden", "true");
+  }
+  refs.readerTocDrawer.classList.remove("open");
+  refs.readerTocDrawer.setAttribute("aria-hidden", "true");
+  if (backdrop) {
+    backdrop.hidden = true;
+    backdrop.classList.remove("open");
+  }
   if (backdrop) backdrop.addEventListener("click", closeToc);
 
   refs.btnModeRaw.addEventListener("click", () => switchMode("raw"));
@@ -1415,6 +1594,13 @@ async function init() {
     await loadBook();
     await loadChapter();
   });
+  if (refs.btnReloadChapter) {
+    refs.btnReloadChapter.addEventListener("click", () => {
+      reloadCurrentChapter().catch((error) => {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      });
+    });
+  }
 
   refs.btnPrev.addEventListener("click", () => {
     goChapter(-1).catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
@@ -1437,6 +1623,15 @@ async function init() {
     state.saveTimer = window.setTimeout(() => saveProgress(), 280);
   });
   refs.readerContentScroll.addEventListener("click", onFullscreenContentClick);
+  refs.readerContentBody.addEventListener("click", onFullscreenContentClick);
+  refs.readerViewport.addEventListener("click", onFullscreenContentClick);
+  document.addEventListener("click", onFullscreenContentClick, true);
+  refs.readerContentScroll.addEventListener("wheel", onReaderWheel, { passive: false });
+  document.addEventListener("pointerdown", onFullscreenPointerDown, true);
+  document.addEventListener("pointerup", onFullscreenPointerUp, true);
+  document.addEventListener("mousedown", onFullscreenPointerDown, true);
+  document.addEventListener("mouseup", onFullscreenPointerUp, true);
+  document.addEventListener("keydown", onFullscreenKeydown, true);
 
   document.addEventListener("mouseup", () => window.setTimeout(handleSelectionButton, 10));
   document.addEventListener("touchend", () => window.setTimeout(handleSelectionButton, 10));

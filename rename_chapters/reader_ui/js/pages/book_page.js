@@ -1,5 +1,5 @@
-import { initShell } from "../site_common.js";
-import { normalizeDisplayTitle } from "../reader_text.js";
+import { initShell } from "../site_common.js?v=20260210-r13";
+import { normalizeDisplayTitle } from "../reader_text.js?v=20260210-r13";
 
 const refs = {
   bookInfoTitle: document.getElementById("book-info-title"),

@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js";
+import { t } from "../i18n.vi.js?v=20260210-r13";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -390,21 +390,29 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
 
   const settingsDrawer = qs("settings-drawer");
   const settingsBackdrop = qs("settings-backdrop");
+  const syncBackdrop = () => {
+    if (!settingsBackdrop) return;
+    const tocDrawer = qs("reader-toc-drawer");
+    const shouldOpen = Boolean(
+      (settingsDrawer && settingsDrawer.classList.contains("open"))
+      || (tocDrawer && tocDrawer.classList.contains("open"))
+    );
+    settingsBackdrop.hidden = !shouldOpen;
+    settingsBackdrop.classList.toggle("open", shouldOpen);
+  };
   const openSettings = () => {
     if (!settingsDrawer) return;
     settingsDrawer.classList.add("open");
     settingsDrawer.setAttribute("aria-hidden", "false");
-    if (settingsBackdrop) settingsBackdrop.hidden = false;
+    syncBackdrop();
   };
   const closeSettings = () => {
     if (!settingsDrawer) return;
     settingsDrawer.classList.remove("open");
     settingsDrawer.setAttribute("aria-hidden", "true");
-    if (settingsBackdrop) {
-      const tocDrawer = qs("reader-toc-drawer");
-      settingsBackdrop.hidden = !(tocDrawer && tocDrawer.classList.contains("open"));
-    }
+    syncBackdrop();
   };
+  syncBackdrop();
 
   const query = parseQuery();
   const searchInput = qs("search-input");

@@ -34,6 +34,7 @@ body {
   min-height: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  background-color: var(--bg);
 }
 
 body {
@@ -45,13 +46,14 @@ body {
     linear-gradient(135deg, var(--bg), var(--bg2));
   transition: background 0.5s ease, color 0.3s ease;
   overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 
 body.mpa-body {
   overflow-x: hidden;
   overflow-y: auto;
   min-height: 100vh;
+  overscroll-behavior-y: contain;
 }
 
 body.effect-snow {
@@ -88,6 +90,7 @@ body.panel-style-clear {
   --reader-content-alpha: 0%;
   --reader-content-alpha-scroll: 0%;
   --line: color-mix(in srgb, var(--text) 12%, transparent);
+  background: linear-gradient(135deg, var(--bg), var(--bg2));
 }
 
 body.panel-style-balanced {
@@ -290,15 +293,29 @@ body.panel-style-clear .topbar,
 body.panel-style-clear .panel,
 body.panel-style-clear .settings-drawer,
 body.panel-style-clear .reader-toc-drawer,
-body.panel-style-clear .reader-content-scroll {
+body.panel-style-clear .reader-content-scroll,
+body.panel-style-clear .reader-head,
+body.panel-style-clear .reader-footer,
+body.panel-style-clear #reader-chapter-title {
   backdrop-filter: none;
 }
 
 body.panel-style-clear .panel,
 body.panel-style-clear .book-card,
-body.panel-style-clear .reader-content-scroll {
+body.panel-style-clear .reader-content-scroll,
+body.panel-style-clear .reader-head,
+body.panel-style-clear .reader-footer,
+body.panel-style-clear #reader-chapter-title,
+body.panel-style-clear .reader-content-body,
+body.panel-style-clear .reader-viewport,
+body.panel-style-clear .reader-panel {
   background: transparent;
   box-shadow: none;
+}
+
+body.panel-style-clear .reader-head,
+body.panel-style-clear .reader-footer {
+  border-color: color-mix(in srgb, var(--line) 62%, transparent);
 }
 
 body.panel-style-clear .tab-btn,
@@ -391,6 +408,38 @@ select {
   border-radius: 12px;
   padding: 10px 12px;
   font-size: 14px;
+}
+
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  color-scheme: dark;
+  padding-right: 36px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, color-mix(in srgb, var(--text) 76%, transparent) 50%),
+    linear-gradient(135deg, color-mix(in srgb, var(--text) 76%, transparent) 50%, transparent 50%),
+    linear-gradient(to right, color-mix(in srgb, var(--line) 90%, transparent), color-mix(in srgb, var(--line) 90%, transparent));
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px),
+    calc(100% - 2.15rem) 50%;
+  background-size: 6px 6px, 6px 6px, 1px 58%;
+  background-repeat: no-repeat;
+}
+
+body.effect-snow select {
+  color-scheme: light;
+}
+
+select::-ms-expand {
+  display: none;
+}
+
+option,
+optgroup {
+  background: color-mix(in srgb, var(--surface) 94%, black 6%);
+  color: var(--text);
 }
 
 textarea {
@@ -755,6 +804,27 @@ p {
   min-height: 0;
 }
 
+body[data-page="reader"]:not(.fullscreen-reading) .reader-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  overflow: visible;
+}
+
+body[data-page="reader"] .pages,
+body[data-page="reader"] #page-reader {
+  background: transparent;
+}
+
+body[data-page="reader"]:not(.fullscreen-reading) .reader-head,
+body[data-page="reader"]:not(.fullscreen-reading) .reader-footer {
+  background: color-mix(in srgb, var(--surface) var(--panel-alpha), transparent);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  backdrop-filter: blur(9px);
+}
+
 .reader-head {
   align-items: flex-start;
 }
@@ -796,6 +866,20 @@ p {
   padding: 14px 14px 10px;
 }
 
+body[data-page="reader"]:not(.fullscreen-reading) .reader-viewport {
+  padding: 0;
+  margin: 12px 0;
+}
+
+body[data-page="reader"]:not(.fullscreen-reading) .reader-content-scroll {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
+body[data-page="reader"]:not(.fullscreen-reading) .reader-content-body {
+  background: transparent !important;
+}
+
 #reader-chapter-title {
   margin: 0 0 10px;
   font-size: clamp(23px, 2.5vw, 35px);
@@ -805,10 +889,12 @@ p {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   border-radius: 12px;
   padding: 16px;
   background: color-mix(in srgb, var(--surface-alt) var(--reader-content-alpha), transparent);
+  backdrop-filter: none;
 }
 
 .reader-viewport.reading-vertical .reader-content-scroll,
@@ -817,11 +903,13 @@ p {
   background: color-mix(in srgb, var(--surface) var(--reader-content-alpha-scroll), transparent);
 }
 
-/* Nguồn mảng xám là lớp glow radial ở body; tắt glow này cho mode cuộn */
-body[data-page="reader"].reader-mode-vertical,
-body[data-page="reader"].reader-mode-horizontal,
-body[data-page="reader"].reader-mode-hybrid {
+/* Reader page: giữ nền đồng nhất theo cài đặt panel, tránh cảm giác mờ dần không đều */
+body[data-page="reader"] {
   background: linear-gradient(135deg, var(--bg), var(--bg2));
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: 100vw 100vh;
+  overscroll-behavior-y: none;
 }
 
 .reader-content-body {
@@ -1015,9 +1103,25 @@ body[data-page="reader"].reader-mode-hybrid {
 .settings-backdrop {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--bg) 24%, transparent);
-  backdrop-filter: blur(1px);
+  background: transparent;
+  backdrop-filter: none;
   z-index: 68;
+  display: none;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.settings-backdrop[hidden] {
+  display: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+.settings-backdrop.open:not([hidden]) {
+  display: block;
+  pointer-events: auto;
+  opacity: 1;
 }
 
 body.fullscreen-reading .topbar,
@@ -1057,24 +1161,39 @@ body.fullscreen-reading .reader-content-scroll {
   min-height: calc(100vh - 40px);
 }
 
+body.fullscreen-reading.panel-style-clear #reader-chapter-title,
+body.fullscreen-reading.panel-style-clear .reader-content-scroll,
+body.fullscreen-reading.panel-style-clear .reader-head,
+body.fullscreen-reading.panel-style-clear .reader-footer {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
+body.fullscreen-reading.panel-style-clear .reader-content-body,
+body.fullscreen-reading.panel-style-clear .reader-viewport,
+body.fullscreen-reading.panel-style-clear .reader-panel {
+  background: transparent !important;
+}
+
 body.fullscreen-reading .reader-head,
 body.fullscreen-reading .reader-footer {
   position: fixed;
-  left: 0;
-  right: 0;
+  left: 12px;
+  right: 12px;
+  border-radius: 14px;
   z-index: 85;
-  background: color-mix(in srgb, var(--surface) 22%, transparent);
+  background: color-mix(in srgb, var(--surface) var(--panel-alpha), transparent);
   border-color: color-mix(in srgb, var(--line) 78%, transparent);
   backdrop-filter: blur(8px);
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 body.fullscreen-reading .reader-head {
-  top: 0;
+  top: 12px;
 }
 
 body.fullscreen-reading .reader-footer {
-  bottom: 0;
+  bottom: 12px;
 }
 
 body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-head {

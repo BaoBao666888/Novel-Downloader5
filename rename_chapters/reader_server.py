@@ -347,10 +347,11 @@ def normalize_vi_punctuation(text: str) -> str:
     for src, dst in _VI_PUNCT_REPLACEMENTS.items():
         value = value.replace(src, dst)
     value = value.replace("……", "…")
-    value = re.sub(r"\s+([,.;:!?])", r"\1", value)
+    value = re.sub(r"\s+([,.;:!?…，。！？；：、])", r"\1", value)
+    value = re.sub(r"\s+([”’)\]}>»])", r"\1", value)
     value = re.sub(r"([(\[“‘])\s+", r"\1", value)
-    value = re.sub(r"([,.;:!?])(?![\s\n”’)\]}>])", r"\1 ", value)
-    value = re.sub(r"(…)(?![\s\n”’)\]}>])", r"\1 ", value)
+    value = re.sub(r"([,.;:!?])(?![\s\n,.;:!?…，。！？；：、”’)\]}>»\"'])", r"\1 ", value)
+    value = re.sub(r"(…)(?![\s\n,.;:!?…，。！？；：、”’)\]}>»\"'])", r"\1 ", value)
     value = re.sub(r"[ \t]+\n", "\n", value)
     value = re.sub(r"\n[ \t]+", "\n", value)
     value = re.sub(r" {2,}", " ", value)
@@ -410,6 +411,18 @@ def lowercase_word_vi(word: str) -> str:
     if value[0].isdigit():
         return value
     return value.lower()
+
+
+def lowercase_first_alpha(text: str) -> str:
+    value = str(text or "")
+    if not value:
+        return ""
+    chars = list(value)
+    for i, ch in enumerate(chars):
+        if ch.isalpha():
+            chars[i] = ch.lower()
+            break
+    return "".join(chars)
 
 
 def build_incremental_hv_suggestions(source_text: str, hv_text: str) -> list[dict[str, str]]:
@@ -539,6 +552,14 @@ def restore_name_placeholders(text: str, placeholder_map: dict[str, dict[str, st
     result = text or ""
     if not result or not placeholder_map:
         return result
+
+    # Nếu translator giữ 2 placeholder liền nhau, chèn 1 khoảng trắng để tránh dính chùm name.
+    # Ví dụ: __TM_NAME_0____TM_NAME_1__ -> __TM_NAME_0__ __TM_NAME_1__
+    result = re.sub(
+        rf"({re.escape(NAME_PLACEHOLDER_PREFIX)}\d+__)(?={re.escape(NAME_PLACEHOLDER_PREFIX)}\d+__)",
+        r"\1 ",
+        result,
+    )
 
     for placeholder, data in placeholder_map.items():
         result = re.sub(re.escape(placeholder), str(data.get("target") or ""), result)
@@ -1217,7 +1238,7 @@ class TranslationAdapter:
             "mode": (mode or "server").strip().lower(),
             "active_set": str(self.active_set_name or "Mặc định"),
             "version": int(self.name_set_version or 1),
-            "text_norm_version": 6,
+            "text_norm_version": 7,
             "name_set": self._name_set_for_use(name_set_override),
         }
         raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -1345,6 +1366,15 @@ class TranslationAdapter:
         unit_map: list[dict[str, Any]] = []
         target_cursor = 0
         text_idx = 0
+        protected_name_targets = sorted(
+            {
+                str(v or "").strip()
+                for v in (name_set or {}).values()
+                if str(v or "").strip()
+            },
+            key=len,
+            reverse=True,
+        )
 
         def _prepend_space_if_needed(prev_piece: str, next_piece: str) -> str:
             if not prev_piece or not next_piece:
@@ -1353,6 +1383,11 @@ class TranslationAdapter:
                 return next_piece
             if prev_piece.endswith((" ", "\t", "\n")):
                 return next_piece
+            next_head = next_piece.lstrip()
+            if next_head:
+                no_space_before = {",", ".", ";", ":", "!", "?", "…", ")", "]", "}", "”", "’", "»", "\"", "'"}
+                if next_head[0] in no_space_before:
+                    return next_piece
             if prev_piece[-1] in {",", ".", ";", ":", "!", "?", "…"}:
                 return f" {next_piece}"
             return next_piece
@@ -1375,10 +1410,7 @@ class TranslationAdapter:
 
             restored_core = restore_name_placeholders(translated_core_with_placeholder, placeholder_map)
             restored_core = normalize_vi_punctuation(restored_core)
-            final_piece = f"{left}{restored_core}{right}"
             prev_piece = translated_parts[-1] if translated_parts else ""
-            final_piece = _prepend_space_if_needed(prev_piece, final_piece)
-            translated_parts.append(final_piece)
 
             source_info = source_unit_infos[text_idx] if text_idx < len(source_unit_infos) else {
                 "unit_index": text_idx,
@@ -1388,6 +1420,30 @@ class TranslationAdapter:
             }
             s_start = int(source_info.get("start") or 0)
             s_end = int(source_info.get("end") or 0)
+            unit_hits = [h for h in hits if int(h.get("start") or -1) < s_end and int(h.get("end") or -1) > s_start]
+
+            # Sau dấu phẩy: text thường không nên bị viết hoa chữ đầu cụm.
+            # Riêng Name riêng đã map thì giữ nguyên chữ hoa hiện có.
+            if prev_piece.rstrip().endswith((",", "，", "、")):
+                core_lstrip = restored_core.lstrip()
+                preserve_case = False
+                if core_lstrip:
+                    for hit in unit_hits:
+                        hit_target = str(hit.get("target") or "").strip()
+                        if hit_target and core_lstrip.lower().startswith(hit_target.lower()):
+                            preserve_case = True
+                            break
+                    if not preserve_case:
+                        for target_name in protected_name_targets:
+                            if core_lstrip.lower().startswith(target_name.lower()):
+                                preserve_case = True
+                                break
+                if not preserve_case:
+                    restored_core = lowercase_first_alpha(restored_core)
+
+            final_piece = f"{left}{restored_core}{right}"
+            final_piece = _prepend_space_if_needed(prev_piece, final_piece)
+            translated_parts.append(final_piece)
             unit_map.append(
                 {
                     "unit_index": int(source_info.get("unit_index") or text_idx),
@@ -1397,7 +1453,7 @@ class TranslationAdapter:
                     "source_end": s_end,
                     "target_start": target_cursor,
                     "target_end": target_cursor + len(final_piece),
-                    "name_hits": [h for h in hits if int(h.get("start") or -1) < s_end and int(h.get("end") or -1) > s_start],
+                    "name_hits": unit_hits,
                 }
             )
             target_cursor += len(final_piece)
@@ -2880,6 +2936,10 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             self._serve_media(parsed.path)
             return
         if parsed.path == "/favicon.ico":
+            favicon_path = Path(str(self.directory or "")) / "favicon.ico"
+            if favicon_path.exists():
+                super().do_GET()
+                return
             self.send_response(HTTPStatus.NO_CONTENT)
             self.send_header("Content-Length", "0")
             try:
