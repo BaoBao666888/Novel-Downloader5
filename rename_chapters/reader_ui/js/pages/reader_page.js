@@ -1445,7 +1445,16 @@ function revealFullscreenUiFromEvent(event, autoHideMs = 2200) {
 }
 
 function onFullscreenContentClick(event) {
-  revealFullscreenUiFromEvent(event, 2200);
+  if (!isFullscreenActive()) return;
+
+  // Prevent toggle if text selected
+  const sel = window.getSelection();
+  if (sel && sel.toString().trim().length > 0) return;
+
+  // Toggle visibility instead of always showing
+  const body = document.body;
+  const isVisible = body.classList.contains("fullscreen-ui-visible");
+  setFullscreenUiVisible(!isVisible, { autoHideMs: isVisible ? 0 : 2200 });
 }
 
 function onFullscreenPointerDown(event) {
@@ -1476,31 +1485,19 @@ function onReaderWheel(event) {
     } else {
       goPrevAction().catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
     }
-    if (isFullscreenActive()) {
-      setFullscreenUiVisible(true, { autoHideMs: 1800 });
-    }
     return;
   }
 
   if (mode === "horizontal") {
     const canScrollX = wrap.scrollWidth > wrap.clientWidth + 2;
     if (!canScrollX) {
-      if (isFullscreenActive()) setFullscreenUiVisible(true, { autoHideMs: 1800 });
       return;
     }
     const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
     if (Math.abs(delta) < 0.5) return;
     event.preventDefault();
     wrap.scrollLeft += delta;
-    if (isFullscreenActive()) {
-      setFullscreenUiVisible(true, { autoHideMs: 1800 });
-    }
     return;
-  }
-
-  // vertical / hybrid: trả về native scroll để tránh chặn con lăn trên vài browser/webview.
-  if (isFullscreenActive()) {
-    setFullscreenUiVisible(true, { autoHideMs: 1800 });
   }
 }
 
@@ -1519,6 +1516,8 @@ async function init() {
       }
     },
   });
+
+  if (state.shell && state.shell.hideStatus) state.shell.hideStatus();
 
   refs.readerTocTitle.textContent = state.shell.t("tocTitle");
   refs.btnCloseReaderToc.textContent = state.shell.t("close");
@@ -1622,15 +1621,16 @@ async function init() {
     clearTimeout(state.saveTimer);
     state.saveTimer = window.setTimeout(() => saveProgress(), 280);
   });
+
+  // Chỉ bắt sự kiện click vào vùng nội dung để toggle UI
   refs.readerContentScroll.addEventListener("click", onFullscreenContentClick);
   refs.readerContentBody.addEventListener("click", onFullscreenContentClick);
   refs.readerViewport.addEventListener("click", onFullscreenContentClick);
-  document.addEventListener("click", onFullscreenContentClick, true);
+
+  // Wheel: passive false để có thể preventDefault ở mode flip/horizontal
   refs.readerContentScroll.addEventListener("wheel", onReaderWheel, { passive: false });
-  document.addEventListener("pointerdown", onFullscreenPointerDown, true);
-  document.addEventListener("pointerup", onFullscreenPointerUp, true);
-  document.addEventListener("mousedown", onFullscreenPointerDown, true);
-  document.addEventListener("mouseup", onFullscreenPointerUp, true);
+
+  // Keydown: chỉ để exit fullscreen fallback
   document.addEventListener("keydown", onFullscreenKeydown, true);
 
   document.addEventListener("mouseup", () => window.setTimeout(handleSelectionButton, 10));

@@ -40,20 +40,23 @@ body {
 body {
   color: var(--text);
   font-family: "Be Vietnam Pro", "Segoe UI", Tahoma, sans-serif;
+  background-color: var(--bg);
+  transition: background 0.5s ease, color 0.3s ease;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body:not(.panel-style-clear) {
   background:
     radial-gradient(circle at 10% 5%, color-mix(in srgb, var(--glow) 20%, transparent), transparent 40%),
     radial-gradient(circle at 90% 15%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 42%),
     linear-gradient(135deg, var(--bg), var(--bg2));
-  transition: background 0.5s ease, color 0.3s ease;
-  overflow-x: hidden;
-  overflow-y: auto;
 }
 
 body.mpa-body {
   overflow-x: hidden;
   overflow-y: auto;
   min-height: 100vh;
-  overscroll-behavior-y: contain;
 }
 
 body.effect-snow {
@@ -91,6 +94,7 @@ body.panel-style-clear {
   --reader-content-alpha-scroll: 0%;
   --line: color-mix(in srgb, var(--text) 12%, transparent);
   background: linear-gradient(135deg, var(--bg), var(--bg2));
+  background-image: none;
 }
 
 body.panel-style-balanced {
@@ -236,36 +240,73 @@ body.effects-paused #fx-layer::after {
 }
 
 @keyframes twinkle {
+
   0%,
-  100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-6px) scale(1.02); }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-6px) scale(1.02);
+  }
 }
 
 @keyframes sparkle {
+
   0%,
-  100% { transform: translate3d(0, 0, 0); filter: brightness(1); }
-  50% { transform: translate3d(-10px, -8px, 0); filter: brightness(1.25); }
+  100% {
+    transform: translate3d(0, 0, 0);
+    filter: brightness(1);
+  }
+
+  50% {
+    transform: translate3d(-10px, -8px, 0);
+    filter: brightness(1.25);
+  }
 }
 
 @keyframes floatBg {
+
   0%,
-  100% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(-18px, -15px, 0); }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(-18px, -15px, 0);
+  }
 }
 
 @keyframes drift {
-  0% { transform: translateY(0) translateX(0); }
-  100% { transform: translateY(26px) translateX(-16px); }
+  0% {
+    transform: translateY(0) translateX(0);
+  }
+
+  100% {
+    transform: translateY(26px) translateX(-16px);
+  }
 }
 
 @keyframes snow {
-  0% { transform: translateY(-4%); }
-  100% { transform: translateY(7%); }
+  0% {
+    transform: translateY(-4%);
+  }
+
+  100% {
+    transform: translateY(7%);
+  }
 }
 
 @keyframes pageFlip {
-  0% { transform: perspective(800px) rotateY(7deg) scale(0.99); opacity: 0.6; }
-  100% { transform: perspective(800px) rotateY(0deg) scale(1); opacity: 1; }
+  0% {
+    transform: perspective(800px) rotateY(7deg) scale(0.99);
+    opacity: 0.6;
+  }
+
+  100% {
+    transform: perspective(800px) rotateY(0deg) scale(1);
+    opacity: 1;
+  }
 }
 
 .topbar,
@@ -889,7 +930,6 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-content-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  overscroll-behavior: contain;
   border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   border-radius: 12px;
   padding: 16px;
@@ -903,14 +943,21 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-content-body {
   background: color-mix(in srgb, var(--surface) var(--reader-content-alpha-scroll), transparent);
 }
 
-/* Reader page: giữ nền đồng nhất theo cài đặt panel, tránh cảm giác mờ dần không đều */
-body[data-page="reader"] {
+body[data-page="reader"]:not(.panel-style-clear) {
   background: linear-gradient(135deg, var(--bg), var(--bg2));
   background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: 100vw 100vh;
-  overscroll-behavior-y: none;
 }
+
+body.panel-style-clear .reader-content-scroll,
+body.panel-style-clear .reader-viewport,
+body.panel-style-clear .reader-content-body {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
 
 .reader-content-body {
   font-family: var(--reader-font-family);
@@ -973,10 +1020,7 @@ body[data-page="reader"] {
 
 .reader-viewport.reading-flip .reader-content-body.flip-dragging {
   transform:
-    perspective(1200px)
-    rotateY(calc(var(--flip-drag-x, 0) * -0.08deg))
-    rotateX(calc(var(--flip-drag-y, 0) * 0.05deg))
-    translate3d(calc(var(--flip-drag-x, 0) * 0.12px), calc(var(--flip-drag-y, 0) * 0.04px), 0);
+    perspective(1200px) rotateY(calc(var(--flip-drag-x, 0) * -0.08deg)) rotateX(calc(var(--flip-drag-y, 0) * 0.05deg)) translate3d(calc(var(--flip-drag-x, 0) * 0.12px), calc(var(--flip-drag-y, 0) * 0.04px), 0);
   transition: transform 0.04s linear;
 }
 
@@ -1118,6 +1162,11 @@ body[data-page="reader"] {
   opacity: 0 !important;
 }
 
+.settings-backdrop:not(.open) {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 .settings-backdrop.open:not([hidden]) {
   display: block;
   pointer-events: auto;
@@ -1175,6 +1224,12 @@ body.fullscreen-reading.panel-style-clear .reader-panel {
   background: transparent !important;
 }
 
+body.panel-style-clear .reader-content-scroll,
+body.panel-style-clear .reader-viewport {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
 body.fullscreen-reading .reader-head,
 body.fullscreen-reading .reader-footer {
   position: fixed;
@@ -1186,6 +1241,14 @@ body.fullscreen-reading .reader-footer {
   border-color: color-mix(in srgb, var(--line) 78%, transparent);
   backdrop-filter: blur(8px);
   transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+body.fullscreen-reading.panel-style-clear .reader-head,
+body.fullscreen-reading.panel-style-clear .reader-footer {
+  background: color-mix(in srgb, var(--surface) 85%, transparent) !important;
+  border-color: color-mix(in srgb, var(--line) 40%, transparent);
+  backdrop-filter: blur(4px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 body.fullscreen-reading .reader-head {
@@ -1218,8 +1281,8 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 }
 
 .dialog::backdrop {
-  background: color-mix(in srgb, var(--bg) 68%, transparent);
-  backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
 }
 
 .dialog form {
@@ -1399,7 +1462,9 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 }
 
 @keyframes spinStatus {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .foliate-dialog {
