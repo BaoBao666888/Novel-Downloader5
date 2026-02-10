@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Đọc truyện</title>
+  <script>
+    (() => {
+      const SETTINGS_KEY = "reader.ui.settings.v3";
+      const THEME_KEY = "reader.ui.theme.cache.v1";
+      const defaults = {
+        fontFamily: "'Noto Serif', 'Palatino Linotype', 'Times New Roman', serif",
+        fontSize: 21,
+        lineHeight: 1.9,
+        paragraphSpacing: 1.1,
+        textAlign: "justify",
+        panelTransparency: "clear",
+        starStyle: "classic",
+        backgroundMotion: "on",
+      };
+      const fallbackTheme = {
+        effect: "stars",
+        tokens: {
+          bg: "#090a1a",
+          bg2: "#111433",
+          surface: "#11162d",
+          surface_alt: "#151f42",
+          text: "#eaf2ff",
+          muted: "#8ca3d4",
+          accent: "#77b8ff",
+          glow: "#9fd0ff",
+          particle: "#ffffff",
+        },
+      };
+      const root = document.documentElement;
+      root.classList.add("theme-booting");
+      let settings = { ...defaults };
+      let theme = fallbackTheme;
+      try {
+        const rawSettings = localStorage.getItem(SETTINGS_KEY);
+        if (rawSettings) settings = { ...defaults, ...JSON.parse(rawSettings) };
+      } catch {}
+      try {
+        const rawTheme = localStorage.getItem(THEME_KEY);
+        if (rawTheme) {
+          const parsed = JSON.parse(rawTheme);
+          if (parsed && parsed.tokens) theme = parsed;
+        }
+      } catch {}
+      for (const [key, value] of Object.entries(theme.tokens || {})) {
+        root.style.setProperty(`--${String(key).split("_").join("-")}`, value);
+      }
+      root.style.setProperty("--reader-font-family", settings.fontFamily);
+      root.style.setProperty("--reader-font-size", `${settings.fontSize}px`);
+      root.style.setProperty("--reader-line-height", `${settings.lineHeight}`);
+      root.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing}em`);
+      root.style.setProperty("--reader-text-align", settings.textAlign);
+      const effects = ["effect-stars", "effect-sparkle", "effect-bubbles", "effect-leaves", "effect-snow"];
+      const stars = ["star-style-classic", "star-style-dense", "star-style-bling"];
+      const panelStyles = ["panel-style-clear", "panel-style-balanced", "panel-style-solid"];
+      root.classList.remove(...effects, ...stars);
+      root.classList.add(`effect-${theme.effect || "stars"}`);
+      root.classList.add(`star-style-${settings.starStyle || "classic"}`);
+      root.classList.remove(...panelStyles);
+      root.classList.add(`panel-style-${settings.panelTransparency || "clear"}`);
+      root.classList.toggle("effects-paused", (settings.backgroundMotion || "on") !== "on");
+    })();
+  </script>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body data-page="reader" class="mpa-body">
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const body = document.body;
+      const effects = ["effect-stars", "effect-sparkle", "effect-bubbles", "effect-leaves", "effect-snow"];
+      const stars = ["star-style-classic", "star-style-dense", "star-style-bling"];
+      const panelStyles = ["panel-style-clear", "panel-style-balanced", "panel-style-solid"];
+      body.classList.remove(...effects, ...stars, ...panelStyles);
+      for (const cls of [...effects, ...stars, ...panelStyles]) {
+        if (root.classList.contains(cls)) body.classList.add(cls);
+      }
+      body.classList.toggle("effects-paused", root.classList.contains("effects-paused"));
+      body.classList.toggle("effects-lite", root.classList.contains("effects-lite"));
+      root.classList.remove("theme-booting");
+    })();
+  </script>
+
+  <div id="fx-layer" aria-hidden="true"></div>
+
+  <header class="topbar sticky-topbar">
+    <div class="brand">
+      <h1 id="app-title"></h1>
+      <p id="app-subtitle"></p>
+    </div>
+    <nav class="nav-tabs" aria-label="Điều hướng trang">
+      <a id="nav-library" class="tab-btn" href="/library"></a>
+      <a id="nav-search" class="tab-btn" href="/search"></a>
+    </nav>
+    <div class="topbar-actions">
+      <input id="search-input" type="search" autocomplete="off">
+      <button id="btn-go-search" class="btn" type="button"></button>
+      <button id="btn-clear-cache" class="btn" type="button"></button>
+      <button id="btn-open-settings" class="btn" type="button"></button>
+    </div>
+  </header>
+
+  <div id="status-inline" class="status-inline" role="status" aria-live="polite" aria-busy="false"></div>
+
+  <main class="pages single-main one-col">
+    <article class="panel reader-panel">
+      <div class="reader-head">
+        <div class="reader-title-wrap">
+          <h2 id="reader-book-title"></h2>
+          <p id="reader-chapter-sub"></p>
+        </div>
+        <div class="reader-actions">
+          <button id="btn-reader-toc" class="btn btn-small" type="button"></button>
+          <button id="btn-open-settings-inline" class="btn btn-small" type="button"></button>
+          <button id="btn-mode-raw" class="btn btn-small" type="button"></button>
+          <button id="btn-mode-trans" class="btn btn-small" type="button"></button>
+          <button id="btn-translate-mode" class="btn btn-small" type="button"></button>
+          <button id="btn-open-name-editor" class="btn btn-small" type="button"></button>
+          <button id="btn-fullscreen" class="btn btn-small" type="button"></button>
+        </div>
+      </div>
+
+      <div id="reader-viewport" class="reader-viewport reading-vertical">
+        <h3 id="reader-chapter-title"></h3>
+        <div id="reader-content-scroll" class="reader-content-scroll">
+          <div id="reader-content-body" class="reader-content-body"></div>
+        </div>
+      </div>
+
+      <footer class="reader-footer">
+        <button id="btn-prev" class="btn" type="button"></button>
+        <div class="reader-progress-wrap">
+          <div id="reader-progress"></div>
+          <div id="reader-page-progress" class="reader-page-progress hidden"></div>
+        </div>
+        <button id="btn-next" class="btn" type="button"></button>
+      </footer>
+    </article>
+  </main>
+
+  <aside id="reader-toc-drawer" class="reader-toc-drawer" aria-hidden="true">
+    <div class="settings-head">
+      <h3 id="reader-toc-title"></h3>
+      <button id="btn-close-reader-toc" class="btn btn-small" type="button"></button>
+    </div>
+    <ul id="reader-toc-list" class="simple-list"></ul>
+  </aside>
+
+  <dialog id="name-editor-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="name-editor-title"></h3>
+      <button id="btn-close-name-editor" class="btn btn-small" type="button"></button>
+    </div>
+
+    <div class="name-editor-head">
+      <label>
+        <span id="name-set-label"></span>
+        <select id="name-set-select"></select>
+      </label>
+      <div class="name-set-actions">
+        <button id="btn-refresh-name-preview" class="btn btn-small" type="button"></button>
+        <button id="btn-add-name-set" class="btn btn-small" type="button"></button>
+        <button id="btn-delete-name-set" class="btn btn-small" type="button"></button>
+        <button id="btn-export-name-set" class="btn btn-small" type="button"></button>
+        <input id="name-set-import-file" type="file" accept=".json,application/json" hidden>
+        <button id="btn-import-name-set" class="btn btn-small" type="button"></button>
+      </div>
+    </div>
+
+    <form id="name-entry-form" class="name-entry-form">
+      <label><span id="name-source-label"></span><input id="name-source-input" type="text" list="name-source-suggestions" required></label>
+      <datalist id="name-source-suggestions"></datalist>
+      <label><span id="name-target-label"></span><input id="name-target-input" type="text" required></label>
+      <button id="btn-open-name-suggest" class="btn" type="button"></button>
+      <button id="btn-add-name-entry" class="btn btn-primary" type="submit"></button>
+    </form>
+
+    <div class="name-preview-wrap">
+      <p id="name-preview-hint" class="empty-text"></p>
+      <div class="name-preview-table-wrap">
+        <table class="name-preview-table">
+          <thead><tr><th id="name-col-source"></th><th id="name-col-target"></th><th id="name-col-count"></th><th id="name-col-action"></th></tr></thead>
+          <tbody id="name-preview-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="name-suggest-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="name-suggest-title"></h3>
+      <button id="btn-close-name-suggest" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="name-suggest-hint" class="empty-text"></p>
+    <div class="name-suggest-grid">
+      <div class="name-preview-table-wrap">
+        <table class="name-preview-table">
+          <thead><tr><th id="name-suggest-col-index"></th><th id="name-suggest-col-source"></th><th id="name-suggest-col-hv"></th></tr></thead>
+          <tbody id="name-suggest-left-body"></tbody>
+        </table>
+      </div>
+      <div class="name-preview-table-wrap">
+        <table class="name-preview-table">
+          <thead><tr><th id="name-suggest-col-target"></th><th id="name-suggest-col-action"></th></tr></thead>
+          <tbody id="name-suggest-right-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </dialog>
+
+  <button id="selection-name-btn" class="btn floating-select-btn hidden" type="button"></button>
+
+  <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
+    <div class="settings-head">
+      <h3 id="settings-title"></h3>
+      <button id="btn-close-settings" class="btn btn-small" type="button"></button>
+    </div>
+    <form id="settings-form" class="settings-form">
+      <label><span id="label-theme"></span><select id="theme-select"></select></label>
+      <label><span id="label-panel-transparency"></span><select id="panel-transparency-select"><option id="panel-clear" value="clear"></option><option id="panel-balanced" value="balanced"></option><option id="panel-solid" value="solid"></option></select></label>
+      <label><span id="label-font-family"></span><select id="font-family-select"></select></label>
+      <label><span id="label-star-style"></span><select id="star-style-select"><option id="star-style-classic" value="classic"></option><option id="star-style-dense" value="dense"></option><option id="star-style-bling" value="bling"></option></select></label>
+      <label><span id="label-background-motion"></span><select id="background-motion-select"><option id="motion-on" value="on"></option><option id="motion-off" value="off"></option></select></label>
+      <label><span id="label-font-size"></span><input id="font-size-input" type="range" min="15" max="36" step="1"><small id="font-size-value"></small></label>
+      <label><span id="label-text-align"></span><select id="text-align-select"><option id="align-justify" value="justify">Đều hai bên</option><option id="align-left" value="left">Canh trái</option><option id="align-center" value="center">Canh giữa</option></select></label>
+      <label><span id="label-line-height"></span><input id="line-height-input" type="range" min="1.2" max="2.6" step="0.05"><small id="line-height-value"></small></label>
+      <label><span id="label-paragraph-spacing"></span><input id="paragraph-spacing-input" type="range" min="0.2" max="2.2" step="0.05"><small id="paragraph-spacing-value"></small></label>
+      <label><span id="label-reading-mode"></span><select id="reading-mode-select"><option id="mode-flip" value="flip"></option><option id="mode-horizontal" value="horizontal"></option><option id="mode-vertical" value="vertical"></option><option id="mode-hybrid" value="hybrid"></option></select></label>
+      <div class="settings-actions"><button id="btn-save-settings" class="btn btn-primary" type="submit"></button><button id="btn-reset-settings" class="btn" type="button"></button></div>
+    </form>
+  </aside>
+  <div id="settings-backdrop" class="settings-backdrop" hidden></div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="./js/pages/reader_page.js"></script>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ứng dụng đọc truyện cá nhân</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="fx-layer" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <h1 id="app-title"></h1>
+      <p id="app-subtitle"></p>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Điều hướng trang">
+      <button id="nav-library" class="tab-btn active" type="button"></button>
+      <button id="nav-book" class="tab-btn" type="button"></button>
+      <button id="nav-reader" class="tab-btn" type="button"></button>
+    </nav>
+
+    <div class="topbar-actions">
+      <input id="search-input" type="search" autocomplete="off">
+      <button id="btn-import" class="btn btn-primary" type="button"></button>
+      <button id="btn-clear-cache" class="btn" type="button"></button>
+      <button id="btn-open-settings" class="btn" type="button"></button>
+    </div>
+  </header>
+
+  <main class="pages">
+    <section id="page-library" class="page active" data-page="library">
+      <div class="panel library-panel">
+  <div class="panel-head">
+    <h2 id="library-title"></h2>
+    <span id="library-count" class="tag"></span>
+  </div>
+  <div id="library-grid" class="library-grid"></div>
+  <p id="library-empty" class="empty-text hidden"></p>
+</div>
+
+<div class="panel search-panel">
+  <div class="panel-head">
+    <h2 id="chapter-hits-title"></h2>
+  </div>
+  <ul id="chapter-hit-list" class="simple-list"></ul>
+  <p id="chapter-hits-empty" class="empty-text"></p>
+</div>
+
+    </section>
+
+    <section id="page-book" class="page" data-page="book">
+      <div class="panel book-meta-panel">
+  <div class="panel-head">
+    <h2 id="book-info-title"></h2>
+    <div class="meta-actions">
+      <button id="btn-open-reader-from-book" class="btn btn-small" type="button"></button>
+      <button id="btn-open-book-edit" class="btn btn-small" type="button"></button>
+    </div>
+  </div>
+
+  <div id="book-empty" class="book-empty"></div>
+
+  <div id="book-view-wrap" class="book-meta-wrap hidden">
+    <div class="book-hero">
+      <div class="cover-wrap">
+        <img id="book-cover" alt="Ảnh bìa truyện">
+        <div id="book-cover-fallback" class="cover-fallback">Không có cover</div>
+      </div>
+
+      <div class="book-hero-info">
+        <h3 id="book-title-display"></h3>
+        <p id="book-subtitle"></p>
+        <button id="btn-open-extra-link" class="btn btn-small" type="button"></button>
+      </div>
+    </div>
+
+    <div class="book-view-grid">
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-title"></div>
+        <div class="book-info-value" id="view-title"></div>
+      </div>
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-title-vi"></div>
+        <div class="book-info-value" id="view-title-vi"></div>
+      </div>
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-author"></div>
+        <div class="book-info-value" id="view-author"></div>
+      </div>
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-author-vi"></div>
+        <div class="book-info-value" id="view-author-vi"></div>
+      </div>
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-summary"></div>
+        <div class="book-info-value multiline" id="view-summary"></div>
+      </div>
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-extra-link"></div>
+        <div class="book-info-value" id="view-extra-link"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel toc-panel">
+  <div class="panel-head">
+    <h2 id="toc-title"></h2>
+    <div class="toc-head-actions">
+      <button id="btn-toc-mode-raw" class="btn btn-small" type="button"></button>
+      <button id="btn-toc-mode-trans" class="btn btn-small" type="button"></button>
+      <button id="btn-translate-titles" class="btn btn-small" type="button"></button>
+    </div>
+  </div>
+
+  <ul id="toc-list" class="simple-list"></ul>
+
+  <div class="toc-footer">
+    <button id="btn-toc-prev" class="btn btn-small" type="button"></button>
+    <button id="btn-toc-next" class="btn btn-small" type="button"></button>
+  </div>
+</div>
+
+    </section>
+
+    <section id="page-book-edit" class="page" data-page="book-edit">
+      <div class="panel book-meta-panel">
+  <div class="panel-head">
+    <h2 id="book-edit-title"></h2>
+    <div class="meta-actions">
+      <button id="btn-back-book-view" class="btn btn-small" type="button"></button>
+    </div>
+  </div>
+
+  <div id="book-edit-empty" class="book-empty"></div>
+
+  <div id="book-edit-wrap" class="book-meta-wrap hidden">
+    <form id="book-meta-form" class="meta-form">
+      <label>
+        <span id="label-field-title"></span>
+        <input id="field-title" type="text">
+      </label>
+      <label>
+        <span id="label-field-title-vi"></span>
+        <input id="field-title-vi" type="text">
+      </label>
+      <label>
+        <span id="label-field-author"></span>
+        <input id="field-author" type="text">
+      </label>
+      <label>
+        <span id="label-field-author-vi"></span>
+        <input id="field-author-vi" type="text">
+      </label>
+      <label>
+        <span id="label-field-summary"></span>
+        <textarea id="field-summary" rows="5"></textarea>
+      </label>
+      <label>
+        <span id="label-field-extra-link"></span>
+        <input id="field-extra-link" type="url">
+      </label>
+
+      <div class="cover-actions">
+        <label>
+          <span id="label-field-cover-url"></span>
+          <input id="field-cover-url" type="url">
+        </label>
+        <div class="cover-btns">
+          <input id="cover-upload-input" type="file" accept="image/*" hidden>
+          <button id="btn-upload-cover" class="btn btn-small" type="button"></button>
+          <button id="btn-apply-cover-url" class="btn btn-small" type="button"></button>
+        </div>
+      </div>
+
+      <div class="meta-actions">
+        <button id="btn-save-meta" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+    </section>
+
+    <section id="page-reader" class="page" data-page="reader">
+      <article class="panel reader-panel">
+  <div class="reader-head">
+    <div class="reader-title-wrap">
+      <h2 id="reader-book-title"></h2>
+      <p id="reader-chapter-sub"></p>
+    </div>
+
+    <div class="reader-actions">
+      <button id="btn-reader-toc" class="btn btn-small" type="button"></button>
+      <button id="btn-mode-raw" class="btn btn-small" type="button"></button>
+      <button id="btn-mode-trans" class="btn btn-small" type="button"></button>
+      <button id="btn-translate-mode" class="btn btn-small" type="button"></button>
+      <button id="btn-open-name-editor" class="btn btn-small" type="button"></button>
+      <button id="btn-foliate" class="btn btn-small" type="button"></button>
+      <button id="btn-fullscreen" class="btn btn-small" type="button"></button>
+    </div>
+  </div>
+
+  <div id="reader-viewport" class="reader-viewport reading-vertical">
+    <h3 id="reader-chapter-title"></h3>
+    <div id="reader-content-scroll" class="reader-content-scroll">
+      <div id="reader-content-body" class="reader-content-body"></div>
+    </div>
+  </div>
+
+  <footer class="reader-footer">
+    <button id="btn-prev" class="btn" type="button"></button>
+    <div id="reader-progress"></div>
+    <button id="btn-next" class="btn" type="button"></button>
+  </footer>
+</article>
+
+    </section>
+  </main>
+
+  <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
+    <div class="settings-head">
+      <h3 id="settings-title"></h3>
+      <button id="btn-close-settings" class="btn btn-small" type="button"></button>
+    </div>
+
+    <form id="settings-form" class="settings-form">
+      <label>
+        <span id="label-theme"></span>
+        <select id="theme-select"></select>
+      </label>
+
+      <label>
+        <span id="label-font-family"></span>
+        <input id="font-family-input" type="text">
+      </label>
+
+      <label>
+        <span id="label-font-size"></span>
+        <input id="font-size-input" type="range" min="15" max="36" step="1">
+        <small id="font-size-value"></small>
+      </label>
+
+      <label>
+        <span id="label-text-align"></span>
+        <select id="text-align-select">
+          <option id="align-justify" value="justify"></option>
+          <option id="align-left" value="left"></option>
+          <option id="align-center" value="center"></option>
+        </select>
+      </label>
+
+      <label>
+        <span id="label-line-height"></span>
+        <input id="line-height-input" type="range" min="1.2" max="2.6" step="0.05">
+        <small id="line-height-value"></small>
+      </label>
+
+      <label>
+        <span id="label-paragraph-spacing"></span>
+        <input id="paragraph-spacing-input" type="range" min="0.2" max="2.2" step="0.05">
+        <small id="paragraph-spacing-value"></small>
+      </label>
+
+      <label>
+        <span id="label-reading-mode"></span>
+        <select id="reading-mode-select">
+          <option id="mode-flip" value="flip"></option>
+          <option id="mode-horizontal" value="horizontal"></option>
+          <option id="mode-vertical" value="vertical"></option>
+          <option id="mode-hybrid" value="hybrid"></option>
+        </select>
+      </label>
+
+      <div class="settings-actions">
+        <button id="btn-save-settings" class="btn btn-primary" type="submit"></button>
+        <button id="btn-reset-settings" class="btn" type="button"></button>
+      </div>
+    </form>
+  </aside>
+
+  <div id="settings-backdrop" class="settings-backdrop" hidden></div>
+
+  <aside id="reader-toc-drawer" class="reader-toc-drawer" aria-hidden="true">
+    <div class="settings-head">
+      <h3 id="reader-toc-title"></h3>
+      <button id="btn-close-reader-toc" class="btn btn-small" type="button"></button>
+    </div>
+    <ul id="reader-toc-list" class="simple-list"></ul>
+  </aside>
+
+  <dialog id="book-actions-dialog" class="dialog book-actions-dialog">
+  <div class="dialog-head">
+    <h3 id="book-actions-title"></h3>
+    <button id="btn-close-book-actions" class="btn btn-small" type="button">Đóng</button>
+  </div>
+  <p id="book-actions-subtitle" class="dialog-subtitle"></p>
+  <div class="book-actions-grid">
+    <button id="btn-action-open-book" class="btn" type="button"></button>
+    <button id="btn-action-open-reader" class="btn" type="button"></button>
+    <button id="btn-action-open-edit" class="btn" type="button"></button>
+    <button id="btn-action-export-txt" class="btn" type="button"></button>
+    <button id="btn-action-export-epub" class="btn" type="button"></button>
+    <button id="btn-action-delete-book" class="btn" type="button"></button>
+  </div>
+</dialog>
+
+<dialog id="name-editor-dialog" class="dialog name-editor-dialog">
+  <div class="dialog-head">
+    <h3 id="name-editor-title"></h3>
+    <button id="btn-close-name-editor" class="btn btn-small" type="button"></button>
+  </div>
+
+  <div class="name-editor-head">
+    <label>
+      <span id="name-set-label"></span>
+      <select id="name-set-select"></select>
+    </label>
+    <button id="btn-refresh-name-preview" class="btn btn-small" type="button"></button>
+  </div>
+
+  <form id="name-entry-form" class="name-entry-form">
+    <label>
+      <span id="name-source-label"></span>
+      <input id="name-source-input" type="text" required>
+    </label>
+    <label>
+      <span id="name-target-label"></span>
+      <input id="name-target-input" type="text" required>
+    </label>
+    <button id="btn-add-name-entry" class="btn btn-primary" type="submit"></button>
+  </form>
+
+  <div class="name-preview-wrap">
+    <p id="name-preview-hint" class="empty-text"></p>
+    <div class="name-preview-table-wrap">
+      <table class="name-preview-table">
+        <thead>
+          <tr>
+            <th id="name-col-source"></th>
+            <th id="name-col-target"></th>
+            <th id="name-col-count"></th>
+            <th id="name-col-action"></th>
+          </tr>
+        </thead>
+        <tbody id="name-preview-body"></tbody>
+      </table>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="import-dialog" class="dialog">
+  <form id="import-form" method="dialog">
+    <h3 id="import-title"></h3>
+    <label>
+      <span id="import-file-label"></span>
+      <input id="import-file" name="file" type="file" accept=".txt,.epub" required>
+    </label>
+    <label>
+      <span id="import-lang-label"></span>
+      <select id="import-lang" name="lang_source">
+        <option id="import-lang-zh" value="zh"></option>
+        <option id="import-lang-vi" value="vi"></option>
+      </select>
+    </label>
+    <label>
+      <span id="import-book-title-label"></span>
+      <input id="import-book-title" name="title" type="text" placeholder="Để trống để lấy tên file">
+    </label>
+    <label>
+      <span id="import-author-label"></span>
+      <input id="import-author" name="author" type="text" placeholder="Không bắt buộc">
+    </label>
+    <div class="dialog-actions">
+      <button id="btn-import-cancel" class="btn" value="cancel" type="button"></button>
+      <button id="btn-import-submit" class="btn btn-primary" value="default" type="submit"></button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="status-dialog" class="dialog status-dialog">
+  <div id="status-text"></div>
+</dialog>
+
+<dialog id="foliate-dialog" class="dialog foliate-dialog">
+  <div class="foliate-head">
+    <h3 id="foliate-title"></h3>
+    <button id="btn-close-foliate" class="btn btn-small" type="button"></button>
+  </div>
+  <iframe id="foliate-frame" title="Bản đọc EPUB Foliate"></iframe>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,12 +1,15 @@
 import os
 import re
 import json
+import urllib.request
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog, messagebox
 
 from typing import Optional
 
 from app.core import renamer as logic
+from app.paths import BASE_DIR
+from app.ui.update_dialog import fetch_manifest_from_url
 
 
 class RenameTabMixin:
@@ -182,13 +185,95 @@ class RenameTabMixin:
                 widget.grid_remove()
             self.rename_adv_btn.config(text="Nâng cao")
 
-    def _load_regex_dataset(self) -> dict:
-        dataset_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "regex_dataset.json")
-        try:
-            with open(dataset_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
+    def _regex_dataset_manifest_meta(self) -> dict:
+        data = {}
+        use_local_only = bool(getattr(self, "use_local_manifest_only", False))
+        if not use_local_only:
+            manifest_url = getattr(self, "VERSION_CHECK_URL", "")
+            if manifest_url:
+                try:
+                    data = fetch_manifest_from_url(manifest_url, timeout=10) or {}
+                except Exception:
+                    data = {}
+        if not data:
+            meta_path = os.path.join(BASE_DIR, "version.json")
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception:
+                data = {}
+        if not isinstance(data, dict):
             return {}
+        meta = data.get("regex_dataset")
+        if isinstance(meta, dict):
+            return meta
+        legacy_url = data.get("regex_dataset_url")
+        if isinstance(legacy_url, str) and legacy_url.strip():
+            return {"url": legacy_url.strip()}
+        return {}
+
+    def _regex_dataset_cache_path(self) -> str:
+        return os.path.join(BASE_DIR, "local", "regex_dataset_cache.json")
+
+    def _regex_dataset_builtin_path(self) -> str:
+        return os.path.join(BASE_DIR, "regex_dataset.json")
+
+    def _load_regex_dataset(self) -> dict:
+        if hasattr(self, "_regex_dataset_cache_obj"):
+            return self._regex_dataset_cache_obj or {}
+
+        meta = self._regex_dataset_manifest_meta()
+        dataset_url = ""
+        if isinstance(meta, dict):
+            dataset_url = str(meta.get("url", "")).strip()
+
+        dataset = {}
+        cache_path = self._regex_dataset_cache_path()
+        use_local_only = bool(getattr(self, "use_local_manifest_only", False))
+
+        if dataset_url and not use_local_only:
+            try:
+                with urllib.request.urlopen(dataset_url, timeout=10) as resp:
+                    raw = resp.read().decode("utf-8")
+                data = json.loads(raw)
+                if isinstance(data, dict):
+                    dataset = data
+                    try:
+                        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+                        with open(cache_path, "w", encoding="utf-8") as f:
+                            json.dump(dataset, f, ensure_ascii=False, indent=2)
+                    except Exception:
+                        pass
+                    if hasattr(self, "log"):
+                        self.log("[Regex] Đã tải dataset từ URL manifest.")
+            except Exception:
+                dataset = {}
+
+        if not dataset:
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    dataset = data
+                    if hasattr(self, "log"):
+                        self.log("[Regex] Dùng dataset cache local.")
+            except Exception:
+                dataset = {}
+
+        if not dataset:
+            builtin_path = self._regex_dataset_builtin_path()
+            try:
+                with open(builtin_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    dataset = data
+                    if hasattr(self, "log"):
+                        self.log("[Regex] Dùng dataset local mặc định.")
+            except Exception:
+                dataset = {}
+
+        self._regex_dataset_cache_obj = dataset or {}
+        return self._regex_dataset_cache_obj
 
     def _parse_num(self, raw: str) -> Optional[int]:
         if raw is None:

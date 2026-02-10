@@ -2,6 +2,13 @@
   "version": "0.3.1",
   "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.3.1/Novel-Studio-setup.exe",
   "notes_file": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/update_notes.html",
+  "regex_dataset": {
+    "url": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/regex_dataset.json"
+  },
+  "junk_dataset": {
+    "url": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/junk_dataset.json"
+  },
+  
   "image_ai_tool": {
     "version": "0.1.2",
     "url": "https://drive.google.com/file/d/1PTirisPyjBWh2kzqxfIPAkAUg41v4fWQ/view?usp=drive_link",

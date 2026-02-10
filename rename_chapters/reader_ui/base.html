@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ứng dụng đọc truyện cá nhân</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="fx-layer" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <h1 id="app-title"></h1>
+      <p id="app-subtitle"></p>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Điều hướng trang">
+      <button id="nav-library" class="tab-btn active" type="button"></button>
+      <button id="nav-book" class="tab-btn" type="button"></button>
+      <button id="nav-reader" class="tab-btn" type="button"></button>
+    </nav>
+
+    <div class="topbar-actions">
+      <input id="search-input" type="search" autocomplete="off">
+      <button id="btn-import" class="btn btn-primary" type="button"></button>
+      <button id="btn-clear-cache" class="btn" type="button"></button>
+      <button id="btn-open-settings" class="btn" type="button"></button>
+    </div>
+  </header>
+
+  <main class="pages">
+    <section id="page-library" class="page active" data-page="library">
+      {{include:partials/page-library.html}}
+    </section>
+
+    <section id="page-book" class="page" data-page="book">
+      {{include:partials/page-book-view.html}}
+    </section>
+
+    <section id="page-book-edit" class="page" data-page="book-edit">
+      {{include:partials/page-book-edit.html}}
+    </section>
+
+    <section id="page-reader" class="page" data-page="reader">
+      {{include:partials/page-reader.html}}
+    </section>
+  </main>
+
+  <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
+    <div class="settings-head">
+      <h3 id="settings-title"></h3>
+      <button id="btn-close-settings" class="btn btn-small" type="button"></button>
+    </div>
+
+    <form id="settings-form" class="settings-form">
+      <label>
+        <span id="label-theme"></span>
+        <select id="theme-select"></select>
+      </label>
+
+      <label>
+        <span id="label-font-family"></span>
+        <input id="font-family-input" type="text">
+      </label>
+
+      <label>
+        <span id="label-font-size"></span>
+        <input id="font-size-input" type="range" min="15" max="36" step="1">
+        <small id="font-size-value"></small>
+      </label>
+
+      <label>
+        <span id="label-text-align"></span>
+        <select id="text-align-select">
+          <option id="align-justify" value="justify"></option>
+          <option id="align-left" value="left"></option>
+          <option id="align-center" value="center"></option>
+        </select>
+      </label>
+
+      <label>
+        <span id="label-line-height"></span>
+        <input id="line-height-input" type="range" min="1.2" max="2.6" step="0.05">
+        <small id="line-height-value"></small>
+      </label>
+
+      <label>
+        <span id="label-paragraph-spacing"></span>
+        <input id="paragraph-spacing-input" type="range" min="0.2" max="2.2" step="0.05">
+        <small id="paragraph-spacing-value"></small>
+      </label>
+
+      <label>
+        <span id="label-reading-mode"></span>
+        <select id="reading-mode-select">
+          <option id="mode-flip" value="flip"></option>
+          <option id="mode-horizontal" value="horizontal"></option>
+          <option id="mode-vertical" value="vertical"></option>
+          <option id="mode-hybrid" value="hybrid"></option>
+        </select>
+      </label>
+
+      <div class="settings-actions">
+        <button id="btn-save-settings" class="btn btn-primary" type="submit"></button>
+        <button id="btn-reset-settings" class="btn" type="button"></button>
+      </div>
+    </form>
+  </aside>
+
+  <div id="settings-backdrop" class="settings-backdrop" hidden></div>
+
+  <aside id="reader-toc-drawer" class="reader-toc-drawer" aria-hidden="true">
+    <div class="settings-head">
+      <h3 id="reader-toc-title"></h3>
+      <button id="btn-close-reader-toc" class="btn btn-small" type="button"></button>
+    </div>
+    <ul id="reader-toc-list" class="simple-list"></ul>
+  </aside>
+
+  {{include:partials/dialogs.html}}
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

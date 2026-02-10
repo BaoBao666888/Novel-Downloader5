@@ -1,0 +1,71 @@
+<div class="panel book-meta-panel">
+  <div class="panel-head">
+    <h2 id="book-info-title"></h2>
+    <div class="meta-actions">
+      <button id="btn-open-reader-from-book" class="btn btn-small" type="button"></button>
+      <button id="btn-open-book-edit" class="btn btn-small" type="button"></button>
+    </div>
+  </div>
+
+  <div id="book-empty" class="book-empty"></div>
+
+  <div id="book-view-wrap" class="book-meta-wrap hidden">
+    <div class="book-hero">
+      <div class="cover-wrap">
+        <img id="book-cover" alt="Ảnh bìa truyện">
+        <div id="book-cover-fallback" class="cover-fallback">Không có cover</div>
+      </div>
+
+      <div class="book-hero-info">
+        <h3 id="book-title-display"></h3>
+        <p id="book-subtitle"></p>
+        <button id="btn-open-extra-link" class="btn btn-small" type="button"></button>
+      </div>
+    </div>
+
+    <div class="book-view-grid">
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-title"></div>
+        <div class="book-info-value" id="view-title"></div>
+      </div>
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-title-vi"></div>
+        <div class="book-info-value" id="view-title-vi"></div>
+      </div>
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-author"></div>
+        <div class="book-info-value" id="view-author"></div>
+      </div>
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-author-vi"></div>
+        <div class="book-info-value" id="view-author-vi"></div>
+      </div>
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-summary"></div>
+        <div class="book-info-value multiline" id="view-summary"></div>
+      </div>
+      <div class="book-info-item">
+        <div class="book-info-label" id="label-view-extra-link"></div>
+        <div class="book-info-value" id="view-extra-link"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel toc-panel">
+  <div class="panel-head">
+    <h2 id="toc-title"></h2>
+    <div class="toc-head-actions">
+      <button id="btn-toc-mode-raw" class="btn btn-small" type="button"></button>
+      <button id="btn-toc-mode-trans" class="btn btn-small" type="button"></button>
+      <button id="btn-translate-titles" class="btn btn-small" type="button"></button>
+    </div>
+  </div>
+
+  <ul id="toc-list" class="simple-list"></ul>
+
+  <div class="toc-footer">
+    <button id="btn-toc-prev" class="btn btn-small" type="button"></button>
+    <button id="btn-toc-next" class="btn btn-small" type="button"></button>
+  </div>
+</div>

@@ -1,0 +1,102 @@
+<dialog id="book-actions-dialog" class="dialog book-actions-dialog">
+  <div class="dialog-head">
+    <h3 id="book-actions-title"></h3>
+    <button id="btn-close-book-actions" class="btn btn-small" type="button">Đóng</button>
+  </div>
+  <p id="book-actions-subtitle" class="dialog-subtitle"></p>
+  <div class="book-actions-grid">
+    <button id="btn-action-open-book" class="btn" type="button"></button>
+    <button id="btn-action-open-reader" class="btn" type="button"></button>
+    <button id="btn-action-open-edit" class="btn" type="button"></button>
+    <button id="btn-action-export-txt" class="btn" type="button"></button>
+    <button id="btn-action-export-epub" class="btn" type="button"></button>
+    <button id="btn-action-delete-book" class="btn" type="button"></button>
+  </div>
+</dialog>
+
+<dialog id="name-editor-dialog" class="dialog name-editor-dialog">
+  <div class="dialog-head">
+    <h3 id="name-editor-title"></h3>
+    <button id="btn-close-name-editor" class="btn btn-small" type="button"></button>
+  </div>
+
+  <div class="name-editor-head">
+    <label>
+      <span id="name-set-label"></span>
+      <select id="name-set-select"></select>
+    </label>
+    <button id="btn-refresh-name-preview" class="btn btn-small" type="button"></button>
+  </div>
+
+  <form id="name-entry-form" class="name-entry-form">
+    <label>
+      <span id="name-source-label"></span>
+      <input id="name-source-input" type="text" required>
+    </label>
+    <label>
+      <span id="name-target-label"></span>
+      <input id="name-target-input" type="text" required>
+    </label>
+    <button id="btn-add-name-entry" class="btn btn-primary" type="submit"></button>
+  </form>
+
+  <div class="name-preview-wrap">
+    <p id="name-preview-hint" class="empty-text"></p>
+    <div class="name-preview-table-wrap">
+      <table class="name-preview-table">
+        <thead>
+          <tr>
+            <th id="name-col-source"></th>
+            <th id="name-col-target"></th>
+            <th id="name-col-count"></th>
+            <th id="name-col-action"></th>
+          </tr>
+        </thead>
+        <tbody id="name-preview-body"></tbody>
+      </table>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="import-dialog" class="dialog">
+  <form id="import-form" method="dialog">
+    <h3 id="import-title"></h3>
+    <label>
+      <span id="import-file-label"></span>
+      <input id="import-file" name="file" type="file" accept=".txt,.epub" required>
+    </label>
+    <label>
+      <span id="import-lang-label"></span>
+      <select id="import-lang" name="lang_source">
+        <option id="import-lang-zh" value="zh"></option>
+        <option id="import-lang-vi" value="vi"></option>
+      </select>
+    </label>
+    <label>
+      <span id="import-book-title-label"></span>
+      <input id="import-book-title" name="title" type="text" placeholder="Để trống để lấy tên file">
+    </label>
+    <label>
+      <span id="import-author-label"></span>
+      <input id="import-author" name="author" type="text" placeholder="Không bắt buộc">
+    </label>
+    <div class="dialog-actions">
+      <button id="btn-import-cancel" class="btn" value="cancel" type="button"></button>
+      <button id="btn-import-submit" class="btn btn-primary" value="default" type="submit"></button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="status-dialog" class="dialog status-dialog">
+  <div id="status-text"></div>
+</dialog>
+
+<dialog id="foliate-dialog" class="dialog foliate-dialog">
+  <div class="foliate-head">
+    <h3 id="foliate-title"></h3>
+    <button id="btn-close-foliate" class="btn btn-small" type="button"></button>
+  </div>
+  <iframe id="foliate-frame" title="Bản đọc EPUB Foliate"></iframe>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>

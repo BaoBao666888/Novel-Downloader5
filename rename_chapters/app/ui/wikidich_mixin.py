@@ -4937,11 +4937,12 @@ class WikidichMixin:
         self._wd_resume_details = None
 
     def _wd_calculate_new_chapters(self, book: dict, proxies=None, headers=None):
+        cookie_db_path = self._wd_get_cookie_db_path()
         domains = [
             ("fanqienovel.com", fanqienovel_ext.fetch_chapters, {"headers": headers}),
             ("jjwxc.net", jjwxc_ext.fetch_chapters, {}),
-            ("po18.tw", po18_ext.fetch_chapters, {}),
-            ("qidian.com", qidian_ext.fetch_chapters, {}),
+            ("po18.tw", po18_ext.fetch_chapters, {"cookie_db_path": cookie_db_path}),
+            ("qidian.com", qidian_ext.fetch_chapters, {"cookie_db_path": cookie_db_path}),
             ("ihuaben.com", ihuaben_ext.fetch_chapters, {}),
             ("read.douban.com", douban_ext.fetch_chapters, {}),
             ("qimao.com", qimao_ext.fetch_chapters, {}),

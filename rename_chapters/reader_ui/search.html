@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tìm kiếm truyện</title>
+  <script>
+    (() => {
+      const SETTINGS_KEY = "reader.ui.settings.v3";
+      const THEME_KEY = "reader.ui.theme.cache.v1";
+      const defaults = {
+        fontFamily: "'Noto Serif', 'Palatino Linotype', 'Times New Roman', serif",
+        fontSize: 21,
+        lineHeight: 1.9,
+        paragraphSpacing: 1.1,
+        textAlign: "justify",
+        panelTransparency: "clear",
+        starStyle: "classic",
+        backgroundMotion: "on",
+      };
+      const fallbackTheme = {
+        effect: "stars",
+        tokens: {
+          bg: "#090a1a",
+          bg2: "#111433",
+          surface: "#11162d",
+          surface_alt: "#151f42",
+          text: "#eaf2ff",
+          muted: "#8ca3d4",
+          accent: "#77b8ff",
+          glow: "#9fd0ff",
+          particle: "#ffffff",
+        },
+      };
+      const root = document.documentElement;
+      root.classList.add("theme-booting");
+      let settings = { ...defaults };
+      let theme = fallbackTheme;
+      try {
+        const rawSettings = localStorage.getItem(SETTINGS_KEY);
+        if (rawSettings) settings = { ...defaults, ...JSON.parse(rawSettings) };
+      } catch {}
+      try {
+        const rawTheme = localStorage.getItem(THEME_KEY);
+        if (rawTheme) {
+          const parsed = JSON.parse(rawTheme);
+          if (parsed && parsed.tokens) theme = parsed;
+        }
+      } catch {}
+      for (const [key, value] of Object.entries(theme.tokens || {})) {
+        root.style.setProperty(`--${String(key).split("_").join("-")}`, value);
+      }
+      root.style.setProperty("--reader-font-family", settings.fontFamily);
+      root.style.setProperty("--reader-font-size", `${settings.fontSize}px`);
+      root.style.setProperty("--reader-line-height", `${settings.lineHeight}`);
+      root.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing}em`);
+      root.style.setProperty("--reader-text-align", settings.textAlign);
+      const effects = ["effect-stars", "effect-sparkle", "effect-bubbles", "effect-leaves", "effect-snow"];
+      const stars = ["star-style-classic", "star-style-dense", "star-style-bling"];
+      const panelStyles = ["panel-style-clear", "panel-style-balanced", "panel-style-solid"];
+      root.classList.remove(...effects, ...stars);
+      root.classList.add(`effect-${theme.effect || "stars"}`);
+      root.classList.add(`star-style-${settings.starStyle || "classic"}`);
+      root.classList.remove(...panelStyles);
+      root.classList.add(`panel-style-${settings.panelTransparency || "clear"}`);
+      root.classList.toggle("effects-paused", (settings.backgroundMotion || "on") !== "on");
+    })();
+  </script>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body data-page="search" class="mpa-body">
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const body = document.body;
+      const effects = ["effect-stars", "effect-sparkle", "effect-bubbles", "effect-leaves", "effect-snow"];
+      const stars = ["star-style-classic", "star-style-dense", "star-style-bling"];
+      const panelStyles = ["panel-style-clear", "panel-style-balanced", "panel-style-solid"];
+      body.classList.remove(...effects, ...stars, ...panelStyles);
+      for (const cls of [...effects, ...stars, ...panelStyles]) {
+        if (root.classList.contains(cls)) body.classList.add(cls);
+      }
+      body.classList.toggle("effects-paused", root.classList.contains("effects-paused"));
+      body.classList.toggle("effects-lite", root.classList.contains("effects-lite"));
+      root.classList.remove("theme-booting");
+    })();
+  </script>
+
+  <div id="fx-layer" aria-hidden="true"></div>
+
+  <header class="topbar sticky-topbar">
+    <div class="brand">
+      <h1 id="app-title"></h1>
+      <p id="app-subtitle"></p>
+    </div>
+    <nav class="nav-tabs" aria-label="Điều hướng trang">
+      <a id="nav-library" class="tab-btn" href="/library"></a>
+      <a id="nav-search" class="tab-btn" href="/search"></a>
+    </nav>
+    <div class="topbar-actions">
+      <input id="search-input" type="search" autocomplete="off">
+      <button id="btn-go-search" class="btn" type="button"></button>
+      <button id="btn-clear-cache" class="btn" type="button"></button>
+      <button id="btn-open-settings" class="btn" type="button"></button>
+    </div>
+  </header>
+
+  <div id="status-inline" class="status-inline" role="status" aria-live="polite" aria-busy="false"></div>
+
+  <main class="pages single-main two-col">
+    <section class="panel">
+      <div class="panel-head">
+        <h2 id="search-books-title"></h2>
+        <span id="search-books-count" class="tag"></span>
+      </div>
+      <div id="search-books-grid" class="library-grid"></div>
+      <p id="search-books-empty" class="empty-text"></p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 id="chapter-hits-title"></h2>
+        <span id="chapter-hits-count" class="tag"></span>
+      </div>
+      <ul id="chapter-hit-list" class="simple-list"></ul>
+      <p id="chapter-hits-empty" class="empty-text"></p>
+    </section>
+  </main>
+
+  <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
+    <div class="settings-head">
+      <h3 id="settings-title"></h3>
+      <button id="btn-close-settings" class="btn btn-small" type="button"></button>
+    </div>
+    <form id="settings-form" class="settings-form">
+      <label><span id="label-theme"></span><select id="theme-select"></select></label>
+      <label><span id="label-panel-transparency"></span><select id="panel-transparency-select"><option id="panel-clear" value="clear"></option><option id="panel-balanced" value="balanced"></option><option id="panel-solid" value="solid"></option></select></label>
+      <label><span id="label-font-family"></span><select id="font-family-select"></select></label>
+      <label><span id="label-star-style"></span><select id="star-style-select"><option id="star-style-classic" value="classic"></option><option id="star-style-dense" value="dense"></option><option id="star-style-bling" value="bling"></option></select></label>
+      <label><span id="label-background-motion"></span><select id="background-motion-select"><option id="motion-on" value="on"></option><option id="motion-off" value="off"></option></select></label>
+      <label><span id="label-font-size"></span><input id="font-size-input" type="range" min="15" max="36" step="1"><small id="font-size-value"></small></label>
+      <label><span id="label-text-align"></span><select id="text-align-select"><option id="align-justify" value="justify">Đều hai bên</option><option id="align-left" value="left">Canh trái</option><option id="align-center" value="center">Canh giữa</option></select></label>
+      <label><span id="label-line-height"></span><input id="line-height-input" type="range" min="1.2" max="2.6" step="0.05"><small id="line-height-value"></small></label>
+      <label><span id="label-paragraph-spacing"></span><input id="paragraph-spacing-input" type="range" min="0.2" max="2.2" step="0.05"><small id="paragraph-spacing-value"></small></label>
+      <label><span id="label-reading-mode"></span><select id="reading-mode-select"><option id="mode-flip" value="flip"></option><option id="mode-horizontal" value="horizontal"></option><option id="mode-vertical" value="vertical"></option><option id="mode-hybrid" value="hybrid"></option></select></label>
+      <div class="settings-actions"><button id="btn-save-settings" class="btn btn-primary" type="submit"></button><button id="btn-reset-settings" class="btn" type="button"></button></div>
+    </form>
+  </aside>
+  <div id="settings-backdrop" class="settings-backdrop" hidden></div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="./js/pages/search_page.js"></script>
+</body>
+</html>

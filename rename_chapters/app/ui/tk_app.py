@@ -2287,6 +2287,8 @@ class RenamerApp(
         tools_menu.add_command(label="Download Novel 5...", command=self._open_fanqie_downloader)
         tools_menu.add_command(label="Kiểm tra Radical...", command=lambda: open_radical_checker_dialog(self))
         tools_menu.add_command(label="Giải nén file (.zip, .7z, .rar...)", command=self._start_extraction)
+        tools_menu.add_separator()
+        tools_menu.add_command(label="Công cụ Xóa rác...", command=lambda: self._open_junk_remover(source_label="Công cụ"))
 
         menubar.add_command(label="Dịch", command=lambda: self._select_tab_by_name("Dịch"))
         menubar.add_command(label="Proxy", command=self._open_proxy_manager_window)
