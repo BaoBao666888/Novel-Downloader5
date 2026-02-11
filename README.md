@@ -34,6 +34,10 @@
 
 ## Cấu hình nâng cao (Tùy chọn)
 
+### Cách lấy Token dành cho user không có thiết bị Android
+
+- Xem hướng dẫn: [Hướng dẫn sử dụng](tools/HUONG_DAN_SU_DUNG_JJWXC_TOKEN_SCRIPT.mdTM_TRANSLATE_GUIDE.md)
+
 ### Cung cấp Token JJWXC và API Fanqie
 
 Để tải các chương VIP trên **JJWXC** hoặc sử dụng API thay thế cho **Fanqie** (thay vì gọi trực tiếp API gốc), bạn cần cung cấp thông tin này cho script `novelDownloaderVietSub` thông qua một userscript phụ trợ.
