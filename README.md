@@ -36,7 +36,7 @@
 
 ### Cách lấy Token dành cho user không có thiết bị Android
 
-- Xem hướng dẫn: [Hướng dẫn sử dụng](tools/HUONG_DAN_SU_DUNG_JJWXC_TOKEN_SCRIPT.mdTM_TRANSLATE_GUIDE.md)
+- Xem hướng dẫn: [Hướng dẫn sử dụng](tools/HUONG_DAN_SU_DUNG_JJWXC_TOKEN_SCRIPT.md)
 
 ### Cung cấp Token JJWXC và API Fanqie
 
