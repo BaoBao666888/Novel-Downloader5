@@ -5,7 +5,7 @@ Script dùng để đăng nhập tài khoản JJWXC theo luồng app Android và
 
 ## 2) Chuẩn bị
 - Trình duyệt có cài Tampermonkey (hoặc userscript manager tương đương).
-- Cài script: **[Lấy Token App Android.user.js](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js)**
+- Cài script: **[Lấy Token App Android.user.js](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/JJWXC_Lay_Token_App_(v484).user.js)**
 - Mở trang thuộc domain JJWXC (ví dụ `www.jjwxc.net`).
 
 ## 3) Cách dùng nhanh
