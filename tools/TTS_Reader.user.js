@@ -1,9 +1,11 @@
 // ==UserScript==
-// @name         TruyenWikiDich TTS Reader
+// @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.2.0
+// @version      1.2.1_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
+// @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
+// @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
 // @match        https://truyenwikidich.net/truyen/*/chuong-*
 // @match        https://truyenwikidich.net/truyen/*/chuong-*?*
 // @grant        GM_xmlhttpRequest
@@ -24,6 +26,18 @@
     const TIKTOK_PREFETCH_DELAY_MS = 450;
     const TIKTOK_RETRY_BASE_DELAY_MS = 650;
     const TIKTOK_MAX_CACHE_ITEMS = 18;
+    const SUPPORTS_UNICODE_PROP_ESCAPES = (() => {
+        try {
+            // eslint-disable-next-line no-new
+            new RegExp('\\p{L}', 'u');
+            return true;
+        } catch (err) {
+            return false;
+        }
+    })();
+    const SPLIT_NEAR_WINDOW = 80;
+    const BREAK_CHARS_STRONG = new Set(Array.from('.!?;:…。！？；：)）]】}』」》"”’'));
+    const BREAK_CHARS_COMMA = new Set(Array.from(',，、'));
     const TIKTOK_VOICES = [
         { id: 'vi_female_huong', language: 'vi', name: 'VN - Giọng nữ phổ thông' },
         { id: 'BV074_streaming', language: 'vi', name: 'VN - Cô gái hoạt ngôn' },
@@ -399,13 +413,15 @@
         const segments = [];
 
         if (state.settings.includeTitle && state.title) {
+            const titleText = normalizeText(state.title);
             segments.push({
-                text: state.title,
+                text: titleText,
                 paragraphIndex: -1,
                 paragraphEl: null,
                 chunkIndex: 0,
                 chunkTotal: 1,
-                isTitle: true
+                isTitle: true,
+                skipTts: isPunctuationOnlyText(titleText)
             });
         }
 
@@ -419,13 +435,15 @@
             }
             const chunks = splitIntoChunks(text, effectiveMaxChars);
             chunks.forEach((chunk, chunkIndex) => {
+                const chunkText = normalizeText(chunk);
                 segments.push({
-                    text: chunk,
+                    text: chunkText,
                     paragraphIndex,
                     paragraphEl: p,
                     chunkIndex,
                     chunkTotal: chunks.length,
-                    isTitle: false
+                    isTitle: false,
+                    skipTts: isPunctuationOnlyText(chunkText)
                 });
             });
         });
@@ -454,7 +472,7 @@
                 return;
             }
 
-            const units = sentence.length > maxChars ? hardSplit(sentence, maxChars) : [sentence];
+            const units = sentence.length > maxChars ? splitLongUnit(sentence, maxChars) : [sentence];
             units.forEach((unit) => {
                 if (!current) {
                     current = unit;
@@ -477,45 +495,101 @@
         return chunks.length > 0 ? chunks : [clean];
     }
 
-    function hardSplit(text, maxChars) {
-        const words = normalizeText(text).split(' ').filter(Boolean);
-        if (words.length === 0) {
-            return [text.slice(0, maxChars)];
+    // Chia 1 câu quá dài thành các mảnh <= maxChars, ưu tiên ngắt ở dấu câu gần mốc maxChars nhất.
+    function splitLongUnit(text, maxChars) {
+        const clean = normalizeText(text);
+        if (!clean) {
+            return [];
+        }
+        const limit = Math.max(1, clampInt(maxChars, 20, 2000));
+        if (clean.length <= limit) {
+            return [clean];
         }
 
-        const chunks = [];
-        let current = '';
-
-        words.forEach((word) => {
-            if (word.length > maxChars) {
-                if (current) {
-                    chunks.push(current);
-                    current = '';
-                }
-                for (let i = 0; i < word.length; i += maxChars) {
-                    chunks.push(word.slice(i, i + maxChars));
-                }
-                return;
+        const out = [];
+        let rest = clean;
+        let guard = 0;
+        while (rest.length > limit && guard < 5000) {
+            guard += 1;
+            const cut = findBestCutIndex(rest, limit);
+            const head = normalizeText(rest.slice(0, cut));
+            if (head) {
+                out.push(head);
             }
-
-            const merged = current ? `${current} ${word}` : word;
-            if (merged.length <= maxChars) {
-                current = merged;
-            } else {
-                chunks.push(current);
-                current = word;
+            rest = normalizeText(rest.slice(cut));
+            if (!rest) {
+                break;
             }
-        });
+        }
+        if (rest) {
+            out.push(rest);
+        }
+        if (out.length === 0) {
+            return [clean.slice(0, limit)];
+        }
+        return out;
+    }
 
-        if (current) {
-            chunks.push(current);
+    function findBestCutIndex(text, maxChars) {
+        const s = String(text || '');
+        const limit = Math.min(Math.max(1, Number(maxChars) || 1), s.length);
+        const nearStart = Math.max(0, limit - SPLIT_NEAR_WINDOW);
+
+        // 1) Ưu tiên dấu câu mạnh (gần mốc trước, rồi mới toàn bộ).
+        let idx = findLastBreakCharIndex(s, nearStart, limit, BREAK_CHARS_STRONG);
+        if (idx < 0) {
+            idx = findLastBreakCharIndex(s, 0, limit, BREAK_CHARS_STRONG);
+        }
+        // 2) Nếu không có, dùng dấu phẩy/biến thể.
+        if (idx < 0) {
+            idx = findLastBreakCharIndex(s, nearStart, limit, BREAK_CHARS_COMMA);
+        }
+        if (idx < 0) {
+            idx = findLastBreakCharIndex(s, 0, limit, BREAK_CHARS_COMMA);
+        }
+        if (idx >= 0) {
+            return Math.min(limit, idx + 1);
         }
 
-        return chunks;
+        // 3) Không có dấu câu: ưu tiên ngắt ở khoảng trắng để tránh cắt giữa từ; nếu không có thì cắt đúng mốc.
+        const spaceIdx = s.lastIndexOf(' ', limit);
+        if (spaceIdx > 0) {
+            return Math.min(limit, spaceIdx + 1);
+        }
+        return limit;
+    }
+
+    function findLastBreakCharIndex(text, fromIndex, toIndex, charSet) {
+        const s = String(text || '');
+        const start = Math.max(0, Number(fromIndex) || 0);
+        const end = Math.min(s.length, Number(toIndex) || 0);
+        if (!charSet || end <= start) {
+            return -1;
+        }
+        for (let i = end - 1; i >= start; i -= 1) {
+            const ch = s[i];
+            if (charSet.has(ch)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     function normalizeText(input) {
         return String(input || '').replace(/\s+/g, ' ').trim();
+    }
+
+    // Đoạn chỉ gồm dấu câu/ký hiệu (không có chữ/số) => bỏ qua không gửi lên TTS remote.
+    function isPunctuationOnlyText(input) {
+        const s = String(input || '').replace(/\s+/g, '');
+        if (!s) {
+            return true;
+        }
+        if (SUPPORTS_UNICODE_PROP_ESCAPES) {
+            return !/[\p{L}\p{N}]/u.test(s);
+        }
+        // Fallback: Latin + Vietnamese diacritics + CJK + digits.
+        return !/[0-9A-Za-z\u00C0-\u024F\u1E00-\u1EFF\u4E00-\u9FFF]/.test(s);
     }
 
     function sleep(ms) {
@@ -583,10 +657,6 @@
     function scheduleSpeakCurrentSegment() {
         clearNextSegmentTimer();
         const delayMs = clampInt(state.settings.segmentDelayMs, 0, 5000);
-        if (delayMs <= 0) {
-            speakCurrentSegment();
-            return;
-        }
         const token = state.utteranceToken;
         state.nextSegmentTimer = setTimeout(() => {
             state.nextSegmentTimer = 0;
@@ -1840,6 +1910,13 @@
 
         activateSegmentHighlight(segment);
 
+        if (segment && segment.skipTts) {
+            updateStatus('Bỏ qua đoạn chỉ có dấu câu...');
+            updateProgressText();
+            completeCurrentSegment(segment);
+            return;
+        }
+
         if (isRemoteProvider()) {
             speakSegmentWithRemote(segment, token);
         } else {
@@ -2140,16 +2217,22 @@
             const voiceId = provider.getVoiceId();
             // Sequential prefetch with gentle pacing to avoid being rate-limited.
             (async () => {
-                for (let i = 0; i < count; i += 1) {
+                let fetched = 0;
+                let idx = Math.max(0, Number(fromIndex) || 0);
+                while (fetched < count) {
                     if (jobId !== state.prefetchJobId) {
                         return;
                     }
                     if (!state.reading || state.paused || !isRemoteProvider() || getProviderId() !== providerId) {
                         return;
                     }
-                    const seg = state.segments[fromIndex + i];
-                    if (!seg || !seg.text) {
+                    const seg = state.segments[idx];
+                    idx += 1;
+                    if (!seg) {
                         return;
+                    }
+                    if (!seg.text || seg.skipTts) {
+                        continue;
                     }
                     try {
                         await getRemoteAudioBase64Cached(providerId, seg.text, voiceId, {
@@ -2157,6 +2240,7 @@
                             retries: 1,
                             minGapMs: Math.max(TIKTOK_MIN_REQUEST_GAP_MS, 320)
                         });
+                        fetched += 1;
                     } catch (err) {
                         // ignore prefetch errors
                     }
