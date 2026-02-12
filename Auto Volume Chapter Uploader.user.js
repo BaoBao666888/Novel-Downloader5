@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Auto Volume/Chapter Uploader
 // @namespace    http://tampermonkey.net/
-// @version      1.2.3.2
+// @version      1.2.5
 // @description  Tự động hóa quá trình thêm/bổ sung chương trên wiki và web hồng
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js
-// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich_Autofill.user.js?v=0.3.4
+// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich_Autofill.user.js?v=0.3.5
 // @match        https://truyenwikidich.net/nhung-file
 // @match        https://truyenwikidich.net/truyen/*/chinh-sua
 // @match        https://koanchay.org/nhung-file
@@ -42,7 +42,7 @@
     }
     // --- Cấu hình ---
     const APP_PREFIX = 'WDU_';
-    const CURRENT_VERSION = '1.2.3';
+    const CURRENT_VERSION = '1.2.5';
     const VERSION_KEY = `${APP_PREFIX}version`;
     const VOLUME_STATS_KEY = `${APP_PREFIX}volume_stats_enabled`;
     const SHARED_THEME_KEY = 'WDX_theme';
@@ -51,8 +51,6 @@
         LOG_MAX_LINES: 1000,
         FILE_SIZE_WARNING_KB: 4,
         USE_FIRST_LINE_ONLY: false,
-        FILENAME_REGEX: String.raw`第(\d+)章\s*(.*)`,
-        CONTENT_REGEX: String.raw`第(\d+)章\s*(.*)`,
         CHAPTER_NAME_TEMPLATE: '第{num}章 {title}',
         PARSE_PRIORITY: 'filename',
         THEME_MODE: DEFAULT_THEME_MODE,
@@ -881,6 +879,72 @@
             margin: 0;
             min-width: 90px;
         }
+        #${APP_PREFIX}dialog-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 16, 28, 0.5);
+            backdrop-filter: blur(2px);
+            z-index: 100009;
+        }
+        #${APP_PREFIX}dialog-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 560px;
+            max-width: 96vw;
+            background: linear-gradient(180deg, #fff7f9 0%, #fff 100%);
+            border-radius: 14px;
+            border: 1px solid rgba(120, 128, 160, 0.25);
+            box-shadow: 0 20px 40px rgba(40, 48, 74, 0.3);
+            z-index: 100010;
+            color: #2f2a36;
+            font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
+            overflow: hidden;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}dialog-modal {
+            background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+            color: #e5e7eb;
+            border-color: rgba(148, 163, 184, 0.25);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+        }
+        #${APP_PREFIX}dialog-title {
+            padding: 12px 16px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #ffe8ee, #edf5ff);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            color: #4a2c6f;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}dialog-title {
+            background: linear-gradient(90deg, #0f172a, #1f2937);
+            color: #e5e7eb;
+            border-bottom-color: rgba(148, 163, 184, 0.2);
+        }
+        #${APP_PREFIX}dialog-message {
+            padding: 12px 16px;
+            font-size: 13px;
+            line-height: 1.55;
+            white-space: pre-line;
+            max-height: min(52vh, 420px);
+            overflow-y: auto;
+        }
+        #${APP_PREFIX}dialog-actions {
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            border-top: 1px solid rgba(0,0,0,0.06);
+            background: rgba(255,255,255,0.82);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}dialog-actions {
+            background: rgba(15, 23, 42, 0.9);
+            border-top-color: rgba(148, 163, 184, 0.2);
+        }
+        #${APP_PREFIX}dialog-actions .${APP_PREFIX}btn {
+            width: auto;
+            margin: 0;
+            min-width: 90px;
+        }
         .${APP_PREFIX}volume-stats {
             margin-top: 6px;
             padding: 6px 10px;
@@ -1092,7 +1156,7 @@
             <div id="${APP_PREFIX}header">
                 <div id="${APP_PREFIX}header-title">
                     <span>Auto Uploader</span>
-                    <span id="${APP_PREFIX}header-badge">v1.2.3</span>
+                    <span id="${APP_PREFIX}header-badge">v1.2.5</span>
                 </div>
                 <div id="${APP_PREFIX}header-actions">
                     <button id="${APP_PREFIX}settings-btn" title="Cài đặt">
@@ -1124,7 +1188,7 @@
                     </button>
 
                     <p class="${APP_PREFIX}notice">
-                        Tên file phải có dạng: 第123章...</strong> hoặc tùy chỉ nâng cao trong Setting. Script sẽ tự động sắp xếp, điền tên và số file.
+                        Tên file nên có dạng: 第123章... Script sẽ tự động phân tích từ tên file/dòng đầu, sắp xếp và điền file.
                     </p>
                     <div id="${APP_PREFIX}manual-input" style="display: none;"></div>
                 </div>
@@ -1149,6 +1213,16 @@
             <div id="${APP_PREFIX}confirm-actions">
                 <button id="${APP_PREFIX}confirm-cancel" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Hủy</button>
                 <button id="${APP_PREFIX}confirm-ok" class="${APP_PREFIX}btn ${APP_PREFIX}btn-danger">Xóa</button>
+            </div>
+        </div>
+        <div id="${APP_PREFIX}dialog-overlay" class="${APP_PREFIX}hide"></div>
+        <div id="${APP_PREFIX}dialog-modal" class="${APP_PREFIX}hide">
+            <div id="${APP_PREFIX}dialog-title">Thông báo</div>
+            <div id="${APP_PREFIX}dialog-message"></div>
+            <div id="${APP_PREFIX}dialog-actions">
+                <button id="${APP_PREFIX}dialog-extra" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Tùy chọn</button>
+                <button id="${APP_PREFIX}dialog-cancel" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Hủy</button>
+                <button id="${APP_PREFIX}dialog-ok" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">Đồng ý</button>
             </div>
         </div>
         <div id="${APP_PREFIX}pref-overlay" class="${APP_PREFIX}hide"></div>
@@ -1214,100 +1288,12 @@
                     </select>
                 </div>
 
-                <div class="${APP_PREFIX}setting-item">
-                    <label for="${APP_PREFIX}setting-encoding">Bảng mã file (Encoding):</label>
-                    <select id="${APP_PREFIX}setting-encoding" class="${APP_PREFIX}select">
-                        <option value="UTF-8">UTF-8 (Phổ biến nhất)</option>
-                        <option value="GBK">GBK (Truyện Trung/Convert cũ)</option>
-                        <option value="windows-1252">Windows-1252 (Tiếng Anh cũ)</option>
-                        <option value="UTF-16">UTF-16</option>
-                    </select>
-                    <span class="${APP_PREFIX}notice">Đổi sang GBK nếu nội dung bị lỗi font dạng ♦.</span>
-                </div>
                 <div class="${APP_PREFIX}setting-item" style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
                     <label>
                         <input type="checkbox" id="${APP_PREFIX}setting-volume-stats">
                         Hiện thống kê chương theo quyển
                     </label>
                     <div class="${APP_PREFIX}notice">Tổng số chương: <span id="${APP_PREFIX}setting-total-chapters">...</span></div>
-                </div>
-
-                <div class="${APP_PREFIX}setting-item">
-                    <label>
-                        Regex Dòng đầu (Content):
-                        <button type="button" id="${APP_PREFIX}setting-content-regex-test"
-                                style="padding:2px 6px;font-size:11px;background:#2196F3;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-left:5px;">
-                            Test Content
-                        </button>
-                    </label>
-
-                    <div style="display:flex;gap:6px;align-items:center;">
-                        <input type="text" id="${APP_PREFIX}setting-content-regex" class="${APP_PREFIX}text-input"
-                               placeholder="第(\d+)章\s*(.*)" style="margin-bottom:0;">
-                    </div>
-
-                    <input type="text" id="${APP_PREFIX}setting-content-sample" class="${APP_PREFIX}text-input"
-                           placeholder="Ví dụ: 第188章 禅说"
-                           style="
-                                display:block;
-                                opacity:0;
-                                height:0;
-                                padding:0 8px;
-                                margin:0;
-                                transition: all 0.25s ease;
-                                overflow:hidden;
-                                pointer-events:none;
-                           ">
-
-                    <div class="${APP_PREFIX}notice" id="${APP_PREFIX}setting-content-regex-result"></div>
-                    <span class="${APP_PREFIX}notice">Nếu dòng đầu lỗi, sẽ tự dùng Tên file.</span>
-                </div>
-                <div class="${APP_PREFIX}setting-item">
-
-                    <label for="${APP_PREFIX}setting-filename-regex">
-                        Regex tên file (2 nhóm: num, title):
-                        <button type="button"
-                                id="${APP_PREFIX}setting-filename-regex-help"
-                                style="margin-left:6px;border-radius:50%;border:1px solid #ccc;
-                                    width:18px;height:18px;padding:0;font-size:11px;
-                                    line-height:16px;background:#f5f5f5;cursor:pointer;">
-                            ?
-                        </button>
-                        <button type="button" id="${APP_PREFIX}setting-filename-regex-test"
-                                style="padding:2px 6px;font-size:11px;background:#2196F3;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-left:5px;">
-                            Test Filename
-                        </button>
-                    </label>
-
-                    <div style="display:flex;gap:6px;align-items:center;">
-                        <input type="text"
-                            id="${APP_PREFIX}setting-filename-regex"
-                            class="${APP_PREFIX}text-input"
-                            placeholder="第(\\d+)章\\s*(.*)"
-                            style="margin-bottom:0;">
-                    </div>
-                    <input type="text"
-                    id="${APP_PREFIX}setting-filename-sample"
-                    class="${APP_PREFIX}text-input"
-                    placeholder="Ví dụ: 第188章 禅说.txt"
-                    style="
-                        display:block;
-                        opacity:0;
-                        height:0;
-                        padding:0 8px;
-                        margin:0;
-                        transition: all 0.25s ease;
-                        overflow:hidden;
-                        pointer-events:none;
-                    ">
-
-                    <span class="${APP_PREFIX}notice">
-                        Ví dụ Regex: <code>第(\\d+)章\\s*(.*)</code> → "第188章 禅说.txt"
-                    </span>
-
-                    <!-- Kết quả test -->
-                    <div class="${APP_PREFIX}notice"
-                        id="${APP_PREFIX}setting-filename-regex-test-result"></div>
                 </div>
 
                 <div class="${APP_PREFIX}setting-item">
@@ -1472,6 +1458,13 @@
     const confirmExtra = shadowRoot.querySelector(`#${APP_PREFIX}confirm-extra`);
     const confirmCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}confirm-cancel`);
     const confirmOkBtn = shadowRoot.querySelector(`#${APP_PREFIX}confirm-ok`);
+    const dialogOverlay = shadowRoot.querySelector(`#${APP_PREFIX}dialog-overlay`);
+    const dialogModal = shadowRoot.querySelector(`#${APP_PREFIX}dialog-modal`);
+    const dialogTitle = shadowRoot.querySelector(`#${APP_PREFIX}dialog-title`);
+    const dialogMessage = shadowRoot.querySelector(`#${APP_PREFIX}dialog-message`);
+    const dialogExtraBtn = shadowRoot.querySelector(`#${APP_PREFIX}dialog-extra`);
+    const dialogCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}dialog-cancel`);
+    const dialogOkBtn = shadowRoot.querySelector(`#${APP_PREFIX}dialog-ok`);
     const prefOverlay = shadowRoot.querySelector(`#${APP_PREFIX}pref-overlay`);
     const prefModal = shadowRoot.querySelector(`#${APP_PREFIX}pref-modal`);
     const prefEnableBtn = shadowRoot.querySelector(`#${APP_PREFIX}pref-enable`);
@@ -1487,21 +1480,10 @@
     const fileSizeKbInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-file-kb`);
     const themeSelect = shadowRoot.querySelector(`#${APP_PREFIX}setting-theme`);
     const firstLineOnlyInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-first-line-only`);
-    const filenameRegexInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex`);
-    const filenameSampleInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-sample`);
     const chapterTemplateInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-chapter-template`);
     const volumeStatsCheckbox = shadowRoot.querySelector(`#${APP_PREFIX}setting-volume-stats`);
     const totalChaptersEl = shadowRoot.querySelector(`#${APP_PREFIX}setting-total-chapters`);
-
-    const filenameRegexHelpBtn = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex-help`);
-    const filenameRegexTestBtn = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex-test`);
-    const filenameRegexTestResult = shadowRoot.querySelector(`#${APP_PREFIX}setting-filename-regex-test-result`);
-
     const prioritySelect = shadowRoot.querySelector(`#${APP_PREFIX}setting-priority`);
-    const contentRegexInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-content-regex`);
-    const contentRegexTestBtn = shadowRoot.querySelector(`#${APP_PREFIX}setting-content-regex-test`);
-    const contentSampleInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-content-sample`);
-    const contentRegexResult = shadowRoot.querySelector(`#${APP_PREFIX}setting-content-regex-result`);
 
     let iconDragged = false;
 
@@ -2167,11 +2149,10 @@
 - **Dòng đầu** của file sẽ được dùng làm **tên chương**.
 - Không check trùng/thiếu chương và không điền mô tả bổ sung.
 
-### 🧠 Regex & ưu tiên parse (mặc định)
+### 🧠 Parse chương (mặc định)
 - **Ưu tiên lấy thông tin từ**:
   - Tên file (fallback dòng đầu) hoặc Dòng đầu (fallback tên file).
-- Regex phải có **2 nhóm**: num + title.
-- Ví dụ: \`第(\\d+)章\\s*(.*)\` hoặc \`(\\d+)-(.*)\`.
+- Script dùng regex mặc định (tham chiếu logic app rename), không cần tự nhập regex.
 - Mẫu tên chương: \`第{num}章 {title}\`.
 
 ### 🧯 Khi có lỗi parse
@@ -2179,13 +2160,24 @@
 - Bạn có thể **tiếp tục** hoặc **hủy** nếu thấy không ổn.
 
 ### 🍃 Tips nhỏ
-- Đổi encoding sang GBK nếu nội dung bị lỗi font.
+- Script tự nhận diện bảng mã và có thể chuyển file về UTF-8 khi cần.
 - Nếu thiếu nút upload, thử reload trang.
 - Có thể bật thống kê chương theo quyển trong Cài đặt để xem tổng số chương.
     `.trim();
 
     const changelogMarkdown = `
-### ✨ v1.2.3
+### ✨ v1.2.5
+- Nâng cấp popup xử lý ký tự đặc biệt: **bắt buộc chọn nút**, không tự chọn khi bấm ra ngoài.
+- Thêm xử lý emoji/icon (4-byte) trước upload với 3 lựa chọn: đổi sang text, xóa icon, giữ nguyên.
+- Thêm popup hỏi chuẩn hóa dấu phẩy Nhật **、** sang dấu phẩy thường **,** để giảm lỗi trên web chính thức.
+- Mở rộng dialog update/cảnh báo để hiển thị danh sách file dễ đọc hơn.
+
+### ✨ v1.2.4
+- Bỏ cài đặt Regex tùy chỉnh trong UI, chuyển sang parse mặc định theo logic app Novel Studio.
+- Thêm auto-detect bảng mã theo file + log chi tiết, có hỏi chuyển sang UTF-8 trước khi xử lý.
+- Thêm rule xử lý số chương lặp đầu tiêu đề (vd: "第1章 第1章 ...") chỉ giữ một số.
+
+### 📦 v1.2.3
 - Tối ưu giao diện + thêm theme tối.
 
 ### 📦 v1.2.2
@@ -2247,16 +2239,127 @@
         settingsOverlay.classList.add(`${APP_PREFIX}hide`);
         maybeShowThemePref();
     }
+
+    const dialogState = {
+        resolver: null,
+        onKeyDown: null
+    };
+
+    function closeUiDialog(result = 'dismiss') {
+        if (dialogState.onKeyDown) {
+            window.removeEventListener('keydown', dialogState.onKeyDown);
+            dialogState.onKeyDown = null;
+        }
+        if (dialogModal) dialogModal.classList.add(`${APP_PREFIX}hide`);
+        if (dialogOverlay) dialogOverlay.classList.add(`${APP_PREFIX}hide`);
+        const resolver = dialogState.resolver;
+        dialogState.resolver = null;
+        if (resolver) resolver(result);
+    }
+
+    function showUiDialog({
+        title = 'Thông báo',
+        message = '',
+        confirmText = 'Đồng ý',
+        cancelText = 'Hủy',
+        showCancel = false,
+        danger = false,
+        extraText = '',
+        extraDanger = false
+    } = {}) {
+        return new Promise((resolve) => {
+            if (!dialogOverlay || !dialogModal || !dialogTitle || !dialogMessage || !dialogCancelBtn || !dialogOkBtn || !dialogExtraBtn) {
+                resolve(showCancel ? 'dismiss' : 'ok');
+                return;
+            }
+
+            if (dialogState.resolver) {
+                closeUiDialog('dismiss');
+            }
+
+            dialogState.resolver = resolve;
+            dialogTitle.textContent = String(title || 'Thông báo');
+            dialogMessage.textContent = String(message || '');
+            dialogOkBtn.textContent = String(confirmText || 'Đồng ý');
+            dialogCancelBtn.textContent = String(cancelText || 'Hủy');
+            dialogExtraBtn.textContent = String(extraText || '');
+            dialogCancelBtn.classList.toggle(`${APP_PREFIX}hide`, !showCancel);
+            dialogExtraBtn.classList.toggle(`${APP_PREFIX}hide`, !extraText);
+            dialogOkBtn.classList.toggle(`${APP_PREFIX}btn-danger`, !!danger);
+            dialogOkBtn.classList.toggle(`${APP_PREFIX}btn-secondary`, !danger);
+            dialogExtraBtn.classList.toggle(`${APP_PREFIX}btn-danger`, !!extraDanger);
+            dialogExtraBtn.classList.toggle(`${APP_PREFIX}btn-secondary`, !extraDanger);
+            dialogExtraBtn.classList.toggle(`${APP_PREFIX}btn-ghost`, !extraDanger);
+
+            dialogOverlay.classList.remove(`${APP_PREFIX}hide`);
+            dialogModal.classList.remove(`${APP_PREFIX}hide`);
+
+            dialogCancelBtn.onclick = () => closeUiDialog('cancel');
+            dialogOkBtn.onclick = () => closeUiDialog('ok');
+            dialogExtraBtn.onclick = () => closeUiDialog('extra');
+            dialogOverlay.onclick = (ev) => {
+                ev.preventDefault();
+            };
+            dialogState.onKeyDown = (ev) => {
+                if (ev.key === 'Escape') {
+                    ev.preventDefault();
+                } else if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    closeUiDialog('ok');
+                }
+            };
+            window.addEventListener('keydown', dialogState.onKeyDown);
+        });
+    }
+
+    async function showUiAlert(message, title = 'Thông báo') {
+        await showUiDialog({
+            title,
+            message,
+            confirmText: 'OK',
+            showCancel: false
+        });
+        return true;
+    }
+
+    async function showUiConfirm(message, title = 'Xác nhận', confirmText = 'Đồng ý', cancelText = 'Hủy', danger = false) {
+        const result = await showUiDialog({
+            title,
+            message,
+            confirmText,
+            cancelText,
+            showCancel: true,
+            danger
+        });
+        return result === 'ok';
+    }
+
+    async function showUiThreeChoice(
+        message,
+        title = 'Chọn cách xử lý',
+        textifyText = 'Đổi sang text (Khuyên dùng)',
+        removeText = 'Xóa icon (An toàn)',
+        keepText = 'Giữ nguyên (Dễ lỗi)'
+    ) {
+        const result = await showUiDialog({
+            title,
+            message,
+            confirmText: textifyText,
+            cancelText: removeText,
+            showCancel: true,
+            extraText: keepText,
+            extraDanger: true
+        });
+        if (result === 'ok') return 'text';
+        if (result === 'cancel') return 'remove';
+        if (result === 'extra') return 'keep';
+        if (result === 'dismiss') return 'text';
+        return 'text';
+    }
+
     function setParseControlsEnabled(enabled) {
         const fields = [
             prioritySelect,
-            contentRegexInput,
-            contentRegexTestBtn,
-            contentSampleInput,
-            filenameRegexInput,
-            filenameRegexHelpBtn,
-            filenameRegexTestBtn,
-            filenameSampleInput,
             chapterTemplateInput
         ];
         fields.forEach((el) => {
@@ -2385,160 +2488,6 @@
         return { text: '', guessed: false };
     }
 
-    // --- Hướng dẫn Regex ---
-    if (filenameRegexHelpBtn) {
-        filenameRegexHelpBtn.addEventListener('click', () => {
-            alert(
-                `Hướng dẫn Regex tên file:
-
-• Regex phải có ÍT NHẤT 2 nhóm bắt ( ... ):
-   1) Nhóm 1: số chương (num)
-   2) Nhóm 2: tiêu đề chương (title)
-
-Ví dụ thường dùng:
-1. (\\d+)-(.*)
-   Khớp: "001-Tiêu đề.txt"
-   → num = 001, title = "Tiêu đề"
-
-2. 第(\\d+)章\\s*(.*)
-   Khớp: "第1章 Tiêu đề.txt"
-   → num = 1, title = "Tiêu đề"
-
-3. Chương\\s+(\\d+)\\s*-\\s*(.*)
-   Khớp: "Chương 12 - Tiêu đề.txt"
-
-Lưu ý:
-- Không cần ghi phần .txt trong regex (script tự bỏ đuôi .txt).
-- Có thể dùng nhiều trường hợp với dấu |, ví dụ:
-  (\\d+)-(.*)|第(\\d+)章\\s*(.*)`
-            );
-        });
-    }
-    // --- Hàm test Regex với tên file ví dụ ---
-    function runFilenameRegexTest() {
-        if (!filenameRegexTestResult) return;
-
-        filenameRegexTestResult.textContent = '';
-
-        const pattern = (filenameRegexInput.value || '').trim();
-        if (!pattern) {
-            filenameRegexTestResult.textContent = '❌ Vui lòng nhập Regex trước.';
-            return;
-        }
-
-        let re;
-        try {
-            re = new RegExp(pattern, 'i');
-        } catch (e) {
-            filenameRegexTestResult.textContent = '❌ Regex không hợp lệ: ' + e.message;
-            return;
-        }
-
-        const sampleRaw = (filenameSampleInput && filenameSampleInput.value || '').trim();
-        if (!sampleRaw) {
-            filenameRegexTestResult.textContent =
-                '❌ Vui lòng nhập tên file ví dụ (vd: 第188章 禅说.txt).';
-            return;
-        }
-
-
-        const baseName = sampleRaw.replace(/\.txt$/i, '');
-        const m = baseName.match(re);
-
-        if (!m) {
-            filenameRegexTestResult.textContent =
-                `❌ Regex KHÔNG khớp với tên file này.\n` +
-                `Tên đang test: "${sampleRaw}"`;
-            return;
-        }
-
-        if (m.length < 3) {
-            filenameRegexTestResult.textContent =
-                `❌ Regex chỉ bắt được ${m.length - 1} nhóm (không đủ 2 nhóm num/title).\n` +
-                `Hãy chắc chắn Regex có ít nhất 2 cặp ngoặc ( ... ).`;
-            return;
-        }
-
-
-        const lines = [];
-        lines.push(`Tên file: "${sampleRaw}"`);
-        lines.push(`Chuỗi match: "${m[0]}"`);
-        lines.push(`- Nhóm 1 (num): ${m[1]}`);
-        lines.push(`- Nhóm 2 (title): ${m[2] || ''}`);
-
-        if (m.length > 3) {
-            for (let i = 3; i < m.length; i++) {
-                lines.push(`- Nhóm ${i}: ${m[i] || ''}`);
-            }
-        }
-
-        filenameRegexTestResult.textContent =
-            '✅ Regex khớp với tên file.\n' + lines.join('\n');
-    }
-
-    if (filenameRegexTestBtn) {
-        filenameRegexTestBtn.addEventListener('click', () => {
-
-
-            if (filenameSampleInput && filenameSampleInput.style.opacity === '0') {
-
-
-                filenameSampleInput.style.height = '32px';
-                filenameSampleInput.style.padding = '6px 8px';
-                filenameSampleInput.style.margin = '6px 0';
-                filenameSampleInput.style.opacity = '1';
-                filenameSampleInput.style.pointerEvents = 'auto';
-
-                filenameRegexTestResult.textContent = '💡 Nhập tên file ví dụ rồi bấm Test lần nữa.';
-                filenameSampleInput.focus();
-                return;
-            }
-
-
-            runFilenameRegexTest();
-        });
-    }
-
-    if (contentRegexTestBtn) {
-        contentRegexTestBtn.addEventListener('click', () => {
-
-            if (contentSampleInput.style.opacity === '0') {
-
-                contentSampleInput.style.height = '32px';
-                contentSampleInput.style.padding = '6px 8px';
-                contentSampleInput.style.margin = '6px 0';
-                contentSampleInput.style.opacity = '1';
-                contentSampleInput.style.pointerEvents = 'auto';
-
-                contentSampleInput.focus();
-                contentRegexResult.textContent = '💡 Nhập dòng đầu ví dụ rồi bấm Test lần nữa.';
-                return;
-            }
-
-
-            const pattern = contentRegexInput.value.trim();
-            const sample = contentSampleInput.value.trim();
-            if (!pattern) { contentRegexResult.textContent = '❌ Chưa nhập Regex.'; return; }
-
-            try {
-                const re = new RegExp(pattern, 'i');
-                const m = sample.match(re);
-                if (m && m.length >= 2) {
-                    contentRegexResult.innerHTML = `✅ <b>Num:</b> ${m[1]} | <b>Title:</b> ${m[2] || '(trống)'}`;
-                } else {
-                    contentRegexResult.textContent = '❌ Không khớp hoặc thiếu nhóm (num/title).';
-                }
-            } catch (e) {
-                contentRegexResult.textContent = '❌ Regex lỗi: ' + e.message;
-            }
-        });
-    }
-
-    if (filenameRegexTestBtn) {
-        filenameRegexTestBtn.addEventListener('click', runFilenameRegexTest);
-    }
-
-
     const fakeUploadBtn = shadowRoot.querySelector(`#${APP_PREFIX}fake-upload`);
     fakeUploadBtn.disabled = true;
 
@@ -2616,6 +2565,12 @@ Lưu ý:
             const saved = localStorage.getItem(SETTINGS_KEY);
             if (saved) {
                 const loadedSettings = JSON.parse(saved);
+                if (loadedSettings && typeof loadedSettings === 'object') {
+                    // Dọn key cũ không còn dùng.
+                    delete loadedSettings.FILE_ENCODING;
+                    delete loadedSettings.FILENAME_REGEX;
+                    delete loadedSettings.CONTENT_REGEX;
+                }
 
                 settings = { ...settings, ...loadedSettings };
                 log('Tải cài đặt đã lưu.');
@@ -2778,65 +2733,544 @@ Lưu ý:
         log('Sẵn sàng. Vui lòng chọn quyển.');
     }
 
-    function readFirstLineOfFile(file) {
-        return new Promise((resolve) => {
-            const encoding = settings.FILE_ENCODING || 'UTF-8';
-            const reader = new FileReader();
+    const BUILTIN_FILENAME_NUMERIC_REGEX = /(?:chương|c|q|quyển|chap|chapter|第)?\s*(\d+)\s*[:\-.]*\s*(.*)/i;
+    const BUILTIN_FILENAME_CHINESE_REGEX = /第\s*([一二三四五六七八九十百千万两零\d]+)\s*章\s*(.*)/i;
+    const BUILTIN_CONTENT_CHINESE_REGEX = /^第\s*([一二三四五六七八九十百千万两零\d]+)\s*章\s*(.*)/i;
+    const BUILTIN_CONTENT_NUMERIC_REGEX = /^(\d+)[\s.\-:]*(.*)/;
+    const TITLE_CHINESE_PREFIX_REGEX = /^第\s*([一二三四五六七八九十百千万两零\d]+)\s*章[\s:：\-_.]*(.*)$/i;
+    const TITLE_COMMON_PREFIX_REGEX = /^(?:chương|chapter|chap|c|q|quyển)\s*(\d+)[\s:：\-_.]*(.*)$/i;
+    const CHINESE_NUMERALS = Object.freeze({
+        '零': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9
+    });
+    const CHINESE_UNITS = Object.freeze({ '十': 10, '百': 100, '千': 1000, '万': 10000 });
 
-            reader.onload = (e) => {
-                const text = e.target.result || '';
-                let firstLine = text.split(/\r?\n/)[0].trim();
-                if (firstLine.length > 500) firstLine = firstLine.substring(0, 500);
-                resolve(firstLine);
-            };
+    function chineseToArabic(text) {
+        const raw = String(text || '').trim();
+        if (!raw) return NaN;
+        if (/^\d+$/.test(raw)) return parseInt(raw, 10);
 
-            reader.onerror = () => resolve('');
-            reader.readAsText(file.slice(0, 2048), encoding);
-        });
+        let result = 0;
+        let section = 0;
+        let number = 0;
+        for (const ch of raw) {
+            if (Object.prototype.hasOwnProperty.call(CHINESE_NUMERALS, ch)) {
+                number = CHINESE_NUMERALS[ch];
+                continue;
+            }
+            if (ch === '万') {
+                result += (section + number) * 10000;
+                section = 0;
+                number = 0;
+                continue;
+            }
+            if (Object.prototype.hasOwnProperty.call(CHINESE_UNITS, ch)) {
+                const unitValue = CHINESE_UNITS[ch];
+                if (unitValue === 10 && number === 0) number = 1;
+                section += number * unitValue;
+                number = 0;
+            }
+        }
+
+        result += section + number;
+        if (raw.length > 1 && raw.startsWith('十') && result > 10) {
+            const tail = String(result).slice(1);
+            result = tail ? (parseInt(tail, 10) + 10) : 10;
+        }
+        return Number.isFinite(result) ? result : NaN;
     }
 
+    function parseLeadingChapterPrefix(text) {
+        const raw = String(text || '').trim();
+        if (!raw) return null;
 
-    function matchRegex(text, regexStr) {
-        if (!text || !regexStr) return null;
-        try {
-            const re = new RegExp(regexStr, 'i');
-            const m = text.match(re);
-            if (m && m[1]) {
-                return { num: parseInt(m[1], 10), title: m[2] || '' };
-            }
-        } catch (e) { return null; }
+        let m = raw.match(TITLE_CHINESE_PREFIX_REGEX);
+        if (m) {
+            const num = chineseToArabic(m[1]);
+            if (!Number.isNaN(num)) return { num, rest: (m[2] || '').trim() };
+        }
+
+        m = raw.match(TITLE_COMMON_PREFIX_REGEX);
+        if (m) {
+            const num = parseInt(m[1], 10);
+            if (!Number.isNaN(num)) return { num, rest: (m[2] || '').trim() };
+        }
         return null;
     }
 
-    async function parseFileSmart(file) {
+    function dedupeRepeatedChapterPrefix(num, title) {
+        if (typeof num !== 'number' || Number.isNaN(num)) return String(title || '').trim();
+        let current = String(title || '').trim();
+        for (let i = 0; i < 4; i += 1) {
+            const parsed = parseLeadingChapterPrefix(current);
+            if (!parsed || parsed.num !== num) break;
+            current = parsed.rest.trim();
+        }
+        return current;
+    }
+
+    function createParseResult(num, title, source) {
+        if (typeof num !== 'number' || Number.isNaN(num)) return null;
+        return {
+            num,
+            title: dedupeRepeatedChapterPrefix(num, title),
+            source,
+        };
+    }
+
+    function parseChapterFromFilename(filenameBase) {
+        const text = String(filenameBase || '').trim();
+        if (!text) return null;
+
+        let m = text.match(BUILTIN_FILENAME_CHINESE_REGEX);
+        if (m) {
+            const num = chineseToArabic(m[1]);
+            const parsed = createParseResult(num, m[2] || '', 'filename');
+            if (parsed) return parsed;
+        }
+
+        m = text.match(BUILTIN_FILENAME_NUMERIC_REGEX);
+        if (m) {
+            const num = parseInt(m[1], 10);
+            const parsed = createParseResult(num, m[2] || '', 'filename');
+            if (parsed) return parsed;
+        }
+        return null;
+    }
+
+    function parseChapterFromContent(firstLine) {
+        const text = String(firstLine || '').trim();
+        if (!text) return null;
+
+        let m = text.match(BUILTIN_CONTENT_CHINESE_REGEX);
+        if (m) {
+            const num = chineseToArabic(m[1]);
+            const parsed = createParseResult(num, m[2] || '', 'content');
+            if (parsed) return parsed;
+        }
+
+        m = text.match(BUILTIN_CONTENT_NUMERIC_REGEX);
+        if (m) {
+            const num = parseInt(m[1], 10);
+            const parsed = createParseResult(num, m[2] || '', 'content');
+            if (parsed) return parsed;
+        }
+        return null;
+    }
+
+    function normalizeEncodingLabel(enc) {
+        return (enc || '').toString().trim().toLowerCase();
+    }
+
+    function isUtf8Encoding(enc) {
+        const n = normalizeEncodingLabel(enc);
+        return n === 'utf-8' || n === 'utf8';
+    }
+
+    function extractFirstLine(text) {
+        if (!text) return '';
+        let firstLine = text.split(/\r?\n/)[0].trim();
+        if (firstLine.length > 500) firstLine = firstLine.substring(0, 500);
+        return firstLine;
+    }
+
+    function readFileAsArrayBuffer(file, size) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result || null);
+            reader.onerror = () => resolve(null);
+            if (typeof size === 'number' && size > 0) {
+                reader.readAsArrayBuffer(file.slice(0, size));
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        });
+    }
+
+    function detectBomEncoding(bytes) {
+        if (!bytes || bytes.length < 2) return null;
+        if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) return 'utf-8';
+        if (bytes[0] === 0xFF && bytes[1] === 0xFE) return 'utf-16le';
+        if (bytes[0] === 0xFE && bytes[1] === 0xFF) return 'utf-16be';
+        return null;
+    }
+
+    function decodeBufferWithEncoding(buffer, encoding) {
+        try {
+            const decoder = new TextDecoder(encoding, { fatal: false });
+            return decoder.decode(buffer);
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function scoreDecodedLine(line, hasRegexMatch) {
+        if (!line) return -1e9;
+        const replacementCount = (line.match(/\uFFFD/g) || []).length;
+        const controlCount = (line.match(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g) || []).length;
+        const cjkCount = (line.match(/[\u3400-\u9FFF]/g) || []).length;
+        const letterNumCount = (line.match(/[A-Za-z0-9]/g) || []).length;
+        const punctuationCount = (line.match(/[，。！？：；、“”‘’《》【】（）\[\]{}()\-_.:,'"?!]/g) || []).length;
+
+        let score = 0;
+        score += cjkCount * 2.0;
+        score += letterNumCount * 1.0;
+        score += punctuationCount * 0.2;
+        score -= replacementCount * 150;
+        score -= controlCount * 60;
+        if (hasRegexMatch) score += 1200;
+        return score;
+    }
+
+    async function readFirstLineOfFile(file) {
+        const buffer = await readFileAsArrayBuffer(file, 4096);
+        if (!buffer) {
+            return { firstLine: '', detectedEncoding: 'unknown', isUtf8: false };
+        }
+
+        const bytes = new Uint8Array(buffer);
+        const bomEncoding = detectBomEncoding(bytes);
+        if (bomEncoding) {
+            const text = decodeBufferWithEncoding(buffer, bomEncoding);
+            return {
+                firstLine: extractFirstLine(text),
+                detectedEncoding: bomEncoding,
+                isUtf8: isUtf8Encoding(bomEncoding),
+            };
+        }
+
+        const candidates = ['utf-8', 'gb18030', 'gbk', 'utf-16le', 'utf-16be', 'windows-1252'];
+        let bestLine = '';
+        let bestEncoding = 'unknown';
+        let bestScore = -1e9;
+
+        for (const enc of candidates) {
+            const decoded = decodeBufferWithEncoding(buffer, enc);
+            const line = extractFirstLine(decoded);
+            const hasRegexMatch = !!parseChapterFromContent(line);
+            const score = scoreDecodedLine(line, hasRegexMatch);
+            if (score > bestScore) {
+                bestScore = score;
+                bestLine = line;
+                bestEncoding = enc;
+            }
+        }
+
+        return {
+            firstLine: bestLine,
+            detectedEncoding: bestEncoding,
+            isUtf8: isUtf8Encoding(bestEncoding),
+        };
+    }
+
+    async function convertFileToUtf8(file, sourceEncoding) {
+        if (typeof File !== 'function') {
+            throw new Error('Trình duyệt không hỗ trợ tạo File mới');
+        }
+        const buffer = await readFileAsArrayBuffer(file);
+        if (!buffer) {
+            throw new Error('Không đọc được nội dung file');
+        }
+        const text = decodeBufferWithEncoding(buffer, sourceEncoding || 'utf-8');
+        return new File([text], file.name, {
+            type: file.type || 'text/plain;charset=utf-8',
+            lastModified: file.lastModified || Date.now(),
+        });
+    }
+
+    const EMOJI_CHAR_REGEX = (() => {
+        try {
+            return new RegExp('\\p{Extended_Pictographic}', 'u');
+        } catch (_) {
+            return null;
+        }
+    })();
+
+    async function readFileAsTextWithEncoding(file, encoding) {
+        const buffer = await readFileAsArrayBuffer(file);
+        if (!buffer) return '';
+        const normalized = normalizeEncodingLabel(encoding);
+        const useEncoding = (normalized && normalized !== 'unknown') ? normalized : 'utf-8';
+        let text = decodeBufferWithEncoding(buffer, useEncoding);
+        if (!text && useEncoding !== 'utf-8') {
+            text = decodeBufferWithEncoding(buffer, 'utf-8');
+        }
+        return text || '';
+    }
+
+    function formatCodePoint(cp) {
+        return `U+${cp.toString(16).toUpperCase()}`;
+    }
+
+    function isEmojiCodePoint(ch, cp) {
+        if (EMOJI_CHAR_REGEX) return EMOJI_CHAR_REGEX.test(ch);
+        return cp >= 0x1F000 && cp <= 0x1FAFF;
+    }
+
+    function analyze4ByteChars(text) {
+        let total4Byte = 0;
+        let emojiCount = 0;
+        const samples = [];
+        for (const ch of String(text || '')) {
+            const cp = ch.codePointAt(0);
+            if (!cp || cp <= 0xFFFF) continue;
+            total4Byte += 1;
+            if (isEmojiCodePoint(ch, cp)) emojiCount += 1;
+            if (samples.length < 6) {
+                samples.push(`${ch} (${formatCodePoint(cp)})`);
+            }
+        }
+        return { total4Byte, emojiCount, samples };
+    }
+
+    function transform4ByteChars(text, mode) {
+        const raw = String(text || '');
+        if (mode === 'keep') return raw;
+        let out = '';
+        for (const ch of raw) {
+            const cp = ch.codePointAt(0);
+            if (cp && cp > 0xFFFF) {
+                if (mode === 'text') {
+                    out += `<${formatCodePoint(cp)}>`;
+                }
+                continue;
+            }
+            out += ch;
+        }
+        return out;
+    }
+
+    const RISKY_PUNCTUATION_CHAR = '、';
+    const NORMALIZED_PUNCTUATION_CHAR = ',';
+
+    function analyzeRiskyPunctuation(text) {
+        const raw = String(text || '');
+        let count = 0;
+        for (const ch of raw) {
+            if (ch === RISKY_PUNCTUATION_CHAR) count += 1;
+        }
+        return count;
+    }
+
+    function normalizeRiskyPunctuation(text) {
+        return String(text || '').split(RISKY_PUNCTUATION_CHAR).join(NORMALIZED_PUNCTUATION_CHAR);
+    }
+
+    async function processRiskyPunctuationFiles(files, scanByFile) {
+        if (!Array.isArray(files) || files.length === 0) return { files, scanByFile };
+        log(`Đang quét ký tự có thể bị web chặn (${RISKY_PUNCTUATION_CHAR})...`);
+
+        const textByFile = new Map();
+        const affectedEntries = [];
+        let totalCount = 0;
+
+        for (const file of files) {
+            const scan = scanByFile.get(file) || { detectedEncoding: 'utf-8' };
+            const text = await readFileAsTextWithEncoding(file, scan.detectedEncoding);
+            textByFile.set(file, text);
+            const count = analyzeRiskyPunctuation(text);
+            if (count > 0) {
+                totalCount += count;
+                affectedEntries.push({ file, count });
+            }
+        }
+
+        if (totalCount === 0) {
+            log(`✅ Không phát hiện ký tự ${RISKY_PUNCTUATION_CHAR}.`);
+            return { files, scanByFile };
+        }
+
+        const previewLimit = 12;
+        const previewLines = affectedEntries
+            .slice(0, previewLimit)
+            .map((entry) => `- ${entry.file.name}: ${entry.count} ký tự`)
+            .join('\n');
+        const moreLine = affectedEntries.length > previewLimit
+            ? `\n... và ${affectedEntries.length - previewLimit} file khác.`
+            : '';
+
+        log(`⚠️ Phát hiện ${totalCount} ký tự ${RISKY_PUNCTUATION_CHAR} trong ${affectedEntries.length} file.`, 'warn');
+        const shouldNormalize = await showUiConfirm(
+            `Phát hiện ${totalCount} ký tự "${RISKY_PUNCTUATION_CHAR}" (dấu phẩy Nhật) trong ${affectedEntries.length} file.\n` +
+            `Web chính thức có thể từ chối các ký tự này.\n` +
+            `Bạn có muốn chuẩn hóa thành "${NORMALIZED_PUNCTUATION_CHAR}" trước khi upload không?\n\n` +
+            `${previewLines}${moreLine}`,
+            'Chuẩn hóa ký tự dễ lỗi',
+            'Chuẩn hóa',
+            'Giữ nguyên'
+        );
+
+        if (!shouldNormalize) {
+            log(`Giữ nguyên ký tự "${RISKY_PUNCTUATION_CHAR}" theo file gốc.`, 'warn');
+            return { files, scanByFile };
+        }
+
+        const normalizedFiles = [];
+        const normalizedScanByFile = new Map();
+        let normalizedFileCount = 0;
+        let normalizedCharCount = 0;
+        const affectedMap = new Map(affectedEntries.map((entry) => [entry.file, entry.count]));
+
+        for (const file of files) {
+            const scan = scanByFile.get(file) || { firstLine: '', detectedEncoding: 'unknown', isUtf8: false };
+            const count = affectedMap.get(file) || 0;
+            if (!count) {
+                normalizedFiles.push(file);
+                normalizedScanByFile.set(file, scan);
+                continue;
+            }
+
+            const sourceText = textByFile.get(file) || '';
+            const newText = normalizeRiskyPunctuation(sourceText);
+            const newFile = new File([newText], file.name, {
+                type: file.type || 'text/plain;charset=utf-8',
+                lastModified: file.lastModified || Date.now(),
+            });
+            normalizedFiles.push(newFile);
+            normalizedScanByFile.set(newFile, {
+                firstLine: extractFirstLine(newText),
+                detectedEncoding: 'utf-8',
+                isUtf8: true,
+            });
+            normalizedFileCount += 1;
+            normalizedCharCount += count;
+        }
+
+        log(`✅ Đã chuẩn hóa ${normalizedCharCount} ký tự "${RISKY_PUNCTUATION_CHAR}" trong ${normalizedFileCount} file.`, 'success');
+        return {
+            files: normalizedFiles,
+            scanByFile: normalizedScanByFile
+        };
+    }
+
+    async function processFourByteFiles(files, scanByFile) {
+        if (!Array.isArray(files) || files.length === 0) return { files, scanByFile };
+        log(`Đang quét ký tự 4-byte/emoji trong ${files.length} file...`);
+
+        const analysisByFile = new Map();
+        const textByFile = new Map();
+        const affectedEntries = [];
+        let total4Byte = 0;
+        let totalEmoji = 0;
+
+        for (const file of files) {
+            const scan = scanByFile.get(file) || { detectedEncoding: 'utf-8' };
+            const text = await readFileAsTextWithEncoding(file, scan.detectedEncoding);
+            textByFile.set(file, text);
+            const analysis = analyze4ByteChars(text);
+            analysisByFile.set(file, analysis);
+            if (analysis.total4Byte > 0) {
+                total4Byte += analysis.total4Byte;
+                totalEmoji += analysis.emojiCount;
+                affectedEntries.push({
+                    file,
+                    total4Byte: analysis.total4Byte,
+                    emojiCount: analysis.emojiCount,
+                    sample: analysis.samples[0] || ''
+                });
+            }
+        }
+
+        if (affectedEntries.length === 0) {
+            log('✅ Không phát hiện ký tự 4-byte/emoji.');
+            return { files, scanByFile };
+        }
+
+        log(`⚠️ Phát hiện ${total4Byte} ký tự 4-byte (emoji/icon: ${totalEmoji}) trong ${affectedEntries.length} file.`, 'warn');
+        const previewLimit = 10;
+        const previewLines = affectedEntries
+            .slice(0, previewLimit)
+            .map((entry) => `- ${entry.file.name}: 4-byte=${entry.total4Byte}, emoji=${entry.emojiCount}${entry.sample ? `, mẫu ${entry.sample}` : ''}`)
+            .join('\n');
+        const moreLine = affectedEntries.length > previewLimit
+            ? `\n... và ${affectedEntries.length - previewLimit} file khác.`
+            : '';
+
+        const mode = await showUiThreeChoice(
+            `Phát hiện ${total4Byte} ký tự 4-byte (emoji/icon: ${totalEmoji}) trong ${affectedEntries.length} file.\n` +
+            `Chọn cách xử lý trước khi upload:\n` +
+            `- Đổi sang text (khuyên dùng): icon -> <U+XXXXXX>.\n` +
+            `- Xóa icon (an toàn): loại bỏ toàn bộ ký tự 4-byte.\n` +
+            `- Giữ nguyên: có thể lỗi upload trên web chính thức.\n` +
+            `Lưu ý: một số ký tự như dấu phẩy Nhật "、" cũng có thể bị web từ chối.\n\n` +
+            `${previewLines}${moreLine}`,
+            'Cảnh báo ký tự dễ lỗi upload'
+        );
+
+        if (mode === 'keep') {
+            log('Giữ nguyên ký tự 4-byte/emoji theo file gốc.', 'warn');
+            return { files, scanByFile };
+        }
+
+        const transformedFiles = [];
+        const transformedScanByFile = new Map();
+        let transformedCount = 0;
+        let transformedChars = 0;
+
+        for (const file of files) {
+            const scan = scanByFile.get(file) || { firstLine: '', detectedEncoding: 'unknown', isUtf8: false };
+            const analysis = analysisByFile.get(file) || { total4Byte: 0 };
+            if (!analysis.total4Byte) {
+                transformedFiles.push(file);
+                transformedScanByFile.set(file, scan);
+                continue;
+            }
+
+            const sourceText = textByFile.get(file) || '';
+            const newText = transform4ByteChars(sourceText, mode);
+            const newFile = new File([newText], file.name, {
+                type: file.type || 'text/plain;charset=utf-8',
+                lastModified: file.lastModified || Date.now(),
+            });
+            transformedFiles.push(newFile);
+            transformedScanByFile.set(newFile, {
+                firstLine: extractFirstLine(newText),
+                detectedEncoding: 'utf-8',
+                isUtf8: true,
+            });
+            transformedCount += 1;
+            transformedChars += analysis.total4Byte;
+        }
+
+        const modeText = mode === 'text' ? 'Đổi sang text' : 'Xóa icon';
+        log(`✅ ${modeText}: đã xử lý ${transformedChars} ký tự 4-byte trong ${transformedCount} file.`, 'success');
+        return {
+            files: transformedFiles,
+            scanByFile: transformedScanByFile
+        };
+    }
+
+    async function parseFileSmart(file, scanInfo = null) {
         const priority = settings.PARSE_PRIORITY;
         const filenameBase = file.name.replace(/\.txt$/i, '');
 
         let result = null;
         let firstLine = '';
+        let scanned = scanInfo;
+        const ensureScan = async () => {
+            if (!scanned) scanned = await readFirstLineOfFile(file);
+            return scanned;
+        };
 
 
         if (priority === 'filename') {
+            result = parseChapterFromFilename(filenameBase);
+            if (result) {
+                return {
+                    ...result,
+                    detectedEncoding: scanned ? scanned.detectedEncoding : 'unknown'
+                };
+            }
 
-            result = matchRegex(filenameBase, settings.FILENAME_REGEX);
-            if (result) return { ...result, source: 'filename' };
+            firstLine = (await ensureScan()).firstLine;
+            result = parseChapterFromContent(firstLine);
+            if (result) return { ...result, detectedEncoding: scanned.detectedEncoding };
+        } else {
+            firstLine = (await ensureScan()).firstLine;
+            result = parseChapterFromContent(firstLine);
+            if (result) return { ...result, detectedEncoding: scanned.detectedEncoding };
 
-
-            firstLine = await readFirstLineOfFile(file);
-            result = matchRegex(firstLine, settings.CONTENT_REGEX);
-            if (result) return { ...result, source: 'content' };
-        }
-
-
-        else {
-            firstLine = await readFirstLineOfFile(file);
-
-            result = matchRegex(firstLine, settings.CONTENT_REGEX);
-            if (result) return { ...result, source: 'content' };
-
-
-            result = matchRegex(filenameBase, settings.FILENAME_REGEX);
-            if (result) return { ...result, source: 'filename' };
+            result = parseChapterFromFilename(filenameBase);
+            if (result) return { ...result, detectedEncoding: scanned.detectedEncoding };
         }
 
         return null;
@@ -2876,7 +3310,13 @@ Lưu ý:
         if (smallFiles.length > 0 && warningSize > 0) {
             log(`⚠️ Phát hiện ${smallFiles.length} file dưới ${settings.FILE_SIZE_WARNING_KB}KB.`, 'warn');
             smallFiles.forEach(f => log(`- ${f.name} (${(f.size / 1024).toFixed(2)} KB)`, 'warn'));
-            if (!confirm(`Có ${smallFiles.length} file nhỏ hơn ${settings.FILE_SIZE_WARNING_KB}KB. Bạn có chắc chắn muốn tiếp tục không?`)) {
+            const shouldContinue = await showUiConfirm(
+                `Có ${smallFiles.length} file nhỏ hơn ${settings.FILE_SIZE_WARNING_KB}KB.\nBạn có chắc chắn muốn tiếp tục không?`,
+                'Cảnh báo file nhỏ',
+                'Tiếp tục',
+                'Hủy'
+            );
+            if (!shouldContinue) {
                 log('⛔ Đã hủy tải lên.');
                 fileInput.value = "";
                 return;
@@ -2885,13 +3325,121 @@ Lưu ý:
 
 
         files.sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true, sensitivity: 'base' }));
+
+        log(`Đang nhận diện bảng mã của ${files.length} file...`);
+        let scanByFile = new Map();
+        const scanResults = await Promise.all(files.map(async (file) => {
+            const scan = await readFirstLineOfFile(file);
+            scanByFile.set(file, scan);
+            return { file, ...scan };
+        }));
+
+        const encodingCounts = new Map();
+        scanResults.forEach((entry) => {
+            const key = normalizeEncodingLabel(entry.detectedEncoding) || 'unknown';
+            encodingCounts.set(key, (encodingCounts.get(key) || 0) + 1);
+        });
+        const encodingSummary = Array.from(encodingCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([enc, count]) => `${enc}: ${count}`)
+            .join(' | ');
+        log(`🧬 Kết quả nhận diện bảng mã: ${encodingSummary || 'không xác định'}`);
+        if (files.length <= 200) {
+            scanResults.forEach((entry) => {
+                log(`• ${entry.file.name}: ${entry.detectedEncoding || 'unknown'}`);
+            });
+        }
+
+        const nonUtf8Entries = scanResults.filter((entry) => !entry.isUtf8);
+        if (nonUtf8Entries.length > 0) {
+            log(`⚠️ Có ${nonUtf8Entries.length} file không phải UTF-8.`, 'warn');
+            const previewLogLimit = 60;
+            nonUtf8Entries.slice(0, previewLogLimit).forEach((entry) => {
+                log(`- ${entry.file.name}: ${entry.detectedEncoding || 'unknown'}`, 'warn');
+            });
+            if (nonUtf8Entries.length > previewLogLimit) {
+                log(`... và ${nonUtf8Entries.length - previewLogLimit} file khác.`, 'warn');
+            }
+
+            const previewLimit = 12;
+            const previewLines = nonUtf8Entries
+                .slice(0, previewLimit)
+                .map((entry) => `- ${entry.file.name} [${entry.detectedEncoding || 'unknown'}]`)
+                .join('\n');
+            const moreLine = nonUtf8Entries.length > previewLimit
+                ? `\n... và ${nonUtf8Entries.length - previewLimit} file khác.`
+                : '';
+            const shouldConvert = await showUiConfirm(
+                `Phát hiện ${nonUtf8Entries.length} file không phải UTF-8.\n` +
+                `Bạn có muốn chuyển chúng sang UTF-8 trước khi xử lý không?\n\n` +
+                `${previewLines}${moreLine}`,
+                'Chuyển bảng mã',
+                'Chuyển UTF-8',
+                'Giữ nguyên'
+            );
+
+            if (shouldConvert) {
+                log('🔄 Bắt đầu chuyển file non-UTF-8 sang UTF-8...');
+                const convertedFiles = [];
+                const convertedScanByFile = new Map();
+                let convertedCount = 0;
+                let skippedUnknownCount = 0;
+
+                for (const oldFile of files) {
+                    const scan = scanByFile.get(oldFile) || { firstLine: '', detectedEncoding: 'unknown', isUtf8: false };
+                    const detectedKey = normalizeEncodingLabel(scan.detectedEncoding);
+                    if (!scan.isUtf8 && detectedKey && detectedKey !== 'unknown') {
+                        try {
+                            const converted = await convertFileToUtf8(oldFile, scan.detectedEncoding);
+                            convertedFiles.push(converted);
+                            convertedScanByFile.set(converted, {
+                                firstLine: scan.firstLine,
+                                detectedEncoding: 'utf-8',
+                                isUtf8: true,
+                            });
+                            convertedCount += 1;
+                            log(`✅ Đã chuyển "${oldFile.name}" (${scan.detectedEncoding || 'unknown'} -> utf-8)`, 'success');
+                        } catch (e) {
+                            convertedFiles.push(oldFile);
+                            convertedScanByFile.set(oldFile, scan);
+                            log(`❌ Không thể chuyển "${oldFile.name}": ${e.message}. Giữ file gốc.`, 'error');
+                        }
+                    } else if (!scan.isUtf8) {
+                        convertedFiles.push(oldFile);
+                        convertedScanByFile.set(oldFile, scan);
+                        skippedUnknownCount += 1;
+                    } else {
+                        convertedFiles.push(oldFile);
+                        convertedScanByFile.set(oldFile, scan);
+                    }
+                }
+
+                files.splice(0, files.length, ...convertedFiles);
+                scanByFile = convertedScanByFile;
+                log(`🎉 Hoàn tất chuyển bảng mã. Đã chuyển ${convertedCount}/${nonUtf8Entries.length} file.`, 'success');
+                if (skippedUnknownCount > 0) {
+                    log(`⚠️ Bỏ qua ${skippedUnknownCount} file vì không xác định được bảng mã nguồn.`, 'warn');
+                }
+            } else {
+                log('Giữ nguyên bảng mã gốc theo file.', 'warn');
+            }
+        } else {
+            log('✅ Tất cả file đang là UTF-8.', 'success');
+        }
+
+        const fourByteResult = await processFourByteFiles(files, scanByFile);
+        files.splice(0, files.length, ...fourByteResult.files);
+        scanByFile = fourByteResult.scanByFile;
+        const riskyPunctuationResult = await processRiskyPunctuationFiles(files, scanByFile);
+        files.splice(0, files.length, ...riskyPunctuationResult.files);
+        scanByFile = riskyPunctuationResult.scanByFile;
+
         state.allFiles = files;
 
         if (settings.USE_FIRST_LINE_ONLY) {
             log(`Đang đọc dòng đầu và sắp xếp ${files.length} file...`);
-            const titles = await Promise.all(files.map(readFirstLineOfFile));
             state.validFiles = files.map((file, idx) => {
-                const firstLine = (titles[idx] || '').trim();
+                const firstLine = ((scanByFile.get(file) || {}).firstLine || '').trim();
                 return {
                     file,
                     chapterNumber: null,
@@ -2909,7 +3457,7 @@ Lưu ý:
 
         const chapterNumbers = new Map();
         const parsePromises = files.map(async (file) => {
-            const info = await parseFileSmart(file);
+            const info = await parseFileSmart(file, scanByFile.get(file) || null);
             return { file, info };
         });
 
@@ -3061,9 +3609,9 @@ Lưu ý:
         }
     }
 
-    function openInsertPopup(insertIndex) {
+    async function openInsertPopup(insertIndex) {
         if (state.remainingInvalidFiles.length === 0) {
-            alert('Không còn file để chèn');
+            await showUiAlert('Không còn file để chèn', 'Thông báo');
             return;
         }
 
@@ -3251,14 +3799,21 @@ Lưu ý:
                 row.title = 'Nhấn để bỏ file này khỏi sắp xếp';
 
 
-                row.addEventListener('click', (ev) => {
+                row.addEventListener('click', async (ev) => {
 
                     const target = ev.target;
                     if (target && target.tagName && target.tagName.toLowerCase() === 'button') {
                         return;
                     }
 
-                    if (!confirm('Bỏ file này khỏi danh sách sắp xếp và đưa lại về bảng chọn file?')) {
+                    const shouldRemove = await showUiConfirm(
+                        'Bỏ file này khỏi danh sách sắp xếp và đưa lại về bảng chọn file?',
+                        'Xác nhận bỏ file',
+                        'Bỏ file',
+                        'Giữ lại',
+                        true
+                    );
+                    if (!shouldRemove) {
                         return;
                     }
 
@@ -3689,10 +4244,6 @@ Lưu ý:
             rebuildVolumeOptions('preserve');
         });
 
-        // --- Khai báo thêm biến DOM ---
-        const encodingSelect = shadowRoot.querySelector(`#${APP_PREFIX}setting-encoding`);
-
-
         let initialFormValues = {};
 
 
@@ -3703,9 +4254,6 @@ Lưu ý:
                 theme: themeSelect ? themeSelect.value : '',
                 firstLineOnly: firstLineOnlyInput.checked,
                 priority: prioritySelect.value,
-                encoding: encodingSelect.value,
-                contentRegex: contentRegexInput.value,
-                filenameRegex: filenameRegexInput.value,
                 chapTemplate: chapterTemplateInput.value,
                 volumeStats: volumeStatsCheckbox ? volumeStatsCheckbox.checked : null
             };
@@ -3720,9 +4268,6 @@ Lưu ý:
             }
             firstLineOnlyInput.checked = !!settings.USE_FIRST_LINE_ONLY;
             prioritySelect.value = settings.PARSE_PRIORITY || 'filename';
-            contentRegexInput.value = settings.CONTENT_REGEX || '';
-            encodingSelect.value = settings.FILE_ENCODING || 'UTF-8';
-            filenameRegexInput.value = settings.FILENAME_REGEX;
             chapterTemplateInput.value = settings.CHAPTER_NAME_TEMPLATE;
             if (volumeStatsCheckbox) {
                 volumeStatsCheckbox.checked = state.volumeStatsEnabled === true;
@@ -3734,8 +4279,6 @@ Lưu ý:
             }
 
             setParseControlsEnabled(!firstLineOnlyInput.checked);
-            if (filenameSampleInput && !filenameSampleInput.value) filenameSampleInput.value = '第188章 禅说.txt';
-            if (contentSampleInput && !contentSampleInput.value) contentSampleInput.value = '第188章 禅说';
             initialFormValues = getFormValues();
             settingsOverlay.classList.remove(`${APP_PREFIX}hide`);
             settingsModal.classList.remove(`${APP_PREFIX}hide`);
@@ -3744,19 +4287,17 @@ Lưu ý:
         function hideSettingsModal() {
             settingsOverlay.classList.add(`${APP_PREFIX}hide`);
             settingsModal.classList.add(`${APP_PREFIX}hide`);
-            if (filenameSampleInput) {
-                filenameSampleInput.style.height = '0';
-                filenameSampleInput.style.padding = '0 8px';
-                filenameSampleInput.style.margin = '0';
-                filenameSampleInput.style.opacity = '0';
-                filenameSampleInput.style.pointerEvents = 'none';
-            }
-
         }
-        function tryCloseSettingsModal() {
+        async function tryCloseSettingsModal() {
             const currentValues = getFormValues();
             if (JSON.stringify(currentValues) !== JSON.stringify(initialFormValues)) {
-                if (!confirm('Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy không?')) {
+                const shouldClose = await showUiConfirm(
+                    'Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy không?',
+                    'Hủy thay đổi',
+                    'Bỏ thay đổi',
+                    'Tiếp tục chỉnh'
+                );
+                if (!shouldClose) {
                     return;
                 }
             }
@@ -3768,48 +4309,35 @@ Lưu ý:
         firstLineOnlyInput.addEventListener('change', () => {
             setParseControlsEnabled(!firstLineOnlyInput.checked);
         });
-        settingsSaveBtn.addEventListener('click', () => {
+        settingsSaveBtn.addEventListener('click', async () => {
             const newLogMax = parseInt(logMaxInput.value, 10);
             const newFileKb = parseInt(fileSizeKbInput.value, 10);
-            const newRegex = filenameRegexInput.value.trim();
             const newChapTpl = chapterTemplateInput.value.trim() || '第{num}章 {title}';
             const useFirstLineOnly = firstLineOnlyInput.checked;
 
 
             if (!useFirstLineOnly && !newChapTpl.includes('{num}')) {
-                alert('Template phải chứa {num}.');
+                await showUiAlert('Template phải chứa {num}.', 'Lỗi cài đặt');
                 return;
             }
 
 
-            if (!useFirstLineOnly) {
-                try {
-                    new RegExp(newRegex);
-                } catch (e) {
-                    alert('Regex tên file không hợp lệ: ' + e.message);
-                    return;
-                }
-            }
-
             if (isNaN(newLogMax) || newLogMax <= 0) {
-                alert('Số dòng log phải là số dương.');
+                await showUiAlert('Số dòng log phải là số dương.', 'Lỗi cài đặt');
                 return;
             }
             if (isNaN(newFileKb) || newFileKb < 0) {
 
-                alert('Kích thước file (KB) phải là số không âm (0 hoặc lớn hơn).');
+                await showUiAlert('Kích thước file (KB) phải là số không âm (0 hoặc lớn hơn).', 'Lỗi cài đặt');
                 return;
             }
 
             settings.LOG_MAX_LINES = newLogMax;
             settings.FILE_SIZE_WARNING_KB = newFileKb;
             settings.USE_FIRST_LINE_ONLY = useFirstLineOnly;
-            settings.FILENAME_REGEX = newRegex;
             settings.CHAPTER_NAME_TEMPLATE = newChapTpl;
 
             settings.PARSE_PRIORITY = prioritySelect.value;
-            settings.CONTENT_REGEX = contentRegexInput.value.trim();
-            settings.FILE_ENCODING = encodingSelect.value;
             if (themeSelect) {
                 settings.THEME_MODE = themeSelect.value || DEFAULT_THEME_MODE;
             }

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.4
-// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
+// @version      0.3.5
+// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
 // @author       QuocBao
 // ==/UserScript==
 
@@ -11,7 +11,7 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.4'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.5'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const MAX_COVER_FILE_SIZE = 500 * 1024;
@@ -482,6 +482,107 @@
         return pairs;
     }
 
+    const STATUS_STATES = Object.freeze({
+        ONGOING: 'ongoing',
+        COMPLETED: 'completed',
+    });
+
+    function mapStatusCode(value, map) {
+        const key = T.safeText(value);
+        if (!key) return '';
+        return map[key] || '';
+    }
+
+    function statusStateFromBoolish(value, trueMeansCompleted) {
+        const key = T.safeText(value).toLowerCase();
+        if (!key) return '';
+        if (['1', 'true', 'yes', 'y'].includes(key)) {
+            return trueMeansCompleted ? STATUS_STATES.COMPLETED : STATUS_STATES.ONGOING;
+        }
+        if (['0', 'false', 'no', 'n'].includes(key)) {
+            return trueMeansCompleted ? STATUS_STATES.ONGOING : STATUS_STATES.COMPLETED;
+        }
+        return '';
+    }
+
+    function statusStateFromText(text) {
+        const raw = T.safeText(text);
+        if (!raw) return '';
+        const norm = T.normalizeText(raw);
+
+        if (/未完結|未完结/i.test(raw)) return STATUS_STATES.ONGOING;
+        if (/已完結|已完结/i.test(raw)) return STATUS_STATES.COMPLETED;
+
+        if (/(连载|連載|更新中|连更|ongoing|serializ|updating)/i.test(raw)) {
+            return STATUS_STATES.ONGOING;
+        }
+        if (/(完結|完结|完本|全本|finished|completed|the end)/i.test(raw)) {
+            return STATUS_STATES.COMPLETED;
+        }
+
+        if (/(con tiep|dang cap nhat|dang ra|chua hoan|chua ket)/.test(norm)) {
+            return STATUS_STATES.ONGOING;
+        }
+        if (/(hoan thanh|da hoan thanh|da xong|ket thuc)/.test(norm)) {
+            return STATUS_STATES.COMPLETED;
+        }
+        return '';
+    }
+
+    function statusLabelFromState(state) {
+        return state === STATUS_STATES.COMPLETED ? 'Hoàn thành' : 'Còn tiếp';
+    }
+
+    function resolveStatusInfo({
+        sourceType = '',
+        explicitStates = [],
+        hintTexts = [],
+        fallbackTexts = [],
+    } = {}) {
+        const pick = (state, method, evidence) => ({
+            sourceType,
+            state: state || STATUS_STATES.ONGOING,
+            isCompleted: state === STATUS_STATES.COMPLETED,
+            label: statusLabelFromState(state),
+            method,
+            evidence: T.safeText(evidence || ''),
+        });
+
+        const normalizedExplicit = explicitStates
+            .map(T.safeText)
+            .filter((value) => value === STATUS_STATES.ONGOING || value === STATUS_STATES.COMPLETED);
+        if (normalizedExplicit.length) {
+            return pick(normalizedExplicit[0], 'explicit', normalizedExplicit[0]);
+        }
+
+        for (const hint of hintTexts || []) {
+            const state = statusStateFromText(hint);
+            if (state) return pick(state, 'hint', hint);
+        }
+
+        for (const text of fallbackTexts || []) {
+            const state = statusStateFromText(text);
+            if (state) return pick(state, 'fallback', text);
+        }
+
+        return pick(STATUS_STATES.ONGOING, 'default', '');
+    }
+
+    function attachStatusInfo(baseData, statusInputs) {
+        const info = resolveStatusInfo({
+            sourceType: baseData?.sourceType || '',
+            ...(statusInputs || {}),
+        });
+        const statusHint = T.safeText(baseData?.statusHint || info.evidence || '');
+        return {
+            ...baseData,
+            statusHint,
+            statusState: info.state,
+            isCompleted: info.isCompleted,
+            statusInfo: info,
+        };
+    }
+
     // ================================================
     // ADAPTERS: EXTRACT IDs + RULES
     // ================================================
@@ -533,6 +634,47 @@
         const raw = T.safeText(url);
         const m = raw.match(/novel-?(\d+)/);
         return m ? m[1] : '';
+    }
+
+    function parseLongmaUrlInfo(url) {
+        const raw = T.safeText(url);
+        if (!raw) return null;
+
+        let parsedUrl = null;
+        try {
+            parsedUrl = new URL(raw, 'https://ebook.longmabook.com/');
+        } catch {
+            return null;
+        }
+
+        if (!/ebook\.longmabook\.com$/i.test(parsedUrl.hostname)) return null;
+
+        const act = T.safeText(parsedUrl.searchParams.get('act')).toLowerCase();
+        if (act && act !== 'showinfo') return null;
+
+        const bookId = T.safeText(parsedUrl.searchParams.get('bookid'));
+        if (!bookId) return null;
+
+        const writerCode = T.safeText(parsedUrl.searchParams.get('bookwritercode'));
+        const pavilionId = T.safeText(parsedUrl.searchParams.get('pavilionid')).toLowerCase();
+
+        const canonical = new URL('https://ebook.longmabook.com/');
+        canonical.searchParams.set('act', 'showinfo');
+        if (writerCode) canonical.searchParams.set('bookwritercode', writerCode);
+        canonical.searchParams.set('bookid', bookId);
+        if (pavilionId) canonical.searchParams.set('pavilionid', pavilionId);
+
+        return {
+            url: canonical.toString(),
+            bookId,
+            writerCode,
+            pavilionId,
+        };
+    }
+
+    function extractLongmaId(url) {
+        const info = parseLongmaUrlInfo(url);
+        return info ? info.url : '';
     }
 
     const SITE_RULES = [
@@ -671,6 +813,25 @@
             fetch: fetchGongzicpData,
             normalize: normalizeGongzicpData,
             coverProcess: processGongzicpCover,
+        },
+        {
+            id: 'longma',
+            name: 'Hải Đường',
+            host: /ebook\.longmabook\.com/i,
+            label: 'Hải Đường (Longma)',
+            urlExample: 'https://ebook.longmabook.com/?act=showinfo&bookwritercode=...&bookid=...&pavilionid=...',
+            useDescDefault: true,
+            targetDefault: 'webhong',
+            display: {
+                emoji: '🌺',
+                bg: '#fff8e1',
+                border: '#ffb300',
+                color: '#ef6c00',
+                note: 'Cần đăng nhập Longma',
+            },
+            extractId: extractLongmaId,
+            fetch: fetchLongmaData,
+            normalize: normalizeLongmaData,
         },
     ];
 
@@ -898,6 +1059,10 @@
             if (tagTexts.length) tags.push(...tagTexts);
             const metaKeywords = D.queryAttr(doc, ['meta[name="keywords"]'], 'content');
             if (metaKeywords) tags.push(...T.parseTagList(metaKeywords));
+            if (!statusHint) {
+                const statusFromTags = [...introTagTexts, ...tagTexts].find(t => !!statusStateFromText(t));
+                if (statusFromTags) statusHint = statusFromTags;
+            }
             if (!intro) {
                 const metaDesc = D.queryAttr(doc, ['meta[name="description"]', 'meta[property="og:description"]'], 'content');
                 if (metaDesc) {
@@ -1008,10 +1173,12 @@
                         '.HuabenListUL#tagList a',
                     ]);
 
-                    const statusHint = D.queryText(doc, [
+                    const statusTexts = D.collectTexts(doc, [
                         '.simpleinfo label',
                         '.infodetail .simpleinfo label',
+                        '.simpleinfo .text-muted',
                     ]);
+                    const statusHint = statusTexts.find(t => !!statusStateFromText(t)) || '';
 
                     resolve({
                         title,
@@ -1094,7 +1261,13 @@
 
                 let statusHint = D.queryAttr(doc, ['meta[property="og:novel:status"]'], 'content');
                 if (!statusHint) {
-                    statusHint = D.queryText(doc, ['.book-attribute span']);
+                    const statusTexts = D.collectTexts(doc, [
+                        '.book-attribute span',
+                        '.book-attribute p',
+                        '.book-info-tag span',
+                        '.book-info-tag a',
+                    ]);
+                    statusHint = statusTexts.find(t => !!statusStateFromText(t)) || '';
                 }
 
                 return {
@@ -1220,7 +1393,7 @@
                     ]);
 
                     let statusHint = '';
-                    const statusTag = tagTexts.find(t => /(连载|完结|完本|已完结|完結)/.test(t));
+                    const statusTag = tagTexts.find(t => !!statusStateFromText(t));
                     if (statusTag) statusHint = statusTag;
 
                     const tags = Array.from(new Set(T.parseTagList(tagTexts.join(','))));
@@ -1238,6 +1411,122 @@
                 },
                 onerror(err) {
                     reject(err);
+                },
+            });
+        });
+    }
+
+    function getLongmaPavilionInfo(pavilionId) {
+        const map = {
+            a: { name: '耽美', keywords: ['耽美', '男男', 'BL'] },
+            b: { name: '言情', keywords: ['言情', '男女', 'BG'] },
+            c: { name: '同人', keywords: ['同人', '二創', '二创', '男男'] },
+            d: { name: '百合', keywords: ['百合', '女女', 'GL'] },
+        };
+        const key = T.safeText(pavilionId).toLowerCase();
+        return map[key] || { name: '', keywords: [] };
+    }
+
+    function extractLongmaDescriptionFromCard(cardEl) {
+        const html = T.safeText(cardEl?.innerHTML || '');
+        if (!html) return '';
+        const bodyMatch = html.match(
+            /<font[^>]*#800080[^>]*>[\s\S]*?<\/font>\s*([\s\S]*?)(?:<div[^>]*id=['"]showbooklist|<textarea[^>]*id=['"]showbooklisttmp|<h4>\s*查看|$)/i
+        );
+        if (!bodyMatch) return '';
+        let bodyHtml = bodyMatch[1] || '';
+        bodyHtml = bodyHtml.replace(/<script[\s\S]*?<\/script>/gi, '');
+        bodyHtml = bodyHtml.replace(/<style[\s\S]*?<\/style>/gi, '');
+        return T.htmlToText(bodyHtml)
+            .replace(/\r/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    function fetchLongmaData(sourceId) {
+        const sourceInfo = parseLongmaUrlInfo(sourceId);
+        if (!sourceInfo) {
+            return Promise.reject(new Error('Longma URL không hợp lệ.'));
+        }
+
+        const url = sourceInfo.url;
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url,
+                responseType: 'text',
+                timeout: 12000,
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'Referer': url,
+                },
+                anonymous: false,
+                withCredentials: true,
+                onload(res) {
+                    const html = (res.responseText || res.response || '').toString();
+                    if (!html.trim()) {
+                        reject(new Error('Longma trả về trang rỗng.'));
+                        return;
+                    }
+
+                    if (/top\.location\.href=['"]\/login\.php/i.test(html)) {
+                        reject(new Error('Longma yêu cầu đăng nhập. Hãy mở Longma và đăng nhập trước.'));
+                        return;
+                    }
+
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const bookCards = Array.from(doc.querySelectorAll('#mypages .uk-card.uk-card-default, #mypages .uk-card'));
+                    const bookCard = bookCards.find((card) => /作品編號/.test(T.safeText(card.textContent || '')) && !!card.querySelector('h4'));
+                    if (!bookCard) {
+                        reject(new Error('Không parse được trang Longma (có thể bị chặn/captcha hoặc thiếu cookie).'));
+                        return;
+                    }
+
+                    const title = T.safeText(bookCard.querySelector('h4')?.textContent || '');
+                    const author = D.queryText(doc, ['#writerinfos h4 a', '#writerinfos a']);
+                    let statusHint = T.safeText(bookCard.querySelector('.uk-label')?.textContent || '');
+                    if (!statusHint) {
+                        const inline = T.safeText(bookCard.textContent || '');
+                        const matched = inline.match(/(連載中|连载中|已完結|已完结|完結|完结|更新中)/i);
+                        if (matched) statusHint = matched[1];
+                    }
+
+                    const metaLine = T.safeText(bookCard.querySelector("font[color='#800080']")?.textContent || '');
+                    const metaParts = Array.from(new Set(T.parseTagList(metaLine).map(T.safeText).filter(Boolean)));
+                    const desc = extractLongmaDescriptionFromCard(bookCard);
+
+                    const coverRaw = D.queryAttr(bookCard, [
+                        'img[src*="bookcover"]',
+                        'img[src*="ebookupload"]',
+                        'img[src*="/book"]',
+                        'img[src*="/ebook"]',
+                    ], 'src');
+                    const coverUrl = D.toAbsoluteUrl(coverRaw, url);
+
+                    const pavilionInfo = getLongmaPavilionInfo(sourceInfo.pavilionId);
+
+                    resolve({
+                        title,
+                        author,
+                        intro: desc,
+                        coverUrl,
+                        statusHint,
+                        metaLine,
+                        metaParts,
+                        pavilionId: sourceInfo.pavilionId,
+                        pavilionName: pavilionInfo.name,
+                        pavilionKeywords: pavilionInfo.keywords,
+                        bookId: sourceInfo.bookId,
+                        writerCode: sourceInfo.writerCode,
+                    });
+                },
+                onerror(err) {
+                    reject(err);
+                },
+                ontimeout() {
+                    reject(new Error('Longma request timeout'));
                 },
             });
         });
@@ -1269,7 +1558,7 @@
             })();
         const categories = categoryV2.map(c => c?.Name).filter(Boolean);
         if (raw.category) categories.push(raw.category);
-        return {
+        const base = {
             sourceType: 'fanqie',
             sourceLabel: 'Cà Chua',
             titleCn,
@@ -1282,6 +1571,20 @@
             update_status: raw.update_status,
             extraKeywords: [],
         };
+        return attachStatusInfo(base, {
+            explicitStates: [
+                mapStatusCode(raw.update_status, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.COMPLETED }),
+                mapStatusCode(raw.book_status, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.COMPLETED, '2': STATUS_STATES.COMPLETED }),
+                statusStateFromBoolish(raw.isFinished, true),
+                statusStateFromBoolish(raw.is_finished, true),
+            ],
+            hintTexts: [
+                raw.novel_status,
+                raw.status,
+                raw.book_status_text,
+            ],
+            fallbackTexts: [tags.join(','), categories.join(',')],
+        });
     }
 
     function normalizeJjwxcData(raw) {
@@ -1306,7 +1609,7 @@
         const categories = T.parseTagList(raw.novelClass);
         const statusHint = T.safeText(raw.novelStep || raw.novelStatus || raw.isFinished || raw.novelComplete);
         const extraKeywords = T.parseTagList(raw.novelType || raw.novelTypeName || '');
-        return {
+        const base = {
             sourceType: 'jjwxc',
             sourceLabel: 'Tấn Giang',
             titleCn,
@@ -1319,6 +1622,21 @@
             update_status: undefined,
             extraKeywords,
         };
+        return attachStatusInfo(base, {
+            explicitStates: [
+                mapStatusCode(raw.novelStep, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.ONGOING, '2': STATUS_STATES.COMPLETED }),
+                mapStatusCode(raw.novelComplete, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.COMPLETED, '2': STATUS_STATES.COMPLETED }),
+                statusStateFromBoolish(raw.isFinished, true),
+                statusStateFromBoolish(raw.is_finished, true),
+            ],
+            hintTexts: [
+                raw.novelStatus,
+                raw.novelStep,
+                raw.novelComplete,
+                statusHint,
+            ],
+            fallbackTexts: [tags.join(','), categories.join(','), extraKeywords.join(',')],
+        });
     }
 
     function normalizePo18Data(raw) {
@@ -1331,7 +1649,7 @@
         const tagLine = introTags.length ? `Tags: ${introTags.join(', ')}` : '';
         const descCn = intro && tagLine ? `${intro}\n${tagLine}` : (intro || tagLine);
         const statusHint = T.safeText(raw.statusHint);
-        return {
+        const base = {
             sourceType: 'po18',
             sourceLabel: 'PO18',
             titleCn,
@@ -1344,6 +1662,10 @@
             update_status: undefined,
             extraKeywords: [],
         };
+        return attachStatusInfo(base, {
+            hintTexts: [statusHint],
+            fallbackTexts: [tags.join(','), categories.join(','), introTags.join(',')],
+        });
     }
 
     function normalizeIhuabenData(raw) {
@@ -1353,7 +1675,7 @@
         const tags = T.parseTagList((raw.tags || []).join(','));
         const categories = T.parseTagList((raw.categories || []).join(','));
         const statusHint = T.safeText(raw.statusHint);
-        return {
+        const base = {
             sourceType: 'ihuaben',
             sourceLabel: 'Ihuaben',
             titleCn,
@@ -1366,6 +1688,10 @@
             update_status: undefined,
             extraKeywords: [],
         };
+        return attachStatusInfo(base, {
+            hintTexts: [statusHint],
+            fallbackTexts: [tags.join(','), categories.join(',')],
+        });
     }
 
     function normalizeQidianData(raw) {
@@ -1375,7 +1701,7 @@
         const tags = T.parseTagList((raw.tags || []).join(','));
         const categories = T.parseTagList((raw.categories || []).join(','));
         const statusHint = T.safeText(raw.statusHint);
-        return {
+        const base = {
             sourceType: 'qidian',
             sourceLabel: 'Khởi Điểm',
             titleCn,
@@ -1388,6 +1714,10 @@
             update_status: undefined,
             extraKeywords: [],
         };
+        return attachStatusInfo(base, {
+            hintTexts: [statusHint],
+            fallbackTexts: [tags.join(','), categories.join(',')],
+        });
     }
 
     function normalizeQimaoData(raw) {
@@ -1397,7 +1727,7 @@
         const tags = T.parseTagList((raw.tags || []).join(','));
         const categories = T.parseTagList((raw.categories || []).join(','));
         const statusHint = T.safeText(raw.statusHint);
-        return {
+        const base = {
             sourceType: 'qimao',
             sourceLabel: 'Thất Miêu',
             titleCn,
@@ -1410,6 +1740,52 @@
             update_status: undefined,
             extraKeywords: [],
         };
+        return attachStatusInfo(base, {
+            hintTexts: [statusHint],
+            fallbackTexts: [tags.join(','), categories.join(',')],
+        });
+    }
+
+    function normalizeLongmaData(raw) {
+        const titleCn = T.safeText(raw.title);
+        const authorCn = T.safeText(raw.author);
+        const descCn = T.safeText(raw.intro);
+        const metaParts = Array.isArray(raw.metaParts) ? raw.metaParts.map(T.safeText).filter(Boolean) : [];
+
+        const categories = [];
+        if (metaParts[0]) categories.push(metaParts[0]);
+        if (metaParts[1]) categories.push(metaParts[1]);
+        if (metaParts[2]) categories.push(metaParts[2]);
+        if (raw.pavilionName) categories.push(raw.pavilionName);
+
+        const tags = metaParts.slice(3);
+        const extraKeywords = Array.isArray(raw.pavilionKeywords) ? raw.pavilionKeywords : [];
+        const statusHint = T.safeText(raw.statusHint);
+        const base = {
+            sourceType: 'longma',
+            sourceLabel: 'Hải Đường',
+            titleCn,
+            authorCn,
+            descCn,
+            tags: Array.from(new Set(tags)),
+            categories: Array.from(new Set(categories)),
+            coverUrl: T.safeText(raw.coverUrl),
+            statusHint,
+            update_status: undefined,
+            extraKeywords,
+        };
+        return attachStatusInfo(base, {
+            explicitStates: [
+                statusStateFromText(statusHint),
+            ],
+            hintTexts: [statusHint],
+            fallbackTexts: [
+                T.safeText(raw.metaLine),
+                tags.join(','),
+                categories.join(','),
+                extraKeywords.join(','),
+            ],
+        });
     }
 
     // --- GONGZICP ---
@@ -1449,17 +1825,27 @@
         if (process === '完结') update_status = 1;
         else if (process === '连载') update_status = 0;
 
-        return {
+        const tags = Array.isArray(data.tag_list) ? data.tag_list : [];
+        const categories = Array.isArray(data.type_list) ? data.type_list : [];
+        const base = {
             titleCn: data.novel_name || '',
             authorCn: data.author_nickname || '',
             descCn: T.htmlToText(data.novel_info || ''),
-            tags: data.tag_list || [],
-            categories: data.type_list || [],
+            tags,
+            categories,
             coverUrl: data.novel_cover || '',
+            statusHint: process,
             update_status: update_status,
             sourceType: 'gongzicp',
             sourceLabel: 'Trường Bội'
         };
+        return attachStatusInfo(base, {
+            explicitStates: [
+                mapStatusCode(update_status, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.COMPLETED }),
+            ],
+            hintTexts: [process],
+            fallbackTexts: [tags.join(','), categories.join(',')],
+        });
     }
 
     function getGroupOptions() {
@@ -1639,20 +2025,49 @@
     }
 
     function detectStatus(raw, textBlob) {
-        const cn = T.normalizeText(textBlob + ' ' + T.safeText(raw.statusHint || ''));
-        const step = T.safeText(raw.statusHint);
-        if (/未完結|未完结/i.test(step)) return 'Còn tiếp';
-        if (/已完結|已完结/i.test(step)) return 'Hoàn thành';
-        if (step === '2') return 'Hoàn thành';
-        if (step === '1') return 'Còn tiếp';
-        const hasDone = /hoan thanh|da xong|da hoan thanh|完结|完本|已完结|已完結/.test(cn);
-        const hasPause = /tam ngung|暂停|断更|停更/.test(cn);
-        const hasOngoing = /连载|连載|更新中|dang cap nhat|con tiep|未完结|未完結/.test(cn);
-        if (hasDone) return 'Hoàn thành';
-        if (hasPause) return 'Tạm ngưng';
-        if (raw.update_status === 1 || raw.isFinished === '1' || raw.is_finished === '1') return 'Hoàn thành';
-        if (raw.update_status === 0 || hasOngoing) return 'Còn tiếp';
-        return 'Còn tiếp';
+        if (raw?.statusInfo?.label) return raw.statusInfo.label;
+        const fallback = resolveStatusInfo({
+            sourceType: raw?.sourceType || '',
+            explicitStates: [
+                mapStatusCode(raw?.update_status, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.COMPLETED }),
+                statusStateFromBoolish(raw?.isFinished, true),
+                statusStateFromBoolish(raw?.is_finished, true),
+            ],
+            hintTexts: [raw?.statusHint],
+            fallbackTexts: [textBlob],
+        });
+        return fallback.label;
+    }
+
+    function pickStatusOptionByState(statusOptions, state) {
+        const options = Array.isArray(statusOptions) ? statusOptions : [];
+        if (!options.length || !state) return null;
+        const completedPattern = /(hoan thanh|ket thuc|da xong|completed|finished|完结|完本|已完结|已完結)/;
+        const ongoingPattern = /(con tiep|dang cap nhat|dang ra|chua hoan|ongoing|serial|连载|連載|更新中|未完结|未完結)/;
+        const pattern = state === STATUS_STATES.COMPLETED ? completedPattern : ongoingPattern;
+        return options.find(opt => pattern.test(T.normalizeText(opt?.label || ''))) || null;
+    }
+
+    function resolveStatusSelection(statusOptions, sourceData, detectedLabel) {
+        const options = Array.isArray(statusOptions) ? statusOptions : [];
+        if (!options.length) return '';
+
+        const fromState = pickStatusOptionByState(options, sourceData?.statusState);
+        if (fromState) return fromState.label;
+
+        const detectedNorm = T.normalizeText(detectedLabel || '');
+        if (detectedNorm) {
+            const exact = options.find(opt => T.normalizeText(opt?.label || '') === detectedNorm);
+            if (exact) return exact.label;
+            if (/(hoan thanh|ket thuc|da xong|completed|finished|完结|完本|已完结|已完結)/.test(detectedNorm)) {
+                const completedOpt = pickStatusOptionByState(options, STATUS_STATES.COMPLETED);
+                if (completedOpt) return completedOpt.label;
+            }
+        }
+
+        const ongoingOpt = pickStatusOptionByState(options, STATUS_STATES.ONGOING);
+        if (ongoingOpt) return ongoingOpt.label;
+        return options[0]?.label || '';
     }
 
     function detectOfficial(keywords) {
@@ -1673,6 +2088,9 @@
             if (hasDam) return 'Đam mỹ';
             return 'Ngôn tình';
         }
+        if (/(男男|耽美)/.test(blob) || /\bbl\b/.test(blob)) return 'Đam mỹ';
+        if (/(女女|百合)/.test(blob) || /\bgl\b/.test(blob)) return 'Bách hợp';
+        if (/(男女|言情)/.test(blob) || /\bbg\b/.test(blob)) return 'Ngôn tình';
         if (/(song nam chu|双男主)/.test(blob)) return 'Đam mỹ';
         if (/(纯爱|thuan ai)/.test(blob)) return 'Đam mỹ';
         if (/(bach hop|百合|双女主)/.test(blob)) return 'Bách hợp';
@@ -1804,9 +2222,9 @@
             return pickMulti(scored, limit, isMandatory, collapse);
         };
 
-        const fullTextBlob = contexts.map(c => c.normText).join(' ');
-
-        const statusLabel = detectStatus(sourceData, fullTextBlob);
+        const statusFallbackBlob = keywordList.join(' ');
+        const statusLabel = detectStatus(sourceData, statusFallbackBlob);
+        const statusSuggestion = resolveStatusSelection(groups.status, sourceData, statusLabel);
         const officialLabel = detectOfficial(keywordList);
         const genderLabel = detectGender(keywordList, sourceData?.sourceType);
 
@@ -1818,14 +2236,12 @@
             }).sort((a, b) => b.score - a.score);
         };
 
-        const statusScored = boostDetect(groups.status, statusLabel);
-
         const threshold = getScoreThreshold();
 
         const allowMultiEnding = hasXuyenNhanh(keywordList);
 
         return {
-            status: pickRadio(statusScored, true, threshold),
+            status: statusSuggestion,
             official: pickRadio(boostDetect(groups.official, officialLabel), true, threshold),
             gender: pickRadio(boostDetect(groups.gender, genderLabel), false, threshold),
 
@@ -1847,11 +2263,9 @@
         const linkInputs = Array.from(document.querySelectorAll('input[name="moreLinkUrl"]'));
         const descInputs = Array.from(document.querySelectorAll('input[name="moreLinkDesc"]'));
         if (!linkInputs.length || !descInputs.length || !url) return;
-        let idx = linkInputs.findIndex(input => T.safeText(input.value) === '');
-        if (idx < 0) idx = 0;
-        if (idx >= descInputs.length) idx = descInputs.length - 1;
+        const idx = 0;
         setInputValue(linkInputs[idx], url);
-        if (desc) setInputValue(descInputs[idx], desc);
+        setInputValue(descInputs[idx], desc || '');
     }
 
     function applyRadio(group, label) {
@@ -2053,18 +2467,20 @@
     // ================================================
 
     const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.4</span></h2>
+<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.5</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li>🧠 <b>PO18 chuẩn hơn:</b> Sửa nhận diện trạng thái <code>未完結/已完結</code>, tinh chỉnh rule giới tính (Đam/Bách/Ngôn/Đa nguyên) và diễn sinh (<code>同人/二創</code>).</li>
-    <li>📝 <b>PO18 văn án:</b> Chèn thêm dòng <code>Tags: ...</code> từ <code>book_intro_tags</code> trước khi dịch/AI.</li>
-    <li>🛡️ <b>Check trùng truyện:</b> Ở <code>/nhung-file</code> tự gọi <code>/book/check</code> (retry 3 lần), phát hiện trùng sẽ khóa <b>Áp vào form</b> + popup cảnh báo.</li>
-    <li>🔒 <b>Khóa thao tác:</b> Chỉ cho bấm <b>Recompute</b>, <b>AI</b>, <b>AI thủ công</b>, <b>Áp vào form</b> sau khi <b>Lấy dữ liệu</b> thành công.</li>
-    <li>🎬 <b>Toast mới:</b> Thêm animation thông báo cho Lấy dữ liệu / AI / AI thủ công / Áp form, hỗ trợ cả theme sáng và tối.</li>
-    <li>🖼️ <b>Tối ưu ảnh bìa:</b> Nếu > <code>500KB</code> sẽ tự giảm kích thước thông minh để giữ nét rồi mới upload.</li>
+    <li>🌺 <b>Nguồn mới Hải Đường:</b> Thêm hỗ trợ <code>ebook.longmabook.com/?act=showinfo...</code>, parse tiêu đề/tác giả/văn án/meta trạng thái.</li>
+    <li>🎯 <b>Mặc định đích Longma:</b> Hải Đường tự để <b>Web Hồng</b> để dùng đúng luồng.</li>
+    <li>🧭 <b>Map phân khu Longma:</b> Tự nhận <code>pavilionid</code> <code>a/b/c/d</code> để tăng độ chính xác cho giới tính và diễn sinh.</li>
+    <li>✅ <b>Trạng thái do code quyết định:</b> AI không còn chọn trạng thái; nếu parse không ra thì mặc định <b>Còn tiếp</b>.</li>
+    <li>🧠 <b>Parse trạng thái tập trung:</b> Mỗi nguồn trả <code>statusInfo/statusState/isCompleted</code> để debug và so khớp ổn định hơn.</li>
+    <li>🔗 <b>Liên kết bổ sung:</b> Khi bấm <b>Áp vào form</b>, luôn ghi đè <b>hàng đầu tiên</b> (không tự nhảy xuống hàng kế).</li>
+    <li>🖥️ <b>Nút Fullscreen mới:</b> Thêm nút <code>⛶</code> sau <b>AI</b>, trước <b>?</b>; bật full màn hình sát 4 cạnh và phóng UI khoảng <b>1.5x</b>.</li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
 <ul style="list-style-type: none; padding-left: 0; font-size: 13px;">
+    <li><b>v0.3.4:</b> Cải thiện PO18, check trùng truyện + khóa thao tác an toàn hơn, nâng toast/cover upload.</li>
     <li><b>v0.3.3:</b> Hotfix popup so sánh + tách riêng logic loại trừ giữa <code>/chinh-sua</code> và <code>/nhung-file</code>.</li>
     <li><b>v0.3.2:</b> Thêm AI thủ công, mở rộng hỗ trợ trang chỉnh sửa, cải thiện Qidian/Ihuaben.</li>
     <li><b>v0.3.1:</b> Auto tách names, gộp luồng AI, nâng chất lượng nhận diện status/tag.</li>
@@ -2091,7 +2507,7 @@
     }).join('');
 
     const buildWelcomeContent = () => `
-<h2 class="${APP_PREFIX}welcome-heading">Chào mừng đến với <span>Wikidich Autofill</span>!</h2>
+<h2 class="${APP_PREFIX}welcome-heading">🌸 Chào mừng đến với <span>Wikidich Autofill</span>! 🌸</h2>
 <p class="${APP_PREFIX}welcome-subtitle">Tool "thần thánh" hỗ trợ convert web Trung sang Wikidich 1 chạm.</p>
 
 <div class="${APP_PREFIX}guide-box-green">
@@ -2196,6 +2612,7 @@
                 --wda-text: #2f2a36;
                 --wda-muted: #6b6f80;
                 --wda-radius: 14px;
+                --wda-fullscreen-scale: 1.5;
             }
             :host([data-theme="dark"]) {
                 --wda-surface: #0b1220;
@@ -2224,6 +2641,22 @@
                 box-shadow: var(--wda-shadow);
                 font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
                 z-index: 99999; display: none; flex-direction: column;
+            }
+            #${APP_PREFIX}panel.${APP_PREFIX}fullscreen {
+                top: 0 !important;
+                left: 0 !important;
+                right: auto !important;
+                bottom: auto !important;
+                width: calc(100vw / var(--wda-fullscreen-scale)) !important;
+                height: calc(100vh / var(--wda-fullscreen-scale)) !important;
+                max-height: none !important;
+                border-radius: 0;
+                box-shadow: none;
+                transform: scale(var(--wda-fullscreen-scale));
+                transform-origin: top left;
+            }
+            #${APP_PREFIX}panel.${APP_PREFIX}fullscreen #${APP_PREFIX}header {
+                cursor: default;
             }
             :host([data-theme="dark"]) #${APP_PREFIX}panel {
                 background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
@@ -2347,6 +2780,19 @@
                 background: rgba(30, 41, 59, 0.85);
                 border-color: rgba(148, 163, 184, 0.25);
                 color: #e2e8f0;
+            }
+            .${APP_PREFIX}icon-btn.${APP_PREFIX}fullscreen-btn {
+                font-size: 13px;
+            }
+            .${APP_PREFIX}icon-btn.${APP_PREFIX}fullscreen-btn.active {
+                color: #0369a1;
+                border-color: rgba(3, 105, 161, 0.35);
+                background: rgba(186, 230, 253, 0.85);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}icon-btn.${APP_PREFIX}fullscreen-btn.active {
+                color: #7dd3fc;
+                border-color: rgba(125, 211, 252, 0.45);
+                background: rgba(12, 74, 110, 0.55);
             }
             .${APP_PREFIX}settings-group { display: flex; flex-direction: column; gap: 6px; }
             .${APP_PREFIX}settings-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
@@ -2737,6 +3183,7 @@
                     </div>
                     <div id="${APP_PREFIX}header-actions">
                         <button id="${APP_PREFIX}ai" class="${APP_PREFIX}icon-btn ${APP_PREFIX}ai-btn-color" title="Chạy AI Analyze">AI</button>
+                        <button id="${APP_PREFIX}fullscreen" class="${APP_PREFIX}icon-btn ${APP_PREFIX}fullscreen-btn" title="Toàn màn hình">⛶</button>
                         <button id="${APP_PREFIX}help" class="${APP_PREFIX}icon-btn" title="Hướng dẫn">?</button>
                         <button id="${APP_PREFIX}settings" class="${APP_PREFIX}icon-btn" title="Cài đặt">⚙</button>
                         <button id="${APP_PREFIX}close" class="${APP_PREFIX}icon-btn" title="Thu nhỏ">✕</button>
@@ -2943,7 +3390,9 @@
         const headerEl = shadowRoot.getElementById(`${APP_PREFIX}header`);
         const close = shadowRoot.getElementById(`${APP_PREFIX}close`);
         const aiBtn = shadowRoot.getElementById(`${APP_PREFIX}ai`);
+        const fullscreenBtn = shadowRoot.getElementById(`${APP_PREFIX}fullscreen`);
         const helpBtn = shadowRoot.getElementById(`${APP_PREFIX}help`);
+        const panelFullscreenClass = `${APP_PREFIX}fullscreen`;
 
         const settingsBtn = shadowRoot.getElementById(`${APP_PREFIX}settings`);
         const settingsModal = shadowRoot.getElementById(`${APP_PREFIX}settingsModal`);
@@ -3736,7 +4185,6 @@
             const groups = getGroupOptions();
             const getLabels = (grp) => grp ? grp.map(x => x.label) : [];
             const availableOptions = {
-                status: getLabels(groups.status),
                 gender: getLabels(groups.gender),
                 official: getLabels(groups.official),
                 age: getLabels(groups.age),
@@ -3775,7 +4223,6 @@ Prioritize Hán-Việt pronunciation for "vi" field.
 - If a name is likely non-Chinese in context (Japanese/English/etc.), prefer Latin transliteration instead of Hán-Việt. Example: "瑞苏泽尔" => "Risuzel" (NOT "Thụy Tô Trạch Nhĩ").
 
 TASK 2: Classify the novel using ONLY the provided lists:
-- status: ${JSON.stringify(availableOptions.status)} // Pick 1
 - gender: ${JSON.stringify(availableOptions.gender)} // Pick 1
 - official: ${JSON.stringify(availableOptions.official)} // Pick 1
 - age: ${JSON.stringify(availableOptions.age)} // Pick multiple
@@ -3786,7 +4233,6 @@ TASK 2: Classify the novel using ONLY the provided lists:
 Output JSON format:
 {
   "names": [{"cn": "...", "vi": "..."}],
-  "status": "...",
   "gender": "...",
   "official": "...",
   "age": [...],
@@ -3807,7 +4253,6 @@ Tags: ${novelInfo.tags}
 Description: ${novelInfo.desc}
 
 Available Lists (Choose from these ONLY):
-- status: ${JSON.stringify(availableOptions.status)}
 - gender: ${JSON.stringify(availableOptions.gender)} // Pick 1
 - official: ${JSON.stringify(availableOptions.official)} // Pick 1
 - age: ${JSON.stringify(availableOptions.age)} // Pick multiple
@@ -3815,7 +4260,7 @@ Available Lists (Choose from these ONLY):
 - genre: ${JSON.stringify(availableOptions.genre)} // Pick multiple
 - tag: ${JSON.stringify(availableOptions.tag)} // Pick multiple
 
-Output JSON format: { "status": "...", "gender": "...", "official": "...", "age": [...], "ending": [...], "genre": [...], "tag": [...] }
+Output JSON format: { "gender": "...", "official": "...", "age": [...], "ending": [...], "genre": [...], "tag": [...] }
 For arrays, return list of strings. If none fit, return empty array.
                 `.trim();
         };
@@ -3892,7 +4337,6 @@ For arrays, return list of strings. If none fit, return empty array.
                 }
             };
 
-            result.status = validateParams('status', result.status, false);
             result.gender = validateParams('gender', result.gender, false);
             result.official = validateParams('official', result.official, false);
 
@@ -3911,7 +4355,6 @@ For arrays, return list of strings. If none fit, return empty array.
                 log('AI: Kết thúc chỉ chọn 1 (trừ khi có tag/thể loại Xuyên nhanh).', 'warn');
             }
 
-            if (result.status) shadowRoot.getElementById(`${APP_PREFIX}status`).value = result.status;
             if (result.gender) shadowRoot.getElementById(`${APP_PREFIX}gender`).value = result.gender;
             if (result.official) shadowRoot.getElementById(`${APP_PREFIX}official`).value = result.official;
 
@@ -3928,8 +4371,11 @@ For arrays, return list of strings. If none fit, return empty array.
                 shadowRoot.getElementById(`${APP_PREFIX}tag`).value = result.tag.join(', ');
             }
 
+            const preservedStatus = shadowRoot.getElementById(`${APP_PREFIX}status`)?.value
+                || state.suggestions?.status
+                || '';
             state.suggestions = {
-                status: result.status || '',
+                status: preservedStatus,
                 official: result.official || '',
                 gender: result.gender || '',
                 age: result.age || [],
@@ -4053,6 +4499,11 @@ For arrays, return list of strings. If none fit, return empty array.
                 sourceData = rule.normalize(raw);
                 const okLabel = rule.name ? `${rule.name} OK` : 'Nguồn OK';
                 log(`${okLabel}: ${sourceData.titleCn || '(no title)'}`, 'ok');
+                if (sourceData?.statusInfo) {
+                    const s = sourceData.statusInfo;
+                    const suffix = s.evidence ? ` | tín hiệu: ${s.evidence}` : '';
+                    log(`Trạng thái parse: ${s.label} (${s.method})${suffix}`);
+                }
                 if (sourceData?.coverUrl && rule?.coverProcess) {
                     log(`Đang xử lý ảnh bìa ${rule.name || sourceInfo.type}...`);
                     sourceData.coverUrl = await rule.coverProcess(sourceData.coverUrl);
@@ -4461,6 +4912,23 @@ For arrays, return list of strings. If none fit, return empty array.
             panel.style.display = isHidden ? 'flex' : 'none';
             if (isHidden) updateMatchIndicators();
         };
+        const syncFullscreenButton = () => {
+            if (!fullscreenBtn) return;
+            const isFullscreen = panel.classList.contains(panelFullscreenClass);
+            fullscreenBtn.classList.toggle('active', isFullscreen);
+            fullscreenBtn.setAttribute('title', isFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình');
+            fullscreenBtn.textContent = isFullscreen ? '🗗' : '⛶';
+        };
+        const togglePanelFullscreen = () => {
+            const next = !panel.classList.contains(panelFullscreenClass);
+            panel.classList.toggle(panelFullscreenClass, next);
+            GM_setValue(`${APP_PREFIX}panel_fullscreen`, next);
+            syncFullscreenButton();
+        };
+        if (GM_getValue(`${APP_PREFIX}panel_fullscreen`, false)) {
+            panel.classList.add(panelFullscreenClass);
+        }
+        syncFullscreenButton();
 
         function enableDrag(panelEl, handleEl, storageKey) {
             let dragging = false;
@@ -4478,6 +4946,7 @@ For arrays, return list of strings. If none fit, return empty array.
 
             const onStart = (ev) => {
                 if (ev.target && ev.target.closest('button')) return;
+                if (panelEl.classList.contains(panelFullscreenClass)) return;
                 const point = getPoint(ev);
                 const rect = panelEl.getBoundingClientRect();
                 dragging = true;
@@ -4527,6 +4996,11 @@ For arrays, return list of strings. If none fit, return empty array.
         close.addEventListener('click', () => {
             closePanel();
         });
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', () => {
+                togglePanelFullscreen();
+            });
+        }
         helpBtn.addEventListener('click', () => {
             helpContentDiv.innerHTML = buildWelcomeContent();
             helpModal.style.display = 'flex';
