@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.3.6_beta
+// @version      1.4.0_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
@@ -22,7 +22,7 @@
     const STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const SESSION_KEY = 'twd_tts_reader_session_v1';
     const WELCOME_KEY = `${STORAGE_KEY}_welcome_seen_v1`;
-    const SCRIPT_VERSION = '1.3.6_beta';
+    const SCRIPT_VERSION = '1.4.0_beta';
     const SCRIPT_UPDATE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js';
     const AUTO_START_WINDOW_MS = 10 * 60 * 1000;
     const TIKTOK_API_ENDPOINT = 'https://api16-normal-c-useast1a.tiktokv.com/media/api/text/speech/invoke/';
@@ -166,6 +166,7 @@
         nextSegmentTimer: 0,
         gmCookieCapability: 'unknown',
         gmCookieHeader: '',
+        wikicvRuntime: null,
         uiHost: null,
         ui: null
     };
@@ -240,6 +241,7 @@
             if (!ok) {
                 return;
             }
+            ensureWikiCvRuntimeFromDom();
             state.settings.provider = getProviderId();
             state.pendingAutoStart = consumePendingSession();
             injectStyles();
@@ -270,6 +272,25 @@
                 if (!link) {
                     return;
                 }
+
+                if (isWikiCvHost()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    stopReading(false);
+                    updateStatus(`Đang tải ${normalizeText(link.textContent) || 'phần'}...`);
+                    wikicvLoadChapterPart(link, { timeoutMs: 20000, retries: 2 })
+                        .then(() => {
+                            refreshChapterData();
+                            updateStatus('Đã tải phần');
+                        })
+                        .catch((err) => {
+                            const msg = err && err.message ? err.message : 'unknown';
+                            updateStatus(`Không tải được phần: ${msg}`);
+                        });
+                    return;
+                }
+
+                // Site khác: chờ DOM đổi rồi refresh.
                 const prevSig = getBookContentSignature();
                 setTimeout(() => {
                     waitForBookContentChanged(prevSig, 15000).then((ok) => {
@@ -283,6 +304,10 @@
             } catch (err) {
             }
         }, true);
+    }
+
+    function isWikiCvHost() {
+        return location.hostname === 'wikicv.net' || location.hostname === 'www.wikicv.net';
     }
 
     function detectGMCookieCapability() {
@@ -559,13 +584,20 @@
 
     function getNextChapterUrl() {
         const direct = document.querySelector('#btnNextChapter');
-        if (direct && direct.href) {
-            return direct.href;
+        if (direct) {
+            const href = direct.getAttribute ? direct.getAttribute('href') : '';
+            if (href) {
+                return toAbsoluteUrl(href);
+            }
         }
 
         const anchors = Array.from(document.querySelectorAll('a[href]'));
         const found = anchors.find((a) => /chương\s+sau/i.test(normalizeText(a.textContent)));
-        return found ? found.href : '';
+        if (!found) {
+            return '';
+        }
+        const href = found.getAttribute ? found.getAttribute('href') : '';
+        return href ? toAbsoluteUrl(href) : '';
     }
 
     function getBookContentSignature() {
@@ -587,8 +619,6 @@
         if (!links.length) {
             return null;
         }
-
-
 
         const activeLinks = links.filter((a) => a.classList.contains('active'));
         const activeLink = activeLinks[0] || null;
@@ -644,8 +674,6 @@
     function speakEndOfContentNotice() {
         const msg = 'Bạn đã tới cuối chương. Đây là chương cuối trong trang hiện tại.';
         const token = ++state.utteranceToken;
-
-
         if (isRemoteProvider()) {
             const providerId = getProviderId();
             const provider = getRemoteProvider(providerId);
@@ -699,8 +727,6 @@
                 });
             return;
         }
-
-
         try {
             speechSynthesis.cancel();
             const utter = new SpeechSynthesisUtterance(msg);
@@ -731,7 +757,27 @@
             return false;
         }
 
+        if (isWikiCvHost()) {
+            stopSpeechOnly();
+            state.reading = false;
+            state.paused = false;
+            clearActiveHighlight();
+            updateProgressText(true);
 
+            const label = normalizeText(nextPart.textContent) || 'phần tiếp theo';
+            updateStatus(`Xong phần, tải ${label}...`);
+
+            wikicvLoadChapterPart(nextPart, { timeoutMs: 25000, retries: 2 })
+                .then(() => {
+                    refreshChapterData({ preservePlayback: true });
+                    setTimeout(() => startFromParagraph(1), 250);
+                })
+                .catch((err) => {
+                    const msg = err && err.message ? err.message : 'unknown';
+                    updateStatus(`Không tải được ${label}: ${msg}`);
+                });
+            return true;
+        }
         stopSpeechOnly();
         state.reading = false;
         state.paused = false;
@@ -741,8 +787,6 @@
         const prevSig = getBookContentSignature();
         const label = normalizeText(nextPart.textContent) || 'phần tiếp theo';
         updateStatus(`Xong phần, chuyển sang ${label}...`);
-
-
 
         try {
             nextPart.click();
@@ -945,8 +989,6 @@
             }
         };
 
-        // TruyenWikiDich có 2 top bar (desktop + mobile) cùng tồn tại trong DOM.
-        // Sync theo selector cụ thể để tránh lệch index nếu trang có element .top-title khác.
         let any = false;
         any = tryPair('.top-bar.ankhinho .top-title') || any;
         any = tryPair('.top-bar.ankhito .top-title') || any;
@@ -976,8 +1018,6 @@
         if (!curWrap || !nextWrap) {
             return;
         }
-
-        // Ưu tiên thay cả block book-title (direct children) để đảm bảo đổi đúng dòng.
         const isDirectBookTitle = (el, wrap) =>
             !!(el && el.parentElement === wrap && el.classList && el.classList.contains('book-title'));
         const curDirect = Array.from(curWrap.children || []).filter((el) => isDirectBookTitle(el, curWrap));
@@ -1012,8 +1052,6 @@
             try { marker.remove(); } catch (err) { /* ignore */ }
             return;
         }
-
-        // Fallback: update theo index (mọi tag có class book-title).
         const curTitles = Array.from(curWrap.querySelectorAll('.book-title'));
         const nextTitles = Array.from(nextWrap.querySelectorAll('.book-title'));
         if (curTitles.length === 0 || nextTitles.length === 0) {
@@ -1024,8 +1062,381 @@
             try {
                 replaceChildrenFromForeignDoc(curTitles[i], nextTitles[i]);
             } catch (err) {
-                // ignore
+
             }
+        }
+    }
+
+    function syncChapterRuntimeVarsFromDoc(doc) {
+        if (!doc || !doc.querySelectorAll) {
+            return;
+        }
+
+        const scripts = Array.from(doc.querySelectorAll('script'));
+        const all = scripts.map((s) => String(s && s.textContent ? s.textContent : '')).join('\n');
+        const pickString = (name) => {
+            const n = String(name || '').trim();
+            if (!n) {
+                return '';
+            }
+            const re = new RegExp(`\\b(?:var|let|const)\\s+${n}\\s*=\\s*["']([^"']+)["']`, 'g');
+            let last = '';
+            let m;
+            while ((m = re.exec(all)) !== null) {
+                if (m[1]) {
+                    last = String(m[1]);
+                }
+            }
+            return last;
+        };
+
+        const pickBool = (name) => {
+            const n = String(name || '').trim();
+            if (!n) {
+                return null;
+            }
+            const re = new RegExp(`\\b(?:var|let|const)\\s+${n}\\s*=\\s*(true|false)\\b`, 'g');
+            let last = null;
+            let m;
+            while ((m = re.exec(all)) !== null) {
+                if (m[1]) {
+                    last = (m[1] === 'true');
+                }
+            }
+            return last;
+        };
+
+        const pickFuzzyShift = () => {
+
+            const m =
+                /function\s+fuzzySign\s*\(\s*\w+\s*\)\s*\{[\s\S]*?substring\(\s*(\d+)\s*\)\s*\+\s*\w+\.substring\(\s*0\s*,\s*(\d+)\s*\)/m.exec(all) ||
+                /fuzzySign\s*=\s*function\s*\(\s*\w+\s*\)\s*\{[\s\S]*?substring\(\s*(\d+)\s*\)\s*\+\s*\w+\.substring\(\s*0\s*,\s*(\d+)\s*\)/m.exec(all);
+            if (!m) {
+                return null;
+            }
+            const a = Number(m[1]);
+            const b = Number(m[2]);
+            if (!Number.isFinite(a) || !Number.isFinite(b)) {
+                return null;
+            }
+            if (a <= 0 || a !== b) {
+                return null;
+            }
+            return clampInt(a, 1, 512);
+        };
+
+        const nextBookId = pickString('bookId');
+        const nextChapterId = pickString('chapterId');
+        const nextTransType = pickString('transType');
+        const nextSignKey = pickString('signKey');
+        const fuzzyShift = pickFuzzyShift();
+        const nextEditName = pickBool('editName');
+        state.wikicvRuntime = {
+            bookId: nextBookId || '',
+            chapterId: nextChapterId || '',
+            transType: nextTransType || '',
+            signKey: nextSignKey || '',
+            fuzzyShift: Number.isFinite(Number(fuzzyShift)) ? Number(fuzzyShift) : 38,
+            editName: (typeof nextEditName === 'boolean') ? nextEditName : null,
+            updatedAt: Date.now()
+        };
+        try {
+            const w = (typeof unsafeWindow !== 'undefined' && unsafeWindow) ? unsafeWindow : window;
+            if (nextBookId) { w.bookId = nextBookId; }
+            if (nextChapterId) { w.chapterId = nextChapterId; }
+            if (nextTransType) { w.transType = nextTransType; }
+            if (nextSignKey) { w.signKey = nextSignKey; }
+            if (typeof nextEditName === 'boolean') { w.editName = nextEditName; }
+            if (typeof w.chapterPart !== 'undefined') { w.chapterPart = 0; }
+        } catch (err) { /* ignore */ }
+    }
+
+    function syncTopNavFromDoc(doc) {
+
+        const syncPair = (selector) => {
+            const cur = document.querySelector(selector);
+            const next = doc ? doc.querySelector(selector) : null;
+            if (!cur) {
+                return;
+            }
+            if (!next) {
+                try { cur.style.display = 'none'; } catch (err) { /* ignore */ }
+                return;
+            }
+            try { cur.style.display = ''; } catch (err) { /* ignore */ }
+            try { replaceChildrenFromForeignDoc(cur, next); } catch (err) { /* ignore */ }
+        };
+        syncPair('.top-bar.ankhinho .index-box');
+
+        try {
+            const curCenters = Array.from(document.querySelectorAll('.top-bar.ankhito p.center'));
+            const nextCenters = Array.from(doc ? doc.querySelectorAll('.top-bar.ankhito p.center') : []);
+            const n = Math.min(curCenters.length, nextCenters.length);
+            for (let i = 0; i < n; i += 1) {
+                try { curCenters[i].style.display = ''; } catch (err) { /* ignore */ }
+                try { replaceChildrenFromForeignDoc(curCenters[i], nextCenters[i]); } catch (err) { /* ignore */ }
+            }
+            for (let i = n; i < curCenters.length; i += 1) {
+                try { curCenters[i].style.display = 'none'; } catch (err) { /* ignore */ }
+            }
+        } catch (err) {
+
+        }
+    }
+
+    function syncBottomNavFromDoc(doc) {
+        const curWrap = document.querySelector('#bookContent');
+        const nextWrap = doc ? doc.querySelector('#bookContent') : null;
+        if (!curWrap || !nextWrap) {
+            return;
+        }
+
+        const pickNav = (root, selector) => {
+            const el = root ? root.querySelector(selector) : null;
+            if (!el) {
+                return null;
+            }
+
+            const has = !!(el.querySelector && el.querySelector('a.btn-bot'));
+            return has ? el : null;
+        };
+
+        const curDesktop = pickNav(curWrap, 'div.center.ankhinho');
+        const nextDesktop = pickNav(nextWrap, 'div.center.ankhinho');
+        if (curDesktop && nextDesktop) {
+            try { replaceChildrenFromForeignDoc(curDesktop, nextDesktop); } catch (err) { /* ignore */ }
+        } else if (curDesktop && !nextDesktop) {
+            try { curDesktop.style.display = 'none'; } catch (err) { /* ignore */ }
+        } else if (!curDesktop && nextDesktop) {
+            try {
+                const clone = document.importNode ? document.importNode(nextDesktop, true) : nextDesktop.cloneNode(true);
+                curWrap.appendChild(clone);
+            } catch (err) { /* ignore */ }
+        }
+
+        const curMobile = pickNav(curWrap, 'div.ankhito.center');
+        const nextMobile = pickNav(nextWrap, 'div.ankhito.center');
+        if (curMobile && nextMobile) {
+            try { replaceChildrenFromForeignDoc(curMobile, nextMobile); } catch (err) { /* ignore */ }
+        } else if (curMobile && !nextMobile) {
+            try { curMobile.style.display = 'none'; } catch (err) { /* ignore */ }
+        } else if (!curMobile && nextMobile) {
+            try {
+                const clone = document.importNode ? document.importNode(nextMobile, true) : nextMobile.cloneNode(true);
+                curWrap.appendChild(clone);
+            } catch (err) { /* ignore */ }
+        }
+    }
+
+    function getWikiCvSignKeyFromWindowOrDom() {
+        try {
+            const sk = state.wikicvRuntime && state.wikicvRuntime.signKey ? String(state.wikicvRuntime.signKey).trim() : '';
+            if (sk) {
+                return sk;
+            }
+        } catch (err) { /* ignore */ }
+
+        try {
+            const v = String(window.signKey || '').trim();
+            if (v) {
+                return v;
+            }
+        } catch (err) { /* ignore */ }
+        try {
+            const scripts = Array.from(document.querySelectorAll('script'));
+            const all = scripts.map((s) => String(s && s.textContent ? s.textContent : '')).join('\n');
+            const re = /\b(?:var|let|const)\s+signKey\s*=\s*["']([^"']+)["']/g;
+            let last = '';
+            let m;
+            while ((m = re.exec(all)) !== null) {
+                if (m[1]) {
+                    last = String(m[1]);
+                }
+            }
+            return last;
+        } catch (err) {
+            return '';
+        }
+    }
+
+    function fuzzySign(text, shift) {
+        const s = String(text || '');
+        const sh = clampInt(shift, 1, 512);
+        if (s.length <= sh) {
+            return s;
+        }
+        return s.substring(sh) + s.substring(0, sh);
+    }
+
+    async function sha256HexBySubtle(text) {
+        if (!crypto || !crypto.subtle || typeof crypto.subtle.digest !== 'function') {
+            throw new Error('no subtle');
+        }
+        const enc = new TextEncoder();
+        const buf = await crypto.subtle.digest('SHA-256', enc.encode(String(text || '')));
+        const bytes = new Uint8Array(buf);
+        let out = '';
+        for (let i = 0; i < bytes.length; i += 1) {
+            out += bytes[i].toString(16).padStart(2, '0');
+        }
+        return out;
+    }
+
+    async function computeWikiCvSign(signKey, type, pn, editName) {
+        const sk = String(signKey || '');
+        const tp = String(type || '');
+        const part = String(pn);
+        const en = editName ? 'true' : 'false';
+        const shift = (() => {
+            try {
+                const v = state.wikicvRuntime && Number.isFinite(Number(state.wikicvRuntime.fuzzyShift))
+                    ? Number(state.wikicvRuntime.fuzzyShift)
+                    : 38;
+                return clampInt(v, 1, 512);
+            } catch (err) {
+                return 38;
+            }
+        })();
+        const payload = fuzzySign(`${sk}${tp}${part}${en}`, shift);
+        try {
+            if (typeof window.signFunc === 'function') {
+                const v = String(window.signFunc(payload) || '');
+                if (/^[0-9a-f]{64}$/i.test(v)) {
+                    return v;
+                }
+            }
+        } catch (err) { /* ignore */ }
+
+        return sha256HexBySubtle(payload);
+    }
+
+    function parseHtmlToFragment(html) {
+        const txt = String(html || '').trim();
+        const doc = new DOMParser().parseFromString(`<div id="__twd_root__">${txt}</div>`, 'text/html');
+        const root = doc ? doc.querySelector('#__twd_root__') : null;
+        if (!root) {
+            return null;
+        }
+        return root;
+    }
+
+    async function wikicvLoadChapterPart(linkEl, options) {
+        const link = linkEl instanceof Element ? linkEl : null;
+        if (!link) {
+            throw new Error('no link');
+        }
+        const id = String(link.getAttribute('data-id') || link.dataset.id || '').trim();
+        const type = String(link.getAttribute('data-type') || link.dataset.type || '').trim() || 'vi';
+        const pnRaw = String(link.getAttribute('data-pn') || link.dataset.pn || '').trim();
+        const pn = Number.isFinite(Number(pnRaw)) ? String(Number(pnRaw)) : pnRaw;
+        const editName = (() => {
+            try {
+                if (state.wikicvRuntime && typeof state.wikicvRuntime.editName === 'boolean') {
+                    return !!state.wikicvRuntime.editName;
+                }
+            } catch (err) { /* ignore */ }
+            try { return !!window.editName; } catch (err) { return false; }
+        })();
+        ensureWikiCvRuntimeFromDom();
+        const signKey = getWikiCvSignKeyFromWindowOrDom();
+        if (!id || !signKey || pn === '') {
+            throw new Error('missing id/signKey/pn');
+        }
+
+        const timeoutMs = clampInt(options && options.timeoutMs, 3000, 60000);
+        const retries = clampInt(options && options.retries, 0, 3);
+
+        const doFetch = async () => {
+            const sign = await computeWikiCvSign(signKey, type, pn, editName);
+            const body = new URLSearchParams({
+                id,
+                type,
+                pn,
+                en: editName ? 'true' : 'false',
+                signKey,
+                sign
+            }).toString();
+
+            const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+            const timer = controller ? setTimeout(() => {
+                try { controller.abort(); } catch (err) { /* ignore */ }
+            }, timeoutMs) : null;
+
+            try {
+                const res = await fetch('/chapters/part', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': '*/*',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body,
+                    signal: controller ? controller.signal : undefined
+                });
+                if (!res || !res.ok) {
+                    throw new Error(`HTTP ${(res && res.status) ? res.status : 0}`);
+                }
+                const json = await res.json();
+                return json;
+            } finally {
+                if (timer) {
+                    clearTimeout(timer);
+                }
+            }
+        };
+
+        let lastErr = null;
+        for (let attempt = 0; attempt <= retries; attempt += 1) {
+            try {
+
+                if (attempt > 0) {
+                    await sleep(350 + attempt * 250);
+                }
+                const json = await doFetch();
+                const content = json && json.data && typeof json.data.content === 'string' ? json.data.content : '';
+                if (!content.trim()) {
+                    throw new Error('no content');
+                }
+
+                const root = parseHtmlToFragment(content);
+                const bodyEl = document.querySelector('#bookContentBody');
+                if (root && bodyEl) {
+                    replaceChildrenFromForeignDoc(bodyEl, root);
+                } else if (bodyEl) {
+
+                    bodyEl.textContent = normalizeText(content);
+                }
+                document.querySelectorAll('a.chapter-part.active').forEach((a) => a.classList.remove('active'));
+                document.querySelectorAll(`a.chapter-part[data-pn="${pn}"]`).forEach((a) => a.classList.add('active'));
+                const shouldScroll = link.hasAttribute('data-stt') || (link.dataset && link.dataset.stt);
+                if (shouldScroll) {
+                    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (err) { window.scrollTo(0, 0); }
+                }
+
+                return true;
+            } catch (err) {
+                lastErr = err;
+            }
+        }
+
+        throw lastErr || new Error('load part failed');
+    }
+
+    function ensureWikiCvRuntimeFromDom() {
+        if (!isWikiCvHost()) {
+            return;
+        }
+        const has = (() => {
+            try { return !!(state.wikicvRuntime && state.wikicvRuntime.signKey); } catch (err) { return false; }
+        })();
+        if (has) {
+            return;
+        }
+        try {
+            syncChapterRuntimeVarsFromDoc(document);
+        } catch (err) {
+
         }
     }
 
@@ -1041,47 +1452,153 @@
         }
         if (!next) {
             try { cur.removeAttribute('href'); } catch (err) { /* ignore */ }
+            try { cur.style.display = 'none'; } catch (err) { /* ignore */ }
             return;
         }
         const href = next.getAttribute('href') || '';
         if (!href) {
             try { cur.removeAttribute('href'); } catch (err) { /* ignore */ }
+            try { cur.style.display = 'none'; } catch (err) { /* ignore */ }
             return;
         }
+        try { cur.style.display = ''; } catch (err) { /* ignore */ }
         try { cur.setAttribute('href', href); } catch (err) { /* ignore */ }
     }
 
     function syncChapterPartsFromDoc(doc) {
-        const currentLinks = Array.from(document.querySelectorAll('a.chapter-part[data-action="loadChapterPart"]'));
-        const newLinks = Array.from((doc && doc.querySelectorAll) ? doc.querySelectorAll('a.chapter-part[data-action="loadChapterPart"]') : []);
-        if (currentLinks.length === 0 && newLinks.length === 0) {
+        const pickBars = (root) => {
+            const base = root && root.querySelectorAll ? root : document;
+            const links = Array.from(base.querySelectorAll('a.chapter-part[data-action="loadChapterPart"]'));
+            if (links.length === 0) {
+                return [];
+            }
+            const bars = [];
+            const seen = new Set();
+            for (const link of links) {
+                let bar = null;
+                try { bar = link.closest('.center-align'); } catch (err) { bar = null; }
+                if (!bar) {
+                    bar = link.parentElement;
+                }
+                if (!bar || seen.has(bar)) {
+                    continue;
+                }
+                seen.add(bar);
+                bars.push(bar);
+            }
+            return bars;
+        };
+
+        const curBars = pickBars(document);
+        const nextBars = pickBars(doc);
+        if (curBars.length === 0 && nextBars.length === 0) {
             return;
         }
 
+        const hasStt = (bar) => {
+            try {
+                return !!(bar && bar.querySelector && bar.querySelector('a.chapter-part[data-stt]'));
+            } catch (err) {
+                return false;
+            }
+        };
+
+        const getContentOuter = () => {
+            const body = document.querySelector('#bookContentBody');
+            const wrapper = body ? body.closest('.content-body-wrapper') : null;
+            return wrapper && wrapper.parentElement ? wrapper.parentElement : (body ? body.parentElement : null);
+        };
+
+        const insertBar = (nextBar, position) => {
+            const bookContent = document.querySelector('#bookContent');
+            const contentOuter = getContentOuter();
+            if (!bookContent || !nextBar) {
+                return;
+            }
+            const clone = document.importNode ? document.importNode(nextBar, true) : nextBar.cloneNode(true);
+            if (!clone) {
+                return;
+            }
+            if (!contentOuter) {
+                bookContent.appendChild(clone);
+                return;
+            }
+
+            if (position === 'bottom') {
+                const ref = contentOuter.nextSibling;
+                bookContent.insertBefore(clone, ref);
+                return;
+            }
+
+            bookContent.insertBefore(clone, contentOuter);
+        };
+
+        const replaceBar = (curBar, nextBar) => {
+            if (!curBar || !nextBar) {
+                return false;
+            }
+            try { curBar.style.display = ''; } catch (err) { /* ignore */ }
+            try {
+                replaceChildrenFromForeignDoc(curBar, nextBar);
+                return true;
+            } catch (err) {
+                return false;
+            }
+        };
+
+        const hideBar = (bar) => {
+            if (!bar) {
+                return;
+            }
+            try { bar.style.display = 'none'; } catch (err) { /* ignore */ }
+        };
+        const curTop = curBars.find((b) => !hasStt(b)) || null;
+        const curBottom = curBars.find((b) => hasStt(b)) || null;
+        const nextTop = nextBars.find((b) => !hasStt(b)) || null;
+        const nextBottom = nextBars.find((b) => hasStt(b)) || null;
+
+        if (curTop || curBottom || nextTop || nextBottom) {
+            if (curTop && nextTop) {
+                replaceBar(curTop, nextTop);
+            } else if (curTop && !nextTop) {
+                hideBar(curTop);
+            } else if (!curTop && nextTop) {
+                insertBar(nextTop, 'top');
+            }
+
+            if (curBottom && nextBottom) {
+                replaceBar(curBottom, nextBottom);
+            } else if (curBottom && !nextBottom) {
+                hideBar(curBottom);
+            } else if (!curBottom && nextBottom) {
+                insertBar(nextBottom, 'bottom');
+            }
+            const remainingCur = curBars.filter((b) => b !== curTop && b !== curBottom);
+            const remainingNext = nextBars.filter((b) => b !== nextTop && b !== nextBottom);
+            const n = Math.min(remainingCur.length, remainingNext.length);
+            for (let i = 0; i < n; i += 1) {
+                replaceBar(remainingCur[i], remainingNext[i]);
+            }
+            for (let i = n; i < remainingCur.length; i += 1) {
+                hideBar(remainingCur[i]);
+            }
+            for (let i = n; i < remainingNext.length; i += 1) {
+                insertBar(remainingNext[i], hasStt(remainingNext[i]) ? 'bottom' : 'top');
+            }
+            return;
+        }
+        const currentLinks = Array.from(document.querySelectorAll('a.chapter-part[data-action="loadChapterPart"]'));
+        const newLinks = Array.from((doc && doc.querySelectorAll) ? doc.querySelectorAll('a.chapter-part[data-action="loadChapterPart"]') : []);
         const currentContainer = currentLinks.length > 0 ? findCommonContainer(currentLinks) : null;
         const newContainer = newLinks.length > 0 ? findCommonContainer(newLinks) : null;
 
         if (currentContainer && newContainer) {
-            currentContainer.style.display = '';
+            try { currentContainer.style.display = ''; } catch (err) { /* ignore */ }
             replaceChildrenFromForeignDoc(currentContainer, newContainer);
             return;
         }
-
         if (currentContainer && !newContainer) {
-            // Chương mới không có phần: ẩn bar phần cũ để tránh nhầm.
             try { currentContainer.style.display = 'none'; } catch (err) { /* ignore */ }
-            return;
-        }
-
-        if (!currentContainer && newContainer) {
-            // Chương mới có phần nhưng chương cũ không có: thử chèn gần nội dung.
-            const body = document.querySelector('#bookContentBody');
-            const parent = body && body.parentElement ? body.parentElement : null;
-            if (!parent) {
-                return;
-            }
-            const clone = document.importNode ? document.importNode(newContainer, true) : newContainer.cloneNode(true);
-            parent.insertBefore(clone, body);
         }
     }
 
@@ -1106,16 +1623,19 @@
             syncChapterTitleFromDoc(doc);
             syncTopTitleFromDoc(doc);
             syncBookTitleFromDoc(doc);
+            syncChapterRuntimeVarsFromDoc(doc);
+            syncTopNavFromDoc(doc);
             syncNavLinkHrefFromDoc('#btnPreChapter', doc);
             syncNavLinkHrefFromDoc('#btnPrevChapter', doc);
             syncNavLinkHrefFromDoc('#btnNextChapter', doc);
             syncChapterPartsFromDoc(doc);
+            syncBottomNavFromDoc(doc);
             replaceChildrenFromForeignDoc(curBody, newBody);
 
             try {
                 history.pushState({ twdTtsReader: 1 }, '', abs);
             } catch (err) {
-                // ignore
+
             }
             return true;
         });
@@ -1139,7 +1659,7 @@
                 if (token !== state.utteranceToken) {
                     return;
                 }
-                // Khi auto-start, giữ keep-alive chạy (mobile nền) và tiếp tục đọc ngay.
+
                 refreshChapterData({ preservePlayback: shouldAutoStart });
                 if (shouldAutoStart) {
                     setTimeout(() => startFromParagraph(1), 350);
@@ -1153,7 +1673,7 @@
                 if (token !== state.utteranceToken) {
                     return;
                 }
-                // Fallback: reload trang như cũ
+
                 if (shouldAutoStart) {
                     saveSessionForNextChapter();
                 }
@@ -1185,7 +1705,7 @@
         if (!preservePlayback) {
             stopReading(false);
         } else {
-            // Đang chuyển chương/phần (hoặc rebuild khi đang phát): hủy tác vụ cũ nhưng giữ silent keep-alive để mobile không kill.
+
             state.utteranceToken += 1;
             try { speechSynthesis.cancel(); } catch (err) { /* ignore */ }
             state.prefetchJobId += 1;
@@ -1295,8 +1815,6 @@
 
         return chunks.length > 0 ? chunks : [clean];
     }
-
-
     function splitLongUnit(text, maxChars) {
         const clean = normalizeText(text);
         if (!clean) {
@@ -1335,8 +1853,6 @@
         const s = String(text || '');
         const limit = Math.min(Math.max(1, Number(maxChars) || 1), s.length);
         const nearStart = Math.max(0, limit - SPLIT_NEAR_WINDOW);
-
-
         let idx = findLastBreakCharIndex(s, nearStart, limit, BREAK_CHARS_STRONG);
         if (idx < 0) {
             idx = findLastBreakCharIndex(s, 0, limit, BREAK_CHARS_STRONG);
@@ -1351,8 +1867,6 @@
         if (idx >= 0) {
             return Math.min(limit, idx + 1);
         }
-
-
         const spaceIdx = s.lastIndexOf(' ', limit);
         if (spaceIdx > 0) {
             return Math.min(limit, spaceIdx + 1);
@@ -1416,13 +1930,11 @@
             if (!from) {
                 continue;
             }
-            // Replace literal substring (không regex) để tránh vướng ký tự đặc biệt.
+
             text = text.split(from).join(to);
         }
         return normalizeText(text);
     }
-
-
     function isPunctuationOnlyText(input) {
         const s = String(input || '').replace(/\s+/g, '');
         if (!s) {
@@ -1474,12 +1986,12 @@
         try {
             audio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
         } catch (err) {
-            // ignore
+
         }
         try {
             audio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
         } catch (err) {
-            // ignore
+
         }
     }
 
@@ -2905,7 +3417,7 @@
 
         if (ui.helpModalOverlay) {
             ui.helpModalOverlay.addEventListener('click', (event) => {
-                // Không cho click ngoài popup tự thoát.
+
                 event.preventDefault();
                 event.stopPropagation();
             });
@@ -2918,7 +3430,7 @@
                 try {
                     window.open(SCRIPT_UPDATE_URL, '_blank', 'noopener,noreferrer');
                 } catch (err) {
-                    // ignore
+
                 }
             });
         }
@@ -2956,7 +3468,7 @@
 
         if (ui.replaceModalOverlay) {
             ui.replaceModalOverlay.addEventListener('click', (event) => {
-                // Không cho click ngoài popup tự thoát.
+
                 event.preventDefault();
                 event.stopPropagation();
             });
@@ -3031,12 +3543,12 @@
         ui.rateInput.addEventListener('input', () => {
             state.settings.rate = Number(ui.rateInput.value);
             ui.rateText.textContent = state.settings.rate.toFixed(2);
-            // Remote audio có thể apply ngay; Browser Speech chỉ apply từ mục kế tiếp.
+
             if (state.currentAudio) {
                 try {
                     state.currentAudio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
                 } catch (err) {
-                    // ignore
+
                 }
             }
             saveSettings();
@@ -3055,7 +3567,7 @@
                 try {
                     state.currentAudio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
                 } catch (err) {
-                    // ignore
+
                 }
             }
             saveSettings();
@@ -3119,12 +3631,12 @@
             startSilentAudioKeepAlive();
             setMediaSessionPlaybackStateSafe('playing');
             if (state.currentAudio && state.currentAudio.paused) {
-                // Nếu user chỉnh rate/volume lúc đang pause, áp lại trước khi play.
+
                 try {
                     state.currentAudio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
                     state.currentAudio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
                 } catch (err) {
-                    // ignore
+
                 }
                 state.currentAudio.play().catch(() => {
                     speakCurrentSegment();
@@ -3135,8 +3647,6 @@
                 } catch (err) {
 
                 }
-
-
                 if (!speechSynthesis.speaking) {
                     speakCurrentSegment();
                 }
@@ -3180,7 +3690,7 @@
                     state.currentAudio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
                     state.currentAudio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
                 } catch (err) {
-                    // ignore
+
                 }
                 state.currentAudio.play().catch(() => {
                     speakCurrentSegment();
@@ -3358,7 +3868,7 @@
                 state.currentAudio = audio;
                 audio.src = `data:audio/mpeg;base64,${base64Audio}`;
                 audio.load();
-                // Trên mobile, load()/src có thể reset volume/playbackRate => set lại sau load.
+
                 applyAudioSettings(audio);
                 updateMediaSession(provider.label, segment);
 
@@ -3908,11 +4418,7 @@
         if (!text) {
             return { header: '', names: [], hasSession: false, format: 'empty', error: '' };
         }
-
-
         const stripCookiePrefix = (s) => String(s || '').replace(/^\s*cookie\s*:\s*/i, '').trim();
-
-
         if (text.startsWith('{') || text.startsWith('[')) {
             try {
                 const json = JSON.parse(text);
@@ -3956,8 +4462,6 @@
                         const names = Object.keys(parseCookieHeader(header)).sort();
                         return { header, names, hasSession: hasSessionCookie(header), format: 'json:cookie', error: '' };
                     }
-
-
                     Object.keys(json).forEach((k) => {
                         const v = json[k];
                         if (typeof v === 'string' || typeof v === 'number') {
@@ -3972,8 +4476,6 @@
 
             }
         }
-
-
         if (/\t/.test(text)) {
             const map = new Map();
             const lines = text.split(/\r?\n/);
@@ -4007,8 +4509,6 @@
                 return { header, names, hasSession: hasSessionCookie(header), format: 'netscape', error: '' };
             }
         }
-
-
         const header = normalizeCookieHeader(stripCookiePrefix(text));
         const names = Object.keys(parseCookieHeader(header)).sort();
         return { header, names, hasSession: hasSessionCookie(header), format: 'header', error: '' };
@@ -4068,8 +4568,6 @@
             return Promise.reject(new Error('Text rỗng'));
         }
         const opts = options || {};
-
-
         let cookieHeader = '';
         if (state.gmCookieCapability === 'full' && state.gmCookieHeader) {
             cookieHeader = state.gmCookieHeader;
@@ -4207,8 +4705,6 @@
         };
         return invokeGoogleRequestWithRetry(GOOGLE_API_ENDPOINT, headers, body, timeoutMs, retries, minGapMs);
     }
-
-    // vBook: endpoint batchexecute, RPC "jQ1olc", trả về base64 mp3 ở contentArray[0]
     function getGoogleTranslateTtsPayload(text, lang) {
         const data = [];
         data.push('jQ1olc');
@@ -4382,8 +4878,6 @@
         if (!src.trim()) {
             return null;
         }
-
-        // AbusePreventionHelper: [key, token, ..., expiryInterval]
         let arrStr = '';
         const idx = src.indexOf('params_AbusePreventionHelper');
         if (idx >= 0) {
@@ -4415,7 +4909,7 @@
                 token = arr && typeof arr[1] !== 'undefined' ? String(arr[1]) : '';
                 tokenExpiryInterval = arr && typeof arr[3] !== 'undefined' ? Number(arr[3]) : 0;
             } catch (err) {
-                // ignore
+
             }
         }
 
@@ -4462,7 +4956,7 @@
                         }
 
                         let expiryMs = Number.isFinite(Number(extracted.tokenExpiryInterval)) ? Number(extracted.tokenExpiryInterval) : 0;
-                        // value thường là giây; nếu quá lớn thì coi là ms
+
                         if (expiryMs > 0 && expiryMs < 60000) {
                             expiryMs = expiryMs * 1000;
                         }
@@ -4999,8 +5493,6 @@
         const isTikTok = providerId === 'tiktok';
         const isBrowser = providerId === 'browser';
         ui.providerSelect.value = providerId;
-
-
         ui.tiktokAuthRow.classList.toggle('twd-tts-hidden', !isTikTok);
 
         if (isTikTok) {
