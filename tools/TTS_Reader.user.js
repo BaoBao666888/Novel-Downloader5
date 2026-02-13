@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.2.8_beta
+// @version      1.2.9_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
@@ -3760,6 +3760,56 @@
         state.bingTokenCache = null;
     }
 
+    function extractBingTokenDataFromHtml(html) {
+        const src = String(html || '');
+        if (!src.trim()) {
+            return null;
+        }
+
+        // AbusePreventionHelper: [key, token, ..., expiryInterval]
+        let arrStr = '';
+        const idx = src.indexOf('params_AbusePreventionHelper');
+        if (idx >= 0) {
+            const start = src.indexOf('[', idx);
+            if (start >= 0) {
+                const end = src.indexOf(']', start);
+                if (end > start) {
+                    arrStr = src.slice(start, end + 1);
+                }
+            }
+        }
+        if (!arrStr) {
+            const m = /params_AbusePreventionHelper\s*=\s*(\[[\s\S]*?\])/m.exec(src);
+            if (m && m[1]) {
+                arrStr = m[1];
+            }
+        }
+
+        const mIG = /IG\s*:\s*["']([A-Za-z0-9]+)["']/.exec(src) || /IG\s*=\s*["']([A-Za-z0-9]+)["']/.exec(src) || /IG:"([A-Za-z0-9]+)"/.exec(src) || /"IG":"([A-Za-z0-9]+)"/.exec(src);
+        const mIID = /data-iid\s*=\s*["'](translator\.\d+(?:\.\d+)?)["']/.exec(src) || /"IID":"(translator\.\d+(?:\.\d+)?)"/.exec(src) || /IID\s*:\s*["'](translator\.\d+(?:\.\d+)?)["']/.exec(src);
+
+        let key = '';
+        let token = '';
+        let tokenExpiryInterval = 0;
+        if (arrStr) {
+            try {
+                const arr = JSON.parse(arrStr);
+                key = arr && typeof arr[0] !== 'undefined' ? String(arr[0]) : '';
+                token = arr && typeof arr[1] !== 'undefined' ? String(arr[1]) : '';
+                tokenExpiryInterval = arr && typeof arr[3] !== 'undefined' ? Number(arr[3]) : 0;
+            } catch (err) {
+                // ignore
+            }
+        }
+
+        const IG = mIG && mIG[1] ? String(mIG[1]) : '';
+        const IID = mIID && mIID[1] ? String(mIID[1]) : '';
+        if (!IG || !IID || !key || !token) {
+            return null;
+        }
+        return { IG, IID, key, token, tokenExpiryInterval };
+    }
+
     function getBingTokenData(timeoutMs) {
         if (isBingTokenFresh(state.bingTokenCache)) {
             return Promise.resolve(state.bingTokenCache);
@@ -3786,20 +3836,15 @@
                             return;
                         }
 
-                        const mParams = /var\\s+params_AbusePreventionHelper\\s*=\\s*(\\[[\\s\\S]*?\\]);/m.exec(html);
-                        const mIG = /IG:\"([A-Z0-9]+)\"/.exec(html) || /\"IG\":\"([A-Z0-9]+)\"/.exec(html);
-                        const mIID = /data-iid=\"(translator\\.\\d+)\"/.exec(html) || /\"IID\":\"(translator\\.\\d+)\"/.exec(html);
-                        if (!mParams || !mIG || !mIID) {
-                            const err = new Error('Không đọc được token Bing (thiếu IG/IID/token)');
+                        const extracted = extractBingTokenDataFromHtml(html);
+                        if (!extracted) {
+                            const err = new Error('Không đọc được token Bing (thiếu IG/IID/token). Mở https://www.bing.com/translator 1 lần rồi thử lại.');
                             err.code = 'BING_TOKEN_PARSE';
                             reject(err);
                             return;
                         }
-                        const arr = JSON.parse(mParams[1]);
-                        const key = arr && typeof arr[0] !== 'undefined' ? String(arr[0]) : '';
-                        const token = arr && typeof arr[1] !== 'undefined' ? String(arr[1]) : '';
-                        const expiryRaw = arr && typeof arr[3] !== 'undefined' ? Number(arr[3]) : 0;
-                        let expiryMs = Number.isFinite(expiryRaw) ? expiryRaw : 0;
+
+                        let expiryMs = Number.isFinite(Number(extracted.tokenExpiryInterval)) ? Number(extracted.tokenExpiryInterval) : 0;
                         // value thường là giây; nếu quá lớn thì coi là ms
                         if (expiryMs > 0 && expiryMs < 60000) {
                             expiryMs = expiryMs * 1000;
@@ -3808,10 +3853,10 @@
                             expiryMs = 45 * 60 * 1000;
                         }
                         const tokenData = {
-                            IG: String(mIG[1]),
-                            IID: String(mIID[1]),
-                            key,
-                            token,
+                            IG: extracted.IG,
+                            IID: extracted.IID,
+                            key: extracted.key,
+                            token: extracted.token,
                             expiresAt: Date.now() + Math.min(expiryMs, 6 * 60 * 60 * 1000)
                         };
                         state.bingTokenCache = tokenData;
