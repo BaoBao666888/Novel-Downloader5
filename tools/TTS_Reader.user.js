@@ -18,9 +18,11 @@
 
 (function () {
     'use strict';
-
     const STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const SESSION_KEY = 'twd_tts_reader_session_v1';
+    const WELCOME_KEY = `${STORAGE_KEY}_welcome_seen_v1`;
+    const SCRIPT_VERSION = '1.3.2_beta';
+    const SCRIPT_UPDATE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js';
     const AUTO_START_WINDOW_MS = 10 * 60 * 1000;
     const TIKTOK_API_ENDPOINT = 'https://api16-normal-c-useast1a.tiktokv.com/media/api/text/speech/invoke/';
     const TIKTOK_USER_AGENT = 'com.zhiliaoapp.musically/2022600030 (Linux; U; Android 7.1.2; es_ES; SM-G988N; Build/NRD90M;tt-ok/3.12.13.1)';
@@ -241,6 +243,7 @@
             state.pendingAutoStart = consumePendingSession();
             injectStyles();
             buildUi();
+            maybeShowWelcome();
             refreshChapterData();
             initVoiceList();
             bindUnloadCancel();
@@ -361,6 +364,22 @@
             return merged;
         } catch (err) {
             return { ...DEFAULT_SETTINGS };
+        }
+    }
+
+    function shouldShowWelcome() {
+        try {
+            return !localStorage.getItem(WELCOME_KEY);
+        } catch (err) {
+            return false;
+        }
+    }
+
+    function markWelcomeSeen() {
+        try {
+            localStorage.setItem(WELCOME_KEY, String(Date.now()));
+        } catch (err) {
+            // ignore
         }
     }
 
@@ -1466,6 +1485,12 @@
                     overflow: hidden;
                 }
 
+                .twd-tts-head-actions {
+                    display: flex;
+                    gap: 6px;
+                    align-items: center;
+                }
+
                 .twd-tts-head-actions button {
                     border: 1px solid var(--wda-border);
                     background: var(--wda-surface);
@@ -1488,6 +1513,11 @@
                     fill: none;
                     stroke-linecap: round;
                     stroke-linejoin: round;
+                }
+
+                .twd-tts-head-actions .twd-tts-help-btn {
+                    font-weight: 900;
+                    font-size: 14px;
                 }
 
                 .twd-tts-fab {
@@ -1731,6 +1761,22 @@
                     place-items: center;
                 }
 
+                #twd-help-modal {
+                    position: fixed;
+                    inset: 0;
+                    z-index: 2147483647;
+                    padding: 14px;
+                }
+
+                #twd-help-modal.twd-tts-hidden {
+                    display: none !important;
+                }
+
+                #twd-help-modal:not(.twd-tts-hidden) {
+                    display: grid;
+                    place-items: center;
+                }
+
                 .twd-cookie-modal-overlay {
                     position: fixed;
                     inset: 0;
@@ -1796,6 +1842,54 @@
                     overflow: auto;
                     scrollbar-width: thin;
                     scrollbar-color: rgba(130, 141, 168, 0.72) rgba(148, 163, 184, 0.18);
+                }
+
+                .twd-help-welcome {
+                    padding: 10px 12px;
+                    border-radius: 12px;
+                    border: 1px solid var(--wda-border);
+                    background: linear-gradient(135deg, rgba(38, 198, 218, 0.14) 0%, rgba(255, 138, 101, 0.12) 100%);
+                    font-weight: 700;
+                    margin-bottom: 10px;
+                }
+
+                .twd-help-meta {
+                    font: 11px/1.25 var(--wda-mono);
+                    color: var(--wda-muted);
+                    margin-bottom: 10px;
+                }
+
+                .twd-help-body details {
+                    border: 1px solid var(--wda-border);
+                    border-radius: 14px;
+                    padding: 8px 10px;
+                    background: var(--wda-surface-2);
+                    margin-top: 8px;
+                }
+
+                .twd-help-body summary {
+                    cursor: pointer;
+                    font-weight: 800;
+                    color: var(--wda-text);
+                    user-select: none;
+                }
+
+                .twd-help-body .twd-help-p {
+                    margin-top: 8px;
+                    color: var(--wda-text);
+                    font-size: 12px;
+                    line-height: 1.5;
+                    white-space: pre-wrap;
+                }
+
+                .twd-help-body a {
+                    color: var(--wda-secondary);
+                    text-decoration: none;
+                    font-weight: 700;
+                }
+
+                .twd-help-body a:hover {
+                    text-decoration: underline;
                 }
 
                 .twd-cookie-modal-body::-webkit-scrollbar {
@@ -1969,9 +2063,10 @@
                 <div class="twd-tts-header" id="twd-tts-drag-handle">
                     <div class="twd-tts-title-wrap">
                         <div class="twd-tts-title">TTS Reader</div>
-                        <div class="twd-tts-subtitle">TruyệnWikiDich · Shadow UI</div>
+                        <div class="twd-tts-subtitle">Speech To Text</div>
                     </div>
                     <div class="twd-tts-head-actions">
+                        <button type="button" id="twd-tts-help" class="twd-tts-help-btn" title="Hướng dẫn">?</button>
                         <button type="button" id="twd-tts-close" title="Thu gọn">
                             <svg viewBox="0 0 16 16" aria-hidden="true">
                                 <path d="M3 3l10 10M13 3L3 13"></path>
@@ -2146,15 +2241,67 @@
                         </button>
                     </div>
                     <div class="twd-cookie-modal-body">
-                        <div class="twd-tts-help" id="twd-cookie-modal-msg">Dán cookie (JSON/Netscape/Cookie header) rồi bấm Lưu. Cookie sẽ được lưu và không hiển thị lại trong UI.</div>
-                        <textarea id="twd-cookie-modal-text" placeholder="Dán Cookie header: a=b; c=d\nHoặc dán JSON cookies\nHoặc dán Netscape cookie file (Cookie-Editor)"></textarea>
-                        <div class="twd-tts-cookie-actions" style="margin-top:6px">
-                            <button type="button" id="twd-cookie-modal-save" class="twd-btn-secondary">Lưu</button>
-                            <button type="button" id="twd-cookie-modal-cancel">Hủy</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+	                        <div class="twd-tts-help" id="twd-cookie-modal-msg">Dán cookie (JSON/Netscape/Cookie header) rồi bấm Lưu. Cookie sẽ được lưu và không hiển thị lại trong UI.</div>
+	                        <textarea id="twd-cookie-modal-text" placeholder="Dán Cookie header: a=b; c=d\nHoặc dán JSON cookies\nHoặc dán Netscape cookie file (Cookie-Editor)"></textarea>
+	                        <div class="twd-tts-cookie-actions" style="margin-top:6px">
+	                            <button type="button" id="twd-cookie-modal-save" class="twd-btn-secondary">Lưu</button>
+	                            <button type="button" id="twd-cookie-modal-cancel">Hủy</button>
+	                        </div>
+	                    </div>
+	                </div>
+	            </div>
+	            <div class="twd-tts-hidden" id="twd-help-modal" role="dialog" aria-modal="true">
+	                <div class="twd-cookie-modal-overlay" id="twd-help-modal-overlay"></div>
+	                <div class="twd-cookie-modal-dialog">
+	                    <div class="twd-cookie-modal-head">
+	                        <div class="twd-cookie-modal-title">Hướng dẫn sử dụng</div>
+	                        <button type="button" id="twd-help-modal-close" title="Đóng">
+	                            <svg viewBox="0 0 16 16" aria-hidden="true">
+	                                <path d="M3 3l10 10M13 3L3 13"></path>
+	                            </svg>
+	                        </button>
+	                    </div>
+	                    <div class="twd-cookie-modal-body twd-help-body">
+	                        <div class="twd-help-welcome twd-tts-hidden" id="twd-help-welcome">Chào mừng bạn. Đây là lần đầu bạn cài TTS Reader.</div>
+	                        <div class="twd-help-meta">Phiên bản: <span id="twd-help-version"></span></div>
+
+	                        <details open>
+	                            <summary>Tóm tắt nhanh (1 phút)</summary>
+	                            <div class="twd-help-p">1) Chọn Nguồn giọng (Browser/TikTok/Google/Bing) và Giọng đọc.\n2) Bấm Play để bắt đầu. Pause để tạm dừng/tiếp tục, Stop để dừng.\n3) Muốn đọc từ vị trí bất kỳ: bấm Chọn vị trí rồi bấm nút tick ở đoạn trên trang (script sẽ đọc luôn từ đó).</div>
+	                        </details>
+
+	                        <details>
+	                            <summary>TikTok TTS: Cookie (Stable/Beta/Violentmonkey)</summary>
+	                            <div class="twd-help-p">TikTok TTS cần cookie phiên (sessionid/sid_tt/sid_guard).\n- Tampermonkey Beta: thường tự đọc được cookie HttpOnly nếu bạn đã đăng nhập TikTok, rồi reload trang truyện.\n- Tampermonkey Stable / Violentmonkey: thường không đọc được cookie HttpOnly, hãy bấm Nhập cookie và dán cookie export từ trình duyệt (JSON/Netscape/Cookie header).\nMẹo: mở TikTok để đăng nhập trước: <a href="https://www.tiktok.com/login?lang=vi-VN" target="_blank" rel="noopener noreferrer">tiktok.com/login</a></div>
+	                        </details>
+
+	                        <details>
+	                            <summary>Prefetch, Delay, Timeout/Retry/Gap</summary>
+	                            <div class="twd-help-p">- Delay giữa mục: nghỉ giữa 2 đoạn audio để máy đỡ giật và tránh spam request.\n- Prefetch (remote): tải trước vài đoạn cho TikTok/Google/Bing để chuyển đoạn nhanh hơn.\n- Remote: Timeout/Retry/Gap: áp dụng chung cho remote, giúp ổn định khi mạng yếu hoặc bị rate-limit.</div>
+	                        </details>
+
+	                        <details>
+	                            <summary>Thay thế khi đọc</summary>
+	                            <div class="twd-help-p">Dùng để sửa cách đọc (thay cụm từ, hoặc để trống nghĩa là xóa cụm từ khi đọc).\nVào Thay thế khi đọc → Cài đặt để thêm/sửa/xóa, hoặc nhập/xuất hàng loạt.</div>
+	                        </details>
+
+	                        <details>
+	                            <summary>Tự qua phần / qua chương</summary>
+	                            <div class="twd-help-p">Nếu trang có chia phần, script sẽ cố chuyển sang phần kế tiếp. Nếu không có phần kế tiếp thì chuyển sang chương sau (nếu có).\nKhi tới cuối (không còn phần/chương), script sẽ đọc một câu thông báo bằng giọng đang chọn.</div>
+	                        </details>
+
+	                        <details>
+	                            <summary>Cập nhật (Update)</summary>
+	                            <div class="twd-help-p">Script có @updateURL/@downloadURL nên Tampermonkey có thể tự cập nhật (tùy cài đặt). Bạn cũng có thể mở link update để cài/ghi đè trực tiếp.</div>
+	                        </details>
+
+	                        <div class="twd-tts-cookie-actions" style="margin-top:10px">
+	                            <button type="button" id="twd-help-modal-ok" class="twd-btn-secondary">OK</button>
+	                            <button type="button" id="twd-help-open-update">Mở link update</button>
+	                        </div>
+	                    </div>
+	                </div>
+	            </div>
         `;
         document.body.appendChild(host);
         state.uiHost = host;
@@ -2219,9 +2366,17 @@
             rateText: shadow.querySelector('#twd-rate-text'),
             pitchText: shadow.querySelector('#twd-pitch-text'),
             volumeText: shadow.querySelector('#twd-volume-text'),
+            helpBtn: shadow.querySelector('#twd-tts-help'),
             closeBtn: shadow.querySelector('#twd-tts-close'),
             fabBtn: shadow.querySelector('#twd-tts-fab'),
-            pickStartBtn: shadow.querySelector('#twd-tts-pick-start')
+            pickStartBtn: shadow.querySelector('#twd-tts-pick-start'),
+            helpModal: shadow.querySelector('#twd-help-modal'),
+            helpModalOverlay: shadow.querySelector('#twd-help-modal-overlay'),
+            helpModalCloseBtn: shadow.querySelector('#twd-help-modal-close'),
+            helpModalOkBtn: shadow.querySelector('#twd-help-modal-ok'),
+            helpOpenUpdateBtn: shadow.querySelector('#twd-help-open-update'),
+            helpWelcomeEl: shadow.querySelector('#twd-help-welcome'),
+            helpVersionEl: shadow.querySelector('#twd-help-version')
         };
 
         state.ui.providerSelect.value = state.settings.provider;
@@ -2238,6 +2393,9 @@
         ui.pauseBtn.addEventListener('click', onPauseClick);
         ui.stopBtn.addEventListener('click', () => stopReading(true));
         ui.nextBtn.addEventListener('click', onNextClick);
+        if (ui.helpBtn) {
+            ui.helpBtn.addEventListener('click', () => openHelpModal({ mode: 'manual' }));
+        }
         ui.pickStartBtn.addEventListener('click', () => {
             setPickMode(!state.pickMode);
         });
@@ -2344,6 +2502,26 @@
             closeTikTokCookieModal();
             updateStatus('Đã lưu cookie TikTok');
         });
+
+        if (ui.helpModalOverlay) {
+            ui.helpModalOverlay.addEventListener('click', (event) => {
+                // Không cho click ngoài popup tự thoát.
+                event.preventDefault();
+                event.stopPropagation();
+            });
+        }
+        const closeHelpModalFn = () => closeHelpModal();
+        if (ui.helpModalCloseBtn) ui.helpModalCloseBtn.addEventListener('click', closeHelpModalFn);
+        if (ui.helpModalOkBtn) ui.helpModalOkBtn.addEventListener('click', closeHelpModalFn);
+        if (ui.helpOpenUpdateBtn) {
+            ui.helpOpenUpdateBtn.addEventListener('click', () => {
+                try {
+                    window.open(SCRIPT_UPDATE_URL, '_blank', 'noopener,noreferrer');
+                } catch (err) {
+                    // ignore
+                }
+            });
+        }
 
         if (ui.prefetchInput) {
             ui.prefetchInput.addEventListener('change', () => {
@@ -2969,6 +3147,40 @@
         if (ui.replaceBulkText) {
             ui.replaceBulkText.value = '';
         }
+    }
+
+    function openHelpModal(options) {
+        const ui = state.ui;
+        if (!ui || !ui.helpModal) {
+            return;
+        }
+        const mode = options && options.mode ? String(options.mode) : 'manual';
+        ui.helpModal.classList.remove('twd-tts-hidden');
+        if (ui.helpWelcomeEl) {
+            ui.helpWelcomeEl.classList.toggle('twd-tts-hidden', mode !== 'welcome');
+        }
+        if (ui.helpVersionEl) {
+            ui.helpVersionEl.textContent = SCRIPT_VERSION;
+        }
+    }
+
+    function closeHelpModal() {
+        const ui = state.ui;
+        if (!ui || !ui.helpModal) {
+            return;
+        }
+        ui.helpModal.classList.add('twd-tts-hidden');
+    }
+
+    function maybeShowWelcome() {
+        if (!state.ui) {
+            return;
+        }
+        if (!shouldShowWelcome()) {
+            return;
+        }
+        markWelcomeSeen();
+        openHelpModal({ mode: 'welcome' });
     }
 
     function createReplaceRuleRowEl(from, to) {
