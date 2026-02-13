@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.2.9_beta
+// @version      1.3.0_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
@@ -153,6 +153,7 @@
         pendingAutoStart: false,
         currentAudio: null,
         sharedAudio: null,
+        silentAudio: null,
         mediaSessionBound: false,
         remoteAudioCache: new Map(),
         remoteAudioInflight: new Map(),
@@ -2161,11 +2162,11 @@
         document.body.appendChild(host);
         state.uiHost = host;
 
-	        state.ui = {
-	            panel: shadow.querySelector('.twd-tts-panel'),
-	            body: shadow.querySelector('.twd-tts-body'),
-	            dragHandle: shadow.querySelector('#twd-tts-drag-handle'),
-	            status: shadow.querySelector('#twd-tts-status'),
+        state.ui = {
+            panel: shadow.querySelector('.twd-tts-panel'),
+            body: shadow.querySelector('.twd-tts-body'),
+            dragHandle: shadow.querySelector('#twd-tts-drag-handle'),
+            status: shadow.querySelector('#twd-tts-status'),
             playBtn: shadow.querySelector('#twd-tts-play'),
             pauseBtn: shadow.querySelector('#twd-tts-pause'),
             stopBtn: shadow.querySelector('#twd-tts-stop'),
@@ -2181,15 +2182,15 @@
             tiktokCookieEnterBtn: shadow.querySelector('#twd-tiktok-cookie-enter'),
             tiktokCookieClearBtn: shadow.querySelector('#twd-tiktok-cookie-clear'),
             tiktokCookieInfo: shadow.querySelector('#twd-tiktok-cookie-info'),
-	            prefetchInput: shadow.querySelector('#twd-prefetch'),
-	            prefetchCountInput: shadow.querySelector('#twd-prefetch-count'),
-	            remoteTimeoutInput: shadow.querySelector('#twd-remote-timeout'),
-	            remoteRetriesInput: shadow.querySelector('#twd-remote-retries'),
-	            remoteGapInput: shadow.querySelector('#twd-remote-gap'),
-	            replaceEnabledInput: shadow.querySelector('#twd-repl-enabled'),
-	            replaceOpenBtn: shadow.querySelector('#twd-repl-open'),
-	            replaceInfo: shadow.querySelector('#twd-repl-info'),
-	            replaceModal: shadow.querySelector('#twd-repl-modal'),
+            prefetchInput: shadow.querySelector('#twd-prefetch'),
+            prefetchCountInput: shadow.querySelector('#twd-prefetch-count'),
+            remoteTimeoutInput: shadow.querySelector('#twd-remote-timeout'),
+            remoteRetriesInput: shadow.querySelector('#twd-remote-retries'),
+            remoteGapInput: shadow.querySelector('#twd-remote-gap'),
+            replaceEnabledInput: shadow.querySelector('#twd-repl-enabled'),
+            replaceOpenBtn: shadow.querySelector('#twd-repl-open'),
+            replaceInfo: shadow.querySelector('#twd-repl-info'),
+            replaceModal: shadow.querySelector('#twd-repl-modal'),
             replaceModalOverlay: shadow.querySelector('#twd-repl-modal-overlay'),
             replaceModalCloseBtn: shadow.querySelector('#twd-repl-modal-close'),
             replaceModalCancelBtn: shadow.querySelector('#twd-repl-cancel'),
@@ -2638,7 +2639,7 @@
             return;
         }
 
-        stopSpeechOnly();
+        stopSpeechOnly(true);
         state.segmentIndex = nextIndex;
         speakCurrentSegment();
     }
@@ -2658,7 +2659,7 @@
             state.segmentIndex = idx;
             resetHighlights();
             markParagraphsBeforeSegmentAsRead(idx);
-            stopSpeechOnly();
+            stopSpeechOnly(true);
             speakCurrentSegment();
         };
 
@@ -2687,6 +2688,9 @@
 
         state.reading = true;
         state.paused = false;
+
+        startSilentAudioKeepAlive();
+        setMediaSessionPlaybackStateSafe('playing');
 
         const segment = state.segments[state.segmentIndex];
         const token = ++state.utteranceToken;
@@ -2725,6 +2729,7 @@
             if (token !== state.utteranceToken) {
                 return;
             }
+            setMediaSessionPlaybackStateSafe('playing');
             updateStatus('Đang đọc...');
             updateProgressText();
         };
@@ -4035,7 +4040,7 @@
         });
     }
 
-    function stopSpeechOnly() {
+    function stopSpeechOnly(keepMediaSession) {
         state.utteranceToken += 1;
         speechSynthesis.cancel();
         state.prefetchJobId += 1;
@@ -4045,7 +4050,10 @@
             state.currentAudio.onended = null;
             state.currentAudio.onerror = null;
         }
-        setMediaSessionPlaybackStateSafe('none');
+        if (!keepMediaSession) {
+            setMediaSessionPlaybackStateSafe('none');
+            stopSilentAudioKeepAlive();
+        }
     }
 
     function getSharedAudio() {
@@ -4054,9 +4062,70 @@
         }
         const audio = new Audio();
         audio.preload = 'auto';
-        audio.crossOrigin = 'anonymous';
         state.sharedAudio = audio;
         return audio;
+    }
+
+    function generateSilentWavDataUri() {
+        // Tạo 1 giây WAV im lặng: mono, 8kHz, 8-bit PCM
+        const sampleRate = 8000;
+        const numSamples = sampleRate; // 1 giây
+        const headerSize = 44;
+        const dataSize = numSamples;
+        const buffer = new ArrayBuffer(headerSize + dataSize);
+        const view = new DataView(buffer);
+        // RIFF header
+        view.setUint32(0, 0x52494646, false);   // 'RIFF'
+        view.setUint32(4, 36 + dataSize, true);  // file size - 8
+        view.setUint32(8, 0x57415645, false);   // 'WAVE'
+        // fmt sub-chunk
+        view.setUint32(12, 0x666D7420, false);  // 'fmt '
+        view.setUint32(16, 16, true);            // sub-chunk size
+        view.setUint16(20, 1, true);             // PCM
+        view.setUint16(22, 1, true);             // mono
+        view.setUint32(24, sampleRate, true);    // sample rate
+        view.setUint32(28, sampleRate, true);    // byte rate
+        view.setUint16(32, 1, true);             // block align
+        view.setUint16(34, 8, true);             // bits per sample
+        // data sub-chunk
+        view.setUint32(36, 0x64617461, false);  // 'data'
+        view.setUint32(40, dataSize, true);
+        // Im lặng: 8-bit PCM silence = 128
+        const bytes = new Uint8Array(buffer);
+        for (let i = headerSize; i < headerSize + dataSize; i++) {
+            bytes[i] = 128;
+        }
+        // Chuyển sang base64 data URI
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return 'data:audio/wav;base64,' + btoa(binary);
+    }
+
+    function getSilentAudio() {
+        if (state.silentAudio) {
+            return state.silentAudio;
+        }
+        const audio = new Audio();
+        audio.src = generateSilentWavDataUri();
+        audio.loop = true;
+        audio.volume = 0.01;
+        state.silentAudio = audio;
+        return audio;
+    }
+
+    function startSilentAudioKeepAlive() {
+        const sa = getSilentAudio();
+        if (sa.paused) {
+            sa.play().catch(() => { });
+        }
+    }
+
+    function stopSilentAudioKeepAlive() {
+        if (state.silentAudio && !state.silentAudio.paused) {
+            state.silentAudio.pause();
+        }
     }
 
     function updateMediaSession(providerLabel, segment) {
@@ -4120,6 +4189,7 @@
         state.reading = false;
         state.paused = false;
         stopSpeechOnly();
+        stopSilentAudioKeepAlive();
         clearActiveHighlight();
         updateProgressText();
         if (showStatus) {
@@ -4148,6 +4218,7 @@
             return;
         }
 
+        stopSilentAudioKeepAlive();
         updateStatus('Đọc xong chương');
         if (!state.nextUrl && !getNextChapterPartLink()) {
             setTimeout(() => speakEndOfContentNotice(), 250);
