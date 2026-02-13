@@ -230,10 +230,7 @@
     boot();
 
     function boot() {
-        if (location.hostname === 'www.tiktok.com') {
-            return;
-        }
-        if (location.hostname !== 'truyenwikidich.net') {
+        if (location.hostname !== 'truyenwikidich.net' && location.hostname !== 'koanchay.org') {
             return;
         }
         waitForContent(25).then((ok) => {
