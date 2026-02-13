@@ -2,7 +2,7 @@
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
 // @version      0.3.5
-// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên truyenwikidich.net.
+// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
 

@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.3.3_beta
+// @version      1.3.6_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
-// @match        https://truyenwikidich.net/truyen/*/*
+// @match        https://wikicv.net/truyen/*/*
+// @match        https://www.wikicv.net/truyen/*/*
 // @match        https://koanchay.org/truyen/*/*
 // @match        https://www.tiktok.com/*
 // @grant        GM_xmlhttpRequest
@@ -21,7 +22,7 @@
     const STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const SESSION_KEY = 'twd_tts_reader_session_v1';
     const WELCOME_KEY = `${STORAGE_KEY}_welcome_seen_v1`;
-    const SCRIPT_VERSION = '1.3.3_beta';
+    const SCRIPT_VERSION = '1.3.6_beta';
     const SCRIPT_UPDATE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js';
     const AUTO_START_WINDOW_MS = 10 * 60 * 1000;
     const TIKTOK_API_ENDPOINT = 'https://api16-normal-c-useast1a.tiktokv.com/media/api/text/speech/invoke/';
@@ -232,7 +233,7 @@
     boot();
 
     function boot() {
-        if (location.hostname !== 'truyenwikidich.net' && location.hostname !== 'koanchay.org') {
+        if (location.hostname !== 'wikicv.net' && location.hostname !== 'www.wikicv.net' && location.hostname !== 'koanchay.org') {
             return;
         }
         waitForContent(25).then((ok) => {
@@ -553,7 +554,7 @@
                 return text;
             }
         }
-        return normalizeText(document.title.replace(/\s*-\s*TruyenWikiDich\s*$/i, '')) || 'Chương mới';
+        return normalizeText(document.title.replace(/\s*-\s*(?:TruyenWikiDich|WikiCV)\s*$/i, '')) || 'Chương mới';
     }
 
     function getNextChapterUrl() {
@@ -925,6 +926,109 @@
         });
     }
 
+    function syncTopTitleFromDoc(doc) {
+        const tryPair = (selector) => {
+            const sel = String(selector || '').trim();
+            if (!sel) {
+                return false;
+            }
+            const cur = document.querySelector(sel);
+            const next = doc ? doc.querySelector(sel) : null;
+            if (!cur || !next) {
+                return false;
+            }
+            try {
+                replaceChildrenFromForeignDoc(cur, next);
+                return true;
+            } catch (err) {
+                return false;
+            }
+        };
+
+        // TruyenWikiDich có 2 top bar (desktop + mobile) cùng tồn tại trong DOM.
+        // Sync theo selector cụ thể để tránh lệch index nếu trang có element .top-title khác.
+        let any = false;
+        any = tryPair('.top-bar.ankhinho .top-title') || any;
+        any = tryPair('.top-bar.ankhito .top-title') || any;
+        if (any) {
+            return;
+        }
+
+        // Fallback: pair theo thứ tự.
+        const curEls = Array.from(document.querySelectorAll('.top-title'));
+        const nextEls = Array.from((doc && doc.querySelectorAll) ? doc.querySelectorAll('.top-title') : []);
+        if (curEls.length === 0 || nextEls.length === 0) {
+            return;
+        }
+        const n = Math.min(curEls.length, nextEls.length);
+        for (let i = 0; i < n; i += 1) {
+            try {
+                replaceChildrenFromForeignDoc(curEls[i], nextEls[i]);
+            } catch (err) {
+                // ignore
+            }
+        }
+    }
+
+    function syncBookTitleFromDoc(doc) {
+        const curWrap = document.querySelector('#bookContent');
+        const nextWrap = doc ? doc.querySelector('#bookContent') : null;
+        if (!curWrap || !nextWrap) {
+            return;
+        }
+
+        // Ưu tiên thay cả block book-title (direct children) để đảm bảo đổi đúng dòng.
+        const isDirectBookTitle = (el, wrap) =>
+            !!(el && el.parentElement === wrap && el.classList && el.classList.contains('book-title'));
+        const curDirect = Array.from(curWrap.children || []).filter((el) => isDirectBookTitle(el, curWrap));
+        const nextDirect = Array.from(nextWrap.children || []).filter((el) => isDirectBookTitle(el, nextWrap));
+
+        if (curDirect.length > 0 && nextDirect.length > 0) {
+            const marker = document.createComment('twd-book-title');
+            try {
+                curWrap.insertBefore(marker, curDirect[0]);
+            } catch (err) {
+                try { curWrap.appendChild(marker); } catch (err2) { /* ignore */ }
+            }
+
+            curDirect.forEach((el) => {
+                try { el.remove(); } catch (err) { /* ignore */ }
+            });
+
+            const ref = marker.nextSibling;
+            nextDirect.forEach((el) => {
+                try {
+                    const clone = document.importNode ? document.importNode(el, true) : el.cloneNode(true);
+                    if (ref) {
+                        curWrap.insertBefore(clone, ref);
+                    } else {
+                        curWrap.appendChild(clone);
+                    }
+                } catch (err) {
+                    // ignore
+                }
+            });
+
+            try { marker.remove(); } catch (err) { /* ignore */ }
+            return;
+        }
+
+        // Fallback: update theo index (mọi tag có class book-title).
+        const curTitles = Array.from(curWrap.querySelectorAll('.book-title'));
+        const nextTitles = Array.from(nextWrap.querySelectorAll('.book-title'));
+        if (curTitles.length === 0 || nextTitles.length === 0) {
+            return;
+        }
+        const n = Math.min(curTitles.length, nextTitles.length);
+        for (let i = 0; i < n; i += 1) {
+            try {
+                replaceChildrenFromForeignDoc(curTitles[i], nextTitles[i]);
+            } catch (err) {
+                // ignore
+            }
+        }
+    }
+
     function syncNavLinkHrefFromDoc(selector, doc) {
         const sel = String(selector || '').trim();
         if (!sel) {
@@ -1000,6 +1104,9 @@
             }
 
             syncChapterTitleFromDoc(doc);
+            syncTopTitleFromDoc(doc);
+            syncBookTitleFromDoc(doc);
+            syncNavLinkHrefFromDoc('#btnPreChapter', doc);
             syncNavLinkHrefFromDoc('#btnPrevChapter', doc);
             syncNavLinkHrefFromDoc('#btnNextChapter', doc);
             syncChapterPartsFromDoc(doc);
