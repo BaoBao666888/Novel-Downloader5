@@ -1,15 +1,19 @@
 // ==UserScript==
 // @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.2.1_beta
+// @version      1.2.8_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
-// @match        https://truyenwikidich.net/truyen/*/chuong-*
-// @match        https://truyenwikidich.net/truyen/*/chuong-*?*
+// @match        https://truyenwikidich.net/truyen/*/*
+// @match        https://truyenwikidich.net/truyen/*/*
+// @match        https://www.tiktok.com/*
 // @grant        GM_xmlhttpRequest
+// @grant        GM_cookie
 // @connect      api16-normal-c-useast1a.tiktokv.com
+// @connect      translate.google.com
+// @connect      www.bing.com
 // ==/UserScript==
 
 (function () {
@@ -26,9 +30,18 @@
     const TIKTOK_PREFETCH_DELAY_MS = 450;
     const TIKTOK_RETRY_BASE_DELAY_MS = 650;
     const TIKTOK_MAX_CACHE_ITEMS = 18;
+    const GOOGLE_API_ENDPOINT = 'https://translate.google.com/_/TranslateWebserverUi/data/batchexecute';
+    const GOOGLE_DEFAULT_TIMEOUT_MS = 18000;
+    const GOOGLE_DEFAULT_RETRIES = 2;
+    const GOOGLE_MIN_REQUEST_GAP_MS = 120;
+    const BING_TRANSLATOR_URL = 'https://www.bing.com/translator';
+    const BING_TTS_ENDPOINT = 'https://www.bing.com/tfettts';
+    const BING_DEFAULT_TIMEOUT_MS = 22000;
+    const BING_DEFAULT_RETRIES = 2;
+    const BING_MIN_REQUEST_GAP_MS = 180;
     const SUPPORTS_UNICODE_PROP_ESCAPES = (() => {
         try {
-            // eslint-disable-next-line no-new
+
             new RegExp('\\p{L}', 'u');
             return true;
         } catch (err) {
@@ -73,14 +86,48 @@
         { id: 'br_001', language: 'br', name: 'BR - Female 1' }
     ];
 
+    // Google Translate TTS (vBook plugin): chọn ngôn ngữ, không phân biệt nam/nữ.
+    const GOOGLE_VOICES = [
+        { id: 'vi-VN', language: 'vi', name: 'VI - Việt Nam' },
+        { id: 'en-US', language: 'en', name: 'EN - United States' },
+        { id: 'en-GB', language: 'en', name: 'EN - United Kingdom' },
+        { id: 'fr-FR', language: 'fr', name: 'FR - France' },
+        { id: 'de-DE', language: 'de', name: 'DE - Germany' },
+        { id: 'es-ES', language: 'es', name: 'ES - Spain' },
+        { id: 'es-MX', language: 'es', name: 'ES - Mexico' },
+        { id: 'it-IT', language: 'it', name: 'IT - Italy' },
+        { id: 'ru-RU', language: 'ru', name: 'RU - Russia' },
+        { id: 'ja-JP', language: 'ja', name: 'JA - Japan' },
+        { id: 'ko-KR', language: 'ko', name: 'KO - Korea' },
+        { id: 'cmn-Hant-TW', language: 'cmn', name: 'ZH - Traditional (TW)' },
+        { id: 'id-ID', language: 'id', name: 'ID - Indonesia' },
+        { id: 'th-TH', language: 'th', name: 'TH - Thailand' },
+        { id: 'tr-TR', language: 'tr', name: 'TR - Turkey' },
+        { id: 'uk-UA', language: 'uk', name: 'UK - Ukraine' },
+        { id: 'pt-BR', language: 'pt', name: 'PT - Brazil' },
+        { id: 'nl-NL', language: 'nl', name: 'NL - Netherlands' },
+        { id: 'sv-SE', language: 'sv', name: 'SV - Sweden' },
+        { id: 'pl-PL', language: 'pl', name: 'PL - Poland' },
+        { id: 'hi-IN', language: 'hi', name: 'HI - India' }
+    ];
+
+    const BING_VOICES = [{ "id": "vi-VN-HoaiMyNeural;Female", "language": "vi-VN", "name": "vi-VN-HoaiMy (Female)" }, { "id": "vi-VN-NamMinhNeural;Male", "language": "vi-VN", "name": "vi-VN-NamMinh (Male)" }, { "id": "ar-EG-Hoda;Female", "language": "ar-EG", "name": "ar-EG-Hoda (Female)" }, { "id": "ar-EG-SalmaNeural;Female", "language": "ar-EG", "name": "ar-EG-Salma (Female)" }, { "id": "ar-EG-ShakirNeural;Male", "language": "ar-EG", "name": "ar-EG-Shakir (Male)" }, { "id": "ar-SA-Naayf;Male", "language": "ar-SA", "name": "ar-SA-Naayf (Male)" }, { "id": "ar-SA-ZariyahNeural;Female", "language": "ar-SA", "name": "ar-SA-Zariyah (Female)" }, { "id": "ar-SA-HamedNeural;Male", "language": "ar-SA", "name": "ar-SA-Hamed (Male)" }, { "id": "bg-BG-Ivan;Male", "language": "bg-BG", "name": "bg-BG-Ivan (Male)" }, { "id": "bg-BG-KalinaNeural;Female", "language": "bg-BG", "name": "bg-BG-Kalina (Female)" }, { "id": "bg-BG-BorislavNeural;Male", "language": "bg-BG", "name": "bg-BG-Borislav (Male)" }, { "id": "ca-ES-HerenaRUS;Female", "language": "ca-ES", "name": "ca-ES-HerenaRUS (Female)" }, { "id": "ca-ES-AlbaNeural;Female", "language": "ca-ES", "name": "ca-ES-Alba (Female)" }, { "id": "ca-ES-JoanaNeural;Female", "language": "ca-ES", "name": "ca-ES-Joana (Female)" }, { "id": "ca-ES-EnricNeural;Male", "language": "ca-ES", "name": "ca-ES-Enric (Male)" }, { "id": "zh-HK-Danny;Male", "language": "zh-HK", "name": "zh-HK-Danny (Male)" }, { "id": "zh-HK-TracyRUS;Female", "language": "zh-HK", "name": "zh-HK-TracyRUS (Female)" }, { "id": "zh-HK-HiuGaaiNeural;Female", "language": "zh-HK", "name": "zh-HK-HiuGaai (Female)" }, { "id": "zh-HK-HiuMaanNeural;Female", "language": "zh-HK", "name": "zh-HK-HiuMaan (Female)" }, { "id": "zh-HK-WanLungNeural;Male", "language": "zh-HK", "name": "zh-HK-WanLung (Male)" }, { "id": "zh-CN-HuihuiRUS;Female", "language": "zh-CN", "name": "zh-CN-HuihuiRUS (Female)" }, { "id": "zh-CN-Kangkang;Male", "language": "zh-CN", "name": "zh-CN-Kangkang (Male)" }, { "id": "zh-CN-Yaoyao;Female", "language": "zh-CN", "name": "zh-CN-Yaoyao (Female)" }, { "id": "zh-CN-XiaoxiaoNeural;Female", "language": "zh-CN", "name": "zh-CN-Xiaoxiao (Female)" }, { "id": "zh-CN-XiaomoNeural;Female", "language": "zh-CN", "name": "zh-CN-Xiaomo (Female)" }, { "id": "zh-CN-XiaoxuanNeural;Female", "language": "zh-CN", "name": "zh-CN-Xiaoxuan (Female)" }, { "id": "zh-CN-XiaohanNeural;Female", "language": "zh-CN", "name": "zh-CN-Xiaohan (Female)" }, { "id": "zh-CN-YunxiNeural;Male", "language": "zh-CN", "name": "zh-CN-Yunxi (Male)" }, { "id": "zh-TW-HanHanRUS;Female", "language": "zh-TW", "name": "zh-TW-HanHanRUS (Female)" }, { "id": "zh-TW-Yating;Female", "language": "zh-TW", "name": "zh-TW-Yating (Female)" }, { "id": "zh-TW-Zhiwei;Male", "language": "zh-TW", "name": "zh-TW-Zhiwei (Male)" }, { "id": "zh-TW-HsiaoChenNeural;Female", "language": "zh-TW", "name": "zh-TW-HsiaoChen (Female)" }, { "id": "zh-TW-HsiaoYuNeural;Female", "language": "zh-TW", "name": "zh-TW-HsiaoYu (Female)" }, { "id": "zh-TW-YunJheNeural;Male", "language": "zh-TW", "name": "zh-TW-YunJhe (Male)" }, { "id": "hr-HR-Matej;Male", "language": "hr-HR", "name": "hr-HR-Matej (Male)" }, { "id": "hr-HR-GabrijelaNeural;Female", "language": "hr-HR", "name": "hr-HR-Gabrijela (Female)" }, { "id": "hr-HR-SreckoNeural;Male", "language": "hr-HR", "name": "hr-HR-Srecko (Male)" }, { "id": "cs-CZ-Jakub;Male", "language": "cs-CZ", "name": "cs-CZ-Jakub (Male)" }, { "id": "cs-CZ-VlastaNeural;Female", "language": "cs-CZ", "name": "cs-CZ-Vlasta (Female)" }, { "id": "cs-CZ-AntoninNeural;Male", "language": "cs-CZ", "name": "cs-CZ-Antonin (Male)" }, { "id": "da-DK-HelleRUS;Female", "language": "da-DK", "name": "da-DK-HelleRUS (Female)" }, { "id": "da-DK-ChristelNeural;Female", "language": "da-DK", "name": "da-DK-Christel (Female)" }, { "id": "da-DK-JeppeNeural;Male", "language": "da-DK", "name": "da-DK-Jeppe (Male)" }, { "id": "nl-NL-HannaRUS;Female", "language": "nl-NL", "name": "nl-NL-HannaRUS (Female)" }, { "id": "nl-NL-ColetteNeural;Female", "language": "nl-NL", "name": "nl-NL-Colette (Female)" }, { "id": "nl-NL-FennaNeural;Female", "language": "nl-NL", "name": "nl-NL-Fenna (Female)" }, { "id": "nl-NL-MaartenNeural;Male", "language": "nl-NL", "name": "nl-NL-Maarten (Male)" }, { "id": "en-AU-Catherine;Female", "language": "en-AU", "name": "en-AU-Catherine (Female)" }, { "id": "en-AU-HayleyRUS;Female", "language": "en-AU", "name": "en-AU-HayleyRUS (Female)" }, { "id": "en-AU-NatashaNeural;Female", "language": "en-AU", "name": "en-AU-Natasha (Female)" }, { "id": "en-AU-WilliamNeural;Male", "language": "en-AU", "name": "en-AU-William (Male)" }, { "id": "en-CA-HeatherRUS;Female", "language": "en-CA", "name": "en-CA-HeatherRUS (Female)" }, { "id": "en-CA-Linda;Female", "language": "en-CA", "name": "en-CA-Linda (Female)" }, { "id": "en-CA-ClaraNeural;Female", "language": "en-CA", "name": "en-CA-Clara (Female)" }, { "id": "en-CA-LiamNeural;Male", "language": "en-CA", "name": "en-CA-Liam (Male)" }, { "id": "en-IN-Heera;Female", "language": "en-IN", "name": "en-IN-Heera (Female)" }, { "id": "en-IN-PriyaRUS;Female", "language": "en-IN", "name": "en-IN-PriyaRUS (Female)" }, { "id": "en-IN-Ravi;Male", "language": "en-IN", "name": "en-IN-Ravi (Male)" }, { "id": "en-IN-NeerjaNeural;Female", "language": "en-IN", "name": "en-IN-Neerja (Female)" }, { "id": "en-IN-PrabhatNeural;Male", "language": "en-IN", "name": "en-IN-Prabhat (Male)" }, { "id": "en-IE-Sean;Male", "language": "en-IE", "name": "en-IE-Sean (Male)" }, { "id": "en-IE-EmilyNeural;Female", "language": "en-IE", "name": "en-IE-Emily (Female)" }, { "id": "en-IE-ConnorNeural;Male", "language": "en-IE", "name": "en-IE-Connor (Male)" }, { "id": "en-GB-George;Male", "language": "en-GB", "name": "en-GB-George (Male)" }, { "id": "en-GB-HazelRUS;Female", "language": "en-GB", "name": "en-GB-HazelRUS (Female)" }, { "id": "en-GB-Susan;Female", "language": "en-GB", "name": "en-GB-Susan (Female)" }, { "id": "en-GB-LibbyNeural;Female", "language": "en-GB", "name": "en-GB-Libby (Female)" }, { "id": "en-GB-MiaNeural;Female", "language": "en-GB", "name": "en-GB-Mia (Female)" }, { "id": "en-GB-RyanNeural;Male", "language": "en-GB", "name": "en-GB-Ryan (Male)" }, { "id": "en-US-BenjaminRUS;Male", "language": "en-US", "name": "en-US-BenjaminRUS (Male)" }, { "id": "en-US-GuyRUS;Male", "language": "en-US", "name": "en-US-GuyRUS (Male)" }, { "id": "en-US-AriaRUS;Female", "language": "en-US", "name": "en-US-AriaRUS (Female)" }, { "id": "en-US-ZiraRUS;Female", "language": "en-US", "name": "en-US-ZiraRUS (Female)" }, { "id": "en-US-AriaNeural;Female", "language": "en-US", "name": "en-US-Aria (Female)" }, { "id": "en-US-JennyNeural;Female", "language": "en-US", "name": "en-US-Jenny (Female)" }, { "id": "en-US-GuyNeural;Male", "language": "en-US", "name": "en-US-Guy (Male)" }, { "id": "fi-FI-HeidiRUS;Female", "language": "fi-FI", "name": "fi-FI-HeidiRUS (Female)" }, { "id": "fi-FI-NooraNeural;Female", "language": "fi-FI", "name": "fi-FI-Noora (Female)" }, { "id": "fi-FI-SelmaNeural;Female", "language": "fi-FI", "name": "fi-FI-Selma (Female)" }, { "id": "fi-FI-HarriNeural;Male", "language": "fi-FI", "name": "fi-FI-Harri (Male)" }, { "id": "fr-CA-Caroline;Female", "language": "fr-CA", "name": "fr-CA-Caroline (Female)" }, { "id": "fr-CA-HarmonieRUS;Female", "language": "fr-CA", "name": "fr-CA-HarmonieRUS (Female)" }, { "id": "fr-CA-SylvieNeural;Female", "language": "fr-CA", "name": "fr-CA-Sylvie (Female)" }, { "id": "fr-CA-AntoineNeural;Male", "language": "fr-CA", "name": "fr-CA-Antoine (Male)" }, { "id": "fr-CA-JeanNeural;Male", "language": "fr-CA", "name": "fr-CA-Jean (Male)" }, { "id": "fr-FR-HortenseRUS;Female", "language": "fr-FR", "name": "fr-FR-HortenseRUS (Female)" }, { "id": "fr-FR-Julie;Female", "language": "fr-FR", "name": "fr-FR-Julie (Female)" }, { "id": "fr-FR-Paul;Male", "language": "fr-FR", "name": "fr-FR-Paul (Male)" }, { "id": "fr-FR-DeniseNeural;Female", "language": "fr-FR", "name": "fr-FR-Denise (Female)" }, { "id": "fr-FR-HenriNeural;Male", "language": "fr-FR", "name": "fr-FR-Henri (Male)" }, { "id": "fr-CH-Guillaume;Male", "language": "fr-CH", "name": "fr-CH-Guillaume (Male)" }, { "id": "fr-CH-ArianeNeural;Female", "language": "fr-CH", "name": "fr-CH-Ariane (Female)" }, { "id": "fr-CH-FabriceNeural;Male", "language": "fr-CH", "name": "fr-CH-Fabrice (Male)" }, { "id": "de-AT-Michael;Male", "language": "de-AT", "name": "de-AT-Michael (Male)" }, { "id": "de-AT-IngridNeural;Female", "language": "de-AT", "name": "de-AT-Ingrid (Female)" }, { "id": "de-AT-JonasNeural;Male", "language": "de-AT", "name": "de-AT-Jonas (Male)" }, { "id": "de-DE-HeddaRUS;Female", "language": "de-DE", "name": "de-DE-HeddaRUS (Female)" }, { "id": "de-DE-Stefan;Male", "language": "de-DE", "name": "de-DE-Stefan (Male)" }, { "id": "de-DE-KatjaNeural;Female", "language": "de-DE", "name": "de-DE-Katja (Female)" }, { "id": "de-DE-ConradNeural;Male", "language": "de-DE", "name": "de-DE-Conrad (Male)" }, { "id": "de-CH-Karsten;Male", "language": "de-CH", "name": "de-CH-Karsten (Male)" }, { "id": "de-CH-LeniNeural;Female", "language": "de-CH", "name": "de-CH-Leni (Female)" }, { "id": "de-CH-JanNeural;Male", "language": "de-CH", "name": "de-CH-Jan (Male)" }, { "id": "el-GR-Stefanos;Male", "language": "el-GR", "name": "el-GR-Stefanos (Male)" }, { "id": "el-GR-AthinaNeural;Female", "language": "el-GR", "name": "el-GR-Athina (Female)" }, { "id": "el-GR-NestorasNeural;Male", "language": "el-GR", "name": "el-GR-Nestoras (Male)" }, { "id": "he-IL-Asaf;Male", "language": "he-IL", "name": "he-IL-Asaf (Male)" }, { "id": "he-IL-HilaNeural;Female", "language": "he-IL", "name": "he-IL-Hila (Female)" }, { "id": "he-IL-AvriNeural;Male", "language": "he-IL", "name": "he-IL-Avri (Male)" }, { "id": "hi-IN-Hemant;Male", "language": "hi-IN", "name": "hi-IN-Hemant (Male)" }, { "id": "hi-IN-Kalpana;Female", "language": "hi-IN", "name": "hi-IN-Kalpana (Female)" }, { "id": "hi-IN-SwaraNeural;Female", "language": "hi-IN", "name": "hi-IN-Swara (Female)" }, { "id": "hi-IN-MadhurNeural;Male", "language": "hi-IN", "name": "hi-IN-Madhur (Male)" }, { "id": "hu-HU-Szabolcs;Male", "language": "hu-HU", "name": "hu-HU-Szabolcs (Male)" }, { "id": "hu-HU-NoemiNeural;Female", "language": "hu-HU", "name": "hu-HU-Noemi (Female)" }, { "id": "hu-HU-TamasNeural;Male", "language": "hu-HU", "name": "hu-HU-Tamas (Male)" }, { "id": "id-ID-Andika;Male", "language": "id-ID", "name": "id-ID-Andika (Male)" }, { "id": "id-ID-GadisNeural;Female", "language": "id-ID", "name": "id-ID-Gadis (Female)" }, { "id": "id-ID-ArdiNeural;Male", "language": "id-ID", "name": "id-ID-Ardi (Male)" }, { "id": "it-IT-Cosimo;Male", "language": "it-IT", "name": "it-IT-Cosimo (Male)" }, { "id": "it-IT-LuciaRUS;Female", "language": "it-IT", "name": "it-IT-LuciaRUS (Female)" }, { "id": "it-IT-ElsaNeural;Female", "language": "it-IT", "name": "it-IT-Elsa (Female)" }, { "id": "it-IT-IsabellaNeural;Female", "language": "it-IT", "name": "it-IT-Isabella (Female)" }, { "id": "it-IT-DiegoNeural;Male", "language": "it-IT", "name": "it-IT-Diego (Male)" }, { "id": "ja-JP-Ayumi;Female", "language": "ja-JP", "name": "ja-JP-Ayumi (Female)" }, { "id": "ja-JP-HarukaRUS;Female", "language": "ja-JP", "name": "ja-JP-HarukaRUS (Female)" }, { "id": "ja-JP-Ichiro;Male", "language": "ja-JP", "name": "ja-JP-Ichiro (Male)" }, { "id": "ja-JP-NanamiNeural;Female", "language": "ja-JP", "name": "ja-JP-Nanami (Female)" }, { "id": "ja-JP-KeitaNeural;Male", "language": "ja-JP", "name": "ja-JP-Keita (Male)" }, { "id": "ko-KR-HeamiRUS;Female", "language": "ko-KR", "name": "ko-KR-HeamiRUS (Female)" }, { "id": "ko-KR-SunHiNeural;Female", "language": "ko-KR", "name": "ko-KR-SunHi (Female)" }, { "id": "ko-KR-InJoonNeural;Male", "language": "ko-KR", "name": "ko-KR-InJoon (Male)" }, { "id": "ms-MY-Rizwan;Male", "language": "ms-MY", "name": "ms-MY-Rizwan (Male)" }, { "id": "ms-MY-YasminNeural;Female", "language": "ms-MY", "name": "ms-MY-Yasmin (Female)" }, { "id": "ms-MY-OsmanNeural;Male", "language": "ms-MY", "name": "ms-MY-Osman (Male)" }, { "id": "nb-NO-HuldaRUS;Female", "language": "nb-NO", "name": "nb-NO-HuldaRUS (Female)" }, { "id": "nb-NO-IselinNeural;Female", "language": "nb-NO", "name": "nb-NO-Iselin (Female)" }, { "id": "nb-NO-PernilleNeural;Female", "language": "nb-NO", "name": "nb-NO-Pernille (Female)" }, { "id": "nb-NO-FinnNeural;Male", "language": "nb-NO", "name": "nb-NO-Finn (Male)" }, { "id": "pl-PL-PaulinaRUS;Female", "language": "pl-PL", "name": "pl-PL-PaulinaRUS (Female)" }, { "id": "pl-PL-AgnieszkaNeural;Female", "language": "pl-PL", "name": "pl-PL-Agnieszka (Female)" }, { "id": "pl-PL-ZofiaNeural;Female", "language": "pl-PL", "name": "pl-PL-Zofia (Female)" }, { "id": "pl-PL-MarekNeural;Male", "language": "pl-PL", "name": "pl-PL-Marek (Male)" }, { "id": "pt-BR-Daniel;Male", "language": "pt-BR", "name": "pt-BR-Daniel (Male)" }, { "id": "pt-BR-HeloisaRUS;Female", "language": "pt-BR", "name": "pt-BR-HeloisaRUS (Female)" }, { "id": "pt-BR-FranciscaNeural;Female", "language": "pt-BR", "name": "pt-BR-Francisca (Female)" }, { "id": "pt-BR-AntonioNeural;Male", "language": "pt-BR", "name": "pt-BR-Antonio (Male)" }, { "id": "pt-PT-HeliaRUS;Female", "language": "pt-PT", "name": "pt-PT-HeliaRUS (Female)" }, { "id": "pt-PT-FernandaNeural;Female", "language": "pt-PT", "name": "pt-PT-Fernanda (Female)" }, { "id": "pt-PT-RaquelNeural;Female", "language": "pt-PT", "name": "pt-PT-Raquel (Female)" }, { "id": "pt-PT-DuarteNeural;Male", "language": "pt-PT", "name": "pt-PT-Duarte (Male)" }, { "id": "ro-RO-Andrei;Male", "language": "ro-RO", "name": "ro-RO-Andrei (Male)" }, { "id": "ro-RO-AlinaNeural;Female", "language": "ro-RO", "name": "ro-RO-Alina (Female)" }, { "id": "ro-RO-EmilNeural;Male", "language": "ro-RO", "name": "ro-RO-Emil (Male)" }, { "id": "ru-RU-EkaterinaRUS;Female", "language": "ru-RU", "name": "ru-RU-EkaterinaRUS (Female)" }, { "id": "ru-RU-Irina;Female", "language": "ru-RU", "name": "ru-RU-Irina (Female)" }, { "id": "ru-RU-Pavel;Male", "language": "ru-RU", "name": "ru-RU-Pavel (Male)" }, { "id": "ru-RU-DariyaNeural;Female", "language": "ru-RU", "name": "ru-RU-Dariya (Female)" }, { "id": "ru-RU-SvetlanaNeural;Female", "language": "ru-RU", "name": "ru-RU-Svetlana (Female)" }, { "id": "ru-RU-DmitryNeural;Male", "language": "ru-RU", "name": "ru-RU-Dmitry (Male)" }, { "id": "sk-SK-Filip;Male", "language": "sk-SK", "name": "sk-SK-Filip (Male)" }, { "id": "sk-SK-ViktoriaNeural;Female", "language": "sk-SK", "name": "sk-SK-Viktoria (Female)" }, { "id": "sk-SK-LukasNeural;Male", "language": "sk-SK", "name": "sk-SK-Lukas (Male)" }, { "id": "sl-SI-Lado;Male", "language": "sl-SI", "name": "sl-SI-Lado (Male)" }, { "id": "sl-SI-PetraNeural;Female", "language": "sl-SI", "name": "sl-SI-Petra (Female)" }, { "id": "sl-SI-RokNeural;Male", "language": "sl-SI", "name": "sl-SI-Rok (Male)" }, { "id": "es-MX-HildaRUS;Female", "language": "es-MX", "name": "es-MX-HildaRUS (Female)" }, { "id": "es-MX-Raul;Male", "language": "es-MX", "name": "es-MX-Raul (Male)" }, { "id": "es-MX-DaliaNeural;Female", "language": "es-MX", "name": "es-MX-Dalia (Female)" }, { "id": "es-MX-JorgeNeural;Male", "language": "es-MX", "name": "es-MX-Jorge (Male)" }, { "id": "es-ES-HelenaRUS;Female", "language": "es-ES", "name": "es-ES-HelenaRUS (Female)" }, { "id": "es-ES-Laura;Female", "language": "es-ES", "name": "es-ES-Laura (Female)" }, { "id": "es-ES-Pablo;Male", "language": "es-ES", "name": "es-ES-Pablo (Male)" }, { "id": "es-ES-ElviraNeural;Female", "language": "es-ES", "name": "es-ES-Elvira (Female)" }, { "id": "es-ES-AlvaroNeural;Male", "language": "es-ES", "name": "es-ES-Alvaro (Male)" }, { "id": "sv-SE-HedvigRUS;Female", "language": "sv-SE", "name": "sv-SE-HedvigRUS (Female)" }, { "id": "sv-SE-HilleviNeural;Female", "language": "sv-SE", "name": "sv-SE-Hillevi (Female)" }, { "id": "sv-SE-SofieNeural;Female", "language": "sv-SE", "name": "sv-SE-Sofie (Female)" }, { "id": "sv-SE-MattiasNeural;Male", "language": "sv-SE", "name": "sv-SE-Mattias (Male)" }, { "id": "ta-IN-Valluvar;Male", "language": "ta-IN", "name": "ta-IN-Valluvar (Male)" }, { "id": "ta-IN-PallaviNeural;Female", "language": "ta-IN", "name": "ta-IN-Pallavi (Female)" }, { "id": "ta-IN-ValluvarNeural;Male", "language": "ta-IN", "name": "ta-IN-Valluvar (Male)" }, { "id": "te-IN-Chitra;Female", "language": "te-IN", "name": "te-IN-Chitra (Female)" }, { "id": "te-IN-ShrutiNeural;Female", "language": "te-IN", "name": "te-IN-Shruti (Female)" }, { "id": "te-IN-MohanNeural;Male", "language": "te-IN", "name": "te-IN-Mohan (Male)" }, { "id": "th-TH-Pattara;Male", "language": "th-TH", "name": "th-TH-Pattara (Male)" }, { "id": "th-TH-AcharaNeural;Female", "language": "th-TH", "name": "th-TH-Achara (Female)" }, { "id": "th-TH-PremwadeeNeural;Female", "language": "th-TH", "name": "th-TH-Premwadee (Female)" }, { "id": "th-TH-NiwatNeural;Male", "language": "th-TH", "name": "th-TH-Niwat (Male)" }, { "id": "tr-TR-SedaRUS;Female", "language": "tr-TR", "name": "tr-TR-SedaRUS (Female)" }, { "id": "tr-TR-EmelNeural;Female", "language": "tr-TR", "name": "tr-TR-Emel (Female)" }, { "id": "tr-TR-AhmetNeural;Male", "language": "tr-TR", "name": "tr-TR-Ahmet (Male)" }, { "id": "nl-BE-DenaNeural;Female", "language": "nl-BE", "name": "nl-BE-Dena (Female)" }, { "id": "nl-BE-ArnaudNeural;Male", "language": "nl-BE", "name": "nl-BE-Arnaud (Male)" }, { "id": "en-HK-YanNeural;Female", "language": "en-HK", "name": "en-HK-Yan (Female)" }, { "id": "en-HK-SamNeural;Male", "language": "en-HK", "name": "en-HK-Sam (Male)" }, { "id": "en-NZ-MollyNeural;Female", "language": "en-NZ", "name": "en-NZ-Molly (Female)" }, { "id": "en-NZ-MitchellNeural;Male", "language": "en-NZ", "name": "en-NZ-Mitchell (Male)" }, { "id": "en-PH-RosaNeural;Female", "language": "en-PH", "name": "en-PH-Rosa (Female)" }, { "id": "en-PH-JamesNeural;Male", "language": "en-PH", "name": "en-PH-James (Male)" }, { "id": "en-SG-LunaNeural;Female", "language": "en-SG", "name": "en-SG-Luna (Female)" }, { "id": "en-SG-WayneNeural;Male", "language": "en-SG", "name": "en-SG-Wayne (Male)" }, { "id": "en-ZA-LeahNeural;Female", "language": "en-ZA", "name": "en-ZA-Leah (Female)" }, { "id": "en-ZA-LukeNeural;Male", "language": "en-ZA", "name": "en-ZA-Luke (Male)" }, { "id": "et-EE-AnuNeural;Female", "language": "et-EE", "name": "et-EE-Anu (Female)" }, { "id": "et-EE-KertNeural;Male", "language": "et-EE", "name": "et-EE-Kert (Male)" }, { "id": "fr-BE-CharlineNeural;Female", "language": "fr-BE", "name": "fr-BE-Charline (Female)" }, { "id": "fr-BE-GerardNeural;Male", "language": "fr-BE", "name": "fr-BE-Gerard (Male)" }, { "id": "gu-IN-DhwaniNeural;Female", "language": "gu-IN", "name": "gu-IN-Dhwani (Female)" }, { "id": "gu-IN-NiranjanNeural;Male", "language": "gu-IN", "name": "gu-IN-Niranjan (Male)" }, { "id": "ga-IE-OrlaNeural;Female", "language": "ga-IE", "name": "ga-IE-Orla (Female)" }, { "id": "ga-IE-ColmNeural;Male", "language": "ga-IE", "name": "ga-IE-Colm (Male)" }, { "id": "lv-LV-EveritaNeural;Female", "language": "lv-LV", "name": "lv-LV-Everita (Female)" }, { "id": "lv-LV-NilsNeural;Male", "language": "lv-LV", "name": "lv-LV-Nils (Male)" }, { "id": "lt-LT-OnaNeural;Female", "language": "lt-LT", "name": "lt-LT-Ona (Female)" }, { "id": "lt-LT-LeonasNeural;Male", "language": "lt-LT", "name": "lt-LT-Leonas (Male)" }, { "id": "mt-MT-GraceNeural;Female", "language": "mt-MT", "name": "mt-MT-Grace (Female)" }, { "id": "mt-MT-JosephNeural;Male", "language": "mt-MT", "name": "mt-MT-Joseph (Male)" }, { "id": "mr-IN-AarohiNeural;Female", "language": "mr-IN", "name": "mr-IN-Aarohi (Female)" }, { "id": "mr-IN-ManoharNeural;Male", "language": "mr-IN", "name": "mr-IN-Manohar (Male)" }, { "id": "es-AR-ElenaNeural;Female", "language": "es-AR", "name": "es-AR-Elena (Female)" }, { "id": "es-AR-TomasNeural;Male", "language": "es-AR", "name": "es-AR-Tomas (Male)" }, { "id": "es-CO-SalomeNeural;Female", "language": "es-CO", "name": "es-CO-Salome (Female)" }, { "id": "es-CO-GonzaloNeural;Male", "language": "es-CO", "name": "es-CO-Gonzalo (Male)" }, { "id": "es-US-PalomaNeural;Female", "language": "es-US", "name": "es-US-Paloma (Female)" }, { "id": "es-US-AlonsoNeural;Male", "language": "es-US", "name": "es-US-Alonso (Male)" }, { "id": "sw-KE-ZuriNeural;Female", "language": "sw-KE", "name": "sw-KE-Zuri (Female)" }, { "id": "sw-KE-RafikiNeural;Male", "language": "sw-KE", "name": "sw-KE-Rafiki (Male)" }, { "id": "uk-UA-PolinaNeural;Female", "language": "uk-UA", "name": "uk-UA-Polina (Female)" }, { "id": "uk-UA-OstapNeural;Male", "language": "uk-UA", "name": "uk-UA-Ostap (Male)" }, { "id": "ur-PK-UzmaNeural;Female", "language": "ur-PK", "name": "ur-PK-Uzma (Female)" }, { "id": "ur-PK-AsadNeural;Male", "language": "ur-PK", "name": "ur-PK-Asad (Male)" }, { "id": "cy-GB-NiaNeural;Female", "language": "cy-GB", "name": "cy-GB-Nia (Female)" }, { "id": "cy-GB-AledNeural;Male", "language": "cy-GB", "name": "cy-GB-Aled (Male)" }];
+
     const DEFAULT_SETTINGS = {
         provider: 'browser',
         voiceURI: '',
         tiktokVoiceId: 'vi_female_huong',
+        googleVoiceId: 'vi-VN',
+        bingVoiceId: 'vi-VN-HoaiMyNeural;Female',
         tiktokCookieText: '',
         prefetchEnabled: true,
         prefetchCount: 2,
+        remoteTimeoutMs: 20000,
+        remoteRetries: 2,
+        remoteMinGapMs: 220,
         segmentDelayMs: 250,
+        replaceEnabled: false,
+        replaceRules: [],
         rate: 1,
         pitch: 1,
         volume: 1,
@@ -105,34 +152,86 @@
         utteranceToken: 0,
         pendingAutoStart: false,
         currentAudio: null,
+        sharedAudio: null,
+        mediaSessionBound: false,
         remoteAudioCache: new Map(),
         remoteAudioInflight: new Map(),
         prefetchJobId: 0,
         tiktokCookieParsedCache: { raw: '', parsed: null },
+        bingTokenCache: null,
         nextSegmentTimer: 0,
+        gmCookieCapability: 'unknown',
+        gmCookieHeader: '',
         uiHost: null,
         ui: null
     };
 
-	    const REMOTE_PROVIDERS = {
-	        tiktok: {
-	            id: 'tiktok',
-	            label: 'TikTok',
-	            voices: TIKTOK_VOICES,
-	            maxCharsCap: 200,
-	            defaultVoiceId: 'vi_female_huong',
-	            getVoiceId: () => state.settings.tiktokVoiceId,
-	            setVoiceId: (voiceId) => {
-	                state.settings.tiktokVoiceId = String(voiceId || '');
-	            },
+    const REMOTE_PROVIDERS = {
+        tiktok: {
+            id: 'tiktok',
+            label: 'TikTok',
+            voices: TIKTOK_VOICES,
+            maxCharsCap: 200,
+            defaultTimeoutMs: TIKTOK_DEFAULT_TIMEOUT_MS,
+            defaultRetries: TIKTOK_DEFAULT_RETRIES,
+            defaultMinGapMs: TIKTOK_MIN_REQUEST_GAP_MS,
+            prefetchDelayMs: TIKTOK_PREFETCH_DELAY_MS,
+            defaultVoiceId: 'vi_female_huong',
+            getVoiceId: () => state.settings.tiktokVoiceId,
+            setVoiceId: (voiceId) => {
+                state.settings.tiktokVoiceId = String(voiceId || '');
+            },
             synthesizeBase64: (text, voiceId, options) => tiktokSynthesizeBase64(text, voiceId, options),
-            onAuthRequired: () => openTikTokCookieModal({ reason: 'auto' })
+            onAuthRequired: () => {
+                if (state.gmCookieCapability === 'full') {
+                    detectGMCookieCapability();
+                } else {
+                    openTikTokCookieModal({ reason: 'auto' });
+                }
+            }
+        },
+        google: {
+            id: 'google',
+            label: 'Google',
+            voices: GOOGLE_VOICES,
+            maxCharsCap: 200,
+            defaultTimeoutMs: GOOGLE_DEFAULT_TIMEOUT_MS,
+            defaultRetries: GOOGLE_DEFAULT_RETRIES,
+            defaultMinGapMs: GOOGLE_MIN_REQUEST_GAP_MS,
+            prefetchDelayMs: TIKTOK_PREFETCH_DELAY_MS,
+            defaultVoiceId: 'vi-VN',
+            getVoiceId: () => state.settings.googleVoiceId,
+            setVoiceId: (voiceId) => {
+                state.settings.googleVoiceId = String(voiceId || '');
+            },
+            synthesizeBase64: (text, voiceId, options) => googleSynthesizeBase64(text, voiceId, options),
+            onAuthRequired: () => { }
+        },
+        bing: {
+            id: 'bing',
+            label: 'Bing',
+            voices: BING_VOICES,
+            maxCharsCap: 600,
+            defaultTimeoutMs: BING_DEFAULT_TIMEOUT_MS,
+            defaultRetries: BING_DEFAULT_RETRIES,
+            defaultMinGapMs: BING_MIN_REQUEST_GAP_MS,
+            prefetchDelayMs: TIKTOK_PREFETCH_DELAY_MS,
+            defaultVoiceId: 'vi-VN-HoaiMyNeural;Female',
+            getVoiceId: () => state.settings.bingVoiceId,
+            setVoiceId: (voiceId) => {
+                state.settings.bingVoiceId = String(voiceId || '');
+            },
+            synthesizeBase64: (text, voiceId, options) => bingSynthesizeBase64(text, voiceId, options),
+            onAuthRequired: () => { }
         }
     };
 
     boot();
 
     function boot() {
+        if (location.hostname === 'www.tiktok.com') {
+            return;
+        }
         if (location.hostname !== 'truyenwikidich.net') {
             return;
         }
@@ -147,12 +246,79 @@
             refreshChapterData();
             initVoiceList();
             bindUnloadCancel();
+            detectGMCookieCapability();
+            bindChapterPartUserRefresh();
 
             if (state.pendingAutoStart) {
                 setTimeout(() => {
                     startFromParagraph(1);
                 }, 700);
             }
+        });
+    }
+
+    function bindChapterPartUserRefresh() {
+        document.addEventListener('click', (event) => {
+            try {
+                if (!event || !event.isTrusted) {
+                    return;
+                }
+                const target = event.target;
+                const link = target && target.closest ? target.closest('a.chapter-part[data-action="loadChapterPart"]') : null;
+                if (!link) {
+                    return;
+                }
+                const prevSig = getBookContentSignature();
+                setTimeout(() => {
+                    waitForBookContentChanged(prevSig, 15000).then((ok) => {
+                        if (!ok) {
+                            return;
+                        }
+                        stopReading(false);
+                        refreshChapterData();
+                    });
+                }, 0);
+            } catch (err) {
+            }
+        }, true);
+    }
+
+    function detectGMCookieCapability() {
+        if (typeof GM_cookie === 'undefined' || !GM_cookie || typeof GM_cookie.list !== 'function') {
+            state.gmCookieCapability = 'unavailable';
+            state.gmCookieHeader = '';
+            refreshProviderUi();
+            return;
+        }
+
+        GM_cookie.list({ url: 'https://www.tiktok.com/' }, (cookies, error) => {
+            if (error || !cookies) {
+                state.gmCookieCapability = 'unavailable';
+                state.gmCookieHeader = '';
+                refreshProviderUi();
+                return;
+            }
+
+            const hasHttpOnly = cookies.some(c => c.httpOnly);
+            if (!hasHttpOnly) {
+                state.gmCookieCapability = 'no_httponly';
+                state.gmCookieHeader = '';
+                refreshProviderUi();
+                return;
+            }
+
+            const headerString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+            const hasSession = hasSessionCookie(headerString);
+            if (!hasSession) {
+                state.gmCookieCapability = 'no_session';
+                state.gmCookieHeader = '';
+                refreshProviderUi();
+                return;
+            }
+
+            state.gmCookieCapability = 'full';
+            state.gmCookieHeader = headerString;
+            refreshProviderUi();
         });
     }
 
@@ -183,13 +349,17 @@
             }
             const parsed = JSON.parse(raw);
             const merged = { ...DEFAULT_SETTINGS, ...parsed };
-            // Backward compat: prefetch từng là cài đặt riêng cho TikTok.
+
             if (!Object.prototype.hasOwnProperty.call(parsed, 'prefetchEnabled') && typeof parsed.tiktokPrefetch === 'boolean') {
                 merged.prefetchEnabled = parsed.tiktokPrefetch;
             }
             if (!Object.prototype.hasOwnProperty.call(parsed, 'prefetchCount') && Number.isFinite(Number(parsed.tiktokPrefetchCount))) {
                 merged.prefetchCount = clampInt(parsed.tiktokPrefetchCount, 0, 6);
             }
+            if (!Array.isArray(merged.replaceRules)) {
+                merged.replaceRules = [];
+            }
+            merged.replaceEnabled = !!merged.replaceEnabled;
             return merged;
         } catch (err) {
             return { ...DEFAULT_SETTINGS };
@@ -280,6 +450,8 @@
     function mountParagraphPickButtons() {
         unmountParagraphPickButtons();
         const body = document.querySelector('#bookContentBody');
+
+        state.paragraphs = getParagraphNodes();
         if (!body || state.paragraphs.length === 0) {
             return;
         }
@@ -311,8 +483,8 @@
                 } catch (err) {
                     paragraphEl.scrollIntoView();
                 }
-                setPickMode(false, { silent: true });
-                updateStatus(`Đã chọn đoạn ${selected}`);
+
+                startFromParagraph(selected);
             });
 
             paragraphEl.insertBefore(pickBtn, paragraphEl.firstChild);
@@ -377,6 +549,218 @@
         return found ? found.href : '';
     }
 
+    function getBookContentSignature() {
+        const body = document.querySelector('#bookContentBody');
+        if (!body) {
+            return '';
+        }
+        const txt = normalizeText(body.innerText);
+        return `${txt.length}|${txt.slice(0, 420)}`;
+    }
+
+    function getChapterPartLinks() {
+
+        return Array.from(document.querySelectorAll('a.chapter-part[data-action="loadChapterPart"]'));
+    }
+
+    function getNextChapterPartLink() {
+        const links = getChapterPartLinks();
+        if (!links.length) {
+            return null;
+        }
+
+
+
+        const activeLinks = links.filter((a) => a.classList.contains('active'));
+        const activeLink = activeLinks[0] || null;
+        if (!activeLink) {
+            return null;
+        }
+
+        const activePn = Number.parseInt(String(activeLink.dataset.pn || ''), 10);
+        if (!Number.isFinite(activePn)) {
+            return null;
+        }
+        const nextPn = activePn + 1;
+        const activeId = String(activeLink.dataset.id || '');
+        const activeType = String(activeLink.dataset.type || '');
+
+        const next = links.find((a) => {
+            const pn = Number.parseInt(String(a.dataset.pn || ''), 10);
+            if (!Number.isFinite(pn) || pn !== nextPn) {
+                return false;
+            }
+            if (activeId && String(a.dataset.id || '') !== activeId) {
+                return false;
+            }
+            if (activeType && String(a.dataset.type || '') !== activeType) {
+                return false;
+            }
+            return true;
+        });
+
+        return next || null;
+    }
+
+    function waitForBookContentChanged(prevSignature, timeoutMs) {
+        const timeout = clampInt(timeoutMs, 1000, 30000);
+        const start = Date.now();
+        return new Promise((resolve) => {
+            const tick = () => {
+                const nowSig = getBookContentSignature();
+                if (nowSig && nowSig !== prevSignature) {
+                    resolve(true);
+                    return;
+                }
+                if (Date.now() - start >= timeout) {
+                    resolve(false);
+                    return;
+                }
+                setTimeout(tick, 220);
+            };
+            tick();
+        });
+    }
+
+    function speakEndOfContentNotice() {
+        const msg = 'Bạn đã tới cuối chương. Đây là chương cuối trong trang hiện tại.';
+        const token = ++state.utteranceToken;
+
+
+        if (isRemoteProvider()) {
+            const providerId = getProviderId();
+            const provider = getRemoteProvider(providerId);
+            if (!provider) {
+                updateStatus('Không phát được thông báo cuối chương (provider không hỗ trợ)');
+                return;
+            }
+            const voiceId = provider.getVoiceId();
+            updateStatus('Đang tạo thông báo cuối chương...');
+            getRemoteAudioBase64Cached(providerId, msg, voiceId, { timeout: 14000, retries: 1 })
+                .then((base64Audio) => {
+                    if (token !== state.utteranceToken) {
+                        return;
+                    }
+                    const audio = getSharedAudio();
+                    state.currentAudio = audio;
+                    audio.onended = null;
+                    audio.onerror = null;
+                    audio.src = `data:audio/mpeg;base64,${base64Audio}`;
+                    audio.load();
+                    applyAudioSettings(audio);
+                    updateMediaSession(provider.label || providerId, { text: msg });
+                    setMediaSessionPlaybackStateSafe('playing');
+                    audio.onended = () => {
+                        if (token !== state.utteranceToken) {
+                            return;
+                        }
+                        setMediaSessionPlaybackStateSafe('none');
+                        state.currentAudio = null;
+                    };
+                    audio.onerror = () => {
+                        if (token !== state.utteranceToken) {
+                            return;
+                        }
+                        setMediaSessionPlaybackStateSafe('none');
+                        state.currentAudio = null;
+                        updateStatus('Không phát được thông báo cuối chương');
+                    };
+                    applyAudioSettings(audio);
+                    audio.play().catch(() => {
+                        setMediaSessionPlaybackStateSafe('none');
+                        updateStatus('Không phát được thông báo cuối chương');
+                    });
+                })
+                .catch((err) => {
+                    const m = err && err.message ? err.message : 'unknown';
+                    if (providerId === 'tiktok' && err && (err.code === 'NEED_COOKIE' || err.code === 'COOKIE_INVALID')) {
+                        provider.onAuthRequired();
+                    }
+                    updateStatus(`Không tạo được thông báo cuối chương: ${m}`);
+                });
+            return;
+        }
+
+
+        try {
+            speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(msg);
+            utter.rate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+            utter.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
+            const voice = getSelectedVoice();
+            if (voice) {
+                utter.voice = voice;
+                utter.lang = voice.lang;
+            } else {
+                utter.lang = 'vi-VN';
+            }
+            try { setMediaSessionPlaybackStateSafe('playing'); } catch (err) { /* ignore */ }
+            utter.onend = () => setMediaSessionPlaybackStateSafe('none');
+            utter.onerror = () => setMediaSessionPlaybackStateSafe('none');
+            speechSynthesis.speak(utter);
+        } catch (err) {
+
+        }
+    }
+
+    function advanceToNextPartOrChapter() {
+        if (!state.settings.autoNext) {
+            return false;
+        }
+        const nextPart = getNextChapterPartLink();
+        if (!nextPart) {
+            return false;
+        }
+
+
+        stopSpeechOnly();
+        state.reading = false;
+        state.paused = false;
+        clearActiveHighlight();
+        updateProgressText(true);
+
+        const prevSig = getBookContentSignature();
+        const label = normalizeText(nextPart.textContent) || 'phần tiếp theo';
+        updateStatus(`Xong phần, chuyển sang ${label}...`);
+
+
+
+        try {
+            nextPart.click();
+        } catch (err) {
+            try {
+                nextPart.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            } catch (err2) {
+
+                nextPart.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+            }
+        }
+
+        waitForBookContentChanged(prevSig, 15000).then((ok) => {
+            if (!ok) {
+
+                if (state.settings.autoNext && state.nextUrl) {
+                    updateStatus('Không tải được phần tiếp theo, chuyển chương sau...');
+                    if (state.settings.autoStartOnNextChapter) {
+                        saveSessionForNextChapter();
+                    }
+                    setTimeout(() => {
+                        window.location.href = state.nextUrl;
+                    }, 650);
+                } else {
+                    updateStatus('Không tải được phần tiếp theo');
+                }
+                return;
+            }
+
+            refreshChapterData();
+
+            setTimeout(() => startFromParagraph(1), 250);
+        });
+
+        return true;
+    }
+
     function getParagraphNodes() {
         const body = document.querySelector('#bookContentBody');
         if (!body) {
@@ -413,7 +797,7 @@
         const segments = [];
 
         if (state.settings.includeTitle && state.title) {
-            const titleText = normalizeText(state.title);
+            const titleText = applyTtsReplacements(state.title);
             segments.push({
                 text: titleText,
                 paragraphIndex: -1,
@@ -429,7 +813,7 @@
             if (paragraphIndex === 0 && shouldSkipFirst) {
                 return;
             }
-            const text = normalizeText(p.innerText);
+            const text = applyTtsReplacements(p.innerText);
             if (!text) {
                 return;
             }
@@ -495,7 +879,7 @@
         return chunks.length > 0 ? chunks : [clean];
     }
 
-    // Chia 1 câu quá dài thành các mảnh <= maxChars, ưu tiên ngắt ở dấu câu gần mốc maxChars nhất.
+
     function splitLongUnit(text, maxChars) {
         const clean = normalizeText(text);
         if (!clean) {
@@ -535,12 +919,12 @@
         const limit = Math.min(Math.max(1, Number(maxChars) || 1), s.length);
         const nearStart = Math.max(0, limit - SPLIT_NEAR_WINDOW);
 
-        // 1) Ưu tiên dấu câu mạnh (gần mốc trước, rồi mới toàn bộ).
+
         let idx = findLastBreakCharIndex(s, nearStart, limit, BREAK_CHARS_STRONG);
         if (idx < 0) {
             idx = findLastBreakCharIndex(s, 0, limit, BREAK_CHARS_STRONG);
         }
-        // 2) Nếu không có, dùng dấu phẩy/biến thể.
+
         if (idx < 0) {
             idx = findLastBreakCharIndex(s, nearStart, limit, BREAK_CHARS_COMMA);
         }
@@ -551,7 +935,7 @@
             return Math.min(limit, idx + 1);
         }
 
-        // 3) Không có dấu câu: ưu tiên ngắt ở khoảng trắng để tránh cắt giữa từ; nếu không có thì cắt đúng mốc.
+
         const spaceIdx = s.lastIndexOf(' ', limit);
         if (spaceIdx > 0) {
             return Math.min(limit, spaceIdx + 1);
@@ -579,7 +963,49 @@
         return String(input || '').replace(/\s+/g, ' ').trim();
     }
 
-    // Đoạn chỉ gồm dấu câu/ký hiệu (không có chữ/số) => bỏ qua không gửi lên TTS remote.
+    function sanitizeReplaceRules(rules) {
+        const src = Array.isArray(rules) ? rules : [];
+        const out = [];
+        for (const item of src) {
+            if (!item) {
+                continue;
+            }
+            const from = normalizeText(item.from);
+            const to = normalizeText(typeof item.to === 'undefined' ? '' : item.to);
+            if (!from) {
+                continue;
+            }
+            out.push({ from, to });
+        }
+        return out;
+    }
+
+    function applyTtsReplacements(input) {
+        let text = String(input || '');
+        if (!text) {
+            return '';
+        }
+        if (!state.settings.replaceEnabled) {
+            return normalizeText(text);
+        }
+        const rules = sanitizeReplaceRules(state.settings.replaceRules);
+        if (rules.length === 0) {
+            return normalizeText(text);
+        }
+
+        for (const rule of rules) {
+            const from = rule.from;
+            const to = rule.to;
+            if (!from) {
+                continue;
+            }
+            // Replace literal substring (không regex) để tránh vướng ký tự đặc biệt.
+            text = text.split(from).join(to);
+        }
+        return normalizeText(text);
+    }
+
+
     function isPunctuationOnlyText(input) {
         const s = String(input || '').replace(/\s+/g, '');
         if (!s) {
@@ -588,13 +1014,56 @@
         if (SUPPORTS_UNICODE_PROP_ESCAPES) {
             return !/[\p{L}\p{N}]/u.test(s);
         }
-        // Fallback: Latin + Vietnamese diacritics + CJK + digits.
+
         return !/[0-9A-Za-z\u00C0-\u024F\u1E00-\u1EFF\u4E00-\u9FFF]/.test(s);
     }
 
     function sleep(ms) {
         const wait = Math.max(0, Number(ms) || 0);
         return new Promise((resolve) => setTimeout(resolve, wait));
+    }
+
+    function getRemoteTimeoutMs(provider) {
+        const v = clampInt(state.settings.remoteTimeoutMs, 3000, 60000);
+        if (Number.isFinite(Number(v)) && v > 0) {
+            return v;
+        }
+        const def = provider && Number(provider.defaultTimeoutMs) > 0 ? Number(provider.defaultTimeoutMs) : TIKTOK_DEFAULT_TIMEOUT_MS;
+        return clampInt(def, 3000, 60000);
+    }
+
+    function getRemoteRetries(provider) {
+        const v = clampInt(state.settings.remoteRetries, 0, 5);
+        if (Number.isFinite(Number(v))) {
+            return v;
+        }
+        const def = provider && Number.isFinite(Number(provider.defaultRetries)) ? Number(provider.defaultRetries) : TIKTOK_DEFAULT_RETRIES;
+        return clampInt(def, 0, 5);
+    }
+
+    function getRemoteMinGapMs(provider) {
+        const v = clampInt(state.settings.remoteMinGapMs, 0, 2000);
+        if (Number.isFinite(Number(v))) {
+            return v;
+        }
+        const def = provider && Number(provider.defaultMinGapMs) > 0 ? Number(provider.defaultMinGapMs) : TIKTOK_MIN_REQUEST_GAP_MS;
+        return clampInt(def, 0, 2000);
+    }
+
+    function applyAudioSettings(audio) {
+        if (!audio) {
+            return;
+        }
+        try {
+            audio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
+        } catch (err) {
+            // ignore
+        }
+        try {
+            audio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+        } catch (err) {
+            // ignore
+        }
     }
 
     function clampInt(value, min, max) {
@@ -1272,19 +1741,20 @@
                     z-index: 0;
                 }
 
-                .twd-cookie-modal-dialog {
-                    position: relative;
-                    z-index: 1;
-                    width: min(560px, 92vw);
-                    max-height: min(72vh, 620px);
-                    display: grid;
-                    grid-template-rows: auto 1fr;
-                    border-radius: 14px;
-                    border: 1px solid rgba(255, 255, 255, 0.25);
-                    background: linear-gradient(165deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.72) 100%);
-                    box-shadow: 0 40px 90px rgba(15, 23, 42, 0.35);
-                    overflow: hidden;
-                }
+	                .twd-cookie-modal-dialog {
+	                    position: relative;
+	                    z-index: 1;
+	                    width: min(560px, 92vw);
+	                    max-height: min(72vh, 620px);
+	                    display: grid;
+	                    grid-template-rows: auto 1fr;
+	                    border-radius: 14px;
+	                    border: 1px solid var(--wda-border);
+	                    background: var(--wda-surface);
+	                    box-shadow: var(--wda-shadow);
+	                    color: var(--wda-text);
+	                    overflow: hidden;
+	                }
 
                 .twd-cookie-modal-head {
                     display: flex;
@@ -1299,19 +1769,19 @@
                     letter-spacing: 0.02em;
                 }
 
-                .twd-cookie-modal-head button {
-                    border: 1px solid rgba(148, 163, 184, 0.7);
-                    background: rgba(255, 255, 255, 0.6);
-                    border-radius: 10px;
-                    width: 34px;
-                    height: 34px;
-                    padding: 0;
+	                .twd-cookie-modal-head button {
+	                    border: 1px solid var(--wda-border);
+	                    background: var(--wda-surface-2);
+	                    border-radius: 10px;
+	                    width: 34px;
+	                    height: 34px;
+	                    padding: 0;
                     line-height: 1;
-                    display: grid;
-                    place-items: center;
-                    cursor: pointer;
-                    color: rgba(15, 23, 42, 0.9);
-                }
+	                    display: grid;
+	                    place-items: center;
+	                    cursor: pointer;
+	                    color: var(--wda-text);
+	                }
 
                 .twd-cookie-modal-head svg {
                     width: 16px;
@@ -1347,10 +1817,104 @@
                     background-clip: padding-box;
                 }
 
-                #twd-cookie-modal-text {
-                    min-height: 180px;
-                    max-height: 45vh;
-                }
+	                #twd-cookie-modal-text {
+	                    min-height: 180px;
+	                    max-height: 45vh;
+	                }
+
+	                #twd-repl-modal {
+	                    position: fixed;
+	                    inset: 0;
+	                    z-index: 2147483647;
+	                    padding: 14px;
+	                }
+
+	                #twd-repl-modal.twd-tts-hidden {
+	                    display: none !important;
+	                }
+
+	                #twd-repl-modal:not(.twd-tts-hidden) {
+	                    display: grid;
+	                    place-items: center;
+	                }
+
+	                .twd-repl-list {
+	                    margin-top: 10px;
+	                    display: grid;
+	                    gap: 8px;
+	                }
+
+	                .twd-repl-row {
+	                    display: grid;
+	                    grid-template-columns: 1fr auto 1fr auto;
+	                    gap: 8px;
+	                    align-items: center;
+	                }
+
+	                .twd-repl-row input {
+	                    width: 100%;
+	                    min-width: 0;
+	                    padding: 10px 10px;
+	                    border-radius: 12px;
+	                    border: 1px solid var(--wda-border);
+	                    background: var(--wda-surface-2);
+	                    color: var(--wda-text);
+	                    outline: none;
+	                    font: 12px/1.2 var(--wda-mono);
+	                }
+
+	                .twd-repl-row .twd-repl-arrow {
+	                    font-weight: 800;
+	                    color: rgba(15, 23, 42, 0.85);
+	                }
+
+	                .twd-repl-row button {
+	                    width: 34px;
+	                    height: 34px;
+	                    border-radius: 12px;
+	                    border: 1px solid var(--wda-border);
+	                    background: var(--wda-surface-2);
+	                    cursor: pointer;
+	                    line-height: 1;
+	                    display: grid;
+	                    place-items: center;
+	                    color: var(--wda-text);
+	                    font-weight: 900;
+	                }
+
+	                .twd-repl-actions {
+	                    display: grid;
+	                    grid-template-columns: 1fr 1fr;
+	                    gap: 6px;
+	                    margin-top: 10px;
+	                }
+
+	                .twd-repl-bulk {
+	                    margin-top: 10px;
+	                    border: 1px solid var(--wda-border);
+	                    border-radius: 14px;
+	                    padding: 8px 10px;
+	                    background: var(--wda-surface-2);
+	                }
+
+	                .twd-repl-bulk summary {
+	                    cursor: pointer;
+	                    font-weight: 800;
+	                    color: var(--wda-text);
+	                    user-select: none;
+	                }
+
+	                #twd-repl-bulk-text {
+	                    margin-top: 8px;
+	                    min-height: 140px;
+	                }
+
+	                .twd-repl-bulk-actions {
+	                    display: grid;
+	                    grid-template-columns: 1fr 1fr;
+	                    gap: 6px;
+	                    margin-top: 6px;
+	                }
 
                 .twd-tts-body::-webkit-scrollbar,
                 textarea::-webkit-scrollbar {
@@ -1426,33 +1990,34 @@
                             <button type="button" id="twd-tts-stop" class="twd-btn-danger">Stop</button>
                             <button type="button" id="twd-tts-next">Next</button>
                         </div>
-                        <div class="twd-tts-row twd-tts-grid">
-                            <label>Bắt đầu từ đoạn</label>
-                            <div class="twd-tts-inline">
-                                <input id="twd-tts-start" type="number" min="1" step="1" value="1" readonly />
-                                <button type="button" id="twd-tts-start-btn" class="twd-btn-secondary">Đọc từ đây</button>
-                            </div>
-                            <div class="twd-tts-inline">
-                                <button type="button" id="twd-tts-pick-start" class="twd-btn-secondary">Chọn vị trí đọc</button>
-                                <span class="twd-tts-help">Bật mode rồi bấm nút ở cạnh từng đoạn trên trang.</span>
-                            </div>
-                        </div>
-                    </section>
+	                        <div class="twd-tts-row twd-tts-grid">
+	                            <label>Bắt đầu từ đoạn</label>
+	                            <div class="twd-tts-inline">
+	                                <input id="twd-tts-start" type="number" min="1" step="1" value="1" readonly />
+	                                <button type="button" id="twd-tts-pick-start" class="twd-btn-secondary">Chọn vị trí</button>
+	                            </div>
+	                            <div class="twd-tts-inline">
+	                                <span class="twd-tts-help">Bấm nút, rồi chọn đoạn trên trang để bắt đầu đọc.</span>
+	                            </div>
+	                        </div>
+	                    </section>
 
                     <section class="twd-tts-card">
                         <div class="twd-tts-row twd-tts-grid">
                             <label>Nguồn giọng</label>
-                            <select id="twd-tts-provider">
-                                <option value="browser">Browser Speech</option>
-                                <option value="tiktok">TikTok TTS</option>
-                            </select>
-                        </div>
+	                            <select id="twd-tts-provider">
+	                                <option value="browser">Browser Speech</option>
+	                                <option value="tiktok">TikTok TTS</option>
+	                                <option value="google">Google TTS</option>
+	                                <option value="bing">Bing TTS</option>
+	                            </select>
+	                        </div>
                         <div class="twd-tts-row twd-tts-grid">
                             <label>Giọng đọc</label>
                             <select id="twd-tts-voice"></select>
                         </div>
                         <div class="twd-tts-row twd-tts-grid twd-tts-hidden" id="twd-tiktok-auth-row">
-                            <div class="twd-tts-help" id="twd-tiktok-auth-msg">TikTok TTS cần cookie phiên. Dán cookie (JSON/Netscape/Cookie header) vào ô bên dưới.</div>
+                            <div class="twd-tts-help" id="twd-tiktok-auth-msg">TikTok TTS cần cookie phiên (sessionid/sid_tt/sid_guard). Tampermonkey Beta có thể tự lấy; các bản khác cần nhập cookie thủ công.</div>
                             <div class="twd-tts-auth-actions">
                                 <button type="button" id="twd-tiktok-login" class="twd-btn-secondary">Mở TikTok</button>
                                 <button type="button" id="twd-tiktok-test">Thử giọng</button>
@@ -1489,15 +2054,34 @@
                             <label>Delay giữa mục (ms)</label>
                             <input id="twd-seg-delay" type="number" min="0" max="5000" step="50" value="${clampInt(state.settings.segmentDelayMs, 0, 5000)}" />
                         </div>
-                        <div class="twd-tts-row twd-tts-grid">
-                            <label>Prefetch (remote)</label>
-                            <div class="twd-tts-small-grid">
-                                <label class="twd-tts-check" style="margin:0"><input id="twd-prefetch" type="checkbox" ${state.settings.prefetchEnabled ? 'checked' : ''}/> Bật</label>
-                                <input id="twd-prefetch-count" type="number" min="0" max="6" step="1" value="${clampInt(state.settings.prefetchCount, 0, 6)}" title="Số mục prefetch" />
-                            </div>
-                            <div class="twd-tts-help">Áp dụng cho các giọng remote (TikTok, ...). Browser Speech sẽ bỏ qua.</div>
-                        </div>
-                    </section>
+	                        <div class="twd-tts-row twd-tts-grid">
+	                            <label>Prefetch (remote)</label>
+	                            <div class="twd-tts-small-grid">
+	                                <label class="twd-tts-check" style="margin:0"><input id="twd-prefetch" type="checkbox" ${state.settings.prefetchEnabled ? 'checked' : ''}/> Bật</label>
+	                                <input id="twd-prefetch-count" type="number" min="0" max="6" step="1" value="${clampInt(state.settings.prefetchCount, 0, 6)}" title="Số mục prefetch" />
+	                            </div>
+	                            <div class="twd-tts-help">Áp dụng cho các giọng remote (TikTok, ...). Browser Speech sẽ bỏ qua.</div>
+	                        </div>
+	                        <div class="twd-tts-row twd-tts-grid">
+	                            <label>Remote: Timeout/Retry/Gap</label>
+	                            <div class="twd-tts-small-grid">
+	                                <input id="twd-remote-timeout" type="number" min="3000" max="60000" step="500" value="${clampInt(state.settings.remoteTimeoutMs, 3000, 60000)}" title="Timeout (ms)" />
+	                                <input id="twd-remote-retries" type="number" min="0" max="5" step="1" value="${clampInt(state.settings.remoteRetries, 0, 5)}" title="Retry" />
+	                            </div>
+	                            <div class="twd-tts-inline" style="margin-top:6px">
+	                                <input id="twd-remote-gap" type="number" min="0" max="2000" step="10" value="${clampInt(state.settings.remoteMinGapMs, 0, 2000)}" title="Min gap (ms)" style="width: 100%" />
+	                            </div>
+	                            <div class="twd-tts-help">Áp dụng chung cho TikTok/Google/Bing. Gap là khoảng cách tối thiểu giữa 2 request.</div>
+	                        </div>
+	                        <div class="twd-tts-row twd-tts-grid">
+	                            <label>Thay thế khi đọc</label>
+	                            <div class="twd-tts-small-grid">
+	                                <label class="twd-tts-check" style="margin:0"><input id="twd-repl-enabled" type="checkbox" ${state.settings.replaceEnabled ? 'checked' : ''}/> Bật</label>
+	                                <button type="button" id="twd-repl-open" class="twd-btn-secondary">Cài đặt</button>
+	                            </div>
+	                            <div class="twd-tts-help" id="twd-repl-info"></div>
+	                        </div>
+	                    </section>
 
                     <section class="twd-tts-card twd-tts-toggle-grid">
                         <label class="twd-tts-check"><input id="twd-autonext" type="checkbox" ${state.settings.autoNext ? 'checked' : ''}/> Tự qua chương sau</label>
@@ -1507,18 +2091,56 @@
                     </section>
                 </div>
             </section>
-            <button type="button" id="twd-tts-fab" class="twd-tts-fab ${state.settings.panelCollapsed ? '' : 'twd-tts-hidden'}" title="Mở TTS">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4.5 13v4.5a1.5 1.5 0 001.5 1.5h1.2a1.8 1.8 0 001.8-1.8v-3.4A1.8 1.8 0 007.2 12H6a1.5 1.5 0 00-1.5 1z"></path>
-                    <path d="M19.5 13v4.5a1.5 1.5 0 01-1.5 1.5h-1.2a1.8 1.8 0 01-1.8-1.8v-3.4A1.8 1.8 0 0116.8 12H18a1.5 1.5 0 011.5 1z"></path>
-                    <path d="M4.5 13A7.5 7.5 0 0112 5.5 7.5 7.5 0 0119.5 13"></path>
-                </svg>
-            </button>
-            <div class="twd-tts-hidden" id="twd-cookie-modal" role="dialog" aria-modal="true">
-                <div class="twd-cookie-modal-overlay" id="twd-cookie-modal-overlay"></div>
-                <div class="twd-cookie-modal-dialog">
-                    <div class="twd-cookie-modal-head">
-                        <div class="twd-cookie-modal-title">Nhập Cookie TikTok</div>
+	            <button type="button" id="twd-tts-fab" class="twd-tts-fab ${state.settings.panelCollapsed ? '' : 'twd-tts-hidden'}" title="Mở TTS">
+	                <svg viewBox="0 0 24 24" aria-hidden="true">
+	                    <path d="M4.5 13v4.5a1.5 1.5 0 001.5 1.5h1.2a1.8 1.8 0 001.8-1.8v-3.4A1.8 1.8 0 007.2 12H6a1.5 1.5 0 00-1.5 1z"></path>
+	                    <path d="M19.5 13v4.5a1.5 1.5 0 01-1.5 1.5h-1.2a1.8 1.8 0 01-1.8-1.8v-3.4A1.8 1.8 0 0116.8 12H18a1.5 1.5 0 011.5 1z"></path>
+	                    <path d="M4.5 13A7.5 7.5 0 0112 5.5 7.5 7.5 0 0119.5 13"></path>
+	                </svg>
+	            </button>
+	            <div class="twd-tts-hidden" id="twd-repl-modal" role="dialog" aria-modal="true">
+	                <div class="twd-cookie-modal-overlay" id="twd-repl-modal-overlay"></div>
+	                <div class="twd-cookie-modal-dialog twd-repl-modal-dialog">
+	                    <div class="twd-cookie-modal-head">
+	                        <div class="twd-cookie-modal-title">Thay thế khi đọc</div>
+	                        <button type="button" id="twd-repl-modal-close" title="Đóng">
+	                            <svg viewBox="0 0 16 16" aria-hidden="true">
+	                                <path d="M3 3l10 10M13 3L3 13"></path>
+	                            </svg>
+	                        </button>
+	                    </div>
+	                    <div class="twd-cookie-modal-body">
+	                        <div class="twd-tts-row twd-tts-grid" style="margin-top:0">
+	                            <label>Bật</label>
+	                            <label class="twd-tts-check" style="margin:0"><input id="twd-repl-modal-enabled" type="checkbox" ${state.settings.replaceEnabled ? 'checked' : ''}/> Áp dụng thay thế</label>
+	                        </div>
+	                        <div class="twd-tts-help" id="twd-repl-modal-msg">Mỗi quy tắc là thay chuỗi đúng như nhập. Giá trị thay thế sẽ được trim; để trống nghĩa là xóa khỏi câu đọc.</div>
+	                        <div class="twd-repl-list" id="twd-repl-list"></div>
+	                        <div class="twd-repl-actions">
+	                            <button type="button" id="twd-repl-add" class="twd-btn-secondary">+ Thêm</button>
+	                            <button type="button" id="twd-repl-clear" class="twd-btn-danger">Xóa hết</button>
+	                        </div>
+	                        <details class="twd-repl-bulk">
+	                            <summary>Nhập/xuất hàng loạt</summary>
+	                            <div class="twd-tts-help">Hỗ trợ JSON hoặc dạng dòng: <code>từ => thay</code>. Dòng trống sẽ bỏ qua.</div>
+	                            <textarea id="twd-repl-bulk-text" placeholder="ví dụ:\nTrần Hạ => Trần Hạ (Trần-Hạ)\n____ =>\n\nhoặc JSON: [{\"from\":\"a\",\"to\":\"b\"}]"></textarea>
+	                            <div class="twd-repl-bulk-actions">
+	                                <button type="button" id="twd-repl-import" class="twd-btn-secondary">Nhập</button>
+	                                <button type="button" id="twd-repl-export">Xuất</button>
+	                            </div>
+	                        </details>
+	                        <div class="twd-tts-cookie-actions" style="margin-top:10px">
+	                            <button type="button" id="twd-repl-save" class="twd-btn-secondary">Lưu</button>
+	                            <button type="button" id="twd-repl-cancel">Hủy</button>
+	                        </div>
+	                    </div>
+	                </div>
+	            </div>
+	            <div class="twd-tts-hidden" id="twd-cookie-modal" role="dialog" aria-modal="true">
+	                <div class="twd-cookie-modal-overlay" id="twd-cookie-modal-overlay"></div>
+	                <div class="twd-cookie-modal-dialog">
+	                    <div class="twd-cookie-modal-head">
+	                        <div class="twd-cookie-modal-title">Nhập Cookie TikTok</div>
                         <button type="button" id="twd-cookie-modal-close" title="Đóng">
                             <svg viewBox="0 0 16 16" aria-hidden="true">
                                 <path d="M3 3l10 10M13 3L3 13"></path>
@@ -1539,17 +2161,16 @@
         document.body.appendChild(host);
         state.uiHost = host;
 
-        state.ui = {
-            panel: shadow.querySelector('.twd-tts-panel'),
-            body: shadow.querySelector('.twd-tts-body'),
-            dragHandle: shadow.querySelector('#twd-tts-drag-handle'),
-            status: shadow.querySelector('#twd-tts-status'),
+	        state.ui = {
+	            panel: shadow.querySelector('.twd-tts-panel'),
+	            body: shadow.querySelector('.twd-tts-body'),
+	            dragHandle: shadow.querySelector('#twd-tts-drag-handle'),
+	            status: shadow.querySelector('#twd-tts-status'),
             playBtn: shadow.querySelector('#twd-tts-play'),
             pauseBtn: shadow.querySelector('#twd-tts-pause'),
             stopBtn: shadow.querySelector('#twd-tts-stop'),
             nextBtn: shadow.querySelector('#twd-tts-next'),
             startInput: shadow.querySelector('#twd-tts-start'),
-            startBtn: shadow.querySelector('#twd-tts-start-btn'),
             providerSelect: shadow.querySelector('#twd-tts-provider'),
             voiceSelect: shadow.querySelector('#twd-tts-voice'),
             tiktokAuthRow: shadow.querySelector('#twd-tiktok-auth-row'),
@@ -1560,8 +2181,27 @@
             tiktokCookieEnterBtn: shadow.querySelector('#twd-tiktok-cookie-enter'),
             tiktokCookieClearBtn: shadow.querySelector('#twd-tiktok-cookie-clear'),
             tiktokCookieInfo: shadow.querySelector('#twd-tiktok-cookie-info'),
-            prefetchInput: shadow.querySelector('#twd-prefetch'),
-            prefetchCountInput: shadow.querySelector('#twd-prefetch-count'),
+	            prefetchInput: shadow.querySelector('#twd-prefetch'),
+	            prefetchCountInput: shadow.querySelector('#twd-prefetch-count'),
+	            remoteTimeoutInput: shadow.querySelector('#twd-remote-timeout'),
+	            remoteRetriesInput: shadow.querySelector('#twd-remote-retries'),
+	            remoteGapInput: shadow.querySelector('#twd-remote-gap'),
+	            replaceEnabledInput: shadow.querySelector('#twd-repl-enabled'),
+	            replaceOpenBtn: shadow.querySelector('#twd-repl-open'),
+	            replaceInfo: shadow.querySelector('#twd-repl-info'),
+	            replaceModal: shadow.querySelector('#twd-repl-modal'),
+            replaceModalOverlay: shadow.querySelector('#twd-repl-modal-overlay'),
+            replaceModalCloseBtn: shadow.querySelector('#twd-repl-modal-close'),
+            replaceModalCancelBtn: shadow.querySelector('#twd-repl-cancel'),
+            replaceModalSaveBtn: shadow.querySelector('#twd-repl-save'),
+            replaceModalEnabledInput: shadow.querySelector('#twd-repl-modal-enabled'),
+            replaceModalMsg: shadow.querySelector('#twd-repl-modal-msg'),
+            replaceList: shadow.querySelector('#twd-repl-list'),
+            replaceAddBtn: shadow.querySelector('#twd-repl-add'),
+            replaceClearBtn: shadow.querySelector('#twd-repl-clear'),
+            replaceBulkText: shadow.querySelector('#twd-repl-bulk-text'),
+            replaceBulkImportBtn: shadow.querySelector('#twd-repl-import'),
+            replaceBulkExportBtn: shadow.querySelector('#twd-repl-export'),
             cookieModal: shadow.querySelector('#twd-cookie-modal'),
             cookieModalOverlay: shadow.querySelector('#twd-cookie-modal-overlay'),
             cookieModalCloseBtn: shadow.querySelector('#twd-cookie-modal-close'),
@@ -1590,6 +2230,7 @@
         restoreFabPosition();
         restorePanelPosition();
         bindUiEvents();
+        updateReplaceInfo();
         initPanelDrag();
     }
 
@@ -1599,10 +2240,6 @@
         ui.pauseBtn.addEventListener('click', onPauseClick);
         ui.stopBtn.addEventListener('click', () => stopReading(true));
         ui.nextBtn.addEventListener('click', onNextClick);
-        ui.startBtn.addEventListener('click', () => {
-            const startParagraph = clampInt(ui.startInput.value, 1, Math.max(1, state.paragraphs.length));
-            startFromParagraph(startParagraph);
-        });
         ui.pickStartBtn.addEventListener('click', () => {
             setPickMode(!state.pickMode);
         });
@@ -1636,6 +2273,24 @@
             saveSettings();
         });
 
+        const onRemoteSettingsChanged = () => {
+            state.settings.remoteTimeoutMs = clampInt(ui.remoteTimeoutInput.value, 3000, 60000);
+            state.settings.remoteRetries = clampInt(ui.remoteRetriesInput.value, 0, 5);
+            state.settings.remoteMinGapMs = clampInt(ui.remoteGapInput.value, 0, 2000);
+            saveSettings();
+            clearRemoteAudioCache();
+        };
+
+        if (ui.remoteTimeoutInput) {
+            ui.remoteTimeoutInput.addEventListener('change', onRemoteSettingsChanged);
+        }
+        if (ui.remoteRetriesInput) {
+            ui.remoteRetriesInput.addEventListener('change', onRemoteSettingsChanged);
+        }
+        if (ui.remoteGapInput) {
+            ui.remoteGapInput.addEventListener('change', onRemoteSettingsChanged);
+        }
+
         ui.tiktokLoginBtn.addEventListener('click', () => {
             openTikTokLogin();
         });
@@ -1657,7 +2312,7 @@
         });
 
         ui.cookieModalOverlay.addEventListener('click', (event) => {
-            // Không cho click ngoài popup tự thoát.
+
             event.preventDefault();
             event.stopPropagation();
         });
@@ -1710,9 +2365,104 @@
             });
         }
 
+        if (ui.replaceEnabledInput) {
+            ui.replaceEnabledInput.addEventListener('change', () => {
+                state.settings.replaceEnabled = !!ui.replaceEnabledInput.checked;
+                saveSettings();
+                updateReplaceInfo();
+                applyReplaceRulesAndRebuild({ reason: 'toggle' });
+            });
+        }
+
+        if (ui.replaceOpenBtn) {
+            ui.replaceOpenBtn.addEventListener('click', () => openReplaceModal());
+        }
+
+        if (ui.replaceModalOverlay) {
+            ui.replaceModalOverlay.addEventListener('click', (event) => {
+                // Không cho click ngoài popup tự thoát.
+                event.preventDefault();
+                event.stopPropagation();
+            });
+        }
+
+        const closeReplaceModalFn = () => closeReplaceModal();
+        if (ui.replaceModalCloseBtn) {
+            ui.replaceModalCloseBtn.addEventListener('click', closeReplaceModalFn);
+        }
+        if (ui.replaceModalCancelBtn) {
+            ui.replaceModalCancelBtn.addEventListener('click', closeReplaceModalFn);
+        }
+
+        if (ui.replaceAddBtn) {
+            ui.replaceAddBtn.addEventListener('click', () => {
+                addReplaceRuleRow('', '');
+            });
+        }
+
+        if (ui.replaceClearBtn) {
+            ui.replaceClearBtn.addEventListener('click', () => {
+                if (!ui.replaceList) {
+                    return;
+                }
+                ui.replaceList.innerHTML = '';
+                updateReplaceModalMsg('Đã xóa danh sách (chưa lưu).');
+            });
+        }
+
+        if (ui.replaceBulkExportBtn) {
+            ui.replaceBulkExportBtn.addEventListener('click', () => {
+                if (!ui.replaceBulkText) {
+                    return;
+                }
+                const rules = collectReplaceRulesFromModal();
+                ui.replaceBulkText.value = rules.map((r) => `${r.from} => ${r.to}`).join('\n');
+                updateReplaceModalMsg(`Đã xuất ${rules.length} quy tắc.`);
+            });
+        }
+
+        if (ui.replaceBulkImportBtn) {
+            ui.replaceBulkImportBtn.addEventListener('click', () => {
+                if (!ui.replaceBulkText) {
+                    return;
+                }
+                const parsed = parseReplaceRulesBulkText(ui.replaceBulkText.value);
+                if (parsed.error) {
+                    updateReplaceModalMsg(`Không nhập được: ${parsed.error}`);
+                    return;
+                }
+                renderReplaceRuleRows(parsed.rules);
+                updateReplaceModalMsg(`Đã nhập ${parsed.rules.length} quy tắc (chưa lưu).`);
+            });
+        }
+
+        if (ui.replaceModalSaveBtn) {
+            ui.replaceModalSaveBtn.addEventListener('click', () => {
+                const enabled = !!(ui.replaceModalEnabledInput && ui.replaceModalEnabledInput.checked);
+                const rules = collectReplaceRulesFromModal();
+                state.settings.replaceEnabled = enabled;
+                state.settings.replaceRules = rules;
+                if (ui.replaceEnabledInput) {
+                    ui.replaceEnabledInput.checked = enabled;
+                }
+                saveSettings();
+                closeReplaceModal();
+                updateReplaceInfo();
+                applyReplaceRulesAndRebuild({ reason: 'save' });
+            });
+        }
+
         ui.rateInput.addEventListener('input', () => {
             state.settings.rate = Number(ui.rateInput.value);
             ui.rateText.textContent = state.settings.rate.toFixed(2);
+            // Remote audio có thể apply ngay; Browser Speech chỉ apply từ mục kế tiếp.
+            if (state.currentAudio) {
+                try {
+                    state.currentAudio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+                } catch (err) {
+                    // ignore
+                }
+            }
             saveSettings();
         });
 
@@ -1725,6 +2475,13 @@
         ui.volumeInput.addEventListener('input', () => {
             state.settings.volume = Number(ui.volumeInput.value);
             ui.volumeText.textContent = state.settings.volume.toFixed(2);
+            if (state.currentAudio) {
+                try {
+                    state.currentAudio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
+                } catch (err) {
+                    // ignore
+                }
+            }
             saveSettings();
         });
 
@@ -1783,16 +2540,31 @@
     function onPlayClick() {
         if (state.paused) {
             state.paused = false;
-            if (isTikTokProvider()) {
-                if (state.currentAudio) {
-                    state.currentAudio.play().catch(() => {
-                        speakCurrentSegment();
-                    });
-                } else {
+            setMediaSessionPlaybackStateSafe('playing');
+            if (state.currentAudio && state.currentAudio.paused) {
+                // Nếu user chỉnh rate/volume lúc đang pause, áp lại trước khi play.
+                try {
+                    state.currentAudio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
+                    state.currentAudio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+                } catch (err) {
+                    // ignore
+                }
+                state.currentAudio.play().catch(() => {
+                    speakCurrentSegment();
+                });
+            } else if (!isRemoteProvider()) {
+                try {
+                    speechSynthesis.resume();
+                } catch (err) {
+
+                }
+
+
+                if (!speechSynthesis.speaking) {
                     speakCurrentSegment();
                 }
             } else {
-                speechSynthesis.resume();
+                speakCurrentSegment();
             }
             updateStatus('Tiếp tục đọc...');
             return;
@@ -1811,29 +2583,40 @@
         if (state.reading && !state.paused) {
             state.paused = true;
             clearNextSegmentTimer();
-            if (isTikTokProvider()) {
-                if (state.currentAudio) {
-                    state.currentAudio.pause();
-                }
-            } else {
-                speechSynthesis.pause();
+            setMediaSessionPlaybackStateSafe('paused');
+
+            if (state.currentAudio && !state.currentAudio.paused) {
+                try { state.currentAudio.pause(); } catch (err) { /* ignore */ }
             }
+            try { speechSynthesis.pause(); } catch (err) { /* ignore */ }
             updateStatus('Đang tạm dừng');
             return;
         }
 
         if (state.reading && state.paused) {
             state.paused = false;
-            if (isTikTokProvider()) {
-                if (state.currentAudio) {
-                    state.currentAudio.play().catch(() => {
-                        speakCurrentSegment();
-                    });
-                } else {
+            setMediaSessionPlaybackStateSafe('playing');
+            if (state.currentAudio && state.currentAudio.paused) {
+                try {
+                    state.currentAudio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
+                    state.currentAudio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+                } catch (err) {
+                    // ignore
+                }
+                state.currentAudio.play().catch(() => {
+                    speakCurrentSegment();
+                });
+            } else if (!isRemoteProvider()) {
+                try {
+                    speechSynthesis.resume();
+                } catch (err) {
+
+                }
+                if (!speechSynthesis.speaking) {
                     speakCurrentSegment();
                 }
             } else {
-                speechSynthesis.resume();
+                speakCurrentSegment();
             }
             updateStatus('Tiếp tục đọc...');
         }
@@ -1975,25 +2758,31 @@
         updateProgressText();
         const voiceId = provider.getVoiceId();
         const segmentIdxSnapshot = state.segmentIndex;
+        const timeout = getRemoteTimeoutMs(provider);
+        const retries = getRemoteRetries(provider);
+        const minGapMs = getRemoteMinGapMs(provider);
         getRemoteAudioBase64Cached(providerId, segment.text, voiceId, {
-            timeout: TIKTOK_DEFAULT_TIMEOUT_MS,
-            retries: TIKTOK_DEFAULT_RETRIES
+            timeout,
+            retries,
+            minGapMs
         })
             .then((base64Audio) => {
                 if (token !== state.utteranceToken || !state.reading || state.paused) {
                     return;
                 }
 
-                const audio = new Audio(`data:audio/mpeg;base64,${base64Audio}`);
+                const audio = getSharedAudio();
                 state.currentAudio = audio;
-                audio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
-                audio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+                audio.src = `data:audio/mpeg;base64,${base64Audio}`;
+                audio.load();
+                // Trên mobile, load()/src có thể reset volume/playbackRate => set lại sau load.
+                applyAudioSettings(audio);
+                updateMediaSession(provider.label, segment);
 
                 audio.onended = () => {
                     if (token !== state.utteranceToken || !state.reading || state.paused) {
                         return;
                     }
-                    state.currentAudio = null;
                     completeCurrentSegment(segment);
                 };
 
@@ -2001,10 +2790,10 @@
                     if (token !== state.utteranceToken || !state.reading || state.paused) {
                         return;
                     }
-                    state.currentAudio = null;
-                    failCurrentSegment('Không phát được audio TikTok');
+                    failCurrentSegment(`Không phát được audio ${provider.label}`);
                 };
 
+                applyAudioSettings(audio);
                 audio.play().then(() => {
                     if (token !== state.utteranceToken) {
                         return;
@@ -2012,12 +2801,10 @@
                     updateStatus(`Đang đọc ${provider.label}...`);
                     scheduleRemotePrefetch(providerId, segmentIdxSnapshot + 1);
                 }).catch((err) => {
-                    state.currentAudio = null;
                     failCurrentSegment(`Play ${provider.label} thất bại: ${err && err.message ? err.message : 'unknown'}`);
                 });
             })
             .catch((err) => {
-                state.currentAudio = null;
                 const msg = err && err.message ? err.message : 'unknown';
                 if (providerId === 'tiktok' && err && (err.code === 'NEED_COOKIE' || err.code === 'COOKIE_INVALID')) {
                     provider.onAuthRequired();
@@ -2027,7 +2814,6 @@
     }
 
     function completeCurrentSegment(segment) {
-        state.currentAudio = null;
         finalizeSegment(segment);
         state.segmentIndex += 1;
         if (state.segmentIndex >= state.segments.length) {
@@ -2082,20 +2868,19 @@
         clearRemoteAudioCache();
         tiktokSynthesizeBase64('Xin chào. Đây là thử giọng TikTok.', state.settings.tiktokVoiceId, { timeout: 20000, retries: 1 })
             .then((base64Audio) => {
-                const audio = new Audio(`data:audio/mpeg;base64,${base64Audio}`);
+                const audio = getSharedAudio();
                 state.currentAudio = audio;
-                audio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
-                audio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+                audio.src = `data:audio/mpeg;base64,${base64Audio}`;
+                audio.load();
+                applyAudioSettings(audio);
+                updateMediaSession('TikTok', { text: 'Thử giọng' });
                 audio.onended = () => {
-                    if (state.currentAudio === audio) {
-                        state.currentAudio = null;
-                    }
+
                 };
                 audio.onerror = () => {
-                    if (state.currentAudio === audio) {
-                        state.currentAudio = null;
-                    }
+
                 };
+                applyAudioSettings(audio);
                 return audio.play();
             })
             .then(() => {
@@ -2116,11 +2901,11 @@
         state.ui.cookieModalText.value = '';
         state.ui.cookieModalText.focus();
 
-        if (reason === 'auto') {
-            state.ui.cookieModalMsg.textContent = 'TikTok TTS cần cookie phiên. Dán cookie (JSON/Netscape/Cookie header) rồi bấm Lưu.';
-        } else {
-            state.ui.cookieModalMsg.textContent = 'Dán cookie (JSON/Netscape/Cookie header) rồi bấm Lưu. Cookie sẽ được lưu và không hiển thị lại trong UI.';
-        }
+        const base = 'Dán cookie (JSON/Netscape/Cookie header) rồi bấm Lưu. Cookie sẽ được lưu và không hiển thị lại trong UI.';
+        const hint = 'Gợi ý: Tampermonkey Stable/Violentmonkey thường không đọc được cookie HttpOnly, hãy export bằng Cookie-Editor bản beta (hoặc copy Cookie header từ DevTools của TikTok).';
+        state.ui.cookieModalMsg.textContent = reason === 'auto'
+            ? `TikTok TTS cần cookie phiên. ${base} ${hint}`
+            : `${base} ${hint}`;
     }
 
     function closeTikTokCookieModal() {
@@ -2128,8 +2913,236 @@
             return;
         }
         state.ui.cookieModal.classList.add('twd-tts-hidden');
-        // Xoá nội dung trong DOM để giảm rủi ro lộ cookie.
+
         state.ui.cookieModalText.value = '';
+    }
+
+    function updateReplaceInfo() {
+        const ui = state.ui;
+        if (!ui || !ui.replaceInfo) {
+            return;
+        }
+        const rules = sanitizeReplaceRules(state.settings.replaceRules);
+        const n = rules.length;
+        ui.replaceInfo.textContent = state.settings.replaceEnabled
+            ? `Đang bật · ${n} quy tắc`
+            : `Đang tắt · ${n} quy tắc`;
+    }
+
+    function updateReplaceModalMsg(message) {
+        const ui = state.ui;
+        if (!ui || !ui.replaceModalMsg) {
+            return;
+        }
+        ui.replaceModalMsg.textContent = String(message || '');
+    }
+
+    function openReplaceModal() {
+        const ui = state.ui;
+        if (!ui || !ui.replaceModal || !ui.replaceList || !ui.replaceModalEnabledInput) {
+            return;
+        }
+        ui.replaceModal.classList.remove('twd-tts-hidden');
+        ui.replaceModalEnabledInput.checked = !!state.settings.replaceEnabled;
+        renderReplaceRuleRows(sanitizeReplaceRules(state.settings.replaceRules));
+        if (ui.replaceBulkText) {
+            ui.replaceBulkText.value = '';
+        }
+        updateReplaceModalMsg('Mỗi quy tắc là thay chuỗi đúng như nhập. Giá trị thay thế sẽ được trim; để trống nghĩa là xóa khỏi câu đọc.');
+        const first = ui.replaceList.querySelector('input');
+        if (first) {
+            first.focus();
+        }
+    }
+
+    function closeReplaceModal() {
+        const ui = state.ui;
+        if (!ui || !ui.replaceModal) {
+            return;
+        }
+        ui.replaceModal.classList.add('twd-tts-hidden');
+        if (ui.replaceBulkText) {
+            ui.replaceBulkText.value = '';
+        }
+    }
+
+    function createReplaceRuleRowEl(from, to) {
+        const row = document.createElement('div');
+        row.className = 'twd-repl-row';
+
+        const fromInput = document.createElement('input');
+        fromInput.type = 'text';
+        fromInput.className = 'twd-repl-from';
+        fromInput.placeholder = 'Cụm từ gốc';
+        fromInput.value = String(from || '');
+
+        const arrow = document.createElement('div');
+        arrow.className = 'twd-repl-arrow';
+        arrow.textContent = '→';
+
+        const toInput = document.createElement('input');
+        toInput.type = 'text';
+        toInput.className = 'twd-repl-to';
+        toInput.placeholder = 'Thay bằng (rỗng = xóa)';
+        toInput.value = String(to || '');
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.title = 'Xóa quy tắc';
+        delBtn.textContent = '×';
+        delBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            row.remove();
+        });
+
+        row.appendChild(fromInput);
+        row.appendChild(arrow);
+        row.appendChild(toInput);
+        row.appendChild(delBtn);
+        return row;
+    }
+
+    function addReplaceRuleRow(from, to) {
+        const ui = state.ui;
+        if (!ui || !ui.replaceList) {
+            return;
+        }
+        const maybeHelp = ui.replaceList.querySelector('.twd-tts-help');
+        if (maybeHelp && ui.replaceList.children.length === 1) {
+            maybeHelp.remove();
+        }
+        const row = createReplaceRuleRowEl(from, to);
+        ui.replaceList.appendChild(row);
+        const input = row.querySelector('input');
+        if (input) {
+            input.focus();
+        }
+    }
+
+    function renderReplaceRuleRows(rules) {
+        const ui = state.ui;
+        if (!ui || !ui.replaceList) {
+            return;
+        }
+        ui.replaceList.innerHTML = '';
+        const list = sanitizeReplaceRules(rules);
+        if (list.length === 0) {
+            const help = document.createElement('div');
+            help.className = 'twd-tts-help';
+            help.textContent = 'Chưa có quy tắc. Bấm "+ Thêm" để tạo.';
+            ui.replaceList.appendChild(help);
+            return;
+        }
+        list.forEach((r) => ui.replaceList.appendChild(createReplaceRuleRowEl(r.from, r.to)));
+    }
+
+    function collectReplaceRulesFromModal() {
+        const ui = state.ui;
+        if (!ui || !ui.replaceList) {
+            return [];
+        }
+        const rows = Array.from(ui.replaceList.querySelectorAll('.twd-repl-row'));
+        const rules = [];
+        rows.forEach((row) => {
+            const from = row.querySelector('input.twd-repl-from') ? normalizeText(row.querySelector('input.twd-repl-from').value) : '';
+            const to = row.querySelector('input.twd-repl-to') ? normalizeText(row.querySelector('input.twd-repl-to').value) : '';
+            if (!from) {
+                return;
+            }
+            rules.push({ from, to });
+        });
+        return sanitizeReplaceRules(rules);
+    }
+
+    function parseReplaceRulesBulkText(raw) {
+        const text = String(raw || '').trim();
+        if (!text) {
+            return { rules: [], error: '' };
+        }
+
+        if (text.startsWith('[') || text.startsWith('{')) {
+            try {
+                const json = JSON.parse(text);
+                const arr = Array.isArray(json)
+                    ? json
+                    : (json && Array.isArray(json.rules) ? json.rules : null);
+                if (!arr) {
+                    return { rules: [], error: 'JSON không đúng định dạng (cần array hoặc {rules:[...]})' };
+                }
+                return { rules: sanitizeReplaceRules(arr), error: '' };
+            } catch (err) {
+                return { rules: [], error: 'JSON parse lỗi' };
+            }
+        }
+
+        const rules = [];
+        const lines = text.split(/\r?\n/);
+        for (const line of lines) {
+            const ln = String(line || '').trim();
+            if (!ln) {
+                continue;
+            }
+            if (ln.startsWith('#') || ln.startsWith('//')) {
+                continue;
+            }
+            let from = '';
+            let to = '';
+            if (ln.includes('=>')) {
+                const parts = ln.split('=>');
+                from = normalizeText(parts[0]);
+                to = normalizeText(parts.slice(1).join('=>'));
+            } else if (ln.includes('\t')) {
+                const parts = ln.split('\t');
+                from = normalizeText(parts[0]);
+                to = normalizeText(parts.slice(1).join('\t'));
+            } else {
+                from = normalizeText(ln);
+                to = '';
+            }
+            if (!from) {
+                continue;
+            }
+            rules.push({ from, to });
+        }
+        return { rules: sanitizeReplaceRules(rules), error: '' };
+    }
+
+    function applyReplaceRulesAndRebuild(options) {
+        const wasReading = !!state.reading && !state.paused;
+        const wasPaused = !!state.reading && !!state.paused;
+
+        const currentSeg = state.segments && state.segments[state.segmentIndex] ? state.segments[state.segmentIndex] : null;
+        const resumeParagraph = (currentSeg && !currentSeg.isTitle && Number.isFinite(Number(currentSeg.paragraphIndex)))
+            ? (Number(currentSeg.paragraphIndex) + 1)
+            : clampInt(state.ui && state.ui.startInput ? state.ui.startInput.value : 1, 1, Math.max(1, state.paragraphs.length));
+
+        clearRemoteAudioCache();
+        rebuildSegments();
+        refreshStartRange();
+        resetHighlights();
+        setStartParagraphInput(resumeParagraph);
+
+        const idx = findSegmentIndexForParagraph(resumeParagraph);
+        markParagraphsBeforeSegmentAsRead(idx);
+        const seg = state.segments[idx];
+        if (seg) {
+            activateSegmentHighlight(seg);
+        }
+        updateProgressText();
+
+        const reason = options && options.reason ? String(options.reason) : '';
+        if (wasReading) {
+            updateStatus(reason === 'toggle' ? 'Đã áp dụng thay thế, tiếp tục đọc...' : 'Đã lưu thay thế, tiếp tục đọc...');
+            startFromParagraph(resumeParagraph);
+            return;
+        }
+        if (wasPaused) {
+            state.segmentIndex = idx;
+            state.reading = true;
+            state.paused = true;
+            updateStatus(reason === 'toggle' ? 'Đã áp dụng thay thế (đang tạm dừng)' : 'Đã lưu thay thế (đang tạm dừng)');
+        }
     }
 
     function createRemoteCacheKey(providerId, voiceId, text) {
@@ -2143,7 +3156,7 @@
         if (!state.remoteAudioCache) {
             return;
         }
-        // Basic LRU: keep insertion order by deleting then re-setting.
+
         if (state.remoteAudioCache.has(key)) {
             state.remoteAudioCache.delete(key);
         }
@@ -2207,6 +3220,10 @@
         }
 
         const jobId = ++state.prefetchJobId;
+        const prefetchDelayMs = Number(provider.prefetchDelayMs) > 0 ? Number(provider.prefetchDelayMs) : TIKTOK_PREFETCH_DELAY_MS;
+        const timeout = getRemoteTimeoutMs(provider);
+        const retries = getRemoteRetries(provider);
+        const minGap = getRemoteMinGapMs(provider);
         setTimeout(() => {
             if (jobId !== state.prefetchJobId) {
                 return;
@@ -2215,7 +3232,7 @@
                 return;
             }
             const voiceId = provider.getVoiceId();
-            // Sequential prefetch with gentle pacing to avoid being rate-limited.
+
             (async () => {
                 let fetched = 0;
                 let idx = Math.max(0, Number(fromIndex) || 0);
@@ -2236,18 +3253,18 @@
                     }
                     try {
                         await getRemoteAudioBase64Cached(providerId, seg.text, voiceId, {
-                            timeout: 14000,
-                            retries: 1,
-                            minGapMs: Math.max(TIKTOK_MIN_REQUEST_GAP_MS, 320)
+                            timeout: Math.min(timeout, 16000),
+                            retries: Math.min(retries, 1),
+                            minGapMs: Math.max(minGap, 320)
                         });
                         fetched += 1;
                     } catch (err) {
-                        // ignore prefetch errors
+
                     }
                     await sleep(220);
                 }
             })();
-        }, TIKTOK_PREFETCH_DELAY_MS);
+        }, prefetchDelayMs);
     }
 
     function updateTikTokCookieInfo() {
@@ -2275,10 +3292,10 @@
             return { header: '', names: [], hasSession: false, format: 'empty', error: '' };
         }
 
-        // Cookie header dạng "Cookie: a=b; c=d"
+
         const stripCookiePrefix = (s) => String(s || '').replace(/^\s*cookie\s*:\s*/i, '').trim();
 
-        // 1) JSON
+
         if (text.startsWith('{') || text.startsWith('[')) {
             try {
                 const json = JSON.parse(text);
@@ -2308,7 +3325,7 @@
                         if (!c) {
                             return;
                         }
-                        // Cookie-Editor JSON thường có {name, value}
+
                         pushPair(c.name, typeof c.value !== 'undefined' ? c.value : '');
                     });
                     const header = headerFromMap(map);
@@ -2323,7 +3340,7 @@
                         return { header, names, hasSession: hasSessionCookie(header), format: 'json:cookie', error: '' };
                     }
 
-                    // object map {sessionid:"...", ...}
+
                     Object.keys(json).forEach((k) => {
                         const v = json[k];
                         if (typeof v === 'string' || typeof v === 'number') {
@@ -2335,11 +3352,11 @@
                     return { header, names, hasSession: hasSessionCookie(header), format: 'json:map', error: '' };
                 }
             } catch (err) {
-                // fallthrough để thử Netscape / header
+
             }
         }
 
-        // 2) Netscape cookie file (Cookie-Editor), có thể gồm dòng "#HttpOnly_..."
+
         if (/\t/.test(text)) {
             const map = new Map();
             const lines = text.split(/\r?\n/);
@@ -2348,7 +3365,7 @@
                 if (!ln) {
                     return;
                 }
-                // "#HttpOnly_.tiktok.com\tTRUE\t/\tTRUE\t...\tname\tvalue"
+
                 let work = ln;
                 if (work.startsWith('#HttpOnly_')) {
                     work = work.slice('#HttpOnly_'.length);
@@ -2374,7 +3391,7 @@
             }
         }
 
-        // 3) Cookie header thẳng
+
         const header = normalizeCookieHeader(stripCookiePrefix(text));
         const names = Object.keys(parseCookieHeader(header)).sort();
         return { header, names, hasSession: hasSessionCookie(header), format: 'header', error: '' };
@@ -2435,25 +3452,31 @@
         }
         const opts = options || {};
 
-        const cookieRaw = (state.ui && state.ui.tiktokCookieInput)
-            ? String(state.ui.tiktokCookieInput.value || '')
-            : String(state.settings.tiktokCookieText || '');
-        let cookieParsed = null;
-        if (state.tiktokCookieParsedCache && state.tiktokCookieParsedCache.raw === cookieRaw && state.tiktokCookieParsedCache.parsed) {
-            cookieParsed = state.tiktokCookieParsedCache.parsed;
+
+        let cookieHeader = '';
+        if (state.gmCookieCapability === 'full' && state.gmCookieHeader) {
+            cookieHeader = state.gmCookieHeader;
         } else {
-            cookieParsed = parseTikTokCookieInput(cookieRaw);
-            state.tiktokCookieParsedCache = { raw: cookieRaw, parsed: cookieParsed };
-        }
-        if (!cookieParsed.header) {
-            const err = new Error('Chưa nhập cookie TikTok');
-            err.code = 'NEED_COOKIE';
-            return Promise.reject(err);
-        }
-        if (!cookieParsed.hasSession) {
-            const err = new Error('Cookie TikTok thiếu sessionid/sid_tt/sid_guard');
-            err.code = 'COOKIE_INVALID';
-            return Promise.reject(err);
+
+            const cookieRaw = String(state.settings.tiktokCookieText || '');
+            let cookieParsed = null;
+            if (state.tiktokCookieParsedCache && state.tiktokCookieParsedCache.raw === cookieRaw && state.tiktokCookieParsedCache.parsed) {
+                cookieParsed = state.tiktokCookieParsedCache.parsed;
+            } else {
+                cookieParsed = parseTikTokCookieInput(cookieRaw);
+                state.tiktokCookieParsedCache = { raw: cookieRaw, parsed: cookieParsed };
+            }
+            if (!cookieParsed.header) {
+                const err = new Error('Chưa nhập cookie TikTok');
+                err.code = 'NEED_COOKIE';
+                return Promise.reject(err);
+            }
+            if (!cookieParsed.hasSession) {
+                const err = new Error('Cookie TikTok thiếu sessionid/sid_tt/sid_guard');
+                err.code = 'COOKIE_INVALID';
+                return Promise.reject(err);
+            }
+            cookieHeader = cookieParsed.header;
         }
 
         const voice = voiceId || getTikTokVoice().id;
@@ -2464,7 +3487,7 @@
         return invokeTikTokRequestWithRetry(`${TIKTOK_API_ENDPOINT}?${query}`, {
             'User-Agent': TIKTOK_USER_AGENT,
             'Accept': 'application/json, text/plain, */*',
-            'Cookie': cookieParsed.header
+            'Cookie': cookieHeader
         }, timeoutMs, retries, minGapMs);
     }
 
@@ -2541,6 +3564,386 @@
         });
     }
 
+    function googleSynthesizeBase64(text, voiceId, options) {
+        if (typeof GM_xmlhttpRequest !== 'function') {
+            return Promise.reject(new Error('Trình duyệt không hỗ trợ GM_xmlhttpRequest'));
+        }
+
+        const cleanText = normalizeText(text);
+        if (!cleanText) {
+            return Promise.reject(new Error('Text rỗng'));
+        }
+
+        const voiceInfo = GOOGLE_VOICES.find(v => v.id === String(voiceId || ''));
+        const lang = voiceInfo && voiceInfo.language ? voiceInfo.language : 'vi';
+
+        const opts = options || {};
+        const timeoutMs = Number(opts.timeout) > 0 ? Number(opts.timeout) : GOOGLE_DEFAULT_TIMEOUT_MS;
+        const retries = clampInt(opts.retries, 0, 4);
+        const minGapMs = clampInt(opts.minGapMs, 0, 2000) || GOOGLE_MIN_REQUEST_GAP_MS;
+
+        const payload = getGoogleTranslateTtsPayload(cleanText, lang);
+        const body = `f.req=${encodeURIComponent(payload)}`;
+        const headers = {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'Accept': '*/*'
+        };
+        return invokeGoogleRequestWithRetry(GOOGLE_API_ENDPOINT, headers, body, timeoutMs, retries, minGapMs);
+    }
+
+    // vBook: endpoint batchexecute, RPC "jQ1olc", trả về base64 mp3 ở contentArray[0]
+    function getGoogleTranslateTtsPayload(text, lang) {
+        const data = [];
+        data.push('jQ1olc');
+        const content = [String(text || ''), String(lang || 'vi'), null, 'null'];
+        data.push(JSON.stringify(content));
+        data.push(null);
+        data.push('generic');
+        return JSON.stringify([[data]]);
+    }
+
+    function invokeGoogleRequestWithRetry(url, headers, body, timeoutMs, retries, minGapMs) {
+        const attemptCount = Math.max(1, Number(retries) + 1);
+        let attempt = 0;
+        let lastErr = null;
+        const run = () => {
+            attempt += 1;
+            return invokeGoogleRequestWithGap(url, headers, body, timeoutMs, minGapMs)
+                .catch((err) => {
+                    lastErr = err;
+                    if (attempt >= attemptCount) {
+                        return Promise.reject(lastErr);
+                    }
+                    const jitter = Math.floor(Math.random() * 180);
+                    const backoff = (420 * attempt) + jitter;
+                    return sleep(backoff).then(run);
+                });
+        };
+        return run();
+    }
+
+    function invokeGoogleRequestWithGap(url, headers, body, timeoutMs, minGapMs) {
+        const gap = Math.max(0, Number(minGapMs) || 0);
+        const now = Date.now();
+        const lastAt = Number(state.googleLastRequestAt || 0);
+        const wait = (gap > 0 && lastAt > 0) ? Math.max(0, gap - (now - lastAt)) : 0;
+        return sleep(wait).then(() => {
+            state.googleLastRequestAt = Date.now();
+            return invokeGoogleRequest(url, headers, body, timeoutMs);
+        });
+    }
+
+    function invokeGoogleRequest(url, headers, body, timeoutMs) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url,
+                headers,
+                data: body,
+                timeout: timeoutMs,
+                anonymous: true,
+                withCredentials: false,
+                onload: (res) => {
+                    try {
+                        const httpStatus = Number(res && typeof res.status !== 'undefined' ? res.status : 0);
+                        const raw = String(res && typeof res.responseText !== 'undefined' ? res.responseText : '');
+                        if (!raw.trim()) {
+                            reject(new Error('response empty'));
+                            return;
+                        }
+
+                        if (httpStatus < 200 || httpStatus >= 300) {
+                            reject(new Error(`HTTP ${httpStatus}`));
+                            return;
+                        }
+
+                        const cleaned = raw.replace(/^\)\]\}'\s*/, '').trim();
+                        const jsonArray = JSON.parse(cleaned);
+                        const contentArray = JSON.parse(jsonArray[0][2]);
+                        const base64 = contentArray && contentArray[0] ? String(contentArray[0]) : '';
+                        if (!base64) {
+                            reject(new Error('no audio'));
+                            return;
+                        }
+                        resolve(base64);
+                    } catch (err) {
+                        reject(new Error('response not json'));
+                    }
+                },
+                onerror: () => reject(new Error('request error')),
+                ontimeout: () => reject(new Error('request timeout'))
+            });
+        });
+    }
+
+    function arrayBufferToBase64(buffer) {
+        if (!buffer) {
+            return '';
+        }
+        const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : new Uint8Array(buffer.buffer || buffer);
+        if (!bytes || bytes.length === 0) {
+            return '';
+        }
+        let binary = '';
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+            const chunk = bytes.subarray(i, i + chunkSize);
+            let part = '';
+            for (let j = 0; j < chunk.length; j += 1) {
+                part += String.fromCharCode(chunk[j]);
+            }
+            binary += part;
+        }
+        try {
+            return btoa(binary);
+        } catch (err) {
+            return '';
+        }
+    }
+
+    function escapeXml(unsafe) {
+        return String(unsafe || '').replace(/[<>&'"]/g, (c) => {
+            switch (c) {
+                case '<':
+                    return '&lt;';
+                case '>':
+                    return '&gt;';
+                case '&':
+                    return '&amp;';
+                case '\'':
+                    return '&apos;';
+                case '"':
+                    return '&quot;';
+                default:
+                    return c;
+            }
+        });
+    }
+
+    function parseBingVoice(voiceId) {
+        const raw = String(voiceId || '').trim();
+        if (!raw) {
+            return null;
+        }
+        const parts = raw.split(';');
+        const voiceName = String(parts[0] || '').trim();
+        const gender = String(parts[1] || '').trim() || 'Female';
+        if (!voiceName) {
+            return null;
+        }
+        const segs = voiceName.split('-');
+        const lang = (segs.length >= 2) ? `${segs[0]}-${segs[1]}` : 'vi-VN';
+        return { voiceName, gender, lang };
+    }
+
+    function buildBingSsml(text, voiceInfo) {
+        const info = voiceInfo || { lang: 'vi-VN', voiceName: 'vi-VN-HoaiMyNeural', gender: 'Female' };
+        const lang = String(info.lang || 'vi-VN');
+        const voiceName = String(info.voiceName || '');
+        const gender = String(info.gender || 'Female');
+        const clean = normalizeText(text);
+        return `<speak version='1.0' xml:lang='${lang}'><voice xml:lang='${lang}' xml:gender='${gender}' name='${voiceName}'><prosody rate='0%'>${escapeXml(clean)}</prosody></voice></speak>`;
+    }
+
+    function isBingTokenFresh(tokenData) {
+        if (!tokenData) {
+            return false;
+        }
+        const exp = Number(tokenData.expiresAt || 0);
+        if (!Number.isFinite(exp) || exp <= 0) {
+            return false;
+        }
+        return exp - Date.now() > 15000;
+    }
+
+    function clearBingTokenCache() {
+        state.bingTokenCache = null;
+    }
+
+    function getBingTokenData(timeoutMs) {
+        if (isBingTokenFresh(state.bingTokenCache)) {
+            return Promise.resolve(state.bingTokenCache);
+        }
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: BING_TRANSLATOR_URL,
+                timeout: Number(timeoutMs) > 0 ? Number(timeoutMs) : BING_DEFAULT_TIMEOUT_MS,
+                anonymous: false,
+                withCredentials: true,
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Referer': 'https://www.bing.com/'
+                },
+                onload: (res) => {
+                    try {
+                        const status = Number(res && typeof res.status !== 'undefined' ? res.status : 0);
+                        const html = String(res && typeof res.responseText !== 'undefined' ? res.responseText : '');
+                        if (status < 200 || status >= 300 || !html.trim()) {
+                            const err = new Error(`HTTP ${status || 0}`);
+                            err.code = 'BING_TOKEN_HTTP';
+                            reject(err);
+                            return;
+                        }
+
+                        const mParams = /var\\s+params_AbusePreventionHelper\\s*=\\s*(\\[[\\s\\S]*?\\]);/m.exec(html);
+                        const mIG = /IG:\"([A-Z0-9]+)\"/.exec(html) || /\"IG\":\"([A-Z0-9]+)\"/.exec(html);
+                        const mIID = /data-iid=\"(translator\\.\\d+)\"/.exec(html) || /\"IID\":\"(translator\\.\\d+)\"/.exec(html);
+                        if (!mParams || !mIG || !mIID) {
+                            const err = new Error('Không đọc được token Bing (thiếu IG/IID/token)');
+                            err.code = 'BING_TOKEN_PARSE';
+                            reject(err);
+                            return;
+                        }
+                        const arr = JSON.parse(mParams[1]);
+                        const key = arr && typeof arr[0] !== 'undefined' ? String(arr[0]) : '';
+                        const token = arr && typeof arr[1] !== 'undefined' ? String(arr[1]) : '';
+                        const expiryRaw = arr && typeof arr[3] !== 'undefined' ? Number(arr[3]) : 0;
+                        let expiryMs = Number.isFinite(expiryRaw) ? expiryRaw : 0;
+                        // value thường là giây; nếu quá lớn thì coi là ms
+                        if (expiryMs > 0 && expiryMs < 60000) {
+                            expiryMs = expiryMs * 1000;
+                        }
+                        if (!expiryMs || expiryMs < 60000) {
+                            expiryMs = 45 * 60 * 1000;
+                        }
+                        const tokenData = {
+                            IG: String(mIG[1]),
+                            IID: String(mIID[1]),
+                            key,
+                            token,
+                            expiresAt: Date.now() + Math.min(expiryMs, 6 * 60 * 60 * 1000)
+                        };
+                        state.bingTokenCache = tokenData;
+                        resolve(tokenData);
+                    } catch (err) {
+                        const e = new Error('Không đọc được token Bing');
+                        e.code = 'BING_TOKEN_PARSE';
+                        reject(e);
+                    }
+                },
+                onerror: () => {
+                    const err = new Error('request error');
+                    err.code = 'BING_TOKEN_NET';
+                    reject(err);
+                },
+                ontimeout: () => {
+                    const err = new Error('request timeout');
+                    err.code = 'BING_TOKEN_TIMEOUT';
+                    reject(err);
+                }
+            });
+        });
+    }
+
+    function invokeBingTtsWithGap(url, body, timeoutMs, minGapMs) {
+        const gap = Math.max(0, Number(minGapMs) || 0);
+        const now = Date.now();
+        const lastAt = Number(state.bingLastRequestAt || 0);
+        const wait = (gap > 0 && lastAt > 0) ? Math.max(0, gap - (now - lastAt)) : 0;
+        return sleep(wait).then(() => {
+            state.bingLastRequestAt = Date.now();
+            return invokeBingTts(url, body, timeoutMs);
+        });
+    }
+
+    function invokeBingTts(url, body, timeoutMs) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url,
+                data: body,
+                timeout: Number(timeoutMs) > 0 ? Number(timeoutMs) : BING_DEFAULT_TIMEOUT_MS,
+                responseType: 'arraybuffer',
+                anonymous: false,
+                withCredentials: true,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': '*/*',
+                    'Origin': 'https://www.bing.com',
+                    'Referer': BING_TRANSLATOR_URL
+                },
+                onload: (res) => {
+                    const status = Number(res && typeof res.status !== 'undefined' ? res.status : 0);
+                    if (status < 200 || status >= 300) {
+                        const err = new Error(`HTTP ${status || 0}`);
+                        err.code = status === 429 ? 'BING_429' : (status === 403 ? 'BING_403' : 'BING_HTTP');
+                        reject(err);
+                        return;
+                    }
+                    const base64 = arrayBufferToBase64(res.response);
+                    if (!base64) {
+                        const err = new Error('no audio');
+                        err.code = 'BING_NO_AUDIO';
+                        reject(err);
+                        return;
+                    }
+                    resolve(base64);
+                },
+                onerror: () => {
+                    const err = new Error('request error');
+                    err.code = 'BING_NET';
+                    reject(err);
+                },
+                ontimeout: () => {
+                    const err = new Error('request timeout');
+                    err.code = 'BING_TIMEOUT';
+                    reject(err);
+                }
+            });
+        });
+    }
+
+    function bingSynthesizeBase64(text, voiceId, options) {
+        if (typeof GM_xmlhttpRequest !== 'function') {
+            return Promise.reject(new Error('Trình duyệt không hỗ trợ GM_xmlhttpRequest'));
+        }
+        const cleanText = normalizeText(text);
+        if (!cleanText) {
+            return Promise.reject(new Error('Text rỗng'));
+        }
+        const voiceInfo = parseBingVoice(voiceId || state.settings.bingVoiceId) || parseBingVoice('vi-VN-HoaiMyNeural;Female');
+        const ssml = buildBingSsml(cleanText, voiceInfo);
+
+        const opts = options || {};
+        const timeoutMs = Number(opts.timeout) > 0 ? Number(opts.timeout) : BING_DEFAULT_TIMEOUT_MS;
+        const retries = clampInt(opts.retries, 0, 4);
+        const minGapMs = clampInt(opts.minGapMs, 0, 2000) || BING_MIN_REQUEST_GAP_MS;
+
+        const attemptCount = Math.max(1, Number(retries) + 1);
+        let attempt = 0;
+        let lastErr = null;
+
+        const run = () => {
+            attempt += 1;
+            return getBingTokenData(timeoutMs)
+                .then((tokenData) => {
+                    const url = `${BING_TTS_ENDPOINT}?isVertical=1&IG=${encodeURIComponent(tokenData.IG)}&IID=${encodeURIComponent(tokenData.IID)}`;
+                    const body = new URLSearchParams({
+                        ssml,
+                        token: tokenData.token,
+                        key: String(tokenData.key)
+                    }).toString();
+                    return invokeBingTtsWithGap(url, body, timeoutMs, minGapMs);
+                })
+                .catch((err) => {
+                    lastErr = err;
+                    const code = err && err.code ? String(err.code) : '';
+                    if (code.startsWith('BING_TOKEN') || code === 'BING_429' || code === 'BING_403') {
+                        clearBingTokenCache();
+                    }
+                    if (attempt >= attemptCount) {
+                        return Promise.reject(lastErr);
+                    }
+                    const jitter = Math.floor(Math.random() * 180);
+                    const backoff = (520 * attempt) + jitter;
+                    return sleep(backoff).then(run);
+                });
+        };
+
+        return run();
+    }
+
     function finalizeSegment(segment) {
         if (!segment || !segment.paragraphEl) {
             return;
@@ -2594,9 +3997,77 @@
         clearNextSegmentTimer();
         if (state.currentAudio) {
             state.currentAudio.pause();
-            state.currentAudio.removeAttribute('src');
-            state.currentAudio.load();
-            state.currentAudio = null;
+            state.currentAudio.onended = null;
+            state.currentAudio.onerror = null;
+        }
+        setMediaSessionPlaybackStateSafe('none');
+    }
+
+    function getSharedAudio() {
+        if (state.sharedAudio) {
+            return state.sharedAudio;
+        }
+        const audio = new Audio();
+        audio.preload = 'auto';
+        audio.crossOrigin = 'anonymous';
+        state.sharedAudio = audio;
+        return audio;
+    }
+
+    function updateMediaSession(providerLabel, segment) {
+        if (!('mediaSession' in navigator) || !navigator.mediaSession) {
+            return;
+        }
+        try {
+            const title = normalizeText(state.title) || 'Truyện';
+            const segText = segment && segment.text ? normalizeText(segment.text) : '';
+            const artist = providerLabel ? `TTS: ${providerLabel}` : 'TTS';
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title,
+                artist,
+                album: segText ? segText.slice(0, 64) : ''
+            });
+        } catch (err) {
+
+        }
+
+        if (state.mediaSessionBound) {
+            return;
+        }
+        state.mediaSessionBound = true;
+        try {
+            navigator.mediaSession.setActionHandler('play', () => {
+                if (state.reading && state.currentAudio && state.currentAudio.paused) {
+                    state.currentAudio.play().catch(() => { });
+                } else if (!state.reading) {
+                    startFromParagraph(clampInt(state.ui && state.ui.startInput ? state.ui.startInput.value : 1, 1, Math.max(1, state.paragraphs.length)));
+                } else {
+                    onPlayClick();
+                }
+            });
+            navigator.mediaSession.setActionHandler('pause', () => onPauseClick());
+            navigator.mediaSession.setActionHandler('nexttrack', () => onNextClick());
+            navigator.mediaSession.setActionHandler('previoustrack', () => {
+                if (state.segments.length === 0) return;
+                const prev = Math.max(0, state.segmentIndex - 1);
+                stopSpeechOnly();
+                state.segmentIndex = prev;
+                speakCurrentSegment();
+            });
+        } catch (err) {
+
+        }
+    }
+
+    function setMediaSessionPlaybackStateSafe(stateValue) {
+        if (!('mediaSession' in navigator) || !navigator.mediaSession) {
+            return;
+        }
+        try {
+
+            navigator.mediaSession.playbackState = stateValue;
+        } catch (err) {
+
         }
     }
 
@@ -2617,6 +4088,10 @@
         clearActiveHighlight();
         updateProgressText(true);
 
+        if (advanceToNextPartOrChapter()) {
+            return;
+        }
+
         if (state.settings.autoNext && state.nextUrl) {
             updateStatus('Xong chương, chuyển chương sau...');
             if (state.settings.autoStartOnNextChapter) {
@@ -2629,6 +4104,9 @@
         }
 
         updateStatus('Đọc xong chương');
+        if (!state.nextUrl && !getNextChapterPartLink()) {
+            setTimeout(() => speakEndOfContentNotice(), 250);
+        }
     }
 
     function refreshStartRange() {
@@ -2703,10 +4181,11 @@
                 if (a.language === b.language) {
                     return a.name.localeCompare(b.name);
                 }
-                if (a.language === 'vi') {
+                const isVi = (lang) => /^vi(?:$|-)/i.test(String(lang || ''));
+                if (isVi(a.language)) {
                     return -1;
                 }
-                if (b.language === 'vi') {
+                if (isVi(b.language)) {
                     return 1;
                 }
                 return a.language.localeCompare(b.language);
@@ -2763,21 +4242,56 @@
 
     function refreshProviderUi() {
         const ui = state.ui;
+        if (!ui) {
+            return;
+        }
         const providerId = getProviderId();
         const isTikTok = providerId === 'tiktok';
         const isBrowser = providerId === 'browser';
         ui.providerSelect.value = providerId;
+
+
         ui.tiktokAuthRow.classList.toggle('twd-tts-hidden', !isTikTok);
-        if (ui.tiktokCookieRow) {
-            ui.tiktokCookieRow.classList.toggle('twd-tts-hidden', !isTikTok);
+
+        if (isTikTok) {
+            const cap = state.gmCookieCapability;
+
+            if (cap === 'full') {
+
+                ui.tiktokAuthMsg.textContent = 'Cookie tự động (Tampermonkey Beta). Không cần nhập cookie.';
+                ui.tiktokLoginBtn.classList.add('twd-tts-hidden');
+                if (ui.tiktokCookieRow) {
+                    ui.tiktokCookieRow.classList.add('twd-tts-hidden');
+                }
+            } else if (cap === 'no_session') {
+
+                ui.tiktokAuthMsg.textContent = 'Chưa đăng nhập TikTok trên trình duyệt. Bấm "Mở TikTok" để đăng nhập, rồi reload trang truyện.';
+                ui.tiktokLoginBtn.classList.remove('twd-tts-hidden');
+                if (ui.tiktokCookieRow) {
+                    ui.tiktokCookieRow.classList.add('twd-tts-hidden');
+                }
+            } else {
+
+                ui.tiktokAuthMsg.textContent = 'Nếu bạn dùng Tampermonkey Beta: đăng nhập TikTok rồi reload để tự lấy cookie. Tampermonkey Stable/Violentmonkey thường không đọc được cookie HttpOnly, hãy dùng "Nhập cookie".';
+                ui.tiktokLoginBtn.classList.remove('twd-tts-hidden');
+                if (ui.tiktokCookieRow) {
+                    ui.tiktokCookieRow.classList.remove('twd-tts-hidden');
+                }
+                updateTikTokCookieInfo();
+            }
+        } else {
+
+            if (ui.tiktokCookieRow) {
+                ui.tiktokCookieRow.classList.add('twd-tts-hidden');
+            }
         }
+
         if (ui.prefetchInput) {
             ui.prefetchInput.checked = !!state.settings.prefetchEnabled;
         }
         if (ui.prefetchCountInput) {
             ui.prefetchCountInput.value = String(clampInt(state.settings.prefetchCount, 0, 6));
         }
-        updateTikTokCookieInfo();
         ui.pitchInput.disabled = !isBrowser;
         ui.pitchInput.title = !isBrowser ? 'Giọng remote không hỗ trợ pitch' : '';
     }
