@@ -88,9 +88,8 @@ Bạn có 2 cách phổ biến:
 ### Cách B: Cài Cookie-Editor (khuyến nghị làm trên PC)
 Bạn có thể dùng Cookie-Editor để export cookie TikTok nhanh và đầy đủ (bao gồm HttpOnly).
 
-Repo này có sẵn bản zip: [`extensions/cookie_ext.zip`](https://github.com/BaoBao666888/Novel-Downloader5/extensions/cookie_ext.zip)
 - Cookie-Editor là tiện ích mã nguồn mở. Bạn có thể cài trực tiếp trong cửa hàng tiện ích cho trình duyệt của mình, kể cả mobile.
-- Repo này có sẵn bản đã Việt hóa + lược bỏ quảng cáo: [cookie_ext.zip](https://github.com/BaoBao666888/Novel-Downloader5/extensions/cookie_ext.zip).
+- Repo này có sẵn bản đã Việt hóa + lược bỏ quảng cáo: [cookie_ext.zip](https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/extensions/cookie_ext.zip).
 - Theo mình đã kiểm tra: không thấy mã độc và không thấy request "lạ" ra ngoài. Nếu bạn kỹ tính thì nên tự kiểm tra lại trước khi cài.
 - Lưu ý: cookie là dữ liệu nhạy cảm. Chỉ dùng extension từ nguồn bạn tin tưởng và tự chịu trách nhiệm khi cài.
 
