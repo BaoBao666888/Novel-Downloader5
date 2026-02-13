@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.5
+// @version      0.3.6
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -11,7 +11,7 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.5'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.6'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const MAX_COVER_FILE_SIZE = 500 * 1024;
@@ -268,8 +268,21 @@
         return true;
     }
 
-    const EDIT_EXCLUDE_KEY = `${APP_PREFIX}exclude_fields_edit`;
-    const EDIT_EXCLUDE_DEFAULT = { coverUrl: true, moreLink: true };
+    const EXCLUDE_SCOPE_ALL = '__all__';
+    const EXCLUDE_CONFIG_KEY_EDIT = `${APP_PREFIX}exclude_config_edit_v2`;
+    const EXCLUDE_CONFIG_KEY_EMBED = `${APP_PREFIX}exclude_config_embed_v2`;
+
+    // /chinh-sua: safe defaults (user can still uncheck later)
+    const EDIT_EXCLUDE_DEFAULT_ALL = {
+        titleCn: true,
+        authorCn: true,
+        titleVi: true,
+        moreLink: true,
+        coverUrl: true,
+    };
+
+    // /nhung-file: let user decide (no defaults)
+    const EMBED_EXCLUDE_DEFAULT_ALL = {};
     const EDIT_FIELDS = [
         { key: 'titleCn', label: 'Tên gốc (CN)', type: 'text' },
         { key: 'authorCn', label: 'Tên tác giả (CN)', type: 'text' },
@@ -286,14 +299,61 @@
         { key: 'moreLink', label: 'Liên kết bổ sung', type: 'text' },
     ];
 
-    function loadExcludedFields() {
-        const raw = GM_getValue(EDIT_EXCLUDE_KEY, null);
-        if (!raw || typeof raw !== 'object') return { ...EDIT_EXCLUDE_DEFAULT };
-        return { ...EDIT_EXCLUDE_DEFAULT, ...raw };
+    function createDefaultExcludeConfig(isEdit) {
+        return {
+            all: { ...(isEdit ? EDIT_EXCLUDE_DEFAULT_ALL : EMBED_EXCLUDE_DEFAULT_ALL) },
+            sources: {},
+        };
     }
 
-    function saveExcludedFields(excludes) {
-        GM_setValue(EDIT_EXCLUDE_KEY, excludes || {});
+    function normalizeExcludeConfig(raw, isEdit) {
+        // Backward compatible:
+        // - old shape: { titleCn: true, ... } (treated as "all")
+        // - new shape: { all: {...}, sources: {...} }
+        if (!raw || typeof raw !== 'object') return createDefaultExcludeConfig(isEdit);
+        let cfg = null;
+        if (raw.all && typeof raw.all === 'object') {
+            cfg = {
+                all: { ...(raw.all || {}) },
+                sources: raw.sources && typeof raw.sources === 'object' ? { ...raw.sources } : {},
+            };
+        } else {
+            cfg = {
+                all: { ...raw },
+                sources: {},
+            };
+        }
+        if (isEdit && cfg && cfg.all) {
+            // Ensure new defaults are applied for legacy configs, without overriding user's explicit false.
+            Object.keys(EDIT_EXCLUDE_DEFAULT_ALL).forEach((k) => {
+                if (typeof cfg.all[k] === 'undefined') cfg.all[k] = !!EDIT_EXCLUDE_DEFAULT_ALL[k];
+            });
+        }
+        return cfg;
+    }
+
+    function loadExcludeConfig(isEdit) {
+        const key = isEdit ? EXCLUDE_CONFIG_KEY_EDIT : EXCLUDE_CONFIG_KEY_EMBED;
+        const raw = GM_getValue(key, null);
+        if (raw) {
+            const cfg = normalizeExcludeConfig(raw, isEdit);
+            // Persist normalized config so future loads are stable.
+            try { GM_setValue(key, cfg); } catch { }
+            return cfg;
+        }
+        return createDefaultExcludeConfig(isEdit);
+    }
+
+    function saveExcludeConfig(isEdit, config) {
+        const key = isEdit ? EXCLUDE_CONFIG_KEY_EDIT : EXCLUDE_CONFIG_KEY_EMBED;
+        GM_setValue(key, config || {});
+    }
+
+    function getEffectiveExcludes(config, sourceId) {
+        const all = config?.all && typeof config.all === 'object' ? config.all : {};
+        const sources = config?.sources && typeof config.sources === 'object' ? config.sources : {};
+        const override = sourceId && sources[sourceId] && typeof sources[sourceId] === 'object' ? sources[sourceId] : {};
+        return { ...all, ...override };
     }
 
     function parseNameSet(raw) {
@@ -2467,19 +2527,16 @@
     // ================================================
 
     const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.5</span></h2>
+<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.6</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li>🌺 <b>Nguồn mới Hải Đường:</b> Thêm hỗ trợ <code>ebook.longmabook.com/?act=showinfo...</code>, parse tiêu đề/tác giả/văn án/meta trạng thái.</li>
-    <li>🎯 <b>Mặc định đích Longma:</b> Hải Đường tự để <b>Web Hồng</b> để dùng đúng luồng.</li>
-    <li>🧭 <b>Map phân khu Longma:</b> Tự nhận <code>pavilionid</code> <code>a/b/c/d</code> để tăng độ chính xác cho giới tính và diễn sinh.</li>
-    <li>✅ <b>Trạng thái do code quyết định:</b> AI không còn chọn trạng thái; nếu parse không ra thì mặc định <b>Còn tiếp</b>.</li>
-    <li>🧠 <b>Parse trạng thái tập trung:</b> Mỗi nguồn trả <code>statusInfo/statusState/isCompleted</code> để debug và so khớp ổn định hơn.</li>
-    <li>🔗 <b>Liên kết bổ sung:</b> Khi bấm <b>Áp vào form</b>, luôn ghi đè <b>hàng đầu tiên</b> (không tự nhảy xuống hàng kế).</li>
-    <li>🖥️ <b>Nút Fullscreen mới:</b> Thêm nút <code>⛶</code> sau <b>AI</b>, trước <b>?</b>; bật full màn hình sát 4 cạnh và phóng UI khoảng <b>1.5x</b>.</li>
+    <li>🧩 <b>Loại trừ nâng cấp:</b> Có trên cả <code>/nhung-file</code> và <code>/chinh-sua</code>; hỗ trợ cấu hình <b>Tất cả nguồn</b> và <b>override theo từng nguồn</b>. Ở <code>/chinh-sua</code> mặc định loại trừ Tên gốc/Tác giả (CN), Tên dịch (VI), Liên kết bổ sung.</li>
+    <li>🔁 <b>Check trùng mềm hơn:</b> Nếu truyện bị trùng vẫn cho <b>Áp vào form</b>; chỉ khóa nút <b>Nhúng</b> khi <code>Tên gốc + Tác giả</code> <b>trên web</b> đúng cặp đã check trùng.</li>
+    <li>🌐 <b>Cập nhật domain Wikidich:</b> Nhận diện đúng trang Wikidich mới ở <code>wikicv.net</code> (vẫn tương thích domain cũ).</li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
 <ul style="list-style-type: none; padding-left: 0; font-size: 13px;">
+    <li><b>v0.3.5:</b> Thêm nguồn Hải Đường Longma, parse trạng thái tập trung, AI không chọn trạng thái, ghi đè link bổ sung, nút fullscreen + phóng 1.5x.</li>
     <li><b>v0.3.4:</b> Cải thiện PO18, check trùng truyện + khóa thao tác an toàn hơn, nâng toast/cover upload.</li>
     <li><b>v0.3.3:</b> Hotfix popup so sánh + tách riêng logic loại trừ giữa <code>/chinh-sua</code> và <code>/nhung-file</code>.</li>
     <li><b>v0.3.2:</b> Thêm AI thủ công, mở rộng hỗ trợ trang chỉnh sửa, cải thiện Qidian/Ihuaben.</li>
@@ -2593,8 +2650,7 @@
         };
         applyThemeMode(getSharedThemeMode());
         shadowHost.setAttribute('data-page', showEditExtras ? 'edit' : 'new');
-        // Exclude rules are for /chinh-sua only. Do not let them affect /nhung-file.
-        state.excludeFields = showEditExtras ? loadExcludedFields() : {};
+        state.excludeConfig = loadExcludeConfig(showEditExtras);
 
         const css = `
             :host {
@@ -3270,7 +3326,7 @@
                     </div>
                     <div class="${APP_PREFIX}row">
                         <button id="${APP_PREFIX}apply" class="${APP_PREFIX}btn">Áp vào form</button>
-                        ${showEditExtras ? `<button id="${APP_PREFIX}exclude" class="${APP_PREFIX}btn secondary">Loại trừ</button>` : ''}
+                        <button id="${APP_PREFIX}exclude" class="${APP_PREFIX}btn secondary">Loại trừ</button>
                     </div>
                     <div class="${APP_PREFIX}row ${APP_PREFIX}hint">
                         Tip: có thể sửa text/label trong panel rồi bấm "Áp vào form".
@@ -3356,11 +3412,20 @@
                     </div>
                 </div>
             </div>
-            ${showEditExtras ? `
             <div id="${APP_PREFIX}excludeModal" class="${APP_PREFIX}modal">
                 <div class="${APP_PREFIX}modal-card">
                     <div class="${APP_PREFIX}modal-title">Loại trừ trường khi áp</div>
                     <div class="${APP_PREFIX}modal-body">
+                        <div class="${APP_PREFIX}row" style="margin-top:0;">
+                            <label class="${APP_PREFIX}label">Áp dụng cho</label>
+                            <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+                                <select id="${APP_PREFIX}excludeScope" class="${APP_PREFIX}select" style="min-width: 220px;"></select>
+                                <button id="${APP_PREFIX}excludeReset" class="${APP_PREFIX}btn secondary" style="margin:0; padding: 6px 10px;">Dùng theo "Tất cả"</button>
+                            </div>
+                            <div class="${APP_PREFIX}hint" style="margin-top: 8px;">
+                                Tip: "Tất cả nguồn" là mặc định. Nếu chọn 1 nguồn, chỉ cần chỉnh những trường khác với "Tất cả".
+                            </div>
+                        </div>
                         <div id="${APP_PREFIX}excludeList" class="${APP_PREFIX}settings-group"></div>
                     </div>
                     <div class="${APP_PREFIX}modal-actions">
@@ -3369,6 +3434,7 @@
                     </div>
                 </div>
             </div>
+            ${showEditExtras ? `
             <div id="${APP_PREFIX}diffModal" class="${APP_PREFIX}modal">
                 <div class="${APP_PREFIX}diff-card">
                     <div class="${APP_PREFIX}diff-title">
@@ -3414,6 +3480,8 @@
         const duplicateClose = shadowRoot.getElementById(`${APP_PREFIX}duplicateClose`);
         const excludeBtn = shadowRoot.getElementById(`${APP_PREFIX}exclude`);
         const excludeModal = shadowRoot.getElementById(`${APP_PREFIX}excludeModal`);
+        const excludeScope = shadowRoot.getElementById(`${APP_PREFIX}excludeScope`);
+        const excludeReset = shadowRoot.getElementById(`${APP_PREFIX}excludeReset`);
         const excludeList = shadowRoot.getElementById(`${APP_PREFIX}excludeList`);
         const excludeSave = shadowRoot.getElementById(`${APP_PREFIX}excludeSave`);
         const excludeClose = shadowRoot.getElementById(`${APP_PREFIX}excludeClose`);
@@ -3569,17 +3637,50 @@
             });
         };
 
+        const getExcludeConfigForPage = () => {
+            if (!state.excludeConfig || typeof state.excludeConfig !== 'object') {
+                state.excludeConfig = loadExcludeConfig(showEditExtras);
+            }
+            return state.excludeConfig;
+        };
+        const saveExcludeConfigForPage = () => {
+            saveExcludeConfig(showEditExtras, getExcludeConfigForPage());
+        };
+        const getExcludeScopeId = () => (excludeScope?.value || EXCLUDE_SCOPE_ALL);
+        const getExcludesForApply = () => {
+            const cfg = getExcludeConfigForPage();
+            const sourceId = state.sourceType || '';
+            return sourceId ? getEffectiveExcludes(cfg, sourceId) : (cfg.all || {});
+        };
+
+        const renderExcludeScopeOptions = () => {
+            if (!excludeScope) return;
+            const prev = excludeScope.value || '';
+            const options = [
+                { id: EXCLUDE_SCOPE_ALL, label: 'Tất cả nguồn' },
+                ...SITE_RULES.map(rule => ({ id: rule.id, label: rule.label || rule.name || rule.id })),
+            ];
+            excludeScope.innerHTML = options.map(opt => `<option value="${opt.id}">${escapeHtml(opt.label)}</option>`).join('');
+
+            const wanted = prev
+                || (!showEditExtras && state.hasFetchedData && state.sourceType ? state.sourceType : EXCLUDE_SCOPE_ALL);
+            excludeScope.value = options.some(o => o.id === wanted) ? wanted : EXCLUDE_SCOPE_ALL;
+        };
+
         const renderExcludeList = () => {
             if (!excludeList) return;
+            const cfg = getExcludeConfigForPage();
+            const scopeId = getExcludeScopeId();
+            const effective = scopeId === EXCLUDE_SCOPE_ALL ? (cfg.all || {}) : getEffectiveExcludes(cfg, scopeId);
+
             excludeList.innerHTML = '';
-            const excludes = state.excludeFields || loadExcludedFields();
             EDIT_FIELDS.forEach((field) => {
                 const row = document.createElement('label');
                 row.className = `${APP_PREFIX}settings-item`;
                 row.style.gap = '10px';
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.checked = !!excludes[field.key];
+                checkbox.checked = !!effective[field.key];
                 checkbox.dataset.key = field.key;
                 const span = document.createElement('span');
                 span.textContent = field.label;
@@ -3587,6 +3688,13 @@
                 row.appendChild(span);
                 excludeList.appendChild(row);
             });
+
+            if (excludeReset) {
+                const canReset = scopeId !== EXCLUDE_SCOPE_ALL && !!(cfg.sources && cfg.sources[scopeId]);
+                excludeReset.style.display = scopeId === EXCLUDE_SCOPE_ALL ? 'none' : 'inline-flex';
+                excludeReset.disabled = !canReset;
+                excludeReset.title = canReset ? '' : 'Nguồn này đang dùng theo "Tất cả".';
+            }
         };
 
         const escapeHtml = (str) => T.safeText(str).replace(/[&<>"']/g, (ch) => ({
@@ -3956,8 +4064,26 @@
         });
         if (excludeBtn && excludeModal) {
             excludeBtn.addEventListener('click', () => {
+                renderExcludeScopeOptions();
                 renderExcludeList();
                 excludeModal.style.display = 'flex';
+            });
+        }
+        if (excludeScope) {
+            excludeScope.addEventListener('change', () => {
+                renderExcludeList();
+            });
+        }
+        if (excludeReset) {
+            excludeReset.addEventListener('click', () => {
+                const cfg = getExcludeConfigForPage();
+                const scopeId = getExcludeScopeId();
+                if (scopeId && scopeId !== EXCLUDE_SCOPE_ALL && cfg.sources && cfg.sources[scopeId]) {
+                    delete cfg.sources[scopeId];
+                    saveExcludeConfigForPage();
+                    renderExcludeList();
+                    log(`Đã xóa cấu hình loại trừ riêng cho "${scopeId}" (quay về dùng theo "Tất cả").`, 'ok');
+                }
             });
         }
         if (excludeClose && excludeModal) {
@@ -3967,12 +4093,38 @@
         }
         if (excludeSave) {
             excludeSave.addEventListener('click', () => {
-                const excludes = {};
+                const chosen = {};
                 excludeList?.querySelectorAll('input[type="checkbox"][data-key]').forEach((input) => {
-                    excludes[input.dataset.key] = input.checked;
+                    chosen[input.dataset.key] = input.checked;
                 });
-                state.excludeFields = { ...EDIT_EXCLUDE_DEFAULT, ...excludes };
-                saveExcludedFields(state.excludeFields);
+                const cfg = getExcludeConfigForPage();
+                const scopeId = getExcludeScopeId();
+                if (scopeId === EXCLUDE_SCOPE_ALL) {
+                    cfg.all = { ...chosen };
+                    if (cfg.sources && typeof cfg.sources === 'object') {
+                        Object.keys(cfg.sources).forEach((src) => {
+                            const overrides = cfg.sources[src];
+                            if (!overrides || typeof overrides !== 'object') return;
+                            Object.keys(overrides).forEach((k) => {
+                                if (!!overrides[k] === !!cfg.all[k]) delete overrides[k];
+                            });
+                            if (Object.keys(overrides).length === 0) delete cfg.sources[src];
+                        });
+                    }
+                } else {
+                    const base = cfg.all && typeof cfg.all === 'object' ? cfg.all : {};
+                    const overrides = {};
+                    EDIT_FIELDS.forEach((field) => {
+                        const v = !!chosen[field.key];
+                        const b = !!base[field.key];
+                        if (v !== b) overrides[field.key] = v;
+                    });
+                    if (!cfg.sources || typeof cfg.sources !== 'object') cfg.sources = {};
+                    if (Object.keys(overrides).length) cfg.sources[scopeId] = overrides;
+                    else if (cfg.sources && cfg.sources[scopeId]) delete cfg.sources[scopeId];
+                }
+                state.excludeConfig = cfg;
+                saveExcludeConfigForPage();
                 if (excludeModal) excludeModal.style.display = 'none';
                 updateMatchIndicators();
             });
@@ -4466,7 +4618,11 @@ For arrays, return list of strings. If none fit, return empty array.
 
                 // --- BLOCKING LOGIC ---
                 const domainSetting = getDomainSetting(sourceInfo.type);
-                const isWikidich = location.hostname.includes('wikidich');
+                // Wikidich has moved to wikicv.net; keep backward compatibility for older domains/subdomains.
+                const host = (location.hostname || '').toLowerCase();
+                const isWikidich = host === 'wikicv.net'
+                    || host.endsWith('.wikicv.net')
+                    || host.includes('wikidich');
                 const target = domainSetting.target || 'wiki';
 
                 if (target === 'wiki' && !isWikidich) {
@@ -4647,21 +4803,17 @@ For arrays, return list of strings. If none fit, return empty array.
             if (isEmbedPage()) {
                 const checkState = state.duplicateCheck || {};
                 if (checkState.pending) {
-                    log('Đang kiểm tra trùng truyện, vui lòng đợi...', 'warn');
-                    return;
+                    log('Đang kiểm tra trùng truyện, bạn vẫn có thể Áp vào form (nút Nhúng có thể bị khóa sau khi check xong).', 'warn');
                 }
                 if (checkState.blocked) {
                     showDuplicateWarning();
-                    log('Đã chặn áp vào form vì phát hiện truyện trùng.', 'error');
-                    return;
+                    log('Phát hiện truyện trùng: vẫn cho Áp vào form, nhưng sẽ khóa nút Nhúng của Web nếu form đang trùng đúng cặp tên + tác giả.', 'warn');
                 }
             }
             try {
                 if (!state.groups) state.groups = getGroupOptions();
                 const planned = getPlannedValues();
-                const excludes = isEditPage()
-                    ? (state.excludeFields && typeof state.excludeFields === 'object' ? state.excludeFields : loadExcludedFields())
-                    : {};
+                const excludes = getExcludesForApply();
 
                 if (isEditPage()) {
                     const current = getCurrentFormValues();
@@ -4694,6 +4846,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 }
                 if (!excludes.coverUrl) await applyCover(planned.coverUrl, log);
                 updateMatchIndicators();
+                updateEmbedSubmitByDuplicateState('apply');
                 log('Đã áp dữ liệu vào form.', 'ok');
                 showApplyToast('Áp xong, dữ liệu đã vào form.', 'success', 1300);
             } catch (err) {
@@ -4708,6 +4861,68 @@ For arrays, return list of strings. If none fit, return empty array.
             titleCn: T.safeText(titleCnInput?.value || ''),
             authorCn: T.safeText(authorCnInput?.value || ''),
         });
+        const getWebFormDuplicateKey = () => {
+            const titleCn = T.safeText(document.getElementById('txtTitleCn')?.value || '');
+            const authorCn = T.safeText(document.getElementById('txtAuthorCn')?.value || '');
+            return `${titleCn}|||${authorCn}`;
+        };
+        const getEmbedSubmitButton = () => {
+            // Prefer the submit button in the same form as txtTitleCn to avoid false matches.
+            const titleEl = document.getElementById('txtTitleCn');
+            const form = titleEl?.closest('form') || document.querySelector('form');
+            const root = form || document;
+
+            const nodes = Array.from(root.querySelectorAll('button, input[type=\"submit\"], input[type=\"button\"], a'));
+            const isNhung = (el) => {
+                const tag = (el.tagName || '').toLowerCase();
+                const text = tag === 'input' ? (el.value || '') : (el.textContent || '');
+                const t = (text || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+                return t === 'nhúng' || t.includes('nhúng');
+            };
+            return nodes.find(isNhung) || null;
+        };
+        let lastEmbedDisabled = null;
+        const setEmbedSubmitDisabled = (disabled, reason) => {
+            const btn = getEmbedSubmitButton();
+            if (!btn) return;
+            const want = !!disabled;
+            if (lastEmbedDisabled === want) return;
+            lastEmbedDisabled = want;
+
+            if ('disabled' in btn) btn.disabled = want;
+            btn.setAttribute('aria-disabled', want ? 'true' : 'false');
+            if (want) {
+                btn.classList.add('disabled');
+                btn.style.pointerEvents = 'none';
+                btn.style.opacity = '0.55';
+                btn.title = reason || 'Không thể Nhúng.';
+                log('Đã khóa nút Nhúng trên web do trùng truyện (đúng cặp tên + tác giả trên web).', 'warn');
+            } else {
+                btn.classList.remove('disabled');
+                btn.style.pointerEvents = '';
+                btn.style.opacity = '';
+                btn.title = '';
+                log('Đã mở lại nút Nhúng trên web (cặp tên + tác giả trên web đã thay đổi).', 'info');
+            }
+        };
+        const updateEmbedSubmitByDuplicateState = (reason = 'sync') => {
+            if (!isEmbedPage()) return;
+            const check = state.duplicateCheck || {};
+
+            // Only lock Nhúng when we positively detected duplicate.
+            if (!check.blocked || !check.lastKey) {
+                setEmbedSubmitDisabled(false);
+                return;
+            }
+
+            const currentKey = getWebFormDuplicateKey();
+            const shouldDisable = currentKey === check.lastKey;
+            if (shouldDisable) {
+                setEmbedSubmitDisabled(true, 'Truyện bị trùng trên server. Hãy đổi Tên gốc/Tác giả trên web (hoặc dùng truyện khác) rồi thử lại.');
+            } else {
+                setEmbedSubmitDisabled(false);
+            }
+        };
         const shouldCheckDuplicate = ({ titleCn, authorCn }) => {
             if (!isEmbedPage()) return false;
             if (!titleCn || !authorCn) return false;
@@ -4718,35 +4933,34 @@ For arrays, return list of strings. If none fit, return empty array.
             if (!state.hasFetchedData) {
                 applyBtn.disabled = true;
                 applyBtn.title = 'Hãy bấm "Lấy dữ liệu" thành công trước.';
+                updateEmbedSubmitByDuplicateState('no-data');
                 return;
             }
             if (!isEmbedPage()) {
                 applyBtn.disabled = false;
                 applyBtn.title = '';
+                updateEmbedSubmitByDuplicateState('not-embed');
                 return;
             }
             const check = state.duplicateCheck || {};
             if (check.pending) {
-                applyBtn.disabled = true;
                 applyBtn.title = 'Đang kiểm tra truyện trùng trên server...';
-                return;
             }
             if (check.blocked) {
-                applyBtn.disabled = true;
-                applyBtn.title = 'Phát hiện truyện trùng. Không thể áp vào form.';
-                return;
+                applyBtn.title = 'Truyện có thể bị trùng. Vẫn cho Áp vào form, nhưng nút Nhúng sẽ bị khóa nếu form trùng đúng cặp.';
             }
             applyBtn.disabled = false;
-            applyBtn.title = '';
+            if (!check.pending && !check.blocked) applyBtn.title = '';
+            updateEmbedSubmitByDuplicateState('apply-state');
         };
         const showDuplicateWarning = () => {
             const { titleCn, authorCn } = getDuplicateInputs();
             if (duplicateBody) {
                 duplicateBody.innerHTML = `
-                    <div style="margin-bottom:8px;">Phát hiện truyện trùng trên server, đã khóa nút <b>Áp vào form</b>.</div>
+                    <div style="margin-bottom:8px;">Phát hiện truyện trùng trên server.</div>
                     <div><b>Tên gốc:</b> ${escapeHtml(titleCn)}</div>
                     <div><b>Tác giả:</b> ${escapeHtml(authorCn)}</div>
-                    <div style="margin-top:8px; color:#b71c1c;">Vui lòng kiểm tra lại dữ liệu trước khi tiếp tục.</div>
+                    <div style="margin-top:8px; color:#b71c1c;">Nút <b>Nhúng</b> trên web sẽ bị khóa nếu form đang trùng đúng cặp tên + tác giả này.</div>
                 `;
             }
             if (duplicateModal) duplicateModal.style.display = 'flex';
@@ -4816,7 +5030,7 @@ For arrays, return list of strings. If none fit, return empty array.
                         check.blocked = !!exists;
                         setApplyByDuplicateState();
                         if (exists) {
-                            log('Phát hiện truyện trùng trên server. Đã khóa nút Áp vào form.', 'error');
+                            log('Phát hiện truyện trùng trên server. Sẽ khóa nút Nhúng nếu form trùng đúng cặp tên + tác giả.', 'error');
                             showDuplicateWarning();
                         } else {
                             log('Check trùng xong: không có truyện trùng.', 'ok');
@@ -5028,6 +5242,17 @@ For arrays, return list of strings. If none fit, return empty array.
         if (authorCnInput) {
             authorCnInput.addEventListener('input', () => scheduleDuplicateCheck('input'));
             authorCnInput.addEventListener('change', () => scheduleDuplicateCheck('change'));
+        }
+        // If user edits CN title/author directly on the web form, keep Nhúng button state in sync.
+        const webTitleCn = document.getElementById('txtTitleCn');
+        const webAuthorCn = document.getElementById('txtAuthorCn');
+        if (webTitleCn) {
+            webTitleCn.addEventListener('input', () => updateEmbedSubmitByDuplicateState('web-input'));
+            webTitleCn.addEventListener('change', () => updateEmbedSubmitByDuplicateState('web-change'));
+        }
+        if (webAuthorCn) {
+            webAuthorCn.addEventListener('input', () => updateEmbedSubmitByDuplicateState('web-input'));
+            webAuthorCn.addEventListener('change', () => updateEmbedSubmitByDuplicateState('web-change'));
         }
         setDataActionButtonsEnabled(false);
         setApplyByDuplicateState();
