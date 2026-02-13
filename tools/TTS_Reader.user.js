@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.3.2_beta
+// @version      1.3.3_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
@@ -21,7 +21,7 @@
     const STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const SESSION_KEY = 'twd_tts_reader_session_v1';
     const WELCOME_KEY = `${STORAGE_KEY}_welcome_seen_v1`;
-    const SCRIPT_VERSION = '1.3.2_beta';
+    const SCRIPT_VERSION = '1.3.3_beta';
     const SCRIPT_UPDATE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js';
     const AUTO_START_WINDOW_MS = 10 * 60 * 1000;
     const TIKTOK_API_ENDPOINT = 'https://api16-normal-c-useast1a.tiktokv.com/media/api/text/speech/invoke/';
@@ -415,12 +415,13 @@
         }
     }
 
-    function refreshChapterData() {
+    function refreshChapterData(options) {
+        const preservePlayback = !!(options && options.preservePlayback);
         state.title = getChapterTitle();
         state.nextUrl = getNextChapterUrl();
         state.paragraphs = getParagraphNodes();
         clearRemoteAudioCache();
-        rebuildSegments();
+        rebuildSegments({ preservePlayback });
         refreshStartRange();
         resetHighlights();
         if (state.pickMode) {
@@ -758,12 +759,28 @@
 
                 if (state.settings.autoNext && state.nextUrl) {
                     updateStatus('Không tải được phần tiếp theo, chuyển chương sau...');
-                    if (state.settings.autoStartOnNextChapter) {
-                        saveSessionForNextChapter();
+                    const autoStart = !!state.settings.autoStartOnNextChapter;
+                    if (autoStart) {
+                        state.reading = true;
+                        state.paused = false;
+                        startSilentAudioKeepAlive();
+                        setMediaSessionPlaybackStateSafe('playing');
+                    } else {
+                        state.reading = false;
+                        state.paused = false;
+                        stopSilentAudioKeepAlive();
+                        setMediaSessionPlaybackStateSafe('none');
                     }
-                    setTimeout(() => {
-                        window.location.href = state.nextUrl;
-                    }, 650);
+
+                    const startedSoft = advanceToNextChapterSoft(state.nextUrl, { autoStart });
+                    if (!startedSoft) {
+                        if (autoStart) {
+                            saveSessionForNextChapter();
+                        }
+                        setTimeout(() => {
+                            window.location.href = state.nextUrl;
+                        }, 650);
+                    }
                 } else {
                     updateStatus('Không tải được phần tiếp theo');
                 }
@@ -775,6 +792,268 @@
             setTimeout(() => startFromParagraph(1), 250);
         });
 
+        return true;
+    }
+
+    function toAbsoluteUrl(maybeUrl) {
+        try {
+            const u = new URL(String(maybeUrl || ''), window.location.href);
+            return u.toString();
+        } catch (err) {
+            return '';
+        }
+    }
+
+    function isSameOriginUrl(absoluteUrl) {
+        try {
+            const u = new URL(String(absoluteUrl || ''), window.location.href);
+            return u.origin === window.location.origin;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    function fetchTextWithTimeout(url, timeoutMs) {
+        const timeout = clampInt(timeoutMs, 3000, 60000);
+        const target = String(url || '');
+        if (!target) {
+            return Promise.reject(new Error('url empty'));
+        }
+
+        const doFetch = (signal) => fetch(target, {
+            method: 'GET',
+            credentials: 'include',
+            cache: 'no-store',
+            signal
+        }).then((res) => {
+            if (!res || !res.ok) {
+                throw new Error(`HTTP ${(res && res.status) ? res.status : 0}`);
+            }
+            return res.text();
+        });
+
+        if (typeof AbortController !== 'undefined') {
+            const controller = new AbortController();
+            const timer = setTimeout(() => {
+                try { controller.abort(); } catch (err) { /* ignore */ }
+            }, timeout);
+            return doFetch(controller.signal)
+                .finally(() => clearTimeout(timer));
+        }
+
+        return Promise.race([
+            doFetch(undefined),
+            sleep(timeout).then(() => { throw new Error('request timeout'); })
+        ]);
+    }
+
+    function replaceChildrenFromForeignDoc(targetEl, sourceEl) {
+        if (!targetEl || !sourceEl) {
+            return false;
+        }
+        const frag = document.createDocumentFragment();
+        const nodes = Array.from(sourceEl.childNodes || []);
+        for (const node of nodes) {
+            try {
+                frag.appendChild(document.importNode(node, true));
+            } catch (err) {
+                frag.appendChild(node.cloneNode(true));
+            }
+        }
+        while (targetEl.firstChild) {
+            targetEl.removeChild(targetEl.firstChild);
+        }
+        targetEl.appendChild(frag);
+        return true;
+    }
+
+    function findCommonContainer(nodes) {
+        const list = Array.isArray(nodes) ? nodes.filter(Boolean) : [];
+        if (list.length === 0) {
+            return null;
+        }
+        const GOOD_TAGS = new Set(['DIV', 'UL', 'OL', 'NAV', 'SECTION']);
+        const normalizeContainer = (el) => {
+            let cur = el;
+            let guard = 0;
+            while (cur && guard < 25) {
+                guard += 1;
+                if (GOOD_TAGS.has(cur.tagName)) {
+                    return cur;
+                }
+                cur = cur.parentElement;
+            }
+            return el;
+        };
+        let cur = list[0] && list[0].parentElement ? list[0].parentElement : null;
+        while (cur) {
+            let ok = true;
+            for (const n of list) {
+                if (!cur.contains(n)) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (ok) {
+                return normalizeContainer(cur);
+            }
+            cur = cur.parentElement;
+        }
+        return null;
+    }
+
+    function syncChapterTitleFromDoc(doc) {
+        try {
+            if (doc && doc.title) {
+                document.title = String(doc.title);
+            }
+        } catch (err) { /* ignore */ }
+
+        const pickText = (selector) => {
+            const el = doc ? doc.querySelector(selector) : null;
+            return el ? normalizeText(el.textContent) : '';
+        };
+        const newTitle =
+            pickText('.top-title a.truncate.chapter-name') ||
+            pickText('.top-title .chapter-name') ||
+            pickText('.chapter-name');
+        if (!newTitle) {
+            return;
+        }
+        document.querySelectorAll('.chapter-name').forEach((el) => {
+            try { el.textContent = newTitle; } catch (err) { /* ignore */ }
+        });
+    }
+
+    function syncNavLinkHrefFromDoc(selector, doc) {
+        const sel = String(selector || '').trim();
+        if (!sel) {
+            return;
+        }
+        const cur = document.querySelector(sel);
+        const next = doc ? doc.querySelector(sel) : null;
+        if (!cur) {
+            return;
+        }
+        if (!next) {
+            try { cur.removeAttribute('href'); } catch (err) { /* ignore */ }
+            return;
+        }
+        const href = next.getAttribute('href') || '';
+        if (!href) {
+            try { cur.removeAttribute('href'); } catch (err) { /* ignore */ }
+            return;
+        }
+        try { cur.setAttribute('href', href); } catch (err) { /* ignore */ }
+    }
+
+    function syncChapterPartsFromDoc(doc) {
+        const currentLinks = Array.from(document.querySelectorAll('a.chapter-part[data-action="loadChapterPart"]'));
+        const newLinks = Array.from((doc && doc.querySelectorAll) ? doc.querySelectorAll('a.chapter-part[data-action="loadChapterPart"]') : []);
+        if (currentLinks.length === 0 && newLinks.length === 0) {
+            return;
+        }
+
+        const currentContainer = currentLinks.length > 0 ? findCommonContainer(currentLinks) : null;
+        const newContainer = newLinks.length > 0 ? findCommonContainer(newLinks) : null;
+
+        if (currentContainer && newContainer) {
+            currentContainer.style.display = '';
+            replaceChildrenFromForeignDoc(currentContainer, newContainer);
+            return;
+        }
+
+        if (currentContainer && !newContainer) {
+            // Chương mới không có phần: ẩn bar phần cũ để tránh nhầm.
+            try { currentContainer.style.display = 'none'; } catch (err) { /* ignore */ }
+            return;
+        }
+
+        if (!currentContainer && newContainer) {
+            // Chương mới có phần nhưng chương cũ không có: thử chèn gần nội dung.
+            const body = document.querySelector('#bookContentBody');
+            const parent = body && body.parentElement ? body.parentElement : null;
+            if (!parent) {
+                return;
+            }
+            const clone = document.importNode ? document.importNode(newContainer, true) : newContainer.cloneNode(true);
+            parent.insertBefore(clone, body);
+        }
+    }
+
+    function softLoadChapterInPlace(url, options) {
+        const abs = toAbsoluteUrl(url);
+        if (!abs || !isSameOriginUrl(abs)) {
+            return Promise.reject(new Error('cross-origin'));
+        }
+        const timeout = clampInt(options && options.timeoutMs, 3000, 60000);
+        return fetchTextWithTimeout(abs, timeout).then((html) => {
+            const text = String(html || '');
+            if (!text.trim()) {
+                throw new Error('response empty');
+            }
+            const doc = new DOMParser().parseFromString(text, 'text/html');
+            const newBody = doc ? doc.querySelector('#bookContentBody') : null;
+            const curBody = document.querySelector('#bookContentBody');
+            if (!doc || !newBody || !curBody) {
+                throw new Error('missing #bookContentBody');
+            }
+
+            syncChapterTitleFromDoc(doc);
+            syncNavLinkHrefFromDoc('#btnPrevChapter', doc);
+            syncNavLinkHrefFromDoc('#btnNextChapter', doc);
+            syncChapterPartsFromDoc(doc);
+            replaceChildrenFromForeignDoc(curBody, newBody);
+
+            try {
+                history.pushState({ twdTtsReader: 1 }, '', abs);
+            } catch (err) {
+                // ignore
+            }
+            return true;
+        });
+    }
+
+    function advanceToNextChapterSoft(nextUrl, options) {
+        const abs = toAbsoluteUrl(nextUrl);
+        const shouldAutoStart = !!(options && options.autoStart);
+        const token = state.utteranceToken;
+
+        if (!abs) {
+            return false;
+        }
+        if (!isSameOriginUrl(abs)) {
+            return false;
+        }
+
+        updateStatus('Đang tải chương sau (không reload)...');
+        softLoadChapterInPlace(abs, { timeoutMs: 25000 })
+            .then(() => {
+                if (token !== state.utteranceToken) {
+                    return;
+                }
+                // Khi auto-start, giữ keep-alive chạy (mobile nền) và tiếp tục đọc ngay.
+                refreshChapterData({ preservePlayback: shouldAutoStart });
+                if (shouldAutoStart) {
+                    setTimeout(() => startFromParagraph(1), 350);
+                } else {
+                    stopSilentAudioKeepAlive();
+                    setMediaSessionPlaybackStateSafe('none');
+                    updateStatus('Đã chuyển chương sau (bấm Play để đọc)');
+                }
+            })
+            .catch(() => {
+                if (token !== state.utteranceToken) {
+                    return;
+                }
+                // Fallback: reload trang như cũ
+                if (shouldAutoStart) {
+                    saveSessionForNextChapter();
+                }
+                setTimeout(() => {
+                    window.location.href = abs;
+                }, 600);
+            });
         return true;
     }
 
@@ -794,8 +1073,22 @@
         return [body];
     }
 
-    function rebuildSegments() {
-        stopReading(false);
+    function rebuildSegments(options) {
+        const preservePlayback = !!(options && options.preservePlayback);
+        if (!preservePlayback) {
+            stopReading(false);
+        } else {
+            // Đang chuyển chương/phần (hoặc rebuild khi đang phát): hủy tác vụ cũ nhưng giữ silent keep-alive để mobile không kill.
+            state.utteranceToken += 1;
+            try { speechSynthesis.cancel(); } catch (err) { /* ignore */ }
+            state.prefetchJobId += 1;
+            clearNextSegmentTimer();
+            if (state.currentAudio) {
+                try { state.currentAudio.pause(); } catch (err) { /* ignore */ }
+                state.currentAudio.onended = null;
+                state.currentAudio.onerror = null;
+            }
+        }
         const configuredMaxChars = clampInt(state.settings.maxChars, 80, 600);
         state.settings.maxChars = configuredMaxChars;
         let effectiveMaxChars = configuredMaxChars;
@@ -4414,8 +4707,6 @@
     }
 
     function finishChapter() {
-        state.reading = false;
-        state.paused = false;
         clearActiveHighlight();
         updateProgressText(true);
 
@@ -4424,16 +4715,36 @@
         }
 
         if (state.settings.autoNext && state.nextUrl) {
+            const autoStart = !!state.settings.autoStartOnNextChapter;
             updateStatus('Xong chương, chuyển chương sau...');
-            if (state.settings.autoStartOnNextChapter) {
-                saveSessionForNextChapter();
+
+            if (autoStart) {
+                // Giữ session "đang phát" để notification/media session trên mobile không bị mất.
+                state.reading = true;
+                state.paused = false;
+                startSilentAudioKeepAlive();
+                setMediaSessionPlaybackStateSafe('playing');
+            } else {
+                state.reading = false;
+                state.paused = false;
+                stopSilentAudioKeepAlive();
+                setMediaSessionPlaybackStateSafe('none');
             }
-            setTimeout(() => {
-                window.location.href = state.nextUrl;
-            }, 600);
+
+            const startedSoft = advanceToNextChapterSoft(state.nextUrl, { autoStart });
+            if (!startedSoft) {
+                if (autoStart) {
+                    saveSessionForNextChapter();
+                }
+                setTimeout(() => {
+                    window.location.href = state.nextUrl;
+                }, 600);
+            }
             return;
         }
 
+        state.reading = false;
+        state.paused = false;
         stopSilentAudioKeepAlive();
         updateStatus('Đọc xong chương');
         if (!state.nextUrl && !getNextChapterPartLink()) {
