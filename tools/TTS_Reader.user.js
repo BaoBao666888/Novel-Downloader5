@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.3.1_beta
+// @version      1.3.2_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
@@ -2541,6 +2541,7 @@
     function onPlayClick() {
         if (state.paused) {
             state.paused = false;
+            startSilentAudioKeepAlive();
             setMediaSessionPlaybackStateSafe('playing');
             if (state.currentAudio && state.currentAudio.paused) {
                 // Nếu user chỉnh rate/volume lúc đang pause, áp lại trước khi play.
@@ -2584,6 +2585,7 @@
         if (state.reading && !state.paused) {
             state.paused = true;
             clearNextSegmentTimer();
+            stopSilentAudioKeepAlive();
             setMediaSessionPlaybackStateSafe('paused');
 
             if (state.currentAudio && !state.currentAudio.paused) {
@@ -2596,6 +2598,7 @@
 
         if (state.reading && state.paused) {
             state.paused = false;
+            startSilentAudioKeepAlive();
             setMediaSessionPlaybackStateSafe('playing');
             if (state.currentAudio && state.currentAudio.paused) {
                 try {
@@ -4150,16 +4153,20 @@
         }
         state.mediaSessionBound = true;
         try {
+            // Luôn đi qua các handler của script để state.paused/state.reading đồng bộ.
             navigator.mediaSession.setActionHandler('play', () => {
-                if (state.reading && state.currentAudio && state.currentAudio.paused) {
-                    state.currentAudio.play().catch(() => { });
-                } else if (!state.reading) {
-                    startFromParagraph(clampInt(state.ui && state.ui.startInput ? state.ui.startInput.value : 1, 1, Math.max(1, state.paragraphs.length)));
-                } else {
+                if (state.paused || !state.reading) {
                     onPlayClick();
                 }
             });
-            navigator.mediaSession.setActionHandler('pause', () => onPauseClick());
+            navigator.mediaSession.setActionHandler('pause', () => {
+                if (state.reading && !state.paused) {
+                    onPauseClick();
+                }
+            });
+            navigator.mediaSession.setActionHandler('stop', () => {
+                stopReading(true);
+            });
             navigator.mediaSession.setActionHandler('nexttrack', () => onNextClick());
             navigator.mediaSession.setActionHandler('previoustrack', () => {
                 if (state.segments.length === 0) return;
