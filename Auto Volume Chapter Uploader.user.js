@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume/Chapter Uploader
 // @namespace    http://tampermonkey.net/
-// @version      1.2.5.1
+// @version      1.2.6
 // @description  Tự động hóa quá trình thêm/bổ sung chương trên wiki và web hồng
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
@@ -42,11 +42,19 @@
     }
     // --- Cấu hình ---
     const APP_PREFIX = 'WDU_';
-    const CURRENT_VERSION = '1.2.5';
+    const CURRENT_VERSION = '1.2.6';
     const VERSION_KEY = `${APP_PREFIX}version`;
     const VOLUME_STATS_KEY = `${APP_PREFIX}volume_stats_enabled`;
     const SHARED_THEME_KEY = 'WDX_theme';
     const DEFAULT_THEME_MODE = 'light';
+    const SNAPSHOTS_KEY = `${APP_PREFIX}snapshots_v1`;
+    const SNAPSHOT_MAX_ITEMS = 40;
+    // Use IndexedDB for heavier snapshot storage. Still cap per snapshot to avoid freezing/quotas.
+    const SNAPSHOT_MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB per snapshot (raw bytes)
+    // Fallback only (e.g. IndexedDB unavailable): keep tiny inline base64.
+    const SNAPSHOT_MAX_INLINE_FILE_BYTES = 512 * 1024;
+    const SNAPSHOT_DB_NAME = `${APP_PREFIX}snapshots_db_v1`;
+    const SNAPSHOT_DB_STORE = 'files';
     let settings = {
         LOG_MAX_LINES: 1000,
         FILE_SIZE_WARNING_KB: 4,
@@ -795,6 +803,185 @@
             font-weight: 700;
             letter-spacing: 0.2px;
         }
+        #${APP_PREFIX}web-actions {
+            flex-wrap: nowrap;
+        }
+        #${APP_PREFIX}web-actions .${APP_PREFIX}btn {
+            min-width: 0;
+            padding: 9px 10px;
+            white-space: nowrap;
+        }
+        #${APP_PREFIX}web-actions #${APP_PREFIX}fake-upload {
+            flex: 1.35;
+        }
+        #${APP_PREFIX}snapshots-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 16, 28, 0.45);
+            backdrop-filter: blur(2px);
+            z-index: 100003;
+        }
+        #${APP_PREFIX}snapshots-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 780px;
+            max-width: 96vw;
+            max-height: 86vh;
+            background: linear-gradient(180deg, #fff7f9 0%, #fff 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(128, 90, 213, 0.18);
+            box-shadow: 0 26px 60px rgba(60, 26, 96, 0.35);
+            z-index: 100004;
+            color: #2a2334;
+            font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}snapshots-modal {
+            background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+            color: #e5e7eb;
+            border-color: rgba(148, 163, 184, 0.22);
+            box-shadow: 0 26px 60px rgba(0, 0, 0, 0.5);
+        }
+        #${APP_PREFIX}snapshots-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px;
+            background: linear-gradient(90deg, #ffe8ee, #efe6ff);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            font-weight: 800;
+            color: #5a2a68;
+        }
+        #${APP_PREFIX}snapshots-header .${APP_PREFIX}btn {
+            width: auto;
+            margin: 0;
+            padding: 4px 9px;
+            min-height: 28px;
+            font-size: 12px;
+            border-radius: 10px;
+            box-shadow: none;
+        }
+        #${APP_PREFIX}snapshots-header .${APP_PREFIX}btn:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}snapshots-header {
+            background: linear-gradient(90deg, rgba(88, 28, 135, 0.25), rgba(2, 132, 199, 0.18));
+            color: #e5e7eb;
+            border-bottom-color: rgba(148, 163, 184, 0.18);
+        }
+        #${APP_PREFIX}snapshots-tools {
+            padding: 10px 14px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        #${APP_PREFIX}snapshots-tools .${APP_PREFIX}btn {
+            width: auto;
+            margin: 0;
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 10px;
+            min-height: 32px;
+            box-shadow: none;
+        }
+        #${APP_PREFIX}snapshots-tools .${APP_PREFIX}btn:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        #${APP_PREFIX}snapshots-tools .${APP_PREFIX}btn-danger,
+        #${APP_PREFIX}snapshots-tools .${APP_PREFIX}btn-secondary {
+            box-shadow: none;
+        }
+        #${APP_PREFIX}snapshots-tools .${APP_PREFIX}btn:disabled {
+            opacity: 0.55;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}snapshots-tools {
+            border-bottom-color: rgba(148, 163, 184, 0.14);
+        }
+        #${APP_PREFIX}snapshots-tools .${APP_PREFIX}notice {
+            margin: 0;
+            flex: 1 1 260px;
+            color: #6a5b9a;
+            font-size: 12px;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}snapshots-tools .${APP_PREFIX}notice {
+            color: rgba(226, 232, 240, 0.75);
+        }
+        #${APP_PREFIX}snapshots-list {
+            padding: 12px 14px;
+            overflow: auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        .${APP_PREFIX}snapshots-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(90, 100, 120, 0.18);
+            background: rgba(255, 255, 255, 0.85);
+            cursor: pointer;
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}snapshots-card {
+            background: rgba(2, 6, 23, 0.35);
+            border-color: rgba(148, 163, 184, 0.22);
+        }
+        .${APP_PREFIX}snapshots-card[data-selected="true"] {
+            border-color: rgba(124, 58, 237, 0.55);
+            box-shadow: 0 10px 22px rgba(124, 58, 237, 0.16);
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}snapshots-card[data-selected="true"] {
+            border-color: rgba(56, 189, 248, 0.55);
+            box-shadow: 0 10px 22px rgba(2, 132, 199, 0.2);
+        }
+        .${APP_PREFIX}snapshots-card input[type="checkbox"] {
+            margin-top: 3px;
+        }
+        .${APP_PREFIX}snapshots-meta {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .${APP_PREFIX}snapshots-title {
+            font-weight: 800;
+            color: #2b1a33;
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}snapshots-title {
+            color: #e5e7eb;
+        }
+        .${APP_PREFIX}snapshots-sub {
+            margin-top: 4px;
+            font-size: 12px;
+            color: #6b6f80;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}snapshots-sub {
+            color: rgba(226, 232, 240, 0.7);
+        }
+        #${APP_PREFIX}snapshots-empty {
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px dashed rgba(90, 100, 120, 0.25);
+            color: #6b6f80;
+            background: rgba(255,255,255,0.75);
+            text-align: center;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}snapshots-empty {
+            background: rgba(2, 6, 23, 0.35);
+            border-color: rgba(148, 163, 184, 0.25);
+            color: rgba(226, 232, 240, 0.75);
+        }
         #${APP_PREFIX}confirm-overlay {
             position: fixed;
             inset: 0;
@@ -1156,7 +1343,7 @@
             <div id="${APP_PREFIX}header">
                 <div id="${APP_PREFIX}header-title">
                     <span>Auto Uploader</span>
-                    <span id="${APP_PREFIX}header-badge">v1.2.5</span>
+                    <span id="${APP_PREFIX}header-badge">v${CURRENT_VERSION}</span>
                 </div>
                 <div id="${APP_PREFIX}header-actions">
                     <button id="${APP_PREFIX}settings-btn" title="Cài đặt">
@@ -1177,7 +1364,11 @@
                         <button id="${APP_PREFIX}add-volume" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary ${APP_PREFIX}btn-add-volume">Add New</button>
                         <button id="${APP_PREFIX}delete-volume" class="${APP_PREFIX}btn ${APP_PREFIX}btn-danger" disabled>🗑 Xóa</button>
                     </div>
-                    <button id="${APP_PREFIX}fake-upload" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">🚀 Tải lên (web)</button>
+                    <div id="${APP_PREFIX}web-actions" class="${APP_PREFIX}button-group">
+                        <button id="${APP_PREFIX}fake-upload" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">🚀 Tải lên</button>
+                        <button id="${APP_PREFIX}snap-save" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">💾 Lưu</button>
+                        <button id="${APP_PREFIX}snap-open" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">🗂 Bản lưu</button>
+                    </div>
                     <button id="${APP_PREFIX}autofill-btn" class="${APP_PREFIX}btn ${APP_PREFIX}btn-autofill">
                         <svg class="${APP_PREFIX}autofill-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <circle class="${APP_PREFIX}lens" cx="11" cy="11" r="6"></circle>
@@ -1224,6 +1415,21 @@
                 <button id="${APP_PREFIX}dialog-cancel" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Hủy</button>
                 <button id="${APP_PREFIX}dialog-ok" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">Đồng ý</button>
             </div>
+        </div>
+        <div id="${APP_PREFIX}snapshots-overlay" class="${APP_PREFIX}hide"></div>
+        <div id="${APP_PREFIX}snapshots-modal" class="${APP_PREFIX}hide">
+            <div id="${APP_PREFIX}snapshots-header">
+                <span>🗂 Bản lưu trạng thái</span>
+                <button id="${APP_PREFIX}snapshots-close" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost" title="Đóng">✕</button>
+            </div>
+            <div id="${APP_PREFIX}snapshots-tools">
+                <button id="${APP_PREFIX}snapshots-select-all" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost" title="Chọn tất cả">☑</button>
+                <button id="${APP_PREFIX}snapshots-unselect" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost" title="Bỏ chọn">☐</button>
+                <button id="${APP_PREFIX}snapshots-delete" class="${APP_PREFIX}btn ${APP_PREFIX}btn-danger" title="Xóa" disabled>🗑</button>
+                <button id="${APP_PREFIX}snapshots-restore" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary" title="Khôi phục" disabled>↩</button>
+                <div class="${APP_PREFIX}notice">Lưu file best-effort tối đa ~10MB/bản lưu (phụ thuộc quota trình duyệt). Khi khôi phục, file có thể thiếu nếu vượt giới hạn.</div>
+            </div>
+            <div id="${APP_PREFIX}snapshots-list"></div>
         </div>
         <div id="${APP_PREFIX}pref-overlay" class="${APP_PREFIX}hide"></div>
         <div id="${APP_PREFIX}pref-modal" class="${APP_PREFIX}hide">
@@ -1433,6 +1639,8 @@
     const volumeSelect = shadowRoot.querySelector(`#${APP_PREFIX}volume-select`);
     const manualInputContainer = shadowRoot.querySelector(`#${APP_PREFIX}manual-input`);
     const autofillBtn = shadowRoot.querySelector(`#${APP_PREFIX}autofill-btn`);
+    const snapSaveBtn = shadowRoot.querySelector(`#${APP_PREFIX}snap-save`);
+    const snapOpenBtn = shadowRoot.querySelector(`#${APP_PREFIX}snap-open`);
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = '.txt';
@@ -1465,6 +1673,14 @@
     const dialogExtraBtn = shadowRoot.querySelector(`#${APP_PREFIX}dialog-extra`);
     const dialogCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}dialog-cancel`);
     const dialogOkBtn = shadowRoot.querySelector(`#${APP_PREFIX}dialog-ok`);
+    const snapshotsOverlay = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-overlay`);
+    const snapshotsModal = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-modal`);
+    const snapshotsCloseBtn = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-close`);
+    const snapshotsSelectAllBtn = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-select-all`);
+    const snapshotsUnselectBtn = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-unselect`);
+    const snapshotsDeleteBtn = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-delete`);
+    const snapshotsRestoreBtn = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-restore`);
+    const snapshotsListEl = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-list`);
     const prefOverlay = shadowRoot.querySelector(`#${APP_PREFIX}pref-overlay`);
     const prefModal = shadowRoot.querySelector(`#${APP_PREFIX}pref-modal`);
     const prefEnableBtn = shadowRoot.querySelector(`#${APP_PREFIX}pref-enable`);
@@ -2166,45 +2382,21 @@
     `.trim();
 
     const changelogMarkdown = `
-### ✨ v1.2.5
-- Nâng cấp popup xử lý ký tự đặc biệt: **bắt buộc chọn nút**, không tự chọn khi bấm ra ngoài.
-- Thêm xử lý emoji/icon (4-byte) trước upload với 3 lựa chọn: đổi sang text, xóa icon, giữ nguyên.
-- Thêm popup hỏi chuẩn hóa dấu phẩy Nhật **、** sang dấu phẩy thường **,** để giảm lỗi trên web chính thức.
-- Mở rộng dialog update/cảnh báo để hiển thị danh sách file dễ đọc hơn.
+### ✨ v1.2.6
+- Thêm **💾 Lưu** + **🗂 Bản lưu**, lưu/khôi phục form nhúng truyện + volume/chapter + file (best-effort).
+- Lưu file bản lưu lên khoảng **10MB/bản lưu** bằng **IndexedDB** (phụ thuộc quota trình duyệt).
+- Mỗi thẻ bản lưu hiển thị **File: X/10MB** và khi xóa bản lưu sẽ dọn luôn file blob tránh rác.
+- Cover dạng "data:image/...;base64,..." sẽ được lưu best-effort (ưu tiên IndexedDB).
+- Thu gọn cụm nút trong modal Bản lưu (icon + toolbar) để đỡ chiếm chỗ.
+- Tóm tắt changelog cũ gọn hơn (như Autofill).
 
-### ✨ v1.2.4
-- Bỏ cài đặt Regex tùy chỉnh trong UI, chuyển sang parse mặc định theo logic app Novel Studio.
-- Thêm auto-detect bảng mã theo file + log chi tiết, có hỏi chuyển sang UTF-8 trước khi xử lý.
-- Thêm rule xử lý số chương lặp đầu tiêu đề (vd: "第1章 第1章 ...") chỉ giữ một số.
-
-### 📦 v1.2.3
-- Tối ưu giao diện + thêm theme tối.
-
-### 📦 v1.2.2
-- Thêm thống kê chương theo quyển + tên chương cuối (bật/tắt).
-- Hiển thị tổng số chương trong Cài đặt.
-- Trang chỉnh sửa: chọn được quyển không thể bổ sung, chỉ dùng Add New/Xóa.
-- Xóa quyển cũ/bổ sung yêu cầu xác nhận username chủ truyện.
-- Khi xóa quyển đã có, cập nhật lại tổng chương và thẻ thống kê của quyển.
-
-### 📦 v1.2.1 (Hotfix)
-- Sửa lỗi **auto upload không gán file thật vào input**, gây treo khi nhấn Upload.
-- Đồng bộ lại logic kiểm tra file giữa script và web.
-- Vá lỗi web crash khi gặp chương thiếu file.
-- Cải thiện độ ổn định khi upload nhiều chương liên tiếp.
-
-### 📦 v1.2
-- Thêm nút **Xóa** quyển (nhúng file) và popup xác nhận.
-- Thêm nút **Thêm Quyển** và tự chọn quyển mới.
-- Chặn lỗi treo khi quyển cũ đã bị xóa.
-- Sửa lỗi upload lần 2 bị dính số file cũ.
-- Làm mới giao diện panel hiện đại hơn.
-
-### 📦 v1.1.9 (Hotfix)
-- Cập nhật Auto Fill
-
-### 📦 v1.1.8
-- Ổn định luồng upload, tối ưu trải nghiệm.
+### 📦 Các bản trước (tóm tắt)
+- v1.2.5: Popup xử lý ký tự đặc biệt, emoji/icon (4-byte), hỏi chuẩn hóa dấu phẩy Nhật "、", cải thiện dialog log.
+- v1.2.4: Bỏ regex tùy chỉnh UI, auto-detect encoding + hỏi chuyển UTF-8, fix double số chương trong tiêu đề.
+- v1.2.3: Tối ưu UI + theme tối.
+- v1.2.2: Thống kê chương theo quyển, tổng chương trong cài đặt, luồng xóa quyển có xác nhận chủ truyện.
+- v1.2.1: Hotfix gán file thật vào input + ổn định upload nhiều chương.
+- v1.2.0: Thêm nút xóa/thêm quyển, chống treo khi upload lại, làm mới panel.
 `.trim();
 
 
@@ -2488,8 +2680,996 @@
         return { text: '', guessed: false };
     }
 
+    // --- Snapshot (Lưu/Bản lưu) ---
+    const createSnapshotId = () => `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    const sleepMs = (ms) => new Promise(r => setTimeout(r, ms));
+    const safeJsonParse = (raw, fallback) => {
+        try { return JSON.parse(raw); } catch { return fallback; }
+    };
+    const arrayBufferToBase64 = (buffer) => {
+        const bytes = new Uint8Array(buffer);
+        const chunk = 0x8000;
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += chunk) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+        }
+        return btoa(binary);
+    };
+    const base64ToUint8Array = (b64) => {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+    };
+    const formatDateTime = (ts) => {
+        try {
+            return new Date(ts).toLocaleString('vi-VN');
+        } catch {
+            return String(ts || '');
+        }
+    };
+    const formatMB = (bytes) => {
+        const n = typeof bytes === 'number' && !Number.isNaN(bytes) ? bytes : 0;
+        return (n / (1024 * 1024)).toFixed(2);
+    };
+    const mimeToExt = (mime) => {
+        const m = String(mime || '').toLowerCase();
+        if (m.includes('png')) return 'png';
+        if (m.includes('webp')) return 'webp';
+        if (m.includes('gif')) return 'gif';
+        if (m.includes('bmp')) return 'bmp';
+        if (m.includes('jpeg') || m.includes('jpg')) return 'jpg';
+        return 'bin';
+    };
+    const getCoverFileInput = () => {
+        return document.querySelector('input[type="file"][data-change="changeCoverFile"]')
+            || document.querySelector('input[type="file"][name="cover"]')
+            || null;
+    };
+    const setFileToInput = (inputEl, fileObj) => {
+        if (!inputEl || !fileObj) return false;
+        try {
+            const dt = new DataTransfer();
+            dt.items.add(fileObj);
+            inputEl.files = dt.files;
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+        } catch {
+            return false;
+        }
+    };
+
+    // IndexedDB helpers (store file blobs by snapshot id)
+    let snapshotDbPromise = null;
+    const openSnapshotDb = () => {
+        if (snapshotDbPromise) return snapshotDbPromise;
+        snapshotDbPromise = new Promise((resolve, reject) => {
+            try {
+                if (!('indexedDB' in window)) {
+                    resolve(null);
+                    return;
+                }
+                const req = indexedDB.open(SNAPSHOT_DB_NAME, 1);
+                req.onupgradeneeded = () => {
+                    const db = req.result;
+                    if (!db.objectStoreNames.contains(SNAPSHOT_DB_STORE)) {
+                        const store = db.createObjectStore(SNAPSHOT_DB_STORE, { keyPath: 'key' });
+                        store.createIndex('snapshotId', 'snapshotId', { unique: false });
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error || new Error('IndexedDB open failed'));
+            } catch (e) {
+                resolve(null);
+            }
+        });
+        return snapshotDbPromise;
+    };
+    const idbPutSnapshotFile = async (record) => {
+        const db = await openSnapshotDb();
+        if (!db) return false;
+        return await new Promise((resolve) => {
+            try {
+                const tx = db.transaction(SNAPSHOT_DB_STORE, 'readwrite');
+                tx.oncomplete = () => resolve(true);
+                tx.onerror = () => resolve(false);
+                tx.objectStore(SNAPSHOT_DB_STORE).put(record);
+            } catch {
+                resolve(false);
+            }
+        });
+    };
+    const idbGetSnapshotFile = async (key) => {
+        const db = await openSnapshotDb();
+        if (!db) return null;
+        return await new Promise((resolve) => {
+            try {
+                const tx = db.transaction(SNAPSHOT_DB_STORE, 'readonly');
+                const req = tx.objectStore(SNAPSHOT_DB_STORE).get(key);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => resolve(null);
+            } catch {
+                resolve(null);
+            }
+        });
+    };
+    const idbDeleteSnapshotFilesBySnapshotId = async (snapshotId) => {
+        const db = await openSnapshotDb();
+        if (!db) return 0;
+        return await new Promise((resolve) => {
+            let deleted = 0;
+            try {
+                const tx = db.transaction(SNAPSHOT_DB_STORE, 'readwrite');
+                const store = tx.objectStore(SNAPSHOT_DB_STORE);
+                const index = store.index('snapshotId');
+                const range = IDBKeyRange.only(snapshotId);
+                const req = index.openCursor(range);
+                req.onsuccess = () => {
+                    const cursor = req.result;
+                    if (!cursor) return;
+                    try {
+                        cursor.delete();
+                        deleted += 1;
+                    } catch { }
+                    cursor.continue();
+                };
+                tx.oncomplete = () => resolve(deleted);
+                tx.onerror = () => resolve(deleted);
+            } catch {
+                resolve(deleted);
+            }
+        });
+    };
+    const loadSnapshots = () => {
+        const raw = GM_getValue(SNAPSHOTS_KEY, '[]');
+        const list = Array.isArray(raw) ? raw : safeJsonParse(String(raw || '[]'), []);
+        return Array.isArray(list) ? list : [];
+    };
+    const saveSnapshots = (list) => {
+        const next = Array.isArray(list) ? list : [];
+        GM_setValue(SNAPSHOTS_KEY, next);
+    };
+    const getWebBookMeta = () => {
+        const readById = (id) => normalizeText(document.getElementById(id)?.value || '');
+        const pickFirst = (arr) => arr.find(Boolean) || '';
+        const titleVi = pickFirst([readById('txtTitleVi'), readById('titleVi'), readById('txtNameVi')]);
+        const authorVi = pickFirst([readById('txtAuthorVi'), readById('authorVi')]);
+        const titleCn = pickFirst([readById('txtTitleCn'), readById('titleCn'), readById('txtNameCn')]);
+        const authorCn = pickFirst([readById('txtAuthorCn'), readById('authorCn'), readById('txtAuthor')]);
+        const title = titleVi || titleCn || normalizeText(document.title) || '(Chưa có tên)';
+        const author = authorVi || authorCn || '(Chưa có tác giả)';
+        return { title, author, titleVi, authorVi, titleCn, authorCn };
+    };
+    const collectKnownFilesByName = () => {
+        const map = new Map();
+        const add = (file) => {
+            if (!file || !file.name) return;
+            if (!map.has(file.name)) map.set(file.name, file);
+        };
+        (state.allFiles || []).forEach(add);
+        (state.validFiles || []).forEach(item => add(item?.file));
+        (state.invalidFiles || []).forEach(item => add(item?.file || item));
+        (state.previewOrder || []).forEach(item => add(item?.file));
+        return map;
+    };
+
+    const scanAutofillFormState = () => {
+        // Same selectors as Wikidich Autofill script uses.
+        const readById = (id) => normalizeText(document.getElementById(id)?.value || '');
+        // IMPORTANT: do NOT normalize data URLs (base64) or we may break decoding.
+        const coverFromImg = String(document.getElementById('imgCover')?.getAttribute('src') || '').trim();
+        const coverInput = readById('imgUrl');
+        const moreLinkDesc = normalizeText(document.querySelector('input[name="moreLinkDesc"]')?.value || '');
+        const moreLinkUrl = normalizeText(document.querySelector('input[name="moreLinkUrl"]')?.value || '');
+
+        const keysRadio = ['status', 'official', 'gender'];
+        const keysCheck = ['age', 'ending', 'genre', 'tag'];
+
+        const allInputs = Array.from(document.querySelectorAll('.book-attr-group input[name]'));
+        if (!allInputs.length) {
+            return {
+                titleCn: readById('txtTitleCn'),
+                authorCn: readById('txtAuthorCn'),
+                titleVi: readById('txtTitleVi'),
+                descVi: readById('txtDescVi'),
+                coverUrl: coverInput || '',
+                cover: {
+                    url: coverInput || '',
+                    dataUrl: coverFromImg || '',
+                    store: null,
+                    key: null,
+                    bytes: 0,
+                    type: '',
+                },
+                groups: {},
+                moreLink: { desc: moreLinkDesc, url: moreLinkUrl },
+            };
+        }
+
+        const getLabelFor = (input) => {
+            if (!input || !input.id) return '';
+            const labelEl = document.querySelector(`label[for="${CSS.escape(input.id)}"]`);
+            return normalizeText(labelEl?.textContent || '');
+        };
+
+        const groups = {};
+        keysRadio.forEach((name) => {
+            const inputs = allInputs.filter(i => i.getAttribute('name') === name && (i.type || '').toLowerCase() === 'radio');
+            const checked = inputs.find(i => i.checked);
+            groups[name] = {
+                type: 'radio',
+                value: checked ? normalizeText(checked.value || '') : '',
+                label: checked ? getLabelFor(checked) : '',
+            };
+        });
+        keysCheck.forEach((name) => {
+            const inputs = allInputs.filter(i => i.getAttribute('name') === name && (i.type || '').toLowerCase() === 'checkbox');
+            const checked = inputs.filter(i => i.checked);
+            groups[name] = {
+                type: 'checkbox',
+                items: checked.map(i => ({
+                    value: normalizeText(i.value || ''),
+                    label: getLabelFor(i),
+                })),
+            };
+        });
+
+        return {
+            titleCn: readById('txtTitleCn'),
+            authorCn: readById('txtAuthorCn'),
+            titleVi: readById('txtTitleVi'),
+            descVi: readById('txtDescVi'),
+            coverUrl: coverInput || '',
+            cover: {
+                url: coverInput || '',
+                dataUrl: coverFromImg || '',
+                store: null,
+                key: null,
+                bytes: 0,
+                type: '',
+            },
+            groups,
+            moreLink: { desc: moreLinkDesc, url: moreLinkUrl },
+        };
+    };
+
+    const applyAutofillFormState = async (formState) => {
+        if (!formState || typeof formState !== 'object') return;
+
+        const setId = (id, value) => {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            return setInputValue(el, value == null ? '' : String(value));
+        };
+
+        setId('txtTitleCn', formState.titleCn || '');
+        setId('txtAuthorCn', formState.authorCn || '');
+        setId('txtTitleVi', formState.titleVi || '');
+        setId('txtDescVi', formState.descVi || '');
+        const coverUrl = normalizeText(formState.coverUrl || formState.cover?.url || '');
+        if (coverUrl) {
+            if (/^data:image\//i.test(coverUrl)) {
+                const img = document.getElementById('imgCover');
+                if (img) img.setAttribute('src', coverUrl);
+                // Try to also set cover file input so the web can actually upload it.
+                const m = coverUrl.match(/^data:([^;]+);base64,(.*)$/i);
+                if (m) {
+                    const type = m[1] || 'image/jpeg';
+                    const b64 = (m[2] || '').replace(/\s+/g, '');
+                    try {
+                        const bytes = base64ToUint8Array(b64);
+                        const blob = new Blob([bytes], { type });
+                        const ext = mimeToExt(type);
+                        const file = new File([blob], `cover.${ext}`, { type, lastModified: Date.now() });
+                        const fileInput = getCoverFileInput();
+                        if (fileInput) setFileToInput(fileInput, file);
+                    } catch { }
+                }
+            } else {
+                setId('imgUrl', coverUrl);
+            }
+        } else if (formState.cover && formState.cover.store === 'idb' && formState.cover.key) {
+            const rec = await idbGetSnapshotFile(formState.cover.key);
+            const img = document.getElementById('imgCover');
+            if (img && rec && rec.blob) {
+                try {
+                    const objectUrl = URL.createObjectURL(rec.blob);
+                    img.setAttribute('src', objectUrl);
+                } catch { }
+            }
+            if (rec && rec.blob) {
+                const type = rec.type || rec.blob.type || 'image/jpeg';
+                const ext = mimeToExt(type);
+                try {
+                    const file = new File([rec.blob], `cover.${ext}`, { type, lastModified: rec.lastModified || Date.now() });
+                    const fileInput = getCoverFileInput();
+                    if (fileInput) setFileToInput(fileInput, file);
+                } catch { }
+            }
+        } else if (formState.cover && formState.cover.store === 'inline' && formState.cover.dataUrl) {
+            const img = document.getElementById('imgCover');
+            if (img) img.setAttribute('src', String(formState.cover.dataUrl));
+            const m = String(formState.cover.dataUrl).match(/^data:([^;]+);base64,(.*)$/i);
+            if (m) {
+                const type = m[1] || 'image/jpeg';
+                const b64 = (m[2] || '').replace(/\s+/g, '');
+                try {
+                    const bytes = base64ToUint8Array(b64);
+                    const blob = new Blob([bytes], { type });
+                    const ext = mimeToExt(type);
+                    const file = new File([blob], `cover.${ext}`, { type, lastModified: Date.now() });
+                    const fileInput = getCoverFileInput();
+                    if (fileInput) setFileToInput(fileInput, file);
+                } catch { }
+            }
+        }
+
+        // More links: only first row like Autofill currently uses.
+        const moreDescEl = document.querySelector('input[name="moreLinkDesc"]');
+        const moreUrlEl = document.querySelector('input[name="moreLinkUrl"]');
+        if (moreDescEl) setInputValue(moreDescEl, formState.moreLink?.desc || '');
+        if (moreUrlEl) setInputValue(moreUrlEl, formState.moreLink?.url || '');
+
+        const allInputs = Array.from(document.querySelectorAll('.book-attr-group input[name]'));
+        if (!allInputs.length) return;
+
+        const getLabelFor = (input) => {
+            if (!input || !input.id) return '';
+            const labelEl = document.querySelector(`label[for="${CSS.escape(input.id)}"]`);
+            return normalizeText(labelEl?.textContent || '');
+        };
+        const clickToSet = (input, wantChecked) => {
+            if (!input) return;
+            const current = !!input.checked;
+            if (current === !!wantChecked) return;
+            try { input.click(); } catch { input.checked = !!wantChecked; }
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        const groups = formState.groups && typeof formState.groups === 'object' ? formState.groups : {};
+        Object.keys(groups).forEach((name) => {
+            const g = groups[name];
+            if (!g || typeof g !== 'object') return;
+
+            if (g.type === 'radio') {
+                const inputs = allInputs.filter(i => i.getAttribute('name') === name && (i.type || '').toLowerCase() === 'radio');
+                const target = inputs.find(i => normalizeText(i.value || '') === normalizeText(g.value || ''))
+                    || inputs.find(i => normalizeText(getLabelFor(i)).toLowerCase() === normalizeText(g.label || '').toLowerCase());
+                if (target) clickToSet(target, true);
+                return;
+            }
+
+            if (g.type === 'checkbox') {
+                const inputs = allInputs.filter(i => i.getAttribute('name') === name && (i.type || '').toLowerCase() === 'checkbox');
+                const wanted = Array.isArray(g.items) ? g.items : [];
+                const wantedValues = new Set(wanted.map(it => normalizeText(it?.value || '')).filter(Boolean));
+                const wantedLabels = new Set(wanted.map(it => normalizeText(it?.label || '').toLowerCase()).filter(Boolean));
+                inputs.forEach((input) => {
+                    const v = normalizeText(input.value || '');
+                    const l = normalizeText(getLabelFor(input)).toLowerCase();
+                    const want = (v && wantedValues.has(v)) || (l && wantedLabels.has(l));
+                    clickToSet(input, want);
+                });
+            }
+        });
+
+        if (window.M && typeof window.M.updateTextFields === 'function') {
+            try { window.M.updateTextFields(); } catch { }
+        }
+        await sleepMs(0);
+    };
+
+    const scanWebState = async () => {
+        const snapshotId = createSnapshotId();
+        const book = getWebBookMeta();
+        const autofillForm = scanAutofillFormState();
+        const wrappers = getRealVolumeWrappers();
+        const selectedIndex = wrappers.indexOf(state.selectedVolumeWrapper);
+        const volumes = [];
+        let inlineUsed = 0;
+        let savedFileBytes = 0;
+        let savedFiles = 0;
+        const tool = {
+            useFirstLineOnly: !!(firstLineOnlyInput && firstLineOnlyInput.checked),
+            chapTemplate: normalizeText(chapterTemplateInput?.value || settings.CHAPTER_NAME_TEMPLATE || ''),
+            parsePriority: normalizeText(prioritySelect?.value || settings.PARSE_PRIORITY || ''),
+        };
+
+        // Store cover into IndexedDB (avoid bloating GM storage) when possible.
+        if (autofillForm && autofillForm.cover && typeof autofillForm.cover === 'object') {
+            const cover = autofillForm.cover;
+            const url = normalizeText(cover.url || '');
+            const dataUrl = String(cover.dataUrl || '').trim();
+            const isDataImage = /^data:image\//i.test(dataUrl);
+            const isBlobUrl = /^blob:/i.test(dataUrl);
+            const isHttpUrl = /^https?:\/\//i.test(dataUrl);
+
+            // If user pasted a real URL into img src, keep it as cover url.
+            if (!url && isHttpUrl) {
+                cover.url = dataUrl;
+                autofillForm.coverUrl = dataUrl;
+                cover.dataUrl = '';
+            } else if (!url && isBlobUrl) {
+                // Web often uses blob: URL for cover preview after picking a file.
+                // Fetch it now (while the blob URL is alive) and store bytes.
+                try {
+                    const res = await fetch(dataUrl);
+                    const blob = await res.blob();
+                    const approxBytes = blob.size || 0;
+                    let stored = false;
+                    if (blob && (savedFileBytes + approxBytes) <= SNAPSHOT_MAX_FILE_BYTES) {
+                        const type = blob.type || 'image/jpeg';
+                        const key = `${snapshotId}::cover`;
+                        const ok = await idbPutSnapshotFile({
+                            key,
+                            snapshotId,
+                            kind: 'cover',
+                            fileName: 'cover',
+                            bytes: blob.size,
+                            type,
+                            lastModified: 0,
+                            blob,
+                        });
+                        if (ok) {
+                            cover.store = 'idb';
+                            cover.key = key;
+                            cover.bytes = blob.size;
+                            cover.type = type;
+                            cover.dataUrl = '';
+                            savedFileBytes += blob.size;
+                            stored = true;
+                        }
+                    }
+                    if (!stored && blob && (inlineUsed + approxBytes) <= SNAPSHOT_MAX_INLINE_FILE_BYTES) {
+                        const type = blob.type || 'image/jpeg';
+                        const buf = await blob.arrayBuffer();
+                        const b64 = arrayBufferToBase64(buf);
+                        cover.store = 'inline';
+                        cover.key = null;
+                        cover.bytes = approxBytes;
+                        cover.type = type;
+                        cover.dataUrl = `data:${type};base64,${b64}`;
+                        inlineUsed += approxBytes;
+                        stored = true;
+                    }
+                    if (!stored) {
+                        cover.store = null;
+                        cover.key = null;
+                        cover.bytes = 0;
+                        cover.type = '';
+                        cover.dataUrl = '';
+                    }
+                } catch {
+                    cover.store = null;
+                    cover.key = null;
+                    cover.bytes = 0;
+                    cover.type = '';
+                    cover.dataUrl = '';
+                }
+            } else if (!url && isDataImage && (savedFileBytes < SNAPSHOT_MAX_FILE_BYTES)) {
+                const m = dataUrl.match(/^data:([^;]+);base64,(.*)$/i);
+                if (m) {
+                    const type = m[1] || 'image/jpeg';
+                    const b64 = (m[2] || '').replace(/\s+/g, '');
+                    const approxBytes = Math.floor((b64.length * 3) / 4);
+                    let stored = false;
+                    if ((savedFileBytes + approxBytes) <= SNAPSHOT_MAX_FILE_BYTES) {
+                        try {
+                            const bytes = base64ToUint8Array(b64);
+                            const blob = new Blob([bytes], { type });
+                            const key = `${snapshotId}::cover`;
+                            const ok = await idbPutSnapshotFile({
+                                key,
+                                snapshotId,
+                                kind: 'cover',
+                                fileName: 'cover',
+                                bytes: blob.size,
+                                type,
+                                lastModified: 0,
+                                blob,
+                            });
+                            if (ok) {
+                                cover.store = 'idb';
+                                cover.key = key;
+                                cover.bytes = blob.size;
+                                cover.type = type;
+                                cover.dataUrl = '';
+                                savedFileBytes += blob.size;
+                                stored = true;
+                            }
+                        } catch { }
+                    }
+                    if (!stored && (inlineUsed + approxBytes) <= SNAPSHOT_MAX_INLINE_FILE_BYTES) {
+                        cover.store = 'inline';
+                        cover.key = null;
+                        cover.bytes = approxBytes;
+                        cover.type = type;
+                        cover.dataUrl = dataUrl;
+                        inlineUsed += approxBytes;
+                        stored = true;
+                    }
+                }
+                // If not stored, avoid persisting huge strings.
+                if (!cover.store) {
+                    cover.store = null;
+                    cover.key = null;
+                    cover.bytes = 0;
+                    cover.type = '';
+                    cover.dataUrl = '';
+                }
+            } else {
+                // If coverUrl exists, keep it; do not persist dataUrl.
+                cover.dataUrl = '';
+            }
+        }
+
+        for (let i = 0; i < wrappers.length; i += 1) {
+            const wrapper = wrappers[i];
+            const trueWrapper = wrapper.querySelector('.volume-wrapper');
+            const nameInput = wrapper.querySelector('input[name="nameCn"], input[name="name"]');
+            const volName = normalizeText(nameInput?.value || getVolumeDisplayName(wrapper, i));
+            const appendable = !!(trueWrapper && trueWrapper.getAttribute('data-append') === 'true');
+            const appendMode = normalizeText(trueWrapper?.querySelector('input[name="appendMode"]')?.value || '');
+            const autoNumber = !!trueWrapper?.querySelector('input[name="autoNumber"]')?.checked;
+            const numFile = normalizeText(trueWrapper?.querySelector('input[name="numFile"]')?.value || '');
+            const chapterWrapper = trueWrapper?.querySelector('.chapter-wrapper');
+            const rows = chapterWrapper ? Array.from(chapterWrapper.querySelectorAll('.chapter-info-wrapper')) : [];
+            const chapters = [];
+
+            for (let r = 0; r < rows.length; r += 1) {
+                const row = rows[r];
+                const chapterName = normalizeText(row.querySelector('input[name="name"]')?.value || '');
+                const fileText = normalizeText(row.querySelector('input.file-path')?.value || '');
+                const fileInputReal =
+                    row.querySelector('input[type="file"][name="file"], input[name="file"][type="file"]') ||
+                    row.querySelector('input[type="file"]');
+                const fileObj = fileInputReal?.files && fileInputReal.files.length ? fileInputReal.files[0] : null;
+                const fileName = normalizeText(fileObj?.name || fileText);
+
+                const chapter = {
+                    name: chapterName,
+                    fileName,
+                    fileInfo: fileObj ? {
+                        name: fileObj.name,
+                        size: fileObj.size,
+                        type: fileObj.type || 'text/plain',
+                        lastModified: fileObj.lastModified || 0,
+                    } : null,
+                    fileStore: null, // 'idb' | 'inline' | null
+                    fileKey: null,
+                    fileBase64: null, // legacy/fallback
+                };
+
+                // Best-effort store file blob into IndexedDB up to 10MB per snapshot.
+                if (fileObj && (savedFileBytes + fileObj.size) <= SNAPSHOT_MAX_FILE_BYTES) {
+                    const key = `${snapshotId}::${i}::${r}::${fileObj.name}::${fileObj.lastModified || 0}`;
+                    const ok = await idbPutSnapshotFile({
+                        key,
+                        snapshotId,
+                        fileName: fileObj.name,
+                        bytes: fileObj.size,
+                        type: fileObj.type || 'text/plain',
+                        lastModified: fileObj.lastModified || 0,
+                        blob: fileObj,
+                    });
+                    if (ok) {
+                        chapter.fileStore = 'idb';
+                        chapter.fileKey = key;
+                        savedFileBytes += fileObj.size;
+                        savedFiles += 1;
+                    }
+                }
+
+                // Fallback: tiny inline base64 if IndexedDB is unavailable or over cap.
+                if (!chapter.fileStore && fileObj && (inlineUsed + fileObj.size) <= SNAPSHOT_MAX_INLINE_FILE_BYTES) {
+                    try {
+                        const buf = await fileObj.arrayBuffer();
+                        chapter.fileBase64 = arrayBufferToBase64(buf);
+                        chapter.fileStore = 'inline';
+                        inlineUsed += fileObj.size;
+                    } catch { }
+                }
+
+                if (chapter.name || chapter.fileName) chapters.push(chapter);
+            }
+
+            volumes.push({
+                index: i,
+                name: volName,
+                appendable,
+                appendMode,
+                autoNumber,
+                numFile,
+                chapters,
+            });
+        }
+
+        return {
+            id: snapshotId,
+            createdAt: Date.now(),
+            domain: location.hostname,
+            pagePath: location.pathname,
+            book,
+            autofillForm,
+            selectedVolumeIndex: selectedIndex,
+            volumes,
+            inlineFileBytes: inlineUsed,
+            savedFileBytes,
+            savedFiles,
+            tool,
+        };
+    };
+
+    const openSnapshotsModal = () => {
+        if (!snapshotsOverlay || !snapshotsModal) return;
+        snapshotsOverlay.classList.remove(`${APP_PREFIX}hide`);
+        snapshotsModal.classList.remove(`${APP_PREFIX}hide`);
+    };
+    const closeSnapshotsModal = () => {
+        if (snapshotsModal) snapshotsModal.classList.add(`${APP_PREFIX}hide`);
+        if (snapshotsOverlay) snapshotsOverlay.classList.add(`${APP_PREFIX}hide`);
+    };
+
+    const snapshotsUi = {
+        selected: new Set(),
+        list: [],
+    };
+    const updateSnapshotsActions = () => {
+        const n = snapshotsUi.selected.size;
+        if (snapshotsDeleteBtn) snapshotsDeleteBtn.disabled = n === 0;
+        if (snapshotsRestoreBtn) snapshotsRestoreBtn.disabled = n !== 1;
+    };
+    const toggleSnapshotSelected = (id, nextVal) => {
+        const want = (typeof nextVal === 'boolean') ? nextVal : !snapshotsUi.selected.has(id);
+        if (want) snapshotsUi.selected.add(id);
+        else snapshotsUi.selected.delete(id);
+        updateSnapshotsActions();
+    };
+    const renderSnapshotsList = () => {
+        if (!snapshotsListEl) return;
+        const list = loadSnapshots();
+        snapshotsUi.list = list;
+        const prev = snapshotsUi.selected instanceof Set ? snapshotsUi.selected : new Set();
+        const validIds = new Set(list.map(s => s?.id).filter(Boolean));
+        snapshotsUi.selected = new Set(Array.from(prev).filter(id => validIds.has(id)));
+        updateSnapshotsActions();
+
+        if (!list.length) {
+            snapshotsListEl.innerHTML = `<div id="${APP_PREFIX}snapshots-empty">Chưa có bản lưu nào. Bấm 💾 Lưu để tạo bản lưu.</div>`;
+            return;
+        }
+
+        snapshotsListEl.innerHTML = list.map((snap) => {
+            const title = escapeHtml(`${snap?.book?.title || '(Chưa có tên)'} • ${snap?.book?.author || '(Chưa có tác giả)'}`);
+            const when = escapeHtml(formatDateTime(snap.createdAt));
+            const vcount = Array.isArray(snap.volumes) ? snap.volumes.length : 0;
+            const selected = typeof snap.selectedVolumeIndex === 'number' && snap.selectedVolumeIndex >= 0 ? `Quyển: ${snap.selectedVolumeIndex + 1}` : 'Quyển: (chưa chọn)';
+            const totalCh = Array.isArray(snap.volumes) ? snap.volumes.reduce((acc, v) => acc + ((v?.chapters?.length) || 0), 0) : 0;
+            const savedBytes = (snap.savedFileBytes || 0) + (snap.inlineFileBytes || 0);
+            const savedMb = formatMB(savedBytes);
+            const capMb = formatMB(SNAPSHOT_MAX_FILE_BYTES);
+            return `
+                <div class="${APP_PREFIX}snapshots-card" data-id="${escapeHtml(snap.id)}" data-selected="false">
+                    <input class="${APP_PREFIX}snapshots-check" type="checkbox" data-id="${escapeHtml(snap.id)}" />
+                    <div class="${APP_PREFIX}snapshots-meta">
+                        <div class="${APP_PREFIX}snapshots-title">${title}</div>
+                        <div class="${APP_PREFIX}snapshots-sub">
+                            <span>${when}</span>
+                            <span>Volumes: ${vcount}</span>
+                            <span>${escapeHtml(selected)}</span>
+                            <span>Chương: ${totalCh}</span>
+                            <span>File: ${savedMb}/${capMb} MB</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        snapshotsListEl.querySelectorAll(`.${APP_PREFIX}snapshots-card`).forEach((card) => {
+            const id = card.getAttribute('data-id') || '';
+            const checkbox = card.querySelector(`input.${APP_PREFIX}snapshots-check`);
+            const applySelectedUi = () => {
+                const sel = snapshotsUi.selected.has(id);
+                card.setAttribute('data-selected', sel ? 'true' : 'false');
+                if (checkbox) checkbox.checked = sel;
+            };
+            const toggle = () => {
+                toggleSnapshotSelected(id);
+                applySelectedUi();
+            };
+            card.addEventListener('click', (ev) => {
+                if (ev.target && (ev.target.tagName || '').toLowerCase() === 'input') return;
+                toggle();
+            });
+            if (checkbox) {
+                checkbox.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                });
+                checkbox.addEventListener('change', () => {
+                    toggleSnapshotSelected(id, !!checkbox.checked);
+                    applySelectedUi();
+                });
+            }
+            applySelectedUi();
+        });
+    };
+
+    const saveCurrentSnapshot = async () => {
+        try {
+            showUploadToast('Đang lưu trạng thái web...', 'loading');
+            const snap = await scanWebState();
+            const list = loadSnapshots();
+            list.unshift(snap);
+            if (list.length > SNAPSHOT_MAX_ITEMS) {
+                const removed = list.splice(SNAPSHOT_MAX_ITEMS);
+                // Cleanup old snapshot file blobs to avoid orphan data.
+                for (const s of removed) {
+                    const sid = s?.id;
+                    if (sid) {
+                        try { await idbDeleteSnapshotFilesBySnapshotId(sid); } catch { }
+                    }
+                }
+            }
+            saveSnapshots(list);
+            const savedMb = formatMB((snap.savedFileBytes || 0) + (snap.inlineFileBytes || 0));
+            const capMb = formatMB(SNAPSHOT_MAX_FILE_BYTES);
+            log(`💾 Đã lưu trạng thái: ${escapeHtml(snap.book.title)} • ${escapeHtml(snap.book.author)} (file lưu ~${savedMb}/${capMb} MB).`, 'success');
+            showUploadToast('Đã lưu trạng thái web.', 'success', 1800);
+        } catch (e) {
+            log(`❌ Lưu trạng thái thất bại: ${e.message}`, 'error');
+            showUploadToast('Lưu trạng thái thất bại.', 'error', 2200);
+        }
+    };
+
+    const restoreSnapshot = async (snap) => {
+        if (!snap || !Array.isArray(snap.volumes)) return;
+        showUploadToast('Đang khôi phục trạng thái...', 'loading');
+        if (snap.tool && typeof snap.tool === 'object') {
+            if (typeof snap.tool.useFirstLineOnly === 'boolean') {
+                settings.USE_FIRST_LINE_ONLY = snap.tool.useFirstLineOnly;
+                if (firstLineOnlyInput) firstLineOnlyInput.checked = snap.tool.useFirstLineOnly;
+            }
+            if (typeof snap.tool.chapTemplate === 'string' && snap.tool.chapTemplate.trim()) {
+                settings.CHAPTER_NAME_TEMPLATE = snap.tool.chapTemplate.trim();
+                if (chapterTemplateInput) chapterTemplateInput.value = settings.CHAPTER_NAME_TEMPLATE;
+            }
+            if (typeof snap.tool.parsePriority === 'string' && snap.tool.parsePriority.trim()) {
+                settings.PARSE_PRIORITY = snap.tool.parsePriority.trim();
+                if (prioritySelect) prioritySelect.value = settings.PARSE_PRIORITY;
+            }
+            saveSettings();
+        }
+        if (snap.autofillForm && typeof snap.autofillForm === 'object') {
+            await applyAutofillFormState(snap.autofillForm);
+        }
+
+        const ensureVolumeCount = async (count) => {
+            let wrappers = getRealVolumeWrappers();
+            const addBtn = document.querySelector('.btn-add-volume[data-action="addVolumeWrapper"]');
+            let guard = 0;
+            while (wrappers.length < count && addBtn && guard < 50) {
+                addBtn.click();
+                await sleepMs(140);
+                wrappers = getRealVolumeWrappers();
+                guard += 1;
+            }
+            return wrappers;
+        };
+
+        const wrappers = await ensureVolumeCount(snap.volumes.length);
+        const knownFiles = collectKnownFilesByName();
+        let missingFiles = 0;
+
+        const setFileToInput = (inputEl, fileObj) => {
+            if (!inputEl || !fileObj) return false;
+            try {
+                const dt = new DataTransfer();
+                dt.items.add(fileObj);
+                inputEl.files = dt.files;
+                inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                return true;
+            } catch {
+                return false;
+            }
+        };
+
+        const restoreVolume = async (wrapper, vState) => {
+            const trueWrapper = wrapper?.querySelector('.volume-wrapper');
+            if (!trueWrapper) return;
+            const nameInput = wrapper.querySelector('input[name="nameCn"], input[name="name"]');
+            if (nameInput && typeof vState.name === 'string') {
+                setInputValue(nameInput, vState.name);
+            }
+            const appendModeInput = trueWrapper.querySelector('input[name="appendMode"]');
+            if (appendModeInput && typeof vState.appendMode === 'string') {
+                setInputValue(appendModeInput, vState.appendMode);
+            }
+            const autoNumberInput = trueWrapper.querySelector('input[name="autoNumber"]');
+            if (autoNumberInput && typeof vState.autoNumber === 'boolean' && autoNumberInput.checked !== vState.autoNumber) {
+                autoNumberInput.click();
+            }
+
+            const addChapterBtn = trueWrapper.querySelector('[data-action="addChapterInfo"]');
+            const chapterWrapper = trueWrapper.querySelector('.chapter-wrapper');
+            if (!addChapterBtn || !chapterWrapper) return;
+
+            const desired = Array.isArray(vState.chapters) ? vState.chapters.length : 0;
+            const rows = () => Array.from(chapterWrapper.querySelectorAll('.chapter-info-wrapper'));
+
+            // Clear existing rows first.
+            rows().forEach((row) => {
+                const removeBtn = row.querySelector('[data-action="removeChapter"]');
+                if (removeBtn) removeBtn.click();
+                else row.remove();
+            });
+            await sleepMs(120);
+
+            const numFileInput = trueWrapper.querySelector('input[name="numFile"]');
+            const ensureRows = async () => {
+                if (desired <= 0) return true;
+                if (numFileInput) {
+                    numFileInput.value = String(desired);
+                    numFileInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    numFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    await sleepMs(120);
+                }
+                let current = rows().length;
+                let guard = 0;
+                while (current < desired && guard < desired + 10) {
+                    addChapterBtn.click();
+                    await sleepMs(10);
+                    current = rows().length;
+                    guard += 1;
+                }
+                return rows().length >= desired;
+            };
+
+            await ensureRows();
+            const finalRows = rows();
+            for (let i = 0; i < Math.min(desired, finalRows.length); i += 1) {
+                const row = finalRows[i];
+                const ch = vState.chapters[i] || {};
+                const nameEl = row.querySelector('input[name="name"]');
+                const fileTextInput = row.querySelector('input.file-path');
+                const fileInputReal =
+                    row.querySelector('input[type="file"][name="file"], input[name="file"][type="file"]') ||
+                    row.querySelector('input[type="file"]');
+                if (nameEl && typeof ch.name === 'string') {
+                    setInputValue(nameEl, ch.name);
+                }
+                if (fileTextInput && typeof ch.fileName === 'string') {
+                    setInputValue(fileTextInput, ch.fileName);
+                }
+
+                let fileObj = null;
+                if (ch.fileStore === 'idb' && ch.fileKey) {
+                    const rec = await idbGetSnapshotFile(ch.fileKey);
+                    if (rec && rec.blob && rec.fileName) {
+                        try {
+                            fileObj = new File([rec.blob], rec.fileName, {
+                                type: rec.type || 'text/plain',
+                                lastModified: rec.lastModified || Date.now(),
+                            });
+                        } catch { }
+                    }
+                }
+                if (!fileObj && ch.fileBase64 && ch.fileInfo && ch.fileInfo.name) {
+                    try {
+                        const bytes = base64ToUint8Array(ch.fileBase64);
+                        fileObj = new File([bytes], ch.fileInfo.name, {
+                            type: ch.fileInfo.type || 'text/plain',
+                            lastModified: ch.fileInfo.lastModified || Date.now(),
+                        });
+                    } catch { }
+                }
+                if (!fileObj && ch.fileName) {
+                    fileObj = knownFiles.get(ch.fileName) || null;
+                }
+                if (fileInputReal && fileObj) {
+                    const ok = setFileToInput(fileInputReal, fileObj);
+                    if (!ok) missingFiles += 1;
+                } else if (ch.fileName) {
+                    // Snapshot had a file name but we can't attach it.
+                    missingFiles += 1;
+                }
+            }
+        };
+
+        for (let i = 0; i < snap.volumes.length; i += 1) {
+            await restoreVolume(wrappers[i], snap.volumes[i]);
+        }
+
+        if (typeof snap.selectedVolumeIndex === 'number' && snap.selectedVolumeIndex >= 0) {
+            state._prevSelectValue = String(snap.selectedVolumeIndex);
+        }
+        rebuildVolumeOptions('preserve');
+        if (typeof snap.selectedVolumeIndex === 'number' && snap.selectedVolumeIndex >= 0) {
+            volumeSelect.value = String(snap.selectedVolumeIndex);
+            handleVolumeChange();
+        }
+
+        if (missingFiles > 0) {
+            log(`⚠️ Khôi phục xong, nhưng có ${missingFiles} file không thể gán lại (do giới hạn trình duyệt/dung lượng).`, 'warn');
+            showUploadToast('Khôi phục xong, nhưng có file chưa gán được.', 'error', 3200);
+        } else {
+            log('✅ Khôi phục trạng thái xong.', 'success');
+            showUploadToast('Đã khôi phục trạng thái web.', 'success', 2200);
+        }
+    };
+
     const fakeUploadBtn = shadowRoot.querySelector(`#${APP_PREFIX}fake-upload`);
     fakeUploadBtn.disabled = true;
+
+    if (snapSaveBtn) {
+        snapSaveBtn.addEventListener('click', async () => {
+            await saveCurrentSnapshot();
+        });
+    }
+    if (snapOpenBtn) {
+        snapOpenBtn.addEventListener('click', () => {
+            snapshotsUi.selected = new Set();
+            renderSnapshotsList();
+            openSnapshotsModal();
+        });
+    }
+    if (snapshotsCloseBtn) {
+        snapshotsCloseBtn.addEventListener('click', () => {
+            closeSnapshotsModal();
+        });
+    }
+    if (snapshotsOverlay) {
+        snapshotsOverlay.addEventListener('click', () => {
+            closeSnapshotsModal();
+        });
+    }
+    if (snapshotsSelectAllBtn) {
+        snapshotsSelectAllBtn.addEventListener('click', () => {
+            snapshotsUi.selected = new Set((snapshotsUi.list || []).map(s => s?.id).filter(Boolean));
+            // Re-render for simplicity to sync UI.
+            renderSnapshotsList();
+        });
+    }
+    if (snapshotsUnselectBtn) {
+        snapshotsUnselectBtn.addEventListener('click', () => {
+            snapshotsUi.selected = new Set();
+            renderSnapshotsList();
+        });
+    }
+    if (snapshotsDeleteBtn) {
+        snapshotsDeleteBtn.addEventListener('click', async () => {
+            const ids = Array.from(snapshotsUi.selected || []);
+            if (!ids.length) return;
+            const ok = await showUiConfirm(`Xóa ${ids.length} bản lưu đã chọn?`, 'Xóa bản lưu', 'Xóa', 'Hủy', true);
+            if (!ok) return;
+            for (const id of ids) {
+                try { await idbDeleteSnapshotFilesBySnapshotId(id); } catch { }
+            }
+            const list = loadSnapshots().filter(s => !ids.includes(s?.id));
+            saveSnapshots(list);
+            log(`🗑 Đã xóa ${ids.length} bản lưu.`, 'warn');
+            renderSnapshotsList();
+        });
+    }
+    if (snapshotsRestoreBtn) {
+        snapshotsRestoreBtn.addEventListener('click', async () => {
+            const ids = Array.from(snapshotsUi.selected || []);
+            if (ids.length !== 1) return;
+            const snap = loadSnapshots().find(s => s?.id === ids[0]);
+            if (!snap) return;
+            const ok = await showUiConfirm(
+                `Khôi phục bản lưu:\n${snap?.book?.title || '(Chưa có tên)'} • ${snap?.book?.author || '(Chưa có tác giả)'}\n\nHành động này sẽ ghi đè trạng thái hiện tại trên web.`,
+                'Khôi phục bản lưu',
+                'Khôi phục',
+                'Hủy',
+                false
+            );
+            if (!ok) return;
+            closeSnapshotsModal();
+            await restoreSnapshot(snap);
+        });
+    }
 
     if (autofillBtn) {
         autofillBtn.addEventListener('click', () => {
