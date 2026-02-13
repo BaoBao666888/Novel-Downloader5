@@ -2031,6 +2031,15 @@
         return getProviderId() === 'tiktok';
     }
 
+    function getActiveProviderLabel() {
+        const pid = getProviderId();
+        if (pid === 'browser') {
+            return 'Browser';
+        }
+        const p = getRemoteProvider(pid);
+        return (p && p.label) ? String(p.label) : String(pid || 'TTS');
+    }
+
     function openTikTokLogin() {
         window.open('https://www.tiktok.com/login?lang=vi-VN', '_blank', 'noopener,noreferrer');
     }
@@ -3782,6 +3791,9 @@
 
         const segment = state.segments[state.segmentIndex];
         const token = ++state.utteranceToken;
+
+        // Đặt metadata sớm để Android hiện notification ngay từ đoạn đầu (không phải đợi vài đoạn).
+        updateMediaSession(getActiveProviderLabel(), segment);
 
         activateSegmentHighlight(segment);
 
