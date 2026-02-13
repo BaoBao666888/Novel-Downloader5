@@ -2,7 +2,7 @@
 
 Script `TTS Reader` dùng để đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, và tự chuyển phần/chương tiếp theo trên:
 - `wikicv.net`
-- `koanchay.org`
+- `web hồng`
 
 ## 1) Mục đích
 - Đọc truyện trực tiếp trên web bằng nhiều nguồn giọng:
