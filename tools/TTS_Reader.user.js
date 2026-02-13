@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.3.0_beta
+// @version      1.3.1_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
 // @match        https://truyenwikidich.net/truyen/*/*
-// @match        https://truyenwikidich.net/truyen/*/*
+// @match        https://koanchay.org/truyen/*/*
 // @match        https://www.tiktok.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_cookie
@@ -4110,7 +4110,7 @@
         const audio = new Audio();
         audio.src = generateSilentWavDataUri();
         audio.loop = true;
-        audio.volume = 0.01;
+        audio.volume = 0;
         state.silentAudio = audio;
         return audio;
     }
