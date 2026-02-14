@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.6
+// @version      0.3.6.1
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -31,6 +31,7 @@
         geminiApiKey: '',
         geminiModel: 'gemini-2.5-flash',
         autoExtractNames: true, // AI auto-extract character names
+        autoBreakDesc: false, // Tự xuống dòng văn án ở dấu chấm
         domainSettings: {},
     };
 
@@ -120,6 +121,7 @@
         if (raw.geminiApiKey) base.geminiApiKey = raw.geminiApiKey;
         if (raw.geminiModel) base.geminiModel = raw.geminiModel;
         if (typeof raw.autoExtractNames === 'boolean') base.autoExtractNames = raw.autoExtractNames;
+        if (typeof raw.autoBreakDesc === 'boolean') base.autoBreakDesc = raw.autoBreakDesc;
         // old
         const oldMap = raw.useDescByDomain;
         if (oldMap && typeof oldMap === 'object') {
@@ -2319,6 +2321,14 @@
         el.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
+    // Tự xuống dòng ở cuối câu nếu văn án bị dính chùm (không có newline)
+    function autoBreakLongDesc(text) {
+        if (!text || typeof text !== 'string') return text || '';
+        if (text.includes('\n')) return text;
+        if (text.length <= 100) return text;
+        return text.replace(/([.。!?！？])\s*/g, '$1\n').trim();
+    }
+
     function setMoreLink(desc, url) {
         const linkInputs = Array.from(document.querySelectorAll('input[name="moreLinkUrl"]'));
         const descInputs = Array.from(document.querySelectorAll('input[name="moreLinkDesc"]'));
@@ -3365,6 +3375,11 @@
                                     <input id="${APP_PREFIX}settingAutoExtractNames" type="checkbox" style="margin-left: 8px;" />
                                     <small style="color: #888; margin-left: 8px;">(Khi dùng AI, tự động tách tên nhân vật/địa danh)</small>
                                 </label>
+                                <label class="${APP_PREFIX}settings-item" style="margin-top: 4px;">
+                                    <span style="min-width: 80px;">Tự xuống dòng:</span>
+                                    <input id="${APP_PREFIX}settingAutoBreakDesc" type="checkbox" style="margin-left: 8px;" />
+                                    <small style="color: #888; margin-left: 8px;">(Tự xuống dòng văn án.)</small>
+                                </label>
                             </div>
                         </div>
                         <div class="${APP_PREFIX}row">
@@ -3470,6 +3485,7 @@
         const settingsGeminiModel = shadowRoot.getElementById(`${APP_PREFIX}settingGeminiModel`);
         const settingsAiMode = shadowRoot.getElementById(`${APP_PREFIX}settingAiMode`);
         const settingsAutoExtractNames = shadowRoot.getElementById(`${APP_PREFIX}settingAutoExtractNames`);
+        const settingsAutoBreakDesc = shadowRoot.getElementById(`${APP_PREFIX}settingAutoBreakDesc`);
         const manualAiBtn = shadowRoot.getElementById(`${APP_PREFIX}manualAi`);
         const manualAiModal = shadowRoot.getElementById(`${APP_PREFIX}manualAiModal`);
         const manualAiCopy = shadowRoot.getElementById(`${APP_PREFIX}manualAiCopy`);
@@ -4215,6 +4231,7 @@
 
             settingsAiMode.value = s.aiMode || 'auto';
             settingsAutoExtractNames.checked = s.autoExtractNames !== false; // default true
+            settingsAutoBreakDesc.checked = !!s.autoBreakDesc; // default false
 
             const d = s.domainSettings || DEFAULT_SETTINGS.domainSettings;
             SITE_RULES.forEach((rule) => {
@@ -4597,6 +4614,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 geminiApiKey: settingsGeminiKey.value.trim(),
                 geminiModel: settingsGeminiModel.value.trim(),
                 autoExtractNames: settingsAutoExtractNames.checked,
+                autoBreakDesc: settingsAutoBreakDesc.checked,
                 domainSettings,
             };
         }
@@ -4827,7 +4845,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 if (!excludes.titleCn) setInputValue(document.getElementById('txtTitleCn'), planned.titleCn);
                 if (!excludes.authorCn) setInputValue(document.getElementById('txtAuthorCn'), planned.authorCn);
                 if (!excludes.titleVi) setInputValue(document.getElementById('txtTitleVi'), planned.titleVi);
-                if (!excludes.descVi) setInputValue(document.getElementById('txtDescVi'), planned.descVi);
+                if (!excludes.descVi) setInputValue(document.getElementById('txtDescVi'), state.settings.autoBreakDesc ? autoBreakLongDesc(planned.descVi) : planned.descVi);
 
                 if (!excludes.status) applyRadio(state.groups.status, planned.status);
                 if (!excludes.official) applyRadio(state.groups.official, planned.official);
