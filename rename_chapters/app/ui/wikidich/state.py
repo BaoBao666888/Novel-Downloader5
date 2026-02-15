@@ -89,13 +89,13 @@ class WikidichState:
         """Trả về base URL của site."""
         if self.site == "koanchay":
             return "https://koanchay.org"
-        return "https://truyenwikidich.net"
+        return "https://wikicv.net"
     
     def get_cookie_domains(self) -> List[str]:
         """Trả về danh sách domain để lấy cookies."""
         if self.site == "koanchay":
             return ["koanchay.org", "koanchay.net"]
-        return ["truyenwikidich.net", "koanchay.net"]
+        return ["wikicv.net", "koanchay.net"]
     
     def reset_data(self):
         """Reset data về mặc định."""

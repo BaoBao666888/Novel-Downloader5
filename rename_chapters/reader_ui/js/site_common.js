@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260210-r13";
+import { t } from "../i18n.vi.js?v=20260215-vb01";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -9,10 +9,11 @@ const DEFAULT_SETTINGS = {
   textAlign: "justify",
   lineHeight: 1.9,
   paragraphSpacing: 1.1,
-  readingMode: "vertical",
+  readingMode: "hybrid",
   panelTransparency: "clear",
   starStyle: "classic",
   backgroundMotion: "on",
+  miniBarsEnabled: true,
 };
 
 const FONT_PRESETS = [
@@ -246,6 +247,33 @@ async function handleImport(onImported) {
   }
 }
 
+async function handleImportUrl(onImported) {
+  const input = qs("import-url-input");
+  const url = input ? String(input.value || "").trim() : "";
+  if (!url) return;
+  const pluginSelect = qs("import-url-plugin");
+  const pluginId = pluginSelect ? String(pluginSelect.value || "").trim() : "";
+
+  showStatus(t("statusImportingUrl"));
+  try {
+    const data = await api("/api/library/import-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, plugin_id: pluginId || "" }),
+    });
+    if (qs("import-url-form")) qs("import-url-form").reset();
+    if (qs("import-url-dialog") && qs("import-url-dialog").open) qs("import-url-dialog").close();
+    showToast(t("toastImportSuccess"));
+    if (typeof onImported === "function") {
+      onImported(data);
+    }
+  } catch (error) {
+    showToast(error.message || t("toastError"));
+  } finally {
+    hideStatus();
+  }
+}
+
 async function clearCache() {
   if (!window.confirm(t("confirmClearCache"))) return;
   showStatus(t("statusClearing"));
@@ -267,6 +295,7 @@ function fillStaticTexts() {
     ["nav-search", "navSearch"],
     ["btn-go-search", "search"],
     ["btn-import", "import"],
+    ["btn-import-url", "importUrl"],
     ["btn-clear-cache", "clearCache"],
     ["btn-open-settings", "openSettings"],
     ["settings-title", "settingsTitle"],
@@ -290,6 +319,9 @@ function fillStaticTexts() {
     ["mode-horizontal", "modeHorizontal"],
     ["mode-vertical", "modeVertical"],
     ["mode-hybrid", "modeHybrid"],
+    ["label-mini-bars-enabled", "miniBarsEnabled"],
+    ["mini-bars-on", "miniBarsOn"],
+    ["mini-bars-off", "miniBarsOff"],
     ["panel-clear", "panelClear"],
     ["panel-balanced", "panelBalanced"],
     ["panel-solid", "panelSolid"],
@@ -304,6 +336,12 @@ function fillStaticTexts() {
     ["import-lang-vi", "importLangVi"],
     ["btn-import-cancel", "cancel"],
     ["btn-import-submit", "confirmImport"],
+    ["import-url-title", "importUrlTitle"],
+    ["import-url-label", "importUrlLabel"],
+    ["import-url-plugin-label", "importUrlPlugin"],
+    ["import-url-plugin-auto", "importUrlPluginAuto"],
+    ["btn-import-url-cancel", "cancel"],
+    ["btn-import-url-submit", "confirmImportUrl"],
   ];
   for (const [id, key] of pairs) {
     const node = qs(id);
@@ -339,6 +377,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   const textAlignSelect = qs("text-align-select");
   const readingModeSelect = qs("reading-mode-select");
   const panelTransparencySelect = qs("panel-transparency-select");
+  const miniBarsEnabledSelect = qs("mini-bars-enabled-select");
 
   if (fontFamilySelect) {
     fontFamilySelect.innerHTML = "";
@@ -361,6 +400,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   if (textAlignSelect) textAlignSelect.value = state.settings.textAlign;
   if (readingModeSelect) readingModeSelect.value = state.settings.readingMode;
   if (panelTransparencySelect) panelTransparencySelect.value = normalizePanelTransparency(state.settings.panelTransparency);
+  if (miniBarsEnabledSelect) miniBarsEnabledSelect.value = (state.settings.miniBarsEnabled === false) ? "off" : "on";
   if (qs("font-size-value")) qs("font-size-value").textContent = `${state.settings.fontSize}px`;
   if (qs("line-height-value")) qs("line-height-value").textContent = `${state.settings.lineHeight.toFixed(2)}`;
   if (qs("paragraph-spacing-value")) qs("paragraph-spacing-value").textContent = `${state.settings.paragraphSpacing.toFixed(2)}em`;
@@ -496,6 +536,15 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     });
   }
 
+  if (miniBarsEnabledSelect) {
+    miniBarsEnabledSelect.addEventListener("change", () => {
+      const v = String(miniBarsEnabledSelect.value || "").trim().toLowerCase();
+      state.settings.miniBarsEnabled = v !== "off";
+      saveSettings(state.settings);
+      emitSettingsChanged(state.settings);
+    });
+  }
+
   if (fontSizeInput) {
     fontSizeInput.addEventListener("input", () => {
       state.settings.fontSize = Number(fontSizeInput.value) || DEFAULT_SETTINGS.fontSize;
@@ -535,6 +584,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       state.settings.textAlign = (textAlignSelect && textAlignSelect.value) || DEFAULT_SETTINGS.textAlign;
       state.settings.readingMode = (readingModeSelect && readingModeSelect.value) || DEFAULT_SETTINGS.readingMode;
       state.settings.panelTransparency = normalizePanelTransparency((panelTransparencySelect && panelTransparencySelect.value) || DEFAULT_SETTINGS.panelTransparency);
+      state.settings.miniBarsEnabled = (miniBarsEnabledSelect && miniBarsEnabledSelect.value) !== "off";
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
@@ -557,6 +607,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       if (textAlignSelect) textAlignSelect.value = state.settings.textAlign;
       if (readingModeSelect) readingModeSelect.value = state.settings.readingMode;
       if (panelTransparencySelect) panelTransparencySelect.value = normalizePanelTransparency(state.settings.panelTransparency);
+      if (miniBarsEnabledSelect) miniBarsEnabledSelect.value = state.settings.miniBarsEnabled ? "on" : "off";
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
@@ -573,6 +624,37 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       event.preventDefault();
       await handleImport(onImported);
     });
+  }
+
+  if (qs("btn-import-url")) qs("btn-import-url").addEventListener("click", () => qs("import-url-dialog") && qs("import-url-dialog").showModal());
+  if (qs("btn-import-url-cancel")) qs("btn-import-url-cancel").addEventListener("click", () => qs("import-url-dialog") && qs("import-url-dialog").close());
+  if (qs("import-url-form")) {
+    qs("import-url-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await handleImportUrl(onImported);
+    });
+  }
+
+  // Populate plugin list for optional manual selection.
+  const pluginSelect = qs("import-url-plugin");
+  if (pluginSelect) {
+    try {
+      const payload = await api("/api/vbook/plugins");
+      const items = (payload && payload.items) || [];
+      // Keep first "auto" option.
+      for (const item of items) {
+        const pid = String(item.plugin_id || "").trim();
+        if (!pid) continue;
+        const opt = document.createElement("option");
+        opt.value = pid;
+        const label = String(item.name || pid);
+        const author = String(item.author || "").trim();
+        opt.textContent = author ? `${label} • ${author}` : label;
+        pluginSelect.appendChild(opt);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   if (qs("btn-clear-cache")) qs("btn-clear-cache").addEventListener("click", clearCache);

@@ -79,6 +79,7 @@ from app.ui.proxy_mixin import ProxyMixin
 from app.ui.radical_checker import open_radical_checker_dialog
 from app.ui.library_mixin import LibraryMixin
 from app.ui.forum_tab_mixin import ForumTabMixin
+from app.ui.reader_tab_mixin import ReaderTabMixin
 from app.ui.wikidich import WikidichController, WikidichState
 
 # Đảm bảo chỉ một instance (dùng localhost TCP)
@@ -344,6 +345,7 @@ class RenamerApp(
     TranslateTabMixin,
     ImageTabMixin,
     LibraryMixin,
+    ReaderTabMixin,
 ):
     CURRENT_VERSION = APP_VERSION
     VERSION_CHECK_URL = os.environ.get(
@@ -548,7 +550,15 @@ class RenamerApp(
             'background': dict(DEFAULT_BACKGROUND_SETTINGS),
             'radical_map': {},
             'radical_output_dir': "",
-            'profile_recycle': {}
+            'profile_recycle': {},
+            'reader_manager': {
+                'port': 17171,
+                'allow_lan': True,
+                'server_path': 'tools/reader_server.exe',
+                'ui_dir': 'reader_ui',
+                'server_installed_version': '',
+                'ui_installed_version': ''
+            }
         }
 
     def _cleanup_legacy_files(self):
@@ -1800,15 +1810,48 @@ class RenamerApp(
         self._instance_thread.start()
 
     def _extract_archive_to(self, archive_path: str, dest_path: str):
-        """Giải nén bằng thư viện chuẩn; fallback 7-Zip cho .7z/.rar."""
+        """Giải nén archive; ZIP dùng extractor riêng để tránh skip nhầm tên chứa '..'."""
         os.makedirs(dest_path, exist_ok=True)
+        ext = os.path.splitext(archive_path)[1].lower()
+
+        if ext == ".zip":
+            # Không dùng shutil.unpack_archive cho ZIP vì CPython skip mọi tên chứa '..'
+            # (vd: 'abc...txt'), gây mất file hợp lệ.
+            with zipfile.ZipFile(archive_path) as zf:
+                base_real = os.path.realpath(dest_path)
+                for info in zf.infolist():
+                    raw_name = (info.filename or "").replace("\\", "/")
+                    if not raw_name:
+                        continue
+                    if raw_name.startswith("/") or raw_name.startswith("\\"):
+                        continue
+                    parts = [part for part in raw_name.split("/") if part not in ("", ".")]
+                    if not parts or any(part == ".." for part in parts):
+                        continue
+
+                    target_path = os.path.normpath(os.path.join(dest_path, *parts))
+                    target_real = os.path.realpath(target_path)
+                    try:
+                        if os.path.commonpath([base_real, target_real]) != base_real:
+                            continue
+                    except Exception:
+                        continue
+
+                    if info.is_dir():
+                        os.makedirs(target_path, exist_ok=True)
+                        continue
+
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    with zf.open(info, "r") as src, open(target_path, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+            return
+
         try:
             shutil.unpack_archive(archive_path, dest_path)
             return
         except (shutil.ReadError, ValueError):
             pass
 
-        ext = os.path.splitext(archive_path)[1].lower()
         if ext == ".gz":
             try:
                 base_name = os.path.basename(os.path.splitext(archive_path)[0]) or os.path.basename(archive_path)
@@ -1923,6 +1966,11 @@ class RenamerApp(
         self._stop_single_instance_listener()
         self._cleanup_temp_extraction()
         self._stop_fanqie_bridge()
+        if hasattr(self, "_reader_stop_server"):
+            try:
+                self._reader_stop_server(silent=True)
+            except Exception:
+                pass
         self._fanqie_clear_progress_cache()
         self._cleanup_leftover_mei_dirs()
         self._cleanup_auto_update_temp()
@@ -2282,6 +2330,8 @@ class RenamerApp(
         self.browser_menu_label = "Trình duyệt"
         self.cookie_menu_label = "Cookie"
 
+        menubar.add_command(label="Đọc truyện", command=lambda: self._select_tab_by_name("Đọc truyện"))
+
         tools_menu = tk.Menu(menubar, **menu_style)
         menubar.add_cascade(label="Công cụ", menu=tools_menu)
         tools_menu.add_command(label="Download Novel 5...", command=self._open_fanqie_downloader)
@@ -2329,6 +2379,7 @@ class RenamerApp(
         self.create_image_processing_tab()
         self.create_wikidich_tab()
         self.create_forum_tab()
+        self.create_reader_tab()
         self.create_settings_tab()
 
         log_frame = ttk.LabelFrame(self.main_paned_window, text="Nhật ký hoạt động", padding="8", style="Section.TLabelframe")
@@ -3012,6 +3063,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                     self._image_ai_check_tool_state(force=True)
             if tab_text == "Diễn đàn" and hasattr(self, "_forum_ensure_loaded"):
                 self._forum_ensure_loaded()
+            if tab_text == "Đọc truyện" and hasattr(self, "_reader_on_tab_activated"):
+                self._reader_on_tab_activated()
         except Exception as e:
             print(f"Lỗi trong _on_notebook_tab_changed: {e}")
 

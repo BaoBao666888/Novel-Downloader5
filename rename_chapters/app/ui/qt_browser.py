@@ -870,7 +870,7 @@ class _BrowserWindow(QMainWindow):
 
         # Gửi user-agent và headers thực tế về tiến trình cha để tái sử dụng cho requests
         try:
-            targets = {"koanchay.org", "koanchay.net", "truyenwikidich.net"}
+            targets = {"koanchay.org", "koanchay.net", "wikicv.net"}
             self._header_spy = _HeaderSpy(self.event_conn, targets=targets, cookie_store=self.profile.cookieStore())
             self.profile.setUrlRequestInterceptor(self._header_spy)
             if self.event_conn:

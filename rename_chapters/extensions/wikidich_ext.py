@@ -11,7 +11,7 @@ from urllib.parse import urljoin, urlparse, parse_qs, unquote
 import requests
 from bs4 import BeautifulSoup
 
-BASE_URL = "https://truyenwikidich.net"
+BASE_URL = "https://wikicv.net"
 USER_AGENT = "RenameChapters-Wikidich/0.2"
 
 STATUS_OPTIONS = ["Còn tiếp", "Hoàn thành", "Tạm ngưng", "Chưa xác minh"]

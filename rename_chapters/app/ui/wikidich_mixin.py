@@ -723,13 +723,13 @@ class WikidichMixin:
         widget.bind("<Button-3>", lambda e: widget.focus_set())
 
     def _wd_get_base_url(self) -> str:
-        return "https://koanchay.org" if getattr(self, "wd_site", "wikidich") == "koanchay" else "https://truyenwikidich.net"
+        return "https://koanchay.org" if getattr(self, "wd_site", "wikidich") == "koanchay" else "https://wikicv.net"
 
     def _wd_get_cookie_domains(self):
         if getattr(self, "wd_site", "wikidich") == "koanchay":
             # Lấy đủ cookie cf_clearance dù user đăng nhập qua koanchay.org hay koanchay.net
             return ["koanchay.org", "koanchay.net"]
-        return ["truyenwikidich.net", "koanchay.net"]
+        return ["wikicv.net", "koanchay.net"]
 
     def _wd_normalize_url_for_site(self, url: str) -> str:
         """Đảm bảo URL phù hợp domain theo tab hiện tại (wikidich/koanchay)."""
@@ -812,7 +812,7 @@ class WikidichMixin:
         session = wikidich_ext.build_session_with_cookies(cookies, proxies=proxies)
         # Dedupe cookie trùng tên (ưu tiên domain của site hiện tại, giá trị không bị bọc ")
         # Xác định domain ưu tiên dựa trên site hiện tại
-        preferred_domain = "koanchay.org" if getattr(self, "wd_site", "wikidich") == "koanchay" else "truyenwikidich.net"
+        preferred_domain = "koanchay.org" if getattr(self, "wd_site", "wikidich") == "koanchay" else "wikicv.net"
         try:
             cleaned = requests.cookies.RequestsCookieJar()
             keep: dict[str, requests.cookies.Cookie] = {}

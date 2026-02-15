@@ -66,7 +66,7 @@
       root.classList.toggle("effects-paused", (settings.backgroundMotion || "on") !== "on");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260210-r13">
+  <link rel="stylesheet" href="./styles.css?v=20260214-r07">
 </head>
 <body data-page="library" class="mpa-body">
   <script>
@@ -113,6 +113,7 @@
         <h2 id="library-title"></h2>
         <div class="cover-btns">
           <button id="btn-import" class="btn btn-primary" type="button"></button>
+          <button id="btn-import-url" class="btn" type="button"></button>
           <span id="library-count" class="tag"></span>
         </div>
       </div>
@@ -205,6 +206,13 @@
           <option id="mode-hybrid" value="hybrid"></option>
         </select>
       </label>
+      <label>
+        <span id="label-mini-bars-enabled"></span>
+        <select id="mini-bars-enabled-select">
+          <option id="mini-bars-on" value="on"></option>
+          <option id="mini-bars-off" value="off"></option>
+        </select>
+      </label>
       <div class="settings-actions">
         <button id="btn-save-settings" class="btn btn-primary" type="submit"></button>
         <button id="btn-reset-settings" class="btn" type="button"></button>
@@ -242,8 +250,28 @@
     </form>
   </dialog>
 
+  <dialog id="import-url-dialog" class="dialog">
+    <form id="import-url-form" method="dialog">
+      <h3 id="import-url-title"></h3>
+      <label>
+        <span id="import-url-label"></span>
+        <input id="import-url-input" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://..." required>
+      </label>
+      <label>
+        <span id="import-url-plugin-label"></span>
+        <select id="import-url-plugin" name="plugin_id">
+          <option id="import-url-plugin-auto" value=""></option>
+        </select>
+      </label>
+      <div class="dialog-actions">
+        <button id="btn-import-url-cancel" class="btn" type="button"></button>
+        <button id="btn-import-url-submit" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260210-r13"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260215-vb01"></script>
 </body>
 </html>

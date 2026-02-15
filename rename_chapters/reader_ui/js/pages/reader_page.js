@@ -1,14 +1,22 @@
-import { initShell } from "../site_common.js?v=20260210-r13";
-import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260210-r13";
+import { initShell } from "../site_common.js?v=20260215-vb01";
+import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),
   readerChapterSub: document.getElementById("reader-chapter-sub"),
-  readerChapterTitle: document.getElementById("reader-chapter-title"),
   readerViewport: document.getElementById("reader-viewport"),
   readerContentScroll: document.getElementById("reader-content-scroll"),
   readerContentBody: document.getElementById("reader-content-body"),
-  readerProgress: document.getElementById("reader-progress"),
+  readerScrollHint: document.getElementById("reader-scroll-hint"),
+  readerChapterCounter: document.getElementById("reader-chapter-counter"),
+  readerPageCounter: document.getElementById("reader-page-counter"),
+  readerBookPercent: document.getElementById("reader-book-percent"),
+  readerMiniHead: document.getElementById("reader-mini-head"),
+  readerMiniFoot: document.getElementById("reader-mini-foot"),
+  readerMiniChapterTitle: document.getElementById("reader-mini-chapter-title"),
+  readerMiniChapterCounter: document.getElementById("reader-mini-chapter-counter"),
+  readerMiniPageCounter: document.getElementById("reader-mini-page-counter"),
+  readerMiniBookPercent: document.getElementById("reader-mini-book-percent"),
 
   btnReaderToc: document.getElementById("btn-reader-toc"),
   btnOpenSettingsInline: document.getElementById("btn-open-settings-inline"),
@@ -19,6 +27,7 @@ const refs = {
   btnOpenNameEditor: document.getElementById("btn-open-name-editor"),
   btnFullscreen: document.getElementById("btn-fullscreen"),
   btnPrev: document.getElementById("btn-prev"),
+  btnFooterToc: document.getElementById("btn-footer-toc"),
   btnNext: document.getElementById("btn-next"),
 
   readerTocDrawer: document.getElementById("reader-toc-drawer"),
@@ -64,7 +73,6 @@ const refs = {
   nameSuggestRightBody: document.getElementById("name-suggest-right-body"),
 
   selectionNameBtn: document.getElementById("selection-name-btn"),
-  readerPageProgress: document.getElementById("reader-page-progress"),
   readerHead: document.querySelector(".reader-head"),
   readerFooter: document.querySelector(".reader-footer"),
 };
@@ -89,6 +97,14 @@ const state = {
   chapterLoadSeq: 0,
   fullscreenUiTimer: null,
   fullscreenFallback: false,
+  chapterVirtualPages: 1,
+  virtualPageIndex: 0,
+  bookPercent: 0,
+  scrollHintTimer: null,
+  infiniteScrollProgressPx: 0,
+  infiniteScrollDirection: 0,
+  chapterTransitioning: false,
+  runtimeMode: "hybrid",
 };
 
 function effectiveMode() {
@@ -96,17 +112,26 @@ function effectiveMode() {
   return state.mode === "trans" ? "trans" : "raw";
 }
 
-function currentReadingMode() {
+function selectedReadingMode() {
   if (!state.shell) return "vertical";
   return state.shell.getReadingMode();
 }
 
+function runtimeReadingMode() {
+  const selected = selectedReadingMode();
+  if (selected === "hybrid") return "hybrid";
+  if (isFullscreenActive()) return selected;
+  return "hybrid";
+}
+
 function applyReaderModeClass() {
-  const mode = currentReadingMode();
+  const mode = runtimeReadingMode();
+  state.runtimeMode = mode;
   refs.readerViewport.classList.remove("reading-flip", "reading-horizontal", "reading-vertical", "reading-hybrid");
   refs.readerViewport.classList.add(`reading-${mode}`);
   document.body.classList.remove("reader-mode-flip", "reader-mode-horizontal", "reader-mode-vertical", "reader-mode-hybrid");
   document.body.classList.add(`reader-mode-${mode}`);
+  document.body.setAttribute("data-runtime-reading-mode", mode);
 }
 
 function findChapterIndex() {
@@ -237,16 +262,191 @@ function updateHeader() {
   if (!state.book) {
     refs.readerBookTitle.textContent = state.shell.t("noBookSelected");
     refs.readerChapterSub.textContent = "";
-    refs.readerChapterTitle.textContent = state.shell.t("readerEmpty");
+    refs.readerChapterCounter.textContent = state.shell.t("chapterCounter", { current: 0, total: 0 });
+    refs.readerPageCounter.textContent = state.shell.t("pageCounter", { current: 0, total: 0 });
+    refs.readerBookPercent.textContent = state.shell.t("bookPercent", { percent: "0.0" });
+    if (refs.readerMiniChapterTitle) refs.readerMiniChapterTitle.textContent = "";
     return;
   }
-  refs.readerBookTitle.textContent = effectiveMode() === "trans"
+  const ch = (state.book.chapters || []).find((x) => x.chapter_id === state.chapterId);
+  const chapterName = chapterTitle(ch) || state.shell.t("readerEmpty");
+  const bookName = effectiveMode() === "trans"
     ? normalizeDisplayTitle(state.book.title_vi || state.book.title_display || state.book.title)
     : normalizeDisplayTitle(state.book.title || state.book.title_display);
-  refs.readerChapterSub.textContent = `${state.book.author_display || state.book.author || "Khuyết danh"} • ${state.book.chapter_count || 0} chương`;
+  // Bỏ title chương "cứng" ở phần head lớn: head lớn dùng tên truyện,
+  // mini header overlay sẽ hiển thị tên chương khi user cuộn vào content.
+  refs.readerBookTitle.textContent = bookName;
+  refs.readerChapterSub.textContent = `${state.book.author_display || state.book.author || "Khuyết danh"}`;
+  if (refs.readerMiniChapterTitle) refs.readerMiniChapterTitle.textContent = chapterName;
+}
 
-  const ch = (state.book.chapters || []).find((x) => x.chapter_id === state.chapterId);
-  refs.readerChapterTitle.textContent = chapterTitle(ch) || state.shell.t("readerEmpty");
+function updateMiniInfoVisibility() {
+  // Mini bars là "info overlay" nhỏ: khi đã load chương thì luôn hiện,
+  // không phụ thuộc việc user đã scroll hay chưa (tránh cảm giác "không thấy gì").
+  const enabled = !(state.shell && state.shell.settings && state.shell.settings.miniBarsEnabled === false);
+  const active = Boolean(state.chapterId) && enabled;
+  if (refs.readerViewport) {
+    refs.readerViewport.classList.toggle("mini-info-visible", active);
+  }
+  if (refs.readerMiniHead) refs.readerMiniHead.hidden = !active;
+  if (refs.readerMiniFoot) refs.readerMiniFoot.hidden = !active;
+  syncMiniBarLayout();
+}
+
+function syncMiniBarLayout() {
+  if (!refs.readerContentScroll || !refs.readerMiniHead || refs.readerMiniHead.hidden) return;
+  const rect = refs.readerContentScroll.getBoundingClientRect();
+  // Mặc định sát mép khung content (không khe hở).
+  if (!Number.isFinite(rect.left) || rect.width <= 10) return;
+  const left = Math.max(0, Math.round(rect.left));
+  const width = Math.max(240, Math.round(rect.width));
+  const top = Math.max(0, Math.round(rect.top));
+  const bottom = Math.max(0, Math.round(window.innerHeight - rect.bottom));
+
+  const root = document.documentElement;
+  root.style.setProperty("--mini-left", `${left}px`);
+  root.style.setProperty("--mini-width", `${width}px`);
+  root.style.setProperty("--mini-head-top", `${top}px`);
+  root.style.setProperty("--mini-foot-bottom", `${bottom}px`);
+}
+
+function clamp01(value) {
+  if (Number.isNaN(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+}
+
+function verticalScrollState() {
+  const wrap = refs.readerContentScroll;
+  if (!wrap) {
+    return { pos: 0, max: 0, view: Math.max(1, window.innerHeight), topDoc: 0, useWindow: true };
+  }
+  const internalMax = wrap.scrollHeight - wrap.clientHeight;
+  if (internalMax > 2) {
+    return { pos: wrap.scrollTop, max: internalMax, view: Math.max(1, wrap.clientHeight), topDoc: 0, useWindow: false };
+  }
+  const rect = wrap.getBoundingClientRect();
+  const topDoc = rect.top + window.scrollY;
+  const view = Math.max(1, window.innerHeight);
+  const contentHeight = Math.max(1, wrap.scrollHeight);
+  const max = Math.max(0, contentHeight - view);
+  const pos = Math.max(0, Math.min(max, window.scrollY - topDoc));
+  return { pos, max, view, topDoc, useWindow: true };
+}
+
+function chapterRatioByMode(mode) {
+  if (mode === "flip") {
+    const totalPages = Math.max(1, state.flipPages.length);
+    return totalPages <= 1 ? 0 : clamp01(state.flipPageIndex / (totalPages - 1));
+  }
+  const wrap = refs.readerContentScroll;
+  if (!wrap) return 0;
+  if (mode === "horizontal") {
+    const maxX = Math.max(1, wrap.scrollWidth - wrap.clientWidth);
+    return clamp01(wrap.scrollLeft / maxX);
+  }
+  const st = verticalScrollState();
+  if (st.max <= 0) return 0;
+  return clamp01(st.pos / st.max);
+}
+
+function currentChapterRatio() {
+  return chapterRatioByMode(runtimeReadingMode());
+}
+
+function virtualPagingByViewport() {
+  const mode = runtimeReadingMode();
+  if (mode === "flip") {
+    const total = Math.max(1, state.flipPages.length);
+    const current = Math.max(1, Math.min(total, state.flipPageIndex + 1));
+    return { current, total };
+  }
+  const content = normalizeReaderText(state.chapterText || "");
+  if (!content) return { current: 1, total: 1 };
+  const budget = estimateFlipCharBudget();
+  const total = Math.max(1, Math.ceil(content.length / Math.max(200, budget)));
+  const ratio = currentChapterRatio();
+  const current = total <= 1 ? 1 : Math.max(1, Math.min(total, Math.floor(ratio * (total - 1)) + 1));
+  return { current, total };
+}
+
+function applyPositionFromRatio(ratio) {
+  const bounded = clamp01(Number(ratio) || 0);
+  const wrap = refs.readerContentScroll;
+  const mode = runtimeReadingMode();
+  if (mode === "flip") {
+    const totalPages = Math.max(1, state.flipPages.length);
+    state.flipPageIndex = Math.max(0, Math.min(totalPages - 1, Math.round(bounded * Math.max(0, totalPages - 1))));
+    renderFlipPage();
+    return;
+  }
+  if (!wrap) return;
+  if (mode === "horizontal") {
+    const maxX = Math.max(0, wrap.scrollWidth - wrap.clientWidth);
+    wrap.scrollLeft = maxX * bounded;
+    return;
+  }
+  const st = verticalScrollState();
+  if (st.useWindow) {
+    window.scrollTo({ top: Math.round(st.topDoc + st.max * bounded), left: 0, behavior: "auto" });
+    return;
+  }
+  const maxY = Math.max(0, wrap.scrollHeight - wrap.clientHeight);
+  wrap.scrollTop = maxY * bounded;
+}
+
+function clearScrollHint() {
+  state.infiniteScrollDirection = 0;
+  state.infiniteScrollProgressPx = 0;
+  if (!refs.readerScrollHint) return;
+  refs.readerScrollHint.classList.add("hidden");
+  refs.readerScrollHint.classList.remove("active", "edge");
+  refs.readerScrollHint.textContent = "";
+  if (state.scrollHintTimer) {
+    window.clearTimeout(state.scrollHintTimer);
+    state.scrollHintTimer = null;
+  }
+}
+
+function showScrollHint(text, { edge = false, autoHideMs = 900 } = {}) {
+  if (!refs.readerScrollHint) return;
+  if (!text) {
+    clearScrollHint();
+    return;
+  }
+  refs.readerScrollHint.textContent = String(text);
+  refs.readerScrollHint.classList.remove("hidden");
+  refs.readerScrollHint.classList.add("active");
+  refs.readerScrollHint.classList.toggle("edge", Boolean(edge));
+  if (state.scrollHintTimer) {
+    window.clearTimeout(state.scrollHintTimer);
+    state.scrollHintTimer = null;
+  }
+  if (autoHideMs > 0 && !edge) {
+    state.scrollHintTimer = window.setTimeout(() => {
+      state.scrollHintTimer = null;
+      refs.readerScrollHint.classList.remove("active");
+      refs.readerScrollHint.classList.add("hidden");
+    }, autoHideMs);
+  }
+}
+
+function hasChapterByStep(step) {
+  const idx = findChapterIndex();
+  if (idx < 0 || !state.book || !Array.isArray(state.book.chapters)) return false;
+  const next = idx + step;
+  return next >= 0 && next < state.book.chapters.length;
+}
+
+async function handleInfiniteChapterTransition(step) {
+  if (state.chapterTransitioning) return;
+  if (!hasChapterByStep(step)) {
+    showScrollHint(step > 0 ? state.shell.t("atLastChapter") : state.shell.t("atFirstChapter"), { edge: true, autoHideMs: 1300 });
+    return;
+  }
+  clearScrollHint();
+  await goChapter(step);
 }
 
 async function openChapterById(chapterId, { updateHistory = true, fromToc = false, resetFlip = true } = {}) {
@@ -296,8 +496,12 @@ function estimateFlipCharBudget() {
   let lineHeight = parseFloat(style.lineHeight || "") || fontSize * 1.9;
   if (lineHeight < 8) lineHeight *= fontSize;
 
-  const width = Math.max(320, refs.readerContentScroll.clientWidth - 36);
-  const height = Math.max(280, refs.readerContentScroll.clientHeight - 44);
+  let width = Math.max(320, refs.readerContentScroll.clientWidth - 36);
+  let height = Math.max(280, refs.readerContentScroll.clientHeight - 44);
+  // Non-fullscreen layout đôi khi để content auto-height -> clientHeight cực lớn, làm budget bị "phình".
+  // Clamp về kích thước viewport để trang ảo vẫn hợp lý theo máy user.
+  if (height > window.innerHeight * 1.2) height = Math.max(280, window.innerHeight - 160);
+  if (width > window.innerWidth * 1.2) width = Math.max(320, window.innerWidth - 40);
   const charsPerLine = Math.max(16, Math.floor(width / (fontSize * 0.56)));
   const linesPerPage = Math.max(8, Math.floor(height / Math.max(18, lineHeight)));
   return Math.max(320, Math.floor(charsPerLine * linesPerPage * 0.9));
@@ -377,14 +581,20 @@ function renderFlipPage() {
 
   refs.readerContentScroll.scrollTop = 0;
   refs.readerContentScroll.scrollLeft = 0;
-  updateFlipPageProgress();
+  updateProgress();
 }
 
-function renderChapterContent(resetFlip = true) {
-  if (currentReadingMode() === "flip") {
+function renderChapterContent(resetFlip = true, preserveRatio = null) {
+  const runtimeMode = runtimeReadingMode();
+  if (runtimeMode === "flip") {
     if (resetFlip || !state.flipPages.length) {
       state.flipPages = buildFlipPages(state.chapterText || "");
-      state.flipPageIndex = 0;
+      if (preserveRatio == null) {
+        state.flipPageIndex = 0;
+      } else {
+        const totalPages = Math.max(1, state.flipPages.length);
+        state.flipPageIndex = Math.max(0, Math.min(totalPages - 1, Math.round(clamp01(preserveRatio) * Math.max(0, totalPages - 1))));
+      }
     } else {
       state.flipPageIndex = Math.max(0, Math.min(state.flipPageIndex, Math.max(0, state.flipPages.length - 1)));
     }
@@ -394,65 +604,66 @@ function renderChapterContent(resetFlip = true) {
     state.flipPageIndex = 0;
     refs.readerContentBody.innerHTML = "";
     refs.readerContentBody.appendChild(buildParagraphNodes(state.chapterText || "", state.shell.t("readerEmpty")));
-    refs.readerContentScroll.scrollTop = 0;
-    refs.readerContentScroll.scrollLeft = 0;
+    if (preserveRatio == null) {
+      refs.readerContentScroll.scrollTop = 0;
+      refs.readerContentScroll.scrollLeft = 0;
+    } else {
+      // Apply sau 1 frame để đảm bảo scrollHeight/clientHeight ổn định sau khi render.
+      // Tránh case áp name xong bị bật về đầu chương do layout chưa kịp tính.
+      const ratio = clamp01(preserveRatio);
+      refs.readerContentScroll.scrollTop = 0;
+      refs.readerContentScroll.scrollLeft = 0;
+      window.requestAnimationFrame(() => {
+        applyPositionFromRatio(ratio);
+        updateProgress();
+      });
+    }
   }
-  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  updateFlipPageProgress();
-}
-
-function updateFlipPageProgress() {
-  if (!refs.readerPageProgress) return;
-  const isFlip = currentReadingMode() === "flip";
-  if (!isFlip) {
-    refs.readerPageProgress.classList.add("hidden");
-    refs.readerPageProgress.textContent = "";
-    return;
+  // Chỉ scroll cửa sổ về đầu khi vào chương mới. Khi preserveRatio (đổi mode/apply name)
+  // thì giữ nguyên vị trí viewport để tránh cảm giác "nhảy về đầu trang".
+  if (preserveRatio == null) {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }
-  const total = Math.max(1, state.flipPages.length);
-  const current = Math.max(1, Math.min(total, state.flipPageIndex + 1));
-  refs.readerPageProgress.textContent = state.shell.t("readerPageInChapter", { current, total });
-  refs.readerPageProgress.classList.remove("hidden");
+  updateProgress();
+  updateMiniInfoVisibility();
 }
 
 function updateProgress() {
   if (!state.book || !state.chapterId) {
-    refs.readerProgress.textContent = state.shell.t("progressEmpty");
+    refs.readerChapterCounter.textContent = state.shell.t("chapterCounter", { current: 0, total: 0 });
+    refs.readerPageCounter.textContent = state.shell.t("pageCounter", { current: 0, total: 0 });
+    refs.readerBookPercent.textContent = state.shell.t("bookPercent", { percent: "0.0" });
+    if (refs.readerMiniChapterCounter) refs.readerMiniChapterCounter.textContent = state.shell.t("chapterCounter", { current: 0, total: 0 });
+    if (refs.readerMiniPageCounter) refs.readerMiniPageCounter.textContent = state.shell.t("pageCounter", { current: 0, total: 0 });
+    if (refs.readerMiniBookPercent) refs.readerMiniBookPercent.textContent = state.shell.t("bookPercent", { percent: "0.0" });
     return;
   }
+
   const idx = findChapterIndex();
-  const order = idx >= 0 ? (state.book.chapters[idx].chapter_order || idx + 1) : 1;
-  let ratio = 0;
+  const chapterCurrent = Math.max(1, idx + 1);
+  const chapterTotal = Math.max(1, state.book.chapter_count || (state.book.chapters && state.book.chapters.length) || 1);
+  const ratio = currentChapterRatio();
+  const paging = virtualPagingByViewport();
+  const pageTotal = paging.total;
+  const pageCurrent = paging.current;
+  state.chapterVirtualPages = pageTotal;
+  state.virtualPageIndex = pageCurrent - 1;
+  state.bookPercent = clamp01(((chapterCurrent - 1) + ratio) / chapterTotal) * 100;
 
-  if (currentReadingMode() === "flip") {
-    const totalPages = Math.max(1, state.flipPages.length);
-    ratio = totalPages <= 1 ? 0 : state.flipPageIndex / (totalPages - 1);
-  } else {
-    const wrap = refs.readerContentScroll;
-    const maxY = Math.max(1, wrap.scrollHeight - wrap.clientHeight);
-    ratio = Math.max(0, Math.min(1, wrap.scrollTop / maxY));
-  }
+  refs.readerChapterCounter.textContent = state.shell.t("chapterCounter", { current: chapterCurrent, total: chapterTotal });
+  refs.readerPageCounter.textContent = state.shell.t("pageCounter", { current: pageCurrent, total: pageTotal });
+  refs.readerBookPercent.textContent = state.shell.t("bookPercent", { percent: state.bookPercent.toFixed(1) });
 
-  refs.readerProgress.textContent = state.shell.t("progressTemplate", {
-    current: order,
-    total: state.book.chapter_count || (state.book.chapters && state.book.chapters.length) || 1,
-    percent: (ratio * 100).toFixed(1),
-  });
-  updateFlipPageProgress();
+  // Mini footer: trái = chương/tổng; phải = trang x/y + % tổng.
+  if (refs.readerMiniChapterCounter) refs.readerMiniChapterCounter.textContent = state.shell.t("chapterCounter", { current: chapterCurrent, total: chapterTotal });
+  if (refs.readerMiniPageCounter) refs.readerMiniPageCounter.textContent = state.shell.t("pageCounter", { current: pageCurrent, total: pageTotal });
+  if (refs.readerMiniBookPercent) refs.readerMiniBookPercent.textContent = state.shell.t("bookPercent", { percent: state.bookPercent.toFixed(1) });
+  updateMiniInfoVisibility();
 }
 
 async function saveProgress() {
   if (!state.bookId || !state.chapterId) return;
-  let ratio = 0;
-
-  if (currentReadingMode() === "flip") {
-    const totalPages = Math.max(1, state.flipPages.length);
-    ratio = totalPages <= 1 ? 0 : state.flipPageIndex / (totalPages - 1);
-  } else {
-    const wrap = refs.readerContentScroll;
-    const maxY = Math.max(1, wrap.scrollHeight - wrap.clientHeight);
-    ratio = Math.max(0, Math.min(1, wrap.scrollTop / maxY));
-  }
+  const ratio = currentChapterRatio();
 
   try {
     await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/progress`, {
@@ -483,7 +694,7 @@ async function loadBook() {
   refs.btnTranslateMode.textContent = state.translateMode === "local" ? state.shell.t("modeLocal") : state.shell.t("modeServer");
 }
 
-async function loadChapter({ resetFlip = true } = {}) {
+async function loadChapter({ resetFlip = true, preserveRatio = null } = {}) {
   if (!state.chapterId) return;
   if (state.activeChapterController) {
     try {
@@ -508,7 +719,8 @@ async function loadChapter({ resetFlip = true } = {}) {
     });
     if (requestSeq !== state.chapterLoadSeq || targetChapterId !== state.chapterId) return;
     state.chapterText = chapter.content || "";
-    renderChapterContent(resetFlip);
+    clearScrollHint();
+    renderChapterContent(resetFlip, preserveRatio);
     updateHeader();
     renderToc();
     updateProgress();
@@ -706,6 +918,7 @@ async function refreshNamePreview() {
 
 async function applyNameEntry(source, target) {
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
+  const preserveRatio = currentChapterRatio();
   try {
     await state.shell.api("/api/name-sets/entry", {
       method: "POST",
@@ -717,7 +930,7 @@ async function applyNameEntry(source, target) {
     cancelPrefetch();
     await loadNameSets();
     await loadBook();
-    await loadChapter();
+    await loadChapter({ resetFlip: true, preserveRatio });
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -727,6 +940,7 @@ async function applyNameEntry(source, target) {
 
 async function deleteNameEntry(source) {
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
+  const preserveRatio = currentChapterRatio();
   try {
     await state.shell.api("/api/name-sets/entry", {
       method: "POST",
@@ -737,7 +951,7 @@ async function deleteNameEntry(source) {
     cancelPrefetch();
     await loadNameSets();
     await loadBook();
-    await loadChapter();
+    await loadChapter({ resetFlip: true, preserveRatio });
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -1192,12 +1406,18 @@ async function switchMode(nextMode) {
 }
 
 async function goChapter(step) {
-  if (!state.book) return;
+  if (!state.book || state.chapterTransitioning) return false;
   const idx = findChapterIndex();
-  if (idx < 0) return;
+  if (idx < 0) return false;
   const next = idx + step;
-  if (next < 0 || next >= state.book.chapters.length) return;
-  await openChapterById(state.book.chapters[next].chapter_id, { updateHistory: true, resetFlip: true });
+  if (next < 0 || next >= state.book.chapters.length) return false;
+  state.chapterTransitioning = true;
+  try {
+    await openChapterById(state.book.chapters[next].chapter_id, { updateHistory: true, resetFlip: true });
+    return true;
+  } finally {
+    state.chapterTransitioning = false;
+  }
 }
 
 async function reloadCurrentChapter() {
@@ -1225,7 +1445,7 @@ async function reloadCurrentChapter() {
 }
 
 async function goPrevAction() {
-  if (currentReadingMode() !== "flip") return;
+  if (runtimeReadingMode() !== "flip") return;
   if (!(state.flipPages.length > 1 && state.flipPageIndex > 0)) return;
   state.flipPageIndex -= 1;
   renderFlipPage();
@@ -1234,7 +1454,7 @@ async function goPrevAction() {
 }
 
 async function goNextAction() {
-  if (currentReadingMode() !== "flip") return;
+  if (runtimeReadingMode() !== "flip") return;
   if (!(state.flipPages.length > 1 && state.flipPageIndex < state.flipPages.length - 1)) return;
   state.flipPageIndex += 1;
   renderFlipPage();
@@ -1281,7 +1501,7 @@ function bindFlipDragGesture() {
   };
 
   refs.readerContentScroll.addEventListener("pointerdown", (event) => {
-    if (currentReadingMode() !== "flip") return;
+    if (runtimeReadingMode() !== "flip") return;
     if (event.button !== 0) return;
     if (event.target && event.target.closest && event.target.closest("a,button,input,textarea,select,label")) return;
 
@@ -1317,13 +1537,15 @@ function bindReaderHotkeys() {
     if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT")) return;
     if (refs.nameEditorDialog.open) return;
 
+    const mode = runtimeReadingMode();
     const key = String(event.key || "");
+    if (mode !== "flip") return;
     if (key === "ArrowLeft" || key === "PageUp") {
       event.preventDefault();
       goPrevAction().catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
       return;
     }
-    if (key === "ArrowRight" || key === "PageDown" || key === " " || key === "ArrowDown") {
+    if (key === "ArrowRight" || key === "PageDown") {
       event.preventDefault();
       goNextAction().catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
       return;
@@ -1388,9 +1610,16 @@ function setFullscreenUiVisible(visible, { autoHideMs = 0 } = {}) {
 }
 
 function refreshFullscreenMode() {
+  const prevMode = state.runtimeMode || runtimeReadingMode();
+  const preserveRatio = chapterRatioByMode(prevMode);
   if (document.fullscreenElement) state.fullscreenFallback = false;
   const isFs = isFullscreenActive();
   document.body.classList.toggle("fullscreen-reading", isFs);
+  applyReaderModeClass();
+  if (state.chapterText && prevMode !== state.runtimeMode) {
+    renderChapterContent(true, preserveRatio);
+  }
+  clearScrollHint();
   if (isFs) {
     refs.btnFullscreen.textContent = state.shell.t("fullscreenExit");
     setFullscreenUiVisible(true, { autoHideMs: 2200 });
@@ -1472,7 +1701,7 @@ function onFullscreenKeydown(event) {
 }
 
 function onReaderWheel(event) {
-  const mode = currentReadingMode();
+  const mode = runtimeReadingMode();
   const wrap = refs.readerContentScroll;
   if (!wrap) return;
 
@@ -1489,16 +1718,84 @@ function onReaderWheel(event) {
   }
 
   if (mode === "horizontal") {
-    const canScrollX = wrap.scrollWidth > wrap.clientWidth + 2;
+    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (Math.abs(delta) < 0.5) return;
+    const maxX = Math.max(0, wrap.scrollWidth - wrap.clientWidth);
+    const canScrollX = maxX > 2;
+    const atStart = wrap.scrollLeft <= 1;
+    const atEnd = wrap.scrollLeft >= maxX - 1;
+    const dir = delta > 0 ? 1 : -1;
+
+    if (isFullscreenActive() && ((dir > 0 && atEnd) || (dir < 0 && atStart))) {
+      event.preventDefault();
+      if (state.infiniteScrollDirection !== dir) {
+        state.infiniteScrollDirection = dir;
+        state.infiniteScrollProgressPx = 0;
+      }
+      const threshold = Math.max(56, wrap.clientWidth * 0.35);
+      state.infiniteScrollProgressPx += Math.abs(delta);
+      if (!hasChapterByStep(dir)) {
+        showScrollHint(dir > 0 ? state.shell.t("atLastChapter") : state.shell.t("atFirstChapter"), { edge: true, autoHideMs: 1400 });
+        return;
+      }
+      showScrollHint(
+        dir > 0 ? state.shell.t("scrollHintNext") : state.shell.t("scrollHintPrev"),
+        { autoHideMs: 0 },
+      );
+      if (state.infiniteScrollProgressPx >= threshold) {
+        handleInfiniteChapterTransition(dir).catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
+      }
+      return;
+    }
+
+    if (state.infiniteScrollProgressPx > 0) clearScrollHint();
     if (!canScrollX) {
       return;
     }
-    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
-    if (Math.abs(delta) < 0.5) return;
     event.preventDefault();
     wrap.scrollLeft += delta;
+    updateProgress();
+    clearTimeout(state.saveTimer);
+    state.saveTimer = window.setTimeout(() => saveProgress(), 280);
     return;
   }
+
+  if (mode === "vertical" && isFullscreenActive()) {
+    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (Math.abs(delta) < 0.5) return;
+    const maxY = Math.max(0, wrap.scrollHeight - wrap.clientHeight);
+    const atTop = wrap.scrollTop <= 1;
+    const atBottom = wrap.scrollTop >= maxY - 1;
+    const dir = delta > 0 ? 1 : -1;
+
+    if ((dir > 0 && atBottom) || (dir < 0 && atTop)) {
+      event.preventDefault();
+      if (state.infiniteScrollDirection !== dir) {
+        state.infiniteScrollDirection = dir;
+        state.infiniteScrollProgressPx = 0;
+      }
+      const threshold = Math.max(56, wrap.clientHeight * 0.35);
+      state.infiniteScrollProgressPx += Math.abs(delta);
+      if (!hasChapterByStep(dir)) {
+        showScrollHint(dir > 0 ? state.shell.t("atLastChapter") : state.shell.t("atFirstChapter"), { edge: true, autoHideMs: 1400 });
+        return;
+      }
+      showScrollHint(
+        dir > 0 ? state.shell.t("scrollHintNext") : state.shell.t("scrollHintPrev"),
+        { autoHideMs: 0 },
+      );
+      if (state.infiniteScrollProgressPx >= threshold) {
+        handleInfiniteChapterTransition(dir).catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
+      }
+      return;
+    }
+
+    if (state.infiniteScrollProgressPx > 0) clearScrollHint();
+    showScrollHint(state.shell.t("scrollingIndicator"), { autoHideMs: 240 });
+    return;
+  }
+
+  if (state.infiniteScrollProgressPx > 0) clearScrollHint();
 }
 
 async function init() {
@@ -1522,6 +1819,7 @@ async function init() {
   refs.readerTocTitle.textContent = state.shell.t("tocTitle");
   refs.btnCloseReaderToc.textContent = state.shell.t("close");
   refs.btnReaderToc.textContent = state.shell.t("readerToc");
+  if (refs.btnFooterToc) refs.btnFooterToc.textContent = state.shell.t("readerToc");
   if (refs.btnOpenSettingsInline) refs.btnOpenSettingsInline.textContent = state.shell.t("openSettings");
   refs.btnModeRaw.textContent = state.shell.t("raw");
   refs.btnModeTrans.textContent = state.shell.t("trans");
@@ -1534,9 +1832,10 @@ async function init() {
 
   applyReaderModeClass();
   window.addEventListener("reader-settings-changed", () => {
+    const preserveRatio = currentChapterRatio();
     applyReaderModeClass();
     resetFlipDragVisual();
-    renderChapterContent(true);
+    renderChapterContent(true, preserveRatio);
     updateProgress();
   });
 
@@ -1554,14 +1853,28 @@ async function init() {
 
   if (!state.bookId) {
     refs.readerBookTitle.textContent = state.shell.t("noBookSelected");
-    refs.readerChapterTitle.textContent = state.shell.t("readerEmpty");
+    refs.readerChapterSub.textContent = "";
+    updateProgress();
     return;
   }
 
   await loadBook();
-  await loadChapter();
+  // Khi vào reader bằng `book_id` (không chỉ định `chapter_id`), ưu tiên khôi phục vị trí đọc cũ.
+  const explicitChapterId = Boolean(state.shell.parseQuery().chapter_id);
+  let initialRatio = null;
+  if (
+    !explicitChapterId
+    && state.book
+    && state.book.last_read_chapter_id
+    && state.chapterId === state.book.last_read_chapter_id
+    && typeof state.book.last_read_ratio === "number"
+  ) {
+    initialRatio = state.book.last_read_ratio;
+  }
+  await loadChapter({ preserveRatio: initialRatio });
 
   refs.btnReaderToc.addEventListener("click", openToc);
+  if (refs.btnFooterToc) refs.btnFooterToc.addEventListener("click", openToc);
   if (refs.btnOpenSettingsInline) {
     refs.btnOpenSettingsInline.addEventListener("click", () => {
       const topSettingsBtn = document.getElementById("btn-open-settings");
@@ -1616,11 +1929,22 @@ async function init() {
 
   refs.readerContentScroll.addEventListener("scroll", () => {
     hideSelectionBtn();
-    if (currentReadingMode() === "flip") return;
+    if (runtimeReadingMode() === "flip") return;
     updateProgress();
+    updateMiniInfoVisibility();
     clearTimeout(state.saveTimer);
     state.saveTimer = window.setTimeout(() => saveProgress(), 280);
   });
+
+  // Nếu trang đang scroll theo window (không phải scroll nội bộ), vẫn phải cập nhật tiến độ + lưu vị trí.
+  window.addEventListener("scroll", () => {
+    hideSelectionBtn();
+    if (runtimeReadingMode() === "flip") return;
+    updateProgress();
+    updateMiniInfoVisibility();
+    clearTimeout(state.saveTimer);
+    state.saveTimer = window.setTimeout(() => saveProgress(), 280);
+  }, { passive: true });
 
   // Chỉ bắt sự kiện click vào vùng nội dung để toggle UI
   refs.readerContentScroll.addEventListener("click", onFullscreenContentClick);
@@ -1640,6 +1964,14 @@ async function init() {
       hideSelectionBtn();
     }
   });
+
+  // Nếu body/window scroll (một số layout) thì vẫn canh lại vị trí mini bars.
+  window.addEventListener("scroll", () => syncMiniBarLayout(), { passive: true });
+  window.addEventListener("resize", () => {
+    syncMiniBarLayout();
+    updateProgress();
+    updateMiniInfoVisibility();
+  }, { passive: true });
 }
 
 init();

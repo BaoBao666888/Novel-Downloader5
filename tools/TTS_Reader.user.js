@@ -157,6 +157,7 @@
         currentAudio: null,
         sharedAudio: null,
         silentAudio: null,
+        silentKeepAliveWanted: false,
         mediaSessionBound: false,
         remoteAudioCache: new Map(),
         remoteAudioInflight: new Map(),
@@ -758,9 +759,12 @@
         }
 
         if (isWikiCvHost()) {
-            stopSpeechOnly();
-            state.reading = false;
+            // Giữ MediaSession/notification khi auto chuyển phần trên mobile.
+            stopSpeechOnly(true);
+            state.reading = true;
             state.paused = false;
+            startSilentAudioKeepAlive();
+            setMediaSessionPlaybackStateSafe('playing');
             clearActiveHighlight();
             updateProgressText(true);
 
@@ -778,9 +782,12 @@
                 });
             return true;
         }
-        stopSpeechOnly();
-        state.reading = false;
+        // Site khác: cũng cố gắng giữ notification trong lúc chuyển phần.
+        stopSpeechOnly(true);
+        state.reading = true;
         state.paused = false;
+        startSilentAudioKeepAlive();
+        setMediaSessionPlaybackStateSafe('playing');
         clearActiveHighlight();
         updateProgressText(true);
 
@@ -832,7 +839,7 @@
                 return;
             }
 
-            refreshChapterData();
+            refreshChapterData({ preservePlayback: true });
 
             setTimeout(() => startFromParagraph(1), 250);
         });
@@ -1662,6 +1669,12 @@
 
                 refreshChapterData({ preservePlayback: shouldAutoStart });
                 if (shouldAutoStart) {
+                    // Cập nhật metadata sớm (title mới) để notification không bị "mất" khi app chạy ngầm.
+                    try {
+                        updateMediaSession(getActiveProviderLabel(), { text: 'Đang tải chương mới...' });
+                        setMediaSessionPlaybackStateSafe('playing');
+                        startSilentAudioKeepAlive();
+                    } catch (err) { /* ignore */ }
                     setTimeout(() => startFromParagraph(1), 350);
                 } else {
                     stopSilentAudioKeepAlive();
@@ -3720,6 +3733,17 @@
         }
     }
 
+    function forcePauseFromSystem() {
+        // Media notification trên Android có thể gửi pause khi state.reading đang bị lệch (vd đang auto qua chương).
+        // Pause kiểu "idempotent": gọi nhiều lần vẫn chỉ pause.
+        state.paused = true;
+        clearNextSegmentTimer();
+        try { if (state.currentAudio) state.currentAudio.pause(); } catch (err) { /* ignore */ }
+        try { speechSynthesis.pause(); } catch (err) { /* ignore */ }
+        stopSilentAudioKeepAlive();
+        setMediaSessionPlaybackStateSafe('paused');
+    }
+
     function onNextClick() {
         if (state.segments.length === 0) {
             return;
@@ -3786,7 +3810,6 @@
         state.reading = true;
         state.paused = false;
 
-        startSilentAudioKeepAlive();
         setMediaSessionPlaybackStateSafe('playing');
 
         const segment = state.segments[state.segmentIndex];
@@ -3805,8 +3828,12 @@
         }
 
         if (isRemoteProvider()) {
+            // Chỉ giữ silent keepalive trong lúc chờ tạo audio (không chồng lên audio thật).
+            startSilentAudioKeepAlive();
             speakSegmentWithRemote(segment, token);
         } else {
+            // Browser Speech đã có âm thanh thật, không cần keepalive (tránh luồng audio phụ).
+            stopSilentAudioKeepAlive();
             speakSegmentWithBrowser(segment, token);
         }
     }
@@ -3888,6 +3915,8 @@
                     if (token !== state.utteranceToken || !state.reading || state.paused) {
                         return;
                     }
+                    // Đoạn kế sẽ cần thời gian tạo audio; bật keepalive trong lúc chờ.
+                    startSilentAudioKeepAlive();
                     completeCurrentSegment(segment);
                 };
 
@@ -3903,6 +3932,9 @@
                     if (token !== state.utteranceToken) {
                         return;
                     }
+                    // Đã có audio thật => tắt keepalive để không chồng thêm luồng audio phụ.
+                    stopSilentAudioKeepAlive();
+                    setMediaSessionPlaybackStateSafe('playing');
                     updateStatus(`Đang đọc ${provider.label}...`);
                     scheduleRemotePrefetch(providerId, segmentIdxSnapshot + 1);
                 }).catch((err) => {
@@ -5228,21 +5260,31 @@
         const audio = new Audio();
         audio.src = generateSilentWavDataUri();
         audio.loop = true;
-        audio.volume = 0;
+        // Android đôi khi không giữ notification nếu audio volume = 0.
+        // Dùng volume cực nhỏ để vẫn là "đang phát" nhưng gần như không nghe thấy.
+        audio.volume = 0.001;
         state.silentAudio = audio;
         return audio;
     }
 
     function startSilentAudioKeepAlive() {
+        state.silentKeepAliveWanted = true;
         const sa = getSilentAudio();
         if (sa.paused) {
-            sa.play().catch(() => { });
+            // Nếu stop được gọi ngay sau play(), promise có thể resolve trễ và bật lại audio.
+            sa.play().then(() => {
+                if (!state.silentKeepAliveWanted) {
+                    try { sa.pause(); } catch (err) { /* ignore */ }
+                }
+            }).catch(() => { });
         }
     }
 
     function stopSilentAudioKeepAlive() {
-        if (state.silentAudio && !state.silentAudio.paused) {
-            state.silentAudio.pause();
+        state.silentKeepAliveWanted = false;
+        if (state.silentAudio) {
+            try { state.silentAudio.pause(); } catch (err) { /* ignore */ }
+            try { state.silentAudio.currentTime = 0; } catch (err) { /* ignore */ }
         }
     }
 
@@ -5270,14 +5312,11 @@
         try {
             // Luôn đi qua các handler của script để state.paused/state.reading đồng bộ.
             navigator.mediaSession.setActionHandler('play', () => {
-                if (state.paused || !state.reading) {
-                    onPlayClick();
-                }
+                onPlayClick();
             });
             navigator.mediaSession.setActionHandler('pause', () => {
-                if (state.reading && !state.paused) {
-                    onPauseClick();
-                }
+                // Không phụ thuộc state.reading (có thể bị lệch khi đang auto qua chương/part).
+                try { forcePauseFromSystem(); } catch (err) { /* ignore */ }
             });
             navigator.mediaSession.setActionHandler('stop', () => {
                 stopReading(true);
@@ -5286,7 +5325,7 @@
             navigator.mediaSession.setActionHandler('previoustrack', () => {
                 if (state.segments.length === 0) return;
                 const prev = Math.max(0, state.segmentIndex - 1);
-                stopSpeechOnly();
+                stopSpeechOnly(true);
                 state.segmentIndex = prev;
                 speakCurrentSegment();
             });
@@ -5303,7 +5342,10 @@
 
             navigator.mediaSession.playbackState = stateValue;
         } catch (err) {
-
+            // Một số browser không chấp nhận 'none'. Fallback về 'paused' để notification không bị kẹt "đang phát".
+            if (String(stateValue || '') === 'none') {
+                try { navigator.mediaSession.playbackState = 'paused'; } catch (err2) { /* ignore */ }
+            }
         }
     }
 

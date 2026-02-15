@@ -10,6 +10,7 @@
   --particle: #ffffff;
   --line: color-mix(in srgb, var(--text) 20%, transparent);
   --shadow: 0 14px 40px color-mix(in srgb, var(--bg) 60%, transparent);
+  --panel-surface: var(--surface);
 
   --reader-font-family: "Noto Serif", "Palatino Linotype", "Times New Roman", serif;
   --reader-font-size: 21px;
@@ -20,6 +21,7 @@
   --panel-alt-alpha: 14%;
   --topbar-alpha: 62%;
   --drawer-alpha: 80%;
+  --settings-drawer-alpha: 90%;
   --reader-content-alpha: 12%;
   --reader-content-alpha-scroll: 12%;
 }
@@ -89,7 +91,9 @@ body.panel-style-clear {
   --panel-alpha: 0%;
   --panel-alt-alpha: 0%;
   --topbar-alpha: 8%;
-  --drawer-alpha: 14%;
+  --drawer-alpha: 20%;
+  /* Tab Cài đặt cần đọc rõ, không quá "lọt nền" như panel đọc. */
+  --settings-drawer-alpha: 96%;
   --reader-content-alpha: 0%;
   --reader-content-alpha-scroll: 0%;
   --line: color-mix(in srgb, var(--text) 12%, transparent);
@@ -102,17 +106,21 @@ body.panel-style-balanced {
   --panel-alt-alpha: 22%;
   --topbar-alpha: 62%;
   --drawer-alpha: 82%;
+  --settings-drawer-alpha: 90%;
   --reader-content-alpha: 18%;
   --reader-content-alpha-scroll: 14%;
 }
 
 body.panel-style-solid {
-  --panel-alpha: 58%;
-  --panel-alt-alpha: 48%;
-  --topbar-alpha: 86%;
-  --drawer-alpha: 96%;
-  --reader-content-alpha: 46%;
-  --reader-content-alpha-scroll: 30%;
+  /* "Đậm màu" nhưng vẫn nhìn thấy theme nền phía dưới. */
+  --panel-alpha: 46%;
+  --panel-alt-alpha: 42%;
+  --topbar-alpha: 76%;
+  --drawer-alpha: 90%;
+  --settings-drawer-alpha: 96%;
+  --reader-content-alpha: 34%;
+  --reader-content-alpha-scroll: 24%;
+  --panel-surface: color-mix(in srgb, var(--surface-alt) 88%, var(--accent) 6%);
 }
 
 body.mpa-body .pages {
@@ -332,13 +340,25 @@ body.effects-paused #fx-layer::after {
 
 body.panel-style-clear .topbar,
 body.panel-style-clear .panel,
-body.panel-style-clear .settings-drawer,
 body.panel-style-clear .reader-toc-drawer,
 body.panel-style-clear .reader-content-scroll,
 body.panel-style-clear .reader-head,
-body.panel-style-clear .reader-footer,
-body.panel-style-clear #reader-chapter-title {
+body.panel-style-clear .reader-footer {
   backdrop-filter: none;
+}
+
+/* Clear mode: vẫn giữ blur/nền đậm cho tab Cài đặt để chữ không bị "chồng" lên nền web. */
+body.panel-style-clear .settings-drawer {
+  backdrop-filter: blur(14px);
+}
+
+body.panel-style-clear .settings-drawer input[type="search"],
+body.panel-style-clear .settings-drawer input[type="text"],
+body.panel-style-clear .settings-drawer input[type="url"],
+body.panel-style-clear .settings-drawer textarea,
+body.panel-style-clear .settings-drawer select {
+  background: color-mix(in srgb, var(--surface-alt) 86%, transparent);
+  border-color: color-mix(in srgb, var(--line) 85%, transparent);
 }
 
 body.panel-style-clear .panel,
@@ -346,7 +366,6 @@ body.panel-style-clear .book-card,
 body.panel-style-clear .reader-content-scroll,
 body.panel-style-clear .reader-head,
 body.panel-style-clear .reader-footer,
-body.panel-style-clear #reader-chapter-title,
 body.panel-style-clear .reader-content-body,
 body.panel-style-clear .reader-viewport,
 body.panel-style-clear .reader-panel {
@@ -544,7 +563,7 @@ input[type="range"] {
 }
 
 .panel {
-  background: color-mix(in srgb, var(--surface) var(--panel-alpha), transparent);
+  background: color-mix(in srgb, var(--panel-surface) var(--panel-alpha), transparent);
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: var(--shadow);
@@ -586,7 +605,7 @@ p {
 .library-grid {
   padding: 10px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 10px;
   overflow: auto;
 }
@@ -595,10 +614,10 @@ p {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface-alt) var(--panel-alt-alpha), transparent);
-  padding: 10px;
+  padding: 12px;
   display: grid;
-  grid-template-columns: 78px 1fr;
-  gap: 10px;
+  grid-template-columns: 117px 1fr;
+  gap: 12px;
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -610,8 +629,8 @@ p {
 }
 
 .book-card-cover {
-  width: 78px;
-  height: 110px;
+  width: 117px;
+  height: 165px;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
@@ -645,6 +664,34 @@ p {
   color: var(--muted);
   font-size: 12px;
   margin-bottom: 3px;
+}
+
+.book-card-progress-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.book-card-chapter {
+  color: color-mix(in srgb, var(--text) 86%, transparent);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.book-card-percent {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  color: color-mix(in srgb, var(--text) 92%, transparent);
 }
 
 .book-card-tools {
@@ -893,10 +940,10 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-footer {
   min-width: 0;
 }
 
-#reader-book-title,
-#reader-chapter-title {
+#reader-book-title {
   overflow-wrap: anywhere;
   word-break: break-word;
+  font-size: clamp(22px, 2.3vw, 34px);
 }
 
 .reader-viewport {
@@ -905,11 +952,80 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-footer {
   display: flex;
   flex-direction: column;
   padding: 14px 14px 10px;
+  position: relative;
 }
 
 body[data-page="reader"]:not(.fullscreen-reading) .reader-viewport {
   padding: 0;
   margin: 12px 0;
+}
+
+/* Mini persistent info bars (nhỏ, pin theo viewport; JS canh theo khung content). */
+.reader-mini-head,
+.reader-mini-foot {
+  position: fixed;
+  left: var(--mini-left, 10px);
+  width: var(--mini-width, calc(100vw - 20px));
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 8px;
+  border-radius: 0;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--bg) 45%, transparent);
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.reader-mini-head {
+  top: var(--mini-head-top, 6px);
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.reader-mini-foot {
+  bottom: var(--mini-foot-bottom, 6px);
+  justify-content: space-between;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+.reader-mini-title {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--text) 92%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reader-mini-item {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.reader-mini-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+/* (Giữ lại class mini-info-visible cho padding content; visibility do JS/hidden điều khiển) */
+
+body.panel-style-clear .reader-mini-head,
+body.panel-style-clear .reader-mini-foot {
+  /* Clear mode vẫn cần thấy được mini bars một chút (nếu không sẽ "mất" trên nền sao). */
+  background: color-mix(in srgb, var(--surface) 40%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: none;
+  border-color: color-mix(in srgb, var(--line) 45%, transparent);
 }
 
 body[data-page="reader"]:not(.fullscreen-reading) .reader-content-scroll {
@@ -919,11 +1035,6 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-content-scroll {
 
 body[data-page="reader"]:not(.fullscreen-reading) .reader-content-body {
   background: transparent !important;
-}
-
-#reader-chapter-title {
-  margin: 0 0 10px;
-  font-size: clamp(23px, 2.5vw, 35px);
 }
 
 .reader-content-scroll {
@@ -937,10 +1048,45 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-content-body {
   backdrop-filter: none;
 }
 
+/* Chừa chỗ để mini bars không che chữ khi pin. */
+.reader-viewport.mini-info-visible .reader-content-scroll {
+  padding-top: 30px;
+  padding-bottom: 34px;
+}
+
+/* (đã chuyển sang mặc định sát mép; chỉ cần 1 bộ rule) */
+
 .reader-viewport.reading-vertical .reader-content-scroll,
 .reader-viewport.reading-horizontal .reader-content-scroll,
 .reader-viewport.reading-hybrid .reader-content-scroll {
   background: color-mix(in srgb, var(--surface) var(--reader-content-alpha-scroll), transparent);
+}
+
+.reader-scroll-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%) translateY(8px);
+  z-index: 5;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--text) 92%, transparent);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 999px;
+  padding: 6px 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.reader-scroll-hint.active {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  animation: hintPulse 0.9s ease-in-out infinite;
+}
+
+.reader-scroll-hint.edge {
+  animation: none;
 }
 
 body[data-page="reader"]:not(.panel-style-clear) {
@@ -1049,22 +1195,52 @@ body.panel-style-clear .reader-content-body {
 .reader-footer {
   border-top: 1px solid var(--line);
   border-bottom: 0;
+  align-items: center;
 }
 
-.reader-progress-wrap {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
+.reader-footer-left,
+.reader-footer-center,
+.reader-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-#reader-progress {
+.reader-footer-center {
+  justify-content: center;
+  flex: 1;
+}
+
+.reader-footer-left {
+  justify-content: flex-start;
+}
+
+.reader-footer-right {
+  justify-content: flex-end;
+}
+
+.reader-counter {
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .reader-page-progress {
-  color: color-mix(in srgb, var(--text) 82%, transparent);
+  color: color-mix(in srgb, var(--text) 86%, transparent);
   font-size: 12px;
+  min-width: 92px;
+  text-align: center;
+}
+
+@keyframes hintPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
 }
 
 .btn {
@@ -1109,7 +1285,6 @@ body.panel-style-clear .reader-content-body {
   width: min(420px, 94vw);
   height: 100vh;
   border-left: 1px solid var(--line);
-  background: color-mix(in srgb, var(--surface) var(--drawer-alpha), transparent);
   backdrop-filter: blur(10px);
   box-shadow: -12px 0 30px color-mix(in srgb, var(--bg) 65%, transparent);
   transform: translateX(100%);
@@ -1119,9 +1294,14 @@ body.panel-style-clear .reader-content-body {
   flex-direction: column;
 }
 
+.settings-drawer {
+  background: color-mix(in srgb, var(--surface) var(--settings-drawer-alpha), transparent);
+}
+
 .reader-toc-drawer {
   width: min(360px, 90vw);
   z-index: 72;
+  background: color-mix(in srgb, var(--surface) var(--drawer-alpha), transparent);
 }
 
 .settings-drawer.open,
@@ -1197,11 +1377,6 @@ body.fullscreen-reading .reader-viewport {
   min-height: 100vh;
 }
 
-body.fullscreen-reading #reader-chapter-title {
-  padding: 14px 18px 8px;
-  margin: 0;
-}
-
 body.fullscreen-reading .reader-content-scroll {
   border-radius: 0;
   border-left: 0;
@@ -1210,7 +1385,6 @@ body.fullscreen-reading .reader-content-scroll {
   min-height: calc(100vh - 40px);
 }
 
-body.fullscreen-reading.panel-style-clear #reader-chapter-title,
 body.fullscreen-reading.panel-style-clear .reader-content-scroll,
 body.fullscreen-reading.panel-style-clear .reader-head,
 body.fullscreen-reading.panel-style-clear .reader-footer {

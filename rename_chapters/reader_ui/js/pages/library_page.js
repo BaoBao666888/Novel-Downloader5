@@ -1,5 +1,5 @@
-import { initShell } from "../site_common.js?v=20260210-r13";
-import { normalizeDisplayTitle } from "../reader_text.js?v=20260210-r13";
+import { initShell } from "../site_common.js?v=20260215-vb01";
+import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
   libraryTitle: document.getElementById("library-title"),
@@ -35,6 +35,10 @@ function openActions(bookId) {
   if (!book) return;
   state.selectedBookId = bookId;
   refs.bookActionsSubtitle.textContent = `${book.title_display || book.title || ""} • ${book.author_display || book.author || "Khuyết danh"}`;
+  if (refs.btnActionOpenReader) {
+    const percent = Number(book.progress_percent || 0);
+    refs.btnActionOpenReader.textContent = percent > 0 ? state.shell.t("openReaderContinue") : state.shell.t("openReader");
+  }
   if (!refs.bookActionsDialog.open) {
     refs.bookActionsDialog.showModal();
   }
@@ -81,7 +85,21 @@ function renderBooks() {
     author.className = "book-card-meta";
     author.textContent = book.author_display || book.author || "Khuyết danh";
 
-    body.append(title, author);
+    const infoRow = document.createElement("div");
+    infoRow.className = "book-card-progress-row";
+
+    const ch = document.createElement("div");
+    ch.className = "book-card-chapter";
+    ch.textContent = normalizeDisplayTitle(book.current_chapter_title_display || book.current_chapter_title || "Chương 1");
+
+    const pct = document.createElement("div");
+    pct.className = "book-card-percent";
+    const percent = Math.max(0, Math.min(100, Number(book.progress_percent || 0)));
+    pct.textContent = `${percent.toFixed(1)}%`;
+
+    infoRow.append(ch, pct);
+
+    body.append(title, author, infoRow);
     card.append(cover, body);
     card.addEventListener("click", () => openActions(book.book_id));
     card.addEventListener("keydown", (event) => {

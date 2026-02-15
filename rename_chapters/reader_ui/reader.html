@@ -66,7 +66,7 @@
       root.classList.toggle("effects-paused", (settings.backgroundMotion || "on") !== "on");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260210-r13">
+  <link rel="stylesheet" href="./styles.css?v=20260214-r07">
 </head>
 <body data-page="reader" class="mpa-body">
   <script>
@@ -127,19 +127,35 @@
       </div>
 
       <div id="reader-viewport" class="reader-viewport reading-vertical">
-        <h3 id="reader-chapter-title"></h3>
+        <div id="reader-mini-head" class="reader-mini-head" aria-hidden="true" hidden>
+          <div id="reader-mini-chapter-title" class="reader-mini-title"></div>
+        </div>
         <div id="reader-content-scroll" class="reader-content-scroll">
           <div id="reader-content-body" class="reader-content-body"></div>
         </div>
+        <div id="reader-mini-foot" class="reader-mini-foot" aria-hidden="true" hidden>
+          <div id="reader-mini-chapter-counter" class="reader-mini-item"></div>
+          <div class="reader-mini-right">
+            <div id="reader-mini-page-counter" class="reader-mini-item"></div>
+            <div id="reader-mini-book-percent" class="reader-mini-item"></div>
+          </div>
+        </div>
+        <div id="reader-scroll-hint" class="reader-scroll-hint hidden" aria-live="polite"></div>
       </div>
 
       <footer class="reader-footer">
-        <button id="btn-prev" class="btn" type="button"></button>
-        <div class="reader-progress-wrap">
-          <div id="reader-progress"></div>
-          <div id="reader-page-progress" class="reader-page-progress hidden"></div>
+        <div class="reader-footer-left">
+          <div id="reader-chapter-counter" class="reader-counter"></div>
         </div>
-        <button id="btn-next" class="btn" type="button"></button>
+        <div class="reader-footer-center">
+          <button id="btn-prev" class="btn" type="button"></button>
+          <button id="btn-footer-toc" class="btn" type="button"></button>
+          <button id="btn-next" class="btn" type="button"></button>
+        </div>
+        <div class="reader-footer-right">
+          <div id="reader-page-counter" class="reader-counter"></div>
+          <div id="reader-book-percent" class="reader-counter"></div>
+        </div>
       </footer>
     </article>
   </main>
@@ -232,6 +248,7 @@
       <label><span id="label-line-height"></span><input id="line-height-input" type="range" min="1.2" max="2.6" step="0.05"><small id="line-height-value"></small></label>
       <label><span id="label-paragraph-spacing"></span><input id="paragraph-spacing-input" type="range" min="0.2" max="2.2" step="0.05"><small id="paragraph-spacing-value"></small></label>
       <label><span id="label-reading-mode"></span><select id="reading-mode-select"><option id="mode-flip" value="flip"></option><option id="mode-horizontal" value="horizontal"></option><option id="mode-vertical" value="vertical"></option><option id="mode-hybrid" value="hybrid"></option></select></label>
+      <label><span id="label-mini-bars-enabled"></span><select id="mini-bars-enabled-select"><option id="mini-bars-on" value="on"></option><option id="mini-bars-off" value="off"></option></select></label>
       <div class="settings-actions"><button id="btn-save-settings" class="btn btn-primary" type="submit"></button><button id="btn-reset-settings" class="btn" type="button"></button></div>
     </form>
   </aside>
@@ -239,6 +256,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260210-r13"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260215-vb01"></script>
 </body>
 </html>
