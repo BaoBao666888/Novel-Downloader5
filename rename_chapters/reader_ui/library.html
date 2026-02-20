@@ -114,6 +114,7 @@
         <div class="cover-btns">
           <button id="btn-import" class="btn btn-primary" type="button"></button>
           <button id="btn-import-url" class="btn" type="button"></button>
+          <button id="btn-manage-vbook" class="btn" type="button"></button>
           <span id="library-count" class="tag"></span>
         </div>
       </div>
@@ -267,6 +268,83 @@
         <button id="btn-import-url-cancel" class="btn" type="button"></button>
         <button id="btn-import-url-submit" class="btn btn-primary" type="submit"></button>
       </div>
+    </form>
+  </dialog>
+
+  <dialog id="vbook-manager-dialog" class="dialog vbook-manager-dialog">
+    <div class="dialog-head">
+      <h3 id="vbook-manager-title"></h3>
+      <button id="btn-vbook-manager-close" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="vbook-manager-hint" class="dialog-subtitle"></p>
+
+    <div class="vbook-manager-grid">
+      <section class="vbook-manager-pane">
+        <div class="vbook-manager-pane-head">
+          <h4 id="vbook-installed-title"></h4>
+          <button id="btn-vbook-refresh-installed" class="btn btn-small" type="button"></button>
+        </div>
+        <div class="name-preview-table-wrap">
+          <table class="name-preview-table">
+            <thead>
+              <tr>
+                <th id="vbook-col-name"></th>
+                <th id="vbook-col-meta"></th>
+                <th id="vbook-col-action"></th>
+              </tr>
+            </thead>
+            <tbody id="vbook-installed-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="vbook-manager-pane">
+        <div class="vbook-manager-pane-head">
+          <h4 id="vbook-repo-title"></h4>
+          <button id="btn-vbook-refresh-repo" class="btn btn-small" type="button"></button>
+        </div>
+        <div class="vbook-repo-picker">
+          <label>
+            <span id="vbook-repo-label"></span>
+            <select id="vbook-repo-select"></select>
+          </label>
+          <label>
+            <span id="vbook-repo-custom-label"></span>
+            <input id="vbook-repo-custom-input" type="url" placeholder="https://.../repository.json">
+          </label>
+          <div class="vbook-repo-actions">
+            <button id="btn-vbook-load-custom-repo" class="btn btn-small" type="button"></button>
+            <button id="btn-vbook-add-repo" class="btn btn-small" type="button"></button>
+            <button id="btn-vbook-remove-repo" class="btn btn-small" type="button"></button>
+            <button id="btn-vbook-save-repos" class="btn btn-small btn-primary" type="button"></button>
+          </div>
+        </div>
+        <div class="name-preview-table-wrap">
+          <table class="name-preview-table">
+            <thead>
+              <tr>
+                <th id="vbook-repo-col-name"></th>
+                <th id="vbook-repo-col-meta"></th>
+                <th id="vbook-repo-col-action"></th>
+              </tr>
+            </thead>
+            <tbody id="vbook-repo-body"></tbody>
+          </table>
+        </div>
+        <p id="vbook-repo-errors" class="empty-text hidden"></p>
+      </section>
+    </div>
+
+    <form id="vbook-install-url-form" class="vbook-install-url-form">
+      <label>
+        <span id="vbook-plugin-url-label"></span>
+        <input id="vbook-plugin-url-input" type="url" required placeholder="https://.../plugin.zip">
+      </label>
+      <label>
+        <span id="vbook-plugin-id-label"></span>
+        <input id="vbook-plugin-id-input" type="text" placeholder="tùy chọn">
+      </label>
+      <button id="btn-vbook-install-url" class="btn btn-primary" type="submit"></button>
     </form>
   </dialog>
 

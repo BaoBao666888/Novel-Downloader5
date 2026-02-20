@@ -70,6 +70,8 @@ DEFAULT_UI_SETTINGS = {
 }
 
 DEFAULT_API_SETTINGS = {
+    'wikidich_domain': "https://wikicv.net/",
+    'koanchay_domain': "https://koanchay.org/",
     'wiki_delay_min': 2.0,
     'wiki_delay_max': 3.0,
     'fanqie_delay_min': 0.0,

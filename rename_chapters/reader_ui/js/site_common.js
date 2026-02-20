@@ -296,6 +296,7 @@ function fillStaticTexts() {
     ["btn-go-search", "search"],
     ["btn-import", "import"],
     ["btn-import-url", "importUrl"],
+    ["btn-manage-vbook", "manageVbookSources"],
     ["btn-clear-cache", "clearCache"],
     ["btn-open-settings", "openSettings"],
     ["settings-title", "settingsTitle"],
@@ -342,6 +343,28 @@ function fillStaticTexts() {
     ["import-url-plugin-auto", "importUrlPluginAuto"],
     ["btn-import-url-cancel", "cancel"],
     ["btn-import-url-submit", "confirmImportUrl"],
+    ["vbook-manager-title", "vbookManagerTitle"],
+    ["vbook-manager-hint", "vbookManagerHint"],
+    ["btn-vbook-manager-close", "close"],
+    ["vbook-installed-title", "vbookInstalledTitle"],
+    ["btn-vbook-refresh-installed", "vbookRefreshInstalled"],
+    ["vbook-col-name", "vbookColName"],
+    ["vbook-col-meta", "vbookColMeta"],
+    ["vbook-col-action", "vbookColAction"],
+    ["vbook-repo-title", "vbookRepoTitle"],
+    ["btn-vbook-refresh-repo", "vbookRefreshRepo"],
+    ["vbook-repo-label", "vbookRepoLabel"],
+    ["vbook-repo-custom-label", "vbookRepoCustomLabel"],
+    ["btn-vbook-load-custom-repo", "vbookRepoCustomLoad"],
+    ["btn-vbook-add-repo", "vbookRepoAdd"],
+    ["btn-vbook-remove-repo", "vbookRepoRemove"],
+    ["btn-vbook-save-repos", "vbookRepoSave"],
+    ["vbook-repo-col-name", "vbookRepoColName"],
+    ["vbook-repo-col-meta", "vbookRepoColMeta"],
+    ["vbook-repo-col-action", "vbookRepoColAction"],
+    ["vbook-plugin-url-label", "vbookPluginUrlLabel"],
+    ["vbook-plugin-id-label", "vbookPluginIdLabel"],
+    ["btn-vbook-install-url", "vbookInstallFromUrl"],
   ];
   for (const [id, key] of pairs) {
     const node = qs(id);
@@ -358,6 +381,13 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   const state = {
     themes: [],
     settings: loadSettings(),
+    vbook: {
+      installed: [],
+      repoUrls: [],
+      repoPlugins: [],
+      repoErrors: [],
+      activeRepoUrl: "",
+    },
   };
 
   applyPanelStyle(state.settings);
@@ -617,6 +647,365 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     });
   }
 
+  const pluginSelect = qs("import-url-plugin");
+  const vbookManagerDialog = qs("vbook-manager-dialog");
+  const vbookRepoSelect = qs("vbook-repo-select");
+  const vbookRepoCustomInput = qs("vbook-repo-custom-input");
+
+  const formatPluginMeta = (item) => {
+    const out = [];
+    const version = String(item && item.version != null ? item.version : "").trim();
+    if (version) out.push(`v${version}`);
+    const locale = String((item && item.locale) || "").trim();
+    if (locale) out.push(locale);
+    const type = String((item && item.type) || "").trim();
+    if (type) out.push(type);
+    const author = String((item && item.author) || "").trim();
+    if (author) out.push(author);
+    return out.join(" • ");
+  };
+
+  const renderImportPluginOptions = (items) => {
+    if (!pluginSelect) return;
+    const keep = pluginSelect.querySelector('option[value=""]');
+    pluginSelect.innerHTML = "";
+    if (keep) {
+      pluginSelect.appendChild(keep);
+    } else {
+      const autoOpt = document.createElement("option");
+      autoOpt.value = "";
+      autoOpt.textContent = t("importUrlPluginAuto");
+      pluginSelect.appendChild(autoOpt);
+    }
+    const list = Array.isArray(items) ? items : [];
+    for (const item of list) {
+      const pid = String(item.plugin_id || "").trim();
+      if (!pid) continue;
+      const opt = document.createElement("option");
+      opt.value = pid;
+      const label = String(item.name || pid).trim() || pid;
+      const meta = formatPluginMeta(item);
+      opt.textContent = meta ? `${label} • ${meta}` : label;
+      pluginSelect.appendChild(opt);
+    }
+  };
+
+  const renderInstalledPlugins = () => {
+    const body = qs("vbook-installed-body");
+    if (!body) return;
+    body.innerHTML = "";
+    const items = Array.isArray(state.vbook.installed) ? state.vbook.installed : [];
+    if (!items.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 3;
+      td.className = "empty-text";
+      td.textContent = t("vbookNoInstalledPlugins");
+      tr.appendChild(td);
+      body.appendChild(tr);
+      return;
+    }
+    for (const item of items) {
+      const tr = document.createElement("tr");
+
+      const tdName = document.createElement("td");
+      const name = document.createElement("div");
+      name.className = "vbook-repo-item-name";
+      const pluginName = String(item.name || item.plugin_id || t("vbookUnknownPlugin")).trim() || t("vbookUnknownPlugin");
+      name.textContent = pluginName;
+      const pid = document.createElement("div");
+      pid.className = "vbook-repo-item-sub";
+      pid.textContent = String(item.plugin_id || "").trim();
+      tdName.append(name, pid);
+
+      const tdMeta = document.createElement("td");
+      tdMeta.textContent = formatPluginMeta(item) || "-";
+
+      const tdAction = document.createElement("td");
+      const btnRemove = document.createElement("button");
+      btnRemove.type = "button";
+      btnRemove.className = "btn btn-small";
+      btnRemove.textContent = t("vbookRemoveAction");
+      btnRemove.addEventListener("click", async () => {
+        const pidValue = String(item.plugin_id || "").trim();
+        if (!pidValue) return;
+        if (!window.confirm(t("confirmRemoveVbookPlugin", { name: pluginName }))) return;
+        showStatus(t("statusRemovingVbookPlugin"));
+        try {
+          await api(`/api/vbook/plugins/${encodeURIComponent(pidValue)}`, { method: "DELETE" });
+          showToast(t("toastVbookPluginRemoved"));
+          await loadInstalledVbookPlugins({ silent: true });
+          await loadRepoPlugins({ silent: true });
+        } catch (error) {
+          showToast(error.message || t("toastError"));
+        } finally {
+          hideStatus();
+        }
+      });
+      tdAction.appendChild(btnRemove);
+
+      tr.append(tdName, tdMeta, tdAction);
+      body.appendChild(tr);
+    }
+  };
+
+  const renderRepoErrors = () => {
+    const box = qs("vbook-repo-errors");
+    if (!box) return;
+    const errs = Array.isArray(state.vbook.repoErrors) ? state.vbook.repoErrors : [];
+    if (!errs.length) {
+      box.classList.add("hidden");
+      box.textContent = "";
+      return;
+    }
+    const parts = errs.map((item) => {
+      const url = String((item && item.repo_url) || "").trim();
+      const message = String((item && item.message) || "").trim();
+      if (url && message) return `${url}: ${message}`;
+      return url || message;
+    }).filter(Boolean);
+    if (!parts.length) {
+      box.classList.add("hidden");
+      box.textContent = "";
+      return;
+    }
+    box.textContent = `${t("vbookRepoErrorsPrefix")} ${parts.join(" | ")}`;
+    box.classList.remove("hidden");
+  };
+
+  const renderRepoPlugins = () => {
+    const body = qs("vbook-repo-body");
+    if (!body) return;
+    body.innerHTML = "";
+    const items = Array.isArray(state.vbook.repoPlugins) ? state.vbook.repoPlugins : [];
+    if (!items.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 3;
+      td.className = "empty-text";
+      td.textContent = t("vbookNoRepoPlugins");
+      tr.appendChild(td);
+      body.appendChild(tr);
+      renderRepoErrors();
+      return;
+    }
+    for (const item of items) {
+      const tr = document.createElement("tr");
+
+      const tdName = document.createElement("td");
+      const name = document.createElement("div");
+      name.className = "vbook-repo-item-name";
+      name.textContent = String(item.name || item.plugin_id || t("vbookUnknownPlugin")).trim() || t("vbookUnknownPlugin");
+      tdName.appendChild(name);
+      const desc = String(item.description || "").trim();
+      if (desc) {
+        const sub = document.createElement("div");
+        sub.className = "vbook-repo-item-sub";
+        sub.textContent = desc;
+        tdName.appendChild(sub);
+      }
+
+      const tdMeta = document.createElement("td");
+      const metaParts = [];
+      const pluginUrl = String(item.plugin_url || "").trim();
+      const repoUrl = String(item.repo_url || "").trim();
+      const pluginMeta = formatPluginMeta(item);
+      if (pluginMeta) metaParts.push(pluginMeta);
+      if (repoUrl) {
+        try {
+          metaParts.push(new URL(repoUrl).host || repoUrl);
+        } catch {
+          metaParts.push(repoUrl);
+        }
+      }
+      tdMeta.textContent = metaParts.join(" • ") || "-";
+      if (pluginUrl) {
+        const sub = document.createElement("div");
+        sub.className = "vbook-repo-item-sub";
+        sub.textContent = pluginUrl;
+        tdMeta.appendChild(sub);
+      }
+
+      const tdAction = document.createElement("td");
+      const installed = Boolean(item.installed);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-small";
+      if (installed) {
+        btn.textContent = t("vbookInstalledBadge");
+        btn.disabled = true;
+      } else if (!pluginUrl) {
+        btn.textContent = t("vbookNoDownloadUrl");
+        btn.disabled = true;
+      } else {
+        btn.textContent = t("vbookInstallAction");
+        btn.addEventListener("click", async () => {
+          showStatus(t("statusInstallingVbookPlugin"));
+          try {
+            await api("/api/vbook/plugins/install", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                plugin_url: pluginUrl,
+                plugin_id: String(item.plugin_id || "").trim(),
+              }),
+            });
+            showToast(t("toastVbookPluginInstalled"));
+            await loadInstalledVbookPlugins({ silent: true });
+            await loadRepoPlugins({ silent: true });
+          } catch (error) {
+            showToast(error.message || t("toastError"));
+          } finally {
+            hideStatus();
+          }
+        });
+      }
+      tdAction.appendChild(btn);
+
+      tr.append(tdName, tdMeta, tdAction);
+      body.appendChild(tr);
+    }
+    renderRepoErrors();
+  };
+
+  const renderRepoSelect = () => {
+    if (!vbookRepoSelect) return;
+    const keep = String(state.vbook.activeRepoUrl || "").trim();
+    vbookRepoSelect.innerHTML = "";
+    const allOpt = document.createElement("option");
+    allOpt.value = "";
+    allOpt.textContent = t("vbookRepoAllConfigured");
+    vbookRepoSelect.appendChild(allOpt);
+    const urls = Array.isArray(state.vbook.repoUrls) ? state.vbook.repoUrls : [];
+    for (const rawUrl of urls) {
+      const url = String(rawUrl || "").trim();
+      if (!url) continue;
+      const opt = document.createElement("option");
+      opt.value = url;
+      let label = url;
+      try {
+        const parsed = new URL(url);
+        label = parsed.host ? `${parsed.host}${parsed.pathname}` : url;
+      } catch {
+        // keep raw
+      }
+      opt.textContent = label;
+      vbookRepoSelect.appendChild(opt);
+    }
+    if (keep && urls.includes(keep)) {
+      vbookRepoSelect.value = keep;
+    } else {
+      vbookRepoSelect.value = "";
+      state.vbook.activeRepoUrl = "";
+    }
+  };
+
+  const normalizeRepoUrls = (urls) => {
+    const list = Array.isArray(urls) ? urls : [];
+    const out = [];
+    const seen = new Set();
+    for (const raw of list) {
+      const url = String(raw || "").trim();
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      out.push(url);
+    }
+    return out;
+  };
+
+  async function saveRepoUrls() {
+    const repoUrls = normalizeRepoUrls(state.vbook.repoUrls || []);
+    showStatus(t("statusSavingVbookRepos"));
+    try {
+      const payload = await api("/api/vbook/repos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repo_urls: repoUrls }),
+      });
+      const items = Array.isArray(payload && payload.items) ? payload.items : [];
+      state.vbook.repoUrls = normalizeRepoUrls(items.map((x) => String((x && x.url) || "").trim()));
+      renderRepoSelect();
+      showToast(t("toastVbookRepoSaved"));
+      return state.vbook.repoUrls;
+    } catch (error) {
+      showToast(error.message || t("toastError"));
+      return state.vbook.repoUrls;
+    } finally {
+      hideStatus();
+    }
+  }
+
+  async function loadInstalledVbookPlugins({ silent = false } = {}) {
+    if (!pluginSelect && !qs("vbook-installed-body")) return [];
+    if (!silent) showStatus(t("statusLoadingVbookInstalled"));
+    try {
+      const payload = await api("/api/vbook/plugins");
+      const items = (payload && payload.items) || [];
+      state.vbook.installed = Array.isArray(items) ? items : [];
+      renderImportPluginOptions(state.vbook.installed);
+      renderInstalledPlugins();
+      return state.vbook.installed;
+    } catch (error) {
+      if (!silent) showToast(error.message || t("toastError"));
+      return [];
+    } finally {
+      if (!silent) hideStatus();
+    }
+  }
+
+  async function loadRepoUrls({ silent = false } = {}) {
+    if (!vbookRepoSelect) return [];
+    if (!silent) showStatus(t("statusLoadingVbookRepo"));
+    try {
+      const payload = await api("/api/vbook/repos");
+      const items = (payload && payload.items) || [];
+      state.vbook.repoUrls = Array.isArray(items)
+        ? items.map((x) => String((x && x.url) || "").trim()).filter(Boolean)
+        : [];
+      renderRepoSelect();
+      return state.vbook.repoUrls;
+    } catch (error) {
+      if (!silent) showToast(error.message || t("toastError"));
+      state.vbook.repoUrls = [];
+      renderRepoSelect();
+      return [];
+    } finally {
+      if (!silent) hideStatus();
+    }
+  }
+
+  const currentRepoUrl = () => {
+    const custom = String((vbookRepoCustomInput && vbookRepoCustomInput.value) || "").trim();
+    if (custom) return custom;
+    return String((vbookRepoSelect && vbookRepoSelect.value) || "").trim();
+  };
+
+  async function loadRepoPlugins({ repoUrl = null, silent = false } = {}) {
+    if (!qs("vbook-repo-body")) return [];
+    const raw = repoUrl == null ? currentRepoUrl() : String(repoUrl || "").trim();
+    state.vbook.activeRepoUrl = String((vbookRepoSelect && vbookRepoSelect.value) || "").trim();
+    if (!silent) showStatus(t("statusLoadingVbookRepo"));
+    try {
+      const endpoint = raw
+        ? `/api/vbook/repo/plugins?repo_url=${encodeURIComponent(raw)}`
+        : "/api/vbook/repo/plugins";
+      const payload = await api(endpoint);
+      state.vbook.repoPlugins = Array.isArray(payload && payload.items) ? payload.items : [];
+      state.vbook.repoErrors = Array.isArray(payload && payload.errors) ? payload.errors : [];
+      renderRepoPlugins();
+      if (!silent) showToast(t("toastVbookRepoLoaded"));
+      return state.vbook.repoPlugins;
+    } catch (error) {
+      state.vbook.repoPlugins = [];
+      state.vbook.repoErrors = [];
+      renderRepoPlugins();
+      if (!silent) showToast(error.message || t("toastError"));
+      return [];
+    } finally {
+      if (!silent) hideStatus();
+    }
+  }
+
   if (qs("btn-import")) qs("btn-import").addEventListener("click", () => qs("import-dialog") && qs("import-dialog").showModal());
   if (qs("btn-import-cancel")) qs("btn-import-cancel").addEventListener("click", () => qs("import-dialog") && qs("import-dialog").close());
   if (qs("import-form")) {
@@ -635,27 +1024,135 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     });
   }
 
-  // Populate plugin list for optional manual selection.
-  const pluginSelect = qs("import-url-plugin");
-  if (pluginSelect) {
-    try {
-      const payload = await api("/api/vbook/plugins");
-      const items = (payload && payload.items) || [];
-      // Keep first "auto" option.
-      for (const item of items) {
-        const pid = String(item.plugin_id || "").trim();
-        if (!pid) continue;
-        const opt = document.createElement("option");
-        opt.value = pid;
-        const label = String(item.name || pid);
-        const author = String(item.author || "").trim();
-        opt.textContent = author ? `${label} • ${author}` : label;
-        pluginSelect.appendChild(opt);
+  if (qs("btn-manage-vbook")) {
+    qs("btn-manage-vbook").addEventListener("click", async () => {
+      if (!vbookManagerDialog) return;
+      if (!vbookManagerDialog.open) vbookManagerDialog.showModal();
+      showStatus(t("statusLoadingVbookInstalled"));
+      try {
+        await loadInstalledVbookPlugins({ silent: true });
+        await loadRepoUrls({ silent: true });
+        await loadRepoPlugins({ silent: true });
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      } finally {
+        hideStatus();
       }
-    } catch {
-      // ignore
-    }
+    });
   }
+
+  if (qs("btn-vbook-manager-close")) {
+    qs("btn-vbook-manager-close").addEventListener("click", () => {
+      if (vbookManagerDialog && vbookManagerDialog.open) vbookManagerDialog.close();
+    });
+  }
+
+  if (qs("btn-vbook-refresh-installed")) {
+    qs("btn-vbook-refresh-installed").addEventListener("click", async () => {
+      await loadInstalledVbookPlugins();
+    });
+  }
+
+  if (qs("btn-vbook-refresh-repo")) {
+    qs("btn-vbook-refresh-repo").addEventListener("click", async () => {
+      await loadRepoUrls({ silent: true });
+      await loadRepoPlugins();
+    });
+  }
+
+  if (vbookRepoSelect) {
+    vbookRepoSelect.addEventListener("change", async () => {
+      state.vbook.activeRepoUrl = String(vbookRepoSelect.value || "").trim();
+      if (vbookRepoCustomInput) vbookRepoCustomInput.value = "";
+      await loadRepoPlugins();
+    });
+  }
+
+  if (qs("btn-vbook-load-custom-repo")) {
+    qs("btn-vbook-load-custom-repo").addEventListener("click", async () => {
+      const repoUrl = String((vbookRepoCustomInput && vbookRepoCustomInput.value) || "").trim();
+      if (!repoUrl) {
+        showToast(t("toastVbookNeedRepoUrl"));
+        return;
+      }
+      await loadRepoPlugins({ repoUrl });
+    });
+  }
+
+  if (qs("btn-vbook-add-repo")) {
+    qs("btn-vbook-add-repo").addEventListener("click", async () => {
+      const candidate = String((vbookRepoCustomInput && vbookRepoCustomInput.value) || "").trim()
+        || String((vbookRepoSelect && vbookRepoSelect.value) || "").trim();
+      if (!candidate) {
+        showToast(t("toastVbookNeedRepoUrl"));
+        return;
+      }
+      const next = normalizeRepoUrls([...(state.vbook.repoUrls || []), candidate]);
+      if (next.length === (state.vbook.repoUrls || []).length) {
+        showToast(t("toastVbookRepoExists"));
+        return;
+      }
+      state.vbook.repoUrls = next;
+      renderRepoSelect();
+      if (vbookRepoSelect) {
+        vbookRepoSelect.value = candidate;
+      }
+      state.vbook.activeRepoUrl = candidate;
+      showToast(t("toastVbookRepoAdded"));
+      await saveRepoUrls();
+      await loadRepoPlugins({ repoUrl: candidate, silent: true });
+    });
+  }
+
+  if (qs("btn-vbook-remove-repo")) {
+    qs("btn-vbook-remove-repo").addEventListener("click", async () => {
+      const selected = String((vbookRepoSelect && vbookRepoSelect.value) || "").trim();
+      if (!selected) {
+        showToast(t("toastVbookNeedRepoSelect"));
+        return;
+      }
+      state.vbook.repoUrls = normalizeRepoUrls((state.vbook.repoUrls || []).filter((x) => String(x || "").trim() !== selected));
+      state.vbook.activeRepoUrl = "";
+      renderRepoSelect();
+      if (vbookRepoCustomInput) vbookRepoCustomInput.value = "";
+      showToast(t("toastVbookRepoRemoved"));
+      await saveRepoUrls();
+      await loadRepoPlugins({ silent: true });
+    });
+  }
+
+  if (qs("btn-vbook-save-repos")) {
+    qs("btn-vbook-save-repos").addEventListener("click", async () => {
+      await saveRepoUrls();
+    });
+  }
+
+  if (qs("vbook-install-url-form")) {
+    qs("vbook-install-url-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const pluginUrl = String((qs("vbook-plugin-url-input") && qs("vbook-plugin-url-input").value) || "").trim();
+      const pluginId = String((qs("vbook-plugin-id-input") && qs("vbook-plugin-id-input").value) || "").trim();
+      if (!pluginUrl) return;
+      showStatus(t("statusInstallingVbookPlugin"));
+      try {
+        await api("/api/vbook/plugins/install", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plugin_url: pluginUrl, plugin_id: pluginId }),
+        });
+        showToast(t("toastVbookPluginInstalled"));
+        if (qs("vbook-install-url-form")) qs("vbook-install-url-form").reset();
+        await loadInstalledVbookPlugins({ silent: true });
+        await loadRepoPlugins({ silent: true });
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      } finally {
+        hideStatus();
+      }
+    });
+  }
+
+  await loadInstalledVbookPlugins({ silent: true });
 
   if (qs("btn-clear-cache")) qs("btn-clear-cache").addEventListener("click", clearCache);
 

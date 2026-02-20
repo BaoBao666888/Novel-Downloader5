@@ -107,7 +107,31 @@
 
   <div id="status-inline" class="status-inline" role="status" aria-live="polite" aria-busy="false"></div>
 
-  <main class="pages single-main two-col">
+  <main class="pages single-main two-col search-page-layout">
+    <section class="panel search-online-panel">
+      <div class="panel-head">
+        <h2 id="vbook-search-title"></h2>
+        <span id="vbook-search-meta" class="tag"></span>
+      </div>
+      <div class="search-online-controls">
+        <label>
+          <span id="vbook-plugin-label"></span>
+          <select id="vbook-plugin-select"></select>
+        </label>
+        <div class="search-online-actions">
+          <button id="btn-vbook-search-run" class="btn" type="button"></button>
+          <button id="btn-vbook-search-reset" class="btn" type="button"></button>
+        </div>
+      </div>
+      <div id="vbook-search-grid" class="library-grid"></div>
+      <p id="vbook-search-empty" class="empty-text"></p>
+      <div class="toc-footer">
+        <button id="btn-vbook-search-prev" class="btn btn-small" type="button"></button>
+        <span id="vbook-search-page" class="tag"></span>
+        <button id="btn-vbook-search-next" class="btn btn-small" type="button"></button>
+      </div>
+    </section>
+
     <section class="panel">
       <div class="panel-head">
         <h2 id="search-books-title"></h2>
@@ -126,6 +150,39 @@
       <p id="chapter-hits-empty" class="empty-text"></p>
     </section>
   </main>
+
+  <dialog id="vbook-detail-dialog" class="dialog vbook-detail-dialog">
+    <div class="dialog-head">
+      <h3 id="vbook-detail-dialog-title"></h3>
+      <button id="btn-vbook-detail-close" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="vbook-detail-subtitle" class="dialog-subtitle"></p>
+
+    <section class="vbook-detail-hero">
+      <div id="vbook-detail-cover" class="vbook-detail-cover"></div>
+      <div class="vbook-detail-meta">
+        <h4 id="vbook-detail-title"></h4>
+        <p id="vbook-detail-author" class="book-card-meta"></p>
+        <p id="vbook-detail-desc" class="vbook-detail-desc"></p>
+        <div class="meta-actions">
+          <button id="btn-vbook-detail-import" class="btn btn-primary" type="button"></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="vbook-detail-toc-wrap">
+      <div class="panel-head">
+        <h4 id="vbook-detail-toc-title"></h4>
+      </div>
+      <ul id="vbook-detail-toc-list" class="simple-list vbook-detail-toc-list"></ul>
+      <p id="vbook-detail-toc-empty" class="empty-text"></p>
+      <div class="toc-footer">
+        <button id="btn-vbook-toc-prev" class="btn btn-small" type="button"></button>
+        <span id="vbook-toc-page" class="tag"></span>
+        <button id="btn-vbook-toc-next" class="btn btn-small" type="button"></button>
+      </div>
+    </section>
+  </dialog>
 
   <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
     <div class="settings-head">
@@ -151,6 +208,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/search_page.js?v=20260215-vb01"></script>
+  <script type="module" src="./js/pages/search_page.js?v=20260220-vb02"></script>
 </body>
 </html>

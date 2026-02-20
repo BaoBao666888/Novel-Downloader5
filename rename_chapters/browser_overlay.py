@@ -61,11 +61,19 @@ class BrowserOverlay:
         parent_events, child_events = multiprocessing.Pipe()
         self.cmd_conn = parent_conn
         self.event_conn = parent_events
+        spy_targets = None
+        if hasattr(self.app, "_get_browser_spy_targets"):
+            try:
+                targets = self.app._get_browser_spy_targets()
+                if targets:
+                    spy_targets = sorted(targets)
+            except Exception:
+                spy_targets = None
         self._event_conn_id += 1
         conn_id = self._event_conn_id
         self.proc = multiprocessing.Process(
             target=_run_qt_browser,
-            args=(self.current_url, child_conn, child_events, self.profile_dir),
+            args=(self.current_url, child_conn, child_events, self.profile_dir, spy_targets),
             daemon=True
         )
         self.proc.start()

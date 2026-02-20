@@ -24,6 +24,26 @@ const state = {
   shell: null,
 };
 
+function buildSourceLabel(book) {
+  const sourceType = String((book && book.source_type) || "").trim().toLowerCase();
+  if (sourceType !== "vbook" && sourceType !== "vbook_comic") return "";
+  const pluginId = String((book && book.source_plugin) || "").trim();
+  const sourceUrl = String((book && book.source_url) || "").trim();
+  const isComic = Boolean(book && book.is_comic);
+  let host = "";
+  if (sourceUrl) {
+    try {
+      host = new URL(sourceUrl).host || "";
+    } catch {
+      host = "";
+    }
+  }
+  const base = isComic ? "vBook Comic" : "vBook";
+  if (host) return `${base} • ${host}`;
+  if (pluginId) return `${base} • ${pluginId}`;
+  return base;
+}
+
 function closeActions() {
   if (refs.bookActionsDialog && refs.bookActionsDialog.open) {
     refs.bookActionsDialog.close();
@@ -85,6 +105,14 @@ function renderBooks() {
     author.className = "book-card-meta";
     author.textContent = book.author_display || book.author || "Khuyết danh";
 
+    const sourceLabel = buildSourceLabel(book);
+    let source = null;
+    if (sourceLabel) {
+      source = document.createElement("div");
+      source.className = "book-card-source";
+      source.textContent = sourceLabel;
+    }
+
     const infoRow = document.createElement("div");
     infoRow.className = "book-card-progress-row";
 
@@ -99,7 +127,11 @@ function renderBooks() {
 
     infoRow.append(ch, pct);
 
-    body.append(title, author, infoRow);
+    if (source) {
+      body.append(title, author, source, infoRow);
+    } else {
+      body.append(title, author, infoRow);
+    }
     card.append(cover, body);
     card.addEventListener("click", () => openActions(book.book_id));
     card.addEventListener("keydown", (event) => {

@@ -8,6 +8,24 @@
   "junk_dataset": {
     "url": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/junk_dataset.json"
   },
+  "reader_app": {
+    "server": {
+      "version": "0.0.1",
+      "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.3.1/reader_server.zip",
+      "exe_name": "reader_server.exe",
+      "notes": ""
+    },
+    "ui": {
+      "version": "0.0.1",
+      "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.3.1/reader_ui.zip",
+      "notes": ""
+    },
+    "java": {
+      "version": "21.0.10",
+      "url": "",
+      "notes": "Tuỳ chọn: link zip JRE 21 để app tự tải (nếu để trống sẽ fallback Temurin/Adoptium trên Windows)."
+    }
+  },
   
   "image_ai_tool": {
     "version": "0.1.2",

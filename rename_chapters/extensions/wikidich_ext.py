@@ -279,6 +279,7 @@ def fetch_works(
     base_url: str = BASE_URL,
     proxies=None,
     progress_cb: Optional[Callable[[str, int, int, str], None]] = None,
+    page_commit_cb: Optional[Callable[[Dict[str, Any], int, int], None]] = None,
     delay: float = 1.5,
     max_retries: int = 5,
     stop_after: Optional[int] = None,
@@ -344,6 +345,16 @@ def fetch_works(
                 found_anchor = True
         if page_size is None:
             page_size = len(page_books) if page_books else 0
+        if page_commit_cb:
+            partial = {
+                "username": user_slug,
+                "book_ids": list(book_ids),
+                "books": dict(books),
+                "synced_at": datetime.utcnow().isoformat(),
+                "total_count": total if total is not None else len(book_ids),
+            }
+            next_start = len(book_ids)
+            page_commit_cb(partial, next_start, page_size or 0)
         if progress_cb:
             progress_cb("works", len(book_ids), total or 0, f"Đã lấy {len(book_ids)} truyện")
         if stop_after and len(book_ids) >= stop_after:

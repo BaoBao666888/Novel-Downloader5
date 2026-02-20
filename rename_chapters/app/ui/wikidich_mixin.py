@@ -10,7 +10,7 @@ import subprocess
 import shutil
 import sys
 import webbrowser
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from urllib.parse import urlparse, urljoin, quote, unquote, parse_qs
 
@@ -49,6 +49,9 @@ class WikidichMixin:
         initial_data = self.wikidich_data
         initial_filtered = getattr(self, "wikidich_filtered", [])
         initial_new = dict(self.wd_new_chapters)
+        self._wd_autoupdate_version = 1
+        self._wd_autoupdate_marked_ids = []
+        self._wd_autoupdate_history_entries = []
         self._wd_data_store = {}
         self._wd_filtered_store = {}
         self._wd_new_chapters_store = {}
@@ -88,6 +91,8 @@ class WikidichMixin:
         self.wikidich_data = initial_data
         self.wikidich_filtered = list(initial_filtered) if initial_filtered else []
         self._wd_set_active_site("wikidich", skip_save=True)
+        self._wd_load_autoupdate_state()
+        self._wd_update_auto_menu_state()
 
     def _build_wikidich_tab_ui(self, tab, site: str):
         self.wd_site = site
@@ -108,23 +113,38 @@ class WikidichMixin:
         
         sync_mb = ttk.Menubutton(header, text="Sync ▾", style="TButton")
         sync_menu = tk.Menu(sync_mb, tearoff=0)
-        sync_menu.add_command(label="Tải Works", command=self._wd_start_fetch_works)
+        sync_menu.add_command(label="Cập nhật", command=self._wd_start_update_works)
+        sync_menu.add_command(label="Tải work", command=self._wd_start_fetch_works)
         sync_menu.add_command(label="Tải Works (không chính chủ)", command=self._wd_prompt_fetch_foreign_works)
         sync_menu.add_command(label="Tải chi tiết", command=self._wd_prompt_detail_fetch)
         sync_mb.config(menu=sync_menu)
         sync_mb.grid(row=0, column=1, padx=(10, 0))
         self.wd_sync_menu = sync_menu
 
+        tools_mb = ttk.Menubutton(header, text="Công cụ ▾", style="TButton")
+        tools_menu = tk.Menu(tools_mb, tearoff=0)
+        tools_menu.add_command(label="Liên kết", command=self._wd_open_global_links)
+        tools_menu.add_command(label="Ghi chú", command=self._wd_open_global_notes)
+        tools_mb.config(menu=tools_menu)
+        tools_mb.grid(row=0, column=2, padx=(6, 0))
+        self.wd_tools_menu = tools_menu
+
+        auto_mb = ttk.Menubutton(header, text="Auto Update ▾", style="TButton")
+        auto_menu = tk.Menu(auto_mb, tearoff=0)
+        auto_menu.add_command(label="Đánh dấu", command=self._wd_open_auto_mark_dialog)
+        auto_menu.add_command(label="Tự động", command=self._wd_start_marked_auto_update, state=tk.DISABLED)
+        auto_menu.add_command(label="Lịch sử", command=self._wd_open_auto_history_dialog)
+        auto_mb.config(menu=auto_menu)
+        auto_mb.grid(row=0, column=3, padx=(6, 0))
+        self.wd_auto_menu = auto_menu
+
         # Group Buttons into a toolbar frame
         tools_frame = ttk.Frame(header)
-        tools_frame.grid(row=0, column=3, columnspan=4, padx=(6, 0))
-        
-        ttk.Button(tools_frame, text="Ghi chú", command=self._wd_open_global_notes).pack(side=tk.LEFT, padx=(0, 2))
+        tools_frame.grid(row=0, column=4, columnspan=3, padx=(6, 0))
+
         if hasattr(self, "_lib_open_library_window"):
              ttk.Button(tools_frame, text="Thư viện", command=self._lib_open_library_window).pack(side=tk.LEFT, padx=(2, 2))
-        
-        self.wd_global_link_btn = ttk.Button(tools_frame, text="Liên kết", command=self._wd_open_global_links)
-        self.wd_global_link_btn.pack(side=tk.LEFT, padx=(2, 2))
+
         ttk.Button(tools_frame, text="Cài đặt", command=self._open_api_settings_dialog).pack(side=tk.LEFT, padx=(2, 0))
         
         # Profile Select
@@ -589,6 +609,7 @@ class WikidichMixin:
         self.wd_tree.tag_configure("has_new", foreground="#16a34a")
         self.wd_tree.tag_configure("not_found", foreground="#ef4444")
         self.wd_tree.tag_configure("server_lower", foreground="#f97316")
+        self.wd_tree.tag_configure("auto_marked_new", foreground="#38bdf8")
         self.wd_tree.grid(row=0, column=0, sticky="nsew")
         self.wd_tree.bind("<<TreeviewSelect>>", self._wd_on_select)
         self._wd_tree_fit_job = None
@@ -722,14 +743,57 @@ class WikidichMixin:
         widget.bind("<Button-2>", lambda e: "break")
         widget.bind("<Button-3>", lambda e: widget.focus_set())
 
+    def _wd_get_configured_domain(self, site: Optional[str] = None) -> str:
+        site_name = (site or getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
+        cfg = self.api_settings if isinstance(getattr(self, "api_settings", None), dict) else {}
+        if site_name == "koanchay":
+            raw = (cfg.get("koanchay_domain") or DEFAULT_API_SETTINGS.get("koanchay_domain") or "https://koanchay.org/").strip()
+        else:
+            raw = (cfg.get("wikidich_domain") or DEFAULT_API_SETTINGS.get("wikidich_domain") or "https://wikicv.net/").strip()
+        if not raw:
+            raw = "https://koanchay.org/" if site_name == "koanchay" else "https://wikicv.net/"
+        if "://" not in raw:
+            raw = "https://" + raw
+        parsed = urlparse(raw)
+        scheme = parsed.scheme or "https"
+        netloc = parsed.netloc or parsed.path
+        netloc = (netloc or "").strip().strip("/")
+        if not netloc:
+            netloc = "koanchay.org" if site_name == "koanchay" else "wikicv.net"
+        return f"{scheme}://{netloc}"
+
     def _wd_get_base_url(self) -> str:
-        return "https://koanchay.org" if getattr(self, "wd_site", "wikidich") == "koanchay" else "https://wikicv.net"
+        return self._wd_get_configured_domain()
+
+    def _wd_get_known_hosts_for_site(self, site: Optional[str] = None) -> set:
+        site_name = (site or getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
+        hosts = set()
+        if site_name == "koanchay":
+            hosts.update({"koanchay.org", "www.koanchay.org", "koanchay.net", "www.koanchay.net"})
+        else:
+            hosts.update({"wikicv.net", "www.wikicv.net"})
+        cfg_host = (urlparse(self._wd_get_configured_domain(site_name)).hostname or "").lower()
+        if cfg_host:
+            hosts.add(cfg_host)
+            hosts.add(cfg_host.lstrip("www."))
+            hosts.add("www." + cfg_host.lstrip("www."))
+        return hosts
 
     def _wd_get_cookie_domains(self):
-        if getattr(self, "wd_site", "wikidich") == "koanchay":
-            # Lấy đủ cookie cf_clearance dù user đăng nhập qua koanchay.org hay koanchay.net
-            return ["koanchay.org", "koanchay.net"]
-        return ["wikicv.net", "koanchay.net"]
+        site = getattr(self, "wd_site", "wikidich")
+        cfg_host = (urlparse(self._wd_get_configured_domain(site)).hostname or "").lower()
+        domains = []
+        if cfg_host:
+            domains.append(cfg_host)
+            bare_host = cfg_host.lstrip("www.")
+            if bare_host and bare_host != cfg_host:
+                domains.append(bare_host)
+        # unique giữ thứ tự
+        out = []
+        for d in domains:
+            if d and d not in out:
+                out.append(d)
+        return out
 
     def _wd_normalize_url_for_site(self, url: str) -> str:
         """Đảm bảo URL phù hợp domain theo tab hiện tại (wikidich/koanchay)."""
@@ -749,7 +813,7 @@ class WikidichMixin:
 
     def _wd_default_headers(self) -> dict:
         base_url = self._wd_get_base_url()
-        base_host = urlparse(base_url).hostname or ""
+        base_host = (urlparse(base_url).hostname or "").lower()
         # Bắt đầu từ template mặc định
         headers = {
             "Accept": DEFAULT_API_SETTINGS['wiki_headers'].get("Accept"),
@@ -768,7 +832,20 @@ class WikidichMixin:
             "sec-ch-ua-platform": '"Windows"',
         }
         # Gộp headers bắt được từ trình duyệt tích hợp (ưu tiên)
-        spy_headers = (self._browser_headers or {}).get(base_host, {})
+        spy_headers = {}
+        host_candidates = []
+        if base_host:
+            host_candidates.append(base_host)
+            bare_host = base_host.lstrip("www.")
+            if bare_host and bare_host != base_host:
+                host_candidates.append(bare_host)
+            if bare_host:
+                host_candidates.append("www." + bare_host)
+        for host in host_candidates:
+            candidate = (self._browser_headers or {}).get(host, {})
+            if isinstance(candidate, dict) and candidate:
+                spy_headers = candidate
+                break
         if spy_headers:
             for key, val in spy_headers.items():
                 if not key or not val:
@@ -812,7 +889,7 @@ class WikidichMixin:
         session = wikidich_ext.build_session_with_cookies(cookies, proxies=proxies)
         # Dedupe cookie trùng tên (ưu tiên domain của site hiện tại, giá trị không bị bọc ")
         # Xác định domain ưu tiên dựa trên site hiện tại
-        preferred_domain = "koanchay.org" if getattr(self, "wd_site", "wikidich") == "koanchay" else "wikicv.net"
+        preferred_domain = (urlparse(self._wd_get_base_url()).hostname or "").lower()
         try:
             cleaned = requests.cookies.RequestsCookieJar()
             keep: dict[str, requests.cookies.Cookie] = {}
@@ -902,6 +979,49 @@ class WikidichMixin:
                 event.set()
         self.after(0, wrapper)
         event.wait()
+        return result.get("value")
+
+    def _wd_prompt_multiline_text(self, title: str, prompt: str, initial_text: str = "") -> Optional[str]:
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title(title or "Nhập nội dung")
+        win.geometry("760x360")
+        win.minsize(620, 300)
+        win.transient(self)
+        win.grab_set()
+        win.columnconfigure(0, weight=1)
+        win.rowconfigure(1, weight=1)
+
+        ttk.Label(win, text=prompt or "", justify="left", anchor="w").grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 6))
+
+        body = ttk.Frame(win)
+        body.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        body.columnconfigure(0, weight=1)
+        body.rowconfigure(0, weight=1)
+
+        text = scrolledtext.ScrolledText(body, wrap=tk.WORD, height=10)
+        text.grid(row=0, column=0, sticky="nsew")
+        if initial_text:
+            text.insert("1.0", initial_text)
+        text.focus_set()
+
+        actions = ttk.Frame(win)
+        actions.grid(row=2, column=0, sticky="e", padx=10, pady=(0, 10))
+
+        result = {"value": None}
+
+        def _ok():
+            result["value"] = text.get("1.0", tk.END).strip()
+            win.destroy()
+
+        def _cancel():
+            result["value"] = None
+            win.destroy()
+
+        ttk.Button(actions, text="OK", command=_ok).pack(side=tk.RIGHT)
+        ttk.Button(actions, text="Cancel", command=_cancel).pack(side=tk.RIGHT, padx=(0, 6))
+        win.protocol("WM_DELETE_WINDOW", _cancel)
+        win.wait_window()
         return result.get("value")
 
     def _wd_update_user_label(self):
@@ -1247,6 +1367,7 @@ class WikidichMixin:
         self.wd_tree.delete(*self.wd_tree.get_children())
         self._wd_tree_index = {}
         new_map = getattr(self, "wd_new_chapters", {})
+        marked_ids = self._wd_get_autoupdate_marked_ids()
         not_found_ids = set()
         
         # Settings
@@ -1283,7 +1404,12 @@ class WikidichMixin:
             elif book.get("server_lower"):
                 tags = ("server_lower",)
             elif new_count:
-                tags = ("high_new",) if is_high else ("has_new",)
+                if is_high:
+                    tags = ("high_new",)
+                elif book_id and book_id in marked_ids:
+                    tags = ("auto_marked_new",)
+                else:
+                    tags = ("has_new",)
             else:
                 tags = ()
             # Build values dynamically based on visible columns
@@ -1335,6 +1461,7 @@ class WikidichMixin:
             self._wd_set_text_content(self.wd_flags_text, "")
         if hasattr(self, "wd_count_var"):
             self.wd_count_var.set(f"Số truyện: {len(books)}")
+        self._wd_update_auto_menu_state()
         # Thu gọn lọc cơ bản theo trạng thái hiện tại (mặc định đã thu gọn sau init)
         if getattr(self, "_wd_basic_collapsed", False):
             try:
@@ -1935,118 +2062,36 @@ class WikidichMixin:
                 pass
 
             def worker():
-                session, current_user, proxies = self._wd_build_wiki_session(include_user=True)
-                if not session or not current_user:
-                    self.after(0, lambda: messagebox.showerror("Lỗi", "Không đọc được cookie Wikidich hoặc chưa đăng nhập." , parent=win))
-                    self.after(0, lambda: (_set_status("Thiếu cookie / chưa đăng nhập"), _enable_actions()))
-                    return
-                # Xác thực lại user trước khi upload
-                try:
-                    user_check = wikidich_ext.fetch_current_user(session, base_url=self._wd_get_base_url(), proxies=proxies)
-                except Exception:
-                    user_check = None
-                if not user_check:
-                    self.after(0, lambda: (_set_status("Chưa đăng nhập"), messagebox.showerror("Lỗi", "Cookie không hợp lệ (không nhận diện được tài khoản).", parent=win)))
-                    self.after(0, _enable_actions)
-                    return
-                base_url = self._wd_get_base_url()
-                url = base_url.rstrip("/") + "/upload-content"
                 desc_text = desc_var.get().strip() or DEFAULT_UPLOAD_SETTINGS["append_desc"]
                 desc_text = _apply_append_desc_template(desc_text)
-                append_flag = "true" if append_mode else None
-                form_fields = [
-                    ("bookId", book_id),
-                    ("volumeId", volume_id),
-                    ("numFile", str(len(parsed_files))),
-                ]
-                if append_flag:
-                    form_fields.append(("appendMode", append_flag))
-                    form_fields.append(("descCn", desc_text))
-
-                handles = []
-                if parse_settings.get("sort_by_number", True):
-                    files_sorted = sorted(parsed_files, key=lambda x: x["num"])
+                upload_res = self._wd_upload_parsed_files_to_volume(
+                    book=book,
+                    volume_info=vol,
+                    parsed_files=parsed_files,
+                    desc_text=desc_text,
+                    raw_title_only=bool(current_raw_title_only["value"]),
+                    template=parse_settings.get("template", "第{num}章 {title}"),
+                    sort_by_number=bool(parse_settings.get("sort_by_number", True)),
+                    edit_page_url=edit_page_url,
+                    silent=False,
+                )
+                if upload_res.get("ok"):
+                    count_added = int(upload_res.get("uploaded_count") or len(parsed_files))
+                    self.after(0, lambda: (
+                        _set_status("Upload thành công"),
+                        _log("Upload thành công.", "ok"),
+                        messagebox.showinfo("Thành công", "Đã upload file lên Wikidich.", parent=win),
+                        self._wd_handle_uploaded_chapters(book, count_added),
+                        _enable_actions(),
+                    ))
                 else:
-                    files_sorted = sorted(parsed_files, key=lambda x: os.path.basename(x["path"]).lower())
-                file_parts = []
-                try:
-                    tpl = "{title}" if current_raw_title_only["value"] else parse_settings.get("template", "第{num}章 {title}")
-                    for item in files_sorted:
-                        path = item["path"]
-                        raw_title = str(item.get("raw_title", "")).strip()
-                        chapter_name = tpl.replace("{num}", str(item["num"])).replace("{title}", raw_title)
-                        f = open(path, "rb")
-                        handles.append(f)
-                        form_fields.append(("name", chapter_name))
-                        file_parts.append(("files", (os.path.basename(path), f)))
-                except Exception as exc:
-                    for h in handles:
-                        try:
-                            h.close()
-                        except Exception:
-                            pass
-                    self.after(0, lambda: (_set_status("Lỗi đọc file"), messagebox.showerror("Lỗi", f"Không đọc được file: {exc}", parent=win)))
-                    self.after(0, _enable_actions)
-                    return
-                try:
-                    # Refresh cookies by touching trang chỉnh sửa trước khi upload
-                    try:
-                        session.get(edit_page_url, proxies=proxies or {}, timeout=15)
-                    except Exception:
-                        pass
-                    headers = dict(session.headers or {})
-                    headers.update({
-                        "X-Requested-With": "XMLHttpRequest",
-                        "Referer": edit_page_url,
-                        "Origin": base_url.rstrip("/"),
-                        "Accept": "*/*",
-                        "Accept-Language": "vi-VN,vi;q=0.9,zh-CN;q=0.8,zh;q=0.7,en-US;q=0.4,en;q=0.3",
-                        "Cache-Control": "no-cache",
-                        "Pragma": "no-cache",
-                        "Priority": "u=1, i",
-                        "sec-ch-ua": '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
-                        "sec-ch-ua-mobile": "?0",
-                        "sec-ch-ua-platform": '"Windows"',
-                        "Sec-Fetch-Site": "same-origin",
-                        "Sec-Fetch-Mode": "cors",
-                        "Sec-Fetch-Dest": "empty",
-                    })
-                    headers.pop("Content-Type", None)
-                    # Dump cookie names being sent để dễ debug
-                    sent_cookies = "; ".join(f"{c.name}={c.value}" for c in session.cookies if c.value)
-                    resp = session.post(url, data=form_fields, files=file_parts, proxies=proxies or {}, headers=headers)
-                    ok = False
-                    err_msg = resp.text
-                    try:
-                        js = resp.json()
-                        if js.get("err") == 0:
-                            ok = True
-                        else:
-                            err_msg = str(js)
-                    except Exception:
-                        pass
-                    total_fields = len(form_fields) + len(file_parts)
-                    summary_msg = f"[Wikidich] Upload {len(parsed_files)} file(s) -> vol {volume_id or '(mặc định)'} ({total_fields} fields) status={resp.status_code} err={err_msg[:200]}"
-                    self.after(0, lambda: _log(summary_msg, "info"))
-                    self.after(0, lambda: self.log(summary_msg))
-                    if ok:
-                        count_added = len(parsed_files)
-                        self.after(0, lambda: (
-                            _set_status("Upload thành công"),
-                            messagebox.showinfo("Thành công", "Đã upload file lên Wikidich.", parent=win),
-                            self._wd_handle_uploaded_chapters(book, count_added)
-                        ))
-                    else:
-                        self.after(0, lambda: (_set_status("Upload thất bại"), messagebox.showerror("Lỗi upload", err_msg, parent=win)))
-                except Exception as exc:
-                    self.after(0, lambda: (_set_status("Lỗi request"), messagebox.showerror("Lỗi", f"{exc}", parent=win)))
-                finally:
-                    for h in handles:
-                        try:
-                            h.close()
-                        except Exception:
-                            pass
-                    self.after(0, _enable_actions)
+                    err_msg = upload_res.get("error_message") or "Upload thất bại."
+                    self.after(0, lambda m=err_msg: (
+                        _set_status("Upload thất bại"),
+                        _log(m, "error"),
+                        messagebox.showerror("Lỗi upload", m, parent=win),
+                        _enable_actions(),
+                    ))
 
             threading.Thread(target=worker, daemon=True).start()
 
@@ -2087,48 +2132,13 @@ class WikidichMixin:
             _enable_actions()
 
         def _fetch():
-            session, _user, proxies = self._wd_build_wiki_session(include_user=False)
-            if not session:
-                self.after(0, lambda: (_set_status("Thiếu cookie"), messagebox.showerror("Lỗi", "Không đọc được cookie Wikidich.", parent=win)))
+            fetched = self._wd_fetch_upload_volumes(book, silent=True)
+            if not fetched.get("ok"):
+                msg = fetched.get("error_message") or "Không đọc được cookie Wikidich."
+                self.after(0, lambda: (_set_status("Lỗi tải trang"), messagebox.showerror("Lỗi", msg, parent=win)))
                 return
-            try:
-                resp = session.get(edit_page_url, proxies=proxies or {})
-                resp.raise_for_status()
-                html = resp.text
-                book_id = None
-                m = re.search(r'var\\s+bookId\\s*=\\s*"([^"]+)"', html)
-                if m:
-                    book_id = m.group(1)
-                soup = BeautifulSoup(html, "html.parser")
-                if not book_id:
-                    hidden_book = soup.select_one("input#bookId[name='bookId']") or soup.select_one("input[name='bookId']")
-                    if hidden_book:
-                        book_id = hidden_book.get("value", "").strip()
-                vols = []
-                for wrap in soup.select(".volume-info-wrapper"):
-                    vol_id = wrap.get("data-volume") or ""
-                    name_input = wrap.select_one("input[name='nameCn']")
-                    name_val = name_input.get("value", "").strip() if name_input else ""
-                    vol_div = wrap.select_one(".volume-wrapper")
-                    editable = True
-                    appendable = False
-                    if vol_div and "readonly" in (vol_div.get("class") or []):
-                        editable = False
-                    if vol_div and str(vol_div.get("data-append") or "").lower() == "true":
-                        appendable = True
-                        editable = True
-                    vols.append({
-                        "name": name_val or vol_id or "(Không tên)",
-                        "volume_id": vol_id,
-                        "editable": editable,
-                        "appendable": appendable,
-                        "book_id": book_id
-                    })
-                if not vols and book_id:
-                    vols.append({"name": "(Mặc định)", "volume_id": "", "editable": True, "appendable": False, "book_id": book_id})
-                self.after(0, lambda: (_set_status(f"Tải xong {len(vols)} volume"), volumes_data.extend(vols), _populate(vols), _apply_prefill_files()))
-            except Exception as exc:
-                self.after(0, lambda: (_set_status("Lỗi tải trang"), messagebox.showerror("Lỗi", f"{exc}", parent=win)))
+            vols = list(fetched.get("volumes") or [])
+            self.after(0, lambda: (_set_status(f"Tải xong {len(vols)} volume"), volumes_data.extend(vols), _populate(vols), _apply_prefill_files()))
 
         volume_list.bind("<<ListboxSelect>>", lambda e: _enable_actions())
         threading.Thread(target=_fetch, daemon=True).start()
@@ -3176,6 +3186,21 @@ class WikidichMixin:
                 break
         self._wd_update_delete_button_state()
 
+    def _wd_start_update_works(self):
+        if self._wd_loading:
+            messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.")
+            return
+        if self._wd_is_foreign_works():
+            messagebox.showinfo(
+                "Không hỗ trợ",
+                "Đang có Works không chính chủ trong profile.\nKhông thể tải Works chính chủ. Hãy dùng profile trống hoặc tải lại Works không chính chủ.",
+                parent=self
+            )
+            return
+        self._wd_load_resume_state()
+        self._wd_cancel_requested = False
+        threading.Thread(target=self._wd_fetch_works_worker, args=("update",), daemon=True).start()
+
     def _wd_start_fetch_works(self):
         if self._wd_loading:
             messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.")
@@ -3189,7 +3214,7 @@ class WikidichMixin:
             return
         self._wd_load_resume_state()
         self._wd_cancel_requested = False
-        threading.Thread(target=self._wd_fetch_works_worker, daemon=True).start()
+        threading.Thread(target=self._wd_fetch_works_worker, args=("merge",), daemon=True).start()
 
     def _wd_merge_book_data(self, server_book: dict, local_book: dict) -> dict:
         merged = dict(server_book or {})
@@ -3221,74 +3246,28 @@ class WikidichMixin:
         if not local_ids:
             return "full_reset"
         local_count = len(local_ids)
-        if meta_total:
-            if meta_total > local_count:
+        try:
+            meta_total_int = int(meta_total or 0)
+        except Exception:
+            meta_total_int = 0
+        if meta_total_int:
+            if meta_total_int > local_count:
+                # Chỉ thêm mới ở đầu danh sách; giữ lại local hiện có.
                 return "auto_more"
-            if meta_total < local_count:
-                # server ít hơn local
-                if meta_latest and meta_latest == local_ids[0]:
-                    choice = self._wd_sync_prompt(lambda: messagebox.askyesnocancel(
-                        "Phát hiện truyện bị xóa",
-                        f"Có vẻ đã xóa {local_count - meta_total} truyện trên server.\n"
-                        "Yes: Để hệ thống tự quét đối chiếu.\n"
-                        "No: Dừng để bạn tự xử lý local.\n"
-                        "Cancel: Dừng.",
-                        parent=self
-                    ))
-                    if choice is None:
-                        return None
-                    if choice:
-                        return "auto_less_same_top"
-                    return None
-                resp = self._wd_sync_prompt(lambda: simpledialog.askstring(
-                    "Thay đổi thứ tự/truyện bị xóa",
-                    "Server ít truyện hơn và truyện mới nhất khác.\n"
-                    "1: Hệ thống tự quét đối chiếu\n"
-                    "2: Tải lại từ đầu\n"
-                    "3: Dừng để tự xử lý\n"
-                    "Nhập 1/2/3:",
-                    parent=self
-                ))
-                if not resp or resp.strip() not in ("1", "2", "3"):
-                    return None
-                resp = resp.strip()
-                if resp == "3":
-                    return None
-                if resp == "2":
-                    return "full_reset"
-                return "auto_less_diff_top"
-        if not meta_latest:
-            return "full_reset"
-        local_latest = local_ids[0]
-        if local_latest == meta_latest:
-            choice = self._wd_sync_prompt(lambda: messagebox.askyesnocancel(
-                "Giữ dữ liệu chi tiết?",
-                "Số truyện không đổi và truyện mới nhất trùng.\n"
-                "Yes: Tải lại từ đầu (xóa dữ liệu chi tiết cũ).\n"
-                "No: Chỉ ghi đè dữ liệu vừa tải, giữ chi tiết đã có.\n"
-                "Cancel: Dừng tải Works.",
-                parent=self
-            ))
-            if choice is None:
-                return None
-            return "full_reset" if choice else "merge_keep_details"
-        resp = self._wd_sync_prompt(lambda: simpledialog.askstring(
-            "Phát hiện thay đổi thứ tự",
-            "Số truyện không đổi nhưng truyện mới nhất khác.\n"
-            "1: Hệ thống tự quét (tìm và xóa truyện bị xóa, giữ thứ tự server)\n"
-            "2: Tải lại từ đầu\n"
-            "3: Dừng để tự xử lý\n"
-            "Nhập 1/2/3:",
-            parent=self
-        ))
-        if not resp or resp.strip() not in ("1", "2", "3"):
-            return None
-        resp = resp.strip()
-        if resp == "3":
-            return "manual_less_stop"
-        if resp == "2":
-            return "full_reset"
-        return "autodiff"
+            if meta_total_int < local_count:
+                self.log(
+                    f"[Wikidich] Server báo ít hơn local ({meta_total_int}/{local_count}); "
+                    "sẽ chỉ ghi đè dữ liệu đã lấy, không tự xóa truyện local."
+                )
+                return "merge_keep_details"
+        if meta_latest:
+            local_latest = local_ids[0] if local_ids else ""
+            if local_latest and local_latest != meta_latest:
+                self.log(
+                    "[Wikidich] Truyện mới nhất trên server đã đổi; "
+                    "sẽ ghi đè phần lấy được và giữ các truyện local chưa thấy trên server."
+                )
+        return "merge_keep_details"
 
     def _wd_is_book_deleted_on_server(self, url: str, proxies=None) -> bool:
         try:
@@ -3468,196 +3447,88 @@ class WikidichMixin:
 
     def _wd_reconcile_works(self, server_data: dict, action: str, proxies=None):
         """Trả về (data_merged, needs_full_fetch)."""
-        if action == "full_reset":
-            return server_data, False
+        if not isinstance(server_data, dict):
+            return None, False
         local_data = self.wikidich_data or {}
         local_ids = list(local_data.get("book_ids") or [])
         server_ids = list(server_data.get("book_ids") or [])
-        if action == "merge_keep_details":
-            merged_books = {}
-            local_books = local_data.get("books", {})
-            for bid in server_ids:
-                base = server_data.get("books", {}).get(bid, {})
-                merged_books[bid] = self._wd_merge_book_data(base, local_books.get(bid, {}))
-            server_data = dict(server_data)
-            server_data["books"] = merged_books
-            return server_data, False
-        if action == "auto_more":
-            total_server = server_data.get("total_count") or len(server_ids)
-            additions = max(0, total_server - len(local_ids))
-            local_latest = local_ids[0] if local_ids else None
-            if not local_latest or local_latest not in server_ids:
-                return server_data, True  # cần tải full
-            anchor_idx = server_ids.index(local_latest)
-            # Nếu server vừa thêm vừa xóa (dù tổng vẫn tăng), loại bỏ ID local bị thiếu.
-            missing_local = [bid for bid in local_ids if bid not in server_ids]
-            if missing_local:
-                self.log(f"[Wikidich] Phát hiện {len(missing_local)} truyện đã bị xóa trên server, sẽ loại khỏi local.")
-                merged_books = {}
-                local_books = local_data.get("books", {})
-                for bid in server_ids:
-                    base = server_data.get("books", {}).get(bid, {})
-                    if bid in local_books:
-                        merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
-                    else:
-                        merged_books[bid] = base
-                server_data = dict(server_data)
-                server_data["books"] = merged_books
-                return {"username": self.wikidich_data.get("username"), "book_ids": server_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}, False
-            # chỉ thêm mới, không xóa
-            if additions == anchor_idx:
-                merged_books = {}
-                local_books = local_data.get("books", {})
-                merged_ids = list(server_ids)
-                if local_latest in local_ids:
-                    tail_start = local_ids.index(local_latest) + 1
-                    for bid in local_ids[tail_start:]:
-                        if bid not in merged_ids:
-                            merged_ids.append(bid)
-                for bid in merged_ids:
-                    base = server_data.get("books", {}).get(bid, {})
-                    local_book = local_books.get(bid)
-                    if base and local_book:
-                        merged_books[bid] = self._wd_merge_book_data(base, local_book)
-                    elif base:
-                        merged_books[bid] = base
-                    elif local_book:
-                        merged_books[bid] = local_book
-                    else:
-                        merged_books[bid] = {}
-                return {"username": self.wikidich_data.get("username"), "book_ids": merged_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}, False
-            # vừa thêm vừa xóa: kiểm tra từ neo trở về sau
-            deletions_needed = max(0, anchor_idx - additions)
-            if deletions_needed == 0:
-                return server_data, True
-            local_books = local_data.get("books", {})
-            local_tail = list(local_ids)
-            i_local = 0
-            j_server = anchor_idx
-            while deletions_needed > 0 and i_local < len(local_tail) and j_server < len(server_ids):
-                if local_tail[i_local] == server_ids[j_server]:
-                    i_local += 1
-                    j_server += 1
-                    continue
-                lid = local_tail[i_local]
-                url = None
-                if isinstance(local_books.get(lid), dict):
-                    url = local_books[lid].get("url")
-                if url and self._wd_is_book_deleted_on_server(url, proxies=proxies):
-                    deletions_needed -= 1
-                    local_tail.pop(i_local)
-                    continue
-                else:
-                    return server_data, True  # không chắc chắn -> tải full
-            if deletions_needed > 0:
-                return server_data, True
-            merged_books = {}
-            for bid in server_ids:
-                base = server_data.get("books", {}).get(bid, {})
-                local_book = local_books.get(bid)
-                if base and local_book:
-                    merged_books[bid] = self._wd_merge_book_data(base, local_book)
-                elif base:
-                    merged_books[bid] = base
-                elif local_book:
-                    merged_books[bid] = local_book
-                else:
-                    merged_books[bid] = {}
-            return {"username": self.wikidich_data.get("username"), "book_ids": server_ids, "books": merged_books, "synced_at": server_data.get("synced_at"), "total_count": total_server}, False
-        if action == "autodiff":
-            # server_data ở đây là dữ liệu quét từng phần (theo thứ tự server)
-            merged_books = {}
-            local_books = local_data.get("books", {})
-            for bid in server_ids:
-                base = server_data.get("books", {}).get(bid, {})
-                if bid in local_books:
-                    merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
-                else:
-                    merged_books[bid] = base
-            server_data = dict(server_data)
-            server_data["books"] = merged_books
-            return server_data, False
-        if action == "auto_less_same_top":
-            expected_removed = max(0, len(local_ids) - len(server_ids))
-            missing_local = [bid for bid in local_ids if bid not in server_ids]
-            self.log(f"[Wikidich] Server ít hơn local {expected_removed} truyện, thiếu {len(missing_local)} ID trong local.")
-            if len(missing_local) != expected_removed:
-                self._wd_sync_prompt(lambda: messagebox.showerror(
-                    "Lỗi đối chiếu",
-                    "Không xác định rõ truyện bị xóa. Hãy tải lại từ đầu hoặc xử lý thủ công.",
-                    parent=self
-                ))
-                return None
-            merged_books = {}
-            local_books = local_data.get("books", {})
-            for bid in server_ids:
-                base = server_data.get("books", {}).get(bid, {})
-                if bid in local_books:
-                    merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
-                else:
-                    merged_books[bid] = base
-            server_data = dict(server_data)
-            server_data["books"] = merged_books
-            return server_data, False
-        if action == "auto_less_diff_top":
-            local_latest = local_ids[0] if local_ids else None
-            new_on_server = []
-            anchor_found = False
-            for bid in server_ids:
-                if bid == local_latest:
-                    anchor_found = True
-                    break
-                if bid not in local_ids:
-                    new_on_server.append(bid)
-            if not anchor_found:
-                self._wd_sync_prompt(lambda: messagebox.showerror(
-                    "Lỗi đối chiếu",
-                    "Không tìm thấy truyện neo trong danh sách server. Hãy tải lại từ đầu.",
-                    parent=self
-                ))
-                return None
-            expected_removed = (len(local_ids) - len(server_ids)) + len(new_on_server)
-            missing_local = [bid for bid in local_ids if bid not in server_ids]
-            self.log(f"[Wikidich] Server ít hơn local {expected_removed} truyện (kèm {len(new_on_server)} mới), thiếu {len(missing_local)} ID trong local.")
-            if len(missing_local) != expected_removed:
-                self._wd_sync_prompt(lambda: messagebox.showerror(
-                    "Lỗi đối chiếu",
-                    "Không xác định rõ truyện bị xóa/thêm. Hãy tải lại từ đầu.",
-                    parent=self
-                ))
-                return None
-            merged_books = {}
-            local_books = local_data.get("books", {})
-            for bid in server_ids:
-                base = server_data.get("books", {}).get(bid, {})
-                if bid in local_books:
-                    merged_books[bid] = self._wd_merge_book_data(base, local_books[bid])
-                else:
-                    merged_books[bid] = base
-            server_data = dict(server_data)
-            server_data["books"] = merged_books
-            return server_data, False
-        return None, False
+        local_books = local_data.get("books", {}) if isinstance(local_data, dict) else {}
+        server_books = server_data.get("books", {}) if isinstance(server_data, dict) else {}
 
-    def _wd_fetch_works_worker(self):
+        # Luôn ưu tiên thứ tự từ server cho phần lấy được, nhưng giữ toàn bộ ID local còn lại ở phía sau.
+        merged_ids = []
+        seen = set()
+        for bid in server_ids:
+            if bid and bid not in seen:
+                merged_ids.append(bid)
+                seen.add(bid)
+        for bid in local_ids:
+            if bid and bid not in seen:
+                merged_ids.append(bid)
+                seen.add(bid)
+
+        merged_books = {}
+        for bid in merged_ids:
+            base = server_books.get(bid, {}) if isinstance(server_books, dict) else {}
+            local_book = local_books.get(bid, {}) if isinstance(local_books, dict) else {}
+            if base and local_book:
+                merged_books[bid] = self._wd_merge_book_data(base, local_book)
+            elif base:
+                merged_books[bid] = dict(base)
+            elif local_book:
+                merged_books[bid] = dict(local_book)
+            else:
+                merged_books[bid] = {}
+
+        kept_local_only = [bid for bid in local_ids if bid not in set(server_ids)]
+        if kept_local_only:
+            self.log(
+                f"[Wikidich] Giữ {len(kept_local_only)} truyện local chưa thấy trong kết quả server "
+                "(không tự xóa local)."
+            )
+
+        merged = {
+            "username": server_data.get("username") or local_data.get("username"),
+            "book_ids": merged_ids,
+            "books": merged_books,
+            "synced_at": server_data.get("synced_at"),
+            "total_count": server_data.get("total_count") or len(server_ids) or len(merged_ids),
+        }
+        return merged, False
+
+    def _wd_fetch_works_worker(self, mode: str = "merge"):
         pythoncom.CoInitialize()
         self._wd_loading = True
         self._wd_loading_site = getattr(self, "wd_site", "wikidich")
         self._wd_cancel_requested = False
         cancelled = False
-        self.log("[Wikidich] Bắt đầu tải Works...")
+        mode_name = "Cập nhật" if mode == "update" else "Tải work"
+        self.log(f"[Wikidich] Bắt đầu {mode_name}...")
         self._wd_set_progress("Đang kiểm tra đăng nhập...", 0, 0)
         prior_data = self.wikidich_data or {}
         local_ids = list(prior_data.get("book_ids") or [])
         expected_total = None
+        data = None
+        existing_data = None
+        start_offset = None
+        page_size_hint = None
+        save_checkpoint = None
+        checkpoint_data = None
+        checkpoint_next_start = None
+        checkpoint_page_size = 0
         try:
             resume_state = getattr(self, "_wd_resume_works", None) or {}
             existing_data = resume_state.get("data")
             start_offset = resume_state.get("next_start")
             page_size_hint = resume_state.get("page_size")
+            resume_mode = str(resume_state.get("mode") or "").strip().lower()
+            if resume_mode and resume_mode != mode:
+                existing_data = None
+                start_offset = None
+                page_size_hint = None
             if existing_data:
                 start_msg = start_offset if start_offset is not None else len(existing_data.get("book_ids", []))
-                self.log(f"[Wikidich] Tiếp tục Works từ vị trí {start_msg}")
+                self.log(f"[Wikidich] Tiếp tục {mode_name} từ vị trí {start_msg}")
             proxies = self._get_proxy_for_request('fetch_titles')
             cookies = load_browser_cookie_jar(
                 self._wd_get_cookie_domains(),
@@ -3700,15 +3571,63 @@ class WikidichMixin:
                 self.log(f"[Wikidich] Tổng trên server: {meta_total}, mới nhất: {meta_latest}")
             except Exception as e:
                 self.log(f"[Wikidich] Không lấy được metadata nhanh: {e}")
-            action = self._wd_precheck_works(meta_total, meta_latest)
-            if not action:
-                self.log("[Wikidich] Dừng tải Works theo lựa chọn người dùng/kiểm tra.")
-                return
-            if action == "manual_less_stop":
-                self.log("[Wikidich] Dừng tải Works để bạn tự xử lý truyện bị xóa/thêm (theo lựa chọn 3).")
-                self._wd_set_progress("Dừng: tự xử lý truyện bị xóa/thêm", 0, 1)
-                return
-            expected_total = meta_total
+            try:
+                meta_total_int = int(meta_total or 0)
+            except Exception:
+                meta_total_int = 0
+            expected_total = meta_total_int or None
+
+            def _build_checkpoint_data(source_data: dict) -> Optional[dict]:
+                if not isinstance(source_data, dict):
+                    return None
+                ids = list(source_data.get("book_ids") or [])
+                books = dict(source_data.get("books") or {})
+                total_count = source_data.get("total_count")
+                if not total_count:
+                    total_count = meta_total_int or len(ids)
+                return {
+                    "username": source_data.get("username") or user_slug,
+                    "book_ids": ids,
+                    "books": books,
+                    "synced_at": source_data.get("synced_at") or datetime.utcnow().isoformat(),
+                    "total_count": total_count,
+                }
+
+            def _save_resume_checkpoint(partial_data: Optional[dict] = None, next_start: Optional[int] = None, page_size: Optional[int] = None):
+                nonlocal checkpoint_data, checkpoint_next_start, checkpoint_page_size
+                source = partial_data if isinstance(partial_data, dict) else checkpoint_data
+                snapshot = _build_checkpoint_data(source) if isinstance(source, dict) else None
+                if not snapshot:
+                    return
+                checkpoint_data = snapshot
+                try:
+                    next_start_val = int(next_start if next_start is not None else len(snapshot.get("book_ids") or []))
+                except Exception:
+                    next_start_val = len(snapshot.get("book_ids") or [])
+                try:
+                    page_size_val = int(page_size if page_size is not None else checkpoint_page_size or page_size_hint or 0)
+                except Exception:
+                    page_size_val = 0
+                checkpoint_next_start = max(0, next_start_val)
+                checkpoint_page_size = max(0, page_size_val)
+                self._wd_resume_works = {
+                    "mode": mode,
+                    "data": checkpoint_data,
+                    "next_start": checkpoint_next_start,
+                    "page_size": checkpoint_page_size,
+                }
+                self._wd_save_resume_state()
+
+            save_checkpoint = _save_resume_checkpoint
+            if isinstance(existing_data, dict):
+                checkpoint_data = _build_checkpoint_data(existing_data)
+                if checkpoint_data:
+                    checkpoint_next_start = start_offset if start_offset is not None else len(checkpoint_data.get("book_ids") or [])
+                    try:
+                        checkpoint_page_size = int(page_size_hint or 0)
+                    except Exception:
+                        checkpoint_page_size = 0
+
             wiki_delay_min, wiki_delay_max = self._get_delay_range(
                 'wiki_delay_min',
                 'wiki_delay_max',
@@ -3718,40 +3637,27 @@ class WikidichMixin:
             delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0
             data = None
             local_latest = local_ids[0] if local_ids else None
-            # Nếu chỉ thêm mới (auto_more), thử dừng khi gặp neo; các trường hợp khác tải full
-            stop_when_found_id = local_latest if action == "auto_more" else None
-            if action in ("autodiff", "auto_less_same_top", "auto_less_diff_top", "auto_more"):
-                # Quét tối thiểu: lấy đủ số truyện (meta_total) theo thứ tự server
-                stop_after = meta_total or None
-                data = wikidich_ext.fetch_works(
-                    session,
-                    user_slug,
-                    base_url=self._wd_get_base_url(),
-                    proxies=proxies,
-                    progress_cb=self._wd_progress_callback,
-                    delay=delay_avg,
-                    stop_after=stop_after,
-                    existing_data=existing_data,
-                    start_offset=start_offset,
-                    page_size_hint=page_size_hint,
-                    stop_when_found_id=stop_when_found_id
-                )
-            else:
-                data = wikidich_ext.fetch_works(
-                    session,
-                    user_slug,
-                    base_url=self._wd_get_base_url(),
-                    proxies=proxies,
-                    progress_cb=self._wd_progress_callback,
-                    delay=delay_avg,
-                    existing_data=existing_data,
-                    start_offset=start_offset,
-                    page_size_hint=page_size_hint,
-                    stop_when_found_id=stop_when_found_id
-                )
+            is_update_mode = (mode == "update")
+            # Cập nhật: chỉ quét tới neo local. Tải work: quét full và merge.
+            stop_when_found_id = local_latest if (is_update_mode and local_latest) else None
+            stop_after = (meta_total_int or None) if is_update_mode else None
+            data = wikidich_ext.fetch_works(
+                session,
+                user_slug,
+                base_url=self._wd_get_base_url(),
+                proxies=proxies,
+                progress_cb=self._wd_progress_callback,
+                page_commit_cb=save_checkpoint,
+                delay=delay_avg,
+                stop_after=stop_after,
+                existing_data=existing_data,
+                start_offset=start_offset,
+                page_size_hint=page_size_hint,
+                stop_when_found_id=stop_when_found_id
+            )
             self._wd_ensure_not_cancelled()
-            if action == "auto_more" and meta_total and stop_when_found_id and len(data.get("book_ids", []) or []) < meta_total:
-                missing_count = meta_total - len(data.get("book_ids", []) or [])
+            if is_update_mode and meta_total_int and stop_when_found_id and len(data.get("book_ids", []) or []) < meta_total_int:
+                missing_count = meta_total_int - len(data.get("book_ids", []) or [])
                 self.log(f"[Wikidich] Đã gặp neo nhưng vẫn thiếu {missing_count} truyện so với server.")
                 urls = self._wd_prompt_deep_add_urls(missing_count)
                 if urls:
@@ -3792,28 +3698,19 @@ class WikidichMixin:
                     parent=self
                 ))
                 if fetch_detail_now:
-                    self._wd_fetch_details_for_new_books(session, data, new_ids, user_slug, delay_avg, proxies=proxies)
+                    self._wd_fetch_details_for_new_books(
+                        session,
+                        data,
+                        new_ids,
+                        user_slug,
+                        delay_avg,
+                        proxies=proxies,
+                        skip_chapter_count=is_update_mode,
+                    )
                 else:
                     self.log("[Wikidich] Bỏ qua tải chi tiết tự động cho truyện mới.")
-            self.log(f"[Wikidich] Đã lấy {len(data.get('book_ids', []))} works.")
-            reconciled, needs_full_fetch = self._wd_reconcile_works(data, action, proxies=proxies)
-            if needs_full_fetch and action == "auto_more":
-                # tải lại đầy đủ không dừng ở neo
-                self.log("[Wikidich] Phát hiện thay đổi phức tạp, tải lại toàn bộ danh sách...")
-                data = wikidich_ext.fetch_works(
-                    session,
-                    user_slug,
-                    base_url=self._wd_get_base_url(),
-                    proxies=proxies,
-                    progress_cb=self._wd_progress_callback,
-                    delay=delay_avg,
-                    existing_data=existing_data,
-                    start_offset=start_offset,
-                    page_size_hint=page_size_hint,
-                    stop_when_found_id=None
-                )
-                self._wd_ensure_not_cancelled()
-                reconciled, needs_full_fetch = self._wd_reconcile_works(data, action, proxies=proxies)
+            self.log(f"[Wikidich] {mode_name}: đã lấy {len(data.get('book_ids', []))} works.")
+            reconciled, _needs_full_fetch = self._wd_reconcile_works(data, mode, proxies=proxies)
             if reconciled is None:
                 self.log("[Wikidich] Đã dừng tải Works theo yêu cầu/điều kiện không phù hợp.")
                 return
@@ -3823,25 +3720,42 @@ class WikidichMixin:
             if expected_total is None:
                 expected_total = reconciled.get("total_count") or data.get("total_count")
             final_count = len(self.wikidich_data.get("book_ids") or [])
-            if expected_total:
-                if final_count != expected_total:
-                    self.log(f"[Wikidich] Cảnh báo: số truyện local ({final_count}) khác server ({expected_total}).")
-                    self.after(0, lambda: messagebox.showwarning(
-                        "Không khớp số truyện",
-                        f"Số truyện local ({final_count}) khác server ({expected_total}). Hãy kiểm tra lại hoặc tải lại từ đầu.",
-                        parent=self
-                    ))
+            try:
+                expected_total_int = int(expected_total or 0)
+            except Exception:
+                expected_total_int = 0
+            if expected_total_int:
+                if final_count != expected_total_int:
+                    if final_count > expected_total_int:
+                        extra = final_count - expected_total_int
+                        self.log(
+                            f"[Wikidich] Local ({final_count}) đang lớn hơn server ({expected_total_int}) "
+                            f"-> vui lòng tự xóa {extra} truyện dư."
+                        )
+                        self._wd_sync_prompt(lambda e=extra, f=final_count, s=expected_total_int: messagebox.showinfo(
+                            "Cần tự xóa truyện dư",
+                            f"Local hiện có {f} truyện, server báo {s}.\n"
+                            f"Vui lòng tự xóa {e} truyện dư nếu cần.",
+                            parent=self
+                        ))
+                    else:
+                        self.log(f"[Wikidich] Cảnh báo: số truyện local ({final_count}) nhỏ hơn server ({expected_total_int}).")
                 else:
                     self.log("[Wikidich] Đối chiếu số truyện khớp với server.")
             self._wd_update_user_label()
             self._wd_save_cache()
             self.after(0, self._wd_refresh_category_options)
             self.after(0, self._wd_apply_filters)
-            self._wd_set_progress(f"Đã tải {len(data.get('book_ids', []))} works", len(data.get('book_ids', [])), len(data.get('book_ids', [])))
+            self._wd_set_progress(
+                f"{mode_name} hoàn tất ({len(data.get('book_ids', []))} works)",
+                len(data.get('book_ids', [])),
+                len(data.get('book_ids', [])),
+            )
             self._wd_resume_works = None
         except wikidich_ext.CloudflareBlocked as cf_exc:
             partial = cf_exc.partial_data or {}
             self._wd_resume_works = {
+                "mode": mode,
                 "data": partial,
                 "next_start": cf_exc.next_start,
                 "page_size": cf_exc.page_size,
@@ -3856,9 +3770,29 @@ class WikidichMixin:
             return
         except WikidichCancelled:
             cancelled = True
+            try:
+                if callable(save_checkpoint):
+                    if isinstance(data, dict):
+                        save_checkpoint(data)
+                    elif isinstance(checkpoint_data, dict):
+                        save_checkpoint(checkpoint_data, checkpoint_next_start, checkpoint_page_size)
+                    elif isinstance(existing_data, dict):
+                        save_checkpoint(existing_data, start_offset, page_size_hint)
+            except Exception as ck_exc:
+                self.log(f"[Wikidich] Không lưu được checkpoint resume khi hủy: {ck_exc}")
             self.log("[Wikidich] Đã hủy tải Works theo yêu cầu người dùng.")
             self._wd_mark_cancelled()
         except Exception as e:
+            try:
+                if callable(save_checkpoint):
+                    if isinstance(data, dict):
+                        save_checkpoint(data)
+                    elif isinstance(checkpoint_data, dict):
+                        save_checkpoint(checkpoint_data, checkpoint_next_start, checkpoint_page_size)
+                    elif isinstance(existing_data, dict):
+                        save_checkpoint(existing_data, start_offset, page_size_hint)
+            except Exception as ck_exc:
+                self.log(f"[Wikidich] Không lưu được checkpoint resume khi lỗi: {ck_exc}")
             self.log(f"[Wikidich] Lỗi tải works: {e}")
             self.after(0, lambda: messagebox.showerror("Lỗi Wikidich", f"Không thể tải works: {e}"))
         finally:
@@ -4225,11 +4159,14 @@ class WikidichMixin:
             self.log(f"[Wikidich] Lỗi sync số chương từ Works: {exc}")
         return None
 
-    def _wd_sync_counts_from_server(self, books: list):
+    def _wd_sync_counts_from_server(self, books: list, silent: bool = False):
         not_found = []
         session, current_user, proxies = self._wd_build_wiki_session(include_user=True)
         if not session or not current_user:
-            self.after(0, lambda: messagebox.showerror("Thiếu cookie", "Không đọc được cookie Wikidich để đồng bộ số chương.", parent=self))
+            if not silent:
+                self.after(0, lambda: messagebox.showerror("Thiếu cookie", "Không đọc được cookie Wikidich để đồng bộ số chương.", parent=self))
+            else:
+                self.log("[Wikidich] Không đọc được cookie để đồng bộ số chương (auto mode).")
             return []
         total = len(books)
         wiki_delay_min, wiki_delay_max = self._get_delay_range(
@@ -4375,10 +4312,11 @@ class WikidichMixin:
                     if "Book deleted" in str(ve):
                         not_found.append(dict(book))
                         self._wd_record_not_found(book, prompt=False)
-                        try:
-                            self.after(0, lambda b=dict(book): self._wd_handle_not_found_books([b]))
-                        except Exception:
-                            pass
+                        if not silent:
+                            try:
+                                self.after(0, lambda b=dict(book): self._wd_handle_not_found_books([b]))
+                            except Exception:
+                                pass
                         continue
                     self.log(f"[Wikidich] Lỗi fallback {book.get('title','')}: {ve}")
                 except requests.HTTPError as http_err:
@@ -4551,6 +4489,529 @@ class WikidichMixin:
             self._wd_not_found_prompting = False
             self.save_config()
 
+    def _wd_get_autoupdate_scope(self):
+        site = (getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
+        profile = "Profile 1"
+        try:
+            if hasattr(self, "wd_profile_var"):
+                profile = (self.wd_profile_var.get() or "Profile 1").strip() or "Profile 1"
+        except Exception:
+            profile = "Profile 1"
+        safe_site = re.sub(r"[^a-z0-9_-]+", "_", site)
+        safe_profile = self._wd_profile_safe_name(profile) if hasattr(self, "_wd_profile_safe_name") else re.sub(r"[^A-Za-z0-9_-]+", "_", profile)
+        if not safe_profile:
+            safe_profile = "Profile_1"
+        return site, profile, safe_site, safe_profile
+
+    def _wd_get_autoupdate_state_path(self, site: Optional[str] = None, profile: Optional[str] = None) -> str:
+        site_val = (site or getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
+        safe_site = re.sub(r"[^a-z0-9_-]+", "_", site_val)
+        profile_val = (profile or (self.wd_profile_var.get() if hasattr(self, "wd_profile_var") else "Profile 1") or "Profile 1").strip()
+        safe_profile = self._wd_profile_safe_name(profile_val) if hasattr(self, "_wd_profile_safe_name") else re.sub(r"[^A-Za-z0-9_-]+", "_", profile_val)
+        if not safe_profile:
+            safe_profile = "Profile_1"
+        return os.path.join(BASE_DIR, "local", f"wd_autoupdate_{safe_site}_{safe_profile}.json")
+
+    def _wd_get_autoupdate_marked_ids(self) -> set:
+        raw = getattr(self, "_wd_autoupdate_marked_ids", []) or []
+        if not isinstance(raw, (list, tuple, set)):
+            return set()
+        out = set()
+        for item in raw:
+            try:
+                bid = str(item).strip()
+            except Exception:
+                bid = ""
+            if bid:
+                out.add(bid)
+        return out
+
+    def _wd_get_autoupdate_history_entries(self) -> list:
+        raw = getattr(self, "_wd_autoupdate_history_entries", []) or []
+        if isinstance(raw, list):
+            return raw
+        return []
+
+    def _wd_prune_autoupdate_history(self, max_days: int = 30, persist: bool = True):
+        history = self._wd_get_autoupdate_history_entries()
+        if not history:
+            self._wd_autoupdate_history_entries = []
+            if persist:
+                self._wd_save_autoupdate_state()
+            return
+        keep_days = max(1, int(max_days or 30))
+        cutoff = (datetime.now() - timedelta(days=keep_days - 1)).date()
+        pruned = []
+        for item in history:
+            if not isinstance(item, dict):
+                continue
+            date_text = str(item.get("date") or "").strip()
+            keep = False
+            if date_text:
+                try:
+                    dt = datetime.strptime(date_text, "%Y-%m-%d").date()
+                    keep = dt >= cutoff
+                except Exception:
+                    keep = False
+            if keep:
+                pruned.append(item)
+        self._wd_autoupdate_history_entries = pruned
+        if persist:
+            self._wd_save_autoupdate_state()
+
+    def _wd_load_autoupdate_state(self):
+        path = self._wd_get_autoupdate_state_path()
+        loaded = {}
+        try:
+            if os.path.isfile(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f) or {}
+        except Exception as exc:
+            self.log(f"[Wikidich][AutoUpdate] Không đọc được state: {exc}")
+            loaded = {}
+        marked = []
+        for item in (loaded.get("marked_ids") or []):
+            try:
+                bid = str(item).strip()
+            except Exception:
+                bid = ""
+            if bid and bid not in marked:
+                marked.append(bid)
+        history_entries = []
+        for item in (loaded.get("history_entries") or []):
+            if isinstance(item, dict):
+                history_entries.append(dict(item))
+        self._wd_autoupdate_marked_ids = marked
+        self._wd_autoupdate_history_entries = history_entries
+        self._wd_prune_autoupdate_history(max_days=30, persist=False)
+
+    def _wd_save_autoupdate_state(self):
+        path = self._wd_get_autoupdate_state_path()
+        payload = {
+            "version": int(getattr(self, "_wd_autoupdate_version", 1) or 1),
+            "marked_ids": sorted(self._wd_get_autoupdate_marked_ids()),
+            "history_entries": list(self._wd_get_autoupdate_history_entries()),
+        }
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            self.log(f"[Wikidich][AutoUpdate] Không lưu được state: {exc}")
+
+    def _wd_append_autoupdate_history(self, entries: list):
+        if not entries:
+            return
+        history = list(self._wd_get_autoupdate_history_entries())
+        for item in entries:
+            if isinstance(item, dict):
+                history.append(dict(item))
+        self._wd_autoupdate_history_entries = history
+        self._wd_prune_autoupdate_history(max_days=30, persist=False)
+        self._wd_save_autoupdate_state()
+
+    def _wd_get_autoupdate_candidates(self) -> list:
+        candidates = []
+        filtered = list(getattr(self, "wikidich_filtered", []) or [])
+        new_map = getattr(self, "wd_new_chapters", {}) or {}
+        seen = set()
+        for book in filtered:
+            if not isinstance(book, dict):
+                continue
+            bid = str(book.get("id") or "").strip()
+            if not bid or bid in seen:
+                continue
+            seen.add(bid)
+            new_val = new_map.get(bid)
+            if not isinstance(new_val, int) or new_val <= 1:
+                continue
+            if not self._wd_get_fanqie_link(book):
+                continue
+            candidates.append({
+                "id": bid,
+                "book": book,
+                "title": book.get("title", ""),
+                "chapters": book.get("chapters"),
+                "new": new_val,
+            })
+        return candidates
+
+    def _wd_update_auto_menu_state(self):
+        menu = getattr(self, "wd_auto_menu", None)
+        if not menu:
+            return
+        foreign = self._wd_is_foreign_works()
+        marked_count = len(self._wd_get_autoupdate_marked_ids())
+        mark_state = tk.NORMAL
+        auto_state = tk.NORMAL if (not foreign and marked_count > 0) else tk.DISABLED
+        try:
+            menu.entryconfig("Đánh dấu", state=mark_state)
+        except Exception:
+            pass
+        try:
+            menu.entryconfig("Tự động", state=auto_state)
+        except Exception:
+            pass
+        try:
+            menu.entryconfig("Lịch sử", state=tk.NORMAL)
+        except Exception:
+            pass
+
+    def _wd_open_auto_mark_dialog(self):
+        candidates = self._wd_get_autoupdate_candidates()
+        candidate_map = {str(item.get("id") or ""): item for item in candidates if isinstance(item, dict)}
+        marked_ids = sorted(self._wd_get_autoupdate_marked_ids())
+        marked_set = set(marked_ids)
+        books_map = self.wikidich_data.get("books", {}) if isinstance(self.wikidich_data, dict) else {}
+        new_map = getattr(self, "wd_new_chapters", {}) or {}
+        rows = []
+        seen = set()
+
+        # Ưu tiên gợi ý từ bảng hiện tại (new > 1 + có fanqie), luôn để ở đầu và mặc định chưa tích.
+        for item in candidates:
+            bid = str(item.get("id") or "").strip()
+            if not bid or bid in seen or bid in marked_set:
+                continue
+            seen.add(bid)
+            rows.append(
+                {
+                    "id": bid,
+                    "title": str(item.get("title") or ""),
+                    "chapters": item.get("chapters"),
+                    "new": item.get("new"),
+                    "checked": False,
+                }
+            )
+
+        # Giữ các truyện đã đánh dấu để user có thể bỏ tích/xóa mark khi cần.
+        for bid in marked_ids:
+            if not bid or bid in seen:
+                continue
+            seen.add(bid)
+            book = books_map.get(bid) if isinstance(books_map, dict) else None
+            candidate = candidate_map.get(bid) if isinstance(candidate_map, dict) else None
+            title = ""
+            chapters = ""
+            if isinstance(book, dict):
+                title = str(book.get("title") or "")
+                chapters = book.get("chapters")
+            elif isinstance(candidate, dict):
+                title = str(candidate.get("title") or "")
+                chapters = candidate.get("chapters")
+            if not title:
+                title = f"[{bid}] (không còn trong bảng hiện tại)"
+            new_val = None
+            try:
+                new_val = int(new_map.get(bid, 0) or 0)
+            except Exception:
+                new_val = 0
+            rows.append(
+                {
+                    "id": bid,
+                    "title": title,
+                    "chapters": chapters,
+                    "new": new_val if new_val > 0 else "",
+                    "checked": True,
+                }
+            )
+
+        if not rows:
+            messagebox.showinfo(
+                "Đánh dấu Auto Update",
+                "Không có truyện trong danh sách hiện tại.\n"
+                "- Truyện gợi ý: cần New > 1 và có link Fanqie.\n"
+                "- Truyện đã đánh dấu: chưa có trong scope hiện tại.",
+                parent=self,
+            )
+            return
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title("Đánh dấu Auto Update")
+        win.geometry("880x520")
+        win.columnconfigure(0, weight=1)
+        win.rowconfigure(1, weight=1)
+
+        ttk.Label(
+            win,
+            text=(
+                "Các truyện gợi ý (New > 1 + Fanqie) được thêm lên đầu và mặc định chưa tích. "
+                "Áp dụng sẽ thay thế toàn bộ danh sách đánh dấu hiện tại."
+            ),
+            anchor="w",
+            justify="left",
+        ).grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 6))
+
+        table_frame = ttk.Frame(win)
+        table_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 8))
+        table_frame.columnconfigure(0, weight=1)
+        table_frame.rowconfigure(0, weight=1)
+
+        cols = ("pick", "id", "title", "chapters", "new")
+        tree = ttk.Treeview(table_frame, columns=cols, show="headings", selectmode="browse")
+        tree.heading("pick", text="Chọn")
+        tree.heading("id", text="ID")
+        tree.heading("title", text="Tên truyện")
+        tree.heading("chapters", text="Số chương wiki")
+        tree.heading("new", text="Chương mới")
+        tree.column("pick", width=70, anchor="center")
+        tree.column("id", width=90, anchor="w")
+        tree.column("title", width=460, anchor="w")
+        tree.column("chapters", width=120, anchor="center")
+        tree.column("new", width=120, anchor="center")
+        tree.grid(row=0, column=0, sticky="nsew")
+        y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=y_scroll.set)
+        y_scroll.grid(row=0, column=1, sticky="ns")
+
+        selected_ids = set()
+        row_to_bid = {}
+        for item in rows:
+            bid = item["id"]
+            chapters = item.get("chapters")
+            chapters_text = str(chapters) if chapters not in (None, "") else ""
+            if item.get("checked"):
+                selected_ids.add(bid)
+            mark_text = "☑" if bid in selected_ids else "☐"
+            iid = tree.insert("", "end", values=(mark_text, bid, item.get("title", ""), chapters_text, str(item.get("new", ""))))
+            row_to_bid[iid] = bid
+
+        def _render_row(iid):
+            bid = row_to_bid.get(iid)
+            if not bid:
+                return
+            vals = list(tree.item(iid, "values") or ())
+            if len(vals) < 5:
+                return
+            vals[0] = "☑" if bid in selected_ids else "☐"
+            tree.item(iid, values=tuple(vals))
+
+        def _toggle_row(iid):
+            bid = row_to_bid.get(iid)
+            if not bid:
+                return
+            if bid in selected_ids:
+                selected_ids.remove(bid)
+            else:
+                selected_ids.add(bid)
+            _render_row(iid)
+
+        def _on_tree_click(event):
+            iid = tree.identify_row(event.y)
+            col = tree.identify_column(event.x)
+            if not iid:
+                return
+            if col == "#1":
+                _toggle_row(iid)
+
+        tree.bind("<Button-1>", _on_tree_click)
+
+        action_row = ttk.Frame(win)
+        action_row.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
+
+        def _select_all():
+            selected_ids.clear()
+            for bid in row_to_bid.values():
+                selected_ids.add(bid)
+            for iid in row_to_bid:
+                _render_row(iid)
+
+        def _select_none():
+            selected_ids.clear()
+            for iid in row_to_bid:
+                _render_row(iid)
+
+        def _apply():
+            self._wd_autoupdate_marked_ids = sorted(selected_ids)
+            self._wd_save_autoupdate_state()
+            try:
+                self._wd_refresh_tree(getattr(self, "wikidich_filtered", []) or [])
+            except Exception:
+                self._wd_apply_filters()
+            self._wd_update_auto_menu_state()
+            win.destroy()
+
+        ttk.Button(action_row, text="Chọn tất cả", command=_select_all).pack(side=tk.LEFT)
+        ttk.Button(action_row, text="Bỏ chọn", command=_select_none).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(action_row, text="Đóng", command=win.destroy).pack(side=tk.RIGHT)
+        ttk.Button(action_row, text="Áp dụng", command=_apply).pack(side=tk.RIGHT, padx=(0, 6))
+
+    def _wd_open_auto_history_dialog(self):
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title("Lịch sử Auto Update")
+        win.geometry("980x560")
+        win.columnconfigure(0, weight=1)
+        win.rowconfigure(0, weight=1)
+
+        frame = ttk.Frame(win, padding=10)
+        frame.grid(row=0, column=0, sticky="nsew")
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(1, weight=1)
+
+        ttk.Label(frame, text="Lịch sử theo ngày (thất bại hiển thị trước):").grid(row=0, column=0, sticky="w")
+
+        table_wrap = ttk.Frame(frame)
+        table_wrap.grid(row=1, column=0, sticky="nsew", pady=(6, 8))
+        table_wrap.columnconfigure(0, weight=1)
+        table_wrap.rowconfigure(0, weight=1)
+
+        cols = ("time", "book_id", "title", "result", "new_before", "uploaded_count", "message")
+        tree = ttk.Treeview(table_wrap, columns=cols, show="tree headings", selectmode="browse")
+        tree.heading("#0", text="Ngày")
+        tree.heading("time", text="Giờ")
+        tree.heading("book_id", text="ID")
+        tree.heading("title", text="Tên truyện")
+        tree.heading("result", text="Kết quả")
+        tree.heading("new_before", text="New trước")
+        tree.heading("uploaded_count", text="Đã upload")
+        tree.heading("message", text="Chi tiết")
+        tree.column("#0", width=140, anchor="w")
+        tree.column("time", width=80, anchor="center")
+        tree.column("book_id", width=90, anchor="w")
+        tree.column("title", width=280, anchor="w")
+        tree.column("result", width=90, anchor="center")
+        tree.column("new_before", width=90, anchor="center")
+        tree.column("uploaded_count", width=90, anchor="center")
+        tree.column("message", width=260, anchor="w")
+        tree.tag_configure("hist_failed", foreground="#ef4444")
+        tree.tag_configure("hist_success", foreground="#16a34a")
+        tree.tag_configure("hist_not_run", foreground="#6b7280")
+        tree.grid(row=0, column=0, sticky="nsew")
+        y_scroll = ttk.Scrollbar(table_wrap, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=y_scroll.set)
+        y_scroll.grid(row=0, column=1, sticky="ns")
+
+        day_iids = {}
+        child_day_map = {}
+
+        def _result_weight(result: str) -> int:
+            val = (result or "").strip().lower()
+            if val == "failed":
+                return 0
+            if val == "success":
+                return 1
+            return 2
+
+        def _result_label(result: str) -> str:
+            val = (result or "").strip().lower()
+            if val == "failed":
+                return "Thất bại"
+            if val == "success":
+                return "Thành công"
+            return "Chưa chạy"
+
+        def _result_tag(result: str) -> str:
+            val = (result or "").strip().lower()
+            if val == "failed":
+                return "hist_failed"
+            if val == "success":
+                return "hist_success"
+            return "hist_not_run"
+
+        def _refresh():
+            tree.delete(*tree.get_children())
+            day_iids.clear()
+            child_day_map.clear()
+            history = list(self._wd_get_autoupdate_history_entries())
+            grouped = {}
+            for item in history:
+                if not isinstance(item, dict):
+                    continue
+                day = str(item.get("date") or "").strip() or "Không rõ ngày"
+                grouped.setdefault(day, []).append(item)
+            ordered_days = sorted(grouped.keys(), reverse=True)
+            for day in ordered_days:
+                parent = tree.insert("", "end", text=day, values=("", "", "", "", "", "", ""))
+                day_iids[day] = parent
+                entries = grouped.get(day) or []
+                entries.sort(
+                    key=lambda x: (
+                        _result_weight(x.get("result", "")),
+                        str(x.get("time") or ""),
+                        str(x.get("book_id") or ""),
+                    ),
+                    reverse=False,
+                )
+                for item in entries:
+                    result = str(item.get("result") or "").strip().lower()
+                    child = tree.insert(
+                        parent,
+                        "end",
+                        text="",
+                        values=(
+                            str(item.get("time") or ""),
+                            str(item.get("book_id") or ""),
+                            str(item.get("title") or ""),
+                            _result_label(result),
+                            str(item.get("new_before") or ""),
+                            str(item.get("uploaded_count") or ""),
+                            str(item.get("message") or ""),
+                        ),
+                        tags=(_result_tag(result),),
+                    )
+                    child_day_map[child] = day
+                tree.item(parent, open=True)
+
+        def _selected_day():
+            sel = tree.selection()
+            if not sel:
+                return None
+            iid = sel[0]
+            if iid in child_day_map:
+                return child_day_map[iid]
+            return tree.item(iid, "text") or None
+
+        def _delete_day():
+            day = _selected_day()
+            if not day:
+                messagebox.showinfo("Chưa chọn", "Chọn một ngày trong lịch sử để xóa.", parent=win)
+                return
+            if not messagebox.askyesno("Xác nhận", f"Xóa toàn bộ lịch sử ngày {day}?", parent=win):
+                return
+            self._wd_autoupdate_history_entries = [
+                item for item in self._wd_get_autoupdate_history_entries()
+                if str((item or {}).get("date") or "").strip() != day
+            ]
+            self._wd_save_autoupdate_state()
+            _refresh()
+
+        def _delete_all():
+            if not messagebox.askyesno("Xác nhận", "Xóa toàn bộ lịch sử Auto Update?", parent=win):
+                return
+            self._wd_autoupdate_history_entries = []
+            self._wd_save_autoupdate_state()
+            _refresh()
+
+        actions = ttk.Frame(frame)
+        actions.grid(row=2, column=0, sticky="ew")
+        ttk.Button(actions, text="Xóa ngày đã chọn", command=_delete_day).pack(side=tk.LEFT)
+        ttk.Button(actions, text="Xóa toàn bộ", command=_delete_all).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(actions, text="Đóng", command=win.destroy).pack(side=tk.RIGHT)
+
+        _refresh()
+
+    def _wd_start_marked_auto_update(self):
+        if self._wd_loading:
+            messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.", parent=self)
+            return
+        if self._wd_is_foreign_works():
+            messagebox.showinfo("Không hỗ trợ", "Auto Update bị tắt khi dùng Works không chính chủ.", parent=self)
+            return
+        marked_ids = sorted(self._wd_get_autoupdate_marked_ids())
+        if not marked_ids:
+            messagebox.showinfo("Chưa đánh dấu", "Chưa có truyện nào được đánh dấu Auto Update.", parent=self)
+            return
+        if not messagebox.askyesno(
+            "Bắt đầu Auto Update",
+            "Hệ thống sẽ tự động cập nhật + tải file lên cho các truyện đã đánh dấu.\n"
+            "Trong quá trình chạy sẽ chỉ ghi Nhật ký hoạt động, không bật popup trung gian.\n\n"
+            "Tiếp tục?",
+            parent=self,
+        ):
+            return
+        self._wd_cancel_requested = False
+        threading.Thread(target=self._wd_auto_update_marked_worker, args=(marked_ids,), daemon=True).start()
+
     def _wd_get_fanqie_link(self, book: dict):
         links = book.get('extra_links') or []
         for link in links:
@@ -4713,33 +5174,52 @@ class WikidichMixin:
             self._wd_toggle_advanced_section(show=True)
         else:
             self._wd_toggle_advanced_section(show=False)
+        self._wd_load_autoupdate_state()
         if getattr(self, "wikidich_filtered", None) is not None:
             self._wd_refresh_tree(self.wikidich_filtered)
         self._wd_update_progress_visibility(getattr(self, "wd_progress_label", None).cget("text") if hasattr(self, "wd_progress_label") else "")
         self.log(f"[Wikidich] Đang dùng site: {site}")
 
-    def _wd_resume_state_path(self, site: Optional[str] = None) -> str:
+    def _wd_get_resume_scope(self, site: Optional[str] = None, profile: Optional[str] = None):
+        site_val = (site or getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
+        safe_site = re.sub(r"[^a-z0-9_-]+", "_", site_val)
+        profile_val = (profile or (self.wd_profile_var.get() if hasattr(self, "wd_profile_var") else "Profile 1") or "Profile 1").strip()
+        safe_profile = self._wd_profile_safe_name(profile_val) if hasattr(self, "_wd_profile_safe_name") else re.sub(r"[^A-Za-z0-9_-]+", "_", profile_val)
+        if not safe_profile:
+            safe_profile = "Profile_1"
+        return site_val, profile_val, safe_site, safe_profile
+
+    def _wd_resume_state_path(self, site: Optional[str] = None, profile: Optional[str] = None) -> str:
+        _site, _profile, safe_site, safe_profile = self._wd_get_resume_scope(site, profile)
+        return os.path.join(BASE_DIR, "local", f"wd_resume_works_{safe_site}_{safe_profile}.json")
+
+    def _wd_resume_state_legacy_site_path(self, site: Optional[str] = None) -> str:
         site_val = (site or getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
         safe_site = re.sub(r"[^a-z0-9_-]+", "_", site_val)
         return os.path.join(BASE_DIR, "local", f"wd_resume_works_{safe_site}.json")
 
-    def _wd_resume_foreign_state_path(self, site: Optional[str] = None) -> str:
+    def _wd_resume_foreign_state_path(self, site: Optional[str] = None, profile: Optional[str] = None) -> str:
+        _site, _profile, safe_site, safe_profile = self._wd_get_resume_scope(site, profile)
+        return os.path.join(BASE_DIR, "local", f"wd_resume_works_foreign_{safe_site}_{safe_profile}.json")
+
+    def _wd_resume_foreign_state_legacy_site_path(self, site: Optional[str] = None) -> str:
         site_val = (site or getattr(self, "wd_site", "wikidich") or "wikidich").strip().lower()
         safe_site = re.sub(r"[^a-z0-9_-]+", "_", site_val)
         return os.path.join(BASE_DIR, "local", f"wd_resume_works_foreign_{safe_site}.json")
 
     def _wd_save_resume_state(self):
-        """Lưu trạng thái tải Works để resume khi dính Cloudflare/thoát app."""
+        """Lưu trạng thái tải Works để resume theo site + profile."""
         state = getattr(self, "_wd_resume_works", None)
         if not state:
             return
-        site = getattr(self, "wd_site", "wikidich")
+        site, profile, _safe_site, _safe_profile = self._wd_get_resume_scope()
         payload = {
             "site": site,
+            "profile": profile,
             "state": state,
         }
         try:
-            path = self._wd_resume_state_path(site)
+            path = self._wd_resume_state_path(site, profile)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
@@ -4753,13 +5233,14 @@ class WikidichMixin:
         state = getattr(self, "_wd_resume_foreign_works", None)
         if not state:
             return
-        site = getattr(self, "wd_site", "wikidich")
+        site, profile, _safe_site, _safe_profile = self._wd_get_resume_scope()
         payload = {
             "site": site,
+            "profile": profile,
             "state": state,
         }
         try:
-            path = self._wd_resume_foreign_state_path(site)
+            path = self._wd_resume_foreign_state_path(site, profile)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
@@ -4770,42 +5251,59 @@ class WikidichMixin:
                 pass
 
     def _wd_load_resume_state(self):
-        """Đọc trạng thái resume Works từ file (chỉ khi khớp site hiện tại)."""
+        """Đọc trạng thái resume Works theo site + profile hiện tại."""
+        self._wd_resume_works = None
         try:
-            current_site = getattr(self, "wd_site", "wikidich")
-            path = self._wd_resume_state_path(current_site)
-            payload = None
-            if os.path.isfile(path):
-                with open(path, "r", encoding="utf-8") as f:
-                    payload = json.load(f)
-            else:
-                legacy_path = os.path.join(BASE_DIR, "local", "wd_resume_works.json")
-                if os.path.isfile(legacy_path):
-                    with open(legacy_path, "r", encoding="utf-8") as f:
-                        payload = json.load(f)
-                    legacy_site = payload.get("site") if isinstance(payload, dict) else None
-                    if legacy_site and legacy_site != current_site:
-                        payload = None
-                    else:
-                        try:
-                            os.makedirs(os.path.dirname(path), exist_ok=True)
-                            with open(path, "w", encoding="utf-8") as f:
-                                json.dump(payload, f, ensure_ascii=False, indent=2)
-                            os.remove(legacy_path)
-                        except Exception:
-                            pass
-            if not isinstance(payload, dict):
-                return
-            site = payload.get("site") or current_site
-            state = payload.get("state")
-            if site and site != current_site:
-                return
-            if isinstance(state, dict):
-                self._wd_resume_works = state
+            current_site, current_profile, _safe_site, _safe_profile = self._wd_get_resume_scope()
+            primary_path = self._wd_resume_state_path(current_site, current_profile)
+            legacy_site_path = self._wd_resume_state_legacy_site_path(current_site)
+            legacy_global_path = os.path.join(BASE_DIR, "local", "wd_resume_works.json")
+            candidate_paths = [primary_path, legacy_site_path, legacy_global_path]
+            for path in candidate_paths:
+                if not os.path.isfile(path):
+                    continue
+                payload = None
                 try:
-                    self.log(f"[Wikidich] Phát hiện tiến độ Works cần resume (site={site}).")
+                    with open(path, "r", encoding="utf-8") as f:
+                        payload = json.load(f)
+                except Exception:
+                    continue
+                if not isinstance(payload, dict):
+                    continue
+                site = (payload.get("site") or current_site or "").strip().lower()
+                profile = (payload.get("profile") or "").strip()
+                has_profile = bool(profile)
+                if site and site != current_site:
+                    continue
+                if has_profile and profile != current_profile:
+                    continue
+                state = payload.get("state")
+                if not isinstance(state, dict) and "data" in payload and "next_start" in payload:
+                    state = payload
+                if not isinstance(state, dict):
+                    continue
+                self._wd_resume_works = state
+                if path != primary_path:
+                    try:
+                        migrated = {
+                            "site": current_site,
+                            "profile": current_profile,
+                            "state": state,
+                        }
+                        os.makedirs(os.path.dirname(primary_path), exist_ok=True)
+                        with open(primary_path, "w", encoding="utf-8") as f:
+                            json.dump(migrated, f, ensure_ascii=False, indent=2)
+                        os.remove(path)
+                    except Exception:
+                        pass
+                try:
+                    self.log(
+                        f"[Wikidich] Phát hiện tiến độ Works cần resume "
+                        f"(site={current_site}, profile={current_profile})."
+                    )
                 except Exception:
                     pass
+                return
         except Exception as exc:
             try:
                 self.log(f"[Wikidich] Không đọc được resume Works: {exc}")
@@ -4813,25 +5311,57 @@ class WikidichMixin:
                 pass
 
     def _wd_load_foreign_resume_state(self):
+        self._wd_resume_foreign_works = None
         try:
-            current_site = getattr(self, "wd_site", "wikidich")
-            path = self._wd_resume_foreign_state_path(current_site)
-            if not os.path.isfile(path):
-                return
-            with open(path, "r", encoding="utf-8") as f:
-                payload = json.load(f)
-            if not isinstance(payload, dict):
-                return
-            site = payload.get("site") or current_site
-            if site and site != current_site:
-                return
-            state = payload.get("state")
-            if isinstance(state, dict):
-                self._wd_resume_foreign_works = state
+            current_site, current_profile, _safe_site, _safe_profile = self._wd_get_resume_scope()
+            primary_path = self._wd_resume_foreign_state_path(current_site, current_profile)
+            legacy_site_path = self._wd_resume_foreign_state_legacy_site_path(current_site)
+            candidate_paths = [primary_path, legacy_site_path]
+            for path in candidate_paths:
+                if not os.path.isfile(path):
+                    continue
+                payload = None
                 try:
-                    self.log(f"[Wikidich] Phát hiện tiến độ Works không chính chủ cần resume (site={site}).")
+                    with open(path, "r", encoding="utf-8") as f:
+                        payload = json.load(f)
+                except Exception:
+                    continue
+                if not isinstance(payload, dict):
+                    continue
+                site = (payload.get("site") or current_site or "").strip().lower()
+                profile = (payload.get("profile") or "").strip()
+                has_profile = bool(profile)
+                if site and site != current_site:
+                    continue
+                if has_profile and profile != current_profile:
+                    continue
+                state = payload.get("state")
+                if not isinstance(state, dict) and "data" in payload and "next_start" in payload:
+                    state = payload
+                if not isinstance(state, dict):
+                    continue
+                self._wd_resume_foreign_works = state
+                if path != primary_path:
+                    try:
+                        migrated = {
+                            "site": current_site,
+                            "profile": current_profile,
+                            "state": state,
+                        }
+                        os.makedirs(os.path.dirname(primary_path), exist_ok=True)
+                        with open(primary_path, "w", encoding="utf-8") as f:
+                            json.dump(migrated, f, ensure_ascii=False, indent=2)
+                        os.remove(path)
+                    except Exception:
+                        pass
+                try:
+                    self.log(
+                        f"[Wikidich] Phát hiện tiến độ Works không chính chủ cần resume "
+                        f"(site={current_site}, profile={current_profile})."
+                    )
                 except Exception:
                     pass
+                return
         except Exception as exc:
             try:
                 self.log(f"[Wikidich] Không đọc được resume Works không chính chủ: {exc}")
@@ -4839,22 +5369,31 @@ class WikidichMixin:
                 pass
 
     def _wd_clear_resume_state(self):
-        """Xóa file resume Works khi đã hoàn tất."""
-        try:
-            path = self._wd_resume_state_path()
-            if os.path.isfile(path):
-                os.remove(path)
-        except Exception:
-            pass
+        """Xóa file resume Works theo scope hiện tại (kèm legacy cùng site)."""
+        paths = [
+            self._wd_resume_state_path(),
+            self._wd_resume_state_legacy_site_path(),
+            os.path.join(BASE_DIR, "local", "wd_resume_works.json"),
+        ]
+        for path in paths:
+            try:
+                if os.path.isfile(path):
+                    os.remove(path)
+            except Exception:
+                pass
         self._wd_resume_works = None
 
     def _wd_clear_foreign_resume_state(self):
-        try:
-            path = self._wd_resume_foreign_state_path()
-            if os.path.isfile(path):
-                os.remove(path)
-        except Exception:
-            pass
+        paths = [
+            self._wd_resume_foreign_state_path(),
+            self._wd_resume_foreign_state_legacy_site_path(),
+        ]
+        for path in paths:
+            try:
+                if os.path.isfile(path):
+                    os.remove(path)
+            except Exception:
+                pass
         self._wd_resume_foreign_works = None
 
     def _wd_detail_resume_path(self, site: Optional[str] = None) -> str:
@@ -4937,9 +5476,28 @@ class WikidichMixin:
         self._wd_resume_details = None
 
     def _wd_calculate_new_chapters(self, book: dict, proxies=None, headers=None):
+        fanqie_url = self._wd_find_link_with_domain(book, "fanqienovel.com")
+        if fanqie_url:
+            remote_total = self._wd_fetch_fanqie_chapter_count(fanqie_url, proxies=proxies, headers=headers)
+            if remote_total is None:
+                # Fallback cuối cùng về extension cũ để giữ tương thích.
+                legacy = fanqienovel_ext.fetch_chapters(fanqie_url, proxies=proxies, headers=headers)
+                if legacy and not legacy.get("error"):
+                    remote_list = legacy.get("data") or []
+                    remote_total = len(remote_list)
+                elif legacy and legacy.get("error"):
+                    self.log(f"[Wikidich] Không thể lấy chương (fanqienovel.com): {legacy.get('error')}")
+            if remote_total is not None:
+                current_total = book.get('chapters') or 0
+                try:
+                    current_total = int(current_total)
+                except Exception:
+                    current_total = 0
+                diff = int(remote_total) - current_total
+                return diff if diff > 0 else 0
+
         cookie_db_path = self._wd_get_cookie_db_path()
         domains = [
-            ("fanqienovel.com", fanqienovel_ext.fetch_chapters, {"headers": headers}),
             ("jjwxc.net", jjwxc_ext.fetch_chapters, {}),
             ("po18.tw", po18_ext.fetch_chapters, {"cookie_db_path": cookie_db_path}),
             ("qidian.com", qidian_ext.fetch_chapters, {"cookie_db_path": cookie_db_path}),
@@ -4969,7 +5527,91 @@ class WikidichMixin:
             return diff if diff > 0 else 0
         return None
 
-    def _wd_fetch_details_for_new_books(self, session, data: dict, new_ids: list, current_user: str, delay: float, proxies=None):
+    def _wd_parse_fanqie_toc_from_api_payload(self, payload) -> list:
+        toc = []
+        data = payload.get("data") if isinstance(payload, dict) else None
+        volumes = data.get("chapterListWithVolume") if isinstance(data, dict) else None
+        if not isinstance(volumes, list):
+            return toc
+        for volume in volumes:
+            chapter_list = []
+            if isinstance(volume, list):
+                chapter_list = volume
+            elif isinstance(volume, dict):
+                chapter_list = volume.get("chapterList") or volume.get("chapters") or []
+            if not isinstance(chapter_list, list):
+                continue
+            for chapter in chapter_list:
+                if not isinstance(chapter, dict):
+                    continue
+                title = chapter.get("title") or chapter.get("chapterTitle") or chapter.get("name") or ""
+                if not title:
+                    continue
+                cid = chapter.get("itemId") or chapter.get("item_id") or chapter.get("chapterId") or chapter.get("chapter_id")
+                toc.append({"num": len(toc) + 1, "id": str(cid or len(toc) + 1), "title": title})
+        return toc
+
+    def _wd_fetch_fanqie_toc(self, fanqie_url: str, proxies=None, headers=None) -> list:
+        book_id = None
+        try:
+            if hasattr(self, "_fanqie_extract_book_id"):
+                book_id = self._fanqie_extract_book_id(fanqie_url)
+        except Exception:
+            book_id = None
+        if not book_id:
+            match = re.search(r"/(?:page|book|reader)/(\d+)", fanqie_url or "")
+            if match:
+                book_id = match.group(1)
+        if not book_id:
+            return []
+
+        merged_headers = dict(self._get_fanqie_headers()) if hasattr(self, "_get_fanqie_headers") else dict(DEFAULT_API_SETTINGS.get("fanqie_headers", {}))
+        if isinstance(headers, dict):
+            for k, v in headers.items():
+                if v:
+                    merged_headers[k] = v
+
+        # Ưu tiên logic ND5: parse TOC từ page.
+        try:
+            if hasattr(self, "_fanqie_fetch_toc"):
+                toc = self._fanqie_fetch_toc(book_id, proxies=proxies, headers=merged_headers)
+                if isinstance(toc, list) and toc:
+                    return toc
+        except Exception as exc:
+            self.log(f"[Wikidich] Fanqie ND5 HTML TOC lỗi: {exc}")
+
+        # Fallback flow mới: API directory/detail.
+        try:
+            api_url = f"https://fanqienovel.com/api/reader/directory/detail?bookId={book_id}"
+            if hasattr(self, "_fanqie_request_with_retry"):
+                resp = self._fanqie_request_with_retry(api_url, headers=merged_headers, proxies=proxies)
+            else:
+                resp = requests.get(api_url, headers=merged_headers, proxies=proxies, timeout=30)
+            resp.raise_for_status()
+            payload = resp.json()
+            toc = self._wd_parse_fanqie_toc_from_api_payload(payload)
+            if isinstance(toc, list) and toc:
+                return toc
+        except Exception as exc:
+            self.log(f"[Wikidich] Fanqie ND5 API TOC lỗi: {exc}")
+        return []
+
+    def _wd_fetch_fanqie_chapter_count(self, fanqie_url: str, proxies=None, headers=None):
+        toc = self._wd_fetch_fanqie_toc(fanqie_url, proxies=proxies, headers=headers)
+        if isinstance(toc, list) and toc:
+            return len(toc)
+        return None
+
+    def _wd_fetch_details_for_new_books(
+        self,
+        session,
+        data: dict,
+        new_ids: list,
+        current_user: str,
+        delay: float,
+        proxies=None,
+        skip_chapter_count: bool = False,
+    ):
         total = len(new_ids)
         if total == 0:
             return
@@ -4980,7 +5622,14 @@ class WikidichMixin:
             if not book:
                 continue
             try:
-                updated = wikidich_ext.fetch_book_detail(session, book, current_user, base_url=self._wd_get_base_url(), proxies=proxies)
+                updated = wikidich_ext.fetch_book_detail(
+                    session,
+                    book,
+                    current_user,
+                    base_url=self._wd_get_base_url(),
+                    proxies=proxies,
+                    skip_chapter_count=bool(skip_chapter_count),
+                )
                 data["books"][bid] = updated
             except requests.HTTPError as http_err:
                 resp_cf = getattr(http_err, "response", None)
@@ -5146,10 +5795,69 @@ class WikidichMixin:
     def _wd_get_cache_path(self):
         return (self._wd_cache_paths or {}).get(getattr(self, "wd_site", "wikidich"), self.wikidich_cache_path)
 
+    def _wd_rewrite_url_domain_for_site(self, url: str, site: Optional[str] = None) -> str:
+        raw = (url or "").strip()
+        if not raw:
+            return raw
+        try:
+            target = urlparse(self._wd_get_configured_domain(site))
+            parsed = urlparse(raw)
+            if not parsed.netloc:
+                return raw
+            if parsed.scheme and parsed.scheme.lower() not in ("http", "https"):
+                return raw
+            host = (parsed.hostname or "").lower()
+            target_host = (target.hostname or "").lower()
+            if not target_host or host == target_host:
+                return raw
+            new_netloc = target.netloc
+            if parsed.port and ":" not in new_netloc:
+                new_netloc = f"{new_netloc}:{parsed.port}"
+            rewritten = parsed._replace(scheme=target.scheme or "https", netloc=new_netloc)
+            return rewritten.geturl()
+        except Exception:
+            return raw
+
+    def _wd_rewrite_cached_domains_if_needed(self) -> int:
+        data = self.wikidich_data if isinstance(getattr(self, "wikidich_data", None), dict) else {}
+        books = data.get("books") if isinstance(data, dict) else None
+        if not isinstance(books, dict):
+            return 0
+        changed = 0
+        site = getattr(self, "wd_site", "wikidich")
+        for _bid, book in books.items():
+            if not isinstance(book, dict):
+                continue
+            for key in ("url", "cover_url"):
+                old = book.get(key)
+                if not isinstance(old, str) or not old:
+                    continue
+                new = self._wd_rewrite_url_domain_for_site(old, site)
+                if new != old:
+                    book[key] = new
+                    changed += 1
+            chapter_list = book.get("chapter_list")
+            if isinstance(chapter_list, list):
+                for ch in chapter_list:
+                    if not isinstance(ch, dict):
+                        continue
+                    old = ch.get("url")
+                    if not isinstance(old, str) or not old:
+                        continue
+                    new = self._wd_rewrite_url_domain_for_site(old, site)
+                    if new != old:
+                        ch["url"] = new
+                        changed += 1
+        return changed
+
     def _wd_load_cache(self):
         cached = wikidich_ext.load_cache(self._wd_get_cache_path())
         if cached:
             self.wikidich_data = cached
+            domain_changed = self._wd_rewrite_cached_domains_if_needed()
+            if domain_changed > 0:
+                self.log(f"[Wikidich] Đã cập nhật {domain_changed} URL theo domain cài đặt.")
+                self._wd_save_cache()
         else:
             # Reset về trống nếu không có cache (tránh giữ data cũ từ tab/profile khác)
             self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
@@ -5218,27 +5926,34 @@ class WikidichMixin:
         menu = getattr(self, "wd_sync_menu", None)
         if menu:
             try:
-                menu.entryconfig("Tải Works", state=tk.DISABLED if foreign else tk.NORMAL)
+                menu.entryconfig("Cập nhật", state=tk.DISABLED if foreign else tk.NORMAL)
+            except Exception:
+                pass
+            try:
+                menu.entryconfig("Tải work", state=tk.DISABLED if foreign else tk.NORMAL)
             except Exception:
                 pass
             try:
                 menu.entryconfig("Tải Works (không chính chủ)", state=tk.NORMAL if can_foreign else tk.DISABLED)
             except Exception:
                 pass
+        tools_menu = getattr(self, "wd_tools_menu", None)
+        if tools_menu:
+            try:
+                tools_menu.entryconfig("Liên kết", state=tk.DISABLED if foreign else tk.NORMAL)
+            except Exception:
+                pass
         if foreign:
             self._wd_foreign_ui_active = True
-            if hasattr(self, "wd_global_link_btn"):
-                self.wd_global_link_btn.config(state=tk.DISABLED)
             self._wd_set_link_frame_visible(False)
             for btn in (getattr(self, "wd_auto_update_btn", None), getattr(self, "wd_edit_book_btn", None), getattr(self, "wd_update_button", None)):
                 if btn:
                     btn.config(state=tk.DISABLED)
                     self._wd_set_flow_button_visible(btn, False)
+            self._wd_update_auto_menu_state()
             return
         if was_foreign:
             self._wd_foreign_ui_active = False
-        if hasattr(self, "wd_global_link_btn"):
-            self.wd_global_link_btn.config(state=tk.NORMAL)
         self._wd_set_link_frame_visible(True)
         if was_foreign:
             for btn in (getattr(self, "wd_edit_book_btn", None), getattr(self, "wd_update_button", None)):
@@ -5249,6 +5964,7 @@ class WikidichMixin:
                 self._wd_show_detail(getattr(self, "wd_selected_book", None))
             finally:
                 self._wd_foreign_ui_guard = False
+        self._wd_update_auto_menu_state()
 
     def _wd_parse_foreign_user_input(self, raw: str) -> str:
         raw = (raw or "").strip()
@@ -5291,30 +6007,68 @@ class WikidichMixin:
     def _wd_has_manage_rights(self, flags: dict) -> bool:
         if not isinstance(flags, dict):
             return False
-        return bool(flags.get("poster") or flags.get("managerOwner") or flags.get("managerGuest"))
+        return bool(
+            flags.get("poster")
+            or flags.get("managerOwner")
+            or flags.get("managerGuest")
+            or flags.get("editorOwner")
+            or flags.get("editorGuest")
+        )
 
     def _wd_prompt_deep_add_urls(self, missing_count: int) -> list:
         prompt = (
             f"Đã gặp truyện mới nhất trong local nhưng vẫn thiếu {missing_count} truyện so với server.\n"
+            f"Số truyện dự kiến thêm từ URL thủ công: tối đa {missing_count}.\n"
             "Nếu bạn vừa thêm truyện nằm sâu, hãy nhập URL (mỗi dòng 1 URL).\n"
+            "Bạn phải là chủ truyện / đồng quản lý / biên tập truyện đó thì mới thêm được.\n"
             "Bỏ trống để bỏ qua."
         )
-        raw = self._wd_sync_prompt(lambda: simpledialog.askstring("Nhập URL truyện mới", prompt, parent=self))
+        raw = self._wd_sync_prompt(lambda: self._wd_prompt_multiline_text("Nhập URL truyện mới", prompt))
         if not raw:
             return []
-        parts = re.split(r"[\\s,]+", raw.strip())
-        return [p.strip() for p in parts if p.strip()]
+        parts = re.split(r"[\r\n\t ,]+", raw.strip())
+        urls = []
+        seen = set()
+        for p in parts:
+            u = p.strip()
+            if not u:
+                continue
+            if u in seen:
+                continue
+            seen.add(u)
+            urls.append(u)
+        return urls
 
     def _wd_fetch_deep_books_by_urls(self, session, urls: list, user_slug: str, proxies=None) -> list:
         added = []
         if not urls:
             return added
         base_url = self._wd_get_base_url()
+        existing_ids = set()
+        try:
+            existing_ids = {str(bid).strip() for bid in (self.wikidich_data.get("book_ids") or []) if str(bid).strip()}
+        except Exception:
+            existing_ids = set()
+        seen_input_ids = set()
+        invalid_count = 0
+        duplicate_count = 0
+        no_right_count = 0
+        error_count = 0
         for raw in urls:
             url = self._wd_normalize_url_for_site(raw)
             bid = self._wd_extract_book_id_from_url(url)
             if not url or not bid:
                 self.log(f"[Wikidich] URL không hợp lệ: {raw}")
+                invalid_count += 1
+                continue
+            if bid in seen_input_ids:
+                self.log(f"[Wikidich] Bỏ qua URL trùng trong input: {raw}")
+                duplicate_count += 1
+                continue
+            seen_input_ids.add(bid)
+            if bid in existing_ids:
+                self.log(f"[Wikidich] Bỏ qua ID đã có trong local: {bid}")
+                duplicate_count += 1
                 continue
             book = {"id": bid, "url": url, "title": ""}
             try:
@@ -5328,15 +6082,25 @@ class WikidichMixin:
                 )
                 flags = updated.get("flags") or {}
                 if not self._wd_has_manage_rights(flags):
-                    self.log(f"[Wikidich] Bỏ qua '{updated.get('title') or bid}': không có quyền (chủ/đồng quản lý).")
+                    self.log(
+                        f"[Wikidich] Bỏ qua '{updated.get('title') or bid}': không có quyền "
+                        "(chủ/đồng quản lý/biên tập)."
+                    )
+                    no_right_count += 1
                     continue
                 updated = dict(updated)
                 updated["id"] = bid
                 updated["url"] = url
                 updated["manual_added"] = True
                 added.append(updated)
+                existing_ids.add(bid)
             except Exception as e:
                 self.log(f"[Wikidich] Không thể thêm truyện từ URL {raw}: {e}")
+                error_count += 1
+        self.log(
+            f"[Wikidich] URL thủ công: thêm={len(added)}, trùng={duplicate_count}, "
+            f"sai_url={invalid_count}, không_quyền={no_right_count}, lỗi={error_count}."
+        )
         return added
 
     def _wd_parse_foreign_work_item(self, node, base_url: str) -> Optional[dict]:
@@ -5503,6 +6267,12 @@ class WikidichMixin:
         self._wd_loading_site = getattr(self, "wd_site", "wikidich")
         self._wd_cancel_requested = False
         cancelled = False
+        existing_data = None
+        start_offset = None
+        page_size_hint = None
+        checkpoint_data = None
+        checkpoint_next_start = None
+        checkpoint_page_size = 0
         self.log(f"[Wikidich] Bắt đầu tải Works (không chính chủ): {user_slug}")
         self._wd_set_progress("Đang tải Works (không chính chủ)...", 0, 0)
         try:
@@ -5515,6 +6285,18 @@ class WikidichMixin:
             if existing_data:
                 start_msg = start_offset if start_offset is not None else len(existing_data.get("book_ids", []))
                 self.log(f"[Wikidich] Tiếp tục Works (không chính chủ) từ vị trí {start_msg}")
+                checkpoint_data = {
+                    "username": user_slug,
+                    "book_ids": list(existing_data.get("book_ids") or []),
+                    "books": dict(existing_data.get("books") or {}),
+                    "synced_at": existing_data.get("synced_at") or datetime.utcnow().isoformat(),
+                    "total_count": existing_data.get("total_count") or len(existing_data.get("book_ids") or []),
+                }
+                checkpoint_next_start = start_offset if start_offset is not None else len(checkpoint_data.get("book_ids") or [])
+                try:
+                    checkpoint_page_size = int(page_size_hint or 0)
+                except Exception:
+                    checkpoint_page_size = 0
             session, _user, proxies = self._wd_build_wiki_session(include_user=False)
             if not session:
                 self.after(0, lambda: messagebox.showerror(
@@ -5597,6 +6379,15 @@ class WikidichMixin:
                     "synced_at": datetime.utcnow().isoformat(),
                     "total_count": total_count if total_count is not None else len(book_ids),
                 }
+                checkpoint_data = {
+                    "username": user_slug,
+                    "book_ids": list(book_ids),
+                    "books": dict(books),
+                    "synced_at": partial.get("synced_at"),
+                    "total_count": partial.get("total_count"),
+                }
+                checkpoint_next_start = next_start
+                checkpoint_page_size = page_size or checkpoint_page_size or 0
                 self._wd_resume_foreign_works = {
                     "user_slug": user_slug,
                     "data": partial,
@@ -5664,9 +6455,47 @@ class WikidichMixin:
             return
         except WikidichCancelled:
             cancelled = True
+            try:
+                if isinstance(checkpoint_data, dict):
+                    self._wd_resume_foreign_works = {
+                        "user_slug": user_slug,
+                        "data": checkpoint_data,
+                        "next_start": int(checkpoint_next_start if checkpoint_next_start is not None else len(checkpoint_data.get("book_ids") or [])),
+                        "page_size": int(checkpoint_page_size or page_size_hint or 0),
+                    }
+                    self._wd_save_foreign_resume_state()
+                elif isinstance(existing_data, dict):
+                    self._wd_resume_foreign_works = {
+                        "user_slug": user_slug,
+                        "data": existing_data,
+                        "next_start": int(start_offset if start_offset is not None else len(existing_data.get("book_ids") or [])),
+                        "page_size": int(page_size_hint or 0),
+                    }
+                    self._wd_save_foreign_resume_state()
+            except Exception as ck_exc:
+                self.log(f"[Wikidich] Không lưu được checkpoint Works không chính chủ khi hủy: {ck_exc}")
             self.log("[Wikidich] Đã hủy tải Works theo yêu cầu người dùng.")
             self._wd_mark_cancelled()
         except Exception as e:
+            try:
+                if isinstance(checkpoint_data, dict):
+                    self._wd_resume_foreign_works = {
+                        "user_slug": user_slug,
+                        "data": checkpoint_data,
+                        "next_start": int(checkpoint_next_start if checkpoint_next_start is not None else len(checkpoint_data.get("book_ids") or [])),
+                        "page_size": int(checkpoint_page_size or page_size_hint or 0),
+                    }
+                    self._wd_save_foreign_resume_state()
+                elif isinstance(existing_data, dict):
+                    self._wd_resume_foreign_works = {
+                        "user_slug": user_slug,
+                        "data": existing_data,
+                        "next_start": int(start_offset if start_offset is not None else len(existing_data.get("book_ids") or [])),
+                        "page_size": int(page_size_hint or 0),
+                    }
+                    self._wd_save_foreign_resume_state()
+            except Exception as ck_exc:
+                self.log(f"[Wikidich] Không lưu được checkpoint Works không chính chủ khi lỗi: {ck_exc}")
             self.log(f"[Wikidich] Lỗi tải works không chính chủ: {e}")
             self.after(0, lambda: messagebox.showerror("Lỗi Wikidich", f"Không thể tải works: {e}", parent=self))
         finally:
@@ -5693,6 +6522,8 @@ class WikidichMixin:
         wiki_max = current.get('wiki_delay_max', DEFAULT_API_SETTINGS['wiki_delay_max'])
         fanqie_min = current.get('fanqie_delay_min', DEFAULT_API_SETTINGS['fanqie_delay_min'])
         fanqie_max = current.get('fanqie_delay_max', DEFAULT_API_SETTINGS['fanqie_delay_max'])
+        wiki_domain = current.get('wikidich_domain', DEFAULT_API_SETTINGS.get('wikidich_domain', "https://wikicv.net/"))
+        koanchay_domain = current.get('koanchay_domain', DEFAULT_API_SETTINGS.get('koanchay_domain', "https://koanchay.org/"))
         open_mode_var = tk.StringVar(value=getattr(self, "wikidich_open_mode", "in_app"))
         upload_cfg = self.wikidich_upload_settings if isinstance(getattr(self, "wikidich_upload_settings", None), dict) else {}
         up_filename_var = tk.StringVar(value=upload_cfg.get("filename_regex", DEFAULT_UPLOAD_SETTINGS["filename_regex"]))
@@ -5774,6 +6605,18 @@ class WikidichMixin:
         # New Settings Frame
         misc_frame = ttk.LabelFrame(container, text="Cấu hình khác", padding=10)
         misc_frame.pack(fill="x", expand=True, pady=(10, 0))
+
+        domain_row_1 = ttk.Frame(misc_frame)
+        domain_row_1.pack(fill="x", pady=(0, 4))
+        ttk.Label(domain_row_1, text="Domain Wikidich:").pack(side=tk.LEFT)
+        wiki_domain_var = tk.StringVar(value=wiki_domain)
+        ttk.Entry(domain_row_1, textvariable=wiki_domain_var).pack(side=tk.LEFT, fill="x", expand=True, padx=(8, 0))
+
+        domain_row_2 = ttk.Frame(misc_frame)
+        domain_row_2.pack(fill="x", pady=(0, 4))
+        ttk.Label(domain_row_2, text="Domain Koanchay:").pack(side=tk.LEFT)
+        koanchay_domain_var = tk.StringVar(value=koanchay_domain)
+        ttk.Entry(domain_row_2, textvariable=koanchay_domain_var).pack(side=tk.LEFT, fill="x", expand=True, padx=(8, 0))
         
         r_row = ttk.Frame(misc_frame)
         r_row.pack(fill="x", pady=2)
@@ -5886,6 +6729,8 @@ class WikidichMixin:
             wiki_max_var.set(DEFAULT_API_SETTINGS['wiki_delay_max'])
             fanqie_min_var.set(DEFAULT_API_SETTINGS['fanqie_delay_min'])
             fanqie_max_var.set(DEFAULT_API_SETTINGS['fanqie_delay_max'])
+            wiki_domain_var.set(DEFAULT_API_SETTINGS.get('wikidich_domain', "https://wikicv.net/"))
+            koanchay_domain_var.set(DEFAULT_API_SETTINGS.get('koanchay_domain', "https://koanchay.org/"))
             open_mode_var.set("in_app")
             up_filename_var.set(DEFAULT_UPLOAD_SETTINGS["filename_regex"])
             up_content_var.set(DEFAULT_UPLOAD_SETTINGS["content_regex"])
@@ -5905,6 +6750,21 @@ class WikidichMixin:
                     var.set(col_id in DEFAULT_VISIBLE_COLUMNS)
 
         def _save_settings():
+            def _normalize_domain_input(raw: str, fallback: str) -> str:
+                text = (raw or "").strip()
+                if not text:
+                    text = fallback
+                if "://" not in text:
+                    text = "https://" + text
+                p = urlparse(text)
+                scheme = p.scheme or "https"
+                netloc = p.netloc or p.path
+                netloc = (netloc or "").strip().strip("/")
+                if not netloc:
+                    p2 = urlparse(fallback)
+                    netloc = (p2.netloc or p2.path or "").strip().strip("/")
+                return f"{scheme}://{netloc}/"
+
             try:
                 wiki_min_val = float(wiki_min_var.get())
                 wiki_max_val = float(wiki_max_var.get())
@@ -5925,12 +6785,22 @@ class WikidichMixin:
             if fanqie_max_val < fanqie_min_val:
                 fanqie_max_val = fanqie_min_val
             warn_val = max(0.0, warn_val)
+            wiki_domain_val = _normalize_domain_input(
+                wiki_domain_var.get(),
+                DEFAULT_API_SETTINGS.get('wikidich_domain', "https://wikicv.net/")
+            )
+            koanchay_domain_val = _normalize_domain_input(
+                koanchay_domain_var.get(),
+                DEFAULT_API_SETTINGS.get('koanchay_domain', "https://koanchay.org/")
+            )
 
             self.api_settings = {
                 'wiki_delay_min': wiki_min_val,
                 'wiki_delay_max': wiki_max_val,
                 'fanqie_delay_min': fanqie_min_val,
                 'fanqie_delay_max': fanqie_max_val,
+                'wikidich_domain': wiki_domain_val,
+                'koanchay_domain': koanchay_domain_val,
                 'wiki_headers': dict(DEFAULT_API_SETTINGS['wiki_headers']),
                 'fanqie_headers': dict(DEFAULT_API_SETTINGS['fanqie_headers']),
                 'auto_credit': auto_credit_var.get(),
@@ -5949,6 +6819,10 @@ class WikidichMixin:
                 "append_desc": up_append_desc_var.get().strip(),
                 "sort_by_number": bool(up_sort_var.get()),
             }
+            domain_changed = self._wd_rewrite_cached_domains_if_needed()
+            if domain_changed:
+                self.log(f"[Wikidich] Đã cập nhật {domain_changed} URL local theo domain mới.")
+                self._wd_save_cache()
             self.app_config['api_settings'] = dict(self.api_settings)
             self.app_config['wikidich_upload_settings'] = dict(self.wikidich_upload_settings)
             
@@ -6310,6 +7184,657 @@ class WikidichMixin:
             self.log(f"[Wikidich] Lỗi tải chi tiết nhanh: {exc}")
             return None
 
+    def _wd_fetch_upload_volumes(self, book: dict, silent: bool = False) -> dict:
+        if not isinstance(book, dict) or not book.get("id"):
+            return {"ok": False, "error_message": "Thiếu thông tin truyện."}
+        edit_page_url = self._wd_normalize_url_for_site(book.get("url", "")) + "/chinh-sua"
+        session, _user, proxies = self._wd_build_wiki_session(include_user=False)
+        if not session:
+            msg = "Không đọc được cookie Wikidich."
+            if not silent:
+                self.log(f"[Wikidich] {msg}")
+            return {"ok": False, "error_message": msg}
+        try:
+            resp = session.get(edit_page_url, proxies=proxies or {}, timeout=30)
+            resp.raise_for_status()
+            html_text = resp.text
+            soup = BeautifulSoup(html_text, "html.parser")
+            book_id = ""
+            m = re.search(r'var\\s+bookId\\s*=\\s*"([^"]+)"', html_text)
+            if m:
+                book_id = m.group(1)
+            if not book_id:
+                hidden_book = soup.select_one("input#bookId[name='bookId']") or soup.select_one("input[name='bookId']")
+                if hidden_book:
+                    book_id = (hidden_book.get("value") or "").strip()
+            vols = []
+            for wrap in soup.select(".volume-info-wrapper"):
+                vol_id = (wrap.get("data-volume") or "").strip()
+                name_input = wrap.select_one("input[name='nameCn']")
+                name_val = name_input.get("value", "").strip() if name_input else ""
+                vol_div = wrap.select_one(".volume-wrapper")
+                editable = True
+                appendable = False
+                if vol_div and "readonly" in (vol_div.get("class") or []):
+                    editable = False
+                if vol_div and str(vol_div.get("data-append") or "").lower() == "true":
+                    appendable = True
+                    editable = True
+                vols.append(
+                    {
+                        "name": name_val or vol_id or "(Không tên)",
+                        "volume_id": vol_id,
+                        "editable": editable,
+                        "appendable": appendable,
+                        "book_id": book_id,
+                    }
+                )
+            if not vols and book_id:
+                vols.append({"name": "(Mặc định)", "volume_id": "", "editable": True, "appendable": False, "book_id": book_id})
+            if not vols:
+                return {"ok": False, "error_message": "Không tìm thấy volume trên trang chỉnh sửa."}
+            return {
+                "ok": True,
+                "volumes": vols,
+                "book_id": book_id,
+                "edit_page_url": edit_page_url,
+            }
+        except Exception as exc:
+            msg = f"Lỗi tải trang chỉnh sửa: {exc}"
+            if not silent:
+                self.log(f"[Wikidich] {msg}")
+            return {"ok": False, "error_message": msg}
+
+    def _wd_pick_auto_upload_volume(self, volumes: list):
+        if not isinstance(volumes, list) or not volumes:
+            return None
+        for vol in volumes:
+            if isinstance(vol, dict) and vol.get("appendable") and vol.get("editable"):
+                return vol
+        for vol in reversed(volumes):
+            if isinstance(vol, dict) and vol.get("editable"):
+                return vol
+        return None
+
+    def _wd_upload_parsed_files_to_volume(
+        self,
+        book: dict,
+        volume_info: dict,
+        parsed_files: list,
+        *,
+        desc_text: str = "",
+        raw_title_only: bool = False,
+        template: Optional[str] = None,
+        sort_by_number: bool = True,
+        edit_page_url: Optional[str] = None,
+        silent: bool = False,
+    ) -> dict:
+        if not isinstance(book, dict) or not book.get("id"):
+            return {"ok": False, "error_message": "Thiếu thông tin truyện."}
+        if not isinstance(volume_info, dict):
+            return {"ok": False, "error_message": "Thiếu volume upload."}
+        if not parsed_files or len(parsed_files) < 2:
+            return {"ok": False, "error_message": "Cần ít nhất 2 file chương để upload."}
+        volume_id = str(volume_info.get("volume_id") or "")
+        book_id = str(volume_info.get("book_id") or "")
+        if not volume_id and not book_id:
+            return {"ok": False, "error_message": "Không tìm thấy thông tin volume/book để upload."}
+
+        session, current_user, proxies = self._wd_build_wiki_session(include_user=True)
+        if not session or not current_user:
+            return {"ok": False, "error_message": "Không đọc được cookie Wikidich hoặc chưa đăng nhập."}
+        try:
+            user_check = wikidich_ext.fetch_current_user(session, base_url=self._wd_get_base_url(), proxies=proxies)
+        except Exception:
+            user_check = None
+        if not user_check:
+            return {"ok": False, "error_message": "Cookie không hợp lệ (không nhận diện được tài khoản)."}
+
+        if sort_by_number:
+            files_sorted = sorted(parsed_files, key=lambda x: x.get("num", 0))
+        else:
+            files_sorted = sorted(parsed_files, key=lambda x: os.path.basename(str(x.get("path") or "")).lower())
+
+        tpl = template or DEFAULT_UPLOAD_SETTINGS.get("template", "第{num}章 {title}")
+        if raw_title_only:
+            tpl = "{title}"
+        append_mode = bool(volume_info.get("appendable"))
+        append_desc = desc_text.strip() or DEFAULT_UPLOAD_SETTINGS.get("append_desc", "")
+
+        form_fields = [
+            ("bookId", book_id),
+            ("volumeId", volume_id),
+            ("numFile", str(len(files_sorted))),
+        ]
+        if append_mode:
+            form_fields.append(("appendMode", "true"))
+            form_fields.append(("descCn", append_desc))
+
+        handles = []
+        file_parts = []
+        try:
+            for item in files_sorted:
+                path = str(item.get("path") or "")
+                if not path or not os.path.isfile(path):
+                    raise RuntimeError(f"Không tìm thấy file: {path}")
+                raw_title = str(item.get("raw_title", "")).strip()
+                chapter_name = tpl.replace("{num}", str(item.get("num") or "")).replace("{title}", raw_title)
+                fh = open(path, "rb")
+                handles.append(fh)
+                form_fields.append(("name", chapter_name))
+                file_parts.append(("files", (os.path.basename(path), fh)))
+        except Exception as exc:
+            for fh in handles:
+                try:
+                    fh.close()
+                except Exception:
+                    pass
+            return {"ok": False, "error_message": f"Không đọc được file upload: {exc}"}
+
+        try:
+            target_edit_url = edit_page_url or (self._wd_normalize_url_for_site(book.get("url", "")) + "/chinh-sua")
+            try:
+                session.get(target_edit_url, proxies=proxies or {}, timeout=15)
+            except Exception:
+                pass
+            base_url = self._wd_get_base_url()
+            url = base_url.rstrip("/") + "/upload-content"
+            headers = dict(session.headers or {})
+            headers.update(
+                {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Referer": target_edit_url,
+                    "Origin": base_url.rstrip("/"),
+                    "Accept": "*/*",
+                    "Accept-Language": "vi-VN,vi;q=0.9,zh-CN;q=0.8,zh;q=0.7,en-US;q=0.4,en;q=0.3",
+                    "Cache-Control": "no-cache",
+                    "Pragma": "no-cache",
+                    "Priority": "u=1, i",
+                    "sec-ch-ua": '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": '"Windows"',
+                    "Sec-Fetch-Site": "same-origin",
+                    "Sec-Fetch-Mode": "cors",
+                    "Sec-Fetch-Dest": "empty",
+                }
+            )
+            headers.pop("Content-Type", None)
+            resp = session.post(url, data=form_fields, files=file_parts, proxies=proxies or {}, headers=headers, timeout=60)
+            ok = False
+            err_msg = (resp.text or "").strip()
+            try:
+                js = resp.json()
+                if js.get("err") == 0:
+                    ok = True
+                else:
+                    err_msg = str(js)
+            except Exception:
+                pass
+            total_fields = len(form_fields) + len(file_parts)
+            summary = f"[Wikidich] Upload {len(files_sorted)} file(s) -> vol {volume_id or '(mặc định)'} ({total_fields} fields) status={resp.status_code} err={err_msg[:200]}"
+            self.log(summary)
+            if ok:
+                return {
+                    "ok": True,
+                    "error_message": "",
+                    "uploaded_count": len(files_sorted),
+                    "volume_id": volume_id,
+                }
+            return {
+                "ok": False,
+                "error_message": err_msg or f"Upload thất bại (HTTP {resp.status_code})",
+                "uploaded_count": 0,
+                "volume_id": volume_id,
+            }
+        except Exception as exc:
+            if not silent:
+                self.log(f"[Wikidich] Lỗi upload: {exc}")
+            return {"ok": False, "error_message": str(exc), "uploaded_count": 0, "volume_id": volume_id}
+        finally:
+            for fh in handles:
+                try:
+                    fh.close()
+                except Exception:
+                    pass
+
+    def _wd_collect_auto_update_files_for_book(
+        self,
+        book: dict,
+        fanqie_link: str,
+        *,
+        require_min_new: int = 2,
+        precomputed_diff: Optional[int] = None,
+        ensure_bridge: bool = False,
+    ) -> dict:
+        if not isinstance(book, dict) or not book.get("id"):
+            return {"ok": False, "error_message": "Thiếu dữ liệu truyện.", "new_before": 0}
+        if not fanqie_link:
+            return {"ok": False, "error_message": "Không có link Fanqie.", "new_before": 0}
+        book_id = str(book.get("id"))
+        ensure_bridge_fn = getattr(self, "_ensure_fanqie_bridge_ready", None)
+        if ensure_bridge:
+            if not callable(ensure_bridge_fn):
+                return {
+                    "ok": False,
+                    "error_message": "Thiếu hàm kiểm tra fanqie_bridge.",
+                    "new_before": 0,
+                }
+            if not ensure_bridge_fn():
+                return {
+                    "ok": False,
+                    "error_message": "Không khởi chạy được fanqie_bridge_win.exe.",
+                    "new_before": 0,
+                }
+        try:
+            wiki_chapters = int(book.get("chapters") or 0)
+        except Exception:
+            wiki_chapters = 0
+        proxies = self._get_proxy_for_request("fanqie")
+        fanqie_headers = self._get_fanqie_headers()
+
+        diff = precomputed_diff if isinstance(precomputed_diff, int) else None
+        if diff is None:
+            check_proxies = self._get_proxy_for_request("fetch_titles")
+            check_headers = self.api_settings.get("fanqie_headers") if isinstance(self.api_settings, dict) else {}
+            diff = self._wd_calculate_new_chapters(book, proxies=check_proxies, headers=check_headers)
+        if diff is None:
+            try:
+                diff = int((self.wd_new_chapters or {}).get(book_id, 0) or 0)
+            except Exception:
+                diff = 0
+        toc = self._wd_fetch_fanqie_toc(fanqie_link, proxies=proxies, headers=fanqie_headers)
+        fanqie_total = len(toc or [])
+        if fanqie_total <= 0:
+            return {"ok": False, "error_message": "Không lấy được mục lục Fanqie.", "new_before": 0}
+        if not isinstance(diff, int) or diff <= 0:
+            return {"ok": False, "error_message": "Không có chương mới.", "new_before": 0}
+        new_items = toc[wiki_chapters:]
+        if len(new_items) < require_min_new:
+            return {
+                "ok": False,
+                "error_message": f"Cần > {require_min_new - 1} chương mới (hiện tại: {len(new_items)}).",
+                "new_before": diff,
+            }
+
+        fallback_titles = {str(item.get("id") or item["num"]): item.get("title") for item in new_items}
+        ids = [str(item.get("id") or item["num"]) for item in new_items if item.get("id") or item.get("num")]
+        fetched = {}
+        cleaned_by_id = {}
+        batch_size = 18
+        try:
+            max_attempts = int((self.nd5_options or {}).get("request_retries", DEFAULT_API_SETTINGS.get("wiki_retry_count", 5)))
+        except Exception:
+            max_attempts = 5
+        max_attempts = max(1, max_attempts)
+        for idx in range(0, len(ids), batch_size):
+            batch_ids = ids[idx:idx + batch_size]
+            missing_ids = list(batch_ids)
+            for attempt in range(1, max_attempts + 1):
+                if missing_ids:
+                    part = self._fanqie_download_batch(missing_ids, fallback_titles)
+                    fetched.update(part)
+                next_missing = []
+                for cid in batch_ids:
+                    normalized, reason = self._wd_validate_fanqie_payload(fetched.get(cid))
+                    if reason:
+                        next_missing.append(cid)
+                        cleaned_by_id.pop(cid, None)
+                        continue
+                    cleaned_by_id[cid] = normalized
+                if not next_missing:
+                    break
+                missing_ids = next_missing
+                if attempt < max_attempts:
+                    self.log(f"[Fanqie][Auto][{book_id}] Batch còn {len(missing_ids)} chương lỗi, thử lại ({attempt}/{max_attempts})...")
+                    if ensure_bridge and callable(ensure_bridge_fn):
+                        try:
+                            ensure_bridge_fn(attempts=3, delay=0.5)
+                        except TypeError:
+                            ensure_bridge_fn()
+                        except Exception:
+                            pass
+                    try:
+                        self._nd5_sleep_between_requests()
+                    except Exception:
+                        pass
+
+        start_num = wiki_chapters + 1
+        missing_content = []
+        html_fail = []
+        for offset, item in enumerate(new_items):
+            chap_num = start_num + offset
+            cid = str(item.get("id") or item["num"])
+            if cid not in fetched:
+                missing_content.append((chap_num, cid))
+                continue
+            if cid not in cleaned_by_id:
+                normalized, reason = self._wd_validate_fanqie_payload(fetched.get(cid))
+                if reason:
+                    if reason == "html":
+                        html_fail.append((chap_num, cid))
+                    else:
+                        missing_content.append((chap_num, cid))
+                    continue
+                cleaned_by_id[cid] = normalized
+        if html_fail:
+            sample = ", ".join(f"#{c} (id={cid})" for c, cid in html_fail[:5])
+            more = "" if len(html_fail) <= 5 else f"... và {len(html_fail) - 5} chương khác"
+            return {
+                "ok": False,
+                "error_message": f"{len(html_fail)} chương còn thẻ HTML ({sample}{more})",
+                "new_before": diff,
+            }
+        if missing_content:
+            sample = ", ".join(f"#{c} (id={cid})" for c, cid in missing_content[:5])
+            more = "" if len(missing_content) <= 5 else f"... và {len(missing_content) - 5} chương khác"
+            return {
+                "ok": False,
+                "error_message": f"Thiếu nội dung {len(missing_content)} chương ({sample}{more})",
+                "new_before": diff,
+            }
+
+        tmp_dir = self._prepare_auto_update_dir(book_id or "auto")
+        parsed_files = []
+        for offset, item in enumerate(new_items):
+            chap_num = start_num + offset
+            cid = str(item.get("id") or item["num"])
+            payload = fetched.get(cid, {})
+            title = payload.get("title") or item.get("title") or f"Chương {chap_num}"
+            content_text = cleaned_by_id.get(cid, "")
+            safe_title = re.sub(r'[\\/:*?"<>|]+', "_", title).strip() or f"{chap_num}"
+            filename = f"{safe_title}.txt"
+            path = os.path.join(tmp_dir, filename)
+            final_text = f"{title}\n\n{content_text}".strip() + "\n"
+            try:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(final_text)
+            except Exception as exc:
+                self.log(f"[Fanqie][Auto][{book_id}] Lỗi ghi file {filename}: {exc}")
+                continue
+            try:
+                size = os.path.getsize(path)
+            except Exception:
+                size = 0
+            parsed_files.append({"path": path, "num": chap_num, "raw_title": title, "size": size})
+
+        try:
+            warn_kb = float((self.wikidich_upload_settings or {}).get("warn_kb", DEFAULT_UPLOAD_SETTINGS["warn_kb"]))
+        except Exception:
+            warn_kb = DEFAULT_UPLOAD_SETTINGS["warn_kb"]
+        warn_kb = max(0.0, warn_kb)
+        warn_messages = []
+        if warn_kb > 0:
+            warn_bytes = warn_kb * 1024
+            small = [p for p in parsed_files if p.get("size", 0) and p["size"] < warn_bytes]
+            if small:
+                names = ", ".join(os.path.basename(p["path"]) for p in small[:5])
+                more = "" if len(small) <= 5 else f"... (+{len(small) - 5})"
+                warn_messages.append(f"{len(small)} file < {int(warn_kb)}KB: {names}{more}")
+        if not parsed_files:
+            return {"ok": False, "error_message": "Không tạo được file chương mới.", "new_before": diff}
+
+        try:
+            self._wd_apply_credit_to_files(parsed_files)
+        except Exception as exc:
+            self.log(f"[AutoCredit] Lỗi khi thêm credit tự động: {exc}")
+        end_num = start_num + len(parsed_files) - 1
+        desc_text = f"{start_num}-{end_num}"
+        return {
+            "ok": True,
+            "book": book,
+            "book_id": book_id,
+            "new_before": diff,
+            "parsed_files": parsed_files,
+            "warn_messages": warn_messages,
+            "desc_text": desc_text,
+            "start_num": start_num,
+            "end_num": end_num,
+        }
+
+    def _wd_auto_update_marked_worker(self, marked_ids: list):
+        if pythoncom:
+            pythoncom.CoInitialize()
+        self._wd_loading = True
+        self._wd_loading_site = getattr(self, "wd_site", "wikidich")
+        self._wd_cancel_requested = False
+        cancelled = False
+        fatal_error = ""
+        success_count = 0
+        failed_count = 0
+        skipped_count = 0
+        history_entries = []
+        processed_ids = set()
+        run_now = datetime.now()
+        run_id = run_now.strftime("%Y%m%d%H%M%S%f")
+        site, profile, _safe_site, _safe_profile = self._wd_get_autoupdate_scope()
+
+        def _add_history(book_id: str, title: str, result: str, message: str, new_before: int = 0, uploaded_count: int = 0):
+            history_entries.append(
+                {
+                    "run_id": run_id,
+                    "date": run_now.strftime("%Y-%m-%d"),
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "site": site,
+                    "profile": profile,
+                    "book_id": str(book_id or ""),
+                    "title": str(title or ""),
+                    "result": result,
+                    "message": str(message or "")[:500],
+                    "new_before": int(new_before or 0),
+                    "uploaded_count": int(uploaded_count or 0),
+                }
+            )
+
+        try:
+            all_ids = [str(bid).strip() for bid in (marked_ids or []) if str(bid).strip()]
+            if not all_ids:
+                self._wd_set_progress("Không có truyện được đánh dấu.", 0, 1)
+                return
+            books_map = self.wikidich_data.get("books", {}) if isinstance(self.wikidich_data, dict) else {}
+            proxies = self._get_proxy_for_request("fetch_titles")
+            fanqie_headers = self.api_settings.get("fanqie_headers") if isinstance(self.api_settings, dict) else {}
+            total = len(all_ids)
+            if total <= 0:
+                self._wd_set_progress("Không có truyện đủ điều kiện để chạy.", 0, 1)
+            for idx, bid in enumerate(all_ids, start=1):
+                self._wd_ensure_not_cancelled()
+                book = books_map.get(bid) if isinstance(books_map, dict) else None
+                if not isinstance(book, dict):
+                    skipped_count += 1
+                    processed_ids.add(bid)
+                    _add_history(bid, "", "not_run", "Không tìm thấy truyện trong dữ liệu local.")
+                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    continue
+                title = str(book.get("title") or bid)
+                self._wd_set_progress(f"Auto Update: {idx}/{total} - đồng bộ {title}", idx - 1, total)
+                not_found = self._wd_sync_counts_from_server([book], silent=True)
+                not_found_ids = set()
+                for item in (not_found or []):
+                    if isinstance(item, dict):
+                        not_found_ids.add(str(item.get("id") or ""))
+                if bid in not_found_ids:
+                    skipped_count += 1
+                    processed_ids.add(bid)
+                    msg = "Truyện trả về 404 hoặc không truy cập được trên server."
+                    self.log(f"[AutoUpdate][{bid}] {msg}")
+                    _add_history(bid, title, "not_run", msg)
+                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    continue
+
+                if isinstance(books_map, dict):
+                    synced_book = books_map.get(bid)
+                    if isinstance(synced_book, dict):
+                        book = synced_book
+                        title = str(book.get("title") or bid)
+
+                cached_diff = 0
+                try:
+                    cached_diff = int((self.wd_new_chapters or {}).get(bid, 0) or 0)
+                except Exception:
+                    cached_diff = 0
+                diff = self._wd_calculate_new_chapters(book, proxies=proxies, headers=fanqie_headers)
+                effective_diff = diff if isinstance(diff, int) else cached_diff
+                if diff is None and cached_diff > 0:
+                    self.log(f"[AutoUpdate][{bid}] Không lấy được New theo Check cập nhật, dùng New local={cached_diff}.")
+                if not isinstance(self.wd_new_chapters, dict):
+                    self.wd_new_chapters = {}
+                if isinstance(effective_diff, int) and effective_diff > 0:
+                    self.wd_new_chapters[bid] = effective_diff
+                else:
+                    self.wd_new_chapters.pop(bid, None)
+                self.after(0, lambda: self._wd_refresh_tree(getattr(self, "wikidich_filtered", [])))
+
+                fanqie_link = self._wd_get_fanqie_link(book)
+                if not fanqie_link:
+                    skipped_count += 1
+                    processed_ids.add(bid)
+                    _add_history(bid, title, "not_run", "Không có link Fanqie.")
+                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    continue
+
+                try:
+                    new_before = int((self.wd_new_chapters or {}).get(bid, 0) or 0)
+                except Exception:
+                    new_before = 0
+                if not isinstance(effective_diff, int) or effective_diff <= 1:
+                    skipped_count += 1
+                    processed_ids.add(bid)
+                    _add_history(
+                        bid,
+                        title,
+                        "not_run",
+                        f"Không đủ điều kiện New > 1 (hiện tại: {new_before}).",
+                        new_before=new_before,
+                    )
+                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    continue
+
+                self._wd_set_progress(f"Auto Update: {idx}/{total} - bật fanqie_bridge", idx - 1, total)
+                if not self._ensure_fanqie_bridge_ready():
+                    failed_count += 1
+                    processed_ids.add(bid)
+                    err = "Không khởi chạy được fanqie_bridge_win.exe."
+                    self.log(f"[AutoUpdate][{bid}] {err}")
+                    _add_history(bid, title, "failed", err, new_before=new_before)
+                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    continue
+
+                self._wd_set_progress(f"Auto Update: {idx}/{total} - tải Fanqie {title}", idx - 1, total)
+                payload = self._wd_collect_auto_update_files_for_book(
+                    book,
+                    fanqie_link,
+                    require_min_new=2,
+                    precomputed_diff=effective_diff if isinstance(effective_diff, int) else None,
+                    ensure_bridge=True,
+                )
+                try:
+                    payload_new_before = int(payload.get("new_before") or new_before or 0)
+                except Exception:
+                    payload_new_before = new_before
+                if not payload.get("ok"):
+                    err = payload.get("error_message") or "Không thể chuẩn bị file upload."
+                    msg_lower = err.lower()
+                    if "không có chương mới" in msg_lower or ("cần >" in msg_lower and "chương mới" in msg_lower):
+                        skipped_count += 1
+                        self.log(f"[AutoUpdate][{bid}] Bỏ qua: {err}")
+                        _add_history(bid, title, "not_run", err, new_before=payload_new_before)
+                    else:
+                        failed_count += 1
+                        self.log(f"[AutoUpdate][{bid}] Thất bại chuẩn bị: {err}")
+                        _add_history(bid, title, "failed", err, new_before=payload_new_before)
+                    processed_ids.add(bid)
+                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    continue
+                for warn_msg in payload.get("warn_messages") or []:
+                    self.log(f"[AutoUpdate][{bid}] {warn_msg}")
+                volumes_data = self._wd_fetch_upload_volumes(book, silent=True)
+                if not volumes_data.get("ok"):
+                    failed_count += 1
+                    processed_ids.add(bid)
+                    err = volumes_data.get("error_message") or "Không lấy được volume upload."
+                    self.log(f"[AutoUpdate][{bid}] {err}")
+                    _add_history(bid, title, "failed", err, new_before=payload_new_before)
+                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    continue
+                volume = self._wd_pick_auto_upload_volume(volumes_data.get("volumes") or [])
+                if not volume:
+                    failed_count += 1
+                    processed_ids.add(bid)
+                    err = "Không có volume editable để upload."
+                    self.log(f"[AutoUpdate][{bid}] {err}")
+                    _add_history(bid, title, "failed", err, new_before=payload_new_before)
+                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    continue
+                upload_res = self._wd_upload_parsed_files_to_volume(
+                    book=book,
+                    volume_info=volume,
+                    parsed_files=payload.get("parsed_files") or [],
+                    desc_text=payload.get("desc_text") or "",
+                    raw_title_only=True,
+                    template="{title}",
+                    sort_by_number=True,
+                    edit_page_url=volumes_data.get("edit_page_url"),
+                    silent=True,
+                )
+                if upload_res.get("ok"):
+                    uploaded_count = int(upload_res.get("uploaded_count") or 0)
+                    success_count += 1
+                    processed_ids.add(bid)
+                    self.log(f"[AutoUpdate][{bid}] Upload thành công {uploaded_count} chương.")
+                    self.after(0, lambda b=book, c=uploaded_count: self._wd_handle_uploaded_chapters(b, c))
+                    _add_history(
+                        bid,
+                        title,
+                        "success",
+                        "Upload thành công.",
+                        new_before=payload_new_before,
+                        uploaded_count=uploaded_count,
+                    )
+                else:
+                    failed_count += 1
+                    processed_ids.add(bid)
+                    err = upload_res.get("error_message") or "Upload thất bại."
+                    self.log(f"[AutoUpdate][{bid}] {err}")
+                    _add_history(bid, title, "failed", err, new_before=payload_new_before)
+                self._wd_set_progress(f"Auto Update: {idx}/{total} - {title}", idx, total)
+        except WikidichCancelled:
+            cancelled = True
+            self.log("[AutoUpdate] Đã dừng theo yêu cầu người dùng.")
+        except Exception as exc:
+            fatal_error = str(exc)
+            self.log(f"[AutoUpdate] Lỗi: {exc}")
+        finally:
+            all_marked = [str(bid).strip() for bid in (marked_ids or []) if str(bid).strip()]
+            if cancelled or fatal_error:
+                books_map = self.wikidich_data.get("books", {}) if isinstance(self.wikidich_data, dict) else {}
+                for bid in all_marked:
+                    if bid in processed_ids:
+                        continue
+                    skipped_count += 1
+                    title = ""
+                    if isinstance(books_map, dict):
+                        title = (books_map.get(bid) or {}).get("title", "")
+                    reason = "Chưa thực hiện do tác vụ bị dừng."
+                    if fatal_error:
+                        reason = f"Chưa thực hiện do lỗi ngoài dự kiến: {fatal_error}"
+                    _add_history(bid, title, "not_run", reason)
+            self._wd_append_autoupdate_history(history_entries)
+            self.after(0, lambda: self._wd_refresh_tree(getattr(self, "wikidich_filtered", [])))
+            final_msg = (
+                f"Kết thúc Auto Update.\n"
+                f"- Thành công: {success_count}\n"
+                f"- Thất bại: {failed_count}\n"
+                f"- Chưa thực hiện: {skipped_count}"
+            )
+            self.after(0, lambda: messagebox.showinfo("Auto Update", final_msg, parent=self))
+            self._wd_loading = False
+            self._wd_loading_site = None
+            self._wd_progress_running = False
+            self._wd_cancel_requested = False
+            if pythoncom:
+                pythoncom.CoUninitialize()
+            self._wd_set_progress("Chờ thao tác...", 0, 1)
+
     def _wd_auto_update_fanqie(self):
         book = getattr(self, "wd_selected_book", None)
         if not book:
@@ -6324,8 +7849,29 @@ class WikidichMixin:
             return
         threading.Thread(target=self._wd_auto_update_worker, args=(dict(book), fanqie_link), daemon=True).start()
 
+    def _wd_has_residual_html_in_text(self, text: str) -> bool:
+        raw = (text or "").strip()
+        if not raw:
+            return False
+        # Nếu sau khi convert vẫn còn tag html phổ biến, xem là payload lỗi.
+        return bool(re.search(r"<\s*/?\s*[a-zA-Z][\w:-]*(?:\s+[^<>]*)?>", raw))
+
+    def _wd_validate_fanqie_payload(self, payload: dict):
+        if not isinstance(payload, dict):
+            return "", "missing"
+        content_val = payload.get("content")
+        if content_val is None:
+            return "", "missing"
+        normalized = self._fanqie_content_to_text(content_val)
+        if not normalized.strip():
+            return normalized, "empty"
+        if self._wd_has_residual_html_in_text(normalized):
+            return normalized, "html"
+        return normalized, ""
+
     def _wd_auto_update_worker(self, book: dict, fanqie_link: str):
-        pythoncom.CoInitialize()
+        if pythoncom:
+            pythoncom.CoInitialize()
         self._wd_loading = True
         self._wd_loading_site = getattr(self, "wd_site", "wikidich")
         desc_text = ""
@@ -6337,41 +7883,38 @@ class WikidichMixin:
                 self.after(0, lambda: messagebox.showerror("Lỗi", "Không khởi chạy được fanqie_bridge_win.exe.", parent=self))
                 return
 
-            self._wd_set_progress("Đang tải chi tiết Wikidich...", 0, 0)
-            fetched_detail = self._wd_fetch_detail_for_book(book)
-            updated_book = fetched_detail or book
-            if not fetched_detail:
-                self.log("[Fanqie][Auto] Không tải được chi tiết mới, dùng dữ liệu hiện có.")
-            if updated_book and updated_book.get("id"):
-                self.wd_selected_book = updated_book
-            book = updated_book or book
+            # Đồng bộ số chương + thông tin giống luồng "Kiểm tra cập nhật (Yes)"
+            self._wd_set_progress("Đang đồng bộ thông tin truyện...", 0, 1)
+            sync_404 = self._wd_sync_counts_from_server([book])
+            if sync_404:
+                self.after(0, lambda: self._wd_handle_not_found_books(sync_404))
+                self._wd_set_progress("Truyện không còn tồn tại", 0, 1)
+                self.after(0, lambda: messagebox.showerror("Không tìm thấy truyện", "Truyện đã bị xóa hoặc không truy cập được trên server.", parent=self))
+                return
+            if book_id and isinstance(self.wikidich_data.get("books"), dict):
+                synced = self.wikidich_data["books"].get(book_id)
+                if isinstance(synced, dict):
+                    book = synced
+                    self.wd_selected_book = synced
             try:
                 wiki_chapters = int(book.get("chapters") or 0)
             except Exception:
                 wiki_chapters = 0
 
-            proxies = self._get_proxy_for_request("fanqie")
-            fanqie_headers = self._get_fanqie_headers()
-            fanqie_book_id = self._fanqie_extract_book_id(fanqie_link)
-            if not fanqie_book_id:
-                self.after(0, lambda: messagebox.showerror("Lỗi", "Không tìm thấy book_id trong link Fanqie.", parent=self))
-                self._wd_set_progress("Thiếu book_id Fanqie", 0, 1)
-                return
-
-            self._wd_set_progress("Đang tải mục lục Fanqie...", 0, 0)
-            toc = self._fanqie_fetch_toc(fanqie_book_id, proxies=proxies, headers=fanqie_headers)
-            fanqie_total = len(toc)
-            if fanqie_total == 0:
-                self.after(0, lambda: messagebox.showerror("Lỗi", "Không lấy được mục lục Fanqie.", parent=self))
-                self._wd_set_progress("Không có mục lục Fanqie", 0, 1)
-                return
-
-            diff = max(0, fanqie_total - wiki_chapters)
-            def _update_new_count():
+            proxies = self._get_proxy_for_request("fetch_titles")
+            fanqie_headers = self.api_settings.get('fanqie_headers') if isinstance(self.api_settings, dict) else {}
+            cached_diff = 0
+            try:
+                cached_diff = int((self.wd_new_chapters or {}).get(book_id, 0) or 0)
+            except Exception:
+                cached_diff = 0
+            diff = self._wd_calculate_new_chapters(book, proxies=proxies, headers=fanqie_headers)
+            effective_diff = diff if isinstance(diff, int) else cached_diff
+            def _update_new_count(new_count: int):
                 if not isinstance(self.wd_new_chapters, dict):
                     self.wd_new_chapters = {}
-                if diff > 0 and book_id:
-                    self.wd_new_chapters[book_id] = diff
+                if isinstance(new_count, int) and new_count > 0 and book_id:
+                    self.wd_new_chapters[book_id] = new_count
                 elif book_id and book_id in self.wd_new_chapters:
                     self.wd_new_chapters.pop(book_id, None)
                 if getattr(self, "wikidich_filtered", None) is not None:
@@ -6380,11 +7923,23 @@ class WikidichMixin:
                     self._wd_apply_filters()
                 if book_id:
                     self._wd_select_tree_item(book_id)
-            self.after(0, _update_new_count)
 
-            if diff <= 0:
+            if diff is None:
+                self.log(f"[Fanqie][Auto] Không lấy được New theo Check cập nhật, dùng New local={cached_diff}.")
+            self.after(0, lambda c=effective_diff: _update_new_count(c))
+            if not isinstance(effective_diff, int) or effective_diff <= 0:
                 self._wd_set_progress("Không có chương mới", 0, 1)
-                self.after(0, lambda: messagebox.showinfo("Không có chương mới", f"Wiki: {wiki_chapters} | Fanqie: {fanqie_total}", parent=self))
+                self.after(0, lambda: messagebox.showinfo("Không có chương mới", f"Wiki hiện tại: {wiki_chapters}", parent=self))
+                return
+
+            proxies = self._get_proxy_for_request("fanqie")
+            fanqie_headers = self._get_fanqie_headers()
+            self._wd_set_progress("Đang tải mục lục Fanqie...", 0, 0)
+            toc = self._wd_fetch_fanqie_toc(fanqie_link, proxies=proxies, headers=fanqie_headers)
+            fanqie_total = len(toc)
+            if fanqie_total == 0:
+                self.after(0, lambda: messagebox.showerror("Lỗi", "Không lấy được mục lục Fanqie.", parent=self))
+                self._wd_set_progress("Không có mục lục Fanqie", 0, 1)
                 return
 
             new_items = toc[wiki_chapters:]
@@ -6400,24 +7955,71 @@ class WikidichMixin:
             fallback_titles = {str(item.get("id") or item["num"]): item.get("title") for item in new_items}
             ids = [str(item.get("id") or item["num"]) for item in new_items if item.get("id") or item.get("num")]
             fetched = {}
+            cleaned_by_id = {}
             batch_size = 18
+            try:
+                max_attempts = int((self.nd5_options or {}).get("request_retries", DEFAULT_API_SETTINGS.get("wiki_retry_count", 5)))
+            except Exception:
+                max_attempts = 5
+            max_attempts = max(1, max_attempts)
+
             for idx in range(0, len(ids), batch_size):
                 batch_ids = ids[idx:idx + batch_size]
-                part = self._fanqie_download_batch(batch_ids, fallback_titles)
-                fetched.update(part)
+                missing_ids = list(batch_ids)
+                for attempt in range(1, max_attempts + 1):
+                    if missing_ids:
+                        part = self._fanqie_download_batch(missing_ids, fallback_titles)
+                        fetched.update(part)
+                    next_missing = []
+                    for cid in batch_ids:
+                        normalized, reason = self._wd_validate_fanqie_payload(fetched.get(cid))
+                        if reason:
+                            next_missing.append(cid)
+                            cleaned_by_id.pop(cid, None)
+                            continue
+                        cleaned_by_id[cid] = normalized
+                    if not next_missing:
+                        break
+                    missing_ids = next_missing
+                    if attempt < max_attempts:
+                        self.log(f"[Fanqie][Auto] Batch còn {len(missing_ids)} chương lỗi, thử lại ({attempt}/{max_attempts})...")
+                        try:
+                            self._nd5_sleep_between_requests()
+                        except Exception:
+                            pass
                 self._wd_set_progress(f"Tải chương Fanqie {min(len(ids), idx + batch_size)}/{len(ids)}", idx + len(batch_ids), len(ids))
             upload_cfg = {**DEFAULT_UPLOAD_SETTINGS, **(self.wikidich_upload_settings or {})}
             tpl = upload_cfg.get("template", DEFAULT_UPLOAD_SETTINGS["template"]) or "第{num}章 {title}"
             parsed_files = []
             start_num = wiki_chapters + 1
             missing_content = []
+            html_fail = []
             for offset, item in enumerate(new_items):
                 chap_num = start_num + offset
                 cid = str(item.get("id") or item["num"])
-                payload = fetched.get(cid, {})
-                content_val = payload.get("content") if isinstance(payload, dict) else None
-                if content_val is None or (isinstance(content_val, str) and not content_val.strip()):
+                if cid not in fetched:
                     missing_content.append((chap_num, cid))
+                    continue
+                if cid not in cleaned_by_id:
+                    normalized, reason = self._wd_validate_fanqie_payload(fetched.get(cid))
+                    if reason:
+                        if reason == "html":
+                            html_fail.append((chap_num, cid))
+                        else:
+                            missing_content.append((chap_num, cid))
+                        continue
+                    cleaned_by_id[cid] = normalized
+            if html_fail:
+                sample = ", ".join(f"#{c} (id={cid})" for c, cid in html_fail[:5])
+                more = "" if len(html_fail) <= 5 else f"... và {len(html_fail) - 5} chương khác"
+                self.log(f"[Fanqie][Auto] Dừng: {len(html_fail)} chương còn thẻ HTML sau {max_attempts} lần thử ({sample}{more}).")
+                self._wd_set_progress("Nội dung chương chưa sạch HTML", 0, 1)
+                self.after(0, lambda: messagebox.showerror(
+                    "Nội dung lỗi",
+                    f"Phát hiện {len(html_fail)} chương còn thẻ HTML sau khi xử lý: {sample}{more}",
+                    parent=self
+                ))
+                return
             if missing_content:
                 sample = ", ".join(f"#{c} (id={cid})" for c, cid in missing_content[:5])
                 more = "" if len(missing_content) <= 5 else f"... và {len(missing_content) - 5} chương khác"
@@ -6435,13 +8037,13 @@ class WikidichMixin:
                 cid = str(item.get("id") or item["num"])
                 payload = fetched.get(cid, {})
                 title = payload.get("title") or item.get("title") or f"Chương {chap_num}"
-                content = payload.get("content")
+                content_text = cleaned_by_id.get(cid, "")
                 safe_title = re.sub(r'[\\/:*?"<>|]+', "_", title).strip() or f"{chap_num}"
                 filename = f"{safe_title}.txt"
                 path = os.path.join(tmp_dir, filename)
                 # Lưu file chỉ chứa tiêu đề Fanqie (không thêm số chương)
                 heading = title
-                final_text = f"{heading}\n\n{self._fanqie_content_to_text(content)}".strip() + "\n"
+                final_text = f"{heading}\n\n{content_text}".strip() + "\n"
                 try:
                     with open(path, "w", encoding="utf-8") as f:
                         f.write(final_text)
@@ -6497,7 +8099,8 @@ class WikidichMixin:
             self._wd_loading = False
             self._wd_loading_site = None
             self._wd_progress_running = False
-            pythoncom.CoUninitialize()
+            if pythoncom:
+                pythoncom.CoUninitialize()
             self._wd_set_progress("Chờ thao tác...", 0, 1)
 
     def _wd_profile_safe_name(self, profile_name: Optional[str]) -> str:
@@ -6683,8 +8286,12 @@ class WikidichMixin:
                  self._wd_refresh_tree(self.wikidich_filtered)
             else:
                  self._wd_refresh_tree()
+        self._wd_load_resume_state()
+        self._wd_load_foreign_resume_state()
+        self._wd_load_autoupdate_state()
         self._wd_update_user_label()
         self._wd_update_foreign_mode_ui()
+        self._wd_update_auto_menu_state()
 
     def _wd_update_user_label(self):
         if not hasattr(self, "wd_user_label"):

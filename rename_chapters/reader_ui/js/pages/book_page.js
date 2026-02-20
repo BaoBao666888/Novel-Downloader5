@@ -92,8 +92,17 @@ const state = {
   bookActiveNameSet: "Mặc định",
 };
 
+function supportsTranslation(book) {
+  if (!book) return false;
+  if (typeof book.translation_supported === "boolean") return book.translation_supported;
+  const sourceType = String(book.source_type || "").toLowerCase();
+  if (sourceType === "vbook_comic" || sourceType === "comic") return false;
+  const lang = String(book.lang_source || "").toLowerCase();
+  return lang === "zh" || lang.startsWith("zh-");
+}
+
 function effectiveModeForBook(book, mode) {
-  if (!book || book.lang_source === "vi") return "raw";
+  if (!supportsTranslation(book)) return "raw";
   return mode === "trans" ? "trans" : "raw";
 }
 
@@ -147,8 +156,10 @@ function populateBook() {
   refs.fieldExtraLink.value = book.extra_link || "";
   refs.fieldCoverUrl.value = book.cover_path || book.cover_url || "";
 
-  refs.btnTocModeTrans.classList.toggle("hidden", book.lang_source === "vi");
-  refs.btnTranslateTitles.classList.toggle("hidden", book.lang_source === "vi");
+  const canTranslate = supportsTranslation(book);
+  refs.btnTocModeTrans.classList.toggle("hidden", !canTranslate);
+  refs.btnTranslateTitles.classList.toggle("hidden", !canTranslate);
+  refs.btnOpenBookNames.classList.toggle("hidden", !canTranslate);
 }
 
 function renderToc() {
@@ -171,7 +182,11 @@ function renderToc() {
 
     const sub = document.createElement("div");
     sub.className = "toc-item-sub";
-    sub.textContent = `${chapter.word_count || 0} ký tự`;
+    if (state.book && state.book.is_comic) {
+      sub.textContent = `${chapter.word_count || 0} ảnh`;
+    } else {
+      sub.textContent = `${chapter.word_count || 0} ký tự`;
+    }
 
     btn.append(title, sub);
     btn.addEventListener("click", () => {
@@ -291,7 +306,7 @@ async function applyCoverUrl() {
 }
 
 async function translateTitles() {
-  if (!state.bookId || !state.book || state.book.lang_source === "vi") return;
+  if (!state.bookId || !state.book || !supportsTranslation(state.book)) return;
   state.shell.showStatus(state.shell.t("statusTranslatingTitles"));
   try {
     await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/translate-titles`, {

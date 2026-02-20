@@ -296,7 +296,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.1')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.2')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -1004,6 +1004,10 @@ class RenamerApp(
         headers = (payload or {}).get("headers") or {}
         if not host or not headers:
             return
+        host = str(host).strip().lower()
+        allowed_hosts = self._get_browser_spy_targets()
+        if allowed_hosts and host not in allowed_hosts:
+            return
         filtered = {k: v for k, v in headers.items() if k and v}
         if not filtered:
             return
@@ -1021,6 +1025,26 @@ class RenamerApp(
     def _on_browser_user_agent(self, ua: str):
         if ua:
             self._browser_user_agent = ua
+
+    def _get_browser_spy_targets(self):
+        hosts = set()
+        settings = self.api_settings if isinstance(getattr(self, "api_settings", None), dict) else {}
+        for key in ("wikidich_domain", "koanchay_domain"):
+            raw = (settings.get(key) or DEFAULT_API_SETTINGS.get(key) or "").strip()
+            if not raw:
+                continue
+            if "://" not in raw:
+                raw = "https://" + raw
+            parsed = urlparse(raw)
+            host = (parsed.hostname or "").strip().lower()
+            if not host:
+                continue
+            hosts.add(host)
+            bare = host.lstrip("www.")
+            if bare:
+                hosts.add(bare)
+                hosts.add("www." + bare)
+        return hosts
 
     def _register_paned(self, paned: ttk.PanedWindow, key: str):
         """Ghi nhớ pane để khôi phục vị trí sash và lưu cấu hình."""
@@ -2693,19 +2717,19 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
         wikidich_guide = """
         --- WIKIDICH / KOANCHAY ---
-        - **Tải Works / Tải chi tiết**: dùng cookie từ trình duyệt tích hợp. Khi bị Cloudflare sẽ tạm dừng và **resume theo từng site**, kể cả sau khi mở lại app (thao tác lại Tải Works/Tải chi tiết). Koanchay tự dùng domain koanchay.org/net.
+        - **Tải Works / Tải chi tiết**: dùng cookie từ trình duyệt tích hợp. Khi bị Cloudflare sẽ tạm dừng và **resume theo từng site**, kể cả sau khi mở lại app (thao tác lại Tải Works/Tải chi tiết). Domain đọc cookie/header bám theo domain cấu hình trong Cài đặt request.
         - **Works không chính chủ**: Sync ▾ → “Tải Works (không chính chủ)” (nhập URL/user_id). Chỉ chạy khi profile trống hoặc đang dùng Works không chính chủ; sẽ tắt “Chỉ đồng bộ số chương”, ẩn Auto Update/Chỉnh sửa/Cập nhật chương và ẩn khu Liên kết.
         - **DS Chương cho Works không chính chủ**: app sẽ tự lấy `bookId` thật trước khi tải danh sách chương.
         - **Cache theo profile**: mỗi profile có cache riêng; xóa profile có cache sẽ được chuyển vào `profile_recycle` và tự dọn sau 7 ngày.
         - **Cache ảnh bìa**: ảnh bìa được lưu xuống `local/cover_cache/`. Menu Trợ giúp → “Xóa cache ảnh bìa...” để xem dung lượng và dọn.
         - **Lọc cơ bản & nâng cao**: Tên/Tác giả, Văn án, Link bổ sung; trạng thái và sắp xếp. Lọc nâng cao có ngày cập nhật, thể loại, vai trò, thuộc tính Nhúng link/file; có nút Đặt lại.
-        - **DS Chương**: tải danh sách chương mới nhất (đồng thời cập nhật chi tiết/số chương), xem nội dung gộp các phần, sửa nội dung ngay trong app (PUT lên server). Koanchay tự dùng domain đúng và tự trừ cột “New”.
+        - **DS Chương**: tải danh sách chương mới nhất (đồng thời cập nhật chi tiết/số chương), xem nội dung gộp các phần, sửa nội dung ngay trong app (PUT lên server). Koanchay/Wikidich dùng domain theo Cài đặt request và tự trừ cột “New”.
         - **Mô tả bổ sung mặc định** (Cài đặt request): hỗ trợ `{num-d}`/`{num-c}` (tương đương `{num-đầu}`/`{num-cuối}`) để điền số chương đầu/cuối của batch đã parse khi upload thủ công.
         - **Ghi chú & Liên kết**: Ghi chú cục bộ + toàn cục (lưu trong config). Liên kết thư mục per‑truyện + toàn cục, có “Chọn tự động” (giải nén rồi chọn / chọn thư mục mới nhất) và nút “Mở thư mục...”.
         - **Thêm vào thư viện**: trong trang truyện, bấm “Thêm vào thư viện” để chọn một hoặc nhiều thư viện muốn lưu.
         - **Thêm link hỗ trợ**: thêm link Fanqie/JJWXC/PO18/Qidian/Ihuaben vào trang sửa truyện rồi tải chi tiết/kiểm tra cập nhật để đồng bộ.
         - **Cập nhật chương**: nút chỉ sáng khi có “New”; nhập số để cộng tổng chương và trừ cột “New”. Sai lệch có thể tải lại chi tiết/DS Chương để đồng bộ.
-        - **Auto update**: chỉ khi có link Fanqie, app tự bật bridge, tải mục lục, tạo file bổ sung, thêm Credit (nếu bật) rồi mở upload đã điền sẵn.
+        - **Auto update**: chỉ khi có link Fanqie; trước tiên đồng bộ thông tin/số chương theo logic “Kiểm tra cập nhật (Yes)”, sau đó mới tải mục lục và tạo batch upload.
         - **Proxy**: bật “Wikidich/Fanqie” trong tab Proxy để áp dụng cho Works/Chi tiết/Check cập nhật; Koanchay dùng cùng cấu hình.
         """
         create_tab("Wikidich", wikidich_guide)

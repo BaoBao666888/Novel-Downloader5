@@ -10,6 +10,7 @@ import importlib.util
 import io
 import json
 import mimetypes
+import os
 import re
 import sqlite3
 import traceback
@@ -37,12 +38,48 @@ DEFAULT_UI_DIR = ROOT_DIR / "reader_ui"
 APP_CONFIG_PATH = ROOT_DIR / "config.json"
 APP_STATE_THEME_ACTIVE_KEY = "theme.active"
 APP_STATE_NAME_SET_STATE_KEY = "reader.name_set_state"
+COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 
 # Ép MIME chuẩn cho JS module trên Windows/registry lạ để tránh trang trắng
 # (module script bị chặn nếu server trả text/plain).
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("text/css", ".css")
+
+
+def runtime_base_dir() -> Path:
+    """Base dir để resolve path tương đối (config/tools/local).
+
+    Khi chạy dưới app Novel Studio, server được start với `cwd=BASE_DIR`, nên base là `Path.cwd()`.
+    Khi chạy dev trực tiếp ở repo root, base cũng là repo root.
+    """
+    try:
+        return Path.cwd().resolve()
+    except Exception:
+        return ROOT_DIR
+
+
+def resolve_path_from_base(raw: str | Path, base_dir: Path) -> Path:
+    raw_s = str(raw or "").strip()
+    if not raw_s:
+        return base_dir
+    p = Path(raw_s)
+    if p.is_absolute():
+        return p
+    try:
+        return (base_dir / p).resolve(strict=False)
+    except Exception:
+        return base_dir / p
+
+
+def set_local_dirs(local_dir: Path) -> None:
+    """Override local/cache/export/cover dirs theo vị trí DB để ND5 + Reader dùng chung."""
+    global LOCAL_DIR, CACHE_DIR, EXPORT_DIR, COVER_DIR, DB_PATH
+    LOCAL_DIR = local_dir
+    CACHE_DIR = LOCAL_DIR / "reader_cache"
+    EXPORT_DIR = LOCAL_DIR / "reader_exports"
+    COVER_DIR = LOCAL_DIR / "reader_covers"
+    DB_PATH = LOCAL_DIR / "reader_library.db"
 
 
 def _load_translator_module():
@@ -55,7 +92,30 @@ def _load_translator_module():
     return module
 
 
-translator_logic = _load_translator_module()
+try:
+    # Ưu tiên import bình thường để PyInstaller có thể bundle vào `reader_server.exe`.
+    from app.core import translator as translator_logic  # type: ignore
+except Exception:
+    translator_logic = _load_translator_module()
+
+
+def _load_vbook_module():
+    module_path = ROOT_DIR / "app" / "core" / "vbook_ext.py"
+    spec = importlib.util.spec_from_file_location("reader_vbook_ext", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Không thể nạp module vbook_ext: {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    import sys
+
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)  # type: ignore[attr-defined]
+    return module
+
+
+try:
+    from app.core import vbook_ext  # type: ignore
+except Exception:
+    vbook_ext = _load_vbook_module()
 
 
 THEME_PRESETS: list[dict[str, Any]] = [
@@ -197,6 +257,57 @@ def quote_url_path(value: str) -> str:
     return quote(value or "", safe="")
 
 
+def normalize_lang_source(value: str) -> str:
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return ""
+    raw = raw.replace("_", "-")
+    return raw.split("-", 1)[0]
+
+
+def is_lang_zh(value: str) -> bool:
+    return normalize_lang_source(value) == "zh"
+
+
+def is_book_comic(book: dict[str, Any] | None) -> bool:
+    source_type = str((book or {}).get("source_type") or "").strip().lower()
+    return source_type in {"comic", "vbook_comic"}
+
+
+def book_supports_translation(book: dict[str, Any] | None) -> bool:
+    if not book:
+        return False
+    if is_book_comic(book):
+        return False
+    return is_lang_zh(str(book.get("lang_source") or ""))
+
+
+def encode_comic_payload(images: list[str]) -> str:
+    data = {"kind": "images", "images": [str(x).strip() for x in images if str(x).strip()]}
+    return COMIC_CACHE_PREFIX + json.dumps(data, ensure_ascii=False)
+
+
+def decode_comic_payload(text: str) -> dict[str, Any] | None:
+    raw = str(text or "")
+    if not raw.startswith(COMIC_CACHE_PREFIX):
+        return None
+    body = raw[len(COMIC_CACHE_PREFIX) :].strip()
+    if not body:
+        return {"kind": "images", "images": []}
+    try:
+        payload = json.loads(body)
+    except Exception:
+        return {"kind": "images", "images": []}
+    if not isinstance(payload, dict):
+        return {"kind": "images", "images": []}
+    images = payload.get("images")
+    if not isinstance(images, list):
+        images = []
+    payload["images"] = [str(x).strip() for x in images if str(x).strip()]
+    payload["kind"] = "images"
+    return payload
+
+
 def ensure_dirs() -> None:
     LOCAL_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -205,12 +316,44 @@ def ensure_dirs() -> None:
 
 
 def load_app_config() -> dict[str, Any]:
-    if not APP_CONFIG_PATH.exists():
-        return {}
-    try:
-        return json.loads(APP_CONFIG_PATH.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    # Ưu tiên config theo env/cwd để chạy tốt khi server nằm trong `tools/` (frozen exe).
+    candidates: list[Path] = []
+    env_path = (os.environ.get("READER_APP_CONFIG") or "").strip()
+    if env_path:
+        candidates.append(Path(env_path))
+    base = runtime_base_dir()
+    candidates.append(base / "config.json")
+    candidates.append(APP_CONFIG_PATH)
+    for p in candidates:
+        try:
+            if p.exists():
+                return json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+    return {}
+
+
+def resolve_app_config_path() -> Path:
+    env_path = (os.environ.get("READER_APP_CONFIG") or "").strip()
+    if env_path:
+        return Path(env_path)
+    base = runtime_base_dir()
+    base_cfg = base / "config.json"
+    if base_cfg.exists() or base == ROOT_DIR:
+        return base_cfg
+    if APP_CONFIG_PATH.exists():
+        return APP_CONFIG_PATH
+    return base_cfg
+
+
+def save_app_config(config: dict[str, Any]) -> Path:
+    target = resolve_app_config_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(config or {}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return target
 
 
 def localname(tag: str) -> str:
@@ -1499,6 +1642,8 @@ class TranslationAdapter:
 class ReaderStorage:
     def __init__(self, db_path: Path):
         self.db_path = db_path
+        # Optional callback to load remote chapter content on-demand (e.g. vBook).
+        self.remote_chapter_fetcher: Callable[[dict[str, Any], dict[str, Any]], str] | None = None
         ensure_dirs()
         self._init_db()
 
@@ -1620,7 +1765,10 @@ class ReaderStorage:
             self._ensure_column(conn, "books", "author_vi", "TEXT")
             self._ensure_column(conn, "books", "cover_path", "TEXT DEFAULT ''")
             self._ensure_column(conn, "books", "extra_link", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "books", "source_url", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "books", "source_plugin", "TEXT DEFAULT ''")
             self._ensure_column(conn, "chapters", "trans_sig", "TEXT")
+            self._ensure_column(conn, "chapters", "remote_url", "TEXT DEFAULT ''")
 
     def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, decl: str) -> None:
         rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
@@ -2116,17 +2264,118 @@ class ReaderStorage:
 
         return self.get_book_detail(book_id)
 
+    def create_book_remote(
+        self,
+        *,
+        title: str,
+        author: str,
+        lang_source: str,
+        source_type: str,
+        summary: str,
+        chapters: list[dict[str, str]],
+        source_url: str,
+        source_plugin: str,
+        cover_path: str = "",
+        extra_link: str = "",
+    ) -> dict[str, Any]:
+        """
+        Create a book that fetches chapter content on-demand.
+
+        Notes:
+        - Chapters are inserted with `raw_key` but without creating cache rows.
+        - `remote_url` is stored in chapters for later fetch.
+        """
+        created_at = utc_now_iso()
+        book_seed = f"{title}|{author}|{created_at}|{source_type}|{source_url}|{source_plugin}"
+        book_id = f"bk_{hash_text(book_seed)}"
+
+        chapter_rows: list[tuple[Any, ...]] = []
+        for idx, ch in enumerate(chapters or [], start=1):
+            chapter_title = (ch.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
+            remote_url = (ch.get("remote_url") or "").strip()
+            chapter_id = f"ch_{hash_text(f'{book_id}|{idx}|{chapter_title}|{remote_url}') }"
+            raw_key = f"raw_{hash_text(f'{chapter_id}|{remote_url}') }"
+            chapter_rows.append(
+                (
+                    chapter_id,
+                    book_id,
+                    idx,
+                    chapter_title,
+                    None,
+                    raw_key,
+                    None,
+                    None,
+                    created_at,
+                    0,
+                    remote_url,
+                )
+            )
+
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO books(
+                    book_id, title, title_vi, author, author_vi, lang_source, source_type, source_file_path,
+                    source_url, source_plugin,
+                    cover_path, extra_link, created_at, updated_at, chapter_count, summary
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    book_id,
+                    title.strip() or "Untitled",
+                    title.strip() if lang_source == "vi" else None,
+                    author.strip(),
+                    author.strip() if lang_source == "vi" else None,
+                    lang_source,
+                    source_type,
+                    "",
+                    source_url,
+                    source_plugin,
+                    cover_path or "",
+                    extra_link or "",
+                    created_at,
+                    created_at,
+                    len(chapter_rows),
+                    summary,
+                ),
+            )
+            conn.executemany(
+                """
+                INSERT INTO chapters(
+                    chapter_id, book_id, chapter_order, title_raw, title_vi,
+                    raw_key, trans_key, trans_sig, updated_at, word_count, remote_url
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                chapter_rows,
+            )
+
+        return self.get_book_detail(book_id) or {"book_id": book_id}
+
     def list_books(self) -> list[dict[str, Any]]:
         with self._connect() as conn:
             rows = conn.execute(
                 """
-                SELECT book_id, title, title_vi, author, lang_source, source_type, source_file_path,
-                       author_vi, cover_path, extra_link,
-                       created_at, updated_at, chapter_count,
-                       last_read_chapter_id, last_read_ratio, last_read_mode, theme_pref,
-                       summary
-                FROM books
-                ORDER BY updated_at DESC
+                SELECT b.book_id, b.title, b.title_vi, b.author, b.lang_source, b.source_type, b.source_file_path,
+                       b.source_url, b.source_plugin,
+                       b.author_vi, b.cover_path, b.extra_link,
+                       b.created_at, b.updated_at, b.chapter_count,
+                       b.last_read_chapter_id, b.last_read_ratio, b.last_read_mode, b.theme_pref,
+                       b.summary,
+                       lr.chapter_order AS lr_chapter_order,
+                       lr.title_raw AS lr_title_raw,
+                       lr.title_vi AS lr_title_vi,
+                       fc.chapter_order AS first_chapter_order,
+                       fc.title_raw AS first_title_raw,
+                       fc.title_vi AS first_title_vi
+                FROM books b
+                LEFT JOIN chapters lr ON lr.chapter_id = b.last_read_chapter_id
+                LEFT JOIN chapters fc ON fc.chapter_id = (
+                    SELECT c.chapter_id FROM chapters c
+                    WHERE c.book_id = b.book_id
+                    ORDER BY c.chapter_order ASC
+                    LIMIT 1
+                )
+                ORDER BY b.updated_at DESC
                 """
             ).fetchall()
         output: list[dict[str, Any]] = []
@@ -2136,9 +2385,47 @@ class ReaderStorage:
             item["author_vi"] = normalize_vi_display_text(item.get("author_vi") or "")
             item["title_display"] = item.get("title_vi") or item.get("title")
             item["author_display"] = item.get("author_vi") or item.get("author")
+            item["lang_source"] = normalize_lang_source(item.get("lang_source") or "") or str(item.get("lang_source") or "")
+            item["translation_supported"] = bool(book_supports_translation(item))
+            item["is_comic"] = bool(is_book_comic(item))
             item["cover_url"] = self._book_cover_url(item)
+
+            # Current chapter info for library card:
+            # - If user chưa đọc: dùng chương đầu (first_*)
+            # - Nếu đã đọc: dùng last_read (lr_*)
+            if item.get("last_read_chapter_id") and item.get("lr_chapter_order"):
+                cur_order = int(item.get("lr_chapter_order") or 1)
+                cur_title_raw = (item.get("lr_title_raw") or "").strip()
+                cur_title_vi = normalize_vi_display_text(item.get("lr_title_vi") or "")
+            else:
+                cur_order = int(item.get("first_chapter_order") or 1)
+                cur_title_raw = (item.get("first_title_raw") or "").strip()
+                cur_title_vi = normalize_vi_display_text(item.get("first_title_vi") or "")
+
+            item["current_chapter_order"] = cur_order
+            item["current_chapter_title_raw"] = cur_title_raw
+            item["current_chapter_title_vi"] = cur_title_vi
+            item["current_chapter_title_display"] = cur_title_vi or cur_title_raw or f"Chương {cur_order}"
+
+            # Overall progress percent (coarse) for library UI.
+            total = max(1, int(item.get("chapter_count") or 1))
+            ratio = float(item.get("last_read_ratio") or 0.0)
+            ratio = 0.0 if ratio < 0 else (1.0 if ratio > 1 else ratio)
+            # Nếu chưa đọc (không có last_read_chapter_id): giữ 0%.
+            if not item.get("last_read_chapter_id"):
+                item["progress_percent"] = 0.0
+            else:
+                item["progress_percent"] = max(0.0, min(100.0, (((cur_order - 1) + ratio) / total) * 100.0))
             output.append(item)
         return output
+
+    def update_chapter_word_count(self, chapter_id: str, word_count: int) -> None:
+        now = utc_now_iso()
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE chapters SET word_count = ?, updated_at = ? WHERE chapter_id = ?",
+                (max(0, int(word_count)), now, chapter_id),
+            )
 
     def find_book(self, book_id: str) -> dict[str, Any] | None:
         with self._connect() as conn:
@@ -2212,7 +2499,7 @@ class ReaderStorage:
         now = utc_now_iso()
         with self._connect() as conn:
             # Dịch tên truyện nếu cần.
-            if book.get("lang_source") != "vi":
+            if book_supports_translation(book):
                 raw_title = (book.get("title") or "").strip()
                 vi_title = (book.get("title_vi") or "").strip()
                 if raw_title and (not vi_title):
@@ -2247,7 +2534,7 @@ class ReaderStorage:
                 vi_title = (row["title_vi"] or "").strip()
                 if not raw_title and not vi_title:
                     continue
-                if raw_title and not vi_title:
+                if raw_title and not vi_title and book_supports_translation(book):
                     translated = normalize_vi_display_text(
                         translator.translate_detailed(raw_title, mode=translate_mode, name_set_override=name_set_override).get("translated", "")
                     )
@@ -2321,7 +2608,7 @@ class ReaderStorage:
             rows = conn.execute(
                 """
                 SELECT chapter_id, book_id, chapter_order, title_raw, title_vi,
-                       raw_key, trans_key, trans_sig, updated_at, word_count
+                       raw_key, trans_key, trans_sig, updated_at, word_count, remote_url
                 FROM chapters
                 WHERE book_id = ?
                 ORDER BY chapter_order ASC
@@ -2372,6 +2659,9 @@ class ReaderStorage:
         if not book:
             return None
         chapters = self.get_chapter_rows(book_id)
+        book["lang_source"] = normalize_lang_source(book.get("lang_source") or "") or str(book.get("lang_source") or "")
+        book["translation_supported"] = bool(book_supports_translation(book))
+        book["is_comic"] = bool(is_book_comic(book))
         book["title_vi"] = normalize_vi_display_text(book.get("title_vi") or "")
         book["author_vi"] = normalize_vi_display_text(book.get("author_vi") or "")
         book["title_display"] = book.get("title_vi") or book.get("title")
@@ -2739,8 +3029,15 @@ class ReaderStorage:
         name_set_override: dict[str, str] | None = None,
     ) -> str:
         raw_key = chapter.get("raw_key")
-        raw_text = normalize_newlines(self.read_cache(raw_key) or "")
-        if mode == "raw" or book.get("lang_source") == "vi":
+        cached_raw = self.read_cache(raw_key) or ""
+        if (not cached_raw) and str(book.get("source_type") or "").startswith("vbook") and chapter.get("remote_url") and self.remote_chapter_fetcher:
+            cached_raw = self.remote_chapter_fetcher(chapter, book) or ""
+        comic_payload = decode_comic_payload(cached_raw or "")
+        if comic_payload is not None:
+            return cached_raw or encode_comic_payload([])
+
+        raw_text = normalize_newlines(cached_raw or "")
+        if mode == "raw" or (not book_supports_translation(book)):
             return raw_text
 
         current_sig = translator.translation_signature(mode=translate_mode, name_set_override=name_set_override)
@@ -2780,7 +3077,11 @@ class ReaderService:
         self.storage = storage
         self.app_config = load_app_config()
         self.translator = TranslationAdapter(self.app_config)
+        self.vbook_manager: Any = None
+        self.vbook_runner: Any = None
         self.name_set_state: dict[str, Any] = {"sets": {"Mặc định": {}}, "active_set": "Mặc định", "version": 1}
+        # Allow storage to lazy-load remote chapter content (vBook, ...).
+        self.storage.remote_chapter_fetcher = self._fetch_remote_chapter
         self.refresh_config()
 
     def _default_name_sets(self) -> dict[str, dict[str, str]]:
@@ -2811,10 +3112,42 @@ class ReaderService:
             cache_store_batch=self.storage.set_translation_memory_batch,
         )
 
+        # vBook integration (extensions + runner)
+        base_dir = runtime_base_dir()
+        vcfg = self.app_config.get("vbook") or {}
+        try:
+            extensions_dir = str(vcfg.get("extensions_dir") or "local/vbook_extensions").strip() or "local/vbook_extensions"
+        except Exception:
+            extensions_dir = "local/vbook_extensions"
+        self.vbook_manager = vbook_ext.VBookExtensionManager(resolve_path_from_base(extensions_dir, base_dir))
+
+        try:
+            jar_rel = str(vcfg.get("runner_jar") or "tools/vbook_runner/vbook_runner.jar").strip() or "tools/vbook_runner/vbook_runner.jar"
+        except Exception:
+            jar_rel = "tools/vbook_runner/vbook_runner.jar"
+        jar_path = resolve_path_from_base(jar_rel, base_dir)
+        if jar_path.exists():
+            runner_cfg = {
+                "default_user_agent": str(vcfg.get("default_user_agent") or ""),
+                "default_cookie": str(vcfg.get("default_cookie") or ""),
+                "timeout_ms": int(vcfg.get("timeout_ms") or 20000),
+            }
+            java_bin_raw = str(vcfg.get("java_bin") or "").strip()
+            java_bin = None
+            if java_bin_raw:
+                try:
+                    resolved_java = resolve_path_from_base(java_bin_raw, base_dir)
+                    java_bin = str(resolved_java) if resolved_java.exists() else java_bin_raw
+                except Exception:
+                    java_bin = java_bin_raw
+            self.vbook_runner = vbook_ext.VBookRunnerClient(jar_path, runner_config=runner_cfg, java_bin=java_bin)
+        else:
+            self.vbook_runner = None
+
     def import_file(self, filename: str, file_bytes: bytes, lang_source: str, title: str, author: str) -> dict[str, Any]:
         name = filename or "imported"
         ext = name.lower().rsplit(".", 1)[-1] if "." in name else "txt"
-        lang = "vi" if lang_source == "vi" else "zh"
+        lang = normalize_lang_source(lang_source) or "zh"
 
         if ext == "epub":
             parsed_title, parsed_author, chapters = parse_epub_chapters(file_bytes, custom_title=title)
@@ -2850,6 +3183,590 @@ class ReaderService:
             summary=summary,
             chapters=chapters,
         )
+
+    def import_vbook_url(self, url: str, *, plugin_id: str | None = None) -> dict[str, Any]:
+        source_url = (url or "").strip()
+        if not source_url:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL để import.")
+
+        plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id)
+        detail = self._run_vbook_script(plugin, "detail", [source_url])
+        toc_rows = self._fetch_vbook_toc(plugin, source_url)
+
+        title = str((detail or {}).get("name") or (detail or {}).get("title") or "").strip() or source_url
+        author = str((detail or {}).get("author") or "").strip()
+        cover_path = str((detail or {}).get("cover") or "").strip()
+        plugin_type = str(plugin.type or "").strip().lower()
+        source_type = "vbook_comic" if "comic" in plugin_type else "vbook"
+        summary = str((detail or {}).get("description") or "").strip() or (
+            "Truyện tranh được import từ URL (vBook extension)." if source_type == "vbook_comic" else "Truyện được import từ URL (vBook extension)."
+        )
+        extra_link = source_url
+
+        locale_norm = normalize_lang_source(str(plugin.locale or ""))
+        if locale_norm:
+            lang_source = locale_norm
+        else:
+            lang_source = "zh"
+
+        chapters: list[dict[str, str]] = []
+        for idx, row in enumerate(toc_rows, start=1):
+            ch_title = str(row.get("name") or f"Chương {idx}").strip() or f"Chương {idx}"
+            remote_url = str(row.get("remote_url") or "").strip()
+            if not remote_url:
+                continue
+            chapters.append({"title": ch_title, "remote_url": remote_url})
+
+        if not chapters:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_TOC_EMPTY",
+                "Không lấy được mục lục từ nguồn (vBook).",
+                {"source_url": source_url, "plugin": plugin.plugin_id},
+            )
+
+        created = self.storage.create_book_remote(
+            title=title,
+            author=author,
+            lang_source=lang_source,
+            source_type=source_type,
+            summary=summary,
+            chapters=chapters,
+            source_url=source_url,
+            source_plugin=plugin.plugin_id,
+            cover_path=cover_path,
+            extra_link=extra_link,
+        )
+        return created
+
+    def _vbook_cfg(self) -> dict[str, Any]:
+        raw = self.app_config.get("vbook") or {}
+        return raw if isinstance(raw, dict) else {}
+
+    def _serialize_vbook_plugin(self, p: Any) -> dict[str, Any]:
+        return {
+            "plugin_id": p.plugin_id,
+            "name": p.name,
+            "author": p.author,
+            "version": p.version,
+            "locale": p.locale,
+            "type": p.type,
+            "source": p.source,
+            "regexp": p.regexp,
+            "encrypt": bool(p.encrypt),
+            "scripts": sorted(list((p.scripts or {}).keys())),
+        }
+
+    def list_vbook_plugins(self) -> list[dict[str, Any]]:
+        if not self.vbook_manager:
+            return []
+        return [self._serialize_vbook_plugin(p) for p in self.vbook_manager.list_plugins()]
+
+    def get_vbook_repo_urls(self) -> list[str]:
+        vcfg = self._vbook_cfg()
+        repo_urls = vcfg.get("repo_urls") or []
+        if not isinstance(repo_urls, list):
+            return []
+        out: list[str] = []
+        for x in repo_urls:
+            u = str(x or "").strip()
+            if u:
+                out.append(u)
+        return out
+
+    def set_vbook_repo_urls(self, urls: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw in urls or []:
+            url = str(raw or "").strip()
+            if not url:
+                continue
+            if url in seen:
+                continue
+            seen.add(url)
+            normalized.append(url)
+        cfg = load_app_config()
+        if not isinstance(cfg, dict):
+            cfg = {}
+        vcfg = cfg.get("vbook")
+        if not isinstance(vcfg, dict):
+            vcfg = {}
+        vcfg["repo_urls"] = normalized
+        cfg["vbook"] = vcfg
+        save_app_config(cfg)
+        self.app_config = cfg
+        return normalized
+
+    def list_vbook_repo_plugins(self, *, repo_url: str = "") -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+        if not self.vbook_manager:
+            raise ApiError(HTTPStatus.SERVICE_UNAVAILABLE, "VBOOK_DISABLED", "vBook chưa được bật trong server.")
+        if repo_url.strip():
+            urls = [repo_url.strip()]
+        else:
+            urls = self.get_vbook_repo_urls()
+        if not urls:
+            return [], []
+        items, errors = self.vbook_manager.list_repo_plugins(urls, timeout_sec=20.0)
+        return items, errors
+
+    def install_vbook_plugin(self, *, plugin_url: str, plugin_id: str = "") -> dict[str, Any]:
+        if not self.vbook_manager:
+            raise ApiError(HTTPStatus.SERVICE_UNAVAILABLE, "VBOOK_DISABLED", "vBook chưa được bật trong server.")
+        url = str(plugin_url or "").strip()
+        if not url:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_url.")
+        try:
+            installed = self.vbook_manager.install_plugin_from_url(url, plugin_id=plugin_id)
+        except Exception as exc:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_PLUGIN_INSTALL_ERROR",
+                "Không cài được plugin vBook từ URL.",
+                {"plugin_url": url, "error": str(exc)},
+            ) from exc
+        return self._serialize_vbook_plugin(installed)
+
+    def remove_vbook_plugin(self, plugin_id: str) -> bool:
+        if not self.vbook_manager:
+            raise ApiError(HTTPStatus.SERVICE_UNAVAILABLE, "VBOOK_DISABLED", "vBook chưa được bật trong server.")
+        pid = str(plugin_id or "").strip()
+        if not pid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_id.")
+        return bool(self.vbook_manager.remove_plugin(pid))
+
+    def _resolve_vbook_plugin(self, url: str, *, plugin_id: str | None) -> Any:
+        if not self.vbook_manager:
+            raise ApiError(HTTPStatus.SERVICE_UNAVAILABLE, "VBOOK_DISABLED", "vBook chưa được bật trong server.")
+
+        if plugin_id:
+            pid = str(plugin_id).strip()
+            for p in self.vbook_manager.list_plugins():
+                if p.plugin_id == pid:
+                    return p
+            raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_PLUGIN_NOT_FOUND", "Không tìm thấy plugin vBook.", {"plugin_id": pid})
+
+        detected = self.vbook_manager.detect_plugin_for_url(url)
+        if detected:
+            return detected
+        raise ApiError(
+            HTTPStatus.BAD_REQUEST,
+            "VBOOK_NO_PLUGIN",
+            "Không tìm thấy plugin vBook phù hợp với URL này.",
+            {"url": url},
+        )
+
+    def _require_vbook_plugin(self, plugin_id: str) -> Any:
+        if not self.vbook_manager:
+            raise ApiError(HTTPStatus.SERVICE_UNAVAILABLE, "VBOOK_DISABLED", "vBook chưa được bật trong server.")
+        pid = str(plugin_id or "").strip()
+        if not pid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_id.")
+        for p in self.vbook_manager.list_plugins():
+            if p.plugin_id == pid:
+                return p
+        raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_PLUGIN_NOT_FOUND", "Không tìm thấy plugin vBook.", {"plugin_id": pid})
+
+    def _ensure_plugin_has_script(self, plugin: Any, script_key: str) -> None:
+        scripts = getattr(plugin, "scripts", None)
+        if not isinstance(scripts, dict) or not scripts.get(script_key):
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "VBOOK_SCRIPT_MISSING",
+                f"Plugin không hỗ trợ script `{script_key}`.",
+                {"plugin": getattr(plugin, "plugin_id", ""), "script": script_key},
+            )
+
+    def _run_vbook_script_result(self, plugin: Any, script_key: str, args: list[Any]) -> dict[str, Any]:
+        if not self.vbook_runner:
+            raise ApiError(
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                "VBOOK_RUNNER_MISSING",
+                "Chưa có vBook runner. Hãy build `tools/vbook_runner` trước.",
+            )
+
+        payload = self.vbook_runner.run(
+            plugin_path=str(plugin.path),
+            script_key=script_key,
+            args=args,
+            timeout_sec=30.0,
+        )
+        result = payload.get("result")
+        if isinstance(result, dict):
+            code = result.get("code")
+            try:
+                code_val = int(code)
+            except Exception:
+                code_val = 0 if code in (0, 0.0, "0") else 1
+            if code_val != 0:
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_SCRIPT_ERROR",
+                    "Plugin vBook trả lỗi khi chạy script.",
+                    {"plugin": plugin.plugin_id, "script": script_key, "result": result},
+                )
+            return result
+        # Some plugins might return raw value (non Response.success)
+        return {"code": 0, "data": result}
+
+    def _run_vbook_script(self, plugin: Any, script_key: str, args: list[Any]) -> Any:
+        result = self._run_vbook_script_result(plugin, script_key, args)
+        return result.get("data")
+
+    def _run_vbook_script_with_next(self, plugin: Any, script_key: str, args: list[Any]) -> tuple[Any, Any]:
+        result = self._run_vbook_script_result(plugin, script_key, args)
+        return result.get("data"), result.get("next")
+
+    def _normalize_vbook_search_item(self, plugin: Any, item: dict[str, Any], *, query: str) -> dict[str, Any] | None:
+        if not isinstance(item, dict):
+            return None
+        title = str(
+            item.get("name")
+            or item.get("title")
+            or item.get("book_name")
+            or item.get("bookTitle")
+            or ""
+        ).strip()
+        href = str(
+            item.get("link")
+            or item.get("url")
+            or item.get("detail")
+            or item.get("detail_url")
+            or item.get("book_url")
+            or ""
+        ).strip()
+        host = str(item.get("host") or "").strip()
+        detail_url = self._join_vbook_url(host, href)
+        if not detail_url and href.startswith("http"):
+            detail_url = href
+        if not title or not detail_url:
+            return None
+        cover = str(item.get("cover") or item.get("image") or item.get("img") or "").strip()
+        if cover and host and not cover.startswith("http"):
+            cover = self._join_vbook_url(host, cover)
+        description = str(item.get("description") or item.get("desc") or item.get("summary") or "").strip()
+        author = str(item.get("author") or item.get("writer") or "").strip()
+        is_comic = "comic" in str(getattr(plugin, "type", "") or "").lower()
+        locale_norm = normalize_lang_source(str(getattr(plugin, "locale", "") or ""))
+        source_tag = "vbook_comic" if is_comic else "vbook"
+        return {
+            "title": title,
+            "author": author,
+            "description": description,
+            "cover": cover,
+            "detail_url": detail_url,
+            "query": query,
+            "host": host,
+            "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+            "plugin_name": str(getattr(plugin, "name", "") or ""),
+            "plugin_type": str(getattr(plugin, "type", "") or ""),
+            "locale": str(getattr(plugin, "locale", "") or ""),
+            "source_type": source_tag,
+            "is_comic": is_comic,
+            "lang_source": locale_norm or "zh",
+        }
+
+    def search_vbook_books(
+        self,
+        *,
+        plugin_id: str,
+        query: str,
+        page: int = 1,
+        next_token: Any = None,
+    ) -> dict[str, Any]:
+        plugin = self._require_vbook_plugin(plugin_id)
+        self._ensure_plugin_has_script(plugin, "search")
+        q = str(query or "").strip()
+        if not q:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu từ khóa tìm kiếm.")
+        p = max(1, int(page or 1))
+
+        candidates: list[list[Any]] = []
+        if next_token is not None and str(next_token).strip() != "":
+            candidates.extend([[q, next_token], [next_token], [q]])
+        candidates.extend([[q, p], [q, str(p)], [q]])
+        seen: set[str] = set()
+        last_error: Exception | None = None
+        data: Any = []
+        next_value: Any = None
+        for args in candidates:
+            sig = json.dumps(args, ensure_ascii=False, sort_keys=True, default=str)
+            if sig in seen:
+                continue
+            seen.add(sig)
+            try:
+                data, next_value = self._run_vbook_script_with_next(plugin, "search", args)
+                last_error = None
+                break
+            except Exception as exc:
+                last_error = exc
+                continue
+        if last_error is not None:
+            if isinstance(last_error, ApiError):
+                raise last_error
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_SEARCH_FAILED",
+                "Không thể tìm kiếm bằng plugin vBook này.",
+                {"plugin_id": plugin_id, "error": str(last_error)},
+            ) from last_error
+
+        rows = data if isinstance(data, list) else (
+            data.get("items")
+            if isinstance(data, dict) and isinstance(data.get("items"), list)
+            else data.get("data")
+            if isinstance(data, dict) and isinstance(data.get("data"), list)
+            else data.get("list")
+            if isinstance(data, dict) and isinstance(data.get("list"), list)
+            else []
+        )
+        items: list[dict[str, Any]] = []
+        for row in rows or []:
+            normalized = self._normalize_vbook_search_item(plugin, row, query=q)
+            if normalized:
+                items.append(normalized)
+        return {
+            "ok": True,
+            "plugin": self._serialize_vbook_plugin(plugin),
+            "query": q,
+            "page": p,
+            "items": items,
+            "next": next_value,
+            "has_next": next_value is not None and str(next_value).strip() != "",
+            "count": len(items),
+        }
+
+    def get_vbook_detail(self, *, url: str, plugin_id: str = "") -> dict[str, Any]:
+        source_url = str(url or "").strip()
+        if not source_url:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL truyện.")
+        plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id or None)
+        self._ensure_plugin_has_script(plugin, "detail")
+        data = self._run_vbook_script(plugin, "detail", [source_url])
+        detail = data if isinstance(data, dict) else {}
+        title = str(detail.get("name") or detail.get("title") or "").strip() or source_url
+        author = str(detail.get("author") or "").strip()
+        cover = str(detail.get("cover") or detail.get("image") or "").strip()
+        description = str(detail.get("description") or detail.get("desc") or "").strip()
+        host = str(detail.get("host") or "").strip()
+        if cover and host and not cover.startswith("http"):
+            cover = self._join_vbook_url(host, cover)
+        is_comic = "comic" in str(getattr(plugin, "type", "") or "").lower()
+        return {
+            "ok": True,
+            "plugin": self._serialize_vbook_plugin(plugin),
+            "detail": {
+                "title": title,
+                "author": author,
+                "cover": cover,
+                "description": description,
+                "url": source_url,
+                "host": host,
+                "is_comic": is_comic,
+                "source_type": "vbook_comic" if is_comic else "vbook",
+            },
+        }
+
+    def get_vbook_toc(
+        self,
+        *,
+        url: str,
+        plugin_id: str = "",
+        page: int = 1,
+        page_size: int = 120,
+    ) -> dict[str, Any]:
+        source_url = str(url or "").strip()
+        if not source_url:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL truyện.")
+        plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id or None)
+        self._ensure_plugin_has_script(plugin, "toc")
+        all_rows = self._fetch_vbook_toc(plugin, source_url)
+        p = max(1, int(page or 1))
+        ps = max(1, min(500, int(page_size or 120)))
+        total = len(all_rows)
+        total_pages = max(1, (total + ps - 1) // ps)
+        if p > total_pages:
+            p = total_pages
+        offset = (p - 1) * ps
+        chunk = all_rows[offset : offset + ps]
+        items: list[dict[str, Any]] = []
+        for idx, row in enumerate(chunk, start=offset + 1):
+            items.append(
+                {
+                    "index": idx,
+                    "title": str(row.get("name") or "").strip() or f"Chương {idx}",
+                    "url": str(row.get("remote_url") or "").strip(),
+                }
+            )
+        return {
+            "ok": True,
+            "plugin": self._serialize_vbook_plugin(plugin),
+            "book_url": source_url,
+            "items": items,
+            "pagination": {
+                "page": p,
+                "page_size": ps,
+                "total_items": total,
+                "total_pages": total_pages,
+            },
+        }
+
+    def get_vbook_chap_debug(self, *, url: str, plugin_id: str = "") -> dict[str, Any]:
+        source_url = str(url or "").strip()
+        if not source_url:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL chương.")
+        plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id or None)
+        self._ensure_plugin_has_script(plugin, "chap")
+        data = self._run_vbook_script(plugin, "chap", [source_url])
+        is_comic = "comic" in str(getattr(plugin, "type", "") or "").lower()
+
+        text_content = ""
+        images: list[str] = []
+        raw_content: Any = data
+        if isinstance(data, dict):
+            raw_content = data.get("content")
+            if isinstance(raw_content, list):
+                images = [str(x).strip() for x in raw_content if str(x).strip()]
+            else:
+                text_content = str(raw_content or data.get("text") or data.get("data") or "").strip()
+        elif isinstance(data, list):
+            images = [str(x).strip() for x in data if str(x).strip()]
+        else:
+            text_content = str(data or "").strip()
+
+        if (not images) and text_content and "<" in text_content and ">" in text_content and re.search(r"</?[a-zA-Z][^>]*>", text_content):
+            text_content = html_to_text(text_content)
+        text_content = normalize_newlines(text_content)
+
+        if is_comic and (not images) and text_content:
+            maybe_lines = [line.strip() for line in text_content.splitlines() if line.strip()]
+            if maybe_lines and all(line.startswith("http://") or line.startswith("https://") for line in maybe_lines):
+                images = maybe_lines
+                text_content = ""
+
+        return {
+            "ok": True,
+            "plugin": self._serialize_vbook_plugin(plugin),
+            "chapter": {
+                "url": source_url,
+                "is_comic": is_comic,
+                "images": images,
+                "content": text_content,
+                "raw_type": type(raw_content).__name__,
+            },
+        }
+
+    def _fetch_vbook_toc(self, plugin: Any, url: str) -> list[dict[str, str]]:
+        pages: list[str] = []
+        if getattr(plugin, "scripts", None) and isinstance(plugin.scripts, dict) and plugin.scripts.get("page"):
+            try:
+                page_data = self._run_vbook_script(plugin, "page", [url])
+                if isinstance(page_data, list):
+                    pages = [str(x).strip() for x in page_data if str(x).strip()]
+            except Exception:
+                pages = []
+
+        toc_items: list[Any] = []
+        if pages:
+            for purl in pages:
+                data = self._run_vbook_script(plugin, "toc", [purl])
+                if isinstance(data, list):
+                    toc_items.extend(data)
+        else:
+            data = self._run_vbook_script(plugin, "toc", [url])
+            if isinstance(data, list):
+                toc_items.extend(data)
+
+        output: list[dict[str, str]] = []
+        for item in toc_items:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name") or "").strip()
+            href = str(item.get("url") or "").strip()
+            host = str(item.get("host") or "").strip()
+            remote_url = self._join_vbook_url(host, href)
+            if not name or not remote_url:
+                continue
+            output.append({"name": name, "remote_url": remote_url})
+        return output
+
+    def _fetch_remote_chapter(self, chapter: dict[str, Any], book: dict[str, Any]) -> str:
+        if not str((book or {}).get("source_type") or "").startswith("vbook"):
+            return ""
+        remote_url = str((chapter or {}).get("remote_url") or "").strip()
+        if not remote_url:
+            raise ApiError(HTTPStatus.BAD_GATEWAY, "VBOOK_CHAP_NO_URL", "Chương này thiếu remote_url để tải.")
+
+        plugin_id = str((book or {}).get("source_plugin") or "").strip()
+        plugin = None
+        if plugin_id and self.vbook_manager:
+            for p in self.vbook_manager.list_plugins():
+                if p.plugin_id == plugin_id:
+                    plugin = p
+                    break
+        if plugin is None and self.vbook_manager:
+            plugin = self.vbook_manager.detect_plugin_for_url(str((book or {}).get("source_url") or "")) or self.vbook_manager.detect_plugin_for_url(remote_url)
+        if plugin is None:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_PLUGIN_MISSING",
+                "Không tìm thấy plugin vBook để tải nội dung chương.",
+                {"book_id": book.get("book_id"), "source_url": book.get("source_url"), "remote_url": remote_url},
+            )
+
+        data = self._run_vbook_script(plugin, "chap", [remote_url])
+        content = ""
+        is_comic = bool(is_book_comic(book))
+        if isinstance(data, dict):
+            raw_content = data.get("content")
+            if is_comic and isinstance(raw_content, list):
+                urls = [str(x).strip() for x in raw_content if str(x).strip()]
+                content = encode_comic_payload(urls)
+            else:
+                content = str(raw_content or data.get("text") or "").strip()
+            if not content and "data" in data:
+                content = str(data.get("data") or "").strip()
+        elif isinstance(data, list):
+            urls = [str(x).strip() for x in data if str(x).strip()]
+            if is_comic:
+                content = encode_comic_payload(urls)
+            else:
+                content = "\n".join(urls)
+        else:
+            content = str(data or "")
+
+        # HTML -> text
+        core = content
+        if (decode_comic_payload(core) is None) and "<" in core and ">" in core and re.search(r"</?[a-zA-Z][^>]*>", core):
+            core = html_to_text(core)
+        if decode_comic_payload(core) is None:
+            core = normalize_newlines(core)
+
+        raw_key = (chapter or {}).get("raw_key") or ""
+        if raw_key:
+            self.storage.write_cache(raw_key, str((book or {}).get("lang_source") or "zh"), core)
+        try:
+            comic_payload = decode_comic_payload(core)
+            if comic_payload is not None:
+                self.storage.update_chapter_word_count(
+                    str(chapter.get("chapter_id") or ""),
+                    len(comic_payload.get("images") or []),
+                )
+            else:
+                self.storage.update_chapter_word_count(str(chapter.get("chapter_id") or ""), len(core))
+        except Exception:
+            pass
+        return core
+
+    def _join_vbook_url(self, host: str, url: str) -> str:
+        href = (url or "").strip()
+        if not href:
+            return ""
+        if href.startswith("http://") or href.startswith("https://"):
+            return href
+        h = (host or "").strip()
+        if not h:
+            return href
+        return h.rstrip("/") + "/" + href.lstrip("/")
 
 
 class ApiError(Exception):
@@ -2953,6 +3870,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         route_map = {
             "/": "/library.html",
             "": "/library.html",
+            "/index.html": "/library.html",
             "/library": "/library.html",
             "/search": "/search.html",
             "/book": "/book.html",
@@ -2960,13 +3878,6 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         }
         if parsed.path in route_map:
             self.path = route_map[parsed.path]
-            super().do_GET()
-            return
-
-        if parsed.path == "/index.html":
-            if self._serve_composed_index():
-                return
-            self.path = "/index.html"
             super().do_GET()
             return
         super().do_GET()
@@ -3171,6 +4082,114 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             books = self.service.storage.list_books()
             return {"items": books}
 
+        if method == "GET" and path == "/api/vbook/plugins":
+            items = self.service.list_vbook_plugins()
+            return {"ok": True, "items": items}
+
+        if method == "POST" and path == "/api/vbook/search":
+            payload = self._read_json_body()
+            plugin_id = str(payload.get("plugin_id") or "").strip()
+            query_text = str(payload.get("query") or payload.get("q") or "").strip()
+            page_raw = payload.get("page")
+            try:
+                page = int(page_raw) if page_raw is not None and str(page_raw).strip() else 1
+            except Exception:
+                page = 1
+            next_token = payload.get("next")
+            return self.service.search_vbook_books(
+                plugin_id=plugin_id,
+                query=query_text,
+                page=page,
+                next_token=next_token,
+            )
+
+        if method == "POST" and path == "/api/vbook/detail":
+            payload = self._read_json_body()
+            source_url = str(payload.get("url") or "").strip()
+            plugin_id = str(payload.get("plugin_id") or "").strip()
+            return self.service.get_vbook_detail(url=source_url, plugin_id=plugin_id)
+
+        if method == "POST" and path == "/api/vbook/toc":
+            payload = self._read_json_body()
+            source_url = str(payload.get("url") or "").strip()
+            plugin_id = str(payload.get("plugin_id") or "").strip()
+            try:
+                page = int(payload.get("page") or 1)
+            except Exception:
+                page = 1
+            try:
+                page_size = int(payload.get("page_size") or 120)
+            except Exception:
+                page_size = 120
+            return self.service.get_vbook_toc(
+                url=source_url,
+                plugin_id=plugin_id,
+                page=page,
+                page_size=page_size,
+            )
+
+        if method == "POST" and path == "/api/vbook/chap":
+            payload = self._read_json_body()
+            source_url = str(payload.get("url") or "").strip()
+            plugin_id = str(payload.get("plugin_id") or "").strip()
+            return self.service.get_vbook_chap_debug(url=source_url, plugin_id=plugin_id)
+
+        if method == "GET" and path == "/api/vbook/repos":
+            repo_urls = self.service.get_vbook_repo_urls()
+            return {
+                "ok": True,
+                "items": [{"url": u} for u in repo_urls],
+                "count": len(repo_urls),
+            }
+
+        if method == "POST" and path == "/api/vbook/repos":
+            payload = self._read_json_body()
+            urls_raw = payload.get("repo_urls")
+            if not isinstance(urls_raw, list):
+                items = payload.get("items")
+                if isinstance(items, list):
+                    urls_raw = [x.get("url") if isinstance(x, dict) else x for x in items]
+                else:
+                    urls_raw = []
+            repo_urls = self.service.set_vbook_repo_urls(urls_raw)
+            return {
+                "ok": True,
+                "items": [{"url": u} for u in repo_urls],
+                "count": len(repo_urls),
+            }
+
+        if method == "GET" and path == "/api/vbook/repo/plugins":
+            repo_url = (query.get("repo_url", [""])[0] or "").strip()
+            items, errors = self.service.list_vbook_repo_plugins(repo_url=repo_url)
+            return {
+                "ok": True,
+                "items": items,
+                "errors": errors,
+            }
+
+        if method == "POST" and path == "/api/vbook/plugins/install":
+            payload = self._read_json_body()
+            plugin_url = str(payload.get("plugin_url") or payload.get("url") or "").strip()
+            plugin_id = str(payload.get("plugin_id") or "").strip()
+            plugin = self.service.install_vbook_plugin(plugin_url=plugin_url, plugin_id=plugin_id)
+            return {"ok": True, "plugin": plugin}
+
+        if method == "DELETE" and path.startswith("/api/vbook/plugins/"):
+            plugin_id = path.removeprefix("/api/vbook/plugins/").strip("/")
+            if not plugin_id:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_id.")
+            removed = self.service.remove_vbook_plugin(plugin_id)
+            if not removed:
+                raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy plugin để xóa.")
+            return {"ok": True}
+
+        if method == "POST" and path == "/api/library/import-url":
+            payload = self._read_json_body()
+            url = (payload.get("url") or "").strip()
+            plugin_id = (payload.get("plugin_id") or "").strip() or None
+            book = self.service.import_vbook_url(url, plugin_id=plugin_id)
+            return {"ok": True, "book": book}
+
         if method == "POST" and path == "/api/library/import":
             form = self._read_multipart_form()
             if "file" not in form:
@@ -3203,12 +4222,15 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book_id = path.removeprefix("/api/library/book/").removesuffix("/chapters").strip("/")
             if not book_id:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
-            if not self.service.storage.find_book(book_id):
+            book_found = self.service.storage.find_book(book_id)
+            if not book_found:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
             page = int((query.get("page", ["1"])[0] or "1"))
             page_size = int((query.get("page_size", ["120"])[0] or "120"))
             mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
             if mode not in ("raw", "trans"):
+                mode = "raw"
+            if mode == "trans" and not book_supports_translation(book_found):
                 mode = "raw"
             translate_mode = (query.get("translation_mode", ["server"])[0] or "server").strip().lower()
             if translate_mode not in ("server", "local"):
@@ -3233,8 +4255,11 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
 
         if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/translate-titles"):
             book_id = path.removeprefix("/api/library/book/").removesuffix("/translate-titles").strip("/")
-            if not self.service.storage.find_book(book_id):
+            book_found = self.service.storage.find_book(book_id)
+            if not book_found:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+            if not book_supports_translation(book_found):
+                return {"ok": True, "skipped": True, "reason": "TRANSLATION_NOT_SUPPORTED"}
             payload = self._read_json_body()
             translate_mode = (payload.get("translation_mode") or "server").strip().lower()
             if translate_mode not in ("server", "local"):
@@ -3297,7 +4322,8 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
                 book_id=book_id,
             )
-            if translate_titles or mode == "trans":
+            book_preview = self.service.storage.find_book(book_id)
+            if (translate_titles or mode == "trans") and book_supports_translation(book_preview):
                 self.service.storage.translate_book_titles(
                     book_id,
                     self.service.translator,
@@ -3391,6 +4417,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book = self.service.storage.find_book(chapter["book_id"])
             if not book:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+            trans_supported = bool(book_supports_translation(book))
+            if not trans_supported:
+                raise ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "TRANSLATION_NOT_SUPPORTED",
+                    "Nguồn truyện này không hỗ trợ dịch/name map.",
+                )
 
             payload = self._read_json_body()
             translate_mode = (payload.get("translation_mode") or "local").strip().lower()
@@ -3406,7 +4439,14 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     book_id=chapter["book_id"],
                 )
 
-            raw_text = normalize_newlines(self.service.storage.read_cache(chapter.get("raw_key")) or "")
+            raw_text = self.service.storage.get_chapter_text(
+                chapter,
+                book,
+                mode="raw",
+                translator=self.service.translator,
+                translate_mode=translate_mode,
+                name_set_override=override_name_set if isinstance(override_name_set, dict) else None,
+            )
             detail = self.service.translator.translate_detailed(
                 raw_text,
                 mode=translate_mode,
@@ -3440,6 +4480,12 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book = self.service.storage.find_book(chapter["book_id"])
             if not book:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+            if not book_supports_translation(book):
+                raise ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "TRANSLATION_NOT_SUPPORTED",
+                    "Nguồn truyện này không hỗ trợ dịch/name map.",
+                )
 
             payload = self._read_json_body()
             selected_text = (payload.get("selected_text") or "").strip()
@@ -3461,7 +4507,14 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 book_id=chapter["book_id"],
             )
 
-            raw_text = normalize_newlines(self.service.storage.read_cache(chapter.get("raw_key")) or "")
+            raw_text = self.service.storage.get_chapter_text(
+                chapter,
+                book,
+                mode="raw",
+                translator=self.service.translator,
+                translate_mode=translate_mode,
+                name_set_override=active_name_set,
+            )
             translated_text = self.service.storage.get_chapter_text(
                 chapter,
                 book,
@@ -3522,6 +4575,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book = self.service.storage.find_book(chapter["book_id"])
             if not book:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+            trans_supported = bool(book_supports_translation(book))
 
             mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
             translate_mode = (query.get("translation_mode", ["server"])[0] or "server").strip().lower()
@@ -3529,7 +4583,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 mode = "raw"
             if translate_mode not in ("server", "local"):
                 translate_mode = "server"
-            if mode == "trans":
+            if mode == "trans" and trans_supported:
                 _, active_name_set, _ = self.service.storage.get_active_name_set(
                     default_sets=self.service._default_name_sets(),
                     active_default=self.service._default_active_name_set(self.service._default_name_sets()),
@@ -3559,8 +4613,15 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
 
             include_name_map = (query.get("include_name_map", ["0"])[0] or "0").strip().lower() in {"1", "true", "yes"}
             name_preview = None
-            if include_name_map and mode == "trans" and book.get("lang_source") != "vi":
-                raw_text = normalize_newlines(self.service.storage.read_cache(chapter.get("raw_key")) or "")
+            if include_name_map and mode == "trans" and trans_supported:
+                raw_text = self.service.storage.get_chapter_text(
+                    chapter,
+                    book,
+                    mode="raw",
+                    translator=self.service.translator,
+                    translate_mode=translate_mode,
+                    name_set_override=active_name_set,
+                )
                 name_preview = self.service.translator.translate_detailed(
                     raw_text,
                     mode=translate_mode,
@@ -3568,6 +4629,16 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 )
                 if isinstance(name_preview, dict):
                     name_preview.pop("unit_map", None)
+
+            comic_payload = decode_comic_payload(text)
+            response_content = text
+            content_type = "text"
+            images: list[str] = []
+            if comic_payload is not None:
+                content_type = "images"
+                images = [str(x).strip() for x in (comic_payload.get("images") or []) if str(x).strip()]
+                response_content = ""
+            output_mode = mode if trans_supported else "raw"
 
             response = {
                 "chapter_id": chapter["chapter_id"],
@@ -3577,13 +4648,15 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 "title_vi": normalize_vi_display_text(chapter.get("title_vi") or ""),
                 "title": (
                     normalize_vi_display_text(chapter.get("title_vi") or "")
-                    if mode == "trans" and chapter.get("title_vi")
+                    if output_mode == "trans" and chapter.get("title_vi")
                     else chapter["title_raw"]
                 ),
-                "mode": "raw" if book["lang_source"] == "vi" else mode,
-                "content": text,
+                "mode": output_mode,
+                "content_type": content_type,
+                "images": images,
+                "content": response_content,
             }
-            if mode == "trans":
+            if output_mode == "trans":
                 cur_sig = self.service.translator.translation_signature(mode=translate_mode, name_set_override=active_name_set)
                 response["trans_sig"] = cur_sig
                 response["map_version"] = 1
@@ -3611,6 +4684,22 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book = self.service.storage.find_book(chapter["book_id"])
             if not book:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+            if not book_supports_translation(book):
+                raw_text = self.service.storage.get_chapter_text(
+                    chapter,
+                    book,
+                    mode="raw",
+                    translator=self.service.translator,
+                    translate_mode=translate_mode,
+                )
+                return {
+                    "ok": True,
+                    "chapter_id": chapter_id,
+                    "mode": "raw",
+                    "skipped": True,
+                    "reason": "TRANSLATION_NOT_SUPPORTED",
+                    "content": raw_text,
+                }
 
             _, active_name_set, _ = self.service.storage.get_active_name_set(
                 default_sets=self.service._default_name_sets(),
@@ -3725,53 +4814,6 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
 
         return form
 
-    def _compose_template_html(self, base_path: Path, max_depth: int = 8) -> str:
-        if not base_path.exists():
-            raise FileNotFoundError(str(base_path))
-        include_pattern = re.compile(r"\{\{\s*include\s*:\s*([^\}]+)\}\}", flags=re.IGNORECASE)
-
-        def _read_with_includes(path: Path, depth: int) -> str:
-            if depth > max_depth:
-                raise RuntimeError("Vượt quá mức include tối đa trong template HTML.")
-            text = path.read_text(encoding="utf-8")
-
-            def _replace(match: re.Match[str]) -> str:
-                rel = (match.group(1) or "").strip().strip("\"'")
-                rel_path = Path(rel)
-                target = (path.parent / rel_path).resolve()
-                ui_root = self.ui_dir.resolve()
-                if ui_root not in target.parents and target != ui_root:
-                    return ""
-                if not target.exists() or not target.is_file():
-                    return ""
-                return _read_with_includes(target, depth + 1)
-
-            return include_pattern.sub(_replace, text)
-
-        return _read_with_includes(base_path.resolve(), 0)
-
-    def _serve_composed_index(self) -> bool:
-        base = self.ui_dir / "base.html"
-        if not base.exists():
-            return False
-        try:
-            html_text = self._compose_template_html(base)
-        except Exception:
-            return False
-        body = html_text.encode("utf-8")
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        try:
-            self.end_headers()
-            self.wfile.write(body)
-        except OSError as exc:
-            if self._is_client_disconnect_error(exc):
-                return True
-            raise
-        return True
-
     def _serve_media(self, path: str):
         if path.startswith("/media/export/"):
             filename = unquote(path.removeprefix("/media/export/").strip())
@@ -3875,7 +4917,10 @@ def main():
     if not ui_dir.exists():
         raise SystemExit(f"UI directory not found: {ui_dir}")
 
-    storage = ReaderStorage(Path(args.db).resolve())
+    db_path = Path(args.db).resolve()
+    # Đặt local/cache/export/cover cạnh DB để ND5 + Reader dùng chung 1 bộ dữ liệu.
+    set_local_dirs(db_path.parent)
+    storage = ReaderStorage(db_path)
     service = ReaderService(storage)
 
     handler = build_handler(ui_dir=ui_dir, service=service)

@@ -103,7 +103,12 @@ Mặc định nhận dạng tên file:
 
 Ghi chú: script có đồng bộ mô tả (descCn/noteCn) và appendMode nếu form có các ô này.
 
-## 6) Kho plugin ND5 (tuỳ chọn)
+## 6) Cài userscript TTS Reader (đọc truyện bằng TTS)
+
+- Cài script (auto-install): `https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js`
+- Hướng dẫn chi tiết: [HUONG_DAN_SU_DUNG_TTS_READER.md](../tools/HUONG_DAN_SU_DUNG_TTS_READER.md)
+
+## 7) Kho plugin ND5 (tuỳ chọn)
 
 Nếu muốn dùng extension bổ sung trong app ND5, thêm kho plugin:
 ```

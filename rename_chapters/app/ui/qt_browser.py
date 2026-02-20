@@ -823,7 +823,7 @@ class PasswordManagerDialog(QDialog):
 
 
 class _BrowserWindow(QMainWindow):
-    def __init__(self, initial_url: Optional[str], cmd_conn, event_conn):
+    def __init__(self, initial_url: Optional[str], cmd_conn, event_conn, header_spy_targets: Optional[List[str]] = None):
         super().__init__()
         self.setWindowTitle("Rename Chapters - Browser")
         self.resize(1320, 900)
@@ -870,7 +870,7 @@ class _BrowserWindow(QMainWindow):
 
         # Gửi user-agent và headers thực tế về tiến trình cha để tái sử dụng cho requests
         try:
-            targets = {"koanchay.org", "koanchay.net", "wikicv.net"}
+            targets = set(header_spy_targets or [])
             self._header_spy = _HeaderSpy(self.event_conn, targets=targets, cookie_store=self.profile.cookieStore())
             self.profile.setUrlRequestInterceptor(self._header_spy)
             if self.event_conn:
@@ -2247,11 +2247,17 @@ class _BrowserWindow(QMainWindow):
         except Exception:
             pass
 
-def run_browser(initial_url: Optional[str], cmd_conn, event_conn, profile_dir: Optional[str] = None):
+def run_browser(
+    initial_url: Optional[str],
+    cmd_conn,
+    event_conn,
+    profile_dir: Optional[str] = None,
+    header_spy_targets: Optional[List[str]] = None
+):
     """Entry-point for the multiprocessing worker."""
     if profile_dir:
         set_profile_dir(profile_dir)
     app = QApplication(sys.argv)
-    window = _BrowserWindow(initial_url, cmd_conn, event_conn)
+    window = _BrowserWindow(initial_url, cmd_conn, event_conn, header_spy_targets=header_spy_targets)
     window.show()
     app.exec()

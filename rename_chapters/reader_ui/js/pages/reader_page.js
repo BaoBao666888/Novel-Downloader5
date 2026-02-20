@@ -105,10 +105,21 @@ const state = {
   infiniteScrollDirection: 0,
   chapterTransitioning: false,
   runtimeMode: "hybrid",
+  chapterContentType: "text",
+  chapterImages: [],
 };
 
+function supportsTranslation(book) {
+  if (!book) return false;
+  if (typeof book.translation_supported === "boolean") return book.translation_supported;
+  const sourceType = String(book.source_type || "").toLowerCase();
+  if (sourceType === "vbook_comic" || sourceType === "comic") return false;
+  const lang = String(book.lang_source || "").toLowerCase();
+  return lang === "zh" || lang.startsWith("zh-");
+}
+
 function effectiveMode() {
-  if (!state.book || state.book.lang_source === "vi") return "raw";
+  if (!supportsTranslation(state.book)) return "raw";
   return state.mode === "trans" ? "trans" : "raw";
 }
 
@@ -118,6 +129,7 @@ function selectedReadingMode() {
 }
 
 function runtimeReadingMode() {
+  if (state.chapterContentType === "images") return "vertical";
   const selected = selectedReadingMode();
   if (selected === "hybrid") return "hybrid";
   if (isFullscreenActive()) return selected;
@@ -357,6 +369,12 @@ function currentChapterRatio() {
 
 function virtualPagingByViewport() {
   const mode = runtimeReadingMode();
+  if (state.chapterContentType === "images") {
+    const total = Math.max(1, (state.chapterImages || []).length || 1);
+    const ratio = currentChapterRatio();
+    const current = total <= 1 ? 1 : Math.max(1, Math.min(total, Math.floor(ratio * (total - 1)) + 1));
+    return { current, total };
+  }
   if (mode === "flip") {
     const total = Math.max(1, state.flipPages.length);
     const current = Math.max(1, Math.min(total, state.flipPageIndex + 1));
@@ -584,7 +602,47 @@ function renderFlipPage() {
   updateProgress();
 }
 
+function renderImageChapter(preserveRatio = null) {
+  refs.readerContentBody.innerHTML = "";
+  const images = Array.isArray(state.chapterImages) ? state.chapterImages : [];
+  if (!images.length) {
+    refs.readerContentBody.appendChild(buildParagraphNodes("", state.shell.t("readerEmpty")));
+  } else {
+    const wrap = document.createElement("div");
+    wrap.className = "reader-comic-wrap";
+    for (let i = 0; i < images.length; i += 1) {
+      const src = String(images[i] || "").trim();
+      if (!src) continue;
+      const img = document.createElement("img");
+      img.className = "reader-comic-image";
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.src = src;
+      img.alt = `Ảnh trang ${i + 1}`;
+      wrap.appendChild(img);
+    }
+    refs.readerContentBody.appendChild(wrap);
+  }
+  refs.readerContentScroll.scrollLeft = 0;
+  if (preserveRatio == null) {
+    refs.readerContentScroll.scrollTop = 0;
+  } else {
+    window.requestAnimationFrame(() => {
+      applyPositionFromRatio(clamp01(preserveRatio));
+      updateProgress();
+    });
+  }
+}
+
 function renderChapterContent(resetFlip = true, preserveRatio = null) {
+  if (state.chapterContentType === "images") {
+    state.flipPages = [];
+    state.flipPageIndex = 0;
+    renderImageChapter(preserveRatio);
+    updateProgress();
+    updateMiniInfoVisibility();
+    return;
+  }
   const runtimeMode = runtimeReadingMode();
   if (runtimeMode === "flip") {
     if (resetFlip || !state.flipPages.length) {
@@ -680,15 +738,16 @@ async function loadBook() {
   if (!state.bookId) return;
   const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(state.mode)}&translation_mode=${encodeURIComponent(state.translateMode)}`);
   state.book = detail;
-  if (detail.lang_source === "vi") {
+  if (!supportsTranslation(detail)) {
     state.mode = "raw";
   }
   if (!state.chapterId) {
     state.chapterId = detail.last_read_chapter_id || ((detail.chapters && detail.chapters[0] && detail.chapters[0].chapter_id) || "");
   }
-  refs.btnModeTrans.classList.toggle("hidden", detail.lang_source === "vi");
-  refs.btnTranslateMode.classList.toggle("hidden", detail.lang_source === "vi");
-  refs.btnOpenNameEditor.classList.toggle("hidden", detail.lang_source === "vi");
+  const canTranslate = supportsTranslation(detail);
+  refs.btnModeTrans.classList.toggle("hidden", !canTranslate);
+  refs.btnTranslateMode.classList.toggle("hidden", !canTranslate);
+  refs.btnOpenNameEditor.classList.toggle("hidden", !canTranslate);
   refs.btnModeRaw.classList.toggle("active", state.mode === "raw");
   refs.btnModeTrans.classList.toggle("active", state.mode === "trans");
   refs.btnTranslateMode.textContent = state.translateMode === "local" ? state.shell.t("modeLocal") : state.shell.t("modeServer");
@@ -718,7 +777,21 @@ async function loadChapter({ resetFlip = true, preserveRatio = null } = {}) {
       signal: controller.signal,
     });
     if (requestSeq !== state.chapterLoadSeq || targetChapterId !== state.chapterId) return;
+    state.chapterContentType = String(chapter.content_type || "text").toLowerCase() === "images" ? "images" : "text";
+    state.chapterImages = Array.isArray(chapter.images) ? chapter.images.map((x) => String(x || "").trim()).filter(Boolean) : [];
     state.chapterText = chapter.content || "";
+    if (state.chapterContentType !== "images" && state.book && state.book.is_comic && state.chapterText) {
+      const urlRows = state.chapterText
+        .split(/\r?\n/g)
+        .map((x) => String(x || "").trim())
+        .filter((x) => /^https?:\/\//i.test(x));
+      if (urlRows.length >= 2) {
+        state.chapterContentType = "images";
+        state.chapterImages = urlRows;
+        state.chapterText = "";
+      }
+    }
+    applyReaderModeClass();
     clearScrollHint();
     renderChapterContent(resetFlip, preserveRatio);
     updateHeader();
@@ -1239,7 +1312,7 @@ function selectionPayloadFromRange(range) {
 }
 
 function handleSelectionButton() {
-  if (!state.book || state.book.lang_source === "vi") {
+  if (!supportsTranslation(state.book)) {
     hideSelectionBtn();
     return;
   }
@@ -1392,8 +1465,8 @@ function bindNameEditor() {
 
 async function switchMode(nextMode) {
   if (!state.book) return;
-  if (nextMode === "trans" && state.book.lang_source === "vi") {
-    state.shell.showToast(state.shell.t("sourceViNoTrans"));
+  if (nextMode === "trans" && !supportsTranslation(state.book)) {
+    state.shell.showToast(state.shell.t("sourceNoTrans"));
     return;
   }
   state.mode = nextMode;
