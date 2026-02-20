@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260215-vb01";
+import { t } from "../i18n.vi.js?v=20260220-vb11";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -96,7 +96,26 @@ async function api(path, options = {}) {
     payload = null;
   }
   if (!res.ok) {
-    throw new Error((payload && payload.message) || `HTTP ${res.status}`);
+    const baseMessage = (payload && payload.message) || `HTTP ${res.status}`;
+    const err = new Error(baseMessage);
+    err.status = res.status;
+    err.errorCode = payload && payload.error_code;
+    err.traceId = payload && payload.trace_id;
+    err.details = payload && payload.details;
+    let detailText = "";
+    if (typeof err.details === "string") {
+      detailText = err.details.trim();
+    } else if (err.details && typeof err.details === "object") {
+      try {
+        detailText = JSON.stringify(err.details, null, 2);
+      } catch {
+        detailText = String(err.details);
+      }
+    } else if (err.details != null) {
+      detailText = String(err.details);
+    }
+    err.displayMessage = detailText ? `${baseMessage}\n${detailText}` : baseMessage;
+    throw err;
   }
   return payload;
 }
@@ -199,10 +218,11 @@ function setNavActive(page) {
   const mapping = {
     library: "nav-library",
     search: "nav-search",
+    explore: "nav-explore",
     book: "nav-library",
     reader: "nav-library",
   };
-  const allIds = ["nav-library", "nav-search"];
+  const allIds = ["nav-library", "nav-search", "nav-explore"];
   for (const id of allIds) {
     const el = qs(id);
     if (el) el.classList.remove("active");
@@ -293,6 +313,7 @@ function fillStaticTexts() {
     ["app-subtitle", "appSubtitle"],
     ["nav-library", "navLibrary"],
     ["nav-search", "navSearch"],
+    ["nav-explore", "navExplore"],
     ["btn-go-search", "search"],
     ["btn-import", "import"],
     ["btn-import-url", "importUrl"],
@@ -365,6 +386,26 @@ function fillStaticTexts() {
     ["vbook-plugin-url-label", "vbookPluginUrlLabel"],
     ["vbook-plugin-id-label", "vbookPluginIdLabel"],
     ["btn-vbook-install-url", "vbookInstallFromUrl"],
+    ["vbook-plugin-file-label", "vbookPluginFileLabel"],
+    ["vbook-plugin-id-local-label", "vbookPluginIdLocalLabel"],
+    ["btn-vbook-install-local", "vbookInstallLocal"],
+    ["vbook-runtime-title", "vbookRuntimeTitle"],
+    ["vbook-runtime-hint", "vbookRuntimeHint"],
+    ["vbook-runtime-global-title", "vbookRuntimeGlobalTitle"],
+    ["vbook-global-delay-label", "vbookGlobalDelayLabel"],
+    ["vbook-global-threads-label", "vbookGlobalThreadsLabel"],
+    ["vbook-global-prefetch-label", "vbookGlobalPrefetchLabel"],
+    ["vbook-runtime-plugin-title", "vbookRuntimePluginTitle"],
+    ["vbook-runtime-plugin-label", "vbookRuntimePluginLabel"],
+    ["vbook-plugin-delay-label", "vbookPluginDelayLabel"],
+    ["vbook-plugin-threads-label", "vbookPluginThreadsLabel"],
+    ["vbook-plugin-prefetch-label", "vbookPluginPrefetchLabel"],
+    ["vbook-plugin-supplemental-label", "vbookPluginSupplementalLabel"],
+    ["vbook-plugin-fallback-hint", "vbookPluginFallbackHint"],
+    ["btn-vbook-reload-settings", "vbookReloadSettings"],
+    ["btn-vbook-save-global-settings", "vbookSaveGlobalSettings"],
+    ["btn-vbook-save-plugin-settings", "vbookSavePluginSettings"],
+    ["btn-vbook-clear-plugin-settings", "vbookClearPluginSettings"],
   ];
   for (const [id, key] of pairs) {
     const node = qs(id);
@@ -387,6 +428,13 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       repoPlugins: [],
       repoErrors: [],
       activeRepoUrl: "",
+      globalSettings: {
+        request_delay_ms: 0,
+        download_threads: 4,
+        prefetch_unread_count: 2,
+      },
+      pluginSettings: {},
+      selectedRuntimePluginId: "",
     },
   };
 
@@ -651,6 +699,264 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   const vbookManagerDialog = qs("vbook-manager-dialog");
   const vbookRepoSelect = qs("vbook-repo-select");
   const vbookRepoCustomInput = qs("vbook-repo-custom-input");
+  const vbookGlobalDelayInput = qs("vbook-global-request-delay-ms");
+  const vbookGlobalThreadsInput = qs("vbook-global-download-threads");
+  const vbookGlobalPrefetchInput = qs("vbook-global-prefetch-unread-count");
+  const vbookRuntimePluginSelect = qs("vbook-runtime-plugin-select");
+  const vbookPluginSupplementalInput = qs("vbook-plugin-supplemental-code");
+  const vbookPluginDelayInput = qs("vbook-plugin-request-delay-ms");
+  const vbookPluginThreadsInput = qs("vbook-plugin-download-threads");
+  const vbookPluginPrefetchInput = qs("vbook-plugin-prefetch-unread-count");
+
+  const clampInt = (raw, min, max, fallback) => {
+    const num = Number.parseInt(String(raw ?? ""), 10);
+    if (!Number.isFinite(num)) return fallback;
+    if (num < min) return min;
+    if (num > max) return max;
+    return num;
+  };
+
+  const clampIntOrNull = (raw, min, max) => {
+    if (raw == null) return null;
+    if (typeof raw === "string" && !raw.trim()) return null;
+    const num = Number.parseInt(String(raw), 10);
+    if (!Number.isFinite(num)) return null;
+    if (num < min) return min;
+    if (num > max) return max;
+    return num;
+  };
+
+  const normalizeVbookGlobalSettings = (payload) => {
+    const raw = (payload && typeof payload === "object") ? payload : {};
+    return {
+      request_delay_ms: clampInt(raw.request_delay_ms, 0, 15000, 0),
+      download_threads: clampInt(raw.download_threads ?? raw.max_concurrency, 1, 16, 4),
+      prefetch_unread_count: clampInt(raw.prefetch_unread_count, 0, 50, 2),
+    };
+  };
+
+  const normalizeVbookPluginSettings = (payload) => {
+    const raw = (payload && typeof payload === "object") ? payload : {};
+    return {
+      supplemental_code: String(raw.supplemental_code || ""),
+      request_delay_ms: clampIntOrNull(raw.request_delay_ms, 0, 15000),
+      download_threads: clampIntOrNull(raw.download_threads ?? raw.max_concurrency, 1, 16),
+      prefetch_unread_count: clampIntOrNull(raw.prefetch_unread_count, 0, 50),
+    };
+  };
+
+  const runtimeEffectiveSettings = (pluginId = "") => {
+    const globalCfg = normalizeVbookGlobalSettings(state.vbook.globalSettings || {});
+    const pluginCfg = normalizeVbookPluginSettings((state.vbook.pluginSettings || {})[String(pluginId || "").trim()] || {});
+    return {
+      supplemental_code: pluginCfg.supplemental_code || "",
+      request_delay_ms: pluginCfg.request_delay_ms == null ? globalCfg.request_delay_ms : pluginCfg.request_delay_ms,
+      download_threads: pluginCfg.download_threads == null ? globalCfg.download_threads : pluginCfg.download_threads,
+      prefetch_unread_count: pluginCfg.prefetch_unread_count == null ? globalCfg.prefetch_unread_count : pluginCfg.prefetch_unread_count,
+    };
+  };
+
+  const fillVbookGlobalForm = () => {
+    const cfg = normalizeVbookGlobalSettings(state.vbook.globalSettings || {});
+    state.vbook.globalSettings = cfg;
+    if (vbookGlobalDelayInput) vbookGlobalDelayInput.value = String(cfg.request_delay_ms);
+    if (vbookGlobalThreadsInput) vbookGlobalThreadsInput.value = String(cfg.download_threads);
+    if (vbookGlobalPrefetchInput) vbookGlobalPrefetchInput.value = String(cfg.prefetch_unread_count);
+  };
+
+  const fillVbookPluginForm = (pluginId = "") => {
+    const pid = String(pluginId || state.vbook.selectedRuntimePluginId || "").trim();
+    state.vbook.selectedRuntimePluginId = pid;
+    if (vbookRuntimePluginSelect && vbookRuntimePluginSelect.value !== pid) {
+      vbookRuntimePluginSelect.value = pid;
+    }
+    const pluginCfg = normalizeVbookPluginSettings((state.vbook.pluginSettings || {})[pid] || {});
+    const globalCfg = normalizeVbookGlobalSettings(state.vbook.globalSettings || {});
+    if (vbookPluginSupplementalInput) vbookPluginSupplementalInput.value = pluginCfg.supplemental_code || "";
+    if (vbookPluginDelayInput) {
+      vbookPluginDelayInput.value = pluginCfg.request_delay_ms == null ? "" : String(pluginCfg.request_delay_ms);
+      vbookPluginDelayInput.placeholder = String(globalCfg.request_delay_ms);
+    }
+    if (vbookPluginThreadsInput) {
+      vbookPluginThreadsInput.value = pluginCfg.download_threads == null ? "" : String(pluginCfg.download_threads);
+      vbookPluginThreadsInput.placeholder = String(globalCfg.download_threads);
+    }
+    if (vbookPluginPrefetchInput) {
+      vbookPluginPrefetchInput.value = pluginCfg.prefetch_unread_count == null ? "" : String(pluginCfg.prefetch_unread_count);
+      vbookPluginPrefetchInput.placeholder = String(globalCfg.prefetch_unread_count);
+    }
+  };
+
+  const renderRuntimePluginSelect = () => {
+    if (!vbookRuntimePluginSelect) return;
+    const prev = String(state.vbook.selectedRuntimePluginId || "").trim();
+    const list = Array.isArray(state.vbook.installed) ? state.vbook.installed : [];
+    vbookRuntimePluginSelect.innerHTML = "";
+    for (const item of list) {
+      const pid = String(item.plugin_id || "").trim();
+      if (!pid) continue;
+      const opt = document.createElement("option");
+      opt.value = pid;
+      const name = String(item.name || "").trim();
+      opt.textContent = name ? `${name} (${pid})` : pid;
+      vbookRuntimePluginSelect.appendChild(opt);
+    }
+    if (list.length <= 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = t("vbookNoInstalledPlugins");
+      vbookRuntimePluginSelect.appendChild(opt);
+      vbookRuntimePluginSelect.value = "";
+      vbookRuntimePluginSelect.disabled = true;
+      state.vbook.selectedRuntimePluginId = "";
+      fillVbookPluginForm("");
+      return;
+    }
+    vbookRuntimePluginSelect.disabled = false;
+    const valid = list.some((item) => String(item.plugin_id || "").trim() === prev);
+    const next = valid ? prev : String((list[0] && list[0].plugin_id) || "").trim();
+    vbookRuntimePluginSelect.value = next;
+    state.vbook.selectedRuntimePluginId = next;
+    fillVbookPluginForm(next);
+  };
+
+  async function loadVbookGlobalSettings({ silent = false } = {}) {
+    if (!silent) showStatus(t("statusLoadingVbookSettings"));
+    try {
+      const payload = await api("/api/vbook/settings/global");
+      state.vbook.globalSettings = normalizeVbookGlobalSettings(payload && payload.settings);
+      fillVbookGlobalForm();
+      fillVbookPluginForm();
+      return state.vbook.globalSettings;
+    } catch (error) {
+      if (!silent) showToast(error.message || t("toastError"));
+      fillVbookGlobalForm();
+      fillVbookPluginForm();
+      return state.vbook.globalSettings;
+    } finally {
+      if (!silent) hideStatus();
+    }
+  };
+
+  async function loadVbookPluginSettings(pluginId, { silent = false } = {}) {
+    const pid = String(pluginId || state.vbook.selectedRuntimePluginId || "").trim();
+    if (!pid) {
+      fillVbookPluginForm("");
+      return normalizeVbookPluginSettings({});
+    }
+    if (!silent) showStatus(t("statusLoadingVbookPluginSettings"));
+    try {
+      const payload = await api(`/api/vbook/settings/plugin/${encodeURIComponent(pid)}`);
+      const override = normalizeVbookPluginSettings(payload && payload.override);
+      state.vbook.pluginSettings[pid] = override;
+      state.vbook.selectedRuntimePluginId = pid;
+      fillVbookPluginForm(pid);
+      return override;
+    } catch (error) {
+      if (!silent) showToast(error.message || t("toastError"));
+      fillVbookPluginForm(pid);
+      return normalizeVbookPluginSettings({});
+    } finally {
+      if (!silent) hideStatus();
+    }
+  }
+
+  async function saveVbookGlobalSettings() {
+    const payload = {
+      request_delay_ms: clampInt(vbookGlobalDelayInput && vbookGlobalDelayInput.value, 0, 15000, 0),
+      download_threads: clampInt(vbookGlobalThreadsInput && vbookGlobalThreadsInput.value, 1, 16, 4),
+      prefetch_unread_count: clampInt(vbookGlobalPrefetchInput && vbookGlobalPrefetchInput.value, 0, 50, 2),
+    };
+    showStatus(t("statusSavingVbookSettings"));
+    try {
+      const data = await api("/api/vbook/settings/global", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      state.vbook.globalSettings = normalizeVbookGlobalSettings(data && data.settings);
+      fillVbookGlobalForm();
+      fillVbookPluginForm();
+      showToast(t("toastVbookSettingsSaved"));
+      return state.vbook.globalSettings;
+    } catch (error) {
+      showToast(error.message || t("toastError"));
+      return state.vbook.globalSettings;
+    } finally {
+      hideStatus();
+    }
+  }
+
+  async function saveVbookPluginSettings() {
+    const pid = String(state.vbook.selectedRuntimePluginId || (vbookRuntimePluginSelect && vbookRuntimePluginSelect.value) || "").trim();
+    if (!pid) {
+      showToast(t("toastVbookNeedPluginSelect"));
+      return null;
+    }
+    const payload = {
+      supplemental_code: String((vbookPluginSupplementalInput && vbookPluginSupplementalInput.value) || ""),
+      request_delay_ms: clampIntOrNull(vbookPluginDelayInput && vbookPluginDelayInput.value, 0, 15000),
+      download_threads: clampIntOrNull(vbookPluginThreadsInput && vbookPluginThreadsInput.value, 1, 16),
+      prefetch_unread_count: clampIntOrNull(vbookPluginPrefetchInput && vbookPluginPrefetchInput.value, 0, 50),
+    };
+    showStatus(t("statusSavingVbookPluginSettings"));
+    try {
+      const data = await api(`/api/vbook/settings/plugin/${encodeURIComponent(pid)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const override = normalizeVbookPluginSettings(data && data.override);
+      state.vbook.pluginSettings[pid] = override;
+      fillVbookPluginForm(pid);
+      showToast(t("toastVbookPluginSettingsSaved"));
+      return override;
+    } catch (error) {
+      showToast(error.message || t("toastError"));
+      return null;
+    } finally {
+      hideStatus();
+    }
+  }
+
+  async function clearVbookPluginSettings() {
+    const pid = String(state.vbook.selectedRuntimePluginId || (vbookRuntimePluginSelect && vbookRuntimePluginSelect.value) || "").trim();
+    if (!pid) {
+      showToast(t("toastVbookNeedPluginSelect"));
+      return null;
+    }
+    showStatus(t("statusSavingVbookPluginSettings"));
+    try {
+      const data = await api(`/api/vbook/settings/plugin/${encodeURIComponent(pid)}`, {
+        method: "DELETE",
+      });
+      const override = normalizeVbookPluginSettings(data && data.override);
+      state.vbook.pluginSettings[pid] = override;
+      fillVbookPluginForm(pid);
+      showToast(t("toastVbookPluginSettingsCleared"));
+      return override;
+    } catch (error) {
+      showToast(error.message || t("toastError"));
+      return null;
+    } finally {
+      hideStatus();
+    }
+  }
+
+  async function refreshVbookRuntimeSettings({ silent = false, pluginId = "" } = {}) {
+    await loadVbookGlobalSettings({ silent });
+    const pid = String(pluginId || state.vbook.selectedRuntimePluginId || (vbookRuntimePluginSelect && vbookRuntimePluginSelect.value) || "").trim();
+    if (pid) {
+      await loadVbookPluginSettings(pid, { silent: true });
+    } else {
+      fillVbookPluginForm("");
+    }
+    return {
+      plugin_id: pid,
+      global: normalizeVbookGlobalSettings(state.vbook.globalSettings || {}),
+      effective: runtimeEffectiveSettings(pid),
+    };
+  }
 
   const formatPluginMeta = (item) => {
     const out = [];
@@ -944,6 +1250,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       state.vbook.installed = Array.isArray(items) ? items : [];
       renderImportPluginOptions(state.vbook.installed);
       renderInstalledPlugins();
+      renderRuntimePluginSelect();
+      if (state.vbook.selectedRuntimePluginId) {
+        await loadVbookPluginSettings(state.vbook.selectedRuntimePluginId, { silent: true });
+      }
       return state.vbook.installed;
     } catch (error) {
       if (!silent) showToast(error.message || t("toastError"));
@@ -1033,6 +1343,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
         await loadInstalledVbookPlugins({ silent: true });
         await loadRepoUrls({ silent: true });
         await loadRepoPlugins({ silent: true });
+        await refreshVbookRuntimeSettings({ silent: true });
       } catch (error) {
         showToast(error.message || t("toastError"));
       } finally {
@@ -1127,6 +1438,39 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     });
   }
 
+  if (qs("btn-vbook-reload-settings")) {
+    qs("btn-vbook-reload-settings").addEventListener("click", async () => {
+      await refreshVbookRuntimeSettings();
+    });
+  }
+
+  if (vbookRuntimePluginSelect) {
+    vbookRuntimePluginSelect.addEventListener("change", async () => {
+      const pid = String(vbookRuntimePluginSelect.value || "").trim();
+      state.vbook.selectedRuntimePluginId = pid;
+      await loadVbookPluginSettings(pid);
+    });
+  }
+
+  if (qs("btn-vbook-save-global-settings")) {
+    qs("btn-vbook-save-global-settings").addEventListener("click", async () => {
+      await saveVbookGlobalSettings();
+      fillVbookPluginForm();
+    });
+  }
+
+  if (qs("btn-vbook-save-plugin-settings")) {
+    qs("btn-vbook-save-plugin-settings").addEventListener("click", async () => {
+      await saveVbookPluginSettings();
+    });
+  }
+
+  if (qs("btn-vbook-clear-plugin-settings")) {
+    qs("btn-vbook-clear-plugin-settings").addEventListener("click", async () => {
+      await clearVbookPluginSettings();
+    });
+  }
+
   if (qs("vbook-install-url-form")) {
     qs("vbook-install-url-form").addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -1152,7 +1496,40 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     });
   }
 
+  if (qs("vbook-install-local-form")) {
+    qs("vbook-install-local-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const fileInput = qs("vbook-plugin-file-input");
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (!file) {
+        showToast(t("toastVbookNeedPluginFile"));
+        return;
+      }
+      const pluginId = String((qs("vbook-plugin-id-local-input") && qs("vbook-plugin-id-local-input").value) || "").trim();
+      const formData = new FormData();
+      formData.set("file", file, file.name || "plugin.zip");
+      if (pluginId) formData.set("plugin_id", pluginId);
+
+      showStatus(t("statusInstallingVbookPlugin"));
+      try {
+        await api("/api/vbook/plugins/install-local", {
+          method: "POST",
+          body: formData,
+        });
+        showToast(t("toastVbookPluginInstalled"));
+        if (qs("vbook-install-local-form")) qs("vbook-install-local-form").reset();
+        await loadInstalledVbookPlugins({ silent: true });
+        await loadRepoPlugins({ silent: true });
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      } finally {
+        hideStatus();
+      }
+    });
+  }
+
   await loadInstalledVbookPlugins({ silent: true });
+  await refreshVbookRuntimeSettings({ silent: true });
 
   if (qs("btn-clear-cache")) qs("btn-clear-cache").addEventListener("click", clearCache);
 
@@ -1165,6 +1542,9 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     hideStatus,
     settings: state.settings,
     getReadingMode: () => state.settings.readingMode,
+    getVbookSettings: (pluginId = "") => runtimeEffectiveSettings(pluginId),
+    getVbookGlobalSettings: () => normalizeVbookGlobalSettings(state.vbook.globalSettings || {}),
+    refreshVbookSettings: (pluginId = "") => refreshVbookRuntimeSettings({ silent: true, pluginId }),
     goSearchPage,
   };
 }

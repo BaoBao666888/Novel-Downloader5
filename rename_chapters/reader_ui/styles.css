@@ -610,6 +610,10 @@ p {
   overflow: auto;
 }
 
+.history-panel .library-grid {
+  max-height: min(34vh, 340px);
+}
+
 .book-card {
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -771,6 +775,7 @@ p {
   color: var(--muted);
   padding: 12px;
   font-size: 14px;
+  white-space: pre-line;
 }
 
 .search-online-panel {
@@ -803,6 +808,20 @@ p {
 
 .search-online-panel .library-grid {
   max-height: min(44vh, 420px);
+}
+
+.explore-tab-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 12px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.explore-tab-list > li {
+  margin: 0;
+  padding: 0;
 }
 
 .vbook-detail-dialog {
@@ -852,23 +871,156 @@ p {
   overflow: auto;
 }
 
+.vbook-detail-meta .book-card-source {
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
+.vbook-detail-genres-wrap,
 .vbook-detail-toc-wrap {
   border: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
   border-radius: 12px;
   overflow: hidden;
   background: color-mix(in srgb, var(--surface-alt) 28%, transparent);
+  margin-bottom: 12px;
 }
 
+.vbook-detail-genres-wrap .panel-head,
 .vbook-detail-toc-wrap .panel-head {
   padding: 10px 12px;
 }
 
+.vbook-detail-genres-wrap .panel-head h4,
 .vbook-detail-toc-wrap .panel-head h4 {
   margin: 0;
 }
 
+.vbook-detail-tag-list {
+  padding: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vbook-genre-chip {
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--surface) 64%, transparent);
+}
+
 .vbook-detail-toc-list {
-  max-height: min(36vh, 360px);
+  max-height: min(48vh, 500px);
+}
+
+.vbook-detail-extra-wrap,
+.vbook-detail-suggest-wrap,
+.vbook-detail-comment-wrap {
+  border: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
+  border-radius: 12px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-alt) 24%, transparent);
+  margin-bottom: 12px;
+}
+
+.vbook-detail-extra-wrap .panel-head,
+.vbook-detail-suggest-wrap .panel-head,
+.vbook-detail-comment-wrap .panel-head {
+  padding: 10px 12px;
+}
+
+.vbook-detail-extra-list {
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.vbook-detail-extra-item {
+  border: 1px solid color-mix(in srgb, var(--line) 68%, transparent);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface) 48%, transparent);
+}
+
+.vbook-detail-extra-key {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.vbook-detail-extra-value {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  font-family: "Be Vietnam Pro", "Segoe UI", Tahoma, sans-serif;
+}
+
+.vbook-detail-suggest-list {
+  max-height: min(28vh, 280px);
+}
+
+.vbook-detail-suggest-item {
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface) 42%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vbook-detail-suggest-info {
+  min-width: 0;
+}
+
+.vbook-detail-suggest-actions {
+  flex: 0 0 auto;
+}
+
+.vbook-detail-comment-list {
+  max-height: min(30vh, 300px);
+}
+
+.vbook-detail-comment-item {
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface) 42%, transparent);
+}
+
+.vbook-detail-comment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.vbook-detail-comment-author {
+  font-size: 13px;
+  color: color-mix(in srgb, var(--text) 92%, transparent);
+  font-weight: 600;
+}
+
+.vbook-detail-comment-time {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.vbook-detail-comment-content {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+}
+
+.vbook-genre-dialog {
+  width: min(1080px, 96vw);
+}
+
+.vbook-genre-dialog .library-grid {
+  max-height: min(62vh, 680px);
 }
 
 .book-meta-panel {
@@ -899,6 +1051,10 @@ p {
   background: color-mix(in srgb, var(--surface-alt) 50%, transparent);
 }
 
+.book-info-item-wide {
+  grid-column: 1 / -1;
+}
+
 .book-info-label {
   font-size: 12px;
   color: var(--muted);
@@ -913,6 +1069,13 @@ p {
 
 .book-info-value.multiline {
   min-height: 52px;
+}
+
+#explore-plugin-description-value {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: min(20vh, 190px);
+  overflow: auto;
 }
 
 .book-hero {
@@ -1605,6 +1768,7 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 .dialog-subtitle {
   color: var(--muted);
   margin: 0 0 10px;
+  white-space: pre-line;
 }
 
 .book-actions-dialog {
@@ -1677,6 +1841,50 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   grid-template-columns: 1.4fr 0.7fr auto;
   gap: 8px;
   align-items: end;
+}
+
+.vbook-install-local-form {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.vbook-runtime-pane {
+  margin-top: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 12px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--surface-alt) 36%, transparent);
+}
+
+.vbook-runtime-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.vbook-runtime-grid label.vbook-runtime-wide {
+  grid-column: 1 / -1;
+}
+
+.vbook-runtime-grid textarea {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+}
+
+.vbook-runtime-subhead h5 {
+  margin: 8px 0 8px;
+  font-size: 14px;
+}
+
+.vbook-runtime-divider {
+  height: 1px;
+  margin: 10px 0;
+  background: color-mix(in srgb, var(--line) 72%, transparent);
 }
 
 .name-editor-dialog {
@@ -1982,7 +2190,12 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
     grid-template-columns: 1fr;
   }
 
-  .vbook-install-url-form {
+  .vbook-install-url-form,
+  .vbook-install-local-form {
+    grid-template-columns: 1fr;
+  }
+
+  .vbook-runtime-grid {
     grid-template-columns: 1fr;
   }
 

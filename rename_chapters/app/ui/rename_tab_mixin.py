@@ -75,9 +75,9 @@ class RenameTabMixin:
         self._toggle_force_edit_first_line(schedule=False)
         
         ttk.Label(options_frame, text="Cấu trúc mới:").grid(row=1, column=0, sticky="w", padx=5, pady=(10, 5))
-        self.format_combobox = ttk.Combobox(options_frame, values=["Chương {num} - {title}.txt"])
+        self.format_combobox = ttk.Combobox(options_frame, values=["第{num}章 {title}.txt"])
         self.format_combobox.grid(row=1, column=1, sticky="we", padx=5)
-        self.format_combobox.set("Chương {num} - {title}.txt")
+        self.format_combobox.set("第{num}章 {title}.txt")
         self.format_combobox.bind("<KeyRelease>", self.schedule_preview_update)
         self.rename_adv_btn = ttk.Button(options_frame, text="Nâng cao", command=self._toggle_rename_advanced)
         self.rename_adv_btn.grid(row=1, column=2, sticky="e", padx=(0, 5))

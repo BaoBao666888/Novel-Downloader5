@@ -53,6 +53,7 @@ import subprocess
 import sys
 import shutil
 import webbrowser
+import traceback
 try:
     import win32event
     import win32api
@@ -461,6 +462,8 @@ class RenamerApp(
         self._browser_user_agent = None
         self._browser_headers = {}
         self._browser_cookies = {}
+        self._browser_bridge_host_updated_at = {}
+        self._browser_bridge_last_save_ts = 0.0
         self._wd_resume_works = None
         self._wd_resume_details = None
         self._wd_load_resume_state()
@@ -560,6 +563,81 @@ class RenamerApp(
                 'ui_installed_version': ''
             }
         }
+
+    def _config_backup_dir(self):
+        return os.path.join(BASE_DIR, "local", "config_backups")
+
+    def _create_daily_config_backup(self):
+        """Tạo 1 backup config/ngày, giữ tối đa 30 file gần nhất."""
+        try:
+            if not os.path.isfile(CONFIG_PATH):
+                return
+            backup_dir = self._config_backup_dir()
+            os.makedirs(backup_dir, exist_ok=True)
+            day_key = datetime.now().strftime("%Y%m%d")
+            backup_path = os.path.join(backup_dir, f"config_{day_key}.json")
+            if not os.path.exists(backup_path):
+                shutil.copy2(CONFIG_PATH, backup_path)
+
+            files = []
+            for name in os.listdir(backup_dir):
+                if not (name.startswith("config_") and name.endswith(".json")):
+                    continue
+                full = os.path.join(backup_dir, name)
+                if os.path.isfile(full):
+                    files.append(name)
+            files.sort(reverse=True)
+            for old_name in files[30:]:
+                old_path = os.path.join(backup_dir, old_name)
+                try:
+                    os.remove(old_path)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"Khong the tao backup config: {e}")
+
+    def _load_latest_config_backup(self) -> Optional[dict]:
+        """Nạp backup config mới nhất nếu config chính lỗi/không đọc được."""
+        backup_dir = self._config_backup_dir()
+        try:
+            if not os.path.isdir(backup_dir):
+                return None
+            files = []
+            for name in os.listdir(backup_dir):
+                if not (name.startswith("config_") and name.endswith(".json")):
+                    continue
+                full = os.path.join(backup_dir, name)
+                if os.path.isfile(full):
+                    files.append(full)
+            files.sort(reverse=True)
+            for path in files:
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if isinstance(data, dict):
+                        self.log(f"Đã khôi phục config từ backup: {os.path.basename(path)}")
+                        return data
+                except Exception:
+                    continue
+        except Exception:
+            return None
+
+    def _make_json_safe(self, value):
+        """Chuẩn hóa dữ liệu để luôn json.dump được."""
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, dict):
+            out = {}
+            for k, v in value.items():
+                out[str(k)] = self._make_json_safe(v)
+            return out
+        if isinstance(value, (list, tuple, set)):
+            return [self._make_json_safe(v) for v in value]
+        # Fallback cuối cùng để tránh crash save config.
+        try:
+            return str(value)
+        except Exception:
+            return repr(value)
 
     def _cleanup_legacy_files(self):
         """Xóa các file/cấu trúc cũ không còn dùng."""
@@ -1005,28 +1083,161 @@ class RenamerApp(
         if not host or not headers:
             return
         host = str(host).strip().lower()
-        allowed_hosts = self._get_browser_spy_targets()
-        if allowed_hosts and host not in allowed_hosts:
-            return
+        log_hosts = self._get_browser_log_targets()
+        host_allowed = (not log_hosts) or (host in log_hosts)
         filtered = {k: v for k, v in headers.items() if k and v}
         if not filtered:
             return
         self._browser_headers[host] = filtered
+        self._browser_bridge_host_updated_at[host] = datetime.utcnow().isoformat()
         try:
-            ua_logged = filtered.get("User-Agent") or filtered.get("user-agent")
-            self.log(f"[BrowserSpy] Headers from {host}: UA='{ua_logged}' keys={list(filtered.keys())}")
+            if host_allowed:
+                ua_logged = filtered.get("User-Agent") or filtered.get("user-agent")
+                self.log(f"[BrowserSpy] Headers from {host}: UA='{ua_logged}' keys={list(filtered.keys())}")
         except Exception:
             pass
         for key, val in filtered.items():
             if key and val and key.lower() == "user-agent":
                 self._browser_user_agent = val
                 break
+        self._browser_bridge_save_state(force=False)
 
     def _on_browser_user_agent(self, ua: str):
         if ua:
             self._browser_user_agent = ua
+            self._browser_bridge_save_state(force=True)
 
-    def _get_browser_spy_targets(self):
+    def _on_browser_cookies(self, payload: dict):
+        host = str((payload or {}).get("host") or "").strip().lower()
+        cookies = (payload or {}).get("cookies")
+        if not host or not isinstance(cookies, list):
+            return
+        normalized: list[dict] = []
+        for row in cookies:
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get("name") or "").strip()
+            value = str(row.get("value") or "")
+            if not name:
+                continue
+            normalized.append(
+                {
+                    "name": name,
+                    "value": value,
+                    "domain": str(row.get("domain") or "").strip(),
+                    "path": str(row.get("path") or "").strip() or "/",
+                    "secure": bool(row.get("secure")),
+                    "http_only": bool(row.get("http_only")),
+                    "expires": row.get("expires"),
+                }
+            )
+        if not normalized:
+            return
+        self._browser_cookies[host] = normalized
+        self._browser_bridge_host_updated_at[host] = datetime.utcnow().isoformat()
+        self._browser_bridge_save_state(force=True)
+
+    def _browser_bridge_state_path(self) -> str:
+        vcfg = self.app_config.get("vbook", {}) if isinstance(self.app_config, dict) else {}
+        rel = ""
+        if isinstance(vcfg, dict):
+            rel = str(vcfg.get("browser_bridge_state") or "").strip()
+        if not rel:
+            rel = os.path.join("local", "browser_bridge_state.json")
+        if os.path.isabs(rel):
+            return rel
+        return os.path.normpath(os.path.join(BASE_DIR, rel))
+
+    def _browser_bridge_cookie_header_from_items(self, cookies: list[dict]) -> str:
+        if not isinstance(cookies, list):
+            return ""
+        pairs = []
+        seen = set()
+        for row in cookies:
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get("name") or "").strip()
+            if not name or name in seen:
+                continue
+            value = str(row.get("value") or "")
+            seen.add(name)
+            pairs.append(f"{name}={value}")
+        return "; ".join(pairs)
+
+    def _browser_bridge_current_cookie_db_path(self) -> str:
+        try:
+            if hasattr(self, "_get_current_browser_profile") and hasattr(self, "_wd_get_cookie_db_path"):
+                profile_name = self._get_current_browser_profile()
+                return self._wd_get_cookie_db_path(profile_name)
+        except Exception:
+            pass
+        return os.path.join(BASE_DIR, "qt_browser_profile", "storage", "Cookies")
+
+    def _browser_bridge_current_profile_dir(self) -> str:
+        try:
+            if hasattr(self, "_get_current_browser_profile") and hasattr(self, "_wd_get_profile_dir"):
+                profile_name = self._get_current_browser_profile()
+                return self._wd_get_profile_dir(profile_name)
+        except Exception:
+            pass
+        return os.path.join(BASE_DIR, "qt_browser_profile")
+
+    def _browser_bridge_build_state(self) -> dict:
+        hosts = {}
+        host_keys = set(self._browser_headers.keys()) | set(self._browser_cookies.keys()) | set(self._browser_bridge_host_updated_at.keys())
+        for host in sorted(host_keys):
+            headers = self._browser_headers.get(host) or {}
+            cookies = self._browser_cookies.get(host) or []
+            if not isinstance(headers, dict):
+                headers = {}
+            if not isinstance(cookies, list):
+                cookies = []
+            ua = ""
+            for key, value in headers.items():
+                if str(key).lower() == "user-agent":
+                    ua = str(value or "").strip()
+                    break
+            cookie_header = ""
+            for key, value in headers.items():
+                if str(key).lower() == "cookie":
+                    cookie_header = str(value or "").strip()
+                    break
+            if not cookie_header:
+                cookie_header = self._browser_bridge_cookie_header_from_items(cookies)
+            hosts[host] = {
+                "user_agent": ua,
+                "cookie_header": cookie_header,
+                "headers": {str(k): str(v) for k, v in headers.items() if k and v},
+                "updated_at": str(self._browser_bridge_host_updated_at.get(host) or datetime.utcnow().isoformat()),
+            }
+
+        state = {
+            "version": 1,
+            "updated_at": datetime.utcnow().isoformat(),
+            "default_user_agent": str(self._browser_user_agent or ""),
+            "cookie_db_path": self._browser_bridge_current_cookie_db_path(),
+            "profile_dir": self._browser_bridge_current_profile_dir(),
+            "hosts": hosts,
+        }
+        return state
+
+    def _browser_bridge_save_state(self, force: bool = False):
+        now = time.time()
+        if not force and (now - float(self._browser_bridge_last_save_ts or 0.0) < 0.8):
+            return
+        state_path = self._browser_bridge_state_path()
+        try:
+            os.makedirs(os.path.dirname(state_path), exist_ok=True)
+            payload = self._browser_bridge_build_state()
+            tmp_path = f"{state_path}.tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, state_path)
+            self._browser_bridge_last_save_ts = now
+        except Exception:
+            pass
+
+    def _get_browser_log_targets(self):
         hosts = set()
         settings = self.api_settings if isinstance(getattr(self, "api_settings", None), dict) else {}
         for key in ("wikidich_domain", "koanchay_domain"):
@@ -1044,6 +1255,16 @@ class RenamerApp(
             if bare:
                 hosts.add(bare)
                 hosts.add("www." + bare)
+        return hosts
+
+    def _get_browser_spy_targets(self):
+        log_hosts = self._get_browser_log_targets()
+        vcfg = self.app_config.get("vbook", {}) if isinstance(self.app_config, dict) else {}
+        bridge_enabled = bool(vcfg.get("use_browser_bridge", True)) if isinstance(vcfg, dict) else True
+        capture_all = bool(vcfg.get("bridge_capture_all_hosts", True)) if isinstance(vcfg, dict) else True
+        if bridge_enabled and capture_all:
+            return set()
+        hosts = set(log_hosts)
         return hosts
 
     def _register_paned(self, paned: ttk.PanedWindow, key: str):
@@ -2024,6 +2245,10 @@ class RenamerApp(
                 self._image_ai_clear_cache()
             except Exception:
                 pass
+        try:
+            self._browser_bridge_save_state(force=True)
+        except Exception:
+            pass
         self.save_config()
         if self.background_settings.get('enable') and not self._force_exit:
             self._hide_to_tray(close_on_fail=True)
@@ -2089,25 +2314,70 @@ class RenamerApp(
         if hasattr(self, "profile_recycle"):
             self.app_config['profile_recycle'] = dict(self.profile_recycle or {})
         self.app_config['regex_pins'] = dict(self.regex_pins)
+        tmp_path = f"{CONFIG_PATH}.tmp"
         try:
-            with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
-                json.dump(self.app_config, f, indent=4)
+            self._create_daily_config_backup()
+            config_payload = self._make_json_safe(self.app_config)
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                json.dump(config_payload, f, indent=4, ensure_ascii=False)
+            os.replace(tmp_path, CONFIG_PATH)
+            try:
+                self.log(f"Đã lưu config: {CONFIG_PATH}")
+            except Exception:
+                pass
         except Exception as e:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
             print(f"Không thể lưu config: {e}")
+            try:
+                self.log(f"Không thể lưu config ({CONFIG_PATH}): {e}")
+            except Exception:
+                pass
 
     # main_ui.py
 
     def load_config(self):
         """Tải và áp dụng cài đặt từ config.json nếu có."""
         try:
+            try:
+                self.log(f"Đang đọc config: {CONFIG_PATH}")
+            except Exception:
+                pass
+            loaded_config = {}
+            config_found = os.path.exists(CONFIG_PATH)
             if os.path.exists(CONFIG_PATH):
-                with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-                    loaded_config = json.load(f)
-                for key, value in loaded_config.items():
-                    if isinstance(value, dict) and key in self.app_config:
-                        self.app_config[key].update(value)
-                    else:
-                        self.app_config[key] = value
+                try:
+                    with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                        loaded_config = json.load(f)
+                except Exception as read_exc:
+                    print(f"Khong the doc config.json: {read_exc}")
+                    self.log(f"Không thể đọc config ({CONFIG_PATH}): {read_exc}")
+                    self.log("Config chính bị lỗi. Thử khôi phục từ backup gần nhất...")
+                    loaded_config = self._load_latest_config_backup() or {}
+            else:
+                try:
+                    self.log("Không tìm thấy config. Dùng cấu hình mặc định.")
+                except Exception:
+                    pass
+
+            if not isinstance(loaded_config, dict):
+                loaded_config = {}
+
+            try:
+                if config_found:
+                    self.log(f"Đã nạp {len(loaded_config)} khóa cấu hình từ file.")
+            except Exception:
+                pass
+
+            for key, value in loaded_config.items():
+                current = self.app_config.get(key)
+                if isinstance(value, dict) and isinstance(current, dict):
+                    current.update(value)
+                else:
+                    self.app_config[key] = value
 
             config_data = self.app_config
             self.regex_pins = dict(config_data.get('regex_pins', {'find': [], 'replace': [], 'split': []}))
@@ -2128,7 +2398,8 @@ class RenamerApp(
             self.sort_strategy.set(config_data.get('sort_strategy', 'content'))
             
             format_history = config_data.get('rename_format_history', [])
-            if not format_history: format_history = ["Chương {num} - {title}.txt"]
+            if not format_history:
+                format_history = ["第{num}章 {title}.txt"]
             self.format_combobox['values'] = format_history
             self.format_combobox.set(config_data.get('rename_format', format_history[0]))
             
@@ -2210,10 +2481,19 @@ class RenamerApp(
                     self.wd_extra_link_var.set(self.wikidich_filters.get('extraLinkSearch', ''))
                 self.wd_status_var.set(self.wikidich_filters.get('status', 'all'))
                 self._wd_set_sort_label_from_value(self.wikidich_filters.get('sortBy', 'recent'))
-            self._wd_sync_filter_controls_from_filters()
+            try:
+                self._wd_sync_filter_controls_from_filters()
+            except Exception as sync_exc:
+                self.log(f"Không thể đồng bộ bộ lọc Wikidich từ config: {sync_exc}")
             if hasattr(self, "_wd_sync_profile_for_startup"):
-                self._wd_sync_profile_for_startup()
-            self._wd_load_cache()
+                try:
+                    self._wd_sync_profile_for_startup()
+                except Exception as profile_exc:
+                    self.log(f"Không thể đồng bộ profile lúc khởi động: {profile_exc}")
+            try:
+                self._wd_load_cache()
+            except Exception as cache_exc:
+                self.log(f"Không thể nạp cache Wikidich lúc khởi động: {cache_exc}")
 
             if self.folder_path.get(): self.schedule_preview_update()
             self.selected_file.set(config_data.get('selected_file', ''))
@@ -2242,11 +2522,26 @@ class RenamerApp(
                     label = self._wd_mode_labels.get(getattr(self, "wikidich_auto_pick_mode", "extract_then_pick"))
                 self.wd_auto_mode_var.set(label or getattr(self, "wikidich_auto_pick_mode", "extract_then_pick"))
             if hasattr(self, "_wd_cleanup_profile_recycle"):
-                self._wd_cleanup_profile_recycle()
-            self._maybe_start_hidden()
+                try:
+                    self._wd_cleanup_profile_recycle()
+                except Exception as recycle_exc:
+                    self.log(f"Không thể dọn profile recycle: {recycle_exc}")
+            try:
+                self._maybe_start_hidden()
+            except Exception as hidden_exc:
+                self.log(f"Không thể áp dụng chế độ ẩn khi khởi động: {hidden_exc}")
+            try:
+                self.log("Đã áp dụng config thành công.")
+            except Exception:
+                pass
         except Exception as e:
             print(f"Không thể tải config: {e}")
-            self.log("Không tìm thấy file config hoặc file bị lỗi. Sử dụng cài đặt mặc định.")
+            try:
+                self.log(f"Không thể tải config: {e}")
+                self.log(traceback.format_exc())
+            except Exception:
+                pass
+            self.log("Sử dụng cấu hình mặc định.")
 
     def _load_local_manifest(self):
         """Đọc version.json local và trả về manifest (kèm nội dung ghi chú nếu có)."""

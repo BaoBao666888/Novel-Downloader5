@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260215-vb01";
+import { initShell } from "../site_common.js?v=20260220-vb11";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -93,6 +93,7 @@ const state = {
   chapterCache: new Map(),
   chapterPending: new Map(),
   prefetchControllers: new Map(),
+  prefetchTimers: new Map(),
   activeChapterController: null,
   chapterLoadSeq: 0,
   fullscreenUiTimer: null,
@@ -182,6 +183,11 @@ function dropChapterCacheById(chapterId) {
   for (const key of Array.from(state.chapterPending.keys())) {
     if (key.startsWith(keyPrefix)) state.chapterPending.delete(key);
   }
+  for (const [key, timer] of Array.from(state.prefetchTimers.entries())) {
+    if (!key.startsWith(keyPrefix)) continue;
+    window.clearTimeout(timer);
+    state.prefetchTimers.delete(key);
+  }
   for (const [key, controller] of Array.from(state.prefetchControllers.entries())) {
     if (!key.startsWith(keyPrefix)) continue;
     try {
@@ -194,6 +200,11 @@ function dropChapterCacheById(chapterId) {
 }
 
 function cancelPrefetch(exceptKeys = new Set()) {
+  for (const [key, timer] of state.prefetchTimers.entries()) {
+    if (exceptKeys.has(key)) continue;
+    window.clearTimeout(timer);
+    state.prefetchTimers.delete(key);
+  }
   for (const [key, controller] of state.prefetchControllers.entries()) {
     if (exceptKeys.has(key)) continue;
     try {
@@ -233,16 +244,59 @@ async function fetchChapterContent(chapterId, { mode = effectiveMode(), translat
   return req;
 }
 
+function prefetchOptions() {
+  const sourceType = String(((state.book || {}).source_type) || "").trim().toLowerCase();
+  const isVbook = sourceType.startsWith("vbook");
+  const pluginId = String(((state.book || {}).source_plugin) || ((state.book || {}).plugin_id) || "").trim();
+  const defaults = isVbook
+    ? { prefetchUnreadCount: 2, downloadThreads: 4, requestDelayMs: 0 }
+    : { prefetchUnreadCount: 1, downloadThreads: 2, requestDelayMs: 0 };
+  const cfg = (state.shell && typeof state.shell.getVbookSettings === "function")
+    ? (state.shell.getVbookSettings(pluginId) || {})
+    : {};
+  const asInt = (raw, min, max, fallback) => {
+    const num = Number.parseInt(String(raw ?? ""), 10);
+    if (!Number.isFinite(num)) return fallback;
+    if (num < min) return min;
+    if (num > max) return max;
+    return num;
+  };
+  return {
+    prefetchUnreadCount: asInt(cfg.prefetch_unread_count, 0, 50, defaults.prefetchUnreadCount),
+    downloadThreads: asInt(cfg.download_threads, 1, 16, defaults.downloadThreads),
+    requestDelayMs: asInt(cfg.request_delay_ms, 0, 15000, defaults.requestDelayMs),
+  };
+}
+
 function prefetchNearbyChapters() {
   if (!state.book || !state.chapterId) return;
   const idx = findChapterIndex();
   if (idx < 0) return;
 
+  const options = prefetchOptions();
+  const maxForward = Math.max(0, options.prefetchUnreadCount);
+  if (maxForward <= 0) {
+    cancelPrefetch();
+    return;
+  }
+
   const mode = effectiveMode();
   const translationMode = state.translateMode;
-  const chapters = [findChapterAt(idx - 1), findChapterAt(idx + 1)].filter(Boolean);
+  const chapters = [];
+  const prev = findChapterAt(idx - 1);
+  if (prev) chapters.push(prev);
+  for (let step = 1; step <= maxForward; step += 1) {
+    const next = findChapterAt(idx + step);
+    if (!next) break;
+    chapters.push(next);
+  }
+
   const keepKeys = new Set(chapters.map((ch) => chapterCacheKey(ch.chapter_id, mode, translationMode)));
   cancelPrefetch(keepKeys);
+
+  const threadCount = Math.max(1, options.downloadThreads);
+  const delayMs = Math.max(0, options.requestDelayMs);
+  let queued = 0;
 
   for (const chapter of chapters) {
     const cid = chapter.chapter_id;
@@ -250,17 +304,26 @@ function prefetchNearbyChapters() {
     const key = chapterCacheKey(cid, mode, translationMode);
     if (state.chapterCache.has(key) || state.chapterPending.has(key) || state.prefetchControllers.has(key)) continue;
 
-    const controller = new AbortController();
-    state.prefetchControllers.set(key, controller);
-    fetchChapterContent(cid, { mode, translationMode, signal: controller.signal })
-      .catch(() => {
-        // prefetch fail không chặn UI
-      })
-      .finally(() => {
-        if (state.prefetchControllers.get(key) === controller) {
-          state.prefetchControllers.delete(key);
-        }
-      });
+    const lane = Math.floor(queued / threadCount);
+    const launchDelay = lane * delayMs;
+    queued += 1;
+    const timer = window.setTimeout(() => {
+      if (state.prefetchTimers.get(key) === timer) {
+        state.prefetchTimers.delete(key);
+      }
+      const controller = new AbortController();
+      state.prefetchControllers.set(key, controller);
+      fetchChapterContent(cid, { mode, translationMode, signal: controller.signal })
+        .catch(() => {
+          // prefetch fail không chặn UI
+        })
+        .finally(() => {
+          if (state.prefetchControllers.get(key) === controller) {
+            state.prefetchControllers.delete(key);
+          }
+        });
+    }, launchDelay);
+    state.prefetchTimers.set(key, timer);
   }
 }
 
@@ -751,6 +814,14 @@ async function loadBook() {
   refs.btnModeRaw.classList.toggle("active", state.mode === "raw");
   refs.btnModeTrans.classList.toggle("active", state.mode === "trans");
   refs.btnTranslateMode.textContent = state.translateMode === "local" ? state.shell.t("modeLocal") : state.shell.t("modeServer");
+  if (state.shell && typeof state.shell.refreshVbookSettings === "function") {
+    try {
+      const runtimePluginId = String(detail.source_plugin || detail.plugin_id || "").trim();
+      await state.shell.refreshVbookSettings(runtimePluginId);
+    } catch {
+      // ignore runtime settings refresh errors
+    }
+  }
 }
 
 async function loadChapter({ resetFlip = true, preserveRatio = null } = {}) {
@@ -1504,14 +1575,18 @@ async function reloadCurrentChapter() {
         // ignore
       }
     }
-    await state.shell.api(`/api/library/chapter/${encodeURIComponent(state.chapterId)}/reload`, {
+    const result = await state.shell.api(`/api/library/chapter/${encodeURIComponent(state.chapterId)}/reload`, {
       method: "POST",
     });
     dropChapterCacheById(state.chapterId);
     await loadChapter({ resetFlip: true });
-    state.shell.showToast(state.shell.t("toastChapterReloaded"));
+    if (result && result.reloaded_from_source) {
+      state.shell.showToast(state.shell.t("toastChapterReloadedFromSource"));
+    } else {
+      state.shell.showToast(state.shell.t("toastChapterReloaded"));
+    }
   } catch (error) {
-    state.shell.showToast(error.message || state.shell.t("toastError"));
+    state.shell.showToast(error.displayMessage || error.message || state.shell.t("toastError"));
   } finally {
     state.shell.hideStatus();
   }

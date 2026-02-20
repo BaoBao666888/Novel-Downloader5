@@ -10,6 +10,7 @@ import threading
 import time
 import zipfile
 import webbrowser
+from typing import Optional
 
 import requests
 import tkinter as tk
@@ -156,11 +157,92 @@ class ReaderTabMixin:
         self._reader_update_labels()
 
     # ---------- Config ----------
+    def _reader_config_path(self) -> str:
+        return os.path.normpath(os.path.join(BASE_DIR, "local", "reader.config.json"))
+
+    def _reader_default_config_payload(self) -> dict:
+        return {
+            "reader_manager": {
+                "port": self.READER_DEFAULT_PORT,
+                "allow_lan": True,
+                "server_path": "tools/reader_server.exe",
+                "ui_dir": "reader_ui",
+                "server_installed_version": "",
+                "ui_installed_version": "",
+                "java_installed_version": "",
+            },
+            "vbook": {
+                "java_bin": "",
+                "extensions_dir": "local/vbook_extensions",
+                "runner_jar": "tools/vbook_runner/vbook_runner.jar",
+                "browser_bridge_state": "local/browser_bridge_state.json",
+                "use_browser_bridge": True,
+                "bridge_capture_all_hosts": True,
+                "bridge_cookie_fallback": True,
+                "bridge_cookie_db_path": "qt_browser_profile/storage/Cookies",
+            },
+        }
+
+    def _reader_load_config_payload(self) -> dict:
+        cached = getattr(self, "_reader_config_payload", None)
+        if isinstance(cached, dict):
+            return cached
+
+        payload = self._reader_default_config_payload()
+        loaded = {}
+        cfg_path = self._reader_config_path()
+        if os.path.isfile(cfg_path):
+            try:
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    parsed = json.load(f)
+                if isinstance(parsed, dict):
+                    loaded = parsed
+            except Exception:
+                loaded = {}
+
+        # Migrate lần đầu từ config cũ (app_config) nếu file reader riêng chưa có.
+        if not loaded:
+            legacy_reader = self.app_config.get("reader_manager") if isinstance(self.app_config, dict) else None
+            legacy_vbook = self.app_config.get("vbook") if isinstance(self.app_config, dict) else None
+            if isinstance(legacy_reader, dict):
+                loaded["reader_manager"] = dict(legacy_reader)
+            if isinstance(legacy_vbook, dict):
+                loaded["vbook"] = dict(legacy_vbook)
+
+        if isinstance(loaded.get("reader_manager"), dict):
+            payload["reader_manager"].update(loaded["reader_manager"])
+        if isinstance(loaded.get("vbook"), dict):
+            payload["vbook"].update(loaded["vbook"])
+
+        self._reader_config_payload = payload
+
+        # Tự tạo file riêng nếu chưa tồn tại để các thành phần Reader dùng chung.
+        if not os.path.isfile(cfg_path):
+            self._reader_save_isolated_config()
+        return payload
+
+    def _reader_save_isolated_config(self):
+        payload = self._reader_load_config_payload()
+        cfg_path = self._reader_config_path()
+        os.makedirs(os.path.dirname(cfg_path), exist_ok=True)
+        tmp_path = f"{cfg_path}.tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, cfg_path)
+        finally:
+            if os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
+
     def _reader_cfg(self) -> dict:
-        cfg = self.app_config.setdefault("reader_manager", {})
+        payload = self._reader_load_config_payload()
+        cfg = payload.get("reader_manager")
         if not isinstance(cfg, dict):
             cfg = {}
-            self.app_config["reader_manager"] = cfg
+            payload["reader_manager"] = cfg
         cfg.setdefault("port", self.READER_DEFAULT_PORT)
         cfg.setdefault("allow_lan", True)
         cfg.setdefault("server_path", "tools/reader_server.exe")
@@ -171,13 +253,19 @@ class ReaderTabMixin:
         return cfg
 
     def _vbook_cfg(self) -> dict:
-        vcfg = self.app_config.setdefault("vbook", {})
+        payload = self._reader_load_config_payload()
+        vcfg = payload.get("vbook")
         if not isinstance(vcfg, dict):
             vcfg = {}
-            self.app_config["vbook"] = vcfg
+            payload["vbook"] = vcfg
         vcfg.setdefault("java_bin", "")
         vcfg.setdefault("extensions_dir", "local/vbook_extensions")
         vcfg.setdefault("runner_jar", "tools/vbook_runner/vbook_runner.jar")
+        vcfg.setdefault("browser_bridge_state", "local/browser_bridge_state.json")
+        vcfg.setdefault("use_browser_bridge", True)
+        vcfg.setdefault("bridge_capture_all_hosts", True)
+        vcfg.setdefault("bridge_cookie_fallback", True)
+        vcfg.setdefault("bridge_cookie_db_path", "qt_browser_profile/storage/Cookies")
         return vcfg
 
     def _reader_save_config_from_ui(self):
@@ -188,8 +276,11 @@ class ReaderTabMixin:
             return False
         cfg["port"] = port
         cfg["allow_lan"] = bool(self.reader_allow_lan_var.get())
-        self.save_config()
-        self._reader_log(f"Đã lưu cấu hình Reader: port={port}, allow_lan={cfg['allow_lan']}")
+        self._reader_save_isolated_config()
+        self._reader_log(
+            f"Đã lưu cấu hình Reader: port={port}, allow_lan={cfg['allow_lan']} "
+            f"(file: {self._reader_config_path()})"
+        )
         self._reader_update_runtime_status()
         return True
 
@@ -277,6 +368,54 @@ class ReaderTabMixin:
     def _reader_local_url(self) -> str:
         port = self._reader_parse_port() or self.READER_DEFAULT_PORT
         return f"http://127.0.0.1:{port}/library"
+
+    def _reader_machine_ip(self) -> str:
+        probes = [("8.8.8.8", 80), ("1.1.1.1", 80)]
+        for host, port in probes:
+            sock = None
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                sock.settimeout(0.35)
+                sock.connect((host, port))
+                ip = (sock.getsockname()[0] or "").strip()
+                if ip and not ip.startswith("127.") and ip != "0.0.0.0":
+                    return ip
+            except Exception:
+                pass
+            finally:
+                try:
+                    if sock:
+                        sock.close()
+                except Exception:
+                    pass
+        try:
+            ip = (socket.gethostbyname(socket.gethostname()) or "").strip()
+            if ip and not ip.startswith("127.") and ip != "0.0.0.0":
+                return ip
+        except Exception:
+            pass
+        return ""
+
+    def _reader_runtime_urls(self, *, port: Optional[int] = None) -> dict:
+        p = int(port or self._reader_parse_port() or self.READER_DEFAULT_PORT)
+        local_url = f"http://127.0.0.1:{p}/library"
+        machine_url = ""
+        ip = self._reader_machine_ip()
+        if ip:
+            machine_url = f"http://{ip}:{p}/library"
+        return {"local": local_url, "machine": machine_url}
+
+    def _reader_log_runtime_urls(self, *, port: Optional[int] = None):
+        urls = self._reader_runtime_urls(port=port)
+        self._reader_log(f"Link local: {urls.get('local', '—')}")
+        machine = urls.get("machine", "")
+        if machine:
+            if self._reader_host() == "0.0.0.0":
+                self._reader_log(f"Link IP máy: {machine}")
+            else:
+                self._reader_log(f"Link IP máy: {machine} (LAN đang tắt)")
+        else:
+            self._reader_log("Link IP máy: không xác định (kiểm tra kết nối mạng LAN).")
 
     # ---------- Manifest ----------
     def _reader_load_manifest(self) -> dict:
@@ -373,8 +512,9 @@ class ReaderTabMixin:
             return
 
         host = self._reader_host()
-        local_url = f"http://127.0.0.1:{port}/library"
-        lan_url = f"http://{host}:{port}/library"
+        urls = self._reader_runtime_urls(port=port)
+        local_url = urls.get("local", f"http://127.0.0.1:{port}/library")
+        machine_url = urls.get("machine", "")
 
         managed_running = bool(getattr(self, "_reader_server_proc", None) and self._reader_server_proc.poll() is None)
         alive = self._reader_server_alive(timeout=0.8)
@@ -389,8 +529,12 @@ class ReaderTabMixin:
             status = "Đã dừng"
 
         self.reader_server_status_var.set(f"Trạng thái server: {status}")
-        if host == "0.0.0.0":
-            self.reader_endpoint_var.set(f"Endpoint: local {local_url} | LAN {lan_url}")
+        if host == "0.0.0.0" and machine_url:
+            self.reader_endpoint_var.set(f"Endpoint: local {local_url} | IP máy {machine_url}")
+        elif host != "0.0.0.0" and machine_url:
+            self.reader_endpoint_var.set(f"Endpoint: local {local_url} | IP máy {machine_url} (LAN tắt)")
+        elif host == "0.0.0.0":
+            self.reader_endpoint_var.set(f"Endpoint: local {local_url} | LAN bật (chưa xác định IP)")
         else:
             self.reader_endpoint_var.set(f"Endpoint: {local_url}")
 
@@ -425,6 +569,7 @@ class ReaderTabMixin:
 
         if self._reader_server_alive(timeout=0.8):
             self._reader_log("Server reader đã chạy, bỏ qua lệnh start.")
+            self._reader_log_runtime_urls()
             self._reader_update_runtime_status()
             return
 
@@ -433,11 +578,14 @@ class ReaderTabMixin:
         def worker():
             cmd = self._reader_build_start_cmd()
             creationflags = 0x08000000 if sys.platform.startswith("win") else 0
+            env = os.environ.copy()
+            env["READER_APP_CONFIG"] = self._reader_config_path()
             proc = subprocess.Popen(
                 cmd,
                 cwd=BASE_DIR,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                env=env,
                 creationflags=creationflags,
             )
 
@@ -459,6 +607,7 @@ class ReaderTabMixin:
             self._reader_server_proc = proc
             self._reader_update_runtime_status()
             self._reader_log("Đã chạy server Reader thành công.")
+            self._reader_log_runtime_urls()
 
         def fail(exc):
             self._reader_set_busy(False)
@@ -604,7 +753,7 @@ class ReaderTabMixin:
             cfg = self._reader_cfg()
             cfg["server_installed_version"] = str(srv.get("version") or "")
             cfg["server_path"] = os.path.relpath(target, BASE_DIR).replace("\\", "/")
-            self.save_config()
+            self._reader_save_isolated_config()
             return cfg["server_installed_version"]
 
         def done(ver):
@@ -671,7 +820,7 @@ class ReaderTabMixin:
             cfg = self._reader_cfg()
             cfg["ui_installed_version"] = str(ui.get("version") or "")
             cfg["ui_dir"] = os.path.relpath(target, BASE_DIR).replace("\\", "/")
-            self.save_config()
+            self._reader_save_isolated_config()
             return cfg["ui_installed_version"]
 
         def done(ver):
@@ -748,7 +897,7 @@ class ReaderTabMixin:
 
             cfg = self._reader_cfg()
             cfg["java_installed_version"] = java_ver
-            self.save_config()
+            self._reader_save_isolated_config()
             return java_ver
 
         def done(ver):
@@ -779,7 +928,7 @@ class ReaderTabMixin:
             return
         cfg = self._reader_cfg()
         cfg["server_installed_version"] = ""
-        self.save_config()
+        self._reader_save_isolated_config()
         self._reader_log("Đã xóa server Reader.")
         self._reader_update_labels()
         self._reader_update_runtime_status()
@@ -798,7 +947,7 @@ class ReaderTabMixin:
             return
         cfg = self._reader_cfg()
         cfg["ui_installed_version"] = ""
-        self.save_config()
+        self._reader_save_isolated_config()
         self._reader_log("Đã xóa UI Reader.")
         self._reader_update_labels()
         self._reader_update_runtime_status()
@@ -824,7 +973,7 @@ class ReaderTabMixin:
 
         cfg = self._reader_cfg()
         cfg["java_installed_version"] = ""
-        self.save_config()
+        self._reader_save_isolated_config()
         self._reader_log("Đã xóa Java.")
         self._reader_update_labels()
         self._reader_update_runtime_status()
@@ -892,7 +1041,7 @@ class ReaderTabMixin:
                 # Nếu đã có bundle nhưng config chưa set thì tự set cho đồng nhất.
                 if not (vcfg.get("java_bin") or "").strip() and java_bin.startswith(BASE_DIR):
                     vcfg["java_bin"] = os.path.relpath(java_bin, BASE_DIR).replace("\\", "/")
-                    self.save_config()
+                    self._reader_save_isolated_config()
 
         self.reader_java_local_var.set(f"Java local: {local_java_ver or 'không rõ'} ({java_state})")
         self.reader_java_remote_var.set(f"Java bản mới: {str(java_meta.get('version') or '—')}")

@@ -149,7 +149,7 @@ def generate_new_name(analysis: dict, strategy: str, custom_format: str, custom_
         new_name_raw = custom_format.format(num=num, title=title.strip())
         return sanitize_filename(new_name_raw) if sanitize_output else new_name_raw.strip()
     except Exception:
-        return sanitize_filename(f"Chương {num} - {title}.txt")
+        return sanitize_filename(f"章{num}章 - {title}.txt")
     
 # ---XỬ LÝ CREDIT ---
 

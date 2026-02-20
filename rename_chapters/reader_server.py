@@ -13,6 +13,7 @@ import mimetypes
 import os
 import re
 import sqlite3
+import sys
 import traceback
 import uuid
 import zipfile
@@ -36,6 +37,7 @@ COVER_DIR = LOCAL_DIR / "reader_covers"
 DB_PATH = LOCAL_DIR / "reader_library.db"
 DEFAULT_UI_DIR = ROOT_DIR / "reader_ui"
 APP_CONFIG_PATH = ROOT_DIR / "config.json"
+APP_READER_CONFIG_PATH = ROOT_DIR / "local" / "reader.config.json"
 APP_STATE_THEME_ACTIVE_KEY = "theme.active"
 APP_STATE_NAME_SET_STATE_KEY = "reader.name_set_state"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
@@ -70,6 +72,32 @@ def resolve_path_from_base(raw: str | Path, base_dir: Path) -> Path:
         return (base_dir / p).resolve(strict=False)
     except Exception:
         return base_dir / p
+
+
+def resolve_existing_path(raw: str | Path, *bases: Path) -> Path:
+    raw_s = str(raw or "").strip()
+    valid_bases = [b for b in bases if isinstance(b, Path)]
+    fallback_base = valid_bases[0] if valid_bases else ROOT_DIR
+    if not raw_s:
+        return fallback_base
+
+    p = Path(raw_s)
+    if p.is_absolute():
+        return p
+
+    candidates: list[Path] = []
+    for base in valid_bases:
+        try:
+            candidates.append((base / p).resolve(strict=False))
+        except Exception:
+            candidates.append(base / p)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    if candidates:
+        return candidates[0]
+    return p
 
 
 def set_local_dirs(local_dir: Path) -> None:
@@ -249,6 +277,40 @@ def utc_now_ts() -> int:
     return int(datetime.now(timezone.utc).timestamp())
 
 
+def normalize_host(value: str) -> str:
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return ""
+    if "://" not in raw:
+        raw = "https://" + raw
+    try:
+        parsed = urlparse(raw)
+        host = (parsed.hostname or "").strip().lower()
+    except Exception:
+        host = ""
+    return host
+
+
+def host_aliases(host: str) -> list[str]:
+    raw = normalize_host(host)
+    if not raw:
+        return []
+    aliases: list[str] = []
+    for item in (raw, raw.lstrip("www."), "www." + raw.lstrip("www.")):
+        val = str(item or "").strip().lower()
+        if val and val not in aliases:
+            aliases.append(val)
+    return aliases
+
+
+def host_matches_domain(host: str, domain: str) -> bool:
+    h = str(host or "").strip().lower().lstrip(".")
+    d = str(domain or "").strip().lower().lstrip(".")
+    if not h or not d:
+        return False
+    return h == d or h.endswith("." + d)
+
+
 def hash_text(value: str) -> str:
     return hashlib.sha1(value.encode("utf-8", errors="ignore")).hexdigest()
 
@@ -316,21 +378,38 @@ def ensure_dirs() -> None:
 
 
 def load_app_config() -> dict[str, Any]:
-    # Ưu tiên config theo env/cwd để chạy tốt khi server nằm trong `tools/` (frozen exe).
-    candidates: list[Path] = []
+    # Ưu tiên config Reader riêng. Nếu không có thì fallback config chung.
+    def _read_json(path: Path) -> dict[str, Any] | None:
+        try:
+            if path.exists():
+                parsed = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(parsed, dict):
+                    return parsed
+        except Exception:
+            return None
+        return None
+
     env_path = (os.environ.get("READER_APP_CONFIG") or "").strip()
     if env_path:
-        candidates.append(Path(env_path))
+        env_cfg = _read_json(Path(env_path))
+        if env_cfg is not None:
+            return env_cfg
+
     base = runtime_base_dir()
-    candidates.append(base / "config.json")
-    candidates.append(APP_CONFIG_PATH)
-    for p in candidates:
-        try:
-            if p.exists():
-                return json.loads(p.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-    return {}
+    global_cfg: dict[str, Any] = {}
+    for p in (base / "config.json", APP_CONFIG_PATH):
+        parsed = _read_json(p)
+        if parsed is not None:
+            global_cfg = parsed
+            break
+
+    for p in (base / "local" / "reader.config.json", APP_READER_CONFIG_PATH):
+        parsed = _read_json(p)
+        if parsed is not None:
+            merged = dict(global_cfg)
+            merged.update(parsed)
+            return merged
+    return global_cfg
 
 
 def resolve_app_config_path() -> Path:
@@ -338,21 +417,23 @@ def resolve_app_config_path() -> Path:
     if env_path:
         return Path(env_path)
     base = runtime_base_dir()
-    base_cfg = base / "config.json"
-    if base_cfg.exists() or base == ROOT_DIR:
-        return base_cfg
-    if APP_CONFIG_PATH.exists():
-        return APP_CONFIG_PATH
-    return base_cfg
+    base_reader_cfg = base / "local" / "reader.config.json"
+    if base_reader_cfg.exists() or base == ROOT_DIR:
+        return base_reader_cfg
+    if APP_READER_CONFIG_PATH.exists():
+        return APP_READER_CONFIG_PATH
+    return base_reader_cfg
 
 
 def save_app_config(config: dict[str, Any]) -> Path:
     target = resolve_app_config_path()
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(
+    tmp = target.with_suffix(target.suffix + ".tmp")
+    tmp.write_text(
         json.dumps(config or {}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    tmp.replace(target)
     return target
 
 
@@ -3079,6 +3160,18 @@ class ReaderService:
         self.translator = TranslationAdapter(self.app_config)
         self.vbook_manager: Any = None
         self.vbook_runner: Any = None
+        self.vbook_runtime_global_settings: dict[str, Any] = {
+            "request_delay_ms": 0,
+            "download_threads": 4,
+            "prefetch_unread_count": 2,
+        }
+        self.vbook_plugin_runtime_overrides: dict[str, dict[str, Any]] = {}
+        self.vbook_bridge_enabled = True
+        self.vbook_bridge_cookie_fallback = True
+        self.vbook_bridge_state_path = LOCAL_DIR / "browser_bridge_state.json"
+        self.vbook_bridge_cookie_db_path = ROOT_DIR / "qt_browser_profile" / "storage" / "Cookies"
+        self._vbook_bridge_state_cache: dict[str, Any] = {}
+        self._vbook_bridge_state_mtime: float | None = None
         self.name_set_state: dict[str, Any] = {"sets": {"Mặc định": {}}, "active_set": "Mặc định", "version": 1}
         # Allow storage to lazy-load remote chapter content (vBook, ...).
         self.storage.remote_chapter_fetcher = self._fetch_remote_chapter
@@ -3114,7 +3207,18 @@ class ReaderService:
 
         # vBook integration (extensions + runner)
         base_dir = runtime_base_dir()
+        bundle_dir = ROOT_DIR
         vcfg = self.app_config.get("vbook") or {}
+        self.vbook_runtime_global_settings = self._normalized_vbook_runtime_global_settings(vcfg)
+        self.vbook_plugin_runtime_overrides = self._normalized_vbook_plugin_runtime_overrides(vcfg)
+        self.vbook_bridge_enabled = bool(vcfg.get("use_browser_bridge", True))
+        self.vbook_bridge_cookie_fallback = bool(vcfg.get("bridge_cookie_fallback", True))
+        bridge_state_rel = str(vcfg.get("browser_bridge_state") or "local/browser_bridge_state.json").strip() or "local/browser_bridge_state.json"
+        bridge_cookie_db_rel = str(vcfg.get("bridge_cookie_db_path") or "qt_browser_profile/storage/Cookies").strip() or "qt_browser_profile/storage/Cookies"
+        self.vbook_bridge_state_path = resolve_existing_path(bridge_state_rel, base_dir, bundle_dir)
+        self.vbook_bridge_cookie_db_path = resolve_existing_path(bridge_cookie_db_rel, base_dir, bundle_dir)
+        self._vbook_bridge_state_mtime = None
+        self._vbook_bridge_state_cache = {}
         try:
             extensions_dir = str(vcfg.get("extensions_dir") or "local/vbook_extensions").strip() or "local/vbook_extensions"
         except Exception:
@@ -3125,18 +3229,21 @@ class ReaderService:
             jar_rel = str(vcfg.get("runner_jar") or "tools/vbook_runner/vbook_runner.jar").strip() or "tools/vbook_runner/vbook_runner.jar"
         except Exception:
             jar_rel = "tools/vbook_runner/vbook_runner.jar"
-        jar_path = resolve_path_from_base(jar_rel, base_dir)
+        jar_path = resolve_existing_path(jar_rel, base_dir, bundle_dir)
         if jar_path.exists():
             runner_cfg = {
                 "default_user_agent": str(vcfg.get("default_user_agent") or ""),
                 "default_cookie": str(vcfg.get("default_cookie") or ""),
                 "timeout_ms": int(vcfg.get("timeout_ms") or 20000),
+                "request_delay_ms": int(self.vbook_runtime_global_settings.get("request_delay_ms") or 0),
+                # `supplemental_code` theo plugin sẽ được inject ở per-run override.
+                "supplemental_code": "",
             }
             java_bin_raw = str(vcfg.get("java_bin") or "").strip()
             java_bin = None
             if java_bin_raw:
                 try:
-                    resolved_java = resolve_path_from_base(java_bin_raw, base_dir)
+                    resolved_java = resolve_existing_path(java_bin_raw, base_dir, bundle_dir)
                     java_bin = str(resolved_java) if resolved_java.exists() else java_bin_raw
                 except Exception:
                     java_bin = java_bin_raw
@@ -3243,7 +3350,266 @@ class ReaderService:
         raw = self.app_config.get("vbook") or {}
         return raw if isinstance(raw, dict) else {}
 
+    def _normalize_vbook_plugin_id(self, value: str) -> str:
+        raw = str(value or "").strip().lower()
+        if not raw:
+            return ""
+        out = re.sub(r"[^a-z0-9._-]+", "_", raw).strip("._-")
+        return out[:96]
+
+    def _vbook_int(self, value: Any, *, default: int, min_value: int, max_value: int) -> int:
+        try:
+            num = int(value)
+        except Exception:
+            num = int(default)
+        if num < min_value:
+            return min_value
+        if num > max_value:
+            return max_value
+        return num
+
+    def _vbook_int_or_none(self, value: Any, *, min_value: int, max_value: int) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, str) and not value.strip():
+            return None
+        try:
+            num = int(value)
+        except Exception:
+            return None
+        if num < min_value:
+            return min_value
+        if num > max_value:
+            return max_value
+        return num
+
+    def _normalized_vbook_runtime_global_settings(self, raw_cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+        vcfg = raw_cfg if isinstance(raw_cfg, dict) else self._vbook_cfg()
+        gcfg = vcfg.get("runtime_global") if isinstance(vcfg.get("runtime_global"), dict) else {}
+        # Giữ tương thích key cũ (`max_concurrency` / top-level).
+        threads_raw = gcfg.get("download_threads")
+        if threads_raw is None:
+            threads_raw = gcfg.get("max_concurrency")
+        if threads_raw is None:
+            threads_raw = vcfg.get("download_threads")
+        if threads_raw is None:
+            threads_raw = vcfg.get("max_concurrency")
+        return {
+            "request_delay_ms": self._vbook_int(gcfg.get("request_delay_ms", vcfg.get("request_delay_ms")), default=0, min_value=0, max_value=15_000),
+            "download_threads": self._vbook_int(threads_raw, default=4, min_value=1, max_value=16),
+            "prefetch_unread_count": self._vbook_int(
+                gcfg.get("prefetch_unread_count", vcfg.get("prefetch_unread_count")),
+                default=2,
+                min_value=0,
+                max_value=50,
+            ),
+        }
+
+    def _normalized_vbook_plugin_runtime_overrides(self, raw_cfg: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
+        vcfg = raw_cfg if isinstance(raw_cfg, dict) else self._vbook_cfg()
+        payload = vcfg.get("plugin_overrides")
+        if not isinstance(payload, dict):
+            return {}
+        out: dict[str, dict[str, Any]] = {}
+        for raw_pid, raw_override in payload.items():
+            pid = self._normalize_vbook_plugin_id(str(raw_pid or ""))
+            if (not pid) or (not isinstance(raw_override, dict)):
+                continue
+            override = {
+                "supplemental_code": str(raw_override.get("supplemental_code") or ""),
+                "request_delay_ms": self._vbook_int_or_none(raw_override.get("request_delay_ms"), min_value=0, max_value=15_000),
+                "download_threads": self._vbook_int_or_none(raw_override.get("download_threads"), min_value=1, max_value=16),
+                "prefetch_unread_count": self._vbook_int_or_none(raw_override.get("prefetch_unread_count"), min_value=0, max_value=50),
+            }
+            if (
+                override["supplemental_code"]
+                or override["request_delay_ms"] is not None
+                or override["download_threads"] is not None
+                or override["prefetch_unread_count"] is not None
+            ):
+                out[pid] = override
+        return out
+
+    def _effective_vbook_runtime_settings(self, plugin_id: str = "") -> dict[str, Any]:
+        global_cfg = dict(self.vbook_runtime_global_settings or {})
+        pid = self._normalize_vbook_plugin_id(plugin_id)
+        override = (self.vbook_plugin_runtime_overrides or {}).get(pid) if pid else None
+        return {
+            "supplemental_code": str((override or {}).get("supplemental_code") or ""),
+            "request_delay_ms": int((override or {}).get("request_delay_ms")) if (override and override.get("request_delay_ms") is not None) else int(global_cfg.get("request_delay_ms") or 0),
+            "download_threads": int((override or {}).get("download_threads")) if (override and override.get("download_threads") is not None) else int(global_cfg.get("download_threads") or 4),
+            "prefetch_unread_count": int((override or {}).get("prefetch_unread_count")) if (override and override.get("prefetch_unread_count") is not None) else int(global_cfg.get("prefetch_unread_count") or 2),
+        }
+
+    def get_vbook_settings_global(self) -> dict[str, Any]:
+        vcfg = self._vbook_cfg()
+        normalized = dict(self.vbook_runtime_global_settings or self._normalized_vbook_runtime_global_settings(vcfg))
+        return {
+            "ok": True,
+            "settings": normalized,
+            "runner": {
+                "timeout_ms": self._vbook_int(vcfg.get("timeout_ms"), default=20_000, min_value=1_000, max_value=120_000),
+                "has_default_user_agent": bool(str(vcfg.get("default_user_agent") or "").strip()),
+                "has_default_cookie": bool(str(vcfg.get("default_cookie") or "").strip()),
+            },
+        }
+
+    def set_vbook_settings_global(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(payload, dict):
+            payload = {}
+
+        cfg = load_app_config()
+        if not isinstance(cfg, dict):
+            cfg = {}
+        vcfg = cfg.get("vbook")
+        if not isinstance(vcfg, dict):
+            vcfg = {}
+        gcfg = vcfg.get("runtime_global")
+        if not isinstance(gcfg, dict):
+            gcfg = {}
+
+        if "request_delay_ms" in payload:
+            gcfg["request_delay_ms"] = self._vbook_int(payload.get("request_delay_ms"), default=0, min_value=0, max_value=15_000)
+        if "download_threads" in payload or "max_concurrency" in payload:
+            raw_threads = payload.get("download_threads")
+            if raw_threads is None:
+                raw_threads = payload.get("max_concurrency")
+            threads = self._vbook_int(raw_threads, default=4, min_value=1, max_value=16)
+            gcfg["download_threads"] = threads
+            gcfg["max_concurrency"] = threads
+        if "prefetch_unread_count" in payload:
+            gcfg["prefetch_unread_count"] = self._vbook_int(payload.get("prefetch_unread_count"), default=2, min_value=0, max_value=50)
+
+        # Mirror top-level keys để không phá logic cũ bên ngoài.
+        vcfg["runtime_global"] = gcfg
+        vcfg["request_delay_ms"] = gcfg.get("request_delay_ms", 0)
+        vcfg["download_threads"] = gcfg.get("download_threads", 4)
+        vcfg["max_concurrency"] = gcfg.get("download_threads", 4)
+        vcfg["prefetch_unread_count"] = gcfg.get("prefetch_unread_count", 2)
+
+        cfg["vbook"] = vcfg
+        save_app_config(cfg)
+        self.refresh_config()
+        return self.get_vbook_settings_global()
+
+    def get_vbook_settings_plugin(self, plugin_id: str) -> dict[str, Any]:
+        pid = self._normalize_vbook_plugin_id(plugin_id)
+        if not pid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_id.")
+        override = dict((self.vbook_plugin_runtime_overrides or {}).get(pid) or {})
+        # Normalize override trả ra cho UI.
+        normalized_override = {
+            "supplemental_code": str(override.get("supplemental_code") or ""),
+            "request_delay_ms": self._vbook_int_or_none(override.get("request_delay_ms"), min_value=0, max_value=15_000),
+            "download_threads": self._vbook_int_or_none(override.get("download_threads"), min_value=1, max_value=16),
+            "prefetch_unread_count": self._vbook_int_or_none(override.get("prefetch_unread_count"), min_value=0, max_value=50),
+        }
+        has_override = bool(
+            normalized_override["supplemental_code"]
+            or normalized_override["request_delay_ms"] is not None
+            or normalized_override["download_threads"] is not None
+            or normalized_override["prefetch_unread_count"] is not None
+        )
+        return {
+            "ok": True,
+            "plugin_id": pid,
+            "has_override": has_override,
+            "override": normalized_override,
+            "global": dict(self.vbook_runtime_global_settings or {}),
+            "effective": self._effective_vbook_runtime_settings(pid),
+        }
+
+    def set_vbook_settings_plugin(self, plugin_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        pid = self._normalize_vbook_plugin_id(plugin_id)
+        if not pid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_id.")
+        if not isinstance(payload, dict):
+            payload = {}
+
+        cfg = load_app_config()
+        if not isinstance(cfg, dict):
+            cfg = {}
+        vcfg = cfg.get("vbook")
+        if not isinstance(vcfg, dict):
+            vcfg = {}
+        overrides = vcfg.get("plugin_overrides")
+        if not isinstance(overrides, dict):
+            overrides = {}
+
+        current = overrides.get(pid) if isinstance(overrides.get(pid), dict) else {}
+        item: dict[str, Any] = {
+            "supplemental_code": str(current.get("supplemental_code") or ""),
+            "request_delay_ms": self._vbook_int_or_none(current.get("request_delay_ms"), min_value=0, max_value=15_000),
+            "download_threads": self._vbook_int_or_none(current.get("download_threads"), min_value=1, max_value=16),
+            "prefetch_unread_count": self._vbook_int_or_none(current.get("prefetch_unread_count"), min_value=0, max_value=50),
+        }
+
+        if "supplemental_code" in payload:
+            item["supplemental_code"] = str(payload.get("supplemental_code") or "")
+        if "request_delay_ms" in payload:
+            item["request_delay_ms"] = self._vbook_int_or_none(payload.get("request_delay_ms"), min_value=0, max_value=15_000)
+        if "download_threads" in payload or "max_concurrency" in payload:
+            raw_threads = payload.get("download_threads")
+            if raw_threads is None:
+                raw_threads = payload.get("max_concurrency")
+            item["download_threads"] = self._vbook_int_or_none(raw_threads, min_value=1, max_value=16)
+        if "prefetch_unread_count" in payload:
+            item["prefetch_unread_count"] = self._vbook_int_or_none(payload.get("prefetch_unread_count"), min_value=0, max_value=50)
+
+        if (
+            item["supplemental_code"]
+            or item["request_delay_ms"] is not None
+            or item["download_threads"] is not None
+            or item["prefetch_unread_count"] is not None
+        ):
+            overrides[pid] = item
+        elif pid in overrides:
+            overrides.pop(pid, None)
+
+        vcfg["plugin_overrides"] = overrides
+        cfg["vbook"] = vcfg
+        save_app_config(cfg)
+        self.refresh_config()
+        return self.get_vbook_settings_plugin(pid)
+
+    def delete_vbook_settings_plugin(self, plugin_id: str) -> dict[str, Any]:
+        pid = self._normalize_vbook_plugin_id(plugin_id)
+        if not pid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_id.")
+        cfg = load_app_config()
+        if not isinstance(cfg, dict):
+            cfg = {}
+        vcfg = cfg.get("vbook")
+        if not isinstance(vcfg, dict):
+            vcfg = {}
+        overrides = vcfg.get("plugin_overrides")
+        if not isinstance(overrides, dict):
+            overrides = {}
+        overrides.pop(pid, None)
+        vcfg["plugin_overrides"] = overrides
+        cfg["vbook"] = vcfg
+        save_app_config(cfg)
+        self.refresh_config()
+        return self.get_vbook_settings_plugin(pid)
+
+    def get_vbook_settings_effective(self, plugin_id: str = "") -> dict[str, Any]:
+        pid = self._normalize_vbook_plugin_id(plugin_id)
+        return {
+            "ok": True,
+            "plugin_id": pid,
+            "settings": self._effective_vbook_runtime_settings(pid),
+            "global": dict(self.vbook_runtime_global_settings or {}),
+        }
+
+    # Backward compatibility tạm thời cho endpoint cũ.
+    def get_vbook_settings(self) -> dict[str, Any]:
+        return self.get_vbook_settings_global()
+
+    def set_vbook_settings(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.set_vbook_settings_global(payload)
+
     def _serialize_vbook_plugin(self, p: Any) -> dict[str, Any]:
+        pid = self._normalize_vbook_plugin_id(str(getattr(p, "plugin_id", "") or ""))
         return {
             "plugin_id": p.plugin_id,
             "name": p.name,
@@ -3255,6 +3621,7 @@ class ReaderService:
             "regexp": p.regexp,
             "encrypt": bool(p.encrypt),
             "scripts": sorted(list((p.scripts or {}).keys())),
+            "has_runtime_override": bool(pid and pid in (self.vbook_plugin_runtime_overrides or {})),
         }
 
     def list_vbook_plugins(self) -> list[dict[str, Any]]:
@@ -3326,6 +3693,25 @@ class ReaderService:
             ) from exc
         return self._serialize_vbook_plugin(installed)
 
+    def install_vbook_plugin_local(self, *, filename: str, content: bytes, plugin_id: str = "") -> dict[str, Any]:
+        if not self.vbook_manager:
+            raise ApiError(HTTPStatus.SERVICE_UNAVAILABLE, "VBOOK_DISABLED", "vBook chưa được bật trong server.")
+        if not content:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "File plugin rỗng.")
+        ext = str(filename or "").strip().lower()
+        if ext and not ext.endswith(".zip"):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Chỉ hỗ trợ file plugin `.zip`.")
+        try:
+            installed = self.vbook_manager.install_plugin_from_zip_bytes(content, plugin_id=plugin_id)
+        except Exception as exc:
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "VBOOK_PLUGIN_INSTALL_LOCAL_ERROR",
+                "Không cài được plugin vBook từ file local.",
+                {"filename": filename, "error": str(exc)},
+            ) from exc
+        return self._serialize_vbook_plugin(installed)
+
     def remove_vbook_plugin(self, plugin_id: str) -> bool:
         if not self.vbook_manager:
             raise ApiError(HTTPStatus.SERVICE_UNAVAILABLE, "VBOOK_DISABLED", "vBook chưa được bật trong server.")
@@ -3376,6 +3762,203 @@ class ReaderService:
                 {"plugin": getattr(plugin, "plugin_id", ""), "script": script_key},
             )
 
+    def _load_vbook_bridge_state(self) -> dict[str, Any]:
+        if not self.vbook_bridge_enabled:
+            return {}
+        path = self.vbook_bridge_state_path
+        if not path or not path.exists():
+            self._vbook_bridge_state_cache = {}
+            self._vbook_bridge_state_mtime = None
+            return {}
+        try:
+            mtime = float(path.stat().st_mtime)
+        except Exception:
+            mtime = None
+        if (mtime is not None) and (self._vbook_bridge_state_mtime == mtime):
+            return self._vbook_bridge_state_cache
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                payload = {}
+        except Exception:
+            payload = {}
+        hosts = payload.get("hosts")
+        if not isinstance(hosts, dict):
+            hosts = {}
+        payload["hosts"] = hosts
+        self._vbook_bridge_state_cache = payload
+        self._vbook_bridge_state_mtime = mtime
+        return payload
+
+    def _pick_bridge_host_entry(self, state: dict[str, Any], host: str) -> dict[str, Any]:
+        hosts_raw = state.get("hosts") if isinstance(state, dict) else {}
+        if not isinstance(hosts_raw, dict):
+            return {}
+        table: dict[str, dict[str, Any]] = {}
+        for key, row in hosts_raw.items():
+            if not isinstance(row, dict):
+                continue
+            key_norm = normalize_host(str(key or ""))
+            if not key_norm:
+                continue
+            table[key_norm] = row
+        host_norm = normalize_host(host)
+        if not host_norm:
+            return {}
+        for alias in host_aliases(host_norm):
+            row = table.get(alias)
+            if isinstance(row, dict):
+                return row
+        return {}
+
+    def _extract_vbook_request_host(self, plugin: Any, script_key: str, args: list[Any]) -> str:
+        for arg in args or []:
+            if isinstance(arg, str):
+                host = normalize_host(arg)
+                if host:
+                    return host
+            elif isinstance(arg, dict):
+                for key in ("url", "link", "detail_url", "host"):
+                    host = normalize_host(str(arg.get(key) or ""))
+                    if host:
+                        return host
+        source = normalize_host(str(getattr(plugin, "source", "") or ""))
+        if source:
+            return source
+        regexp = str(getattr(plugin, "regexp", "") or "")
+        m = re.search(r"([a-zA-Z0-9-]+(?:\\\.)+[a-zA-Z0-9.-]+)", regexp)
+        if m:
+            probe = m.group(1).replace("\\.", ".")
+            host = normalize_host(probe)
+            if host:
+                return host
+        return ""
+
+    def _cookie_header_from_sqlite_db(self, db_path: Path, host: str) -> str:
+        if not db_path.exists():
+            return ""
+        host_norm = normalize_host(host)
+        if not host_norm:
+            return ""
+        like_pattern = "%" + host_norm.lstrip("www.")
+        pairs: list[str] = []
+        seen: set[str] = set()
+        conn: sqlite3.Connection | None = None
+        try:
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            for row in cursor.execute(
+                "SELECT host_key, name, value FROM cookies WHERE lower(host_key) LIKE ?",
+                (like_pattern,),
+            ):
+                domain = str(row["host_key"] or "")
+                name = str(row["name"] or "").strip()
+                value = str(row["value"] or "")
+                if not name:
+                    continue
+                if not host_matches_domain(host_norm, domain):
+                    continue
+                name_l = name.lower()
+                if name_l in seen:
+                    continue
+                seen.add(name_l)
+                pairs.append(f"{name}={value}")
+        except Exception:
+            return ""
+        finally:
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
+        return "; ".join(pairs)
+
+    def _fallback_cookie_header_from_bridge_state(self, host: str, state: dict[str, Any]) -> str:
+        if not self.vbook_bridge_cookie_fallback:
+            return ""
+        base_dir = runtime_base_dir()
+        candidate_raw: list[str] = []
+        state_cookie_db = str(state.get("cookie_db_path") or "").strip() if isinstance(state, dict) else ""
+        if state_cookie_db:
+            candidate_raw.append(state_cookie_db)
+        state_profile_dir = str(state.get("profile_dir") or "").strip() if isinstance(state, dict) else ""
+        if state_profile_dir:
+            candidate_raw.append(str(Path(state_profile_dir) / "storage" / "Cookies"))
+        candidate_raw.append(str(self.vbook_bridge_cookie_db_path))
+
+        tested: set[str] = set()
+        for raw in candidate_raw:
+            if not raw:
+                continue
+            try:
+                path = resolve_existing_path(raw, base_dir, ROOT_DIR)
+            except Exception:
+                continue
+            key = str(path)
+            if key in tested:
+                continue
+            tested.add(key)
+            cookie_header = self._cookie_header_from_sqlite_db(path, host)
+            if cookie_header:
+                return cookie_header
+        return ""
+
+    def _build_vbook_runner_override(self, plugin: Any, script_key: str, args: list[Any]) -> dict[str, Any]:
+        override: dict[str, Any] = {}
+        plugin_id = self._normalize_vbook_plugin_id(str(getattr(plugin, "plugin_id", "") or ""))
+        runtime_cfg = self._effective_vbook_runtime_settings(plugin_id)
+        override["request_delay_ms"] = int(runtime_cfg.get("request_delay_ms") or 0)
+        override["supplemental_code"] = str(runtime_cfg.get("supplemental_code") or "")
+
+        if self.vbook_bridge_enabled:
+            host = self._extract_vbook_request_host(plugin, script_key, args)
+            if host:
+                state = self._load_vbook_bridge_state()
+                entry = self._pick_bridge_host_entry(state, host)
+
+                user_agent = str(entry.get("user_agent") or "").strip()
+                if not user_agent:
+                    user_agent = str(state.get("default_user_agent") or "").strip()
+
+                cookie_header = str(entry.get("cookie_header") or "").strip()
+                if not cookie_header:
+                    cookie_header = self._fallback_cookie_header_from_bridge_state(host, state)
+
+                if user_agent:
+                    override["default_user_agent"] = user_agent
+                if cookie_header:
+                    override["default_cookie"] = cookie_header
+        return override
+
+    def get_vbook_bridge_state(self) -> dict[str, Any]:
+        state = self._load_vbook_bridge_state()
+        hosts_raw = state.get("hosts") if isinstance(state, dict) else {}
+        host_items: list[dict[str, Any]] = []
+        if isinstance(hosts_raw, dict):
+            for host, row in hosts_raw.items():
+                if not isinstance(row, dict):
+                    continue
+                host_items.append(
+                    {
+                        "host": normalize_host(str(host or "")) or str(host or ""),
+                        "updated_at": str(row.get("updated_at") or ""),
+                        "has_user_agent": bool(str(row.get("user_agent") or "").strip()),
+                        "has_cookie": bool(str(row.get("cookie_header") or "").strip()),
+                    }
+                )
+        host_items.sort(key=lambda x: x.get("host") or "")
+        return {
+            "ok": True,
+            "enabled": bool(self.vbook_bridge_enabled),
+            "state_path": str(self.vbook_bridge_state_path),
+            "cookie_db_path": str(self.vbook_bridge_cookie_db_path),
+            "default_user_agent": str(state.get("default_user_agent") or ""),
+            "updated_at": str(state.get("updated_at") or ""),
+            "hosts": host_items,
+            "count": len(host_items),
+        }
+
     def _run_vbook_script_result(self, plugin: Any, script_key: str, args: list[Any]) -> dict[str, Any]:
         if not self.vbook_runner:
             raise ApiError(
@@ -3384,10 +3967,12 @@ class ReaderService:
                 "Chưa có vBook runner. Hãy build `tools/vbook_runner` trước.",
             )
 
+        runner_override = self._build_vbook_runner_override(plugin, script_key, args)
         payload = self.vbook_runner.run(
             plugin_path=str(plugin.path),
             script_key=script_key,
             args=args,
+            runner_config_override=(runner_override or None),
             timeout_sec=30.0,
         )
         result = payload.get("result")
@@ -3465,6 +4050,131 @@ class ReaderService:
             "lang_source": locale_norm or "zh",
         }
 
+    def _extract_vbook_list_rows(self, data: Any) -> list[Any]:
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            for key in ("items", "data", "list", "results", "books"):
+                value = data.get(key)
+                if isinstance(value, list):
+                    return value
+            # Fallback: object đơn lẻ.
+            return [data]
+        return []
+
+    def _normalize_vbook_tab_item(self, item: Any) -> dict[str, Any] | None:
+        if isinstance(item, str):
+            text = str(item).strip()
+            if not text:
+                return None
+            return {
+                "title": text,
+                "script": "",
+                "input": text,
+            }
+        if not isinstance(item, dict):
+            return None
+        title = str(item.get("title") or item.get("name") or item.get("label") or "").strip()
+        script = str(item.get("script") or item.get("file") or "").strip()
+        raw_input = item.get("input")
+        if raw_input is None:
+            raw_input = item.get("link")
+        if raw_input is None:
+            raw_input = item.get("url")
+        if not title:
+            return None
+        if isinstance(raw_input, (dict, list, str, int, float, bool)) or raw_input is None:
+            input_value = raw_input
+        else:
+            input_value = str(raw_input)
+        return {
+            "title": title,
+            "script": script,
+            "input": input_value,
+        }
+
+    def _normalize_vbook_script_ref(self, plugin: Any, script_ref: str, *, default_key: str) -> str:
+        ref = str(script_ref or "").strip()
+        if not ref:
+            ref = default_key
+        # Script key trong plugin.json.
+        if not ref.endswith(".js"):
+            self._ensure_plugin_has_script(plugin, ref)
+            return ref
+        # Script file trực tiếp (từ tab home/genre trả về), chặn path traversal.
+        ref = ref.replace("\\", "/").lstrip("/")
+        if ref.startswith("src/"):
+            ref = ref[4:]
+        parts = [p for p in ref.split("/") if p]
+        if not parts or any(p == ".." for p in parts):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Script tab không hợp lệ.")
+        if not re.fullmatch(r"[A-Za-z0-9._/-]+\.js", ref):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Script tab không hợp lệ.")
+        return ref
+
+    def _run_vbook_paged_list_script(
+        self,
+        plugin: Any,
+        *,
+        script_ref: str,
+        input_value: Any = None,
+        page: int = 1,
+        next_token: Any = None,
+    ) -> tuple[list[Any], Any]:
+        p = max(1, int(page or 1))
+        has_next_token = next_token is not None and str(next_token).strip() != ""
+        has_input = input_value is not None and (not isinstance(input_value, str) or bool(input_value.strip()))
+
+        candidates: list[list[Any]] = []
+        if has_input:
+            if has_next_token:
+                candidates.append([input_value, next_token])
+            candidates.extend(
+                [
+                    [input_value, ""],
+                    [input_value],
+                    [input_value, p],
+                    [input_value, str(p)],
+                ]
+            )
+        else:
+            if has_next_token:
+                candidates.append([next_token])
+            candidates.extend([[], [p], [str(p)]])
+
+        seen: set[str] = set()
+        last_error: Exception | None = None
+        data: Any = []
+        next_value: Any = None
+        for args in candidates:
+            sig = json.dumps(args, ensure_ascii=False, sort_keys=True, default=str)
+            if sig in seen:
+                continue
+            seen.add(sig)
+            try:
+                data, next_value = self._run_vbook_script_with_next(plugin, script_ref, args)
+                last_error = None
+                break
+            except Exception as exc:
+                last_error = exc
+                continue
+
+        if last_error is not None:
+            if isinstance(last_error, ApiError):
+                raise last_error
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_LIST_SCRIPT_FAILED",
+                "Không thể tải danh sách từ script vBook.",
+                {
+                    "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                    "script": script_ref,
+                    "error": str(last_error),
+                },
+            ) from last_error
+
+        return self._extract_vbook_list_rows(data), next_value
+
     def search_vbook_books(
         self,
         *,
@@ -3533,6 +4243,172 @@ class ReaderService:
             "next": next_value,
             "has_next": next_value is not None and str(next_value).strip() != "",
             "count": len(items),
+        }
+
+    def get_vbook_home(
+        self,
+        *,
+        plugin_id: str,
+        tab_script: str = "",
+        tab_input: Any = None,
+        page: int = 1,
+        next_token: Any = None,
+    ) -> dict[str, Any]:
+        plugin = self._require_vbook_plugin(plugin_id)
+        p = max(1, int(page or 1))
+        # Root mode: trả tabs từ home.js
+        if not str(tab_script or "").strip():
+            scripts = getattr(plugin, "scripts", None)
+            has_script = isinstance(scripts, dict) and bool(str((scripts.get("home") or "")).strip())
+            if not has_script:
+                return {
+                    "ok": True,
+                    "plugin": self._serialize_vbook_plugin(plugin),
+                    "mode": "tabs",
+                    "tabs": [],
+                    "items": [],
+                    "count": 0,
+                    "item_count": 0,
+                    "has_script": False,
+                }
+            data = self._run_vbook_script(plugin, "home", [])
+            rows = self._extract_vbook_list_rows(data)
+            tabs: list[dict[str, Any]] = []
+            items: list[dict[str, Any]] = []
+            for row in rows:
+                normalized = self._normalize_vbook_search_item(plugin, row, query="")
+                if normalized:
+                    items.append(normalized)
+                    continue
+                tab = self._normalize_vbook_tab_item(row)
+                if tab:
+                    tabs.append(tab)
+            return {
+                "ok": True,
+                "plugin": self._serialize_vbook_plugin(plugin),
+                "mode": "tabs",
+                "tabs": tabs,
+                "items": items,
+                "count": len(tabs),
+                "item_count": len(items),
+                "has_script": True,
+            }
+
+        # Content mode: chạy script tab để lấy books.
+        script_ref = self._normalize_vbook_script_ref(plugin, tab_script, default_key="home")
+        rows, next_value = self._run_vbook_paged_list_script(
+            plugin,
+            script_ref=script_ref,
+            input_value=tab_input,
+            page=p,
+            next_token=next_token,
+        )
+        items: list[dict[str, Any]] = []
+        extra_tabs: list[dict[str, Any]] = []
+        for row in rows:
+            normalized = self._normalize_vbook_search_item(plugin, row, query="")
+            if normalized:
+                items.append(normalized)
+                continue
+            tab = self._normalize_vbook_tab_item(row)
+            if tab:
+                extra_tabs.append(tab)
+        return {
+            "ok": True,
+            "plugin": self._serialize_vbook_plugin(plugin),
+            "mode": "content",
+            "script": script_ref,
+            "page": p,
+            "items": items,
+            "tabs": extra_tabs,
+            "next": next_value,
+            "has_next": next_value is not None and str(next_value).strip() != "",
+            "count": len(items),
+            "tab_count": len(extra_tabs),
+            "has_script": True,
+        }
+
+    def get_vbook_genre(
+        self,
+        *,
+        plugin_id: str,
+        tab_script: str = "",
+        tab_input: Any = None,
+        page: int = 1,
+        next_token: Any = None,
+    ) -> dict[str, Any]:
+        plugin = self._require_vbook_plugin(plugin_id)
+        p = max(1, int(page or 1))
+        # Root mode: trả tabs từ genre.js
+        if not str(tab_script or "").strip():
+            scripts = getattr(plugin, "scripts", None)
+            has_script = isinstance(scripts, dict) and bool(str((scripts.get("genre") or "")).strip())
+            if not has_script:
+                return {
+                    "ok": True,
+                    "plugin": self._serialize_vbook_plugin(plugin),
+                    "mode": "tabs",
+                    "tabs": [],
+                    "items": [],
+                    "count": 0,
+                    "item_count": 0,
+                    "has_script": False,
+                }
+            data = self._run_vbook_script(plugin, "genre", [])
+            rows = self._extract_vbook_list_rows(data)
+            tabs: list[dict[str, Any]] = []
+            items: list[dict[str, Any]] = []
+            for row in rows:
+                normalized = self._normalize_vbook_search_item(plugin, row, query="")
+                if normalized:
+                    items.append(normalized)
+                    continue
+                tab = self._normalize_vbook_tab_item(row)
+                if tab:
+                    tabs.append(tab)
+            return {
+                "ok": True,
+                "plugin": self._serialize_vbook_plugin(plugin),
+                "mode": "tabs",
+                "tabs": tabs,
+                "items": items,
+                "count": len(tabs),
+                "item_count": len(items),
+                "has_script": True,
+            }
+
+        # Content mode: chạy script tab để lấy books.
+        script_ref = self._normalize_vbook_script_ref(plugin, tab_script, default_key="genre")
+        rows, next_value = self._run_vbook_paged_list_script(
+            plugin,
+            script_ref=script_ref,
+            input_value=tab_input,
+            page=p,
+            next_token=next_token,
+        )
+        items: list[dict[str, Any]] = []
+        extra_tabs: list[dict[str, Any]] = []
+        for row in rows:
+            normalized = self._normalize_vbook_search_item(plugin, row, query="")
+            if normalized:
+                items.append(normalized)
+                continue
+            tab = self._normalize_vbook_tab_item(row)
+            if tab:
+                extra_tabs.append(tab)
+        return {
+            "ok": True,
+            "plugin": self._serialize_vbook_plugin(plugin),
+            "mode": "content",
+            "script": script_ref,
+            "page": p,
+            "items": items,
+            "tabs": extra_tabs,
+            "next": next_value,
+            "has_next": next_value is not None and str(next_value).strip() != "",
+            "count": len(items),
+            "tab_count": len(extra_tabs),
+            "has_script": True,
         }
 
     def get_vbook_detail(self, *, url: str, plugin_id: str = "") -> dict[str, Any]:
@@ -3873,6 +4749,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             "/index.html": "/library.html",
             "/library": "/library.html",
             "/search": "/search.html",
+            "/explore": "/explore.html",
             "/book": "/book.html",
             "/reader": "/reader.html",
         }
@@ -4086,6 +4963,41 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             items = self.service.list_vbook_plugins()
             return {"ok": True, "items": items}
 
+        if method == "GET" and path == "/api/vbook/settings":
+            # Backward compatible alias -> global
+            return self.service.get_vbook_settings_global()
+
+        if method == "POST" and path == "/api/vbook/settings":
+            # Backward compatible alias -> global
+            payload = self._read_json_body()
+            return self.service.set_vbook_settings_global(payload)
+
+        if method == "GET" and path == "/api/vbook/settings/global":
+            return self.service.get_vbook_settings_global()
+
+        if method == "POST" and path == "/api/vbook/settings/global":
+            payload = self._read_json_body()
+            return self.service.set_vbook_settings_global(payload)
+
+        if method == "GET" and path == "/api/vbook/settings/effective":
+            plugin_id = (query.get("plugin_id", [""])[0] or "").strip()
+            return self.service.get_vbook_settings_effective(plugin_id=plugin_id)
+
+        if path.startswith("/api/vbook/settings/plugin/"):
+            plugin_id = unquote(path.removeprefix("/api/vbook/settings/plugin/").strip("/"))
+            if not plugin_id:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_id.")
+            if method == "GET":
+                return self.service.get_vbook_settings_plugin(plugin_id)
+            if method == "POST":
+                payload = self._read_json_body()
+                return self.service.set_vbook_settings_plugin(plugin_id, payload)
+            if method == "DELETE":
+                return self.service.delete_vbook_settings_plugin(plugin_id)
+
+        if method == "GET" and path == "/api/vbook/bridge/state":
+            return self.service.get_vbook_bridge_state()
+
         if method == "POST" and path == "/api/vbook/search":
             payload = self._read_json_body()
             plugin_id = str(payload.get("plugin_id") or "").strip()
@@ -4099,6 +5011,48 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             return self.service.search_vbook_books(
                 plugin_id=plugin_id,
                 query=query_text,
+                page=page,
+                next_token=next_token,
+            )
+
+        if method == "POST" and path == "/api/vbook/home":
+            payload = self._read_json_body()
+            plugin_id = str(payload.get("plugin_id") or "").strip()
+            tab_script = str(payload.get("tab_script") or payload.get("script") or "").strip()
+            tab_input = payload.get("tab_input")
+            if "input" in payload and tab_input is None:
+                tab_input = payload.get("input")
+            page_raw = payload.get("page")
+            try:
+                page = int(page_raw) if page_raw is not None and str(page_raw).strip() else 1
+            except Exception:
+                page = 1
+            next_token = payload.get("next")
+            return self.service.get_vbook_home(
+                plugin_id=plugin_id,
+                tab_script=tab_script,
+                tab_input=tab_input,
+                page=page,
+                next_token=next_token,
+            )
+
+        if method == "POST" and path == "/api/vbook/genre":
+            payload = self._read_json_body()
+            plugin_id = str(payload.get("plugin_id") or "").strip()
+            tab_script = str(payload.get("tab_script") or payload.get("script") or "").strip()
+            tab_input = payload.get("tab_input")
+            if "input" in payload and tab_input is None:
+                tab_input = payload.get("input")
+            page_raw = payload.get("page")
+            try:
+                page = int(page_raw) if page_raw is not None and str(page_raw).strip() else 1
+            except Exception:
+                page = 1
+            next_token = payload.get("next")
+            return self.service.get_vbook_genre(
+                plugin_id=plugin_id,
+                tab_script=tab_script,
+                tab_input=tab_input,
                 page=page,
                 next_token=next_token,
             )
@@ -4172,6 +5126,19 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             plugin_url = str(payload.get("plugin_url") or payload.get("url") or "").strip()
             plugin_id = str(payload.get("plugin_id") or "").strip()
             plugin = self.service.install_vbook_plugin(plugin_url=plugin_url, plugin_id=plugin_id)
+            return {"ok": True, "plugin": plugin}
+
+        if method == "POST" and path == "/api/vbook/plugins/install-local":
+            form = self._read_multipart_form()
+            part = form.get_file("file")
+            if part is None:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu file plugin zip.")
+            plugin_id = str(form.getfirst("plugin_id") or "").strip()
+            plugin = self.service.install_vbook_plugin_local(
+                filename=part.filename or "",
+                content=part.content,
+                plugin_id=plugin_id,
+            )
             return {"ok": True, "plugin": plugin}
 
         if method == "DELETE" and path.startswith("/api/vbook/plugins/"):
@@ -4904,14 +5871,50 @@ def build_handler(ui_dir: Path, service: ReaderService):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run local reader web server.")
-    parser.add_argument("--host", default="127.0.0.1", help="Bind host, dùng 0.0.0.0 để chia sẻ LAN.")
+    parser.add_argument("--host", default="127.0.0.1", help="Bind host (use 0.0.0.0 for LAN access).")
     parser.add_argument("--port", type=int, default=17171, help="Bind port.")
-    parser.add_argument("--ui-dir", default=str(DEFAULT_UI_DIR), help="Thư mục chứa UI web.")
-    parser.add_argument("--db", default=str(DB_PATH), help="Đường dẫn SQLite DB.")
+    parser.add_argument("--ui-dir", default=str(DEFAULT_UI_DIR), help="Reader UI directory.")
+    parser.add_argument("--db", default=str(DB_PATH), help="SQLite database path.")
     return parser.parse_args()
 
 
+def configure_console_output() -> None:
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is None:
+            continue
+        try:
+            stream.reconfigure(errors="backslashreplace")
+        except Exception:
+            continue
+
+
+def safe_console_print(text: str) -> None:
+    message = str(text or "")
+    try:
+        print(message)
+        return
+    except Exception:
+        pass
+
+    stream = getattr(sys, "stdout", None)
+    if stream is None:
+        return
+    encoding = getattr(stream, "encoding", None) or "utf-8"
+    payload = message.encode(encoding, errors="backslashreplace")
+    try:
+        buffer = getattr(stream, "buffer", None)
+        if buffer is not None:
+            buffer.write(payload + b"\n")
+        else:
+            stream.write(payload.decode(encoding, errors="ignore") + "\n")
+        stream.flush()
+    except Exception:
+        pass
+
+
 def main():
+    configure_console_output()
     args = parse_args()
     ui_dir = Path(args.ui_dir).resolve()
     if not ui_dir.exists():
@@ -4925,9 +5928,9 @@ def main():
 
     handler = build_handler(ui_dir=ui_dir, service=service)
     server = ThreadingHTTPServer((args.host, args.port), handler)
-    print(f"Reader server đang chạy tại: http://{args.host}:{args.port}")
-    print(f"UI dir: {ui_dir}")
-    print(f"DB: {Path(args.db).resolve()}")
+    safe_console_print(f"Reader server running at: http://{args.host}:{args.port}")
+    safe_console_print(f"UI dir: {ui_dir}")
+    safe_console_print(f"DB: {Path(args.db).resolve()}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

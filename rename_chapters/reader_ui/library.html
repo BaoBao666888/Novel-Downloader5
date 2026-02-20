@@ -66,7 +66,7 @@
       root.classList.toggle("effects-paused", (settings.backgroundMotion || "on") !== "on");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260214-r07">
+  <link rel="stylesheet" href="./styles.css?v=20260220-vb10">
 </head>
 <body data-page="library" class="mpa-body">
   <script>
@@ -96,6 +96,7 @@
     <nav class="nav-tabs" aria-label="Điều hướng trang">
       <a id="nav-library" class="tab-btn" href="/library"></a>
       <a id="nav-search" class="tab-btn" href="/search"></a>
+      <a id="nav-explore" class="tab-btn" href="/explore"></a>
     </nav>
     <div class="topbar-actions">
       <input id="search-input" type="search" autocomplete="off">
@@ -108,6 +109,15 @@
   <div id="status-inline" class="status-inline" role="status" aria-live="polite" aria-busy="false"></div>
 
   <main class="pages single-main one-col">
+    <section class="panel library-panel history-panel">
+      <div class="panel-head">
+        <h2 id="history-title"></h2>
+        <span id="history-count" class="tag"></span>
+      </div>
+      <div id="history-grid" class="library-grid"></div>
+      <p id="history-empty" class="empty-text hidden"></p>
+    </section>
+
     <section class="panel library-panel">
       <div class="panel-head">
         <h2 id="library-title"></h2>
@@ -346,10 +356,84 @@
       </label>
       <button id="btn-vbook-install-url" class="btn btn-primary" type="submit"></button>
     </form>
+
+    <form id="vbook-install-local-form" class="vbook-install-local-form">
+      <label>
+        <span id="vbook-plugin-file-label"></span>
+        <input id="vbook-plugin-file-input" type="file" accept=".zip,application/zip" required>
+      </label>
+      <label>
+        <span id="vbook-plugin-id-local-label"></span>
+        <input id="vbook-plugin-id-local-input" type="text" placeholder="tùy chọn">
+      </label>
+      <button id="btn-vbook-install-local" class="btn btn-primary" type="submit"></button>
+    </form>
+
+    <section class="vbook-runtime-pane">
+      <div class="vbook-manager-pane-head">
+        <h4 id="vbook-runtime-title"></h4>
+        <button id="btn-vbook-reload-settings" class="btn btn-small" type="button"></button>
+      </div>
+      <p id="vbook-runtime-hint" class="dialog-subtitle"></p>
+
+      <div class="vbook-runtime-subhead">
+        <h5 id="vbook-runtime-global-title"></h5>
+      </div>
+      <div class="vbook-runtime-grid">
+        <label>
+          <span id="vbook-global-delay-label"></span>
+          <input id="vbook-global-request-delay-ms" type="number" min="0" max="15000" step="50">
+        </label>
+        <label>
+          <span id="vbook-global-threads-label"></span>
+          <input id="vbook-global-download-threads" type="number" min="1" max="16" step="1">
+        </label>
+        <label>
+          <span id="vbook-global-prefetch-label"></span>
+          <input id="vbook-global-prefetch-unread-count" type="number" min="0" max="50" step="1">
+        </label>
+      </div>
+      <div class="vbook-repo-actions">
+        <button id="btn-vbook-save-global-settings" class="btn btn-small btn-primary" type="button"></button>
+      </div>
+
+      <div class="vbook-runtime-divider"></div>
+
+      <div class="vbook-runtime-subhead">
+        <h5 id="vbook-runtime-plugin-title"></h5>
+      </div>
+      <div class="vbook-runtime-grid">
+        <label>
+          <span id="vbook-runtime-plugin-label"></span>
+          <select id="vbook-runtime-plugin-select"></select>
+        </label>
+        <label>
+          <span id="vbook-plugin-delay-label"></span>
+          <input id="vbook-plugin-request-delay-ms" type="number" min="0" max="15000" step="50" placeholder="mặc định global">
+        </label>
+        <label>
+          <span id="vbook-plugin-threads-label"></span>
+          <input id="vbook-plugin-download-threads" type="number" min="1" max="16" step="1" placeholder="mặc định global">
+        </label>
+        <label>
+          <span id="vbook-plugin-prefetch-label"></span>
+          <input id="vbook-plugin-prefetch-unread-count" type="number" min="0" max="50" step="1" placeholder="mặc định global">
+        </label>
+        <label class="vbook-runtime-wide">
+          <span id="vbook-plugin-supplemental-label"></span>
+          <textarea id="vbook-plugin-supplemental-code" rows="4" spellcheck="false" placeholder="var token = &quot;...&quot;;"></textarea>
+        </label>
+      </div>
+      <p id="vbook-plugin-fallback-hint" class="dialog-subtitle"></p>
+      <div class="vbook-repo-actions">
+        <button id="btn-vbook-save-plugin-settings" class="btn btn-small btn-primary" type="button"></button>
+        <button id="btn-vbook-clear-plugin-settings" class="btn btn-small" type="button"></button>
+      </div>
+    </section>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260215-vb01"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260220-vb11"></script>
 </body>
 </html>

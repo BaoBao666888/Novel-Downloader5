@@ -118,7 +118,7 @@ DEFAULT_UPLOAD_SETTINGS = {
 }
 
 DEFAULT_BACKGROUND_SETTINGS = {
-    'enable': False,
+    'enable': True,
     'start_hidden': False
 }
 
