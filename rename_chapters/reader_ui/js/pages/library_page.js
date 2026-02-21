@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260220-vb11";
+import { initShell } from "../site_common.js?v=20260221-vb17";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -454,6 +454,10 @@ async function init() {
   refs.btnActionExportTxt.addEventListener("click", () => exportBook("txt"));
   refs.btnActionExportEpub.addEventListener("click", () => exportBook("epub"));
   refs.btnActionDeleteBook.addEventListener("click", deleteBook);
+
+  window.addEventListener("reader-settings-changed", () => {
+    loadLibraryData().catch(() => {});
+  });
 
   await loadLibraryData();
 }

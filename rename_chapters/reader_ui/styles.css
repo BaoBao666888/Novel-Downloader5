@@ -689,24 +689,25 @@ p {
 
 .book-card-progress-row {
   margin-top: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
   min-width: 0;
 }
 
 .book-card-chapter {
   color: color-mix(in srgb, var(--text) 86%, transparent);
   font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   min-width: 0;
 }
 
 .book-card-percent {
-  flex: 0 0 auto;
+  align-self: start;
+  justify-self: start;
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 999px;
@@ -797,6 +798,93 @@ p {
   display: grid;
   gap: 6px;
   font-size: 13px;
+}
+
+.vbook-plugin-picker-toggle {
+  justify-self: start;
+}
+
+.vbook-plugin-picker-body {
+  display: grid;
+  gap: 8px;
+}
+
+.vbook-plugin-visual-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 190px;
+  overflow: auto;
+  padding: 4px 2px 0;
+}
+
+.vbook-plugin-visual-item {
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-alt) 65%, transparent);
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 190px;
+  max-width: 260px;
+  padding: 7px 9px;
+  cursor: pointer;
+}
+
+.vbook-plugin-visual-item:hover {
+  border-color: color-mix(in srgb, var(--accent) 68%, transparent);
+}
+
+.vbook-plugin-visual-item.active {
+  border-color: color-mix(in srgb, var(--accent) 92%, white 8%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent) inset;
+}
+
+.vbook-plugin-visual-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.vbook-plugin-visual-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.vbook-plugin-visual-text {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.vbook-plugin-visual-name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vbook-plugin-visual-meta {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .search-online-actions {
@@ -1405,6 +1493,35 @@ body.panel-style-clear .reader-content-body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.reader-comic-slot {
+  margin: 0;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 48%, transparent);
+  overflow: hidden;
+}
+
+.reader-comic-slot.loading {
+  min-height: clamp(180px, 34vh, 360px);
+}
+
+.reader-comic-placeholder {
+  min-height: inherit;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.reader-comic-slot.error .reader-comic-error {
+  padding: 16px;
+  color: color-mix(in srgb, #ff9b9b 84%, var(--text));
+  font-size: 13px;
+  text-align: center;
 }
 
 .reader-comic-image {

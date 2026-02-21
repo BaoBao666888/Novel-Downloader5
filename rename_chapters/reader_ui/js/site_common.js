@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260220-vb11";
+import { t } from "../i18n.vi.js?v=20260221-vb17";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -14,6 +14,8 @@ const DEFAULT_SETTINGS = {
   starStyle: "classic",
   backgroundMotion: "on",
   miniBarsEnabled: true,
+  translationEnabled: true,
+  translationMode: "server",
 };
 
 const FONT_PRESETS = [
@@ -157,6 +159,11 @@ function normalizePanelTransparency(value) {
   const v = String(value || "").trim().toLowerCase();
   if (v === "clear" || v === "balanced" || v === "solid") return v;
   return "balanced";
+}
+
+function normalizeTranslationMode(value) {
+  const mode = String(value || "").trim().toLowerCase();
+  return mode === "local" ? "local" : "server";
 }
 
 function applyPanelStyle(settings) {
@@ -344,6 +351,12 @@ function fillStaticTexts() {
     ["label-mini-bars-enabled", "miniBarsEnabled"],
     ["mini-bars-on", "miniBarsOn"],
     ["mini-bars-off", "miniBarsOff"],
+    ["label-translation-enabled", "translationEnabled"],
+    ["translation-enabled-on", "translationEnabledOn"],
+    ["translation-enabled-off", "translationEnabledOff"],
+    ["label-translation-mode", "translationMode"],
+    ["translation-mode-server", "translationModeServer"],
+    ["translation-mode-local", "translationModeLocal"],
     ["panel-clear", "panelClear"],
     ["panel-balanced", "panelBalanced"],
     ["panel-solid", "panelSolid"],
@@ -456,6 +469,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   const readingModeSelect = qs("reading-mode-select");
   const panelTransparencySelect = qs("panel-transparency-select");
   const miniBarsEnabledSelect = qs("mini-bars-enabled-select");
+  const translationEnabledSelect = qs("translation-enabled-select");
+  const translationModeSelect = qs("translation-mode-select");
 
   if (fontFamilySelect) {
     fontFamilySelect.innerHTML = "";
@@ -479,6 +494,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   if (readingModeSelect) readingModeSelect.value = state.settings.readingMode;
   if (panelTransparencySelect) panelTransparencySelect.value = normalizePanelTransparency(state.settings.panelTransparency);
   if (miniBarsEnabledSelect) miniBarsEnabledSelect.value = (state.settings.miniBarsEnabled === false) ? "off" : "on";
+  state.settings.translationEnabled = state.settings.translationEnabled !== false;
+  state.settings.translationMode = normalizeTranslationMode(state.settings.translationMode);
+  if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
+  if (translationModeSelect) translationModeSelect.value = state.settings.translationMode;
   if (qs("font-size-value")) qs("font-size-value").textContent = `${state.settings.fontSize}px`;
   if (qs("line-height-value")) qs("line-height-value").textContent = `${state.settings.lineHeight.toFixed(2)}`;
   if (qs("paragraph-spacing-value")) qs("paragraph-spacing-value").textContent = `${state.settings.paragraphSpacing.toFixed(2)}em`;
@@ -531,6 +550,57 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     syncBackdrop();
   };
   syncBackdrop();
+
+  const syncReaderTranslationForm = () => {
+    state.settings.translationEnabled = state.settings.translationEnabled !== false;
+    state.settings.translationMode = normalizeTranslationMode(state.settings.translationMode);
+    if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
+    if (translationModeSelect) {
+      translationModeSelect.value = state.settings.translationMode;
+      translationModeSelect.disabled = !state.settings.translationEnabled;
+    }
+  };
+
+  const applyReaderTranslationSettings = ({ enabled, mode }, { emit = true } = {}) => {
+    state.settings.translationEnabled = enabled !== false;
+    state.settings.translationMode = normalizeTranslationMode(mode);
+    syncReaderTranslationForm();
+    saveSettings(state.settings);
+    if (emit) emitSettingsChanged(state.settings);
+  };
+
+  const persistReaderTranslationSettings = async () => {
+    const payload = {
+      translation: {
+        enabled: state.settings.translationEnabled !== false,
+        mode: normalizeTranslationMode(state.settings.translationMode),
+      },
+    };
+    const data = await api("/api/reader/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const serverTranslation = data && data.translation && typeof data.translation === "object"
+      ? data.translation
+      : payload.translation;
+    applyReaderTranslationSettings(serverTranslation, { emit: true });
+    return serverTranslation;
+  };
+
+  try {
+    const readerSettings = await api("/api/reader/settings");
+    const translation = readerSettings && readerSettings.translation && typeof readerSettings.translation === "object"
+      ? readerSettings.translation
+      : null;
+    if (translation) {
+      applyReaderTranslationSettings(translation, { emit: false });
+    } else {
+      syncReaderTranslationForm();
+    }
+  } catch {
+    syncReaderTranslationForm();
+  }
 
   const query = parseQuery();
   const searchInput = qs("search-input");
@@ -623,6 +693,30 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     });
   }
 
+  if (translationEnabledSelect) {
+    translationEnabledSelect.addEventListener("change", async () => {
+      state.settings.translationEnabled = String(translationEnabledSelect.value || "").trim().toLowerCase() !== "off";
+      syncReaderTranslationForm();
+      try {
+        await persistReaderTranslationSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
+    });
+  }
+
+  if (translationModeSelect) {
+    translationModeSelect.addEventListener("change", async () => {
+      state.settings.translationMode = normalizeTranslationMode(translationModeSelect.value);
+      syncReaderTranslationForm();
+      try {
+        await persistReaderTranslationSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
+    });
+  }
+
   if (fontSizeInput) {
     fontSizeInput.addEventListener("input", () => {
       state.settings.fontSize = Number(fontSizeInput.value) || DEFAULT_SETTINGS.fontSize;
@@ -654,7 +748,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   }
 
   if (qs("settings-form")) {
-    qs("settings-form").addEventListener("submit", (event) => {
+    qs("settings-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       state.settings.fontFamily = (fontFamilySelect && fontFamilySelect.value) || DEFAULT_SETTINGS.fontFamily;
       state.settings.starStyle = (starStyleSelect && starStyleSelect.value) || DEFAULT_SETTINGS.starStyle;
@@ -663,18 +757,26 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       state.settings.readingMode = (readingModeSelect && readingModeSelect.value) || DEFAULT_SETTINGS.readingMode;
       state.settings.panelTransparency = normalizePanelTransparency((panelTransparencySelect && panelTransparencySelect.value) || DEFAULT_SETTINGS.panelTransparency);
       state.settings.miniBarsEnabled = (miniBarsEnabledSelect && miniBarsEnabledSelect.value) !== "off";
+      state.settings.translationEnabled = (translationEnabledSelect && translationEnabledSelect.value) !== "off";
+      state.settings.translationMode = normalizeTranslationMode((translationModeSelect && translationModeSelect.value) || DEFAULT_SETTINGS.translationMode);
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
+      syncReaderTranslationForm();
       saveSettings(state.settings);
       emitSettingsChanged(state.settings);
+      try {
+        await persistReaderTranslationSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
       showToast(t("toastSettingsSaved"));
       closeSettings();
     });
   }
 
   if (qs("btn-reset-settings")) {
-    qs("btn-reset-settings").addEventListener("click", () => {
+    qs("btn-reset-settings").addEventListener("click", async () => {
       state.settings = { ...DEFAULT_SETTINGS, themeId: state.settings.themeId };
       if (fontFamilySelect) fontFamilySelect.value = state.settings.fontFamily;
       if (starStyleSelect) starStyleSelect.value = state.settings.starStyle;
@@ -686,11 +788,19 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       if (readingModeSelect) readingModeSelect.value = state.settings.readingMode;
       if (panelTransparencySelect) panelTransparencySelect.value = normalizePanelTransparency(state.settings.panelTransparency);
       if (miniBarsEnabledSelect) miniBarsEnabledSelect.value = state.settings.miniBarsEnabled ? "on" : "off";
+      if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
+      if (translationModeSelect) translationModeSelect.value = normalizeTranslationMode(state.settings.translationMode);
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
+      syncReaderTranslationForm();
       saveSettings(state.settings);
       emitSettingsChanged(state.settings);
+      try {
+        await persistReaderTranslationSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
       showToast(t("toastSettingsReset"));
     });
   }
@@ -1542,6 +1652,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     hideStatus,
     settings: state.settings,
     getReadingMode: () => state.settings.readingMode,
+    getTranslationEnabled: () => state.settings.translationEnabled !== false,
+    getTranslationMode: () => normalizeTranslationMode(state.settings.translationMode),
     getVbookSettings: (pluginId = "") => runtimeEffectiveSettings(pluginId),
     getVbookGlobalSettings: () => normalizeVbookGlobalSettings(state.vbook.globalSettings || {}),
     refreshVbookSettings: (pluginId = "") => refreshVbookRuntimeSettings({ silent: true, pluginId }),

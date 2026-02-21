@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260220-vb03";
+import { initShell } from "../site_common.js?v=20260221-vb17";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -688,6 +688,14 @@ async function init() {
   });
   refs.btnTocNext.addEventListener("click", () => {
     if (state.pagination.page < state.pagination.total_pages) loadToc(state.pagination.page + 1);
+  });
+
+  window.addEventListener("reader-settings-changed", () => {
+    if (!state.bookId) return;
+    const keepPage = Math.max(1, Number(state.pagination.page || 1));
+    loadBook()
+      .then(() => loadToc(keepPage))
+      .catch(() => {});
   });
 
   const query = state.shell.parseQuery();

@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260220-vb04";
+import { initShell } from "../site_common.js?v=20260221-vb17";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260220-vb04";
 
 const refs = {
@@ -158,6 +158,10 @@ async function init() {
 
   refs.searchBooksTitle.textContent = state.shell.t("searchBooksTitle");
   refs.chapterHitsTitle.textContent = state.shell.t("chapterHitsTitle");
+
+  window.addEventListener("reader-settings-changed", () => {
+    runSearch(state.query, { updateUrl: false }).catch(() => {});
+  });
 
   const query = state.shell.parseQuery();
   state.query = String(query.q || "").trim();

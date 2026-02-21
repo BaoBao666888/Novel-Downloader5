@@ -26,6 +26,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, unquote, urlparse
+from urllib import request as urllib_request
+from urllib import error as urllib_error
 import xml.etree.ElementTree as ET
 
 
@@ -34,6 +36,7 @@ LOCAL_DIR = ROOT_DIR / "local"
 CACHE_DIR = LOCAL_DIR / "reader_cache"
 EXPORT_DIR = LOCAL_DIR / "reader_exports"
 COVER_DIR = LOCAL_DIR / "reader_covers"
+VBOOK_IMAGE_CACHE_DIR = CACHE_DIR / "vbook_image_cache"
 DB_PATH = LOCAL_DIR / "reader_library.db"
 DEFAULT_UI_DIR = ROOT_DIR / "reader_ui"
 APP_CONFIG_PATH = ROOT_DIR / "config.json"
@@ -102,11 +105,12 @@ def resolve_existing_path(raw: str | Path, *bases: Path) -> Path:
 
 def set_local_dirs(local_dir: Path) -> None:
     """Override local/cache/export/cover dirs theo vị trí DB để ND5 + Reader dùng chung."""
-    global LOCAL_DIR, CACHE_DIR, EXPORT_DIR, COVER_DIR, DB_PATH
+    global LOCAL_DIR, CACHE_DIR, EXPORT_DIR, COVER_DIR, VBOOK_IMAGE_CACHE_DIR, DB_PATH
     LOCAL_DIR = local_dir
     CACHE_DIR = LOCAL_DIR / "reader_cache"
     EXPORT_DIR = LOCAL_DIR / "reader_exports"
     COVER_DIR = LOCAL_DIR / "reader_covers"
+    VBOOK_IMAGE_CACHE_DIR = CACHE_DIR / "vbook_image_cache"
     DB_PATH = LOCAL_DIR / "reader_library.db"
 
 
@@ -319,6 +323,29 @@ def quote_url_path(value: str) -> str:
     return quote(value or "", safe="")
 
 
+def build_vbook_image_proxy_path(image_url: str, *, plugin_id: str = "", referer: str = "") -> str:
+    url = str(image_url or "").strip()
+    if not url:
+        return ""
+    if not (url.startswith("http://") or url.startswith("https://")):
+        return url
+    parts = [f"url={quote_url_path(url)}"]
+    pid = str(plugin_id or "").strip()
+    if pid:
+        parts.append(f"plugin_id={quote_url_path(pid)}")
+    ref = str(referer or "").strip()
+    if ref:
+        parts.append(f"referer={quote_url_path(ref)}")
+    return "/media/vbook-image?" + "&".join(parts)
+
+
+def build_vbook_plugin_icon_path(plugin_id: str) -> str:
+    pid = str(plugin_id or "").strip()
+    if not pid:
+        return ""
+    return f"/media/vbook-plugin-icon?plugin_id={quote_url_path(pid)}"
+
+
 def normalize_lang_source(value: str) -> str:
     raw = str(value or "").strip().lower()
     if not raw:
@@ -333,7 +360,7 @@ def is_lang_zh(value: str) -> bool:
 
 def is_book_comic(book: dict[str, Any] | None) -> bool:
     source_type = str((book or {}).get("source_type") or "").strip().lower()
-    return source_type in {"comic", "vbook_comic"}
+    return source_type in {"comic", "vbook_comic", "vbook_session_comic"}
 
 
 def book_supports_translation(book: dict[str, Any] | None) -> bool:
@@ -375,6 +402,7 @@ def ensure_dirs() -> None:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
     COVER_DIR.mkdir(parents=True, exist_ok=True)
+    VBOOK_IMAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_app_config() -> dict[str, Any]:
@@ -2512,6 +2540,7 @@ class ReaderStorage:
                     ORDER BY c.chapter_order ASC
                     LIMIT 1
                 )
+                WHERE lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'
                 ORDER BY b.updated_at DESC
                 """
             ).fetchall()
@@ -2569,31 +2598,49 @@ class ReaderStorage:
             row = conn.execute("SELECT * FROM books WHERE book_id = ?", (book_id,)).fetchone()
         return dict(row) if row else None
 
-    def find_book_by_source(self, source_url: str, source_plugin: str | None = None) -> dict[str, Any] | None:
+    def find_book_by_source(
+        self,
+        source_url: str,
+        source_plugin: str | None = None,
+        *,
+        include_session: bool = True,
+    ) -> dict[str, Any] | None:
         source = str(source_url or "").strip()
         plugin = str(source_plugin or "").strip()
         if not source:
             return None
         with self._connect() as conn:
             if plugin:
-                row = conn.execute(
-                    """
+                sql = """
                     SELECT * FROM books
                     WHERE source_url = ? AND source_plugin = ?
+                """
+                params: list[Any] = [source, plugin]
+                if not include_session:
+                    sql += " AND lower(COALESCE(source_type, '')) NOT LIKE 'vbook_session%'"
+                sql += """
                     ORDER BY updated_at DESC
                     LIMIT 1
-                    """,
-                    (source, plugin),
+                """
+                row = conn.execute(
+                    sql,
+                    tuple(params),
                 ).fetchone()
             else:
-                row = conn.execute(
-                    """
+                sql = """
                     SELECT * FROM books
                     WHERE source_url = ?
+                """
+                params = [source]
+                if not include_session:
+                    sql += " AND lower(COALESCE(source_type, '')) NOT LIKE 'vbook_session%'"
+                sql += """
                     ORDER BY updated_at DESC
                     LIMIT 1
-                    """,
-                    (source,),
+                """
+                row = conn.execute(
+                    sql,
+                    tuple(params),
                 ).fetchone()
         return dict(row) if row else None
 
@@ -2604,6 +2651,13 @@ class ReaderStorage:
         if not cover:
             return ""
         if cover.startswith("http://") or cover.startswith("https://") or cover.startswith("data:"):
+            source_type = str(book.get("source_type") or "").strip().lower()
+            if source_type.startswith("vbook"):
+                return build_vbook_image_proxy_path(
+                    cover,
+                    plugin_id=str(book.get("source_plugin") or "").strip(),
+                    referer=str(book.get("source_url") or "").strip(),
+                )
             return cover
         return f"/media/cover/{quote_url_path(Path(cover).name)}"
 
@@ -2921,6 +2975,11 @@ class ReaderStorage:
                 ratio_value = 0.0
             item["last_read_ratio"] = ratio_value
             item["progress_percent"] = max(0.0, min(100.0, ratio_value * 100.0))
+            item["cover_url"] = build_vbook_image_proxy_path(
+                str(item.get("cover_url") or "").strip(),
+                plugin_id=str(item.get("plugin_id") or "").strip(),
+                referer=str(item.get("source_url") or "").strip(),
+            )
             out.append(item)
         return out
 
@@ -3008,6 +3067,11 @@ class ReaderStorage:
                 ratio2 = 0.0
             item["last_read_ratio"] = ratio2
             item["progress_percent"] = max(0.0, min(100.0, ratio2 * 100.0))
+            item["cover_url"] = build_vbook_image_proxy_path(
+                str(item.get("cover_url") or "").strip(),
+                plugin_id=str(item.get("plugin_id") or "").strip(),
+                referer=str(item.get("source_url") or "").strip(),
+            )
         return item
 
     def delete_history_book(self, history_id: str) -> bool:
@@ -3164,8 +3228,11 @@ class ReaderStorage:
                 """
                 SELECT book_id, title, title_vi, author, author_vi, lang_source, source_type, chapter_count, updated_at, cover_path
                 FROM books
-                WHERE lower(title) LIKE ? OR lower(COALESCE(title_vi,'')) LIKE ?
-                   OR lower(author) LIKE ? OR lower(COALESCE(author_vi,'')) LIKE ?
+                WHERE lower(COALESCE(source_type, '')) NOT LIKE 'vbook_session%'
+                  AND (
+                    lower(title) LIKE ? OR lower(COALESCE(title_vi,'')) LIKE ?
+                    OR lower(author) LIKE ? OR lower(COALESCE(author_vi,'')) LIKE ?
+                  )
                 ORDER BY updated_at DESC
                 """,
                 (f"%{key}%", f"%{key}%", f"%{key}%", f"%{key}%"),
@@ -3177,7 +3244,8 @@ class ReaderStorage:
                        b.title AS book_title, b.title_vi AS book_title_vi
                 FROM chapters c
                 JOIN books b ON b.book_id = c.book_id
-                WHERE lower(c.title_raw) LIKE ? OR lower(COALESCE(c.title_vi, '')) LIKE ?
+                WHERE lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'
+                  AND (lower(c.title_raw) LIKE ? OR lower(COALESCE(c.title_vi, '')) LIKE ?)
                 ORDER BY c.updated_at DESC
                 LIMIT 120
                 """,
@@ -3418,6 +3486,7 @@ class ReaderService:
         self.vbook_bridge_cookie_db_path = ROOT_DIR / "qt_browser_profile" / "storage" / "Cookies"
         self._vbook_bridge_state_cache: dict[str, Any] = {}
         self._vbook_bridge_state_mtime: float | None = None
+        self.reader_translation_settings: dict[str, Any] = {"enabled": True, "mode": "server"}
         self.name_set_state: dict[str, Any] = {"sets": {"Mặc định": {}}, "active_set": "Mặc định", "version": 1}
         # Allow storage to lazy-load remote chapter content (vBook, ...).
         self.storage.remote_chapter_fetcher = self._fetch_remote_chapter
@@ -3438,6 +3507,7 @@ class ReaderService:
 
     def refresh_config(self) -> None:
         self.app_config = load_app_config()
+        self.reader_translation_settings = self._normalized_reader_translation_settings(self.app_config)
         default_sets = self._default_name_sets()
         default_active = self._default_active_name_set(default_sets)
         self.name_set_state = self.storage.get_name_set_state(
@@ -3541,19 +3611,39 @@ class ReaderService:
             chapters=chapters,
         )
 
-    def import_vbook_url(self, url: str, *, plugin_id: str | None = None) -> dict[str, Any]:
+    def import_vbook_url(
+        self,
+        url: str,
+        *,
+        plugin_id: str | None = None,
+        history_only: bool = False,
+    ) -> dict[str, Any]:
         source_url = (url or "").strip()
         if not source_url:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL để import.")
 
         plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id)
-        existing = self.storage.find_book_by_source(source_url, plugin.plugin_id)
-        if existing:
-            try:
-                self.storage.remove_history_by_source(plugin_id=plugin.plugin_id, source_url=source_url)
-            except Exception:
-                pass
-            return self.storage.get_book_detail(existing["book_id"]) or existing
+        existing_normal = self.storage.find_book_by_source(
+            source_url,
+            plugin.plugin_id,
+            include_session=False,
+        )
+        if existing_normal:
+            if not history_only:
+                try:
+                    self.storage.remove_history_by_source(plugin_id=plugin.plugin_id, source_url=source_url)
+                except Exception:
+                    pass
+            return self.storage.get_book_detail(existing_normal["book_id"]) or existing_normal
+
+        if history_only:
+            existing_session = self.storage.find_book_by_source(
+                source_url,
+                plugin.plugin_id,
+                include_session=True,
+            )
+            if existing_session:
+                return self.storage.get_book_detail(existing_session["book_id"]) or existing_session
         detail = self._run_vbook_script(plugin, "detail", [source_url])
         toc_rows = self._fetch_vbook_toc(plugin, source_url)
 
@@ -3564,12 +3654,15 @@ class ReaderService:
         author = normalize_vbook_display_text(str((detail or {}).get("author") or ""), single_line=True)
         cover_path = str((detail or {}).get("cover") or "").strip()
         plugin_type = str(plugin.type or "").strip().lower()
-        source_type = "vbook_comic" if "comic" in plugin_type else "vbook"
+        if history_only:
+            source_type = "vbook_session_comic" if "comic" in plugin_type else "vbook_session"
+        else:
+            source_type = "vbook_comic" if "comic" in plugin_type else "vbook"
         summary = normalize_vbook_display_text(
             str((detail or {}).get("description") or ""),
             single_line=False,
         ) or (
-            "Truyện tranh được import từ URL (vBook extension)." if source_type == "vbook_comic" else "Truyện được import từ URL (vBook extension)."
+            "Truyện tranh được import từ URL (vBook extension)." if "comic" in source_type else "Truyện được import từ URL (vBook extension)."
         )
         extra_link = source_url
 
@@ -3610,10 +3703,11 @@ class ReaderService:
             cover_path=cover_path,
             extra_link=extra_link,
         )
-        try:
-            self.storage.remove_history_by_source(plugin_id=plugin.plugin_id, source_url=source_url)
-        except Exception:
-            pass
+        if not history_only:
+            try:
+                self.storage.remove_history_by_source(plugin_id=plugin.plugin_id, source_url=source_url)
+            except Exception:
+                pass
         return created
 
     def reload_chapter(self, chapter_id: str) -> dict[str, Any]:
@@ -3646,9 +3740,6 @@ class ReaderService:
             **cleared,
         }
 
-    def list_history_books(self) -> list[dict[str, Any]]:
-        return self.storage.list_history_books()
-
     def upsert_history_book(self, payload: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(payload, dict):
             payload = {}
@@ -3663,11 +3754,11 @@ class ReaderService:
                     plugin_id = str(getattr(plugin, "plugin_id", "") or "").strip()
             except Exception:
                 plugin_id = ""
-        title = str(payload.get("title") or "").strip() or source_url
-        author = str(payload.get("author") or "").strip()
+        title = str(payload.get("title_raw") or payload.get("title") or "").strip() or source_url
+        author = str(payload.get("author_raw") or payload.get("author") or "").strip()
         cover_url = str(payload.get("cover_url") or "").strip()
         chapter_url = str(payload.get("last_read_chapter_url") or "").strip()
-        chapter_title = str(payload.get("last_read_chapter_title") or "").strip()
+        chapter_title = str(payload.get("last_read_chapter_title_raw") or payload.get("last_read_chapter_title") or "").strip()
         ratio = payload.get("last_read_ratio")
         ratio_value = float(ratio) if isinstance(ratio, (int, float)) else None
         try:
@@ -3686,6 +3777,169 @@ class ReaderService:
 
     def delete_history_book(self, history_id: str) -> bool:
         return self.storage.delete_history_book(history_id)
+
+    def _reader_translation_cfg(self, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+        raw_cfg = cfg if isinstance(cfg, dict) else self.app_config
+        payload = raw_cfg.get("reader_translation") if isinstance(raw_cfg, dict) else {}
+        return payload if isinstance(payload, dict) else {}
+
+    def _parse_bool(self, value: Any, default: bool = True) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(int(value))
+        text = str(value or "").strip().lower()
+        if not text:
+            return bool(default)
+        if text in {"1", "true", "yes", "on", "enable", "enabled"}:
+            return True
+        if text in {"0", "false", "no", "off", "disable", "disabled"}:
+            return False
+        return bool(default)
+
+    def _normalize_translate_mode(self, value: Any, default: str = "server") -> str:
+        mode = str(value or "").strip().lower()
+        if mode in {"server", "local"}:
+            return mode
+        return "local" if default == "local" else "server"
+
+    def _normalized_reader_translation_settings(self, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload = self._reader_translation_cfg(cfg)
+        return {
+            "enabled": self._parse_bool(payload.get("enabled"), True),
+            "mode": self._normalize_translate_mode(payload.get("mode"), "server"),
+        }
+
+    def get_reader_settings(self) -> dict[str, Any]:
+        return {
+            "ok": True,
+            "translation": {
+                "enabled": bool(self.reader_translation_settings.get("enabled", True)),
+                "mode": self._normalize_translate_mode(self.reader_translation_settings.get("mode"), "server"),
+            },
+        }
+
+    def set_reader_settings(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(payload, dict):
+            payload = {}
+        translation_payload = payload.get("translation")
+        if isinstance(translation_payload, dict):
+            patch = translation_payload
+        else:
+            patch = payload
+
+        cfg = load_app_config()
+        if not isinstance(cfg, dict):
+            cfg = {}
+        existing = self._normalized_reader_translation_settings(cfg)
+        next_settings = {
+            "enabled": self._parse_bool(patch.get("enabled"), existing["enabled"]),
+            "mode": self._normalize_translate_mode(patch.get("mode"), existing["mode"]),
+        }
+        cfg["reader_translation"] = next_settings
+        save_app_config(cfg)
+        self.refresh_config()
+        return self.get_reader_settings()
+
+    def is_reader_translation_enabled(self) -> bool:
+        return bool(self.reader_translation_settings.get("enabled", True))
+
+    def reader_translation_mode(self) -> str:
+        return self._normalize_translate_mode(self.reader_translation_settings.get("mode"), "server")
+
+    def resolve_translate_mode(self, preferred: Any = None) -> str:
+        return self._normalize_translate_mode(preferred, self.reader_translation_mode())
+
+    def translation_allowed_for_book(self, book: dict[str, Any] | None) -> bool:
+        return bool(self.is_reader_translation_enabled() and book_supports_translation(book))
+
+    def _contains_cjk_text(self, text: str) -> bool:
+        return bool(re.search(r"[\u3400-\u9fff]", str(text or "")))
+
+    def _translate_ui_text(self, text: str, *, single_line: bool = False, mode: str | None = None) -> str:
+        value = normalize_vbook_display_text(text or "", single_line=False)
+        if not value:
+            return ""
+        if not self.is_reader_translation_enabled():
+            return normalize_vbook_display_text(value, single_line=single_line)
+        if not self._contains_cjk_text(value):
+            return normalize_vbook_display_text(value, single_line=single_line)
+        try:
+            translate_mode = self.resolve_translate_mode(mode)
+            translated = self.translator.translate_detailed(value, mode=translate_mode).get("translated") or value
+            translated = normalize_vi_display_text(translated)
+            return normalize_vbook_display_text(translated, single_line=single_line) or normalize_vbook_display_text(
+                value,
+                single_line=single_line,
+            )
+        except Exception:
+            return normalize_vbook_display_text(value, single_line=single_line)
+
+    def _apply_book_card_translation(self, item: dict[str, Any]) -> dict[str, Any]:
+        out = dict(item or {})
+        is_zh = is_lang_zh(str(out.get("lang_source") or ""))
+        can_translate = bool((not is_book_comic(out)) and is_zh and self.is_reader_translation_enabled())
+        out["translation_supported"] = can_translate
+        raw_title = normalize_vbook_display_text(str(out.get("title") or ""), single_line=True)
+        raw_author = normalize_vbook_display_text(str(out.get("author") or ""), single_line=True)
+        vi_title = normalize_vi_display_text(out.get("title_vi") or "")
+        vi_author = normalize_vi_display_text(out.get("author_vi") or "")
+        if can_translate:
+            out["title_display"] = vi_title or self._translate_ui_text(raw_title, single_line=True)
+            out["author_display"] = vi_author or self._translate_ui_text(raw_author, single_line=True)
+            cur_raw = normalize_vbook_display_text(str(out.get("current_chapter_title_raw") or ""), single_line=True)
+            cur_vi = normalize_vi_display_text(out.get("current_chapter_title_vi") or "")
+            out["current_chapter_title_display"] = cur_vi or self._translate_ui_text(cur_raw, single_line=True) or cur_raw
+        else:
+            out["title_display"] = raw_title or vi_title
+            out["author_display"] = raw_author or vi_author
+            cur_raw = normalize_vbook_display_text(str(out.get("current_chapter_title_raw") or ""), single_line=True)
+            cur_vi = normalize_vi_display_text(out.get("current_chapter_title_vi") or "")
+            out["current_chapter_title_display"] = cur_raw or cur_vi
+        return out
+
+    def list_books(self) -> list[dict[str, Any]]:
+        items = self.storage.list_books()
+        return [self._apply_book_card_translation(x) for x in items]
+
+    def search(self, query: str) -> dict[str, Any]:
+        data = self.storage.search(query)
+        books = [self._apply_book_card_translation(x) for x in (data.get("books") or [])]
+        chapters_raw = data.get("chapters") or []
+        chapters: list[dict[str, Any]] = []
+        allow = self.is_reader_translation_enabled()
+        for row in chapters_raw:
+            item = dict(row or {})
+            is_zh = is_lang_zh(str(item.get("lang_source") or "zh"))
+            title_raw = normalize_vbook_display_text(str(item.get("title_raw") or ""), single_line=True)
+            title_vi = normalize_vi_display_text(item.get("title_vi") or "")
+            book_title_raw = normalize_vbook_display_text(str(item.get("book_title") or ""), single_line=True)
+            book_title_vi = normalize_vi_display_text(item.get("book_title_vi") or "")
+            if allow and is_zh:
+                item["title_display"] = title_vi or self._translate_ui_text(title_raw, single_line=True) or title_raw
+                item["book_title_display"] = book_title_vi or self._translate_ui_text(book_title_raw, single_line=True) or book_title_raw
+            else:
+                item["title_display"] = title_raw or title_vi
+                item["book_title_display"] = book_title_raw or book_title_vi
+            chapters.append(item)
+        return {"books": books, "chapters": chapters}
+
+    def list_history_books(self) -> list[dict[str, Any]]:
+        items = self.storage.list_history_books()
+        allow = self.is_reader_translation_enabled()
+        if not allow:
+            return items
+        out: list[dict[str, Any]] = []
+        for row in items:
+            item = dict(row)
+            item["title"] = self._translate_ui_text(item.get("title") or "", single_line=True) or (item.get("title") or "")
+            item["author"] = self._translate_ui_text(item.get("author") or "", single_line=True) or (item.get("author") or "")
+            item["last_read_chapter_title"] = self._translate_ui_text(
+                item.get("last_read_chapter_title") or "",
+                single_line=True,
+            ) or (item.get("last_read_chapter_title") or "")
+            out.append(item)
+        return out
 
     def _vbook_cfg(self) -> dict[str, Any]:
         raw = self.app_config.get("vbook") or {}
@@ -3965,6 +4219,7 @@ class ReaderService:
             "encrypt": bool(p.encrypt),
             "scripts": sorted(list((p.scripts or {}).keys())),
             "has_runtime_override": bool(pid and pid in (self.vbook_plugin_runtime_overrides or {})),
+            "icon_url": build_vbook_plugin_icon_path(str(getattr(p, "plugin_id", "") or "")),
         }
 
     def list_vbook_plugins(self) -> list[dict[str, Any]]:
@@ -4062,6 +4317,108 @@ class ReaderService:
         if not pid:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_id.")
         return bool(self.vbook_manager.remove_plugin(pid))
+
+    def _vbook_plugin_icon_candidates(self, icon_raw: str = "") -> list[str]:
+        base = [
+            "icon.png",
+            "icon.webp",
+            "icon.jpg",
+            "icon.jpeg",
+            "icon.svg",
+            "cover.png",
+            "cover.webp",
+            "cover.jpg",
+            "cover.jpeg",
+        ]
+        out: list[str] = []
+        if icon_raw:
+            out.append(icon_raw)
+        out.extend(base)
+        cleaned: list[str] = []
+        for raw in out:
+            text = str(raw or "").replace("\\", "/").strip().lstrip("/")
+            if not text:
+                continue
+            parts = [x for x in text.split("/") if x]
+            if (not parts) or any(x == ".." for x in parts):
+                continue
+            value = "/".join(parts)
+            if value not in cleaned:
+                cleaned.append(value)
+        return cleaned
+
+    def _read_vbook_plugin_icon_from_dir(self, plugin_path: Path) -> tuple[bytes, str] | None:
+        if not plugin_path.exists() or not plugin_path.is_dir():
+            return None
+        icon_hint = ""
+        plugin_json = plugin_path / "plugin.json"
+        try:
+            payload = json.loads(plugin_json.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                meta = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+                icon_hint = str((meta or {}).get("icon") or "").strip()
+        except Exception:
+            icon_hint = ""
+
+        for rel in self._vbook_plugin_icon_candidates(icon_hint):
+            cand = plugin_path / rel
+            if not cand.exists() or not cand.is_file():
+                continue
+            try:
+                data = cand.read_bytes()
+            except Exception:
+                continue
+            if not data:
+                continue
+            ctype = mimetypes.guess_type(str(cand))[0] or "application/octet-stream"
+            return data, ctype
+        return None
+
+    def _read_vbook_plugin_icon_from_zip(self, plugin_path: Path) -> tuple[bytes, str] | None:
+        if not plugin_path.exists() or (not plugin_path.is_file()):
+            return None
+        try:
+            with zipfile.ZipFile(plugin_path, "r") as zf:
+                icon_hint = ""
+                try:
+                    raw = zf.read("plugin.json")
+                    payload = json.loads(raw.decode("utf-8", errors="ignore"))
+                    if isinstance(payload, dict):
+                        meta = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+                        icon_hint = str((meta or {}).get("icon") or "").strip()
+                except Exception:
+                    icon_hint = ""
+
+                names = [str(x or "").replace("\\", "/").lstrip("/") for x in zf.namelist()]
+                lower_map = {name.lower(): name for name in names}
+                for rel in self._vbook_plugin_icon_candidates(icon_hint):
+                    key = rel.lower()
+                    actual = lower_map.get(key)
+                    if not actual:
+                        continue
+                    try:
+                        data = zf.read(actual)
+                    except Exception:
+                        continue
+                    if not data:
+                        continue
+                    ctype = mimetypes.guess_type(actual)[0] or "application/octet-stream"
+                    return data, ctype
+        except Exception:
+            return None
+        return None
+
+    def get_vbook_plugin_icon(self, plugin_id: str) -> tuple[bytes, str]:
+        plugin = self._require_vbook_plugin(plugin_id)
+        plugin_path = Path(str(getattr(plugin, "path", "") or ""))
+        icon_data: tuple[bytes, str] | None = None
+        if plugin_path.is_dir():
+            icon_data = self._read_vbook_plugin_icon_from_dir(plugin_path)
+        elif plugin_path.is_file() and plugin_path.suffix.lower() == ".zip":
+            icon_data = self._read_vbook_plugin_icon_from_zip(plugin_path)
+        if icon_data is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Plugin chưa có icon.")
+        return icon_data
 
     def _resolve_vbook_plugin(self, url: str, *, plugin_id: str | None) -> Any:
         if not self.vbook_manager:
@@ -4177,6 +4534,108 @@ class ReaderService:
                 return host
         return ""
 
+    def _vbook_host_keyword(self, host: str) -> str:
+        norm = normalize_host(host).lstrip("www.")
+        if not norm:
+            return ""
+        ignored = {"www", "m", "mobile", "api", "com", "net", "org", "co", "vn", "online", "app"}
+        parts = [x for x in norm.split(".") if x]
+        candidates = [
+            p
+            for p in parts
+            if p not in ignored
+            and (not p.startswith("api-"))
+            and (not p.isdigit())
+            and len(p) >= 3
+        ]
+        if not candidates:
+            return ""
+        candidates.sort(key=len, reverse=True)
+        return candidates[0]
+
+    def _vbook_bridge_host_candidates(self, plugin: Any, script_key: str, args: list[Any], state: dict[str, Any]) -> list[str]:
+        out: list[str] = []
+
+        def push(host_raw: str) -> None:
+            host_norm = normalize_host(host_raw)
+            if not host_norm:
+                return
+            for alias in host_aliases(host_norm):
+                if alias not in out:
+                    out.append(alias)
+
+        direct_host = self._extract_vbook_request_host(plugin, script_key, args)
+        source_host = normalize_host(str(getattr(plugin, "source", "") or ""))
+        push(direct_host)
+        push(source_host)
+
+        for host in [direct_host, source_host]:
+            norm = normalize_host(host).lstrip("www.")
+            if not norm:
+                continue
+            if norm.endswith(".com.vn"):
+                base = norm.removesuffix(".com.vn")
+                if base and "." not in base:
+                    push(f"{base}.vn")
+                    push(f"api.{base}.vn")
+                    push(f"api-01.{base}.vn")
+                    push(f"api-02.{base}.vn")
+            elif norm.endswith(".vn") and (not norm.endswith(".com.vn")):
+                base = norm.removesuffix(".vn")
+                if base and "." not in base:
+                    push(f"{base}.com.vn")
+
+        hosts_raw = state.get("hosts") if isinstance(state, dict) else {}
+        if isinstance(hosts_raw, dict) and hosts_raw:
+            keywords = {
+                x for x in [
+                    self._vbook_host_keyword(direct_host),
+                    self._vbook_host_keyword(source_host),
+                ] if x
+            }
+            ranked: list[tuple[int, str, str]] = []
+            for raw_host, row in hosts_raw.items():
+                host_norm = normalize_host(str(raw_host or ""))
+                if not host_norm:
+                    continue
+                if not keywords:
+                    continue
+                score = sum(1 for kw in keywords if kw in host_norm)
+                if score <= 0:
+                    continue
+                updated_at = ""
+                if isinstance(row, dict):
+                    updated_at = str(row.get("updated_at") or "")
+                ranked.append((score, updated_at, host_norm))
+            ranked.sort(key=lambda x: (x[0], x[1]), reverse=True)
+            for _, _, host_norm in ranked:
+                push(host_norm)
+        return out
+
+    def _vbook_default_headers_from_bridge_entry(self, entry: dict[str, Any]) -> dict[str, str]:
+        headers_raw = entry.get("headers") if isinstance(entry, dict) else {}
+        if not isinstance(headers_raw, dict):
+            return {}
+        disallow = {
+            "cookie",
+            "user-agent",
+            "host",
+            "content-length",
+            "connection",
+            "transfer-encoding",
+            "accept-encoding",
+        }
+        out: dict[str, str] = {}
+        for key_raw, value_raw in headers_raw.items():
+            key = str(key_raw or "").strip()
+            value = str(value_raw or "").strip()
+            if (not key) or (not value):
+                continue
+            if key.lower() in disallow:
+                continue
+            out[key] = value
+        return out
+
     def _cookie_header_from_sqlite_db(self, db_path: Path, host: str) -> str:
         if not db_path.exists():
             return ""
@@ -4255,23 +4714,44 @@ class ReaderService:
         override["supplemental_code"] = str(runtime_cfg.get("supplemental_code") or "")
 
         if self.vbook_bridge_enabled:
-            host = self._extract_vbook_request_host(plugin, script_key, args)
-            if host:
-                state = self._load_vbook_bridge_state()
-                entry = self._pick_bridge_host_entry(state, host)
+            state = self._load_vbook_bridge_state()
+            host_candidates = self._vbook_bridge_host_candidates(plugin, script_key, args, state)
+            entry: dict[str, Any] = {}
+            for host in host_candidates:
+                probe = self._pick_bridge_host_entry(state, host)
+                if isinstance(probe, dict) and probe:
+                    entry = probe
+                    break
 
-                user_agent = str(entry.get("user_agent") or "").strip()
-                if not user_agent:
-                    user_agent = str(state.get("default_user_agent") or "").strip()
+            user_agent = str(entry.get("user_agent") or "").strip()
+            if not user_agent:
+                user_agent = str(state.get("default_user_agent") or "").strip()
 
-                cookie_header = str(entry.get("cookie_header") or "").strip()
-                if not cookie_header:
+            cookie_header = str(entry.get("cookie_header") or "").strip()
+            if not cookie_header:
+                for host in host_candidates:
                     cookie_header = self._fallback_cookie_header_from_bridge_state(host, state)
+                    if cookie_header:
+                        break
 
-                if user_agent:
-                    override["default_user_agent"] = user_agent
-                if cookie_header:
-                    override["default_cookie"] = cookie_header
+            default_headers = self._vbook_default_headers_from_bridge_entry(entry)
+            source = str(getattr(plugin, "source", "") or "").strip()
+            if source:
+                source_url = source if (source.startswith("http://") or source.startswith("https://")) else f"https://{source.lstrip('/')}"
+                header_keys_lower = {k.lower() for k in default_headers.keys()}
+                if "referer" not in header_keys_lower:
+                    default_headers.setdefault("Referer", source_url)
+                parsed_source = urlparse(source_url)
+                if parsed_source.scheme and parsed_source.netloc:
+                    if "origin" not in header_keys_lower:
+                        default_headers.setdefault("Origin", f"{parsed_source.scheme}://{parsed_source.netloc}")
+
+            if user_agent:
+                override["default_user_agent"] = user_agent
+            if cookie_header:
+                override["default_cookie"] = cookie_header
+            if default_headers:
+                override["default_headers"] = default_headers
         return override
 
     def get_vbook_bridge_state(self) -> dict[str, Any]:
@@ -4335,11 +4815,24 @@ class ReaderService:
                     ),
                     single_line=False,
                 )
+                details_payload: dict[str, Any] = {
+                    "plugin": plugin.plugin_id,
+                    "script": script_key,
+                    "result": result,
+                }
+                if "cloudflare" in result_message.lower():
+                    bridge_state = self._load_vbook_bridge_state() if self.vbook_bridge_enabled else {}
+                    hosts_raw = bridge_state.get("hosts") if isinstance(bridge_state, dict) else {}
+                    details_payload["hint"] = (
+                        "Cloudflare challenge: hãy mở nguồn bằng trình duyệt tích hợp để đồng bộ cookie/headers trước khi chạy lại."
+                    )
+                    details_payload["bridge_enabled"] = bool(self.vbook_bridge_enabled)
+                    details_payload["bridge_hosts_count"] = len(hosts_raw) if isinstance(hosts_raw, dict) else 0
                 raise ApiError(
                     HTTPStatus.BAD_GATEWAY,
                     "VBOOK_SCRIPT_ERROR",
                     result_message or "Plugin vBook trả lỗi khi chạy script.",
-                    {"plugin": plugin.plugin_id, "script": script_key, "result": result},
+                    details_payload,
                 )
             return result
         # Some plugins might return raw value (non Response.success)
@@ -4356,6 +4849,7 @@ class ReaderService:
     def _normalize_vbook_search_item(self, plugin: Any, item: dict[str, Any], *, query: str) -> dict[str, Any] | None:
         if not isinstance(item, dict):
             return None
+        plugin_id = str(getattr(plugin, "plugin_id", "") or "")
         title = normalize_vbook_display_text(
             str(
             item.get("name")
@@ -4383,6 +4877,7 @@ class ReaderService:
         cover = str(item.get("cover") or item.get("image") or item.get("img") or "").strip()
         if cover and host and not cover.startswith("http"):
             cover = self._join_vbook_url(host, cover)
+        cover = build_vbook_image_proxy_path(cover, plugin_id=plugin_id, referer=detail_url)
         description = normalize_vbook_display_text(
             str(item.get("description") or item.get("desc") or item.get("summary") or ""),
             single_line=False,
@@ -4394,15 +4889,26 @@ class ReaderService:
         is_comic = "comic" in str(getattr(plugin, "type", "") or "").lower()
         locale_norm = normalize_lang_source(str(getattr(plugin, "locale", "") or ""))
         source_tag = "vbook_comic" if is_comic else "vbook"
+        title_raw = title
+        author_raw = author
+        description_raw = description
+        if self.is_reader_translation_enabled():
+            mode = self.reader_translation_mode()
+            title = self._translate_ui_text(title, single_line=True, mode=mode) or title
+            author = self._translate_ui_text(author, single_line=True, mode=mode) or author
+            description = self._translate_ui_text(description, single_line=False, mode=mode) or description
         return {
             "title": title,
             "author": author,
             "description": description,
+            "title_raw": title_raw,
+            "author_raw": author_raw,
+            "description_raw": description_raw,
             "cover": cover,
             "detail_url": detail_url,
             "query": query,
             "host": host,
-            "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+            "plugin_id": plugin_id,
             "plugin_name": str(getattr(plugin, "name", "") or ""),
             "plugin_type": str(getattr(plugin, "type", "") or ""),
             "locale": str(getattr(plugin, "locale", "") or ""),
@@ -4422,6 +4928,83 @@ class ReaderService:
             # Fallback: object đơn lẻ.
             return [data]
         return []
+
+    def _has_non_empty_vbook_value(self, value: Any) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, str):
+            return bool(value.strip())
+        if isinstance(value, (list, tuple, set, dict)):
+            return bool(value)
+        return True
+
+    def _pick_vbook_detail_value(self, detail: dict[str, Any], *, exact_keys: tuple[str, ...], fuzzy_tokens: tuple[str, ...] = ()) -> Any:
+        if not isinstance(detail, dict):
+            return None
+
+        for key in exact_keys:
+            if key in detail:
+                value = detail.get(key)
+                if self._has_non_empty_vbook_value(value):
+                    return value
+
+        lowered: dict[str, Any] = {}
+        for raw_key, raw_value in detail.items():
+            lowered[str(raw_key or "").strip().lower()] = raw_value
+        for key in exact_keys:
+            value = lowered.get(str(key or "").strip().lower())
+            if self._has_non_empty_vbook_value(value):
+                return value
+
+        if fuzzy_tokens:
+            tokens = tuple(str(token or "").strip().lower() for token in fuzzy_tokens if str(token or "").strip())
+            if tokens:
+                scalar_candidate: Any = None
+                for raw_key, raw_value in detail.items():
+                    key_text = str(raw_key or "").strip().lower()
+                    if not key_text:
+                        continue
+                    if any(token in key_text for token in tokens):
+                        if not self._has_non_empty_vbook_value(raw_value):
+                            continue
+                        if isinstance(raw_value, (list, dict)):
+                            return raw_value
+                        if any(marker in key_text for marker in ("count", "total", "size", "num", "number")):
+                            continue
+                        if scalar_candidate is None:
+                            scalar_candidate = raw_value
+                if self._has_non_empty_vbook_value(scalar_candidate):
+                    return scalar_candidate
+
+        return None
+
+    def _normalize_vbook_text_flexible(self, value: Any, *, single_line: bool = False) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return normalize_vbook_display_text(value, single_line=single_line)
+        if isinstance(value, (int, float, bool)):
+            return normalize_vbook_display_text(str(value), single_line=single_line)
+        if isinstance(value, dict):
+            for key in ("content", "comment", "text", "body", "message", "msg", "detail", "desc", "value"):
+                if key in value:
+                    text = self._normalize_vbook_text_flexible(value.get(key), single_line=single_line)
+                    if text:
+                        return text
+            rows = self._extract_vbook_list_rows(value)
+            if rows and not (len(rows) == 1 and rows[0] is value):
+                parts = [self._normalize_vbook_text_flexible(row, single_line=False) for row in rows]
+                parts = [part for part in parts if part]
+                if parts:
+                    return normalize_vbook_display_text("\n".join(parts), single_line=single_line)
+            return ""
+        if isinstance(value, (list, tuple, set)):
+            parts = [self._normalize_vbook_text_flexible(item, single_line=False) for item in value]
+            parts = [part for part in parts if part]
+            if not parts:
+                return ""
+            return normalize_vbook_display_text("\n".join(parts), single_line=single_line)
+        return normalize_vbook_display_text(str(value), single_line=single_line)
 
     def _normalize_vbook_tab_item(self, item: Any) -> dict[str, Any] | None:
         if isinstance(item, str):
@@ -4481,12 +5064,15 @@ class ReaderService:
                     detail_url = self._join_vbook_url(host, href)
                     if not detail_url and href.startswith("http"):
                         detail_url = href
+                    cover = str(row.get("cover") or row.get("image") or row.get("img") or "").strip()
+                    if cover and host and not cover.startswith("http"):
+                        cover = self._join_vbook_url(host, cover)
                     if title:
                         item = {
                             "title": title,
                             "author": normalize_vbook_display_text(str(row.get("author") or ""), single_line=True),
                             "description": normalize_vbook_display_text(str(row.get("description") or row.get("desc") or ""), single_line=False),
-                            "cover": str(row.get("cover") or row.get("image") or row.get("img") or "").strip(),
+                            "cover": cover,
                             "detail_url": detail_url,
                             "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
                         }
@@ -4503,12 +5089,67 @@ class ReaderService:
                     }
             if not item:
                 continue
+            item["cover"] = build_vbook_image_proxy_path(
+                str(item.get("cover") or "").strip(),
+                plugin_id=str(item.get("plugin_id") or str(getattr(plugin, "plugin_id", "") or "")).strip(),
+                referer=str(item.get("detail_url") or "").strip(),
+            )
             key = f"{str(item.get('title') or '').strip().lower()}|{str(item.get('detail_url') or '').strip()}"
             if not key or key in seen:
                 continue
             seen.add(key)
             out.append(item)
         return out[:80]
+
+    def _collect_vbook_suggest_items(self, plugin: Any, raw_value: Any) -> list[dict[str, Any]]:
+        # Case chuẩn: plugin trả trực tiếp list book gợi ý.
+        direct_items = self._normalize_vbook_suggest_items(plugin, raw_value)
+        direct_items = [
+            row for row in direct_items
+            if str((row or {}).get("detail_url") or "").strip()
+        ]
+        if direct_items:
+            return direct_items
+
+        # Fallback: một số ext (vd SanyTeam) trả tab/script để load gợi ý.
+        rows = self._extract_vbook_list_rows(raw_value)
+        tabs: list[dict[str, Any]] = []
+        for row in rows:
+            tab = self._normalize_vbook_tab_item(row)
+            if tab:
+                tabs.append(tab)
+        if not tabs:
+            return []
+
+        out: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for tab in tabs[:4]:
+            script_raw = str(tab.get("script") or "").strip()
+            if not script_raw:
+                continue
+            try:
+                script_ref = self._normalize_vbook_script_ref(plugin, script_raw, default_key="home")
+                list_rows, _ = self._run_vbook_paged_list_script(
+                    plugin,
+                    script_ref=script_ref,
+                    input_value=tab.get("input"),
+                    page=1,
+                    next_token=None,
+                )
+            except Exception:
+                continue
+            for row in list_rows:
+                normalized = self._normalize_vbook_search_item(plugin, row, query="")
+                if not normalized:
+                    continue
+                key = f"{str(normalized.get('title') or '').strip().lower()}|{str(normalized.get('detail_url') or '').strip()}"
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                out.append(normalized)
+                if len(out) >= 80:
+                    return out
+        return out
 
     def _normalize_vbook_comment_items(self, raw_value: Any) -> list[dict[str, Any]]:
         rows: list[Any]
@@ -4524,27 +5165,48 @@ class ReaderService:
         out: list[dict[str, Any]] = []
         for row in rows:
             if isinstance(row, dict):
-                author = normalize_vbook_display_text(
-                    str(row.get("author") or row.get("user") or row.get("name") or row.get("nick") or row.get("username") or ""),
-                    single_line=True,
+                author_value = (
+                    row.get("author")
+                    or row.get("user")
+                    or row.get("name")
+                    or row.get("nick")
+                    or row.get("username")
+                    or row.get("nickname")
+                    or row.get("member")
+                    or row.get("uname")
+                    or ""
                 )
-                content = normalize_vbook_display_text(
-                    str(
-                        row.get("comment")
-                        or row.get("content")
-                        or row.get("text")
-                        or row.get("body")
-                        or row.get("message")
-                        or row.get("detail")
-                        or row.get("desc")
-                        or ""
-                    ),
-                    single_line=False,
+                content_value = (
+                    row.get("comment")
+                    or row.get("comments")
+                    or row.get("content")
+                    or row.get("text")
+                    or row.get("body")
+                    or row.get("message")
+                    or row.get("msg")
+                    or row.get("detail")
+                    or row.get("desc")
+                    or row.get("review")
+                    or row.get("review_text")
+                    or row.get("value")
+                    or ""
                 )
-                when = normalize_vbook_display_text(
-                    str(row.get("time") or row.get("date") or row.get("created_at") or row.get("updated_at") or ""),
-                    single_line=True,
+                time_value = (
+                    row.get("time")
+                    or row.get("date")
+                    or row.get("created_at")
+                    or row.get("updated_at")
+                    or row.get("createdAt")
+                    or row.get("updatedAt")
+                    or row.get("create_time")
+                    or row.get("update_time")
+                    or row.get("createTime")
+                    or row.get("updateTime")
+                    or ""
                 )
+                author = self._normalize_vbook_text_flexible(author_value, single_line=True)
+                content = self._normalize_vbook_text_flexible(content_value, single_line=False)
+                when = self._normalize_vbook_text_flexible(time_value, single_line=True)
                 if content:
                     out.append(
                         {
@@ -5089,6 +5751,11 @@ class ReaderService:
         host = str(detail.get("host") or "").strip()
         if cover and host and not cover.startswith("http"):
             cover = self._join_vbook_url(host, cover)
+        cover = build_vbook_image_proxy_path(
+            cover,
+            plugin_id=str(getattr(plugin, "plugin_id", "") or "").strip(),
+            referer=source_url,
+        )
         is_comic = "comic" in str(getattr(plugin, "type", "") or "").lower()
         ongoing_raw = detail.get("ongoing")
         ongoing = self._parse_vbook_ongoing(ongoing_raw)
@@ -5102,38 +5769,76 @@ class ReaderService:
             str(detail.get("detail") or ""),
             single_line=False,
         )
-        suggest_raw = (
-            detail.get("suggest")
-            or detail.get("suggests")
-            or detail.get("recommend")
-            or detail.get("recommends")
-            or detail.get("related")
+        title_raw = title
+        author_raw = author
+        description_raw = description
+        status_text_raw = status_text
+        info_text_raw = info_text
+        suggest_raw = self._pick_vbook_detail_value(
+            detail,
+            exact_keys=("suggest", "suggests", "recommend", "recommends", "related"),
+            fuzzy_tokens=("suggest", "recommend", "related"),
         )
-        comment_raw = (
-            detail.get("comment")
-            or detail.get("comments")
-            or detail.get("review")
-            or detail.get("reviews")
+        comment_raw = self._pick_vbook_detail_value(
+            detail,
+            exact_keys=("comment", "comments", "review", "reviews"),
+            fuzzy_tokens=("comment", "review"),
         )
-        suggest_items = self._normalize_vbook_suggest_items(plugin, suggest_raw)
+        suggest_items = self._collect_vbook_suggest_items(plugin, suggest_raw)
         comment_items = self._normalize_vbook_comment_items(comment_raw)
         genre_items = self._normalize_vbook_genre_items(detail)
         extra_fields = self._normalize_vbook_extra_fields(detail)
+        if self.is_reader_translation_enabled():
+            mode = self.reader_translation_mode()
+            title = self._translate_ui_text(title, single_line=True, mode=mode) or title
+            author = self._translate_ui_text(author, single_line=True, mode=mode) or author
+            description = self._translate_ui_text(description, single_line=False, mode=mode) or description
+            status_text = self._translate_ui_text(status_text, single_line=True, mode=mode) or status_text
+            info_text = self._translate_ui_text(info_text, single_line=False, mode=mode) or info_text
+            for item in suggest_items:
+                if not isinstance(item, dict):
+                    continue
+                item["title"] = self._translate_ui_text(item.get("title") or "", single_line=True, mode=mode) or str(item.get("title") or "")
+                item["author"] = self._translate_ui_text(item.get("author") or "", single_line=True, mode=mode) or str(item.get("author") or "")
+                item["description"] = self._translate_ui_text(
+                    item.get("description") or "",
+                    single_line=False,
+                    mode=mode,
+                ) or str(item.get("description") or "")
+            for item in comment_items:
+                if not isinstance(item, dict):
+                    continue
+                item["author"] = self._translate_ui_text(item.get("author") or "", single_line=True, mode=mode) or str(item.get("author") or "")
+                item["content"] = self._translate_ui_text(item.get("content") or "", single_line=False, mode=mode) or str(item.get("content") or "")
+            for item in genre_items:
+                if not isinstance(item, dict):
+                    continue
+                item["title"] = self._translate_ui_text(item.get("title") or "", single_line=True, mode=mode) or str(item.get("title") or "")
+            for item in extra_fields:
+                if not isinstance(item, dict):
+                    continue
+                item["key"] = self._translate_ui_text(item.get("key") or "", single_line=True, mode=mode) or str(item.get("key") or "")
+                item["value"] = self._translate_ui_text(item.get("value") or "", single_line=False, mode=mode) or str(item.get("value") or "")
         return {
             "ok": True,
             "plugin": self._serialize_vbook_plugin(plugin),
             "detail": {
                 "title": title,
                 "author": author,
+                "title_raw": title_raw,
+                "author_raw": author_raw,
                 "cover": cover,
                 "description": description,
+                "description_raw": description_raw,
                 "url": source_url,
                 "host": host,
                 "is_comic": is_comic,
                 "source_type": "vbook_comic" if is_comic else "vbook",
                 "ongoing": ongoing,
                 "status_text": status_text,
+                "status_text_raw": status_text_raw,
                 "info_text": info_text,
+                "info_text_raw": info_text_raw,
                 "genres": genre_items,
                 "suggest_items": suggest_items,
                 "comment_items": comment_items,
@@ -5173,14 +5878,19 @@ class ReaderService:
             chunk = all_rows[offset : offset + ps]
 
         items: list[dict[str, Any]] = []
+        translate_mode = self.reader_translation_mode()
+        translate_on = self.is_reader_translation_enabled()
         for idx, row in enumerate(chunk, start=(1 if all_items else ((p - 1) * ps + 1))):
+            raw_title = normalize_vbook_display_text(
+                str(row.get("name") or ""),
+                single_line=True,
+            ) or f"Chương {idx}"
+            title = self._translate_ui_text(raw_title, single_line=True, mode=translate_mode) if translate_on else raw_title
             items.append(
                 {
                     "index": idx,
-                    "title": normalize_vbook_display_text(
-                        str(row.get("name") or ""),
-                        single_line=True,
-                    ) or f"Chương {idx}",
+                    "title": title or raw_title,
+                    "title_raw": raw_title,
                     "url": str(row.get("remote_url") or "").strip(),
                 }
             )
@@ -5345,6 +6055,185 @@ class ReaderService:
             pass
         return core
 
+    def _build_vbook_image_headers(self, *, image_url: str, plugin_id: str = "", referer: str = "") -> dict[str, str]:
+        headers: dict[str, str] = {
+            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            "Pragma": "no-cache",
+            "Cache-Control": "no-cache",
+        }
+        parsed = urlparse(str(image_url or "").strip())
+        host = normalize_host(parsed.netloc)
+
+        resolved_referer = str(referer or "").strip()
+        pid = str(plugin_id or "").strip()
+        if (not resolved_referer) and pid:
+            try:
+                plugin = self._require_vbook_plugin(pid)
+                source = str(getattr(plugin, "source", "") or "").strip()
+                if source:
+                    if source.startswith("http://") or source.startswith("https://"):
+                        resolved_referer = source
+                    else:
+                        resolved_referer = "https://" + source.lstrip("/")
+            except Exception:
+                resolved_referer = ""
+        if (not resolved_referer) and parsed.scheme and parsed.netloc:
+            resolved_referer = f"{parsed.scheme}://{parsed.netloc}/"
+        if resolved_referer:
+            headers["Referer"] = resolved_referer
+            parsed_ref = urlparse(resolved_referer)
+            if parsed_ref.scheme and parsed_ref.netloc:
+                headers["Origin"] = f"{parsed_ref.scheme}://{parsed_ref.netloc}"
+
+        user_agent = ""
+        cookie_header = ""
+        if host and self.vbook_bridge_enabled:
+            state = self._load_vbook_bridge_state()
+            entry = self._pick_bridge_host_entry(state, host)
+            user_agent = str(entry.get("user_agent") or "").strip()
+            if not user_agent:
+                user_agent = str(state.get("default_user_agent") or "").strip()
+            cookie_header = str(entry.get("cookie_header") or "").strip()
+            if not cookie_header:
+                cookie_header = self._fallback_cookie_header_from_bridge_state(host, state)
+
+        if not user_agent:
+            user_agent = (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/122.0.0.0 Safari/537.36 NovelStudio/vBook"
+            )
+        headers["User-Agent"] = user_agent
+        if cookie_header:
+            headers["Cookie"] = cookie_header
+        return headers
+
+    def _vbook_image_cache_paths(self, *, image_url: str, plugin_id: str = "") -> tuple[Path, Path]:
+        seed = f"{str(plugin_id or '').strip()}|{str(image_url or '').strip()}"
+        key = hash_text(seed)
+        return (
+            VBOOK_IMAGE_CACHE_DIR / f"{key}.bin",
+            VBOOK_IMAGE_CACHE_DIR / f"{key}.json",
+        )
+
+    def _read_vbook_image_cache(self, *, image_url: str, plugin_id: str = "") -> tuple[bytes, str] | None:
+        body_path, meta_path = self._vbook_image_cache_paths(image_url=image_url, plugin_id=plugin_id)
+        if (not body_path.exists()) or (not meta_path.exists()):
+            return None
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            if not isinstance(meta, dict):
+                return None
+        except Exception:
+            return None
+        try:
+            ts = float(meta.get("ts") or 0.0)
+        except Exception:
+            ts = 0.0
+        # TTL cache ảnh nguồn online: 7 ngày.
+        if (not ts) or ((datetime.now(timezone.utc).timestamp() - ts) > (7 * 24 * 3600)):
+            return None
+        try:
+            data = body_path.read_bytes()
+        except Exception:
+            return None
+        if not data:
+            return None
+        ctype = str(meta.get("content_type") or "").strip()
+        if not ctype:
+            parsed = urlparse(str(image_url or "").strip())
+            ctype = mimetypes.guess_type(parsed.path)[0] or "application/octet-stream"
+        return data, ctype
+
+    def _write_vbook_image_cache(
+        self,
+        *,
+        image_url: str,
+        plugin_id: str = "",
+        content_type: str = "",
+        data: bytes,
+    ) -> None:
+        if not data:
+            return
+        body_path, meta_path = self._vbook_image_cache_paths(image_url=image_url, plugin_id=plugin_id)
+        body_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_body = body_path.with_suffix(".bin.tmp")
+        tmp_meta = meta_path.with_suffix(".json.tmp")
+        try:
+            tmp_body.write_bytes(data)
+            tmp_meta.write_text(
+                json.dumps(
+                    {
+                        "ts": datetime.now(timezone.utc).timestamp(),
+                        "content_type": str(content_type or "").strip(),
+                        "url": str(image_url or "").strip(),
+                        "plugin_id": str(plugin_id or "").strip(),
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            os.replace(tmp_body, body_path)
+            os.replace(tmp_meta, meta_path)
+        except Exception:
+            try:
+                tmp_body.unlink(missing_ok=True)
+            except Exception:
+                pass
+            try:
+                tmp_meta.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+    def fetch_vbook_image(self, *, image_url: str, plugin_id: str = "", referer: str = "") -> tuple[bytes, str]:
+        target = str(image_url or "").strip()
+        parsed = urlparse(target)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "URL ảnh vBook không hợp lệ.")
+
+        cached = self._read_vbook_image_cache(image_url=target, plugin_id=plugin_id)
+        if cached is not None:
+            return cached
+
+        headers = self._build_vbook_image_headers(image_url=target, plugin_id=plugin_id, referer=referer)
+        timeout_ms = int((self._vbook_cfg().get("timeout_ms") or 20_000))
+        timeout_sec = max(3.0, min(60.0, timeout_ms / 1000.0))
+        req = urllib_request.Request(target, headers=headers, method="GET")
+        try:
+            with urllib_request.urlopen(req, timeout=timeout_sec) as resp:
+                data = resp.read()
+                content_type = str(resp.headers.get("Content-Type") or "").split(";", 1)[0].strip()
+        except urllib_error.HTTPError as exc:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_IMAGE_FETCH_FAILED",
+                "Không thể tải ảnh từ nguồn vBook.",
+                {"url": target, "status": int(exc.code), "reason": str(exc.reason or "")},
+            ) from exc
+        except Exception as exc:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_IMAGE_FETCH_FAILED",
+                "Không thể tải ảnh từ nguồn vBook.",
+                {"url": target, "error": str(exc)},
+            ) from exc
+
+        if not data:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_IMAGE_EMPTY",
+                "Nguồn ảnh vBook trả dữ liệu rỗng.",
+                {"url": target},
+            )
+        ctype = content_type or (mimetypes.guess_type(parsed.path)[0] or "application/octet-stream")
+        self._write_vbook_image_cache(
+            image_url=target,
+            plugin_id=plugin_id,
+            content_type=ctype,
+            data=data,
+        )
+        return data, ctype
+
     def _join_vbook_url(self, host: str, url: str) -> str:
         href = (url or "").strip()
         if not href:
@@ -5438,7 +6327,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             self._dispatch_api("GET", parsed)
             return
         if parsed.path.startswith("/media/"):
-            self._serve_media(parsed.path)
+            self._serve_media(parsed)
             return
         if parsed.path == "/favicon.ico":
             favicon_path = Path(str(self.directory or "")) / "favicon.ico"
@@ -5525,6 +6414,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 "version": ReaderService.VERSION,
                 "time": utc_now_iso(),
             }
+
+        if method == "GET" and path == "/api/reader/settings":
+            return self.service.get_reader_settings()
+
+        if method == "POST" and path == "/api/reader/settings":
+            payload = self._read_json_body()
+            return self.service.set_reader_settings(payload)
 
         if method == "GET" and path == "/api/themes":
             active = self.service.storage.get_theme_active()
@@ -5672,7 +6568,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 self.service.storage.cleanup_expired_history()
             except Exception:
                 pass
-            books = self.service.storage.list_books()
+            books = self.service.list_books()
             return {"items": books}
 
         if method == "GET" and path == "/api/library/history":
@@ -5845,6 +6741,15 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     urls_raw = [x.get("url") if isinstance(x, dict) else x for x in items]
                 else:
                     urls_raw = []
+            if not urls_raw:
+                text_raw = str(
+                    payload.get("repo_urls_text")
+                    or payload.get("repo_url")
+                    or payload.get("url")
+                    or ""
+                ).strip()
+                if text_raw:
+                    urls_raw = [x.strip() for x in re.split(r"[\n,;]+", text_raw) if x and x.strip()]
             repo_urls = self.service.set_vbook_repo_urls(urls_raw)
             return {
                 "ok": True,
@@ -5894,7 +6799,8 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             payload = self._read_json_body()
             url = (payload.get("url") or "").strip()
             plugin_id = (payload.get("plugin_id") or "").strip() or None
-            book = self.service.import_vbook_url(url, plugin_id=plugin_id)
+            history_only = bool(payload.get("history_only", False))
+            book = self.service.import_vbook_url(url, plugin_id=plugin_id, history_only=history_only)
             return {"ok": True, "book": book}
 
         if method == "POST" and path == "/api/library/import":
@@ -5937,11 +6843,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
             if mode not in ("raw", "trans"):
                 mode = "raw"
-            if mode == "trans" and not book_supports_translation(book_found):
+            if mode == "trans" and not self.service.translation_allowed_for_book(book_found):
                 mode = "raw"
-            translate_mode = (query.get("translation_mode", ["server"])[0] or "server").strip().lower()
-            if translate_mode not in ("server", "local"):
-                translate_mode = "server"
+            if "translation_mode" in query:
+                translate_mode = (query.get("translation_mode", ["server"])[0] or "server").strip().lower()
+            else:
+                translate_mode = self.service.reader_translation_mode()
+            translate_mode = self.service.resolve_translate_mode(translate_mode)
             _, active_name_set, _ = self.service.storage.get_active_name_set(
                 default_sets=self.service._default_name_sets(),
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
@@ -5965,12 +6873,10 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book_found = self.service.storage.find_book(book_id)
             if not book_found:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-            if not book_supports_translation(book_found):
+            if not self.service.translation_allowed_for_book(book_found):
                 return {"ok": True, "skipped": True, "reason": "TRANSLATION_NOT_SUPPORTED"}
             payload = self._read_json_body()
-            translate_mode = (payload.get("translation_mode") or "server").strip().lower()
-            if translate_mode not in ("server", "local"):
-                translate_mode = "server"
+            translate_mode = self.service.resolve_translate_mode(payload.get("translation_mode"))
             _, active_name_set, _ = self.service.storage.get_active_name_set(
                 default_sets=self.service._default_name_sets(),
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
@@ -6021,16 +6927,21 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
             if mode not in ("raw", "trans"):
                 mode = "raw"
-            translate_mode = (query.get("translation_mode", ["server"])[0] or "server").strip().lower()
-            if translate_mode not in ("server", "local"):
-                translate_mode = "server"
+            if "translation_mode" in query:
+                translate_mode = (query.get("translation_mode", ["server"])[0] or "server").strip().lower()
+            else:
+                translate_mode = self.service.reader_translation_mode()
+            translate_mode = self.service.resolve_translate_mode(translate_mode)
             _, active_name_set, _ = self.service.storage.get_active_name_set(
                 default_sets=self.service._default_name_sets(),
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
                 book_id=book_id,
             )
             book_preview = self.service.storage.find_book(book_id)
-            if (translate_titles or mode == "trans") and book_supports_translation(book_preview):
+            allow_translate = self.service.translation_allowed_for_book(book_preview)
+            if mode == "trans" and not allow_translate:
+                mode = "raw"
+            if translate_titles and allow_translate:
                 self.service.storage.translate_book_titles(
                     book_id,
                     self.service.translator,
@@ -6040,6 +6951,16 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book = self.service.storage.get_book_detail(book_id)
             if not book:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+            if not allow_translate:
+                book["translation_supported"] = False
+                book["title_display"] = normalize_vbook_display_text(str(book.get("title") or ""), single_line=True) or str(book.get("title") or "")
+                book["author_display"] = normalize_vbook_display_text(str(book.get("author") or ""), single_line=True) or str(book.get("author") or "")
+                chapters = book.get("chapters")
+                if isinstance(chapters, list):
+                    for row in chapters:
+                        if not isinstance(row, dict):
+                            continue
+                        row["title_display"] = normalize_vbook_display_text(str(row.get("title_raw") or ""), single_line=True) or str(row.get("title_raw") or "")
             if book.get("source_type") == "epub":
                 epub_path = CACHE_DIR / "epub_sources" / f"{book_id}.epub"
                 if epub_path.exists():
@@ -6094,7 +7015,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             }
 
         if method == "DELETE" and path.startswith("/api/library/book/"):
-            book_id = path.removeprefix("/api/library/book/").strip()
+            book_id = unquote(path.removeprefix("/api/library/book/")).strip("/")
             if not book_id:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
             deleted = self.service.storage.delete_book(book_id)
@@ -6118,7 +7039,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book = self.service.storage.find_book(chapter["book_id"])
             if not book:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-            trans_supported = bool(book_supports_translation(book))
+            trans_supported = self.service.translation_allowed_for_book(book)
             if not trans_supported:
                 raise ApiError(
                     HTTPStatus.BAD_REQUEST,
@@ -6127,9 +7048,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 )
 
             payload = self._read_json_body()
-            translate_mode = (payload.get("translation_mode") or "local").strip().lower()
-            if translate_mode not in {"local", "server"}:
-                translate_mode = "local"
+            translate_mode = self.service.resolve_translate_mode(payload.get("translation_mode"))
             override_name_set = payload.get("name_set")
             if override_name_set is not None and not isinstance(override_name_set, dict):
                 raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "name_set phải là object.")
@@ -6181,7 +7100,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book = self.service.storage.find_book(chapter["book_id"])
             if not book:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-            if not book_supports_translation(book):
+            if not self.service.translation_allowed_for_book(book):
                 raise ApiError(
                     HTTPStatus.BAD_REQUEST,
                     "TRANSLATION_NOT_SUPPORTED",
@@ -6199,9 +7118,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 end_offset = int(payload.get("end_offset"))
             except Exception:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "start_offset/end_offset phải là số nguyên.")
-            translate_mode = (payload.get("translation_mode") or "server").strip().lower()
-            if translate_mode not in {"local", "server"}:
-                translate_mode = "server"
+            translate_mode = self.service.resolve_translate_mode(payload.get("translation_mode"))
             _, active_name_set, version = self.service.storage.get_active_name_set(
                 default_sets=self.service._default_name_sets(),
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
@@ -6276,14 +7193,18 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book = self.service.storage.find_book(chapter["book_id"])
             if not book:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-            trans_supported = bool(book_supports_translation(book))
+            trans_supported = self.service.translation_allowed_for_book(book)
 
             mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
-            translate_mode = (query.get("translation_mode", ["server"])[0] or "server").strip().lower()
             if mode not in ("raw", "trans"):
                 mode = "raw"
-            if translate_mode not in ("server", "local"):
-                translate_mode = "server"
+            if "translation_mode" in query:
+                translate_mode = (query.get("translation_mode", ["server"])[0] or "server").strip().lower()
+            else:
+                translate_mode = self.service.reader_translation_mode()
+            translate_mode = self.service.resolve_translate_mode(translate_mode)
+            if mode == "trans" and not trans_supported:
+                mode = "raw"
             if mode == "trans" and trans_supported:
                 _, active_name_set, _ = self.service.storage.get_active_name_set(
                     default_sets=self.service._default_name_sets(),
@@ -6375,9 +7296,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         if method == "POST" and path.startswith("/api/library/chapter/") and path.endswith("/translate"):
             chapter_id = path.removeprefix("/api/library/chapter/").removesuffix("/translate").strip("/")
             payload = self._read_json_body()
-            translate_mode = (payload.get("translation_mode") or "server").strip().lower()
-            if translate_mode not in ("server", "local"):
-                translate_mode = "server"
+            translate_mode = self.service.resolve_translate_mode(payload.get("translation_mode"))
 
             chapter = self.service.storage.find_chapter(chapter_id)
             if not chapter:
@@ -6385,7 +7304,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book = self.service.storage.find_book(chapter["book_id"])
             if not book:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-            if not book_supports_translation(book):
+            if not self.service.translation_allowed_for_book(book):
                 raw_text = self.service.storage.get_chapter_text(
                     chapter,
                     book,
@@ -6424,7 +7343,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
 
         if method == "GET" and path == "/api/search":
             query_text = query.get("q", [""])[0]
-            result = self.service.storage.search(query_text)
+            result = self.service.search(query_text)
             return result
 
         raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy endpoint.")
@@ -6515,7 +7434,63 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
 
         return form
 
-    def _serve_media(self, path: str):
+    def _serve_media(self, parsed_or_path):
+        parsed = parsed_or_path if hasattr(parsed_or_path, "path") else urlparse(str(parsed_or_path or ""))
+        path = parsed.path
+        query = parse_qs(parsed.query)
+
+        if path == "/media/vbook-image":
+            image_url = (query.get("url", [""])[0] or "").strip()
+            plugin_id = (query.get("plugin_id", [""])[0] or "").strip()
+            referer = (query.get("referer", [""])[0] or "").strip()
+            if not image_url:
+                self._send_error_json(ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL ảnh vBook."))
+                return
+            try:
+                data, ctype = self.service.fetch_vbook_image(
+                    image_url=image_url,
+                    plugin_id=plugin_id,
+                    referer=referer,
+                )
+            except ApiError as exc:
+                self._send_error_json(exc)
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", ctype or "application/octet-stream")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "public, max-age=600")
+            try:
+                self.end_headers()
+                self.wfile.write(data)
+            except OSError as exc:
+                if self._is_client_disconnect_error(exc):
+                    return
+                raise
+            return
+
+        if path == "/media/vbook-plugin-icon":
+            plugin_id = (query.get("plugin_id", [""])[0] or "").strip()
+            if not plugin_id:
+                self._send_error_json(ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_id."))
+                return
+            try:
+                data, ctype = self.service.get_vbook_plugin_icon(plugin_id)
+            except ApiError as exc:
+                self._send_error_json(exc)
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", ctype or "application/octet-stream")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "public, max-age=86400")
+            try:
+                self.end_headers()
+                self.wfile.write(data)
+            except OSError as exc:
+                if self._is_client_disconnect_error(exc):
+                    return
+                raise
+            return
+
         if path.startswith("/media/export/"):
             filename = unquote(path.removeprefix("/media/export/").strip())
             file_path = EXPORT_DIR / filename

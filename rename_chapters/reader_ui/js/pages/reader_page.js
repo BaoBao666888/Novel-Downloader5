@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260220-vb11";
+import { initShell } from "../site_common.js?v=20260221-vb17";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -82,8 +82,9 @@ const state = {
   bookId: "",
   chapterId: "",
   book: null,
-  mode: "trans",
+  mode: "raw",
   translateMode: "server",
+  translationEnabled: true,
   nameSets: { "Mặc định": {} },
   activeNameSet: "Mặc định",
   saveTimer: null,
@@ -108,13 +109,20 @@ const state = {
   runtimeMode: "hybrid",
   chapterContentType: "text",
   chapterImages: [],
+  comicLoadSeq: 0,
 };
+
+function parseRequestedMode(rawMode) {
+  const value = String(rawMode || "").trim().toLowerCase();
+  if (value === "raw" || value === "trans") return value;
+  return "";
+}
 
 function supportsTranslation(book) {
   if (!book) return false;
   if (typeof book.translation_supported === "boolean") return book.translation_supported;
   const sourceType = String(book.source_type || "").toLowerCase();
-  if (sourceType === "vbook_comic" || sourceType === "comic") return false;
+  if (sourceType === "vbook_comic" || sourceType === "vbook_session_comic" || sourceType === "comic") return false;
   const lang = String(book.lang_source || "").toLowerCase();
   return lang === "zh" || lang.startsWith("zh-");
 }
@@ -122,6 +130,20 @@ function supportsTranslation(book) {
 function effectiveMode() {
   if (!supportsTranslation(state.book)) return "raw";
   return state.mode === "trans" ? "trans" : "raw";
+}
+
+function syncModeButtons() {
+  const canTranslate = supportsTranslation(state.book);
+  if (refs.btnModeTrans) refs.btnModeTrans.classList.toggle("hidden", !canTranslate);
+  if (refs.btnTranslateMode) refs.btnTranslateMode.classList.toggle("hidden", !canTranslate);
+  if (refs.btnOpenNameEditor) refs.btnOpenNameEditor.classList.toggle("hidden", !canTranslate);
+  if (refs.btnModeRaw) refs.btnModeRaw.classList.toggle("active", state.mode === "raw");
+  if (refs.btnModeTrans) refs.btnModeTrans.classList.toggle("active", state.mode === "trans");
+  if (refs.btnTranslateMode && state.shell) {
+    refs.btnTranslateMode.textContent = state.translateMode === "local"
+      ? state.shell.t("modeLocal")
+      : state.shell.t("modeServer");
+  }
 }
 
 function selectedReadingMode() {
@@ -666,6 +688,7 @@ function renderFlipPage() {
 }
 
 function renderImageChapter(preserveRatio = null) {
+  const loadSeq = ++state.comicLoadSeq;
   refs.readerContentBody.innerHTML = "";
   const images = Array.isArray(state.chapterImages) ? state.chapterImages : [];
   if (!images.length) {
@@ -673,18 +696,58 @@ function renderImageChapter(preserveRatio = null) {
   } else {
     const wrap = document.createElement("div");
     wrap.className = "reader-comic-wrap";
+    const slots = [];
     for (let i = 0; i < images.length; i += 1) {
       const src = String(images[i] || "").trim();
       if (!src) continue;
-      const img = document.createElement("img");
-      img.className = "reader-comic-image";
-      img.loading = "lazy";
-      img.decoding = "async";
-      img.src = src;
-      img.alt = `Ảnh trang ${i + 1}`;
-      wrap.appendChild(img);
+      const slot = document.createElement("figure");
+      slot.className = "reader-comic-slot loading";
+      const holder = document.createElement("div");
+      holder.className = "reader-comic-placeholder";
+      holder.textContent = state.shell.t("readerComicLoading", { current: i + 1, total: images.length });
+      slot.appendChild(holder);
+      wrap.appendChild(slot);
+      slots.push({ slot, src, index: i });
     }
     refs.readerContentBody.appendChild(wrap);
+    // Tải ảnh tuần tự: ảnh trước xong mới tới ảnh sau, tránh dồn request làm lag/crash webview.
+    (async () => {
+      for (const item of slots) {
+        if (loadSeq !== state.comicLoadSeq) return;
+        await new Promise((resolve) => {
+          const img = document.createElement("img");
+          img.className = "reader-comic-image";
+          img.loading = "eager";
+          img.decoding = "async";
+          img.alt = `Ảnh trang ${item.index + 1}`;
+          const done = () => resolve();
+          img.onload = () => {
+            if (loadSeq !== state.comicLoadSeq) return done();
+            item.slot.classList.remove("loading", "error");
+            item.slot.classList.add("loaded");
+            item.slot.innerHTML = "";
+            item.slot.appendChild(img);
+            updateProgress();
+            done();
+          };
+          img.onerror = () => {
+            if (loadSeq !== state.comicLoadSeq) return done();
+            item.slot.classList.remove("loading");
+            item.slot.classList.add("error");
+            item.slot.innerHTML = "";
+            const err = document.createElement("div");
+            err.className = "reader-comic-error";
+            err.textContent = state.shell.t("readerComicLoadFailed", { index: item.index + 1 });
+            item.slot.appendChild(err);
+            updateProgress();
+            done();
+          };
+          img.src = item.src;
+        });
+        if (loadSeq !== state.comicLoadSeq) return;
+        await new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+      }
+    })();
   }
   refs.readerContentScroll.scrollLeft = 0;
   if (preserveRatio == null) {
@@ -706,6 +769,8 @@ function renderChapterContent(resetFlip = true, preserveRatio = null) {
     updateMiniInfoVisibility();
     return;
   }
+  // Rời mode ảnh thì hủy luồng tải ảnh tuần tự hiện tại.
+  state.comicLoadSeq += 1;
   const runtimeMode = runtimeReadingMode();
   if (runtimeMode === "flip") {
     if (resetFlip || !state.flipPages.length) {
@@ -807,13 +872,7 @@ async function loadBook() {
   if (!state.chapterId) {
     state.chapterId = detail.last_read_chapter_id || ((detail.chapters && detail.chapters[0] && detail.chapters[0].chapter_id) || "");
   }
-  const canTranslate = supportsTranslation(detail);
-  refs.btnModeTrans.classList.toggle("hidden", !canTranslate);
-  refs.btnTranslateMode.classList.toggle("hidden", !canTranslate);
-  refs.btnOpenNameEditor.classList.toggle("hidden", !canTranslate);
-  refs.btnModeRaw.classList.toggle("active", state.mode === "raw");
-  refs.btnModeTrans.classList.toggle("active", state.mode === "trans");
-  refs.btnTranslateMode.textContent = state.translateMode === "local" ? state.shell.t("modeLocal") : state.shell.t("modeServer");
+  syncModeButtons();
   if (state.shell && typeof state.shell.refreshVbookSettings === "function") {
     try {
       const runtimePluginId = String(detail.source_plugin || detail.plugin_id || "").trim();
@@ -1543,8 +1602,7 @@ async function switchMode(nextMode) {
   state.mode = nextMode;
   clearChapterCache();
   cancelPrefetch();
-  refs.btnModeRaw.classList.toggle("active", state.mode === "raw");
-  refs.btnModeTrans.classList.toggle("active", state.mode === "trans");
+  syncModeButtons();
   await loadBook();
   await loadChapter();
 }
@@ -1981,6 +2039,27 @@ async function init() {
   applyReaderModeClass();
   window.addEventListener("reader-settings-changed", () => {
     const preserveRatio = currentChapterRatio();
+    const nextEnabled = (state.shell && typeof state.shell.getTranslationEnabled === "function")
+      ? state.shell.getTranslationEnabled()
+      : state.translationEnabled;
+    const nextMode = (state.shell && typeof state.shell.getTranslationMode === "function")
+      ? state.shell.getTranslationMode()
+      : state.translateMode;
+    const translationChanged = (nextEnabled !== state.translationEnabled) || (nextMode !== state.translateMode);
+    state.translationEnabled = nextEnabled;
+    if (translationChanged) {
+      state.translateMode = nextMode;
+      if (!nextEnabled) {
+        state.mode = "raw";
+      }
+      clearChapterCache();
+      cancelPrefetch();
+      syncModeButtons();
+      loadBook()
+        .then(() => loadChapter({ resetFlip: true, preserveRatio }))
+        .catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
+      return;
+    }
     applyReaderModeClass();
     resetFlipDragVisual();
     renderChapterContent(true, preserveRatio);
@@ -1996,8 +2075,22 @@ async function init() {
   const query = state.shell.parseQuery();
   state.bookId = (query.book_id || "").trim();
   state.chapterId = (query.chapter_id || "").trim();
-  state.mode = (query.mode || "trans").toLowerCase() === "raw" ? "raw" : "trans";
-  state.translateMode = (query.translation_mode || "server").toLowerCase() === "local" ? "local" : "server";
+  const requestedMode = parseRequestedMode(query.mode);
+  state.mode = requestedMode || "raw";
+  state.translationEnabled = (state.shell && typeof state.shell.getTranslationEnabled === "function")
+    ? state.shell.getTranslationEnabled()
+    : true;
+  const globalTranslateMode = (state.shell && typeof state.shell.getTranslationMode === "function")
+    ? state.shell.getTranslationMode()
+    : "server";
+  if (query.translation_mode) {
+    state.translateMode = (query.translation_mode || "server").toLowerCase() === "local" ? "local" : "server";
+  } else {
+    state.translateMode = globalTranslateMode;
+  }
+  if (!state.translationEnabled) {
+    state.mode = "raw";
+  }
 
   if (!state.bookId) {
     refs.readerBookTitle.textContent = state.shell.t("noBookSelected");
@@ -2007,6 +2100,11 @@ async function init() {
   }
 
   await loadBook();
+  if (!requestedMode && state.book) {
+    const savedMode = parseRequestedMode(state.book.last_read_mode || "");
+    state.mode = savedMode || "raw";
+  }
+  syncModeButtons();
   // Khi vào reader bằng `book_id` (không chỉ định `chapter_id`), ưu tiên khôi phục vị trí đọc cũ.
   const explicitChapterId = Boolean(state.shell.parseQuery().chapter_id);
   let initialRatio = null;

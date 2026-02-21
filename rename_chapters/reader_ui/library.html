@@ -66,7 +66,7 @@
       root.classList.toggle("effects-paused", (settings.backgroundMotion || "on") !== "on");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260220-vb10">
+  <link rel="stylesheet" href="./styles.css?v=20260221-vb14">
 </head>
 <body data-page="library" class="mpa-body">
   <script>
@@ -222,6 +222,20 @@
         <select id="mini-bars-enabled-select">
           <option id="mini-bars-on" value="on"></option>
           <option id="mini-bars-off" value="off"></option>
+        </select>
+      </label>
+      <label>
+        <span id="label-translation-enabled"></span>
+        <select id="translation-enabled-select">
+          <option id="translation-enabled-on" value="on"></option>
+          <option id="translation-enabled-off" value="off"></option>
+        </select>
+      </label>
+      <label>
+        <span id="label-translation-mode"></span>
+        <select id="translation-mode-select">
+          <option id="translation-mode-server" value="server"></option>
+          <option id="translation-mode-local" value="local"></option>
         </select>
       </label>
       <div class="settings-actions">
@@ -434,6 +448,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260220-vb11"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260221-vb17"></script>
 </body>
 </html>

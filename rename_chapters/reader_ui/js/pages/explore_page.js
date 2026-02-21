@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260220-vb11";
+import { initShell } from "../site_common.js?v=20260221-vb17";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260220-vb04";
 
 const refs = {
@@ -6,7 +6,10 @@ const refs = {
   exploreTitle: document.getElementById("explore-title"),
   exploreMeta: document.getElementById("explore-meta"),
   vbookPluginLabel: document.getElementById("vbook-plugin-label"),
+  btnVbookPluginPickerToggle: document.getElementById("btn-vbook-plugin-picker-toggle"),
+  vbookPluginPickerBody: document.getElementById("vbook-plugin-picker-body"),
   vbookPluginSelect: document.getElementById("vbook-plugin-select"),
+  vbookPluginVisualList: document.getElementById("vbook-plugin-visual-list"),
   btnVbookSearchRun: document.getElementById("btn-vbook-search-run"),
   btnVbookSearchReset: document.getElementById("btn-vbook-search-reset"),
   btnExploreTogglePlugin: document.getElementById("btn-explore-toggle-plugin"),
@@ -161,6 +164,7 @@ const state = {
     search: createSearchBucket(),
   },
   pluginSwitchToken: 0,
+  pluginPickerOpen: false,
   pluginPanelVisible: false,
   pluginSettings: {
     pluginInfo: null,
@@ -306,6 +310,31 @@ function pluginSupports(scriptKey) {
   return scripts.includes(scriptKey);
 }
 
+function pluginDisplayName(plugin) {
+  return String((plugin && (plugin.name || plugin.plugin_id)) || "").trim() || state.shell.t("vbookUnknownPlugin");
+}
+
+function renderPluginPicker() {
+  const hasPlugins = Array.isArray(state.online.plugins) && state.online.plugins.length > 0;
+  const selectedPlugin = getSelectedPlugin();
+  if (refs.btnVbookPluginPickerToggle) {
+    let text = state.shell.t("explorePluginPickerShow");
+    if (!hasPlugins) {
+      text = state.shell.t("explorePluginPickerNoSource");
+    } else if (!state.pluginPickerOpen && selectedPlugin) {
+      text = state.shell.t("explorePluginPickerCurrent", { name: pluginDisplayName(selectedPlugin) });
+    } else if (state.pluginPickerOpen) {
+      text = state.shell.t("explorePluginPickerHide");
+    }
+    refs.btnVbookPluginPickerToggle.textContent = text;
+    refs.btnVbookPluginPickerToggle.disabled = !hasPlugins;
+    refs.btnVbookPluginPickerToggle.setAttribute("aria-expanded", state.pluginPickerOpen ? "true" : "false");
+  }
+  if (refs.vbookPluginPickerBody) {
+    refs.vbookPluginPickerBody.classList.toggle("hidden", !state.pluginPickerOpen || !hasPlugins);
+  }
+}
+
 function updateQueryUrl() {
   const params = new URLSearchParams();
   if (state.query) params.set("q", state.query);
@@ -373,6 +402,10 @@ function renderOnlinePluginOptions() {
   auto.textContent = state.shell.t("vbookSearchSelectPlugin");
   refs.vbookPluginSelect.appendChild(auto);
 
+  if (refs.vbookPluginVisualList) {
+    refs.vbookPluginVisualList.innerHTML = "";
+  }
+
   for (const plugin of state.online.plugins) {
     const pid = String(plugin.plugin_id || "").trim();
     if (!pid) continue;
@@ -380,8 +413,56 @@ function renderOnlinePluginOptions() {
     opt.value = pid;
     opt.textContent = formatPluginLabel(plugin);
     refs.vbookPluginSelect.appendChild(opt);
+
+    if (refs.vbookPluginVisualList) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "vbook-plugin-visual-item";
+      btn.dataset.pluginId = pid;
+      if (pid === String(state.online.pluginId || "").trim()) {
+        btn.classList.add("active");
+      }
+
+      const iconWrap = document.createElement("span");
+      iconWrap.className = "vbook-plugin-visual-icon";
+      const iconUrl = String(plugin.icon_url || "").trim();
+      if (iconUrl) {
+        const img = document.createElement("img");
+        img.src = iconUrl;
+        img.alt = String(plugin.name || plugin.plugin_id || "plugin");
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.addEventListener("error", () => {
+          img.remove();
+          iconWrap.textContent = "EXT";
+        }, { once: true });
+        iconWrap.appendChild(img);
+      } else {
+        iconWrap.textContent = "EXT";
+      }
+
+      const textWrap = document.createElement("span");
+      textWrap.className = "vbook-plugin-visual-text";
+      const nameNode = document.createElement("span");
+      nameNode.className = "vbook-plugin-visual-name";
+      nameNode.textContent = String(plugin.name || plugin.plugin_id || "").trim() || state.shell.t("vbookUnknownPlugin");
+      const metaNode = document.createElement("span");
+      metaNode.className = "vbook-plugin-visual-meta";
+      metaNode.textContent = [String(plugin.locale || "").trim(), String(plugin.type || "").trim()].filter(Boolean).join(" • ");
+      textWrap.append(nameNode, metaNode);
+
+      btn.append(iconWrap, textWrap);
+      btn.addEventListener("click", async () => {
+        const target = String(btn.dataset.pluginId || "").trim();
+        if (!target) return;
+        if (refs.vbookPluginSelect) refs.vbookPluginSelect.value = target;
+        await handlePluginSelectionChange(target);
+      });
+      refs.vbookPluginVisualList.appendChild(btn);
+    }
   }
   refs.vbookPluginSelect.value = state.online.pluginId || "";
+  renderPluginPicker();
 }
 
 function renderExploreMeta() {
@@ -389,6 +470,7 @@ function renderExploreMeta() {
   refs.exploreMeta.textContent = plugin
     ? formatPluginLabel(plugin)
     : state.shell.t("exploreMetaIdle");
+  refs.btnVbookSearchRun.disabled = !plugin;
   refs.btnExploreLoadHome.disabled = !plugin || !pluginSupports("home");
   refs.btnExploreLoadGenre.disabled = !plugin || !pluginSupports("genre");
 }
@@ -762,9 +844,6 @@ async function loadVbookPlugins() {
   if (state.online.pluginId && !list.some((x) => String(x.plugin_id || "").trim() === state.online.pluginId)) {
     state.online.pluginId = "";
   }
-  if (!state.online.pluginId && list.length) {
-    state.online.pluginId = String(list[0].plugin_id || "").trim();
-  }
   renderOnlinePluginOptions();
 }
 
@@ -1030,7 +1109,9 @@ async function upsertHistoryFromDetail({
     plugin_id: String(state.detail.pluginId || item.plugin_id || "").trim(),
     source_url: sourceUrl,
     title: String(detail.title || detail.name || item.title || sourceUrl).trim() || sourceUrl,
+    title_raw: String(detail.title_raw || item.title_raw || "").trim(),
     author: String(detail.author || item.author || "").trim(),
+    author_raw: String(detail.author_raw || item.author_raw || "").trim(),
     cover_url: String(detail.cover || item.cover || "").trim(),
   };
   const chapterUrlText = String(chapterUrl || state.detail.lastReadChapterUrl || "").trim();
@@ -1038,6 +1119,7 @@ async function upsertHistoryFromDetail({
   const ratio = parseRatio(chapterRatio != null ? chapterRatio : state.detail.lastReadRatio);
   if (chapterUrlText) payload.last_read_chapter_url = chapterUrlText;
   if (chapterTitleText) payload.last_read_chapter_title = chapterTitleText;
+  if (chapterTitleText) payload.last_read_chapter_title_raw = chapterTitleText;
   if (ratio != null) payload.last_read_ratio = ratio;
 
   try {
@@ -1545,12 +1627,13 @@ async function importOnlineBook(item, { openReader = false } = {}) {
       body: JSON.stringify({
         url: sourceUrl,
         plugin_id: pluginId,
+        history_only: Boolean(openReader),
       }),
     });
     let importedBook = (data && data.book && typeof data.book === "object") ? data.book : null;
     let bookId = String((importedBook && importedBook.book_id) || "").trim();
 
-    if (!bookId) {
+    if (!bookId && !openReader) {
       const fallback = await resolveImportedBookFallback(sourceUrl, pluginId);
       bookId = String(fallback.bookId || "").trim();
       if (!importedBook) importedBook = fallback.book;
@@ -1745,6 +1828,55 @@ async function applyPluginSelection(token) {
   }
 }
 
+async function refreshExploreByReaderSettings() {
+  const detailWasOpen = Boolean(refs.vbookDetailDialog && refs.vbookDetailDialog.open);
+  const detailSeed = state.detail.item ? { ...state.detail.item } : null;
+  const chapterUrl = String(state.detail.selectedChapterUrl || state.detail.lastReadChapterUrl || "").trim();
+  const chapterTitle = String(state.detail.selectedChapterTitle || state.detail.lastReadChapterTitle || "").trim();
+  const chapterRatio = parseRatio(state.detail.lastReadRatio);
+
+  abortExploreRequests();
+  if (state.online.pluginId) {
+    state.pluginSwitchToken += 1;
+    await applyPluginSelection(state.pluginSwitchToken);
+  } else {
+    renderAll();
+  }
+
+  if (detailWasOpen && detailSeed && detailSeed.detail_url) {
+    await openDetailDialog(detailSeed, {
+      chapterUrl,
+      chapterTitle,
+      chapterRatio,
+    });
+    if (state.detail.tocVisible) {
+      await loadDetailToc({ force: true });
+    }
+  }
+}
+
+async function handlePluginSelectionChange(pluginId) {
+  abortExploreRequests();
+  state.online.pluginId = String(pluginId || "").trim();
+  state.pluginPickerOpen = false;
+  state.pluginSwitchToken += 1;
+  const token = state.pluginSwitchToken;
+  state.online.home = createHomeBucket();
+  state.online.genre = createGenreBucket();
+  state.online.search = createSearchBucket();
+  resetDetailForPluginSwitch();
+  updateQueryUrl();
+  renderOnlinePluginOptions();
+  renderAll();
+
+  if (!state.online.pluginId) {
+    await loadPluginSettings();
+    renderAll();
+    return;
+  }
+  await applyPluginSelection(token);
+}
+
 async function init() {
   state.shell = await initShell({
     page: "explore",
@@ -1753,6 +1885,7 @@ async function init() {
 
   refs.exploreTitle.textContent = state.shell.t("exploreTitle");
   refs.vbookPluginLabel.textContent = state.shell.t("vbookSearchPluginLabel");
+  refs.btnVbookPluginPickerToggle.textContent = state.shell.t("explorePluginPickerShow");
   refs.btnVbookSearchRun.textContent = state.shell.t("vbookSearchRun");
   refs.btnVbookSearchReset.textContent = state.shell.t("vbookSearchReset");
   refs.btnExploreTogglePlugin.textContent = state.shell.t("exploreShowPluginPanel");
@@ -1815,9 +1948,12 @@ async function init() {
 
   try {
     await loadVbookPlugins();
-    await reloadHomeAndGenre();
-    await loadSearchItems({ page: 1, reset: true });
-    await loadPluginSettings();
+    if (state.online.pluginId) {
+      state.pluginSwitchToken += 1;
+      await applyPluginSelection(state.pluginSwitchToken);
+    } else {
+      await loadPluginSettings();
+    }
   } catch (error) {
     showToastError(error);
   }
@@ -1827,18 +1963,19 @@ async function init() {
     await autoOpenDetailFromQuery();
   }
 
+  window.addEventListener("reader-settings-changed", () => {
+    refreshExploreByReaderSettings().catch(() => {});
+  });
+
   refs.vbookPluginSelect.addEventListener("change", async () => {
-    abortExploreRequests();
-    state.online.pluginId = String(refs.vbookPluginSelect.value || "").trim();
-    state.pluginSwitchToken += 1;
-    const token = state.pluginSwitchToken;
-    state.online.home = createHomeBucket();
-    state.online.genre = createGenreBucket();
-    state.online.search = createSearchBucket();
-    resetDetailForPluginSwitch();
-    updateQueryUrl();
-    renderAll();
-    await applyPluginSelection(token);
+    state.pluginPickerOpen = false;
+    renderPluginPicker();
+    await handlePluginSelectionChange(String(refs.vbookPluginSelect.value || "").trim());
+  });
+
+  refs.btnVbookPluginPickerToggle.addEventListener("click", () => {
+    state.pluginPickerOpen = !state.pluginPickerOpen;
+    renderPluginPicker();
   });
 
   refs.btnExplorePluginSettingsLoad.addEventListener("click", async () => {
