@@ -1,6 +1,6 @@
 {
-  "version": "0.3.1",
-  "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.3.1/Novel-Studio-setup.exe",
+  "version": "0.3.2",
+  "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.3.2/Novel-Studio-setup.exe",
   "notes_file": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/update_notes.html",
   "regex_dataset": {
     "url": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/regex_dataset.json"
@@ -11,13 +11,13 @@
   "reader_app": {
     "server": {
       "version": "0.0.1",
-      "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.3.1/reader_server.zip",
+      "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.3.2/reader_server.zip",
       "exe_name": "reader_server.exe",
       "notes": ""
     },
     "ui": {
       "version": "0.0.1",
-      "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.3.1/reader_ui.zip",
+      "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.3.2/reader_ui.zip",
       "notes": ""
     },
     "java": {

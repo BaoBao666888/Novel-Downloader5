@@ -3847,10 +3847,15 @@ class WikidichMixin:
                 stop_when_found_id=stop_when_found_id
             )
             self._wd_ensure_not_cancelled()
-            if is_update_mode and meta_total_int and stop_when_found_id and len(data.get("book_ids", []) or []) < meta_total_int:
-                missing_count = meta_total_int - len(data.get("book_ids", []) or [])
-                self.log(f"[Wikidich] Đã gặp neo nhưng vẫn thiếu {missing_count} truyện so với server.")
-                urls = self._wd_prompt_deep_add_urls(missing_count)
+            if is_update_mode and meta_total_int and stop_when_found_id:
+                current_ids = set(local_ids)
+                current_ids.update(data.get("book_ids", []) or [])
+                missing_count = meta_total_int - len(current_ids)
+                if missing_count > 0:
+                    self.log(f"[Wikidich] Đã gặp neo nhưng vẫn thiếu {missing_count} truyện so với server.")
+                    urls = self._wd_prompt_deep_add_urls(missing_count)
+                else:
+                    urls = []
                 if urls:
                     added = self._wd_fetch_deep_books_by_urls(session, urls, user_slug, proxies=proxies)
                     if added:
@@ -3878,7 +3883,7 @@ class WikidichMixin:
                             self.log("[Wikidich] Không có truyện mới được thêm từ URL.")
                     else:
                         self.log("[Wikidich] Không thêm được truyện từ URL (không có quyền hoặc lỗi).")
-                else:
+                elif missing_count > 0:
                     self.log("[Wikidich] Bỏ qua nhập URL truyện mới nằm sâu.")
             new_ids = [bid for bid in data.get("book_ids", []) if bid not in (prior_data.get("book_ids") or [])]
             delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0

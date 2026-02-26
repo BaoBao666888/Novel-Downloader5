@@ -3006,12 +3006,20 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             2.  App tự kiểm tra và chia ra 3 nhóm: **NFKC tự chuyển**, **MAP đã có**, **cần nhập thủ công**.
             3.  Dùng nút **Sao chép** để lấy mẫu JSON (có chú thích), điền vào `value`, rồi **Dán** lại để áp dụng.
             4.  Chọn **Thư mục xuất** nếu muốn lưu riêng; bấm **Chuẩn hóa file** để tạo `.normalized.txt`.
+
+        **3. Công cụ Xóa rác**:
+        -   **Chức năng**: Xóa rác theo mẫu (exact/regex) và xem trước Diff.
+        -   **Cách dùng**:
+            1.  Vào menu **Công cụ -> Công cụ Xóa rác...**.
+            2.  Chọn **File** hoặc **Thư mục** rồi nhập pattern cần xóa.
+            3.  Bấm **Xem trước Diff** để kiểm tra trước khi áp dụng.
         """
         create_tab("Công cụ", tools_guide)
 
         wikidich_guide = """
         --- WIKIDICH / KOANCHAY ---
         - **Tải Works / Tải chi tiết**: dùng cookie từ trình duyệt tích hợp. Khi bị Cloudflare sẽ tạm dừng và **resume theo từng site**, kể cả sau khi mở lại app (thao tác lại Tải Works/Tải chi tiết). Domain đọc cookie/header bám theo domain cấu hình trong Cài đặt request.
+        - **Domain**: đổi domain Wikidich/Koanchay trong Cài đặt request; dữ liệu local sẽ tự rewrite theo domain mới.
         - **Works không chính chủ**: Sync ▾ → “Tải Works (không chính chủ)” (nhập URL/user_id). Chỉ chạy khi profile trống hoặc đang dùng Works không chính chủ; sẽ tắt “Chỉ đồng bộ số chương”, ẩn Auto Update/Chỉnh sửa/Cập nhật chương và ẩn khu Liên kết.
         - **DS Chương cho Works không chính chủ**: app sẽ tự lấy `bookId` thật trước khi tải danh sách chương.
         - **Cache theo profile**: mỗi profile có cache riêng; xóa profile có cache sẽ được chuyển vào `profile_recycle` và tự dọn sau 7 ngày.
@@ -3024,9 +3032,20 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         - **Thêm link hỗ trợ**: thêm link Fanqie/JJWXC/PO18/Qidian/Ihuaben vào trang sửa truyện rồi tải chi tiết/kiểm tra cập nhật để đồng bộ.
         - **Cập nhật chương**: nút chỉ sáng khi có “New”; nhập số để cộng tổng chương và trừ cột “New”. Sai lệch có thể tải lại chi tiết/DS Chương để đồng bộ.
         - **Auto update**: chỉ khi có link Fanqie; trước tiên đồng bộ thông tin/số chương theo logic “Kiểm tra cập nhật (Yes)”, sau đó mới tải mục lục và tạo batch upload.
+        - **Auto Update toàn cục**: menu **Auto Update ▾** → **Đánh dấu** → **Tự động** → **Lịch sử**. Hệ thống tự đồng bộ số chương trước khi chạy batch.
         - **Proxy**: bật “Wikidich/Fanqie” trong tab Proxy để áp dụng cho Works/Chi tiết/Check cập nhật; Koanchay dùng cùng cấu hình.
         """
         create_tab("Wikidich", wikidich_guide)
+
+        reader_guide = """
+        --- ĐỌC TRUYỆN ---
+        - Mở tab **Đọc truyện** trên thanh menu để quản lý Reader local.
+        - **Start/Stop server**: bật/tắt server đọc truyện ngay trong app.
+        - **Mở Reader**: mở giao diện web app đọc truyện.
+        - **Thư viện**: nhập TXT/EPUB, xem các truyện đã nhập.
+        - **Book**: xem mục lục, sửa thông tin, quản lý Name riêng.
+        """
+        create_tab("Đọc truyện", reader_guide)
 
         forum_guide = """
         --- DIỄN ĐÀN ---
@@ -3080,6 +3099,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         - **Phạm vi tải**: hỗ trợ nhiều phần bằng dấu `,` (bỏ qua khoảng trắng). `-5` = từ 1→5, `10-` = từ 10→hết, `7-8`/`15` là khoảng/điểm. Các khoảng chồng nhau sẽ tự gộp.
         - Bấm **Bắt đầu tải**: tải theo batch do plugin quy định, thêm tiêu đề vào file (nếu chọn), lưu zip/txt/epub.
         - Một số nguồn cần bridge; app tự bật/kiểm tra. Tiến độ tải được cache để resume nếu ngắt giữa chừng.
+        - **Dữ liệu truyện (cache)**: vào **Cài đặt** → **Dữ liệu truyện** để xem/xóa cache chi tiết/mục lục/chương theo từng truyện.
         - Auto update trong tab Wikidich dùng cùng bridge/nguồn tương ứng và tái sử dụng credit/tùy chọn từ đây.
         """
         create_tab("Novel Downloader 5", nd5_guide)
@@ -3101,7 +3121,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 -   *Tên file*: Sắp xếp dựa trên số chương lấy từ tên file.
             -   **Sửa dòng đầu của file**: Khi được chọn, chương trình sẽ **ghi đè** dòng đầu tiên của mỗi file bằng chính tên file mới được tạo ra (không bao gồm đuôi file như .txt). Tính năng này chỉ hoạt động nếu file đó được tìm thấy số chương.
             -   **Cấu trúc mới**: Định dạng cho tên file mới.
-            -   **Regex (Tên file / Nội dung)**: hỗ trợ lịch sử và ghim regex; regex nội dung áp dụng lên dòng đầu file. Hạn sử dụng trên lịch sử: tối đa 20, nhưng ghim sẽ luôn ở đầu và không bị trôi.
+            -   **Regex (Tên file / Nội dung)**: hỗ trợ lịch sử và ghim regex; regex nội dung áp dụng lên dòng đầu file. Có nút **Gợi ý** để gợi ý regex theo dữ liệu hiện tại. Hạn sử dụng trên lịch sử: tối đa 20, nhưng ghim sẽ luôn ở đầu và không bị trôi.
                 -   `{num}`: Sẽ được thay bằng số chương.
                 -   `{title}`: Sẽ được thay bằng tiêu đề chương.
                 -   `{num+n}` hoặc `{num-n}`: Tự động cộng/trừ số chương (ví dụ: `{num+1}`).

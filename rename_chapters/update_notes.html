@@ -1,35 +1,44 @@
-<h1>Phiên bản 0.3.1 - Cập nhật Diễn đàn & Đổi tên app</h1>
+<h1>Phiên bản 0.3.2 - Big update (Fanqie/Reader/Auto Update)</h1>
 
 <h2>Điểm mới</h2>
 
-<b>Xử lý văn bản</b>:
-- Tinh gọn giao diện tab "Công cụ Nhanh".
-- Công cụ "Đánh lại số chương" hỗ trợ chọn nguồn (File hiện tại hoặc Mục lục).
-- Khung nhập liệu Mục lục tự động co giãn theo cửa sổ.
+<b>Fanqie & ND5</b>:
+- Big update: dùng logic Fanqie theo app mới nhất.
+- Điều chỉnh kiểm tra cập nhật Fanqie sang API mới.
+- Auto Update tự đồng bộ số chương trước rồi mới update theo Fanqie.
+- Thêm cache cho truyện tải từ ND5.
 
-<b>Lấy Tiêu Đề Online</b>:
-- Thêm ô "Loại trừ" cho chức năng chọn nhanh (hỗ trợ loại trừ lẻ hoặc khoảng, ví dụ: 5, 10-20).
-- Tự động lưu và khôi phục lựa chọn cột "Sử dụng tiêu đề" (Chính/Phụ).
-- Tinh gọn giao diện mục Nguồn.
-- Khóa nút lấy dữ liệu khi đang thực hiện tác vụ.
+<b>Wikidich/Koanchay</b>:
+- Thêm điều chỉnh domain trong Cài đặt request và tự update domain trong dữ liệu local.
+- Thêm chỗ lưu riêng cho các truyện đồng quản lý khi tải work (tránh tải lại hết mất thời gian).
+- Thêm Auto Update tự động toàn cục.
 
-<b>Trình duyệt & Mật khẩu</b>:
-- Tích hợp <b>Trình quản lý mật khẩu</b>: Tự động phát hiện đăng nhập, lưu và điền tự động (Auto-fill).
-- Mã hóa dữ liệu mật khẩu an toàn hơn (không lưu plain text).
-- Thêm menu quản lý mật khẩu (xem/xóa) trong cài đặt trình duyệt.
+<b>Đọc truyện (Web app)</b>:
+- Thư viện: nhập file, hiển thị các truyện đã nhập.
+- Thông tin book: mục lục, thông tin sách, chỉnh sửa, name riêng.
+- Trang đọc: giao diện web cơ bản như các web đọc truyện phổ biến.
 
-<b>Diễn đàn</b>:
-- Sửa đổi và hoàn thiện logic lấy data forum.
-- Cập nhật logic Diễn đàn: Nút "Đồng bộ gần đây" chỉ mở sau khi đã "Lấy data forum".
-- Tăng delay mặc định lên 2s để kết nối ổn định hơn.
-- Lưu trạng thái tải data vào config để không phải tải lại mỗi lần mở app.
+<b>Xóa rác</b>:
+- Tăng cường chức năng Xóa rác (gợi ý/đánh giá, diff preview, pipeline nhiều chế độ).
+
+<b>Đổi tên</b>:
+- Tối ưu chức năng regex cho tab Đổi tên.
+
+<b>Giao diện</b>:
+- Tăng tham số cho tùy chỉnh giao diện.
 
 <h2>Sửa lỗi</h2>
-- Sửa lỗi không dừng được khi đang có tiến trình trong tab Forum.
-- Dùng thư viện để tăng tốc load data forum.
-- Các sửa lỗi nhỏ và cải thiện hiệu năng.
+- Sửa lỗi giải nén bằng app thiếu file.
+- Fix lỗi không nhận được cookie PO18 dù đã đăng nhập trong profile hiện tại.
+
+<h2>Hướng dẫn thao tác (mới)</h2>
+- **Auto Update toàn cục**: Tab Wikidich/Koanchay → menu **Auto Update ▾** → **Đánh dấu** truyện đủ điều kiện → **Tự động** để chạy hàng loạt → **Lịch sử** để xem kết quả.
+- **Đọc truyện**: vào tab **Đọc truyện** để quản lý server + UI; có thể Start/Stop server và mở giao diện đọc ngay từ app.
+- **Xóa rác**: menu **Công cụ → Công cụ Xóa rác...** → chọn File/Thư mục → xem **Diff** trước khi áp dụng.
+- **Gợi ý regex**: Tab **Đổi tên** → nút **Gợi ý** (Tên file/Nội dung) để gợi ý regex theo file đang chọn.
+- **Đổi domain**: Cài đặt request → đổi domain Wikidich/Koanchay; dữ liệu local sẽ tự rewrite theo domain mới.
+- **ND5 cache**: ND5 → **Cài đặt** → **Dữ liệu truyện** để xem/xóa cache theo từng truyện.
 
 <h2>Hướng dẫn cập nhật</h2>
-
-- Nhấn <b>Tải &Cài đặt</b> để lên 0.3.1 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
+- Nhấn <b>Tải & Cài đặt</b> để lên 0.3.2 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
 - Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.
