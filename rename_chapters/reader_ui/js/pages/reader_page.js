@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb17";
+import { initShell } from "../site_common.js?v=20260221-vb24";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -39,6 +39,11 @@ const refs = {
   nameEditorTitle: document.getElementById("name-editor-title"),
   btnCloseNameEditor: document.getElementById("btn-close-name-editor"),
   btnRefreshNamePreview: document.getElementById("btn-refresh-name-preview"),
+  nameSetControls: document.getElementById("name-set-controls"),
+  nameDictTypeLabel: document.getElementById("name-dict-type-label"),
+  nameDictTypeSelect: document.getElementById("name-dict-type-select"),
+  nameDictScopeLabel: document.getElementById("name-dict-scope-label"),
+  nameDictScopeSelect: document.getElementById("name-dict-scope-select"),
   btnAddNameSet: document.getElementById("btn-add-name-set"),
   btnDeleteNameSet: document.getElementById("btn-delete-name-set"),
   btnExportNameSet: document.getElementById("btn-export-name-set"),
@@ -68,6 +73,7 @@ const refs = {
   nameSuggestColSource: document.getElementById("name-suggest-col-source"),
   nameSuggestColHv: document.getElementById("name-suggest-col-hv"),
   nameSuggestColTarget: document.getElementById("name-suggest-col-target"),
+  nameSuggestColOrigin: document.getElementById("name-suggest-col-origin"),
   nameSuggestColAction: document.getElementById("name-suggest-col-action"),
   nameSuggestLeftBody: document.getElementById("name-suggest-left-body"),
   nameSuggestRightBody: document.getElementById("name-suggest-right-body"),
@@ -85,8 +91,14 @@ const state = {
   mode: "raw",
   translateMode: "server",
   translationEnabled: true,
+  globalTranslationMode: "server",
+  globalTranslationLocalSig: "{}",
+  nameDictType: "name",
+  nameDictScope: "book",
   nameSets: { "Mặc định": {} },
   activeNameSet: "Mặc định",
+  globalDicts: { name: {}, vp: {} },
+  bookVpDict: {},
   saveTimer: null,
   chapterText: "",
   flipPages: [],
@@ -111,6 +123,24 @@ const state = {
   chapterImages: [],
   comicLoadSeq: 0,
 };
+
+function normalizeTranslateMode(raw) {
+  const mode = String(raw || "").trim().toLowerCase();
+  if (mode === "local") return "local";
+  if (mode === "hanviet") return "hanviet";
+  return "server";
+}
+
+function localTranslationSettingsSignature(shell) {
+  try {
+    const data = shell && typeof shell.getTranslationLocalSettings === "function"
+      ? shell.getTranslationLocalSettings()
+      : {};
+    return JSON.stringify(data || {});
+  } catch {
+    return "{}";
+  }
+}
 
 function parseRequestedMode(rawMode) {
   const value = String(rawMode || "").trim().toLowerCase();
@@ -140,9 +170,9 @@ function syncModeButtons() {
   if (refs.btnModeRaw) refs.btnModeRaw.classList.toggle("active", state.mode === "raw");
   if (refs.btnModeTrans) refs.btnModeTrans.classList.toggle("active", state.mode === "trans");
   if (refs.btnTranslateMode && state.shell) {
-    refs.btnTranslateMode.textContent = state.translateMode === "local"
-      ? state.shell.t("modeLocal")
-      : state.shell.t("modeServer");
+    if (state.translateMode === "local") refs.btnTranslateMode.textContent = state.shell.t("modeLocal");
+    else if (state.translateMode === "hanviet") refs.btnTranslateMode.textContent = state.shell.t("modeHanviet");
+    else refs.btnTranslateMode.textContent = state.shell.t("modeServer");
   }
 }
 
@@ -162,8 +192,11 @@ function runtimeReadingMode() {
 function applyReaderModeClass() {
   const mode = runtimeReadingMode();
   state.runtimeMode = mode;
-  refs.readerViewport.classList.remove("reading-flip", "reading-horizontal", "reading-vertical", "reading-hybrid");
+  refs.readerViewport.classList.remove("reading-flip", "reading-horizontal", "reading-vertical", "reading-hybrid", "reading-comic");
   refs.readerViewport.classList.add(`reading-${mode}`);
+  if (state.chapterContentType === "images") {
+    refs.readerViewport.classList.add("reading-comic");
+  }
   document.body.classList.remove("reader-mode-flip", "reader-mode-horizontal", "reader-mode-vertical", "reader-mode-hybrid");
   document.body.classList.add(`reader-mode-${mode}`);
   document.body.setAttribute("data-runtime-reading-mode", mode);
@@ -965,19 +998,39 @@ function closeToc() {
   }
 }
 
-function getActiveSetEntries() {
-  const active = state.activeNameSet || Object.keys(state.nameSets)[0] || "Mặc định";
-  return state.nameSets[active] || {};
+function isNameBookScope() {
+  return state.nameDictType === "name" && state.nameDictScope === "book";
+}
+
+function syncNameEditorScopeUi() {
+  const isBookName = isNameBookScope();
+  if (refs.nameSetControls) refs.nameSetControls.hidden = !isBookName;
+}
+
+function getCurrentDictEntries() {
+  if (state.nameDictType === "name" && state.nameDictScope === "book") {
+    const active = state.activeNameSet || Object.keys(state.nameSets)[0] || "Mặc định";
+    return state.nameSets[active] || {};
+  }
+  if (state.nameDictType === "vp" && state.nameDictScope === "book") {
+    return state.bookVpDict || {};
+  }
+  if (state.nameDictType === "name") {
+    return (state.globalDicts && state.globalDicts.name) || {};
+  }
+  return (state.globalDicts && state.globalDicts.vp) || {};
 }
 
 function renderNameEntriesTable() {
   refs.namePreviewBody.innerHTML = "";
-  const entries = Object.entries(getActiveSetEntries()).sort((a, b) => a[0].localeCompare(b[0], "zh-Hans-CN"));
+  const entries = Object.entries(getCurrentDictEntries()).sort((a, b) => a[0].localeCompare(b[0], "zh-Hans-CN"));
   if (!entries.length) {
     refs.namePreviewHint.textContent = state.shell.t("namePreviewEmpty");
+    refreshNameSourceSuggestions();
     return;
   }
   refs.namePreviewHint.textContent = state.shell.t("namePreviewCount", { count: entries.length });
+  const typeLabel = state.nameDictType === "vp" ? "VP" : "Name";
 
   for (const [source, target] of entries) {
     const tr = document.createElement("tr");
@@ -992,7 +1045,7 @@ function renderNameEntriesTable() {
     targetCell.appendChild(targetInput);
 
     const countCell = document.createElement("td");
-    countCell.textContent = "Name";
+    countCell.textContent = typeLabel;
 
     const actionCell = document.createElement("td");
     const saveBtn = document.createElement("button");
@@ -1020,6 +1073,7 @@ function renderNameEntriesTable() {
     tr.append(sourceCell, targetCell, countCell, actionCell);
     refs.namePreviewBody.appendChild(tr);
   }
+  refreshNameSourceSuggestions();
 }
 
 async function loadNameSets() {
@@ -1034,6 +1088,33 @@ async function loadNameSets() {
     refs.nameSetSelect.appendChild(opt);
   }
   refs.nameSetSelect.value = state.activeNameSet;
+}
+
+async function loadBookVpDict() {
+  if (!state.bookId) {
+    state.bookVpDict = {};
+    return;
+  }
+  const data = await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}`);
+  state.bookVpDict = (data && data.vp && typeof data.vp === "object") ? data.vp : {};
+}
+
+async function loadGlobalDicts() {
+  const data = await state.shell.api("/api/local-dicts/global");
+  const dicts = (data && data.global_dicts && typeof data.global_dicts === "object") ? data.global_dicts : {};
+  state.globalDicts = {
+    name: (dicts.name && typeof dicts.name === "object") ? dicts.name : {},
+    vp: (dicts.vp && typeof dicts.vp === "object") ? dicts.vp : {},
+  };
+}
+
+async function refreshNameEditorData() {
+  await Promise.all([
+    loadNameSets(),
+    loadBookVpDict(),
+    loadGlobalDicts(),
+  ]);
+  syncNameEditorScopeUi();
   renderNameEntriesTable();
 }
 
@@ -1050,16 +1131,44 @@ function updateNameSourceSuggestions(items) {
   }
 }
 
+function refreshNameSourceSuggestions(extraItems = []) {
+  const merged = [];
+  const seen = new Set();
+  const push = (raw) => {
+    const value = String(raw || "").trim();
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    merged.push(value);
+  };
+  for (const x of Array.isArray(extraItems) ? extraItems : []) push(x);
+  for (const key of Object.keys(getCurrentDictEntries() || {})) {
+    push(key);
+    if (merged.length >= 180) break;
+  }
+  updateNameSourceSuggestions(merged);
+}
+
 function buildNameSetExportData() {
-  const active = state.activeNameSet || "Mặc định";
-  const activeEntries = getActiveSetEntries();
-  return {
-    type: "reader_name_set",
-    version: 1,
+  const entries = getCurrentDictEntries();
+  const payload = {
+    type: "reader_dict_set",
+    version: 2,
+    scope: state.nameDictScope,
+    dict_type: state.nameDictType,
     book_id: state.bookId,
-    active_set: active,
-    sets: { [active]: activeEntries },
     exported_at: new Date().toISOString(),
+  };
+  if (isNameBookScope()) {
+    const active = state.activeNameSet || "Mặc định";
+    return {
+      ...payload,
+      active_set: active,
+      sets: { [active]: entries },
+    };
+  }
+  return {
+    ...payload,
+    entries,
   };
 }
 
@@ -1077,6 +1186,19 @@ function downloadNameSetJson(data, filenameBase = "name_set") {
 
 function normalizeImportedNameSet(payload) {
   if (!payload || typeof payload !== "object") return null;
+  const dictType = String(payload.dict_type || state.nameDictType || "name").trim().toLowerCase() === "vp" ? "vp" : "name";
+  const scope = String(payload.scope || state.nameDictScope || "book").trim().toLowerCase() === "global" ? "global" : "book";
+  if (!(dictType === "name" && scope === "book")) {
+    const entries = payload.entries && typeof payload.entries === "object"
+      ? payload.entries
+      : (payload.sets && payload.active_set && payload.sets[payload.active_set]) || null;
+    if (!entries || typeof entries !== "object") return null;
+    return {
+      dict_type: dictType,
+      scope,
+      entries,
+    };
+  }
   if (payload.sets && typeof payload.sets === "object") {
     const activeSet = String(payload.active_set || Object.keys(payload.sets)[0] || "Mặc định");
     return {
@@ -1111,7 +1233,7 @@ function normalizeImportedNameSet(payload) {
 async function refreshNamePreview() {
   state.shell.showStatus(state.shell.t("statusLoadingNamePreview"));
   try {
-    await loadNameSets();
+    await refreshNameEditorData();
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -1123,15 +1245,29 @@ async function applyNameEntry(source, target) {
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
   const preserveRatio = currentChapterRatio();
   try {
-    await state.shell.api("/api/name-sets/entry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source, target, set_name: state.activeNameSet, book_id: state.bookId }),
-    });
+    if (state.nameDictScope === "global") {
+      await state.shell.api("/api/local-dicts/global/entry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dict_type: state.nameDictType, source, target }),
+      });
+    } else if (state.nameDictType === "vp") {
+      await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dict_type: "vp", source, target }),
+      });
+    } else {
+      await state.shell.api("/api/name-sets/entry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source, target, set_name: state.activeNameSet, book_id: state.bookId }),
+      });
+    }
     state.shell.showToast(state.shell.t("nameEntryApplied"));
     clearChapterCache();
     cancelPrefetch();
-    await loadNameSets();
+    await refreshNameEditorData();
     await loadBook();
     await loadChapter({ resetFlip: true, preserveRatio });
   } catch (error) {
@@ -1145,14 +1281,28 @@ async function deleteNameEntry(source) {
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
   const preserveRatio = currentChapterRatio();
   try {
-    await state.shell.api("/api/name-sets/entry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source, target: "", delete: true, set_name: state.activeNameSet, book_id: state.bookId }),
-    });
+    if (state.nameDictScope === "global") {
+      await state.shell.api("/api/local-dicts/global/entry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dict_type: state.nameDictType, source, target: "", delete: true }),
+      });
+    } else if (state.nameDictType === "vp") {
+      await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dict_type: "vp", source, target: "", delete: true }),
+      });
+    } else {
+      await state.shell.api("/api/name-sets/entry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source, target: "", delete: true, set_name: state.activeNameSet, book_id: state.bookId }),
+      });
+    }
     clearChapterCache();
     cancelPrefetch();
-    await loadNameSets();
+    await refreshNameEditorData();
     await loadBook();
     await loadChapter({ resetFlip: true, preserveRatio });
   } catch (error) {
@@ -1168,6 +1318,8 @@ function openNameEditor(prefill = {}) {
   if (!refs.nameEditorDialog.open) {
     refs.nameEditorDialog.showModal();
   }
+  if (refs.nameDictTypeSelect) refs.nameDictTypeSelect.value = state.nameDictType;
+  if (refs.nameDictScopeSelect) refs.nameDictScopeSelect.value = state.nameDictScope;
   if (sourcePrefill) {
     refs.nameSourceInput.value = sourcePrefill;
   }
@@ -1178,11 +1330,12 @@ function openNameEditor(prefill = {}) {
     if (sourcePrefill) refs.nameTargetInput.focus();
     else refs.nameSourceInput.focus();
   }
-  updateNameSourceSuggestions((prefill && prefill.suggestions) || []);
-  loadNameSets().catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
+  refreshNameSourceSuggestions((prefill && prefill.suggestions) || []);
+  refreshNameEditorData().catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
 }
 
 async function addNameSet() {
+  if (!isNameBookScope()) return;
   const setName = window.prompt(state.shell.t("promptNameSetNew"), "");
   const trimmed = String(setName || "").trim();
   if (!trimmed) return;
@@ -1198,7 +1351,7 @@ async function addNameSet() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sets, active_set: trimmed, bump_version: false, book_id: state.bookId }),
     });
-    await loadNameSets();
+    await refreshNameEditorData();
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -1207,6 +1360,7 @@ async function addNameSet() {
 }
 
 async function deleteActiveNameSet() {
+  if (!isNameBookScope()) return;
   const names = Object.keys(state.nameSets || {});
   if (names.length <= 1) {
     state.shell.showToast(state.shell.t("nameSetNeedOne"));
@@ -1225,7 +1379,7 @@ async function deleteActiveNameSet() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sets: nextSets, active_set: nextActive, bump_version: false, book_id: state.bookId }),
     });
-    await loadNameSets();
+    await refreshNameEditorData();
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -1234,6 +1388,11 @@ async function deleteActiveNameSet() {
 }
 
 function exportActiveNameSet() {
+  if (!isNameBookScope()) {
+    const fileName = `dict_${state.nameDictType}_${state.nameDictScope}`.replace(/[^\w\-]+/g, "_");
+    downloadNameSetJson(buildNameSetExportData(), fileName);
+    return;
+  }
   const active = state.activeNameSet || "Mặc định";
   const fileName = `name_set_${active}`.replace(/[^\w\-]+/g, "_");
   downloadNameSetJson(buildNameSetExportData(), fileName);
@@ -1249,12 +1408,41 @@ async function importNameSetFromFile(file) {
     if (!payload) {
       throw new Error(state.shell.t("nameSetImportInvalid"));
     }
-    await state.shell.api("/api/name-sets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    await loadNameSets();
+    if (payload.entries && payload.dict_type) {
+      if (payload.scope === "global") {
+        await state.shell.api("/api/local-dicts/global", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload.dict_type === "vp" ? { vp: payload.entries } : { name: payload.entries }),
+        });
+      } else if (payload.dict_type === "vp") {
+        for (const [source, target] of Object.entries(payload.entries || {})) {
+          await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ dict_type: "vp", source, target }),
+          });
+        }
+      } else {
+        await state.shell.api("/api/name-sets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sets: { [state.activeNameSet || "Mặc định"]: payload.entries },
+            active_set: state.activeNameSet || "Mặc định",
+            bump_version: true,
+            book_id: state.bookId,
+          }),
+        });
+      }
+    } else {
+      await state.shell.api("/api/name-sets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
+    await refreshNameEditorData();
     state.shell.showToast(state.shell.t("nameSetImported"));
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
@@ -1263,21 +1451,11 @@ async function importNameSetFromFile(file) {
   }
 }
 
-function renderNameSuggestRows(items) {
+function renderNameSuggestRows(items, rightItems = []) {
   refs.nameSuggestLeftBody.innerHTML = "";
   refs.nameSuggestRightBody.innerHTML = "";
   const list = Array.isArray(items) ? items : [];
-  if (!list.length) {
-    refs.nameSuggestHint.textContent = state.shell.t("nameSuggestEmpty");
-    const trEmpty = document.createElement("tr");
-    const tdEmpty = document.createElement("td");
-    tdEmpty.colSpan = 2;
-    tdEmpty.className = "empty-text";
-    tdEmpty.textContent = state.shell.t("nameSuggestRightPending");
-    trEmpty.appendChild(tdEmpty);
-    refs.nameSuggestRightBody.appendChild(trEmpty);
-    return;
-  }
+  const rightList = Array.isArray(rightItems) ? rightItems : [];
   refs.nameSuggestHint.textContent = state.shell.t("nameSuggestCount", { count: list.length });
 
   let selectedIndex = -1;
@@ -1310,13 +1488,69 @@ function renderNameSuggestRows(items) {
     refs.nameSuggestLeftBody.appendChild(trLeft);
   }
 
-  const trPending = document.createElement("tr");
-  const tdPending = document.createElement("td");
-  tdPending.colSpan = 2;
-  tdPending.className = "empty-text";
-  tdPending.textContent = state.shell.t("nameSuggestRightPending");
-  trPending.appendChild(tdPending);
-  refs.nameSuggestRightBody.appendChild(trPending);
+  if (!list.length) {
+    const trEmptyLeft = document.createElement("tr");
+    const tdEmptyLeft = document.createElement("td");
+    tdEmptyLeft.colSpan = 3;
+    tdEmptyLeft.className = "empty-text";
+    tdEmptyLeft.textContent = state.shell.t("nameSuggestEmpty");
+    trEmptyLeft.appendChild(tdEmptyLeft);
+    refs.nameSuggestLeftBody.appendChild(trEmptyLeft);
+  }
+
+  if (!rightList.length) {
+    const trPending = document.createElement("tr");
+    const tdPending = document.createElement("td");
+    tdPending.colSpan = 3;
+    tdPending.className = "empty-text";
+    tdPending.textContent = state.shell.t("nameSuggestRightPending");
+    trPending.appendChild(tdPending);
+    refs.nameSuggestRightBody.appendChild(trPending);
+  } else {
+    for (const row of rightList) {
+      const tr = document.createElement("tr");
+      const tdTarget = document.createElement("td");
+      tdTarget.textContent = String(row.target_text || "").trim();
+      const tdOrigin = document.createElement("td");
+      tdOrigin.textContent = String(row.origin || "").trim();
+      const tdAction = document.createElement("td");
+
+      const btnUse = document.createElement("button");
+      btnUse.type = "button";
+      btnUse.className = "btn btn-small";
+      btnUse.textContent = state.shell.t("nameSuggestUse");
+      btnUse.addEventListener("click", () => {
+        const source = String(row.source_text || refs.nameSourceInput.value || "").trim();
+        const target = String(row.target_text || "").trim();
+        if (source) refs.nameSourceInput.value = source;
+        if (target) refs.nameTargetInput.value = target;
+        refs.nameSuggestDialog.close();
+        refs.nameTargetInput.focus();
+      });
+
+      const btnGoogle = document.createElement("button");
+      btnGoogle.type = "button";
+      btnGoogle.className = "btn btn-small";
+      btnGoogle.textContent = state.shell.t("nameSuggestGoogleTranslate");
+      btnGoogle.addEventListener("click", () => {
+        const url = String(row.google_translate_url || "").trim();
+        if (url) window.open(url, "_blank", "noopener,noreferrer");
+      });
+
+      const btnSearch = document.createElement("button");
+      btnSearch.type = "button";
+      btnSearch.className = "btn btn-small";
+      btnSearch.textContent = state.shell.t("nameSuggestGoogleSearch");
+      btnSearch.addEventListener("click", () => {
+        const url = String(row.google_search_url || "").trim();
+        if (url) window.open(url, "_blank", "noopener,noreferrer");
+      });
+
+      tdAction.append(btnUse, btnGoogle, btnSearch);
+      tr.append(tdTarget, tdOrigin, tdAction);
+      refs.nameSuggestRightBody.appendChild(tr);
+    }
+  }
 
   if (selectedIndex < 0 && list.length) {
     selectRow(0);
@@ -1335,9 +1569,16 @@ async function openNameSuggestDialog() {
     const data = await state.shell.api("/api/name-suggest", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source_text: sourceText }),
+      body: JSON.stringify({
+        source_text: sourceText,
+        translation_mode: state.translateMode,
+        book_id: state.bookId,
+        set_name: state.activeNameSet,
+        dict_type: state.nameDictType,
+        scope: state.nameDictScope,
+      }),
     });
-    renderNameSuggestRows(data.items || []);
+    renderNameSuggestRows(data.items || [], data.right_items || []);
     refs.nameSuggestDialog.showModal();
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
@@ -1483,6 +1724,18 @@ function handleSelectionButton() {
 
 function bindNameEditor() {
   refs.nameEditorTitle.textContent = state.shell.t("nameEditorTitle");
+  refs.nameDictTypeLabel.textContent = state.shell.t("nameDictTypeLabel");
+  refs.nameDictScopeLabel.textContent = state.shell.t("nameDictScopeLabel");
+  const nameTypeNameOpt = document.getElementById("name-dict-type-name");
+  const nameTypeVpOpt = document.getElementById("name-dict-type-vp");
+  const nameScopeBookOpt = document.getElementById("name-dict-scope-book");
+  const nameScopeGlobalOpt = document.getElementById("name-dict-scope-global");
+  if (nameTypeNameOpt) nameTypeNameOpt.textContent = state.shell.t("nameDictTypeName");
+  if (nameTypeVpOpt) nameTypeVpOpt.textContent = state.shell.t("nameDictTypeVp");
+  if (nameScopeBookOpt) nameScopeBookOpt.textContent = state.shell.t("nameDictScopeBook");
+  if (nameScopeGlobalOpt) nameScopeGlobalOpt.textContent = state.shell.t("nameDictScopeGlobal");
+  if (refs.nameDictTypeSelect) refs.nameDictTypeSelect.value = state.nameDictType;
+  if (refs.nameDictScopeSelect) refs.nameDictScopeSelect.value = state.nameDictScope;
   refs.btnCloseNameEditor.textContent = state.shell.t("close");
   refs.btnRefreshNamePreview.textContent = state.shell.t("refreshNamePreview");
   refs.btnAddNameSet.textContent = state.shell.t("nameSetAdd");
@@ -1506,7 +1759,24 @@ function bindNameEditor() {
   refs.nameSuggestColSource.textContent = state.shell.t("nameSuggestColSource");
   refs.nameSuggestColHv.textContent = state.shell.t("nameSuggestColHv");
   refs.nameSuggestColTarget.textContent = state.shell.t("nameSuggestColTarget");
+  refs.nameSuggestColOrigin.textContent = state.shell.t("nameSuggestColOrigin");
   refs.nameSuggestColAction.textContent = state.shell.t("nameSuggestColAction");
+  syncNameEditorScopeUi();
+
+  if (refs.nameDictTypeSelect) {
+    refs.nameDictTypeSelect.addEventListener("change", () => {
+      state.nameDictType = String(refs.nameDictTypeSelect.value || "name").trim().toLowerCase() === "vp" ? "vp" : "name";
+      syncNameEditorScopeUi();
+      renderNameEntriesTable();
+    });
+  }
+  if (refs.nameDictScopeSelect) {
+    refs.nameDictScopeSelect.addEventListener("change", () => {
+      state.nameDictScope = String(refs.nameDictScopeSelect.value || "book").trim().toLowerCase() === "global" ? "global" : "book";
+      syncNameEditorScopeUi();
+      renderNameEntriesTable();
+    });
+  }
 
   refs.btnOpenNameEditor.addEventListener("click", () => openNameEditor({}));
   refs.btnCloseNameEditor.addEventListener("click", () => refs.nameEditorDialog.close());
@@ -1525,6 +1795,7 @@ function bindNameEditor() {
   refs.btnOpenNameSuggest.addEventListener("click", openNameSuggestDialog);
 
   refs.nameSetSelect.addEventListener("change", async () => {
+    if (!isNameBookScope()) return;
     const chosen = refs.nameSetSelect.value;
     state.shell.showStatus(state.shell.t("statusSwitchingNameSet"));
     try {
@@ -1906,6 +2177,11 @@ function onFullscreenKeydown(event) {
   exitFullscreenFallback();
 }
 
+function scheduleProgressSave(delay = 280) {
+  clearTimeout(state.saveTimer);
+  state.saveTimer = window.setTimeout(() => saveProgress(), delay);
+}
+
 function onReaderWheel(event) {
   const mode = runtimeReadingMode();
   const wrap = refs.readerContentScroll;
@@ -1961,8 +2237,7 @@ function onReaderWheel(event) {
     event.preventDefault();
     wrap.scrollLeft += delta;
     updateProgress();
-    clearTimeout(state.saveTimer);
-    state.saveTimer = window.setTimeout(() => saveProgress(), 280);
+    scheduleProgressSave(280);
     return;
   }
 
@@ -1997,11 +2272,51 @@ function onReaderWheel(event) {
     }
 
     if (state.infiniteScrollProgressPx > 0) clearScrollHint();
-    showScrollHint(state.shell.t("scrollingIndicator"), { autoHideMs: 240 });
     return;
   }
 
+  if (mode === "hybrid" && isFullscreenActive()) {
+    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (Math.abs(delta) < 0.5) return;
+    const maxY = Math.max(0, wrap.scrollHeight - wrap.clientHeight);
+    if (maxY > 2) {
+      const prevTop = wrap.scrollTop;
+      wrap.scrollTop = Math.max(0, Math.min(maxY, prevTop + delta));
+      if (wrap.scrollTop !== prevTop) {
+        event.preventDefault();
+        updateProgress();
+        updateMiniInfoVisibility();
+        scheduleProgressSave(280);
+      }
+      return;
+    }
+  }
+
   if (state.infiniteScrollProgressPx > 0) clearScrollHint();
+}
+
+function onFullscreenHybridWheelFallback(event) {
+  if (!isFullscreenActive()) return;
+  if (runtimeReadingMode() !== "hybrid") return;
+  const target = event.target;
+  if (target && target.closest) {
+    if (target.closest("#reader-content-scroll")) return;
+    if (target.closest("dialog, #settings-drawer, #reader-toc-drawer")) return;
+    if (target.closest("#settings-backdrop")) return;
+  }
+  const wrap = refs.readerContentScroll;
+  if (!wrap) return;
+  const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+  if (Math.abs(delta) < 0.5) return;
+  const maxY = Math.max(0, wrap.scrollHeight - wrap.clientHeight);
+  if (maxY <= 2) return;
+  const prevTop = wrap.scrollTop;
+  wrap.scrollTop = Math.max(0, Math.min(maxY, prevTop + delta));
+  if (wrap.scrollTop === prevTop) return;
+  event.preventDefault();
+  updateProgress();
+  updateMiniInfoVisibility();
+  scheduleProgressSave(280);
 }
 
 async function init() {
@@ -2039,18 +2354,27 @@ async function init() {
   applyReaderModeClass();
   window.addEventListener("reader-settings-changed", () => {
     const preserveRatio = currentChapterRatio();
+    const prevEnabled = state.translationEnabled;
     const nextEnabled = (state.shell && typeof state.shell.getTranslationEnabled === "function")
       ? state.shell.getTranslationEnabled()
       : state.translationEnabled;
     const nextMode = (state.shell && typeof state.shell.getTranslationMode === "function")
       ? state.shell.getTranslationMode()
-      : state.translateMode;
-    const translationChanged = (nextEnabled !== state.translationEnabled) || (nextMode !== state.translateMode);
+      : state.globalTranslationMode;
+    const nextLocalSig = localTranslationSettingsSignature(state.shell);
+    const localTranslationChanged = nextLocalSig !== state.globalTranslationLocalSig;
+    const translationChanged = (nextEnabled !== state.translationEnabled)
+      || (nextMode !== state.globalTranslationMode)
+      || (["local", "hanviet"].includes(nextMode) && localTranslationChanged);
     state.translationEnabled = nextEnabled;
+    state.globalTranslationMode = nextMode;
+    state.globalTranslationLocalSig = nextLocalSig;
     if (translationChanged) {
       state.translateMode = nextMode;
       if (!nextEnabled) {
         state.mode = "raw";
+      } else if (!prevEnabled && state.book && supportsTranslation(state.book)) {
+        state.mode = "trans";
       }
       clearChapterCache();
       cancelPrefetch();
@@ -2080,13 +2404,15 @@ async function init() {
   state.translationEnabled = (state.shell && typeof state.shell.getTranslationEnabled === "function")
     ? state.shell.getTranslationEnabled()
     : true;
+  state.globalTranslationLocalSig = localTranslationSettingsSignature(state.shell);
   const globalTranslateMode = (state.shell && typeof state.shell.getTranslationMode === "function")
     ? state.shell.getTranslationMode()
     : "server";
+  state.globalTranslationMode = normalizeTranslateMode(globalTranslateMode);
   if (query.translation_mode) {
-    state.translateMode = (query.translation_mode || "server").toLowerCase() === "local" ? "local" : "server";
+    state.translateMode = normalizeTranslateMode(query.translation_mode || "server");
   } else {
-    state.translateMode = globalTranslateMode;
+    state.translateMode = normalizeTranslateMode(globalTranslateMode);
   }
   if (!state.translationEnabled) {
     state.mode = "raw";
@@ -2145,10 +2471,14 @@ async function init() {
   refs.btnModeRaw.addEventListener("click", () => switchMode("raw"));
   refs.btnModeTrans.addEventListener("click", () => switchMode("trans"));
   refs.btnTranslateMode.addEventListener("click", async () => {
-    state.translateMode = state.translateMode === "local" ? "server" : "local";
+    if (state.translateMode === "server") state.translateMode = "local";
+    else if (state.translateMode === "local") state.translateMode = "hanviet";
+    else state.translateMode = "server";
     clearChapterCache();
     cancelPrefetch();
-    refs.btnTranslateMode.textContent = state.translateMode === "local" ? state.shell.t("modeLocal") : state.shell.t("modeServer");
+    if (state.translateMode === "local") refs.btnTranslateMode.textContent = state.shell.t("modeLocal");
+    else if (state.translateMode === "hanviet") refs.btnTranslateMode.textContent = state.shell.t("modeHanviet");
+    else refs.btnTranslateMode.textContent = state.shell.t("modeServer");
     await loadBook();
     await loadChapter();
   });
@@ -2178,8 +2508,7 @@ async function init() {
     if (runtimeReadingMode() === "flip") return;
     updateProgress();
     updateMiniInfoVisibility();
-    clearTimeout(state.saveTimer);
-    state.saveTimer = window.setTimeout(() => saveProgress(), 280);
+    scheduleProgressSave(280);
   });
 
   // Nếu trang đang scroll theo window (không phải scroll nội bộ), vẫn phải cập nhật tiến độ + lưu vị trí.
@@ -2188,8 +2517,7 @@ async function init() {
     if (runtimeReadingMode() === "flip") return;
     updateProgress();
     updateMiniInfoVisibility();
-    clearTimeout(state.saveTimer);
-    state.saveTimer = window.setTimeout(() => saveProgress(), 280);
+    scheduleProgressSave(280);
   }, { passive: true });
 
   // Chỉ bắt sự kiện click vào vùng nội dung để toggle UI
@@ -2199,6 +2527,7 @@ async function init() {
 
   // Wheel: passive false để có thể preventDefault ở mode flip/horizontal
   refs.readerContentScroll.addEventListener("wheel", onReaderWheel, { passive: false });
+  document.addEventListener("wheel", onFullscreenHybridWheelFallback, { passive: false, capture: true });
 
   // Keydown: chỉ để exit fullscreen fallback
   document.addEventListener("keydown", onFullscreenKeydown, true);
@@ -2212,7 +2541,16 @@ async function init() {
   });
 
   // Nếu body/window scroll (một số layout) thì vẫn canh lại vị trí mini bars.
-  window.addEventListener("scroll", () => syncMiniBarLayout(), { passive: true });
+  // Throttle bằng rAF để tránh cập nhật liên tục gây giật trên mobile (browser chrome ẩn/hiện).
+  let miniBarRafPending = false;
+  window.addEventListener("scroll", () => {
+    if (miniBarRafPending) return;
+    miniBarRafPending = true;
+    window.requestAnimationFrame(() => {
+      miniBarRafPending = false;
+      syncMiniBarLayout();
+    });
+  }, { passive: true });
   window.addEventListener("resize", () => {
     syncMiniBarLayout();
     updateProgress();

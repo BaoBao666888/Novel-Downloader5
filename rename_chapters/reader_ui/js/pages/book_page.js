@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb17";
+import { initShell } from "../site_common.js?v=20260221-vb24";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -90,7 +90,20 @@ const state = {
   tocItems: [],
   bookNameSets: { "Mặc định": {} },
   bookActiveNameSet: "Mặc định",
+  translationEnabled: true,
+  translationLocalSig: "{}",
 };
+
+function localTranslationSettingsSignature(shell) {
+  try {
+    const data = shell && typeof shell.getTranslationLocalSettings === "function"
+      ? shell.getTranslationLocalSettings()
+      : {};
+    return JSON.stringify(data || {});
+  } catch {
+    return "{}";
+  }
+}
 
 function supportsTranslation(book) {
   if (!book) return false;
@@ -492,6 +505,12 @@ async function init() {
       }
     },
   });
+  if (state.shell && typeof state.shell.getTranslationMode === "function") {
+    state.translateMode = state.shell.getTranslationMode();
+  }
+  if (state.shell && typeof state.shell.getTranslationEnabled === "function") {
+    state.translationEnabled = state.shell.getTranslationEnabled();
+  }
 
   refs.bookInfoTitle.textContent = state.shell.t("bookInfoTitle");
   refs.bookEmpty.textContent = `${state.shell.t("noBookSelected")}. ${state.shell.t("noBookSelectedHint")}`;
@@ -692,6 +711,26 @@ async function init() {
 
   window.addEventListener("reader-settings-changed", () => {
     if (!state.bookId) return;
+    const prevEnabled = state.translationEnabled;
+    const enabled = state.shell && typeof state.shell.getTranslationEnabled === "function"
+      ? state.shell.getTranslationEnabled()
+      : true;
+    const mode = state.shell && typeof state.shell.getTranslationMode === "function"
+      ? state.shell.getTranslationMode()
+      : state.translateMode;
+    const localSig = localTranslationSettingsSignature(state.shell);
+    const localChanged = localSig !== state.translationLocalSig;
+    if (enabled === state.translationEnabled && mode === state.translateMode && !(["local", "hanviet"].includes(mode) && localChanged)) return;
+    state.translationEnabled = enabled;
+    state.translationLocalSig = localSig;
+    if (!enabled) {
+      state.mode = "raw";
+    } else if (!prevEnabled && state.book && supportsTranslation(state.book)) {
+      state.mode = "trans";
+    }
+    if (state.shell && typeof state.shell.getTranslationMode === "function") {
+      state.translateMode = mode;
+    }
     const keepPage = Math.max(1, Number(state.pagination.page || 1));
     loadBook()
       .then(() => loadToc(keepPage))
@@ -699,6 +738,7 @@ async function init() {
   });
 
   const query = state.shell.parseQuery();
+  state.translationLocalSig = localTranslationSettingsSignature(state.shell);
   state.bookId = (query.book_id || "").trim();
   state.mode = (query.mode || "trans").toLowerCase() === "raw" ? "raw" : "trans";
 

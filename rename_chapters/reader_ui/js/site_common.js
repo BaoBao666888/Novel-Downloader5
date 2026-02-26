@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260221-vb17";
+import { t } from "../i18n.vi.js?v=20260221-vb24";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -18,6 +18,19 @@ const DEFAULT_SETTINGS = {
   translationMode: "server",
 };
 
+const LOCAL_TRANSLATION_DEFAULT = {
+  split_mode: 0,
+  name_vietphrase_priority: 0,
+  personal_general_priority: 0,
+  vp_priority: 1,
+  luat_nhan_mode: 1,
+  max_phrase_size: 12,
+  convert_simplified: false,
+  short_mode: true,
+  use_pronouns: true,
+  use_luat_nhan: true,
+};
+
 const FONT_PRESETS = [
   { id: "serif", text: "'Noto Serif', 'Palatino Linotype', 'Times New Roman', serif", labelKey: "fontPresetSerif" },
   { id: "sans", text: "'Be Vietnam Pro', 'Segoe UI', Tahoma, sans-serif", labelKey: "fontPresetSans" },
@@ -28,6 +41,7 @@ const FONT_PRESETS = [
 const EFFECT_CLASSES = ["effect-stars", "effect-sparkle", "effect-bubbles", "effect-leaves", "effect-snow"];
 const STAR_STYLE_CLASSES = ["star-style-classic", "star-style-dense", "star-style-bling"];
 const PANEL_STYLE_CLASSES = ["panel-style-clear", "panel-style-balanced", "panel-style-solid"];
+let cacheManagerUi = null;
 
 function qs(id) {
   return document.getElementById(id);
@@ -163,7 +177,45 @@ function normalizePanelTransparency(value) {
 
 function normalizeTranslationMode(value) {
   const mode = String(value || "").trim().toLowerCase();
-  return mode === "local" ? "local" : "server";
+  if (mode === "local") return "local";
+  if (mode === "hanviet") return "hanviet";
+  return "server";
+}
+
+function normalizeLocalTranslationSettings(raw) {
+  const src = (raw && typeof raw === "object") ? raw : {};
+  const toInt = (value, fallback, min, max) => {
+    const n = Number.parseInt(String(value ?? ""), 10);
+    if (!Number.isFinite(n)) return fallback;
+    if (n < min) return min;
+    if (n > max) return max;
+    return n;
+  };
+  const toBool = (value, fallback) => {
+    if (typeof value === "boolean") return value;
+    const txt = String(value ?? "").trim().toLowerCase();
+    if (!txt) return fallback;
+    if (["1", "true", "yes", "on", "enabled"].includes(txt)) return true;
+    if (["0", "false", "no", "off", "disabled"].includes(txt)) return false;
+    return fallback;
+  };
+  return {
+    split_mode: toInt(src.split_mode, LOCAL_TRANSLATION_DEFAULT.split_mode, 0, 1),
+    name_vietphrase_priority: toInt(src.name_vietphrase_priority, LOCAL_TRANSLATION_DEFAULT.name_vietphrase_priority, 0, 1),
+    personal_general_priority: toInt(src.personal_general_priority, LOCAL_TRANSLATION_DEFAULT.personal_general_priority, 0, 1),
+    vp_priority: toInt(src.vp_priority, LOCAL_TRANSLATION_DEFAULT.vp_priority, 0, 3),
+    luat_nhan_mode: toInt(src.luat_nhan_mode, LOCAL_TRANSLATION_DEFAULT.luat_nhan_mode, 0, 3),
+    max_phrase_size: toInt(src.max_phrase_size, LOCAL_TRANSLATION_DEFAULT.max_phrase_size, 2, 24),
+    convert_simplified: toBool(src.convert_simplified, LOCAL_TRANSLATION_DEFAULT.convert_simplified),
+    short_mode: toBool(src.short_mode, LOCAL_TRANSLATION_DEFAULT.short_mode),
+    use_pronouns: toBool(src.use_pronouns, LOCAL_TRANSLATION_DEFAULT.use_pronouns),
+    use_luat_nhan: toBool(src.use_luat_nhan, LOCAL_TRANSLATION_DEFAULT.use_luat_nhan),
+    // Extra dictionaries bị tắt theo pipeline local mới.
+    use_vp_global: true,
+    use_name_global: true,
+    use_name_extra: false,
+    use_vp_genre: false,
+  };
 }
 
 function applyPanelStyle(settings) {
@@ -181,13 +233,19 @@ function lowPowerDevice() {
   return narrow || reducedMotion;
 }
 
+const MOTION_CLASSES = ["effects-paused", "effects-lite", "effects-off"];
+
 function applyThemeClasses(target, effect, settings) {
   if (!target) return;
   target.classList.remove(...EFFECT_CLASSES);
   target.classList.add(`effect-${effect || "stars"}`);
   target.classList.remove(...STAR_STYLE_CLASSES);
   target.classList.add(`star-style-${settings.starStyle || "classic"}`);
-  target.classList.toggle("effects-paused", (settings.backgroundMotion || "on") !== "on");
+  const motion = settings.backgroundMotion || "on";
+  target.classList.remove(...MOTION_CLASSES);
+  if (motion === "off") target.classList.add("effects-off");
+  else if (motion === "lite") target.classList.add("effects-lite");
+  // "on": no extra class — full effects
 }
 
 function applyTheme(themes, settings) {
@@ -202,9 +260,11 @@ function applyTheme(themes, settings) {
   applyThemeClasses(document.documentElement, theme.effect, settings);
   applyThemeClasses(document.body, theme.effect, settings);
 
-  const lite = lowPowerDevice();
-  document.documentElement.classList.toggle("effects-lite", lite);
-  document.body.classList.toggle("effects-lite", lite);
+  // Auto-detect: nếu user chọn "on" nhưng thiết bị yếu → tự chuyển lite (chỉ visual, không lưu setting).
+  if ((settings.backgroundMotion || "on") === "on" && lowPowerDevice()) {
+    document.documentElement.classList.add("effects-lite");
+    document.body.classList.add("effects-lite");
+  }
 
   saveThemeCache(theme);
 }
@@ -301,17 +361,252 @@ async function handleImportUrl(onImported) {
   }
 }
 
-async function clearCache() {
-  if (!window.confirm(t("confirmClearCache"))) return;
-  showStatus(t("statusClearing"));
+function formatBytes(value) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n) || n <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = n;
+  let idx = 0;
+  while (size >= 1024 && idx < units.length - 1) {
+    size /= 1024;
+    idx += 1;
+  }
+  const digits = size >= 100 ? 0 : (size >= 10 ? 1 : 2);
+  return `${size.toFixed(digits)} ${units[idx]}`;
+}
+
+function ensureCacheManagerUi() {
+  if (cacheManagerUi) return cacheManagerUi;
+  const dialog = document.createElement("dialog");
+  dialog.id = "cache-manager-dialog";
+  dialog.className = "dialog cache-manager-dialog";
+  dialog.innerHTML = `
+    <div class="dialog-head">
+      <h3 id="cache-manager-title"></h3>
+      <button id="btn-cache-manager-close" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="cache-manager-global-stats" class="empty-text"></p>
+    <div class="cover-btns cache-manager-actions">
+      <button id="btn-cache-manager-refresh" class="btn btn-small" type="button"></button>
+      <button id="btn-cache-manager-clear-global-trans" class="btn btn-small" type="button"></button>
+    </div>
+    <div class="cover-btns cache-manager-actions">
+      <label class="cache-manager-select-all">
+        <input id="cache-manager-select-all" type="checkbox">
+        <span id="cache-manager-select-all-label"></span>
+      </label>
+      <button id="btn-cache-manager-clear-raw" class="btn btn-small" type="button"></button>
+      <button id="btn-cache-manager-clear-trans" class="btn btn-small" type="button"></button>
+      <button id="btn-cache-manager-clear-images" class="btn btn-small" type="button"></button>
+      <button id="btn-cache-manager-clear-all" class="btn btn-small" type="button"></button>
+    </div>
+    <div id="cache-manager-list" class="cache-manager-list"></div>
+    <p id="cache-manager-empty" class="empty-text hidden"></p>
+  `;
+  document.body.appendChild(dialog);
+
+  const refs = {
+    dialog,
+    title: dialog.querySelector("#cache-manager-title"),
+    btnClose: dialog.querySelector("#btn-cache-manager-close"),
+    globalStats: dialog.querySelector("#cache-manager-global-stats"),
+    btnRefresh: dialog.querySelector("#btn-cache-manager-refresh"),
+    btnClearGlobalTrans: dialog.querySelector("#btn-cache-manager-clear-global-trans"),
+    selectAll: dialog.querySelector("#cache-manager-select-all"),
+    selectAllLabel: dialog.querySelector("#cache-manager-select-all-label"),
+    btnClearRaw: dialog.querySelector("#btn-cache-manager-clear-raw"),
+    btnClearTrans: dialog.querySelector("#btn-cache-manager-clear-trans"),
+    btnClearImages: dialog.querySelector("#btn-cache-manager-clear-images"),
+    btnClearAll: dialog.querySelector("#btn-cache-manager-clear-all"),
+    list: dialog.querySelector("#cache-manager-list"),
+    empty: dialog.querySelector("#cache-manager-empty"),
+  };
+  cacheManagerUi = {
+    refs,
+    books: [],
+    selected: new Set(),
+  };
+
+  refs.title.textContent = t("cacheManagerTitle");
+  refs.btnClose.textContent = t("close");
+  refs.btnRefresh.textContent = t("cacheManagerRefresh");
+  refs.btnClearGlobalTrans.textContent = t("cacheManagerClearGlobalTrans");
+  refs.selectAllLabel.textContent = t("cacheManagerSelectAll");
+  refs.btnClearRaw.textContent = t("cacheManagerClearRaw");
+  refs.btnClearTrans.textContent = t("cacheManagerClearTrans");
+  refs.btnClearImages.textContent = t("cacheManagerClearImages");
+  refs.btnClearAll.textContent = t("cacheManagerClearAll");
+  refs.empty.textContent = t("cacheManagerEmpty");
+
+  refs.btnClose.addEventListener("click", () => {
+    if (dialog.open) dialog.close();
+  });
+  refs.selectAll.addEventListener("change", () => {
+    const checked = Boolean(refs.selectAll.checked);
+    cacheManagerUi.selected.clear();
+    if (checked) {
+      for (const row of cacheManagerUi.books) {
+        const bid = String((row && row.book_id) || "").trim();
+        if (bid) cacheManagerUi.selected.add(bid);
+      }
+    }
+    renderCacheManagerList();
+  });
+  refs.btnRefresh.addEventListener("click", () => {
+    loadCacheManagerSummary().catch(() => { });
+  });
+  refs.btnClearGlobalTrans.addEventListener("click", () => {
+    runCacheManagerAction("clear_global_translation").catch(() => { });
+  });
+  refs.btnClearRaw.addEventListener("click", () => {
+    runCacheManagerAction("clear_book_raw").catch(() => { });
+  });
+  refs.btnClearTrans.addEventListener("click", () => {
+    runCacheManagerAction("clear_book_trans").catch(() => { });
+  });
+  refs.btnClearImages.addEventListener("click", () => {
+    runCacheManagerAction("clear_book_images").catch(() => { });
+  });
+  refs.btnClearAll.addEventListener("click", () => {
+    runCacheManagerAction("clear_book_all").catch(() => { });
+  });
+  return cacheManagerUi;
+}
+
+function renderCacheManagerList() {
+  const ui = ensureCacheManagerUi();
+  const { refs } = ui;
+  refs.list.innerHTML = "";
+  const books = Array.isArray(ui.books) ? ui.books : [];
+  if (!books.length) {
+    refs.empty.classList.remove("hidden");
+    refs.selectAll.checked = false;
+    return;
+  }
+  refs.empty.classList.add("hidden");
+  let selectedCount = 0;
+  for (const book of books) {
+    const bid = String(book.book_id || "").trim();
+    if (!bid) continue;
+    if (ui.selected.has(bid)) selectedCount += 1;
+    const row = document.createElement("label");
+    row.className = "cache-manager-row";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "cache-manager-checkbox";
+    checkbox.checked = ui.selected.has(bid);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) ui.selected.add(bid);
+      else ui.selected.delete(bid);
+      refs.selectAll.checked = ui.selected.size > 0 && ui.selected.size === books.length;
+    });
+
+    const cover = document.createElement("div");
+    cover.className = "cache-book-cover";
+    if (book.cover_url) {
+      const img = document.createElement("img");
+      img.src = String(book.cover_url);
+      img.alt = String(book.title_display || book.title || "cover");
+      cover.appendChild(img);
+    } else {
+      cover.textContent = t("noCover");
+    }
+
+    const meta = document.createElement("div");
+    meta.className = "cache-book-meta";
+    const title = document.createElement("div");
+    title.className = "cache-book-title";
+    title.textContent = String(book.title_display || book.title || "Không tiêu đề");
+    const chapterLine = document.createElement("div");
+    chapterLine.className = "cache-book-line";
+    chapterLine.textContent = t("cacheManagerChapterLine", {
+      raw: Number(book.cached_raw_chapters || 0),
+      trans: Number(book.cached_trans_chapters || 0),
+      total: Number(book.chapter_count || 0),
+    });
+    const imageLine = document.createElement("div");
+    imageLine.className = "cache-book-line";
+    imageLine.textContent = t("cacheManagerImageLine", {
+      count: Number(book.cached_image_count || 0),
+      size: formatBytes(book.image_bytes || 0),
+    });
+    const sizeLine = document.createElement("div");
+    sizeLine.className = "cache-book-line";
+    sizeLine.textContent = t("cacheManagerSizeLine", {
+      raw: formatBytes(book.raw_bytes || 0),
+      trans: formatBytes(book.trans_bytes || 0),
+    });
+    meta.append(title, chapterLine, imageLine, sizeLine);
+    row.append(checkbox, cover, meta);
+    refs.list.appendChild(row);
+  }
+  refs.selectAll.checked = books.length > 0 && selectedCount === books.length;
+}
+
+function renderCacheManagerGlobal(data) {
+  const ui = ensureCacheManagerUi();
+  const { refs } = ui;
+  const global = (data && data.global) || {};
+  refs.globalStats.textContent = t("cacheManagerGlobalLine", {
+    trans_count: Number(global.translated_cache_count || 0),
+    trans_size: formatBytes(global.translated_cache_bytes || 0),
+    tm_count: Number(global.translation_memory_count || 0),
+    unit_count: Number(global.translation_unit_map_count || 0),
+  });
+}
+
+async function loadCacheManagerSummary() {
+  const ui = ensureCacheManagerUi();
+  showStatus(t("statusLoadingCacheManager"));
   try {
-    await api("/api/library/cache/clear", { method: "POST" });
-    showToast(t("toastCacheCleared"));
+    const data = await api("/api/library/cache/summary");
+    ui.books = Array.isArray(data.books) ? data.books : [];
+    const valid = new Set(ui.books.map((x) => String((x && x.book_id) || "").trim()).filter(Boolean));
+    ui.selected = new Set(Array.from(ui.selected).filter((x) => valid.has(x)));
+    renderCacheManagerGlobal(data);
+    renderCacheManagerList();
   } catch (error) {
     showToast(error.message || t("toastError"));
   } finally {
     hideStatus();
   }
+}
+
+async function runCacheManagerAction(action) {
+  const ui = ensureCacheManagerUi();
+  const act = String(action || "").trim();
+  const isGlobal = act === "clear_global_translation";
+  const selectedBookIds = isGlobal ? [] : Array.from(ui.selected);
+  if (!isGlobal && !selectedBookIds.length) {
+    showToast(t("cacheManagerNeedSelect"));
+    return;
+  }
+  if (!window.confirm(t("cacheManagerConfirmAction"))) return;
+  showStatus(t("statusClearing"));
+  try {
+    await api("/api/library/cache/manage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: act, book_ids: selectedBookIds }),
+    });
+    showToast(t("toastCacheManagerDone"));
+    await loadCacheManagerSummary();
+  } catch (error) {
+    showToast(error.message || t("toastError"));
+  } finally {
+    hideStatus();
+  }
+}
+
+async function openCacheManager() {
+  const ui = ensureCacheManagerUi();
+  if (!ui.refs.dialog.open) ui.refs.dialog.showModal();
+  await loadCacheManagerSummary();
+}
+
+async function clearCache() {
+  await openCacheManager();
 }
 
 function fillStaticTexts() {
@@ -338,6 +633,7 @@ function fillStaticTexts() {
     ["star-style-dense", "starStyleDense"],
     ["star-style-bling", "starStyleBling"],
     ["motion-on", "motionOn"],
+    ["motion-lite", "motionLite"],
     ["motion-off", "motionOff"],
     ["label-font-size", "fontSize"],
     ["label-text-align", "textAlign"],
@@ -357,6 +653,40 @@ function fillStaticTexts() {
     ["label-translation-mode", "translationMode"],
     ["translation-mode-server", "translationModeServer"],
     ["translation-mode-local", "translationModeLocal"],
+    ["translation-mode-hanviet", "translationModeHanviet"],
+    ["label-local-translate-settings", "localTranslateSettings"],
+    ["label-local-split-mode", "localSplitMode"],
+    ["local-split-mode-punct", "localSplitModePunct"],
+    ["local-split-mode-line", "localSplitModeLine"],
+    ["label-local-name-vp-priority", "localNameVpPriority"],
+    ["local-name-vp-priority-name-first", "localNameVpPriorityNameFirst"],
+    ["local-name-vp-priority-vp-first", "localNameVpPriorityVpFirst"],
+    ["label-local-personal-general-priority", "localPersonalGeneralPriority"],
+    ["local-personal-general-priority-personal", "localPersonalGeneralPriorityPersonal"],
+    ["local-personal-general-priority-general", "localPersonalGeneralPriorityGeneral"],
+    ["label-local-vp-priority", "localVpPriority"],
+    ["local-vp-priority-0", "localVpPriority0"],
+    ["local-vp-priority-1", "localVpPriority1"],
+    ["local-vp-priority-2", "localVpPriority2"],
+    ["local-vp-priority-3", "localVpPriority3"],
+    ["label-local-luat-nhan-mode", "localLuatNhanMode"],
+    ["local-luat-nhan-mode-0", "localLuatNhanMode0"],
+    ["local-luat-nhan-mode-1", "localLuatNhanMode1"],
+    ["local-luat-nhan-mode-2", "localLuatNhanMode2"],
+    ["local-luat-nhan-mode-3", "localLuatNhanMode3"],
+    ["label-local-max-phrase-size", "localMaxPhraseSize"],
+    ["label-local-convert-simplified", "localConvertSimplified"],
+    ["local-convert-simplified-on", "localSwitchOn"],
+    ["local-convert-simplified-off", "localSwitchOff"],
+    ["label-local-short-mode", "localShortMode"],
+    ["local-short-mode-on", "localSwitchOn"],
+    ["local-short-mode-off", "localSwitchOff"],
+    ["label-local-use-pronouns", "localUsePronouns"],
+    ["local-use-pronouns-on", "localSwitchOn"],
+    ["local-use-pronouns-off", "localSwitchOff"],
+    ["label-local-use-luat-nhan", "localUseLuatNhan"],
+    ["local-use-luat-nhan-on", "localSwitchOn"],
+    ["local-use-luat-nhan-off", "localSwitchOff"],
     ["panel-clear", "panelClear"],
     ["panel-balanced", "panelBalanced"],
     ["panel-solid", "panelSolid"],
@@ -382,20 +712,15 @@ function fillStaticTexts() {
     ["btn-vbook-manager-close", "close"],
     ["vbook-installed-title", "vbookInstalledTitle"],
     ["btn-vbook-refresh-installed", "vbookRefreshInstalled"],
-    ["vbook-col-name", "vbookColName"],
-    ["vbook-col-meta", "vbookColMeta"],
-    ["vbook-col-action", "vbookColAction"],
     ["vbook-repo-title", "vbookRepoTitle"],
     ["btn-vbook-refresh-repo", "vbookRefreshRepo"],
     ["vbook-repo-label", "vbookRepoLabel"],
+    ["btn-vbook-toggle-adv", "vbookRepoToggleAdv"],
     ["vbook-repo-custom-label", "vbookRepoCustomLabel"],
     ["btn-vbook-load-custom-repo", "vbookRepoCustomLoad"],
     ["btn-vbook-add-repo", "vbookRepoAdd"],
     ["btn-vbook-remove-repo", "vbookRepoRemove"],
     ["btn-vbook-save-repos", "vbookRepoSave"],
-    ["vbook-repo-col-name", "vbookRepoColName"],
-    ["vbook-repo-col-meta", "vbookRepoColMeta"],
-    ["vbook-repo-col-action", "vbookRepoColAction"],
     ["vbook-plugin-url-label", "vbookPluginUrlLabel"],
     ["vbook-plugin-id-label", "vbookPluginIdLabel"],
     ["btn-vbook-install-url", "vbookInstallFromUrl"],
@@ -435,6 +760,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   const state = {
     themes: [],
     settings: loadSettings(),
+    readerTranslationLocal: { ...LOCAL_TRANSLATION_DEFAULT },
     vbook: {
       installed: [],
       repoUrls: [],
@@ -471,6 +797,18 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   const miniBarsEnabledSelect = qs("mini-bars-enabled-select");
   const translationEnabledSelect = qs("translation-enabled-select");
   const translationModeSelect = qs("translation-mode-select");
+  const localSplitModeSelect = qs("local-split-mode-select");
+  const localNameVpPrioritySelect = qs("local-name-vp-priority-select");
+  const localPersonalGeneralPrioritySelect = qs("local-personal-general-priority-select");
+  const localVpPrioritySelect = qs("local-vp-priority-select");
+  const localLuatNhanModeSelect = qs("local-luat-nhan-mode-select");
+  const localMaxPhraseSizeInput = qs("local-max-phrase-size-input");
+  const localMaxPhraseSizeValue = qs("local-max-phrase-size-value");
+  const localMaxPhraseSizeLabel = qs("label-local-max-phrase-size");
+  const localConvertSimplifiedSelect = qs("local-convert-simplified-select");
+  const localShortModeSelect = qs("local-short-mode-select");
+  const localUsePronounsSelect = qs("local-use-pronouns-select");
+  const localUseLuatNhanSelect = qs("local-use-luat-nhan-select");
 
   if (fontFamilySelect) {
     fontFamilySelect.innerHTML = "";
@@ -551,6 +889,75 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   };
   syncBackdrop();
 
+  const syncLocalMaxPhraseSizeValue = (rawValue) => {
+    let value = Number.parseInt(String(rawValue ?? ""), 10);
+    if (!Number.isFinite(value)) {
+      value = Number.parseInt(String(localMaxPhraseSizeInput && localMaxPhraseSizeInput.value), 10);
+    }
+    if (!Number.isFinite(value)) {
+      value = LOCAL_TRANSLATION_DEFAULT.max_phrase_size;
+    }
+    const unitLabel = t("localMaxPhraseUnit") || "ký tự";
+    if (localMaxPhraseSizeValue) {
+      localMaxPhraseSizeValue.textContent = `${value} ${unitLabel}`;
+    }
+    if (localMaxPhraseSizeLabel) {
+      localMaxPhraseSizeLabel.textContent = `${t("localMaxPhraseSize")} (${value} ${unitLabel})`;
+    }
+  };
+
+  const syncLocalTranslationForm = () => {
+    const cfg = normalizeLocalTranslationSettings(state.readerTranslationLocal || {});
+    state.readerTranslationLocal = cfg;
+    if (localSplitModeSelect) localSplitModeSelect.value = String(cfg.split_mode);
+    if (localNameVpPrioritySelect) localNameVpPrioritySelect.value = String(cfg.name_vietphrase_priority);
+    if (localPersonalGeneralPrioritySelect) localPersonalGeneralPrioritySelect.value = String(cfg.personal_general_priority);
+    if (localVpPrioritySelect) localVpPrioritySelect.value = String(cfg.vp_priority);
+    if (localLuatNhanModeSelect) localLuatNhanModeSelect.value = String(cfg.luat_nhan_mode);
+    if (localMaxPhraseSizeInput) localMaxPhraseSizeInput.value = String(cfg.max_phrase_size);
+    syncLocalMaxPhraseSizeValue(cfg.max_phrase_size);
+    if (localConvertSimplifiedSelect) localConvertSimplifiedSelect.value = cfg.convert_simplified ? "on" : "off";
+    if (localShortModeSelect) localShortModeSelect.value = cfg.short_mode ? "on" : "off";
+    if (localUsePronounsSelect) localUsePronounsSelect.value = cfg.use_pronouns ? "on" : "off";
+    if (localUseLuatNhanSelect) localUseLuatNhanSelect.value = cfg.use_luat_nhan ? "on" : "off";
+  };
+
+  const collectLocalTranslationSettingsFromForm = () => {
+    const current = normalizeLocalTranslationSettings(state.readerTranslationLocal || {});
+    const parseOr = (raw, fallback, min, max) => {
+      const n = Number.parseInt(String(raw ?? ""), 10);
+      if (!Number.isFinite(n)) return fallback;
+      if (n < min) return min;
+      if (n > max) return max;
+      return n;
+    };
+    const next = {
+      ...current,
+      split_mode: parseOr(localSplitModeSelect && localSplitModeSelect.value, current.split_mode, 0, 1),
+      name_vietphrase_priority: parseOr(
+        localNameVpPrioritySelect && localNameVpPrioritySelect.value,
+        current.name_vietphrase_priority,
+        0,
+        1,
+      ),
+      personal_general_priority: parseOr(
+        localPersonalGeneralPrioritySelect && localPersonalGeneralPrioritySelect.value,
+        current.personal_general_priority,
+        0,
+        1,
+      ),
+      vp_priority: parseOr(localVpPrioritySelect && localVpPrioritySelect.value, current.vp_priority, 0, 3),
+      luat_nhan_mode: parseOr(localLuatNhanModeSelect && localLuatNhanModeSelect.value, current.luat_nhan_mode, 0, 3),
+      max_phrase_size: parseOr(localMaxPhraseSizeInput && localMaxPhraseSizeInput.value, current.max_phrase_size, 2, 24),
+      convert_simplified: String((localConvertSimplifiedSelect && localConvertSimplifiedSelect.value) || "off").toLowerCase() === "on",
+      short_mode: String((localShortModeSelect && localShortModeSelect.value) || "on").toLowerCase() === "on",
+      use_pronouns: String((localUsePronounsSelect && localUsePronounsSelect.value) || "on").toLowerCase() === "on",
+      use_luat_nhan: String((localUseLuatNhanSelect && localUseLuatNhanSelect.value) || "on").toLowerCase() === "on",
+    };
+    state.readerTranslationLocal = normalizeLocalTranslationSettings(next);
+    return state.readerTranslationLocal;
+  };
+
   const syncReaderTranslationForm = () => {
     state.settings.translationEnabled = state.settings.translationEnabled !== false;
     state.settings.translationMode = normalizeTranslationMode(state.settings.translationMode);
@@ -559,21 +966,29 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       translationModeSelect.value = state.settings.translationMode;
       translationModeSelect.disabled = !state.settings.translationEnabled;
     }
+    const localSection = qs("local-translation-settings");
+    if (localSection) {
+      localSection.hidden = !["local", "hanviet"].includes(String(state.settings.translationMode || "").toLowerCase());
+    }
+    syncLocalTranslationForm();
   };
 
-  const applyReaderTranslationSettings = ({ enabled, mode }, { emit = true } = {}) => {
+  const applyReaderTranslationSettings = ({ enabled, mode, local }, { emit = true } = {}) => {
     state.settings.translationEnabled = enabled !== false;
     state.settings.translationMode = normalizeTranslationMode(mode);
+    state.readerTranslationLocal = normalizeLocalTranslationSettings(local || state.readerTranslationLocal || {});
     syncReaderTranslationForm();
     saveSettings(state.settings);
-    if (emit) emitSettingsChanged(state.settings);
+    if (emit) emitSettingsChanged({ ...state.settings, translationLocal: state.readerTranslationLocal });
   };
 
   const persistReaderTranslationSettings = async () => {
+    const localCfg = collectLocalTranslationSettingsFromForm();
     const payload = {
       translation: {
         enabled: state.settings.translationEnabled !== false,
         mode: normalizeTranslationMode(state.settings.translationMode),
+        local: localCfg,
       },
     };
     const data = await api("/api/reader/settings", {
@@ -717,6 +1132,34 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     });
   }
 
+  const bindLocalTranslateSetting = (node, eventName = "change") => {
+    if (!node) return;
+    node.addEventListener(eventName, async () => {
+      collectLocalTranslationSettingsFromForm();
+      syncReaderTranslationForm();
+      try {
+        await persistReaderTranslationSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
+    });
+  };
+
+  bindLocalTranslateSetting(localSplitModeSelect);
+  bindLocalTranslateSetting(localNameVpPrioritySelect);
+  bindLocalTranslateSetting(localPersonalGeneralPrioritySelect);
+  bindLocalTranslateSetting(localVpPrioritySelect);
+  bindLocalTranslateSetting(localLuatNhanModeSelect);
+  bindLocalTranslateSetting(localConvertSimplifiedSelect);
+  bindLocalTranslateSetting(localUsePronounsSelect);
+  bindLocalTranslateSetting(localUseLuatNhanSelect);
+  bindLocalTranslateSetting(localMaxPhraseSizeInput, "input");
+  if (localMaxPhraseSizeInput) {
+    localMaxPhraseSizeInput.addEventListener("input", () => {
+      syncLocalMaxPhraseSizeValue(localMaxPhraseSizeInput.value);
+    });
+  }
+
   if (fontSizeInput) {
     fontSizeInput.addEventListener("input", () => {
       state.settings.fontSize = Number(fontSizeInput.value) || DEFAULT_SETTINGS.fontSize;
@@ -759,12 +1202,13 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       state.settings.miniBarsEnabled = (miniBarsEnabledSelect && miniBarsEnabledSelect.value) !== "off";
       state.settings.translationEnabled = (translationEnabledSelect && translationEnabledSelect.value) !== "off";
       state.settings.translationMode = normalizeTranslationMode((translationModeSelect && translationModeSelect.value) || DEFAULT_SETTINGS.translationMode);
+      state.readerTranslationLocal = collectLocalTranslationSettingsFromForm();
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
       syncReaderTranslationForm();
       saveSettings(state.settings);
-      emitSettingsChanged(state.settings);
+      emitSettingsChanged({ ...state.settings, translationLocal: state.readerTranslationLocal });
       try {
         await persistReaderTranslationSettings();
       } catch (error) {
@@ -790,12 +1234,13 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       if (miniBarsEnabledSelect) miniBarsEnabledSelect.value = state.settings.miniBarsEnabled ? "on" : "off";
       if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
       if (translationModeSelect) translationModeSelect.value = normalizeTranslationMode(state.settings.translationMode);
+      state.readerTranslationLocal = { ...LOCAL_TRANSLATION_DEFAULT };
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
       syncReaderTranslationForm();
       saveSettings(state.settings);
-      emitSettingsChanged(state.settings);
+      emitSettingsChanged({ ...state.settings, translationLocal: state.readerTranslationLocal });
       try {
         await persistReaderTranslationSettings();
       } catch (error) {
@@ -1107,37 +1552,59 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   };
 
   const renderInstalledPlugins = () => {
-    const body = qs("vbook-installed-body");
-    if (!body) return;
-    body.innerHTML = "";
+    const container = qs("vbook-installed-list");
+    if (!container) return;
+    container.innerHTML = "";
     const items = Array.isArray(state.vbook.installed) ? state.vbook.installed : [];
     if (!items.length) {
-      const tr = document.createElement("tr");
-      const td = document.createElement("td");
-      td.colSpan = 3;
-      td.className = "empty-text";
-      td.textContent = t("vbookNoInstalledPlugins");
-      tr.appendChild(td);
-      body.appendChild(tr);
+      const empty = document.createElement("p");
+      empty.className = "empty-text";
+      empty.textContent = t("vbookNoInstalledPlugins");
+      container.appendChild(empty);
       return;
     }
     for (const item of items) {
-      const tr = document.createElement("tr");
+      const card = document.createElement("div");
+      card.className = "vbook-repo-card";
 
-      const tdName = document.createElement("td");
-      const name = document.createElement("div");
-      name.className = "vbook-repo-item-name";
+      // Icon
+      const iconWrap = document.createElement("span");
+      iconWrap.className = "vbook-repo-card-icon";
+      const iconUrl = String(item.icon_url || "").trim();
+      if (iconUrl) {
+        const img = document.createElement("img");
+        img.src = iconUrl;
+        img.alt = String(item.name || item.plugin_id || "plugin");
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.addEventListener("error", () => { img.remove(); iconWrap.textContent = "EXT"; }, { once: true });
+        iconWrap.appendChild(img);
+      } else {
+        iconWrap.textContent = "EXT";
+      }
+
+      // Body
+      const body = document.createElement("div");
+      body.className = "vbook-repo-card-body";
+
       const pluginName = String(item.name || item.plugin_id || t("vbookUnknownPlugin")).trim() || t("vbookUnknownPlugin");
-      name.textContent = pluginName;
-      const pid = document.createElement("div");
-      pid.className = "vbook-repo-item-sub";
-      pid.textContent = String(item.plugin_id || "").trim();
-      tdName.append(name, pid);
+      const nameRow = document.createElement("div");
+      nameRow.className = "vbook-repo-card-name";
+      nameRow.textContent = pluginName;
 
-      const tdMeta = document.createElement("td");
-      tdMeta.textContent = formatPluginMeta(item) || "-";
+      const pidEl = document.createElement("div");
+      pidEl.className = "vbook-repo-card-desc";
+      pidEl.textContent = String(item.plugin_id || "").trim();
 
-      const tdAction = document.createElement("td");
+      const metaEl = document.createElement("div");
+      metaEl.className = "vbook-repo-card-meta";
+      metaEl.textContent = formatPluginMeta(item) || "";
+
+      body.append(nameRow, pidEl, metaEl);
+
+      // Action
+      const actionWrap = document.createElement("div");
+      actionWrap.className = "vbook-repo-card-action";
       const btnRemove = document.createElement("button");
       btnRemove.type = "button";
       btnRemove.className = "btn btn-small";
@@ -1158,10 +1625,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
           hideStatus();
         }
       });
-      tdAction.appendChild(btnRemove);
+      actionWrap.appendChild(btnRemove);
 
-      tr.append(tdName, tdMeta, tdAction);
-      body.appendChild(tr);
+      card.append(iconWrap, body, actionWrap);
+      container.appendChild(card);
     }
   };
 
@@ -1190,70 +1657,84 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   };
 
   const renderRepoPlugins = () => {
-    const body = qs("vbook-repo-body");
-    if (!body) return;
-    body.innerHTML = "";
-    const items = Array.isArray(state.vbook.repoPlugins) ? state.vbook.repoPlugins : [];
+    const container = qs("vbook-repo-list");
+    if (!container) return;
+    container.innerHTML = "";
+    const allItems = Array.isArray(state.vbook.repoPlugins) ? state.vbook.repoPlugins : [];
+    const items = allItems.filter(item => !item.installed);
     if (!items.length) {
-      const tr = document.createElement("tr");
-      const td = document.createElement("td");
-      td.colSpan = 3;
-      td.className = "empty-text";
-      td.textContent = t("vbookNoRepoPlugins");
-      tr.appendChild(td);
-      body.appendChild(tr);
+      const empty = document.createElement("p");
+      empty.className = "empty-text";
+      empty.textContent = t("vbookNoRepoPlugins");
+      container.appendChild(empty);
       renderRepoErrors();
       return;
     }
     for (const item of items) {
-      const tr = document.createElement("tr");
+      const card = document.createElement("div");
+      card.className = "vbook-repo-card";
 
-      const tdName = document.createElement("td");
-      const name = document.createElement("div");
-      name.className = "vbook-repo-item-name";
-      name.textContent = String(item.name || item.plugin_id || t("vbookUnknownPlugin")).trim() || t("vbookUnknownPlugin");
-      tdName.appendChild(name);
+      // Icon
+      const iconWrap = document.createElement("span");
+      iconWrap.className = "vbook-repo-card-icon";
+      const iconUrl = String(item.icon_url || "").trim();
+      if (iconUrl) {
+        const img = document.createElement("img");
+        img.src = iconUrl;
+        img.alt = String(item.name || item.plugin_id || "plugin");
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.addEventListener("error", () => { img.remove(); iconWrap.textContent = "EXT"; }, { once: true });
+        iconWrap.appendChild(img);
+      } else {
+        iconWrap.textContent = "EXT";
+      }
+
+      // Body
+      const body = document.createElement("div");
+      body.className = "vbook-repo-card-body";
+
+      const nameRow = document.createElement("div");
+      nameRow.className = "vbook-repo-card-name";
+      nameRow.textContent = String(item.name || item.plugin_id || t("vbookUnknownPlugin")).trim() || t("vbookUnknownPlugin");
+
       const desc = String(item.description || "").trim();
-      if (desc) {
-        const sub = document.createElement("div");
-        sub.className = "vbook-repo-item-sub";
-        sub.textContent = desc;
-        tdName.appendChild(sub);
-      }
+      const descEl = document.createElement("div");
+      descEl.className = "vbook-repo-card-desc";
+      descEl.textContent = desc || "";
 
-      const tdMeta = document.createElement("td");
       const metaParts = [];
-      const pluginUrl = String(item.plugin_url || "").trim();
-      const repoUrl = String(item.repo_url || "").trim();
-      const pluginMeta = formatPluginMeta(item);
-      if (pluginMeta) metaParts.push(pluginMeta);
-      if (repoUrl) {
-        try {
-          metaParts.push(new URL(repoUrl).host || repoUrl);
-        } catch {
-          metaParts.push(repoUrl);
-        }
-      }
-      tdMeta.textContent = metaParts.join(" • ") || "-";
-      if (pluginUrl) {
-        const sub = document.createElement("div");
-        sub.className = "vbook-repo-item-sub";
-        sub.textContent = pluginUrl;
-        tdMeta.appendChild(sub);
-      }
+      const version = String(item.version != null ? item.version : "").trim();
+      if (version) metaParts.push(`v${version}`);
+      const locale = String(item.locale || "").trim();
+      if (locale) metaParts.push(locale);
+      const pluginType = String(item.type || "").trim();
+      if (pluginType) metaParts.push(pluginType);
+      const author = String(item.author || "").trim();
+      if (author) metaParts.push(author);
+      const metaEl = document.createElement("div");
+      metaEl.className = "vbook-repo-card-meta";
+      metaEl.textContent = metaParts.join(" • ") || "";
 
-      const tdAction = document.createElement("td");
+      body.append(nameRow, descEl, metaEl);
+
+      // Action
+      const actionWrap = document.createElement("div");
+      actionWrap.className = "vbook-repo-card-action";
       const installed = Boolean(item.installed);
+      const pluginUrl = String(item.plugin_url || "").trim();
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "btn btn-small";
       if (installed) {
+        btn.className = "btn btn-small vbook-repo-btn-installed";
         btn.textContent = t("vbookInstalledBadge");
         btn.disabled = true;
       } else if (!pluginUrl) {
+        btn.className = "btn btn-small";
         btn.textContent = t("vbookNoDownloadUrl");
         btn.disabled = true;
       } else {
+        btn.className = "btn btn-small btn-primary";
         btn.textContent = t("vbookInstallAction");
         btn.addEventListener("click", async () => {
           showStatus(t("statusInstallingVbookPlugin"));
@@ -1276,10 +1757,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
           }
         });
       }
-      tdAction.appendChild(btn);
+      actionWrap.appendChild(btn);
 
-      tr.append(tdName, tdMeta, tdAction);
-      body.appendChild(tr);
+      card.append(iconWrap, body, actionWrap);
+      container.appendChild(card);
     }
     renderRepoErrors();
   };
@@ -1352,7 +1833,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   }
 
   async function loadInstalledVbookPlugins({ silent = false } = {}) {
-    if (!pluginSelect && !qs("vbook-installed-body")) return [];
+    if (!pluginSelect && !qs("vbook-installed-list")) return [];
     if (!silent) showStatus(t("statusLoadingVbookInstalled"));
     try {
       const payload = await api("/api/vbook/plugins");
@@ -1401,7 +1882,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   };
 
   async function loadRepoPlugins({ repoUrl = null, silent = false } = {}) {
-    if (!qs("vbook-repo-body")) return [];
+    if (!qs("vbook-repo-list")) return [];
     const raw = repoUrl == null ? currentRepoUrl() : String(repoUrl || "").trim();
     state.vbook.activeRepoUrl = String((vbookRepoSelect && vbookRepoSelect.value) || "").trim();
     if (!silent) showStatus(t("statusLoadingVbookRepo"));
@@ -1478,6 +1959,13 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     qs("btn-vbook-refresh-repo").addEventListener("click", async () => {
       await loadRepoUrls({ silent: true });
       await loadRepoPlugins();
+    });
+  }
+
+  if (qs("btn-vbook-toggle-adv")) {
+    qs("btn-vbook-toggle-adv").addEventListener("click", () => {
+      const adv = qs("vbook-repo-adv-group");
+      if (adv) adv.classList.toggle("hidden");
     });
   }
 
@@ -1654,6 +2142,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     getReadingMode: () => state.settings.readingMode,
     getTranslationEnabled: () => state.settings.translationEnabled !== false,
     getTranslationMode: () => normalizeTranslationMode(state.settings.translationMode),
+    getTranslationLocalSettings: () => normalizeLocalTranslationSettings(state.readerTranslationLocal || {}),
     getVbookSettings: (pluginId = "") => runtimeEffectiveSettings(pluginId),
     getVbookGlobalSettings: () => normalizeVbookGlobalSettings(state.vbook.globalSettings || {}),
     refreshVbookSettings: (pluginId = "") => refreshVbookRuntimeSettings({ silent: true, pluginId }),

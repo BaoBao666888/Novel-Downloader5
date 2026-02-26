@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb17";
+import { initShell } from "../site_common.js?v=20260221-vb24";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260220-vb04";
 
 const refs = {
@@ -212,7 +212,21 @@ const state = {
     errorMessage: "",
   },
   requestControllers: new Map(),
+  translationEnabled: true,
+  translationMode: "server",
+  translationLocalSig: "{}",
 };
+
+function localTranslationSettingsSignature(shell) {
+  try {
+    const data = shell && typeof shell.getTranslationLocalSettings === "function"
+      ? shell.getTranslationLocalSettings()
+      : {};
+    return JSON.stringify(data || {});
+  } catch {
+    return "{}";
+  }
+}
 
 function getCurrentQuery() {
   return String((refs.searchInput && refs.searchInput.value) || state.query || "").trim();
@@ -1882,6 +1896,13 @@ async function init() {
     page: "explore",
     onSearchSubmit: (q) => runSearch(q, { updateUrl: true }),
   });
+  state.translationEnabled = typeof state.shell.getTranslationEnabled === "function"
+    ? state.shell.getTranslationEnabled()
+    : true;
+  state.translationMode = typeof state.shell.getTranslationMode === "function"
+    ? state.shell.getTranslationMode()
+    : "server";
+  state.translationLocalSig = localTranslationSettingsSignature(state.shell);
 
   refs.exploreTitle.textContent = state.shell.t("exploreTitle");
   refs.vbookPluginLabel.textContent = state.shell.t("vbookSearchPluginLabel");
@@ -1964,6 +1985,18 @@ async function init() {
   }
 
   window.addEventListener("reader-settings-changed", () => {
+    const enabled = typeof state.shell.getTranslationEnabled === "function"
+      ? state.shell.getTranslationEnabled()
+      : true;
+    const mode = typeof state.shell.getTranslationMode === "function"
+      ? state.shell.getTranslationMode()
+      : "server";
+    const localSig = localTranslationSettingsSignature(state.shell);
+    const localChanged = localSig !== state.translationLocalSig;
+    if (enabled === state.translationEnabled && mode === state.translationMode && !(["local", "hanviet"].includes(mode) && localChanged)) return;
+    state.translationEnabled = enabled;
+    state.translationMode = mode;
+    state.translationLocalSig = localSig;
     refreshExploreByReaderSettings().catch(() => {});
   });
 

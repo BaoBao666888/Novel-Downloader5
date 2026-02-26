@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb17";
+import { initShell } from "../site_common.js?v=20260221-vb24";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260220-vb04";
 
 const refs = {
@@ -18,7 +18,21 @@ const state = {
   query: "",
   books: [],
   chapters: [],
+  translationEnabled: true,
+  translationMode: "server",
+  translationLocalSig: "{}",
 };
+
+function localTranslationSettingsSignature(shell) {
+  try {
+    const data = shell && typeof shell.getTranslationLocalSettings === "function"
+      ? shell.getTranslationLocalSettings()
+      : {};
+    return JSON.stringify(data || {});
+  } catch {
+    return "{}";
+  }
+}
 
 function updateQueryUrl() {
   const params = new URLSearchParams();
@@ -155,15 +169,34 @@ async function init() {
     page: "search",
     onSearchSubmit: (q) => runSearch(q, { updateUrl: true }),
   });
+  state.translationEnabled = typeof state.shell.getTranslationEnabled === "function"
+    ? state.shell.getTranslationEnabled()
+    : true;
+  state.translationMode = typeof state.shell.getTranslationMode === "function"
+    ? state.shell.getTranslationMode()
+    : "server";
 
   refs.searchBooksTitle.textContent = state.shell.t("searchBooksTitle");
   refs.chapterHitsTitle.textContent = state.shell.t("chapterHitsTitle");
 
   window.addEventListener("reader-settings-changed", () => {
+    const enabled = typeof state.shell.getTranslationEnabled === "function"
+      ? state.shell.getTranslationEnabled()
+      : true;
+    const mode = typeof state.shell.getTranslationMode === "function"
+      ? state.shell.getTranslationMode()
+      : "server";
+    const localSig = localTranslationSettingsSignature(state.shell);
+    const localChanged = localSig !== state.translationLocalSig;
+    if (enabled === state.translationEnabled && mode === state.translationMode && !(["local", "hanviet"].includes(mode) && localChanged)) return;
+    state.translationEnabled = enabled;
+    state.translationMode = mode;
+    state.translationLocalSig = localSig;
     runSearch(state.query, { updateUrl: false }).catch(() => {});
   });
 
   const query = state.shell.parseQuery();
+  state.translationLocalSig = localTranslationSettingsSignature(state.shell);
   state.query = String(query.q || "").trim();
   await runSearch(state.query, { updateUrl: false });
 }

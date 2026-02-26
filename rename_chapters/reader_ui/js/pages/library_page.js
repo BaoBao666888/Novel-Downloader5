@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb17";
+import { initShell } from "../site_common.js?v=20260221-vb24";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -21,6 +21,25 @@ const refs = {
   btnActionExportTxt: document.getElementById("btn-action-export-txt"),
   btnActionExportEpub: document.getElementById("btn-action-export-epub"),
   btnActionDeleteBook: document.getElementById("btn-action-delete-book"),
+
+  btnOpenGlobalDicts: document.getElementById("btn-open-global-dicts"),
+  globalDictsDialog: document.getElementById("global-dicts-dialog"),
+  globalDictsTitle: document.getElementById("global-dicts-title"),
+  btnCloseGlobalDicts: document.getElementById("btn-close-global-dicts"),
+  globalDictsTypeLabel: document.getElementById("global-dicts-type-label"),
+  globalDictsTypeSelect: document.getElementById("global-dicts-type-select"),
+  btnRefreshGlobalDicts: document.getElementById("btn-refresh-global-dicts"),
+  globalDictsSourceLabel: document.getElementById("global-dicts-source-label"),
+  globalDictsSourceInput: document.getElementById("global-dicts-source-input"),
+  globalDictsTargetLabel: document.getElementById("global-dicts-target-label"),
+  globalDictsTargetInput: document.getElementById("global-dicts-target-input"),
+  globalDictsEntryForm: document.getElementById("global-dicts-entry-form"),
+  btnAddGlobalDictEntry: document.getElementById("btn-add-global-dict-entry"),
+  globalDictsHint: document.getElementById("global-dicts-hint"),
+  globalDictsColSource: document.getElementById("global-dicts-col-source"),
+  globalDictsColTarget: document.getElementById("global-dicts-col-target"),
+  globalDictsColAction: document.getElementById("global-dicts-col-action"),
+  globalDictsBody: document.getElementById("global-dicts-body"),
 };
 
 const state = {
@@ -28,7 +47,23 @@ const state = {
   books: [],
   selectedBookId: null,
   shell: null,
+  translationEnabled: true,
+  translationMode: "server",
+  translationLocalSig: "{}",
+  globalDicts: { name: {}, vp: {} },
+  globalDictType: "name",
 };
+
+function localTranslationSettingsSignature(shell) {
+  try {
+    const data = shell && typeof shell.getTranslationLocalSettings === "function"
+      ? shell.getTranslationLocalSettings()
+      : {};
+    return JSON.stringify(data || {});
+  } catch {
+    return "{}";
+  }
+}
 
 function getErrorMessage(error) {
   if (!error) return state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra.";
@@ -82,6 +117,7 @@ function openActions(bookId) {
   if (!book) return;
   state.selectedBookId = bookId;
   refs.bookActionsSubtitle.textContent = `${book.title_display || book.title || ""} • ${book.author_display || book.author || "Khuyết danh"}`;
+  if (refs.btnActionExportTxt) refs.btnActionExportTxt.disabled = Boolean(book.is_comic);
   if (refs.btnActionOpenReader) {
     const percent = Number(book.progress_percent || 0);
     refs.btnActionOpenReader.textContent = percent > 0 ? state.shell.t("openReaderContinue") : state.shell.t("openReader");
@@ -381,16 +417,120 @@ async function loadLibraryData() {
   }
 }
 
+async function loadGlobalDicts() {
+  const data = await state.shell.api("/api/local-dicts/global");
+  const dicts = (data && data.global_dicts && typeof data.global_dicts === "object") ? data.global_dicts : {};
+  state.globalDicts = {
+    name: (dicts.name && typeof dicts.name === "object") ? dicts.name : {},
+    vp: (dicts.vp && typeof dicts.vp === "object") ? dicts.vp : {},
+  };
+}
+
+function renderGlobalDictRows() {
+  if (!refs.globalDictsBody) return;
+  refs.globalDictsBody.innerHTML = "";
+  const kind = state.globalDictType === "vp" ? "vp" : "name";
+  const entries = Object.entries((state.globalDicts && state.globalDicts[kind]) || {}).sort((a, b) => a[0].localeCompare(b[0], "zh-Hans-CN"));
+  refs.globalDictsHint.textContent = entries.length
+    ? state.shell.t("namePreviewCount", { count: entries.length })
+    : state.shell.t("namePreviewEmpty");
+  for (const [source, target] of entries) {
+    const tr = document.createElement("tr");
+    const tdSource = document.createElement("td");
+    tdSource.textContent = source;
+    const tdTarget = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "name-target-inline";
+    input.value = target || "";
+    tdTarget.appendChild(input);
+    const tdAction = document.createElement("td");
+
+    const btnSave = document.createElement("button");
+    btnSave.type = "button";
+    btnSave.className = "btn btn-small";
+    btnSave.textContent = state.shell.t("saveNameEntry");
+    btnSave.addEventListener("click", async () => {
+      const nextTarget = String(input.value || "").trim();
+      if (!nextTarget) {
+        state.shell.showToast(state.shell.t("nameTargetRequired"));
+        return;
+      }
+      try {
+        await state.shell.api("/api/local-dicts/global/entry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dict_type: kind, source, target: nextTarget }),
+        });
+        await loadGlobalDicts();
+        renderGlobalDictRows();
+      } catch (error) {
+        state.shell.showToast(getErrorMessage(error));
+      }
+    });
+
+    const btnDelete = document.createElement("button");
+    btnDelete.type = "button";
+    btnDelete.className = "btn btn-small";
+    btnDelete.textContent = state.shell.t("deleteNameEntry");
+    btnDelete.addEventListener("click", async () => {
+      try {
+        await state.shell.api("/api/local-dicts/global/entry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dict_type: kind, source, target: "", delete: true }),
+        });
+        await loadGlobalDicts();
+        renderGlobalDictRows();
+      } catch (error) {
+        state.shell.showToast(getErrorMessage(error));
+      }
+    });
+    tdAction.append(btnSave, btnDelete);
+    tr.append(tdSource, tdTarget, tdAction);
+    refs.globalDictsBody.appendChild(tr);
+  }
+}
+
+async function openGlobalDictsDialog() {
+  state.shell.showStatus(state.shell.t("statusLoadingNamePreview"));
+  try {
+    await loadGlobalDicts();
+    renderGlobalDictRows();
+    if (refs.globalDictsTypeSelect) refs.globalDictsTypeSelect.value = state.globalDictType;
+    if (refs.globalDictsDialog && !refs.globalDictsDialog.open) refs.globalDictsDialog.showModal();
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
 async function exportBook(format) {
   if (!state.selectedBookId) return;
   closeActions();
-  const ensureTranslated = window.confirm(state.shell.t("ensureTranslate"));
+  const book = state.books.find((x) => x.book_id === state.selectedBookId) || null;
+  const fmt = String(format || "txt").trim().toLowerCase();
+  if (fmt === "txt" && book && book.is_comic) {
+    state.shell.showToast(state.shell.t("comicExportTxtNotSupported"));
+    return;
+  }
+  const ensureTranslated = (book && book.is_comic)
+    ? false
+    : window.confirm(state.shell.t("ensureTranslate"));
+  const fetchMissing = window.confirm(state.shell.t("exportFetchMissingPrompt"));
+  const useCachedOnly = !fetchMissing;
   state.shell.showStatus(state.shell.t("statusExporting"));
   try {
     const payload = await state.shell.api(`/api/library/book/${encodeURIComponent(state.selectedBookId)}/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ format, ensure_translated: ensureTranslated, translation_mode: "server" }),
+      body: JSON.stringify({
+        format: fmt,
+        ensure_translated: ensureTranslated,
+        translation_mode: "server",
+        use_cached_only: useCachedOnly,
+      }),
     });
     if (payload.download_url) {
       window.open(payload.download_url, "_blank", "noopener,noreferrer");
@@ -428,6 +568,12 @@ async function init() {
       loadLibraryData();
     },
   });
+  state.translationEnabled = typeof state.shell.getTranslationEnabled === "function"
+    ? state.shell.getTranslationEnabled()
+    : true;
+  state.translationMode = typeof state.shell.getTranslationMode === "function"
+    ? state.shell.getTranslationMode()
+    : "server";
 
   refs.historyTitle.textContent = state.shell.t("historyTitle");
   refs.libraryTitle.textContent = state.shell.t("libraryTitle");
@@ -439,6 +585,22 @@ async function init() {
   refs.btnActionExportTxt.textContent = state.shell.t("exportTxt");
   refs.btnActionExportEpub.textContent = state.shell.t("exportEpub");
   refs.btnActionDeleteBook.textContent = state.shell.t("deleteBook");
+  if (refs.btnOpenGlobalDicts) refs.btnOpenGlobalDicts.textContent = state.shell.t("globalDictsButton");
+
+  if (refs.globalDictsTitle) refs.globalDictsTitle.textContent = state.shell.t("globalDictsTitle");
+  if (refs.btnCloseGlobalDicts) refs.btnCloseGlobalDicts.textContent = state.shell.t("close");
+  if (refs.globalDictsTypeLabel) refs.globalDictsTypeLabel.textContent = state.shell.t("globalDictsTypeLabel");
+  const globalTypeNameOpt = document.getElementById("global-dicts-type-name");
+  const globalTypeVpOpt = document.getElementById("global-dicts-type-vp");
+  if (globalTypeNameOpt) globalTypeNameOpt.textContent = state.shell.t("nameDictTypeName");
+  if (globalTypeVpOpt) globalTypeVpOpt.textContent = state.shell.t("nameDictTypeVp");
+  if (refs.globalDictsSourceLabel) refs.globalDictsSourceLabel.textContent = state.shell.t("nameSourceLabel");
+  if (refs.globalDictsTargetLabel) refs.globalDictsTargetLabel.textContent = state.shell.t("nameTargetLabel");
+  if (refs.btnAddGlobalDictEntry) refs.btnAddGlobalDictEntry.textContent = state.shell.t("addNameEntry");
+  if (refs.globalDictsColSource) refs.globalDictsColSource.textContent = state.shell.t("nameColSource");
+  if (refs.globalDictsColTarget) refs.globalDictsColTarget.textContent = state.shell.t("nameColTarget");
+  if (refs.globalDictsColAction) refs.globalDictsColAction.textContent = state.shell.t("nameColAction");
+  if (refs.btnRefreshGlobalDicts) refs.btnRefreshGlobalDicts.textContent = state.shell.t("refreshNamePreview");
 
   refs.btnCloseBookActions.addEventListener("click", closeActions);
   refs.btnActionOpenBook.addEventListener("click", () => {
@@ -454,11 +616,65 @@ async function init() {
   refs.btnActionExportTxt.addEventListener("click", () => exportBook("txt"));
   refs.btnActionExportEpub.addEventListener("click", () => exportBook("epub"));
   refs.btnActionDeleteBook.addEventListener("click", deleteBook);
+  if (refs.btnOpenGlobalDicts) refs.btnOpenGlobalDicts.addEventListener("click", () => {
+    openGlobalDictsDialog().catch(() => {});
+  });
+  if (refs.btnCloseGlobalDicts) refs.btnCloseGlobalDicts.addEventListener("click", () => {
+    if (refs.globalDictsDialog && refs.globalDictsDialog.open) refs.globalDictsDialog.close();
+  });
+  if (refs.btnRefreshGlobalDicts) {
+    refs.btnRefreshGlobalDicts.addEventListener("click", () => {
+      openGlobalDictsDialog().catch(() => {});
+    });
+  }
+  if (refs.globalDictsTypeSelect) {
+    refs.globalDictsTypeSelect.addEventListener("change", () => {
+      state.globalDictType = String(refs.globalDictsTypeSelect.value || "name").trim().toLowerCase() === "vp" ? "vp" : "name";
+      renderGlobalDictRows();
+    });
+  }
+  if (refs.globalDictsEntryForm) {
+    refs.globalDictsEntryForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const source = String((refs.globalDictsSourceInput && refs.globalDictsSourceInput.value) || "").trim();
+      const target = String((refs.globalDictsTargetInput && refs.globalDictsTargetInput.value) || "").trim();
+      if (!source || !target) {
+        state.shell.showToast(state.shell.t("nameSourceTargetRequired"));
+        return;
+      }
+      try {
+        await state.shell.api("/api/local-dicts/global/entry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dict_type: state.globalDictType, source, target }),
+        });
+        refs.globalDictsEntryForm.reset();
+        await loadGlobalDicts();
+        renderGlobalDictRows();
+        state.shell.showToast(state.shell.t("nameEntryApplied"));
+      } catch (error) {
+        state.shell.showToast(getErrorMessage(error));
+      }
+    });
+  }
 
   window.addEventListener("reader-settings-changed", () => {
+    const enabled = typeof state.shell.getTranslationEnabled === "function"
+      ? state.shell.getTranslationEnabled()
+      : true;
+    const mode = typeof state.shell.getTranslationMode === "function"
+      ? state.shell.getTranslationMode()
+      : "server";
+    const localSig = localTranslationSettingsSignature(state.shell);
+    const localChanged = localSig !== state.translationLocalSig;
+    if (enabled === state.translationEnabled && mode === state.translationMode && !(["local", "hanviet"].includes(mode) && localChanged)) return;
+    state.translationEnabled = enabled;
+    state.translationMode = mode;
+    state.translationLocalSig = localSig;
     loadLibraryData().catch(() => {});
   });
 
+  state.translationLocalSig = localTranslationSettingsSignature(state.shell);
   await loadLibraryData();
 }
 

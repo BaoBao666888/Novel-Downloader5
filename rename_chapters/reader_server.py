@@ -43,6 +43,7 @@ APP_CONFIG_PATH = ROOT_DIR / "config.json"
 APP_READER_CONFIG_PATH = ROOT_DIR / "local" / "reader.config.json"
 APP_STATE_THEME_ACTIVE_KEY = "theme.active"
 APP_STATE_NAME_SET_STATE_KEY = "reader.name_set_state"
+APP_STATE_BOOK_VP_SET_KEY_PREFIX = "reader.book_vp_set"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 
 # Ép MIME chuẩn cho JS module trên Windows/registry lạ để tránh trang trắng
@@ -148,6 +149,25 @@ try:
     from app.core import vbook_ext  # type: ignore
 except Exception:
     vbook_ext = _load_vbook_module()
+
+
+def _load_vbook_local_translate_module():
+    module_path = ROOT_DIR / "app" / "core" / "vbook_local_translate.py"
+    spec = importlib.util.spec_from_file_location("reader_vbook_local_translate", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load local translate module: {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    import sys
+
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)  # type: ignore[attr-defined]
+    return module
+
+
+try:
+    from app.core import vbook_local_translate  # type: ignore
+except Exception:
+    vbook_local_translate = _load_vbook_local_translate_module()
 
 
 THEME_PRESETS: list[dict[str, Any]] = [
@@ -747,6 +767,197 @@ def build_incremental_hv_suggestions(source_text: str, hv_text: str) -> list[dic
         }
         for line in dedup
     ]
+
+
+def split_multi_translation_values(raw_value: str) -> list[str]:
+    value = normalize_newlines(raw_value or "").strip()
+    if not value:
+        return []
+    parts = [x.strip() for x in re.split(r"[\\/|]+", value) if x.strip()]
+    if not parts:
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in parts:
+        key = normalize_for_compare(item)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(item)
+    return out
+
+
+def _collect_dict_suggestion_rows(
+    source_cjk: str,
+    mapping: dict[str, str],
+    *,
+    origin: str,
+    base_score: int,
+) -> list[dict[str, Any]]:
+    if not source_cjk or not mapping:
+        return []
+    rows: list[dict[str, Any]] = []
+    seen_pairs: set[tuple[str, str]] = set()
+
+    def add_for_key(candidate_key: str) -> None:
+        if not candidate_key:
+            return
+        raw_value = mapping.get(candidate_key)
+        if raw_value is None:
+            return
+        values = split_multi_translation_values(str(raw_value))
+        if not values:
+            return
+        full_match_bonus = 28 if candidate_key == source_cjk else 0
+        score_base = base_score + full_match_bonus + len(candidate_key)
+        for idx, target in enumerate(values):
+            pair = (candidate_key, target)
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            rows.append(
+                {
+                    "source_text": candidate_key,
+                    "target_text": target,
+                    "origin": origin,
+                    "score": score_base - idx,
+                }
+            )
+
+    add_for_key(source_cjk)
+    source_len = len(source_cjk)
+    if source_len < 2:
+        return rows
+
+    # Quét cụm con theo độ dài giảm dần để lấy gợi ý "cụm nhỏ nhất có ý nghĩa".
+    # Chỉ quét tối đa 14 ký tự để tránh nặng với input dài bất thường.
+    cap_len = min(source_len, 14)
+    for seg_len in range(cap_len, 1, -1):
+        for start in range(0, source_len - seg_len + 1):
+            segment = source_cjk[start:start + seg_len]
+            add_for_key(segment)
+            if len(rows) >= 120:
+                return rows
+    return rows
+
+
+def build_name_right_suggestions(
+    source_text: str,
+    *,
+    hv_text: str = "",
+    personal_name: dict[str, str] | None = None,
+    personal_vp: dict[str, str] | None = None,
+    global_name: dict[str, str] | None = None,
+    global_vp: dict[str, str] | None = None,
+    bundle: Any = None,
+    prefer_kind: str = "name",
+    prefer_scope: str = "book",
+) -> list[dict[str, Any]]:
+    source_cjk = "".join(ch for ch in normalize_newlines(source_text or "") if re.search(r"[\u3400-\u9fff]", ch))
+    if not source_cjk:
+        return []
+
+    rows: list[dict[str, Any]] = []
+    prefer_kind = "vp" if str(prefer_kind or "").strip().lower() == "vp" else "name"
+    prefer_scope = "global" if str(prefer_scope or "").strip().lower() == "global" else "book"
+    boost_book_name = 18 if prefer_scope == "book" and prefer_kind == "name" else 0
+    boost_book_vp = 18 if prefer_scope == "book" and prefer_kind == "vp" else 0
+    boost_global_name = 18 if prefer_scope == "global" and prefer_kind == "name" else 0
+    boost_global_vp = 18 if prefer_scope == "global" and prefer_kind == "vp" else 0
+
+    rows.extend(
+        _collect_dict_suggestion_rows(
+            source_cjk,
+            normalize_name_set(personal_name),
+            origin="Name riêng",
+            base_score=160 + boost_book_name,
+        )
+    )
+    rows.extend(
+        _collect_dict_suggestion_rows(
+            source_cjk,
+            normalize_name_set(personal_vp),
+            origin="VP riêng",
+            base_score=148 + boost_book_vp,
+        )
+    )
+    rows.extend(
+        _collect_dict_suggestion_rows(
+            source_cjk,
+            normalize_name_set(global_name),
+            origin="Name chung",
+            base_score=138 + boost_global_name,
+        )
+    )
+    rows.extend(
+        _collect_dict_suggestion_rows(
+            source_cjk,
+            normalize_name_set(global_vp),
+            origin="VP chung",
+            base_score=128 + boost_global_vp,
+        )
+    )
+    if bundle is not None:
+        rows.extend(
+            _collect_dict_suggestion_rows(
+                source_cjk,
+                normalize_name_set(getattr(bundle, "name_general", {})),
+                origin="Name base",
+                base_score=114,
+            )
+        )
+        rows.extend(
+            _collect_dict_suggestion_rows(
+                source_cjk,
+                normalize_name_set(getattr(bundle, "vp_general", {})),
+                origin="VP base",
+                base_score=102,
+            )
+        )
+
+    hv_rows = build_incremental_hv_suggestions(source_cjk, hv_text or "")
+    for idx, row in enumerate(hv_rows):
+        target = str(row.get("han_viet") or "").strip()
+        if not target:
+            continue
+        rows.append(
+            {
+                "source_text": source_cjk,
+                "target_text": target,
+                "origin": "Hán Việt",
+                "score": 90 - idx,
+            }
+        )
+
+    if not rows:
+        return []
+
+    dedup: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in sorted(
+        rows,
+        key=lambda x: (
+            int(x.get("score") or 0),
+            len(str(x.get("source_text") or "")),
+            -len(str(x.get("target_text") or "")),
+        ),
+        reverse=True,
+    ):
+        source_key = normalize_for_compare(str(row.get("source_text") or ""))
+        target_key = normalize_for_compare(str(row.get("target_text") or ""))
+        if not source_key or not target_key:
+            continue
+        hash_key = f"{source_key}|{target_key}"
+        if hash_key in seen:
+            continue
+        seen.add(hash_key)
+        dedup.append(row)
+        if len(dedup) >= 40:
+            break
+
+    for idx, row in enumerate(dedup, start=1):
+        row["index"] = idx
+    return dedup
 
 
 NAME_PLACEHOLDER_PREFIX = "__TM_NAME_"
@@ -1499,6 +1710,22 @@ class TranslationAdapter:
             "proxies": cfg.get("proxies"),
         }
 
+    def _local_settings(self) -> dict[str, Any]:
+        reader_cfg = self.app_config.get("reader_translation") or {}
+        local_cfg = reader_cfg.get("local") if isinstance(reader_cfg, dict) else {}
+        if not isinstance(local_cfg, dict):
+            local_cfg = {}
+        global_dicts = reader_cfg.get("global_dicts") if isinstance(reader_cfg, dict) else {}
+        if not isinstance(global_dicts, dict):
+            global_dicts = {}
+        merged_local = dict(local_cfg)
+        merged_local["global_name_overrides"] = normalize_name_set(global_dicts.get("name"))
+        merged_local["global_vp_overrides"] = normalize_name_set(global_dicts.get("vp"))
+        return vbook_local_translate.normalize_local_settings(
+            merged_local,
+            default_base_dir="reader_ui/translate/vbook_local",
+        )
+
     def _active_name_set(self) -> dict[str, str]:
         if isinstance(self.active_name_set, dict):
             return normalize_name_set(self.active_name_set)
@@ -1517,14 +1744,31 @@ class TranslationAdapter:
             return normalize_name_set(name_set_override)
         return self._active_name_set()
 
-    def translation_signature(self, mode: str = "server", name_set_override: dict[str, str] | None = None) -> str:
-        payload = {
-            "mode": (mode or "server").strip().lower(),
+    def translation_signature(
+        self,
+        mode: str = "server",
+        name_set_override: dict[str, str] | None = None,
+        vp_set_override: dict[str, str] | None = None,
+    ) -> str:
+        mode_norm = (mode or "server").strip().lower()
+        if mode_norm not in {"server", "local", "hanviet"}:
+            mode_norm = "server"
+        payload: dict[str, Any] = {
+            "mode": mode_norm,
             "active_set": str(self.active_set_name or "Mặc định"),
             "version": int(self.name_set_version or 1),
-            "text_norm_version": 7,
+            "text_norm_version": 9,
             "name_set": self._name_set_for_use(name_set_override),
         }
+        if mode_norm in {"local", "hanviet"}:
+            local_settings = self._local_settings()
+            payload["local_settings"] = local_settings
+            try:
+                payload["local_bundle_sig"] = vbook_local_translate.get_public_bundle(local_settings).signature
+            except Exception:
+                payload["local_bundle_sig"] = ""
+        if mode_norm == "local":
+            payload["vp_set"] = normalize_name_set(vp_set_override or {})
         raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha1(raw.encode("utf-8", errors="ignore")).hexdigest()
 
@@ -1533,15 +1777,19 @@ class TranslationAdapter:
         text: str,
         mode: str = "server",
         name_set_override: dict[str, str] | None = None,
+        vp_set_override: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         source = (text or "").strip()
+        mode_norm = (mode or "server").strip().lower()
+        if mode_norm not in {"server", "local", "hanviet"}:
+            mode_norm = "server"
         if not source:
             return {
                 "source_text": "",
                 "processed_text": "",
                 "translated_with_placeholders": "",
                 "translated": "",
-                "mode": "server" if mode != "local" else "local",
+                "mode": mode_norm,
                 "unit_map": [],
                 "name_map": {
                     "active_set": str(self.active_set_name or "Mặc định"),
@@ -1553,12 +1801,48 @@ class TranslationAdapter:
                 "hanviet_source": "",
             }
 
-        mode_norm = (mode or "server").strip().lower()
-        if mode_norm not in {"server", "local"}:
-            mode_norm = "server"
-
         settings = self._settings()
         name_set = self._name_set_for_use(name_set_override)
+        vp_set = normalize_name_set(vp_set_override or {})
+
+        if mode_norm in {"local", "hanviet"}:
+            local_settings = self._local_settings()
+            local_detail = vbook_local_translate.translate_detailed(
+                source,
+                settings=local_settings,
+                personal_name_set=name_set,
+                personal_vp_set=vp_set,
+            )
+            hanviet_source = normalize_newlines(local_detail.get("hanviet_source") or "")
+            if mode_norm == "hanviet":
+                translated = hanviet_source or source
+            else:
+                translated = normalize_newlines(local_detail.get("translated") or "")
+            if not translated:
+                translated = source
+            processed_text = normalize_newlines(local_detail.get("processed_text") or source)
+            translated_with_placeholders = normalize_newlines(
+                local_detail.get("translated_with_placeholders") or translated
+            )
+            unit_map = local_detail.get("unit_map") if isinstance(local_detail.get("unit_map"), list) else []
+            hits = local_detail.get("name_hits") if isinstance(local_detail.get("name_hits"), list) else collect_name_hits(source, name_set)
+            return {
+                "source_text": source,
+                "processed_text": processed_text,
+                "translated_with_placeholders": translated_with_placeholders,
+                "translated": translated,
+                "mode": mode_norm,
+                "unit_map": unit_map,
+                "name_map": {
+                    "active_set": str(self.active_set_name or "Mặc định"),
+                    "version": int(self.name_set_version or 1),
+                    "size": len(name_set),
+                    "placeholders": [],
+                    "hits": hits,
+                },
+                "hanviet_source": hanviet_source,
+            }
+
         processed_text, placeholder_map, hits = apply_name_placeholders(source, name_set)
         source_unit_infos = build_text_units_with_offsets(source)
         translated_with_placeholders = ""
@@ -1568,82 +1852,72 @@ class TranslationAdapter:
         if not units:
             units = [("text", processed_text)]
 
-        if mode_norm == "local":
-            hv_map = translator_logic.load_hanviet_json(settings.get("hanvietJsonUrl", ""))
-            hanviet_source = translator_logic.build_hanviet_from_map(source, hv_map) or source
-            for kind, unit in units:
-                if kind != "text":
-                    continue
-                _, core, _ = split_space_edges(unit)
-                key = normalize_translation_cache_source(core)
-                if not key or key in resolved_core:
-                    continue
-                resolved_core[key] = local_translate_preserve_placeholders(key, hv_map, placeholder_map)
-        else:
-            trans_sig = self.translation_signature(mode=mode_norm, name_set_override=name_set_override)
-            lookup_candidates: list[str] = []
+        trans_sig = self.translation_signature(mode=mode_norm, name_set_override=name_set_override)
+        lookup_candidates: list[str] = []
 
-            for kind, unit in units:
-                if kind != "text":
-                    continue
-                _, core, _ = split_space_edges(unit)
-                key = normalize_translation_cache_source(core)
+        for kind, unit in units:
+            if kind != "text":
+                continue
+            _, core, _ = split_space_edges(unit)
+            key = normalize_translation_cache_source(core)
+            if not key:
+                continue
+            if key in resolved_core:
+                continue
+            if not needs_server_translation(key):
+                resolved_core[key] = key
+                continue
+            lookup_candidates.append(key)
+
+        uniq_lookup: list[str] = []
+        seen_lookup: set[str] = set()
+        for item in lookup_candidates:
+            if item in seen_lookup:
+                continue
+            seen_lookup.add(item)
+            uniq_lookup.append(item)
+
+        if uniq_lookup and self.cache_lookup_batch:
+            try:
+                cached = self.cache_lookup_batch(uniq_lookup, mode_norm, trans_sig)
+            except Exception:
+                cached = {}
+            for src_key, trans_val in (cached or {}).items():
+                key = normalize_translation_cache_source(src_key)
+                val = normalize_newlines(trans_val or "")
                 if not key:
                     continue
-                if key in resolved_core:
-                    continue
-                if not needs_server_translation(key):
-                    resolved_core[key] = key
-                    continue
-                lookup_candidates.append(key)
+                if key and val:
+                    resolved_core[key] = val
 
-            uniq_lookup: list[str] = []
-            seen_lookup: set[str] = set()
-            for item in lookup_candidates:
-                if item in seen_lookup:
-                    continue
-                seen_lookup.add(item)
-                uniq_lookup.append(item)
-
-            if uniq_lookup and self.cache_lookup_batch:
+        missing = [x for x in uniq_lookup if x not in resolved_core]
+        if missing:
+            translated_list = translator_logic.translate_text_chunks(
+                missing,
+                name_set={},
+                settings=settings,
+                update_progress_callback=None,
+                target_lang="vi",
+            )
+            to_store: list[tuple[str, str]] = []
+            for idx, source_key in enumerate(missing):
+                translated_piece = translated_list[idx] if idx < len(translated_list) else source_key
+                translated_piece = normalize_newlines(translated_piece or "")
+                if not translated_piece or translated_piece.startswith("[Lỗi"):
+                    translated_piece = source_key
+                resolved_core[source_key] = translated_piece
+                if (
+                    self.cache_store_batch
+                    and translated_piece
+                    and translated_piece != source_key
+                    and not translated_piece.startswith("[Lỗi")
+                ):
+                    to_store.append((source_key, translated_piece))
+            if to_store and self.cache_store_batch:
                 try:
-                    cached = self.cache_lookup_batch(uniq_lookup, mode_norm, trans_sig)
+                    self.cache_store_batch(to_store, mode_norm, trans_sig)
                 except Exception:
-                    cached = {}
-                for src_key, trans_val in (cached or {}).items():
-                    key = normalize_translation_cache_source(src_key)
-                    val = normalize_newlines(trans_val or "")
-                    if key and val:
-                        resolved_core[key] = val
-
-            missing = [x for x in uniq_lookup if x not in resolved_core]
-            if missing:
-                translated_list = translator_logic.translate_text_chunks(
-                    missing,
-                    name_set={},
-                    settings=settings,
-                    update_progress_callback=None,
-                    target_lang="vi",
-                )
-                to_store: list[tuple[str, str]] = []
-                for idx, source_key in enumerate(missing):
-                    translated_piece = translated_list[idx] if idx < len(translated_list) else source_key
-                    translated_piece = normalize_newlines(translated_piece or "")
-                    if not translated_piece or translated_piece.startswith("[Lỗi"):
-                        translated_piece = source_key
-                    resolved_core[source_key] = translated_piece
-                    if (
-                        self.cache_store_batch
-                        and translated_piece
-                        and translated_piece != source_key
-                        and not translated_piece.startswith("[Lỗi")
-                    ):
-                        to_store.append((source_key, translated_piece))
-                if to_store and self.cache_store_batch:
-                    try:
-                        self.cache_store_batch(to_store, mode_norm, trans_sig)
-                    except Exception:
-                        pass
+                    pass
 
         translated_parts: list[str] = []
         translated_placeholder_parts: list[str] = []
@@ -2346,6 +2620,63 @@ class ReaderStorage:
         sets = state["sets"]
         return active, normalize_name_set(sets.get(active) or {}), int(state.get("version") or 1)
 
+    def _book_vp_set_key(self, book_id: str) -> str:
+        bid = str(book_id or "").strip()
+        if not bid:
+            raise ValueError("Thiếu book_id cho VP riêng.")
+        return f"{APP_STATE_BOOK_VP_SET_KEY_PREFIX}.{bid}"
+
+    def get_book_vp_set_state(self, book_id: str) -> dict[str, Any]:
+        key = self._book_vp_set_key(book_id)
+        raw = self._get_app_state_value(key)
+        parsed: dict[str, Any] | None = None
+        if raw:
+            try:
+                payload = json.loads(raw)
+                if isinstance(payload, dict):
+                    parsed = payload
+            except Exception:
+                parsed = None
+        entries = normalize_name_set((parsed or {}).get("entries"))
+        try:
+            version = max(1, int((parsed or {}).get("version") or 1))
+        except Exception:
+            version = 1
+        state = {"entries": entries, "version": version}
+        if parsed is None or normalize_name_set(parsed.get("entries")) != entries:
+            self._set_app_state_value(key, json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+        return state
+
+    def get_book_vp_set(self, book_id: str) -> tuple[dict[str, str], int]:
+        state = self.get_book_vp_set_state(book_id)
+        return normalize_name_set(state.get("entries")), int(state.get("version") or 1)
+
+    def set_book_vp_set_state(self, book_id: str, entries: dict[str, Any] | None, *, bump_version: bool = True) -> dict[str, Any]:
+        current = self.get_book_vp_set_state(book_id)
+        normalized_entries = normalize_name_set(entries if isinstance(entries, dict) else current.get("entries"))
+        next_version = int(current.get("version") or 1)
+        if bump_version:
+            next_version += 1
+        state = {"entries": normalized_entries, "version": max(1, next_version)}
+        self._set_app_state_value(
+            self._book_vp_set_key(book_id),
+            json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        )
+        return state
+
+    def update_book_vp_entry(self, book_id: str, source: str, target: str, *, delete: bool = False) -> dict[str, Any]:
+        source_key = str(source or "").strip()
+        if not source_key:
+            raise ValueError("Thiếu source cho VP riêng.")
+        state = self.get_book_vp_set_state(book_id)
+        entries = normalize_name_set(state.get("entries"))
+        target_value = str(target or "").strip()
+        if delete or not target_value:
+            entries.pop(source_key, None)
+        else:
+            entries[source_key] = target_value
+        return self.set_book_vp_set_state(book_id, entries, bump_version=True)
+
     def get_theme_active(self) -> str:
         value = self._get_app_state_value(APP_STATE_THEME_ACTIVE_KEY)
         if value:
@@ -2516,10 +2847,9 @@ class ReaderStorage:
 
         return self.get_book_detail(book_id) or {"book_id": book_id}
 
-    def list_books(self) -> list[dict[str, Any]]:
+    def list_books(self, *, include_session: bool = False) -> list[dict[str, Any]]:
         with self._connect() as conn:
-            rows = conn.execute(
-                """
+            sql = """
                 SELECT b.book_id, b.title, b.title_vi, b.author, b.lang_source, b.source_type, b.source_file_path,
                        b.source_url, b.source_plugin,
                        b.author_vi, b.cover_path, b.extra_link,
@@ -2540,10 +2870,11 @@ class ReaderStorage:
                     ORDER BY c.chapter_order ASC
                     LIMIT 1
                 )
-                WHERE lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'
-                ORDER BY b.updated_at DESC
-                """
-            ).fetchall()
+            """
+            if not include_session:
+                sql += "\nWHERE lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'"
+            sql += "\nORDER BY b.updated_at DESC"
+            rows = conn.execute(sql).fetchall()
         output: list[dict[str, Any]] = []
         for row in rows:
             item = dict(row)
@@ -2711,6 +3042,7 @@ class ReaderStorage:
         translate_mode: str,
         *,
         name_set_override: dict[str, str] | None = None,
+        vp_set_override: dict[str, str] | None = None,
     ) -> None:
         book = self.find_book(book_id)
         if not book:
@@ -2723,7 +3055,12 @@ class ReaderStorage:
                 vi_title = (book.get("title_vi") or "").strip()
                 if raw_title and (not vi_title):
                     vi_title = normalize_vi_display_text(
-                        translator.translate_detailed(raw_title, mode=translate_mode, name_set_override=name_set_override).get("translated", "")
+                        translator.translate_detailed(
+                            raw_title,
+                            mode=translate_mode,
+                            name_set_override=name_set_override,
+                            vp_set_override=vp_set_override,
+                        ).get("translated", "")
                     )
                 elif vi_title:
                     vi_title = normalize_vi_display_text(vi_title)
@@ -2736,7 +3073,12 @@ class ReaderStorage:
                 vi_author = (book.get("author_vi") or "").strip()
                 if raw_author and (not vi_author):
                     translated_author = normalize_vi_display_text(
-                        translator.translate_detailed(raw_author, mode=translate_mode, name_set_override=name_set_override).get("translated", "")
+                        translator.translate_detailed(
+                            raw_author,
+                            mode=translate_mode,
+                            name_set_override=name_set_override,
+                            vp_set_override=vp_set_override,
+                        ).get("translated", "")
                     )
                     if translated_author:
                         conn.execute(
@@ -2755,7 +3097,12 @@ class ReaderStorage:
                     continue
                 if raw_title and not vi_title and book_supports_translation(book):
                     translated = normalize_vi_display_text(
-                        translator.translate_detailed(raw_title, mode=translate_mode, name_set_override=name_set_override).get("translated", "")
+                        translator.translate_detailed(
+                            raw_title,
+                            mode=translate_mode,
+                            name_set_override=name_set_override,
+                            vp_set_override=vp_set_override,
+                        ).get("translated", "")
                     )
                 else:
                     translated = normalize_vi_display_text(vi_title)
@@ -2775,11 +3122,18 @@ class ReaderStorage:
         translator: TranslationAdapter,
         translate_mode: str,
         name_set_override: dict[str, str] | None = None,
+        vp_set_override: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         page = max(1, int(page))
         page_size = max(1, min(200, int(page_size)))
         if mode == "trans":
-            self.translate_book_titles(book_id, translator, translate_mode, name_set_override=name_set_override)
+            self.translate_book_titles(
+                book_id,
+                translator,
+                translate_mode,
+                name_set_override=name_set_override,
+                vp_set_override=vp_set_override,
+            )
 
         with self._connect() as conn:
             total = conn.execute("SELECT COUNT(1) AS c FROM chapters WHERE book_id = ?", (book_id,)).fetchone()["c"]
@@ -3090,52 +3444,112 @@ class ReaderStorage:
         source = str(source_url or "").strip()
         if not source:
             return 0
+        count = 0
         with self._connect() as conn:
             if plugin:
                 row = conn.execute(
                     "SELECT COUNT(1) AS c FROM history_books WHERE plugin_id = ? AND source_url = ?",
                     (plugin, source),
                 ).fetchone()
-                count = int((row or {"c": 0})["c"] or 0)
-                if count:
+                plugin_count = int((row or {"c": 0})["c"] or 0)
+                if plugin_count:
                     conn.execute("DELETE FROM history_books WHERE plugin_id = ? AND source_url = ?", (plugin, source))
-            else:
-                row = conn.execute(
-                    "SELECT COUNT(1) AS c FROM history_books WHERE source_url = ?",
-                    (source,),
-                ).fetchone()
-                count = int((row or {"c": 0})["c"] or 0)
-                if count:
-                    conn.execute("DELETE FROM history_books WHERE source_url = ?", (source,))
+                    count += plugin_count
+            row = conn.execute(
+                "SELECT COUNT(1) AS c FROM history_books WHERE source_url = ?",
+                (source,),
+            ).fetchone()
+            source_count = int((row or {"c": 0})["c"] or 0)
+            if source_count:
+                conn.execute("DELETE FROM history_books WHERE source_url = ?", (source,))
+                count += source_count
         return count
 
     def _delete_cache_keys(self, keys: set[str]) -> int:
-        deleted = 0
         if not keys:
-            return deleted
+            return 0
+        stats = self._delete_cache_keys_with_stats(keys)
+        return int(stats.get("deleted_files") or 0)
+
+    def _delete_cache_rows_with_stats(self, rows: list[sqlite3.Row] | list[dict[str, Any]]) -> dict[str, int]:
+        deleted_files = 0
+        bytes_deleted = 0
+        for row in rows:
+            path_raw = row["text_path"] if isinstance(row, sqlite3.Row) else row.get("text_path")
+            path = Path(str(path_raw or ""))
+            if not path.exists():
+                continue
+            try:
+                bytes_deleted += int(path.stat().st_size)
+            except Exception:
+                pass
+            try:
+                path.unlink()
+                deleted_files += 1
+            except Exception:
+                pass
+        return {"deleted_files": deleted_files, "bytes_deleted": bytes_deleted}
+
+    def _delete_cache_keys_with_stats(self, keys: set[str]) -> dict[str, int]:
+        if not keys:
+            return {"cache_deleted": 0, "deleted_files": 0, "bytes_deleted": 0}
         with self._connect() as conn:
             rows = conn.execute(
-                f"SELECT cache_key, text_path FROM content_cache WHERE cache_key IN ({','.join('?' for _ in keys)})",
+                f"SELECT cache_key, text_path, bytes FROM content_cache WHERE cache_key IN ({','.join('?' for _ in keys)})",
                 tuple(keys),
             ).fetchall()
             conn.execute(
                 f"DELETE FROM content_cache WHERE cache_key IN ({','.join('?' for _ in keys)})",
                 tuple(keys),
             )
-        for row in rows:
-            p = Path(row["text_path"])
-            if p.exists():
-                try:
-                    p.unlink()
-                    deleted += 1
-                except Exception:
-                    pass
-        return deleted
+        file_stats = self._delete_cache_rows_with_stats(rows)
+        return {
+            "cache_deleted": int(len(rows)),
+            "deleted_files": int(file_stats.get("deleted_files") or 0),
+            "bytes_deleted": int(file_stats.get("bytes_deleted") or 0),
+        }
+
+    def get_content_cache_meta(self, keys: set[str] | list[str]) -> dict[str, dict[str, Any]]:
+        input_keys = [str(k or "").strip() for k in (keys or []) if str(k or "").strip()]
+        if not input_keys:
+            return {}
+        out: dict[str, dict[str, Any]] = {}
+        step = 800
+        with self._connect() as conn:
+            for idx in range(0, len(input_keys), step):
+                chunk = input_keys[idx : idx + step]
+                rows = conn.execute(
+                    f"SELECT cache_key, text_path, bytes FROM content_cache WHERE cache_key IN ({','.join('?' for _ in chunk)})",
+                    tuple(chunk),
+                ).fetchall()
+                for row in rows:
+                    key = str(row["cache_key"] or "").strip()
+                    if not key:
+                        continue
+                    out[key] = {
+                        "text_path": str(row["text_path"] or "").strip(),
+                        "bytes": int(row["bytes"] or 0),
+                    }
+        return out
+
+    def get_translation_cache_stats(self) -> dict[str, int]:
+        with self._connect() as conn:
+            trans_row = conn.execute(
+                "SELECT COUNT(1) AS c, COALESCE(SUM(bytes),0) AS b FROM content_cache WHERE cache_key LIKE 'tr_%'"
+            ).fetchone()
+            tm_row = conn.execute("SELECT COUNT(1) AS c FROM translation_memory").fetchone()
+            tum_row = conn.execute("SELECT COUNT(1) AS c FROM translation_unit_map").fetchone()
+        return {
+            "translated_cache_count": int((trans_row or {"c": 0})["c"] or 0),
+            "translated_cache_bytes": int((trans_row or {"b": 0})["b"] or 0),
+            "translation_memory_count": int((tm_row or {"c": 0})["c"] or 0),
+            "translation_unit_map_count": int((tum_row or {"c": 0})["c"] or 0),
+        }
 
     def clear_translated_cache(self) -> dict[str, Any]:
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT cache_key, text_path FROM content_cache WHERE cache_key LIKE 'tr_%'"
+                "SELECT cache_key, text_path, bytes FROM content_cache WHERE cache_key LIKE 'tr_%'"
             ).fetchall()
             conn.execute("DELETE FROM content_cache WHERE cache_key LIKE 'tr_%'")
             tm_count = conn.execute("SELECT COUNT(1) AS c FROM translation_memory").fetchone()["c"]
@@ -3144,22 +3558,82 @@ class ReaderStorage:
             conn.execute("DELETE FROM translation_unit_map")
             conn.execute("UPDATE chapters SET trans_key = NULL, trans_sig = NULL, updated_at = ?", (utc_now_iso(),))
 
-        deleted_files = 0
-        bytes_deleted = 0
-        for row in rows:
-            p = Path(row["text_path"])
-            if p.exists():
-                try:
-                    bytes_deleted += p.stat().st_size
-                    p.unlink()
-                    deleted_files += 1
-                except Exception:
-                    pass
+        file_stats = self._delete_cache_rows_with_stats(rows)
         return {
-            "deleted_files": deleted_files,
-            "bytes_deleted": bytes_deleted,
+            "deleted_files": int(file_stats.get("deleted_files") or 0),
+            "bytes_deleted": int(file_stats.get("bytes_deleted") or 0),
+            "cache_deleted": int(len(rows)),
             "tm_deleted": int(tm_count or 0),
             "unit_map_deleted": int(tum_count or 0),
+        }
+
+    def clear_book_cache(self, book_id: str, *, clear_raw: bool = False, clear_trans: bool = False) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        if not bid:
+            return {
+                "found": False,
+                "book_id": "",
+                "raw_cache_deleted": 0,
+                "trans_cache_deleted": 0,
+                "unit_map_deleted": 0,
+                "deleted_files": 0,
+                "bytes_deleted": 0,
+            }
+        chapters = self.get_chapter_rows(bid)
+        if not chapters:
+            book = self.find_book(bid)
+            if not book:
+                return {
+                    "found": False,
+                    "book_id": bid,
+                    "raw_cache_deleted": 0,
+                    "trans_cache_deleted": 0,
+                    "unit_map_deleted": 0,
+                    "deleted_files": 0,
+                    "bytes_deleted": 0,
+                }
+        raw_keys: set[str] = set()
+        trans_keys: set[str] = set()
+        chapter_ids: list[str] = []
+        for ch in chapters:
+            if clear_raw and ch.get("raw_key"):
+                raw_keys.add(str(ch.get("raw_key") or "").strip())
+            if clear_trans and ch.get("trans_key"):
+                trans_keys.add(str(ch.get("trans_key") or "").strip())
+            if clear_trans and ch.get("chapter_id"):
+                chapter_ids.append(str(ch.get("chapter_id") or "").strip())
+        keys = {x for x in raw_keys.union(trans_keys) if x}
+        deleted_stats = self._delete_cache_keys_with_stats(keys) if keys else {
+            "cache_deleted": 0,
+            "deleted_files": 0,
+            "bytes_deleted": 0,
+        }
+
+        unit_map_deleted = 0
+        if clear_trans and chapter_ids:
+            with self._connect() as conn:
+                row = conn.execute(
+                    f"SELECT COUNT(1) AS c FROM translation_unit_map WHERE chapter_id IN ({','.join('?' for _ in chapter_ids)})",
+                    tuple(chapter_ids),
+                ).fetchone()
+                unit_map_deleted = int((row or {"c": 0})["c"] or 0)
+                conn.execute(
+                    f"DELETE FROM translation_unit_map WHERE chapter_id IN ({','.join('?' for _ in chapter_ids)})",
+                    tuple(chapter_ids),
+                )
+                conn.execute(
+                    "UPDATE chapters SET trans_key = NULL, trans_sig = NULL, updated_at = ? WHERE book_id = ?",
+                    (utc_now_iso(), bid),
+                )
+
+        return {
+            "found": True,
+            "book_id": bid,
+            "raw_cache_deleted": int(len(raw_keys)),
+            "trans_cache_deleted": int(len(trans_keys)),
+            "unit_map_deleted": int(unit_map_deleted),
+            "deleted_files": int(deleted_stats.get("deleted_files") or 0),
+            "bytes_deleted": int(deleted_stats.get("bytes_deleted") or 0),
         }
 
     def clear_chapter_translated_cache(self, chapter_id: str) -> dict[str, Any]:
@@ -3288,17 +3762,32 @@ class ReaderStorage:
             )
         return str(path)
 
-    def create_export_txt(self, book_id: str, ensure_translated: bool, translator: TranslationAdapter, translate_mode: str) -> Path:
+    def create_export_txt(
+        self,
+        book_id: str,
+        ensure_translated: bool,
+        translator: TranslationAdapter,
+        translate_mode: str,
+        *,
+        use_cached_only: bool = False,
+    ) -> Path:
         book = self.find_book(book_id)
         if not book:
             raise ValueError("Không tìm thấy truyện.")
+        if is_book_comic(book):
+            raise ValueError("Truyện tranh không hỗ trợ xuất TXT.")
         chapters = self.get_chapter_rows(book_id)
         if not chapters:
             raise ValueError("Truyện chưa có chương.")
         _, active_name_set, _ = self.get_active_name_set(default_sets={"Mặc định": {}}, active_default="Mặc định", book_id=book_id)
+        active_vp_set, _ = self.get_book_vp_set(book_id)
 
         output_lines: list[str] = []
         for ch in chapters:
+            if use_cached_only:
+                raw_cached = self.read_cache(str(ch.get("raw_key") or "").strip())
+                if raw_cached is None:
+                    continue
             title = ch["title_vi"] or ch["title_raw"] or f"Chương {ch['chapter_order']}"
             text = self.get_chapter_text(
                 ch,
@@ -3307,8 +3796,12 @@ class ReaderStorage:
                 translator=translator,
                 translate_mode=translate_mode,
                 name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+                allow_remote_fetch=not use_cached_only,
             )
             output_lines.extend([title, "", text, ""])
+        if not output_lines:
+            raise ValueError("Không có chương đã cache để xuất TXT.")
 
         safe_name = self._safe_filename(book["title"])
         ts = utc_now_ts()
@@ -3316,7 +3809,15 @@ class ReaderStorage:
         out.write_text("\n".join(output_lines), encoding="utf-8")
         return out
 
-    def create_export_epub(self, book_id: str, ensure_translated: bool, translator: TranslationAdapter, translate_mode: str) -> Path:
+    def create_export_epub(
+        self,
+        book_id: str,
+        ensure_translated: bool,
+        translator: TranslationAdapter,
+        translate_mode: str,
+        *,
+        use_cached_only: bool = False,
+    ) -> Path:
         book = self.find_book(book_id)
         if not book:
             raise ValueError("Không tìm thấy truyện.")
@@ -3324,6 +3825,7 @@ class ReaderStorage:
         if not chapters:
             raise ValueError("Truyện chưa có chương.")
         _, active_name_set, _ = self.get_active_name_set(default_sets={"Mặc định": {}}, active_default="Mặc định", book_id=book_id)
+        active_vp_set, _ = self.get_book_vp_set(book_id)
 
         safe_name = self._safe_filename(book["title"])
         ts = utc_now_ts()
@@ -3345,6 +3847,10 @@ class ReaderStorage:
         nav_points: list[str] = []
 
         for idx, ch in enumerate(chapters, start=1):
+            if use_cached_only:
+                raw_cached = self.read_cache(str(ch.get("raw_key") or "").strip())
+                if raw_cached is None:
+                    continue
             title = ch["title_vi"] or ch["title_raw"] or f"Chương {idx}"
             text = self.get_chapter_text(
                 ch,
@@ -3353,6 +3859,8 @@ class ReaderStorage:
                 translator=translator,
                 translate_mode=translate_mode,
                 name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+                allow_remote_fetch=not use_cached_only,
             )
             content_html = "\n".join(
                 f"<p>{html.escape(line)}</p>" if line.strip() else "<p><br/></p>"
@@ -3373,6 +3881,8 @@ class ReaderStorage:
             nav_points.append(
                 f'<navPoint id="navPoint-{idx}" playOrder="{idx}"><navLabel><text>{html.escape(title)}</text></navLabel><content src="{xhtml_name}"/></navPoint>'
             )
+        if not spine_items:
+            raise ValueError("Không có chương đã cache để xuất EPUB.")
 
         toc_ncx = (
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
@@ -3422,10 +3932,18 @@ class ReaderStorage:
         translator: TranslationAdapter,
         translate_mode: str,
         name_set_override: dict[str, str] | None = None,
+        vp_set_override: dict[str, str] | None = None,
+        allow_remote_fetch: bool = True,
     ) -> str:
         raw_key = chapter.get("raw_key")
         cached_raw = self.read_cache(raw_key) or ""
-        if (not cached_raw) and str(book.get("source_type") or "").startswith("vbook") and chapter.get("remote_url") and self.remote_chapter_fetcher:
+        if (
+            allow_remote_fetch
+            and (not cached_raw)
+            and str(book.get("source_type") or "").startswith("vbook")
+            and chapter.get("remote_url")
+            and self.remote_chapter_fetcher
+        ):
             cached_raw = self.remote_chapter_fetcher(chapter, book) or ""
         comic_payload = decode_comic_payload(cached_raw or "")
         if comic_payload is not None:
@@ -3435,7 +3953,11 @@ class ReaderStorage:
         if mode == "raw" or (not book_supports_translation(book)):
             return raw_text
 
-        current_sig = translator.translation_signature(mode=translate_mode, name_set_override=name_set_override)
+        current_sig = translator.translation_signature(
+            mode=translate_mode,
+            name_set_override=name_set_override,
+            vp_set_override=vp_set_override,
+        )
         trans_key = chapter.get("trans_key")
         trans_sig = (chapter.get("trans_sig") or "").strip()
         if trans_key and trans_sig == current_sig:
@@ -3445,7 +3967,12 @@ class ReaderStorage:
                 if map_count > 0:
                     return normalize_newlines(cached)
 
-        detail = translator.translate_detailed(raw_text, mode=translate_mode, name_set_override=name_set_override)
+        detail = translator.translate_detailed(
+            raw_text,
+            mode=translate_mode,
+            name_set_override=name_set_override,
+            vp_set_override=vp_set_override,
+        )
         translated = normalize_newlines(detail.get("translated") or "")
         if not translated:
             translated = raw_text
@@ -3740,6 +4267,193 @@ class ReaderService:
             **cleared,
         }
 
+    def _scan_vbook_image_cache_index(self) -> dict[str, int]:
+        index: dict[str, int] = {}
+        if not VBOOK_IMAGE_CACHE_DIR.exists():
+            return index
+        try:
+            for item in VBOOK_IMAGE_CACHE_DIR.glob("*.bin"):
+                key = str(item.stem or "").strip()
+                if not key:
+                    continue
+                try:
+                    index[key] = int(item.stat().st_size)
+                except Exception:
+                    index[key] = 0
+        except Exception:
+            return {}
+        return index
+
+    def _vbook_image_cache_key(self, *, image_url: str, plugin_id: str = "") -> str:
+        seed = f"{str(plugin_id or '').strip()}|{str(image_url or '').strip()}"
+        return hash_text(seed)
+
+    def _collect_book_image_cache_keys(self, book: dict[str, Any], chapters: list[dict[str, Any]]) -> set[str]:
+        if not is_book_comic(book):
+            return set()
+        plugin_id = str(book.get("source_plugin") or "").strip()
+        keys: set[str] = set()
+        for ch in chapters:
+            raw_key = str(ch.get("raw_key") or "").strip()
+            if not raw_key:
+                continue
+            raw_text = self.storage.read_cache(raw_key) or ""
+            payload = decode_comic_payload(raw_text)
+            image_rows: list[str] = []
+            if payload is not None:
+                image_rows = [str(x).strip() for x in (payload.get("images") or []) if str(x).strip()]
+            else:
+                lines = [line.strip() for line in str(raw_text or "").splitlines() if line.strip()]
+                if lines and all(line.startswith("http://") or line.startswith("https://") for line in lines):
+                    image_rows = lines
+            for image_url in image_rows:
+                url = str(image_url or "").strip()
+                if not url:
+                    continue
+                keys.add(self._vbook_image_cache_key(image_url=url, plugin_id=plugin_id))
+        return keys
+
+    def _clear_book_image_cache(self, book: dict[str, Any], chapters: list[dict[str, Any]]) -> dict[str, int]:
+        keys = self._collect_book_image_cache_keys(book, chapters)
+        deleted = 0
+        bytes_deleted = 0
+        for key in keys:
+            body = VBOOK_IMAGE_CACHE_DIR / f"{key}.bin"
+            meta = VBOOK_IMAGE_CACHE_DIR / f"{key}.json"
+            if body.exists():
+                try:
+                    bytes_deleted += int(body.stat().st_size)
+                except Exception:
+                    pass
+                try:
+                    body.unlink()
+                    deleted += 1
+                except Exception:
+                    pass
+            if meta.exists():
+                try:
+                    meta.unlink()
+                except Exception:
+                    pass
+        return {
+            "image_cache_keys": int(len(keys)),
+            "image_cache_deleted": int(deleted),
+            "image_bytes_deleted": int(bytes_deleted),
+        }
+
+    def get_cache_summary(self) -> dict[str, Any]:
+        books = self.storage.list_books(include_session=True)
+        image_index = self._scan_vbook_image_cache_index()
+        global_stats = self.storage.get_translation_cache_stats()
+        items: list[dict[str, Any]] = []
+
+        for book in books:
+            bid = str(book.get("book_id") or "").strip()
+            if not bid:
+                continue
+            chapters = self.storage.get_chapter_rows(bid)
+            chapter_total = int(book.get("chapter_count") or len(chapters) or 0)
+            raw_keys = [str(ch.get("raw_key") or "").strip() for ch in chapters if str(ch.get("raw_key") or "").strip()]
+            trans_keys = [str(ch.get("trans_key") or "").strip() for ch in chapters if str(ch.get("trans_key") or "").strip()]
+            cache_meta = self.storage.get_content_cache_meta(set(raw_keys + trans_keys))
+            raw_cached = [k for k in raw_keys if k in cache_meta]
+            trans_cached = [k for k in trans_keys if k in cache_meta]
+            raw_bytes = sum(int((cache_meta.get(k) or {}).get("bytes") or 0) for k in raw_cached)
+            trans_bytes = sum(int((cache_meta.get(k) or {}).get("bytes") or 0) for k in trans_cached)
+
+            image_keys = self._collect_book_image_cache_keys(book, chapters)
+            image_cached = [k for k in image_keys if k in image_index]
+            image_bytes = sum(int(image_index.get(k) or 0) for k in image_cached)
+
+            items.append(
+                {
+                    "book_id": bid,
+                    "title": str(book.get("title") or ""),
+                    "title_display": str(book.get("title_display") or book.get("title") or ""),
+                    "author_display": str(book.get("author_display") or book.get("author") or ""),
+                    "cover_url": str(book.get("cover_url") or ""),
+                    "is_comic": bool(book.get("is_comic")),
+                    "chapter_count": chapter_total,
+                    "cached_raw_chapters": int(len(raw_cached)),
+                    "cached_trans_chapters": int(len(trans_cached)),
+                    "cached_image_count": int(len(image_cached)),
+                    "raw_bytes": int(raw_bytes),
+                    "trans_bytes": int(trans_bytes),
+                    "image_bytes": int(image_bytes),
+                }
+            )
+
+        return {
+            "ok": True,
+            "global": global_stats,
+            "books": items,
+        }
+
+    def manage_cache(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(payload, dict):
+            payload = {}
+        action = str(payload.get("action") or "").strip().lower()
+        if action in {"clear_translation_global", "clear_global_translation", "global_trans"}:
+            result = self.storage.clear_translated_cache()
+            return {"ok": True, "action": "clear_global_translation", **result}
+
+        if action not in {"clear_book_raw", "clear_book_trans", "clear_book_images", "clear_book_all"}:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "action cache không hợp lệ.")
+        book_ids_raw = payload.get("book_ids")
+        if not isinstance(book_ids_raw, list):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "book_ids phải là mảng.")
+        book_ids: list[str] = []
+        seen: set[str] = set()
+        for raw in book_ids_raw:
+            bid = str(raw or "").strip()
+            if not bid or bid in seen:
+                continue
+            seen.add(bid)
+            book_ids.append(bid)
+        if not book_ids:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Chưa chọn truyện để xóa cache.")
+
+        result_items: list[dict[str, Any]] = []
+        total = {
+            "raw_cache_deleted": 0,
+            "trans_cache_deleted": 0,
+            "unit_map_deleted": 0,
+            "deleted_files": 0,
+            "bytes_deleted": 0,
+            "image_cache_keys": 0,
+            "image_cache_deleted": 0,
+            "image_bytes_deleted": 0,
+        }
+
+        for bid in book_ids:
+            book = self.storage.find_book(bid)
+            chapters = self.storage.get_chapter_rows(bid)
+            if not book:
+                result_items.append({"book_id": bid, "found": False})
+                continue
+            clear_raw = action in {"clear_book_raw", "clear_book_all"}
+            clear_trans = action in {"clear_book_trans", "clear_book_all"}
+            cache_stats = self.storage.clear_book_cache(bid, clear_raw=clear_raw, clear_trans=clear_trans)
+            image_stats = {"image_cache_keys": 0, "image_cache_deleted": 0, "image_bytes_deleted": 0}
+            if action in {"clear_book_images", "clear_book_all"}:
+                image_stats = self._clear_book_image_cache(book, chapters)
+            item = {
+                "book_id": bid,
+                "found": True,
+                **cache_stats,
+                **image_stats,
+            }
+            result_items.append(item)
+            for key in total.keys():
+                total[key] += int(item.get(key) or 0)
+
+        return {
+            "ok": True,
+            "action": action,
+            "items": result_items,
+            "summary": total,
+        }
+
     def upsert_history_book(self, payload: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(payload, dict):
             payload = {}
@@ -3799,23 +4513,54 @@ class ReaderService:
 
     def _normalize_translate_mode(self, value: Any, default: str = "server") -> str:
         mode = str(value or "").strip().lower()
-        if mode in {"server", "local"}:
+        if mode in {"server", "local", "hanviet"}:
             return mode
-        return "local" if default == "local" else "server"
+        if default in {"local", "hanviet"}:
+            return default
+        return "server"
+
+    def _normalized_global_local_dicts(self, value: Any) -> dict[str, dict[str, str]]:
+        raw = value if isinstance(value, dict) else {}
+        return {
+            "name": normalize_name_set(raw.get("name")),
+            "vp": normalize_name_set(raw.get("vp")),
+        }
 
     def _normalized_reader_translation_settings(self, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
         payload = self._reader_translation_cfg(cfg)
+        local_payload = payload.get("local") if isinstance(payload, dict) else {}
+        if not isinstance(local_payload, dict):
+            local_payload = {}
+        global_dicts = self._normalized_global_local_dicts(payload.get("global_dicts"))
+        merged_local = dict(local_payload)
+        merged_local["global_name_overrides"] = dict(global_dicts.get("name") or {})
+        merged_local["global_vp_overrides"] = dict(global_dicts.get("vp") or {})
         return {
             "enabled": self._parse_bool(payload.get("enabled"), True),
             "mode": self._normalize_translate_mode(payload.get("mode"), "server"),
+            "local": vbook_local_translate.normalize_local_settings(
+                merged_local,
+                default_base_dir="reader_ui/translate/vbook_local",
+            ),
+            "global_dicts": global_dicts,
         }
 
     def get_reader_settings(self) -> dict[str, Any]:
+        local_settings = self.reader_translation_settings.get("local")
+        if not isinstance(local_settings, dict):
+            local_settings = vbook_local_translate.normalize_local_settings(
+                {},
+                default_base_dir="reader_ui/translate/vbook_local",
+            )
         return {
             "ok": True,
             "translation": {
                 "enabled": bool(self.reader_translation_settings.get("enabled", True)),
                 "mode": self._normalize_translate_mode(self.reader_translation_settings.get("mode"), "server"),
+                "local": local_settings,
+                "global_dicts": self._normalized_global_local_dicts(
+                    self.reader_translation_settings.get("global_dicts")
+                ),
             },
         }
 
@@ -3832,14 +4577,145 @@ class ReaderService:
         if not isinstance(cfg, dict):
             cfg = {}
         existing = self._normalized_reader_translation_settings(cfg)
+        patch_local = patch.get("local")
+        patch_global_dicts = patch.get("global_dicts")
+        if isinstance(patch_local, dict):
+            merged_local = dict(existing.get("local") or {})
+            merged_local.update(patch_local)
+        else:
+            merged_local = existing.get("local") or {}
+        merged_global_dicts = self._normalized_global_local_dicts(existing.get("global_dicts"))
+        if isinstance(patch_global_dicts, dict):
+            for key in ("name", "vp"):
+                if key in patch_global_dicts:
+                    merged_global_dicts[key] = normalize_name_set(patch_global_dicts.get(key))
+        local_with_global = dict(merged_local)
+        local_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
+        local_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
         next_settings = {
             "enabled": self._parse_bool(patch.get("enabled"), existing["enabled"]),
             "mode": self._normalize_translate_mode(patch.get("mode"), existing["mode"]),
+            "local": vbook_local_translate.normalize_local_settings(
+                local_with_global,
+                default_base_dir="reader_ui/translate/vbook_local",
+            ),
+            "global_dicts": merged_global_dicts,
         }
         cfg["reader_translation"] = next_settings
         save_app_config(cfg)
+        try:
+            vbook_local_translate.clear_bundle_cache()
+        except Exception:
+            pass
         self.refresh_config()
         return self.get_reader_settings()
+
+    def get_local_global_dicts(self) -> dict[str, dict[str, str]]:
+        return self._normalized_global_local_dicts(self.reader_translation_settings.get("global_dicts"))
+
+    def set_local_global_dicts(
+        self,
+        *,
+        name: dict[str, Any] | None = None,
+        vp: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        current = self.get_local_global_dicts()
+        next_dicts = {
+            "name": normalize_name_set(name) if isinstance(name, dict) else dict(current.get("name") or {}),
+            "vp": normalize_name_set(vp) if isinstance(vp, dict) else dict(current.get("vp") or {}),
+        }
+        cfg = load_app_config()
+        if not isinstance(cfg, dict):
+            cfg = {}
+        reader_cfg = cfg.get("reader_translation") if isinstance(cfg.get("reader_translation"), dict) else {}
+        reader_cfg = dict(reader_cfg)
+        reader_cfg["global_dicts"] = next_dicts
+        cfg["reader_translation"] = reader_cfg
+        save_app_config(cfg)
+        try:
+            vbook_local_translate.clear_bundle_cache()
+        except Exception:
+            pass
+        self.refresh_config()
+        return {"ok": True, "global_dicts": self.get_local_global_dicts()}
+
+    def get_book_local_dicts(self, book_id: str) -> dict[str, Any]:
+        _, name_entries, name_version = self.storage.get_active_name_set(
+            default_sets=self._default_name_sets(),
+            active_default=self._default_active_name_set(self._default_name_sets()),
+            book_id=book_id,
+        )
+        vp_entries, vp_version = self.storage.get_book_vp_set(book_id)
+        return {
+            "ok": True,
+            "book_id": book_id,
+            "name": name_entries,
+            "vp": vp_entries,
+            "name_version": name_version,
+            "vp_version": vp_version,
+        }
+
+    def update_local_dict_entry(
+        self,
+        *,
+        dict_type: str,
+        scope: str,
+        source: str,
+        target: str,
+        delete: bool = False,
+        book_id: str | None = None,
+        set_name: str | None = None,
+    ) -> dict[str, Any]:
+        kind = str(dict_type or "").strip().lower()
+        if kind not in {"name", "vp"}:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "dict_type phải là name hoặc vp.")
+        src = str(source or "").strip()
+        dst = str(target or "").strip()
+        if not src:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu source cho entry.")
+
+        if kind == "name":
+            if contains_name_split_delimiter(src):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Tên gốc không được chứa dấu tách câu.")
+            if dst and contains_name_split_delimiter(dst):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Tên dịch không được chứa dấu tách câu.")
+
+        sc = str(scope or "book").strip().lower()
+        if sc not in {"global", "book"}:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "scope phải là global hoặc book.")
+
+        if sc == "global":
+            current = self.get_local_global_dicts()
+            key = "name" if kind == "name" else "vp"
+            entries = dict(current.get(key) or {})
+            if delete or not dst:
+                entries.pop(src, None)
+            else:
+                entries[src] = dst
+            if key == "name":
+                return self.set_local_global_dicts(name=entries, vp=current.get("vp"))
+            return self.set_local_global_dicts(name=current.get("name"), vp=entries)
+
+        bid = str(book_id or "").strip()
+        if not bid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id cho scope book.")
+        if kind == "name":
+            state = self.storage.update_name_set_entry(
+                src,
+                dst,
+                set_name=set_name,
+                delete=delete,
+                book_id=bid,
+            )
+            self.refresh_config()
+            return {"ok": True, "book_id": bid, "scope": "book", "dict_type": "name", **state}
+        state = self.storage.update_book_vp_entry(
+            bid,
+            src,
+            dst,
+            delete=delete,
+        )
+        return {"ok": True, "book_id": bid, "scope": "book", "dict_type": "vp", **state}
 
     def is_reader_translation_enabled(self) -> bool:
         return bool(self.reader_translation_settings.get("enabled", True))
@@ -6038,6 +6914,10 @@ class ReaderService:
             core = html_to_text(core)
         if decode_comic_payload(core) is None:
             core = normalize_newlines(core)
+        if is_comic and (decode_comic_payload(core) is None):
+            maybe_lines = [line.strip() for line in str(core or "").splitlines() if line.strip()]
+            if maybe_lines and all(line.startswith("http://") or line.startswith("https://") for line in maybe_lines):
+                core = encode_comic_payload(maybe_lines)
 
         raw_key = (chapter or {}).get("raw_key") or ""
         if raw_key:
@@ -6487,7 +7367,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             if not text:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu text cần preview.")
             translate_mode = (payload.get("translation_mode") or "local").strip().lower()
-            if translate_mode not in {"local", "server"}:
+            if translate_mode not in {"local", "server", "hanviet"}:
                 translate_mode = "local"
             override_name_set = payload.get("name_set")
             if override_name_set is not None and not isinstance(override_name_set, dict):
@@ -6519,25 +7399,72 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "source_text phải chứa chữ Trung.")
 
             hv_text = ""
-            settings = self.service.translator._settings()
-            try:
-                hv_list = translator_logic.translate_text_chunks(
-                    [source_cjk],
-                    name_set={},
-                    settings=settings,
-                    update_progress_callback=None,
-                    target_lang="hv",
-                )
-                hv_text = str(hv_list[0] if hv_list else "").strip()
-            except Exception:
-                hv_text = ""
-
-            if (not hv_text) or hv_text.startswith("[Lỗi"):
+            translate_mode = self.service.resolve_translate_mode(
+                payload.get("translation_mode") or self.service.reader_translation_mode()
+            )
+            book_id = str(payload.get("book_id") or "").strip()
+            set_name = str(payload.get("set_name") or "").strip() or None
+            personal_name: dict[str, str] = {}
+            personal_vp: dict[str, str] = {}
+            if book_id:
                 try:
-                    hv_map = translator_logic.load_hanviet_json(settings.get("hanvietJsonUrl", ""))
-                    hv_text = translator_logic.build_hanviet_from_map(source_cjk, hv_map) or source_cjk
+                    _, personal_name, _ = self.service.storage.get_active_name_set(
+                        default_sets=self.service._default_name_sets(),
+                        active_default=self.service._default_active_name_set(self.service._default_name_sets()),
+                        book_id=book_id,
+                    )
+                    if set_name:
+                        state = self.service.storage.get_name_set_state(
+                            default_sets=self.service._default_name_sets(),
+                            active_default=self.service._default_active_name_set(self.service._default_name_sets()),
+                            book_id=book_id,
+                        )
+                        candidate = (state.get("sets") or {}).get(set_name)
+                        if isinstance(candidate, dict):
+                            personal_name = normalize_name_set(candidate)
+                    personal_vp, _ = self.service.storage.get_book_vp_set(book_id)
+                except Exception:
+                    personal_name = {}
+                    personal_vp = {}
+            global_dicts = self.service.get_local_global_dicts()
+            local_bundle = None
+            if translate_mode in {"local", "hanviet"}:
+                try:
+                    local_settings = vbook_local_translate.normalize_local_settings(
+                        (self.service.reader_translation_settings or {}).get("local") or {},
+                        default_base_dir="reader_ui/translate/vbook_local",
+                    )
+                    local_bundle = vbook_local_translate.get_public_bundle(local_settings)
+                    hv_text = vbook_local_translate.build_hanviet_text(source_cjk, local_settings) or source_cjk
                 except Exception:
                     hv_text = source_cjk
+            else:
+                settings = self.service.translator._settings()
+                try:
+                    hv_list = translator_logic.translate_text_chunks(
+                        [source_cjk],
+                        name_set={},
+                        settings=settings,
+                        update_progress_callback=None,
+                        target_lang="hv",
+                    )
+                    hv_text = str(hv_list[0] if hv_list else "").strip()
+                except Exception:
+                    hv_text = ""
+
+                if (not hv_text) or hv_text.startswith("[Lỗi"):
+                    try:
+                        hv_map = translator_logic.load_hanviet_json(settings.get("hanvietJsonUrl", ""))
+                        hv_text = translator_logic.build_hanviet_from_map(source_cjk, hv_map) or source_cjk
+                    except Exception:
+                        hv_text = source_cjk
+                # Server mode vẫn dùng bộ dict local để tạo gợi ý bảng phải.
+                try:
+                    local_bundle = vbook_local_translate.get_public_bundle(
+                        (self.service.reader_translation_settings or {}).get("local") or {}
+                    )
+                except Exception:
+                    local_bundle = None
 
             rows = build_incremental_hv_suggestions(source_cjk, hv_text)
             items: list[dict[str, Any]] = []
@@ -6555,13 +7482,73 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                         "google_search_url": f"https://www.google.com/search?q={quote(zh)}",
                     }
                 )
+            right_items = build_name_right_suggestions(
+                source_cjk,
+                hv_text=hv_text,
+                personal_name=personal_name,
+                personal_vp=personal_vp,
+                global_name=global_dicts.get("name"),
+                global_vp=global_dicts.get("vp"),
+                bundle=local_bundle,
+                prefer_kind=payload.get("dict_type") or "name",
+                prefer_scope=payload.get("scope") or "book",
+            )
+            for row in right_items:
+                zh = str(row.get("source_text") or source_cjk).strip() or source_cjk
+                row["google_translate_url"] = f"https://translate.google.com/?sl=zh-CN&tl=vi&text={quote(zh)}&op=translate"
+                row["google_search_url"] = f"https://www.google.com/search?q={quote(zh)}"
 
             return {
                 "ok": True,
                 "source_text": source_cjk,
                 "han_viet_raw": hv_text,
                 "items": items,
+                "right_items": right_items,
             }
+
+        if method == "GET" and path == "/api/local-dicts/global":
+            return {
+                "ok": True,
+                "global_dicts": self.service.get_local_global_dicts(),
+            }
+
+        if method == "POST" and path == "/api/local-dicts/global":
+            payload = self._read_json_body()
+            return self.service.set_local_global_dicts(
+                name=payload.get("name"),
+                vp=payload.get("vp"),
+            )
+
+        if method == "POST" and path == "/api/local-dicts/global/entry":
+            payload = self._read_json_body()
+            return self.service.update_local_dict_entry(
+                dict_type=payload.get("dict_type") or "name",
+                scope="global",
+                source=payload.get("source") or "",
+                target=payload.get("target") or "",
+                delete=bool(payload.get("delete", False)),
+            )
+
+        if method == "GET" and path.startswith("/api/local-dicts/book/"):
+            book_id = unquote(path.removeprefix("/api/local-dicts/book/")).strip("/")
+            if not book_id:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+            return self.service.get_book_local_dicts(book_id)
+
+        if method == "POST" and path.startswith("/api/local-dicts/book/") and path.endswith("/entry"):
+            book_id = unquote(path.removeprefix("/api/local-dicts/book/").removesuffix("/entry")).strip("/")
+            if not book_id:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+            payload = self._read_json_body()
+            return self.service.update_local_dict_entry(
+                dict_type=payload.get("dict_type") or "name",
+                scope="book",
+                source=payload.get("source") or "",
+                target=payload.get("target") or "",
+                delete=bool(payload.get("delete", False)),
+                book_id=book_id,
+                set_name=payload.get("set_name"),
+            )
 
         if method == "GET" and path == "/api/library/books":
             try:
@@ -6855,6 +7842,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
                 book_id=book_id,
             )
+            active_vp_set, _ = self.service.storage.get_book_vp_set(book_id)
             data = self.service.storage.list_chapters_paged(
                 book_id,
                 page=page,
@@ -6863,6 +7851,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 translator=self.service.translator,
                 translate_mode=translate_mode,
                 name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
             )
             data["book_id"] = book_id
             data["mode"] = mode
@@ -6882,11 +7871,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
                 book_id=book_id,
             )
+            active_vp_set, _ = self.service.storage.get_book_vp_set(book_id)
             self.service.storage.translate_book_titles(
                 book_id,
                 self.service.translator,
                 translate_mode,
                 name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
             )
             return {"ok": True}
 
@@ -6937,6 +7928,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
                 book_id=book_id,
             )
+            active_vp_set, _ = self.service.storage.get_book_vp_set(book_id)
             book_preview = self.service.storage.find_book(book_id)
             allow_translate = self.service.translation_allowed_for_book(book_preview)
             if mode == "trans" and not allow_translate:
@@ -6947,11 +7939,20 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     self.service.translator,
                     translate_mode,
                     name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
                 )
             book = self.service.storage.get_book_detail(book_id)
             if not book:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-            if not allow_translate:
+            if allow_translate:
+                raw_title = normalize_vbook_display_text(str(book.get("title") or ""), single_line=True) or str(book.get("title") or "")
+                raw_author = normalize_vbook_display_text(str(book.get("author") or ""), single_line=True) or str(book.get("author") or "")
+                title_vi = normalize_vi_display_text(book.get("title_vi") or "")
+                author_vi = normalize_vi_display_text(book.get("author_vi") or "")
+                book["translation_supported"] = True
+                book["title_display"] = title_vi or self.service._translate_ui_text(raw_title, single_line=True) or raw_title
+                book["author_display"] = author_vi or self.service._translate_ui_text(raw_author, single_line=True) or raw_author
+            else:
                 book["translation_supported"] = False
                 book["title_display"] = normalize_vbook_display_text(str(book.get("title") or ""), single_line=True) or str(book.get("title") or "")
                 book["author_display"] = normalize_vbook_display_text(str(book.get("author") or ""), single_line=True) or str(book.get("author") or "")
@@ -6989,6 +7990,16 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             fmt = (payload.get("format") or "txt").lower().strip()
             ensure_translated = bool(payload.get("ensure_translated", False))
             translate_mode = (payload.get("translation_mode") or "server").strip()
+            use_cached_only = bool(payload.get("use_cached_only", False))
+            book = self.service.storage.find_book(book_id)
+            if not book:
+                raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+            if fmt == "txt" and is_book_comic(book):
+                raise ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "COMIC_EXPORT_TXT_NOT_SUPPORTED",
+                    "Truyện tranh không hỗ trợ xuất TXT.",
+                )
 
             if fmt == "txt":
                 output = self.service.storage.create_export_txt(
@@ -6996,6 +8007,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     ensure_translated,
                     translator=self.service.translator,
                     translate_mode=translate_mode,
+                    use_cached_only=use_cached_only,
                 )
             elif fmt == "epub":
                 output = self.service.storage.create_export_epub(
@@ -7003,6 +8015,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     ensure_translated,
                     translator=self.service.translator,
                     translate_mode=translate_mode,
+                    use_cached_only=use_cached_only,
                 )
             else:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Định dạng export không hợp lệ.")
@@ -7026,6 +8039,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         if method == "POST" and path == "/api/library/cache/clear":
             result = self.service.storage.clear_translated_cache()
             return {"ok": True, **result}
+
+        if method == "GET" and path == "/api/library/cache/summary":
+            return self.service.get_cache_summary()
+
+        if method == "POST" and path == "/api/library/cache/manage":
+            payload = self._read_json_body()
+            return self.service.manage_cache(payload)
 
         if method == "POST" and path.startswith("/api/library/chapter/") and path.endswith("/reload"):
             chapter_id = path.removeprefix("/api/library/chapter/").removesuffix("/reload").strip("/")
@@ -7058,6 +8078,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     active_default=self.service._default_active_name_set(self.service._default_name_sets()),
                     book_id=chapter["book_id"],
                 )
+            active_vp_set, _ = self.service.storage.get_book_vp_set(chapter["book_id"])
 
             raw_text = self.service.storage.get_chapter_text(
                 chapter,
@@ -7066,11 +8087,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 translator=self.service.translator,
                 translate_mode=translate_mode,
                 name_set_override=override_name_set if isinstance(override_name_set, dict) else None,
+                vp_set_override=active_vp_set,
             )
             detail = self.service.translator.translate_detailed(
                 raw_text,
                 mode=translate_mode,
                 name_set_override=override_name_set if isinstance(override_name_set, dict) else None,
+                vp_set_override=active_vp_set,
             )
             detail.pop("unit_map", None)
 
@@ -7078,6 +8101,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 chapter.get("title_raw") or "",
                 mode=translate_mode,
                 name_set_override=override_name_set if isinstance(override_name_set, dict) else None,
+                vp_set_override=active_vp_set,
             )
             title_detail.pop("unit_map", None)
 
@@ -7124,6 +8148,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
                 book_id=chapter["book_id"],
             )
+            active_vp_set, active_vp_version = self.service.storage.get_book_vp_set(chapter["book_id"])
 
             raw_text = self.service.storage.get_chapter_text(
                 chapter,
@@ -7132,6 +8157,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 translator=self.service.translator,
                 translate_mode=translate_mode,
                 name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
             )
             translated_text = self.service.storage.get_chapter_text(
                 chapter,
@@ -7140,14 +8166,20 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 translator=self.service.translator,
                 translate_mode=translate_mode,
                 name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
             )
-            current_sig = self.service.translator.translation_signature(mode=translate_mode, name_set_override=active_name_set)
+            current_sig = self.service.translator.translation_signature(
+                mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            )
             unit_map = self.service.storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
             if not unit_map:
                 detail = self.service.translator.translate_detailed(
                     raw_text,
                     mode=translate_mode,
                     name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
                 )
                 self.service.storage.save_translation_unit_map(
                     chapter["chapter_id"],
@@ -7182,6 +8214,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 "map_version": 1,
                 "active_set": active_set_name,
                 "name_set_version": max(1, version),
+                "vp_set_version": max(1, active_vp_version),
                 **mapped,
             }
 
@@ -7211,11 +8244,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     active_default=self.service._default_active_name_set(self.service._default_name_sets()),
                     book_id=chapter["book_id"],
                 )
+                active_vp_set, _ = self.service.storage.get_book_vp_set(chapter["book_id"])
                 self.service.storage.translate_book_titles(
                     chapter["book_id"],
                     self.service.translator,
                     translate_mode,
                     name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
                 )
                 chapter = self.service.storage.find_chapter(chapter_id) or chapter
 
@@ -7224,6 +8259,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
                 book_id=chapter["book_id"],
             )
+            active_vp_set, _ = self.service.storage.get_book_vp_set(chapter["book_id"])
             text = self.service.storage.get_chapter_text(
                 chapter,
                 book,
@@ -7231,6 +8267,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 translator=self.service.translator,
                 translate_mode=translate_mode,
                 name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
             )
 
             include_name_map = (query.get("include_name_map", ["0"])[0] or "0").strip().lower() in {"1", "true", "yes"}
@@ -7243,11 +8280,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     translator=self.service.translator,
                     translate_mode=translate_mode,
                     name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
                 )
                 name_preview = self.service.translator.translate_detailed(
                     raw_text,
                     mode=translate_mode,
                     name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
                 )
                 if isinstance(name_preview, dict):
                     name_preview.pop("unit_map", None)
@@ -7259,27 +8298,39 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             if comic_payload is not None:
                 content_type = "images"
                 images = [str(x).strip() for x in (comic_payload.get("images") or []) if str(x).strip()]
+                source_type = str(book.get("source_type") or "").strip().lower()
+                if source_type.startswith("vbook"):
+                    plugin_id = str(book.get("source_plugin") or "").strip()
+                    referer = str(chapter.get("remote_url") or book.get("source_url") or "").strip()
+                    images = [
+                        build_vbook_image_proxy_path(img, plugin_id=plugin_id, referer=referer)
+                        for img in images
+                    ]
                 response_content = ""
             output_mode = mode if trans_supported else "raw"
+            title_vi = normalize_vi_display_text(chapter.get("title_vi") or "")
+            response_title = chapter["title_raw"]
+            if output_mode == "trans":
+                response_title = title_vi or self.service._translate_ui_text(chapter["title_raw"], single_line=True, mode=translate_mode) or chapter["title_raw"]
 
             response = {
                 "chapter_id": chapter["chapter_id"],
                 "book_id": chapter["book_id"],
                 "chapter_order": chapter["chapter_order"],
                 "title_raw": chapter["title_raw"],
-                "title_vi": normalize_vi_display_text(chapter.get("title_vi") or ""),
-                "title": (
-                    normalize_vi_display_text(chapter.get("title_vi") or "")
-                    if output_mode == "trans" and chapter.get("title_vi")
-                    else chapter["title_raw"]
-                ),
+                "title_vi": title_vi,
+                "title": response_title,
                 "mode": output_mode,
                 "content_type": content_type,
                 "images": images,
                 "content": response_content,
             }
             if output_mode == "trans":
-                cur_sig = self.service.translator.translation_signature(mode=translate_mode, name_set_override=active_name_set)
+                cur_sig = self.service.translator.translation_signature(
+                    mode=translate_mode,
+                    name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
+                )
                 response["trans_sig"] = cur_sig
                 response["map_version"] = 1
                 response["unit_count"] = self.service.storage.get_translation_unit_map_count(
@@ -7326,6 +8377,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 active_default=self.service._default_active_name_set(self.service._default_name_sets()),
                 book_id=chapter["book_id"],
             )
+            active_vp_set, _ = self.service.storage.get_book_vp_set(chapter["book_id"])
             text = self.service.storage.get_chapter_text(
                 chapter,
                 book,
@@ -7333,6 +8385,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 translator=self.service.translator,
                 translate_mode=translate_mode,
                 name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
             )
             return {
                 "ok": True,

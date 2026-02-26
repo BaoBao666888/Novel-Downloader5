@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="vi">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -39,14 +40,14 @@
       try {
         const rawSettings = localStorage.getItem(SETTINGS_KEY);
         if (rawSettings) settings = { ...defaults, ...JSON.parse(rawSettings) };
-      } catch {}
+      } catch { }
       try {
         const rawTheme = localStorage.getItem(THEME_KEY);
         if (rawTheme) {
           const parsed = JSON.parse(rawTheme);
           if (parsed && parsed.tokens) theme = parsed;
         }
-      } catch {}
+      } catch { }
       for (const [key, value] of Object.entries(theme.tokens || {})) {
         root.style.setProperty(`--${String(key).split("_").join("-")}`, value);
       }
@@ -63,11 +64,14 @@
       root.classList.add(`star-style-${settings.starStyle || "classic"}`);
       root.classList.remove(...panelStyles);
       root.classList.add(`panel-style-${settings.panelTransparency || "clear"}`);
-      root.classList.toggle("effects-paused", (settings.backgroundMotion || "on") !== "on");
+      const motion = settings.backgroundMotion || "on";
+      if (motion === "off") root.classList.add("effects-off");
+      else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260221-vb14">
+  <link rel="stylesheet" href="./styles.css?v=20260222-perf1">
 </head>
+
 <body data-page="library" class="mpa-body">
   <script>
     (() => {
@@ -82,6 +86,7 @@
       }
       body.classList.toggle("effects-paused", root.classList.contains("effects-paused"));
       body.classList.toggle("effects-lite", root.classList.contains("effects-lite"));
+      body.classList.toggle("effects-off", root.classList.contains("effects-off"));
       root.classList.remove("theme-booting");
     })();
   </script>
@@ -124,6 +129,7 @@
         <div class="cover-btns">
           <button id="btn-import" class="btn btn-primary" type="button"></button>
           <button id="btn-import-url" class="btn" type="button"></button>
+          <button id="btn-open-global-dicts" class="btn" type="button"></button>
           <button id="btn-manage-vbook" class="btn" type="button"></button>
           <span id="library-count" class="tag"></span>
         </div>
@@ -145,6 +151,45 @@
       <button id="btn-action-export-txt" class="btn" type="button"></button>
       <button id="btn-action-export-epub" class="btn" type="button"></button>
       <button id="btn-action-delete-book" class="btn" type="button"></button>
+    </div>
+  </dialog>
+
+  <dialog id="global-dicts-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="global-dicts-title"></h3>
+      <button id="btn-close-global-dicts" class="btn btn-small" type="button"></button>
+    </div>
+    <div class="name-editor-head">
+      <label>
+        <span id="global-dicts-type-label"></span>
+        <select id="global-dicts-type-select">
+          <option id="global-dicts-type-name" value="name"></option>
+          <option id="global-dicts-type-vp" value="vp"></option>
+        </select>
+      </label>
+      <button id="btn-refresh-global-dicts" class="btn btn-small" type="button"></button>
+    </div>
+    <form id="global-dicts-entry-form" class="name-entry-form">
+      <label><span id="global-dicts-source-label"></span><input id="global-dicts-source-input" type="text"
+          required></label>
+      <label><span id="global-dicts-target-label"></span><input id="global-dicts-target-input" type="text"
+          required></label>
+      <button id="btn-add-global-dict-entry" class="btn btn-primary" type="submit"></button>
+    </form>
+    <div class="name-preview-wrap">
+      <p id="global-dicts-hint" class="empty-text"></p>
+      <div class="name-preview-table-wrap">
+        <table class="name-preview-table">
+          <thead>
+            <tr>
+              <th id="global-dicts-col-source"></th>
+              <th id="global-dicts-col-target"></th>
+              <th id="global-dicts-col-action"></th>
+            </tr>
+          </thead>
+          <tbody id="global-dicts-body"></tbody>
+        </table>
+      </div>
     </div>
   </dialog>
 
@@ -182,6 +227,7 @@
         <span id="label-background-motion"></span>
         <select id="background-motion-select">
           <option id="motion-on" value="on"></option>
+          <option id="motion-lite" value="lite"></option>
           <option id="motion-off" value="off"></option>
         </select>
       </label>
@@ -236,8 +282,84 @@
         <select id="translation-mode-select">
           <option id="translation-mode-server" value="server"></option>
           <option id="translation-mode-local" value="local"></option>
+          <option id="translation-mode-hanviet" value="hanviet"></option>
         </select>
       </label>
+      <fieldset id="local-translation-settings" class="local-translation-settings" hidden>
+        <legend id="label-local-translate-settings"></legend>
+        <label>
+          <span id="label-local-split-mode"></span>
+          <select id="local-split-mode-select">
+            <option id="local-split-mode-punct" value="0"></option>
+            <option id="local-split-mode-line" value="1"></option>
+          </select>
+        </label>
+        <label>
+          <span id="label-local-name-vp-priority"></span>
+          <select id="local-name-vp-priority-select">
+            <option id="local-name-vp-priority-name-first" value="0"></option>
+            <option id="local-name-vp-priority-vp-first" value="1"></option>
+          </select>
+        </label>
+        <label>
+          <span id="label-local-personal-general-priority"></span>
+          <select id="local-personal-general-priority-select">
+            <option id="local-personal-general-priority-personal" value="0"></option>
+            <option id="local-personal-general-priority-general" value="1"></option>
+          </select>
+        </label>
+        <label>
+          <span id="label-local-vp-priority"></span>
+          <select id="local-vp-priority-select">
+            <option id="local-vp-priority-0" value="0"></option>
+            <option id="local-vp-priority-1" value="1"></option>
+            <option id="local-vp-priority-2" value="2"></option>
+            <option id="local-vp-priority-3" value="3"></option>
+          </select>
+        </label>
+        <label>
+          <span id="label-local-luat-nhan-mode"></span>
+          <select id="local-luat-nhan-mode-select">
+            <option id="local-luat-nhan-mode-0" value="0"></option>
+            <option id="local-luat-nhan-mode-1" value="1"></option>
+            <option id="local-luat-nhan-mode-2" value="2"></option>
+            <option id="local-luat-nhan-mode-3" value="3"></option>
+          </select>
+        </label>
+        <label>
+          <span id="label-local-max-phrase-size"></span>
+          <input id="local-max-phrase-size-input" type="range" min="2" max="24" step="1">
+          <small id="local-max-phrase-size-value">12 ký tự</small>
+        </label>
+        <label>
+          <span id="label-local-convert-simplified"></span>
+          <select id="local-convert-simplified-select">
+            <option id="local-convert-simplified-on" value="on"></option>
+            <option id="local-convert-simplified-off" value="off"></option>
+          </select>
+        </label>
+        <label>
+          <span id="label-local-short-mode"></span>
+          <select id="local-short-mode-select">
+            <option id="local-short-mode-on" value="on"></option>
+            <option id="local-short-mode-off" value="off"></option>
+          </select>
+        </label>
+        <label>
+          <span id="label-local-use-pronouns"></span>
+          <select id="local-use-pronouns-select">
+            <option id="local-use-pronouns-on" value="on"></option>
+            <option id="local-use-pronouns-off" value="off"></option>
+          </select>
+        </label>
+        <label>
+          <span id="label-local-use-luat-nhan"></span>
+          <select id="local-use-luat-nhan-select">
+            <option id="local-use-luat-nhan-on" value="on"></option>
+            <option id="local-use-luat-nhan-off" value="off"></option>
+          </select>
+        </label>
+      </fieldset>
       <div class="settings-actions">
         <button id="btn-save-settings" class="btn btn-primary" type="submit"></button>
         <button id="btn-reset-settings" class="btn" type="button"></button>
@@ -280,7 +402,8 @@
       <h3 id="import-url-title"></h3>
       <label>
         <span id="import-url-label"></span>
-        <input id="import-url-input" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://..." required>
+        <input id="import-url-input" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://..."
+          required>
       </label>
       <label>
         <span id="import-url-plugin-label"></span>
@@ -308,18 +431,7 @@
           <h4 id="vbook-installed-title"></h4>
           <button id="btn-vbook-refresh-installed" class="btn btn-small" type="button"></button>
         </div>
-        <div class="name-preview-table-wrap">
-          <table class="name-preview-table">
-            <thead>
-              <tr>
-                <th id="vbook-col-name"></th>
-                <th id="vbook-col-meta"></th>
-                <th id="vbook-col-action"></th>
-              </tr>
-            </thead>
-            <tbody id="vbook-installed-body"></tbody>
-          </table>
-        </div>
+        <div id="vbook-installed-list" class="vbook-repo-list"></div>
       </section>
 
       <section class="vbook-manager-pane">
@@ -329,32 +441,27 @@
         </div>
         <div class="vbook-repo-picker">
           <label>
-            <span id="vbook-repo-label"></span>
-            <select id="vbook-repo-select"></select>
-          </label>
-          <label>
-            <span id="vbook-repo-custom-label"></span>
-            <input id="vbook-repo-custom-input" type="url" placeholder="https://.../repository.json">
-          </label>
-          <div class="vbook-repo-actions">
-            <button id="btn-vbook-load-custom-repo" class="btn btn-small" type="button"></button>
-            <button id="btn-vbook-add-repo" class="btn btn-small" type="button"></button>
-            <button id="btn-vbook-remove-repo" class="btn btn-small" type="button"></button>
-            <button id="btn-vbook-save-repos" class="btn btn-small btn-primary" type="button"></button>
+          <div class="vbook-repo-primary-group">
+            <label>
+              <span id="vbook-repo-label"></span>
+              <select id="vbook-repo-select"></select>
+            </label>
+            <button id="btn-vbook-toggle-adv" class="btn btn-small" type="button"></button>
+          </div>
+          <div id="vbook-repo-adv-group" class="vbook-repo-adv-group hidden">
+            <label>
+              <span id="vbook-repo-custom-label"></span>
+              <input id="vbook-repo-custom-input" type="url" placeholder="https://.../repository.json">
+            </label>
+            <div class="vbook-repo-actions">
+              <button id="btn-vbook-load-custom-repo" class="btn btn-small" type="button"></button>
+              <button id="btn-vbook-add-repo" class="btn btn-small" type="button"></button>
+              <button id="btn-vbook-remove-repo" class="btn btn-small" type="button"></button>
+              <button id="btn-vbook-save-repos" class="btn btn-small btn-primary" type="button"></button>
+            </div>
           </div>
         </div>
-        <div class="name-preview-table-wrap">
-          <table class="name-preview-table">
-            <thead>
-              <tr>
-                <th id="vbook-repo-col-name"></th>
-                <th id="vbook-repo-col-meta"></th>
-                <th id="vbook-repo-col-action"></th>
-              </tr>
-            </thead>
-            <tbody id="vbook-repo-body"></tbody>
-          </table>
-        </div>
+        <div id="vbook-repo-list" class="vbook-repo-list"></div>
         <p id="vbook-repo-errors" class="empty-text hidden"></p>
       </section>
     </div>
@@ -423,19 +530,23 @@
         </label>
         <label>
           <span id="vbook-plugin-delay-label"></span>
-          <input id="vbook-plugin-request-delay-ms" type="number" min="0" max="15000" step="50" placeholder="mặc định global">
+          <input id="vbook-plugin-request-delay-ms" type="number" min="0" max="15000" step="50"
+            placeholder="mặc định global">
         </label>
         <label>
           <span id="vbook-plugin-threads-label"></span>
-          <input id="vbook-plugin-download-threads" type="number" min="1" max="16" step="1" placeholder="mặc định global">
+          <input id="vbook-plugin-download-threads" type="number" min="1" max="16" step="1"
+            placeholder="mặc định global">
         </label>
         <label>
           <span id="vbook-plugin-prefetch-label"></span>
-          <input id="vbook-plugin-prefetch-unread-count" type="number" min="0" max="50" step="1" placeholder="mặc định global">
+          <input id="vbook-plugin-prefetch-unread-count" type="number" min="0" max="50" step="1"
+            placeholder="mặc định global">
         </label>
         <label class="vbook-runtime-wide">
           <span id="vbook-plugin-supplemental-label"></span>
-          <textarea id="vbook-plugin-supplemental-code" rows="4" spellcheck="false" placeholder="var token = &quot;...&quot;;"></textarea>
+          <textarea id="vbook-plugin-supplemental-code" rows="4" spellcheck="false"
+            placeholder="var token = &quot;...&quot;;"></textarea>
         </label>
       </div>
       <p id="vbook-plugin-fallback-hint" class="dialog-subtitle"></p>
@@ -448,6 +559,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260221-vb17"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260221-vb24"></script>
 </body>
+
 </html>
