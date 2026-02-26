@@ -79,6 +79,9 @@ class FanqieBridgePlugin:
             detail_lines.append(f"Cập nhật: {last_publish_str}")
         if last_chapter_title:
             detail_lines.append(f"Chương mới nhất: {last_chapter_title}")
+        label_list = self._extract_label_list(raw)
+        if label_list:
+            detail_lines.append(f"Nhãn: {', '.join(label_list)}")
         detail = "\n".join(detail_lines).strip()
 
         creation_status = raw.get("creation_status")
@@ -108,6 +111,60 @@ class FanqieBridgePlugin:
             "ongoing": ongoing,
             "raw": raw or payload or {},
         }
+
+    def _extract_label_list(self, raw: Dict[str, Any]) -> List[str]:
+        labels: List[str] = []
+
+        def _add_items(items):
+            for item in items:
+                text = str(item or "").strip()
+                if text:
+                    labels.append(text)
+
+        def _parse_list(value) -> List[str]:
+            if not value:
+                return []
+            if isinstance(value, list):
+                out: List[str] = []
+                for v in value:
+                    if isinstance(v, dict):
+                        name = v.get("Name") or v.get("name") or v.get("title")
+                        if name:
+                            out.append(str(name).strip())
+                    else:
+                        out.append(str(v).strip())
+                return out
+            if isinstance(value, str):
+                parts = re.split(r"[，,、/;|]+", value)
+                return [p.strip() for p in parts if p.strip()]
+            return []
+
+        # category_v2 / categoryV2: list of {Name}
+        category_v2 = raw.get("category_v2") or raw.get("categoryV2")
+        if isinstance(category_v2, str):
+            try:
+                category_v2 = json.loads(category_v2)
+            except Exception:
+                category_v2 = None
+        if category_v2:
+            _add_items(_parse_list(category_v2))
+
+        # string categories/tags
+        for key in ("tags", "tag_list", "tagList", "category", "completeCategory", "pure_category_tags"):
+            _add_items(_parse_list(raw.get(key)))
+
+        # explicit labels list (web fallback)
+        _add_items(_parse_list(raw.get("labels")))
+
+        # de-dup while preserving order
+        seen = set()
+        uniq = []
+        for item in labels:
+            if item in seen:
+                continue
+            seen.add(item)
+            uniq.append(item)
+        return uniq
 
     def _fetch_book_metadata_from_bridge(self, book_id: str, ctx: ND5Context):
         base = self._bridge_base_url(ctx)
@@ -219,10 +276,11 @@ class FanqieBridgePlugin:
         cover_node = soup.select_one(".book-cover-img") or soup.select_one(".book-cover img")
         if cover_node:
             cover = self._normalize_cover_url(cover_node.get("src") or cover_node.get("data-src") or "")
-        label_text = ""
+        status_label = ""
         label_node = soup.select_one(".page-header-info .info-label-yellow") or soup.select_one(".info-label")
         if label_node:
-            label_text = label_node.get_text(" ", strip=True)
+            status_label = label_node.get_text(" ", strip=True)
+        label_tags = [n.get_text(" ", strip=True) for n in soup.select(".info-label-grey, .info-label .info-label-grey") if n.get_text(" ", strip=True)]
         chapter_total = ""
         directory_header = soup.select_one(".page-directory-header h3")
         if directory_header:
@@ -242,9 +300,9 @@ class FanqieBridgePlugin:
                 last_title_node.get_text(" ", strip=True),
             )
         creation_status = None
-        if "完结" in label_text:
+        if "完结" in status_label:
             creation_status = "2"
-        elif "连载" in label_text:
+        elif "连载" in status_label:
             creation_status = "1"
 
         if title and not (raw.get("book_name") or raw.get("title")):
@@ -263,16 +321,13 @@ class FanqieBridgePlugin:
             raw["last_chapter_title"] = last_chapter_title
         if creation_status is not None and raw.get("creation_status") is None and raw.get("book_status") is None:
             raw["creation_status"] = creation_status
+        if label_tags and not raw.get("labels"):
+            raw["labels"] = label_tags
         if not (raw.get("book_name") or raw.get("title")):
             raw["book_name"] = f"Fanqie_{book_id}"
 
         payload_source = "web_state" if isinstance(state_page, dict) else "web_dom"
         meta = self._build_meta_from_raw(book_id, raw, payload={"source": payload_source})
-        if label_text:
-            extra = meta.get("detail") or ""
-            if extra:
-                extra += "\n"
-            meta["detail"] = f"{extra}Nhãn: {label_text}".strip()
         return meta
 
     def _format_publish_time(self, raw_val):

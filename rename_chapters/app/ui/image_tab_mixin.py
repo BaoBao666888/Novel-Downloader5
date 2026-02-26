@@ -421,7 +421,22 @@ class ImageTabMixin:
         try:
             parsed = urlparse(url)
             path_name = os.path.basename(parsed.path or "")
-            return self._sanitize_image_basename(path_name)
+            base = self._sanitize_image_basename(path_name)
+            if base:
+                return base
+            # Fallback: lấy từ query nếu có (filename/name/file/img...)
+            query = parsed.query or ""
+            if query:
+                for part in query.split("&"):
+                    if "=" not in part:
+                        continue
+                    key, val = part.split("=", 1)
+                    key = key.strip().lower()
+                    if key in ("filename", "file", "name", "image", "img", "pic", "download"):
+                        base = self._sanitize_image_basename(val)
+                        if base:
+                            return base
+            return ""
         except Exception:
             return ""
 
@@ -454,8 +469,21 @@ class ImageTabMixin:
             base = self._extract_basename_from_source_url()
         elif mode == "Tên file nguồn":
             base = self._extract_basename_from_source_file()
+        else:
+            # Mặc định: ưu tiên tên file nguồn, nếu không có thì lấy từ URL.
+            base = self._extract_basename_from_source_file()
+            if not base:
+                base = self._extract_basename_from_source_url()
         if not base:
-            return ""
+            # Fallback: dùng hash ngắn hoặc timestamp để không rỗng.
+            try:
+                img_hash = str(getattr(self, "_image_source_hash", "") or "")
+            except Exception:
+                img_hash = ""
+            if img_hash:
+                base = f"image_{img_hash[:10]}"
+            else:
+                base = f"image_{time.strftime('%Y%m%d_%H%M%S')}"
         return f"{base}{ext}"
 
     def _undo_image_enhancement(self):

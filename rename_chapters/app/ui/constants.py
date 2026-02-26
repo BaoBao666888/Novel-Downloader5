@@ -129,6 +129,7 @@ DEFAULT_ND5_OPTIONS = {
     "include_info": True,
     "include_cover": True,
     "heading_in_zip": True,
+    "prefer_cache": False,
     "format": "zip",
     "title_tpl": "{num}. {title}",
     "range": "",

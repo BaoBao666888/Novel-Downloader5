@@ -3853,38 +3853,6 @@ class WikidichMixin:
                 missing_count = meta_total_int - len(current_ids)
                 if missing_count > 0:
                     self.log(f"[Wikidich] Đã gặp neo nhưng vẫn thiếu {missing_count} truyện so với server.")
-                    urls = self._wd_prompt_deep_add_urls(missing_count)
-                else:
-                    urls = []
-                if urls:
-                    added = self._wd_fetch_deep_books_by_urls(session, urls, user_slug, proxies=proxies)
-                    if added:
-                        books = data.get("books") or {}
-                        ids = list(data.get("book_ids") or [])
-                        added_ids = []
-                        for book in added:
-                            bid = book.get("id")
-                            if not bid or bid in ids:
-                                continue
-                            ids.append(bid)
-                            books[bid] = book
-                            added_ids.append(bid)
-                        if added_ids:
-                            data["book_ids"] = ids
-                            data["books"] = books
-                            manual_ids = list(data.get("manual_added_ids") or [])
-                            for bid in added_ids:
-                                if bid not in manual_ids:
-                                    manual_ids.append(bid)
-                            if manual_ids:
-                                data["manual_added_ids"] = manual_ids
-                            self.log(f"[Wikidich] Đã thêm {len(added_ids)} truyện từ URL thủ công.")
-                        else:
-                            self.log("[Wikidich] Không có truyện mới được thêm từ URL.")
-                    else:
-                        self.log("[Wikidich] Không thêm được truyện từ URL (không có quyền hoặc lỗi).")
-                elif missing_count > 0:
-                    self.log("[Wikidich] Bỏ qua nhập URL truyện mới nằm sâu.")
             new_ids = [bid for bid in data.get("book_ids", []) if bid not in (prior_data.get("book_ids") or [])]
             delay_avg = (wiki_delay_min + wiki_delay_max) / 2 if wiki_delay_max > 0 else 0
             if new_ids:
@@ -3938,6 +3906,52 @@ class WikidichMixin:
                         self.log(f"[Wikidich] Cảnh báo: số truyện local ({final_count}) nhỏ hơn server ({expected_total_int}).")
                 else:
                     self.log("[Wikidich] Đối chiếu số truyện khớp với server.")
+
+            # Sau khi kết thúc cập nhật/tải work: hỏi (hoặc mở trực tiếp) để nhập URL truyện mới
+            try:
+                missing_for_prompt = None
+                if expected_total_int:
+                    missing_for_prompt = expected_total_int - final_count
+                if missing_for_prompt is not None and missing_for_prompt > 0:
+                    add_urls = self._wd_prompt_deep_add_urls(missing_for_prompt)
+                else:
+                    want_add = self._wd_sync_prompt(lambda: messagebox.askyesno(
+                        "Thêm truyện",
+                        "Bạn có muốn nhập URL truyện mới không?",
+                        parent=self
+                    ))
+                    add_urls = self._wd_prompt_deep_add_urls(0) if want_add else []
+                if add_urls:
+                    added = self._wd_fetch_deep_books_by_urls(session, add_urls, user_slug, proxies=proxies)
+                    if added:
+                        books = self.wikidich_data.get("books") or {}
+                        ids = list(self.wikidich_data.get("book_ids") or [])
+                        added_ids = []
+                        for book in added:
+                            bid = book.get("id")
+                            if not bid or bid in ids:
+                                continue
+                            ids.append(bid)
+                            books[bid] = book
+                            added_ids.append(bid)
+                        if added_ids:
+                            self.wikidich_data["book_ids"] = ids
+                            self.wikidich_data["books"] = books
+                            manual_ids = list(self.wikidich_data.get("manual_added_ids") or [])
+                            for bid in added_ids:
+                                if bid not in manual_ids:
+                                    manual_ids.append(bid)
+                            if manual_ids:
+                                self.wikidich_data["manual_added_ids"] = manual_ids
+                            self._wd_save_cache()
+                            self.after(0, self._wd_apply_filters)
+                            self.log(f"[Wikidich] Đã thêm {len(added_ids)} truyện từ URL thủ công.")
+                        else:
+                            self.log("[Wikidich] Không có truyện mới được thêm từ URL.")
+                    else:
+                        self.log("[Wikidich] Không thêm được truyện từ URL (không có quyền hoặc lỗi).")
+            except Exception as exc:
+                self.log(f"[Wikidich] Lỗi khi hỏi thêm truyện sau cập nhật: {exc}")
             self._wd_update_user_label()
             self._wd_save_cache()
             self.after(0, self._wd_refresh_category_options)
@@ -6288,13 +6302,20 @@ class WikidichMixin:
         )
 
     def _wd_prompt_deep_add_urls(self, missing_count: int) -> list:
-        prompt = (
-            f"Đã gặp truyện mới nhất trong local nhưng vẫn thiếu {missing_count} truyện so với server.\n"
-            f"Số truyện dự kiến thêm từ URL thủ công: tối đa {missing_count}.\n"
-            "Nếu bạn vừa thêm truyện nằm sâu, hãy nhập URL (mỗi dòng 1 URL).\n"
-            "Bạn phải là chủ truyện / đồng quản lý / biên tập truyện đó thì mới thêm được.\n"
-            "Bỏ trống để bỏ qua."
-        )
+        if missing_count > 0:
+            prompt = (
+                f"Đã gặp truyện mới nhất trong local nhưng vẫn thiếu {missing_count} truyện so với server.\n"
+                f"Số truyện dự kiến thêm từ URL thủ công: tối đa {missing_count}.\n"
+                "Nếu bạn vừa thêm truyện nằm sâu, hãy nhập URL (mỗi dòng 1 URL).\n"
+                "Bạn phải là chủ truyện / đồng quản lý / biên tập truyện đó thì mới thêm được.\n"
+                "Bỏ trống để bỏ qua."
+            )
+        else:
+            prompt = (
+                "Bạn có muốn nhập URL truyện mới thủ công không?\n"
+                "Nhập URL (mỗi dòng 1 URL). Bạn phải là chủ/đồng quản lý/biên tập truyện đó.\n"
+                "Bỏ trống để bỏ qua."
+            )
         raw = self._wd_sync_prompt(lambda: self._wd_prompt_multiline_text("Nhập URL truyện mới", prompt))
         if not raw:
             return []

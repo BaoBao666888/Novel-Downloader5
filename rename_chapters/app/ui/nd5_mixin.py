@@ -139,7 +139,7 @@ class ND5Mixin:
             log_fp = open(log_path, "ab")
             env = os.environ.copy()
             env["PORT"] = str(port)
-            env["HOST"] = "127.0.0.1"
+            env["HOST"] = "0.0.0.0"
             self._fanqie_bridge_proc = _Popen(  # type: ignore[attr-defined]
                 [exe_path],
                 creationflags=creation,
@@ -361,12 +361,22 @@ class ND5Mixin:
         payload["updated_at"] = datetime.datetime.now().isoformat(timespec="seconds")
 
         path = self._nd5_book_cache_path(key)
-        tmp_path = f"{path}.tmp"
+        tmp_path = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
-            os.replace(tmp_path, path)
+            last_exc = None
+            for attempt in range(3):
+                try:
+                    os.replace(tmp_path, path)
+                    last_exc = None
+                    break
+                except Exception as exc:
+                    last_exc = exc
+                    time.sleep(0.2)
+            if last_exc is not None:
+                raise last_exc
         except Exception as exc:
             try:
                 self.log(f"[ND5] Không lưu được cache truyện: {exc}")
@@ -651,6 +661,7 @@ class ND5Mixin:
         include_info_var = tk.BooleanVar(value=self.nd5_options.get("include_info", DEFAULT_ND5_OPTIONS["include_info"]))
         include_cover_var = tk.BooleanVar(value=self.nd5_options.get("include_cover", DEFAULT_ND5_OPTIONS["include_cover"]))
         heading_in_zip_var = tk.BooleanVar(value=self.nd5_options.get("heading_in_zip", DEFAULT_ND5_OPTIONS["heading_in_zip"]))
+        prefer_cache_var = tk.BooleanVar(value=self.nd5_options.get("prefer_cache", DEFAULT_ND5_OPTIONS.get("prefer_cache", False)))
         req_delay_min_var = tk.DoubleVar(value=self.nd5_options.get("req_delay_min", DEFAULT_ND5_OPTIONS["req_delay_min"]))
         req_delay_max_var = tk.DoubleVar(value=self.nd5_options.get("req_delay_max", DEFAULT_ND5_OPTIONS["req_delay_max"]))
         req_timeout_var = tk.DoubleVar(value=self.nd5_options.get("request_timeout", DEFAULT_ND5_OPTIONS["request_timeout"]))
@@ -1036,6 +1047,14 @@ class ND5Mixin:
             ttk.Entry(timeout_frame, textvariable=req_timeout_var, width=8).pack(side=tk.LEFT, padx=(6, 0))
             ttk.Label(timeout_frame, text="Số lần thử lại:").pack(side=tk.LEFT, padx=(12, 0))
             ttk.Entry(timeout_frame, textvariable=req_retries_var, width=6).pack(side=tk.LEFT, padx=(6, 0))
+
+            cache_frame = ttk.Frame(tab_options)
+            cache_frame.grid(row=6, column=0, columnspan=2, sticky="w", pady=(10, 0))
+            ttk.Checkbutton(
+                cache_frame,
+                text="Ưu tiên cache (chỉ tải chương còn thiếu)",
+                variable=prefer_cache_var,
+            ).pack(side=tk.LEFT)
 
             plugin_status_var = tk.StringVar(value="Sẵn sàng.")
             installed_status_var = tk.StringVar(value="Sẵn sàng.")
@@ -1963,8 +1982,12 @@ class ND5Mixin:
                 except Exception:
                     pass
 
+        progress_state = {"active": False, "mode": "determinate", "token": 0}
+
         def _toggle_progress(active: bool, mode: str = "determinate"):
             if active:
+                progress_state["active"] = True
+                progress_state["mode"] = mode
                 progress.grid()
                 try:
                     # Đảm bảo không còn timer indeterminate cũ gây nhấp nháy khi chạy lại.
@@ -1974,13 +1997,28 @@ class ND5Mixin:
                 progress.config(mode=mode)
                 if mode == "indeterminate":
                     progress.start(90)
+                else:
+                    progress.config(value=0)
             else:
+                progress_state["active"] = False
+                progress_state["mode"] = "determinate"
                 try:
                     progress.stop()
                 except Exception:
                     pass
                 progress.grid_remove()
                 progress.config(mode="determinate", value=0, maximum=1)
+
+        def _start_progress(mode: str = "determinate") -> int:
+            progress_state["token"] += 1
+            token = progress_state["token"]
+            _toggle_progress(True, mode)
+            return token
+
+        def _stop_progress(token: int):
+            if token != progress_state["token"]:
+                return
+            _toggle_progress(False)
 
         allow_save_out_dir = out_dir_override is None
 
@@ -2005,6 +2043,7 @@ class ND5Mixin:
                 "include_info": include_info_var.get(),
                 "include_cover": include_cover_var.get(),
                 "heading_in_zip": heading_in_zip_var.get(),
+                "prefer_cache": prefer_cache_var.get(),
                 "format": fmt_var.get(),
                 "title_tpl": title_tpl_var.get(),
                 "range": range_var.get(),
@@ -2361,7 +2400,7 @@ class ND5Mixin:
                         return
             _persist_nd5_options()
             _update_status("Đang lấy thông tin truyện...")
-            _toggle_progress(True, "indeterminate")
+            progress_token = _start_progress("indeterminate")
 
             def worker():
                 ctx = _build_ctx()
@@ -2418,7 +2457,7 @@ class ND5Mixin:
                         self.after(0, lambda exc=exc: messagebox.showerror("Lỗi", f"Lấy thông tin thất bại: {exc}", parent=win))
                         self.after(0, lambda: _update_status("Lỗi khi lấy thông tin."))
                 finally:
-                    self.after(0, lambda: _toggle_progress(False))
+                    self.after(0, lambda t=progress_token: _stop_progress(t))
 
             threading.Thread(target=worker, daemon=True).start()
 
@@ -2447,7 +2486,7 @@ class ND5Mixin:
             fmt = (fmt_var.get() or "zip").lower()
 
             _update_status("Đang chuẩn bị tải...")
-            _toggle_progress(True, "determinate")
+            progress_token = _start_progress("determinate")
             progress.config(maximum=max(1, len(num_set)), value=0)
 
             def worker():
@@ -2479,35 +2518,37 @@ class ND5Mixin:
                         or self._nd5_make_book_cache_key(plugin.id, book_url=cache_url, meta=meta)
                     )
                     cache_entry = self._nd5_load_book_cache(cache_key) or {}
-                    cached_chapters = cache_entry.get("chapters") if isinstance(cache_entry, dict) else {}
+                    prefer_cache = bool(prefer_cache_var.get())
+                    cached_chapters = cache_entry.get("chapters") if (prefer_cache and isinstance(cache_entry, dict)) else {}
                     fetched = {}
-                    if isinstance(cached_chapters, dict):
-                        for cid, payload in cached_chapters.items():
-                            if not isinstance(payload, dict):
-                                continue
-                            content = payload.get("content")
-                            if content in (None, ""):
-                                continue
-                            chapter_id = str(cid or "").strip()
-                            if not chapter_id:
-                                continue
-                            fetched[chapter_id] = {
-                                "title": str(payload.get("title") or ""),
-                                "content": content,
-                            }
-                    if isinstance(progress_chapters, dict):
-                        for cid, payload in progress_chapters.items():
-                            chapter_id = str(cid or "").strip()
-                            if not chapter_id:
-                                continue
-                            if isinstance(payload, dict):
+                    if prefer_cache:
+                        if isinstance(cached_chapters, dict):
+                            for cid, payload in cached_chapters.items():
+                                if not isinstance(payload, dict):
+                                    continue
                                 content = payload.get("content")
                                 if content in (None, ""):
+                                    continue
+                                chapter_id = str(cid or "").strip()
+                                if not chapter_id:
                                     continue
                                 fetched[chapter_id] = {
                                     "title": str(payload.get("title") or ""),
                                     "content": content,
                                 }
+                        if isinstance(progress_chapters, dict):
+                            for cid, payload in progress_chapters.items():
+                                chapter_id = str(cid or "").strip()
+                                if not chapter_id:
+                                    continue
+                                if isinstance(payload, dict):
+                                    content = payload.get("content")
+                                    if content in (None, ""):
+                                        continue
+                                    fetched[chapter_id] = {
+                                        "title": str(payload.get("title") or ""),
+                                        "content": content,
+                                    }
                     tasks = []
                     if include_info and 0 in num_set:
                         info_content = (
@@ -2677,7 +2718,7 @@ class ND5Mixin:
                     self.after(0, lambda exc=exc: messagebox.showerror("Lỗi tải", f"{exc}", parent=win))
                     self.after(0, lambda: _update_status("Tải thất bại."))
                 finally:
-                    self.after(0, lambda: _toggle_progress(False))
+                    self.after(0, lambda t=progress_token: _stop_progress(t))
 
             threading.Thread(target=worker, daemon=True).start()
 
