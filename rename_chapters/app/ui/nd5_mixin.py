@@ -634,7 +634,7 @@ class ND5Mixin:
             return
 
         # state
-        current_book = {"meta": None, "toc": []}
+        current_book = {"meta": None, "toc": [], "cache_key": "", "book_url": ""}
         cover_cache = {"bytes": None}
         cover_photo = {"image": None}
         api_status_var = tk.StringVar(value="Dùng HTTP trực tiếp (không cần bridge).")
@@ -1004,9 +1004,11 @@ class ND5Mixin:
             tab_options = ttk.Frame(notebook, padding=12)
             tab_repo = ttk.Frame(notebook, padding=12)
             tab_installed = ttk.Frame(notebook, padding=12)
+            tab_cache = ttk.Frame(notebook, padding=12)
             notebook.add(tab_options, text="Tuỳ chọn")
             notebook.add(tab_repo, text="Kho plugin")
             notebook.add(tab_installed, text="Plugin đã cài")
+            notebook.add(tab_cache, text="Dữ liệu truyện")
 
             tab_options.columnconfigure(1, weight=1)
 
@@ -1515,9 +1517,134 @@ class ND5Mixin:
             ttk.Button(installed_btns, text="Gỡ", command=_remove_selected_plugin).grid(row=0, column=3, sticky="e", padx=(6, 0))
             ttk.Label(tab_installed, textvariable=installed_status_var).grid(row=2, column=0, sticky="w", pady=(6, 0))
 
+            tab_cache.columnconfigure(0, weight=1)
+            tab_cache.rowconfigure(1, weight=1)
+            cache_status_var = tk.StringVar(value="Đang tải dữ liệu cache...")
+            cache_row_map = {}
+
+            def _format_cache_size(size_bytes: int) -> str:
+                try:
+                    num = float(size_bytes or 0)
+                except Exception:
+                    num = 0.0
+                units = ["B", "KB", "MB", "GB", "TB"]
+                idx = 0
+                while num >= 1024.0 and idx < len(units) - 1:
+                    num /= 1024.0
+                    idx += 1
+                return f"{num:.1f} {units[idx]}"
+
+            def _refresh_book_cache_list():
+                nonlocal cache_row_map
+                items = self._nd5_list_book_caches()
+                cache_row_map = {}
+                cache_tree.delete(*cache_tree.get_children())
+                total_size = 0
+                total_chaps = 0
+                for idx, item in enumerate(items):
+                    iid = f"cache_{idx}"
+                    key = str(item.get("cache_key") or "")
+                    cache_row_map[iid] = key
+                    total_size += int(item.get("size_bytes") or 0)
+                    total_chaps += int(item.get("chapters_count") or 0)
+                    cache_tree.insert(
+                        "",
+                        "end",
+                        iid=iid,
+                        values=(
+                            item.get("plugin_id") or "",
+                            item.get("book_id") or "",
+                            item.get("title") or "",
+                            item.get("author") or "",
+                            str(item.get("toc_count") or 0),
+                            str(item.get("chapters_count") or 0),
+                            item.get("updated_at") or "",
+                            _format_cache_size(item.get("size_bytes") or 0),
+                        ),
+                    )
+                cache_status_var.set(
+                    f"Tổng {len(items)} truyện | {total_chaps} chương đã cache | {_format_cache_size(total_size)}"
+                )
+
+            def _delete_selected_cache():
+                selected = list(cache_tree.selection())
+                if not selected:
+                    messagebox.showinfo("Dữ liệu truyện", "Chọn ít nhất 1 truyện để xóa cache.", parent=dlg)
+                    return
+                cache_keys = []
+                for iid in selected:
+                    key = cache_row_map.get(iid)
+                    if key:
+                        cache_keys.append(key)
+                if not cache_keys:
+                    messagebox.showwarning("Dữ liệu truyện", "Không đọc được cache key của mục đã chọn.", parent=dlg)
+                    return
+                if not messagebox.askyesno(
+                    "Xóa cache truyện",
+                    f"Bạn có chắc muốn xóa cache của {len(cache_keys)} truyện đã chọn?",
+                    parent=dlg,
+                ):
+                    return
+                failed = 0
+                for key in cache_keys:
+                    if not self._nd5_delete_book_cache(key):
+                        failed += 1
+                _refresh_book_cache_list()
+                if failed:
+                    messagebox.showwarning("Dữ liệu truyện", f"Đã xóa nhưng còn {failed} mục thất bại.", parent=dlg)
+
+            def _delete_all_cache():
+                if not messagebox.askyesno(
+                    "Xóa toàn bộ cache ND5",
+                    "Xóa toàn bộ dữ liệu truyện đã cache (detail/toc/chap)?",
+                    parent=dlg,
+                ):
+                    return
+                removed = self._nd5_clear_book_cache()
+                _refresh_book_cache_list()
+                messagebox.showinfo("Dữ liệu truyện", f"Đã xóa {removed} mục cache.", parent=dlg)
+
+            ttk.Label(
+                tab_cache,
+                text="ND5 tự lưu detail/toc/chap vào local để không mất khi tắt app hoặc cập nhật.",
+                foreground="#6b7280",
+            ).grid(row=0, column=0, sticky="w", pady=(0, 8))
+
+            cache_cols = ("plugin", "book_id", "title", "author", "toc_count", "chap_count", "updated", "size")
+            cache_tree = ttk.Treeview(tab_cache, columns=cache_cols, show="headings", selectmode="extended")
+            cache_tree.heading("plugin", text="Nguồn")
+            cache_tree.heading("book_id", text="Book ID")
+            cache_tree.heading("title", text="Tên truyện")
+            cache_tree.heading("author", text="Tác giả")
+            cache_tree.heading("toc_count", text="TOC")
+            cache_tree.heading("chap_count", text="Chap cache")
+            cache_tree.heading("updated", text="Cập nhật")
+            cache_tree.heading("size", text="Dung lượng")
+            cache_tree.column("plugin", width=90, anchor="w")
+            cache_tree.column("book_id", width=120, anchor="w")
+            cache_tree.column("title", width=240, anchor="w")
+            cache_tree.column("author", width=130, anchor="w")
+            cache_tree.column("toc_count", width=70, anchor="e")
+            cache_tree.column("chap_count", width=90, anchor="e")
+            cache_tree.column("updated", width=150, anchor="w")
+            cache_tree.column("size", width=90, anchor="e")
+            cache_tree.grid(row=1, column=0, sticky="nsew")
+            cache_scroll = ttk.Scrollbar(tab_cache, orient="vertical", command=cache_tree.yview)
+            cache_tree.configure(yscrollcommand=cache_scroll.set)
+            cache_scroll.grid(row=1, column=1, sticky="ns")
+
+            cache_btns = ttk.Frame(tab_cache)
+            cache_btns.grid(row=2, column=0, sticky="ew", pady=(8, 0))
+            cache_btns.columnconfigure(1, weight=1)
+            ttk.Button(cache_btns, text="Làm mới", command=_refresh_book_cache_list).grid(row=0, column=0, sticky="w")
+            ttk.Button(cache_btns, text="Xóa mục chọn", command=_delete_selected_cache).grid(row=0, column=2, sticky="e")
+            ttk.Button(cache_btns, text="Xóa tất cả", command=_delete_all_cache).grid(row=0, column=3, sticky="e", padx=(6, 0))
+            ttk.Label(tab_cache, textvariable=cache_status_var).grid(row=3, column=0, sticky="w", pady=(8, 0))
+
             search_var.trace_add("write", _apply_available_filter)  # type: ignore[arg-type]
             _render_source_list()
             _refresh_installed_plugins()
+            _refresh_book_cache_list()
 
             btn_row = ttk.Frame(content)
             btn_row.grid(row=1, column=0, sticky="e", pady=(10, 0))
@@ -2238,6 +2365,7 @@ class ND5Mixin:
 
             def worker():
                 ctx = _build_ctx()
+                cache_key_hint = self._nd5_make_book_cache_key(plugin.id, book_url=book_url, meta=None)
                 try:
                     if getattr(plugin, "requires_bridge", False) and not _check_backend():
                         return
@@ -2255,8 +2383,16 @@ class ND5Mixin:
                     if meta.get("cover"):
                         cover_bytes = _fetch_cover_bytes(meta.get("cover"), ctx)
                         cover_cache["bytes"] = cover_bytes
+                    cache_key = self._nd5_save_book_cache(
+                        plugin.id,
+                        book_url=book_url,
+                        meta=meta,
+                        toc=toc,
+                    )
                     current_book["meta"] = meta
                     current_book["toc"] = toc
+                    current_book["cache_key"] = cache_key
+                    current_book["book_url"] = book_url
                     info_text_content = _format_info(meta, toc)
                     self.after(0, lambda: _update_info_header(meta))
                     self.after(0, lambda: _set_cover_image(cover_bytes))
@@ -2264,8 +2400,23 @@ class ND5Mixin:
                     self.after(0, lambda: _update_status(f"Đã lấy {len(toc)} chương. Sẵn sàng tải."))
                 except Exception as exc:
                     ctx.log(f"Lỗi lấy thông tin: {exc}")
-                    self.after(0, lambda exc=exc: messagebox.showerror("Lỗi", f"Lấy thông tin thất bại: {exc}", parent=win))
-                    self.after(0, lambda: _update_status("Lỗi khi lấy thông tin."))
+                    cached = self._nd5_load_book_cache(cache_key_hint) or {}
+                    cached_meta = cached.get("meta") if isinstance(cached.get("meta"), dict) else None
+                    cached_toc = cached.get("toc") if isinstance(cached.get("toc"), list) else None
+                    if cached_meta and cached_toc:
+                        current_book["meta"] = cached_meta
+                        current_book["toc"] = cached_toc
+                        current_book["cache_key"] = str(cached.get("cache_key") or cache_key_hint)
+                        current_book["book_url"] = str(cached.get("book_url") or book_url)
+                        info_text_content = _format_info(cached_meta, cached_toc)
+                        cover_cache["bytes"] = None
+                        self.after(0, lambda: _update_info_header(cached_meta))
+                        self.after(0, lambda: _set_cover_image(None))
+                        self.after(0, lambda: _set_info(info_text_content))
+                        self.after(0, lambda: _update_status(f"Lỗi API, đã nạp cache local ({len(cached_toc)} chương)."))
+                    else:
+                        self.after(0, lambda exc=exc: messagebox.showerror("Lỗi", f"Lấy thông tin thất bại: {exc}", parent=win))
+                        self.after(0, lambda: _update_status("Lỗi khi lấy thông tin."))
                 finally:
                     self.after(0, lambda: _toggle_progress(False))
 
@@ -2322,6 +2473,41 @@ class ND5Mixin:
                     if use_progress_cache:
                         progress_data = self._fanqie_load_progress(book_id) or {}
                         progress_chapters = progress_data.get("chapters", {})
+                    cache_url = str(current_book.get("book_url") or url_var.get().strip() or "")
+                    cache_key = str(
+                        current_book.get("cache_key")
+                        or self._nd5_make_book_cache_key(plugin.id, book_url=cache_url, meta=meta)
+                    )
+                    cache_entry = self._nd5_load_book_cache(cache_key) or {}
+                    cached_chapters = cache_entry.get("chapters") if isinstance(cache_entry, dict) else {}
+                    fetched = {}
+                    if isinstance(cached_chapters, dict):
+                        for cid, payload in cached_chapters.items():
+                            if not isinstance(payload, dict):
+                                continue
+                            content = payload.get("content")
+                            if content in (None, ""):
+                                continue
+                            chapter_id = str(cid or "").strip()
+                            if not chapter_id:
+                                continue
+                            fetched[chapter_id] = {
+                                "title": str(payload.get("title") or ""),
+                                "content": content,
+                            }
+                    if isinstance(progress_chapters, dict):
+                        for cid, payload in progress_chapters.items():
+                            chapter_id = str(cid or "").strip()
+                            if not chapter_id:
+                                continue
+                            if isinstance(payload, dict):
+                                content = payload.get("content")
+                                if content in (None, ""):
+                                    continue
+                                fetched[chapter_id] = {
+                                    "title": str(payload.get("title") or ""),
+                                    "content": content,
+                                }
                     tasks = []
                     if include_info and 0 in num_set:
                         info_content = (
@@ -2330,6 +2516,7 @@ class ND5Mixin:
                         tasks.append({"num": 0, "id": "book-info", "title": "Thông tin sách", "content": info_content})
                         if use_progress_cache and book_id:
                             progress_chapters["book-info"] = {"title": "Thông tin sách", "content": info_content}
+                        fetched["book-info"] = {"title": "Thông tin sách", "content": info_content}
                     id_map = {}
                     for item in toc:
                         if not num_set or item["num"] in num_set:
@@ -2347,7 +2534,6 @@ class ND5Mixin:
                     self.after(0, lambda: progress.config(maximum=max(1, total)))
 
                     real_chapters = [t for t in tasks if t["num"] != 0]
-                    fetched = dict(progress_chapters) if progress_chapters else {}
                     batch_size = getattr(plugin, "batch_size", 0)
                     try:
                         batch_size = int(batch_size)
@@ -2392,6 +2578,17 @@ class ND5Mixin:
                             progress_data["chapters"] = progress_chapters
                             progress_data["meta"] = meta
                             self._fanqie_save_progress(book_id, progress_data)
+                        try:
+                            self._nd5_save_book_cache(
+                                plugin.id,
+                                book_url=cache_url,
+                                meta=meta,
+                                toc=toc,
+                                chapters=fetched,
+                                cache_key=cache_key,
+                            )
+                        except Exception as cache_exc:
+                            ctx.log(f"[ND5] Không lưu được cache truyện: {cache_exc}")
                         done += len(batch)
                         self.after(0, lambda d=done, tot=total: (progress.config(value=d), _update_status(f"Đang tải {d}/{tot}...")))
 
@@ -2405,6 +2602,43 @@ class ND5Mixin:
                         else:
                             ch["content"] = ""
                     tasks.sort(key=lambda x: x["num"])
+                    final_chapter_cache = {}
+                    if isinstance(fetched, dict):
+                        for cid, payload in fetched.items():
+                            chapter_id = str(cid or "").strip()
+                            if not chapter_id or not isinstance(payload, dict):
+                                continue
+                            content = payload.get("content")
+                            if content in (None, ""):
+                                continue
+                            final_chapter_cache[chapter_id] = {
+                                "title": str(payload.get("title") or ""),
+                                "content": content,
+                            }
+                    for ch in tasks:
+                        chapter_id = str(ch.get("id") or "").strip()
+                        if not chapter_id:
+                            continue
+                        content = ch.get("content")
+                        if content in (None, ""):
+                            continue
+                        final_chapter_cache[chapter_id] = {
+                            "title": str(ch.get("title") or ""),
+                            "content": content,
+                        }
+                    try:
+                        cache_key = self._nd5_save_book_cache(
+                            plugin.id,
+                            book_url=cache_url,
+                            meta=meta,
+                            toc=toc,
+                            chapters=final_chapter_cache,
+                            cache_key=cache_key,
+                        )
+                        current_book["cache_key"] = cache_key
+                        current_book["book_url"] = cache_url
+                    except Exception as cache_exc:
+                        ctx.log(f"[ND5] Không lưu được cache cuối: {cache_exc}")
 
                     cover_bytes = cover_cache.get("bytes") if include_cover_var.get() else None
                     if include_cover_var.get() and cover_bytes is None and meta.get("cover"):
@@ -2504,6 +2738,8 @@ class ND5Mixin:
                 search_btn.state(["disabled"])
             current_book["meta"] = None
             current_book["toc"] = []
+            current_book["cache_key"] = ""
+            current_book["book_url"] = ""
             cover_cache["bytes"] = None
             _update_info_header(None)
             _set_info("")

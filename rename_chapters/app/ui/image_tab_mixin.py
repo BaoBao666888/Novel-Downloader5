@@ -955,6 +955,37 @@ class ImageTabMixin:
         self._image_ai_input_cache[img_hash] = input_path
         return input_path
 
+    def _image_ai_confirm_large_input(self) -> bool:
+        source = getattr(self, "image_original_pil", None)
+        if not source:
+            return True
+        width = int(getattr(source, "width", 0) or 0)
+        height = int(getattr(source, "height", 0) or 0)
+        if width <= 0 or height <= 0:
+            return True
+
+        # Cảnh báo trước với ảnh lớn để tránh bấm nhầm và đợi rất lâu.
+        threshold_w = 2000
+        threshold_h = 1900
+        threshold_mp = 3.8
+        pixels = width * height
+        megapixels = pixels / 1_000_000.0
+        is_large = width >= threshold_w or height >= threshold_h or megapixels >= threshold_mp
+        if not is_large:
+            return True
+
+        return bool(
+            messagebox.askyesno(
+                "Cảnh báo ảnh lớn",
+                (
+                    f"Ảnh hiện tại là {width}x{height} (~{megapixels:.2f} MP).\n"
+                    "Tăng cường AI có thể chạy khá lâu và tốn RAM/CPU.\n"
+                    "Bạn có muốn tiếp tục không?"
+                ),
+                parent=self,
+            )
+        )
+
     def _apply_image_ai(self):
         if not getattr(self, "image_original_pil", None):
             messagebox.showinfo("Chưa có ảnh", "Vui lòng tải ảnh trước.", parent=self)
@@ -1004,6 +1035,9 @@ class ImageTabMixin:
                     self._update_image_display()
                     self.image_ai_status_label.config(text="Đã dùng lại cache tăng cường.")
                 return
+        if not self._image_ai_confirm_large_input():
+            self.image_ai_status_label.config(text="Đã hủy tăng cường.")
+            return
 
         self.image_ai_apply_btn.config(state=tk.DISABLED)
         self.save_image_btn.config(state=tk.DISABLED)
