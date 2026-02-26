@@ -33,27 +33,129 @@ CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 class ND5Mixin:
 
+    def _get_fanqie_bridge_port(self) -> int:
+        fallback = int(DEFAULT_API_SETTINGS.get("fanqie_bridge_port", 9999))
+        cfg = self.api_settings if isinstance(getattr(self, "api_settings", None), dict) else {}
+        try:
+            port = int(cfg.get("fanqie_bridge_port", fallback))
+        except Exception:
+            port = fallback
+        if port < 1 or port > 65535:
+            port = fallback
+        return port
+
+    def _save_fanqie_bridge_port(self, port: int):
+        try:
+            port = int(port)
+        except Exception:
+            port = int(DEFAULT_API_SETTINGS.get("fanqie_bridge_port", 9999))
+        if port < 1 or port > 65535:
+            port = int(DEFAULT_API_SETTINGS.get("fanqie_bridge_port", 9999))
+        if not isinstance(getattr(self, "api_settings", None), dict):
+            self.api_settings = dict(DEFAULT_API_SETTINGS)
+        self.api_settings["fanqie_bridge_port"] = port
+        try:
+            self.app_config["api_settings"] = dict(self.api_settings)
+        except Exception:
+            pass
+        try:
+            self.save_config()
+        except Exception:
+            pass
+        return port
+
+    def _fanqie_bridge_base_url(self) -> str:
+        return f"http://127.0.0.1:{self._get_fanqie_bridge_port()}"
+
+    def _fanqie_bridge_url(self, path: str) -> str:
+        p = (path or "").strip()
+        if not p.startswith("/"):
+            p = "/" + p
+        return f"{self._fanqie_bridge_base_url()}{p}"
+
+    def _fanqie_bridge_health(self, timeout: float = 5.0):
+        url = self._fanqie_bridge_url("/healthz")
+        try:
+            resp = requests.get(url, timeout=max(1.0, float(timeout or 0)))
+            data = {}
+            if (resp.headers.get("content-type", "") or "").lower().startswith("application/json"):
+                try:
+                    data = resp.json() or {}
+                except Exception:
+                    data = {}
+            return {"ok": bool(resp.ok), "status_code": int(resp.status_code), "data": data, "error": ""}
+        except Exception as exc:
+            return {"ok": False, "status_code": 0, "data": {}, "error": str(exc)}
+
+    def _is_fanqie_bridge_proc_running(self) -> bool:
+        proc = getattr(self, "_fanqie_bridge_proc", None)
+        return bool(proc and proc.poll() is None)
+
+    def _fanqie_bridge_log_dir(self) -> str:
+        path = os.path.join(BASE_DIR, "local", "fanqie_bridge")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    def _fanqie_bridge_log_path(self) -> str:
+        return os.path.join(self._fanqie_bridge_log_dir(), "server.log")
+
+    def _fanqie_bridge_read_log_tail(self, max_bytes: int = 65536) -> str:
+        path = self._fanqie_bridge_log_path()
+        if not os.path.isfile(path):
+            return ""
+        try:
+            size = os.path.getsize(path)
+            with open(path, "rb") as f:
+                if size > max_bytes:
+                    f.seek(size - max_bytes)
+                raw = f.read()
+            return raw.decode("utf-8", errors="ignore").replace("\r\n", "\n").replace("\r", "\n")
+        except Exception:
+            return ""
+
     def _ensure_fanqie_bridge_running(self):
-        """Khởi chạy tools/fanqie_bridge_win.exe âm thầm nếu có."""
+        """Khởi chạy tools/fanqie_bridge_win.exe âm thầm nếu có (cổng lấy từ cài đặt)."""
         try:
             exe_path = os.path.join(BASE_DIR, "tools", "fanqie_bridge_win.exe")
             if not os.path.isfile(exe_path):
                 return False
             if getattr(self, "_fanqie_bridge_proc", None) and self._fanqie_bridge_proc.poll() is None:  # type: ignore[attr-defined]
                 return True
+            try:
+                old_fp = getattr(self, "_fanqie_bridge_log_fp", None)
+                if old_fp:
+                    old_fp.close()
+            except Exception:
+                pass
+            self._fanqie_bridge_log_fp = None  # type: ignore[attr-defined]
+            port = self._get_fanqie_bridge_port()
             creation = 0
             try:
                 creation = CREATE_NO_WINDOW
             except Exception:
                 creation = 0
+            log_path = self._fanqie_bridge_log_path()
+            log_fp = open(log_path, "ab")
+            env = os.environ.copy()
+            env["PORT"] = str(port)
+            env["HOST"] = "127.0.0.1"
             self._fanqie_bridge_proc = _Popen(  # type: ignore[attr-defined]
                 [exe_path],
                 creationflags=creation,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=log_fp,
+                stderr=subprocess.STDOUT,
+                env=env,
             )
+            self._fanqie_bridge_log_fp = log_fp  # type: ignore[attr-defined]
             return True
         except Exception as exc:
+            try:
+                fp = getattr(self, "_fanqie_bridge_log_fp", None)
+                if fp:
+                    fp.close()
+            except Exception:
+                pass
+            self._fanqie_bridge_log_fp = None  # type: ignore[attr-defined]
             try:
                 self.log(f"[Fanqie] Không khởi chạy được bridge: {exc}")
             except Exception:
@@ -63,30 +165,38 @@ class ND5Mixin:
     def _stop_fanqie_bridge(self):
         """Tắt tiến trình fanqie_bridge nếu đang chạy."""
         proc = getattr(self, "_fanqie_bridge_proc", None)
-        if not proc:
-            return
-        try:
-            if proc.poll() is None:
-                try:
-                    proc.terminate()
-                except Exception:
-                    pass
-                for _ in range(5):
-                    if proc.poll() is not None:
-                        break
-                    time.sleep(0.2)
+        had_managed_proc = bool(proc)
+        if proc:
+            try:
                 if proc.poll() is None:
                     try:
-                        proc.kill()
+                        proc.terminate()
                     except Exception:
                         pass
-            self._fanqie_bridge_proc = None
-        except Exception as exc:
-            try:
-                self.log(f"[Fanqie] Không tắt được bridge: {exc}")
-            except Exception:
-                pass
-        if sys.platform.startswith("win"):
+                    for _ in range(5):
+                        if proc.poll() is not None:
+                            break
+                        time.sleep(0.2)
+                    if proc.poll() is None:
+                        try:
+                            proc.kill()
+                        except Exception:
+                            pass
+            except Exception as exc:
+                try:
+                    self.log(f"[Fanqie] Không tắt được bridge: {exc}")
+                except Exception:
+                    pass
+            finally:
+                self._fanqie_bridge_proc = None
+        try:
+            fp = getattr(self, "_fanqie_bridge_log_fp", None)
+            if fp:
+                fp.close()
+        except Exception:
+            pass
+        self._fanqie_bridge_log_fp = None  # type: ignore[attr-defined]
+        if had_managed_proc and sys.platform.startswith("win"):
             try:
                 subprocess.run(
                     ["taskkill", "/IM", "fanqie_bridge_win.exe", "/F", "/T"],
@@ -140,6 +250,172 @@ class ND5Mixin:
                 shutil.rmtree(cache_dir, ignore_errors=True)
         except Exception:
             pass
+
+    def _open_fanqie_bridge_settings(self, parent=None):
+        win = getattr(self, "_fanqie_bridge_settings_win", None)
+        if win and win.winfo_exists():
+            try:
+                win.lift()
+                win.focus_force()
+            except Exception:
+                pass
+            return
+
+        owner = parent if parent is not None else self
+        win = tk.Toplevel(owner)
+        self._apply_window_icon(win)
+        win.title("Fanqie Setting")
+        win.geometry("760x520")
+        win.minsize(700, 460)
+        win.columnconfigure(0, weight=1)
+        win.rowconfigure(2, weight=1)
+        self._fanqie_bridge_settings_win = win
+
+        port_var = tk.StringVar(value=str(self._get_fanqie_bridge_port()))
+        status_var = tk.StringVar(value="Đang kiểm tra...")
+        detail_var = tk.StringVar(value="")
+        _alive = {"ok": True}
+        _last_log = {"text": None}
+        _poll_job = {"id": None}
+
+        top = ttk.LabelFrame(win, text="Bridge", padding=10)
+        top.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 6))
+        top.columnconfigure(1, weight=0)
+        top.columnconfigure(2, weight=1)
+        ttk.Label(top, text="Cổng:").grid(row=0, column=0, sticky="w")
+        ttk.Entry(top, textvariable=port_var, width=12).grid(row=0, column=1, sticky="w", padx=(6, 10))
+        button_row = ttk.Frame(top)
+        button_row.grid(row=0, column=2, sticky="e")
+        ttk.Button(button_row, text="Áp dụng cổng", command=lambda: _apply_port(restart_if_running=True)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_row, text="Bật", command=lambda: _start_bridge()).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_row, text="Tắt", command=lambda: _stop_bridge()).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_row, text="Reset", command=lambda: _reset_bridge()).pack(side=tk.LEFT)
+
+        stat = ttk.LabelFrame(win, text="Trạng thái", padding=10)
+        stat.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 6))
+        stat.columnconfigure(0, weight=1)
+        ttk.Label(stat, textvariable=status_var, foreground="#2563eb").grid(row=0, column=0, sticky="w")
+        ttk.Label(stat, textvariable=detail_var, foreground="#6b7280").grid(row=1, column=0, sticky="w", pady=(4, 0))
+
+        log_frame = ttk.LabelFrame(win, text="Log mini server (runtime)", padding=8)
+        log_frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=(0, 6))
+        log_frame.columnconfigure(0, weight=1)
+        log_frame.rowconfigure(0, weight=1)
+        log_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, state="disabled")
+        log_text.grid(row=0, column=0, sticky="nsew")
+
+        foot = ttk.Frame(win, padding=(10, 2))
+        foot.grid(row=3, column=0, sticky="ew")
+        ttk.Button(foot, text="Làm mới", command=lambda: _refresh_state(force_log=True)).pack(side=tk.LEFT)
+        ttk.Button(foot, text="Đóng", command=lambda: _on_close()).pack(side=tk.RIGHT)
+
+        def _set_log(text: str):
+            log_text.config(state="normal")
+            log_text.delete("1.0", tk.END)
+            log_text.insert("1.0", text or "Chưa có log.")
+            log_text.config(state="disabled")
+
+        def _refresh_log_text():
+            text = self._fanqie_bridge_read_log_tail()
+            if _last_log["text"] != text:
+                _last_log["text"] = text
+                _set_log(text)
+
+        def _refresh_state(force_log=False):
+            if not _alive["ok"]:
+                return
+            port = self._get_fanqie_bridge_port()
+            running = self._is_fanqie_bridge_proc_running()
+            health = self._fanqie_bridge_health(timeout=2.5)
+            if running:
+                exe_text = "đang chạy (app)"
+            elif health.get("ok"):
+                exe_text = "đang chạy (ngoài app)"
+            else:
+                exe_text = "không chạy"
+            if health.get("ok"):
+                data = health.get("data") if isinstance(health.get("data"), dict) else {}
+                iid = data.get("install_id") or data.get("installId") or "unknown"
+                status_var.set(f"PORT {port} | EXE: {exe_text} | API: OK (install_id={iid})")
+                detail_var.set("")
+            else:
+                err = health.get("error") or f"HTTP {health.get('status_code')}"
+                status_var.set(f"PORT {port} | EXE: {exe_text} | API: lỗi")
+                detail_var.set(str(err))
+            if force_log:
+                _refresh_log_text()
+            else:
+                _refresh_log_text()
+            if _alive["ok"]:
+                try:
+                    if _poll_job["id"] is not None:
+                        win.after_cancel(_poll_job["id"])
+                except Exception:
+                    pass
+                _poll_job["id"] = win.after(1200, _refresh_state)
+
+        def _apply_port(restart_if_running=False):
+            raw = (port_var.get() or "").strip()
+            try:
+                port = int(raw)
+            except Exception:
+                messagebox.showerror("Lỗi", "Cổng phải là số nguyên (1-65535).", parent=win)
+                return False
+            if port < 1 or port > 65535:
+                messagebox.showerror("Lỗi", "Cổng phải nằm trong khoảng 1-65535.", parent=win)
+                return False
+            old_port = self._get_fanqie_bridge_port()
+            changed = port != old_port
+            self._save_fanqie_bridge_port(port)
+            if changed and restart_if_running and self._is_fanqie_bridge_proc_running():
+                self._stop_fanqie_bridge()
+                time.sleep(0.2)
+                self._ensure_fanqie_bridge_running()
+            detail_var.set("Đã lưu cổng bridge.")
+            _refresh_state(force_log=True)
+            return True
+
+        def _start_bridge():
+            if not _apply_port(restart_if_running=False):
+                return
+            if self._ensure_fanqie_bridge_ready():
+                detail_var.set("Đã bật bridge.")
+            else:
+                detail_var.set("Không bật được bridge. Kiểm tra tools/fanqie_bridge_win.exe.")
+            _refresh_state(force_log=True)
+
+        def _stop_bridge():
+            self._stop_fanqie_bridge()
+            detail_var.set("Đã tắt bridge.")
+            _refresh_state(force_log=True)
+
+        def _reset_bridge():
+            if not _apply_port(restart_if_running=False):
+                return
+            self._stop_fanqie_bridge()
+            time.sleep(0.15)
+            if self._ensure_fanqie_bridge_ready():
+                detail_var.set("Đã reset bridge.")
+            else:
+                detail_var.set("Reset thất bại.")
+            _refresh_state(force_log=True)
+
+        def _on_close():
+            _alive["ok"] = False
+            try:
+                if _poll_job["id"] is not None:
+                    win.after_cancel(_poll_job["id"])
+            except Exception:
+                pass
+            _poll_job["id"] = None
+            self._fanqie_bridge_settings_win = None
+            try:
+                win.destroy()
+            except Exception:
+                pass
+
+        win.protocol("WM_DELETE_WINDOW", _on_close)
+        _refresh_state(force_log=True)
 
     def _open_fanqie_downloader(self, out_dir_override: str = None, prefill_url: str = None):
         """Mở cửa sổ tải Fanqie/ND5 (non-modal)."""
@@ -324,6 +600,8 @@ class ND5Mixin:
                     key = field["key"]
                     if key not in extra_values and field.get("default") not in (None, ""):
                         extra_values[key] = field.get("default")
+                extra_values["fanqie_bridge_base"] = self._fanqie_bridge_base_url()
+                extra_values["fanqie_bridge_port"] = self._get_fanqie_bridge_port()
                 if getattr(plugin, "requires_cookies", False):
                     domains = getattr(plugin, "cookie_domains", None) or getattr(plugin, "domains", None) or []
                     try:
@@ -1469,11 +1747,11 @@ class ND5Mixin:
                 return False
             try:
                 timeout_val = max(5.0, float(req_timeout_var.get() or 0))
-                resp = _req_with_retry("http://127.0.0.1:9999/healthz", timeout=timeout_val)
+                resp = _req_with_retry(self._fanqie_bridge_url("/healthz"), timeout=timeout_val, proxies=None)
                 if resp.ok:
                     data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
                     iid = data.get("install_id") or "unknown"
-                    _update_api_status(f"Bridge đang chạy (install_id={iid})", also_log=True)
+                    _update_api_status(f"Bridge đang chạy (port={self._get_fanqie_bridge_port()}, install_id={iid})", also_log=True)
                 else:
                     _update_api_status(f"Bridge phản hồi mã {resp.status_code}", also_log=True)
             except Exception as exc:
@@ -1495,11 +1773,11 @@ class ND5Mixin:
                 attempts = 5
                 for _ in range(attempts):
                     try:
-                        resp = _req_with_retry("http://127.0.0.1:9999/healthz", timeout=timeout_val)
+                        resp = _req_with_retry(self._fanqie_bridge_url("/healthz"), timeout=timeout_val, proxies=None)
                         if resp.ok:
                             data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
                             iid = data.get("install_id") or "unknown"
-                            self.after(0, lambda: _update_api_status(f"Bridge đang chạy (install_id={iid})", also_log=True))
+                            self.after(0, lambda: _update_api_status(f"Bridge đang chạy (port={self._get_fanqie_bridge_port()}, install_id={iid})", also_log=True))
                             return
                         else:
                             self.after(0, lambda code=resp.status_code: _update_api_status(f"Bridge phản hồi mã {code}", also_log=True))
@@ -1515,7 +1793,6 @@ class ND5Mixin:
             if not url:
                 return None
             try:
-                ctx.sleep_between_requests()
                 resp = ctx.request_with_retry(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1991,15 +2268,12 @@ class ND5Mixin:
         backend_frame.grid(row=1, column=0, sticky="ew")
         backend_frame.columnconfigure(1, weight=1)
         ttk.Label(backend_frame, textvariable=api_status_var, foreground="#3b82f6").grid(row=0, column=0, sticky="w", pady=(4, 0))
-        def _reset_bridge():
-            _update_api_status("Đang reset bridge...", also_log=True)
-            try:
-                self._stop_fanqie_bridge()
-            except Exception:
-                pass
-            self.after(150, _start_bridge_async)
-        reset_btn = ttk.Button(backend_frame, text="Reset bridge", command=_reset_bridge)
-        reset_btn.grid(row=0, column=1, sticky="e", padx=(6, 0), pady=(4, 0))
+        bridge_settings_btn = ttk.Button(
+            backend_frame,
+            text="Fanqie Setting",
+            command=lambda: self._open_fanqie_bridge_settings(parent=win),
+        )
+        bridge_settings_btn.grid(row=0, column=1, sticky="e", padx=(6, 0), pady=(4, 0))
 
         url_frame = ttk.Frame(win, padding=(10, 4))
         url_frame.grid(row=2, column=0, sticky="ew")
@@ -2016,10 +2290,10 @@ class ND5Mixin:
             url_label_var.set(f"URL {_plugin_label()}:")
             url_sample_var.set(_plugin_sample())
             if _plugin_requires_bridge():
-                reset_btn.grid()
+                bridge_settings_btn.grid()
                 api_status_var.set("Chưa kiểm tra bridge.")
             else:
-                reset_btn.grid_remove()
+                bridge_settings_btn.grid_remove()
                 api_status_var.set("Dùng HTTP trực tiếp (không cần bridge).")
             if _plugin_supports_search():
                 search_btn.state(["!disabled"])
@@ -2142,12 +2416,15 @@ class ND5Mixin:
 
     def _ensure_fanqie_bridge_ready(self, attempts: int = 6, delay: float = 0.8) -> bool:
         """Khởi chạy bridge nếu cần và đợi healthz phản hồi."""
+        health = self._fanqie_bridge_health(timeout=2.0)
+        if health.get("ok"):
+            return True
         started = self._ensure_fanqie_bridge_running()
         if not started:
             return False
         for _ in range(max(1, attempts)):
             try:
-                resp = requests.get("http://127.0.0.1:9999/healthz", timeout=10)
+                resp = requests.get(self._fanqie_bridge_url("/healthz"), timeout=10)
                 if resp.ok:
                     return True
             except Exception:
@@ -2272,9 +2549,9 @@ class ND5Mixin:
         if not ids:
             return {}
         try:
-            url = f"http://127.0.0.1:9999/content?item_id={','.join(ids)}"
+            url = f"{self._fanqie_bridge_url('/content')}?item_id={','.join(ids)}"
             self._nd5_sleep_between_requests()
-            resp = self._fanqie_request_with_retry(url, proxies=self._get_proxy_for_request("fanqie"))
+            resp = self._fanqie_request_with_retry(url, proxies=None)
             resp.raise_for_status()
             payload = resp.json()
             return self._fanqie_extract_chapter_payload(payload, ids, fallback_titles)

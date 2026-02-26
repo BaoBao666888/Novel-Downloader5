@@ -6904,12 +6904,19 @@ class WikidichMixin:
                 koanchay_domain_var.get(),
                 DEFAULT_API_SETTINGS.get('koanchay_domain', "https://koanchay.org/")
             )
+            try:
+                fanqie_bridge_port_val = int((self.api_settings or {}).get('fanqie_bridge_port', DEFAULT_API_SETTINGS.get('fanqie_bridge_port', 9999)))
+            except Exception:
+                fanqie_bridge_port_val = int(DEFAULT_API_SETTINGS.get('fanqie_bridge_port', 9999))
+            if fanqie_bridge_port_val < 1 or fanqie_bridge_port_val > 65535:
+                fanqie_bridge_port_val = int(DEFAULT_API_SETTINGS.get('fanqie_bridge_port', 9999))
 
             self.api_settings = {
                 'wiki_delay_min': wiki_min_val,
                 'wiki_delay_max': wiki_max_val,
                 'fanqie_delay_min': fanqie_min_val,
                 'fanqie_delay_max': fanqie_max_val,
+                'fanqie_bridge_port': fanqie_bridge_port_val,
                 'wikidich_domain': wiki_domain_val,
                 'koanchay_domain': koanchay_domain_val,
                 'wiki_headers': dict(DEFAULT_API_SETTINGS['wiki_headers']),
