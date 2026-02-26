@@ -95,6 +95,7 @@ DEFAULT_API_SETTINGS = {
 # Key: column id, Value: (label, default_width, visible_by_default)
 # Note: "title" is always visible and cannot be hidden
 WIKIDICH_COLUMNS_CONFIG = {
+    'stt': ('STT', 56, False),             # Hidden by default
     'title': ('Tiêu đề', 240, True),        # Always visible - mandatory
     'status': ('Trạng thái', 110, True),
     'updated': ('Cập nhật', 110, True),

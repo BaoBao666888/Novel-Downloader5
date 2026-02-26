@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import os
 import re
 import io
@@ -250,6 +251,203 @@ class ND5Mixin:
                 shutil.rmtree(cache_dir, ignore_errors=True)
         except Exception:
             pass
+
+    def _nd5_book_cache_dir(self) -> str:
+        path = os.path.join(BASE_DIR, "local", "nd5_book_cache")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    def _nd5_make_book_cache_key(self, plugin_id: str, book_url: str = "", meta: Optional[dict] = None) -> str:
+        pid = re.sub(r"[^A-Za-z0-9_-]+", "_", str(plugin_id or "unknown")).strip("_") or "unknown"
+        book_id = ""
+        if isinstance(meta, dict):
+            for key in ("book_id", "id", "novel_id", "item_id"):
+                val = meta.get(key)
+                if val not in (None, ""):
+                    book_id = str(val).strip()
+                    if book_id:
+                        break
+        raw_url = (book_url or "").strip()
+        if not book_id and raw_url:
+            m = re.search(
+                r"(?:/page/|/book/|/reader/|book(?:_id|id)?=|novel(?:_id|id)?=|id=)(\d{4,})",
+                raw_url,
+                flags=re.IGNORECASE,
+            )
+            if not m:
+                m = re.search(r"(\d{6,})", raw_url)
+            if m:
+                book_id = str(m.group(1)).strip()
+        if book_id:
+            safe_id = re.sub(r"[^A-Za-z0-9_-]+", "_", book_id).strip("_") or "unknown"
+            return f"{pid}__id_{safe_id}"
+        normalized_url = raw_url.lower().split("#", 1)[0].split("?", 1)[0]
+        if normalized_url:
+            digest = hashlib.sha1(normalized_url.encode("utf-8", errors="ignore")).hexdigest()[:24]
+            return f"{pid}__url_{digest}"
+        return f"{pid}__unknown"
+
+    def _nd5_book_cache_path(self, cache_key: str) -> str:
+        safe_key = re.sub(r"[^A-Za-z0-9_-]+", "_", str(cache_key or "unknown")).strip("_") or "unknown"
+        return os.path.join(self._nd5_book_cache_dir(), f"{safe_key}.json")
+
+    def _nd5_load_book_cache(self, cache_key: str):
+        if not cache_key:
+            return None
+        path = self._nd5_book_cache_path(cache_key)
+        if not os.path.isfile(path):
+            return None
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            return payload if isinstance(payload, dict) else None
+        except Exception:
+            return None
+
+    def _nd5_save_book_cache(
+        self,
+        plugin_id: str,
+        book_url: str = "",
+        meta: Optional[dict] = None,
+        toc: Optional[list] = None,
+        chapters: Optional[dict] = None,
+        cache_key: Optional[str] = None,
+    ) -> str:
+        key = cache_key or self._nd5_make_book_cache_key(plugin_id, book_url=book_url, meta=meta)
+        payload = self._nd5_load_book_cache(key) or {}
+        if not isinstance(payload, dict):
+            payload = {}
+        payload["version"] = int(payload.get("version") or 1)
+        payload["cache_key"] = key
+        payload["plugin_id"] = str(plugin_id or payload.get("plugin_id") or "unknown")
+        if book_url:
+            payload["book_url"] = str(book_url)
+        if isinstance(meta, dict):
+            payload["meta"] = dict(meta)
+        if isinstance(toc, list):
+            payload["toc"] = list(toc)
+        if chapters is not None:
+            normalized_chapters = {}
+            if isinstance(chapters, dict):
+                for cid, entry in chapters.items():
+                    chapter_id = str(cid or "").strip()
+                    if not chapter_id:
+                        continue
+                    if isinstance(entry, dict):
+                        content = entry.get("content")
+                        if content in (None, ""):
+                            continue
+                        normalized_chapters[chapter_id] = {
+                            "title": str(entry.get("title") or ""),
+                            "content": content,
+                        }
+                    elif isinstance(entry, str):
+                        text = entry.strip()
+                        if text:
+                            normalized_chapters[chapter_id] = {"title": "", "content": text}
+            payload["chapters"] = normalized_chapters
+
+        meta_obj = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+        payload["book_id"] = str(
+            (meta_obj or {}).get("book_id")
+            or (meta_obj or {}).get("id")
+            or payload.get("book_id")
+            or ""
+        ).strip()
+        payload["title"] = str((meta_obj or {}).get("title") or payload.get("title") or "").strip()
+        payload["author"] = str((meta_obj or {}).get("author") or payload.get("author") or "").strip()
+        payload["toc_count"] = len(payload.get("toc") or [])
+        payload["chapters_count"] = len(payload.get("chapters") or {})
+        payload["updated_at"] = datetime.datetime.now().isoformat(timespec="seconds")
+
+        path = self._nd5_book_cache_path(key)
+        tmp_path = f"{path}.tmp"
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, path)
+        except Exception as exc:
+            try:
+                self.log(f"[ND5] Không lưu được cache truyện: {exc}")
+            except Exception:
+                pass
+            try:
+                if os.path.isfile(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
+        return key
+
+    def _nd5_list_book_caches(self):
+        items = []
+        cache_dir = self._nd5_book_cache_dir()
+        if not os.path.isdir(cache_dir):
+            return items
+        for name in os.listdir(cache_dir):
+            if not name.lower().endswith(".json"):
+                continue
+            path = os.path.join(cache_dir, name)
+            if not os.path.isfile(path):
+                continue
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    payload = json.load(f)
+                if not isinstance(payload, dict):
+                    continue
+                key = str(payload.get("cache_key") or os.path.splitext(name)[0]).strip()
+                toc_count = payload.get("toc_count")
+                if toc_count is None:
+                    toc_count = len(payload.get("toc") or [])
+                chapters_count = payload.get("chapters_count")
+                if chapters_count is None:
+                    chapters_count = len(payload.get("chapters") or {})
+                items.append(
+                    {
+                        "cache_key": key,
+                        "plugin_id": str(payload.get("plugin_id") or "").strip(),
+                        "book_id": str(payload.get("book_id") or "").strip(),
+                        "title": str(payload.get("title") or "").strip(),
+                        "author": str(payload.get("author") or "").strip(),
+                        "toc_count": int(toc_count or 0),
+                        "chapters_count": int(chapters_count or 0),
+                        "updated_at": str(payload.get("updated_at") or ""),
+                        "size_bytes": int(os.path.getsize(path) or 0),
+                    }
+                )
+            except Exception:
+                continue
+        items.sort(key=lambda x: ((x.get("updated_at") or ""), (x.get("title") or "")), reverse=True)
+        return items
+
+    def _nd5_delete_book_cache(self, cache_key: str) -> bool:
+        if not cache_key:
+            return False
+        path = self._nd5_book_cache_path(cache_key)
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+            return True
+        except Exception:
+            return False
+
+    def _nd5_clear_book_cache(self) -> int:
+        removed = 0
+        cache_dir = self._nd5_book_cache_dir()
+        if not os.path.isdir(cache_dir):
+            return removed
+        for name in os.listdir(cache_dir):
+            if not name.lower().endswith(".json"):
+                continue
+            path = os.path.join(cache_dir, name)
+            if not os.path.isfile(path):
+                continue
+            try:
+                os.remove(path)
+                removed += 1
+            except Exception:
+                pass
+        return removed
 
     def _open_fanqie_bridge_settings(self, parent=None):
         win = getattr(self, "_fanqie_bridge_settings_win", None)

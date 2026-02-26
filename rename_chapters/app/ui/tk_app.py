@@ -2649,8 +2649,6 @@ class RenamerApp(
         self.browser_menu_label = "Trình duyệt"
         self.cookie_menu_label = "Cookie"
 
-        menubar.add_command(label="Đọc truyện", command=lambda: self._select_tab_by_name("Đọc truyện"))
-
         tools_menu = tk.Menu(menubar, **menu_style)
         menubar.add_cascade(label="Công cụ", menu=tools_menu)
         tools_menu.add_command(label="Download Novel 5...", command=self._open_fanqie_downloader)
@@ -2663,6 +2661,7 @@ class RenamerApp(
         menubar.add_command(label="Proxy", command=self._open_proxy_manager_window)
         menubar.add_command(label=self.browser_menu_label, command=self.toggle_browser_overlay)
         menubar.add_command(label=self.cookie_menu_label, command=self.open_cookie_manager)
+        menubar.add_command(label="Đọc truyện", command=lambda: self._select_tab_by_name("Đọc truyện"))
 
         # Menu Trợ giúp
         help_menu = tk.Menu(menubar, **menu_style)

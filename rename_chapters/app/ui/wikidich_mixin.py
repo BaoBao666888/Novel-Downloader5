@@ -604,13 +604,17 @@ class WikidichMixin:
         tree_frame.rowconfigure(0, weight=1)
 
         visible_cols = self.app_config.get('wikidich_visible_columns', list(DEFAULT_VISIBLE_COLUMNS))
-        # Ensure 'title' is always first and visible
+        column_order = ['stt', 'title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'rating', 'author']
+        visible_cols = [col for col in column_order if col in (visible_cols or []) and col in WIKIDICH_COLUMNS_CONFIG]
         if 'title' not in visible_cols:
-            visible_cols.insert(0, 'title')
-        elif visible_cols[0] != 'title':
-            visible_cols.remove('title')
-            visible_cols.insert(0, 'title')
-        # Filter to only valid columns
+            if 'stt' in visible_cols:
+                visible_cols.insert(1, 'title')
+            else:
+                visible_cols.insert(0, 'title')
+        if 'stt' in visible_cols:
+            visible_cols = ['stt', 'title'] + [col for col in visible_cols if col not in ('stt', 'title')]
+        else:
+            visible_cols = ['title'] + [col for col in visible_cols if col != 'title']
         columns = tuple(col for col in visible_cols if col in WIKIDICH_COLUMNS_CONFIG)
         self._wd_visible_columns = list(columns)  # Save for refresh
         self.wd_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", selectmode="browse")
@@ -1396,7 +1400,7 @@ class WikidichMixin:
         except Exception:
             not_found_ids = set()
         self._wd_apply_not_found_flags()
-        for book in books:
+        for stt, book in enumerate(books, start=1):
             stats = book.get('stats', {}) or {}
             book_id = book.get('id')
             # nếu book nằm trong danh sách 404, gắn cờ
@@ -1428,7 +1432,9 @@ class WikidichMixin:
             visible_cols = getattr(self, '_wd_visible_columns', ['title', 'status', 'updated', 'chapters', 'new_chapters', 'views', 'rating', 'author'])
             row_values = []
             for col in visible_cols:
-                if col == 'title':
+                if col == 'stt':
+                    row_values.append(stt)
+                elif col == 'title':
                     row_values.append(book.get('title', ''))
                 elif col == 'status':
                     row_values.append(book.get('status', ''))
@@ -6942,7 +6948,7 @@ class WikidichMixin:
         col_row2.pack(fill="x", pady=2)
         
         # Define column order for UI display
-        column_order = ['title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'rating', 'author']
+        column_order = ['stt', 'title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'rating', 'author']
         
         for i, col_id in enumerate(column_order):
             if col_id not in WIKIDICH_COLUMNS_CONFIG:
@@ -6952,7 +6958,7 @@ class WikidichMixin:
             var = tk.BooleanVar(value=is_visible)
             column_vars[col_id] = var
             
-            parent_row = col_row1 if i < 4 else col_row2
+            parent_row = col_row1 if i < 5 else col_row2
             cb = ttk.Checkbutton(parent_row, text=label, variable=var)
             cb.pack(side=tk.LEFT, padx=(0, 12))
             
@@ -7120,11 +7126,17 @@ class WikidichMixin:
             
             # Save visible columns (in order)
             if hasattr(win, 'column_vars'):
-                column_order = ['title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'rating', 'author']
+                column_order = ['stt', 'title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'rating', 'author']
                 new_visible = [col for col in column_order if win.column_vars.get(col, tk.BooleanVar()).get()]
-                # Ensure 'title' is always first
                 if 'title' not in new_visible:
-                    new_visible.insert(0, 'title')
+                    if 'stt' in new_visible:
+                        new_visible.insert(1, 'title')
+                    else:
+                        new_visible.insert(0, 'title')
+                if 'stt' in new_visible:
+                    new_visible = ['stt', 'title'] + [col for col in new_visible if col not in ('stt', 'title')]
+                else:
+                    new_visible = ['title'] + [col for col in new_visible if col != 'title']
                 self.app_config['wikidich_visible_columns'] = new_visible
                 self._wd_visible_columns = new_visible
             
