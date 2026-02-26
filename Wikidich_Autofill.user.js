@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.6.1
+// @version      0.3.7
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -11,7 +11,7 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.6'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.7'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const MAX_COVER_FILE_SIZE = 500 * 1024;
@@ -1001,24 +1001,177 @@
     // ================================================
     // ADAPTERS: FETCH (RAW)
     // ================================================
+    function extractFanqieInitialState(html) {
+        const marker = 'window.__INITIAL_STATE__=';
+        const raw = T.safeText(html);
+        const start = raw.indexOf(marker);
+        if (start < 0) return null;
+        let i = start + marker.length;
+        const n = raw.length;
+        while (i < n && /\s/.test(raw[i])) i += 1;
+        if (i >= n || raw[i] !== '{') return null;
+        let depth = 0;
+        let inString = false;
+        let escaped = false;
+        for (let j = i; j < n; j += 1) {
+            const ch = raw[j];
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (ch === '\\') {
+                    escaped = true;
+                } else if (ch === '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if (ch === '"') {
+                inString = true;
+                continue;
+            }
+            if (ch === '{') {
+                depth += 1;
+                continue;
+            }
+            if (ch === '}') {
+                depth -= 1;
+                if (depth === 0) {
+                    try {
+                        return JSON.parse(raw.slice(i, j + 1));
+                    } catch {
+                        return null;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    function parseFanqieCategoryV2(raw) {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        const text = T.safeText(raw).trim();
+        if (!text) return [];
+        try {
+            const arr = JSON.parse(text);
+            return Array.isArray(arr) ? arr : [];
+        } catch {
+            return [];
+        }
+    }
+
+    function extractFanqieStatusLabel(html) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html || '', 'text/html');
+        return D.queryText(doc, [
+            '.page-header-info .info-label-yellow',
+            '.info-label-yellow',
+            '.info-label',
+        ]);
+    }
+
+    function normalizeFanqieCover(url) {
+        const raw = T.safeText(url);
+        if (!raw) return '';
+        const match = raw.match(/\/novel-pic\/([^~?]+)/i);
+        if (!match) return raw;
+        const id = match[1];
+        return `https://p6-novel.byteimg.com/origin/novel-pic/${id}`;
+    }
+
+    function mapFanqieWebStateToRaw(page) {
+        const bookName = T.safeText(page.bookName || page.book_name || page.title || '');
+        const author = T.safeText(page.author || page.authorName || page.author_name || '');
+        const abstractText = T.safeText(page.abstract || page.bookAbstract || page.book_abstract || page.book_abstract_v2 || '');
+        const categoryV2 = parseFanqieCategoryV2(page.categoryV2 || page.category_v2);
+        const labels = T.parseTagList(page.category || page.completeCategory || '');
+        const categoryNames = categoryV2.map(c => c && c.Name).filter(Boolean);
+        const mergedTags = Array.from(new Set([...labels, ...categoryNames])).filter(Boolean);
+        const statusVal = page.status != null ? page.status : page.creationStatus;
+        const wordNumber = page.wordNumber || page.word_number || page.wordNumberText || '';
+        const lastChapterTitle = T.safeText(page.lastChapterTitle || page.last_chapter_title || '');
+        return {
+            book_name: bookName,
+            author: author,
+            abstract: abstractText,
+            category_v2: categoryV2,
+            category: categoryNames.join(','),
+            tags: mergedTags.join(','),
+            update_status: statusVal,
+            creation_status: page.creationStatus,
+            word_number: wordNumber,
+            last_chapter_title: lastChapterTitle,
+            thumb_url: normalizeFanqieCover(page.thumbUrl || page.thumbUri || page.cover || page.coverUrl || page.detailPageThumbUrl || page.detail_page_thumb_url || ''),
+        };
+    }
+
+    function parseFanqieWebDom(html) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html || '', 'text/html');
+        const title = D.queryText(doc, ['.page-header-info .info-name h1', '.info-name h1', '.page-header-info h1', 'h1']);
+        const author = D.queryText(doc, ['.author-name-text', '.author-name', '.page-header-author']);
+        const introHtml = D.queryHtml(doc, ['.page-abstract-content', '.page-abstract .content', '.description-content']);
+        let intro = introHtml ? T.htmlToText(introHtml) : '';
+        if (!intro) {
+            const metaDesc = D.queryAttr(doc, ['meta[name="description"]', 'meta[property="og:description"]'], 'content');
+            if (metaDesc) intro = T.htmlToText(metaDesc);
+        }
+        const coverRaw = D.queryAttr(doc, ['.book-cover-img', '.book-cover img', 'meta[property="og:image"]'], 'content')
+            || D.queryAttr(doc, ['.book-cover-img', '.book-cover img'], 'src');
+        const cover = normalizeFanqieCover(coverRaw);
+        const statusLabel = D.queryText(doc, ['.page-header-info .info-label-yellow', '.info-label-yellow', '.info-label']);
+        const creationStatus = statusLabel.includes('完结') ? '2' : (statusLabel.includes('连载') ? '1' : '');
+        const labelTags = D.collectTexts(doc, ['.info-label-grey', '.info-label .info-label-grey']);
+        let chapterTotal = '';
+        const directoryHeader = D.queryText(doc, ['.page-directory-header h3']);
+        const m = directoryHeader.match(/(\d+)/);
+        if (m) chapterTotal = m[1];
+        const wordNumber = D.queryText(doc, ['.info-count-word .detail']);
+        const lastChapterTitle = D.queryText(doc, ['.info-last-title']).replace(/^最近更新[:：]?\s*/, '');
+        return {
+            book_name: title,
+            author,
+            abstract: intro,
+            category_v2: [],
+            category: labelTags.join(','),
+            tags: labelTags.join(','),
+            update_status: creationStatus,
+            creation_status: creationStatus,
+            word_number: wordNumber,
+            last_chapter_title: lastChapterTitle,
+            chapter_total: chapterTotal,
+            thumb_url: cover,
+            status_hint: statusLabel,
+        };
+    }
+
     function fetchFanqieData(bookId) {
-        const apiUrl = `https://api5-normal-sinfonlineb.fqnovel.com/reading/bookapi/multi-detail/v/?aid=2329&iid=1&version_code=999&book_id=${bookId}`;
+        const url = `https://fanqienovel.com/page/${bookId}`;
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: 'GET',
-                url: apiUrl,
-                responseType: 'json',
+                url,
                 onload(res) {
-                    let parsed = res.response;
-                    if (!parsed && res.responseText) {
-                        try { parsed = JSON.parse(res.responseText); } catch { parsed = null; }
-                    }
-                    const data = parsed?.data?.[0] || null;
-                    if (!data) {
-                        reject(new Error('Fanqie API không có dữ liệu.'));
+                    const html = T.safeText(res.responseText || '');
+                    if (!html) {
+                        reject(new Error('Fanqie web không có dữ liệu.'));
                         return;
                     }
-                    resolve(data);
+                    const statusLabel = extractFanqieStatusLabel(html);
+                    const state = extractFanqieInitialState(html);
+                    const page = state && state.page && typeof state.page === 'object' ? state.page : null;
+                    if (page) {
+                        const raw = mapFanqieWebStateToRaw(page);
+                        if (statusLabel && !raw.status_hint) raw.status_hint = statusLabel;
+                        resolve(raw);
+                        return;
+                    }
+                    const fallback = parseFanqieWebDom(html);
+                    if (fallback && (fallback.book_name || fallback.author || fallback.abstract)) {
+                        resolve(fallback);
+                        return;
+                    }
+                    reject(new Error('Fanqie web không có dữ liệu.'));
                 },
                 onerror(err) {
                     reject(err);
@@ -1629,14 +1782,16 @@
             tags: Array.from(new Set(tags)),
             categories: Array.from(new Set(categories)),
             coverUrl: raw.expand_thumb_url || raw.thumb_url || '',
-            statusHint: '',
+            statusHint: T.safeText(raw.status_hint || raw.statusHint || ''),
             update_status: raw.update_status,
             extraKeywords: [],
         };
         return attachStatusInfo(base, {
             explicitStates: [
-                mapStatusCode(raw.update_status, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.COMPLETED }),
-                mapStatusCode(raw.book_status, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.COMPLETED, '2': STATUS_STATES.COMPLETED }),
+                statusStateFromText(raw.status_hint || raw.statusHint || ''),
+                mapStatusCode(raw.update_status, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.ONGOING, '2': STATUS_STATES.COMPLETED }),
+                mapStatusCode(raw.creation_status, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.ONGOING, '2': STATUS_STATES.COMPLETED }),
+                mapStatusCode(raw.book_status, { '0': STATUS_STATES.ONGOING, '1': STATUS_STATES.ONGOING, '2': STATUS_STATES.COMPLETED }),
                 statusStateFromBoolish(raw.isFinished, true),
                 statusStateFromBoolish(raw.is_finished, true),
             ],
@@ -1644,6 +1799,8 @@
                 raw.novel_status,
                 raw.status,
                 raw.book_status_text,
+                raw.status_hint,
+                raw.statusHint,
             ],
             fallbackTexts: [tags.join(','), categories.join(',')],
         });
@@ -2537,15 +2694,16 @@
     // ================================================
 
     const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.6</span></h2>
+<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.7</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li>🧩 <b>Loại trừ nâng cấp:</b> Có trên cả <code>/nhung-file</code> và <code>/chinh-sua</code>; hỗ trợ cấu hình <b>Tất cả nguồn</b> và <b>override theo từng nguồn</b>. Ở <code>/chinh-sua</code> mặc định loại trừ Tên gốc/Tác giả (CN), Tên dịch (VI), Liên kết bổ sung.</li>
-    <li>🔁 <b>Check trùng mềm hơn:</b> Nếu truyện bị trùng vẫn cho <b>Áp vào form</b>; chỉ khóa nút <b>Nhúng</b> khi <code>Tên gốc + Tác giả</code> <b>trên web</b> đúng cặp đã check trùng.</li>
-    <li>🌐 <b>Cập nhật domain Wikidich:</b> Nhận diện đúng trang Wikidich mới ở <code>wikicv.net</code> (vẫn tương thích domain cũ).</li>
+    <li>🍅 <b>Fanqie chuyển sang parse web:</b> Bỏ API cũ (đang bị bảo mật), đọc trực tiếp <code>window.__INITIAL_STATE__</code> + DOM fallback.</li>
+    <li>✅ <b>Fanqie trạng thái chính xác hơn:</b> Ưu tiên nhãn trên web (<code>已完结/连载中</code>) khi xác định Hoàn thành/Còn tiếp.</li>
+    <li>🖼️ <b>Fanqie cover origin:</b> Chuẩn hóa về link gốc <code>p6-novel.byteimg.com/origin</code> để lấy bìa nét.</li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
 <ul style="list-style-type: none; padding-left: 0; font-size: 13px;">
+    <li><b>v0.3.6:</b> Loại trừ nâng cấp, check trùng mềm hơn, cập nhật domain Wikidich.</li>
     <li><b>v0.3.5:</b> Thêm nguồn Hải Đường Longma, parse trạng thái tập trung, AI không chọn trạng thái, ghi đè link bổ sung, nút fullscreen + phóng 1.5x.</li>
     <li><b>v0.3.4:</b> Cải thiện PO18, check trùng truyện + khóa thao tác an toàn hơn, nâng toast/cover upload.</li>
     <li><b>v0.3.3:</b> Hotfix popup so sánh + tách riêng logic loại trừ giữa <code>/chinh-sua</code> và <code>/nhung-file</code>.</li>
