@@ -696,7 +696,17 @@ function buildOnlineBookCard(item) {
 
   const author = document.createElement("div");
   author.className = "book-card-meta";
-  author.textContent = String(item.author || "").trim() || "Khuyết danh";
+  const authorText = String(item.author || "").trim();
+  const descText = String(item.description || "").trim();
+  if (authorText && descText) {
+    author.textContent = `${authorText} • ${descText}`;
+  } else if (authorText) {
+    author.textContent = authorText;
+  } else if (descText) {
+    author.textContent = descText;
+  } else {
+    author.textContent = "Khuyết danh";
+  }
 
   const source = document.createElement("div");
   source.className = "book-card-source";
@@ -1997,7 +2007,7 @@ async function init() {
     state.translationEnabled = enabled;
     state.translationMode = mode;
     state.translationLocalSig = localSig;
-    refreshExploreByReaderSettings().catch(() => {});
+    refreshExploreByReaderSettings().catch(() => { });
   });
 
   refs.vbookPluginSelect.addEventListener("change", async () => {

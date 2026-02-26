@@ -32,3 +32,5 @@ TM-translate/
 imageAI/
 tmp/
 gdown/
+rename_chapters/reader_ui/translate/
+scripts/

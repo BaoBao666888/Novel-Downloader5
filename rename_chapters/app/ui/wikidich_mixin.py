@@ -133,6 +133,7 @@ class WikidichMixin:
         auto_menu = tk.Menu(auto_mb, tearoff=0)
         auto_menu.add_command(label="Đánh dấu", command=self._wd_open_auto_mark_dialog)
         auto_menu.add_command(label="Tự động", command=self._wd_start_marked_auto_update, state=tk.DISABLED)
+        auto_menu.add_command(label="Tiếp tục", command=self._wd_start_continue_auto_update, state=tk.DISABLED)
         auto_menu.add_command(label="Lịch sử", command=self._wd_open_auto_history_dialog)
         auto_mb.config(menu=auto_menu)
         auto_mb.grid(row=0, column=3, padx=(6, 0))
@@ -1413,7 +1414,7 @@ class WikidichMixin:
             else:
                 tags = ()
             # Build values dynamically based on visible columns
-            visible_cols = getattr(self, '_wd_visible_columns', ['title', 'status', 'updated', 'chapters', 'new_chapters', 'views', 'author'])
+            visible_cols = getattr(self, '_wd_visible_columns', ['title', 'status', 'updated', 'chapters', 'new_chapters', 'views', 'rating', 'author'])
             row_values = []
             for col in visible_cols:
                 if col == 'title':
@@ -1428,6 +1429,8 @@ class WikidichMixin:
                     row_values.append(new_count)
                 elif col == 'views':
                     row_values.append(stats.get('views') or "")
+                elif col == 'rating':
+                    row_values.append(stats.get('rating') or "")
                 elif col == 'author':
                     row_values.append(book.get('author', ''))
                 elif col == 'notes':
@@ -3368,6 +3371,7 @@ class WikidichMixin:
             proxies = self._get_proxy_for_request('fetch_titles')
             is_deleted = False
             error_msg = None
+            has_manage_rights = None
             try:
                 session, current_user, _proxies = self._wd_build_wiki_session(include_user=True)
                 if not session:
@@ -3376,7 +3380,7 @@ class WikidichMixin:
                 if not current_user:
                     current_user = self.wikidich_data.get('username') or ""
                 # Gọi fetch_book_detail với skip_chapter_count=True để nhanh hơn
-                wikidich_ext.fetch_book_detail(
+                updated = wikidich_ext.fetch_book_detail(
                     session, selected, current_user,
                     base_url=self._wd_get_base_url(),
                     proxies=proxies or _proxies,
@@ -3384,6 +3388,12 @@ class WikidichMixin:
                 )
                 # Nếu không ném exception, truyện vẫn tồn tại
                 is_deleted = False
+                flags = {}
+                if isinstance(updated, dict):
+                    flags = updated.get("flags") or {}
+                if not flags:
+                    flags = selected.get("flags") or {}
+                has_manage_rights = self._wd_has_manage_rights(flags)
             except ValueError as e:
                 # fetch_book_detail ném ValueError("Book deleted (redirected to home)") khi bị xóa
                 if "deleted" in str(e).lower() or "redirect" in str(e).lower():
@@ -3421,11 +3431,38 @@ class WikidichMixin:
                     messagebox.showerror("Lỗi kiểm tra", f"Không thể kiểm tra truyện:\n{error_msg}", parent=self)
                     return
 
+                def _delete_local():
+                    # Xóa khỏi dữ liệu local
+                    ids = list(self.wikidich_data.get("book_ids") or [])
+                    if book_id in ids:
+                        ids.remove(book_id)
+                    self.wikidich_data["book_ids"] = ids
+                    self.wikidich_data.get("books", {}).pop(book_id, None)
+                    if isinstance(self.wd_new_chapters, dict):
+                        self.wd_new_chapters.pop(book_id, None)
+                    self._wd_save_cache()
+                    self.log(f"[Wikidich] Đã xóa truyện khỏi local: {selected.get('title', book_id)}")
+                    filtered = list(getattr(self, "wikidich_filtered", []) or [])
+                    filtered = [b for b in filtered if b.get("id") != book_id]
+                    self.wikidich_filtered = filtered
+                    self._wd_refresh_tree(filtered)
+                    messagebox.showinfo("Đã xóa", "Đã xóa truyện khỏi dữ liệu local.", parent=self)
+
                 if not is_deleted:
+                    if has_manage_rights is False:
+                        confirm_delete = messagebox.askyesno(
+                            "Truyện còn trên server",
+                            "Truyện này vẫn tồn tại trên server, nhưng tài khoản hiện tại không phải chủ/đồng quản lý/biên tập.\n"
+                            "Bạn có muốn xóa khỏi local không?",
+                            parent=self
+                        )
+                        if confirm_delete:
+                            _delete_local()
+                        return
                     messagebox.showinfo("Chưa xóa trên server", "Trang truyện vẫn tồn tại, không thể xóa trên local.", parent=self)
                     return
 
-                # Xóa khỏi dữ liệu local
+                # Trường hợp truyện đã bị xóa trên server -> cho xóa local
                 ids = list(self.wikidich_data.get("book_ids") or [])
                 if book_id in ids:
                     ids.remove(book_id)
@@ -4599,10 +4636,31 @@ class WikidichMixin:
         except Exception as exc:
             self.log(f"[Wikidich][AutoUpdate] Không lưu được state: {exc}")
 
-    def _wd_append_autoupdate_history(self, entries: list):
+    def _wd_append_autoupdate_history(
+        self,
+        entries: list,
+        replace_date: Optional[str] = None,
+        replace_book_ids: Optional[list] = None,
+    ):
         if not entries:
             return
         history = list(self._wd_get_autoupdate_history_entries())
+        if replace_date:
+            target = str(replace_date).strip()
+            if replace_book_ids:
+                replace_ids = {str(x).strip() for x in replace_book_ids if str(x).strip()}
+                history = [
+                    item for item in history
+                    if not (
+                        str((item or {}).get("date") or "").strip() == target
+                        and str((item or {}).get("book_id") or "").strip() in replace_ids
+                    )
+                ]
+            else:
+                history = [
+                    item for item in history
+                    if str((item or {}).get("date") or "").strip() != target
+                ]
         for item in entries:
             if isinstance(item, dict):
                 history.append(dict(item))
@@ -4636,20 +4694,47 @@ class WikidichMixin:
             })
         return candidates
 
+    def _wd_get_today_autoupdate_pending_ids(self) -> list:
+        today = datetime.now().strftime("%Y-%m-%d")
+        history = list(self._wd_get_autoupdate_history_entries())
+        latest_by_book = {}
+        for idx, item in enumerate(history):
+            if not isinstance(item, dict):
+                continue
+            day = str(item.get("date") or "").strip()
+            if day != today:
+                continue
+            bid = str(item.get("book_id") or "").strip()
+            if not bid:
+                continue
+            result = str(item.get("result") or "").strip().lower()
+            latest_by_book[bid] = (idx, result)
+        pending = []
+        for bid, (_idx, result) in sorted(latest_by_book.items(), key=lambda kv: kv[1][0]):
+            if result != "success":
+                pending.append(bid)
+        return pending
+
     def _wd_update_auto_menu_state(self):
         menu = getattr(self, "wd_auto_menu", None)
         if not menu:
             return
         foreign = self._wd_is_foreign_works()
         marked_count = len(self._wd_get_autoupdate_marked_ids())
+        continue_count = len(self._wd_get_today_autoupdate_pending_ids())
         mark_state = tk.NORMAL
         auto_state = tk.NORMAL if (not foreign and marked_count > 0) else tk.DISABLED
+        continue_state = tk.NORMAL if (not foreign and continue_count > 0) else tk.DISABLED
         try:
             menu.entryconfig("Đánh dấu", state=mark_state)
         except Exception:
             pass
         try:
             menu.entryconfig("Tự động", state=auto_state)
+        except Exception:
+            pass
+        try:
+            menu.entryconfig("Tiếp tục", state=continue_state)
         except Exception:
             pass
         try:
@@ -5010,7 +5095,33 @@ class WikidichMixin:
         ):
             return
         self._wd_cancel_requested = False
-        threading.Thread(target=self._wd_auto_update_marked_worker, args=(marked_ids,), daemon=True).start()
+        threading.Thread(target=self._wd_auto_update_marked_worker, args=(marked_ids, "marked"), daemon=True).start()
+
+    def _wd_start_continue_auto_update(self):
+        if self._wd_loading:
+            messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.", parent=self)
+            return
+        if self._wd_is_foreign_works():
+            messagebox.showinfo("Không hỗ trợ", "Auto Update bị tắt khi dùng Works không chính chủ.", parent=self)
+            return
+        pending_ids = self._wd_get_today_autoupdate_pending_ids()
+        if not pending_ids:
+            messagebox.showinfo(
+                "Không có mục cần tiếp tục",
+                "Hôm nay không còn truyện lỗi/chưa xử lý cần chạy lại.",
+                parent=self
+            )
+            return
+        if not messagebox.askyesno(
+            "Tiếp tục Auto Update",
+            f"Sẽ chạy lại {len(pending_ids)} truyện lỗi/chưa xử lý trong hôm nay.\n"
+            "Lịch sử Auto Update của hôm nay sẽ được ghi đè bằng kết quả mới.\n\n"
+            "Tiếp tục?",
+            parent=self,
+        ):
+            return
+        self._wd_cancel_requested = False
+        threading.Thread(target=self._wd_auto_update_marked_worker, args=(pending_ids, "continue"), daemon=True).start()
 
     def _wd_get_fanqie_link(self, book: dict):
         links = book.get('extra_links') or []
@@ -6666,7 +6777,7 @@ class WikidichMixin:
         col_row2.pack(fill="x", pady=2)
         
         # Define column order for UI display
-        column_order = ['title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'author']
+        column_order = ['title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'rating', 'author']
         
         for i, col_id in enumerate(column_order):
             if col_id not in WIKIDICH_COLUMNS_CONFIG:
@@ -6809,6 +6920,15 @@ class WikidichMixin:
                 'wiki_high_new_color': high_color_val
             }
             self.wikidich_open_mode = open_mode_var.get() or "in_app"
+            # save_config() lấy cấu hình tab từ _wd_controllers[*].state.to_config(),
+            # nên cần sync lại open_mode vào controller để tránh bị ghi đè về "in_app".
+            if hasattr(self, "_wd_controllers") and isinstance(self._wd_controllers, dict):
+                try:
+                    wd_ctrl = self._wd_controllers.get("wikidich")
+                    if wd_ctrl and hasattr(wd_ctrl, "state"):
+                        wd_ctrl.state.open_mode = self.wikidich_open_mode
+                except Exception:
+                    pass
             priority_val = up_priority_var.get() if up_priority_var.get() in ("filename", "content") else DEFAULT_UPLOAD_SETTINGS["priority"]
             self.wikidich_upload_settings = {
                 "filename_regex": up_filename_var.get().strip() or DEFAULT_UPLOAD_SETTINGS["filename_regex"],
@@ -6828,7 +6948,7 @@ class WikidichMixin:
             
             # Save visible columns (in order)
             if hasattr(win, 'column_vars'):
-                column_order = ['title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'author']
+                column_order = ['title', 'status', 'updated', 'chapters', 'new_chapters', 'notes', 'views', 'rating', 'author']
                 new_visible = [col for col in column_order if win.column_vars.get(col, tk.BooleanVar()).get()]
                 # Ensure 'title' is always first
                 if 'title' not in new_visible:
@@ -7591,7 +7711,7 @@ class WikidichMixin:
             "end_num": end_num,
         }
 
-    def _wd_auto_update_marked_worker(self, marked_ids: list):
+    def _wd_auto_update_marked_worker(self, marked_ids: list, run_mode: str = "marked"):
         if pythoncom:
             pythoncom.CoInitialize()
         self._wd_loading = True
@@ -7605,6 +7725,8 @@ class WikidichMixin:
         history_entries = []
         processed_ids = set()
         run_now = datetime.now()
+        run_date = run_now.strftime("%Y-%m-%d")
+        mode_label = "Tiếp tục Auto Update" if run_mode == "continue" else "Auto Update"
         run_id = run_now.strftime("%Y%m%d%H%M%S%f")
         site, profile, _safe_site, _safe_profile = self._wd_get_autoupdate_scope()
 
@@ -7612,7 +7734,7 @@ class WikidichMixin:
             history_entries.append(
                 {
                     "run_id": run_id,
-                    "date": run_now.strftime("%Y-%m-%d"),
+                    "date": run_date,
                     "time": datetime.now().strftime("%H:%M:%S"),
                     "site": site,
                     "profile": profile,
@@ -7643,10 +7765,10 @@ class WikidichMixin:
                     skipped_count += 1
                     processed_ids.add(bid)
                     _add_history(bid, "", "not_run", "Không tìm thấy truyện trong dữ liệu local.")
-                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    self._wd_set_progress(f"{mode_label}: {idx}/{total}", idx, total)
                     continue
                 title = str(book.get("title") or bid)
-                self._wd_set_progress(f"Auto Update: {idx}/{total} - đồng bộ {title}", idx - 1, total)
+                self._wd_set_progress(f"{mode_label}: {idx}/{total} - đồng bộ {title}", idx - 1, total)
                 not_found = self._wd_sync_counts_from_server([book], silent=True)
                 not_found_ids = set()
                 for item in (not_found or []):
@@ -7658,7 +7780,7 @@ class WikidichMixin:
                     msg = "Truyện trả về 404 hoặc không truy cập được trên server."
                     self.log(f"[AutoUpdate][{bid}] {msg}")
                     _add_history(bid, title, "not_run", msg)
-                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    self._wd_set_progress(f"{mode_label}: {idx}/{total}", idx, total)
                     continue
 
                 if isinstance(books_map, dict):
@@ -7689,7 +7811,7 @@ class WikidichMixin:
                     skipped_count += 1
                     processed_ids.add(bid)
                     _add_history(bid, title, "not_run", "Không có link Fanqie.")
-                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    self._wd_set_progress(f"{mode_label}: {idx}/{total}", idx, total)
                     continue
 
                 try:
@@ -7706,20 +7828,20 @@ class WikidichMixin:
                         f"Không đủ điều kiện New > 1 (hiện tại: {new_before}).",
                         new_before=new_before,
                     )
-                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    self._wd_set_progress(f"{mode_label}: {idx}/{total}", idx, total)
                     continue
 
-                self._wd_set_progress(f"Auto Update: {idx}/{total} - bật fanqie_bridge", idx - 1, total)
+                self._wd_set_progress(f"{mode_label}: {idx}/{total} - bật fanqie_bridge", idx - 1, total)
                 if not self._ensure_fanqie_bridge_ready():
                     failed_count += 1
                     processed_ids.add(bid)
                     err = "Không khởi chạy được fanqie_bridge_win.exe."
                     self.log(f"[AutoUpdate][{bid}] {err}")
                     _add_history(bid, title, "failed", err, new_before=new_before)
-                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    self._wd_set_progress(f"{mode_label}: {idx}/{total}", idx, total)
                     continue
 
-                self._wd_set_progress(f"Auto Update: {idx}/{total} - tải Fanqie {title}", idx - 1, total)
+                self._wd_set_progress(f"{mode_label}: {idx}/{total} - tải Fanqie {title}", idx - 1, total)
                 payload = self._wd_collect_auto_update_files_for_book(
                     book,
                     fanqie_link,
@@ -7743,7 +7865,7 @@ class WikidichMixin:
                         self.log(f"[AutoUpdate][{bid}] Thất bại chuẩn bị: {err}")
                         _add_history(bid, title, "failed", err, new_before=payload_new_before)
                     processed_ids.add(bid)
-                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    self._wd_set_progress(f"{mode_label}: {idx}/{total}", idx, total)
                     continue
                 for warn_msg in payload.get("warn_messages") or []:
                     self.log(f"[AutoUpdate][{bid}] {warn_msg}")
@@ -7754,7 +7876,7 @@ class WikidichMixin:
                     err = volumes_data.get("error_message") or "Không lấy được volume upload."
                     self.log(f"[AutoUpdate][{bid}] {err}")
                     _add_history(bid, title, "failed", err, new_before=payload_new_before)
-                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    self._wd_set_progress(f"{mode_label}: {idx}/{total}", idx, total)
                     continue
                 volume = self._wd_pick_auto_upload_volume(volumes_data.get("volumes") or [])
                 if not volume:
@@ -7763,7 +7885,7 @@ class WikidichMixin:
                     err = "Không có volume editable để upload."
                     self.log(f"[AutoUpdate][{bid}] {err}")
                     _add_history(bid, title, "failed", err, new_before=payload_new_before)
-                    self._wd_set_progress(f"Auto Update: {idx}/{total}", idx, total)
+                    self._wd_set_progress(f"{mode_label}: {idx}/{total}", idx, total)
                     continue
                 upload_res = self._wd_upload_parsed_files_to_volume(
                     book=book,
@@ -7796,7 +7918,7 @@ class WikidichMixin:
                     err = upload_res.get("error_message") or "Upload thất bại."
                     self.log(f"[AutoUpdate][{bid}] {err}")
                     _add_history(bid, title, "failed", err, new_before=payload_new_before)
-                self._wd_set_progress(f"Auto Update: {idx}/{total} - {title}", idx, total)
+                self._wd_set_progress(f"{mode_label}: {idx}/{total} - {title}", idx, total)
         except WikidichCancelled:
             cancelled = True
             self.log("[AutoUpdate] Đã dừng theo yêu cầu người dùng.")
@@ -7818,15 +7940,21 @@ class WikidichMixin:
                     if fatal_error:
                         reason = f"Chưa thực hiện do lỗi ngoài dự kiến: {fatal_error}"
                     _add_history(bid, title, "not_run", reason)
-            self._wd_append_autoupdate_history(history_entries)
+            replace_date = run_date if run_mode == "continue" else None
+            replace_book_ids = all_marked if run_mode == "continue" else None
+            self._wd_append_autoupdate_history(
+                history_entries,
+                replace_date=replace_date,
+                replace_book_ids=replace_book_ids,
+            )
             self.after(0, lambda: self._wd_refresh_tree(getattr(self, "wikidich_filtered", [])))
             final_msg = (
-                f"Kết thúc Auto Update.\n"
+                f"Kết thúc {mode_label}.\n"
                 f"- Thành công: {success_count}\n"
                 f"- Thất bại: {failed_count}\n"
                 f"- Chưa thực hiện: {skipped_count}"
             )
-            self.after(0, lambda: messagebox.showinfo("Auto Update", final_msg, parent=self))
+            self.after(0, lambda: messagebox.showinfo(mode_label, final_msg, parent=self))
             self._wd_loading = False
             self._wd_loading_site = None
             self._wd_progress_running = False

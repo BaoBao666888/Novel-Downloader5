@@ -5887,6 +5887,9 @@ class ReaderService:
             text = normalize_vbook_display_text(str(item), single_line=True)
             if not text:
                 return None
+            if self.is_reader_translation_enabled():
+                mode = self.reader_translation_mode()
+                text = self._translate_ui_text(text, single_line=True, mode=mode) or text
             return {
                 "title": text,
                 "script": "",
@@ -5906,6 +5909,9 @@ class ReaderService:
             raw_input = item.get("url")
         if not title:
             return None
+        if self.is_reader_translation_enabled():
+            mode = self.reader_translation_mode()
+            title = self._translate_ui_text(title, single_line=True, mode=mode) or title
         if isinstance(raw_input, (dict, list, str, int, float, bool)) or raw_input is None:
             input_value = raw_input
         else:
@@ -6394,8 +6400,10 @@ class ReaderService:
         candidates.extend([[q, p], [q, str(p)], [q]])
         seen: set[str] = set()
         last_error: Exception | None = None
-        data: Any = []
-        next_value: Any = None
+        best_data: Any = []
+        best_next: Any = None
+        success = False
+        
         for args in candidates:
             sig = json.dumps(args, ensure_ascii=False, sort_keys=True, default=str)
             if sig in seen:
@@ -6404,11 +6412,17 @@ class ReaderService:
             try:
                 data, next_value = self._run_vbook_script_with_next(plugin, "search", args)
                 last_error = None
-                break
+                success = True
+                best_data = data
+                best_next = next_value
+                
+                if data:
+                    break
             except Exception as exc:
                 last_error = exc
                 continue
-        if last_error is not None:
+                
+        if not success and last_error is not None:
             if isinstance(last_error, ApiError):
                 raise last_error
             raise ApiError(
@@ -6418,13 +6432,13 @@ class ReaderService:
                 {"plugin_id": plugin_id, "error": str(last_error)},
             ) from last_error
 
-        rows = data if isinstance(data, list) else (
-            data.get("items")
-            if isinstance(data, dict) and isinstance(data.get("items"), list)
-            else data.get("data")
-            if isinstance(data, dict) and isinstance(data.get("data"), list)
-            else data.get("list")
-            if isinstance(data, dict) and isinstance(data.get("list"), list)
+        rows = best_data if isinstance(best_data, list) else (
+            best_data.get("items")
+            if isinstance(best_data, dict) and isinstance(best_data.get("items"), list)
+            else best_data.get("data")
+            if isinstance(best_data, dict) and isinstance(best_data.get("data"), list)
+            else best_data.get("list")
+            if isinstance(best_data, dict) and isinstance(best_data.get("list"), list)
             else []
         )
         items: list[dict[str, Any]] = []
@@ -6438,8 +6452,8 @@ class ReaderService:
             "query": q,
             "page": p,
             "items": items,
-            "next": next_value,
-            "has_next": next_value is not None and str(next_value).strip() != "",
+            "next": best_next,
+            "has_next": best_next is not None and str(best_next).strip() != "",
             "count": len(items),
         }
 

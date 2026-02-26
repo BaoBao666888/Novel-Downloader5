@@ -429,7 +429,10 @@
       <section class="vbook-manager-pane">
         <div class="vbook-manager-pane-head">
           <h4 id="vbook-installed-title"></h4>
-          <button id="btn-vbook-refresh-installed" class="btn btn-small" type="button"></button>
+          <div class="vbook-pane-head-actions" style="display: flex; gap: 8px;">
+            <button id="btn-vbook-check-updates" class="btn btn-small" type="button"></button>
+            <button id="btn-vbook-refresh-installed" class="btn btn-small" type="button"></button>
+          </div>
         </div>
         <div id="vbook-installed-list" class="vbook-repo-list"></div>
       </section>
@@ -441,25 +444,25 @@
         </div>
         <div class="vbook-repo-picker">
           <label>
-          <div class="vbook-repo-primary-group">
-            <label>
-              <span id="vbook-repo-label"></span>
-              <select id="vbook-repo-select"></select>
-            </label>
-            <button id="btn-vbook-toggle-adv" class="btn btn-small" type="button"></button>
-          </div>
-          <div id="vbook-repo-adv-group" class="vbook-repo-adv-group hidden">
-            <label>
-              <span id="vbook-repo-custom-label"></span>
-              <input id="vbook-repo-custom-input" type="url" placeholder="https://.../repository.json">
-            </label>
-            <div class="vbook-repo-actions">
-              <button id="btn-vbook-load-custom-repo" class="btn btn-small" type="button"></button>
-              <button id="btn-vbook-add-repo" class="btn btn-small" type="button"></button>
-              <button id="btn-vbook-remove-repo" class="btn btn-small" type="button"></button>
-              <button id="btn-vbook-save-repos" class="btn btn-small btn-primary" type="button"></button>
+            <div class="vbook-repo-primary-group">
+              <label>
+                <span id="vbook-repo-label"></span>
+                <select id="vbook-repo-select"></select>
+              </label>
+              <button id="btn-vbook-toggle-adv" class="btn btn-small" type="button"></button>
             </div>
-          </div>
+            <div id="vbook-repo-adv-group" class="vbook-repo-adv-group hidden">
+              <label>
+                <span id="vbook-repo-custom-label"></span>
+                <input id="vbook-repo-custom-input" type="url" placeholder="https://.../repository.json">
+              </label>
+              <div class="vbook-repo-actions">
+                <button id="btn-vbook-load-custom-repo" class="btn btn-small" type="button"></button>
+                <button id="btn-vbook-add-repo" class="btn btn-small" type="button"></button>
+                <button id="btn-vbook-remove-repo" class="btn btn-small" type="button"></button>
+                <button id="btn-vbook-save-repos" class="btn btn-small btn-primary" type="button"></button>
+              </div>
+            </div>
         </div>
         <div id="vbook-repo-list" class="vbook-repo-list"></div>
         <p id="vbook-repo-errors" class="empty-text hidden"></p>

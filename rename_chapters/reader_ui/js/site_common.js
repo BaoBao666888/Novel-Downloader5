@@ -712,6 +712,7 @@ function fillStaticTexts() {
     ["btn-vbook-manager-close", "close"],
     ["vbook-installed-title", "vbookInstalledTitle"],
     ["btn-vbook-refresh-installed", "vbookRefreshInstalled"],
+    ["btn-vbook-check-updates", "vbookCheckUpdates"],
     ["vbook-repo-title", "vbookRepoTitle"],
     ["btn-vbook-refresh-repo", "vbookRefreshRepo"],
     ["vbook-repo-label", "vbookRepoLabel"],
@@ -766,6 +767,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       repoUrls: [],
       repoPlugins: [],
       repoErrors: [],
+      pluginUpdates: {},
       activeRepoUrl: "",
       globalSettings: {
         request_delay_ms: 0,
@@ -1596,15 +1598,65 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       pidEl.className = "vbook-repo-card-desc";
       pidEl.textContent = String(item.plugin_id || "").trim();
 
+      const metaWrap = document.createElement("div");
+      metaWrap.style.display = "flex";
+      metaWrap.style.alignItems = "center";
+      metaWrap.style.gap = "6px";
+      metaWrap.style.flexWrap = "wrap";
+
       const metaEl = document.createElement("div");
       metaEl.className = "vbook-repo-card-meta";
       metaEl.textContent = formatPluginMeta(item) || "";
+      metaWrap.appendChild(metaEl);
 
-      body.append(nameRow, pidEl, metaEl);
+      const updateData = state.vbook.pluginUpdates[item.plugin_id];
+      if (updateData) {
+        const upBadge = document.createElement("span");
+        upBadge.style.fontSize = "10px";
+        upBadge.style.background = "var(--accent)";
+        upBadge.style.color = "#fff";
+        upBadge.style.padding = "2px 6px";
+        upBadge.style.borderRadius = "4px";
+        upBadge.textContent = `Có sẵn: v${updateData.version}`;
+        metaWrap.appendChild(upBadge);
+      }
+
+      body.append(nameRow, pidEl, metaWrap);
 
       // Action
       const actionWrap = document.createElement("div");
       actionWrap.className = "vbook-repo-card-action";
+
+      if (updateData && updateData.plugin_url) {
+        const btnUpdate = document.createElement("button");
+        btnUpdate.type = "button";
+        btnUpdate.className = "btn btn-small btn-primary";
+        btnUpdate.style.marginRight = "6px";
+        btnUpdate.textContent = t("vbookUpdateAction");
+        btnUpdate.addEventListener("click", async () => {
+          showStatus(t("statusInstallingVbookPlugin"));
+          try {
+            await api("/api/vbook/plugins/install", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                plugin_url: updateData.plugin_url,
+                plugin_id: item.plugin_id,
+              }),
+            });
+            showToast(t("toastVbookPluginInstalled"));
+            delete state.vbook.pluginUpdates[item.plugin_id];
+            await loadInstalledVbookPlugins({ silent: true });
+            await loadRepoPlugins({ silent: true });
+          } catch (error) {
+            showToast(error.message || t("toastError"));
+          } finally {
+            hideStatus();
+          }
+        });
+        actionWrap.appendChild(btnUpdate);
+      }
+
       const btnRemove = document.createElement("button");
       btnRemove.type = "button";
       btnRemove.className = "btn btn-small";
@@ -1617,6 +1669,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
         try {
           await api(`/api/vbook/plugins/${encodeURIComponent(pidValue)}`, { method: "DELETE" });
           showToast(t("toastVbookPluginRemoved"));
+          delete state.vbook.pluginUpdates[pidValue];
           await loadInstalledVbookPlugins({ silent: true });
           await loadRepoPlugins({ silent: true });
         } catch (error) {
@@ -1832,6 +1885,41 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     }
   }
 
+  async function checkInstalledPluginUpdates() {
+    showStatus(t("toastVbookCheckingUpdates"));
+    try {
+      const items = Array.isArray(state.vbook.installed) ? state.vbook.installed : [];
+      if (!items.length) {
+        showToast(t("toastVbookNoUpdates"));
+        return;
+      }
+      const repoPayload = await api("/api/vbook/repo/plugins");
+      const allRepoPlugins = Array.isArray(repoPayload && repoPayload.items) ? repoPayload.items : [];
+
+      let updateCount = 0;
+      state.vbook.pluginUpdates = {};
+
+      for (const inst of items) {
+        const match = allRepoPlugins.find(r => r.plugin_id === inst.plugin_id);
+        if (match && match.version && inst.version !== match.version) {
+          state.vbook.pluginUpdates[inst.plugin_id] = match;
+          updateCount++;
+        }
+      }
+
+      if (updateCount > 0) {
+        showToast(t("toastVbookUpdatesFound", { count: updateCount }));
+      } else {
+        showToast(t("toastVbookNoUpdates"));
+      }
+      renderInstalledPlugins();
+    } catch (error) {
+      showToast(error.message || t("toastError"));
+    } finally {
+      hideStatus();
+    }
+  }
+
   async function loadInstalledVbookPlugins({ silent = false } = {}) {
     if (!pluginSelect && !qs("vbook-installed-list")) return [];
     if (!silent) showStatus(t("statusLoadingVbookInstalled"));
@@ -1952,6 +2040,12 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   if (qs("btn-vbook-refresh-installed")) {
     qs("btn-vbook-refresh-installed").addEventListener("click", async () => {
       await loadInstalledVbookPlugins();
+    });
+  }
+
+  if (qs("btn-vbook-check-updates")) {
+    qs("btn-vbook-check-updates").addEventListener("click", async () => {
+      await checkInstalledPluginUpdates();
     });
   }
 

@@ -101,6 +101,7 @@ WIKIDICH_COLUMNS_CONFIG = {
     'new_chapters': ('New', 90, True),
     'notes': ('Ghi chú', 150, True),        # New column
     'views': ('Lượt xem', 90, False),       # Hidden by default
+    'rating': ('Like', 90, False),          # Hidden by default
     'author': ('Tác giả', 160, False),      # Hidden by default
 }
 
