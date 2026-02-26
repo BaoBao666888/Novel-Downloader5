@@ -1641,9 +1641,14 @@ class ND5Mixin:
         def _toggle_progress(active: bool, mode: str = "determinate"):
             if active:
                 progress.grid()
+                try:
+                    # Đảm bảo không còn timer indeterminate cũ gây nhấp nháy khi chạy lại.
+                    progress.stop()
+                except Exception:
+                    pass
                 progress.config(mode=mode)
                 if mode == "indeterminate":
-                    progress.start()
+                    progress.start(90)
             else:
                 try:
                     progress.stop()

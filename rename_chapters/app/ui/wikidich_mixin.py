@@ -538,6 +538,17 @@ class WikidichMixin:
         self.wd_links_listbox.grid(row=0, column=0, sticky="ew")
         self.wd_links_listbox.bind("<Double-Button-1>", self._wd_open_extra_link)
         self.wd_current_links = []
+        origin_row = ttk.Frame(links_frame)
+        origin_row.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        origin_row.columnconfigure(1, weight=1)
+        self.wd_manual_origin_var = tk.StringVar(value="")
+        ttk.Label(origin_row, text="Web gốc:").grid(row=0, column=0, sticky="w")
+        self.wd_manual_origin_entry = ttk.Entry(origin_row, textvariable=self.wd_manual_origin_var, state="readonly")
+        self.wd_manual_origin_entry.grid(row=0, column=1, sticky="ew", padx=(6, 6))
+        self.wd_manual_origin_btn = ttk.Button(origin_row, text="Nhập...", command=self._wd_set_manual_origin_link_from_ui, state=tk.DISABLED)
+        self.wd_manual_origin_btn.grid(row=0, column=2, sticky="e")
+        self.wd_manual_origin_clear_btn = ttk.Button(origin_row, text="Xóa", command=self._wd_clear_manual_origin_link_from_ui, state=tk.DISABLED)
+        self.wd_manual_origin_clear_btn.grid(row=0, column=3, sticky="e", padx=(6, 0))
 
         link_frame = ttk.LabelFrame(detail_frame, text="Liên kết", padding=6)
         link_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=(0, 0), pady=(6, 0))
@@ -1626,6 +1637,7 @@ class WikidichMixin:
                 btn.config(state=tk.DISABLED)
                 self._wd_set_flow_button_visible(btn, False)
             self._wd_update_link_ui(None)
+            self._wd_update_manual_origin_ui(None)
             if not getattr(self, "_wd_foreign_ui_guard", False):
                 self._wd_update_foreign_mode_ui()
             return
@@ -1680,6 +1692,7 @@ class WikidichMixin:
                 btn.config(state=tk.DISABLED)
                 self._wd_set_flow_button_visible(btn, False)
         self._wd_update_link_ui(book)
+        self._wd_update_manual_origin_ui(book)
         if not getattr(self, "_wd_foreign_ui_guard", False):
             self._wd_update_foreign_mode_ui()
 
@@ -1703,6 +1716,141 @@ class WikidichMixin:
         link = self.wd_current_links[index]
         url = (link.get('url') if isinstance(link, dict) else link) or ""
         self._wd_open_link(url)
+
+    def _wd_is_manual_origin_link(self, link) -> bool:
+        if not isinstance(link, dict):
+            return False
+        if link.get("manual_origin") is True:
+            return True
+        kind = str(link.get("kind") or link.get("type") or "").strip().lower()
+        if kind in ("manual_origin", "origin_manual"):
+            return True
+        label = str(link.get("label") or "").strip().lower()
+        return ("web gốc" in label and "thủ công" in label) or ("web goc" in label and "thu cong" in label)
+
+    def _wd_get_manual_origin_url(self, book: Optional[dict] = None) -> str:
+        book = book or getattr(self, "wd_selected_book", None)
+        if not isinstance(book, dict):
+            return ""
+        links = list(book.get("extra_links") or [])
+        for link in links:
+            if self._wd_is_manual_origin_link(link):
+                url = str((link or {}).get("url") or "").strip()
+                if url:
+                    return url
+        return ""
+
+    def _wd_normalize_external_url(self, raw: str) -> str:
+        url = (raw or "").strip()
+        if not url:
+            return ""
+        if "://" not in url:
+            url = "https://" + url
+        parsed = urlparse(url)
+        scheme = (parsed.scheme or "").lower()
+        if scheme not in ("http", "https"):
+            return ""
+        if not parsed.netloc:
+            return ""
+        return parsed.geturl()
+
+    def _wd_update_manual_origin_ui(self, book: Optional[dict] = None):
+        current = book or getattr(self, "wd_selected_book", None)
+        origin_url = self._wd_get_manual_origin_url(current)
+        allow_edit = bool(current and current.get("id") and self._wd_is_foreign_works())
+        if hasattr(self, "wd_manual_origin_var"):
+            self.wd_manual_origin_var.set(origin_url)
+        if hasattr(self, "wd_manual_origin_btn"):
+            self.wd_manual_origin_btn.config(state=tk.NORMAL if allow_edit else tk.DISABLED)
+        if hasattr(self, "wd_manual_origin_clear_btn"):
+            self.wd_manual_origin_clear_btn.config(state=tk.NORMAL if allow_edit and origin_url else tk.DISABLED)
+
+    def _wd_apply_manual_origin_link(self, book: dict, origin_url: str):
+        if not isinstance(book, dict):
+            return
+        bid = str(book.get("id") or "").strip()
+        if not bid:
+            return
+        books = self.wikidich_data.get("books", {}) if isinstance(self.wikidich_data, dict) else {}
+        target = books.get(bid) if isinstance(books, dict) else None
+        if not isinstance(target, dict):
+            target = book
+        old_links = list(target.get("extra_links") or [])
+        new_links = []
+        seen = set()
+        for item in old_links:
+            if self._wd_is_manual_origin_link(item):
+                continue
+            url = ""
+            if isinstance(item, dict):
+                url = str(item.get("url") or "").strip()
+            else:
+                url = str(item or "").strip()
+            key = url.lower()
+            if key and key in seen:
+                continue
+            if key:
+                seen.add(key)
+            new_links.append(item)
+        if origin_url:
+            new_links.insert(0, {
+                "label": "Web gốc (thủ công)",
+                "url": origin_url,
+                "kind": "manual_origin",
+                "manual_origin": True,
+            })
+        target["extra_links"] = new_links
+        if isinstance(books, dict):
+            books[bid] = target
+        if isinstance(book, dict):
+            book["extra_links"] = list(new_links)
+        if getattr(self, "wd_selected_book", None) and self.wd_selected_book.get("id") == bid:
+            self.wd_selected_book["extra_links"] = list(new_links)
+        self._wd_save_cache()
+        self._wd_show_detail(target)
+
+    def _wd_set_manual_origin_link_from_ui(self):
+        book = getattr(self, "wd_selected_book", None)
+        if not book or not book.get("id"):
+            messagebox.showinfo("Chưa chọn truyện", "Chọn một truyện trước.", parent=self)
+            return
+        if not self._wd_is_foreign_works():
+            messagebox.showinfo("Không hỗ trợ", "Chỉ hỗ trợ nhập web gốc khi dùng Works không chính chủ.", parent=self)
+            return
+        current_url = self._wd_get_manual_origin_url(book)
+        raw = simpledialog.askstring(
+            "Web gốc thủ công",
+            "Nhập link web gốc cho truyện này (http/https).\nĐể trống để xóa link web gốc đã nhập.",
+            initialvalue=current_url,
+            parent=self,
+        )
+        if raw is None:
+            return
+        raw = raw.strip()
+        normalized = self._wd_normalize_external_url(raw) if raw else ""
+        if raw and not normalized:
+            messagebox.showerror("URL không hợp lệ", "Vui lòng nhập URL http/https hợp lệ.", parent=self)
+            return
+        self._wd_apply_manual_origin_link(book, normalized)
+        if normalized:
+            self.log(f"[Wikidich] Đã cập nhật web gốc thủ công cho '{book.get('title', book.get('id'))}': {normalized}")
+        else:
+            self.log(f"[Wikidich] Đã xóa web gốc thủ công cho '{book.get('title', book.get('id'))}'.")
+
+    def _wd_clear_manual_origin_link_from_ui(self):
+        book = getattr(self, "wd_selected_book", None)
+        if not book or not book.get("id"):
+            return
+        if not self._wd_get_manual_origin_url(book):
+            return
+        if not messagebox.askyesno(
+            "Xóa web gốc",
+            "Bạn có chắc muốn xóa link web gốc thủ công của truyện này?",
+            parent=self,
+        ):
+            return
+        self._wd_apply_manual_origin_link(book, "")
+        self.log(f"[Wikidich] Đã xóa web gốc thủ công cho '{book.get('title', book.get('id'))}'.")
 
     def _wd_open_book_in_browser(self):
         if not getattr(self, "wd_selected_book", None):
@@ -6061,6 +6209,7 @@ class WikidichMixin:
                 if btn:
                     btn.config(state=tk.DISABLED)
                     self._wd_set_flow_button_visible(btn, False)
+            self._wd_update_manual_origin_ui(getattr(self, "wd_selected_book", None))
             self._wd_update_auto_menu_state()
             return
         if was_foreign:
@@ -6075,6 +6224,7 @@ class WikidichMixin:
                 self._wd_show_detail(getattr(self, "wd_selected_book", None))
             finally:
                 self._wd_foreign_ui_guard = False
+        self._wd_update_manual_origin_ui(getattr(self, "wd_selected_book", None))
         self._wd_update_auto_menu_state()
 
     def _wd_parse_foreign_user_input(self, raw: str) -> str:
@@ -6444,6 +6594,15 @@ class WikidichMixin:
             works_url = f"{base_url}/user/{quote(user_slug)}/works"
             book_ids = list(existing_data.get("book_ids") or []) if existing_data else []
             books = dict(existing_data.get("books") or {}) if existing_data else {}
+            previous_books = {}
+            try:
+                previous_books = dict((self.wikidich_data or {}).get("books") or {})
+            except Exception:
+                previous_books = {}
+            if isinstance(existing_data, dict):
+                for old_bid, old_book in (existing_data.get("books") or {}).items():
+                    if old_bid and old_bid not in previous_books and isinstance(old_book, dict):
+                        previous_books[old_bid] = old_book
             total_count = None
             start = start_offset if start_offset is not None else len(book_ids)
             page_size = page_size_hint
@@ -6477,6 +6636,12 @@ class WikidichMixin:
                     bid = item.get("id")
                     if not bid:
                         continue
+                    old_book = previous_books.get(bid)
+                    if isinstance(old_book, dict):
+                        old_links = list(old_book.get("extra_links") or [])
+                        if old_links and not (item.get("extra_links") or []):
+                            item = dict(item)
+                            item["extra_links"] = old_links
                     if bid not in books:
                         book_ids.append(bid)
                     books[bid] = item

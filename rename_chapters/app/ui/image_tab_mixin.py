@@ -10,6 +10,7 @@ import threading
 import time
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from urllib.parse import urlparse, unquote
 
 import requests
 from PIL import Image, ImageTk
@@ -167,8 +168,29 @@ class ImageTabMixin:
         self.image_format_combo = ttk.Combobox(status_actions, state="readonly", values=["PNG", "JPEG", "WEBP", "BMP", "GIF"])
         self.image_format_combo.set("PNG")
         self.image_format_combo.pack(side=tk.LEFT, padx=(4, 8))
+        ttk.Label(status_actions, text="Tên lưu:").pack(side=tk.LEFT, padx=(2, 0))
+        name_mode_values = ["Mặc định", "Tên từ URL", "Tên file nguồn"]
+        default_name_mode = "Mặc định"
+        try:
+            saved_name_mode = (self.app_config or {}).get("image_save_name_mode", default_name_mode)
+        except Exception:
+            saved_name_mode = default_name_mode
+        if saved_name_mode not in name_mode_values:
+            saved_name_mode = default_name_mode
+        self.image_save_name_mode_var = tk.StringVar(value=saved_name_mode)
+        self.image_save_name_mode_combo = ttk.Combobox(
+            status_actions,
+            state="readonly",
+            width=14,
+            values=name_mode_values,
+            textvariable=self.image_save_name_mode_var,
+        )
+        self.image_save_name_mode_combo.pack(side=tk.LEFT, padx=(4, 8))
+        self.image_save_name_mode_combo.bind("<<ComboboxSelected>>", lambda _e: self._save_image_name_mode_setting())
         self.save_image_btn = ttk.Button(status_actions, text="Lưu ảnh...", command=self._save_converted_image, state="disabled")
         self.save_image_btn.pack(side=tk.LEFT)
+        self._image_source_url = ""
+        self._image_source_path = None
         self._image_ai_cache = {}
         self._image_ai_input_cache = {}
         self._image_ai_input_path = ""
@@ -197,6 +219,7 @@ class ImageTabMixin:
             messagebox.showwarning("Thiếu thông tin", "Vui lòng nhập URL của ảnh.")
             return
 
+        self._image_source_url = url
         self._image_source_path = None
         self.save_image_btn.config(state="disabled")
         self.image_status_label.config(text=f"Đang tải từ {url[:50]}...")
@@ -247,11 +270,13 @@ class ImageTabMixin:
             "BMP": [("BMP file", "*.bmp")],
             "GIF": [("GIF file", "*.gif")],
         }
+        initial_name = self._suggest_image_filename(selected_format)
 
         filepath = filedialog.asksaveasfilename(
             title="Lưu ảnh",
             defaultextension=f".{selected_format.lower()}",
             filetypes=file_types.get(selected_format, [("All files", "*.*")]),
+            initialfile=initial_name,
         )
 
         if not filepath:
@@ -330,6 +355,7 @@ class ImageTabMixin:
         if not filepath:
             return
 
+        self._image_source_url = ""
         self._image_source_path = filepath
         self.save_image_btn.config(state="disabled")
         self.image_status_label.config(text=f"Đang mở file: {os.path.basename(filepath)}...")
@@ -361,6 +387,76 @@ class ImageTabMixin:
             self.undo_image_btn.config(state="disabled")
 
         self.after(0, update_ui_success)
+
+    def _save_image_name_mode_setting(self):
+        mode = ""
+        try:
+            mode = (self.image_save_name_mode_var.get() or "").strip()
+        except Exception:
+            return
+        try:
+            if isinstance(getattr(self, "app_config", None), dict):
+                self.app_config["image_save_name_mode"] = mode
+                self.save_config()
+        except Exception:
+            pass
+
+    def _sanitize_image_basename(self, name: str) -> str:
+        text = unquote(str(name or "")).strip()
+        if not text:
+            return ""
+        text = os.path.splitext(os.path.basename(text))[0]
+        text = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", text)
+        text = re.sub(r"\s+", " ", text).strip(" .")
+        return text
+
+    def _extract_basename_from_source_url(self) -> str:
+        url = ""
+        try:
+            url = (self._image_source_url or "").strip()
+        except Exception:
+            url = ""
+        if not url:
+            return ""
+        try:
+            parsed = urlparse(url)
+            path_name = os.path.basename(parsed.path or "")
+            return self._sanitize_image_basename(path_name)
+        except Exception:
+            return ""
+
+    def _extract_basename_from_source_file(self) -> str:
+        path = ""
+        try:
+            path = (self._image_source_path or "").strip()
+        except Exception:
+            path = ""
+        if not path:
+            return ""
+        return self._sanitize_image_basename(os.path.basename(path))
+
+    def _suggest_image_filename(self, selected_format: str) -> str:
+        ext_map = {
+            "PNG": ".png",
+            "JPEG": ".jpg",
+            "WEBP": ".webp",
+            "BMP": ".bmp",
+            "GIF": ".gif",
+        }
+        ext = ext_map.get((selected_format or "").upper(), "")
+        mode = ""
+        try:
+            mode = (self.image_save_name_mode_var.get() or "").strip()
+        except Exception:
+            mode = "Mặc định"
+        base = ""
+        if mode == "Tên từ URL":
+            base = self._extract_basename_from_source_url()
+        elif mode == "Tên file nguồn":
+            base = self._extract_basename_from_source_file()
+        if not base:
+            return ""
+        return f"{base}{ext}"
 
     def _undo_image_enhancement(self):
         if not self.image_original_pil:
