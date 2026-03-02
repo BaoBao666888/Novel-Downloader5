@@ -7541,6 +7541,7 @@
             </div>
         `;
         document.body.appendChild(root);
+        removeFloatingButtons();
 
         libReaderUI = {
             root,
