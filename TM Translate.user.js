@@ -212,7 +212,7 @@
     // Tạo shadow host để cách ly UI khỏi CSS trang web
     const tmShadowHost = document.createElement('div');
     tmShadowHost.id = 'tm-translate-host';
-    tmShadowHost.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;overflow:visible;z-index:2147483640;pointer-events:none;';
+    tmShadowHost.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;overflow:visible;z-index:2147483647;pointer-events:none;';
     document.documentElement.appendChild(tmShadowHost);
     const tmShadow = tmShadowHost.attachShadow({ mode: 'open' });
 
