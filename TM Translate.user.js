@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.5.1_beta
+// @version      3.5.2_beta
 // @description  Dịch trang, quản lý name-sets, sửa tên, chế độ đọc rút gọn và tùy chỉnh giao diện.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -119,6 +119,7 @@
         nameEditingEnabled: true,
         allowCopyWhenEditing: true,
         showLibraryButton: true,
+        showHelpButton: true,
         readerPrefetchPercent: 50,
         readerMode: 'vertical', // single | vertical
         readerFullscreen: false,
@@ -201,7 +202,29 @@
     let originalBodyElement = null; // Giữ body gốc để khôi phục không cần reload
     let originalScrollPosition = 0;
     let originalBodyClone = null; // Stores body before simplified view is enabled
-    let translatedBodyClone = null; // Stores body *after* translation
+    let translatedBodyClone = null;
+
+    /* ================== VERSION ================== */
+    const CURRENT_VERSION = '3.5.2';
+    const TM_VERSION_KEY = 'tm_translate_version';
+
+    /* ================== SHADOW DOM ================== */
+    // Tạo shadow host để cách ly UI khỏi CSS trang web
+    const tmShadowHost = document.createElement('div');
+    tmShadowHost.id = 'tm-translate-host';
+    tmShadowHost.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;overflow:visible;z-index:2147483640;pointer-events:none;';
+    document.documentElement.appendChild(tmShadowHost);
+    const tmShadow = tmShadowHost.attachShadow({ mode: 'open' });
+
+    // Container chứa tất cả UI elements
+    const tmUIRoot = document.createElement('div');
+    tmUIRoot.id = 'tm-ui-root';
+    tmUIRoot.style.cssText = 'pointer-events:auto;';
+    tmShadow.appendChild(tmUIRoot);
+
+    // Helpers: tìm/xóa element trong shadow root
+    function tmEl(id) { return tmUIRoot.querySelector('#' + id); }
+    function tmRemoveEl(id) { const el = tmUIRoot.querySelector('#' + id); if (el) el.remove(); }
 
     /* ================== UTILITIES ================== */
     const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -254,13 +277,19 @@
     }
 
     function injectGlobalCSS() {
-        if (document.getElementById('tm-global-styles')) return;
-
-        const css = `
-        :root {
+        // CSS cho UI elements (dalam shadow root)
+        if (!tmShadow.querySelector('#tm-shadow-styles')) {
+            const uiCSS = `
+        :host {
             --tm-primary: #007bff; --tm-dark: #343a40; --tm-light: #f8f9fa;
             --tm-white: #ffffff; --tm-border-color: #dee2e6; --tm-shadow: 0 8px 25px rgba(0,0,0,0.15);
             --tm-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        #tm-ui-root {
+            font-family: var(--tm-font);
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--tm-dark);
         }
         .tm-float-btn {
             position: fixed; width: 48px; height: 48px; border-radius: 50%; color: var(--tm-white);
@@ -268,7 +297,6 @@
             cursor: pointer; box-shadow: var(--tm-shadow); transition: all 0.2s ease-in-out;
         }
         .tm-float-btn:hover { transform: scale(1.1); }
-        #tm-edit-pencil { right: 18px; bottom: 18px; background-color: var(--tm-primary); }
         #tm-selection-edit-btn {
             position: fixed;
             z-index: 2147483661;
@@ -285,7 +313,6 @@
             user-select: none;
         }
         #tm-selection-edit-btn svg { width: 14px; height: 14px; }
-        #tm-style-button { right: 18px; bottom: 80px; background-color: var(--tm-dark); }
         .tm-modal-wrapper {
             position: fixed; inset: 0; z-index: 2147483645;
             display: flex; align-items: center; justify-content: center; font-family: var(--tm-font);
@@ -298,7 +325,7 @@
         }
         .tm-modal-header { padding: 12px 20px; border-bottom: 1px solid var(--tm-border-color); display: flex; justify-content: space-between; align-items: center; }
         .tm-modal-header h2, .tm-modal-header h3 { margin: 0; font-size: 1.2rem; }
-        .tm-modal-content { padding: 20px; overflow-y: auto; color: var(--tm-dark); } /* SỬA ĐỔI: Thêm màu chữ mặc định */
+        .tm-modal-content { padding: 20px; overflow-y: auto; color: var(--tm-dark); }
         .tm-modal-footer { padding: 12px 20px; border-top: 1px solid var(--tm-border-color); display: flex; justify-content: flex-end; gap: 8px; background-color: var(--tm-light); }
         .tm-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #ccc; background: #f7f7f7; cursor: pointer; transition: background 0.2s; font-size: 14px; }
         .tm-btn:hover { background: #e9e9e9; }
@@ -309,7 +336,7 @@
         .tm-row { display: flex; gap: 16px; }
         .tm-col { flex: 1; }
         .tm-tabs-nav { display: flex; border-bottom: 1px solid var(--tm-border-color); background: var(--tm-light); }
-        .tm-tab-btn { padding: 12px 20px; cursor: pointer; border: none; background: none; font-size: 15px; }
+        .tm-tab-btn { padding: 12px 20px; cursor: pointer; border: none; background: none; font-size: 15px; color: var(--tm-dark); }
         .tm-tab-btn.active { background: var(--tm-white); border-bottom: 3px solid var(--tm-primary); }
         .tm-tab-content { display: none; }
         .tm-tab-content.active { display: block; }
@@ -317,19 +344,58 @@
         .tm-bg-swatch { width: 32px; height: 32px; border: 1px solid #ddd; cursor: pointer; border-radius: 50%; transition: transform 0.2s; }
         .tm-bg-swatch:hover { transform: scale(1.1); }
         .tm-bg-swatch.active { box-shadow: 0 0 0 3px var(--tm-primary); }
+        .tm-preview-box { border: 1px solid var(--tm-border-color); padding: 8px; min-height: 200px; max-height: 400px; overflow: auto; background: #fafafa; border-radius: 6px; color: var(--tm-dark); }
+        #tm-loading-indicator { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: var(--tm-dark); color: white; padding: 10px 20px; border-radius: 8px; z-index: 2147483647; font-size: 16px; box-shadow: var(--tm-shadow); }
+        #tm-notification-bubble { position: fixed; top: 20px; right: 20px; background-color: #2c3e50; color: white; padding: 10px 18px; border-radius: 25px; z-index: 2147483647; font-size: 14px; box-shadow: var(--tm-shadow); }
+        /* Help/Welcome Modal */
+        .tm-help-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2147483650; }
+        .tm-help-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 640px; max-width: 92vw; max-height: 82vh;
+            background: linear-gradient(135deg, #fff7fb 0%, #f2f8ff 100%);
+            border-radius: 14px; border: 1px solid rgba(0,0,0,0.06);
+            box-shadow: 0 18px 40px rgba(63, 81, 181, 0.25);
+            z-index: 2147483651; display: flex; flex-direction: column;
+            color: #222; font-family: var(--tm-font); font-size: 14px;
+        }
+        .tm-help-header {
+            padding: 12px 16px; font-size: 16px; font-weight: 600;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            background: linear-gradient(90deg, #fce4ec, #e3f2fd);
+            border-radius: 14px 14px 0 0;
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        }
+        .tm-help-content { padding: 14px 16px; overflow-y: auto; line-height: 1.55; }
+        .tm-help-content h3 { margin: 12px 0 6px; font-size: 15px; color: #6a1b9a; }
+        .tm-help-content code { background: #fff0f6; padding: 1px 4px; border-radius: 4px; }
+        .tm-help-content ul { padding-left: 20px; margin: 6px 0 12px; }
+        .tm-help-close { padding: 4px 10px; font-size: 12px; min-height: unset; width: auto; }
+        .tm-welcome-title { text-align: center; font-size: 18px; font-weight: 700; color: #7b1fa2; }
+        .tm-welcome-sub { text-align: center; margin: 6px 0 10px 0; color: #6a5b9a; }
+        .tm-welcome-banner { background: linear-gradient(135deg, #fce4ec, #e3f2fd); padding: 10px; border-radius: 10px; border-left: 4px solid #ec407a; }
+        .tm-update-banner { margin: 8px 0 12px; padding: 10px 12px; border-radius: 12px; background: linear-gradient(135deg, #ffe7f3 0%, #e8f3ff 100%); border: 1px solid rgba(255, 143, 194, 0.4); }
+        .tm-update-banner strong { color: #7a1d5a; }
+        .tm-hide { display: none !important; }
+        `;
+            const shadowStyle = document.createElement('style');
+            shadowStyle.id = 'tm-shadow-styles';
+            shadowStyle.textContent = uiCSS;
+            tmShadow.insertBefore(shadowStyle, tmShadow.firstChild);
+        }
+
+        // CSS cho page (simplified view, reader overlay) - giữ trên document.head
+        if (document.getElementById('tm-global-styles')) return;
+        const pageCSS = `
         #tm-simplified-container { padding: 30px 5%; min-height: 100vh; box-sizing: border-box; }
         #tm-simplified-container p { margin-bottom: 1.2em; }
         #tm-simplified-topbar { max-width: 800px; margin: 0 auto 24px auto; display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid rgba(128,128,128,0.3); }
-        .tm-preview-box { border: 1px solid var(--tm-border-color); padding: 8px; min-height: 200px; max-height: 400px; overflow: auto; background: #fafafa; border-radius: 6px; color: var(--tm-dark); } /* SỬA ĐỔI: Thêm màu chữ */
-        #tm-loading-indicator { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: var(--tm-dark); color: white; padding: 10px 20px; border-radius: 8px; z-index: 2147483647; font-size: 16px; box-shadow: var(--tm-shadow); }
-        /* NEW: Reader UI */
         .tm-reader-overlay { position: fixed; inset: 0; z-index: 2147483646; display: flex; flex-direction: column; background: var(--tm-reader-bg, #f7f4ee); color: var(--tm-reader-text, #1f1f1f); font-family: var(--tm-reader-font, "Noto Serif", "Times New Roman", serif); }
         .tm-reader-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--tm-reader-border, rgba(0,0,0,0.08)); background: var(--tm-reader-surface, #fbf9f4); }
         .tm-reader-title { display: flex; flex-direction: column; gap: 4px; }
         .tm-reader-book { font-size: 18px; font-weight: 700; }
         .tm-reader-chapter { font-size: 14px; color: var(--tm-reader-muted, #5c5c5c); }
         .tm-reader-actions { display: flex; align-items: center; gap: 8px; }
-        .tm-reader-actions .tm-btn { padding: 6px 12px; }
+        .tm-reader-actions .tm-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #ccc; background: #f7f7f7; cursor: pointer; font-size: 14px; }
         .tm-reader-actions .tm-btn.active { background: var(--tm-reader-text, #222); color: var(--tm-reader-bg, #fff); border-color: var(--tm-reader-text, #222); }
         .tm-reader-body { flex: 1; display: flex; overflow: hidden; }
         .tm-reader-toc { width: 280px; background: var(--tm-reader-surface, #f1ede4); border-right: 1px solid var(--tm-reader-border, rgba(0,0,0,0.08)); overflow-y: auto; }
@@ -347,7 +413,7 @@
         .tm-reader-block-text { white-space: pre-wrap; font-size: var(--tm-reader-font-size, 18px); line-height: var(--tm-reader-line-height, 1.9); text-align: var(--tm-reader-text-align, justify); }
         .tm-reader-spacer { height: var(--tm-reader-spacer, 120px); display: flex; align-items: center; justify-content: center; color: var(--tm-reader-muted, #6b6b6b); font-size: 12px; }
         .tm-reader-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--tm-reader-border, rgba(0,0,0,0.08)); background: var(--tm-reader-surface, #fbf9f4); }
-        .tm-reader-footer .tm-btn { min-width: 140px; }
+        .tm-reader-footer .tm-btn { min-width: 140px; border-radius: 6px; border: 1px solid #ccc; background: #f7f7f7; cursor: pointer; font-size: 14px; padding: 8px 16px; }
         .tm-reader-progress { font-size: 13px; color: var(--tm-reader-muted, #5c5c5c); }
         .tm-reader-no-translate #tm-reader-raw-btn,
         .tm-reader-no-translate #tm-reader-trans-btn { display: none; }
@@ -357,23 +423,20 @@
         .tm-reader-fullscreen .tm-reader-content { padding: 28px var(--tm-reader-padding-x, 10vw); }
         .tm-reader-overlay .tm-btn { background: transparent; color: var(--tm-reader-text, #1f1f1f); border-color: var(--tm-reader-border, #ccc); }
         .tm-reader-overlay .tm-btn:hover { background: var(--tm-reader-hover, rgba(0,0,0,0.06)); }
-        /* Reader scrollbar (modern) */
         .tm-reader-overlay * { scrollbar-width: thin; scrollbar-color: var(--tm-reader-border, #999) transparent; }
         .tm-reader-overlay ::-webkit-scrollbar { width: 10px; height: 10px; }
         .tm-reader-overlay ::-webkit-scrollbar-track { background: transparent; }
         .tm-reader-overlay ::-webkit-scrollbar-thumb {
             background: color-mix(in srgb, var(--tm-reader-text, #555) 30%, transparent);
-            border-radius: 8px;
-            border: 2px solid transparent;
-            background-clip: padding-box;
+            border-radius: 8px; border: 2px solid transparent; background-clip: padding-box;
         }
         .tm-reader-overlay ::-webkit-scrollbar-thumb:hover {
             background: color-mix(in srgb, var(--tm-reader-text, #555) 45%, transparent);
         }
-    `;
+        `;
         const styleEl = document.createElement('style');
         styleEl.id = 'tm-global-styles';
-        styleEl.textContent = css;
+        styleEl.textContent = pageCSS;
         document.head.appendChild(styleEl);
     }
 
@@ -449,11 +512,10 @@
         const div = document.createElement('div');
         div.id = 'tm-loading-indicator';
         div.textContent = message;
-        document.body.appendChild(div);
+        tmUIRoot.appendChild(div);
     }
     function removeLoading() {
-        const el = document.getElementById('tm-loading-indicator');
-        if (el) el.remove();
+        tmRemoveEl('tm-loading-indicator');
     }
 
     function updateFloatingButtons() {
@@ -464,6 +526,7 @@
         removeElementById('tm-restore-original-btn');
         removeElementById('tm-ocr-float-btn');
         removeElementById('tm-library-btn');
+        removeElementById('tm-help-float-btn');
         removeStylePanel();
 
         let bottomOffset = 18;
@@ -475,10 +538,10 @@
             quickBtn.title = 'Bảng dịch nhanh';
             quickBtn.style.right = '18px';
             quickBtn.style.bottom = `${bottomOffset}px`;
-            quickBtn.style.backgroundColor = '#6c757d'; // Màu xám
+            quickBtn.style.backgroundColor = '#6c757d';
             quickBtn.innerHTML = ttHTML(`<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 11H7V9h2v2zm4 0h-2V9h2v2zm4 0h-2V9h2v2z"/></svg>`);
             quickBtn.addEventListener('click', showQuickTranslatePanel);
-            document.body.appendChild(quickBtn);
+            tmUIRoot.appendChild(quickBtn);
             bottomOffset += 64;
         }
 
@@ -489,10 +552,10 @@
             ocrBtn.title = 'OCR Vùng chọn (Dịch hình ảnh)';
             ocrBtn.style.right = '18px';
             ocrBtn.style.bottom = `${bottomOffset}px`;
-            ocrBtn.style.backgroundColor = '#17a2b8'; // Teal
+            ocrBtn.style.backgroundColor = '#17a2b8';
             ocrBtn.innerHTML = ttHTML(`<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2-2v-2"/><path d="M10 10l4 4m0-4l-4 4"/></svg>`);
             ocrBtn.addEventListener('click', handleOcrButtonClick);
-            document.body.appendChild(ocrBtn);
+            tmUIRoot.appendChild(ocrBtn);
             bottomOffset += 64;
         }
 
@@ -506,7 +569,7 @@
             libBtn.style.backgroundColor = '#20c997';
             libBtn.innerHTML = ttHTML(`<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 5.5C3 4.12 4.12 3 5.5 3H20v16h-1.5a2.5 2.5 0 0 0 0 5H20v1H5.5C4.12 25 3 23.88 3 22.5v-17zM5.5 5a.5.5 0 0 0-.5.5v17a.5.5 0 0 0 .5.5H18a1.5 1.5 0 0 1 0-3H5.5a.5.5 0 0 1-.5-.5v-14A.5.5 0 0 1 5.5 5H18V4H5.5z"/></svg>`);
             libBtn.addEventListener('click', openLibraryListModal);
-            document.body.appendChild(libBtn);
+            tmUIRoot.appendChild(libBtn);
             bottomOffset += 64;
         }
 
@@ -518,9 +581,9 @@
             startBtn.style.right = '18px';
             startBtn.style.bottom = `${bottomOffset}px`;
             startBtn.title = 'Bắt đầu dịch trang này';
-            startBtn.innerHTML = ttHTML(`<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M21.79,6.22C20.21,4.64,18,4,15.5,4c-2.12,0-3.88,0.64-5.23,1.93L12,7.66l1.41,1.41l-2.42,2.42l-2.42-2.42L10,7.66 C10,7.66,10,7.66,10,7.66L8.59,6.24C7.7,5.36,6.58,4.8,5.25,4.8C4.19,4.8,3.2,5.1,2.4,5.9C0.83,7.47,0.83,10,2.4,11.6l4.24,4.24 c0.78,0.78,1.8,1.17,2.83,1.17s2.05-0.39,2.83-1.17l1.41-1.41l-1.41-1.41L12,14.34l-1.06-1.06c-0.39-0.39-0.39-1.02,0-1.41 s1.02-0.39,1.41,0l1.06,1.06l2.42-2.42l1.41,1.41l-1.41,1.41c-1.56,1.56-4.09,1.56-5.66,0l-4.24-4.24c-1.17-1.17-1.17-3.07,0-4.24 c0.75-0.75,1.76-1.12,2.83-1.12s2.08,0.38,2.83,1.12l1.41,1.41L12,7.66l2.42,2.42l1.41-1.41L14.41,7.24c1.35-1.29,3.11-1.93,5.23-1.93 c2.5,0,4.71,0.64,6.29,2.21c1.56,1.56,1.56,4.09,0,5.66l-2.12,2.12l-1.41-1.41l2.12-2.12C22.96,10.32,22.96,7.79,21.79,6.22z"/></svg>`);
+            startBtn.innerHTML = ttHTML(`<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><text x="12" y="17" text-anchor="middle" font-size="18" font-weight="bold" font-family="Arial,sans-serif">D</text></svg>`);
             startBtn.addEventListener('click', startTranslateAction);
-            document.body.appendChild(startBtn);
+            tmUIRoot.appendChild(startBtn);
             bottomOffset += 64;
         } else if (translatedBodyClone && config.nameEditingEnabled) {
 
@@ -539,7 +602,7 @@
                 event.preventDefault();
                 openEditModalForSelection();
             });
-            document.body.appendChild(pencil);
+            tmUIRoot.appendChild(pencil);
             bottomOffset += 64;
         }
 
@@ -549,11 +612,11 @@
             restoreBtn.className = 'tm-float-btn';
             restoreBtn.title = 'Quay về trang gốc';
             restoreBtn.style.right = '18px';
-            restoreBtn.style.top = '18px'; // Đặt lên góc phải trên để tránh trùng với các nút khác
+            restoreBtn.style.top = '18px';
             restoreBtn.style.backgroundColor = '#ffc107';
             restoreBtn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M5 11h10l-3.29-3.29L13.12 6.3 19 12l-5.88 5.7-1.41-1.41L15 13H5z"/></svg>`;
             restoreBtn.addEventListener('click', restoreOriginalPage);
-            document.body.appendChild(restoreBtn);
+            tmUIRoot.appendChild(restoreBtn);
         }
 
         if (simplifiedActive) {
@@ -563,14 +626,33 @@
             styleBtn.title = 'Tùy chỉnh Giao diện đọc';
             styleBtn.style.right = '18px';
             styleBtn.style.bottom = `${bottomOffset}px`;
-            styleBtn.style.backgroundColor = 'var(--tm-dark)';
+            styleBtn.style.backgroundColor = '#343a40';
             styleBtn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7h14M5 17h14"/></svg>`;
             styleBtn.addEventListener('click', toggleStylePanel);
-            document.body.appendChild(styleBtn);
+            tmUIRoot.appendChild(styleBtn);
+        }
+
+        // Nút ? Hướng dẫn (góc trái trên)
+        if (config.showHelpButton) {
+            const helpBtn = document.createElement('div');
+            helpBtn.id = 'tm-help-float-btn';
+            helpBtn.className = 'tm-float-btn';
+            helpBtn.title = 'Hướng dẫn sử dụng';
+            helpBtn.style.left = '18px';
+            helpBtn.style.top = '18px';
+            helpBtn.style.right = 'auto';
+            helpBtn.style.backgroundColor = '#6a1b9a';
+            helpBtn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><text x="12" y="18" text-anchor="middle" font-size="18" font-weight="bold" font-family="Arial,sans-serif">?</text></svg>`;
+            helpBtn.addEventListener('click', openHelpModalFull);
+            tmUIRoot.appendChild(helpBtn);
         }
     }
 
-    function removeElementById(id) { document.getElementById(id)?.remove(); }
+    // Tìm/xóa element trong shadow root trước, rồi fallback document
+    function removeElementById(id) {
+        const el = tmUIRoot.querySelector('#' + id) || document.getElementById(id);
+        if (el) el.remove();
+    }
     function removeFloatingButtons() {
         removeElementById('tm-start-translate-btn');
         removeElementById('tm-edit-pencil');
@@ -579,6 +661,7 @@
         removeElementById('tm-restore-original-btn');
         removeElementById('tm-ocr-float-btn');
         removeElementById('tm-library-btn');
+        removeElementById('tm-help-float-btn');
         removeStylePanel();
     }
 
@@ -690,7 +773,7 @@
                 openEditModalForSelection();
                 hideSelectionEditButton();
             });
-            document.body.appendChild(selectionEditBtn);
+            tmUIRoot.appendChild(selectionEditBtn);
         }
         const left = Math.min(window.innerWidth - 140, Math.max(8, rect.left + rect.width / 2 - 50));
         const top = Math.max(8, rect.top - 42);
@@ -1650,17 +1733,12 @@
     /* ================== AUTO TRANSLATE NEW CONTENT ================== */
 
     function showNotification(message, duration = 2000) {
-        removeElementById('tm-notification-bubble');
+        tmRemoveEl('tm-notification-bubble');
         const div = document.createElement('div');
         div.id = 'tm-notification-bubble';
         div.textContent = message;
-        div.style.cssText = `
-        position: fixed; top: 20px; right: 20px; background-color: #2c3e50;
-        color: white; padding: 10px 18px; border-radius: 25px;
-        z-index: 2147483647; font-size: 14px; box-shadow: var(--tm-shadow);
-        opacity: 0; transition: opacity 0.3s ease;
-    `;
-        document.body.appendChild(div);
+        div.style.cssText = 'opacity:0; transition: opacity 0.3s ease;';
+        tmUIRoot.appendChild(div);
         setTimeout(() => { div.style.opacity = '1'; }, 10);
         setTimeout(() => {
             div.style.opacity = '0';
@@ -1909,7 +1987,7 @@
             </div>
         </div>
     `;
-        document.body.appendChild(wrapper);
+        tmUIRoot.appendChild(wrapper);
 
         // NEW: Áp dụng theme của UI đọc truyện nếu đang mở reader
         const readerRoot = document.getElementById('tm-reader-overlay');
@@ -1980,9 +2058,9 @@
         }
 
         function attachActionListeners() {
-            const btnAdd = document.getElementById('tm-edit-add');
-            const btnSave = document.getElementById('tm-edit-save');
-            const btnDelete = document.getElementById('tm-edit-delete');
+            const btnAdd = tmEl('tm-edit-add');
+            const btnSave = tmEl('tm-edit-save');
+            const btnDelete = tmEl('tm-edit-delete');
 
             const actionHandler = async (action) => {
                 const setName = config.activeNameSet;
@@ -2170,7 +2248,7 @@
             </div>
         </div>
     `;
-        document.body.appendChild(wrapper);
+        tmUIRoot.appendChild(wrapper);
 
         const close = () => wrapper.remove();
         wrapper.querySelector('.tm-modal-backdrop').addEventListener('click', close);
@@ -2392,7 +2470,7 @@
 
     /* ================== STYLE PANEL UI ================== */
     function toggleStylePanel() {
-        if (document.getElementById('tm-style-panel')) {
+        if (tmEl('tm-style-panel')) {
             removeElementById('tm-style-panel');
         } else {
             createStylePanel();
@@ -2455,7 +2533,7 @@
         </div>
     </div>`;
 
-        document.body.appendChild(panel);
+        tmUIRoot.appendChild(panel);
 
         // Set initial values
         panel.querySelector('#tm-style-view').value = config.simplifiedShowOriginal ? 'original' : 'translated';
@@ -2576,7 +2654,7 @@
 `;
 
 
-        document.body.appendChild(wrapper);
+        tmUIRoot.appendChild(wrapper);
 
         const close = () => wrapper.remove();
         wrapper.querySelector('#tm-quick-close').addEventListener('click', close);
@@ -2668,10 +2746,10 @@
     }
 
     function renderLocalDictPage() {
-        const localDictResults = document.getElementById('tm-local-dict-results');
-        const pageInfo = document.getElementById('tm-local-page-info');
-        const prevBtn = document.getElementById('tm-local-prev-btn');
-        const nextBtn = document.getElementById('tm-local-next-btn');
+        const localDictResults = tmEl('tm-local-dict-results');
+        const pageInfo = tmEl('tm-local-page-info');
+        const prevBtn = tmEl('tm-local-prev-btn');
+        const nextBtn = tmEl('tm-local-next-btn');
 
         if (!localDictResults || !pageInfo) return; // UI not open
 
@@ -2745,9 +2823,9 @@
                 </div>
             </div>
         </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        tmUIRoot.insertAdjacentHTML('beforeend', modalHtml);
 
-        const modal = document.getElementById(modalId);
+        const modal = tmEl(modalId);
         const valueInput = modal.querySelector('#tm-local-value');
         const keyInput = modal.querySelector('#tm-local-key');
 
@@ -2837,6 +2915,7 @@
             <button class="tm-tab-btn ${activeClass('advanced')}" data-tab="advanced" style="${hiddenStyle}">Nâng cao</button>
             <button class="tm-tab-btn ${activeClass('blacklist')}" data-tab="blacklist">Blacklist</button>
             <button class="tm-tab-btn ${activeClass('localedit')}" data-tab="localedit" style="${hiddenStyle}">Từ điển Local</button>
+            <button class="tm-tab-btn" id="tm-settings-guide-btn" style="margin-left:auto; color:#6a1b9a; font-weight:600;">📖 Hướng dẫn</button>
         </div>
         <div class="tm-modal-content">
             <!-- Name Sets Tab -->
@@ -2897,6 +2976,11 @@
                      Hiển thị nút "Dịch" nổi trên trang
                 </label>
                 <p style="font-size:13px; color:#555">Bật/tắt nút dịch màu xanh lá cây ở góc màn hình.</p>
+                <label class="tm-label" style="margin-top: 16px;">
+                     <input type="checkbox" id="tm-show-help-btn" style="margin-right: 5px;" />
+                     Hiển thị nút "Hướng dẫn" (?) trên trang
+                </label>
+                <p style="font-size:13px; color:#555">Bật/tắt nút ? ở góc trái trên màn hình để xem hướng dẫn.</p>
                 <label class="tm-label" style="margin-top: 16px;">
                      <input type="checkbox" id="tm-show-quick-btn" style="margin-right: 5px;" />
                      Hiển thị nút "Bảng dịch nhanh"
@@ -3500,7 +3584,7 @@
 
         wrapper.querySelector('[data-tab="localedit"]').addEventListener('click', initLocalDictTab);
 
-        document.body.appendChild(wrapper);
+        tmUIRoot.appendChild(wrapper);
 
         // --- Tab logic ---
         const nameEditingCheckbox = wrapper.querySelector('#tm-name-editing-enabled');
@@ -3781,6 +3865,7 @@
         wrapper.querySelector('#tm-override-font-family').value = config.overrideFontFamily;
         wrapper.querySelector('#tm-show-start-btn').checked = !!config.showStartButton;
         wrapper.querySelector('#tm-show-quick-btn').checked = !!config.showQuickTranslateButton;
+        wrapper.querySelector('#tm-show-help-btn').checked = config.showHelpButton !== false;
         wrapper.querySelector('#tm-show-restore-btn').checked = config.showRestoreButton !== false;
         wrapper.querySelector('#tm-auto-translate-scroll').checked = !!config.autoTranslateOnScroll;
         wrapper.querySelector('#tm-name-editing-enabled').checked = !!config.nameEditingEnabled;
@@ -3951,6 +4036,10 @@
         wrapper.querySelector('.tm-modal-backdrop').addEventListener('click', close);
         wrapper.querySelector('#tm-settings-cancel').addEventListener('click', close);
         wrapper.querySelector('#tm-settings-close').addEventListener('click', close);
+        wrapper.querySelector('#tm-settings-guide-btn')?.addEventListener('click', () => {
+            close();
+            setTimeout(openHelpModalFull, 100);
+        });
 
         const saveChanges = () => {
             isSaving = true; // Đặt cờ, báo là đang lưu
@@ -3970,6 +4059,7 @@
             const oldAutoTranslate = config.autoTranslateOnScroll;
             config.showStartButton = wrapper.querySelector('#tm-show-start-btn').checked;
             config.showQuickTranslateButton = wrapper.querySelector('#tm-show-quick-btn').checked;
+            config.showHelpButton = wrapper.querySelector('#tm-show-help-btn').checked;
             config.showRestoreButton = wrapper.querySelector('#tm-show-restore-btn').checked;
             config.autoTranslateOnScroll = wrapper.querySelector('#tm-auto-translate-scroll').checked;
             config.simplifiedEnabled = wrapper.querySelector('#tm-simplified').value === '1';
@@ -4831,7 +4921,7 @@
 
         container.innerHTML = `<div class="tm-ocr-loading" style="font-size:12px; color:#28a745; font-weight:bold; text-shadow: 1px 1px 2px white;">Đang chờ...</div>`;
 
-        document.body.appendChild(container);
+        tmUIRoot.appendChild(container);
         return container;
     }
 
@@ -4952,7 +5042,7 @@
                     openEditModalForSelection(); // Gọi hàm chuẩn
                     floatBtn.remove(); floatBtn = null;
                 };
-                document.body.appendChild(floatBtn);
+                tmUIRoot.appendChild(floatBtn);
                 setTimeout(() => { if (floatBtn) floatBtn.remove(); }, 3000);
             }
 
@@ -5009,8 +5099,7 @@
     `;
 
 
-
-        document.body.appendChild(modal);
+        tmUIRoot.appendChild(modal);
 
         // Add Click Listener for Names in HTML Mode
         const outputBox = modal.querySelector('#tm-ocr-output');
@@ -5029,7 +5118,7 @@
                 const sel = window.getSelection();
                 if (sel && !sel.isCollapsed && outputBox.contains(sel.anchorNode)) {
                     requestAnimationFrame(() => {
-                        let floatBtn = document.getElementById('tm-ocr-float-edit');
+                        let floatBtn = tmEl('tm-ocr-float-edit');
                         if (floatBtn) floatBtn.remove();
 
                         floatBtn = document.createElement('div');
@@ -5045,13 +5134,13 @@
                             openEditModalForSelection();
                             floatBtn.remove();
                         };
-                        document.body.appendChild(floatBtn);
+                        tmUIRoot.appendChild(floatBtn);
                         setTimeout(() => { if (floatBtn) floatBtn.remove(); }, 3000);
                     });
                 }
             });
             outputBox.addEventListener('mousedown', () => {
-                const b = document.getElementById('tm-ocr-float-edit');
+                const b = tmEl('tm-ocr-float-edit');
                 if (b) b.remove();
             });
         }
@@ -5176,7 +5265,7 @@
     async function handleOcrImportMode() {
         // Create a modal to ask for File, URL or Paste
         const modalId = 'tm-ocr-import-modal';
-        if (document.getElementById(modalId)) return;
+        if (tmEl(modalId)) return;
 
         const modal = document.createElement('div');
         modal.id = modalId;
@@ -5257,7 +5346,7 @@
         const originalClose = close;
         modal.querySelector('#tm-ocr-btn-cancel').onclick = () => { document.removeEventListener('paste', pasteHandler); originalClose(); };
 
-        document.body.appendChild(modal);
+        tmUIRoot.appendChild(modal);
     }
 
     async function processImageForOcr(blobKey) {
@@ -5378,7 +5467,7 @@
 
         // 2. Container
         const containerId = 'tm-screen-overlay-wrapper';
-        let container = document.getElementById(containerId);
+        let container = tmEl(containerId);
         if (container) container.remove();
 
         const view = viewport || {
@@ -5399,7 +5488,7 @@
             pointerEvents: 'none',
             zIndex: '2000000'
         });
-        document.body.appendChild(container);
+        tmUIRoot.appendChild(container);
 
         // Close Button (Fixed on Screen)
         const closeBtn = document.createElement('div');
@@ -5551,7 +5640,7 @@
 
         // 2. UI Setup
         const modalId = 'tm-ocr-split-view';
-        if (document.getElementById(modalId)) document.getElementById(modalId).remove();
+        if (tmEl(modalId)) tmEl(modalId).remove();
 
         const modal = document.createElement('div');
         modal.id = modalId;
@@ -5670,7 +5759,7 @@
             isSyncingRight = false;
         };
 
-        document.body.appendChild(modal);
+        tmUIRoot.appendChild(modal);
 
         // 3. Draw Left (Chinese Boxes)
         const ctxL = leftStage.canvas.getContext('2d');
@@ -7153,7 +7242,7 @@
         </div>
         `;
 
-        document.body.appendChild(wrapper);
+        tmUIRoot.appendChild(wrapper);
 
         const fileInput = wrapper.querySelector('#tm-lib-file');
         const titleInput = wrapper.querySelector('#tm-lib-title');
@@ -7266,7 +7355,7 @@
             </div>
         </div>
         `;
-        document.body.appendChild(wrapper);
+        tmUIRoot.appendChild(wrapper);
         libTranslateLibraryTitles(wrapper, index.books || []);
         libUpdateLibraryProgress(wrapper, index.books || []);
 
@@ -8134,6 +8223,127 @@
         }
     }
 
+    /* ================== WELCOME / UPDATE POPUP ================== */
+    function renderHelpMarkdown(md) {
+        const safe = md.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const lines = safe.split('\n');
+        const htmlParts = [];
+        let inList = false;
+        const flushList = () => { if (inList) { htmlParts.push('</ul>'); inList = false; } };
+        lines.forEach((raw) => {
+            const line = raw.trimEnd();
+            if (line.startsWith('### ')) { flushList(); htmlParts.push(`<h3>${line.slice(4)}</h3>`); return; }
+            if (line.startsWith('- ')) {
+                if (!inList) { htmlParts.push('<ul>'); inList = true; }
+                let content = line.slice(2).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>');
+                htmlParts.push(`<li>${content}</li>`);
+                return;
+            }
+            if (line === '') { flushList(); return; }
+            let content = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>');
+            htmlParts.push(`<p>${content}</p>`);
+        });
+        flushList();
+        return htmlParts.join('\n');
+    }
+
+    const welcomeHtml = `
+<div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
+<div class="tm-welcome-sub">Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh</div>
+<div class="tm-welcome-banner">
+  <strong>✨ WELCOME:</strong> Các nút tròn góc phải dưới: Dịch trang, Bảng dịch nhanh, OCR, Thư viện. Bấm ⚙️ Cài đặt để tùy chỉnh.
+</div>
+<div style="height:8px;"></div>
+    `.trim();
+
+    const guideMarkdown = `
+### 🟢 Nút Nổi (Floating Buttons)
+- **Dịch Trang** (xanh lá): Dịch toàn bộ trang. Có tự động dịch khi cuộn nếu bật trong Cài đặt.
+- **Thư viện** (xanh ngọc): Mở Thư viện import/đọc/export truyện.
+- **Edit Name** (xanh dương, hình bút chì): Bôi đen đoạn đã dịch → bấm bút chì để sửa tên.
+- **Dịch Nhanh** (xám): Dán text và dịch nhanh mà không cần dịch cả trang.
+- **OCR** (teal): Dịch chữ trong ảnh — khoanh vùng hoặc dịch ảnh.
+- **Style** (tối): Tùy chỉnh giao diện Chế độ đọc rút gọn.
+- **Quay Về** (vàng): Quay lại trang gốc chưa dịch.
+
+### 📚 Thư Viện & Đọc Truyện
+- Import **TXT/EPUB**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc).
+- Reader có: RAW/DỊCH, Fullscreen, Mục lục, cache dịch + prefetch chương.
+- Tự lưu **tiến độ đọc** (chương + vị trí cuộn).
+- Xuất **TXT/EPUB** với cache dịch & Name-set hiện tại.
+
+### 📷 OCR (Dịch Ảnh)
+- Chạy trên trình duyệt (không gửi ảnh lên server lạ).
+- Chế độ: **Khoanh vùng** hoặc **Dịch ảnh**. Nguồn: màn hình hoặc import.
+- Kết quả có thể bôi đen copy, click tên highlight để Edit Name.
+
+### ⚙️ Cài Đặt
+- **Tab Chung**: Chế độ dịch (Server/Local), bật/tắt nút, Simplified View, chặn JS.
+- **Tab Bộ Tên**: Tạo/Xóa bộ name, nhập file JSON/TXT, xuất, thêm/sửa nhanh.
+- **Tab Thư viện**: Hiển thị nút, prefetch, kiểu đọc, giao diện reader.
+- **Tab Từ điển Local**: Tìm/sửa/xóa mục, khôi phục gốc.
+- **Tab Blacklist**: Chặn domain không muốn script chạy.
+- **Tab Nâng cao**: Provider dịch, delay, max ký tự, retry.
+- **Tab OCR**: Action mode, nguồn ảnh, kiểu hiển thị, quản lý model.
+    `.trim();
+
+    const changelogMarkdown = `
+### ✨ v${CURRENT_VERSION}
+- Chuyển toàn bộ giao diện sang **Shadow DOM** — không còn bị CSS trang web đè, chạy ổn định trên mọi trang.
+- Thêm **popup chào mừng** khi cài đặt lần đầu với hướng dẫn sử dụng.
+- Thêm **popup changelog** khi cập nhật phiên bản mới.
+- Dọn dẹp code, loại bỏ comment thừa, tối ưu CSS.
+
+### 📦 Các bản trước (tóm tắt)
+- v3.5.0: Thư viện đọc offline, reader UI, OCR vùng chọn, dịch local nâng cao.
+- v3.4.x: Bảng dịch nhanh, sửa tên riêng inline, đa bộ tên.
+- v3.3.x: Simplified view, tùy chỉnh giao diện đọc, blacklist domain.
+    `.trim();
+
+    function openHelpModal(contentHtml) {
+        tmRemoveEl('tm-help-overlay');
+        tmRemoveEl('tm-help-modal');
+
+        const overlay = document.createElement('div');
+        overlay.id = 'tm-help-overlay';
+        overlay.className = 'tm-help-overlay';
+
+        const modal = document.createElement('div');
+        modal.id = 'tm-help-modal';
+        modal.className = 'tm-help-modal';
+        modal.innerHTML = `
+            <div class="tm-help-header">
+                <span>📖 TM Translate — Hướng dẫn</span>
+                <button class="tm-btn tm-help-close" id="tm-help-close-btn">✕ Đóng</button>
+            </div>
+            <div class="tm-help-content" id="tm-help-content"></div>
+        `;
+
+        tmUIRoot.appendChild(overlay);
+        tmUIRoot.appendChild(modal);
+
+        modal.querySelector('#tm-help-content').innerHTML = contentHtml || '';
+
+        const closeHelp = () => { overlay.remove(); modal.remove(); };
+        overlay.addEventListener('click', closeHelp);
+        modal.querySelector('#tm-help-close-btn').addEventListener('click', closeHelp);
+    }
+
+    function openHelpModalFull() {
+        openHelpModal([welcomeHtml, renderHelpMarkdown(guideMarkdown), '<div style="height:8px;"></div>', renderHelpMarkdown(changelogMarkdown)].join('\n'));
+    }
+
+    function openHelpModalUpdateOnly() {
+        const updateBanner = `
+<div class="tm-update-banner">
+  <div style="font-size:15px;font-weight:700;">🌈 Bản cập nhật mới đã sẵn sàng!</div>
+  <div style="font-size:12px;color:#6a4f7a;">Tóm tắt thay đổi quan trọng ở bên dưới ✨</div>
+</div>`.trim();
+        openHelpModal([updateBanner, renderHelpMarkdown(changelogMarkdown)].join('\n'));
+    }
+
+    /* ================== INIT ================== */
+
     if (checkBlacklistStatus()) {
         console.log('[tm-translate] Trang này nằm trong Blacklist. Script đã dừng hoạt động.');
 
@@ -8142,7 +8352,7 @@
         GM_registerMenuCommand('🚫 Mở Cài đặt (Bỏ chặn)', () => {
             openSettingsUI();
             setTimeout(() => {
-                const blTab = document.querySelector('[data-tab="blacklist"]');
+                const blTab = tmUIRoot.querySelector('[data-tab="blacklist"]');
                 if (blTab) blTab.click();
             }, 50);
         });
@@ -8155,7 +8365,6 @@
     GM_registerMenuCommand('Dịch vùng chọn (OCR)', activateAreaSelectionMode);
     GM_registerMenuCommand('Thư viện (Beta)', openLibraryListModal);
     GM_registerMenuCommand('Cài đặt', openSettingsUI);
-    // GM_registerMenuCommand('Thư viện: Import TXT/EPUB', openLibraryImportModal);
 
     window._tm_translate = {
         start: startTranslateAction,
@@ -8173,6 +8382,20 @@
         initializeLocalTranslator();
     }
 
-    console.log('[tm-translate 3.5.0_beta] Đã tải thành công.');
+    // Version check → show welcome/update popup
+    setTimeout(() => {
+        const storedVer = GM_getValue(TM_VERSION_KEY, null);
+        if (!storedVer) {
+            openHelpModalFull();
+            GM_setValue(TM_VERSION_KEY, CURRENT_VERSION);
+            return;
+        }
+        if (storedVer !== CURRENT_VERSION) {
+            openHelpModalUpdateOnly();
+            GM_setValue(TM_VERSION_KEY, CURRENT_VERSION);
+        }
+    }, 1200);
+
+    console.log(`[tm-translate ${CURRENT_VERSION}] Đã tải thành công.`);
 
 })();
