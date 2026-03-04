@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.7
+// @version      0.3.8
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -11,7 +11,7 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.7'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.8'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const MAX_COVER_FILE_SIZE = 500 * 1024;
@@ -33,6 +33,7 @@
         autoExtractNames: true, // AI auto-extract character names
         autoBreakDesc: false, // Tự xuống dòng văn án ở dấu chấm
         domainSettings: {},
+        coverSizeByDomain: {},
     };
 
     const SETTINGS_KEY = 'Wikidich_Autofill_Config';
@@ -59,6 +60,18 @@
             lastKey: '',
             checked: false,
             failed: false,
+        },
+        descEditorMode: 'vi',
+        descDraft: {
+            vi: '',
+            zh: '',
+        },
+        recomputeBaseline: null,
+        aiLastSuggestions: null,
+        coverMeta: {
+            original: null,
+            loading: false,
+            error: '',
         },
     };
     // --- UTILS ---
@@ -137,9 +150,37 @@
                 if (raw.domainSettings[key]) {
                     const saved = raw.domainSettings[key];
                     if (typeof saved.useDesc === 'boolean') base.domainSettings[key].useDesc = saved.useDesc;
+                    if (typeof saved.assignTags === 'boolean') base.domainSettings[key].assignTags = saved.assignTags;
                     if (saved.target) base.domainSettings[key].target = saved.target;
                 }
             });
+        }
+        if (raw.coverSizeByDomain && typeof raw.coverSizeByDomain === 'object') {
+            const normalizedMap = {};
+            Object.keys(raw.coverSizeByDomain).forEach((domainKey) => {
+                const conf = raw.coverSizeByDomain[domainKey];
+                if (!conf || typeof conf !== 'object') return;
+                const mode = conf.mode === 'custom' || conf.mode === 'preset560' ? conf.mode : 'original';
+                const targetWidth = Math.max(1, parseInt(conf.targetWidth, 10) || 0);
+                const targetHeight = Math.max(1, parseInt(conf.targetHeight, 10) || 0);
+                const customSizes = Array.isArray(conf.customSizes)
+                    ? conf.customSizes
+                        .map((item) => {
+                            const w = parseInt(item?.w, 10);
+                            const h = parseInt(item?.h, 10);
+                            if (!Number.isFinite(w) || !Number.isFinite(h) || w < 1 || h < 1) return null;
+                            return { w, h };
+                        })
+                        .filter(Boolean)
+                    : [];
+                normalizedMap[domainKey] = {
+                    mode,
+                    targetWidth,
+                    targetHeight,
+                    customSizes,
+                };
+            });
+            base.coverSizeByDomain = normalizedMap;
         }
 
         return base;
@@ -174,6 +215,64 @@
     function shouldUseDescForSource(sourceType) {
         const conf = getDomainSetting(sourceType);
         return conf ? conf.useDesc : true;
+    }
+
+    function shouldAssignTagsForSource(sourceType) {
+        const conf = getDomainSetting(sourceType);
+        return conf ? conf.assignTags !== false : true;
+    }
+
+    function getCurrentDomainKey() {
+        return (location.hostname || 'default').toLowerCase();
+    }
+
+    function getCoverScopeKeyFromSourceType(sourceType) {
+        const key = safeText(sourceType || '');
+        if (!key) return '';
+        return `source:${key.toLowerCase()}`;
+    }
+
+    function getCurrentCoverScopeKey(sourceType) {
+        const fromInput = getCoverScopeKeyFromSourceType(sourceType || state.sourceType);
+        if (fromInput) return fromInput;
+        return getCurrentDomainKey();
+    }
+
+    function getDefaultCoverSizeConfig() {
+        return {
+            mode: 'original',
+            targetWidth: 560,
+            targetHeight: 788,
+            customSizes: [],
+        };
+    }
+
+    function getCoverSizeConfig(settings, domainKey) {
+        const key = domainKey || getCurrentCoverScopeKey();
+        const map = settings?.coverSizeByDomain || {};
+        const conf = map[key] || map[getCurrentDomainKey()];
+        if (!conf || typeof conf !== 'object') return getDefaultCoverSizeConfig();
+        return {
+            mode: conf.mode === 'custom' || conf.mode === 'preset560' ? conf.mode : 'original',
+            targetWidth: Math.max(1, parseInt(conf.targetWidth, 10) || 560),
+            targetHeight: Math.max(1, parseInt(conf.targetHeight, 10) || 788),
+            customSizes: Array.isArray(conf.customSizes) ? conf.customSizes : [],
+        };
+    }
+
+    function getCoverTargetSize(settings, domainKey) {
+        const conf = getCoverSizeConfig(settings, domainKey);
+        if (conf.mode === 'preset560') {
+            return { width: 560, height: 788, label: '560x788' };
+        }
+        if (conf.mode === 'custom') {
+            return {
+                width: Math.max(1, parseInt(conf.targetWidth, 10) || 0),
+                height: Math.max(1, parseInt(conf.targetHeight, 10) || 0),
+                label: `${Math.max(1, parseInt(conf.targetWidth, 10) || 0)}x${Math.max(1, parseInt(conf.targetHeight, 10) || 0)}`,
+            };
+        }
+        return null;
     }
 
     function safeText(v) {
@@ -909,6 +1008,9 @@
                 useDesc: typeof rule.useDescDefault === 'boolean'
                     ? rule.useDescDefault
                     : true,
+                assignTags: typeof rule.assignTagsDefault === 'boolean'
+                    ? rule.assignTagsDefault
+                    : true,
                 target: rule.targetDefault || 'wiki',
             };
         });
@@ -1240,10 +1342,10 @@
             ]);
             let intro = introHtml ? T.htmlToText(introHtml) : '';
 
-            const introTagTexts = D.collectTexts(doc, [
-                '.book_intro_tags a',
-                '.book_intro_tags span',
-            ]);
+            let introTagTexts = D.collectTexts(doc, ['.book_intro_tags a']);
+            if (!introTagTexts.length) {
+                introTagTexts = D.collectTexts(doc, ['.book_intro_tags span']);
+            }
             const tagTexts = D.collectTexts(doc, [
                 '.book_tag a',
                 '.book_tag span',
@@ -1861,8 +1963,8 @@
     function normalizePo18Data(raw) {
         const titleCn = T.safeText(raw.title).replace(/^作品名稱[:：]\s*/i, '');
         const authorCn = T.safeText(raw.author).replace(/^作者[:：]\s*/i, '');
-        const tags = T.parseTagList((raw.tags || []).join(','));
         const introTags = T.parseTagList((raw.introTags || []).join(','));
+        const tags = introTags.slice();
         const categories = T.parseTagList((raw.categories || []).join(','));
         const intro = T.safeText(raw.intro);
         const tagLine = introTags.length ? `Tags: ${introTags.join(', ')}` : '';
@@ -2144,7 +2246,57 @@
         });
     }
 
-    HELPERS.http = { postTranslate };
+    function postTranslateSingle(serverUrl, contentText, targetLang) {
+        return new Promise((resolve, reject) => {
+            const payload = { content: (contentText || '').toString(), tl: targetLang };
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: serverUrl,
+                headers: { 'Content-Type': 'application/json', 'referer': 'https://dichngay.com/' },
+                data: JSON.stringify(payload),
+                onload(res) {
+                    if (res.status < 200 || res.status >= 300) {
+                        reject(new Error('HTTP Error: ' + res.status));
+                        return;
+                    }
+                    try {
+                        const jsonResponse = JSON.parse(res.responseText || '{}');
+                        let value = jsonResponse?.data?.content ?? jsonResponse?.translatedText ?? '';
+                        if (typeof value !== 'string') {
+                            throw new Error('Bad translation response.');
+                        }
+                        value = value
+                            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+                            .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+                        // Some modes may still return JSON string form.
+                        if (value.startsWith('["') || value.startsWith('[')) {
+                            try {
+                                const parsed = JSON.parse(value);
+                                if (Array.isArray(parsed)) {
+                                    resolve((parsed[0] || '').toString());
+                                    return;
+                                }
+                                if (typeof parsed === 'string') {
+                                    resolve(parsed);
+                                    return;
+                                }
+                            } catch {
+                                // keep raw value
+                            }
+                        }
+                        resolve(value);
+                    } catch (e) {
+                        reject(e);
+                    }
+                },
+                onerror(err) {
+                    reject(err);
+                },
+            });
+        });
+    }
+
+    HELPERS.http = { postTranslate, postTranslateSingle };
 
     async function translateList(list) {
         const items = Array.isArray(list) ? list : [];
@@ -2173,6 +2325,37 @@
         const parts = raw.split(/\n{2,}/g).map(s => s.trim()).filter(Boolean);
         const translatedParts = await translateList(parts);
         return translatedParts.join('\n\n');
+    }
+
+    function buildTaggedDescForTranslate(descCn, tags, enabled = true) {
+        const base = T.safeText(descCn);
+        if (!enabled) return base;
+        const tagList = Array.isArray(tags)
+            ? tags.map((t) => T.safeText(t)).filter(Boolean)
+            : [];
+        if (!tagList.length) return base;
+        const line = `Nhãn: ${tagList.join(', ')}`;
+        return base ? `${line}\n\n${base}` : line;
+    }
+
+    function stripTaggedDescLine(text) {
+        const raw = (text || '').toString();
+        return raw.replace(/^\s*(Nhãn|Nhan|Tags?)\s*[:：].*(?:\r?\n)?/i, '').trim();
+    }
+
+    async function translateQuickText(text, mode) {
+        const raw = (text || '').toString();
+        if (!raw.trim()) return '';
+        const tl = T.safeText(mode || 'vi').toLowerCase();
+        if (tl === 'vi') {
+            const [translated] = await translateList([raw]);
+            return translated || raw;
+        }
+        if (!['hv', 'si', 'tr'].includes(tl)) {
+            throw new Error('Chế độ dịch không hỗ trợ.');
+        }
+        const out = await postTranslateSingle(SERVER_URL, raw, tl);
+        return out || raw;
     }
 
     async function translateTextWithNameSet(text, nameSet, preserveLineBreaks) {
@@ -2523,7 +2706,7 @@
 
     function parseLabelList(text) {
         return T.safeText(text)
-            .split(',')
+            .split(/[,\n，]+/)
             .map(s => s.trim())
             .filter(Boolean);
     }
@@ -2574,6 +2757,34 @@
                 resolve(blob);
             }, type, quality);
         });
+    }
+
+    async function resizeCoverBlobToTarget(blob, width, height) {
+        const targetW = Math.max(1, parseInt(width, 10) || 0);
+        const targetH = Math.max(1, parseInt(height, 10) || 0);
+        if (!targetW || !targetH) return blob;
+        const img = await loadImageFromBlob(blob);
+        const srcW = img.naturalWidth || img.width || 0;
+        const srcH = img.naturalHeight || img.height || 0;
+        if (!srcW || !srcH) return blob;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d', { alpha: false });
+        if (!ctx) return blob;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.clearRect(0, 0, targetW, targetH);
+
+        // Force-stretch to exact target WxH (no crop).
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+
+        const sourceType = (blob.type || '').toLowerCase();
+        const outputType = sourceType.startsWith('image/png') ? 'image/png'
+            : (sourceType.startsWith('image/webp') ? 'image/webp' : 'image/jpeg');
+        const quality = outputType === 'image/png' ? undefined : 0.95;
+        return canvasToBlob(canvas, outputType, quality);
     }
 
     function mimeToExt(type) {
@@ -2636,7 +2847,7 @@
             if (candidate.size < best.size) best = candidate;
             if (candidate.size <= MAX_COVER_FILE_SIZE) {
                 const finalKb = Math.round(candidate.size / 1024);
-                log(`Đã tối ưu ảnh bìa: ${originalKb}KB -> ${finalKb}KB.`, 'ok');
+                log(`Đã tối ưu ảnh bìa: ${originalKb}KB → ${finalKb}KB.`, 'ok');
                 return candidate;
             }
 
@@ -2675,7 +2886,13 @@
         try {
             log('Đang tải ảnh bìa...');
             const sourceBlob = await fetchCoverBlob(url);
-            const blob = await downscaleCoverBlobIfNeeded(sourceBlob, log);
+            let blob = sourceBlob;
+            const targetSize = getCoverTargetSize(state.settings, getCurrentCoverScopeKey(state.sourceType));
+            if (targetSize && targetSize.width && targetSize.height) {
+                log(`Đang chỉnh tỷ lệ ảnh bìa về ${targetSize.width}x${targetSize.height}...`, 'info');
+                blob = await resizeCoverBlobToTarget(blob, targetSize.width, targetSize.height);
+            }
+            blob = await downscaleCoverBlobIfNeeded(blob, log);
             const type = blob.type || sourceBlob.type || 'image/jpeg';
             const ext = mimeToExt(type);
             const file = new File([blob], 'cover.' + ext, { type });
@@ -2693,16 +2910,22 @@
     // HELP + CHANGELOG CONTENT
     // ================================================
 
-    const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.7</span></h2>
+const CHANGELOG_CONTENT = `
+<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.8</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li>🍅 <b>Fanqie chuyển sang parse web:</b> Bỏ API cũ (đang bị bảo mật), đọc trực tiếp <code>window.__INITIAL_STATE__</code> + DOM fallback.</li>
-    <li>✅ <b>Fanqie trạng thái chính xác hơn:</b> Ưu tiên nhãn trên web (<code>已完结/连载中</code>) khi xác định Hoàn thành/Còn tiếp.</li>
-    <li>🖼️ <b>Fanqie cover origin:</b> Chuẩn hóa về link gốc <code>p6-novel.byteimg.com/origin</code> để lấy bìa nét.</li>
+    <li>🔁 <b>Mô tả VI/ZH hai chiều:</b> Nút đổi nhanh giữa bản dịch và bản gốc, cho phép sửa trực tiếp cả 2 bản.</li>
+    <li>📝 <b>Tối ưu:</b> Chuẩn hóa xử lý mô tả văn án khi dịch. Thay đổi hướng dẫn theo bản mới.</li>
+    <li>⚙️ <b>Gán nhãn theo nguồn:</b> Thêm cột <code>Gán nhãn</code> trong Cấu hình Nguồn; mặc định bật cho tất cả nguồn.</li>
+    <li>🏷️ <b>Popup chọn nhanh nhãn:</b> Thời đại/Kết thúc/Loại hình/Tag có nút <code>Chọn</code>, lấy danh sách trực tiếp từ web và hỗ trợ tìm nhanh.</li>
+    <li>🔒 <b>Popup chặt hơn:</b> Bấm ra ngoài không tự đóng; chỉ đóng bằng nút trong popup.</li>
+    <li>🖼️ <b>Cover WxH theo nguồn:</b> Cấu hình tỷ lệ ảnh bìa giờ lưu theo từng nguồn (Fanqie/PO18/...), không ảnh hưởng lẫn nhau.</li>
+    <li>🧠 <b>Recompute thông minh hơn:</b> Cảnh báo đỏ khi dữ liệu đã đổi; nếu đã dùng AI thì chỉ dịch lại phần thay đổi, giữ tag/thể loại AI. Nếu bạn đã sửa tag/thể loại sau AI, Recompute sẽ hỏi dùng lại đề xuất AI hay giữ chỉnh tay.</li>
+    <li>🧰 <b>Bảng dịch nhanh mới:</b> Nút icon hội thoại cạnh AI mở panel kéo-thả, dịch nhanh theo các chế độ <code>vi/hv/si/tr</code>.</li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
 <ul style="list-style-type: none; padding-left: 0; font-size: 13px;">
+    <li><b>v0.3.7:</b> Fanqie chuyển parse web, sửa nhận diện trạng thái, chuẩn hóa cover origin.</li>
     <li><b>v0.3.6:</b> Loại trừ nâng cấp, check trùng mềm hơn, cập nhật domain Wikidich.</li>
     <li><b>v0.3.5:</b> Thêm nguồn Hải Đường Longma, parse trạng thái tập trung, AI không chọn trạng thái, ghi đè link bổ sung, nút fullscreen + phóng 1.5x.</li>
     <li><b>v0.3.4:</b> Cải thiện PO18, check trùng truyện + khóa thao tác an toàn hơn, nâng toast/cover upload.</li>
@@ -2732,53 +2955,57 @@
     }).join('');
 
     const buildWelcomeContent = () => `
-<h2 class="${APP_PREFIX}welcome-heading">🌸 Chào mừng đến với <span>Wikidich Autofill</span>! 🌸</h2>
-<p class="${APP_PREFIX}welcome-subtitle">Tool "thần thánh" hỗ trợ convert web Trung sang Wikidich 1 chạm.</p>
+<h2 class="${APP_PREFIX}welcome-heading">🌸 Chào mừng đến với <span>Wikidich Autofill</span> 🌸</h2>
+<p class="${APP_PREFIX}welcome-subtitle">Luồng mới gọn hơn: lấy dữ liệu nhanh, đối chiếu rõ, áp form an toàn.</p>
 
 <div class="${APP_PREFIX}guide-box-green">
-    <h3 style="margin-top:0; color:#2e7d32;">🌟 Quy trình sử dụng chuẩn:</h3>
+    <h3 style="margin-top:0; color:#2e7d32;">⚡ Luồng chuẩn (nhanh + an toàn)</h3>
     <ol style="margin-left: 15px; padding-left: 0;">
-        <li><b>Bước 1:</b> Copy link truyện (${buildSiteDisplayList()}).</li>
-        <li><b>Bước 2:</b> Dán vào ô URL > Bấm nút <b style="color:#2196f3;">Lấy dữ liệu</b> (hoặc nút <b style="color:#e91e63;">AI</b>).</li>
-        <li><b>Bước 3:</b> Chờ tool chạy dịch và phân tích (Auto hoặc AI).</li>
-        <li><b>Bước 4:</b> Kiểm tra các ô thông tin trên bảng Panel (Tag, Thể loại...).</li>
-        <li><b>Mẹo:</b> Dùng nút <b>Recompute</b> khi bạn thêm "Từ khóa bổ sung" để gợi ý lại tag/thể loại.</li>
-        <li><b>Qidian:</b> Nếu không có kết quả, hãy thử lại vài lần.</li>
-        <li><b>Bước 5:</b> Nếu OK, bấm nút <b style="color:#ff9800;">Áp vào form</b> dưới cùng.</li>
-        <li><b>Bước 6:</b> Bấm <b style="color:green;">Nhúng</b> của Web để đăng!</li>
+        <li><b>Bước 1:</b> Dán link nguồn hỗ trợ (${buildSiteDisplayList()}) rồi bấm <b style="color:#2196f3;">Lấy dữ liệu</b>.</li>
+        <li><b>Bước 2:</b> Chờ fetch hoàn tất (trong lúc này nút <b>AI/Recompute/Áp vào form</b> sẽ tự khóa).</li>
+        <li><b>Bước 3:</b> Kiểm tra thông tin và chỉnh tay nếu cần; mô tả có thể đổi nhanh bằng nút <b>VI/ZH</b>.</li>
+        <li><b>Bước 4:</b> Dùng <b style="color:#7e57c2;">AI</b> hoặc <b style="color:#e91e63;">AI thủ công</b> để phân tích lại.</li>
+        <li><b>Bước 5:</b> Nếu thấy cảnh báo đỏ "Đã thay đổi..." thì bấm <b>Recompute</b> để đồng bộ lại kết quả.</li>
+        <li><b>Bước 6:</b> Bấm <b style="color:#ff9800;">Áp vào form</b>, xem popup so sánh và xác nhận.</li>
     </ol>
 </div>
 
-<h3>🔥 Tính năng AI (Mới):</h3>
-<ul style="list-style-type: none; padding-left: 5px;">
-    <li>🔑 <b>AI tự động:</b> Cần API Key (⚙️ Cài đặt) để tool tự phân tích/tag.</li>
-    <li>🧠 <b>Thông minh hơn:</b> AI đọc hiểu văn án để chọn tag (VD: "Gương vỡ lại lành" dù văn án không ghi rõ).</li>
-    <li>🛡️ <b>Kiểm duyệt:</b> Tự động lọc bỏ các tag "rác" không có trong hệ thống Wikidich.</li>
-    <li>🧾 <b>AI thủ công:</b> Bấm <b>AI thủ công</b> → copy prompt → dán JSON kết quả vào tool (không cần API Key).</li>
-</ul>
-
 <div class="${APP_PREFIX}guide-box-blue">
-    <h3 style="margin-top:0; color:#1565c0;">✨ Trang chỉnh sửa (chinh-sua):</h3>
+    <h3 style="margin-top:0; color:#1565c0;">🧠 AI + Recompute (phiên bản mới)</h3>
     <ul style="list-style-type: none; padding-left: 5px; font-size: 13px;">
-        <li>✅/❌ <b>So khớp nhanh:</b> Dấu tick xanh = khớp web, dấu X đỏ = lệch; rê chuột để xem chi tiết.</li>
-        <li>🎯 <b>Loại trừ thông minh:</b> Nút <b>Loại trừ</b> cho phép bỏ qua trường khi áp (mặc định bỏ Cover URL), lưu lại cho lần sau.</li>
-        <li>🧩 <b>Popup so sánh:</b> Bảng đối chiếu trước khi áp, tô màu phần thêm/bớt; văn án diff theo từng từ và giữ xuống dòng chuẩn.</li>
+        <li>🔑 <b>AI tự động:</b> Cần Gemini API Key trong ⚙️ Cài đặt.</li>
+        <li>🧾 <b>AI thủ công:</b> Copy prompt → dán JSON; có thể paste trực tiếp bằng <b>Ctrl+V / Win+V</b> khi mở tab AI thủ công.</li>
+        <li>🪄 <b>Auto tách name:</b> AI gợi ý bộ name, script dịch lại để giữ tên ổn định (bật/tắt trong Cài đặt).</li>
+        <li>🛡️ <b>Lọc gợi ý:</b> Tự lọc tag/thể loại rác, giới hạn trạng thái kết thúc theo rule hiện hành.</li>
+        <li>♻️ <b>Recompute thông minh:</b> Nếu đã dùng AI và bạn sửa tag/thể loại, script sẽ hỏi dùng lại đề xuất AI hay giữ phần chỉnh tay.</li>
+        <li>📝 <b>Tối ưu văn án:</b> Nếu nguồn có tags, script thêm dòng <code>Nhãn: ...</code> trước khi dịch nhưng không đưa dòng này vào prompt AI để tránh trùng.</li>
+        <li>⚙️ <b>Cột Gán nhãn:</b> Trong Cài đặt Nguồn có thể bật/tắt gán dòng <code>Nhãn: ...</code> theo từng nguồn (mặc định bật).</li>
     </ul>
 </div>
 
 <div class="${APP_PREFIX}guide-box-pink">
-    <h3 style="margin-top:0; color:#ad1457;">🪄 Auto Tách Tên:</h3>
-    <p style="margin: 5px 0; font-size: 13px;">Khi bấm nút <b style="color:#e91e63;">AI</b>, hệ thống sẽ:</p>
-    <ol style="margin-left: 15px; padding-left: 0; font-size: 13px;">
-        <li>Gửi văn án tiếng Trung cho AI phân tích</li>
-        <li>AI trích xuất <b>tên nhân vật, địa danh</b> → phiên âm <span class="${APP_PREFIX}highlight-violet">Hán-Việt</span></li>
-        <li>Tự động điền vào ô <b>"Bộ name"</b> (dạng: <code>Tên_Trung=Hán_Việt</code>)</li>
-        <li>Dịch lại văn án với bộ tên mới → tên được giữ nguyên!</li>
-    </ol>
-    <p style="margin: 5px 0; font-size: 12px; color: #666;">💡 <i>Toggle: Vào ⚙️ Cài đặt → "Auto Tách Names" để bật/tắt.</i></p>
+    <h3 style="margin-top:0; color:#ad1457;">🖼️ Cover + công cụ tiện ích</h3>
+    <ul style="list-style-type: none; padding-left: 5px; font-size: 13px;">
+        <li>📏 <b>Nhãn kích thước:</b> Cạnh Cover URL có tag <code>WxH</code> (ẩn khi chưa có ảnh).</li>
+        <li>🧷 <b>Popup tỷ lệ ảnh:</b> Chọn gốc / <code>560x788</code> / preset tự tạo; lưu theo <b>nguồn đang dùng</b> (Fanqie, PO18...).</li>
+        <li>🪶 <b>Tối ưu dung lượng:</b> Ảnh bìa lớn sẽ tự giảm dung lượng để dưới ngưỡng, ưu tiên giữ chi tiết hiển thị.</li>
+        <li>💬 <b>Bảng dịch nhanh:</b> Nút hội thoại cạnh AI mở panel dịch nhanh các chế độ <code>vi/hv/si/tr</code>.</li>
+    </ul>
 </div>
 
-<h3>🌍 Các Trang Hỗ Trợ:</h3>
+<div class="${APP_PREFIX}guide-box-blue">
+    <h3 style="margin-top:0; color:#1565c0;">🧩 Trang chỉnh sửa & kiểm tra trùng</h3>
+    <ul style="list-style-type: none; padding-left: 5px; font-size: 13px;">
+        <li>🏷️ <b>Chọn nhãn từ web:</b> Ở Thời đại/Kết thúc/Loại hình/Tag có nút <b>Chọn</b> để mở popup lọc nhanh và tick trực tiếp theo danh sách mới nhất của web.</li>
+        <li>✅/❌ <b>So khớp nhanh:</b> Tick xanh = khớp web, X đỏ = lệch; rê chuột để xem trạng thái chi tiết.</li>
+        <li>🎯 <b>Loại trừ theo trang:</b> Cấu hình loại trừ tách riêng giữa <code>/chinh-sua</code> và <code>/nhung-file</code>.</li>
+        <li>🧱 <b>Popup so sánh mới:</b> Diff trước khi áp, văn án so theo từ + giữ xuống dòng để dễ soát lỗi.</li>
+        <li>🔒 <b>Hành vi popup:</b> Bấm ra ngoài không tự đóng; chỉ đóng bằng nút hành động trong popup.</li>
+        <li>🔍 <b>Check trùng truyện:</b> Ở <code>/nhung-file</code>, khi có titleCN + authorCN sẽ kiểm tra trùng ngầm (retry), chưa xong thì chưa cho áp form.</li>
+    </ul>
+</div>
+
+<h3>🌍 Các nguồn đang hỗ trợ</h3>
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
     ${buildSiteOptionsHtml()}
 </div>
@@ -2866,6 +3093,15 @@
                 font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
                 z-index: 99999; display: none; flex-direction: column;
             }
+            #${APP_PREFIX}quickPanel {
+                position: fixed; top: 72px; left: 20px; width: 420px; max-height: 72vh;
+                background: linear-gradient(180deg, #ffffff 0%, #f6f8ff 100%);
+                color: var(--wda-text); border: 1px solid var(--wda-border);
+                border-radius: var(--wda-radius);
+                box-shadow: var(--wda-shadow);
+                font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
+                z-index: 99999; display: none; flex-direction: column;
+            }
             #${APP_PREFIX}panel.${APP_PREFIX}fullscreen {
                 top: 0 !important;
                 left: 0 !important;
@@ -2887,6 +3123,11 @@
                 border-color: var(--wda-border);
                 color: var(--wda-text);
             }
+            :host([data-theme="dark"]) #${APP_PREFIX}quickPanel {
+                background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+                border-color: var(--wda-border);
+                color: var(--wda-text);
+            }
             #${APP_PREFIX}header {
                 padding: 10px 14px;
                 background: linear-gradient(90deg, #e8f0ff 0%, #e6fff8 100%);
@@ -2894,8 +3135,20 @@
                 font-weight: 600; font-size: 14px; display: flex; justify-content: space-between;
                 color: #4a2c6f; cursor: move; align-items: center; gap: 10px;
             }
+            #${APP_PREFIX}quickHeader {
+                padding: 10px 14px;
+                background: linear-gradient(90deg, #f8e8ff 0%, #e8f7ff 100%);
+                border-bottom: 1px solid rgba(0,0,0,0.06);
+                font-weight: 600; font-size: 14px; display: flex; justify-content: space-between;
+                color: #4a2c6f; cursor: move; align-items: center; gap: 10px;
+            }
             :host([data-theme="dark"]) #${APP_PREFIX}header {
                 background: linear-gradient(90deg, #111827 0%, #0f172a 100%);
+                border-bottom-color: rgba(148, 163, 184, 0.15);
+                color: #e5e7eb;
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}quickHeader {
+                background: linear-gradient(90deg, #1f2937 0%, #0f172a 100%);
                 border-bottom-color: rgba(148, 163, 184, 0.15);
                 color: #e5e7eb;
             }
@@ -2934,11 +3187,53 @@
                 align-items: center;
                 gap: 6px;
             }
+            #${APP_PREFIX}recomputeNotice {
+                display: none;
+                margin: 0 14px;
+                padding: 6px 10px;
+                border-radius: 8px;
+                font-size: 12px;
+                line-height: 1.45;
+                background: #fff1f2;
+                border: 1px solid #fecdd3;
+                color: #b91c1c;
+            }
+            #${APP_PREFIX}recomputeNotice.show {
+                display: block;
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}recomputeNotice {
+                background: rgba(127, 29, 29, 0.22);
+                border-color: rgba(248, 113, 113, 0.45);
+                color: #fecaca;
+            }
             #${APP_PREFIX}content { padding: 12px 14px; overflow: auto; }
+            #${APP_PREFIX}quickContent { padding: 12px 14px; overflow: auto; }
             .${APP_PREFIX}row { margin-bottom: 10px; }
+            .${APP_PREFIX}quick-mode-row {
+                display: grid;
+                grid-template-columns: 88px 1fr;
+                align-items: center;
+                gap: 8px;
+            }
+            .${APP_PREFIX}quick-mode-row .${APP_PREFIX}label {
+                margin-bottom: 0;
+            }
             .${APP_PREFIX}label {
                 font-size: 12px; color: #3f3d56;
                 margin-bottom: 4px; display: block; font-weight: 700; letter-spacing: 0.2px;
+            }
+            .${APP_PREFIX}label-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+            }
+            .${APP_PREFIX}label-row .${APP_PREFIX}label {
+                margin-bottom: 0;
+                display: inline-flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 0;
             }
             :host([data-theme="dark"]) .${APP_PREFIX}label { color: #d1d5db; }
             .${APP_PREFIX}match {
@@ -2965,6 +3260,134 @@
                 box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
             }
             .${APP_PREFIX}textarea { min-height: 80px; resize: vertical; }
+            .${APP_PREFIX}tiny-btn {
+                border: 1px solid rgba(110, 120, 150, 0.35);
+                border-radius: 999px;
+                background: linear-gradient(135deg, #fbcfe8, #bfdbfe);
+                color: #1f2937;
+                font-size: 11px;
+                font-weight: 700;
+                padding: 3px 10px;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+            .${APP_PREFIX}tiny-btn:hover {
+                filter: brightness(0.98);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}tiny-btn {
+                border-color: rgba(148, 163, 184, 0.4);
+                background: linear-gradient(135deg, #312e81, #0f766e);
+                color: #e5e7eb;
+            }
+            .${APP_PREFIX}cover-dim-chip {
+                display: inline-flex;
+                align-items: center;
+                border-radius: 999px;
+                padding: 3px 8px;
+                font-size: 11px;
+                font-weight: 700;
+                color: #075985;
+                background: #e0f2fe;
+                border: 1px solid #bae6fd;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}cover-dim-chip {
+                color: #bae6fd;
+                background: rgba(8, 47, 73, 0.55);
+                border-color: rgba(125, 211, 252, 0.35);
+            }
+            .${APP_PREFIX}cover-input-row {
+                display: grid;
+                grid-template-columns: 1fr auto;
+                gap: 8px;
+                align-items: center;
+            }
+            .${APP_PREFIX}cover-size-list {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+            .${APP_PREFIX}cover-size-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                padding: 6px 8px;
+                border-radius: 8px;
+                border: 1px solid rgba(148, 163, 184, 0.25);
+                background: rgba(255, 255, 255, 0.6);
+                font-size: 13px;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}cover-size-item {
+                background: rgba(15, 23, 42, 0.6);
+                border-color: rgba(148, 163, 184, 0.3);
+            }
+            .${APP_PREFIX}cover-size-item input[type="radio"] {
+                margin-right: 8px;
+            }
+            .${APP_PREFIX}cover-custom-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr auto;
+                gap: 8px;
+                margin-top: 10px;
+            }
+            .${APP_PREFIX}modal-card.${APP_PREFIX}multi-picker-card {
+                width: 620px;
+                max-width: 96vw;
+            }
+            .${APP_PREFIX}multi-picker-meta {
+                margin-top: 6px;
+                font-size: 11px;
+                color: var(--wda-muted);
+            }
+            .${APP_PREFIX}multi-picker-list {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                max-height: 360px;
+                overflow: auto;
+                padding: 8px;
+                border-radius: 10px;
+                border: 1px solid rgba(148, 163, 184, 0.25);
+                background: rgba(255, 255, 255, 0.78);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}multi-picker-list {
+                background: rgba(15, 23, 42, 0.68);
+                border-color: rgba(148, 163, 184, 0.32);
+            }
+            .${APP_PREFIX}multi-picker-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 8px;
+                border-radius: 8px;
+                border: 1px solid rgba(148, 163, 184, 0.2);
+                background: rgba(255, 255, 255, 0.92);
+                font-size: 13px;
+                cursor: pointer;
+            }
+            .${APP_PREFIX}multi-picker-item input[type="checkbox"] {
+                margin: 0;
+                accent-color: #7c3aed;
+            }
+            .${APP_PREFIX}multi-picker-item:hover {
+                border-color: rgba(99, 102, 241, 0.38);
+                background: rgba(238, 242, 255, 0.95);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}multi-picker-item {
+                background: rgba(15, 23, 42, 0.9);
+                border-color: rgba(148, 163, 184, 0.28);
+                color: #e2e8f0;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}multi-picker-item:hover {
+                border-color: rgba(129, 140, 248, 0.55);
+                background: rgba(30, 41, 59, 0.95);
+            }
+            .${APP_PREFIX}multi-picker-empty {
+                font-size: 12px;
+                color: var(--wda-muted);
+                padding: 10px 6px;
+                text-align: center;
+            }
             .${APP_PREFIX}btn {
                 background: linear-gradient(135deg, var(--wda-primary) 0%, #ffb74d 100%);
                 color: #fff; border: none; border-radius: 10px;
@@ -3007,6 +3430,25 @@
             }
             .${APP_PREFIX}icon-btn.${APP_PREFIX}fullscreen-btn {
                 font-size: 13px;
+            }
+            .${APP_PREFIX}icon-btn.${APP_PREFIX}quick-tool-btn {
+                font-size: 13px;
+                line-height: 0;
+            }
+            .${APP_PREFIX}icon-btn.${APP_PREFIX}quick-tool-btn svg {
+                width: 16px;
+                height: 16px;
+                display: block;
+            }
+            .${APP_PREFIX}icon-btn.${APP_PREFIX}quick-tool-btn.active {
+                color: #6d28d9;
+                border-color: rgba(109, 40, 217, 0.35);
+                background: rgba(233, 213, 255, 0.8);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}icon-btn.${APP_PREFIX}quick-tool-btn.active {
+                color: #c4b5fd;
+                border-color: rgba(196, 181, 253, 0.35);
+                background: rgba(67, 56, 202, 0.32);
             }
             .${APP_PREFIX}icon-btn.${APP_PREFIX}fullscreen-btn.active {
                 color: #0369a1;
@@ -3180,12 +3622,18 @@
             }
             .${APP_PREFIX}btn.diff-confirm { background: linear-gradient(135deg, #7b1fa2, #42a5f5); }
             #${APP_PREFIX}content::-webkit-scrollbar,
+            #${APP_PREFIX}quickContent::-webkit-scrollbar,
+            #${APP_PREFIX}quickInput::-webkit-scrollbar,
+            #${APP_PREFIX}quickOutput::-webkit-scrollbar,
             .${APP_PREFIX}modal-body::-webkit-scrollbar,
             .${APP_PREFIX}diff-body::-webkit-scrollbar,
             .${APP_PREFIX}log::-webkit-scrollbar {
                 width: 10px;
             }
             #${APP_PREFIX}content::-webkit-scrollbar-track,
+            #${APP_PREFIX}quickContent::-webkit-scrollbar-track,
+            #${APP_PREFIX}quickInput::-webkit-scrollbar-track,
+            #${APP_PREFIX}quickOutput::-webkit-scrollbar-track,
             .${APP_PREFIX}modal-body::-webkit-scrollbar-track,
             .${APP_PREFIX}diff-body::-webkit-scrollbar-track,
             .${APP_PREFIX}log::-webkit-scrollbar-track {
@@ -3193,6 +3641,9 @@
                 border-radius: 999px;
             }
             #${APP_PREFIX}content::-webkit-scrollbar-thumb,
+            #${APP_PREFIX}quickContent::-webkit-scrollbar-thumb,
+            #${APP_PREFIX}quickInput::-webkit-scrollbar-thumb,
+            #${APP_PREFIX}quickOutput::-webkit-scrollbar-thumb,
             .${APP_PREFIX}modal-body::-webkit-scrollbar-thumb,
             .${APP_PREFIX}diff-body::-webkit-scrollbar-thumb {
                 background: linear-gradient(180deg, #ffb3d5 0%, #a6c8ff 100%);
@@ -3205,6 +3656,9 @@
                 border: 2px solid rgba(15, 23, 42, 0.9);
             }
             #${APP_PREFIX}content,
+            #${APP_PREFIX}quickContent,
+            #${APP_PREFIX}quickInput,
+            #${APP_PREFIX}quickOutput,
             .${APP_PREFIX}modal-body,
             .${APP_PREFIX}diff-body,
             .${APP_PREFIX}log {
@@ -3215,18 +3669,27 @@
                 scrollbar-color: #38bdf8 rgba(15, 23, 42, 0.8);
             }
             :host([data-theme="dark"]) #${APP_PREFIX}content::-webkit-scrollbar-track,
+            :host([data-theme="dark"]) #${APP_PREFIX}quickContent::-webkit-scrollbar-track,
+            :host([data-theme="dark"]) #${APP_PREFIX}quickInput::-webkit-scrollbar-track,
+            :host([data-theme="dark"]) #${APP_PREFIX}quickOutput::-webkit-scrollbar-track,
             :host([data-theme="dark"]) .${APP_PREFIX}modal-body::-webkit-scrollbar-track,
             :host([data-theme="dark"]) .${APP_PREFIX}diff-body::-webkit-scrollbar-track,
             :host([data-theme="dark"]) .${APP_PREFIX}log::-webkit-scrollbar-track {
                 background: rgba(15, 23, 42, 0.8);
             }
             :host([data-theme="dark"]) #${APP_PREFIX}content::-webkit-scrollbar-thumb,
+            :host([data-theme="dark"]) #${APP_PREFIX}quickContent::-webkit-scrollbar-thumb,
+            :host([data-theme="dark"]) #${APP_PREFIX}quickInput::-webkit-scrollbar-thumb,
+            :host([data-theme="dark"]) #${APP_PREFIX}quickOutput::-webkit-scrollbar-thumb,
             :host([data-theme="dark"]) .${APP_PREFIX}modal-body::-webkit-scrollbar-thumb,
             :host([data-theme="dark"]) .${APP_PREFIX}diff-body::-webkit-scrollbar-thumb {
                 background: linear-gradient(180deg, #64748b 0%, #1f2937 100%);
                 border: 2px solid rgba(15, 23, 42, 0.9);
             }
             :host([data-theme="dark"]) #${APP_PREFIX}content,
+            :host([data-theme="dark"]) #${APP_PREFIX}quickContent,
+            :host([data-theme="dark"]) #${APP_PREFIX}quickInput,
+            :host([data-theme="dark"]) #${APP_PREFIX}quickOutput,
             :host([data-theme="dark"]) .${APP_PREFIX}modal-body,
             :host([data-theme="dark"]) .${APP_PREFIX}diff-body {
                 scrollbar-color: #64748b rgba(15, 23, 42, 0.8);
@@ -3407,12 +3870,14 @@
                     </div>
                     <div id="${APP_PREFIX}header-actions">
                         <button id="${APP_PREFIX}ai" class="${APP_PREFIX}icon-btn ${APP_PREFIX}ai-btn-color" title="Chạy AI Analyze">AI</button>
+                        <button id="${APP_PREFIX}quickTool" class="${APP_PREFIX}icon-btn ${APP_PREFIX}quick-tool-btn" title="Bảng dịch nhanh"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 11H7V9h2v2zm4 0h-2V9h2v2zm4 0h-2V9h2v2z"/></svg></button>
                         <button id="${APP_PREFIX}fullscreen" class="${APP_PREFIX}icon-btn ${APP_PREFIX}fullscreen-btn" title="Toàn màn hình">⛶</button>
                         <button id="${APP_PREFIX}help" class="${APP_PREFIX}icon-btn" title="Hướng dẫn">?</button>
                         <button id="${APP_PREFIX}settings" class="${APP_PREFIX}icon-btn" title="Cài đặt">⚙</button>
                         <button id="${APP_PREFIX}close" class="${APP_PREFIX}icon-btn" title="Thu nhỏ">✕</button>
                     </div>
                 </div>
+                <div id="${APP_PREFIX}recomputeNotice"></div>
                 <div id="${APP_PREFIX}content">
                     <div class="${APP_PREFIX}row">
                         <label class="${APP_PREFIX}label">URL Web Trung</label>
@@ -3447,12 +3912,21 @@
                         <input id="${APP_PREFIX}titleVi" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Mô tả dịch (VI)<span class="${APP_PREFIX}match" data-key="descVi">?</span></label>
+                        <div class="${APP_PREFIX}label-row">
+                            <label class="${APP_PREFIX}label"><span id="${APP_PREFIX}descLabelText">Mô tả dịch (VI)</span><span class="${APP_PREFIX}match" data-key="descVi">?</span></label>
+                            <button id="${APP_PREFIX}descToggle" class="${APP_PREFIX}tiny-btn" type="button" title="Đổi giữa mô tả VI và ZH">Zh</button>
+                        </div>
                         <textarea id="${APP_PREFIX}descVi" class="${APP_PREFIX}textarea"></textarea>
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Cover URL<span class="${APP_PREFIX}match" data-key="coverUrl">?</span></label>
-                        <input id="${APP_PREFIX}coverUrl" class="${APP_PREFIX}input" />
+                        <div class="${APP_PREFIX}label-row">
+                            <label class="${APP_PREFIX}label">Cover URL<span class="${APP_PREFIX}match" data-key="coverUrl">?</span></label>
+                            <span id="${APP_PREFIX}coverSizeTag" class="${APP_PREFIX}cover-dim-chip">-</span>
+                        </div>
+                        <div class="${APP_PREFIX}cover-input-row">
+                            <input id="${APP_PREFIX}coverUrl" class="${APP_PREFIX}input" />
+                            <button id="${APP_PREFIX}coverSizeBtn" class="${APP_PREFIX}tiny-btn" type="button" title="Chỉnh tỷ lệ ảnh bìa">WxH</button>
+                        </div>
                     </div>
                     <div class="${APP_PREFIX}grid ${APP_PREFIX}row">
                         <div>
@@ -3469,19 +3943,31 @@
                         </div>
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Thời đại (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="age">?</span></label>
+                        <div class="${APP_PREFIX}label-row">
+                            <label class="${APP_PREFIX}label">Thời đại (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="age">?</span></label>
+                            <button id="${APP_PREFIX}pickAge" class="${APP_PREFIX}tiny-btn" type="button" title="Chọn nhanh từ danh sách web">Chọn</button>
+                        </div>
                         <input id="${APP_PREFIX}age" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Kết thúc (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="ending">?</span></label>
+                        <div class="${APP_PREFIX}label-row">
+                            <label class="${APP_PREFIX}label">Kết thúc (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="ending">?</span></label>
+                            <button id="${APP_PREFIX}pickEnding" class="${APP_PREFIX}tiny-btn" type="button" title="Chọn nhanh từ danh sách web">Chọn</button>
+                        </div>
                         <input id="${APP_PREFIX}ending" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Loại hình (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="genre">?</span></label>
+                        <div class="${APP_PREFIX}label-row">
+                            <label class="${APP_PREFIX}label">Loại hình (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="genre">?</span></label>
+                            <button id="${APP_PREFIX}pickGenre" class="${APP_PREFIX}tiny-btn" type="button" title="Chọn nhanh từ danh sách web">Chọn</button>
+                        </div>
                         <input id="${APP_PREFIX}genre" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Tag (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="tag">?</span></label>
+                        <div class="${APP_PREFIX}label-row">
+                            <label class="${APP_PREFIX}label">Tag (nhập label, phân cách dấu phẩy)<span class="${APP_PREFIX}match" data-key="tag">?</span></label>
+                            <button id="${APP_PREFIX}pickTag" class="${APP_PREFIX}tiny-btn" type="button" title="Chọn nhanh từ danh sách web">Chọn</button>
+                        </div>
                         <textarea id="${APP_PREFIX}tag" class="${APP_PREFIX}textarea"></textarea>
                     </div>
                     <div class="${APP_PREFIX}row">
@@ -3498,6 +3984,35 @@
                     </div>
                     <div class="${APP_PREFIX}row ${APP_PREFIX}hint">
                         Tip: có thể sửa text/label trong panel rồi bấm "Áp vào form".
+                    </div>
+                </div>
+            </div>
+            <div id="${APP_PREFIX}quickPanel">
+                <div id="${APP_PREFIX}quickHeader">
+                    <div>Dịch ngay</div>
+                    <button id="${APP_PREFIX}quickClose" class="${APP_PREFIX}icon-btn" title="Đóng">✕</button>
+                </div>
+                <div id="${APP_PREFIX}quickContent">
+                    <div class="${APP_PREFIX}row ${APP_PREFIX}quick-mode-row">
+                        <label class="${APP_PREFIX}label">Chế độ</label>
+                        <select id="${APP_PREFIX}quickMode" class="${APP_PREFIX}select">
+                            <option value="vi">Dịch sang Việt</option>
+                            <option value="hv">Hán Việt</option>
+                            <option value="si">Phồn -> Giản</option>
+                            <option value="tr">Giản -> Phồn</option>
+                        </select>
+                    </div>
+                    <div class="${APP_PREFIX}row">
+                        <label class="${APP_PREFIX}label">Văn bản gốc</label>
+                        <textarea id="${APP_PREFIX}quickInput" class="${APP_PREFIX}textarea" placeholder="Nhập cụm từ hoặc đoạn văn cần dịch..."></textarea>
+                    </div>
+                    <div class="${APP_PREFIX}row">
+                        <button id="${APP_PREFIX}quickRun" class="${APP_PREFIX}btn">Dịch nhanh</button>
+                        <button id="${APP_PREFIX}quickCopy" class="${APP_PREFIX}btn secondary">Copy kết quả</button>
+                    </div>
+                    <div class="${APP_PREFIX}row">
+                        <label class="${APP_PREFIX}label">Kết quả</label>
+                        <textarea id="${APP_PREFIX}quickOutput" class="${APP_PREFIX}textarea" readonly></textarea>
                     </div>
                 </div>
             </div>
@@ -3541,11 +4056,19 @@
                             </div>
                         </div>
                         <div class="${APP_PREFIX}row">
-                            <label class="${APP_PREFIX}label">Cấu hình Nguồn (Quét văn án & Nơi hiển thị)</label>
-                            <div id="${APP_PREFIX}domainConfig" class="${APP_PREFIX}settings-group" style="display:grid; grid-template-columns: 1.5fr 0.8fr 2fr; gap: 6px 12px; font-size: 13px; align-items:center;">
+                            <label class="${APP_PREFIX}label">Cấu hình Nguồn (Quét văn án, Gán nhãn & Nơi hiển thị)</label>
+                            <div id="${APP_PREFIX}domainConfig" class="${APP_PREFIX}settings-group" style="display:grid; grid-template-columns: 1.4fr 0.65fr 0.75fr 1.8fr; gap: 6px 10px; font-size: 13px; align-items:center;">
                                 <div class="${APP_PREFIX}domain-header">Nguồn</div>
                                 <div class="${APP_PREFIX}domain-header" style="text-align:center;">Quét</div>
+                                <div class="${APP_PREFIX}domain-header" style="text-align:center;">Gán nhãn</div>
                                 <div class="${APP_PREFIX}domain-header">Hiển thị</div>
+                            </div>
+                        </div>
+                        <div class="${APP_PREFIX}row">
+                            <label class="${APP_PREFIX}label">Tỷ lệ ảnh bìa theo nguồn đang dùng</label>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
+                                <span id="${APP_PREFIX}coverSizeSettingSummary" class="${APP_PREFIX}hint"></span>
+                                <button id="${APP_PREFIX}coverSizeSettingBtn" class="${APP_PREFIX}btn secondary" type="button" style="padding: 6px 10px;">Thiết lập WxH</button>
                             </div>
                         </div>
                     </div>
@@ -3582,6 +4105,43 @@
                     <div class="${APP_PREFIX}modal-body" id="${APP_PREFIX}duplicateBody"></div>
                     <div class="${APP_PREFIX}modal-actions">
                         <button id="${APP_PREFIX}duplicateClose" class="${APP_PREFIX}btn secondary">Đã hiểu</button>
+                    </div>
+                </div>
+            </div>
+            <div id="${APP_PREFIX}coverSizeModal" class="${APP_PREFIX}modal">
+                <div class="${APP_PREFIX}modal-card">
+                    <div class="${APP_PREFIX}modal-title">Tỷ lệ ảnh bìa (theo nguồn)</div>
+                    <div class="${APP_PREFIX}modal-body">
+                        <div class="${APP_PREFIX}hint" id="${APP_PREFIX}coverSizeDomain"></div>
+                        <div class="${APP_PREFIX}hint" id="${APP_PREFIX}coverSizeOriginal"></div>
+                        <div id="${APP_PREFIX}coverSizeList" class="${APP_PREFIX}cover-size-list" style="margin-top: 10px;"></div>
+                        <div class="${APP_PREFIX}cover-custom-row">
+                            <input id="${APP_PREFIX}coverCustomW" class="${APP_PREFIX}input" type="number" min="1" placeholder="Width" />
+                            <input id="${APP_PREFIX}coverCustomH" class="${APP_PREFIX}input" type="number" min="1" placeholder="Height" />
+                            <button id="${APP_PREFIX}coverCustomAdd" class="${APP_PREFIX}tiny-btn" type="button">Thêm</button>
+                        </div>
+                    </div>
+                    <div class="${APP_PREFIX}modal-actions">
+                        <button id="${APP_PREFIX}coverSizeSave" class="${APP_PREFIX}btn">Lưu</button>
+                        <button id="${APP_PREFIX}coverSizeClose" class="${APP_PREFIX}btn secondary">Đóng</button>
+                    </div>
+                </div>
+            </div>
+            <div id="${APP_PREFIX}multiPickerModal" class="${APP_PREFIX}modal">
+                <div class="${APP_PREFIX}modal-card ${APP_PREFIX}multi-picker-card">
+                    <div class="${APP_PREFIX}modal-title" id="${APP_PREFIX}multiPickerTitle">Chọn mục</div>
+                    <div class="${APP_PREFIX}modal-body">
+                        <div class="${APP_PREFIX}row" style="margin-top: 0;">
+                            <input id="${APP_PREFIX}multiPickerSearch" class="${APP_PREFIX}input" placeholder="Tìm nhanh nhãn..." />
+                            <div id="${APP_PREFIX}multiPickerMeta" class="${APP_PREFIX}multi-picker-meta"></div>
+                        </div>
+                        <div id="${APP_PREFIX}multiPickerList" class="${APP_PREFIX}multi-picker-list"></div>
+                    </div>
+                    <div class="${APP_PREFIX}modal-actions">
+                        <button id="${APP_PREFIX}multiPickerClear" class="${APP_PREFIX}btn secondary">Bỏ chọn</button>
+                        <button id="${APP_PREFIX}multiPickerSelectAll" class="${APP_PREFIX}btn secondary">Chọn hết</button>
+                        <button id="${APP_PREFIX}multiPickerSave" class="${APP_PREFIX}btn">Áp vào ô</button>
+                        <button id="${APP_PREFIX}multiPickerClose" class="${APP_PREFIX}btn secondary">Đóng</button>
                     </div>
                 </div>
             </div>
@@ -3627,11 +4187,31 @@
         const btn = shadowRoot.getElementById(`${APP_PREFIX}btn`);
         const panel = shadowRoot.getElementById(`${APP_PREFIX}panel`);
         const headerEl = shadowRoot.getElementById(`${APP_PREFIX}header`);
+        const recomputeNoticeEl = shadowRoot.getElementById(`${APP_PREFIX}recomputeNotice`);
         const close = shadowRoot.getElementById(`${APP_PREFIX}close`);
         const aiBtn = shadowRoot.getElementById(`${APP_PREFIX}ai`);
+        const quickToolBtn = shadowRoot.getElementById(`${APP_PREFIX}quickTool`);
         const fullscreenBtn = shadowRoot.getElementById(`${APP_PREFIX}fullscreen`);
         const helpBtn = shadowRoot.getElementById(`${APP_PREFIX}help`);
         const panelFullscreenClass = `${APP_PREFIX}fullscreen`;
+        const quickPanel = shadowRoot.getElementById(`${APP_PREFIX}quickPanel`);
+        const quickHeader = shadowRoot.getElementById(`${APP_PREFIX}quickHeader`);
+        const quickClose = shadowRoot.getElementById(`${APP_PREFIX}quickClose`);
+        const quickMode = shadowRoot.getElementById(`${APP_PREFIX}quickMode`);
+        const quickInput = shadowRoot.getElementById(`${APP_PREFIX}quickInput`);
+        const quickRun = shadowRoot.getElementById(`${APP_PREFIX}quickRun`);
+        const quickCopy = shadowRoot.getElementById(`${APP_PREFIX}quickCopy`);
+        const quickOutput = shadowRoot.getElementById(`${APP_PREFIX}quickOutput`);
+        const descToggleBtn = shadowRoot.getElementById(`${APP_PREFIX}descToggle`);
+        const descTextarea = shadowRoot.getElementById(`${APP_PREFIX}descVi`);
+        const descLabelText = shadowRoot.getElementById(`${APP_PREFIX}descLabelText`);
+        const coverUrlInput = shadowRoot.getElementById(`${APP_PREFIX}coverUrl`);
+        const coverSizeTag = shadowRoot.getElementById(`${APP_PREFIX}coverSizeTag`);
+        const coverSizeBtn = shadowRoot.getElementById(`${APP_PREFIX}coverSizeBtn`);
+        const pickAgeBtn = shadowRoot.getElementById(`${APP_PREFIX}pickAge`);
+        const pickEndingBtn = shadowRoot.getElementById(`${APP_PREFIX}pickEnding`);
+        const pickGenreBtn = shadowRoot.getElementById(`${APP_PREFIX}pickGenre`);
+        const pickTagBtn = shadowRoot.getElementById(`${APP_PREFIX}pickTag`);
 
         const settingsBtn = shadowRoot.getElementById(`${APP_PREFIX}settings`);
         const settingsModal = shadowRoot.getElementById(`${APP_PREFIX}settingsModal`);
@@ -3652,6 +4232,26 @@
         const duplicateModal = shadowRoot.getElementById(`${APP_PREFIX}duplicateModal`);
         const duplicateBody = shadowRoot.getElementById(`${APP_PREFIX}duplicateBody`);
         const duplicateClose = shadowRoot.getElementById(`${APP_PREFIX}duplicateClose`);
+        const coverSizeModal = shadowRoot.getElementById(`${APP_PREFIX}coverSizeModal`);
+        const coverSizeDomain = shadowRoot.getElementById(`${APP_PREFIX}coverSizeDomain`);
+        const coverSizeOriginal = shadowRoot.getElementById(`${APP_PREFIX}coverSizeOriginal`);
+        const coverSizeList = shadowRoot.getElementById(`${APP_PREFIX}coverSizeList`);
+        const coverCustomW = shadowRoot.getElementById(`${APP_PREFIX}coverCustomW`);
+        const coverCustomH = shadowRoot.getElementById(`${APP_PREFIX}coverCustomH`);
+        const coverCustomAdd = shadowRoot.getElementById(`${APP_PREFIX}coverCustomAdd`);
+        const coverSizeSave = shadowRoot.getElementById(`${APP_PREFIX}coverSizeSave`);
+        const coverSizeClose = shadowRoot.getElementById(`${APP_PREFIX}coverSizeClose`);
+        const multiPickerModal = shadowRoot.getElementById(`${APP_PREFIX}multiPickerModal`);
+        const multiPickerTitle = shadowRoot.getElementById(`${APP_PREFIX}multiPickerTitle`);
+        const multiPickerSearch = shadowRoot.getElementById(`${APP_PREFIX}multiPickerSearch`);
+        const multiPickerMeta = shadowRoot.getElementById(`${APP_PREFIX}multiPickerMeta`);
+        const multiPickerList = shadowRoot.getElementById(`${APP_PREFIX}multiPickerList`);
+        const multiPickerClear = shadowRoot.getElementById(`${APP_PREFIX}multiPickerClear`);
+        const multiPickerSelectAll = shadowRoot.getElementById(`${APP_PREFIX}multiPickerSelectAll`);
+        const multiPickerSave = shadowRoot.getElementById(`${APP_PREFIX}multiPickerSave`);
+        const multiPickerClose = shadowRoot.getElementById(`${APP_PREFIX}multiPickerClose`);
+        const coverSizeSettingSummary = shadowRoot.getElementById(`${APP_PREFIX}coverSizeSettingSummary`);
+        const coverSizeSettingBtn = shadowRoot.getElementById(`${APP_PREFIX}coverSizeSettingBtn`);
         const excludeBtn = shadowRoot.getElementById(`${APP_PREFIX}exclude`);
         const excludeModal = shadowRoot.getElementById(`${APP_PREFIX}excludeModal`);
         const excludeScope = shadowRoot.getElementById(`${APP_PREFIX}excludeScope`);
@@ -3670,11 +4270,13 @@
         const domainConfig = shadowRoot.getElementById(`${APP_PREFIX}domainConfig`);
         const getDomainInputs = (id) => ({
             desc: shadowRoot.getElementById(`${APP_PREFIX}confDesc_${id}`),
+            assignTags: shadowRoot.getElementById(`${APP_PREFIX}confTag_${id}`),
             target: shadowRoot.getElementById(`${APP_PREFIX}confTarget_${id}`),
         });
         const titleCnInput = shadowRoot.getElementById(`${APP_PREFIX}titleCn`);
         const authorCnInput = shadowRoot.getElementById(`${APP_PREFIX}authorCn`);
         const applyBtn = shadowRoot.getElementById(`${APP_PREFIX}apply`);
+        const sourceUrlInput = shadowRoot.getElementById(`${APP_PREFIX}url`);
 
         const setDataActionButtonsEnabled = (enabled) => {
             const ready = !!enabled;
@@ -3717,6 +4319,601 @@
             }
         };
 
+        const deepClone = (v) => {
+            try { return JSON.parse(JSON.stringify(v)); } catch { return null; }
+        };
+        const normalizeSnapshotText = (v) => T.safeText(v || '').replace(/\r\n/g, '\n');
+        let coverSizeDraft = null;
+        let multiPickerContext = null;
+        let coverMetaReqId = 0;
+        let coverMetaDebounce = null;
+        const MULTI_PICKER_FIELDS = {
+            age: { label: 'Thời đại', inputId: `${APP_PREFIX}age` },
+            ending: { label: 'Kết thúc', inputId: `${APP_PREFIX}ending` },
+            genre: { label: 'Loại hình', inputId: `${APP_PREFIX}genre` },
+            tag: { label: 'Tag', inputId: `${APP_PREFIX}tag` },
+        };
+
+        const getMultiPickerField = (key) => MULTI_PICKER_FIELDS[key] || null;
+        const getMultiPickerInput = (key) => {
+            const field = getMultiPickerField(key);
+            return field ? shadowRoot.getElementById(field.inputId) : null;
+        };
+        const uniqueLabels = (list) => {
+            const out = [];
+            const seen = new Set();
+            (Array.isArray(list) ? list : []).forEach((item) => {
+                const label = T.safeText(item);
+                if (!label) return;
+                const norm = T.normalizeText(label);
+                if (!norm || seen.has(norm)) return;
+                seen.add(norm);
+                out.push(label);
+            });
+            return out;
+        };
+
+        const getActiveSourceType = () => {
+            const current = T.safeText(state.sourceType || '');
+            if (current) return current;
+            const urlValue = T.safeText(shadowRoot.getElementById(`${APP_PREFIX}url`)?.value || '');
+            const detected = detectSource(urlValue);
+            return T.safeText(detected?.type || '');
+        };
+        const getActiveCoverScope = () => {
+            const sourceType = getActiveSourceType();
+            if (sourceType) {
+                const rule = getSiteRule(sourceType);
+                return {
+                    key: getCurrentCoverScopeKey(sourceType),
+                    sourceType,
+                    label: rule?.label || rule?.name || sourceType,
+                };
+            }
+            return {
+                key: getCurrentCoverScopeKey(''),
+                sourceType: '',
+                label: 'Chưa nhận diện nguồn',
+            };
+        };
+
+        const getCurrentCoverSizeConfig = () => getCoverSizeConfig(state.settings, getActiveCoverScope().key);
+        const setCurrentCoverSizeConfig = (conf) => {
+            const nextSettings = normalizeSettings({ ...(state.settings || {}) });
+            const nextMap = { ...(nextSettings.coverSizeByDomain || {}) };
+            const scope = getActiveCoverScope();
+            nextMap[scope.key] = {
+                mode: conf.mode === 'custom' || conf.mode === 'preset560' ? conf.mode : 'original',
+                targetWidth: Math.max(1, parseInt(conf.targetWidth, 10) || 560),
+                targetHeight: Math.max(1, parseInt(conf.targetHeight, 10) || 788),
+                customSizes: Array.isArray(conf.customSizes) ? conf.customSizes : [],
+            };
+            nextSettings.coverSizeByDomain = nextMap;
+            saveSettings(nextSettings);
+        };
+
+        const commitDescDraftFromEditor = () => {
+            if (!descTextarea) return;
+            if (state.descEditorMode === 'zh') {
+                state.descDraft.zh = descTextarea.value || '';
+            } else {
+                state.descDraft.vi = descTextarea.value || '';
+            }
+        };
+
+        const updateDescToggleUi = () => {
+            if (!descToggleBtn) return;
+            const isZh = state.descEditorMode === 'zh';
+            const current = isZh ? 'ZH' : 'VI';
+            const next = isZh ? 'VI' : 'ZH';
+            descToggleBtn.textContent = isZh ? 'Vi' : 'Zh';
+            descToggleBtn.title = `Đang sửa mô tả ${current}, bấm để chuyển sang ${next}`;
+            if (descLabelText) {
+                descLabelText.textContent = isZh ? 'Mô tả gốc (ZH)' : 'Mô tả dịch (VI)';
+            }
+            if (descTextarea) {
+                descTextarea.placeholder = isZh
+                    ? 'Mô tả gốc (ZH) - có thể chỉnh trực tiếp'
+                    : 'Mô tả dịch (VI) - có thể chỉnh trực tiếp';
+            }
+        };
+
+        const renderDescDraftToEditor = () => {
+            if (!descTextarea) return;
+            const nextValue = state.descEditorMode === 'zh'
+                ? (state.descDraft.zh || '')
+                : (state.descDraft.vi || '');
+            descTextarea.value = nextValue;
+            updateDescToggleUi();
+        };
+
+        const setDescEditorMode = (mode) => {
+            const nextMode = mode === 'zh' ? 'zh' : 'vi';
+            commitDescDraftFromEditor();
+            state.descEditorMode = nextMode;
+            renderDescDraftToEditor();
+        };
+
+        const syncSourceDraftFromInputs = () => {
+            commitDescDraftFromEditor();
+            const titleCnNow = T.safeText(shadowRoot.getElementById(`${APP_PREFIX}titleCn`)?.value || '');
+            const descCnNow = T.safeText(state.descDraft.zh || '');
+            if (state.sourceData) {
+                state.sourceData.titleCn = titleCnNow;
+                state.sourceData.descCn = descCnNow;
+            }
+            state.translated = state.translated || {};
+            state.translated.desc = state.descDraft.vi || '';
+            const titleViNow = T.safeText(shadowRoot.getElementById(`${APP_PREFIX}titleVi`)?.value || '');
+            if (titleViNow) state.translated.titleVi = titleViNow;
+        };
+
+        const formatCoverSize = (w, h) => {
+            const wi = parseInt(w, 10);
+            const hi = parseInt(h, 10);
+            if (!Number.isFinite(wi) || !Number.isFinite(hi) || wi < 1 || hi < 1) return '-';
+            return `${wi}x${hi}`;
+        };
+
+        const updateCoverSizeSummary = () => {
+            if (!coverSizeSettingSummary) return;
+            const scope = getActiveCoverScope();
+            const conf = getCurrentCoverSizeConfig();
+            const prefix = scope.sourceType
+                ? `Nguồn: ${scope.label}`
+                : 'Nguồn: Chưa nhận diện';
+            if (conf.mode === 'preset560') {
+                coverSizeSettingSummary.textContent = `${prefix} • Đang dùng: 560x788`;
+                return;
+            }
+            if (conf.mode === 'custom') {
+                coverSizeSettingSummary.textContent = `${prefix} • Đang dùng: ${formatCoverSize(conf.targetWidth, conf.targetHeight)}`;
+                return;
+            }
+            coverSizeSettingSummary.textContent = `${prefix} • Đang dùng: Gốc`;
+        };
+
+        const updateCoverSizeTag = () => {
+            if (!coverSizeTag) return;
+            const sourceUrl = T.safeText(coverUrlInput?.value || '');
+            const target = getCoverTargetSize(state.settings, getActiveCoverScope().key);
+            const orig = state.coverMeta.original;
+            const shouldHide = !sourceUrl && !orig && !state.coverMeta.loading;
+            coverSizeTag.style.display = shouldHide ? 'none' : 'inline-flex';
+            if (shouldHide) {
+                coverSizeTag.textContent = '';
+                return;
+            }
+            if (state.coverMeta.loading) {
+                coverSizeTag.textContent = 'Đang đọc WxH...';
+                return;
+            }
+            if (orig && target) {
+                coverSizeTag.textContent = `${orig.width}x${orig.height} → ${target.width}x${target.height}`;
+                return;
+            }
+            if (orig) {
+                coverSizeTag.textContent = `${orig.width}x${orig.height}`;
+                return;
+            }
+            if (target) {
+                coverSizeTag.textContent = `Gốc → ${target.width}x${target.height}`;
+                return;
+            }
+            coverSizeTag.textContent = '-';
+        };
+
+        const updateCoverOriginalHint = () => {
+            if (!coverSizeOriginal) return;
+            if (state.coverMeta.loading) {
+                coverSizeOriginal.textContent = 'Ảnh gốc: đang đọc kích thước...';
+                return;
+            }
+            if (state.coverMeta.original) {
+                coverSizeOriginal.textContent = `Ảnh gốc: ${state.coverMeta.original.width}x${state.coverMeta.original.height}`;
+                return;
+            }
+            if (state.coverMeta.error) {
+                coverSizeOriginal.textContent = `Ảnh gốc: không đọc được (${state.coverMeta.error})`;
+                return;
+            }
+            coverSizeOriginal.textContent = 'Ảnh gốc: chưa có dữ liệu.';
+        };
+
+        const readImageSizeFromUrl = (url) => new Promise((resolve, reject) => {
+            const src = T.safeText(url);
+            if (!src) {
+                reject(new Error('URL ảnh trống'));
+                return;
+            }
+            const img = new Image();
+            let done = false;
+            const timer = setTimeout(() => {
+                if (done) return;
+                done = true;
+                reject(new Error('Timeout đọc kích thước ảnh'));
+            }, 10000);
+            img.onload = () => {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                const width = img.naturalWidth || img.width || 0;
+                const height = img.naturalHeight || img.height || 0;
+                if (!width || !height) {
+                    reject(new Error('Không đọc được kích thước ảnh'));
+                    return;
+                }
+                resolve({ width, height });
+            };
+            img.onerror = () => {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                reject(new Error('Không tải được ảnh'));
+            };
+            img.src = src;
+        });
+
+        const refreshCoverMeta = (url) => {
+            const src = T.safeText(url);
+            const reqId = ++coverMetaReqId;
+            if (!src) {
+                state.coverMeta = { original: null, loading: false, error: '' };
+                updateCoverSizeTag();
+                updateCoverSizeSummary();
+                updateCoverOriginalHint();
+                return;
+            }
+            state.coverMeta.loading = true;
+            state.coverMeta.error = '';
+            updateCoverSizeTag();
+            updateCoverOriginalHint();
+            readImageSizeFromUrl(src)
+                .then((size) => {
+                    if (reqId !== coverMetaReqId) return;
+                    state.coverMeta.original = size;
+                    state.coverMeta.loading = false;
+                    state.coverMeta.error = '';
+                    updateCoverSizeTag();
+                    updateCoverOriginalHint();
+                })
+                .catch((err) => {
+                    if (reqId !== coverMetaReqId) return;
+                    state.coverMeta.original = null;
+                    state.coverMeta.loading = false;
+                    state.coverMeta.error = err.message || 'Không đọc được kích thước ảnh';
+                    updateCoverSizeTag();
+                    updateCoverOriginalHint();
+                });
+        };
+
+        const buildRecomputeSnapshot = () => {
+            commitDescDraftFromEditor();
+            return {
+                nameSet: normalizeSnapshotText(shadowRoot.getElementById(`${APP_PREFIX}nameSet`)?.value || ''),
+                titleCn: normalizeSnapshotText(shadowRoot.getElementById(`${APP_PREFIX}titleCn`)?.value || ''),
+                descCn: normalizeSnapshotText(state.descDraft.zh || ''),
+                extraKeywords: normalizeSnapshotText(shadowRoot.getElementById(`${APP_PREFIX}extraKeywords`)?.value || ''),
+            };
+        };
+
+        const getRecomputeChanges = () => {
+            const baseline = state.recomputeBaseline;
+            if (!baseline) return [];
+            const current = buildRecomputeSnapshot();
+            const checks = [
+                { key: 'nameSet', label: 'Bộ name' },
+                { key: 'titleCn', label: 'Tên gốc (CN)' },
+                { key: 'descCn', label: 'Văn án (ZH)' },
+            ];
+            if (!baseline.aiUsed) checks.push({ key: 'extraKeywords', label: 'Từ khóa bổ sung' });
+            return checks.filter(item => current[item.key] !== baseline.snapshot[item.key]).map(item => item.key);
+        };
+
+        const keyToChangeLabel = (key) => ({
+            nameSet: 'Bộ name',
+            titleCn: 'Tên gốc (CN)',
+            descCn: 'Văn án (ZH)',
+            extraKeywords: 'Từ khóa bổ sung',
+        }[key] || key);
+
+        const updateRecomputeNotice = () => {
+            if (!recomputeNoticeEl) return;
+            const changes = getRecomputeChanges();
+            if (!changes.length) {
+                recomputeNoticeEl.classList.remove('show');
+                recomputeNoticeEl.textContent = '';
+                return;
+            }
+            const labels = changes.map(keyToChangeLabel).join(', ');
+            recomputeNoticeEl.textContent = `Đã thay đổi: ${labels}. Hãy bấm Recompute để cập nhật.`;
+            recomputeNoticeEl.classList.add('show');
+        };
+
+        const setRecomputeBaseline = (aiUsed) => {
+            state.recomputeBaseline = {
+                aiUsed: !!aiUsed,
+                snapshot: buildRecomputeSnapshot(),
+                at: Date.now(),
+            };
+            updateRecomputeNotice();
+        };
+
+        const setDescDrafts = (zhText, viText) => {
+            state.descDraft.zh = zhText || '';
+            state.descDraft.vi = viText || '';
+            state.descEditorMode = 'vi';
+            renderDescDraftToEditor();
+        };
+
+        const getCurrentAiManagedValues = () => ({
+            official: shadowRoot.getElementById(`${APP_PREFIX}official`)?.value || '',
+            gender: shadowRoot.getElementById(`${APP_PREFIX}gender`)?.value || '',
+            age: parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}age`)?.value || ''),
+            ending: parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}ending`)?.value || ''),
+            genre: parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}genre`)?.value || ''),
+            tag: parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}tag`)?.value || ''),
+        });
+
+        const getAiManagedDiffKeys = (base, current) => {
+            const b = base || {};
+            const c = current || {};
+            const out = [];
+            if (normalizeCompareText(b.official || '') !== normalizeCompareText(c.official || '')) out.push('official');
+            if (normalizeCompareText(b.gender || '') !== normalizeCompareText(c.gender || '')) out.push('gender');
+            if (!arraysEqualNormalized(b.age || [], c.age || [])) out.push('age');
+            if (!arraysEqualNormalized(b.ending || [], c.ending || [])) out.push('ending');
+            if (!arraysEqualNormalized(b.genre || [], c.genre || [])) out.push('genre');
+            if (!arraysEqualNormalized(b.tag || [], c.tag || [])) out.push('tag');
+            return out;
+        };
+
+        const aiManagedKeyLabel = (key) => ({
+            official: 'Tính chất',
+            gender: 'Giới tính',
+            age: 'Thời đại',
+            ending: 'Kết thúc',
+            genre: 'Thể loại',
+            tag: 'Tag',
+        }[key] || key);
+
+        const normalizeCustomSizes = (list) => {
+            const seen = new Set();
+            const out = [];
+            (Array.isArray(list) ? list : []).forEach((item) => {
+                const w = Math.max(1, parseInt(item?.w, 10) || 0);
+                const h = Math.max(1, parseInt(item?.h, 10) || 0);
+                if (!w || !h) return;
+                const key = `${w}x${h}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                out.push({ w, h });
+            });
+            return out;
+        };
+
+        const normalizeCoverDraft = (conf) => {
+            const normalized = {
+                mode: conf?.mode === 'custom' || conf?.mode === 'preset560' ? conf.mode : 'original',
+                targetWidth: Math.max(1, parseInt(conf?.targetWidth, 10) || 560),
+                targetHeight: Math.max(1, parseInt(conf?.targetHeight, 10) || 788),
+                customSizes: normalizeCustomSizes(conf?.customSizes || []),
+            };
+            if (normalized.mode === 'custom') {
+                const hasTarget = normalized.customSizes.some((item) => item.w === normalized.targetWidth && item.h === normalized.targetHeight);
+                if (!hasTarget) {
+                    normalized.customSizes.push({ w: normalized.targetWidth, h: normalized.targetHeight });
+                }
+            }
+            return normalized;
+        };
+
+        const closeCoverSizeModal = () => {
+            if (coverSizeModal) coverSizeModal.style.display = 'none';
+        };
+
+        const renderCoverSizeModal = () => {
+            if (!coverSizeDraft || !coverSizeList) return;
+            coverSizeDraft = normalizeCoverDraft(coverSizeDraft);
+            coverSizeList.innerHTML = '';
+
+            const selectedMode = coverSizeDraft.mode;
+            const selectedW = Math.max(1, parseInt(coverSizeDraft.targetWidth, 10) || 560);
+            const selectedH = Math.max(1, parseInt(coverSizeDraft.targetHeight, 10) || 788);
+            const entries = [
+                { key: 'original', label: 'Giữ nguyên ảnh gốc', mode: 'original', w: 0, h: 0, deletable: false },
+                { key: 'preset560', label: 'Preset 560x788', mode: 'preset560', w: 560, h: 788, deletable: false },
+                ...coverSizeDraft.customSizes.map((item, idx) => ({
+                    key: `custom_${idx}`,
+                    label: `Tùy chỉnh ${item.w}x${item.h}`,
+                    mode: 'custom',
+                    w: item.w,
+                    h: item.h,
+                    deletable: true,
+                    customIndex: idx,
+                })),
+            ];
+
+            entries.forEach((entry) => {
+                const row = document.createElement('label');
+                row.className = `${APP_PREFIX}cover-size-item`;
+
+                const left = document.createElement('div');
+                left.style.display = 'inline-flex';
+                left.style.alignItems = 'center';
+                left.style.gap = '8px';
+
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = `${APP_PREFIX}coverSizeMode`;
+                radio.value = entry.key;
+                radio.checked = selectedMode === entry.mode
+                    && (entry.mode !== 'custom' || (entry.w === selectedW && entry.h === selectedH));
+                radio.addEventListener('change', () => {
+                    if (!radio.checked) return;
+                    if (entry.mode === 'original') {
+                        coverSizeDraft.mode = 'original';
+                    } else if (entry.mode === 'preset560') {
+                        coverSizeDraft.mode = 'preset560';
+                        coverSizeDraft.targetWidth = 560;
+                        coverSizeDraft.targetHeight = 788;
+                    } else {
+                        coverSizeDraft.mode = 'custom';
+                        coverSizeDraft.targetWidth = entry.w;
+                        coverSizeDraft.targetHeight = entry.h;
+                    }
+                    renderCoverSizeModal();
+                });
+                left.appendChild(radio);
+
+                const text = document.createElement('span');
+                text.textContent = entry.label;
+                left.appendChild(text);
+                row.appendChild(left);
+
+                if (entry.deletable) {
+                    const delBtn = document.createElement('button');
+                    delBtn.type = 'button';
+                    delBtn.className = `${APP_PREFIX}tiny-btn`;
+                    delBtn.textContent = 'Xóa';
+                    delBtn.addEventListener('click', (ev) => {
+                        ev.preventDefault();
+                        const next = coverSizeDraft.customSizes.filter((_, i) => i !== entry.customIndex);
+                        coverSizeDraft.customSizes = next;
+                        const wasSelected = coverSizeDraft.mode === 'custom'
+                            && coverSizeDraft.targetWidth === entry.w
+                            && coverSizeDraft.targetHeight === entry.h;
+                        if (wasSelected) {
+                            coverSizeDraft.mode = 'original';
+                        }
+                        renderCoverSizeModal();
+                    });
+                    row.appendChild(delBtn);
+                } else {
+                    const spacer = document.createElement('span');
+                    spacer.style.width = '46px';
+                    row.appendChild(spacer);
+                }
+
+                coverSizeList.appendChild(row);
+            });
+        };
+
+        const openCoverSizeModal = () => {
+            if (!coverSizeModal) return;
+            coverSizeDraft = normalizeCoverDraft(deepClone(getCurrentCoverSizeConfig()) || getDefaultCoverSizeConfig());
+            const currentCoverUrl = T.safeText(coverUrlInput?.value || '');
+            if (currentCoverUrl) {
+                refreshCoverMeta(currentCoverUrl);
+            }
+            const scope = getActiveCoverScope();
+            if (coverSizeDomain) {
+                coverSizeDomain.textContent = `Nguồn hiện tại: ${scope.label}`;
+            }
+            updateCoverOriginalHint();
+            renderCoverSizeModal();
+            coverSizeModal.style.display = 'flex';
+        };
+
+        const closeMultiPickerModal = () => {
+            if (multiPickerModal) multiPickerModal.style.display = 'none';
+            if (multiPickerSearch) multiPickerSearch.value = '';
+            if (multiPickerList) multiPickerList.innerHTML = '';
+            if (multiPickerMeta) multiPickerMeta.textContent = '';
+            multiPickerContext = null;
+        };
+
+        const updateMultiPickerMeta = () => {
+            if (!multiPickerMeta || !multiPickerContext) return;
+            const optionNorms = new Set((multiPickerContext.options || []).map(label => T.normalizeText(label)).filter(Boolean));
+            let selectedFromWeb = 0;
+            multiPickerContext.selectedMap.forEach((_, norm) => {
+                if (optionNorms.has(norm)) selectedFromWeb++;
+            });
+            const customCount = Math.max(0, multiPickerContext.selectedMap.size - selectedFromWeb);
+            multiPickerMeta.textContent = `Đã chọn ${multiPickerContext.selectedMap.size} • Từ web ${selectedFromWeb}/${multiPickerContext.options.length}${customCount ? ` • Nhập tay ${customCount}` : ''}`;
+        };
+
+        const renderMultiPickerList = () => {
+            if (!multiPickerList || !multiPickerContext) return;
+            multiPickerList.innerHTML = '';
+            const query = T.normalizeText(multiPickerSearch?.value || '');
+            const source = multiPickerContext.options || [];
+            const rows = query ? source.filter(label => T.normalizeText(label).includes(query)) : source;
+
+            if (!rows.length) {
+                const empty = document.createElement('div');
+                empty.className = `${APP_PREFIX}multi-picker-empty`;
+                empty.textContent = source.length
+                    ? 'Không có nhãn khớp từ khóa.'
+                    : 'Chưa đọc được danh sách nhãn từ web cho mục này.';
+                multiPickerList.appendChild(empty);
+                updateMultiPickerMeta();
+                return;
+            }
+
+            rows.forEach((label) => {
+                const norm = T.normalizeText(label);
+                const row = document.createElement('label');
+                row.className = `${APP_PREFIX}multi-picker-item`;
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = multiPickerContext.selectedMap.has(norm);
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) multiPickerContext.selectedMap.set(norm, label);
+                    else multiPickerContext.selectedMap.delete(norm);
+                    updateMultiPickerMeta();
+                });
+
+                const text = document.createElement('span');
+                text.textContent = label;
+
+                row.appendChild(checkbox);
+                row.appendChild(text);
+                multiPickerList.appendChild(row);
+            });
+            updateMultiPickerMeta();
+        };
+
+        const openMultiPicker = (key) => {
+            const field = getMultiPickerField(key);
+            if (!field || !multiPickerModal) return;
+            state.groups = getGroupOptions();
+            const options = uniqueLabels((state.groups?.[key] || []).map(opt => opt.label));
+            const inputEl = getMultiPickerInput(key);
+            const current = parseLabelList(inputEl?.value || '');
+            const optionMap = new Map(options.map(label => [T.normalizeText(label), label]));
+            const selectedMap = new Map();
+            current.forEach((label) => {
+                const raw = T.safeText(label);
+                if (!raw) return;
+                const norm = T.normalizeText(raw);
+                if (!norm) return;
+                selectedMap.set(norm, optionMap.get(norm) || raw);
+            });
+
+            multiPickerContext = {
+                key,
+                field,
+                options,
+                selectedMap,
+            };
+            if (multiPickerTitle) multiPickerTitle.textContent = `Chọn ${field.label}`;
+            if (multiPickerSearch) multiPickerSearch.value = '';
+            renderMultiPickerList();
+            multiPickerModal.style.display = 'flex';
+            setTimeout(() => multiPickerSearch?.focus(), 0);
+        };
+
+        const scheduleCoverMetaRefresh = (url) => {
+            if (coverMetaDebounce) clearTimeout(coverMetaDebounce);
+            coverMetaDebounce = setTimeout(() => {
+                coverMetaDebounce = null;
+                refreshCoverMeta(url);
+            }, 260);
+        };
+
         const getCurrentFormValues = () => {
             const groups = state.groups || getGroupOptions();
             const getSelectedRadio = (name) => {
@@ -3748,10 +4945,11 @@
         };
 
         const getPlannedValues = () => {
+            commitDescDraftFromEditor();
             const titleCn = shadowRoot.getElementById(`${APP_PREFIX}titleCn`)?.value || '';
             const authorCn = shadowRoot.getElementById(`${APP_PREFIX}authorCn`)?.value || '';
             const titleVi = shadowRoot.getElementById(`${APP_PREFIX}titleVi`)?.value || '';
-            const descVi = shadowRoot.getElementById(`${APP_PREFIX}descVi`)?.value || '';
+            const descVi = state.descDraft.vi || '';
             const coverUrl = shadowRoot.getElementById(`${APP_PREFIX}coverUrl`)?.value || '';
             const statusSel = shadowRoot.getElementById(`${APP_PREFIX}status`)?.value || '';
             const officialSel = shadowRoot.getElementById(`${APP_PREFIX}official`)?.value || '';
@@ -4050,6 +5248,7 @@
             domainConfig.innerHTML = `
                 <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666;">Nguồn</div>
                 <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666; text-align:center;">Quét</div>
+                <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666; text-align:center;">Gán nhãn</div>
                 <div style="font-weight:bold; border-bottom:1px solid #eee; color:#666;">Hiển thị</div>
             `;
             SITE_RULES.forEach((rule) => {
@@ -4067,6 +5266,14 @@
                 descInput.title = 'Quét văn án';
                 descWrap.appendChild(descInput);
 
+                const tagWrap = document.createElement('div');
+                tagWrap.style.textAlign = 'center';
+                const tagInput = document.createElement('input');
+                tagInput.type = 'checkbox';
+                tagInput.id = `${APP_PREFIX}confTag_${rule.id}`;
+                tagInput.title = 'Gán dòng "Nhãn: ..." vào văn án trước khi dịch';
+                tagWrap.appendChild(tagInput);
+
                 const targetWrap = document.createElement('div');
                 const targetSelect = document.createElement('select');
                 targetSelect.id = `${APP_PREFIX}confTarget_${rule.id}`;
@@ -4081,6 +5288,7 @@
 
                 domainConfig.appendChild(label);
                 domainConfig.appendChild(descWrap);
+                domainConfig.appendChild(tagWrap);
                 domainConfig.appendChild(targetWrap);
             });
         };
@@ -4129,20 +5337,16 @@
             helpModal.style.display = 'none';
         });
         helpModal.addEventListener('click', (ev) => {
-            if (ev.target === helpModal) helpModal.style.display = 'none';
+            if (ev.target === helpModal) return;
         });
         if (excludeModal) {
             excludeModal.addEventListener('click', (ev) => {
-                if (ev.target === excludeModal) excludeModal.style.display = 'none';
+                if (ev.target === excludeModal) return;
             });
         }
         if (diffModal) {
             diffModal.addEventListener('click', (ev) => {
-                if (ev.target === diffModal) {
-                    diffModal.style.display = 'none';
-                    if (pendingDiffResolve) pendingDiffResolve(false);
-                    pendingDiffResolve = null;
-                }
+                if (ev.target === diffModal) return;
             });
         }
         if (duplicateClose && duplicateModal) {
@@ -4152,7 +5356,7 @@
         }
         if (duplicateModal) {
             duplicateModal.addEventListener('click', (ev) => {
-                if (ev.target === duplicateModal) duplicateModal.style.display = 'none';
+                if (ev.target === duplicateModal) return;
             });
         }
 
@@ -4395,10 +5599,12 @@
             SITE_RULES.forEach((rule) => {
                 const inputs = getDomainInputs(rule.id);
                 const conf = d[rule.id];
-                if (!inputs.desc || !inputs.target || !conf) return;
+                if (!inputs.desc || !inputs.assignTags || !inputs.target || !conf) return;
                 inputs.desc.checked = !!conf.useDesc;
+                inputs.assignTags.checked = conf.assignTags !== false;
                 inputs.target.value = conf.target === 'all' ? '' : conf.target;
             });
+            updateCoverSizeSummary();
             settingsModal.style.display = 'flex';
         });
 
@@ -4406,12 +5612,180 @@
             const next = readSettingsFromUi();
             saveSettings(next);
             settingsModal.style.display = 'none';
+            updateCoverSizeSummary();
+            updateCoverSizeTag();
             log('Đã lưu cài đặt.', 'info');
         });
 
         settingsClose.addEventListener('click', () => {
             settingsModal.style.display = 'none';
         });
+
+        if (descToggleBtn) {
+            descToggleBtn.addEventListener('click', () => {
+                const next = state.descEditorMode === 'zh' ? 'vi' : 'zh';
+                setDescEditorMode(next);
+                updateRecomputeNotice();
+                updateMatchIndicators();
+            });
+        }
+        if (descTextarea) {
+            descTextarea.addEventListener('input', () => {
+                commitDescDraftFromEditor();
+                if (state.descEditorMode === 'zh') {
+                    if (state.sourceData) state.sourceData.descCn = T.safeText(state.descDraft.zh || '');
+                } else {
+                    state.translated = state.translated || {};
+                    state.translated.desc = state.descDraft.vi || '';
+                }
+                updateRecomputeNotice();
+                updateMatchIndicators();
+            });
+            descTextarea.addEventListener('change', () => {
+                commitDescDraftFromEditor();
+                updateRecomputeNotice();
+            });
+        }
+
+        if (coverUrlInput) {
+            coverUrlInput.addEventListener('input', () => {
+                scheduleCoverMetaRefresh(coverUrlInput.value);
+            });
+            coverUrlInput.addEventListener('change', () => {
+                scheduleCoverMetaRefresh(coverUrlInput.value);
+            });
+        }
+        if (coverSizeBtn) {
+            coverSizeBtn.addEventListener('click', () => {
+                openCoverSizeModal();
+            });
+        }
+        if (coverSizeSettingBtn) {
+            coverSizeSettingBtn.addEventListener('click', () => {
+                openCoverSizeModal();
+            });
+        }
+        if (coverCustomAdd) {
+            coverCustomAdd.addEventListener('click', () => {
+                if (!coverSizeDraft) return;
+                const w = Math.max(1, parseInt(coverCustomW?.value, 10) || 0);
+                const h = Math.max(1, parseInt(coverCustomH?.value, 10) || 0);
+                if (!w || !h) {
+                    log('WxH tùy chỉnh không hợp lệ.', 'warn');
+                    return;
+                }
+                const existed = (coverSizeDraft.customSizes || []).some((item) => item.w === w && item.h === h);
+                if (!existed) {
+                    coverSizeDraft.customSizes = normalizeCustomSizes([...(coverSizeDraft.customSizes || []), { w, h }]);
+                }
+                coverSizeDraft.mode = 'custom';
+                coverSizeDraft.targetWidth = w;
+                coverSizeDraft.targetHeight = h;
+                if (coverCustomW) coverCustomW.value = '';
+                if (coverCustomH) coverCustomH.value = '';
+                renderCoverSizeModal();
+            });
+        }
+        if (coverSizeSave) {
+            coverSizeSave.addEventListener('click', () => {
+                if (!coverSizeDraft) {
+                    closeCoverSizeModal();
+                    return;
+                }
+                const scope = getActiveCoverScope();
+                if (!scope.sourceType) {
+                    log('Chưa nhận diện được nguồn. Hãy nhập URL nguồn hợp lệ hoặc bấm Lấy dữ liệu trước khi lưu WxH.', 'warn');
+                    return;
+                }
+                setCurrentCoverSizeConfig(coverSizeDraft);
+                updateCoverSizeSummary();
+                updateCoverSizeTag();
+                closeCoverSizeModal();
+                log(`Đã lưu cấu hình tỷ lệ ảnh bìa cho nguồn ${scope.label}.`, 'ok');
+            });
+        }
+        if (coverSizeClose) {
+            coverSizeClose.addEventListener('click', () => {
+                closeCoverSizeModal();
+            });
+        }
+        if (coverSizeModal) {
+            coverSizeModal.addEventListener('click', (ev) => {
+                if (ev.target === coverSizeModal) return;
+            });
+        }
+        if (pickAgeBtn) pickAgeBtn.addEventListener('click', () => openMultiPicker('age'));
+        if (pickEndingBtn) pickEndingBtn.addEventListener('click', () => openMultiPicker('ending'));
+        if (pickGenreBtn) pickGenreBtn.addEventListener('click', () => openMultiPicker('genre'));
+        if (pickTagBtn) pickTagBtn.addEventListener('click', () => openMultiPicker('tag'));
+        if (multiPickerSearch) {
+            multiPickerSearch.addEventListener('input', () => {
+                renderMultiPickerList();
+            });
+            multiPickerSearch.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Escape') {
+                    ev.preventDefault();
+                    closeMultiPickerModal();
+                }
+            });
+        }
+        if (multiPickerClear) {
+            multiPickerClear.addEventListener('click', () => {
+                if (!multiPickerContext) return;
+                multiPickerContext.selectedMap.clear();
+                renderMultiPickerList();
+            });
+        }
+        if (multiPickerSelectAll) {
+            multiPickerSelectAll.addEventListener('click', () => {
+                if (!multiPickerContext) return;
+                (multiPickerContext.options || []).forEach((label) => {
+                    const norm = T.normalizeText(label);
+                    if (norm) multiPickerContext.selectedMap.set(norm, label);
+                });
+                renderMultiPickerList();
+            });
+        }
+        if (multiPickerSave) {
+            multiPickerSave.addEventListener('click', () => {
+                if (!multiPickerContext) {
+                    closeMultiPickerModal();
+                    return;
+                }
+                const inputEl = getMultiPickerInput(multiPickerContext.key);
+                if (!inputEl) {
+                    closeMultiPickerModal();
+                    return;
+                }
+                const ordered = [];
+                const seen = new Set();
+                (multiPickerContext.options || []).forEach((label) => {
+                    const norm = T.normalizeText(label);
+                    if (!norm || seen.has(norm) || !multiPickerContext.selectedMap.has(norm)) return;
+                    seen.add(norm);
+                    ordered.push(multiPickerContext.selectedMap.get(norm));
+                });
+                multiPickerContext.selectedMap.forEach((label, norm) => {
+                    if (!norm || seen.has(norm)) return;
+                    seen.add(norm);
+                    ordered.push(label);
+                });
+                const fieldLabel = multiPickerContext.field?.label || 'mục';
+                setInputValue(inputEl, ordered.join(', '));
+                closeMultiPickerModal();
+                log(`Đã áp ${ordered.length} nhãn cho "${fieldLabel}".`, 'ok');
+            });
+        }
+        if (multiPickerClose) {
+            multiPickerClose.addEventListener('click', () => {
+                closeMultiPickerModal();
+            });
+        }
+        if (multiPickerModal) {
+            multiPickerModal.addEventListener('click', (ev) => {
+                if (ev.target === multiPickerModal) return;
+            });
+        }
 
         // Fetch Models Logic
         settingsFetchModels.addEventListener('click', () => {
@@ -4522,11 +5896,15 @@
             return { shouldExtractNames, availableOptions };
         };
 
+        const getDescViForAi = () => {
+            return stripTaggedDescLine(state.translated?.desc || '');
+        };
+
         const buildAiPrompt = (shouldExtractNames, availableOptions) => {
             const novelInfo = {
                 title: state.sourceData.titleCn,
                 author: state.sourceData.authorCn,
-                desc: state.sourceData.descCn + '\n' + (state.translated?.desc || ''),
+                desc: state.sourceData.descCn + '\n' + getDescViForAi(),
                 tags: (state.sourceData.tags || []).join(', ')
             };
 
@@ -4539,7 +5917,7 @@ Title: ${novelInfo.title}
 Author: ${novelInfo.author}
 Tags: ${novelInfo.tags}
 Description (Chinese): ${state.sourceData.descCn}
-Description (Vietnamese): ${state.translated?.desc || ''}
+Description (Vietnamese): ${getDescViForAi()}
 
 TASK 1: Extract all important names (characters, locations, titles) from the Chinese description.
 Return them as "names" array with format: [{"cn": "中文名", "vi": "Hán-Việt"}]
@@ -4609,24 +5987,28 @@ For arrays, return list of strings. If none fit, return empty array.
                 log(`Đã tách ${extractedNames.length} tên.`, 'ok');
 
                 log('Đang dịch lại văn án với bộ tên mới...', 'info');
-                const newNameSet = {};
-                extractedNames.forEach(n => { if (n.cn && n.vi) newNameSet[n.cn] = n.vi; });
-                const reTranslatedDesc = await translateTextWithNameSet(state.sourceData.descCn, newNameSet, true);
+                const newNameSet = parseNameSet(nameSetEl?.value || '');
+                const descCnNow = T.safeText(state.descDraft.zh || state.sourceData.descCn || '');
+                const assignTags = shouldAssignTagsForSource(state.sourceData?.sourceType);
+                const descCnForTranslate = buildTaggedDescForTranslate(descCnNow, state.sourceData?.tags || [], assignTags);
+                const reTranslatedDesc = await translateTextWithNameSet(descCnForTranslate, newNameSet, true);
                 if (reTranslatedDesc) {
                     state.translated = state.translated || {};
                     state.translated.desc = reTranslatedDesc;
-                    const descViEl = shadowRoot.getElementById(`${APP_PREFIX}descVi`);
-                    if (descViEl) descViEl.value = reTranslatedDesc;
+                    setDescDrafts(descCnNow, reTranslatedDesc);
+                    if (state.sourceData) state.sourceData.descCn = descCnNow;
                     log('Đã dịch lại văn án với bộ tên.', 'ok');
                 }
 
                 log('Đang dịch lại tiêu đề với bộ tên mới...', 'info');
-                const reTranslatedTitle = await translateTextWithNameSet(state.sourceData.titleCn, newNameSet, false);
+                const titleCnNow = T.safeText(shadowRoot.getElementById(`${APP_PREFIX}titleCn`)?.value || state.sourceData.titleCn || '');
+                const reTranslatedTitle = await translateTextWithNameSet(titleCnNow, newNameSet, false);
                 if (reTranslatedTitle) {
                     state.translated = state.translated || {};
                     state.translated.titleVi = reTranslatedTitle;
                     const titleViEl = shadowRoot.getElementById(`${APP_PREFIX}titleVi`);
                     if (titleViEl) titleViEl.value = reTranslatedTitle;
+                    if (state.sourceData) state.sourceData.titleCn = titleCnNow;
                     log('Đã dịch lại tiêu đề với bộ tên.', 'ok');
                 }
             }
@@ -4710,6 +6092,9 @@ For arrays, return list of strings. If none fit, return empty array.
                 genre: result.genre || [],
                 tag: result.tag || [],
             };
+            state.aiLastSuggestions = deepClone(state.suggestions);
+            setRecomputeBaseline(true);
+            updateMatchIndicators();
 
             log('AI đã đề xuất xong. Hãy kiểm tra lại và bấm "Áp vào form".', 'ok');
         };
@@ -4724,6 +6109,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 log('Chưa nhập API Key Gemini trong Cài đặt.', 'error');
                 return;
             }
+            syncSourceDraftFromInputs();
 
             const context = buildAiContext();
             if (!context) return;
@@ -4757,12 +6143,13 @@ For arrays, return list of strings. If none fit, return empty array.
             const domainSettings = {};
             SITE_RULES.forEach((rule) => {
                 const inputs = getDomainInputs(rule.id);
-                if (!inputs.desc || !inputs.target) return;
+                if (!inputs.desc || !inputs.assignTags || !inputs.target) return;
                 const def = DEFAULT_SETTINGS.domainSettings[rule.id] || {};
                 const selectedTarget = inputs.target.value || 'all';
                 domainSettings[rule.id] = {
                     label: def.label || rule.name || rule.id,
                     useDesc: inputs.desc.checked,
+                    assignTags: inputs.assignTags.checked,
                     target: selectedTarget,
                 };
             });
@@ -4774,14 +6161,18 @@ For arrays, return list of strings. If none fit, return empty array.
                 autoExtractNames: settingsAutoExtractNames.checked,
                 autoBreakDesc: settingsAutoBreakDesc.checked,
                 domainSettings,
+                coverSizeByDomain: deepClone(state.settings?.coverSizeByDomain || {}),
             };
         }
 
         async function handleFetch() {
             logBox.innerHTML = '';
             state.hasFetchedData = false;
+            state.recomputeBaseline = null;
+            state.aiLastSuggestions = null;
             setDataActionButtonsEnabled(false);
             setApplyByDuplicateState();
+            updateRecomputeNotice();
             try {
                 if (!state.groups) state.groups = getGroupOptions();
                 const urlInput = shadowRoot.getElementById(`${APP_PREFIX}url`);
@@ -4852,15 +6243,17 @@ For arrays, return list of strings. If none fit, return empty array.
                 const nameSetRaw = shadowRoot.getElementById(`${APP_PREFIX}nameSet`).value;
                 const nameSet = parseNameSet(nameSetRaw);
                 state.nameSet = nameSet;
-                GM_setValue(`${APP_PREFIX}name_set`, nameSetRaw);
                 const tagsRaw = sourceData.tags || [];
                 const categoryNames = sourceData.categories || [];
+                const assignTags = shouldAssignTagsForSource(sourceInfo.type);
+                const descCnForTranslate = buildTaggedDescForTranslate(descCn, tagsRaw, assignTags);
 
                 log(`Dịch tiêu đề (${titleCn.length} ký tự)...`);
                 const titleVi = await translateTextWithNameSet(titleCn, nameSet, false);
                 log('Dịch tiêu đề xong.', 'ok');
-                log(`Dịch mô tả (${descCn.length} ký tự)...`);
-                const descVi = await translateTextWithNameSet(descCn, nameSet, true);
+                log(`Dịch mô tả (${descCnForTranslate.length} ký tự)...`);
+                if (tagsRaw.length && assignTags) log('Đã thêm dòng "Nhãn: ..." vào văn án trước khi dịch.', 'info');
+                const descVi = await translateTextWithNameSet(descCnForTranslate, nameSet, true);
                 log('Dịch mô tả xong.', 'ok');
                 if (tagsRaw.length) log(`Dịch tags (${tagsRaw.length})...`);
                 const tagsVi = await translateList(tagsRaw);
@@ -4885,7 +6278,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 fillText(`${APP_PREFIX}titleCn`, titleCn);
                 fillText(`${APP_PREFIX}authorCn`, authorCn);
                 fillText(`${APP_PREFIX}titleVi`, titleVi);
-                fillText(`${APP_PREFIX}descVi`, descVi);
+                setDescDrafts(descCn, descVi);
                 fillText(`${APP_PREFIX}coverUrl`, sourceData.coverUrl || '');
                 fillText(`${APP_PREFIX}moreLinkDesc`, sourceData.sourceLabel || '');
                 fillText(`${APP_PREFIX}moreLinkUrl`, urlInput.value || '');
@@ -4902,6 +6295,8 @@ For arrays, return list of strings. If none fit, return empty array.
                 setApplyByDuplicateState();
                 triggerDuplicateCheck('fetch', true);
                 setDataActionButtonsEnabled(true);
+                setRecomputeBaseline(false);
+                refreshCoverMeta(sourceData.coverUrl || '');
                 showApplyToast('Lấy dữ liệu hoàn tất.', 'success', 1200);
 
                 updateMatchIndicators();
@@ -4917,16 +6312,121 @@ For arrays, return list of strings. If none fit, return empty array.
                 state.hasFetchedData = false;
                 setDataActionButtonsEnabled(false);
                 setApplyByDuplicateState();
+                state.recomputeBaseline = null;
+                updateRecomputeNotice();
                 log('Lỗi: ' + err.message, 'error');
                 showApplyToast('Lấy dữ liệu thất bại, xem log.', 'error', 1700);
                 console.error(err);
             }
         }
-        function handleRecompute() {
+        async function handleRecompute() {
             if (!state.sourceData || !state.groups) {
                 log('Chưa có dữ liệu để recompute.', 'warn');
                 return;
             }
+            syncSourceDraftFromInputs();
+            const changedKeys = getRecomputeChanges();
+            const baselineAiUsed = !!state.recomputeBaseline?.aiUsed;
+            const titleCnEl = shadowRoot.getElementById(`${APP_PREFIX}titleCn`);
+            const titleViEl = shadowRoot.getElementById(`${APP_PREFIX}titleVi`);
+            const nameSetEl = shadowRoot.getElementById(`${APP_PREFIX}nameSet`);
+            const needTranslateTitle = changedKeys.includes('nameSet') || changedKeys.includes('titleCn');
+            const needTranslateDesc = changedKeys.includes('nameSet') || changedKeys.includes('descCn');
+
+            const titleCnNow = T.safeText(titleCnEl?.value || state.sourceData.titleCn || '');
+            const descCnNow = T.safeText(state.descDraft.zh || state.sourceData.descCn || '');
+            const parsedNameSet = parseNameSet(nameSetEl?.value || '');
+            state.nameSet = parsedNameSet;
+
+            if (needTranslateTitle) {
+                log('Recompute: Đang dịch lại tiêu đề...', 'info');
+                const titleVi = await translateTextWithNameSet(titleCnNow, parsedNameSet, false);
+                if (titleViEl) titleViEl.value = titleVi;
+                state.translated = state.translated || {};
+                state.translated.titleVi = titleVi;
+                log('Recompute: Đã dịch lại tiêu đề.', 'ok');
+            }
+            if (needTranslateDesc) {
+                log('Recompute: Đang dịch lại văn án...', 'info');
+                const assignTags = shouldAssignTagsForSource(state.sourceData?.sourceType);
+                const descCnForTranslate = buildTaggedDescForTranslate(descCnNow, state.sourceData?.tags || [], assignTags);
+                const descVi = await translateTextWithNameSet(descCnForTranslate, parsedNameSet, true);
+                state.translated = state.translated || {};
+                state.translated.desc = descVi;
+                state.descDraft.vi = descVi;
+                if (state.descEditorMode === 'vi' && descTextarea) {
+                    descTextarea.value = descVi;
+                }
+                log('Recompute: Đã dịch lại văn án.', 'ok');
+            }
+
+            if (state.sourceData) {
+                state.sourceData.titleCn = titleCnNow;
+                state.sourceData.descCn = descCnNow;
+            }
+
+            if (baselineAiUsed) {
+                const aiSnapshot = deepClone(state.aiLastSuggestions || state.suggestions || null);
+                if (!aiSnapshot) {
+                    setRecomputeBaseline(true);
+                    updateMatchIndicators();
+                    log('Recompute (AI): Không tìm thấy snapshot AI, giữ nguyên các chọn hiện tại.', 'warn');
+                    return;
+                }
+                const currentManaged = getCurrentAiManagedValues();
+                const changedManagedKeys = getAiManagedDiffKeys(aiSnapshot, currentManaged);
+                let useAiManagedValues = true;
+                if (changedManagedKeys.length) {
+                    const labels = changedManagedKeys.map(aiManagedKeyLabel).join(', ');
+                    useAiManagedValues = window.confirm(
+                        `Bạn đã chỉnh: ${labels}.\nOK = dùng lại gợi ý AI cho các mục này.\nCancel = giữ nguyên phần bạn vừa sửa.`
+                    );
+                }
+
+                if (useAiManagedValues) {
+                    shadowRoot.getElementById(`${APP_PREFIX}gender`).value = aiSnapshot.gender || '';
+                    shadowRoot.getElementById(`${APP_PREFIX}official`).value = aiSnapshot.official || '';
+                    shadowRoot.getElementById(`${APP_PREFIX}age`).value = (aiSnapshot.age || []).join(', ');
+                    shadowRoot.getElementById(`${APP_PREFIX}ending`).value = (aiSnapshot.ending || []).join(', ');
+                    shadowRoot.getElementById(`${APP_PREFIX}genre`).value = (aiSnapshot.genre || []).join(', ');
+                    shadowRoot.getElementById(`${APP_PREFIX}tag`).value = (aiSnapshot.tag || []).join(', ');
+                    state.suggestions = {
+                        status: state.suggestions?.status || '',
+                        official: aiSnapshot.official || '',
+                        gender: aiSnapshot.gender || '',
+                        age: aiSnapshot.age || [],
+                        ending: aiSnapshot.ending || [],
+                        genre: aiSnapshot.genre || [],
+                        tag: aiSnapshot.tag || [],
+                    };
+                } else {
+                    const kept = getCurrentAiManagedValues();
+                    state.suggestions = {
+                        status: state.suggestions?.status || '',
+                        official: kept.official || '',
+                        gender: kept.gender || '',
+                        age: kept.age || [],
+                        ending: kept.ending || [],
+                        genre: kept.genre || [],
+                        tag: kept.tag || [],
+                    };
+                }
+                state.aiLastSuggestions = deepClone(aiSnapshot);
+                setRecomputeBaseline(true);
+                updateMatchIndicators();
+                if (!changedKeys.length) {
+                    log('Recompute (AI): Không có thay đổi để dịch lại.', 'info');
+                } else {
+                    log(`Recompute (AI): Đã cập nhật ${changedKeys.length} mục thay đổi.`, 'ok');
+                }
+                if (changedManagedKeys.length) {
+                    log(useAiManagedValues
+                        ? 'Recompute (AI): Đã dùng lại các trường phân loại từ AI.'
+                        : 'Recompute (AI): Giữ nguyên các trường phân loại do bạn chỉnh tay.', useAiManagedValues ? 'ok' : 'info');
+                }
+                return;
+            }
+
             const extra = parseLabelList(shadowRoot.getElementById(`${APP_PREFIX}extraKeywords`).value);
             const baseKeywords = buildKeywordList(state.sourceData, state.translated);
             const combinedKeywords = baseKeywords.concat(extra);
@@ -4967,8 +6467,14 @@ For arrays, return list of strings. If none fit, return empty array.
             fillText(`${APP_PREFIX}ending`, suggestions.ending.join(', '));
             fillText(`${APP_PREFIX}genre`, suggestions.genre.join(', '));
             fillText(`${APP_PREFIX}tag`, suggestions.tag.join(', '));
+            state.aiLastSuggestions = null;
+            setRecomputeBaseline(false);
             updateMatchIndicators();
-            log('Đã recompute theo từ khóa bổ sung.', 'ok');
+            if (!changedKeys.length) {
+                log('Đã recompute theo từ khóa bổ sung.', 'ok');
+            } else {
+                log(`Đã recompute và cập nhật ${changedKeys.length} mục thay đổi.`, 'ok');
+            }
         }
 
         async function handleApply() {
@@ -5302,6 +6808,16 @@ For arrays, return list of strings. If none fit, return empty array.
             panel.style.display = isHidden ? 'flex' : 'none';
             if (isHidden) updateMatchIndicators();
         };
+        const setQuickPanelVisible = (visible) => {
+            if (!quickPanel || !quickToolBtn) return;
+            quickPanel.style.display = visible ? 'flex' : 'none';
+            quickToolBtn.classList.toggle('active', !!visible);
+        };
+        const toggleQuickPanel = () => {
+            if (!quickPanel) return;
+            const hidden = getComputedStyle(quickPanel).display === 'none';
+            setQuickPanelVisible(hidden);
+        };
         const syncFullscreenButton = () => {
             if (!fullscreenBtn) return;
             const isFullscreen = panel.classList.contains(panelFullscreenClass);
@@ -5378,6 +6894,9 @@ For arrays, return list of strings. If none fit, return empty array.
         }
 
         enableDrag(panel, headerEl, `${APP_PREFIX}panel_pos`);
+        if (quickPanel && quickHeader) {
+            enableDrag(quickPanel, quickHeader, `${APP_PREFIX}quick_panel_pos`);
+        }
 
         btn.addEventListener('click', () => {
             if (dragMoved) return;
@@ -5386,6 +6905,68 @@ For arrays, return list of strings. If none fit, return empty array.
         close.addEventListener('click', () => {
             closePanel();
         });
+        if (quickToolBtn) {
+            quickToolBtn.addEventListener('click', () => {
+                toggleQuickPanel();
+            });
+        }
+        if (quickClose) {
+            quickClose.addEventListener('click', () => {
+                setQuickPanelVisible(false);
+            });
+        }
+        if (quickRun) {
+            quickRun.addEventListener('click', async () => {
+                const text = quickInput?.value || '';
+                const mode = quickMode?.value || 'vi';
+                if (!T.safeText(text)) {
+                    log('Dịch nhanh: chưa có nội dung.', 'warn');
+                    return;
+                }
+                quickRun.disabled = true;
+                if (quickCopy) quickCopy.disabled = true;
+                showApplyToast('Dịch nhanh đang xử lý...', 'loading');
+                try {
+                    const out = await translateQuickText(text, mode);
+                    if (quickOutput) quickOutput.value = out || '';
+                    showApplyToast('Dịch nhanh hoàn tất.', 'success', 1200);
+                    log(`Dịch nhanh (${mode}) xong.`, 'ok');
+                } catch (err) {
+                    showApplyToast('Dịch nhanh lỗi.', 'error', 1400);
+                    log('Dịch nhanh lỗi: ' + (err?.message || err), 'error');
+                } finally {
+                    quickRun.disabled = false;
+                    if (quickCopy) quickCopy.disabled = false;
+                }
+            });
+        }
+        if (quickInput) {
+            quickInput.addEventListener('keydown', (ev) => {
+                if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
+                    ev.preventDefault();
+                    quickRun?.click();
+                }
+            });
+        }
+        if (quickCopy) {
+            quickCopy.addEventListener('click', async () => {
+                const text = quickOutput?.value || '';
+                if (!T.safeText(text)) {
+                    log('Dịch nhanh: chưa có kết quả để copy.', 'warn');
+                    return;
+                }
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(text);
+                    } else {
+                        window.prompt('Copy kết quả', text);
+                    }
+                    log('Đã copy kết quả dịch nhanh.', 'ok');
+                } catch (err) {
+                    log('Copy kết quả lỗi: ' + err.message, 'error');
+                }
+            });
+        }
         if (fullscreenBtn) {
             fullscreenBtn.addEventListener('click', () => {
                 togglePanelFullscreen();
@@ -5399,25 +6980,47 @@ For arrays, return list of strings. If none fit, return empty array.
             helpModal.style.display = 'none';
         });
         helpModal.addEventListener('click', (ev) => {
-            if (ev.target === helpModal) helpModal.style.display = 'none';
+            if (ev.target === helpModal) return;
         });
         settingsModal.addEventListener('click', (ev) => {
-            if (ev.target === settingsModal) settingsModal.style.display = 'none';
+            if (ev.target === settingsModal) return;
         });
 
 
         if (fetchBtn) fetchBtn.addEventListener('click', handleFetch);
         if (recomputeBtn) recomputeBtn.addEventListener('click', handleRecompute);
         if (applyBtn) applyBtn.addEventListener('click', handleApply);
-        panel.addEventListener('input', updateMatchIndicators);
-        panel.addEventListener('change', updateMatchIndicators);
+        panel.addEventListener('input', () => {
+            updateMatchIndicators();
+            updateRecomputeNotice();
+        });
+        panel.addEventListener('change', () => {
+            updateMatchIndicators();
+            updateRecomputeNotice();
+        });
         if (titleCnInput) {
-            titleCnInput.addEventListener('input', () => scheduleDuplicateCheck('input'));
-            titleCnInput.addEventListener('change', () => scheduleDuplicateCheck('change'));
+            titleCnInput.addEventListener('input', () => {
+                scheduleDuplicateCheck('input');
+                updateRecomputeNotice();
+            });
+            titleCnInput.addEventListener('change', () => {
+                scheduleDuplicateCheck('change');
+                updateRecomputeNotice();
+            });
         }
         if (authorCnInput) {
             authorCnInput.addEventListener('input', () => scheduleDuplicateCheck('input'));
             authorCnInput.addEventListener('change', () => scheduleDuplicateCheck('change'));
+        }
+        if (sourceUrlInput) {
+            sourceUrlInput.addEventListener('input', () => {
+                updateCoverSizeSummary();
+                updateCoverSizeTag();
+            });
+            sourceUrlInput.addEventListener('change', () => {
+                updateCoverSizeSummary();
+                updateCoverSizeTag();
+            });
         }
         // If user edits CN title/author directly on the web form, keep Nhúng button state in sync.
         const webTitleCn = document.getElementById('txtTitleCn');
@@ -5430,16 +7033,22 @@ For arrays, return list of strings. If none fit, return empty array.
             webAuthorCn.addEventListener('input', () => updateEmbedSubmitByDuplicateState('web-input'));
             webAuthorCn.addEventListener('change', () => updateEmbedSubmitByDuplicateState('web-change'));
         }
+        setDescDrafts('', '');
+        updateCoverSizeSummary();
+        updateCoverSizeTag();
+        setQuickPanelVisible(false);
         setDataActionButtonsEnabled(false);
         setApplyByDuplicateState();
 
         const last = GM_getValue(`${APP_PREFIX}last_url`, '');
         if (last) shadowRoot.getElementById(`${APP_PREFIX}url`).value = last;
-        const nameSetSaved = GM_getValue(`${APP_PREFIX}name_set`, '');
-        if (nameSetSaved) shadowRoot.getElementById(`${APP_PREFIX}nameSet`).value = nameSetSaved;
+        updateCoverSizeSummary();
+        updateCoverSizeTag();
         shadowRoot.getElementById(`${APP_PREFIX}nameSet`).addEventListener('input', (ev) => {
-            GM_setValue(`${APP_PREFIX}name_set`, ev.target.value || '');
+            updateRecomputeNotice();
         });
+        if (coverUrlInput && coverUrlInput.value) refreshCoverMeta(coverUrlInput.value);
+        updateRecomputeNotice();
         log(`Sẵn sàng. Dán link ${buildSiteDisplayList()} rồi bấm "Lấy dữ liệu".`);
 
         return {
