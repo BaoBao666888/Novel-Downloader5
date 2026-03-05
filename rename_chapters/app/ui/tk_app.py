@@ -1310,6 +1310,39 @@ class RenamerApp(
         else:
             webbrowser.open(url)
 
+    def _browser_fetch_html(self, url: str, timeout_sec: float = 30.0, ensure_open: bool = True) -> str:
+        """
+        Lấy HTML bằng Qt browser process (dùng chung profile/cookie thật của trình duyệt tích hợp).
+        Có thể gọi từ worker thread.
+        """
+        target_url = (url or "").strip()
+        if not target_url:
+            raise ValueError("URL rỗng.")
+        overlay = getattr(self, "browser_overlay", None)
+        if not overlay or not overlay.available():
+            raise RuntimeError("Trình duyệt Qt chưa sẵn sàng.")
+
+        if ensure_open and not overlay.is_running():
+            ready = threading.Event()
+
+            def _open_overlay():
+                try:
+                    overlay.current_url = target_url
+                    overlay.show()
+                finally:
+                    ready.set()
+
+            self.after(0, _open_overlay)
+            ready.wait(timeout=6.0)
+            # Chờ process thật sự chạy.
+            start_ts = time.time()
+            while (time.time() - start_ts) < 8.0:
+                if overlay.is_running():
+                    break
+                time.sleep(0.05)
+
+        return overlay.fetch_html(target_url, timeout_sec=timeout_sec, open_if_needed=False)
+
     def _open_source_selector(self):
         if getattr(self, "_source_selector_window", None):
             try:

@@ -851,6 +851,7 @@ class _BrowserWindow(QMainWindow):
         self._download_record_index: dict[int, int] = {rec["id"]: idx for idx, rec in enumerate(self.download_records) if "id" in rec}
         self._active_downloads: dict[int, QWebEngineDownloadRequest] = {}
         self._pending_retries: dict[str, dict] = {}
+        self._pending_fetch_pages: dict[str, dict] = {}
         self._download_dialog: Optional[DownloadManagerDialog] = None
         self._search_term_counter: Counter[str] = Counter()
         self.userscript_host: Optional[UserscriptHost] = None
@@ -1848,11 +1849,131 @@ class _BrowserWindow(QMainWindow):
                     self._current_view_action("forward")
                 elif cmd == "NEW_TAB":
                     self._create_tab(start_url=payload or DEFAULT_HOME)
+                elif cmd == "FETCH_HTML":
+                    self._handle_fetch_html(payload or {})
         except EOFError:
             self.close()
 
+    def _send_fetch_result(self, payload: dict):
+        if not self.event_conn:
+            return
+        try:
+            self.event_conn.send(("FETCH_RESULT", payload))
+        except Exception:
+            pass
+
+    def _looks_like_challenge_page(self, title: str, html: str) -> bool:
+        t = (title or "").lower()
+        h = (html or "")[:4000].lower()
+        markers = (
+            "just a moment",
+            "attention required",
+            "verify you are human",
+            "__cf_chl",
+            "cf-browser-verification",
+            "captcha",
+        )
+        return any(m in t for m in markers) or any(m in h for m in markers)
+
+    def _handle_fetch_html(self, payload: dict):
+        req_id = str((payload or {}).get("id") or "").strip()
+        raw_url = str((payload or {}).get("url") or "").strip()
+        if not req_id:
+            return
+        if not raw_url:
+            self._send_fetch_result({"id": req_id, "ok": False, "error": "Thiếu URL."})
+            return
+        target_url = raw_url if SCHEME_RE.match(raw_url) else f"https://{raw_url}"
+        timeout_ms = max(2000, int((payload or {}).get("timeout_ms") or 30000))
+
+        page = QWebEnginePage(self.profile, self)
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        state = {"done": False}
+        self._pending_fetch_pages[req_id] = {"page": page, "timer": timer}
+
+        def cleanup():
+            info = self._pending_fetch_pages.pop(req_id, None)
+            pg = info.get("page") if isinstance(info, dict) else None
+            tm = info.get("timer") if isinstance(info, dict) else None
+            try:
+                if tm:
+                    tm.stop()
+            except Exception:
+                pass
+            try:
+                if pg:
+                    pg.deleteLater()
+            except Exception:
+                pass
+
+        def finish(ok: bool, html_text: str = "", error: str = ""):
+            if state["done"]:
+                return
+            state["done"] = True
+            self._send_fetch_result(
+                {
+                    "id": req_id,
+                    "ok": bool(ok),
+                    "html": str(html_text or ""),
+                    "error": str(error or ""),
+                    "url": page.url().toString() if page else target_url,
+                    "title": page.title() if page else "",
+                }
+            )
+            cleanup()
+
+        def on_timeout():
+            finish(False, error="FETCH_HTML timeout.")
+
+        def inspect_dom():
+            js = "(function(){return document.documentElement?document.documentElement.outerHTML:'';})();"
+
+            def _after_js(result):
+                html_text = str(result or "")
+                title = page.title() if page else ""
+                if self._looks_like_challenge_page(title, html_text):
+                    # Chờ vòng load tiếp theo (Cloudflare auto redirect) cho tới khi timeout.
+                    return
+                finish(True, html_text=html_text)
+
+            try:
+                page.runJavaScript(js, _after_js)
+            except Exception as exc:
+                finish(False, error=f"runJavaScript lỗi: {exc}")
+
+        def on_load_finished(ok: bool):
+            if state["done"]:
+                return
+            if not ok:
+                # vẫn thử đọc DOM, đôi khi page báo load false nhưng HTML vẫn có nội dung.
+                inspect_dom()
+                return
+            QTimer.singleShot(120, inspect_dom)
+
+        timer.timeout.connect(on_timeout)
+        page.loadFinished.connect(on_load_finished)
+        timer.start(timeout_ms)
+        page.load(QUrl(target_url))
+
     def closeEvent(self, event):
         self._closing = True
+        for req_id in list(self._pending_fetch_pages.keys()):
+            self._send_fetch_result({"id": req_id, "ok": False, "error": "Cửa sổ trình duyệt đã đóng."})
+            info = self._pending_fetch_pages.pop(req_id, None)
+            if isinstance(info, dict):
+                page = info.get("page")
+                timer = info.get("timer")
+                try:
+                    if timer:
+                        timer.stop()
+                except Exception:
+                    pass
+                try:
+                    if page:
+                        page.deleteLater()
+                except Exception:
+                    pass
         # ensure tất cả web views bị dọn trước khi profile release để tránh cảnh báo
         while self.tabs.count():
             widget = self.tabs.widget(0)

@@ -2,6 +2,7 @@ import multiprocessing
 import queue
 import re
 import threading
+import time
 
 try:
     from app.ui.qt_browser import run_browser as _run_qt_browser
@@ -29,6 +30,9 @@ class BrowserOverlay:
         self.listener_thread = None
         self.profile_dir = None
         self._event_conn_id = 0
+        self._fetch_lock = threading.Lock()
+        self._fetch_waiters = {}
+        self._fetch_seq = 0
 
     def set_profile(self, path):
         self.profile_dir = path
@@ -99,6 +103,7 @@ class BrowserOverlay:
         self.cmd_conn = None
         self.event_conn = None
         self._event_conn_id += 1
+        self._fail_all_fetch_waiters("Trình duyệt Qt đã đóng.")
         if hasattr(self.app, "on_browser_overlay_closed"):
             self.app.on_browser_overlay_closed()
         if hasattr(self.app, "log"):
@@ -121,6 +126,51 @@ class BrowserOverlay:
         if self.cmd_conn:
             self.cmd_conn.send(("FORWARD", None))
 
+    def fetch_html(self, url: str, timeout_sec: float = 30.0, open_if_needed: bool = False) -> str:
+        raw_url = (url or "").strip()
+        if not raw_url:
+            raise ValueError("URL rỗng.")
+        target = self._normalize_url(raw_url)
+        if not self.available():
+            raise RuntimeError("Trình duyệt Qt chưa sẵn sàng.")
+        if not self.is_running():
+            if open_if_needed:
+                self.current_url = target
+                self.show()
+            else:
+                raise RuntimeError("Trình duyệt Qt chưa chạy.")
+        if not self.cmd_conn:
+            raise RuntimeError("Không thể kết nối tiến trình trình duyệt Qt.")
+
+        req_id = self._next_fetch_id()
+        waiter = queue.Queue(maxsize=1)
+        with self._fetch_lock:
+            self._fetch_waiters[req_id] = waiter
+        payload = {
+            "id": req_id,
+            "url": target,
+            "timeout_ms": max(2000, int(float(timeout_sec or 30.0) * 1000)),
+        }
+        try:
+            self.cmd_conn.send(("FETCH_HTML", payload))
+        except Exception as exc:
+            with self._fetch_lock:
+                self._fetch_waiters.pop(req_id, None)
+            raise RuntimeError(f"Gửi lệnh FETCH_HTML thất bại: {exc}") from exc
+
+        try:
+            result = waiter.get(timeout=max(2.0, float(timeout_sec or 30.0) + 3.0))
+        except queue.Empty as exc:
+            with self._fetch_lock:
+                self._fetch_waiters.pop(req_id, None)
+            raise TimeoutError(f"Trình duyệt Qt fetch quá hạn ({timeout_sec}s).") from exc
+
+        if not isinstance(result, dict):
+            raise RuntimeError("FETCH_HTML trả dữ liệu không hợp lệ.")
+        if not result.get("ok"):
+            raise RuntimeError(str(result.get("error") or "FETCH_HTML thất bại."))
+        return str(result.get("html") or "")
+
     def _normalize_url(self, url: str) -> str:
         url = (url or "").strip()
         if not url:
@@ -140,10 +190,20 @@ class BrowserOverlay:
                 while conn:
                     if conn.poll(0.2):
                         event = conn.recv()
+                        if (
+                            isinstance(event, tuple)
+                            and len(event) >= 2
+                            and event[0] == "FETCH_RESULT"
+                            and isinstance(event[1], dict)
+                        ):
+                            self._resolve_fetch_waiter(event[1])
+                            continue
                         self.event_queue.put((conn_id, event))
             except EOFError:
+                self._fail_all_fetch_waiters("Pipe trình duyệt đã đóng.")
                 pass
             except OSError:
+                self._fail_all_fetch_waiters("Kết nối trình duyệt bị ngắt.")
                 pass
 
         self.listener_thread = threading.Thread(target=_listen, daemon=True)
@@ -228,3 +288,32 @@ class BrowserOverlay:
                     pass
         if self.proc:
             self.app.after(200, self._poll_events)
+
+    def _next_fetch_id(self) -> str:
+        with self._fetch_lock:
+            self._fetch_seq += 1
+            return f"fetch-{int(time.time() * 1000)}-{self._fetch_seq}"
+
+    def _resolve_fetch_waiter(self, payload: dict):
+        req_id = str((payload or {}).get("id") or "").strip()
+        if not req_id:
+            return
+        waiter = None
+        with self._fetch_lock:
+            waiter = self._fetch_waiters.pop(req_id, None)
+        if waiter is None:
+            return
+        try:
+            waiter.put_nowait(payload)
+        except Exception:
+            pass
+
+    def _fail_all_fetch_waiters(self, message: str):
+        with self._fetch_lock:
+            waiters = list(self._fetch_waiters.values())
+            self._fetch_waiters.clear()
+        for waiter in waiters:
+            try:
+                waiter.put_nowait({"ok": False, "error": message})
+            except Exception:
+                pass
