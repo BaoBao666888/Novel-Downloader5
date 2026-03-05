@@ -1,0 +1,13 @@
+{
+  "id": "czbooks",
+  "name": "czbooks.net",
+  "entry": "plugin.py",
+  "sample_url": "https://czbooks.net/n/cpgm686",
+  "version": 1,
+  "author": "BaoBao",
+  "source": "https://czbooks.net/",
+  "description": "Tải truyện trên trang https://czbooks.net",
+  "type": "chinese_novel",
+  "locale": "zh_CN",
+  "icon": "icon.png"
+}

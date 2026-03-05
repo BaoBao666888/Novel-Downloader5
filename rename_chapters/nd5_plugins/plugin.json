@@ -36,6 +36,17 @@
       "icon": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/ihuaben/icon.png",
       "type": "chinese_novel",
       "locale": "zh_CN"
+    },
+    {
+      "name": "czbooks.net",
+      "version": 1,
+      "author": "BaoBao",
+      "source": "https://czbooks.net/",
+      "description": "Tải truyện từ czbooks.net",
+      "path": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/czbooks/plugin.zip",
+      "icon": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/rename_chapters/nd5_plugins/czbooks/icon.png",
+      "type": "chinese_novel",
+      "locale": "zh_CN"
     }
   ]
 }
