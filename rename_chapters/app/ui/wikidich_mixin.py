@@ -101,6 +101,7 @@ class WikidichMixin:
         tab.rowconfigure(3, weight=1)
         self.wd_missing_only_var = tk.BooleanVar(value=True)
         self.wd_detail_scope_var = tk.StringVar(value="filtered")
+        self.wd_scan_volume_names_var = tk.BooleanVar(value=False)
         self._wd_adv_section_visible = False
         self._wd_pending_categories = []
         self._wd_category_options = []
@@ -273,7 +274,12 @@ class WikidichMixin:
         lbl_extra.grid(row=2, column=0, sticky="w", pady=(6, 0))
         self.wd_extra_link_var = tk.StringVar(value=self.wikidich_filters.get('extraLinkSearch', ''))
         entry_extra = ttk.Entry(input_frame, textvariable=self.wd_extra_link_var)
-        entry_extra.grid(row=2, column=1, columnspan=3, sticky="ew", padx=(4, 10), pady=(6, 0))
+        entry_extra.grid(row=2, column=1, sticky="ew", padx=(4, 10), pady=(6, 0))
+        lbl_volume_name = ttk.Label(input_frame, text="Tên quyển:")
+        lbl_volume_name.grid(row=2, column=2, sticky="w", pady=(6, 0))
+        self.wd_volume_name_var = tk.StringVar(value=self.wikidich_filters.get('volumeNameSearch', ''))
+        entry_volume_name = ttk.Entry(input_frame, textvariable=self.wd_volume_name_var)
+        entry_volume_name.grid(row=2, column=3, sticky="ew", pady=(6, 0))
 
         flag_labels = {
             "embedLink": "Có nhúng link",
@@ -597,6 +603,15 @@ class WikidichMixin:
         self.wd_summary_text = scrolledtext.ScrolledText(summary_frame, wrap=tk.WORD, height=12)
         self.wd_summary_text.grid(row=0, column=0, sticky="nsew")
         self._wd_make_text_readonly(self.wd_summary_text)
+        volume_frame = ttk.LabelFrame(detail_frame, text="Tên quyển hiện có", padding=6)
+        volume_frame.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
+        volume_frame.columnconfigure(0, weight=1)
+        volume_frame.rowconfigure(1, weight=1)
+        self.wd_volume_names_var = tk.StringVar(value="Chưa quét tên quyển.")
+        ttk.Label(volume_frame, textvariable=self.wd_volume_names_var, anchor="w").grid(row=0, column=0, sticky="ew", pady=(0, 4))
+        self.wd_volume_names_text = scrolledtext.ScrolledText(volume_frame, wrap=tk.WORD, height=5)
+        self.wd_volume_names_text.grid(row=1, column=0, sticky="nsew")
+        self._wd_make_text_readonly(self.wd_volume_names_text)
 
         tree_frame = ttk.Frame(main_pane)
         main_pane.add(tree_frame, weight=2)
@@ -708,6 +723,7 @@ class WikidichMixin:
             "wd_download_btn", "wd_tree", "_wd_tree_index",
             "wd_author_entry", "wd_status_entry", "wd_updated_entry", "wd_chapters_entry",
             "wd_cover_label", "wd_detail_canvas", "wd_detail_scope_var", "wd_missing_only_var",
+            "wd_scan_volume_names_var", "wd_volume_name_var", "wd_volume_names_var", "wd_volume_names_text",
             "wd_cover_label", "wd_detail_canvas", "wd_detail_scope_var", "wd_missing_only_var",
             "wd_auto_update_btn", "wd_edit_book_btn", "wd_chapter_list_btn",
             "wd_update_button", "wd_note_button", "wd_delete_button", "wd_profile_var"
@@ -1151,6 +1167,7 @@ class WikidichMixin:
         self.wikidich_filters['search'] = self.wd_search_var.get().strip()
         self.wikidich_filters['summarySearch'] = self.wd_summary_var.get().strip()
         self.wikidich_filters['extraLinkSearch'] = getattr(self, "wd_extra_link_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_extra_link_var") else ""
+        self.wikidich_filters['volumeNameSearch'] = getattr(self, "wd_volume_name_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_volume_name_var") else ""
         self.wikidich_filters['status'] = self.wd_status_var.get()
         self.wikidich_filters['flags'] = [flag for flag, var in self.wd_flag_vars.items() if var.get()]
         self.wikidich_filters['roles'] = [role for role, var in self.wd_role_vars.items() if var.get()]
@@ -1195,6 +1212,8 @@ class WikidichMixin:
         self.wd_to_date_var.set(filters.get('toDate', ''))
         if hasattr(self, "wd_extra_link_var"):
             self.wd_extra_link_var.set(filters.get('extraLinkSearch', ''))
+        if hasattr(self, "wd_volume_name_var"):
+            self.wd_volume_name_var.set(filters.get('volumeNameSearch', ''))
         self._wd_select_categories(filters.get('categories', []))
         self._wd_set_sort_label_from_value(filters.get('sortBy', 'recent'))
         self._wd_toggle_advanced_section(show=self._wd_has_advanced_filters())
@@ -1213,6 +1232,8 @@ class WikidichMixin:
         self.wd_to_date_var.set("")
         if hasattr(self, "wd_extra_link_var"):
             self.wd_extra_link_var.set("")
+        if hasattr(self, "wd_volume_name_var"):
+            self.wd_volume_name_var.set("")
         self._wd_apply_filters()
 
     def _wd_apply_filters(self):
@@ -1225,10 +1246,12 @@ class WikidichMixin:
         self.wikidich_filters.setdefault('flags', [])
         self.wikidich_filters.setdefault('fromDate', '')
         self.wikidich_filters.setdefault('toDate', '')
+        self.wikidich_filters.setdefault('volumeNameSearch', '')
         self.wikidich_filters.update({
             'search': self.wd_search_var.get().strip(),
             'summarySearch': self.wd_summary_var.get().strip(),
             'extraLinkSearch': getattr(self, "wd_extra_link_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_extra_link_var") else "",
+            'volumeNameSearch': getattr(self, "wd_volume_name_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_volume_name_var") else "",
             'status': self.wd_status_var.get(),
             'sortBy': self._wd_get_sort_value()
         })
@@ -1469,6 +1492,7 @@ class WikidichMixin:
         else:
             self._wd_set_text_content(self.wd_title_text, "Chưa có dữ liệu phù hợp")
             self._wd_set_text_content(self.wd_summary_text, "")
+            self._wd_update_volume_names_panel(None)
             self.wd_links_listbox.delete(0, tk.END)
             self.wd_current_links = []
             self.wd_info_vars['author'].set("")
@@ -1632,6 +1656,7 @@ class WikidichMixin:
             self.wd_info_vars['chapters'].set("")
             self.wd_info_vars['collections'].set("")
             self.wd_info_vars['flags'].set("")
+            self._wd_update_volume_names_panel(None)
             self._wd_update_update_button_state()
             self._wd_update_delete_button_state()
             if hasattr(self, "wd_add_lib_btn"):
@@ -1676,6 +1701,7 @@ class WikidichMixin:
         self._wd_set_text_content(self.wd_collections_text, collections_text)
         self._wd_set_text_content(self.wd_flags_text, flags_text)
         self._wd_set_text_content(self.wd_summary_text, book.get('summary', ''))
+        self._wd_update_volume_names_panel(book)
         self.wd_links_listbox.delete(0, tk.END)
         self.wd_current_links = book.get('extra_links', [])
         for link in self.wd_current_links:
@@ -1701,6 +1727,35 @@ class WikidichMixin:
         self._wd_update_manual_origin_ui(book)
         if not getattr(self, "_wd_foreign_ui_guard", False):
             self._wd_update_foreign_mode_ui()
+
+    def _wd_extract_volume_names_from_book(self, book: dict) -> list:
+        if not isinstance(book, dict):
+            return []
+        names = []
+        for raw in (book.get("volume_names") or []):
+            name = str(raw or "").strip()
+            if name and name not in names:
+                names.append(name)
+        return names
+
+    def _wd_update_volume_names_panel(self, book: Optional[dict]):
+        if not hasattr(self, "wd_volume_names_text"):
+            return
+        if not isinstance(book, dict):
+            if hasattr(self, "wd_volume_names_var"):
+                self.wd_volume_names_var.set("Chưa quét tên quyển.")
+            self._wd_set_text_content(self.wd_volume_names_text, "")
+            return
+        names = self._wd_extract_volume_names_from_book(book)
+        if names:
+            if hasattr(self, "wd_volume_names_var"):
+                self.wd_volume_names_var.set(f"Số quyển hiện có: {len(names)}")
+            lines = [f"{idx}. {name}" for idx, name in enumerate(names, start=1)]
+            self._wd_set_text_content(self.wd_volume_names_text, "\n".join(lines))
+            return
+        if hasattr(self, "wd_volume_names_var"):
+            self.wd_volume_names_var.set("Chưa có dữ liệu tên quyển (bật quét khi Tải chi tiết).")
+        self._wd_set_text_content(self.wd_volume_names_text, "")
 
     def _wd_open_link(self, url: str):
         url = (url or "").strip()
@@ -4016,7 +4071,7 @@ class WikidichMixin:
             if not self._wd_resume_works:
                 self._wd_clear_resume_state()
 
-    def _wd_start_fetch_details(self, sync_counts_only: bool = False):
+    def _wd_start_fetch_details(self, sync_counts_only: bool = False, scan_volume_names: bool = False):
         if self._wd_loading:
             messagebox.showinfo("Đang chạy", "Đang có tác vụ Wikidich khác đang chạy.")
             return
@@ -4028,15 +4083,20 @@ class WikidichMixin:
             return
         self._wd_load_detail_resume()
         self._wd_cancel_requested = False
-        threading.Thread(target=self._wd_fetch_details_worker, args=(sync_counts_only,), daemon=True).start()
+        threading.Thread(
+            target=self._wd_fetch_details_worker,
+            args=(sync_counts_only, scan_volume_names),
+            daemon=True,
+        ).start()
 
-    def _wd_fetch_details_worker(self, sync_counts_only: bool = False):
+    def _wd_fetch_details_worker(self, sync_counts_only: bool = False, scan_volume_names: bool = False):
         pythoncom.CoInitialize()
         self._wd_loading = True
         self._wd_loading_site = getattr(self, "wd_site", "wikidich")
         self._wd_cancel_requested = False
         cancelled = False
         cf_paused = False
+        scan_volume_names = bool(scan_volume_names and not sync_counts_only and not self._wd_is_foreign_works())
         self.log("[Wikidich] Bắt đầu tải chi tiết/văn án...")
         try:
             if sync_counts_only:
@@ -4128,6 +4188,14 @@ class WikidichMixin:
                     if isinstance(updated, dict):
                         updated.pop("server_lower", None)
                         updated.pop("server_lower_reason", None)
+                        if scan_volume_names:
+                            volume_res = self._wd_fetch_upload_volumes(updated, silent=True)
+                            if volume_res.get("ok"):
+                                self._wd_apply_volume_snapshot_to_book(updated, volume_res)
+                            else:
+                                err = str(volume_res.get("error_message") or "").strip()
+                                if err:
+                                    self.log(f"[Wikidich] Quét tên quyển thất bại ({book.get('title', bid)}): {err}")
                     self.wikidich_data['books'][bid] = updated
                     self._wd_save_cache()
                 except ValueError as ve:
@@ -5434,6 +5502,8 @@ class WikidichMixin:
                 self.wd_summary_var.set(filters.get('summarySearch', ''))
             if hasattr(self, "wd_extra_link_var"):
                 self.wd_extra_link_var.set(filters.get('extraLinkSearch', ''))
+            if hasattr(self, "wd_volume_name_var"):
+                self.wd_volume_name_var.set(filters.get('volumeNameSearch', ''))
             if hasattr(self, "wd_flag_vars"):
                 for flag, var in self.wd_flag_vars.items():
                     var.set(flag in filters.get('flags', []))
@@ -7213,10 +7283,30 @@ class WikidichMixin:
         sync_counts_only_var = tk.BooleanVar(value=False)
         sync_counts_only_cb = ttk.Checkbutton(container, text="Chỉ đồng bộ số chương (dùng Works, không tải văn án)", variable=sync_counts_only_var)
         sync_counts_only_cb.pack(anchor="w", pady=(6, 0))
+        scan_volume_names_var = tk.BooleanVar(value=self.wd_scan_volume_names_var.get() if hasattr(self, "wd_scan_volume_names_var") else False)
+        scan_volume_names_cb = ttk.Checkbutton(
+            container,
+            text="Quét tên quyển trong phạm vi tải chi tiết (chỉ Works chính chủ)",
+            variable=scan_volume_names_var,
+        )
+        scan_volume_names_cb.pack(anchor="w", pady=(6, 0))
         if self._wd_is_foreign_works():
             sync_counts_only_var.set(False)
             sync_counts_only_cb.config(state=tk.DISABLED)
             ttk.Label(container, text="(Không hỗ trợ đồng bộ số chương cho Works không chính chủ)", foreground="#b45309").pack(anchor="w", pady=(2, 0))
+            scan_volume_names_var.set(False)
+            scan_volume_names_cb.config(state=tk.DISABLED)
+            ttk.Label(container, text="(Không hỗ trợ quét tên quyển cho Works không chính chủ)", foreground="#b45309").pack(anchor="w", pady=(2, 0))
+
+        def _sync_detail_option_state(*_args):
+            if self._wd_is_foreign_works() or sync_counts_only_var.get():
+                scan_volume_names_var.set(False)
+                scan_volume_names_cb.config(state=tk.DISABLED)
+            else:
+                scan_volume_names_cb.config(state=tk.NORMAL)
+
+        sync_counts_only_var.trace_add("write", _sync_detail_option_state)
+        _sync_detail_option_state()
 
         scope_var = tk.StringVar(value=self.wd_detail_scope_var.get())
         ttk.Label(container, text="Phạm vi:").pack(anchor="w", pady=(12, 4))
@@ -7229,8 +7319,17 @@ class WikidichMixin:
         def _start():
             self.wd_missing_only_var.set(missing_var.get())
             self.wd_detail_scope_var.set(scope_var.get())
+            if hasattr(self, "wd_scan_volume_names_var"):
+                self.wd_scan_volume_names_var.set(scan_volume_names_var.get())
             win.destroy()
-            self._wd_start_fetch_details(sync_counts_only=sync_counts_only_var.get())
+            self._wd_start_fetch_details(
+                sync_counts_only=sync_counts_only_var.get(),
+                scan_volume_names=bool(
+                    scan_volume_names_var.get()
+                    and not sync_counts_only_var.get()
+                    and not self._wd_is_foreign_works()
+                ),
+            )
 
         ttk.Button(btn_frame, text="Bắt đầu tải", command=_start).pack(side=tk.RIGHT)
         ttk.Button(btn_frame, text="Hủy", command=win.destroy).pack(side=tk.RIGHT, padx=(0, 8))
@@ -7287,6 +7386,9 @@ class WikidichMixin:
         extra_link = getattr(self, "wd_extra_link_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_extra_link_var") else ""
         if extra_link:
             parts.append(f"Link bổ sung chứa '{extra_link}'")
+        volume_name = getattr(self, "wd_volume_name_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_volume_name_var") else ""
+        if volume_name:
+            parts.append(f"Tên quyển chứa '{volume_name}'")
         status = self.wd_status_var.get()
         if status and status != "all":
             parts.append(f"Trạng thái: {status}")
@@ -7513,6 +7615,22 @@ class WikidichMixin:
         except Exception as exc:
             self.log(f"[Wikidich] Lỗi tải chi tiết nhanh: {exc}")
             return None
+
+    def _wd_apply_volume_snapshot_to_book(self, book: dict, fetched: dict):
+        if not isinstance(book, dict):
+            return
+        volumes = fetched.get("volumes") if isinstance(fetched, dict) else []
+        names = []
+        for volume in volumes or []:
+            if not isinstance(volume, dict):
+                continue
+            name = str(volume.get("name") or "").strip()
+            if name and name not in names:
+                names.append(name)
+        book["volume_names"] = names
+        book["volume_count"] = len(names)
+        book["volume_names_norm"] = [wikidich_ext._normalize(name) for name in names]
+        book["volume_scanned_at"] = datetime.now().isoformat(timespec="seconds")
 
     def _wd_fetch_upload_volumes(self, book: dict, silent: bool = False) -> dict:
         if not isinstance(book, dict) or not book.get("id"):

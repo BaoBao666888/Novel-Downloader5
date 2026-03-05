@@ -1096,6 +1096,7 @@ def filter_books(data: Dict[str, Any], criteria: Dict[str, Any]) -> List[Dict[st
     search = _normalize(criteria.get("search", ""))
     summary_q = _normalize(criteria.get("summarySearch", ""))
     extra_link_q = _normalize(criteria.get("extraLinkSearch", ""))
+    volume_name_q = _normalize(criteria.get("volumeNameSearch", ""))
     categories: Iterable[str] = criteria.get("categories", [])
     roles: Iterable[str] = criteria.get("roles", [])
     flags: Iterable[str] = criteria.get("flags", [])
@@ -1144,6 +1145,12 @@ def filter_books(data: Dict[str, Any], criteria: Dict[str, Any]) -> List[Dict[st
                     matched_link = True
                     break
             if not matched_link:
+                continue
+        if volume_name_q:
+            volume_names_norm = [name for name in (book.get("volume_names_norm") or []) if name]
+            if not volume_names_norm:
+                volume_names_norm = [_normalize(name) for name in (book.get("volume_names") or []) if str(name or "").strip()]
+            if not any(volume_name_q in name_norm for name_norm in volume_names_norm):
                 continue
         if categories:
             cols = book.get("collections", []) or []

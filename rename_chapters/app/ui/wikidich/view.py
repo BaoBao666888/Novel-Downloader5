@@ -76,6 +76,7 @@ class WikidichTabView:
         self.status_var = tk.StringVar(value=filters.get('status', 'all'))
         self.summary_var = tk.StringVar(value=filters.get('summarySearch', ''))
         self.extra_link_var = tk.StringVar(value=filters.get('extraLinkSearch', ''))
+        self.volume_name_var = tk.StringVar(value=filters.get('volumeNameSearch', ''))
         self.flag_vars = {flag: tk.BooleanVar(value=flag in filters.get('flags', [])) 
                          for flag in self.FLAG_LABELS}
         
@@ -534,6 +535,7 @@ class WikidichTabView:
             'status': self.status_var.get(),
             'summarySearch': self.summary_var.get().strip(),
             'extraLinkSearch': self.extra_link_var.get().strip(),
+            'volumeNameSearch': self.volume_name_var.get().strip(),
             'flags': [flag for flag, var in self.flag_vars.items() if var.get()],
             'roles': [role for role, var in self.role_vars.items() if var.get()],
             'categories': self._get_selected_categories(),
@@ -549,6 +551,7 @@ class WikidichTabView:
         self.status_var.set(filters.get('status', 'all'))
         self.summary_var.set(filters.get('summarySearch', ''))
         self.extra_link_var.set(filters.get('extraLinkSearch', ''))
+        self.volume_name_var.set(filters.get('volumeNameSearch', ''))
         self.from_date_var.set(filters.get('fromDate', ''))
         self.to_date_var.set(filters.get('toDate', ''))
         

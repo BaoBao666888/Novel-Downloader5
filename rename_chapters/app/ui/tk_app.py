@@ -297,7 +297,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.2.1')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.2.2')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -428,6 +428,7 @@ class RenamerApp(
         self.wikidich_cache_path = wd_cfg.get('cache_path', os.path.join(BASE_DIR, "local", "wikidich_cache.json"))
         self.wikidich_filters = dict(wd_cfg.get('advanced_filter', {}))
         self.wikidich_filters.setdefault('extraLinkSearch', '')
+        self.wikidich_filters.setdefault('volumeNameSearch', '')
         self.wikidich_open_mode = wd_cfg.get('open_mode', 'in_app')
         self.wikidich_auto_pick_mode = wd_cfg.get('auto_pick_mode', 'extract_then_pick')
         self.wikidich_links = dict(self.app_config.get('wikidich_links', {}))
@@ -518,6 +519,7 @@ class RenamerApp(
                 'search': '',
                 'summarySearch': '',
                 'extraLinkSearch': '',
+                'volumeNameSearch': '',
                 'categories': [],
                 'roles': [],
                 'flags': [],
@@ -535,6 +537,7 @@ class RenamerApp(
                     'search': '',
                     'summarySearch': '',
                     'extraLinkSearch': '',
+                    'volumeNameSearch': '',
                     'categories': [],
                     'roles': [],
                     'flags': [],
@@ -2512,6 +2515,8 @@ class RenamerApp(
                 self.wd_summary_var.set(self.wikidich_filters.get('summarySearch', ''))
                 if hasattr(self, "wd_extra_link_var"):
                     self.wd_extra_link_var.set(self.wikidich_filters.get('extraLinkSearch', ''))
+                if hasattr(self, "wd_volume_name_var"):
+                    self.wd_volume_name_var.set(self.wikidich_filters.get('volumeNameSearch', ''))
                 self.wd_status_var.set(self.wikidich_filters.get('status', 'all'))
                 self._wd_set_sort_label_from_value(self.wikidich_filters.get('sortBy', 'recent'))
             try:
