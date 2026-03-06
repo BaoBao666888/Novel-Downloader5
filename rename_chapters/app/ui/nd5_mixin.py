@@ -13,6 +13,7 @@ import subprocess
 import sys
 import shutil
 import tempfile
+import concurrent.futures
 from typing import Optional
 
 import tkinter as tk
@@ -148,15 +149,15 @@ class ND5Mixin:
         plugin: object,
         book_url: str,
         selected_numbers: set[int] | None = None,
-    ) -> None:
+    ) -> dict:
         if not getattr(plugin, "is_vbook_bridge", False):
-            return
+            return {"ok": False, "reason": "not_vbook_bridge"}
         if not self._nd5_require_reader_server_for_vbook(show_message=False):
-            return
+            return {"ok": False, "reason": "reader_offline"}
         plugin_id = str(getattr(plugin, "vbook_plugin_id", "") or "").strip()
         source_url = str(book_url or "").strip()
         if not plugin_id or not source_url:
-            return
+            return {"ok": False, "reason": "missing_input"}
 
         imported = self._nd5_reader_api_request(
             "POST",
@@ -167,7 +168,7 @@ class ND5Mixin:
         book = imported.get("book") if isinstance(imported.get("book"), dict) else {}
         book_id = str(book.get("book_id") or "").strip()
         if not book_id:
-            return
+            return {"ok": False, "reason": "missing_book_id"}
 
         chapter_ids = []
         if selected_numbers:
@@ -186,12 +187,58 @@ class ND5Mixin:
                         chapter_ids.append(cid)
 
         payload = {"chapter_ids": chapter_ids} if chapter_ids else {}
-        self._nd5_reader_api_request(
+        queued = self._nd5_reader_api_request(
             "POST",
             f"/api/library/book/{book_id}/download",
             payload=payload,
             timeout=10.0,
         )
+        job = queued.get("job") if isinstance(queued.get("job"), dict) else {}
+        return {
+            "ok": True,
+            "book_id": book_id,
+            "job_id": str(job.get("job_id") or "").strip(),
+            "chapter_ids": chapter_ids,
+            "already_downloaded": bool(queued.get("already_downloaded")),
+        }
+
+    def _nd5_reader_list_download_jobs(self, *, timeout: float = 5.0) -> list[dict]:
+        if not self._nd5_require_reader_server_for_vbook(show_message=False):
+            return []
+        data = self._nd5_reader_api_request("GET", "/api/library/download/jobs", timeout=timeout)
+        items = data.get("items") if isinstance(data.get("items"), list) else []
+        out = []
+        for row in items:
+            if isinstance(row, dict):
+                out.append(row)
+        return out
+
+    def _nd5_reader_stop_download_jobs_for_book(self, book_id: str) -> int:
+        bid = str(book_id or "").strip()
+        if not bid:
+            return 0
+        try:
+            jobs = self._nd5_reader_list_download_jobs(timeout=6.0)
+        except Exception:
+            return 0
+        stopped = 0
+        for job in jobs:
+            if str(job.get("book_id") or "").strip() != bid:
+                continue
+            jid = str(job.get("job_id") or "").strip()
+            if not jid:
+                continue
+            try:
+                self._nd5_reader_api_request(
+                    "POST",
+                    f"/api/library/download/{jid}/stop",
+                    payload={},
+                    timeout=6.0,
+                )
+                stopped += 1
+            except Exception:
+                continue
+        return stopped
 
     def _get_fanqie_bridge_port(self) -> int:
         fallback = int(DEFAULT_API_SETTINGS.get("fanqie_bridge_port", 9999))
@@ -831,11 +878,18 @@ class ND5Mixin:
         req_delay_max_var = tk.DoubleVar(value=self.nd5_options.get("req_delay_max", DEFAULT_ND5_OPTIONS["req_delay_max"]))
         req_timeout_var = tk.DoubleVar(value=self.nd5_options.get("request_timeout", DEFAULT_ND5_OPTIONS["request_timeout"]))
         req_retries_var = tk.IntVar(value=self.nd5_options.get("request_retries", DEFAULT_ND5_OPTIONS["request_retries"]))
+        download_threads_var = tk.IntVar(value=self.nd5_options.get("download_threads", DEFAULT_ND5_OPTIONS["download_threads"]))
         out_dir_var = tk.StringVar(value=out_dir_override or self.nd5_options.get("out_dir", ""))
         plugin_values_cache = self.app_config.get("nd5_plugin_values")
         if not isinstance(plugin_values_cache, dict):
             plugin_values_cache = {}
         plugin_values_cache = dict(plugin_values_cache)
+        download_state = {
+            "running": False,
+            "stop_event": threading.Event(),
+            "worker": None,
+            "reader_book_id": "",
+        }
 
         def _get_plugin_by_id(pid: str):
             for p in plugins:
@@ -978,6 +1032,10 @@ class ND5Mixin:
             cookies = None
             if plugin:
                 extra_values = _get_plugin_values(plugin.id)
+                try:
+                    extra_values["nd5_download_threads"] = max(1, min(16, int(download_threads_var.get())))
+                except Exception:
+                    extra_values["nd5_download_threads"] = DEFAULT_ND5_OPTIONS["download_threads"]
                 for field in _get_plugin_extra_fields():
                     key = field["key"]
                     if key not in extra_values and field.get("default") not in (None, ""):
@@ -1312,6 +1370,8 @@ class ND5Mixin:
             ttk.Entry(timeout_frame, textvariable=req_timeout_var, width=8).pack(side=tk.LEFT, padx=(6, 0))
             ttk.Label(timeout_frame, text="Số lần thử lại:").pack(side=tk.LEFT, padx=(12, 0))
             ttk.Entry(timeout_frame, textvariable=req_retries_var, width=6).pack(side=tk.LEFT, padx=(6, 0))
+            ttk.Label(timeout_frame, text="Số luồng tải ND5:").pack(side=tk.LEFT, padx=(12, 0))
+            ttk.Entry(timeout_frame, textvariable=download_threads_var, width=6).pack(side=tk.LEFT, padx=(6, 0))
 
             cache_frame = ttk.Frame(tab_options)
             cache_frame.grid(row=6, column=0, columnspan=2, sticky="w", pady=(10, 0))
@@ -2285,6 +2345,52 @@ class ND5Mixin:
                 return
             _toggle_progress(False)
 
+        btn_start_download = {"ref": None}
+        btn_stop_download = {"ref": None}
+
+        def _sync_download_buttons():
+            running = bool(download_state.get("running"))
+            btn_start = btn_start_download.get("ref")
+            btn_stop = btn_stop_download.get("ref")
+            try:
+                if btn_start:
+                    if running:
+                        btn_start.state(["disabled"])
+                    else:
+                        btn_start.state(["!disabled"])
+            except Exception:
+                pass
+            try:
+                if btn_stop:
+                    if running:
+                        btn_stop.state(["!disabled"])
+                    else:
+                        btn_stop.state(["disabled"])
+            except Exception:
+                pass
+
+        def _request_stop_download():
+            if not download_state.get("running"):
+                return
+            try:
+                download_state["stop_event"].set()
+            except Exception:
+                pass
+            try:
+                _update_status("Đang dừng tải...")
+            except Exception:
+                pass
+            # Nếu đang sync job Reader thì dừng queue bên Reader theo book hiện tại.
+            try:
+                reader_book_id = str(download_state.get("reader_book_id") or "").strip()
+                if reader_book_id:
+                    threading.Thread(
+                        target=lambda: self._nd5_reader_stop_download_jobs_for_book(reader_book_id),
+                        daemon=True,
+                    ).start()
+            except Exception:
+                pass
+
         allow_save_out_dir = out_dir_override is None
 
         def _persist_nd5_options():
@@ -2304,11 +2410,16 @@ class ND5Mixin:
                 retries_val = max(1, int(req_retries_var.get()))
             except Exception:
                 retries_val = DEFAULT_ND5_OPTIONS["request_retries"]
+            try:
+                threads_val = max(1, min(16, int(download_threads_var.get())))
+            except Exception:
+                threads_val = DEFAULT_ND5_OPTIONS["download_threads"]
             self.nd5_options = {
                 "include_info": include_info_var.get(),
                 "include_cover": include_cover_var.get(),
                 "heading_in_zip": heading_in_zip_var.get(),
                 "prefer_cache": prefer_cache_var.get(),
+                "download_threads": threads_val,
                 "format": fmt_var.get(),
                 "title_tpl": title_tpl_var.get(),
                 "range": range_var.get(),
@@ -2737,6 +2848,9 @@ class ND5Mixin:
             if not plugin:
                 messagebox.showerror("Plugin ND5", "Không tìm thấy plugin đã chọn.", parent=win)
                 return
+            if download_state.get("running"):
+                messagebox.showinfo("Đang tải", "Đang có tiến trình tải, hãy dừng trước khi chạy tiến trình mới.", parent=win)
+                return
             if _plugin_requires_reader_server() and (not self._nd5_require_reader_server_for_vbook(show_message=True)):
                 _update_status("Cần mở Reader Server để dùng ext vBook.")
                 return
@@ -2762,6 +2876,10 @@ class ND5Mixin:
             _update_status("Đang chuẩn bị tải...")
             progress_token = _start_progress("determinate")
             progress.config(maximum=max(1, len(num_set)), value=0)
+            download_state["running"] = True
+            download_state["stop_event"] = threading.Event()
+            download_state["reader_book_id"] = ""
+            _sync_download_buttons()
 
             def worker():
                 ctx = _build_ctx()
@@ -2797,16 +2915,47 @@ class ND5Mixin:
                     cache_entry = self._nd5_load_book_cache(cache_key) or {}
                     if getattr(plugin, "is_vbook_bridge", False):
                         try:
-                            self._nd5_sync_vbook_download_to_reader(
+                            sync_result = self._nd5_sync_vbook_download_to_reader(
                                 plugin=plugin,
                                 book_url=cache_url,
                                 selected_numbers={int(x) for x in num_set if isinstance(x, int) and int(x) > 0},
                             )
+                            if isinstance(sync_result, dict):
+                                download_state["reader_book_id"] = str(sync_result.get("book_id") or "").strip()
                         except Exception as sync_exc:
                             ctx.log(f"[ND5] Khong dong bo duoc download sang Reader: {sync_exc}")
+                    stop_event = download_state.get("stop_event")
+                    reader_book_id = str(download_state.get("reader_book_id") or "").strip()
+                    if reader_book_id:
+                        def _poll_reader_queue():
+                            while download_state.get("running") and (stop_event is not None) and (not stop_event.is_set()):
+                                try:
+                                    jobs = self._nd5_reader_list_download_jobs(timeout=4.0)
+                                    target = None
+                                    for row in jobs:
+                                        if str(row.get("book_id") or "").strip() == reader_book_id:
+                                            target = row
+                                            break
+                                    if target is None:
+                                        time.sleep(1.2)
+                                        continue
+                                    downloaded_val = int(target.get("downloaded_chapters") or 0)
+                                    total_val = int(target.get("total_chapters") or 0)
+                                    status_val = str(target.get("status") or "").strip()
+                                    self.after(
+                                        0,
+                                        lambda d=downloaded_val, t=total_val, s=status_val: _update_status(
+                                            f"Reader queue: {d}/{t} ({s})"
+                                        ),
+                                    )
+                                except Exception:
+                                    pass
+                                time.sleep(1.4)
+                        threading.Thread(target=_poll_reader_queue, daemon=True).start()
                     prefer_cache = bool(prefer_cache_var.get())
                     cached_chapters = cache_entry.get("chapters") if (prefer_cache and isinstance(cache_entry, dict)) else {}
                     fetched = {}
+                    fetched_lock = threading.Lock()
                     if prefer_cache:
                         if isinstance(cached_chapters, dict):
                             for cid, payload in cached_chapters.items():
@@ -2869,20 +3018,25 @@ class ND5Mixin:
                     if batch_size <= 0:
                         batch_size = 20
                     vip_map = (meta or {}).get("chapter_vip_map") or {}
-                    for i in range(0, len(real_chapters), batch_size):
-                        batch = real_chapters[i:i + batch_size]
-                        ids = [t["id"] for t in batch]
-                        missing = [cid for cid in ids if str(cid) not in fetched or not fetched.get(str(cid), {}).get("content")]
+                    def _download_one_batch(batch_rows: list[dict]):
+                        ids = [x["id"] for x in batch_rows]
+                        with fetched_lock:
+                            missing = [cid for cid in ids if str(cid) not in fetched or not fetched.get(str(cid), {}).get("content")]
                         for attempt in range(1, max_attempts + 1):
                             if not missing:
                                 break
+                            if stop_event is not None and stop_event.is_set():
+                                return ids, missing, {}
                             partial = _download_batch(meta, missing, fmt, id_map, ctx)
-                            fetched.update(partial)
-                            missing = [
-                                cid for cid in ids
-                                if str(cid) not in fetched
-                                or not fetched.get(str(cid), {}).get("content")
-                            ]
+                            got = partial if isinstance(partial, dict) else {}
+                            with fetched_lock:
+                                for k, v in got.items():
+                                    fetched[str(k)] = v
+                                missing = [
+                                    cid for cid in ids
+                                    if str(cid) not in fetched
+                                    or not fetched.get(str(cid), {}).get("content")
+                                ]
                             if missing and attempt < max_attempts:
                                 try:
                                     ctx.log(f"[ND5] Thiếu nội dung {len(missing)} chương, thử lại ({attempt}/{max_attempts})...")
@@ -2892,32 +3046,81 @@ class ND5Mixin:
                                     ctx.sleep_between_requests()
                                 except Exception:
                                     pass
-                        if missing:
-                            vip_missing = [cid for cid in missing if vip_map.get(str(cid))]
-                            if vip_missing:
-                                raise RuntimeError(
-                                    f"Không tải được nội dung {len(missing)} chương sau {max_attempts} lần thử. "
-                                    f"Có {len(vip_missing)} chương VIP, hãy kiểm tra token Android."
+                        return ids, missing, {}
+
+                    batches = [real_chapters[i:i + batch_size] for i in range(0, len(real_chapters), batch_size)]
+                    try:
+                        thread_count = max(1, min(16, int(download_threads_var.get())))
+                    except Exception:
+                        thread_count = DEFAULT_ND5_OPTIONS["download_threads"]
+                    if getattr(plugin, "is_vbook_bridge", False):
+                        # Reader bridge đã có queue/cache phía server, không cần dồn thread ở ND5.
+                        thread_count = 1
+
+                    if thread_count <= 1 or len(batches) <= 1:
+                        for batch in batches:
+                            if stop_event is not None and stop_event.is_set():
+                                raise RuntimeError("Đã dừng tải theo yêu cầu.")
+                            ids, missing, _ = _download_one_batch(batch)
+                            if missing:
+                                vip_missing = [cid for cid in missing if vip_map.get(str(cid))]
+                                if vip_missing:
+                                    raise RuntimeError(
+                                        f"Không tải được nội dung {len(missing)} chương sau {max_attempts} lần thử. "
+                                        f"Có {len(vip_missing)} chương VIP, hãy kiểm tra token Android."
+                                    )
+                                raise RuntimeError(f"Không tải được nội dung {len(missing)} chương sau {max_attempts} lần thử.")
+                            if use_progress_cache and book_id:
+                                progress_chapters.update({str(k): v for k, v in fetched.items()})
+                                progress_data["chapters"] = progress_chapters
+                                progress_data["meta"] = meta
+                                self._fanqie_save_progress(book_id, progress_data)
+                            try:
+                                self._nd5_save_book_cache(
+                                    plugin.id,
+                                    book_url=cache_url,
+                                    meta=meta,
+                                    toc=toc,
+                                    chapters=fetched,
+                                    cache_key=cache_key,
                                 )
-                            raise RuntimeError(f"Không tải được nội dung {len(missing)} chương sau {max_attempts} lần thử.")
-                        if use_progress_cache and book_id:
-                            progress_chapters.update({str(k): v for k, v in fetched.items()})
-                            progress_data["chapters"] = progress_chapters
-                            progress_data["meta"] = meta
-                            self._fanqie_save_progress(book_id, progress_data)
-                        try:
-                            self._nd5_save_book_cache(
-                                plugin.id,
-                                book_url=cache_url,
-                                meta=meta,
-                                toc=toc,
-                                chapters=fetched,
-                                cache_key=cache_key,
-                            )
-                        except Exception as cache_exc:
-                            ctx.log(f"[ND5] Không lưu được cache truyện: {cache_exc}")
-                        done += len(batch)
-                        self.after(0, lambda d=done, tot=total: (progress.config(value=d), _update_status(f"Đang tải {d}/{tot}...")))
+                            except Exception as cache_exc:
+                                ctx.log(f"[ND5] Không lưu được cache truyện: {cache_exc}")
+                            done += len(ids)
+                            self.after(0, lambda d=done, tot=total: (progress.config(value=d), _update_status(f"Đang tải {d}/{tot}...")))
+                    else:
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as ex:
+                            future_map = {ex.submit(_download_one_batch, batch): batch for batch in batches}
+                            for fut in concurrent.futures.as_completed(future_map):
+                                if stop_event is not None and stop_event.is_set():
+                                    raise RuntimeError("Đã dừng tải theo yêu cầu.")
+                                ids, missing, _ = fut.result()
+                                if missing:
+                                    vip_missing = [cid for cid in missing if vip_map.get(str(cid))]
+                                    if vip_missing:
+                                        raise RuntimeError(
+                                            f"Không tải được nội dung {len(missing)} chương sau {max_attempts} lần thử. "
+                                            f"Có {len(vip_missing)} chương VIP, hãy kiểm tra token Android."
+                                        )
+                                    raise RuntimeError(f"Không tải được nội dung {len(missing)} chương sau {max_attempts} lần thử.")
+                                if use_progress_cache and book_id:
+                                    progress_chapters.update({str(k): v for k, v in fetched.items()})
+                                    progress_data["chapters"] = progress_chapters
+                                    progress_data["meta"] = meta
+                                    self._fanqie_save_progress(book_id, progress_data)
+                                try:
+                                    self._nd5_save_book_cache(
+                                        plugin.id,
+                                        book_url=cache_url,
+                                        meta=meta,
+                                        toc=toc,
+                                        chapters=fetched,
+                                        cache_key=cache_key,
+                                    )
+                                except Exception as cache_exc:
+                                    ctx.log(f"[ND5] Không lưu được cache truyện: {cache_exc}")
+                                done += len(ids)
+                                self.after(0, lambda d=done, tot=total: (progress.config(value=d), _update_status(f"Đang tải {d}/{tot}...")))
 
                     for idx, ch in enumerate(tasks):
                         if ch["num"] == 0:
@@ -3000,13 +3203,22 @@ class ND5Mixin:
                     self.after(0, lambda: _update_status(f"Đã lưu: {saved_path}"))
                     self.after(0, lambda: messagebox.showinfo("Hoàn tất", f"Tải xong. File: {saved_path}", parent=win))
                 except Exception as exc:
-                    ctx.log(f"Lỗi tải: {exc}")
-                    self.after(0, lambda exc=exc: messagebox.showerror("Lỗi tải", f"{exc}", parent=win))
-                    self.after(0, lambda: _update_status("Tải thất bại."))
+                    if download_state.get("stop_event") is not None and download_state["stop_event"].is_set():
+                        ctx.log("Đã dừng tải theo yêu cầu.")
+                        self.after(0, lambda: _update_status("Đã dừng tải."))
+                    else:
+                        ctx.log(f"Lỗi tải: {exc}")
+                        self.after(0, lambda exc=exc: messagebox.showerror("Lỗi tải", f"{exc}", parent=win))
+                        self.after(0, lambda: _update_status("Tải thất bại."))
                 finally:
+                    download_state["running"] = False
+                    download_state["reader_book_id"] = ""
+                    self.after(0, _sync_download_buttons)
                     self.after(0, lambda t=progress_token: _stop_progress(t))
 
-            threading.Thread(target=worker, daemon=True).start()
+            th = threading.Thread(target=worker, daemon=True)
+            download_state["worker"] = th
+            th.start()
 
         # UI layout
         top_frame = ttk.Frame(win, padding=(10, 8))
@@ -3071,7 +3283,10 @@ class ND5Mixin:
             else:
                 vbook_settings_btn.grid_remove()
             if _plugin_supports_search():
-                search_btn.state(["!disabled"])
+                if _plugin_requires_reader_server() and (not self._nd5_reader_server_alive(timeout=0.6)):
+                    search_btn.state(["disabled"])
+                else:
+                    search_btn.state(["!disabled"])
             else:
                 search_btn.state(["disabled"])
             current_book["meta"] = None
@@ -3157,11 +3372,24 @@ class ND5Mixin:
         ttk.Label(progress_frame, textvariable=status_var).grid(row=1, column=0, sticky="w", pady=(4, 0))
         action_inline = ttk.Frame(progress_frame)
         action_inline.grid(row=1, column=1, sticky="e", pady=(4, 0))
-        ttk.Button(action_inline, text="Bắt đầu tải", command=_start_download).pack(side=tk.RIGHT, padx=(0, 6))
+        btn_stop = ttk.Button(action_inline, text="Dừng tải chương", command=_request_stop_download)
+        btn_stop.pack(side=tk.RIGHT, padx=(0, 6))
+        btn_start = ttk.Button(action_inline, text="Bắt đầu tải", command=_start_download)
+        btn_start.pack(side=tk.RIGHT, padx=(0, 6))
         ttk.Button(action_inline, text="Đóng", command=lambda: (_persist_nd5_options(), win.destroy())).pack(side=tk.RIGHT)
+        btn_start_download["ref"] = btn_start
+        btn_stop_download["ref"] = btn_stop
+        _sync_download_buttons()
 
         self.after(200, _start_bridge_async)
-        win.protocol("WM_DELETE_WINDOW", lambda: (_persist_nd5_options(), win.destroy()))
+        def _on_close_downloader():
+            try:
+                _request_stop_download()
+            except Exception:
+                pass
+            _persist_nd5_options()
+            win.destroy()
+        win.protocol("WM_DELETE_WINDOW", _on_close_downloader)
 
     def _nd5_delay_range(self):
         opts = getattr(self, "nd5_options", {}) or {}
