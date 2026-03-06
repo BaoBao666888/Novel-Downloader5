@@ -94,6 +94,8 @@ const state = {
   translationEnabled: true,
   translationLocalSig: "{}",
   downloadWatchTimer: null,
+  downloadEventSource: null,
+  downloadWatchReconnectTimer: null,
   downloadWatchBusy: false,
   downloadWatchSig: "",
   downloadWatchHadActive: false,
@@ -163,7 +165,7 @@ function populateBook() {
   refs.viewTitleVi.textContent = normalizeDisplayTitle(book.title_vi || "");
   refs.viewAuthor.textContent = book.author || "";
   refs.viewAuthorVi.textContent = book.author_vi || "";
-  refs.viewSummary.textContent = book.summary || "";
+  refs.viewSummary.textContent = book.summary_display || book.summary || "";
   refs.viewExtraLink.innerHTML = "";
   if (book.extra_link) {
     const a = document.createElement("a");
@@ -291,6 +293,18 @@ async function loadToc(page = 1, { silent = false, suppressToast = false } = {})
 }
 
 function clearDownloadWatcher() {
+  if (state.downloadEventSource) {
+    try {
+      state.downloadEventSource.close();
+    } catch {
+      // ignore
+    }
+    state.downloadEventSource = null;
+  }
+  if (state.downloadWatchReconnectTimer) {
+    window.clearTimeout(state.downloadWatchReconnectTimer);
+    state.downloadWatchReconnectTimer = null;
+  }
   if (state.downloadWatchTimer) {
     window.clearInterval(state.downloadWatchTimer);
     state.downloadWatchTimer = null;
@@ -309,6 +323,14 @@ async function refreshDownloadStateSilent() {
   ]);
 }
 
+function scheduleDownloadWatcherReconnect() {
+  if (state.downloadWatchReconnectTimer) return;
+  state.downloadWatchReconnectTimer = window.setTimeout(() => {
+    state.downloadWatchReconnectTimer = null;
+    startDownloadWatcher();
+  }, 1200);
+}
+
 function isCacheEventForCurrentBook(detail) {
   if (!state.bookId) return false;
   const payload = (detail && typeof detail === "object") ? detail : {};
@@ -318,40 +340,44 @@ function isCacheEventForCurrentBook(detail) {
   return list.some((x) => String(x || "").trim() === state.bookId);
 }
 
+async function handleDownloadWatcherPayload(data) {
+  const jobs = Array.isArray(data && data.items) ? data.items : [];
+  const related = jobs
+    .filter((job) => String(job.book_id || "").trim() === state.bookId)
+    .map((job) => ({
+      id: String(job.job_id || ""),
+      status: String(job.status || ""),
+      downloaded: Number(job.downloaded_chapters || 0),
+      total: Number(job.total_chapters || 0),
+    }));
+  const sig = related.map((x) => `${x.id}:${x.status}:${x.downloaded}:${x.total}`).join("|");
+  const hasActive = related.length > 0;
+  if (hasActive) {
+    if ((sig !== state.downloadWatchSig) || (!state.downloadWatchHadActive)) {
+      await refreshDownloadStateSilent();
+    }
+    state.downloadWatchSig = sig;
+    state.downloadWatchHadActive = true;
+    state.downloadWatchIdleTicks = 0;
+    return;
+  }
+  if (state.downloadWatchHadActive) {
+    await refreshDownloadStateSilent();
+  }
+  state.downloadWatchHadActive = false;
+  state.downloadWatchSig = "";
+  state.downloadWatchIdleTicks += 1;
+  if (state.downloadWatchIdleTicks >= 6) {
+    state.downloadWatchIdleTicks = 0;
+  }
+}
+
 async function pollDownloadWatcherTick() {
   if (!state.bookId || state.downloadWatchBusy) return;
   state.downloadWatchBusy = true;
   try {
-    const data = await state.shell.api("/api/library/download/jobs");
-    const jobs = Array.isArray(data.items) ? data.items : [];
-    const related = jobs
-      .filter((job) => String(job.book_id || "").trim() === state.bookId)
-      .map((job) => ({
-        id: String(job.job_id || ""),
-        status: String(job.status || ""),
-        downloaded: Number(job.downloaded_chapters || 0),
-        total: Number(job.total_chapters || 0),
-      }));
-    const sig = related.map((x) => `${x.id}:${x.status}:${x.downloaded}:${x.total}`).join("|");
-    const hasActive = related.length > 0;
-    if (hasActive) {
-      if ((sig !== state.downloadWatchSig) || (!state.downloadWatchHadActive)) {
-        await refreshDownloadStateSilent();
-      }
-      state.downloadWatchSig = sig;
-      state.downloadWatchHadActive = true;
-      state.downloadWatchIdleTicks = 0;
-    } else {
-      if (state.downloadWatchHadActive) {
-        await refreshDownloadStateSilent();
-      }
-      state.downloadWatchHadActive = false;
-      state.downloadWatchSig = "";
-      state.downloadWatchIdleTicks += 1;
-      if (state.downloadWatchIdleTicks >= 6) {
-        clearDownloadWatcher();
-      }
-    }
+    const data = await state.shell.api(`/api/library/download/jobs?book_id=${encodeURIComponent(state.bookId)}`);
+    await handleDownloadWatcherPayload(data);
   } catch {
     // ignore poll errors
   } finally {
@@ -360,7 +386,45 @@ async function pollDownloadWatcherTick() {
 }
 
 function startDownloadWatcher() {
+  if (!state.bookId) return;
   state.downloadWatchIdleTicks = 0;
+  if (state.downloadEventSource || state.downloadWatchTimer) return;
+  if (typeof window.EventSource === "function") {
+    const streamUrl = `/api/library/download/jobs/stream?book_id=${encodeURIComponent(state.bookId)}`;
+    const stream = new window.EventSource(streamUrl);
+    state.downloadEventSource = stream;
+    stream.addEventListener("jobs", (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        payload = null;
+      }
+      if (!payload || !Array.isArray(payload.items)) return;
+      handleDownloadWatcherPayload(payload).catch(() => {});
+    });
+    stream.onmessage = (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        payload = null;
+      }
+      if (!payload || !Array.isArray(payload.items)) return;
+      handleDownloadWatcherPayload(payload).catch(() => {});
+    };
+    stream.onerror = () => {
+      if (state.downloadEventSource !== stream) return;
+      try {
+        stream.close();
+      } catch {
+        // ignore
+      }
+      state.downloadEventSource = null;
+      scheduleDownloadWatcherReconnect();
+    };
+    return;
+  }
   if (state.downloadWatchTimer) return;
   state.downloadWatchTimer = window.setInterval(() => {
     pollDownloadWatcherTick().catch(() => {});

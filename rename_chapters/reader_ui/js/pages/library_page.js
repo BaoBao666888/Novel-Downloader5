@@ -60,6 +60,8 @@ const state = {
   globalDicts: { name: {}, vp: {} },
   globalDictType: "name",
   downloadPollTimer: null,
+  downloadEventSource: null,
+  downloadStreamReconnectTimer: null,
   libraryRefreshBusy: false,
   lastLibraryRefreshTs: 0,
 };
@@ -514,14 +516,8 @@ function buildDownloadJobsSignature(items) {
   return rows.join("|");
 }
 
-async function loadDownloadJobs({ syncLibrary = false } = {}) {
-  let nextItems = [];
-  try {
-    const data = await state.shell.api("/api/library/download/jobs");
-    nextItems = Array.isArray(data.items) ? data.items : [];
-  } catch {
-    nextItems = [];
-  }
+async function applyDownloadJobsPayload(payload, { syncLibrary = false } = {}) {
+  const nextItems = Array.isArray(payload && payload.items) ? payload.items : [];
   state.downloadJobs = nextItems;
   const nextSig = buildDownloadJobsSignature(nextItems);
   const changed = nextSig !== state.downloadJobsSig;
@@ -542,10 +538,77 @@ async function loadDownloadJobs({ syncLibrary = false } = {}) {
   }
 }
 
-function startDownloadPolling() {
+async function loadDownloadJobs({ syncLibrary = false } = {}) {
+  try {
+    const data = await state.shell.api("/api/library/download/jobs");
+    await applyDownloadJobsPayload(data, { syncLibrary });
+  } catch {
+    await applyDownloadJobsPayload({ items: [] }, { syncLibrary });
+  }
+}
+
+function clearDownloadWatcher() {
+  if (state.downloadEventSource) {
+    try {
+      state.downloadEventSource.close();
+    } catch {
+      // ignore
+    }
+    state.downloadEventSource = null;
+  }
+  if (state.downloadStreamReconnectTimer) {
+    window.clearTimeout(state.downloadStreamReconnectTimer);
+    state.downloadStreamReconnectTimer = null;
+  }
   if (state.downloadPollTimer) {
     window.clearInterval(state.downloadPollTimer);
     state.downloadPollTimer = null;
+  }
+}
+
+function scheduleDownloadStreamReconnect() {
+  if (state.downloadStreamReconnectTimer) return;
+  state.downloadStreamReconnectTimer = window.setTimeout(() => {
+    state.downloadStreamReconnectTimer = null;
+    startDownloadPolling();
+  }, 1200);
+}
+
+function startDownloadPolling() {
+  if (state.downloadEventSource || state.downloadPollTimer) return;
+  if (typeof window.EventSource === "function") {
+    const stream = new window.EventSource("/api/library/download/jobs/stream");
+    state.downloadEventSource = stream;
+    stream.addEventListener("jobs", (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        payload = null;
+      }
+      applyDownloadJobsPayload(payload || { items: [] }, { syncLibrary: true }).catch(() => {});
+    });
+    stream.onmessage = (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        payload = null;
+      }
+      if (!payload || !Array.isArray(payload.items)) return;
+      applyDownloadJobsPayload(payload, { syncLibrary: true }).catch(() => {});
+    };
+    stream.onerror = () => {
+      if (state.downloadEventSource !== stream) return;
+      try {
+        stream.close();
+      } catch {
+        // ignore
+      }
+      state.downloadEventSource = null;
+      scheduleDownloadStreamReconnect();
+    };
+    return;
   }
   state.downloadPollTimer = window.setInterval(() => {
     loadDownloadJobs({ syncLibrary: true }).catch(() => {});
@@ -848,10 +911,7 @@ async function init() {
   });
 
   window.addEventListener("beforeunload", () => {
-    if (state.downloadPollTimer) {
-      window.clearInterval(state.downloadPollTimer);
-      state.downloadPollTimer = null;
-    }
+    clearDownloadWatcher();
   });
 
   state.translationLocalSig = localTranslationSettingsSignature(state.shell);

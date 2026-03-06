@@ -124,6 +124,8 @@ const state = {
   chapterImages: [],
   comicLoadSeq: 0,
   downloadWatchTimer: null,
+  downloadEventSource: null,
+  downloadWatchReconnectTimer: null,
   downloadWatchBusy: false,
   downloadWatchSig: "",
   downloadWatchHadActive: false,
@@ -764,6 +766,18 @@ async function downloadBookFromReaderToc() {
 }
 
 function clearReaderDownloadWatcher() {
+  if (state.downloadEventSource) {
+    try {
+      state.downloadEventSource.close();
+    } catch {
+      // ignore
+    }
+    state.downloadEventSource = null;
+  }
+  if (state.downloadWatchReconnectTimer) {
+    window.clearTimeout(state.downloadWatchReconnectTimer);
+    state.downloadWatchReconnectTimer = null;
+  }
   if (state.downloadWatchTimer) {
     window.clearInterval(state.downloadWatchTimer);
     state.downloadWatchTimer = null;
@@ -789,40 +803,52 @@ async function refreshReaderDownloadState() {
   updateProgress();
 }
 
+function scheduleReaderDownloadWatcherReconnect() {
+  if (state.downloadWatchReconnectTimer) return;
+  state.downloadWatchReconnectTimer = window.setTimeout(() => {
+    state.downloadWatchReconnectTimer = null;
+    startReaderDownloadWatcher();
+  }, 1200);
+}
+
+async function handleReaderDownloadWatcherPayload(data) {
+  const jobs = Array.isArray(data && data.items) ? data.items : [];
+  const related = jobs
+    .filter((job) => String(job.book_id || "").trim() === state.bookId)
+    .map((job) => ({
+      id: String(job.job_id || ""),
+      status: String(job.status || ""),
+      downloaded: Number(job.downloaded_chapters || 0),
+      total: Number(job.total_chapters || 0),
+    }));
+  const sig = related.map((x) => `${x.id}:${x.status}:${x.downloaded}:${x.total}`).join("|");
+  const hasActive = related.length > 0;
+  if (hasActive) {
+    if ((sig !== state.downloadWatchSig) || (!state.downloadWatchHadActive)) {
+      await refreshReaderDownloadState();
+    }
+    state.downloadWatchSig = sig;
+    state.downloadWatchHadActive = true;
+    state.downloadWatchIdleTicks = 0;
+    return;
+  }
+  if (state.downloadWatchHadActive) {
+    await refreshReaderDownloadState();
+  }
+  state.downloadWatchHadActive = false;
+  state.downloadWatchSig = "";
+  state.downloadWatchIdleTicks += 1;
+  if (state.downloadWatchIdleTicks >= 6) {
+    state.downloadWatchIdleTicks = 0;
+  }
+}
+
 async function pollReaderDownloadWatcherTick() {
   if (!state.bookId || state.downloadWatchBusy) return;
   state.downloadWatchBusy = true;
   try {
-    const data = await state.shell.api("/api/library/download/jobs");
-    const jobs = Array.isArray(data.items) ? data.items : [];
-    const related = jobs
-      .filter((job) => String(job.book_id || "").trim() === state.bookId)
-      .map((job) => ({
-        id: String(job.job_id || ""),
-        status: String(job.status || ""),
-        downloaded: Number(job.downloaded_chapters || 0),
-        total: Number(job.total_chapters || 0),
-      }));
-    const sig = related.map((x) => `${x.id}:${x.status}:${x.downloaded}:${x.total}`).join("|");
-    const hasActive = related.length > 0;
-    if (hasActive) {
-      if ((sig !== state.downloadWatchSig) || (!state.downloadWatchHadActive)) {
-        await refreshReaderDownloadState();
-      }
-      state.downloadWatchSig = sig;
-      state.downloadWatchHadActive = true;
-      state.downloadWatchIdleTicks = 0;
-    } else {
-      if (state.downloadWatchHadActive) {
-        await refreshReaderDownloadState();
-      }
-      state.downloadWatchHadActive = false;
-      state.downloadWatchSig = "";
-      state.downloadWatchIdleTicks += 1;
-      if (state.downloadWatchIdleTicks >= 6) {
-        clearReaderDownloadWatcher();
-      }
-    }
+    const data = await state.shell.api(`/api/library/download/jobs?book_id=${encodeURIComponent(state.bookId)}`);
+    await handleReaderDownloadWatcherPayload(data);
   } catch {
     // ignore poll errors
   } finally {
@@ -831,7 +857,45 @@ async function pollReaderDownloadWatcherTick() {
 }
 
 function startReaderDownloadWatcher() {
+  if (!state.bookId) return;
   state.downloadWatchIdleTicks = 0;
+  if (state.downloadEventSource || state.downloadWatchTimer) return;
+  if (typeof window.EventSource === "function") {
+    const streamUrl = `/api/library/download/jobs/stream?book_id=${encodeURIComponent(state.bookId)}`;
+    const stream = new window.EventSource(streamUrl);
+    state.downloadEventSource = stream;
+    stream.addEventListener("jobs", (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        payload = null;
+      }
+      if (!payload || !Array.isArray(payload.items)) return;
+      handleReaderDownloadWatcherPayload(payload).catch(() => {});
+    });
+    stream.onmessage = (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        payload = null;
+      }
+      if (!payload || !Array.isArray(payload.items)) return;
+      handleReaderDownloadWatcherPayload(payload).catch(() => {});
+    };
+    stream.onerror = () => {
+      if (state.downloadEventSource !== stream) return;
+      try {
+        stream.close();
+      } catch {
+        // ignore
+      }
+      state.downloadEventSource = null;
+      scheduleReaderDownloadWatcherReconnect();
+    };
+    return;
+  }
   if (state.downloadWatchTimer) return;
   state.downloadWatchTimer = window.setInterval(() => {
     pollReaderDownloadWatcherTick().catch(() => {});

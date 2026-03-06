@@ -420,6 +420,52 @@ def decode_comic_payload(text: str) -> dict[str, Any] | None:
     return payload
 
 
+def extract_comic_image_urls(raw_text: str | None) -> list[str]:
+    text = str(raw_text or "")
+    payload = decode_comic_payload(text)
+    if payload is not None:
+        return [str(x).strip() for x in (payload.get("images") or []) if str(x).strip()]
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return []
+    out: list[str] = []
+    for line in lines:
+        if line.startswith(("http://", "https://", "/media/vbook-image?", "media/vbook-image?")):
+            out.append(line)
+            continue
+        return []
+    return out
+
+
+def normalize_vbook_image_cache_inputs(image_url: str, plugin_id: str = "") -> tuple[str, str]:
+    url = str(image_url or "").strip()
+    pid = str(plugin_id or "").strip()
+    if url.startswith("/media/vbook-image?") or url.startswith("media/vbook-image?"):
+        parsed = urlparse(url if url.startswith("/") else f"/{url}")
+        query = parse_qs(parsed.query)
+        inner_url = str((query.get("url", [""])[0] or "")).strip()
+        if inner_url:
+            url = inner_url
+        inner_pid = str((query.get("plugin_id", [""])[0] or "")).strip()
+        if inner_pid:
+            pid = inner_pid
+    return url, pid
+
+
+def vbook_image_cache_key(*, image_url: str, plugin_id: str = "") -> str:
+    image, pid = normalize_vbook_image_cache_inputs(image_url=image_url, plugin_id=plugin_id)
+    seed = f"{pid}|{image}"
+    return hash_text(seed)
+
+
+def chapter_raw_cache_has_payload(raw_text: str | None, *, is_comic: bool) -> bool:
+    text = str(raw_text or "")
+    if not is_comic:
+        return bool(text.strip())
+    return bool(extract_comic_image_urls(text))
+
+
 def ensure_dirs() -> None:
     LOCAL_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -3123,6 +3169,36 @@ class ReaderStorage:
                         (translated, now, row["chapter_id"]),
                     )
 
+    def _comic_raw_cache_complete(self, raw_text: str | None, *, plugin_id: str = "") -> bool:
+        images = extract_comic_image_urls(raw_text)
+        if not images:
+            return False
+        for image_url in images:
+            key = vbook_image_cache_key(image_url=image_url, plugin_id=plugin_id)
+            body = VBOOK_IMAGE_CACHE_DIR / f"{key}.bin"
+            if not body.exists():
+                return False
+        return True
+
+    def chapter_cache_available(self, *, raw_text: str | None, book: dict[str, Any] | None) -> bool:
+        text = str(raw_text or "")
+        is_comic = bool(is_book_comic(book))
+        if not chapter_raw_cache_has_payload(text, is_comic=is_comic):
+            return False
+        if not is_comic:
+            return True
+        plugin_id = str((book or {}).get("source_plugin") or "").strip()
+        return self._comic_raw_cache_complete(text, plugin_id=plugin_id)
+
+    def chapter_cache_available_by_key(self, *, raw_key: str, book: dict[str, Any] | None) -> bool:
+        key = str(raw_key or "").strip()
+        if not key:
+            return False
+        cached_raw = self.read_cache(key)
+        if cached_raw is None:
+            return False
+        return self.chapter_cache_available(raw_text=cached_raw, book=book)
+
     def list_chapters_paged(
         self,
         book_id: str,
@@ -3146,12 +3222,13 @@ class ReaderStorage:
                 vp_set_override=vp_set_override,
             )
 
+        book_row = self.find_book(book_id)
         with self._connect() as conn:
             total = conn.execute("SELECT COUNT(1) AS c FROM chapters WHERE book_id = ?", (book_id,)).fetchone()["c"]
             offset = (page - 1) * page_size
             rows = conn.execute(
                 """
-                SELECT c.chapter_id, c.chapter_order, c.title_raw, c.title_vi, c.updated_at, c.word_count, c.trans_key,
+                SELECT c.chapter_id, c.chapter_order, c.title_raw, c.title_vi, c.updated_at, c.word_count, c.trans_key, c.raw_key,
                        CASE WHEN cc.cache_key IS NOT NULL THEN 1 ELSE 0 END AS is_downloaded
                 FROM chapters c
                 LEFT JOIN content_cache cc ON cc.cache_key = c.raw_key
@@ -3166,6 +3243,9 @@ class ReaderStorage:
             rdict = dict(r)
             rdict["title_vi"] = normalize_vi_display_text(rdict.get("title_vi") or "")
             display_title = rdict["title_vi"] if mode == "trans" and rdict.get("title_vi") else rdict["title_raw"]
+            raw_key = str(rdict.get("raw_key") or "").strip()
+            cached_raw = self.read_cache(raw_key) if raw_key else None
+            valid_cached = self.chapter_cache_available(raw_text=cached_raw, book=book_row) if cached_raw is not None else False
             items.append(
                 {
                     "chapter_id": rdict["chapter_id"],
@@ -3176,7 +3256,7 @@ class ReaderStorage:
                     "updated_at": rdict["updated_at"],
                     "word_count": rdict["word_count"],
                     "has_trans": bool(rdict.get("trans_key")),
-                    "is_downloaded": bool(int(rdict.get("is_downloaded") or 0)),
+                    "is_downloaded": bool(valid_cached),
                 }
             )
         total_pages = max(1, (total + page_size - 1) // page_size)
@@ -3209,50 +3289,51 @@ class ReaderStorage:
             row = conn.execute("SELECT * FROM chapters WHERE chapter_id = ?", (chapter_id,)).fetchone()
         return dict(row) if row else None
 
-    def get_book_download_map(self, book_id: str) -> dict[str, bool]:
+    def get_book_download_map(self, book_id: str, chapter_ids: list[str] | None = None) -> dict[str, bool]:
         bid = str(book_id or "").strip()
         if not bid:
             return {}
+        chapter_filter = [str(x or "").strip() for x in (chapter_ids or []) if str(x or "").strip()]
+        book = self.find_book(bid)
         with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT c.chapter_id,
-                       CASE WHEN cc.cache_key IS NOT NULL THEN 1 ELSE 0 END AS is_downloaded
-                FROM chapters c
-                LEFT JOIN content_cache cc ON cc.cache_key = c.raw_key
-                WHERE c.book_id = ?
-                ORDER BY c.chapter_order ASC
-                """,
-                (bid,),
-            ).fetchall()
+            if chapter_filter:
+                placeholders = ",".join("?" for _ in chapter_filter)
+                rows = conn.execute(
+                    f"""
+                    SELECT c.chapter_id, c.raw_key
+                    FROM chapters c
+                    WHERE c.book_id = ? AND c.chapter_id IN ({placeholders})
+                    ORDER BY c.chapter_order ASC
+                    """,
+                    (bid, *chapter_filter),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT c.chapter_id, c.raw_key
+                    FROM chapters c
+                    WHERE c.book_id = ?
+                    ORDER BY c.chapter_order ASC
+                    """,
+                    (bid,),
+                ).fetchall()
         out: dict[str, bool] = {}
         for row in rows:
             cid = str(row["chapter_id"] or "").strip()
             if not cid:
                 continue
-            out[cid] = bool(int(row["is_downloaded"] or 0))
+            raw_key = str(row["raw_key"] or "").strip()
+            cached_raw = self.read_cache(raw_key) if raw_key else None
+            out[cid] = self.chapter_cache_available(raw_text=cached_raw, book=book) if cached_raw is not None else False
         return out
 
     def get_book_download_counts(self, book_id: str) -> tuple[int, int]:
         bid = str(book_id or "").strip()
         if not bid:
             return (0, 0)
-        with self._connect() as conn:
-            row = conn.execute(
-                """
-                SELECT
-                    COUNT(1) AS total_chapters,
-                    COALESCE(SUM(CASE WHEN cc.cache_key IS NOT NULL THEN 1 ELSE 0 END), 0) AS downloaded_chapters
-                FROM chapters c
-                LEFT JOIN content_cache cc ON cc.cache_key = c.raw_key
-                WHERE c.book_id = ?
-                """,
-                (bid,),
-            ).fetchone()
-        if not row:
-            return (0, 0)
-        total = int(row["total_chapters"] or 0)
-        downloaded = int(row["downloaded_chapters"] or 0)
+        download_map = self.get_book_download_map(bid)
+        total = int(len(download_map))
+        downloaded = int(sum(1 for v in download_map.values() if v))
         if downloaded < 0:
             downloaded = 0
         if downloaded > total:
@@ -4333,8 +4414,7 @@ class ReaderService:
             reloaded_from_source = True
 
         cleared = self.storage.clear_chapter_translated_cache(cid)
-        raw_key = str(chapter.get("raw_key") or "").strip()
-        chapter_is_downloaded = bool(raw_key and (self.storage.read_cache(raw_key) is not None))
+        chapter_is_downloaded = self._chapter_cache_available(chapter, book)
         downloaded_count, chapter_total = self.storage.get_book_download_counts(str(chapter.get("book_id") or ""))
         return {
             "ok": True,
@@ -4367,8 +4447,7 @@ class ReaderService:
         return index
 
     def _vbook_image_cache_key(self, *, image_url: str, plugin_id: str = "") -> str:
-        seed = f"{str(plugin_id or '').strip()}|{str(image_url or '').strip()}"
-        return hash_text(seed)
+        return vbook_image_cache_key(image_url=image_url, plugin_id=plugin_id)
 
     def _collect_book_image_cache_keys(self, book: dict[str, Any], chapters: list[dict[str, Any]]) -> set[str]:
         if not is_book_comic(book):
@@ -4380,19 +4459,11 @@ class ReaderService:
             if not raw_key:
                 continue
             raw_text = self.storage.read_cache(raw_key) or ""
-            payload = decode_comic_payload(raw_text)
-            image_rows: list[str] = []
-            if payload is not None:
-                image_rows = [str(x).strip() for x in (payload.get("images") or []) if str(x).strip()]
-            else:
-                lines = [line.strip() for line in str(raw_text or "").splitlines() if line.strip()]
-                if lines and all(line.startswith("http://") or line.startswith("https://") for line in lines):
-                    image_rows = lines
-            for image_url in image_rows:
+            for image_url in extract_comic_image_urls(raw_text):
                 url = str(image_url or "").strip()
                 if not url:
                     continue
-                keys.add(self._vbook_image_cache_key(image_url=url, plugin_id=plugin_id))
+                keys.add(vbook_image_cache_key(image_url=url, plugin_id=plugin_id))
         return keys
 
     def _clear_book_image_cache(self, book: dict[str, Any], chapters: list[dict[str, Any]]) -> dict[str, int]:
@@ -4937,7 +5008,7 @@ class ReaderService:
         downloaded = 0
         book_id = str(job.get("book_id") or "").strip()
         if book_id and chapter_ids:
-            downloaded_map = self.storage.get_book_download_map(book_id)
+            downloaded_map = self.storage.get_book_download_map(book_id, chapter_ids=chapter_ids)
             downloaded = sum(1 for cid in chapter_ids if downloaded_map.get(cid))
         if downloaded < 0:
             downloaded = 0
@@ -5039,29 +5110,84 @@ class ReaderService:
         self._download_cv.notify_all()
         return job
 
-    def list_download_jobs(self, *, active_only: bool = True) -> dict[str, Any]:
-        with self._download_cv:
-            self._cleanup_download_jobs_locked()
-            queue_positions = {jid: idx + 1 for idx, jid in enumerate(self._download_queue)}
-            items: list[dict[str, Any]] = []
-            for job in self._download_jobs.values():
-                status = str(job.get("status") or "").strip().lower()
-                if active_only and (not self._download_status_is_active(status)):
-                    continue
-                self._refresh_download_job_counts_locked(job)
-                items.append(self._serialize_download_job_locked(job, queue_positions=queue_positions))
-            items.sort(
-                key=lambda x: (
-                    0 if x.get("status") == "running" else (1 if x.get("status") == "queued" else 2),
-                    int(x.get("queue_position") or 0) if x.get("status") == "queued" else 0,
-                    x.get("created_at") or "",
+    def _build_download_jobs_signature_locked(self, items: list[dict[str, Any]]) -> str:
+        if not items:
+            return "empty"
+        rows: list[str] = []
+        for job in items:
+            rows.append(
+                "|".join(
+                    [
+                        str(job.get("job_id") or ""),
+                        str(job.get("status") or ""),
+                        str(int(job.get("downloaded_chapters") or 0)),
+                        str(int(job.get("total_chapters") or 0)),
+                        str(int(job.get("queue_position") or 0)),
+                        str(job.get("current_chapter_id") or ""),
+                        str(job.get("updated_at") or ""),
+                    ]
                 )
             )
+        return "||".join(rows)
+
+    def _list_download_jobs_locked(self, *, active_only: bool = True, book_id: str | None = None) -> dict[str, Any]:
+        self._cleanup_download_jobs_locked()
+        queue_positions = {jid: idx + 1 for idx, jid in enumerate(self._download_queue)}
+        book_filter = str(book_id or "").strip()
+        items: list[dict[str, Any]] = []
+        for job in self._download_jobs.values():
+            status = str(job.get("status") or "").strip().lower()
+            if active_only and (not self._download_status_is_active(status)):
+                continue
+            if book_filter and (str(job.get("book_id") or "").strip() != book_filter):
+                continue
+            self._refresh_download_job_counts_locked(job)
+            items.append(self._serialize_download_job_locked(job, queue_positions=queue_positions))
+        items.sort(
+            key=lambda x: (
+                0 if x.get("status") == "running" else (1 if x.get("status") == "queued" else 2),
+                int(x.get("queue_position") or 0) if x.get("status") == "queued" else 0,
+                x.get("created_at") or "",
+            )
+        )
         return {
             "ok": True,
             "items": items,
             "count": len(items),
+            "active_only": bool(active_only),
+            "book_id": book_filter,
+            "sig": self._build_download_jobs_signature_locked(items),
+            "generated_at": utc_now_iso(),
         }
+
+    def list_download_jobs(self, *, active_only: bool = True, book_id: str | None = None) -> dict[str, Any]:
+        with self._download_cv:
+            return self._list_download_jobs_locked(active_only=active_only, book_id=book_id)
+
+    def wait_download_jobs(
+        self,
+        *,
+        last_sig: str,
+        active_only: bool = True,
+        book_id: str | None = None,
+        timeout_sec: float = 20.0,
+    ) -> dict[str, Any]:
+        timeout = max(0.2, min(60.0, float(timeout_sec or 20.0)))
+        deadline = time.time() + timeout
+        prev_sig = str(last_sig or "")
+        with self._download_cv:
+            while True:
+                payload = self._list_download_jobs_locked(active_only=active_only, book_id=book_id)
+                current_sig = str(payload.get("sig") or "")
+                if current_sig != prev_sig:
+                    payload["changed"] = True
+                    return payload
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    payload["changed"] = False
+                    return payload
+                # Có thể không phải mọi chỗ đều notify CV, nên giữ timeout ngắn để stream vẫn cập nhật đều.
+                self._download_cv.wait(timeout=min(remaining, 0.5))
 
     def _download_pick_chapters_by_range(
         self,
@@ -5264,26 +5390,76 @@ class ReaderService:
                 self._download_queue = [x for x in self._download_queue if x in active_ids]
         return stopped
 
+    def _chapter_raw_cache_has_payload(self, raw_text: str, *, is_comic: bool) -> bool:
+        return chapter_raw_cache_has_payload(raw_text, is_comic=is_comic)
+
+    def _chapter_cache_available(self, chapter: dict[str, Any], book: dict[str, Any]) -> bool:
+        raw_key = str((chapter or {}).get("raw_key") or "").strip()
+        return self.storage.chapter_cache_available_by_key(raw_key=raw_key, book=book)
+
+    def _set_download_chapter_progress_message(self, job_id: str, chapter_id: str, chapter_order: int, retry_index: int) -> None:
+        jid = str(job_id or "").strip()
+        if not jid:
+            return
+        cid = str(chapter_id or "").strip()
+        order = int(chapter_order or 0)
+        retry_no = max(0, int(retry_index or 0))
+        prefix = f"[{retry_no}] " if retry_no > 0 else ""
+        with self._download_cv:
+            job = self._download_jobs.get(jid)
+            if not job:
+                return
+            status = str(job.get("status") or "").strip().lower()
+            if self._download_status_is_final(status):
+                return
+            job["current_chapter_id"] = cid
+            job["message"] = f"{prefix}Đang tải chương {order}..."
+            job["updated_at"] = utc_now_iso()
+            self._download_cv.notify_all()
+
     def _download_fetch_one_chapter(
         self,
         chapter: dict[str, Any],
         book: dict[str, Any],
         stop_event: threading.Event,
+        *,
+        retry_count: int = 0,
+        retry_delay_sec: float = 0.25,
+        on_attempt: Callable[[int], None] | None = None,
     ) -> tuple[bool, str]:
-        if stop_event.is_set():
-            return (False, "Đã dừng.")
-        raw_key = str(chapter.get("raw_key") or "").strip()
-        if raw_key and (self.storage.read_cache(raw_key) is not None):
-            return (True, "")
+        retries = max(0, int(retry_count or 0))
+        delay_sec = max(0.0, float(retry_delay_sec or 0.0))
         source_type = str(book.get("source_type") or "").strip().lower()
-        if source_type.startswith("vbook"):
-            try:
-                self._fetch_remote_chapter(chapter, book)
-            except Exception as exc:
-                return (False, str(exc))
-        if raw_key and (self.storage.read_cache(raw_key) is not None):
-            return (True, "")
-        return (False, "Không tải được nội dung chương.")
+        last_error = ""
+        for attempt_idx in range(retries + 1):
+            if stop_event.is_set():
+                return (False, "Đã dừng.")
+            if callable(on_attempt):
+                try:
+                    on_attempt(int(attempt_idx))
+                except Exception:
+                    pass
+            if self._chapter_cache_available(chapter, book):
+                return (True, "")
+            if source_type.startswith("vbook"):
+                try:
+                    self._fetch_remote_chapter(chapter, book)
+                except Exception as exc:
+                    last_error = str(exc or "").strip() or "Không tải được nội dung chương."
+                else:
+                    last_error = ""
+            else:
+                last_error = "Không tải được nội dung chương."
+            if self._chapter_cache_available(chapter, book):
+                return (True, "")
+            if not last_error:
+                last_error = "Không tải được nội dung chương."
+            if attempt_idx < retries:
+                if stop_event.is_set():
+                    return (False, "Đã dừng.")
+                if delay_sec > 0:
+                    time.sleep(delay_sec)
+        return (False, last_error or "Không tải được nội dung chương.")
 
     def _run_download_job(self, job_id: str) -> None:
         with self._download_cv:
@@ -5323,9 +5499,17 @@ class ReaderService:
         thread_count = int(runtime_cfg.get("download_threads") or 1)
         if thread_count < 1:
             thread_count = 1
+        retry_count = int(runtime_cfg.get("retry_count") or 0)
+        if retry_count < 0:
+            retry_count = 0
+        if retry_count > 10:
+            retry_count = 10
+        request_delay_ms = int(runtime_cfg.get("request_delay_ms") or 0)
+        retry_sleep_sec = max(0.12, min(2.5, float(request_delay_ms) / 1000.0 if request_delay_ms > 0 else 0.25))
         if not str(book.get("source_type") or "").strip().lower().startswith("vbook"):
             # Nguồn local/TXT/EPUB không cần queue fetch; chapter cache đã nằm local.
             thread_count = 1
+            retry_count = 0
 
         stop_event = job.get("_stop_event")
         if not isinstance(stop_event, threading.Event):
@@ -5339,7 +5523,7 @@ class ReaderService:
                 job2["updated_at"] = utc_now_iso()
                 self._refresh_download_job_counts_locked(job2)
 
-        pending_rows = [row for row in selected_rows if not self.storage.read_cache(str(row.get("raw_key") or "").strip())]
+        pending_rows = [row for row in selected_rows if not self._chapter_cache_available(row, book)]
         if not pending_rows:
             with self._download_cv:
                 job2 = self._download_jobs.get(job_id)
@@ -5358,13 +5542,20 @@ class ReaderService:
                 if stop_event.is_set():
                     break
                 cid = str(row.get("chapter_id") or "").strip()
-                with self._download_cv:
-                    job2 = self._download_jobs.get(job_id)
-                    if job2:
-                        job2["current_chapter_id"] = cid
-                        job2["message"] = f"Đang tải chương {int(row.get('chapter_order') or 0)}..."
-                        job2["updated_at"] = utc_now_iso()
-                ok, err = self._download_fetch_one_chapter(row, book, stop_event)
+                order = int(row.get("chapter_order") or 0)
+                ok, err = self._download_fetch_one_chapter(
+                    row,
+                    book,
+                    stop_event,
+                    retry_count=retry_count,
+                    retry_delay_sec=retry_sleep_sec,
+                    on_attempt=lambda idx, _cid=cid, _order=order: self._set_download_chapter_progress_message(
+                        job_id,
+                        _cid,
+                        _order,
+                        idx,
+                    ),
+                )
                 if (not ok) and (not stop_event.is_set()):
                     failed += 1
                     with self._download_cv:
@@ -5386,7 +5577,22 @@ class ReaderService:
                         break
                     while pending_queue and (len(in_flight) < thread_count) and (not stop_event.is_set()):
                         row = pending_queue.pop(0)
-                        future = executor.submit(self._download_fetch_one_chapter, row, book, stop_event)
+                        cid = str(row.get("chapter_id") or "").strip()
+                        order = int(row.get("chapter_order") or 0)
+                        future = executor.submit(
+                            self._download_fetch_one_chapter,
+                            row,
+                            book,
+                            stop_event,
+                            retry_count=retry_count,
+                            retry_delay_sec=retry_sleep_sec,
+                            on_attempt=lambda idx, _cid=cid, _order=order: self._set_download_chapter_progress_message(
+                                job_id,
+                                _cid,
+                                _order,
+                                idx,
+                            ),
+                        )
                         in_flight[future] = row
                     if not in_flight:
                         continue
@@ -7639,11 +7845,39 @@ class ReaderService:
             if maybe_lines and all(line.startswith("http://") or line.startswith("https://") for line in maybe_lines):
                 core = encode_comic_payload(maybe_lines)
 
+        comic_payload = decode_comic_payload(core) if is_comic else None
+        if is_comic:
+            images = [str(x).strip() for x in ((comic_payload or {}).get("images") or []) if str(x).strip()]
+            if not images:
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_CHAP_EMPTY",
+                    "Chương truyện tranh không có ảnh hợp lệ.",
+                    {
+                        "book_id": str((book or {}).get("book_id") or ""),
+                        "chapter_id": str((chapter or {}).get("chapter_id") or ""),
+                        "remote_url": remote_url,
+                        "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                    },
+                )
+        else:
+            if not str(core or "").strip():
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_CHAP_EMPTY",
+                    "Chương không có nội dung hợp lệ.",
+                    {
+                        "book_id": str((book or {}).get("book_id") or ""),
+                        "chapter_id": str((chapter or {}).get("chapter_id") or ""),
+                        "remote_url": remote_url,
+                        "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                    },
+                )
+
         raw_key = (chapter or {}).get("raw_key") or ""
         if raw_key:
             self.storage.write_cache(raw_key, str((book or {}).get("lang_source") or "zh"), core)
         try:
-            comic_payload = decode_comic_payload(core)
             if comic_payload is not None:
                 self.storage.update_chapter_word_count(
                     str(chapter.get("chapter_id") or ""),
@@ -7709,8 +7943,7 @@ class ReaderService:
         return headers
 
     def _vbook_image_cache_paths(self, *, image_url: str, plugin_id: str = "") -> tuple[Path, Path]:
-        seed = f"{str(plugin_id or '').strip()}|{str(image_url or '').strip()}"
-        key = hash_text(seed)
+        key = vbook_image_cache_key(image_url=image_url, plugin_id=plugin_id)
         return (
             VBOOK_IMAGE_CACHE_DIR / f"{key}.bin",
             VBOOK_IMAGE_CACHE_DIR / f"{key}.json",
@@ -7909,6 +8142,14 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         self.service = service
         super().__init__(*args, directory=str(ui_dir), **kwargs)
 
+    def handle(self):  # noqa: N802
+        try:
+            super().handle()
+        except OSError as exc:
+            if self._is_client_disconnect_error(exc):
+                return
+            raise
+
     def log_message(self, fmt: str, *args):  # noqa: A003
         return super().log_message(fmt, *args)
 
@@ -7923,6 +8164,9 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/api/library/download/jobs/stream":
+            self._stream_download_jobs(parsed)
+            return
         if parsed.path.startswith("/api/"):
             self._dispatch_api("GET", parsed)
             return
@@ -7998,6 +8242,85 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 self._send_error_json(
                     ApiError(HTTPStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Lỗi hệ thống nội bộ.", details),
                     trace_id=trace_id,
+                )
+            except OSError as send_exc:
+                if self._is_client_disconnect_error(send_exc):
+                    return
+                raise
+
+    def _write_sse_event(self, event: str, payload: dict[str, Any], *, event_id: int | None = None) -> None:
+        parts: list[str] = []
+        if event_id is not None:
+            parts.append(f"id: {int(event_id)}")
+        if event:
+            parts.append(f"event: {event}")
+        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+        for line in (body.splitlines() or [body]):
+            parts.append(f"data: {line}")
+        packet = ("\n".join(parts) + "\n\n").encode("utf-8", errors="ignore")
+        self.wfile.write(packet)
+        self.wfile.flush()
+
+    def _write_sse_comment(self, comment: str = "keepalive") -> None:
+        packet = f": {comment}\n\n".encode("utf-8", errors="ignore")
+        self.wfile.write(packet)
+        self.wfile.flush()
+
+    def _stream_download_jobs(self, parsed) -> None:
+        query = parse_qs(parsed.query)
+        all_raw = (query.get("all", ["0"])[0] or "0").strip().lower()
+        active_only = all_raw not in {"1", "true", "yes", "on"}
+        book_id = unquote((query.get("book_id", [""])[0] or "").strip())
+        last_sig = str((query.get("last_sig", [""])[0] or "").strip())
+        event_id = 1
+
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("X-Accel-Buffering", "no")
+        try:
+            self.end_headers()
+        except OSError as exc:
+            if self._is_client_disconnect_error(exc):
+                return
+            raise
+
+        try:
+            first = self.service.list_download_jobs(active_only=active_only, book_id=book_id)
+            last_sig = str(first.get("sig") or last_sig)
+            self._write_sse_event("jobs", first, event_id=event_id)
+            event_id += 1
+            while True:
+                payload = self.service.wait_download_jobs(
+                    last_sig=last_sig,
+                    active_only=active_only,
+                    book_id=book_id,
+                    timeout_sec=20.0,
+                )
+                changed = bool(payload.get("changed"))
+                if changed:
+                    last_sig = str(payload.get("sig") or "")
+                    self._write_sse_event("jobs", payload, event_id=event_id)
+                    event_id += 1
+                else:
+                    self._write_sse_comment("keepalive")
+        except OSError as exc:
+            if self._is_client_disconnect_error(exc):
+                return
+            raise
+        except Exception as exc:
+            if self._is_client_disconnect_error(exc):
+                return
+            try:
+                self._write_sse_event(
+                    "error",
+                    {
+                        "error_code": "STREAM_ERROR",
+                        "message": str(exc) or "Lỗi stream download jobs.",
+                        "book_id": book_id,
+                    },
+                    event_id=event_id,
                 )
             except OSError as send_exc:
                 if self._is_client_disconnect_error(send_exc):
@@ -8281,7 +8604,8 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         if method == "GET" and path == "/api/library/download/jobs":
             all_raw = (query.get("all", ["0"])[0] or "0").strip().lower()
             active_only = all_raw not in {"1", "true", "yes", "on"}
-            return self.service.list_download_jobs(active_only=active_only)
+            book_id = unquote((query.get("book_id", [""])[0] or "").strip()) or None
+            return self.service.list_download_jobs(active_only=active_only, book_id=book_id)
 
         if method == "GET" and path == "/api/library/history":
             items = self.service.list_history_books()
@@ -8677,15 +9001,18 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             if allow_translate:
                 raw_title = normalize_vbook_display_text(str(book.get("title") or ""), single_line=True) or str(book.get("title") or "")
                 raw_author = normalize_vbook_display_text(str(book.get("author") or ""), single_line=True) or str(book.get("author") or "")
+                raw_summary = normalize_vbook_display_text(str(book.get("summary") or ""), single_line=False) or str(book.get("summary") or "")
                 title_vi = normalize_vi_display_text(book.get("title_vi") or "")
                 author_vi = normalize_vi_display_text(book.get("author_vi") or "")
                 book["translation_supported"] = True
                 book["title_display"] = title_vi or self.service._translate_ui_text(raw_title, single_line=True) or raw_title
                 book["author_display"] = author_vi or self.service._translate_ui_text(raw_author, single_line=True) or raw_author
+                book["summary_display"] = self.service._translate_ui_text(raw_summary, single_line=False) or raw_summary
             else:
                 book["translation_supported"] = False
                 book["title_display"] = normalize_vbook_display_text(str(book.get("title") or ""), single_line=True) or str(book.get("title") or "")
                 book["author_display"] = normalize_vbook_display_text(str(book.get("author") or ""), single_line=True) or str(book.get("author") or "")
+                book["summary_display"] = normalize_vbook_display_text(str(book.get("summary") or ""), single_line=False) or str(book.get("summary") or "")
                 chapters = book.get("chapters")
                 if isinstance(chapters, list):
                     for row in chapters:
@@ -9066,7 +9393,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 "content_type": content_type,
                 "images": images,
                 "content": response_content,
-                "is_downloaded": bool(str(chapter.get("raw_key") or "").strip() and (self.service.storage.read_cache(str(chapter.get("raw_key") or "").strip()) is not None)),
+                "is_downloaded": bool(self.service._chapter_cache_available(chapter, book)),
             }
             if output_mode == "trans":
                 cur_sig = self.service.translator.translation_signature(
