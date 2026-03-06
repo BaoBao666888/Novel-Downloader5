@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260221-vb26";
+import { t } from "../i18n.vi.js?v=20260221-vb27";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -101,6 +101,10 @@ function saveThemeCache(theme) {
 
 function emitSettingsChanged(settings) {
   window.dispatchEvent(new CustomEvent("reader-settings-changed", { detail: { ...settings } }));
+}
+
+function emitCacheChanged(detail = {}) {
+  window.dispatchEvent(new CustomEvent("reader-cache-changed", { detail: { ...(detail || {}) } }));
 }
 
 async function api(path, options = {}) {
@@ -585,10 +589,16 @@ async function runCacheManagerAction(action) {
   if (!window.confirm(t("cacheManagerConfirmAction"))) return;
   showStatus(t("statusClearing"));
   try {
-    await api("/api/library/cache/manage", {
+    const result = await api("/api/library/cache/manage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: act, book_ids: selectedBookIds }),
+    });
+    emitCacheChanged({
+      source: "cache-manager",
+      action: act,
+      book_ids: selectedBookIds,
+      result,
     });
     showToast(t("toastCacheManagerDone"));
     await loadCacheManagerSummary();

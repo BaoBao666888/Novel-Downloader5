@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb26";
+import { initShell } from "../site_common.js?v=20260221-vb27";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -51,6 +51,7 @@ const state = {
   historyItems: [],
   books: [],
   downloadJobs: [],
+  downloadJobsSig: "",
   selectedBookId: null,
   shell: null,
   translationEnabled: true,
@@ -59,6 +60,8 @@ const state = {
   globalDicts: { name: {}, vp: {} },
   globalDictType: "name",
   downloadPollTimer: null,
+  libraryRefreshBusy: false,
+  lastLibraryRefreshTs: 0,
 };
 
 function localTranslationSettingsSignature(shell) {
@@ -417,8 +420,8 @@ async function deleteHistoryItem(historyId) {
   }
 }
 
-async function loadLibraryData() {
-  state.shell.showStatus(state.shell.t("statusLoadingBooks"));
+async function loadLibraryData({ silent = false } = {}) {
+  if (!silent) state.shell.showStatus(state.shell.t("statusLoadingBooks"));
   try {
     const [booksData, historyData] = await Promise.all([
       state.shell.api("/api/library/books"),
@@ -429,9 +432,9 @@ async function loadLibraryData() {
     renderHistory();
     renderBooks();
   } catch (error) {
-    state.shell.showToast(getErrorMessage(error));
+    if (!silent) state.shell.showToast(getErrorMessage(error));
   } finally {
-    state.shell.hideStatus();
+    if (!silent) state.shell.hideStatus();
   }
 }
 
@@ -496,14 +499,47 @@ function renderDownloadJobs() {
   }
 }
 
-async function loadDownloadJobs() {
+function buildDownloadJobsSignature(items) {
+  if (!Array.isArray(items) || !items.length) return "";
+  const rows = [];
+  for (const job of items) {
+    rows.push([
+      String(job.job_id || ""),
+      String(job.status || ""),
+      Number(job.downloaded_chapters || 0),
+      Number(job.total_chapters || 0),
+      Number(job.queue_position || 0),
+    ].join(":"));
+  }
+  return rows.join("|");
+}
+
+async function loadDownloadJobs({ syncLibrary = false } = {}) {
+  let nextItems = [];
   try {
     const data = await state.shell.api("/api/library/download/jobs");
-    state.downloadJobs = Array.isArray(data.items) ? data.items : [];
+    nextItems = Array.isArray(data.items) ? data.items : [];
   } catch {
-    state.downloadJobs = [];
+    nextItems = [];
   }
+  state.downloadJobs = nextItems;
+  const nextSig = buildDownloadJobsSignature(nextItems);
+  const changed = nextSig !== state.downloadJobsSig;
+  state.downloadJobsSig = nextSig;
   renderDownloadJobs();
+  if (!syncLibrary) return;
+
+  const now = Date.now();
+  const hasActive = state.downloadJobs.length > 0;
+  const shouldRefresh = changed || (hasActive && (now - state.lastLibraryRefreshTs >= 2800));
+  if (!shouldRefresh || state.libraryRefreshBusy) return;
+  state.libraryRefreshBusy = true;
+  try {
+    await loadLibraryData({ silent: true });
+    state.lastLibraryRefreshTs = Date.now();
+  } finally {
+    state.libraryRefreshBusy = false;
+  }
 }
 
 function startDownloadPolling() {
@@ -512,7 +548,7 @@ function startDownloadPolling() {
     state.downloadPollTimer = null;
   }
   state.downloadPollTimer = window.setInterval(() => {
-    loadDownloadJobs().catch(() => {});
+    loadDownloadJobs({ syncLibrary: true }).catch(() => {});
   }, 1300);
 }
 
@@ -806,6 +842,11 @@ async function init() {
     loadLibraryData().catch(() => {});
   });
 
+  window.addEventListener("reader-cache-changed", () => {
+    loadLibraryData({ silent: true }).catch(() => {});
+    loadDownloadJobs({ syncLibrary: false }).catch(() => {});
+  });
+
   window.addEventListener("beforeunload", () => {
     if (state.downloadPollTimer) {
       window.clearInterval(state.downloadPollTimer);
@@ -814,7 +855,7 @@ async function init() {
   });
 
   state.translationLocalSig = localTranslationSettingsSignature(state.shell);
-  await Promise.all([loadLibraryData(), loadDownloadJobs()]);
+  await Promise.all([loadLibraryData(), loadDownloadJobs({ syncLibrary: false })]);
   startDownloadPolling();
 }
 

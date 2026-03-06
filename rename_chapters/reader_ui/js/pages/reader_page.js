@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb26";
+import { initShell } from "../site_common.js?v=20260221-vb27";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -122,6 +122,11 @@ const state = {
   chapterContentType: "text",
   chapterImages: [],
   comicLoadSeq: 0,
+  downloadWatchTimer: null,
+  downloadWatchBusy: false,
+  downloadWatchSig: "",
+  downloadWatchHadActive: false,
+  downloadWatchIdleTicks: 0,
 };
 
 function normalizeTranslateMode(raw) {
@@ -660,11 +665,96 @@ async function downloadCurrentChapterById(chapterId) {
     await loadBook();
     renderToc();
     updateProgress();
+    window.dispatchEvent(new CustomEvent("reader-cache-changed", {
+      detail: {
+        source: "reader-download",
+        action: "enqueue_chapter_download",
+        book_id: state.bookId,
+        chapter_id: cid,
+      },
+    }));
+    startReaderDownloadWatcher();
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
     state.shell.hideStatus();
   }
+}
+
+function clearReaderDownloadWatcher() {
+  if (state.downloadWatchTimer) {
+    window.clearInterval(state.downloadWatchTimer);
+    state.downloadWatchTimer = null;
+  }
+  state.downloadWatchBusy = false;
+  state.downloadWatchSig = "";
+  state.downloadWatchHadActive = false;
+  state.downloadWatchIdleTicks = 0;
+}
+
+function isCacheEventForCurrentBook(detail) {
+  if (!state.bookId) return false;
+  const payload = (detail && typeof detail === "object") ? detail : {};
+  const oneBookId = String(payload.book_id || "").trim();
+  if (oneBookId && oneBookId === state.bookId) return true;
+  const list = Array.isArray(payload.book_ids) ? payload.book_ids : [];
+  return list.some((x) => String(x || "").trim() === state.bookId);
+}
+
+async function refreshReaderDownloadState() {
+  await loadBook();
+  renderToc();
+  updateProgress();
+}
+
+async function pollReaderDownloadWatcherTick() {
+  if (!state.bookId || state.downloadWatchBusy) return;
+  state.downloadWatchBusy = true;
+  try {
+    const data = await state.shell.api("/api/library/download/jobs");
+    const jobs = Array.isArray(data.items) ? data.items : [];
+    const related = jobs
+      .filter((job) => String(job.book_id || "").trim() === state.bookId)
+      .map((job) => ({
+        id: String(job.job_id || ""),
+        status: String(job.status || ""),
+        downloaded: Number(job.downloaded_chapters || 0),
+        total: Number(job.total_chapters || 0),
+      }));
+    const sig = related.map((x) => `${x.id}:${x.status}:${x.downloaded}:${x.total}`).join("|");
+    const hasActive = related.length > 0;
+    if (hasActive) {
+      if ((sig !== state.downloadWatchSig) || (!state.downloadWatchHadActive)) {
+        await refreshReaderDownloadState();
+      }
+      state.downloadWatchSig = sig;
+      state.downloadWatchHadActive = true;
+      state.downloadWatchIdleTicks = 0;
+    } else {
+      if (state.downloadWatchHadActive) {
+        await refreshReaderDownloadState();
+      }
+      state.downloadWatchHadActive = false;
+      state.downloadWatchSig = "";
+      state.downloadWatchIdleTicks += 1;
+      if (state.downloadWatchIdleTicks >= 6) {
+        clearReaderDownloadWatcher();
+      }
+    }
+  } catch {
+    // ignore poll errors
+  } finally {
+    state.downloadWatchBusy = false;
+  }
+}
+
+function startReaderDownloadWatcher() {
+  state.downloadWatchIdleTicks = 0;
+  if (state.downloadWatchTimer) return;
+  state.downloadWatchTimer = window.setInterval(() => {
+    pollReaderDownloadWatcherTick().catch(() => {});
+  }, 1500);
+  pollReaderDownloadWatcherTick().catch(() => {});
 }
 
 function estimateFlipCharBudget() {
@@ -1950,6 +2040,16 @@ async function reloadCurrentChapter() {
     });
     dropChapterCacheById(state.chapterId);
     await loadChapter({ resetFlip: true });
+    await loadBook();
+    renderToc();
+    window.dispatchEvent(new CustomEvent("reader-cache-changed", {
+      detail: {
+        source: "reader-reload",
+        action: "reload_chapter",
+        book_id: state.bookId,
+        chapter_id: state.chapterId,
+      },
+    }));
     if (result && result.reloaded_from_source) {
       state.shell.showToast(state.shell.t("toastChapterReloadedFromSource"));
     } else {
@@ -2431,6 +2531,12 @@ async function init() {
     updateProgress();
   });
 
+  window.addEventListener("reader-cache-changed", (event) => {
+    if (!state.bookId) return;
+    if (!isCacheEventForCurrentBook(event && event.detail)) return;
+    refreshReaderDownloadState().catch(() => {});
+  });
+
   bindNameEditor();
   bindFlipDragGesture();
   bindReaderHotkeys();
@@ -2485,6 +2591,7 @@ async function init() {
     initialRatio = state.book.last_read_ratio;
   }
   await loadChapter({ preserveRatio: initialRatio });
+  startReaderDownloadWatcher();
 
   refs.btnReaderToc.addEventListener("click", openToc);
   if (refs.btnFooterToc) refs.btnFooterToc.addEventListener("click", openToc);
@@ -2597,6 +2704,10 @@ async function init() {
     updateProgress();
     updateMiniInfoVisibility();
   }, { passive: true });
+
+  window.addEventListener("beforeunload", () => {
+    clearReaderDownloadWatcher();
+  });
 }
 
 init();

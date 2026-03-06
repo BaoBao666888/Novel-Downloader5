@@ -24,6 +24,7 @@ from packaging.version import parse as parse_version
 
 from app.nd5.loader import load_nd5_plugins
 from app.nd5.plugin_api import ND5Context
+from app.nd5.vbook_bridge_plugin import ReaderVBookBridgePlugin
 from app.core.browser_cookies import load_browser_cookie_jar
 from app.paths import BASE_DIR
 from app.ui.constants import DEFAULT_API_SETTINGS, DEFAULT_ND5_OPTIONS
@@ -77,6 +78,120 @@ class ND5Mixin:
         except Exception:
             pass
         return False
+
+    def _nd5_reader_server_base_url(self) -> str:
+        return f"http://127.0.0.1:{self._nd5_reader_server_port()}"
+
+    def _nd5_reader_api_request(
+        self,
+        method: str,
+        path: str,
+        *,
+        payload: dict | None = None,
+        timeout: float = 8.0,
+    ) -> dict:
+        route = str(path or "").strip()
+        if not route.startswith("/"):
+            route = "/" + route
+        url = f"{self._nd5_reader_server_base_url()}{route}"
+        kwargs: dict = {"timeout": max(1.0, float(timeout or 0))}
+        if payload is not None:
+            kwargs["json"] = payload
+        resp = requests.request(method.upper(), url, **kwargs)
+        try:
+            data = resp.json() if resp.content else {}
+        except Exception:
+            data = {}
+        if not resp.ok:
+            message = str((data or {}).get("message") or f"HTTP {resp.status_code}").strip()
+            details = (data or {}).get("details")
+            if details:
+                message = f"{message} | {details}"
+            raise RuntimeError(message)
+        if not isinstance(data, dict):
+            raise RuntimeError("Reader API trả về dữ liệu không hợp lệ.")
+        return data
+
+    def _nd5_list_reader_vbook_plugins(self):
+        if not self._nd5_require_reader_server_for_vbook(show_message=False):
+            return []
+        try:
+            data = self._nd5_reader_api_request("GET", "/api/vbook/plugins", timeout=4.0)
+        except Exception as exc:
+            try:
+                self.log(f"[ND5] Khong tai duoc danh sach vBook ext tu Reader: {exc}")
+            except Exception:
+                pass
+            return []
+        items = data.get("items") if isinstance(data.get("items"), list) else []
+        out = []
+        for row in items:
+            if not isinstance(row, dict):
+                continue
+            plugin_id = str(row.get("plugin_id") or "").strip()
+            if not plugin_id:
+                continue
+            try:
+                out.append(
+                    ReaderVBookBridgePlugin(
+                        reader_base_url=self._nd5_reader_server_base_url(),
+                        plugin_payload=row,
+                    )
+                )
+            except Exception:
+                continue
+        return out
+
+    def _nd5_sync_vbook_download_to_reader(
+        self,
+        *,
+        plugin: object,
+        book_url: str,
+        selected_numbers: set[int] | None = None,
+    ) -> None:
+        if not getattr(plugin, "is_vbook_bridge", False):
+            return
+        if not self._nd5_require_reader_server_for_vbook(show_message=False):
+            return
+        plugin_id = str(getattr(plugin, "vbook_plugin_id", "") or "").strip()
+        source_url = str(book_url or "").strip()
+        if not plugin_id or not source_url:
+            return
+
+        imported = self._nd5_reader_api_request(
+            "POST",
+            "/api/library/import-url",
+            payload={"url": source_url, "plugin_id": plugin_id},
+            timeout=15.0,
+        )
+        book = imported.get("book") if isinstance(imported.get("book"), dict) else {}
+        book_id = str(book.get("book_id") or "").strip()
+        if not book_id:
+            return
+
+        chapter_ids = []
+        if selected_numbers:
+            chapters = book.get("chapters") if isinstance(book.get("chapters"), list) else []
+            wanted = {int(x) for x in selected_numbers if isinstance(x, int) and x > 0}
+            for row in chapters:
+                if not isinstance(row, dict):
+                    continue
+                try:
+                    order = int(row.get("chapter_order") or 0)
+                except Exception:
+                    order = 0
+                if order in wanted:
+                    cid = str(row.get("chapter_id") or "").strip()
+                    if cid:
+                        chapter_ids.append(cid)
+
+        payload = {"chapter_ids": chapter_ids} if chapter_ids else {}
+        self._nd5_reader_api_request(
+            "POST",
+            f"/api/library/book/{book_id}/download",
+            payload=payload,
+            timeout=10.0,
+        )
 
     def _get_fanqie_bridge_port(self) -> int:
         fallback = int(DEFAULT_API_SETTINGS.get("fanqie_bridge_port", 9999))
@@ -679,6 +794,12 @@ class ND5Mixin:
         win.rowconfigure(4, weight=1)
 
         plugins, plugin_errors = load_nd5_plugins(BASE_DIR, include_builtin=True)
+        try:
+            reader_vbook_plugins = self._nd5_list_reader_vbook_plugins()
+        except Exception:
+            reader_vbook_plugins = []
+        if reader_vbook_plugins:
+            plugins.extend(reader_vbook_plugins)
         if not plugins:
             msg = "Không tìm thấy plugin nào trong thư mục nd5_plugins."
             if plugin_errors:
@@ -758,6 +879,14 @@ class ND5Mixin:
         def _plugin_requires_bridge():
             p = _current_plugin()
             return bool(getattr(p, "requires_bridge", False))
+
+        def _plugin_requires_reader_server():
+            p = _current_plugin()
+            return bool(getattr(p, "requires_reader_server", False))
+
+        def _plugin_is_vbook_bridge():
+            p = _current_plugin()
+            return bool(getattr(p, "is_vbook_bridge", False))
 
         def _plugin_supports_search():
             p = _current_plugin()
@@ -898,6 +1027,8 @@ class ND5Mixin:
             if not plugin or not _plugin_supports_search():
                 messagebox.showinfo("Tìm kiếm", "Plugin hiện tại không hỗ trợ tìm kiếm.", parent=win)
                 return
+            if _plugin_requires_reader_server() and (not self._nd5_require_reader_server_for_vbook(show_message=True)):
+                return
             dlg = tk.Toplevel(win)
             self._apply_window_icon(dlg)
             dlg.title(f"Tìm kiếm ({plugin.id})")
@@ -964,6 +1095,10 @@ class ND5Mixin:
                 def worker():
                     ctx_local = _build_ctx()
                     try:
+                        if _plugin_requires_reader_server() and (not self._nd5_require_reader_server_for_vbook(show_message=False)):
+                            self.after(0, lambda: status_var2.set("Cần mở Reader Server để dùng ext vBook."))
+                            self.after(0, lambda: search_btn_local.state(["!disabled"]))
+                            return
                         result = plugin.search(q, page_val, ctx_local)
                         items = []
                         next_page = None
@@ -1027,6 +1162,92 @@ class ND5Mixin:
             tree.bind("<Double-1>", lambda _e: _on_select())
             dlg.protocol("WM_DELETE_WINDOW", dlg.destroy)
             query_var.set(url_var.get() or "")
+
+        def _open_vbook_ext_settings_dialog():
+            plugin = _current_plugin()
+            if not plugin or not _plugin_is_vbook_bridge():
+                messagebox.showinfo("vBook extension", "Nguồn hiện tại không phải ext vBook từ Reader.", parent=win)
+                return
+            if not self._nd5_require_reader_server_for_vbook(show_message=True):
+                return
+            reader_pid = str(getattr(plugin, "vbook_plugin_id", "") or "").strip()
+            if not reader_pid:
+                messagebox.showerror("vBook extension", "Thiếu plugin_id vBook.", parent=win)
+                return
+
+            dlg = tk.Toplevel(win)
+            self._apply_window_icon(dlg)
+            dlg.title("Cài đặt ext vBook (chỉ xem)")
+            dlg.geometry("560x360")
+            dlg.columnconfigure(0, weight=1)
+            dlg.rowconfigure(1, weight=1)
+
+            head = ttk.Frame(dlg, padding=(12, 10))
+            head.grid(row=0, column=0, sticky="ew")
+            head.columnconfigure(1, weight=1)
+            ttk.Label(head, text="Plugin Reader:").grid(row=0, column=0, sticky="w")
+            ttk.Label(head, text=reader_pid).grid(row=0, column=1, sticky="w")
+
+            status_var_local = tk.StringVar(value="Đang tải thông số...")
+            ttk.Label(head, textvariable=status_var_local, foreground="#2563eb").grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
+
+            body = ttk.Frame(dlg, padding=(12, 6))
+            body.grid(row=1, column=0, sticky="nsew")
+            body.columnconfigure(1, weight=1)
+
+            value_vars = {
+                "request_delay_ms": tk.StringVar(value="-"),
+                "download_threads": tk.StringVar(value="-"),
+                "prefetch_unread_count": tk.StringVar(value="-"),
+                "retry_count": tk.StringVar(value="-"),
+            }
+
+            ttk.Label(body, text="Time nghỉ effective (ms):").grid(row=0, column=0, sticky="w", pady=(2, 6))
+            ttk.Label(body, textvariable=value_vars["request_delay_ms"]).grid(row=0, column=1, sticky="w")
+            ttk.Label(body, text="Số luồng effective:").grid(row=1, column=0, sticky="w", pady=(2, 6))
+            ttk.Label(body, textvariable=value_vars["download_threads"]).grid(row=1, column=1, sticky="w")
+            ttk.Label(body, text="Prefetch effective:").grid(row=2, column=0, sticky="w", pady=(2, 6))
+            ttk.Label(body, textvariable=value_vars["prefetch_unread_count"]).grid(row=2, column=1, sticky="w")
+            ttk.Label(body, text="Retry global:").grid(row=3, column=0, sticky="w", pady=(2, 6))
+            ttk.Label(body, textvariable=value_vars["retry_count"]).grid(row=3, column=1, sticky="w")
+            ttk.Label(
+                body,
+                text="Muốn chỉnh các giá trị này, mở tab Đọc truyện -> Cài đặt vBook.",
+                foreground="#6b7280",
+            ).grid(row=4, column=0, columnspan=2, sticky="w", pady=(8, 0))
+
+            btns = ttk.Frame(dlg, padding=(12, 10))
+            btns.grid(row=2, column=0, sticky="ew")
+            btns.columnconfigure(0, weight=1)
+
+            def _load_effective():
+                status_var_local.set("Đang tải thông số...")
+
+                def worker():
+                    try:
+                        data = self._nd5_reader_api_request(
+                            "GET",
+                            f"/api/vbook/settings/effective?plugin_id={reader_pid}",
+                            timeout=6.0,
+                        )
+                        settings = data.get("settings") if isinstance(data.get("settings"), dict) else {}
+
+                        def _apply():
+                            value_vars["request_delay_ms"].set(str(settings.get("request_delay_ms", "-")))
+                            value_vars["download_threads"].set(str(settings.get("download_threads", "-")))
+                            value_vars["prefetch_unread_count"].set(str(settings.get("prefetch_unread_count", "-")))
+                            value_vars["retry_count"].set(str(settings.get("retry_count", "-")))
+                            status_var_local.set("Đã tải xong.")
+
+                        self.after(0, _apply)
+                    except Exception as exc:
+                        self.after(0, lambda exc=exc: status_var_local.set(f"Lỗi: {exc}"))
+
+                threading.Thread(target=worker, daemon=True).start()
+
+            ttk.Button(btns, text="Làm mới", command=_load_effective).pack(side=tk.LEFT)
+            ttk.Button(btns, text="Đóng", command=dlg.destroy).pack(side=tk.RIGHT)
+            _load_effective()
 
         nd5_settings_win = {"ref": None}
 
@@ -2415,6 +2636,9 @@ class ND5Mixin:
             if not plugin:
                 messagebox.showerror("Plugin ND5", "Không tìm thấy plugin đã chọn.", parent=win)
                 return
+            if _plugin_requires_reader_server() and (not self._nd5_require_reader_server_for_vbook(show_message=True)):
+                _update_status("Cần mở Reader Server để dùng ext vBook.")
+                return
             book_url = url_var.get().strip()
             if not book_url:
                 messagebox.showinfo("Thiếu URL", "Nhập URL truyện trước.", parent=win)
@@ -2450,6 +2674,9 @@ class ND5Mixin:
                 ctx = _build_ctx()
                 cache_key_hint = self._nd5_make_book_cache_key(plugin.id, book_url=book_url, meta=None)
                 try:
+                    if getattr(plugin, "requires_reader_server", False) and (not self._nd5_require_reader_server_for_vbook(show_message=False)):
+                        self.after(0, lambda: _update_status("Cần mở Reader Server để dùng ext vBook."))
+                        return
                     if getattr(plugin, "requires_bridge", False) and not _check_backend():
                         return
                     meta, toc = plugin.fetch_book_and_toc(book_url, ctx)
@@ -2510,6 +2737,9 @@ class ND5Mixin:
             if not plugin:
                 messagebox.showerror("Plugin ND5", "Không tìm thấy plugin đã chọn.", parent=win)
                 return
+            if _plugin_requires_reader_server() and (not self._nd5_require_reader_server_for_vbook(show_message=True)):
+                _update_status("Cần mở Reader Server để dùng ext vBook.")
+                return
             meta = current_book.get("meta")
             toc = current_book.get("toc") or []
             if not meta or not toc:
@@ -2537,6 +2767,9 @@ class ND5Mixin:
                 ctx = _build_ctx()
                 try:
                     _persist_nd5_options()
+                    if getattr(plugin, "requires_reader_server", False) and (not self._nd5_require_reader_server_for_vbook(show_message=False)):
+                        self.after(0, lambda: _update_status("Cần mở Reader Server để dùng ext vBook."))
+                        return
                     if getattr(plugin, "requires_bridge", False) and not _check_backend():
                         return
                     try:
@@ -2562,6 +2795,15 @@ class ND5Mixin:
                         or self._nd5_make_book_cache_key(plugin.id, book_url=cache_url, meta=meta)
                     )
                     cache_entry = self._nd5_load_book_cache(cache_key) or {}
+                    if getattr(plugin, "is_vbook_bridge", False):
+                        try:
+                            self._nd5_sync_vbook_download_to_reader(
+                                plugin=plugin,
+                                book_url=cache_url,
+                                selected_numbers={int(x) for x in num_set if isinstance(x, int) and int(x) > 0},
+                            )
+                        except Exception as sync_exc:
+                            ctx.log(f"[ND5] Khong dong bo duoc download sang Reader: {sync_exc}")
                     prefer_cache = bool(prefer_cache_var.get())
                     cached_chapters = cache_entry.get("chapters") if (prefer_cache and isinstance(cache_entry, dict)) else {}
                     fetched = {}
@@ -2772,6 +3014,7 @@ class ND5Mixin:
         top_frame.columnconfigure(1, weight=1)
         top_frame.columnconfigure(2, weight=1)
         top_frame.columnconfigure(3, weight=0)
+        top_frame.columnconfigure(4, weight=0)
         plugin_ids = [p.id for p in plugins]
         source_desc_var = tk.StringVar(value=f"{_plugin_label()} | {_plugin_sample()}")
         url_label_var = tk.StringVar(value=f"URL {_plugin_label()}:")
@@ -2782,6 +3025,9 @@ class ND5Mixin:
         ttk.Label(top_frame, textvariable=source_desc_var, foreground="#6b7280").grid(row=0, column=2, sticky="w", padx=(10, 0))
         settings_btn = ttk.Button(top_frame, text="Cài đặt", command=_open_settings_dialog)
         settings_btn.grid(row=0, column=3, sticky="e")
+        vbook_settings_btn = ttk.Button(top_frame, text="Cài đặt ext vBook", command=_open_vbook_ext_settings_dialog)
+        vbook_settings_btn.grid(row=0, column=4, sticky="e", padx=(6, 0))
+        vbook_settings_btn.grid_remove()
         extra_btn = ttk.Button(top_frame, text="Giá trị bổ sung", command=_open_extra_values_dialog)
         extra_btn.grid(row=1, column=1, sticky="w", pady=(4, 0))
         extra_btn.grid_remove()
@@ -2816,7 +3062,14 @@ class ND5Mixin:
                 api_status_var.set("Chưa kiểm tra bridge.")
             else:
                 bridge_settings_btn.grid_remove()
-                api_status_var.set("Dùng HTTP trực tiếp (không cần bridge).")
+                if _plugin_is_vbook_bridge():
+                    api_status_var.set("Dùng Reader Server vBook bridge.")
+                else:
+                    api_status_var.set("Dùng HTTP trực tiếp (không cần bridge).")
+            if _plugin_is_vbook_bridge():
+                vbook_settings_btn.grid()
+            else:
+                vbook_settings_btn.grid_remove()
             if _plugin_supports_search():
                 search_btn.state(["!disabled"])
             else:

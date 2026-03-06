@@ -4333,6 +4333,9 @@ class ReaderService:
             reloaded_from_source = True
 
         cleared = self.storage.clear_chapter_translated_cache(cid)
+        raw_key = str(chapter.get("raw_key") or "").strip()
+        chapter_is_downloaded = bool(raw_key and (self.storage.read_cache(raw_key) is not None))
+        downloaded_count, chapter_total = self.storage.get_book_download_counts(str(chapter.get("book_id") or ""))
         return {
             "ok": True,
             "chapter_id": cid,
@@ -4340,6 +4343,9 @@ class ReaderService:
             "source_type": source_type,
             "remote_url": remote_url,
             "reloaded_from_source": reloaded_from_source,
+            "is_downloaded": chapter_is_downloaded,
+            "downloaded_chapters": int(downloaded_count),
+            "chapter_count": int(chapter_total),
             **cleared,
         }
 
@@ -4519,6 +4525,9 @@ class ReaderService:
                 **cache_stats,
                 **image_stats,
             }
+            downloaded_count, chapter_total = self.storage.get_book_download_counts(bid)
+            item["downloaded_chapters"] = int(downloaded_count)
+            item["chapter_count"] = int(chapter_total)
             result_items.append(item)
             for key in total.keys():
                 total[key] += int(item.get(key) or 0)

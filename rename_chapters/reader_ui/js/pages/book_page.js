@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb26";
+import { initShell } from "../site_common.js?v=20260221-vb27";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -93,6 +93,11 @@ const state = {
   bookActiveNameSet: "Mặc định",
   translationEnabled: true,
   translationLocalSig: "{}",
+  downloadWatchTimer: null,
+  downloadWatchBusy: false,
+  downloadWatchSig: "",
+  downloadWatchHadActive: false,
+  downloadWatchIdleTicks: 0,
 };
 
 function localTranslationSettingsSignature(shell) {
@@ -237,27 +242,27 @@ function renderToc() {
   refs.btnTocNext.disabled = state.pagination.page >= state.pagination.total_pages;
 }
 
-async function loadBook() {
+async function loadBook({ silent = false, suppressToast = false } = {}) {
   if (!state.bookId) {
     refs.bookEmpty.textContent = `${state.shell.t("noBookSelected")}. ${state.shell.t("noBookSelectedHint")}`;
     return;
   }
-  state.shell.showStatus(state.shell.t("statusLoadingBookInfo"));
+  if (!silent) state.shell.showStatus(state.shell.t("statusLoadingBookInfo"));
   try {
     const mode = state.mode;
     const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(mode)}&translation_mode=${encodeURIComponent(state.translateMode)}`);
     state.book = detail;
     populateBook();
   } catch (error) {
-    state.shell.showToast(error.message || state.shell.t("toastError"));
+    if (!suppressToast) state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
-    state.shell.hideStatus();
+    if (!silent) state.shell.hideStatus();
   }
 }
 
-async function loadToc(page = 1) {
+async function loadToc(page = 1, { silent = false, suppressToast = false } = {}) {
   if (!state.bookId || !state.book) return;
-  state.shell.showStatus(state.shell.t("statusLoadingToc"));
+  if (!silent) state.shell.showStatus(state.shell.t("statusLoadingToc"));
   try {
     const mode = effectiveModeForBook(state.book, state.mode);
     const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/chapters?page=${page}&page_size=${state.pagination.page_size}&mode=${mode}&translation_mode=${encodeURIComponent(state.translateMode)}`);
@@ -265,10 +270,88 @@ async function loadToc(page = 1) {
     state.pagination = { ...state.pagination, ...(data.pagination || {}) };
     renderToc();
   } catch (error) {
-    state.shell.showToast(error.message || state.shell.t("toastError"));
+    if (!suppressToast) state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
-    state.shell.hideStatus();
+    if (!silent) state.shell.hideStatus();
   }
+}
+
+function clearDownloadWatcher() {
+  if (state.downloadWatchTimer) {
+    window.clearInterval(state.downloadWatchTimer);
+    state.downloadWatchTimer = null;
+  }
+  state.downloadWatchBusy = false;
+  state.downloadWatchSig = "";
+  state.downloadWatchHadActive = false;
+  state.downloadWatchIdleTicks = 0;
+}
+
+async function refreshDownloadStateSilent() {
+  const keepPage = Math.max(1, Number(state.pagination.page || 1));
+  await Promise.all([
+    loadBook({ silent: true, suppressToast: true }),
+    loadToc(keepPage, { silent: true, suppressToast: true }),
+  ]);
+}
+
+function isCacheEventForCurrentBook(detail) {
+  if (!state.bookId) return false;
+  const payload = (detail && typeof detail === "object") ? detail : {};
+  const oneBookId = String(payload.book_id || "").trim();
+  if (oneBookId && oneBookId === state.bookId) return true;
+  const list = Array.isArray(payload.book_ids) ? payload.book_ids : [];
+  return list.some((x) => String(x || "").trim() === state.bookId);
+}
+
+async function pollDownloadWatcherTick() {
+  if (!state.bookId || state.downloadWatchBusy) return;
+  state.downloadWatchBusy = true;
+  try {
+    const data = await state.shell.api("/api/library/download/jobs");
+    const jobs = Array.isArray(data.items) ? data.items : [];
+    const related = jobs
+      .filter((job) => String(job.book_id || "").trim() === state.bookId)
+      .map((job) => ({
+        id: String(job.job_id || ""),
+        status: String(job.status || ""),
+        downloaded: Number(job.downloaded_chapters || 0),
+        total: Number(job.total_chapters || 0),
+      }));
+    const sig = related.map((x) => `${x.id}:${x.status}:${x.downloaded}:${x.total}`).join("|");
+    const hasActive = related.length > 0;
+    if (hasActive) {
+      if ((sig !== state.downloadWatchSig) || (!state.downloadWatchHadActive)) {
+        await refreshDownloadStateSilent();
+      }
+      state.downloadWatchSig = sig;
+      state.downloadWatchHadActive = true;
+      state.downloadWatchIdleTicks = 0;
+    } else {
+      if (state.downloadWatchHadActive) {
+        await refreshDownloadStateSilent();
+      }
+      state.downloadWatchHadActive = false;
+      state.downloadWatchSig = "";
+      state.downloadWatchIdleTicks += 1;
+      if (state.downloadWatchIdleTicks >= 6) {
+        clearDownloadWatcher();
+      }
+    }
+  } catch {
+    // ignore poll errors
+  } finally {
+    state.downloadWatchBusy = false;
+  }
+}
+
+function startDownloadWatcher() {
+  state.downloadWatchIdleTicks = 0;
+  if (state.downloadWatchTimer) return;
+  state.downloadWatchTimer = window.setInterval(() => {
+    pollDownloadWatcherTick().catch(() => {});
+  }, 1500);
+  pollDownloadWatcherTick().catch(() => {});
 }
 
 async function saveMeta(event) {
@@ -373,7 +456,15 @@ async function downloadBookChapters() {
     } else {
       state.shell.showToast(state.shell.t("downloadQueued"));
     }
-    await Promise.all([loadBook(), loadToc(state.pagination.page || 1)]);
+    window.dispatchEvent(new CustomEvent("reader-cache-changed", {
+      detail: {
+        source: "book-download",
+        action: "enqueue_book_download",
+        book_id: state.bookId,
+      },
+    }));
+    await refreshDownloadStateSilent();
+    startDownloadWatcher();
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -394,7 +485,16 @@ async function downloadSingleChapter(chapterId) {
     } else {
       state.shell.showToast(state.shell.t("downloadQueued"));
     }
-    await Promise.all([loadBook(), loadToc(state.pagination.page || 1)]);
+    window.dispatchEvent(new CustomEvent("reader-cache-changed", {
+      detail: {
+        source: "book-download",
+        action: "enqueue_chapter_download",
+        book_id: state.bookId,
+        chapter_id: cid,
+      },
+    }));
+    await refreshDownloadStateSilent();
+    startDownloadWatcher();
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -807,6 +907,16 @@ async function init() {
       .catch(() => {});
   });
 
+  window.addEventListener("reader-cache-changed", (event) => {
+    if (!state.bookId) return;
+    if (!isCacheEventForCurrentBook(event && event.detail)) return;
+    refreshDownloadStateSilent().catch(() => {});
+  });
+
+  window.addEventListener("beforeunload", () => {
+    clearDownloadWatcher();
+  });
+
   const query = state.shell.parseQuery();
   state.translationLocalSig = localTranslationSettingsSignature(state.shell);
   state.bookId = (query.book_id || "").trim();
@@ -814,6 +924,7 @@ async function init() {
 
   await loadBook();
   await loadToc(1);
+  startDownloadWatcher();
 }
 
 init();
