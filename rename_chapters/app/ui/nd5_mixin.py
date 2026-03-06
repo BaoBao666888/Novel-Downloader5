@@ -113,6 +113,134 @@ class ND5Mixin:
             raise RuntimeError("Reader API trả về dữ liệu không hợp lệ.")
         return data
 
+    def _nd5_get_plugin_values(self, plugin_id: str) -> dict:
+        pid = str(plugin_id or "").strip()
+        if not pid:
+            return {}
+        store = self.app_config.get("nd5_plugin_values")
+        if not isinstance(store, dict):
+            return {}
+        raw = store.get(pid)
+        return dict(raw) if isinstance(raw, dict) else {}
+
+    def _nd5_save_plugin_values(self, plugin_id: str, values: dict):
+        pid = str(plugin_id or "").strip()
+        if not pid:
+            return
+        store = self.app_config.get("nd5_plugin_values")
+        if not isinstance(store, dict):
+            store = {}
+        store = dict(store)
+        clean_values = dict(values or {})
+        if clean_values:
+            store[pid] = clean_values
+        else:
+            store.pop(pid, None)
+        self.app_config["nd5_plugin_values"] = store
+        try:
+            self.save_config()
+        except Exception:
+            pass
+
+    @staticmethod
+    def _nd5_parse_int(value, default: int, min_value: int, max_value: int) -> int:
+        try:
+            num = int(value)
+        except Exception:
+            return default
+        if num < min_value:
+            num = min_value
+        if num > max_value:
+            num = max_value
+        return num
+
+    @staticmethod
+    def _nd5_parse_float(value, default: float, min_value: float) -> float:
+        try:
+            num = float(value)
+        except Exception:
+            return default
+        if num < min_value:
+            num = min_value
+        return num
+
+    def _nd5_runtime_options_for_plugin(
+        self,
+        plugin_id: str,
+        *,
+        is_vbook_bridge: bool = False,
+        plugin_values: Optional[dict] = None,
+        global_overrides: Optional[dict] = None,
+    ) -> dict:
+        opts = dict(getattr(self, "nd5_options", {}) or {})
+        if isinstance(global_overrides, dict):
+            for key in ("req_delay_min", "req_delay_max", "request_retries", "download_threads"):
+                if key in global_overrides:
+                    opts[key] = global_overrides.get(key)
+        global_delay_min = self._nd5_parse_float(
+            opts.get("req_delay_min", DEFAULT_ND5_OPTIONS["req_delay_min"]),
+            DEFAULT_ND5_OPTIONS["req_delay_min"],
+            0.0,
+        )
+        global_delay_max = self._nd5_parse_float(
+            opts.get("req_delay_max", DEFAULT_ND5_OPTIONS["req_delay_max"]),
+            DEFAULT_ND5_OPTIONS["req_delay_max"],
+            global_delay_min,
+        )
+        if global_delay_max < global_delay_min:
+            global_delay_max = global_delay_min
+        global_retries = self._nd5_parse_int(
+            opts.get("request_retries", DEFAULT_ND5_OPTIONS["request_retries"]),
+            DEFAULT_ND5_OPTIONS["request_retries"],
+            1,
+            99,
+        )
+        global_threads = self._nd5_parse_int(
+            opts.get("download_threads", DEFAULT_ND5_OPTIONS["download_threads"]),
+            DEFAULT_ND5_OPTIONS["download_threads"],
+            1,
+            16,
+        )
+
+        pid = str(plugin_id or "").strip()
+        if is_vbook_bridge or pid.startswith("vbook_ext::"):
+            # vBook bridge chạy queue/cache bên Reader, không dùng throttle/retry/threads của ND5.
+            return {
+                "req_delay_min": 0.0,
+                "req_delay_max": 0.0,
+                "request_retries": 1,
+                "download_threads": 1,
+                "source": "reader_vbook_managed",
+            }
+
+        values = dict(plugin_values) if isinstance(plugin_values, dict) else self._nd5_get_plugin_values(pid)
+
+        def _get_first(keys):
+            for key in keys:
+                if key in values and str(values.get(key)).strip() != "":
+                    return values.get(key)
+            return None
+
+        delay_min_val = _get_first(["nd5_req_delay_min", "nd5_delay_min"])
+        delay_max_val = _get_first(["nd5_req_delay_max", "nd5_delay_max"])
+        retry_val = _get_first(["nd5_request_retries", "nd5_retry"])
+        threads_val = _get_first(["nd5_download_threads", "nd5_threads"])
+
+        delay_min = self._nd5_parse_float(delay_min_val, global_delay_min, 0.0)
+        delay_max = self._nd5_parse_float(delay_max_val, global_delay_max, delay_min)
+        if delay_max < delay_min:
+            delay_max = delay_min
+        retries = self._nd5_parse_int(retry_val, global_retries, 1, 99)
+        threads = self._nd5_parse_int(threads_val, global_threads, 1, 16)
+
+        return {
+            "req_delay_min": delay_min,
+            "req_delay_max": delay_max,
+            "request_retries": retries,
+            "download_threads": threads,
+            "source": "plugin_override" if any(v is not None for v in [delay_min_val, delay_max_val, retry_val, threads_val]) else "global",
+        }
+
     def _nd5_list_reader_vbook_plugins(self):
         if not self._nd5_require_reader_server_for_vbook(show_message=False):
             return []
@@ -682,12 +810,17 @@ class ND5Mixin:
         win.geometry("760x520")
         win.minsize(700, 460)
         win.columnconfigure(0, weight=1)
-        win.rowconfigure(2, weight=1)
+        win.rowconfigure(3, weight=1)
         self._fanqie_bridge_settings_win = win
 
         port_var = tk.StringVar(value=str(self._get_fanqie_bridge_port()))
         status_var = tk.StringVar(value="Đang kiểm tra...")
         detail_var = tk.StringVar(value="")
+        fanqie_values = self._nd5_get_plugin_values("fanqie")
+        fanqie_delay_min_var = tk.StringVar(value=str(fanqie_values.get("nd5_req_delay_min", fanqie_values.get("nd5_delay_min", "")) or ""))
+        fanqie_delay_max_var = tk.StringVar(value=str(fanqie_values.get("nd5_req_delay_max", fanqie_values.get("nd5_delay_max", "")) or ""))
+        fanqie_retry_var = tk.StringVar(value=str(fanqie_values.get("nd5_request_retries", fanqie_values.get("nd5_retry", "")) or ""))
+        fanqie_threads_var = tk.StringVar(value=str(fanqie_values.get("nd5_download_threads", fanqie_values.get("nd5_threads", "")) or ""))
         _alive = {"ok": True}
         _last_log = {"text": None}
         _poll_job = {"id": None}
@@ -705,21 +838,37 @@ class ND5Mixin:
         ttk.Button(button_row, text="Tắt", command=lambda: _stop_bridge()).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_row, text="Reset", command=lambda: _reset_bridge()).pack(side=tk.LEFT)
 
+        perf = ttk.LabelFrame(win, text="Tuỳ chỉnh ND5 cho Fanqie (để trống = dùng global)", padding=10)
+        perf.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 6))
+        perf.columnconfigure(1, weight=1)
+        perf.columnconfigure(3, weight=1)
+        ttk.Label(perf, text="Delay min (giây):").grid(row=0, column=0, sticky="w")
+        ttk.Entry(perf, textvariable=fanqie_delay_min_var, width=10).grid(row=0, column=1, sticky="w", padx=(6, 16))
+        ttk.Label(perf, text="Delay max (giây):").grid(row=0, column=2, sticky="w")
+        ttk.Entry(perf, textvariable=fanqie_delay_max_var, width=10).grid(row=0, column=3, sticky="w", padx=(6, 0))
+        ttk.Label(perf, text="Retry riêng:").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(perf, textvariable=fanqie_retry_var, width=10).grid(row=1, column=1, sticky="w", padx=(6, 16), pady=(8, 0))
+        ttk.Label(perf, text="Luồng tải riêng:").grid(row=1, column=2, sticky="w", pady=(8, 0))
+        ttk.Entry(perf, textvariable=fanqie_threads_var, width=10).grid(row=1, column=3, sticky="w", padx=(6, 0), pady=(8, 0))
+
+        perf_btns = ttk.Frame(perf)
+        perf_btns.grid(row=2, column=0, columnspan=4, sticky="e", pady=(10, 0))
+
         stat = ttk.LabelFrame(win, text="Trạng thái", padding=10)
-        stat.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 6))
+        stat.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 6))
         stat.columnconfigure(0, weight=1)
         ttk.Label(stat, textvariable=status_var, foreground="#2563eb").grid(row=0, column=0, sticky="w")
         ttk.Label(stat, textvariable=detail_var, foreground="#6b7280").grid(row=1, column=0, sticky="w", pady=(4, 0))
 
         log_frame = ttk.LabelFrame(win, text="Log mini server (runtime)", padding=8)
-        log_frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=(0, 6))
+        log_frame.grid(row=3, column=0, sticky="nsew", padx=10, pady=(0, 6))
         log_frame.columnconfigure(0, weight=1)
         log_frame.rowconfigure(0, weight=1)
         log_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, state="disabled")
         log_text.grid(row=0, column=0, sticky="nsew")
 
         foot = ttk.Frame(win, padding=(10, 2))
-        foot.grid(row=3, column=0, sticky="ew")
+        foot.grid(row=4, column=0, sticky="ew")
         ttk.Button(foot, text="Làm mới", command=lambda: _refresh_state(force_log=True)).pack(side=tk.LEFT)
         ttk.Button(foot, text="Đóng", command=lambda: _on_close()).pack(side=tk.RIGHT)
 
@@ -767,6 +916,57 @@ class ND5Mixin:
                 except Exception:
                     pass
                 _poll_job["id"] = win.after(1200, _refresh_state)
+
+        def _save_fanqie_perf():
+            payload = self._nd5_get_plugin_values("fanqie")
+            try:
+                min_raw = fanqie_delay_min_var.get().strip()
+                max_raw = fanqie_delay_max_var.get().strip()
+                retry_raw = fanqie_retry_var.get().strip()
+                threads_raw = fanqie_threads_var.get().strip()
+
+                if min_raw:
+                    min_val = self._nd5_parse_float(min_raw, 0.0, 0.0)
+                    payload["nd5_req_delay_min"] = min_val
+                else:
+                    payload.pop("nd5_req_delay_min", None)
+                    payload.pop("nd5_delay_min", None)
+
+                if max_raw:
+                    base_min = float(payload.get("nd5_req_delay_min", 0.0))
+                    max_val = self._nd5_parse_float(max_raw, base_min, base_min)
+                    payload["nd5_req_delay_max"] = max_val
+                else:
+                    payload.pop("nd5_req_delay_max", None)
+                    payload.pop("nd5_delay_max", None)
+
+                if retry_raw:
+                    payload["nd5_request_retries"] = self._nd5_parse_int(retry_raw, DEFAULT_ND5_OPTIONS["request_retries"], 1, 99)
+                else:
+                    payload.pop("nd5_request_retries", None)
+                    payload.pop("nd5_retry", None)
+
+                if threads_raw:
+                    payload["nd5_download_threads"] = self._nd5_parse_int(threads_raw, DEFAULT_ND5_OPTIONS["download_threads"], 1, 16)
+                else:
+                    payload.pop("nd5_download_threads", None)
+                    payload.pop("nd5_threads", None)
+
+                self._nd5_save_plugin_values("fanqie", payload)
+                detail_var.set("Đã lưu tuỳ chỉnh ND5 cho Fanqie.")
+            except Exception as exc:
+                messagebox.showerror("Fanqie Setting", f"Lưu thất bại: {exc}", parent=win)
+
+        def _clear_fanqie_perf():
+            self._nd5_save_plugin_values("fanqie", {})
+            fanqie_delay_min_var.set("")
+            fanqie_delay_max_var.set("")
+            fanqie_retry_var.set("")
+            fanqie_threads_var.set("")
+            detail_var.set("Đã xoá tuỳ chỉnh Fanqie (dùng global).")
+
+        ttk.Button(perf_btns, text="Xóa override", command=_clear_fanqie_perf).pack(side=tk.RIGHT)
+        ttk.Button(perf_btns, text="Lưu tuỳ chỉnh", command=_save_fanqie_perf).pack(side=tk.RIGHT, padx=(0, 6))
 
         def _apply_port(restart_if_running=False):
             raw = (port_var.get() or "").strip()
@@ -1007,35 +1207,52 @@ class ND5Mixin:
             return None
 
         def _plugin_has_extra_values():
+            plugin = _current_plugin()
+            if plugin and (not bool(getattr(plugin, "is_vbook_bridge", False))) and str(getattr(plugin, "id", "")) != "fanqie":
+                return True
             return bool(_get_plugin_extra_fields() or _get_plugin_extra_ui_builder())
 
         def _get_plugin_values(plugin_id: str):
             raw = plugin_values_cache.get(plugin_id)
-            return dict(raw) if isinstance(raw, dict) else {}
+            if isinstance(raw, dict):
+                return dict(raw)
+            return self._nd5_get_plugin_values(plugin_id)
 
         def _save_plugin_values(plugin_id: str, values: dict):
-            plugin_values_cache[plugin_id] = dict(values)
-            self.app_config["nd5_plugin_values"] = dict(plugin_values_cache)
-            try:
-                self.save_config()
-            except Exception:
-                pass
+            pid = str(plugin_id or "").strip()
+            if not pid:
+                return
+            payload = dict(values or {})
+            if payload:
+                plugin_values_cache[pid] = payload
+            else:
+                plugin_values_cache.pop(pid, None)
+            self._nd5_save_plugin_values(pid, payload)
 
         def _build_ctx():
             plugin = _current_plugin()
             timeout_val = max(5.0, float(req_timeout_var.get() or DEFAULT_ND5_OPTIONS["request_timeout"]))
-            try:
-                retries = int(req_retries_var.get())
-            except Exception:
-                retries = DEFAULT_ND5_OPTIONS["request_retries"]
+            retries = DEFAULT_ND5_OPTIONS["request_retries"]
             extra_values = {}
             cookies = None
             if plugin:
                 extra_values = _get_plugin_values(plugin.id)
-                try:
-                    extra_values["nd5_download_threads"] = max(1, min(16, int(download_threads_var.get())))
-                except Exception:
-                    extra_values["nd5_download_threads"] = DEFAULT_ND5_OPTIONS["download_threads"]
+                runtime_cfg = self._nd5_runtime_options_for_plugin(
+                    plugin.id,
+                    is_vbook_bridge=bool(getattr(plugin, "is_vbook_bridge", False)),
+                    plugin_values=extra_values,
+                    global_overrides=_current_runtime_overrides(),
+                )
+                retries = int(runtime_cfg.get("request_retries") or DEFAULT_ND5_OPTIONS["request_retries"])
+                extra_values["nd5_effective_delay_min"] = runtime_cfg.get("req_delay_min", 0.0)
+                extra_values["nd5_effective_delay_max"] = runtime_cfg.get("req_delay_max", 0.0)
+                extra_values["nd5_effective_request_retries"] = runtime_cfg.get("request_retries", retries)
+                extra_values["nd5_effective_download_threads"] = runtime_cfg.get(
+                    "download_threads",
+                    DEFAULT_ND5_OPTIONS["download_threads"],
+                )
+                # Giữ key cũ để plugin Python cũ vẫn đọc được nếu cần.
+                extra_values["nd5_download_threads"] = extra_values["nd5_effective_download_threads"]
                 for field in _get_plugin_extra_fields():
                     key = field["key"]
                     if key not in extra_values and field.get("default") not in (None, ""):
@@ -1079,6 +1296,30 @@ class ND5Mixin:
                 return mn, mx
             except Exception:
                 return DEFAULT_ND5_OPTIONS["req_delay_min"], DEFAULT_ND5_OPTIONS["req_delay_max"]
+
+        def _current_runtime_overrides():
+            try:
+                delay_min_val = max(0.0, float(req_delay_min_var.get()))
+            except Exception:
+                delay_min_val = DEFAULT_ND5_OPTIONS["req_delay_min"]
+            try:
+                delay_max_val = max(delay_min_val, float(req_delay_max_var.get()))
+            except Exception:
+                delay_max_val = delay_min_val
+            try:
+                retries_val = max(1, int(req_retries_var.get()))
+            except Exception:
+                retries_val = DEFAULT_ND5_OPTIONS["request_retries"]
+            try:
+                threads_val = max(1, min(16, int(download_threads_var.get())))
+            except Exception:
+                threads_val = DEFAULT_ND5_OPTIONS["download_threads"]
+            return {
+                "req_delay_min": delay_min_val,
+                "req_delay_max": delay_max_val,
+                "request_retries": retries_val,
+                "download_threads": threads_val,
+            }
 
         def _open_search_dialog():
             plugin = _current_plugin()
@@ -2048,6 +2289,9 @@ class ND5Mixin:
 
             values = _get_plugin_values(plugin.id)
             field_vars = {}
+            perf_vars = {}
+            is_python_plugin = not bool(getattr(plugin, "is_vbook_bridge", False))
+            show_perf_in_dialog = is_python_plugin and str(plugin.id) != "fanqie"
 
             def _set_value(key: str, value):
                 if not key:
@@ -2074,9 +2318,53 @@ class ND5Mixin:
                     else:
                         values.pop(key, None)
 
+            def _collect_perf_values():
+                if not perf_vars:
+                    return
+                delay_min_raw = perf_vars["nd5_req_delay_min"].get().strip()
+                delay_max_raw = perf_vars["nd5_req_delay_max"].get().strip()
+                retries_raw = perf_vars["nd5_request_retries"].get().strip()
+                threads_raw = perf_vars["nd5_download_threads"].get().strip()
+
+                if delay_min_raw:
+                    values["nd5_req_delay_min"] = self._nd5_parse_float(delay_min_raw, 0.0, 0.0)
+                else:
+                    values.pop("nd5_req_delay_min", None)
+                    values.pop("nd5_delay_min", None)
+
+                if delay_max_raw:
+                    base_min = float(values.get("nd5_req_delay_min", 0.0))
+                    values["nd5_req_delay_max"] = self._nd5_parse_float(delay_max_raw, base_min, base_min)
+                else:
+                    values.pop("nd5_req_delay_max", None)
+                    values.pop("nd5_delay_max", None)
+
+                if retries_raw:
+                    values["nd5_request_retries"] = self._nd5_parse_int(
+                        retries_raw,
+                        DEFAULT_ND5_OPTIONS["request_retries"],
+                        1,
+                        99,
+                    )
+                else:
+                    values.pop("nd5_request_retries", None)
+                    values.pop("nd5_retry", None)
+
+                if threads_raw:
+                    values["nd5_download_threads"] = self._nd5_parse_int(
+                        threads_raw,
+                        DEFAULT_ND5_OPTIONS["download_threads"],
+                        1,
+                        16,
+                    )
+                else:
+                    values.pop("nd5_download_threads", None)
+                    values.pop("nd5_threads", None)
+
             def _save_values(payload=None):
                 if payload is None:
                     _collect_field_values()
+                    _collect_perf_values()
                     data = dict(values)
                 else:
                     data = dict(payload)
@@ -2116,6 +2404,53 @@ class ND5Mixin:
                     messagebox.showerror("ND5", "Không mở được trình duyệt.", parent=dlg)
 
             row = 0
+            if show_perf_in_dialog:
+                perf_frame = ttk.LabelFrame(
+                    inner,
+                    text="Tuỳ chỉnh ND5 cho plugin này (để trống = dùng global)",
+                    padding=8,
+                )
+                perf_frame.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+                perf_frame.columnconfigure(1, weight=1)
+                perf_frame.columnconfigure(3, weight=1)
+                perf_vars["nd5_req_delay_min"] = tk.StringVar(
+                    value=str(values.get("nd5_req_delay_min", values.get("nd5_delay_min", "")) or "")
+                )
+                perf_vars["nd5_req_delay_max"] = tk.StringVar(
+                    value=str(values.get("nd5_req_delay_max", values.get("nd5_delay_max", "")) or "")
+                )
+                perf_vars["nd5_request_retries"] = tk.StringVar(
+                    value=str(values.get("nd5_request_retries", values.get("nd5_retry", "")) or "")
+                )
+                perf_vars["nd5_download_threads"] = tk.StringVar(
+                    value=str(values.get("nd5_download_threads", values.get("nd5_threads", "")) or "")
+                )
+
+                ttk.Label(perf_frame, text="Delay min (giây):").grid(row=0, column=0, sticky="w")
+                ttk.Entry(perf_frame, textvariable=perf_vars["nd5_req_delay_min"], width=12).grid(
+                    row=0, column=1, sticky="w", padx=(6, 16)
+                )
+                ttk.Label(perf_frame, text="Delay max (giây):").grid(row=0, column=2, sticky="w")
+                ttk.Entry(perf_frame, textvariable=perf_vars["nd5_req_delay_max"], width=12).grid(
+                    row=0, column=3, sticky="w", padx=(6, 0)
+                )
+                ttk.Label(perf_frame, text="Retry riêng:").grid(row=1, column=0, sticky="w", pady=(8, 0))
+                ttk.Entry(perf_frame, textvariable=perf_vars["nd5_request_retries"], width=12).grid(
+                    row=1, column=1, sticky="w", padx=(6, 16), pady=(8, 0)
+                )
+                ttk.Label(perf_frame, text="Luồng tải riêng:").grid(row=1, column=2, sticky="w", pady=(8, 0))
+                ttk.Entry(perf_frame, textvariable=perf_vars["nd5_download_threads"], width=12).grid(
+                    row=1, column=3, sticky="w", padx=(6, 0), pady=(8, 0)
+                )
+                row += 1
+            elif str(plugin.id) == "fanqie":
+                ttk.Label(
+                    inner,
+                    text="Fanqie chỉnh delay/retry/luồng trong nút Fanqie Setting.",
+                    foreground="#6b7280",
+                ).grid(row=row, column=0, columnspan=2, sticky="w", pady=(0, 10))
+                row += 1
+
             skip_default = False
             if builder:
                 custom_frame = ttk.Frame(inner)
@@ -2890,10 +3225,14 @@ class ND5Mixin:
                         return
                     if getattr(plugin, "requires_bridge", False) and not _check_backend():
                         return
-                    try:
-                        max_attempts = max(1, int(req_retries_var.get()))
-                    except Exception:
-                        max_attempts = DEFAULT_ND5_OPTIONS["request_retries"]
+                    plugin_runtime_cfg = self._nd5_runtime_options_for_plugin(
+                        plugin.id,
+                        is_vbook_bridge=bool(getattr(plugin, "is_vbook_bridge", False)),
+                        plugin_values=_get_plugin_values(plugin.id),
+                        global_overrides=_current_runtime_overrides(),
+                    )
+                    max_attempts = int(plugin_runtime_cfg.get("request_retries") or DEFAULT_ND5_OPTIONS["request_retries"])
+                    max_attempts = max(1, min(99, max_attempts))
                     tpl = title_tpl_var.get().strip()
                     if fmt in ("txt", "zip") or (fmt == "epub" and heading_in_zip_var.get()):
                         if not tpl:
@@ -3049,13 +3388,8 @@ class ND5Mixin:
                         return ids, missing, {}
 
                     batches = [real_chapters[i:i + batch_size] for i in range(0, len(real_chapters), batch_size)]
-                    try:
-                        thread_count = max(1, min(16, int(download_threads_var.get())))
-                    except Exception:
-                        thread_count = DEFAULT_ND5_OPTIONS["download_threads"]
-                    if getattr(plugin, "is_vbook_bridge", False):
-                        # Reader bridge đã có queue/cache phía server, không cần dồn thread ở ND5.
-                        thread_count = 1
+                    thread_count = int(plugin_runtime_cfg.get("download_threads") or DEFAULT_ND5_OPTIONS["download_threads"])
+                    thread_count = max(1, min(16, thread_count))
 
                     if thread_count <= 1 or len(batches) <= 1:
                         for batch in batches:
@@ -3402,8 +3736,23 @@ class ND5Mixin:
         max_v = max(min_v, max_v)
         return min_v, max_v
 
-    def _nd5_sleep_between_requests(self):
-        mn, mx = self._nd5_delay_range()
+    def _nd5_sleep_between_requests(self, plugin_id: Optional[str] = None, extra: Optional[dict] = None):
+        mn = None
+        mx = None
+        if isinstance(extra, dict):
+            if "nd5_effective_delay_min" in extra or "nd5_effective_delay_max" in extra:
+                mn = self._nd5_parse_float(extra.get("nd5_effective_delay_min", 0.0), 0.0, 0.0)
+                mx = self._nd5_parse_float(extra.get("nd5_effective_delay_max", mn), mn, mn)
+        if mn is None or mx is None:
+            pid = str(plugin_id or "").strip()
+            runtime_cfg = self._nd5_runtime_options_for_plugin(
+                pid,
+                is_vbook_bridge=pid.startswith("vbook_ext::"),
+            )
+            mn = self._nd5_parse_float(runtime_cfg.get("req_delay_min", 0.0), 0.0, 0.0)
+            mx = self._nd5_parse_float(runtime_cfg.get("req_delay_max", mn), mn, mn)
+        if mx < mn:
+            mx = mn
         if mx <= 0:
             return
         delay = random.uniform(mn, mx)

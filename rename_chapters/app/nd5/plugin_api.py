@@ -51,9 +51,13 @@ class ND5Context:
 
     def sleep_between_requests(self):
         try:
-            self.host._nd5_sleep_between_requests()
+            self.host._nd5_sleep_between_requests(plugin_id=self.plugin_id, extra=self.extra)
         except Exception:
-            pass
+            try:
+                # Backward compatibility: host cũ chỉ nhận 0 tham số.
+                self.host._nd5_sleep_between_requests()
+            except Exception:
+                pass
 
     def get_extra(self, key: str, default: Any = None):
         return self.extra.get(key, default)
