@@ -1511,7 +1511,8 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-viewport {
   opacity: 1;
   transform: translateY(0);
   pointer-events: none;
-  transition: opacity 0.18s ease, top 0.12s cubic-bezier(.4, 0, .2, 1), bottom 0.12s cubic-bezier(.4, 0, .2, 1), left 0.08s ease, width 0.08s ease;
+  transition: opacity 0.12s linear;
+  will-change: auto;
 }
 
 .reader-mini-head {
@@ -1893,7 +1894,27 @@ body.panel-style-clear .reader-content-body {
 .reader-toc-drawer {
   width: min(360px, 90vw);
   z-index: 72;
-  background: color-mix(in srgb, var(--surface) var(--drawer-alpha), transparent);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+body.panel-style-clear .reader-toc-drawer {
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+body[data-page="reader"] .reader-actions .btn {
+  background: color-mix(in srgb, var(--surface-alt) 84%, transparent);
+  border-color: color-mix(in srgb, var(--line) 84%, transparent);
+}
+
+body[data-page="reader"] .reader-actions .btn:hover {
+  background: color-mix(in srgb, var(--surface-alt) 92%, transparent);
+}
+
+body[data-page="reader"] #btn-open-name-editor {
+  background: color-mix(in srgb, var(--surface-alt) 90%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
 }
 
 .settings-drawer.open,

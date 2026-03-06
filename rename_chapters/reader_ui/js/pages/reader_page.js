@@ -434,16 +434,28 @@ function updateMiniInfoVisibility() {
   if (refs.readerViewport) {
     refs.readerViewport.classList.toggle("mini-info-visible", active);
   }
-  if (refs.readerMiniHead) refs.readerMiniHead.hidden = !active;
-  if (refs.readerMiniFoot) refs.readerMiniFoot.hidden = !active;
-  syncMiniBarLayout();
+  if (!active) {
+    if (refs.readerMiniHead) refs.readerMiniHead.hidden = true;
+    if (refs.readerMiniFoot) refs.readerMiniFoot.hidden = true;
+    return;
+  }
+  const ready = syncMiniBarLayout();
+  if (refs.readerMiniHead) refs.readerMiniHead.hidden = !ready;
+  if (refs.readerMiniFoot) refs.readerMiniFoot.hidden = !ready;
+  if (!ready) {
+    window.requestAnimationFrame(() => {
+      const r2 = syncMiniBarLayout();
+      if (refs.readerMiniHead) refs.readerMiniHead.hidden = !r2;
+      if (refs.readerMiniFoot) refs.readerMiniFoot.hidden = !r2;
+    });
+  }
 }
 
 function syncMiniBarLayout() {
-  if (!refs.readerContentScroll || !refs.readerMiniHead || refs.readerMiniHead.hidden) return;
+  if (!refs.readerContentScroll) return false;
   const rect = refs.readerContentScroll.getBoundingClientRect();
   // Mặc định sát mép khung content (không khe hở).
-  if (!Number.isFinite(rect.left) || rect.width <= 10) return;
+  if (!Number.isFinite(rect.left) || rect.width <= 10) return false;
   const left = Math.max(0, Math.round(rect.left));
   const width = Math.max(240, Math.round(rect.width));
   const top = Math.max(0, Math.round(rect.top));
@@ -454,6 +466,7 @@ function syncMiniBarLayout() {
   root.style.setProperty("--mini-width", `${width}px`);
   root.style.setProperty("--mini-head-top", `${top}px`);
   root.style.setProperty("--mini-foot-bottom", `${bottom}px`);
+  return true;
 }
 
 function clamp01(value) {
@@ -2483,23 +2496,6 @@ function onReaderWheel(event) {
 
     if (state.infiniteScrollProgressPx > 0) clearScrollHint();
     return;
-  }
-
-  if (mode === "hybrid" && isFullscreenActive()) {
-    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
-    if (Math.abs(delta) < 0.5) return;
-    const maxY = Math.max(0, wrap.scrollHeight - wrap.clientHeight);
-    if (maxY > 2) {
-      const prevTop = wrap.scrollTop;
-      wrap.scrollTop = Math.max(0, Math.min(maxY, prevTop + delta));
-      if (wrap.scrollTop !== prevTop) {
-        event.preventDefault();
-        updateProgress();
-        updateMiniInfoVisibility();
-        scheduleProgressSave(280);
-      }
-      return;
-    }
   }
 
   if (state.infiniteScrollProgressPx > 0) clearScrollHint();
