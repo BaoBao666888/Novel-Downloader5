@@ -857,6 +857,51 @@ p {
   min-width: 88px;
 }
 
+.toc-icon-btn {
+  align-self: stretch;
+  min-width: 40px;
+  width: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.toc-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+  transition: transform 0.16s ease, stroke 0.16s ease, opacity 0.16s ease;
+}
+
+.toc-icon-btn.is-download {
+  color: var(--text);
+}
+
+.toc-icon-btn.is-download:hover .toc-icon,
+.toc-icon-btn.is-download:focus-visible .toc-icon {
+  transform: translateY(1px);
+  stroke: color-mix(in srgb, var(--accent) 88%, var(--text));
+}
+
+.toc-icon-btn.is-done {
+  color: color-mix(in srgb, #38bdf8 78%, var(--text));
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+  background: color-mix(in srgb, var(--surface-alt) 72%, transparent);
+  cursor: default;
+}
+
+.toc-icon-btn.is-done:disabled {
+  opacity: 1;
+}
+
 .toc-downloaded-tag {
   align-self: center;
   justify-self: end;
@@ -1862,6 +1907,12 @@ body.panel-style-clear .reader-content-body {
   justify-content: space-between;
   padding: 14px;
   border-bottom: 1px solid var(--line);
+}
+
+.reader-toc-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .settings-form {

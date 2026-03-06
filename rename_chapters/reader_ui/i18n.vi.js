@@ -48,6 +48,7 @@ export const STRINGS = {
   downloadQueueing: "Đang xếp hàng...",
   downloadQueued: "Đã thêm vào hàng chờ tải.",
   downloadAlreadyDone: "Truyện/chương này đã có cache RAW.",
+  downloadBookFromCurrentConfirm: "Các chương trước chưa có cache. Nhấn OK để tải từ chương {current}, Cancel để tải từ đầu.",
   progressEmpty: "Tiến độ: Chưa đọc",
   progressTemplate: "Tiến độ: Chương {current}/{total} ({percent}%)",
   chapterCounter: "Chương {current}/{total}",

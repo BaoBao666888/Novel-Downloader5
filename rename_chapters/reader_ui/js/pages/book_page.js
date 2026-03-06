@@ -100,6 +100,16 @@ const state = {
   downloadWatchIdleTicks: 0,
 };
 
+const TOC_ICON_MARKUP = Object.freeze({
+  download: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 11 4 4 4-4"></path><path d="M4 18h16"></path></svg>',
+  done: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m8.5 12 2.4 2.4 4.6-4.8"></path></svg>',
+});
+
+function setTocIcon(button, kind) {
+  if (!button) return;
+  button.innerHTML = TOC_ICON_MARKUP[kind] || "";
+}
+
 function localTranslationSettingsSignature(shell) {
   try {
     const data = shell && typeof shell.getTranslationLocalSettings === "function"
@@ -218,23 +228,27 @@ function renderToc() {
     btn.addEventListener("click", () => {
       window.location.href = `/reader?book_id=${encodeURIComponent(state.bookId)}&chapter_id=${encodeURIComponent(chapter.chapter_id)}`;
     });
+    const iconBtn = document.createElement("button");
+    iconBtn.type = "button";
+    iconBtn.className = "btn toc-icon-btn";
     if (!chapter.is_downloaded) {
-      const dl = document.createElement("button");
-      dl.type = "button";
-      dl.className = "btn btn-small toc-download-btn";
-      dl.textContent = state.shell.t("downloadChapter");
-      dl.addEventListener("click", async (event) => {
+      iconBtn.classList.add("is-download");
+      setTocIcon(iconBtn, "download");
+      iconBtn.title = state.shell.t("downloadChapter");
+      iconBtn.setAttribute("aria-label", state.shell.t("downloadChapter"));
+      iconBtn.addEventListener("click", async (event) => {
         event.preventDefault();
         event.stopPropagation();
         await downloadSingleChapter(chapter.chapter_id);
       });
-      li.append(btn, dl);
     } else {
-      const ok = document.createElement("span");
-      ok.className = "toc-downloaded-tag";
-      ok.textContent = state.shell.t("downloadedTag");
-      li.append(btn, ok);
+      iconBtn.classList.add("is-done");
+      setTocIcon(iconBtn, "done");
+      iconBtn.title = state.shell.t("downloadedTag");
+      iconBtn.setAttribute("aria-label", state.shell.t("downloadedTag"));
+      iconBtn.disabled = true;
     }
+    li.append(btn, iconBtn);
     refs.tocList.appendChild(li);
   }
 

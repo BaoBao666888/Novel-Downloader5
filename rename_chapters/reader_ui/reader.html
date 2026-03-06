@@ -69,7 +69,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260222-perf1">
+  <link rel="stylesheet" href="./styles.css?v=20260306-m14toc3">
 </head>
 
 <body data-page="reader" class="mpa-body">
@@ -169,7 +169,10 @@
   <aside id="reader-toc-drawer" class="reader-toc-drawer" aria-hidden="true">
     <div class="settings-head">
       <h3 id="reader-toc-title"></h3>
-      <button id="btn-close-reader-toc" class="btn btn-small" type="button"></button>
+      <div class="reader-toc-head-actions">
+        <button id="btn-reader-download-book" class="btn btn-small" type="button"></button>
+        <button id="btn-close-reader-toc" class="btn btn-small" type="button"></button>
+      </div>
     </div>
     <ul id="reader-toc-list" class="simple-list"></ul>
   </aside>
@@ -383,7 +386,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260221-vb27"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260306-m14toc3"></script>
 </body>
 
 </html>
