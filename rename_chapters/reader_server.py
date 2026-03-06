@@ -3254,7 +3254,7 @@ class ReaderStorage:
                     "title_vi": rdict.get("title_vi"),
                     "title_display": display_title,
                     "updated_at": rdict["updated_at"],
-                    "word_count": rdict["word_count"],
+                    "word_count": int(rdict["word_count"] or 0) if valid_cached else 0,
                     "has_trans": bool(rdict.get("trans_key")),
                     "is_downloaded": bool(valid_cached),
                 }
@@ -3395,7 +3395,7 @@ class ReaderStorage:
                 "title_vi": normalize_vi_display_text(ch["title_vi"] or ""),
                 "title_display": normalize_vi_display_text(ch["title_vi"] or "") or ch["title_raw"],
                 "updated_at": ch["updated_at"],
-                "word_count": ch["word_count"],
+                "word_count": int(ch["word_count"] or 0) if bool(download_map.get(str(ch.get("chapter_id") or "").strip(), False)) else 0,
                 "has_trans": bool(ch.get("trans_key")),
                 "is_downloaded": bool(download_map.get(str(ch.get("chapter_id") or "").strip(), False)),
                 "remote_url": str(ch.get("remote_url") or ""),
