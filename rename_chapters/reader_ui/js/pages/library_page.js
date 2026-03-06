@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb25";
+import { initShell } from "../site_common.js?v=20260221-vb26";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -11,6 +11,10 @@ const refs = {
   libraryCount: document.getElementById("library-count"),
   libraryGrid: document.getElementById("library-grid"),
   libraryEmpty: document.getElementById("library-empty"),
+  downloadJobsTitle: document.getElementById("download-jobs-title"),
+  downloadJobsCount: document.getElementById("download-jobs-count"),
+  downloadJobsList: document.getElementById("download-jobs-list"),
+  downloadJobsEmpty: document.getElementById("download-jobs-empty"),
 
   bookActionsDialog: document.getElementById("book-actions-dialog"),
   bookActionsTitle: document.getElementById("book-actions-title"),
@@ -18,6 +22,7 @@ const refs = {
   btnCloseBookActions: document.getElementById("btn-close-book-actions"),
   btnActionOpenBook: document.getElementById("btn-action-open-book"),
   btnActionOpenReader: document.getElementById("btn-action-open-reader"),
+  btnActionDownload: document.getElementById("btn-action-download"),
   btnActionExportTxt: document.getElementById("btn-action-export-txt"),
   btnActionExportEpub: document.getElementById("btn-action-export-epub"),
   btnActionDeleteBook: document.getElementById("btn-action-delete-book"),
@@ -45,6 +50,7 @@ const refs = {
 const state = {
   historyItems: [],
   books: [],
+  downloadJobs: [],
   selectedBookId: null,
   shell: null,
   translationEnabled: true,
@@ -52,6 +58,7 @@ const state = {
   translationLocalSig: "{}",
   globalDicts: { name: {}, vp: {} },
   globalDictType: "name",
+  downloadPollTimer: null,
 };
 
 function localTranslationSettingsSignature(shell) {
@@ -116,11 +123,17 @@ function openActions(bookId) {
   const book = state.books.find((x) => x.book_id === bookId);
   if (!book) return;
   state.selectedBookId = bookId;
-  refs.bookActionsSubtitle.textContent = `${book.title_display || book.title || ""} • ${book.author_display || book.author || "Khuyết danh"}`;
+  const downloaded = Math.max(0, Number(book.downloaded_chapters || 0));
+  const total = Math.max(0, Number(book.chapter_count || 0));
+  refs.bookActionsSubtitle.textContent = `${book.title_display || book.title || ""} • ${book.author_display || book.author || "Khuyết danh"} • ${state.shell.t("downloadedCountShort", { downloaded, total })}`;
   if (refs.btnActionExportTxt) refs.btnActionExportTxt.disabled = Boolean(book.is_comic);
   if (refs.btnActionOpenReader) {
     const percent = Number(book.progress_percent || 0);
     refs.btnActionOpenReader.textContent = percent > 0 ? state.shell.t("openReaderContinue") : state.shell.t("openReader");
+  }
+  if (refs.btnActionDownload) {
+    refs.btnActionDownload.textContent = state.shell.t("downloadBook");
+    refs.btnActionDownload.disabled = total > 0 && downloaded >= total;
   }
   if (!refs.bookActionsDialog.open) {
     refs.bookActionsDialog.showModal();
@@ -189,11 +202,16 @@ function renderBooks() {
     pct.textContent = `${percent.toFixed(1)}%`;
 
     infoRow.append(ch, pct);
+    const downloaded = Math.max(0, Number(book.downloaded_chapters || 0));
+    const total = Math.max(0, Number(book.chapter_count || 0));
+    const dl = document.createElement("div");
+    dl.className = "book-card-download";
+    dl.textContent = state.shell.t("downloadedCountShort", { downloaded, total });
 
     if (source) {
-      body.append(title, author, source, infoRow);
+      body.append(title, author, source, infoRow, dl);
     } else {
-      body.append(title, author, infoRow);
+      body.append(title, author, infoRow, dl);
     }
     card.append(cover, body);
     card.addEventListener("click", () => openActions(book.book_id));
@@ -417,6 +435,110 @@ async function loadLibraryData() {
   }
 }
 
+function renderDownloadJobs() {
+  if (!refs.downloadJobsList || !refs.downloadJobsCount || !refs.downloadJobsEmpty) return;
+  refs.downloadJobsList.innerHTML = "";
+  refs.downloadJobsCount.textContent = state.shell.t("downloadJobsCount", { count: state.downloadJobs.length });
+  if (!state.downloadJobs.length) {
+    refs.downloadJobsEmpty.classList.remove("hidden");
+    refs.downloadJobsEmpty.textContent = state.shell.t("downloadJobsEmpty");
+    return;
+  }
+  refs.downloadJobsEmpty.classList.add("hidden");
+  for (const job of state.downloadJobs) {
+    const row = document.createElement("article");
+    row.className = "download-job-row";
+
+    const title = document.createElement("div");
+    title.className = "download-job-title";
+    title.textContent = normalizeDisplayTitle(job.book_title || state.shell.t("libraryTitle"));
+
+    const meta = document.createElement("div");
+    meta.className = "download-job-meta";
+    const downloaded = Math.max(0, Number(job.downloaded_chapters || 0));
+    const total = Math.max(0, Number(job.total_chapters || 0));
+    const pct = total > 0 ? (downloaded / total) * 100 : Number(job.progress || 0) * 100;
+    const queuePos = Number(job.queue_position || 0);
+    const queueText = queuePos > 0 ? state.shell.t("downloadQueuePos", { pos: queuePos }) : "";
+    meta.textContent = `${state.shell.t("downloadedCountShort", { downloaded, total })} • ${state.shell.t("bookPercent", { percent: pct.toFixed(1) })}${queueText ? ` • ${queueText}` : ""}`;
+
+    const status = document.createElement("div");
+    status.className = "download-job-status";
+    const msg = String(job.message || "").trim();
+    if (msg) {
+      status.textContent = msg;
+    } else if (String(job.status || "") === "running") {
+      status.textContent = state.shell.t("downloadStatusRunning");
+    } else {
+      status.textContent = state.shell.t("downloadStatusQueued");
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "download-job-actions";
+    const btnStop = document.createElement("button");
+    btnStop.type = "button";
+    btnStop.className = "btn btn-small";
+    btnStop.textContent = state.shell.t("downloadStop");
+    btnStop.addEventListener("click", async () => {
+      try {
+        await state.shell.api(`/api/library/download/${encodeURIComponent(String(job.job_id || ""))}/stop`, {
+          method: "POST",
+        });
+        await Promise.all([loadDownloadJobs(), loadLibraryData()]);
+      } catch (error) {
+        state.shell.showToast(getErrorMessage(error));
+      }
+    });
+    actions.appendChild(btnStop);
+
+    row.append(title, meta, status, actions);
+    refs.downloadJobsList.appendChild(row);
+  }
+}
+
+async function loadDownloadJobs() {
+  try {
+    const data = await state.shell.api("/api/library/download/jobs");
+    state.downloadJobs = Array.isArray(data.items) ? data.items : [];
+  } catch {
+    state.downloadJobs = [];
+  }
+  renderDownloadJobs();
+}
+
+function startDownloadPolling() {
+  if (state.downloadPollTimer) {
+    window.clearInterval(state.downloadPollTimer);
+    state.downloadPollTimer = null;
+  }
+  state.downloadPollTimer = window.setInterval(() => {
+    loadDownloadJobs().catch(() => {});
+  }, 1300);
+}
+
+async function enqueueBookDownload(bookId) {
+  const bid = String(bookId || "").trim();
+  if (!bid) return;
+  state.shell.showStatus(state.shell.t("statusQueueDownload"));
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(bid)}/download`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (data && data.already_downloaded) {
+      state.shell.showToast(state.shell.t("downloadAlreadyDone"));
+    } else {
+      state.shell.showToast(state.shell.t("downloadQueued"));
+    }
+    await Promise.all([loadDownloadJobs(), loadLibraryData()]);
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
 async function loadGlobalDicts() {
   const data = await state.shell.api("/api/local-dicts/global");
   const dicts = (data && data.global_dicts && typeof data.global_dicts === "object") ? data.global_dicts : {};
@@ -582,10 +704,13 @@ async function init() {
   refs.btnCloseBookActions.textContent = state.shell.t("close");
   refs.btnActionOpenBook.textContent = state.shell.t("openBookInfo");
   refs.btnActionOpenReader.textContent = state.shell.t("openReader");
+  if (refs.btnActionDownload) refs.btnActionDownload.textContent = state.shell.t("downloadBook");
   refs.btnActionExportTxt.textContent = state.shell.t("exportTxt");
   refs.btnActionExportEpub.textContent = state.shell.t("exportEpub");
   refs.btnActionDeleteBook.textContent = state.shell.t("deleteBook");
   if (refs.btnOpenGlobalDicts) refs.btnOpenGlobalDicts.textContent = state.shell.t("globalDictsButton");
+  if (refs.downloadJobsTitle) refs.downloadJobsTitle.textContent = state.shell.t("downloadJobsTitle");
+  if (refs.downloadJobsEmpty) refs.downloadJobsEmpty.textContent = state.shell.t("downloadJobsEmpty");
 
   if (refs.globalDictsTitle) refs.globalDictsTitle.textContent = state.shell.t("globalDictsTitle");
   if (refs.btnCloseGlobalDicts) refs.btnCloseGlobalDicts.textContent = state.shell.t("close");
@@ -613,6 +738,13 @@ async function init() {
     closeActions();
     window.location.href = `/reader?book_id=${encodeURIComponent(state.selectedBookId)}`;
   });
+  if (refs.btnActionDownload) {
+    refs.btnActionDownload.addEventListener("click", async () => {
+      if (!state.selectedBookId) return;
+      closeActions();
+      await enqueueBookDownload(state.selectedBookId);
+    });
+  }
   refs.btnActionExportTxt.addEventListener("click", () => exportBook("txt"));
   refs.btnActionExportEpub.addEventListener("click", () => exportBook("epub"));
   refs.btnActionDeleteBook.addEventListener("click", deleteBook);
@@ -674,8 +806,16 @@ async function init() {
     loadLibraryData().catch(() => {});
   });
 
+  window.addEventListener("beforeunload", () => {
+    if (state.downloadPollTimer) {
+      window.clearInterval(state.downloadPollTimer);
+      state.downloadPollTimer = null;
+    }
+  });
+
   state.translationLocalSig = localTranslationSettingsSignature(state.shell);
-  await loadLibraryData();
+  await Promise.all([loadLibraryData(), loadDownloadJobs()]);
+  startDownloadPolling();
 }
 
 init();

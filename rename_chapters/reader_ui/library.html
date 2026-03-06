@@ -137,6 +137,15 @@
       <div id="library-grid" class="library-grid"></div>
       <p id="library-empty" class="empty-text hidden"></p>
     </section>
+
+    <section class="panel library-panel">
+      <div class="panel-head">
+        <h2 id="download-jobs-title"></h2>
+        <span id="download-jobs-count" class="tag"></span>
+      </div>
+      <div id="download-jobs-list" class="download-jobs-list"></div>
+      <p id="download-jobs-empty" class="empty-text hidden"></p>
+    </section>
   </main>
 
   <dialog id="book-actions-dialog" class="dialog book-actions-dialog">
@@ -148,6 +157,7 @@
     <div class="book-actions-grid">
       <button id="btn-action-open-book" class="btn" type="button"></button>
       <button id="btn-action-open-reader" class="btn" type="button"></button>
+      <button id="btn-action-download" class="btn" type="button"></button>
       <button id="btn-action-export-txt" class="btn" type="button"></button>
       <button id="btn-action-export-epub" class="btn" type="button"></button>
       <button id="btn-action-delete-book" class="btn" type="button"></button>
@@ -566,7 +576,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260221-vb25"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260221-vb26"></script>
 </body>
 
 </html>

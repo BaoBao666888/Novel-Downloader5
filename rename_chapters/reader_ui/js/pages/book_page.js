@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb25";
+import { initShell } from "../site_common.js?v=20260221-vb26";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -10,6 +10,7 @@ const refs = {
   bookSubtitle: document.getElementById("book-subtitle"),
   btnOpenExtraLink: document.getElementById("btn-open-extra-link"),
   btnOpenReaderFromBook: document.getElementById("btn-open-reader-from-book"),
+  btnDownloadBook: document.getElementById("btn-download-book"),
   btnOpenBookNames: document.getElementById("btn-open-book-names"),
   btnOpenBookEdit: document.getElementById("btn-open-book-edit"),
 
@@ -160,6 +161,12 @@ function populateBook() {
 
   setCover(book.cover_url || "");
   refs.btnOpenExtraLink.disabled = !(book.extra_link || "").trim();
+  if (refs.btnDownloadBook) {
+    const downloaded = Math.max(0, Number(book.downloaded_chapters || 0));
+    const total = Math.max(0, Number(book.chapter_count || 0));
+    refs.btnDownloadBook.textContent = state.shell.t("downloadedCountShort", { downloaded, total });
+    refs.btnDownloadBook.disabled = total > 0 && downloaded >= total;
+  }
 
   refs.fieldTitle.value = book.title || "";
   refs.fieldTitleVi.value = book.title_vi || "";
@@ -185,6 +192,7 @@ function renderToc() {
   }
   for (const chapter of state.tocItems) {
     const li = document.createElement("li");
+    li.className = "toc-row";
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "toc-item";
@@ -205,8 +213,23 @@ function renderToc() {
     btn.addEventListener("click", () => {
       window.location.href = `/reader?book_id=${encodeURIComponent(state.bookId)}&chapter_id=${encodeURIComponent(chapter.chapter_id)}`;
     });
-
-    li.appendChild(btn);
+    if (!chapter.is_downloaded) {
+      const dl = document.createElement("button");
+      dl.type = "button";
+      dl.className = "btn btn-small toc-download-btn";
+      dl.textContent = state.shell.t("downloadChapter");
+      dl.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await downloadSingleChapter(chapter.chapter_id);
+      });
+      li.append(btn, dl);
+    } else {
+      const ok = document.createElement("span");
+      ok.className = "toc-downloaded-tag";
+      ok.textContent = state.shell.t("downloadedTag");
+      li.append(btn, ok);
+    }
     refs.tocList.appendChild(li);
   }
 
@@ -329,6 +352,49 @@ async function translateTitles() {
     });
     await loadBook();
     await loadToc(state.pagination.page || 1);
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function downloadBookChapters() {
+  if (!state.bookId) return;
+  state.shell.showStatus(state.shell.t("statusQueueDownload"));
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/download`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (data && data.already_downloaded) {
+      state.shell.showToast(state.shell.t("downloadAlreadyDone"));
+    } else {
+      state.shell.showToast(state.shell.t("downloadQueued"));
+    }
+    await Promise.all([loadBook(), loadToc(state.pagination.page || 1)]);
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function downloadSingleChapter(chapterId) {
+  const cid = String(chapterId || "").trim();
+  if (!cid) return;
+  state.shell.showStatus(state.shell.t("statusQueueDownload"));
+  try {
+    const data = await state.shell.api(`/api/library/chapter/${encodeURIComponent(cid)}/download`, {
+      method: "POST",
+    });
+    if (data && data.already_downloaded) {
+      state.shell.showToast(state.shell.t("downloadAlreadyDone"));
+    } else {
+      state.shell.showToast(state.shell.t("downloadQueued"));
+    }
+    await Promise.all([loadBook(), loadToc(state.pagination.page || 1)]);
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -516,6 +582,7 @@ async function init() {
   refs.bookEmpty.textContent = `${state.shell.t("noBookSelected")}. ${state.shell.t("noBookSelectedHint")}`;
   refs.btnOpenExtraLink.textContent = state.shell.t("openExtraLink");
   refs.btnOpenReaderFromBook.textContent = state.shell.t("openBookFromInfo");
+  if (refs.btnDownloadBook) refs.btnDownloadBook.textContent = state.shell.t("downloadBook");
   refs.btnOpenBookNames.textContent = state.shell.t("bookPrivateNames");
   refs.btnOpenBookEdit.textContent = state.shell.t("editBookFromInfo");
 
@@ -564,6 +631,9 @@ async function init() {
   refs.btnOpenReaderFromBook.addEventListener("click", () => {
     if (!state.bookId) return;
     window.location.href = `/reader?book_id=${encodeURIComponent(state.bookId)}`;
+  });
+  if (refs.btnDownloadBook) refs.btnDownloadBook.addEventListener("click", () => {
+    downloadBookChapters().catch(() => {});
   });
   refs.btnOpenBookNames.addEventListener("click", openBookNameDialog);
   refs.btnOpenBookEdit.addEventListener("click", () => refs.bookEditDialog.showModal());

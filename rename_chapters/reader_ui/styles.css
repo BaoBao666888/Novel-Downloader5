@@ -752,6 +752,42 @@ p {
   color: color-mix(in srgb, var(--text) 92%, transparent);
 }
 
+.book-card-download {
+  margin-top: 6px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--muted) 92%, transparent);
+}
+
+.download-jobs-list {
+  display: grid;
+  gap: 8px;
+}
+
+.download-job-row {
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-alt) 62%, transparent);
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.download-job-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.download-job-meta,
+.download-job-status {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--muted) 90%, transparent);
+}
+
+.download-job-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .book-card-tools {
   margin-top: 7px;
   display: flex;
@@ -767,6 +803,13 @@ p {
   flex-direction: column;
   gap: 8px;
   overflow: auto;
+}
+
+.toc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .chapter-hit,
@@ -806,6 +849,23 @@ p {
   font-size: 12px;
   color: var(--muted);
   margin-top: 4px;
+}
+
+.toc-download-btn {
+  align-self: stretch;
+  white-space: nowrap;
+  min-width: 88px;
+}
+
+.toc-downloaded-tag {
+  align-self: center;
+  justify-self: end;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 46%, var(--line));
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  color: color-mix(in srgb, var(--text) 90%, transparent);
 }
 
 .empty-text {

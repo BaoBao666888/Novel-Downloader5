@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb25";
+import { initShell } from "../site_common.js?v=20260221-vb26";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -606,6 +606,7 @@ function renderToc() {
   const list = (state.book && state.book.chapters) || [];
   for (const chapter of list) {
     const li = document.createElement("li");
+    li.className = "toc-row";
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "reader-toc-item";
@@ -622,7 +623,47 @@ function renderToc() {
       });
     });
     li.appendChild(btn);
+    if (chapter.is_downloaded) {
+      const ok = document.createElement("span");
+      ok.className = "toc-downloaded-tag";
+      ok.textContent = state.shell.t("downloadedTag");
+      li.appendChild(ok);
+    } else {
+      const dl = document.createElement("button");
+      dl.type = "button";
+      dl.className = "btn btn-small toc-download-btn";
+      dl.textContent = state.shell.t("downloadChapter");
+      dl.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await downloadCurrentChapterById(chapter.chapter_id);
+      });
+      li.appendChild(dl);
+    }
     refs.readerTocList.appendChild(li);
+  }
+}
+
+async function downloadCurrentChapterById(chapterId) {
+  const cid = String(chapterId || "").trim();
+  if (!cid) return;
+  state.shell.showStatus(state.shell.t("statusQueueDownload"));
+  try {
+    const data = await state.shell.api(`/api/library/chapter/${encodeURIComponent(cid)}/download`, {
+      method: "POST",
+    });
+    if (data && data.already_downloaded) {
+      state.shell.showToast(state.shell.t("downloadAlreadyDone"));
+    } else {
+      state.shell.showToast(state.shell.t("downloadQueued"));
+    }
+    await loadBook();
+    renderToc();
+    updateProgress();
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
   }
 }
 

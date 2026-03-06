@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb25";
+import { initShell } from "../site_common.js?v=20260221-vb26";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260220-vb04";
 
 const refs = {
@@ -94,6 +94,7 @@ const refs = {
   vbookDetailCommentEmpty: document.getElementById("vbook-detail-comment-empty"),
   btnVbookDetailLoadToc: document.getElementById("btn-vbook-detail-load-toc"),
   btnVbookDetailImport: document.getElementById("btn-vbook-detail-import"),
+  btnVbookDetailDownload: document.getElementById("btn-vbook-detail-download"),
   btnVbookDetailReadNow: document.getElementById("btn-vbook-detail-read-now"),
   vbookDetailTocTitle: document.getElementById("vbook-detail-toc-title"),
   vbookDetailTocList: document.getElementById("vbook-detail-toc-list"),
@@ -1292,12 +1293,18 @@ function renderVbookDetail() {
   refs.btnVbookDetailLoadToc.disabled = loading || state.detail.tocLoading || isBusy;
   refs.btnVbookDetailReadNow.disabled = loading || isBusy;
   refs.btnVbookDetailImport.disabled = loading || isBusy;
+  if (refs.btnVbookDetailDownload) refs.btnVbookDetailDownload.disabled = loading || isBusy;
   refs.btnVbookDetailReadNow.textContent = actionBusy === "read"
     ? state.shell.t("vbookOpeningReaderAction")
     : state.shell.t("vbookDetailReadNow");
   refs.btnVbookDetailImport.textContent = actionBusy === "import"
     ? state.shell.t("vbookImportingAction")
     : state.shell.t("vbookSearchImportBook");
+  if (refs.btnVbookDetailDownload) {
+    refs.btnVbookDetailDownload.textContent = actionBusy === "download"
+      ? state.shell.t("downloadQueueing")
+      : state.shell.t("downloadBook");
+  }
 
   refs.vbookDetailCover.innerHTML = "";
   refs.vbookDetailCover.classList.toggle("has-image", Boolean(cover));
@@ -1757,6 +1764,64 @@ async function readNowFromDetail() {
   await importOnlineBook(state.detail.item, { openReader: true });
 }
 
+async function downloadFromDetail() {
+  if (!state.detail.item) {
+    state.shell.showToast(state.shell.t("vbookDetailNoBookSelected"));
+    return;
+  }
+  const sourceUrl = String((state.detail.item.detail_url || "")).trim();
+  if (!sourceUrl) {
+    state.shell.showToast(state.shell.t("vbookDetailNoBookSelected"));
+    return;
+  }
+  const pluginId = String(state.detail.pluginId || state.detail.item.plugin_id || "").trim();
+  state.detail.actionBusy = "download";
+  state.detail.errorMessage = "";
+  renderVbookDetail();
+  state.shell.showStatus(state.shell.t("statusQueueDownload"));
+  try {
+    const data = await apiWithRequest("import-url", "/api/library/import-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: sourceUrl,
+        plugin_id: pluginId,
+        history_only: false,
+      }),
+    });
+    let importedBook = (data && data.book && typeof data.book === "object") ? data.book : null;
+    let bookId = String((importedBook && importedBook.book_id) || "").trim();
+    if (!bookId) {
+      const fallback = await resolveImportedBookFallback(sourceUrl, pluginId);
+      importedBook = importedBook || fallback.book;
+      bookId = String(fallback.bookId || "").trim();
+    }
+    if (!bookId) {
+      state.shell.showToast(state.shell.t("toastImportBookMissingId"));
+      return;
+    }
+    const queued = await apiWithRequest(`book-download-${bookId}`, `/api/library/book/${encodeURIComponent(bookId)}/download`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (queued && queued.already_downloaded) {
+      state.shell.showToast(state.shell.t("downloadAlreadyDone"));
+    } else {
+      state.shell.showToast(state.shell.t("downloadQueued"));
+    }
+  } catch (error) {
+    if (!isAbortError(error)) {
+      state.detail.errorMessage = getErrorMessage(error);
+    }
+    showToastError(error);
+  } finally {
+    state.detail.actionBusy = "";
+    renderVbookDetail();
+    state.shell.hideStatus();
+  }
+}
+
 async function autoOpenDetailFromQuery() {
   const sourceUrl = String(state.autoOpen.sourceUrl || "").trim();
   if (!sourceUrl) return;
@@ -1958,6 +2023,7 @@ async function init() {
   refs.btnVbookDetailClose.textContent = state.shell.t("close");
   refs.btnVbookDetailLoadToc.textContent = state.shell.t("vbookDetailShowToc");
   refs.btnVbookDetailImport.textContent = state.shell.t("vbookSearchImportBook");
+  if (refs.btnVbookDetailDownload) refs.btnVbookDetailDownload.textContent = state.shell.t("downloadBook");
   refs.btnVbookDetailReadNow.textContent = state.shell.t("vbookDetailReadNow");
   refs.vbookDetailGenresTitle.textContent = state.shell.t("vbookDetailGenresTitle");
   refs.vbookDetailExtraTitle.textContent = state.shell.t("vbookDetailExtraTitle");
@@ -2168,6 +2234,12 @@ async function init() {
     if (!state.detail.item) return;
     await importOnlineBook(state.detail.item);
   });
+
+  if (refs.btnVbookDetailDownload) {
+    refs.btnVbookDetailDownload.addEventListener("click", async () => {
+      await downloadFromDetail();
+    });
+  }
 
   refs.btnVbookDetailReadNow.addEventListener("click", async () => {
     await readNowFromDetail();
