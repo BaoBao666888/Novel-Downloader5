@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb24";
+import { initShell } from "../site_common.js?v=20260221-vb25";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260220-vb04";
 
 const refs = {
@@ -180,6 +180,7 @@ const state = {
       request_delay_ms: 0,
       download_threads: 4,
       prefetch_unread_count: 2,
+      retry_count: 2,
     },
   },
   detail: {
@@ -545,6 +546,7 @@ function renderPluginSection() {
       delay: Number(effective.request_delay_ms || 0),
       threads: Number(effective.download_threads || 0),
       prefetch: Number(effective.prefetch_unread_count || 0),
+      retry: Number(effective.retry_count || 0),
     })
     : "";
 
@@ -577,6 +579,7 @@ async function loadPluginSettings() {
       request_delay_ms: 0,
       download_threads: 4,
       prefetch_unread_count: 2,
+      retry_count: 2,
     };
     renderPluginSection();
     return;
@@ -596,10 +599,12 @@ async function loadPluginSettings() {
       prefetch_unread_count: null,
       supplemental_code: "",
     };
-    state.pluginSettings.effective = (effectiveData && effectiveData.settings) || {
+    state.pluginSettings.effective = {
       request_delay_ms: 0,
       download_threads: 4,
       prefetch_unread_count: 2,
+      retry_count: 2,
+      ...((effectiveData && effectiveData.settings) || {}),
     };
   } catch (error) {
     showToastError(error);

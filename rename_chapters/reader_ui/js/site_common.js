@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260221-vb24";
+import { t } from "../i18n.vi.js?v=20260221-vb25";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -734,6 +734,7 @@ function fillStaticTexts() {
     ["vbook-global-delay-label", "vbookGlobalDelayLabel"],
     ["vbook-global-threads-label", "vbookGlobalThreadsLabel"],
     ["vbook-global-prefetch-label", "vbookGlobalPrefetchLabel"],
+    ["vbook-global-retry-label", "vbookGlobalRetryLabel"],
     ["vbook-runtime-plugin-title", "vbookRuntimePluginTitle"],
     ["vbook-runtime-plugin-label", "vbookRuntimePluginLabel"],
     ["vbook-plugin-delay-label", "vbookPluginDelayLabel"],
@@ -773,6 +774,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
         request_delay_ms: 0,
         download_threads: 4,
         prefetch_unread_count: 2,
+        retry_count: 2,
       },
       pluginSettings: {},
       selectedRuntimePluginId: "",
@@ -1259,6 +1261,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   const vbookGlobalDelayInput = qs("vbook-global-request-delay-ms");
   const vbookGlobalThreadsInput = qs("vbook-global-download-threads");
   const vbookGlobalPrefetchInput = qs("vbook-global-prefetch-unread-count");
+  const vbookGlobalRetryInput = qs("vbook-global-retry-count");
   const vbookRuntimePluginSelect = qs("vbook-runtime-plugin-select");
   const vbookPluginSupplementalInput = qs("vbook-plugin-supplemental-code");
   const vbookPluginDelayInput = qs("vbook-plugin-request-delay-ms");
@@ -1289,6 +1292,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       request_delay_ms: clampInt(raw.request_delay_ms, 0, 15000, 0),
       download_threads: clampInt(raw.download_threads ?? raw.max_concurrency, 1, 16, 4),
       prefetch_unread_count: clampInt(raw.prefetch_unread_count, 0, 50, 2),
+      retry_count: clampInt(raw.retry_count ?? raw.retry, 0, 10, 2),
     };
   };
 
@@ -1310,6 +1314,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       request_delay_ms: pluginCfg.request_delay_ms == null ? globalCfg.request_delay_ms : pluginCfg.request_delay_ms,
       download_threads: pluginCfg.download_threads == null ? globalCfg.download_threads : pluginCfg.download_threads,
       prefetch_unread_count: pluginCfg.prefetch_unread_count == null ? globalCfg.prefetch_unread_count : pluginCfg.prefetch_unread_count,
+      retry_count: globalCfg.retry_count,
     };
   };
 
@@ -1319,6 +1324,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
     if (vbookGlobalDelayInput) vbookGlobalDelayInput.value = String(cfg.request_delay_ms);
     if (vbookGlobalThreadsInput) vbookGlobalThreadsInput.value = String(cfg.download_threads);
     if (vbookGlobalPrefetchInput) vbookGlobalPrefetchInput.value = String(cfg.prefetch_unread_count);
+    if (vbookGlobalRetryInput) vbookGlobalRetryInput.value = String(cfg.retry_count);
   };
 
   const fillVbookPluginForm = (pluginId = "") => {
@@ -1423,6 +1429,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       request_delay_ms: clampInt(vbookGlobalDelayInput && vbookGlobalDelayInput.value, 0, 15000, 0),
       download_threads: clampInt(vbookGlobalThreadsInput && vbookGlobalThreadsInput.value, 1, 16, 4),
       prefetch_unread_count: clampInt(vbookGlobalPrefetchInput && vbookGlobalPrefetchInput.value, 0, 50, 2),
+      retry_count: clampInt(vbookGlobalRetryInput && vbookGlobalRetryInput.value, 0, 10, 2),
     };
     showStatus(t("statusSavingVbookSettings"));
     try {

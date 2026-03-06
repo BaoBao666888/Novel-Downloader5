@@ -33,6 +33,50 @@ CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 
 class ND5Mixin:
+    def _nd5_reader_server_port(self) -> int:
+        fallback = 17171
+        cfg = self.app_config.get("reader_manager") if isinstance(getattr(self, "app_config", None), dict) else {}
+        if not isinstance(cfg, dict):
+            cfg = {}
+        try:
+            port = int(cfg.get("port", fallback))
+        except Exception:
+            port = fallback
+        if port < 1 or port > 65535:
+            port = fallback
+        return port
+
+    def _nd5_reader_server_alive(self, timeout: float = 0.8) -> bool:
+        try:
+            if hasattr(self, "_reader_server_alive"):
+                return bool(self._reader_server_alive(timeout=max(0.3, float(timeout))))  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        port = self._nd5_reader_server_port()
+        url = f"http://127.0.0.1:{port}/api/health"
+        try:
+            resp = requests.get(url, timeout=max(0.3, float(timeout)))
+            return bool(resp.ok)
+        except Exception:
+            return False
+
+    def _nd5_require_reader_server_for_vbook(self, *, show_message: bool = True) -> bool:
+        if self._nd5_reader_server_alive():
+            return True
+        if show_message:
+            try:
+                messagebox.showwarning(
+                    "vBook extension",
+                    "Cần mở Reader Server trước khi dùng extension vBook.\nVào tab Đọc truyện để khởi chạy server.",
+                    parent=self,
+                )
+            except Exception:
+                pass
+        try:
+            self.log("Khong bat duoc ext vBook: Reader Server chua chay.")
+        except Exception:
+            pass
+        return False
 
     def _get_fanqie_bridge_port(self) -> int:
         fallback = int(DEFAULT_API_SETTINGS.get("fanqie_bridge_port", 9999))

@@ -4005,6 +4005,7 @@ class ReaderService:
             "request_delay_ms": 0,
             "download_threads": 4,
             "prefetch_unread_count": 2,
+            "retry_count": 2,
         }
         self.vbook_plugin_runtime_overrides: dict[str, dict[str, Any]] = {}
         self.vbook_bridge_enabled = True
@@ -4865,6 +4866,11 @@ class ReaderService:
             threads_raw = vcfg.get("download_threads")
         if threads_raw is None:
             threads_raw = vcfg.get("max_concurrency")
+        retry_raw = gcfg.get("retry_count")
+        if retry_raw is None:
+            retry_raw = gcfg.get("retry")
+        if retry_raw is None:
+            retry_raw = vcfg.get("retry_count", vcfg.get("retry"))
         return {
             "request_delay_ms": self._vbook_int(gcfg.get("request_delay_ms", vcfg.get("request_delay_ms")), default=0, min_value=0, max_value=15_000),
             "download_threads": self._vbook_int(threads_raw, default=4, min_value=1, max_value=16),
@@ -4874,6 +4880,7 @@ class ReaderService:
                 min_value=0,
                 max_value=50,
             ),
+            "retry_count": self._vbook_int(retry_raw, default=2, min_value=0, max_value=10),
         }
 
     def _normalized_vbook_plugin_runtime_overrides(self, raw_cfg: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
@@ -4910,6 +4917,7 @@ class ReaderService:
             "request_delay_ms": int((override or {}).get("request_delay_ms")) if (override and override.get("request_delay_ms") is not None) else int(global_cfg.get("request_delay_ms") or 0),
             "download_threads": int((override or {}).get("download_threads")) if (override and override.get("download_threads") is not None) else int(global_cfg.get("download_threads") or 4),
             "prefetch_unread_count": int((override or {}).get("prefetch_unread_count")) if (override and override.get("prefetch_unread_count") is not None) else int(global_cfg.get("prefetch_unread_count") or 2),
+            "retry_count": int(global_cfg.get("retry_count") or 2),
         }
 
     def get_vbook_settings_global(self) -> dict[str, Any]:
@@ -4950,6 +4958,12 @@ class ReaderService:
             gcfg["max_concurrency"] = threads
         if "prefetch_unread_count" in payload:
             gcfg["prefetch_unread_count"] = self._vbook_int(payload.get("prefetch_unread_count"), default=2, min_value=0, max_value=50)
+        if "retry_count" in payload or "retry" in payload:
+            raw_retry = payload.get("retry_count")
+            if raw_retry is None:
+                raw_retry = payload.get("retry")
+            gcfg["retry_count"] = self._vbook_int(raw_retry, default=2, min_value=0, max_value=10)
+            gcfg["retry"] = gcfg["retry_count"]
 
         # Mirror top-level keys để không phá logic cũ bên ngoài.
         vcfg["runtime_global"] = gcfg
@@ -4957,6 +4971,8 @@ class ReaderService:
         vcfg["download_threads"] = gcfg.get("download_threads", 4)
         vcfg["max_concurrency"] = gcfg.get("download_threads", 4)
         vcfg["prefetch_unread_count"] = gcfg.get("prefetch_unread_count", 2)
+        vcfg["retry_count"] = gcfg.get("retry_count", 2)
+        vcfg["retry"] = gcfg.get("retry_count", 2)
 
         cfg["vbook"] = vcfg
         save_app_config(cfg)
@@ -5666,53 +5682,72 @@ class ReaderService:
                 "Chưa có vBook runner. Hãy build `tools/vbook_runner` trước.",
             )
 
-        runner_override = self._build_vbook_runner_override(plugin, script_key, args)
-        payload = self.vbook_runner.run(
-            plugin_path=str(plugin.path),
-            script_key=script_key,
-            args=args,
-            runner_config_override=(runner_override or None),
-            timeout_sec=30.0,
-        )
-        result = payload.get("result")
-        if isinstance(result, dict):
-            code = result.get("code")
+        pid = self._normalize_vbook_plugin_id(str(getattr(plugin, "plugin_id", "") or ""))
+        runtime_cfg = self._effective_vbook_runtime_settings(pid)
+        retry_count = self._vbook_int(runtime_cfg.get("retry_count"), default=2, min_value=0, max_value=10)
+        max_attempts = retry_count + 1
+        retry_sleep_sec = max(0.12, min(2.0, float(int(runtime_cfg.get("request_delay_ms") or 0)) / 1000.0 or 0.25))
+
+        for attempt in range(1, max_attempts + 1):
             try:
-                code_val = int(code)
+                runner_override = self._build_vbook_runner_override(plugin, script_key, args)
+                payload = self.vbook_runner.run(
+                    plugin_path=str(plugin.path),
+                    script_key=script_key,
+                    args=args,
+                    runner_config_override=(runner_override or None),
+                    timeout_sec=30.0,
+                )
+                result = payload.get("result")
+                if isinstance(result, dict):
+                    code = result.get("code")
+                    try:
+                        code_val = int(code)
+                    except Exception:
+                        code_val = 0 if code in (0, 0.0, "0") else 1
+                    if code_val != 0:
+                        result_message = normalize_vbook_display_text(
+                            str(
+                                result.get("message")
+                                or result.get("msg")
+                                or result.get("error")
+                                or ""
+                            ),
+                            single_line=False,
+                        )
+                        details_payload: dict[str, Any] = {
+                            "plugin": plugin.plugin_id,
+                            "script": script_key,
+                            "result": result,
+                            "attempt": attempt,
+                            "max_attempts": max_attempts,
+                        }
+                        if "cloudflare" in result_message.lower():
+                            bridge_state = self._load_vbook_bridge_state() if self.vbook_bridge_enabled else {}
+                            hosts_raw = bridge_state.get("hosts") if isinstance(bridge_state, dict) else {}
+                            details_payload["hint"] = (
+                                "Cloudflare challenge: hãy mở nguồn bằng trình duyệt tích hợp để đồng bộ cookie/headers trước khi chạy lại."
+                            )
+                            details_payload["bridge_enabled"] = bool(self.vbook_bridge_enabled)
+                            details_payload["bridge_hosts_count"] = len(hosts_raw) if isinstance(hosts_raw, dict) else 0
+                        raise ApiError(
+                            HTTPStatus.BAD_GATEWAY,
+                            "VBOOK_SCRIPT_ERROR",
+                            result_message or "Plugin vBook trả lỗi khi chạy script.",
+                            details_payload,
+                        )
+                    return result
+                # Some plugins might return raw value (non Response.success)
+                return {"code": 0, "data": result}
+            except ApiError as exc:
+                should_retry = (exc.error_code == "VBOOK_SCRIPT_ERROR") and (attempt < max_attempts)
+                if not should_retry:
+                    raise
+                time.sleep(retry_sleep_sec)
             except Exception:
-                code_val = 0 if code in (0, 0.0, "0") else 1
-            if code_val != 0:
-                result_message = normalize_vbook_display_text(
-                    str(
-                        result.get("message")
-                        or result.get("msg")
-                        or result.get("error")
-                        or ""
-                    ),
-                    single_line=False,
-                )
-                details_payload: dict[str, Any] = {
-                    "plugin": plugin.plugin_id,
-                    "script": script_key,
-                    "result": result,
-                }
-                if "cloudflare" in result_message.lower():
-                    bridge_state = self._load_vbook_bridge_state() if self.vbook_bridge_enabled else {}
-                    hosts_raw = bridge_state.get("hosts") if isinstance(bridge_state, dict) else {}
-                    details_payload["hint"] = (
-                        "Cloudflare challenge: hãy mở nguồn bằng trình duyệt tích hợp để đồng bộ cookie/headers trước khi chạy lại."
-                    )
-                    details_payload["bridge_enabled"] = bool(self.vbook_bridge_enabled)
-                    details_payload["bridge_hosts_count"] = len(hosts_raw) if isinstance(hosts_raw, dict) else 0
-                raise ApiError(
-                    HTTPStatus.BAD_GATEWAY,
-                    "VBOOK_SCRIPT_ERROR",
-                    result_message or "Plugin vBook trả lỗi khi chạy script.",
-                    details_payload,
-                )
-            return result
-        # Some plugins might return raw value (non Response.success)
-        return {"code": 0, "data": result}
+                if attempt >= max_attempts:
+                    raise
+                time.sleep(retry_sleep_sec)
 
     def _run_vbook_script(self, plugin: Any, script_key: str, args: list[Any]) -> Any:
         result = self._run_vbook_script_result(plugin, script_key, args)
