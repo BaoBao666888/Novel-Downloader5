@@ -32,6 +32,7 @@ const refs = {
 
   readerTocDrawer: document.getElementById("reader-toc-drawer"),
   readerTocList: document.getElementById("reader-toc-list"),
+  btnReaderDownloadBook: document.getElementById("btn-reader-download-book"),
   btnCloseReaderToc: document.getElementById("btn-close-reader-toc"),
   readerTocTitle: document.getElementById("reader-toc-title"),
 
@@ -128,6 +129,16 @@ const state = {
   downloadWatchHadActive: false,
   downloadWatchIdleTicks: 0,
 };
+
+const TOC_ICON_MARKUP = Object.freeze({
+  download: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 11 4 4 4-4"></path><path d="M4 18h16"></path></svg>',
+  done: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m8.5 12 2.4 2.4 4.6-4.8"></path></svg>',
+});
+
+function setTocIcon(button, kind) {
+  if (!button) return;
+  button.innerHTML = TOC_ICON_MARKUP[kind] || "";
+}
 
 function normalizeTranslateMode(raw) {
   const mode = String(raw || "").trim().toLowerCase();
@@ -609,6 +620,15 @@ async function openChapterById(chapterId, { updateHistory = true, fromToc = fals
 function renderToc() {
   refs.readerTocList.innerHTML = "";
   const list = (state.book && state.book.chapters) || [];
+  const downloadedCount = list.reduce((acc, chapter) => acc + (chapter && chapter.is_downloaded ? 1 : 0), 0);
+  if (refs.btnReaderDownloadBook) {
+    refs.btnReaderDownloadBook.textContent = state.shell.t("downloadBook");
+    refs.btnReaderDownloadBook.title = state.shell.t("downloadedCountShort", {
+      downloaded: downloadedCount,
+      total: list.length,
+    });
+    refs.btnReaderDownloadBook.disabled = !list.length || downloadedCount >= list.length;
+  }
   for (const chapter of list) {
     const li = document.createElement("li");
     li.className = "toc-row";
@@ -628,23 +648,27 @@ function renderToc() {
       });
     });
     li.appendChild(btn);
+    const iconBtn = document.createElement("button");
+    iconBtn.type = "button";
+    iconBtn.className = "btn toc-icon-btn";
     if (chapter.is_downloaded) {
-      const ok = document.createElement("span");
-      ok.className = "toc-downloaded-tag";
-      ok.textContent = state.shell.t("downloadedTag");
-      li.appendChild(ok);
+      iconBtn.classList.add("is-done");
+      setTocIcon(iconBtn, "done");
+      iconBtn.title = state.shell.t("downloadedTag");
+      iconBtn.setAttribute("aria-label", state.shell.t("downloadedTag"));
+      iconBtn.disabled = true;
     } else {
-      const dl = document.createElement("button");
-      dl.type = "button";
-      dl.className = "btn btn-small toc-download-btn";
-      dl.textContent = state.shell.t("downloadChapter");
-      dl.addEventListener("click", async (event) => {
+      iconBtn.classList.add("is-download");
+      setTocIcon(iconBtn, "download");
+      iconBtn.title = state.shell.t("downloadChapter");
+      iconBtn.setAttribute("aria-label", state.shell.t("downloadChapter"));
+      iconBtn.addEventListener("click", async (event) => {
         event.preventDefault();
         event.stopPropagation();
         await downloadCurrentChapterById(chapter.chapter_id);
       });
-      li.appendChild(dl);
     }
+    li.appendChild(iconBtn);
     refs.readerTocList.appendChild(li);
   }
 }
@@ -671,6 +695,51 @@ async function downloadCurrentChapterById(chapterId) {
         action: "enqueue_chapter_download",
         book_id: state.bookId,
         chapter_id: cid,
+      },
+    }));
+    startReaderDownloadWatcher();
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function downloadBookFromReaderToc() {
+  if (!state.bookId || !state.book || !Array.isArray(state.book.chapters) || !state.book.chapters.length) return;
+  const chapters = state.book.chapters;
+  let startOrder = 1;
+  const currentIndex = findChapterIndex();
+  if (currentIndex > 0) {
+    const hasMissingBefore = chapters.slice(0, currentIndex).some((chapter) => !chapter || !chapter.is_downloaded);
+    if (hasMissingBefore) {
+      const currentOrder = Math.max(1, Number(chapters[currentIndex].chapter_order || 0) || (currentIndex + 1));
+      const fromCurrent = window.confirm(state.shell.t("downloadBookFromCurrentConfirm", { current: currentOrder }));
+      startOrder = fromCurrent ? currentOrder : 1;
+    }
+  }
+  const payload = {};
+  if (startOrder > 1) payload.start_order = startOrder;
+  state.shell.showStatus(state.shell.t("statusQueueDownload"));
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/download`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    if (data && data.already_downloaded) {
+      state.shell.showToast(state.shell.t("downloadAlreadyDone"));
+    } else {
+      state.shell.showToast(state.shell.t("downloadQueued"));
+    }
+    await loadBook();
+    renderToc();
+    updateProgress();
+    window.dispatchEvent(new CustomEvent("reader-cache-changed", {
+      detail: {
+        source: "reader-download",
+        action: "enqueue_book_download",
+        book_id: state.bookId,
+        start_order: startOrder,
       },
     }));
     startReaderDownloadWatcher();
@@ -2479,6 +2548,7 @@ async function init() {
   if (state.shell && state.shell.hideStatus) state.shell.hideStatus();
 
   refs.readerTocTitle.textContent = state.shell.t("tocTitle");
+  if (refs.btnReaderDownloadBook) refs.btnReaderDownloadBook.textContent = state.shell.t("downloadBook");
   refs.btnCloseReaderToc.textContent = state.shell.t("close");
   refs.btnReaderToc.textContent = state.shell.t("readerToc");
   if (refs.btnFooterToc) refs.btnFooterToc.textContent = state.shell.t("readerToc");
@@ -2594,6 +2664,13 @@ async function init() {
   startReaderDownloadWatcher();
 
   refs.btnReaderToc.addEventListener("click", openToc);
+  if (refs.btnReaderDownloadBook) {
+    refs.btnReaderDownloadBook.addEventListener("click", () => {
+      downloadBookFromReaderToc().catch((error) => {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      });
+    });
+  }
   if (refs.btnFooterToc) refs.btnFooterToc.addEventListener("click", openToc);
   if (refs.btnOpenSettingsInline) {
     refs.btnOpenSettingsInline.addEventListener("click", () => {
