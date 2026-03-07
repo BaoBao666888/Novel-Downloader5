@@ -978,6 +978,13 @@ def split_multi_translation_values(raw_value: str) -> list[str]:
     return out
 
 
+def pick_primary_translation_value(raw_value: str) -> str:
+    values = split_multi_translation_values(raw_value)
+    if values:
+        return values[0]
+    return normalize_vbook_display_text(raw_value or "", single_line=False)
+
+
 def _collect_dict_suggestion_rows(
     source_cjk: str,
     mapping: dict[str, str],
@@ -1413,7 +1420,7 @@ def map_selection_to_name_source(
         return {
             "selected_text": selected,
             "source_candidate": cjk_value,
-            "target_candidate": cleaned_set.get(cjk_value, cjk_value),
+            "target_candidate": pick_primary_translation_value(cleaned_set.get(cjk_value, cjk_value)),
             "match_type": "selection_is_cjk",
             "score": 1.0,
             "source_context": _text_snippet(source_raw, source_raw.find(cjk_value), source_raw.find(cjk_value) + len(cjk_value)) if cjk_value else "",
@@ -1563,7 +1570,7 @@ def map_selection_to_name_source(
     if chosen_name_exact is not None:
         chosen_source_name = strip_edge_punctuation(str(chosen_name_exact.get("source") or "").strip())
         chosen_target_name = str(cleaned_set.get(chosen_source_name, "") or "").strip()
-        chosen_target_main = chosen_target_name.split("/", 1)[0].strip() if chosen_target_name else ""
+        chosen_target_main = pick_primary_translation_value(chosen_target_name)
         if chosen_source_name and chosen_target_main:
             source_candidate = chosen_source_name
             target_candidate = chosen_target_main
@@ -3119,6 +3126,13 @@ class ReaderStorage:
                 (key, value, now),
             )
 
+    def _delete_app_state_value(self, key: str) -> None:
+        key_name = str(key or "").strip()
+        if not key_name:
+            return
+        with self._connect() as conn:
+            conn.execute("DELETE FROM app_state WHERE key = ?", (key_name,))
+
     def _name_set_state_key(self, book_id: str | None = None) -> str:
         bid = str(book_id or "").strip()
         if not bid:
@@ -4051,7 +4065,8 @@ class ReaderStorage:
     ) -> dict[str, Any]:
         page = max(1, int(page))
         page_size = max(1, min(200, int(page_size)))
-        if mode == "trans":
+        live_title_mode = translate_mode in {"local", "hanviet"}
+        if mode == "trans" and not live_title_mode:
             self.translate_book_titles(
                 book_id,
                 translator,
@@ -4080,7 +4095,23 @@ class ReaderStorage:
         for r in rows:
             rdict = dict(r)
             rdict["title_vi"] = normalize_vi_display_text(rdict.get("title_vi") or "")
-            display_title = rdict["title_vi"] if mode == "trans" and rdict.get("title_vi") else rdict["title_raw"]
+            if mode == "trans":
+                if live_title_mode and book_supports_translation(book_row):
+                    try:
+                        display_title = normalize_vi_display_text(
+                            translator.translate_detailed(
+                                rdict.get("title_raw") or "",
+                                mode=translate_mode,
+                                name_set_override=name_set_override,
+                                vp_set_override=vp_set_override,
+                            ).get("translated", "")
+                        ) or rdict["title_raw"]
+                    except Exception:
+                        display_title = rdict["title_raw"]
+                else:
+                    display_title = rdict["title_vi"] if rdict.get("title_vi") else rdict["title_raw"]
+            else:
+                display_title = rdict["title_raw"]
             raw_key = str(rdict.get("raw_key") or "").strip()
             cached_raw = self.read_cache(raw_key) if raw_key else None
             valid_cached = self.chapter_cache_available(raw_text=cached_raw, book=book_row) if cached_raw is not None else False
@@ -4251,6 +4282,18 @@ class ReaderStorage:
 
         content_keys = {ch["raw_key"] for ch in chapters if ch.get("raw_key")}
         content_keys.update(ch["trans_key"] for ch in chapters if ch.get("trans_key"))
+        image_cache_keys: set[str] = set()
+        if is_book_comic(book):
+            plugin_id = str((book or {}).get("source_plugin") or "").strip()
+            for ch in chapters:
+                raw_key = str(ch.get("raw_key") or "").strip()
+                if not raw_key:
+                    continue
+                raw_text = self.read_cache(raw_key) or ""
+                for image_url in extract_comic_image_urls(raw_text):
+                    key = vbook_image_cache_key(image_url=image_url, plugin_id=plugin_id)
+                    if key:
+                        image_cache_keys.add(key)
 
         with self._connect() as conn:
             if chapters:
@@ -4262,6 +4305,20 @@ class ReaderStorage:
             conn.execute("DELETE FROM books WHERE book_id = ?", (book_id,))
 
         self._delete_cache_keys(content_keys)
+        for key in image_cache_keys:
+            for suffix in (".bin", ".json"):
+                path = VBOOK_IMAGE_CACHE_DIR / f"{key}{suffix}"
+                if not path.exists():
+                    continue
+                try:
+                    path.unlink()
+                except Exception:
+                    pass
+        self._delete_app_state_value(self._name_set_state_key(book_id))
+        try:
+            self._delete_app_state_value(self._book_vp_set_key(book_id))
+        except ValueError:
+            pass
 
         epub_file = CACHE_DIR / "epub_sources" / f"{book_id}.epub"
         if epub_file.exists():
@@ -6053,7 +6110,15 @@ class ReaderService:
     def _contains_cjk_text(self, text: str) -> bool:
         return bool(re.search(r"[\u3400-\u9fff]", str(text or "")))
 
-    def _translate_ui_text(self, text: str, *, single_line: bool = False, mode: str | None = None) -> str:
+    def _translate_ui_text_with_dicts(
+        self,
+        text: str,
+        *,
+        single_line: bool = False,
+        mode: str | None = None,
+        name_set_override: dict[str, str] | None = None,
+        vp_set_override: dict[str, str] | None = None,
+    ) -> str:
         value = normalize_vbook_display_text(text or "", single_line=False)
         if not value:
             return ""
@@ -6063,14 +6128,22 @@ class ReaderService:
             return normalize_vbook_display_text(value, single_line=single_line)
         try:
             translate_mode = self.resolve_translate_mode(mode)
-            translated = self.translator.translate_detailed(value, mode=translate_mode).get("translated") or value
-            translated = normalize_vi_display_text(translated)
+            detail = self.translator.translate_detailed(
+                value,
+                mode=translate_mode,
+                name_set_override=name_set_override,
+                vp_set_override=vp_set_override,
+            )
+            translated = normalize_vi_display_text(detail.get("translated") or "")
             return normalize_vbook_display_text(translated, single_line=single_line) or normalize_vbook_display_text(
                 value,
                 single_line=single_line,
             )
         except Exception:
             return normalize_vbook_display_text(value, single_line=single_line)
+
+    def _translate_ui_text(self, text: str, *, single_line: bool = False, mode: str | None = None) -> str:
+        return self._translate_ui_text_with_dicts(text, single_line=single_line, mode=mode)
 
     def _apply_book_card_translation(self, item: dict[str, Any]) -> dict[str, Any]:
         out = dict(item or {})
@@ -10619,10 +10692,54 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 raw_summary = normalize_vbook_display_text(str(book.get("summary") or ""), single_line=False) or str(book.get("summary") or "")
                 title_vi = normalize_vi_display_text(book.get("title_vi") or "")
                 author_vi = normalize_vi_display_text(book.get("author_vi") or "")
+                live_title_mode = translate_mode in {"local", "hanviet"}
                 book["translation_supported"] = True
-                book["title_display"] = title_vi or self.service._translate_ui_text(raw_title, single_line=True) or raw_title
-                book["author_display"] = author_vi or self.service._translate_ui_text(raw_author, single_line=True) or raw_author
-                book["summary_display"] = self.service._translate_ui_text(raw_summary, single_line=False) or raw_summary
+                if live_title_mode:
+                    book["title_display"] = self.service._translate_ui_text_with_dicts(
+                        raw_title,
+                        single_line=True,
+                        mode=translate_mode,
+                        name_set_override=active_name_set,
+                        vp_set_override=active_vp_set,
+                    ) or raw_title
+                    book["author_display"] = self.service._translate_ui_text_with_dicts(
+                        raw_author,
+                        single_line=True,
+                        mode=translate_mode,
+                        name_set_override=active_name_set,
+                        vp_set_override=active_vp_set,
+                    ) or raw_author
+                    book["summary_display"] = self.service._translate_ui_text_with_dicts(
+                        raw_summary,
+                        single_line=False,
+                        mode=translate_mode,
+                        name_set_override=active_name_set,
+                        vp_set_override=active_vp_set,
+                    ) or raw_summary
+                else:
+                    book["title_display"] = title_vi or self.service._translate_ui_text(raw_title, single_line=True) or raw_title
+                    book["author_display"] = author_vi or self.service._translate_ui_text(raw_author, single_line=True) or raw_author
+                    book["summary_display"] = self.service._translate_ui_text(raw_summary, single_line=False) or raw_summary
+                chapters = book.get("chapters")
+                if isinstance(chapters, list):
+                    for row in chapters:
+                        if not isinstance(row, dict):
+                            continue
+                        row_title_raw = normalize_vbook_display_text(str(row.get("title_raw") or ""), single_line=True)
+                        row_title_vi = normalize_vi_display_text(row.get("title_vi") or "")
+                        if mode == "trans":
+                            if live_title_mode:
+                                row["title_display"] = self.service._translate_ui_text_with_dicts(
+                                    row_title_raw,
+                                    single_line=True,
+                                    mode=translate_mode,
+                                    name_set_override=active_name_set,
+                                    vp_set_override=active_vp_set,
+                                ) or row_title_raw
+                            else:
+                                row["title_display"] = row_title_vi or row_title_raw
+                        else:
+                            row["title_display"] = row_title_raw or row_title_vi
             else:
                 book["translation_supported"] = False
                 book["title_display"] = normalize_vbook_display_text(str(book.get("title") or ""), single_line=True) or str(book.get("title") or "")

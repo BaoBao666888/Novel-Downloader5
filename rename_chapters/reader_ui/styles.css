@@ -2685,6 +2685,16 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   gap: 10px;
 }
 
+.name-suggest-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 10px;
+  padding-top: 10px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
 .name-suggest-target-input {
   width: 100%;
   min-width: 110px;

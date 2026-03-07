@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260307-indent1";
+import { initShell } from "../site_common.js?v=20260307-namefix1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-trim1";
 
 const refs = {
@@ -169,9 +169,14 @@ function populateBook() {
   refs.bookSubtitle.textContent = `${book.author_display || book.author || "Khuyết danh"} • ${book.chapter_count || 0} chương • ${book.lang_source || "zh"}`;
 
   refs.viewTitle.textContent = normalizeParagraphDisplayText(book.title || "", { singleLine: true });
-  refs.viewTitleVi.textContent = normalizeDisplayTitle(book.title_vi || "");
+  refs.viewTitleVi.textContent = normalizeDisplayTitle(
+    supportsTranslation(book) ? (book.title_display || book.title_vi || "") : (book.title_vi || ""),
+  );
   refs.viewAuthor.textContent = normalizeParagraphDisplayText(book.author || "", { singleLine: true });
-  refs.viewAuthorVi.textContent = normalizeParagraphDisplayText(book.author_vi || "", { singleLine: true });
+  refs.viewAuthorVi.textContent = normalizeParagraphDisplayText(
+    supportsTranslation(book) ? (book.author_display || book.author_vi || "") : (book.author_vi || ""),
+    { singleLine: true },
+  );
   refs.viewSummary.textContent = normalizeParagraphDisplayText(book.summary_display || book.summary || "");
   refs.viewExtraLink.innerHTML = "";
   if (book.extra_link) {

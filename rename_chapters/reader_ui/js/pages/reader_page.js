@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260307-indent1";
+import { initShell } from "../site_common.js?v=20260307-namefix1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260307-trim1";
 
 const refs = {
@@ -79,6 +79,8 @@ const refs = {
   nameSuggestColAction: document.getElementById("name-suggest-col-action"),
   nameSuggestLeftBody: document.getElementById("name-suggest-left-body"),
   nameSuggestRightBody: document.getElementById("name-suggest-right-body"),
+  btnNameSuggestGoogleTranslate: document.getElementById("btn-name-suggest-google-translate"),
+  btnNameSuggestGoogleSearch: document.getElementById("btn-name-suggest-google-search"),
 
   selectionNameBtn: document.getElementById("selection-name-btn"),
   readerHead: document.querySelector(".reader-head"),
@@ -404,7 +406,9 @@ function prefetchNearbyChapters() {
 
 function chapterTitle(ch) {
   if (!ch) return "";
-  if (effectiveMode() === "trans" && ch.title_vi) return normalizeDisplayTitle(ch.title_vi);
+  if (effectiveMode() === "trans") {
+    return normalizeDisplayTitle(ch.title_display || ch.title_vi || ch.title_raw || `Chương ${ch.chapter_order || "?"}`);
+  }
   return normalizeDisplayTitle(ch.title_raw || ch.title_display || `Chương ${ch.chapter_order || "?"}`);
 }
 
@@ -421,7 +425,7 @@ function updateHeader() {
   const ch = (state.book.chapters || []).find((x) => x.chapter_id === state.chapterId);
   const chapterName = chapterTitle(ch) || state.shell.t("readerEmpty");
   const bookName = effectiveMode() === "trans"
-    ? normalizeDisplayTitle(state.book.title_vi || state.book.title_display || state.book.title)
+    ? normalizeDisplayTitle(state.book.title_display || state.book.title_vi || state.book.title)
     : normalizeDisplayTitle(state.book.title || state.book.title_display);
   // Bỏ title chương "cứng" ở phần head lớn: head lớn dùng tên truyện,
   // mini header overlay sẽ hiển thị tên chương khi user cuộn vào content.
@@ -1805,6 +1809,7 @@ function renderNameSuggestRows(items, rightItems = []) {
     refs.nameTargetInput.value = String(row.han_viet || "").trim();
     const rows = refs.nameSuggestLeftBody.querySelectorAll("tr");
     rows.forEach((el, i) => el.classList.toggle("active", i === idx));
+    syncNameSuggestExternalActions();
   };
 
   for (const row of list) {
@@ -1864,27 +1869,9 @@ function renderNameSuggestRows(items, rightItems = []) {
         if (target) refs.nameTargetInput.value = target;
         refs.nameSuggestDialog.close();
         refs.nameTargetInput.focus();
+        syncNameSuggestExternalActions();
       });
-
-      const btnGoogle = document.createElement("button");
-      btnGoogle.type = "button";
-      btnGoogle.className = "btn btn-small";
-      btnGoogle.textContent = state.shell.t("nameSuggestGoogleTranslate");
-      btnGoogle.addEventListener("click", () => {
-        const url = String(row.google_translate_url || "").trim();
-        if (url) window.open(url, "_blank", "noopener,noreferrer");
-      });
-
-      const btnSearch = document.createElement("button");
-      btnSearch.type = "button";
-      btnSearch.className = "btn btn-small";
-      btnSearch.textContent = state.shell.t("nameSuggestGoogleSearch");
-      btnSearch.addEventListener("click", () => {
-        const url = String(row.google_search_url || "").trim();
-        if (url) window.open(url, "_blank", "noopener,noreferrer");
-      });
-
-      tdAction.append(btnUse, btnGoogle, btnSearch);
+      tdAction.append(btnUse);
       tr.append(tdTarget, tdOrigin, tdAction);
       refs.nameSuggestRightBody.appendChild(tr);
     }
@@ -1892,7 +1879,20 @@ function renderNameSuggestRows(items, rightItems = []) {
 
   if (selectedIndex < 0 && list.length) {
     selectRow(0);
+  } else {
+    syncNameSuggestExternalActions();
   }
+}
+
+function currentNameSuggestSourceText() {
+  return String(refs.nameSourceInput.value || "").trim();
+}
+
+function syncNameSuggestExternalActions() {
+  const source = currentNameSuggestSourceText();
+  const disabled = !source;
+  if (refs.btnNameSuggestGoogleTranslate) refs.btnNameSuggestGoogleTranslate.disabled = disabled;
+  if (refs.btnNameSuggestGoogleSearch) refs.btnNameSuggestGoogleSearch.disabled = disabled;
 }
 
 async function openNameSuggestDialog() {
@@ -2099,6 +2099,8 @@ function bindNameEditor() {
   refs.nameSuggestColTarget.textContent = state.shell.t("nameSuggestColTarget");
   refs.nameSuggestColOrigin.textContent = state.shell.t("nameSuggestColOrigin");
   refs.nameSuggestColAction.textContent = state.shell.t("nameSuggestColAction");
+  if (refs.btnNameSuggestGoogleTranslate) refs.btnNameSuggestGoogleTranslate.textContent = state.shell.t("nameSuggestGoogleTranslate");
+  if (refs.btnNameSuggestGoogleSearch) refs.btnNameSuggestGoogleSearch.textContent = state.shell.t("nameSuggestGoogleSearch");
   syncNameEditorScopeUi();
 
   if (refs.nameDictTypeSelect) {
@@ -2119,6 +2121,29 @@ function bindNameEditor() {
   refs.btnOpenNameEditor.addEventListener("click", () => openNameEditor({}));
   refs.btnCloseNameEditor.addEventListener("click", () => refs.nameEditorDialog.close());
   refs.btnCloseNameSuggest.addEventListener("click", () => refs.nameSuggestDialog.close());
+  if (refs.btnNameSuggestGoogleTranslate) {
+    refs.btnNameSuggestGoogleTranslate.addEventListener("click", () => {
+      const source = currentNameSuggestSourceText();
+      if (!source) return;
+      window.open(
+        `https://translate.google.com/?sl=zh-CN&tl=vi&text=${encodeURIComponent(source)}&op=translate`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    });
+  }
+  if (refs.btnNameSuggestGoogleSearch) {
+    refs.btnNameSuggestGoogleSearch.addEventListener("click", () => {
+      const source = currentNameSuggestSourceText();
+      if (!source) return;
+      window.open(
+        `https://www.google.com/search?q=${encodeURIComponent(source)}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    });
+  }
+  refs.nameSourceInput.addEventListener("input", syncNameSuggestExternalActions);
   refs.btnRefreshNamePreview.addEventListener("click", refreshNamePreview);
   refs.btnAddNameSet.addEventListener("click", addNameSet);
   refs.btnDeleteNameSet.addEventListener("click", deleteActiveNameSet);
