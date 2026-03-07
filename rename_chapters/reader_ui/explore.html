@@ -14,6 +14,7 @@
         fontSize: 21,
         lineHeight: 1.9,
         paragraphSpacing: 1.1,
+        textIndent: 1.0,
         textAlign: "justify",
         panelTransparency: "clear",
         starStyle: "classic",
@@ -55,6 +56,7 @@
       root.style.setProperty("--reader-font-size", `${settings.fontSize}px`);
       root.style.setProperty("--reader-line-height", `${settings.lineHeight}`);
       root.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing}em`);
+      root.style.setProperty("--reader-text-indent", `${settings.textIndent}em`);
       root.style.setProperty("--reader-text-align", settings.textAlign);
       const effects = ["effect-stars", "effect-sparkle", "effect-bubbles", "effect-leaves", "effect-snow"];
       const stars = ["star-style-classic", "star-style-dense", "star-style-bling"];
@@ -69,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260307-imp5">
+  <link rel="stylesheet" href="./styles.css?v=20260307-indent1">
 </head>
 
 <body data-page="explore" class="mpa-body">
@@ -359,6 +361,8 @@
           step="0.05"><small id="line-height-value"></small></label>
       <label><span id="label-paragraph-spacing"></span><input id="paragraph-spacing-input" type="range" min="0.2"
           max="2.2" step="0.05"><small id="paragraph-spacing-value"></small></label>
+      <label><span id="label-text-indent"></span><input id="text-indent-input" type="range" min="0" max="3"
+          step="0.05"><small id="text-indent-value"></small></label>
       <label><span id="label-reading-mode"></span><select id="reading-mode-select">
           <option id="mode-flip" value="flip"></option>
           <option id="mode-horizontal" value="horizontal"></option>
@@ -433,7 +437,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/explore_page.js?v=20260221-vb27"></script>
+  <script type="module" src="./js/pages/explore_page.js?v=20260307-indent1"></script>
 </body>
 
 </html>

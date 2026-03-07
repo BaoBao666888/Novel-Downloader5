@@ -150,6 +150,7 @@ export const STRINGS = {
   alignCenter: "Canh giữa",
   lineHeight: "Dãn dòng",
   paragraphSpacing: "Dãn đoạn",
+  textIndent: "Thụt dòng",
   readingMode: "Cách đọc",
   modeFlip: "Mô phỏng lật sách",
   modeHorizontal: "Lướt ngang vô hạn",

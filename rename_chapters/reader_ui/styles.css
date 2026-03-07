@@ -16,6 +16,7 @@
   --reader-font-size: 21px;
   --reader-line-height: 1.9;
   --reader-paragraph-spacing: 1.1em;
+  --reader-text-indent: 1em;
   --reader-text-align: justify;
   --panel-alpha: 18%;
   --panel-alt-alpha: 14%;
@@ -1710,6 +1711,7 @@ body.panel-style-clear .reader-content-body {
 
 .reader-content-body p {
   margin: 0 0 var(--reader-paragraph-spacing);
+  text-indent: var(--reader-text-indent);
   white-space: normal;
   word-break: break-word;
 }

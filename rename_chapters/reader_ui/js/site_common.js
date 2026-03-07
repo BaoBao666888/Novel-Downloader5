@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260307-imp5";
+import { t } from "../i18n.vi.js?v=20260307-indent1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS = {
   textAlign: "justify",
   lineHeight: 1.9,
   paragraphSpacing: 1.1,
+  textIndent: 1.0,
   readingMode: "hybrid",
   panelTransparency: "clear",
   starStyle: "classic",
@@ -192,6 +193,7 @@ function applyReaderVars(settings) {
   root.style.setProperty("--reader-font-size", `${settings.fontSize}px`);
   root.style.setProperty("--reader-line-height", `${settings.lineHeight}`);
   root.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing}em`);
+  root.style.setProperty("--reader-text-indent", `${settings.textIndent}em`);
   root.style.setProperty("--reader-text-align", settings.textAlign);
 }
 
@@ -671,6 +673,7 @@ function fillStaticTexts() {
     ["label-text-align", "textAlign"],
     ["label-line-height", "lineHeight"],
     ["label-paragraph-spacing", "paragraphSpacing"],
+    ["label-text-indent", "textIndent"],
     ["label-reading-mode", "readingMode"],
     ["mode-flip", "modeFlip"],
     ["mode-horizontal", "modeHorizontal"],
@@ -871,6 +874,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
   const fontSizeInput = qs("font-size-input");
   const lineHeightInput = qs("line-height-input");
   const paragraphSpacingInput = qs("paragraph-spacing-input");
+  const textIndentInput = qs("text-indent-input");
   const textAlignSelect = qs("text-align-select");
   const readingModeSelect = qs("reading-mode-select");
   const panelTransparencySelect = qs("panel-transparency-select");
@@ -908,6 +912,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
   if (fontSizeInput) fontSizeInput.value = String(state.settings.fontSize);
   if (lineHeightInput) lineHeightInput.value = String(state.settings.lineHeight);
   if (paragraphSpacingInput) paragraphSpacingInput.value = String(state.settings.paragraphSpacing);
+  if (textIndentInput) textIndentInput.value = String(state.settings.textIndent);
   if (textAlignSelect) textAlignSelect.value = state.settings.textAlign;
   if (readingModeSelect) readingModeSelect.value = state.settings.readingMode;
   if (panelTransparencySelect) panelTransparencySelect.value = normalizePanelTransparency(state.settings.panelTransparency);
@@ -919,6 +924,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
   if (qs("font-size-value")) qs("font-size-value").textContent = `${state.settings.fontSize}px`;
   if (qs("line-height-value")) qs("line-height-value").textContent = `${state.settings.lineHeight.toFixed(2)}`;
   if (qs("paragraph-spacing-value")) qs("paragraph-spacing-value").textContent = `${state.settings.paragraphSpacing.toFixed(2)}em`;
+  if (qs("text-indent-value")) qs("text-indent-value").textContent = `${state.settings.textIndent.toFixed(2)}em`;
 
   try {
     const themesData = await api("/api/themes");
@@ -1270,6 +1276,17 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
     });
   }
 
+  if (textIndentInput) {
+    textIndentInput.addEventListener("input", () => {
+      const nextIndent = Number(textIndentInput.value);
+      state.settings.textIndent = Number.isFinite(nextIndent) ? nextIndent : DEFAULT_SETTINGS.textIndent;
+      if (qs("text-indent-value")) qs("text-indent-value").textContent = `${state.settings.textIndent.toFixed(2)}em`;
+      applyReaderVars(state.settings);
+      saveSettings(state.settings);
+      emitSettingsChanged(state.settings);
+    });
+  }
+
   if (qs("settings-form")) {
     qs("settings-form").addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -1308,12 +1325,14 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
       if (fontSizeInput) fontSizeInput.value = String(state.settings.fontSize);
       if (lineHeightInput) lineHeightInput.value = String(state.settings.lineHeight);
       if (paragraphSpacingInput) paragraphSpacingInput.value = String(state.settings.paragraphSpacing);
+      if (textIndentInput) textIndentInput.value = String(state.settings.textIndent);
       if (textAlignSelect) textAlignSelect.value = state.settings.textAlign;
       if (readingModeSelect) readingModeSelect.value = state.settings.readingMode;
       if (panelTransparencySelect) panelTransparencySelect.value = normalizePanelTransparency(state.settings.panelTransparency);
       if (miniBarsEnabledSelect) miniBarsEnabledSelect.value = state.settings.miniBarsEnabled ? "on" : "off";
       if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
       if (translationModeSelect) translationModeSelect.value = normalizeTranslationMode(state.settings.translationMode);
+      if (qs("text-indent-value")) qs("text-indent-value").textContent = `${state.settings.textIndent.toFixed(2)}em`;
       state.readerTranslationLocal = { ...LOCAL_TRANSLATION_DEFAULT };
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);

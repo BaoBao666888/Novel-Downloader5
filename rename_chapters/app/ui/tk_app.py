@@ -87,6 +87,8 @@ from app.ui.wikidich import WikidichController, WikidichState
 _SINGLE_INSTANCE_HOST = "127.0.0.1"
 _SINGLE_INSTANCE_PORT = int(os.environ.get("RC_SINGLE_INSTANCE_PORT", "45952"))
 _SINGLE_INSTANCE_MUTEX = "Global\\RenameChaptersSingleInstanceMutex"
+_SINGLE_INSTANCE_SHOW = b"SHOW"
+_SINGLE_INSTANCE_ACK = b"OK"
 _instance_mutex_handle = None
 
 
@@ -219,27 +221,147 @@ def _release_single_instance_mutex():
     _instance_mutex_handle = None
 
 
-def ensure_single_instance_or_exit():
-    """Bind cổng nội bộ; nếu đã có instance, gửi lệnh SHOW và thoát."""
-    if not _acquire_single_instance_mutex():
+def _normalize_single_instance_port(raw, default=45952):
+    try:
+        port = int(raw)
+    except Exception:
+        return default
+    if 1024 <= port <= 65535:
+        return port
+    return default
+
+
+def _read_single_instance_port_from_config(default=None):
+    fallback = _normalize_single_instance_port(default if default is not None else _SINGLE_INSTANCE_PORT)
+    try:
+        if not os.path.exists(CONFIG_PATH):
+            return fallback
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return fallback
+        single_cfg = data.get("single_instance")
+        if not isinstance(single_cfg, dict):
+            return fallback
+        return _normalize_single_instance_port(single_cfg.get("port"), fallback)
+    except Exception:
+        return fallback
+
+
+def _write_single_instance_port_to_config(port):
+    safe_port = _normalize_single_instance_port(port)
+    try:
+        data = {}
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                data = loaded
+        single_cfg = data.get("single_instance")
+        if not isinstance(single_cfg, dict):
+            single_cfg = {}
+        current = _normalize_single_instance_port(single_cfg.get("port"), 0)
+        if current == safe_port:
+            return
+        single_cfg["port"] = safe_port
+        data["single_instance"] = single_cfg
+        tmp_path = f"{CONFIG_PATH}.single.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+        os.replace(tmp_path, CONFIG_PATH)
+    except Exception:
         try:
-            with socket.create_connection((_SINGLE_INSTANCE_HOST, _SINGLE_INSTANCE_PORT), timeout=1.5) as conn:
-                conn.sendall(b"SHOW")
+            tmp_path = f"{CONFIG_PATH}.single.tmp"
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
         except Exception:
             pass
-        sys.exit(0)
+
+
+def _set_single_instance_runtime_port(port):
+    global _SINGLE_INSTANCE_PORT
+    safe_port = _normalize_single_instance_port(port)
+    _SINGLE_INSTANCE_PORT = safe_port
+    os.environ["RC_SINGLE_INSTANCE_PORT"] = str(safe_port)
+
+
+def _bind_single_instance_socket(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((_SINGLE_INSTANCE_HOST, int(port)))
+    sock.listen(1)
+    return sock
+
+
+def _bind_alternate_single_instance_socket():
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        sock.bind((_SINGLE_INSTANCE_HOST, _SINGLE_INSTANCE_PORT))
-        sock.listen(1)
-        return sock
-    except OSError:
+        probe.bind((_SINGLE_INSTANCE_HOST, 0))
+        probe.listen(1)
+        port = int(probe.getsockname()[1])
+        return probe, port
+    except Exception:
         try:
-            with socket.create_connection((_SINGLE_INSTANCE_HOST, _SINGLE_INSTANCE_PORT), timeout=1.5) as conn:
-                conn.sendall(b"SHOW")
+            probe.close()
         except Exception:
             pass
+        raise
+
+
+def _notify_existing_instance(timeout=1.5):
+    try:
+        with socket.create_connection((_SINGLE_INSTANCE_HOST, _SINGLE_INSTANCE_PORT), timeout=max(0.3, float(timeout))) as conn:
+            conn.settimeout(max(0.3, float(timeout)))
+            conn.sendall(_SINGLE_INSTANCE_SHOW)
+            try:
+                data = conn.recv(16)
+            except Exception:
+                data = b""
+        return data.strip().upper() == _SINGLE_INSTANCE_ACK
+    except Exception:
+        return False
+
+
+def ensure_single_instance_or_exit():
+    """Bind cổng nội bộ; nếu đã có instance, gửi lệnh SHOW và thoát."""
+    _set_single_instance_runtime_port(
+        _read_single_instance_port_from_config(os.environ.get("RC_SINGLE_INSTANCE_PORT", _SINGLE_INSTANCE_PORT))
+    )
+    if not _acquire_single_instance_mutex():
+        if not _notify_existing_instance(timeout=1.5):
+            try:
+                sys.stderr.write("[tk_app] single-instance mutex busy, but no SHOW ack received\n")
+                sys.stderr.flush()
+            except Exception:
+                pass
+        sys.exit(0)
+    try:
+        sock = _bind_single_instance_socket(_SINGLE_INSTANCE_PORT)
+        _write_single_instance_port_to_config(_SINGLE_INSTANCE_PORT)
+        return sock
+    except OSError:
+        if not _notify_existing_instance(timeout=1.5):
+            try:
+                sys.stderr.write(
+                    "[tk_app] single-instance port busy, but no SHOW ack received; "
+                    "allocating fallback port\n"
+                )
+                sys.stderr.flush()
+            except Exception:
+                pass
+            try:
+                fallback_sock, fallback_port = _bind_alternate_single_instance_socket()
+                _set_single_instance_runtime_port(fallback_port)
+                _write_single_instance_port_to_config(fallback_port)
+                try:
+                    sys.stderr.write(f"[tk_app] single-instance fallback port: {fallback_port}\n")
+                    sys.stderr.flush()
+                except Exception:
+                    pass
+                return fallback_sock
+            except Exception:
+                return None
         sys.exit(0)
 
 
@@ -564,7 +686,10 @@ class RenamerApp(
                 'ui_dir': 'reader_ui',
                 'server_installed_version': '',
                 'ui_installed_version': ''
-            }
+            },
+            'single_instance': {
+                'port': _normalize_single_instance_port(os.environ.get("RC_SINGLE_INSTANCE_PORT", _SINGLE_INSTANCE_PORT))
+            },
         }
 
     def _config_backup_dir(self):
@@ -2027,14 +2152,29 @@ class RenamerApp(
 
     def _restore_from_tray(self, _icon=None, _item=None):
         def _do_restore():
-            if self._hidden_to_tray:
-                self.deiconify()
-                self._hidden_to_tray = False
+            self._hidden_to_tray = False
+            try:
+                if self.state() in {"withdrawn", "iconic"}:
+                    self.deiconify()
+            except Exception:
                 try:
-                    self.lift()
-                    self.focus_force()
+                    self.deiconify()
                 except Exception:
                     pass
+            try:
+                self.state("normal")
+            except Exception:
+                pass
+            try:
+                self.attributes("-topmost", True)
+                self.after(120, lambda: self.attributes("-topmost", False))
+            except Exception:
+                pass
+            try:
+                self.lift()
+                self.focus_force()
+            except Exception:
+                pass
         self.after(0, _do_restore)
 
     def _exit_from_tray(self, _icon=None, _item=None):
@@ -2082,7 +2222,11 @@ class RenamerApp(
                 with conn:
                     try:
                         data = conn.recv(32)
-                        if data and data.strip().upper() == b"SHOW":
+                        if data and data.strip().upper() == _SINGLE_INSTANCE_SHOW:
+                            try:
+                                conn.sendall(_SINGLE_INSTANCE_ACK)
+                            except Exception:
+                                pass
                             self.after(0, self._restore_from_tray)
                     except Exception:
                         pass
@@ -2322,6 +2466,9 @@ class RenamerApp(
             'wd_not_found': list(self.wd_not_found or []),
             'novel_downloader5': dict(self.nd5_options or {}),
             'online_title_choice': self.title_choice.get(),
+            'single_instance': {
+                'port': _normalize_single_instance_port(_SINGLE_INSTANCE_PORT)
+            },
         })
         self.app_config['ui_settings'] = self.ui_settings
         if hasattr(self, "wd_search_var"):
