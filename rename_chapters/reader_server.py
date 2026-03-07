@@ -40,6 +40,7 @@ CACHE_DIR = LOCAL_DIR / "reader_cache"
 EXPORT_DIR = LOCAL_DIR / "reader_exports"
 COVER_DIR = LOCAL_DIR / "reader_covers"
 VBOOK_IMAGE_CACHE_DIR = CACHE_DIR / "vbook_image_cache"
+IMPORT_PREVIEW_DIR = CACHE_DIR / "import_previews"
 DB_PATH = LOCAL_DIR / "reader_library.db"
 DEFAULT_UI_DIR = ROOT_DIR / "reader_ui"
 APP_CONFIG_PATH = ROOT_DIR / "config.json"
@@ -109,12 +110,13 @@ def resolve_existing_path(raw: str | Path, *bases: Path) -> Path:
 
 def set_local_dirs(local_dir: Path) -> None:
     """Override local/cache/export/cover dirs theo vị trí DB để ND5 + Reader dùng chung."""
-    global LOCAL_DIR, CACHE_DIR, EXPORT_DIR, COVER_DIR, VBOOK_IMAGE_CACHE_DIR, DB_PATH
+    global LOCAL_DIR, CACHE_DIR, EXPORT_DIR, COVER_DIR, VBOOK_IMAGE_CACHE_DIR, IMPORT_PREVIEW_DIR, DB_PATH
     LOCAL_DIR = local_dir
     CACHE_DIR = LOCAL_DIR / "reader_cache"
     EXPORT_DIR = LOCAL_DIR / "reader_exports"
     COVER_DIR = LOCAL_DIR / "reader_covers"
     VBOOK_IMAGE_CACHE_DIR = CACHE_DIR / "vbook_image_cache"
+    IMPORT_PREVIEW_DIR = CACHE_DIR / "import_previews"
     DB_PATH = LOCAL_DIR / "reader_library.db"
 
 
@@ -294,6 +296,134 @@ CHAPTER_HEADING_REGEX = re.compile(
     r"^(?:\s*)(?:Chương|CHƯƠNG|Chuong|CHUONG|Chapter|CHAPTER|卷|第\s*[\d一二三四五六七八九十百千零]+\s*章)[^\n]{0,120}$",
     re.MULTILINE,
 )
+
+TXT_IMPORT_PRESETS: list[dict[str, str]] = [
+    {
+        "id": "cn_standard",
+        "label": "Chương Trung chuẩn",
+        "pattern": r"^(?:\s*)(?:第\s*[\d0-9一二三四五六七八九十百千零两]+\s*[章节卷回集部篇])[^\n]{0,120}$",
+        "description": "Phù hợp đa số TXT truyện Trung có dạng 第123章 / 第三卷.",
+    },
+    {
+        "id": "vi_standard",
+        "label": "Chương tiếng Việt",
+        "pattern": r"^(?:\s*)(?:Chương|CHƯƠNG|Chuong|CHUONG)\s*[\dIVXLCDMivxlcdm]+[^\n]{0,120}$",
+        "description": "Bắt dòng tiêu đề dạng Chương 12 / CHƯƠNG IV.",
+    },
+    {
+        "id": "en_standard",
+        "label": "Chapter tiếng Anh",
+        "pattern": r"^(?:\s*)(?:Chapter|CHAPTER)\s*[\dIVXLCDMivxlcdm]+[^\n]{0,120}$",
+        "description": "Bắt dòng tiêu đề dạng Chapter 12 / CHAPTER IV.",
+    },
+    {
+        "id": "short_numbered",
+        "label": "Dòng số thứ tự ngắn",
+        "pattern": r"^(?:\s*)(?:\d{1,5}|[一二三四五六七八九十百千零两]{1,8})[\.\-、:： )）][^\n]{1,80}$",
+        "description": "Dùng cho TXT có tiêu đề ngắn kiểu 12. Tên chương / 12- Tên chương.",
+    },
+]
+
+DEFAULT_READER_IMPORT_SETTINGS: dict[str, Any] = {
+    "txt": {
+        "target_size": 4500,
+        "preface_title": "Mở đầu",
+        "heading_patterns": [item["pattern"] for item in TXT_IMPORT_PRESETS[:3]],
+    },
+    "epub": {
+        "title_keys": ["title", "book-title"],
+        "author_keys": ["creator", "author"],
+        "summary_keys": ["description", "summary", "intro", "abstract", "subject"],
+        "language_keys": ["language"],
+        "cover_meta_names": ["cover"],
+        "cover_properties": ["cover-image"],
+    },
+}
+
+
+def normalize_metadata_key(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    if "}" in text:
+        text = text.split("}", 1)[1]
+    if ":" in text:
+        text = text.split(":", 1)[1]
+    return text.replace("_", "-").strip()
+
+
+def normalize_import_list(value: Any, fallback: list[str] | tuple[str, ...]) -> list[str]:
+    if isinstance(value, list):
+        raw_items = value
+    elif isinstance(value, tuple):
+        raw_items = list(value)
+    else:
+        text = str(value or "").replace("\r\n", "\n").replace("\r", "\n")
+        raw_items = text.split("\n") if text else []
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        text = str(item or "").strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+    if out:
+        return out
+    return [str(x).strip() for x in fallback if str(x).strip()]
+
+
+def normalize_reader_import_settings(raw_cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+    raw = raw_cfg if isinstance(raw_cfg, dict) else {}
+    txt_raw = raw.get("txt") if isinstance(raw.get("txt"), dict) else {}
+    epub_raw = raw.get("epub") if isinstance(raw.get("epub"), dict) else {}
+
+    txt_default = DEFAULT_READER_IMPORT_SETTINGS["txt"]
+    epub_default = DEFAULT_READER_IMPORT_SETTINGS["epub"]
+
+    try:
+        target_size = int(txt_raw.get("target_size") or txt_default["target_size"])
+    except Exception:
+        target_size = int(txt_default["target_size"])
+    target_size = max(800, min(30000, target_size))
+
+    txt_patterns = normalize_import_list(
+        txt_raw.get("heading_patterns"),
+        txt_default["heading_patterns"],
+    )
+
+    return {
+        "txt": {
+            "target_size": target_size,
+            "preface_title": str(txt_raw.get("preface_title") or txt_default["preface_title"]).strip() or "Mở đầu",
+            "heading_patterns": txt_patterns,
+        },
+        "epub": {
+            "title_keys": normalize_import_list(epub_raw.get("title_keys"), epub_default["title_keys"]),
+            "author_keys": normalize_import_list(epub_raw.get("author_keys"), epub_default["author_keys"]),
+            "summary_keys": normalize_import_list(epub_raw.get("summary_keys"), epub_default["summary_keys"]),
+            "language_keys": normalize_import_list(epub_raw.get("language_keys"), epub_default["language_keys"]),
+            "cover_meta_names": normalize_import_list(epub_raw.get("cover_meta_names"), epub_default["cover_meta_names"]),
+            "cover_properties": normalize_import_list(epub_raw.get("cover_properties"), epub_default["cover_properties"]),
+        },
+    }
+
+
+def import_settings_presets() -> dict[str, Any]:
+    return {
+        "txt_patterns": [dict(item) for item in TXT_IMPORT_PRESETS],
+        "epub_fields": {
+            "title_keys": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["title_keys"]),
+            "author_keys": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["author_keys"]),
+            "summary_keys": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["summary_keys"]),
+            "language_keys": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["language_keys"]),
+            "cover_meta_names": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["cover_meta_names"]),
+            "cover_properties": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["cover_properties"]),
+        },
+    }
 
 
 def utc_now_iso() -> str:
@@ -1573,24 +1703,74 @@ def split_by_newlines(normalized: str, target_size: int = 4500) -> list[dict[str
     return merge_short_chapters(chapters, min_len)
 
 
-def split_text_into_chapters(text: str, target_size: int = 4500) -> list[dict[str, str]]:
+def compile_chapter_heading_patterns(patterns: list[str] | tuple[str, ...] | None = None) -> list[re.Pattern[str]]:
+    raw_patterns = [str(item or "").strip() for item in (patterns or []) if str(item or "").strip()]
+    if not raw_patterns:
+        return [CHAPTER_HEADING_REGEX]
+    compiled: list[re.Pattern[str]] = []
+    for raw in raw_patterns:
+        try:
+            compiled.append(re.compile(raw, re.MULTILINE))
+        except re.error:
+            continue
+    return compiled or [CHAPTER_HEADING_REGEX]
+
+
+def collect_heading_matches(normalized: str, patterns: list[re.Pattern[str]]) -> list[dict[str, Any]]:
+    raw_matches: list[dict[str, Any]] = []
+    for pattern in patterns:
+        for match in pattern.finditer(normalized):
+            if match.start() == match.end():
+                continue
+            title = (match.group(0) or "").strip()
+            if not title:
+                continue
+            raw_matches.append(
+                {
+                    "start": int(match.start()),
+                    "end": int(match.end()),
+                    "title": title,
+                }
+            )
+    raw_matches.sort(key=lambda item: (int(item["start"]), -int(item["end"]) + int(item["start"])))
+    dedup: list[dict[str, Any]] = []
+    seen_ranges: set[tuple[int, int]] = set()
+    last_end = -1
+    for item in raw_matches:
+        key = (int(item["start"]), int(item["end"]))
+        if key in seen_ranges:
+            continue
+        seen_ranges.add(key)
+        if int(item["start"]) < last_end:
+            continue
+        dedup.append(item)
+        last_end = int(item["end"])
+    return dedup
+
+
+def split_text_into_chapters(
+    text: str,
+    target_size: int = 4500,
+    heading_patterns: list[str] | tuple[str, ...] | None = None,
+    preface_title: str = "Mở đầu",
+) -> list[dict[str, str]]:
     normalized = normalize_text_for_split(text)
     if not normalized:
         return []
-    matches = list(CHAPTER_HEADING_REGEX.finditer(normalized))
+    matches = collect_heading_matches(normalized, compile_chapter_heading_patterns(heading_patterns))
     if not matches:
         return split_by_newlines(normalized, target_size=target_size)
 
     chapters: list[dict[str, str]] = []
-    if matches[0].start() > 0:
-        preface = normalize_text_for_split(normalized[: matches[0].start()])
+    if int(matches[0]["start"]) > 0:
+        preface = normalize_text_for_split(normalized[: int(matches[0]["start"])])
         if preface:
-            chapters.append({"title": "Mở đầu", "text": preface})
+            chapters.append({"title": str(preface_title or "Mở đầu").strip() or "Mở đầu", "text": preface})
 
     for i, m in enumerate(matches):
-        title = (m.group(0) or "").strip() or f"Chương {i+1}"
-        start = m.end()
-        end = matches[i + 1].start() if i + 1 < len(matches) else len(normalized)
+        title = str(m.get("title") or "").strip() or f"Chương {i+1}"
+        start = int(m.get("end") or 0)
+        end = int(matches[i + 1]["start"]) if i + 1 < len(matches) else len(normalized)
         content = normalize_text_for_split(normalized[start:end])
         if content:
             chapters.append({"title": title, "text": content})
@@ -1627,7 +1807,67 @@ def find_all_by_localname(root: ET.Element, name: str) -> list[ET.Element]:
     return result
 
 
-def parse_epub_chapters(data: bytes, custom_title: str | None = None) -> tuple[str, str, list[dict[str, str]]]:
+def extract_epub_metadata_candidates(metadata_root: ET.Element) -> list[dict[str, str]]:
+    seen: set[tuple[str, str]] = set()
+    out: list[dict[str, str]] = []
+    for el in metadata_root.iter():
+        key = normalize_metadata_key(localname(el.tag))
+        if not key:
+            continue
+        text = normalize_vbook_display_text(html.unescape("".join(el.itertext() or []).strip()), single_line=False)
+        if text:
+            sig = (key, text)
+            if sig not in seen:
+                seen.add(sig)
+                out.append({"key": key, "value": text})
+        if localname(el.tag).lower() != "meta":
+            continue
+        for attr_name in ("name", "property", "id"):
+            attr_key = normalize_metadata_key(el.attrib.get(attr_name))
+            if not attr_key:
+                continue
+            value = el.attrib.get("content") or "".join(el.itertext() or []).strip()
+            value = normalize_vbook_display_text(html.unescape(value), single_line=False)
+            if not value:
+                continue
+            sig = (attr_key, value)
+            if sig in seen:
+                continue
+            seen.add(sig)
+            out.append({"key": attr_key, "value": value})
+    return out
+
+
+def first_epub_metadata_value(
+    candidates: list[dict[str, str]],
+    keys: list[str] | tuple[str, ...],
+    *,
+    single_line: bool,
+) -> str:
+    wanted = [normalize_metadata_key(item) for item in keys if normalize_metadata_key(item)]
+    if not wanted:
+        return ""
+    for key in wanted:
+        for row in candidates:
+            row_key = normalize_metadata_key(row.get("key"))
+            if row_key != key:
+                continue
+            value = normalize_vbook_display_text(row.get("value") or "", single_line=single_line)
+            if value:
+                return value
+    return ""
+
+
+def parse_epub_book(
+    data: bytes,
+    *,
+    custom_title: str | None = None,
+    custom_author: str | None = None,
+    custom_summary: str | None = None,
+    parser_settings: dict[str, Any] | None = None,
+    lang_source: str = "",
+) -> dict[str, Any]:
+    import_settings = normalize_reader_import_settings({"epub": parser_settings or {}})
     with zipfile.ZipFile(io.BytesIO(data)) as zf:
         def read_text(path: str) -> str | None:
             candidates = [path, unquote(path)]
@@ -1656,22 +1896,47 @@ def parse_epub_chapters(data: bytes, custom_title: str | None = None) -> tuple[s
             raise ValueError("Không đọc được file OPF trong EPUB.")
         opf_doc = ET.fromstring(opf_xml)
 
-        metadata_el = find_first_by_localname(opf_doc, "metadata") or opf_doc
-        title_el = find_first_by_localname(metadata_el, "title")
-        creator_el = find_first_by_localname(metadata_el, "creator")
-
-        title = (custom_title or "").strip() or (title_el.text or "").strip() or "Untitled"
-        author = (creator_el.text or "").strip()
+        metadata_el = find_first_by_localname(opf_doc, "metadata")
+        metadata_root = metadata_el if metadata_el is not None else opf_doc
+        metadata_candidates = extract_epub_metadata_candidates(metadata_root)
+        title = (custom_title or "").strip() or first_epub_metadata_value(
+            metadata_candidates,
+            import_settings["epub"]["title_keys"],
+            single_line=True,
+        ) or "Untitled"
+        author = (custom_author or "").strip() or first_epub_metadata_value(
+            metadata_candidates,
+            import_settings["epub"]["author_keys"],
+            single_line=True,
+        )
+        summary = (custom_summary or "").strip() or first_epub_metadata_value(
+            metadata_candidates,
+            import_settings["epub"]["summary_keys"],
+            single_line=False,
+        )
+        detected_lang = normalize_lang_source(
+            first_epub_metadata_value(
+                metadata_candidates,
+                import_settings["epub"]["language_keys"],
+                single_line=True,
+            )
+        )
 
         manifest: dict[str, dict[str, str]] = {}
         for item in find_all_by_localname(opf_doc, "item"):
             item_id = item.attrib.get("id", "").strip()
             href = item.attrib.get("href", "").strip()
             media_type = item.attrib.get("media-type", "").strip()
+            properties = item.attrib.get("properties", "").strip()
             if not item_id or not href:
                 continue
             resolved = resolve_zip_path(opf_path, href)
-            manifest[item_id] = {"href": href, "resolved": resolved, "media_type": media_type}
+            manifest[item_id] = {
+                "href": href,
+                "resolved": resolved,
+                "media_type": media_type,
+                "properties": properties,
+            }
 
         spine_ids: list[str] = []
         spine_el = find_first_by_localname(opf_doc, "spine")
@@ -1705,6 +1970,55 @@ def parse_epub_chapters(data: bytes, custom_title: str | None = None) -> tuple[s
                 except Exception:
                     pass
 
+        cover_bytes = b""
+        cover_name = ""
+        cover_meta_names = {normalize_metadata_key(x) for x in import_settings["epub"]["cover_meta_names"]}
+        cover_properties = {normalize_metadata_key(x) for x in import_settings["epub"]["cover_properties"]}
+        cover_item_id = ""
+        for row in metadata_candidates:
+            key = normalize_metadata_key(row.get("key"))
+            if key not in cover_meta_names:
+                continue
+            value = str(row.get("value") or "").strip()
+            if value:
+                cover_item_id = value
+                break
+        if not cover_item_id:
+            for item_id, item in manifest.items():
+                prop_tokens = {
+                    normalize_metadata_key(x)
+                    for x in str(item.get("properties") or "").split()
+                    if normalize_metadata_key(x)
+                }
+                if prop_tokens & cover_properties:
+                    cover_item_id = item_id
+                    break
+        if cover_item_id and cover_item_id in manifest:
+            cover_item = manifest.get(cover_item_id) or {}
+            cover_name = Path(str(cover_item.get("resolved") or cover_item.get("href") or "cover.jpg")).name
+            try:
+                cover_bytes = zf.read(str(cover_item.get("resolved") or ""))
+            except Exception:
+                cover_bytes = b""
+        if not cover_bytes:
+            for item in manifest.values():
+                media_type = str(item.get("media_type") or "").strip().lower()
+                if not media_type.startswith("image/"):
+                    continue
+                prop_tokens = {
+                    normalize_metadata_key(x)
+                    for x in str(item.get("properties") or "").split()
+                    if normalize_metadata_key(x)
+                }
+                if cover_properties and not (prop_tokens & cover_properties):
+                    continue
+                cover_name = Path(str(item.get("resolved") or item.get("href") or "cover.jpg")).name
+                try:
+                    cover_bytes = zf.read(str(item.get("resolved") or ""))
+                    break
+                except Exception:
+                    continue
+
         chapters: list[dict[str, str]] = []
         for idx, spine_id in enumerate(spine_ids, start=1):
             item = manifest.get(spine_id)
@@ -1734,7 +2048,87 @@ def parse_epub_chapters(data: bytes, custom_title: str | None = None) -> tuple[s
         if not chapters:
             raise ValueError("Không tìm thấy chương hợp lệ trong EPUB.")
 
-        return title, author, chapters
+        final_lang = normalize_lang_source(lang_source) or detected_lang or "zh"
+        return {
+            "source_type": "epub",
+            "metadata": {
+                "title": title,
+                "author": author,
+                "summary": summary or "Sách EPUB được nhập từ file cục bộ.",
+                "lang_source": final_lang,
+                "detected_lang": detected_lang,
+                "chapter_count": len(chapters),
+                "has_cover": bool(cover_bytes),
+                "cover_name": cover_name,
+            },
+            "chapters": chapters,
+            "cover_bytes": cover_bytes,
+            "cover_name": cover_name,
+            "diagnostics": {
+                "metadata_candidates": metadata_candidates,
+            },
+        }
+
+
+def parse_epub_chapters(data: bytes, custom_title: str | None = None) -> tuple[str, str, list[dict[str, str]]]:
+    parsed = parse_epub_book(data, custom_title=custom_title)
+    metadata = parsed.get("metadata") if isinstance(parsed, dict) else {}
+    chapters = parsed.get("chapters") if isinstance(parsed, dict) else []
+    return (
+        str((metadata or {}).get("title") or "Untitled"),
+        str((metadata or {}).get("author") or ""),
+        [dict(item or {}) for item in chapters if isinstance(item, dict)],
+    )
+
+
+def parse_txt_book(
+    filename: str,
+    file_bytes: bytes,
+    *,
+    lang_source: str = "",
+    custom_title: str | None = None,
+    custom_author: str | None = None,
+    custom_summary: str | None = None,
+    parser_settings: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    settings = normalize_reader_import_settings({"txt": parser_settings or {}})
+    text = decode_text_with_fallback(file_bytes)
+    title = (custom_title or "").strip() or re.sub(r"\.[^.]+$", "", filename or "") or "Untitled"
+    author = (custom_author or "").strip()
+    summary = (custom_summary or "").strip() or "Sách TXT được nhập và tách chương tự động."
+    chapters = split_text_into_chapters(
+        text,
+        target_size=int(settings["txt"]["target_size"]),
+        heading_patterns=settings["txt"]["heading_patterns"],
+        preface_title=str(settings["txt"]["preface_title"] or "Mở đầu"),
+    )
+    if not chapters:
+        raise ValueError("Không tách được chương từ file TXT.")
+    normalized = normalize_text_for_split(text)
+    matches = collect_heading_matches(
+        normalized,
+        compile_chapter_heading_patterns(settings["txt"]["heading_patterns"]),
+    )
+    split_strategy = "regex" if matches else "newlines"
+    return {
+        "source_type": "txt",
+        "metadata": {
+            "title": title,
+            "author": author,
+            "summary": summary,
+            "lang_source": normalize_lang_source(lang_source) or "zh",
+            "chapter_count": len(chapters),
+            "has_cover": False,
+        },
+        "chapters": chapters,
+        "cover_bytes": b"",
+        "cover_name": "",
+        "diagnostics": {
+            "split_strategy": split_strategy,
+            "matched_heading_count": len(matches),
+            "metadata_candidates": [],
+        },
+    }
 
 
 @dataclass
@@ -4420,6 +4814,7 @@ class ReaderService:
         self._vbook_bridge_state_cache: dict[str, Any] = {}
         self._vbook_bridge_state_mtime: float | None = None
         self.reader_translation_settings: dict[str, Any] = {"enabled": True, "mode": "server"}
+        self.reader_import_settings: dict[str, Any] = normalize_reader_import_settings({})
         self.name_set_state: dict[str, Any] = {"sets": {"Mặc định": {}}, "active_set": "Mặc định", "version": 1}
         # Allow storage to lazy-load remote chapter content (vBook, ...).
         self.storage.remote_chapter_fetcher = self._fetch_remote_chapter
@@ -4448,6 +4843,7 @@ class ReaderService:
     def refresh_config(self) -> None:
         self.app_config = load_app_config()
         self.reader_translation_settings = self._normalized_reader_translation_settings(self.app_config)
+        self.reader_import_settings = self._normalized_reader_import_settings(self.app_config)
         default_sets = self._default_name_sets()
         default_active = self._default_active_name_set(default_sets)
         self.name_set_state = self.storage.get_name_set_state(
@@ -4512,45 +4908,346 @@ class ReaderService:
         else:
             self.vbook_runner = None
 
-    def import_file(self, filename: str, file_bytes: bytes, lang_source: str, title: str, author: str) -> dict[str, Any]:
+    def _import_preview_root(self) -> Path:
+        IMPORT_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+        return IMPORT_PREVIEW_DIR
+
+    def _cleanup_import_previews(self, *, max_age_hours: int = 24) -> None:
+        root = self._import_preview_root()
+        cutoff = time.time() - max(1, int(max_age_hours)) * 3600
+        for child in root.iterdir():
+            try:
+                if child.stat().st_mtime >= cutoff:
+                    continue
+                if child.is_dir():
+                    for nested in child.iterdir():
+                        try:
+                            nested.unlink()
+                        except Exception:
+                            pass
+                    child.rmdir()
+                else:
+                    child.unlink()
+            except Exception:
+                continue
+
+    def _import_preview_dir(self, token: str) -> Path:
+        safe = re.sub(r"[^a-zA-Z0-9_-]", "", str(token or ""))
+        if not safe:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Token preview import không hợp lệ.")
+        return self._import_preview_root() / safe
+
+    def _save_import_preview_state(self, token: str, state: dict[str, Any]) -> dict[str, Any]:
+        folder = self._import_preview_dir(token)
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / "state.json"
+        path.write_text(json.dumps(state or {}, ensure_ascii=False, indent=2), encoding="utf-8")
+        return state
+
+    def _load_import_preview_state(self, token: str) -> dict[str, Any]:
+        folder = self._import_preview_dir(token)
+        path = folder / "state.json"
+        if not path.exists():
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy phiên chuẩn bị import.")
+        try:
+            parsed = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise ApiError(HTTPStatus.INTERNAL_SERVER_ERROR, "BAD_IMPORT_PREVIEW", "Không đọc được phiên chuẩn bị import.", str(exc)) from exc
+        if not isinstance(parsed, dict):
+            raise ApiError(HTTPStatus.INTERNAL_SERVER_ERROR, "BAD_IMPORT_PREVIEW", "Dữ liệu preview import không hợp lệ.")
+        return parsed
+
+    def _remove_import_preview_state(self, token: str) -> None:
+        folder = self._import_preview_dir(token)
+        if not folder.exists():
+            return
+        for item in folder.iterdir():
+            try:
+                item.unlink()
+            except Exception:
+                pass
+        try:
+            folder.rmdir()
+        except Exception:
+            pass
+
+    def _merge_reader_import_settings(self, override: dict[str, Any] | None = None) -> dict[str, Any]:
+        base = normalize_reader_import_settings(self.reader_import_settings)
+        if not isinstance(override, dict):
+            return base
+        merged = {
+            "txt": dict(base.get("txt") or {}),
+            "epub": dict(base.get("epub") or {}),
+        }
+        for section in ("txt", "epub"):
+            raw_section = override.get(section)
+            if not isinstance(raw_section, dict):
+                continue
+            merged[section].update(raw_section)
+        return normalize_reader_import_settings(merged)
+
+    def _parse_local_import_payload(
+        self,
+        filename: str,
+        file_bytes: bytes,
+        *,
+        lang_source: str,
+        title: str,
+        author: str,
+        summary: str = "",
+        import_settings: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         name = filename or "imported"
         ext = name.lower().rsplit(".", 1)[-1] if "." in name else "txt"
+        settings = self._merge_reader_import_settings(import_settings)
         lang = normalize_lang_source(lang_source) or "zh"
 
         if ext == "epub":
-            parsed_title, parsed_author, chapters = parse_epub_chapters(file_bytes, custom_title=title)
-            summary = "Sách EPUB được nhập từ file cục bộ."
-            created = self.storage.create_book(
-                title=parsed_title,
-                author=author.strip() or parsed_author,
+            parsed = parse_epub_book(
+                file_bytes,
+                custom_title=title,
+                custom_author=author,
+                custom_summary=summary,
+                parser_settings=settings.get("epub"),
                 lang_source=lang,
-                source_type="epub",
-                summary=summary,
-                chapters=chapters,
             )
-            self.storage.save_epub_source(created["book_id"], file_bytes)
-            created["epub_url"] = f"/media/epub/{created['book_id']}.epub"
-            return created
-
-        if ext != "txt":
+        elif ext == "txt":
+            parsed = parse_txt_book(
+                name,
+                file_bytes,
+                lang_source=lang,
+                custom_title=title,
+                custom_author=author,
+                custom_summary=summary,
+                parser_settings=settings.get("txt"),
+            )
+        else:
             raise ValueError("V1 chỉ hỗ trợ import TXT và EPUB.")
 
-        text = decode_text_with_fallback(file_bytes)
-        max_chars = int((self.app_config.get("translator_settings") or {}).get("maxChars", 4500) or 4500)
-        chapters = split_text_into_chapters(text, target_size=max_chars)
+        metadata = parsed.get("metadata") if isinstance(parsed.get("metadata"), dict) else {}
+        chapters = parsed.get("chapters") if isinstance(parsed.get("chapters"), list) else []
         if not chapters:
-            raise ValueError("Không tách được chương từ file TXT.")
+            raise ValueError("Không có chương hợp lệ để import.")
+        chapter_preview = []
+        for idx, chapter in enumerate(chapters, start=1):
+            if not isinstance(chapter, dict):
+                continue
+            raw_title = str(chapter.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
+            raw_text = str(chapter.get("text") or "")
+            chapter_preview.append(
+                {
+                    "index": idx,
+                    "title": raw_title,
+                    "word_count": len(raw_text),
+                    "preview": normalize_vbook_display_text(raw_text[:140], single_line=False),
+                }
+            )
+        return {
+            "file_name": name,
+            "file_ext": ext,
+            "source_type": str(parsed.get("source_type") or ext),
+            "metadata": {
+                "title": str(metadata.get("title") or title or "").strip() or "Untitled",
+                "author": str(metadata.get("author") or author or "").strip(),
+                "summary": str(metadata.get("summary") or summary or "").strip(),
+                "lang_source": normalize_lang_source(metadata.get("lang_source") or lang) or lang,
+                "chapter_count": len(chapter_preview),
+                "has_cover": bool(metadata.get("has_cover")),
+                "detected_lang": normalize_lang_source(metadata.get("detected_lang") or ""),
+            },
+            "chapters": [dict(item or {}) for item in chapters if isinstance(item, dict)],
+            "chapter_preview": chapter_preview,
+            "cover_bytes": parsed.get("cover_bytes") if isinstance(parsed.get("cover_bytes"), (bytes, bytearray)) else b"",
+            "cover_name": str(parsed.get("cover_name") or ""),
+            "diagnostics": dict(parsed.get("diagnostics") or {}),
+            "import_settings": settings,
+        }
 
-        final_title = (title or "").strip() or re.sub(r"\.[^.]+$", "", name) or "Untitled"
-        summary = "Sách TXT được nhập và tách chương tự động."
-        return self.storage.create_book(
-            title=final_title,
-            author=author,
-            lang_source=lang,
-            source_type="txt",
-            summary=summary,
-            chapters=chapters,
+    def _create_book_from_local_import(self, parsed: dict[str, Any], file_bytes: bytes) -> dict[str, Any]:
+        metadata = parsed.get("metadata") if isinstance(parsed.get("metadata"), dict) else {}
+        chapters = parsed.get("chapters") if isinstance(parsed.get("chapters"), list) else []
+        created = self.storage.create_book(
+            title=str(metadata.get("title") or "Untitled").strip() or "Untitled",
+            author=str(metadata.get("author") or "").strip(),
+            lang_source=normalize_lang_source(metadata.get("lang_source") or "") or "zh",
+            source_type=str(parsed.get("source_type") or "txt").strip() or "txt",
+            summary=str(metadata.get("summary") or "").strip(),
+            chapters=[dict(item or {}) for item in chapters if isinstance(item, dict)],
         )
+        book_id = str((created or {}).get("book_id") or "").strip()
+        if not book_id:
+            return created
+        if str(parsed.get("source_type") or "") == "epub":
+            self.storage.save_epub_source(book_id, file_bytes)
+            created["epub_url"] = f"/media/epub/{book_id}.epub"
+        cover_bytes = parsed.get("cover_bytes")
+        if isinstance(cover_bytes, (bytes, bytearray)) and cover_bytes:
+            try:
+                updated = self.storage.set_book_cover_upload(
+                    book_id,
+                    str(parsed.get("cover_name") or "cover.jpg"),
+                    bytes(cover_bytes),
+                )
+                if updated:
+                    created = updated
+                    if str(parsed.get("source_type") or "") == "epub":
+                        created["epub_url"] = f"/media/epub/{book_id}.epub"
+            except Exception:
+                pass
+        return created
+
+    def prepare_import_file(
+        self,
+        filename: str,
+        file_bytes: bytes,
+        lang_source: str,
+        title: str,
+        author: str,
+        summary: str = "",
+        import_settings: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        self._cleanup_import_previews()
+        parsed = self._parse_local_import_payload(
+            filename,
+            file_bytes,
+            lang_source=lang_source,
+            title=title,
+            author=author,
+            summary=summary,
+            import_settings=import_settings,
+        )
+        token = uuid.uuid4().hex
+        folder = self._import_preview_dir(token)
+        folder.mkdir(parents=True, exist_ok=True)
+        suffix = Path(filename or "import.txt").suffix or ".txt"
+        source_name = f"source{suffix}"
+        (folder / source_name).write_bytes(file_bytes)
+        self._save_import_preview_state(
+            token,
+            {
+                "token": token,
+                "file_name": filename or "imported",
+                "source_name": source_name,
+                "lang_source": str(parsed["metadata"]["lang_source"]),
+                "title": str(parsed["metadata"]["title"] or ""),
+                "author": str(parsed["metadata"]["author"] or ""),
+                "summary": str(parsed["metadata"]["summary"] or ""),
+                "import_settings": parsed.get("import_settings") or self.reader_import_settings,
+                "created_at": utc_now_iso(),
+            },
+        )
+        return {
+            "ok": True,
+            "token": token,
+            "preview": {
+                "file_name": parsed.get("file_name"),
+                "file_ext": parsed.get("file_ext"),
+                "source_type": parsed.get("source_type"),
+                "metadata": parsed.get("metadata"),
+                "chapters": parsed.get("chapter_preview"),
+                "diagnostics": parsed.get("diagnostics"),
+                "import_settings": parsed.get("import_settings"),
+                "presets": import_settings_presets(),
+            },
+        }
+
+    def preview_import_token(
+        self,
+        token: str,
+        *,
+        lang_source: str = "",
+        title: str = "",
+        author: str = "",
+        summary: str = "",
+        import_settings: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        state = self._load_import_preview_state(token)
+        folder = self._import_preview_dir(token)
+        source_path = folder / str(state.get("source_name") or "")
+        if not source_path.exists():
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không còn file nguồn cho phiên import này.")
+        file_bytes = source_path.read_bytes()
+        parsed = self._parse_local_import_payload(
+            str(state.get("file_name") or "imported"),
+            file_bytes,
+            lang_source=lang_source or str(state.get("lang_source") or ""),
+            title=title or str(state.get("title") or ""),
+            author=author or str(state.get("author") or ""),
+            summary=summary or str(state.get("summary") or ""),
+            import_settings=import_settings if isinstance(import_settings, dict) else state.get("import_settings"),
+        )
+        state["lang_source"] = str(parsed["metadata"]["lang_source"])
+        state["title"] = str(parsed["metadata"]["title"] or "")
+        state["author"] = str(parsed["metadata"]["author"] or "")
+        state["summary"] = str(parsed["metadata"]["summary"] or "")
+        state["import_settings"] = parsed.get("import_settings") or state.get("import_settings") or {}
+        state["updated_at"] = utc_now_iso()
+        self._save_import_preview_state(token, state)
+        return {
+            "ok": True,
+            "token": token,
+            "preview": {
+                "file_name": parsed.get("file_name"),
+                "file_ext": parsed.get("file_ext"),
+                "source_type": parsed.get("source_type"),
+                "metadata": parsed.get("metadata"),
+                "chapters": parsed.get("chapter_preview"),
+                "diagnostics": parsed.get("diagnostics"),
+                "import_settings": parsed.get("import_settings"),
+                "presets": import_settings_presets(),
+            },
+        }
+
+    def commit_import_token(
+        self,
+        token: str,
+        *,
+        lang_source: str = "",
+        title: str = "",
+        author: str = "",
+        summary: str = "",
+        import_settings: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        state = self._load_import_preview_state(token)
+        folder = self._import_preview_dir(token)
+        source_path = folder / str(state.get("source_name") or "")
+        if not source_path.exists():
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không còn file nguồn cho phiên import này.")
+        file_bytes = source_path.read_bytes()
+        parsed = self._parse_local_import_payload(
+            str(state.get("file_name") or "imported"),
+            file_bytes,
+            lang_source=lang_source or str(state.get("lang_source") or ""),
+            title=title or str(state.get("title") or ""),
+            author=author or str(state.get("author") or ""),
+            summary=summary or str(state.get("summary") or ""),
+            import_settings=import_settings if isinstance(import_settings, dict) else state.get("import_settings"),
+        )
+        created = self._create_book_from_local_import(parsed, file_bytes)
+        self._remove_import_preview_state(token)
+        return created
+
+    def import_file(
+        self,
+        filename: str,
+        file_bytes: bytes,
+        lang_source: str,
+        title: str,
+        author: str,
+        *,
+        summary: str = "",
+        import_settings: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        parsed = self._parse_local_import_payload(
+            filename,
+            file_bytes,
+            lang_source=lang_source,
+            title=title,
+            author=author,
+            summary=summary,
+            import_settings=import_settings,
+        )
+        return self._create_book_from_local_import(parsed, file_bytes)
 
     def import_vbook_url(
         self,
@@ -4957,6 +5654,28 @@ class ReaderService:
             ),
             "global_dicts": global_dicts,
         }
+
+    def _normalized_reader_import_settings(self, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+        source_cfg = cfg if isinstance(cfg, dict) else self.app_config
+        raw = source_cfg.get("reader_import") if isinstance(source_cfg, dict) else {}
+        return normalize_reader_import_settings(raw if isinstance(raw, dict) else {})
+
+    def get_import_settings(self) -> dict[str, Any]:
+        return {
+            "ok": True,
+            "settings": normalize_reader_import_settings(self.reader_import_settings),
+            "presets": import_settings_presets(),
+        }
+
+    def set_import_settings(self, payload: dict[str, Any]) -> dict[str, Any]:
+        next_settings = normalize_reader_import_settings(payload if isinstance(payload, dict) else {})
+        cfg = load_app_config()
+        if not isinstance(cfg, dict):
+            cfg = {}
+        cfg["reader_import"] = next_settings
+        save_app_config(cfg)
+        self.refresh_config()
+        return self.get_import_settings()
 
     def get_reader_settings(self) -> dict[str, Any]:
         local_settings = self.reader_translation_settings.get("local")
@@ -8981,6 +9700,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             payload = self._read_json_body()
             return self.service.set_reader_settings(payload)
 
+        if method == "GET" and path == "/api/library/import/settings":
+            return self.service.get_import_settings()
+
+        if method == "POST" and path == "/api/library/import/settings":
+            payload = self._read_json_body()
+            return self.service.set_import_settings(payload)
+
         if method == "GET" and path == "/api/themes":
             active = self.service.storage.get_theme_active()
             return {"active": active, "items": THEME_PRESETS}
@@ -9475,6 +10201,49 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book = self.service.import_vbook_url(url, plugin_id=plugin_id, history_only=history_only)
             return {"ok": True, "book": book}
 
+        if method == "POST" and path == "/api/library/import/prepare":
+            form = self._read_multipart_form()
+            if "file" not in form:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu file import.")
+            file_item = form.get_file("file")
+            if file_item is None:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "File không hợp lệ.")
+            import_settings = self._read_form_json_field(form.getfirst("import_settings"))
+            return self.service.prepare_import_file(
+                file_item.filename or "import.txt",
+                file_item.content,
+                (form.getfirst("lang_source") or "zh").strip(),
+                (form.getfirst("title") or "").strip(),
+                (form.getfirst("author") or "").strip(),
+                (form.getfirst("summary") or "").strip(),
+                import_settings=import_settings,
+            )
+
+        if method == "POST" and path == "/api/library/import/preview":
+            payload = self._read_json_body()
+            token = str(payload.get("token") or "").strip()
+            return self.service.preview_import_token(
+                token,
+                lang_source=str(payload.get("lang_source") or "").strip(),
+                title=str(payload.get("title") or "").strip(),
+                author=str(payload.get("author") or "").strip(),
+                summary=str(payload.get("summary") or "").strip(),
+                import_settings=payload.get("import_settings") if isinstance(payload.get("import_settings"), dict) else None,
+            )
+
+        if method == "POST" and path == "/api/library/import/commit":
+            payload = self._read_json_body()
+            token = str(payload.get("token") or "").strip()
+            book = self.service.commit_import_token(
+                token,
+                lang_source=str(payload.get("lang_source") or "").strip(),
+                title=str(payload.get("title") or "").strip(),
+                author=str(payload.get("author") or "").strip(),
+                summary=str(payload.get("summary") or "").strip(),
+                import_settings=payload.get("import_settings") if isinstance(payload.get("import_settings"), dict) else None,
+            )
+            return {"ok": True, "book": book}
+
         if method == "POST" and path == "/api/library/import":
             form = self._read_multipart_form()
             if "file" not in form:
@@ -9489,8 +10258,18 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             lang_source = (form.getfirst("lang_source") or "zh").strip()
             title = (form.getfirst("title") or "").strip()
             author = (form.getfirst("author") or "").strip()
+            summary = (form.getfirst("summary") or "").strip()
+            import_settings = self._read_form_json_field(form.getfirst("import_settings"))
 
-            book = self.service.import_file(filename, file_bytes, lang_source, title, author)
+            book = self.service.import_file(
+                filename,
+                file_bytes,
+                lang_source,
+                title,
+                author,
+                summary=summary,
+                import_settings=import_settings,
+            )
             return {"ok": True, "book": book}
 
         if method == "GET" and path.startswith("/api/library/book/") and path.endswith("/epub-url"):
@@ -10130,6 +10909,20 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             raise ValueError("JSON body phải là object")
         except Exception as exc:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_JSON", "JSON không hợp lệ.", str(exc)) from exc
+
+    def _read_form_json_field(self, raw_value: str | None) -> dict[str, Any] | None:
+        text = str(raw_value or "").strip()
+        if not text:
+            return None
+        try:
+            payload = json.loads(text)
+        except Exception as exc:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_JSON", "JSON trong form không hợp lệ.", str(exc)) from exc
+        if payload is None:
+            return None
+        if not isinstance(payload, dict):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_JSON", "JSON trong form phải là object.")
+        return payload
 
     def _extract_disposition_param(self, header_value: str, key: str) -> str | None:
         pattern = rf'(?:^|;)\s*{re.escape(key)}\*?=(?:"([^"]*)"|([^;]*))'

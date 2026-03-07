@@ -69,7 +69,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260222-perf1">
+  <link rel="stylesheet" href="./styles.css?v=20260307-imp1">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -107,6 +107,7 @@
       <input id="search-input" type="search" autocomplete="off">
       <button id="btn-go-search" class="btn" type="button"></button>
       <button id="btn-clear-cache" class="btn" type="button"></button>
+      <button id="btn-import-customize" class="btn" type="button"></button>
       <button id="btn-open-settings" class="btn" type="button"></button>
     </div>
   </header>
@@ -408,6 +409,168 @@
     </form>
   </dialog>
 
+  <dialog id="import-customize-dialog" class="dialog import-config-dialog">
+    <div class="dialog-head">
+      <h3 id="import-customize-title"></h3>
+      <button id="btn-import-customize-close" class="btn btn-small" type="button"></button>
+    </div>
+    <form id="import-customize-form" class="import-config-form">
+      <section class="import-config-section">
+        <h4 id="import-customize-txt-title"></h4>
+        <label>
+          <span id="import-target-size-label"></span>
+          <input id="import-target-size-input" type="number" min="800" max="30000" step="100">
+        </label>
+        <label>
+          <span id="import-preface-title-label"></span>
+          <input id="import-preface-title-input" type="text">
+        </label>
+        <label>
+          <span id="import-heading-patterns-label"></span>
+          <textarea id="import-heading-patterns-input" rows="7" spellcheck="false"></textarea>
+        </label>
+        <div>
+          <p id="import-heading-presets-title" class="dialog-subtitle"></p>
+          <div id="import-heading-presets" class="preset-chip-list"></div>
+        </div>
+      </section>
+
+      <section class="import-config-section">
+        <h4 id="import-customize-epub-title"></h4>
+        <label>
+          <span id="import-epub-title-keys-label"></span>
+          <textarea id="import-epub-title-keys-input" rows="2" spellcheck="false"></textarea>
+        </label>
+        <label>
+          <span id="import-epub-author-keys-label"></span>
+          <textarea id="import-epub-author-keys-input" rows="2" spellcheck="false"></textarea>
+        </label>
+        <label>
+          <span id="import-epub-summary-keys-label"></span>
+          <textarea id="import-epub-summary-keys-input" rows="2" spellcheck="false"></textarea>
+        </label>
+        <label>
+          <span id="import-epub-language-keys-label"></span>
+          <textarea id="import-epub-language-keys-input" rows="2" spellcheck="false"></textarea>
+        </label>
+        <label>
+          <span id="import-epub-cover-meta-label"></span>
+          <textarea id="import-epub-cover-meta-input" rows="2" spellcheck="false"></textarea>
+        </label>
+        <label>
+          <span id="import-epub-cover-props-label"></span>
+          <textarea id="import-epub-cover-props-input" rows="2" spellcheck="false"></textarea>
+        </label>
+        <div>
+          <p id="import-epub-presets-title" class="dialog-subtitle"></p>
+          <div id="import-epub-presets" class="preset-chip-list"></div>
+        </div>
+      </section>
+
+      <div class="dialog-actions">
+        <button id="btn-import-customize-reset" class="btn" type="button"></button>
+        <button id="btn-import-customize-save" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="import-preview-dialog" class="dialog import-preview-dialog">
+    <div class="dialog-head">
+      <h3 id="import-preview-title"></h3>
+      <button id="btn-import-preview-close" class="btn btn-small" type="button"></button>
+    </div>
+    <div class="import-preview-layout">
+      <section class="import-preview-meta">
+        <div class="import-preview-summary">
+          <div><strong id="import-preview-file-label"></strong> <span id="import-preview-file-name"></span></div>
+          <div><strong id="import-preview-type-label"></strong> <span id="import-preview-file-type"></span></div>
+          <div><strong id="import-preview-count-label"></strong> <span id="import-preview-chapter-count"></span></div>
+          <div><strong id="import-preview-detected-lang-label"></strong> <span id="import-preview-detected-lang"></span></div>
+        </div>
+
+        <form id="import-preview-form" class="import-config-form">
+          <label>
+            <span id="import-preview-book-title-label"></span>
+            <input id="import-preview-book-title-input" type="text">
+          </label>
+          <label>
+            <span id="import-preview-author-label"></span>
+            <input id="import-preview-author-input" type="text">
+          </label>
+          <label>
+            <span id="import-preview-summary-label"></span>
+            <textarea id="import-preview-summary-input" rows="4"></textarea>
+          </label>
+          <label>
+            <span id="import-preview-lang-label"></span>
+            <select id="import-preview-lang-select">
+              <option id="import-preview-lang-zh" value="zh"></option>
+              <option id="import-preview-lang-vi" value="vi"></option>
+            </select>
+          </label>
+
+          <section class="import-config-section">
+            <h4 id="import-preview-parser-title"></h4>
+            <label>
+              <span id="import-preview-target-size-label"></span>
+              <input id="import-preview-target-size-input" type="number" min="800" max="30000" step="100">
+            </label>
+            <label>
+              <span id="import-preview-preface-title-label"></span>
+              <input id="import-preview-preface-title-input" type="text">
+            </label>
+            <label>
+              <span id="import-preview-heading-patterns-label"></span>
+              <textarea id="import-preview-heading-patterns-input" rows="6" spellcheck="false"></textarea>
+            </label>
+            <div>
+              <p id="import-preview-heading-presets-title" class="dialog-subtitle"></p>
+              <div id="import-preview-heading-presets" class="preset-chip-list"></div>
+            </div>
+            <label>
+              <span id="import-preview-epub-title-keys-label"></span>
+              <textarea id="import-preview-epub-title-keys-input" rows="2" spellcheck="false"></textarea>
+            </label>
+            <label>
+              <span id="import-preview-epub-author-keys-label"></span>
+              <textarea id="import-preview-epub-author-keys-input" rows="2" spellcheck="false"></textarea>
+            </label>
+            <label>
+              <span id="import-preview-epub-summary-keys-label"></span>
+              <textarea id="import-preview-epub-summary-keys-input" rows="2" spellcheck="false"></textarea>
+            </label>
+            <label>
+              <span id="import-preview-epub-language-keys-label"></span>
+              <textarea id="import-preview-epub-language-keys-input" rows="2" spellcheck="false"></textarea>
+            </label>
+            <label>
+              <span id="import-preview-epub-cover-meta-label"></span>
+              <textarea id="import-preview-epub-cover-meta-input" rows="2" spellcheck="false"></textarea>
+            </label>
+            <label>
+              <span id="import-preview-epub-cover-props-label"></span>
+              <textarea id="import-preview-epub-cover-props-input" rows="2" spellcheck="false"></textarea>
+            </label>
+            <div>
+              <p id="import-preview-epub-presets-title" class="dialog-subtitle"></p>
+              <div id="import-preview-epub-presets" class="preset-chip-list"></div>
+            </div>
+          </section>
+        </form>
+      </section>
+
+      <section class="import-preview-chapters-pane">
+        <p id="import-preview-diagnostics" class="dialog-subtitle"></p>
+        <div id="import-preview-metadata-candidates" class="import-candidate-list"></div>
+        <div id="import-preview-chapters" class="import-preview-chapter-list"></div>
+      </section>
+    </div>
+    <div class="dialog-actions">
+      <button id="btn-import-preview-cancel" class="btn" type="button"></button>
+      <button id="btn-import-preview-commit" class="btn btn-primary" type="button"></button>
+    </div>
+  </dialog>
+
   <dialog id="import-url-dialog" class="dialog">
     <form id="import-url-form" method="dialog">
       <h3 id="import-url-title"></h3>
@@ -577,7 +740,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260307-upd1"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260307-imp1"></script>
 </body>
 
 </html>

@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260307-upd1";
+import { t } from "../i18n.vi.js?v=20260307-imp1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -718,6 +718,7 @@ function fillStaticTexts() {
     ["panel-solid", "panelSolid"],
     ["btn-save-settings", "saveSettings"],
     ["btn-reset-settings", "resetSettings"],
+    ["btn-import-customize", "importCustomize"],
     ["import-title", "importTitle"],
     ["import-file-label", "importFile"],
     ["import-lang-label", "importLang"],
@@ -726,7 +727,50 @@ function fillStaticTexts() {
     ["import-lang-zh", "importLangZh"],
     ["import-lang-vi", "importLangVi"],
     ["btn-import-cancel", "cancel"],
-    ["btn-import-submit", "confirmImport"],
+    ["btn-import-submit", "prepareImport"],
+    ["import-customize-title", "importCustomizeTitle"],
+    ["btn-import-customize-close", "close"],
+    ["import-customize-txt-title", "importCustomizeTxtTitle"],
+    ["import-target-size-label", "importTargetSize"],
+    ["import-preface-title-label", "importPrefaceTitle"],
+    ["import-heading-patterns-label", "importHeadingPatterns"],
+    ["import-heading-presets-title", "importHeadingPresets"],
+    ["import-customize-epub-title", "importCustomizeEpubTitle"],
+    ["import-epub-title-keys-label", "importEpubTitleKeys"],
+    ["import-epub-author-keys-label", "importEpubAuthorKeys"],
+    ["import-epub-summary-keys-label", "importEpubSummaryKeys"],
+    ["import-epub-language-keys-label", "importEpubLanguageKeys"],
+    ["import-epub-cover-meta-label", "importEpubCoverMetaNames"],
+    ["import-epub-cover-props-label", "importEpubCoverProperties"],
+    ["import-epub-presets-title", "importEpubPresets"],
+    ["btn-import-customize-reset", "resetImportSettings"],
+    ["btn-import-customize-save", "saveImportSettings"],
+    ["import-preview-title", "importPreviewTitle"],
+    ["import-preview-file-label", "importPreviewFile"],
+    ["import-preview-type-label", "importPreviewType"],
+    ["import-preview-count-label", "importPreviewCount"],
+    ["import-preview-detected-lang-label", "importPreviewDetectedLang"],
+    ["import-preview-book-title-label", "importBookTitle"],
+    ["import-preview-author-label", "importAuthor"],
+    ["import-preview-summary-label", "importPreviewSummary"],
+    ["import-preview-lang-label", "importLang"],
+    ["import-preview-lang-zh", "importLangZh"],
+    ["import-preview-lang-vi", "importLangVi"],
+    ["import-preview-parser-title", "importPreviewParserTitle"],
+    ["import-preview-target-size-label", "importTargetSize"],
+    ["import-preview-preface-title-label", "importPrefaceTitle"],
+    ["import-preview-heading-patterns-label", "importHeadingPatterns"],
+    ["import-preview-heading-presets-title", "importHeadingPresets"],
+    ["import-preview-epub-title-keys-label", "importEpubTitleKeys"],
+    ["import-preview-epub-author-keys-label", "importEpubAuthorKeys"],
+    ["import-preview-epub-summary-keys-label", "importEpubSummaryKeys"],
+    ["import-preview-epub-language-keys-label", "importEpubLanguageKeys"],
+    ["import-preview-epub-cover-meta-label", "importEpubCoverMetaNames"],
+    ["import-preview-epub-cover-props-label", "importEpubCoverProperties"],
+    ["import-preview-epub-presets-title", "importEpubPresets"],
+    ["btn-import-preview-close", "close"],
+    ["btn-import-preview-cancel", "cancel"],
+    ["btn-import-preview-commit", "confirmImport"],
     ["import-url-title", "importUrlTitle"],
     ["import-url-label", "importUrlLabel"],
     ["import-url-plugin-label", "importUrlPlugin"],
@@ -781,7 +825,7 @@ function fillStaticTexts() {
   if (search) search.placeholder = t("searchPlaceholder");
 }
 
-export async function initShell({ page, onSearchSubmit, onImported, onSearch } = {}) {
+export async function initShell({ page, onSearchSubmit, onImported, onSearch, onPrepareImport } = {}) {
   fillStaticTexts();
   setNavActive(page || "library");
 
@@ -2043,6 +2087,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
   if (qs("import-form")) {
     qs("import-form").addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (typeof onPrepareImport === "function") {
+        await onPrepareImport();
+        return;
+      }
       await handleImport(onImported);
     });
   }

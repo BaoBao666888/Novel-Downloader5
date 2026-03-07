@@ -2107,6 +2107,128 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   white-space: pre-line;
 }
 
+.import-config-dialog,
+.import-preview-dialog {
+  width: min(1120px, 96vw);
+}
+
+.import-config-form {
+  display: grid;
+  gap: 14px;
+}
+
+.import-config-section {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 72%, transparent);
+}
+
+.import-config-section h4 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.preset-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preset-chip {
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.preset-chip:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.import-preview-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.import-preview-meta,
+.import-preview-chapters-pane {
+  min-width: 0;
+}
+
+.import-preview-summary {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  color: var(--muted);
+}
+
+.import-preview-summary strong {
+  color: var(--text);
+}
+
+.import-preview-chapters-pane {
+  max-height: min(70vh, 760px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.import-preview-chapter-list {
+  display: grid;
+  gap: 10px;
+}
+
+.import-preview-chapter-item {
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 66%, transparent);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.import-preview-chapter-head {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.import-preview-chapter-meta {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.import-preview-chapter-text {
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+.import-candidate-list {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.import-candidate-row {
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 920px) {
+  .import-preview-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .book-actions-dialog {
   min-width: min(520px, 95vw);
 }

@@ -298,6 +298,26 @@ class ND5Mixin:
         if not book_id:
             return {"ok": False, "reason": "missing_book_id"}
 
+        try:
+            self._nd5_reader_api_request(
+                "POST",
+                f"/api/library/book/{book_id}/refresh-toc",
+                payload={},
+                timeout=20.0,
+            )
+            refreshed = self._nd5_reader_api_request(
+                "GET",
+                f"/api/library/book/{book_id}",
+                timeout=15.0,
+            )
+            if isinstance(refreshed.get("book"), dict):
+                book = refreshed.get("book") or book
+        except Exception as exc:
+            try:
+                self.log(f"[ND5] Khong refresh duoc TOC Reader truoc khi enqueue: {exc}")
+            except Exception:
+                pass
+
         chapter_ids = []
         if selected_numbers:
             chapters = book.get("chapters") if isinstance(book.get("chapters"), list) else []
