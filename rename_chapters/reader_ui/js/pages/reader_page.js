@@ -179,6 +179,10 @@ function supportsTranslation(book) {
   return lang === "zh" || lang.startsWith("zh-");
 }
 
+function shouldTranslateReaderChrome() {
+  return Boolean(state.translationEnabled && supportsTranslation(state.book));
+}
+
 function effectiveMode() {
   if (!supportsTranslation(state.book)) return "raw";
   return state.mode === "trans" ? "trans" : "raw";
@@ -406,7 +410,7 @@ function prefetchNearbyChapters() {
 
 function chapterTitle(ch) {
   if (!ch) return "";
-  if (effectiveMode() === "trans") {
+  if (shouldTranslateReaderChrome()) {
     return normalizeDisplayTitle(ch.title_display || ch.title_vi || ch.title_raw || `Chương ${ch.chapter_order || "?"}`);
   }
   return normalizeDisplayTitle(ch.title_raw || ch.title_display || `Chương ${ch.chapter_order || "?"}`);
@@ -424,7 +428,7 @@ function updateHeader() {
   }
   const ch = (state.book.chapters || []).find((x) => x.chapter_id === state.chapterId);
   const chapterName = chapterTitle(ch) || state.shell.t("readerEmpty");
-  const bookName = effectiveMode() === "trans"
+  const bookName = shouldTranslateReaderChrome()
     ? normalizeDisplayTitle(state.book.title_display || state.book.title_vi || state.book.title)
     : normalizeDisplayTitle(state.book.title || state.book.title_display);
   // Bỏ title chương "cứng" ở phần head lớn: head lớn dùng tên truyện,
@@ -1234,7 +1238,8 @@ async function saveProgress() {
 
 async function loadBook() {
   if (!state.bookId) return;
-  const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(state.mode)}&translation_mode=${encodeURIComponent(state.translateMode)}`);
+  const detailMode = state.translationEnabled ? "trans" : state.mode;
+  const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(detailMode)}&translation_mode=${encodeURIComponent(state.translateMode)}`);
   state.book = detail;
   if (refs.btnReaderRefreshToc) {
     const sourceType = String((detail && detail.source_type) || "").trim().toLowerCase();

@@ -991,6 +991,7 @@ def _collect_dict_suggestion_rows(
     *,
     origin: str,
     base_score: int,
+    allow_subsegments: bool = True,
 ) -> list[dict[str, Any]]:
     if not source_cjk or not mapping:
         return []
@@ -1023,6 +1024,8 @@ def _collect_dict_suggestion_rows(
             )
 
     add_for_key(source_cjk)
+    if not allow_subsegments:
+        return rows
     source_len = len(source_cjk)
     if source_len < 2:
         return rows
@@ -1063,69 +1066,61 @@ def build_name_right_suggestions(
     boost_global_name = 18 if prefer_scope == "global" and prefer_kind == "name" else 0
     boost_global_vp = 18 if prefer_scope == "global" and prefer_kind == "vp" else 0
 
-    rows.extend(
-        _collect_dict_suggestion_rows(
-            source_cjk,
-            normalize_name_set(personal_name),
-            origin="Name riêng",
-            base_score=160 + boost_book_name,
-        )
-    )
-    rows.extend(
-        _collect_dict_suggestion_rows(
-            source_cjk,
-            normalize_name_set(personal_vp),
-            origin="VP riêng",
-            base_score=148 + boost_book_vp,
-        )
-    )
-    rows.extend(
-        _collect_dict_suggestion_rows(
-            source_cjk,
-            normalize_name_set(global_name),
-            origin="Name chung",
-            base_score=138 + boost_global_name,
-        )
-    )
-    rows.extend(
-        _collect_dict_suggestion_rows(
-            source_cjk,
-            normalize_name_set(global_vp),
-            origin="VP chung",
-            base_score=128 + boost_global_vp,
-        )
-    )
+    dict_sources: list[tuple[dict[str, str], str, int]] = [
+        (normalize_name_set(personal_name), "Name riêng", 160 + boost_book_name),
+        (normalize_name_set(personal_vp), "VP riêng", 148 + boost_book_vp),
+        (normalize_name_set(global_name), "Name chung", 138 + boost_global_name),
+        (normalize_name_set(global_vp), "VP chung", 128 + boost_global_vp),
+    ]
     if bundle is not None:
-        rows.extend(
-            _collect_dict_suggestion_rows(
-                source_cjk,
-                normalize_name_set(getattr(bundle, "name_general", {})),
-                origin="Name base",
-                base_score=114,
-            )
+        dict_sources.extend(
+            [
+                (normalize_name_set(getattr(bundle, "name_general", {})), "Name base", 114),
+                (normalize_name_set(getattr(bundle, "vp_general", {})), "VP base", 102),
+                (normalize_name_set(getattr(bundle, "name_extra", {})), "Name extra", 96),
+                (normalize_name_set(getattr(bundle, "vp_genre", {})), "VP thể loại", 92),
+            ]
         )
-        rows.extend(
+
+    dict_rows: list[dict[str, Any]] = []
+    for mapping, origin, score in dict_sources:
+        dict_rows.extend(
             _collect_dict_suggestion_rows(
                 source_cjk,
-                normalize_name_set(getattr(bundle, "vp_general", {})),
-                origin="VP base",
-                base_score=102,
+                mapping,
+                origin=origin,
+                base_score=score,
+                allow_subsegments=False,
             )
         )
 
-    hv_rows = build_incremental_hv_suggestions(source_cjk, hv_text or "")
-    for idx, row in enumerate(hv_rows):
-        target = str(row.get("han_viet") or "").strip()
-        if not target:
-            continue
-        rows.append(
-            {
-                "source_text": source_cjk,
-                "target_text": target,
-                "origin": "Hán Việt",
-                "score": 90 - idx,
-            }
-        )
+    if not dict_rows:
+        for mapping, origin, score in dict_sources:
+            dict_rows.extend(
+                _collect_dict_suggestion_rows(
+                    source_cjk,
+                    mapping,
+                    origin=origin,
+                    base_score=score,
+                    allow_subsegments=True,
+                )
+            )
+    rows.extend(dict_rows)
+
+    if not dict_rows:
+        hv_rows = build_incremental_hv_suggestions(source_cjk, hv_text or "")
+        for idx, row in enumerate(hv_rows):
+            target = str(row.get("han_viet") or "").strip()
+            if not target:
+                continue
+            rows.append(
+                {
+                    "source_text": source_cjk,
+                    "target_text": target,
+                    "origin": "Hán Việt",
+                    "score": 90 - idx,
+                }
+            )
 
     if not rows:
         return []
@@ -1400,6 +1395,8 @@ def map_selection_to_name_source(
     end_offset: int,
     name_set: dict[str, str],
     unit_map: list[dict[str, Any]],
+    token_map: list[dict[str, Any]] | None = None,
+    translation_mode: str = "server",
 ) -> dict[str, Any]:
     selected = (selected_text or "").strip()
     source_raw = normalize_newlines(raw_text or "")
@@ -1454,6 +1451,173 @@ def map_selection_to_name_source(
                 )
                 cursor = idx + max(1, len(opt))
 
+    selected_norm = normalize_for_compare(selected)
+    related_name_matches: list[dict[str, Any]] = []
+    for nm in name_matches:
+        n_start = int(nm["start"])
+        n_end = int(nm["end"])
+        if n_end > start and n_start < end:
+            related_name_matches.append(nm)
+            continue
+        target_norm = normalize_for_compare(str(nm.get("target") or ""))
+        if selected_norm and target_norm and (selected_norm in target_norm or target_norm in selected_norm):
+            related_name_matches.append(nm)
+    chosen_name_exact: dict[str, Any] | None = None
+    if related_name_matches:
+        exact_candidates: list[dict[str, Any]] = []
+        for nm in related_name_matches:
+            target_norm = normalize_for_compare(str(nm.get("target") or ""))
+            if not selected_norm or not target_norm:
+                continue
+            selected_len = len(selected_norm)
+            target_len = len(target_norm)
+            is_exact = selected_norm == target_norm
+            is_partial_inside_name = selected_norm in target_norm and selected_len >= max(2, int(target_len * 0.45))
+            is_name_inside_small_selection = target_norm in selected_norm and selected_len <= (target_len + 4)
+            if is_exact or is_partial_inside_name or is_name_inside_small_selection:
+                exact_candidates.append(nm)
+        if exact_candidates:
+            def exact_score(item: dict[str, Any]) -> tuple[int, int]:
+                t_len = len(str(item.get("target") or ""))
+                s_len = len(str(item.get("source") or ""))
+                return (t_len, s_len)
+
+            chosen_name_exact = sorted(exact_candidates, key=exact_score, reverse=True)[0]
+
+    def overlap_len(unit: dict[str, Any], seg_start: int, seg_end: int) -> int:
+        us = int(unit.get("target_start") or 0)
+        ue = int(unit.get("target_end") or 0)
+        return max(0, min(ue, seg_end) - max(us, seg_start))
+
+    def build_suggestions(source_start: int, source_end: int, candidate_source: str, rows: list[dict[str, Any]]) -> list[str]:
+        suggestion_sources: list[str] = []
+        candidate_source = strip_edge_punctuation(candidate_source)
+        if candidate_source:
+            suggestion_sources.append(candidate_source)
+        for nm in related_name_matches:
+            src = strip_edge_punctuation(str(nm.get("source") or "").strip())
+            if src and src in source_raw[source_start:source_end]:
+                suggestion_sources.append(src)
+        for row in rows[:8]:
+            src = strip_edge_punctuation(str(row.get("source_text") or "").strip())
+            if src:
+                suggestion_sources.append(src)
+        for m in re.finditer(r"[\u3400-\u9fff]{2,6}", source_raw[source_start:source_end]):
+            src = strip_edge_punctuation(m.group(0))
+            if src:
+                suggestion_sources.append(src)
+        dedup_suggestions: list[str] = []
+        seen_suggestions: set[str] = set()
+        for src in suggestion_sources:
+            if not src or contains_name_split_delimiter(src) or src in seen_suggestions:
+                continue
+            seen_suggestions.add(src)
+            dedup_suggestions.append(src)
+        return dedup_suggestions[:8]
+
+    token_rows = sorted(
+        [
+            row
+            for row in (token_map or [])
+            if isinstance(row, dict)
+            and strip_edge_punctuation(str(row.get("source_text") or "").strip())
+            and strip_edge_punctuation(str(row.get("target_text") or "").strip())
+            and int(row.get("token_type") or 0) != 4
+        ],
+        key=lambda x: (int(x.get("target_start") or 0), int(x.get("target_end") or 0)),
+    )
+    mode_norm = str(translation_mode or "").strip().lower()
+    if mode_norm in {"local", "hanviet"} and token_rows:
+        overlaps = [u for u in token_rows if int(u.get("target_end") or 0) > start and int(u.get("target_start") or 0) < end]
+        if not overlaps and token_rows:
+            center = (start + end) / 2.0
+            nearest = min(
+                token_rows,
+                key=lambda u: abs(((int(u.get("target_start") or 0) + int(u.get("target_end") or 0)) / 2.0) - center),
+            )
+            overlaps = [nearest]
+
+        if overlaps:
+            def choose_best_token(token_candidates: list[dict[str, Any]], seg_start: int, seg_end: int) -> dict[str, Any]:
+                token_type_priority = {2: 5, 1: 4, 5: 3, 3: 2, 0: 1}
+
+                def score(unit: dict[str, Any]) -> tuple[int, int, float, float, int, float]:
+                    us = int(unit.get("target_start") or 0)
+                    ue = int(unit.get("target_end") or 0)
+                    unit_len = max(1, ue - us)
+                    ov = overlap_len(unit, seg_start, seg_end)
+                    ratio = ov / float(unit_len)
+                    target_norm = normalize_for_compare(str(unit.get("target_text") or ""))
+                    exact_bonus = 1 if selected_norm and target_norm == selected_norm else 0
+                    contains_bonus = 1 if selected_norm and target_norm and (selected_norm in target_norm or target_norm in selected_norm) else 0
+                    priority = token_type_priority.get(int(unit.get("token_type") or 0), 0)
+                    return (exact_bonus, contains_bonus, float(ov), float(ratio), priority, -float(unit_len))
+
+                return sorted(token_candidates, key=score, reverse=True)[0]
+
+            chosen_rows = overlaps
+            match_type = "local_token_best_overlap"
+            score_value = 0.97
+            if related_name_matches:
+                def name_score(item: dict[str, Any]) -> tuple[int, int]:
+                    n_start = int(item["start"])
+                    n_end = int(item["end"])
+                    ov = max(0, min(n_end, end) - max(n_start, start))
+                    return (ov, len(str(item.get("target") or "")))
+
+                best_name = sorted(related_name_matches, key=name_score, reverse=True)[0]
+                n_start = int(best_name["start"])
+                n_end = int(best_name["end"])
+                name_tokens = [
+                    u for u in token_rows
+                    if int(u.get("target_end") or 0) > n_start and int(u.get("target_start") or 0) < n_end
+                ]
+                if name_tokens:
+                    chosen_rows = name_tokens
+                    match_type = "local_name_token_cover"
+                    score_value = 1.0
+
+            chosen = choose_best_token(chosen_rows, start, end)
+            source_start = int(chosen.get("source_start") or 0)
+            source_end = int(chosen.get("source_end") or 0)
+            target_start = int(chosen.get("target_start") or 0)
+            target_end = int(chosen.get("target_end") or 0)
+            source_candidate = strip_edge_punctuation(str(chosen.get("source_text") or "").strip())
+            target_candidate = strip_edge_punctuation(str(chosen.get("target_text") or "").strip()) or strip_edge_punctuation(selected)
+
+            if chosen_name_exact is not None:
+                chosen_source_name = strip_edge_punctuation(str(chosen_name_exact.get("source") or "").strip())
+                chosen_target_name = str(cleaned_set.get(chosen_source_name, "") or "").strip()
+                chosen_target_main = pick_primary_translation_value(chosen_target_name)
+                if chosen_source_name and chosen_target_main:
+                    source_candidate = chosen_source_name
+                    target_candidate = chosen_target_main
+                    match_type = "name_exact_target"
+                    score_value = 1.0
+
+            candidate_rows = [
+                {
+                    "source": strip_edge_punctuation(str(u.get("source_text") or "").strip()),
+                    "score": float(overlap_len(u, start, end)),
+                }
+                for u in overlaps[:6]
+                if strip_edge_punctuation(str(u.get("source_text") or "").strip())
+            ]
+
+            return {
+                "selected_text": selected,
+                "source_candidate": source_candidate,
+                "target_candidate": target_candidate,
+                "match_type": match_type,
+                "score": score_value,
+                "source_context": _text_snippet(source_raw, source_start, source_end),
+                "translated_context": _text_snippet(source_trans, target_start, target_end),
+                "unit_start": int(chosen.get("unit_index") or 0),
+                "unit_end": int(chosen.get("unit_index") or 0),
+                "name_suggestions": build_suggestions(source_start, source_end, source_candidate, overlaps),
+                "candidates": candidate_rows,
+            }
+
     units = sorted((u for u in unit_map if isinstance(u, dict)), key=lambda x: int(x.get("unit_index") or 0))
     overlaps = [u for u in units if int(u.get("target_end") or 0) > start and int(u.get("target_start") or 0) < end]
     if not overlaps and units:
@@ -1478,11 +1642,6 @@ def map_selection_to_name_source(
             "candidates": [],
         }
 
-    def overlap_len(unit: dict[str, Any], seg_start: int, seg_end: int) -> int:
-        us = int(unit.get("target_start") or 0)
-        ue = int(unit.get("target_end") or 0)
-        return max(0, min(ue, seg_end) - max(us, seg_start))
-
     def choose_best_unit(unit_candidates: list[dict[str, Any]], seg_start: int, seg_end: int) -> dict[str, Any]:
         def score(unit: dict[str, Any]) -> tuple[float, float, float]:
             us = int(unit.get("target_start") or 0)
@@ -1490,52 +1649,15 @@ def map_selection_to_name_source(
             unit_len = max(1, ue - us)
             ov = overlap_len(unit, seg_start, seg_end)
             ratio = ov / float(unit_len)
-            # Ưu tiên phần giao lớn nhất, tie-break bằng độ bao phủ và cụm ngắn hơn.
             return (float(ov), float(ratio), -float(unit_len))
 
         return sorted(unit_candidates, key=score, reverse=True)[0]
 
-    # Ưu tiên name riêng:
-    # - Nếu user chọn đúng text Việt của name cũ, map theo unit chứa name đó.
-    # - Nếu selection cắt qua nhiều cụm nhưng có name, chọn cụm chứa name trước.
-    selected_norm = normalize_for_compare(selected)
-    related_name_matches: list[dict[str, Any]] = []
-    for nm in name_matches:
-        n_start = int(nm["start"])
-        n_end = int(nm["end"])
-        if n_end > start and n_start < end:
-            related_name_matches.append(nm)
-            continue
-        target_norm = normalize_for_compare(str(nm.get("target") or ""))
-        if selected_norm and target_norm and (selected_norm in target_norm or target_norm in selected_norm):
-            related_name_matches.append(nm)
-
     chosen_units = overlaps
     match_type = "unit_best_overlap"
     score_value = 0.9
-    chosen_name_exact: dict[str, Any] | None = None
 
     if related_name_matches:
-        exact_candidates: list[dict[str, Any]] = []
-        for nm in related_name_matches:
-            target_norm = normalize_for_compare(str(nm.get("target") or ""))
-            if not selected_norm or not target_norm:
-                continue
-            selected_len = len(selected_norm)
-            target_len = len(target_norm)
-            is_exact = selected_norm == target_norm
-            is_partial_inside_name = selected_norm in target_norm and selected_len >= max(2, int(target_len * 0.45))
-            is_name_inside_small_selection = target_norm in selected_norm and selected_len <= (target_len + 4)
-            if is_exact or is_partial_inside_name or is_name_inside_small_selection:
-                exact_candidates.append(nm)
-        if exact_candidates:
-            def exact_score(item: dict[str, Any]) -> tuple[int, int]:
-                t_len = len(str(item.get("target") or ""))
-                s_len = len(str(item.get("source") or ""))
-                return (t_len, s_len)
-
-            chosen_name_exact = sorted(exact_candidates, key=exact_score, reverse=True)[0]
-
         def name_score(item: dict[str, Any]) -> tuple[int, int]:
             n_start = int(item["start"])
             n_end = int(item["end"])
@@ -1577,25 +1699,6 @@ def map_selection_to_name_source(
             match_type = "name_exact_target"
             score_value = 1.0
 
-    # Gợi ý name theo cụm đã chọn (giống hướng TM: cụm nhỏ, sát selection).
-    suggestion_sources: list[str] = []
-    for nm in related_name_matches:
-        src = strip_edge_punctuation(str(nm.get("source") or "").strip())
-        if src and src in source_raw[source_start:source_end]:
-            suggestion_sources.append(src)
-    for m in re.finditer(r"[\u3400-\u9fff]{2,4}", source_raw[source_start:source_end]):
-        src = strip_edge_punctuation(m.group(0))
-        if src:
-            suggestion_sources.append(src)
-    dedup_suggestions: list[str] = []
-    seen_suggestions: set[str] = set()
-    for src in suggestion_sources:
-        if not src or contains_name_split_delimiter(src) or src in seen_suggestions:
-            continue
-        seen_suggestions.add(src)
-        dedup_suggestions.append(src)
-    dedup_suggestions = dedup_suggestions[:8]
-
     candidate_rows = [
         {"source": strip_edge_punctuation(str(u.get("source_text") or "").strip()), "score": float(overlap_len(u, start, end))}
         for u in overlaps[:6]
@@ -1612,7 +1715,7 @@ def map_selection_to_name_source(
         "translated_context": _text_snippet(source_trans, target_start, target_end),
         "unit_start": int(chosen.get("unit_index") or 0),
         "unit_end": int(chosen.get("unit_index") or 0),
-        "name_suggestions": dedup_suggestions,
+        "name_suggestions": build_suggestions(source_start, source_end, source_candidate, overlaps),
         "candidates": candidate_rows,
     }
 
@@ -2430,6 +2533,7 @@ class TranslationAdapter:
                 "translated": "",
                 "mode": mode_norm,
                 "unit_map": [],
+                "token_map": [],
                 "name_map": {
                     "active_set": str(self.active_set_name or "Mặc định"),
                     "version": int(self.name_set_version or 1),
@@ -2457,13 +2561,12 @@ class TranslationAdapter:
                 translated = hanviet_source or source
             else:
                 translated = normalize_newlines(local_detail.get("translated") or "")
-            if not translated:
-                translated = source
             processed_text = normalize_newlines(local_detail.get("processed_text") or source)
             translated_with_placeholders = normalize_newlines(
                 local_detail.get("translated_with_placeholders") or translated
             )
             unit_map = local_detail.get("unit_map") if isinstance(local_detail.get("unit_map"), list) else []
+            token_map = local_detail.get("token_map") if isinstance(local_detail.get("token_map"), list) else []
             hits = local_detail.get("name_hits") if isinstance(local_detail.get("name_hits"), list) else collect_name_hits(source, name_set)
             return {
                 "source_text": source,
@@ -2472,6 +2575,7 @@ class TranslationAdapter:
                 "translated": translated,
                 "mode": mode_norm,
                 "unit_map": unit_map,
+                "token_map": token_map,
                 "name_map": {
                     "active_set": str(self.active_set_name or "Mặc định"),
                     "version": int(self.name_set_version or 1),
@@ -7989,14 +8093,21 @@ class ReaderService:
                 return cookie_header
         return ""
 
-    def _build_vbook_runner_override(self, plugin: Any, script_key: str, args: list[Any]) -> dict[str, Any]:
+    def _build_vbook_runner_override(
+        self,
+        plugin: Any,
+        script_key: str,
+        args: list[Any],
+        *,
+        disable_bridge: bool = False,
+    ) -> dict[str, Any]:
         override: dict[str, Any] = {}
         plugin_id = self._normalize_vbook_plugin_id(str(getattr(plugin, "plugin_id", "") or ""))
         runtime_cfg = self._effective_vbook_runtime_settings(plugin_id)
         override["request_delay_ms"] = int(runtime_cfg.get("request_delay_ms") or 0)
         override["supplemental_code"] = str(runtime_cfg.get("supplemental_code") or "")
 
-        if self.vbook_bridge_enabled:
+        if self.vbook_bridge_enabled and not disable_bridge:
             state = self._load_vbook_bridge_state()
             host_candidates = self._vbook_bridge_host_candidates(plugin, script_key, args, state)
             entry: dict[str, Any] = {}
@@ -8006,9 +8117,9 @@ class ReaderService:
                     entry = probe
                     break
 
-            user_agent = str(entry.get("user_agent") or "").strip()
-            if not user_agent:
-                user_agent = str(state.get("default_user_agent") or "").strip()
+            # Ưu tiên UA/cookie thật từ host đã capture trong browser; nếu chưa có thì
+            # dùng UA mặc định của browser profile và cookie đọc từ DB profile.
+            user_agent = str(entry.get("user_agent") or state.get("default_user_agent") or "").strip()
 
             cookie_header = str(entry.get("cookie_header") or "").strip()
             if not cookie_header:
@@ -8036,6 +8147,19 @@ class ReaderService:
             if default_headers:
                 override["default_headers"] = default_headers
         return override
+
+    def _all_vbook_attempts_returned_none(self, diagnostics: dict[str, Any] | None) -> bool:
+        attempts = diagnostics.get("attempts") if isinstance(diagnostics, dict) else None
+        if not isinstance(attempts, list) or not attempts:
+            return False
+        for row in attempts:
+            if not isinstance(row, dict):
+                return False
+            if row.get("error") is not None:
+                return False
+            if str(row.get("data_type") or "") != "NoneType":
+                return False
+        return True
 
     def get_vbook_bridge_state(self) -> dict[str, Any]:
         state = self._load_vbook_bridge_state()
@@ -8065,7 +8189,14 @@ class ReaderService:
             "count": len(host_items),
         }
 
-    def _run_vbook_script_result(self, plugin: Any, script_key: str, args: list[Any]) -> dict[str, Any]:
+    def _run_vbook_script_result(
+        self,
+        plugin: Any,
+        script_key: str,
+        args: list[Any],
+        *,
+        disable_bridge: bool = False,
+    ) -> dict[str, Any]:
         if not self.vbook_runner:
             raise ApiError(
                 HTTPStatus.SERVICE_UNAVAILABLE,
@@ -8081,7 +8212,12 @@ class ReaderService:
 
         for attempt in range(1, max_attempts + 1):
             try:
-                runner_override = self._build_vbook_runner_override(plugin, script_key, args)
+                runner_override = self._build_vbook_runner_override(
+                    plugin,
+                    script_key,
+                    args,
+                    disable_bridge=disable_bridge,
+                )
                 payload = self.vbook_runner.run(
                     plugin_path=str(plugin.path),
                     script_key=script_key,
@@ -8140,12 +8276,36 @@ class ReaderService:
                     raise
                 time.sleep(retry_sleep_sec)
 
-    def _run_vbook_script(self, plugin: Any, script_key: str, args: list[Any]) -> Any:
-        result = self._run_vbook_script_result(plugin, script_key, args)
+    def _run_vbook_script(
+        self,
+        plugin: Any,
+        script_key: str,
+        args: list[Any],
+        *,
+        disable_bridge: bool = False,
+    ) -> Any:
+        result = self._run_vbook_script_result(
+            plugin,
+            script_key,
+            args,
+            disable_bridge=disable_bridge,
+        )
         return result.get("data")
 
-    def _run_vbook_script_with_next(self, plugin: Any, script_key: str, args: list[Any]) -> tuple[Any, Any]:
-        result = self._run_vbook_script_result(plugin, script_key, args)
+    def _run_vbook_script_with_next(
+        self,
+        plugin: Any,
+        script_key: str,
+        args: list[Any],
+        *,
+        disable_bridge: bool = False,
+    ) -> tuple[Any, Any]:
+        result = self._run_vbook_script_result(
+            plugin,
+            script_key,
+            args,
+            disable_bridge=disable_bridge,
+        )
         return result.get("data"), result.get("next")
 
     def _normalize_vbook_search_item(self, plugin: Any, item: dict[str, Any], *, query: str) -> dict[str, Any] | None:
@@ -8225,6 +8385,36 @@ class ReaderService:
         if isinstance(data, dict):
             for key in ("items", "data", "list", "results", "books"):
                 value = data.get(key)
+                if isinstance(value, list):
+                    return value
+                if isinstance(value, dict):
+                    nested = self._extract_vbook_list_rows(value)
+                    if nested:
+                        return nested
+            numeric_rows: list[tuple[int, Any]] = []
+            for raw_key, raw_value in data.items():
+                key_text = str(raw_key or "").strip()
+                if not key_text.isdigit():
+                    continue
+                try:
+                    numeric_rows.append((int(key_text), raw_value))
+                except Exception:
+                    continue
+            if numeric_rows:
+                numeric_rows.sort(key=lambda item: item[0])
+                return [value for _, value in numeric_rows]
+            object_rows = [
+                value
+                for value in data.values()
+                if isinstance(value, dict)
+                and any(
+                    field in value
+                    for field in ("name", "title", "label", "link", "url", "detail_url", "script", "input")
+                )
+            ]
+            if object_rows:
+                return object_rows
+            for value in data.values():
                 if isinstance(value, list):
                     return value
             # Fallback: object đơn lẻ.
@@ -8347,6 +8537,82 @@ class ReaderService:
             "script": script,
             "input": input_value,
         }
+
+    def _summarize_vbook_debug_row(self, row: Any) -> Any:
+        if isinstance(row, dict):
+            out: dict[str, Any] = {}
+            for key in ("name", "title", "label", "link", "url", "detail_url", "host", "script", "input"):
+                if key not in row:
+                    continue
+                value = row.get(key)
+                if isinstance(value, str):
+                    text = value.strip()
+                    if len(text) > 180:
+                        text = text[:177] + "..."
+                    out[key] = text
+                elif isinstance(value, (int, float, bool)) or value is None:
+                    out[key] = value
+                else:
+                    out[key] = str(value)
+            if out:
+                return out
+        if isinstance(row, str):
+            text = row.strip()
+            return text[:177] + "..." if len(text) > 180 else text
+        return row
+
+    def _diagnose_vbook_empty_attempts(
+        self,
+        diagnostics: dict[str, Any] | None,
+        *,
+        plugin: Any,
+        script_ref: str,
+        input_value: Any,
+        page: int,
+    ) -> None:
+        attempts = diagnostics.get("attempts") if isinstance(diagnostics, dict) else None
+        if not self._all_vbook_attempts_returned_none(diagnostics):
+            return
+
+        source = str(getattr(plugin, "source", "") or "").strip()
+        sample_urls: list[str] = []
+        seen: set[str] = set()
+        for row in attempts[:6]:
+            if not isinstance(row, dict):
+                continue
+            args = row.get("args")
+            if not isinstance(args, list) or not args:
+                continue
+            first = args[0]
+            if not isinstance(first, str):
+                continue
+            first_text = first.strip()
+            if not first_text:
+                continue
+            guess = first_text
+            if "{0}" in guess:
+                guess = guess.replace("{0}", str(max(1, int(page or 1))))
+            if source and not guess.lower().startswith(("http://", "https://")):
+                guess = self._join_vbook_url(source, guess) or guess
+            if guess in seen:
+                continue
+            seen.add(guess)
+            sample_urls.append(guess)
+
+        raise ApiError(
+            HTTPStatus.BAD_GATEWAY,
+            "VBOOK_SOURCE_HTTP_BLOCKED",
+            "Nguồn trả HTTP không thành công hoặc bị challenge/chặn nên script vBook trả rỗng.",
+            {
+                "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                "script": script_ref,
+                "input": input_value,
+                "page": page,
+                "attempts": attempts,
+                "sample_urls": sample_urls,
+                "hint": "Hãy mở nguồn bằng trình duyệt tích hợp để đồng bộ cookie/headers rồi thử lại. Nếu vẫn lỗi, nguồn đang chặn request ngoài hoặc gặp Cloudflare challenge.",
+            },
+        )
 
     def _normalize_vbook_suggest_items(self, plugin: Any, raw_value: Any) -> list[dict[str, Any]]:
         rows = self._extract_vbook_list_rows(raw_value)
@@ -8750,32 +9016,35 @@ class ReaderService:
         input_value: Any = None,
         page: int = 1,
         next_token: Any = None,
-    ) -> tuple[list[Any], Any]:
+    ) -> tuple[list[Any], Any, dict[str, Any]]:
         p = max(1, int(page or 1))
         has_next_token = next_token is not None and str(next_token).strip() != ""
         has_input = input_value is not None and (not isinstance(input_value, str) or bool(input_value.strip()))
 
         candidates: list[list[Any]] = []
         if has_input:
+            formatted_input: Any = None
+            if isinstance(input_value, str):
+                input_text = input_value.strip()
+                if input_text and "{0}" in input_text and (not input_text.lower().startswith(("http://", "https://"))):
+                    formatted_input = input_text.replace("{0}", str(p))
             if has_next_token:
                 candidates.append([input_value, next_token])
-            candidates.extend(
-                [
-                    [input_value, ""],
-                    [input_value],
-                    [input_value, p],
-                    [input_value, str(p)],
-                ]
-            )
+            # Ưu tiên truyền page tường minh trước để bám sát contract vBook.
+            # Nhiều ext dùng execute(url, page) và có thể trả rỗng nếu chỉ nhận 1 arg.
+            candidates.extend([[input_value, p], [input_value, str(p)], [input_value], [input_value, ""]])
+            if formatted_input:
+                candidates.extend([[formatted_input], [formatted_input, p], [formatted_input, str(p)]])
         else:
             if has_next_token:
                 candidates.append([next_token])
-            candidates.extend([[], [p], [str(p)]])
+            candidates.extend([[p], [str(p)], []])
 
         seen: set[str] = set()
         last_error: Exception | None = None
-        data: Any = []
-        next_value: Any = None
+        best_empty_rows: list[Any] | None = None
+        best_empty_next: Any = None
+        attempt_logs: list[dict[str, Any]] = []
         for args in candidates:
             sig = json.dumps(args, ensure_ascii=False, sort_keys=True, default=str)
             if sig in seen:
@@ -8783,11 +9052,46 @@ class ReaderService:
             seen.add(sig)
             try:
                 data, next_value = self._run_vbook_script_with_next(plugin, script_ref, args)
+                rows = self._extract_vbook_list_rows(data)
+                has_next = next_value is not None and str(next_value).strip() != ""
+                 # keep lightweight diagnostics for empty/suspicious cases
+                attempt_logs.append(
+                    {
+                        "args": args,
+                        "bridge": "on",
+                        "row_count": len(rows),
+                        "has_next": bool(has_next),
+                        "data_type": type(data).__name__,
+                    }
+                )
+                if rows or has_next:
+                    return rows, next_value, {"attempts": attempt_logs}
+                if best_empty_rows is None:
+                    best_empty_rows = rows
+                    best_empty_next = next_value
                 last_error = None
-                break
             except Exception as exc:
+                attempt_logs.append(
+                    {
+                        "args": args,
+                        "bridge": "on",
+                        "error": str(exc),
+                        "error_type": type(exc).__name__,
+                    }
+                )
                 last_error = exc
                 continue
+
+        if best_empty_rows is not None:
+            diagnostics = {"attempts": attempt_logs}
+            self._diagnose_vbook_empty_attempts(
+                diagnostics,
+                plugin=plugin,
+                script_ref=script_ref,
+                input_value=input_value,
+                page=p,
+            )
+            return best_empty_rows, best_empty_next, {"attempts": attempt_logs}
 
         if last_error is not None:
             if isinstance(last_error, ApiError):
@@ -8829,6 +9133,8 @@ class ReaderService:
         best_data: Any = []
         best_next: Any = None
         success = False
+        best_empty_data: Any = []
+        best_empty_next: Any = None
         
         for args in candidates:
             sig = json.dumps(args, ensure_ascii=False, sort_keys=True, default=str)
@@ -8839,11 +9145,14 @@ class ReaderService:
                 data, next_value = self._run_vbook_script_with_next(plugin, "search", args)
                 last_error = None
                 success = True
-                best_data = data
-                best_next = next_value
-                
-                if data:
+                rows = self._extract_vbook_list_rows(data)
+                if rows or (next_value is not None and str(next_value).strip() != ""):
+                    best_data = data
+                    best_next = next_value
                     break
+                if best_empty_data == []:
+                    best_empty_data = data
+                    best_empty_next = next_value
             except Exception as exc:
                 last_error = exc
                 continue
@@ -8857,6 +9166,30 @@ class ReaderService:
                 "Không thể tìm kiếm bằng plugin vBook này.",
                 {"plugin_id": plugin_id, "error": str(last_error)},
             ) from last_error
+
+        if (not best_data) and best_empty_data not in (None, []):
+            best_data = best_empty_data
+            best_next = best_empty_next
+        if success and self._extract_vbook_list_rows(best_data) == [] and (
+            isinstance(best_data, dict) or best_data is None
+        ):
+            diagnostics = {
+                "attempts": [
+                    {
+                        "args": args,
+                        "bridge": "on",
+                        "data_type": type(best_empty_data).__name__ if best_empty_data is not None else "NoneType",
+                    }
+                    for args in candidates
+                ]
+            }
+            self._diagnose_vbook_empty_attempts(
+                diagnostics,
+                plugin=plugin,
+                script_ref="search",
+                input_value=q,
+                page=p,
+            )
 
         rows = best_data if isinstance(best_data, list) else (
             best_data.get("items")
@@ -8934,7 +9267,7 @@ class ReaderService:
 
         # Content mode: chạy script tab để lấy books.
         script_ref = self._normalize_vbook_script_ref(plugin, tab_script, default_key="home")
-        rows, next_value = self._run_vbook_paged_list_script(
+        rows, next_value, diagnostics = self._run_vbook_paged_list_script(
             plugin,
             script_ref=script_ref,
             input_value=tab_input,
@@ -8951,7 +9284,28 @@ class ReaderService:
             tab = self._normalize_vbook_tab_item(row)
             if tab:
                 extra_tabs.append(tab)
-        return {
+        if rows and not items and not extra_tabs:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_LIST_NORMALIZE_FAILED",
+                "Plugin vBook trả dữ liệu danh sách nhưng app không map được thành truyện hoặc tab.",
+                {
+                    "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                    "script": script_ref,
+                    "raw_row_count": len(rows),
+                    "sample_rows": [self._summarize_vbook_debug_row(row) for row in rows[:3]],
+                    "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
+                },
+            )
+        if not rows and not items and not extra_tabs:
+            self._diagnose_vbook_empty_attempts(
+                diagnostics,
+                plugin=plugin,
+                script_ref=script_ref,
+                input_value=tab_input,
+                page=p,
+            )
+        payload = {
             "ok": True,
             "plugin": self._serialize_vbook_plugin(plugin),
             "mode": "content",
@@ -8965,6 +9319,12 @@ class ReaderService:
             "tab_count": len(extra_tabs),
             "has_script": True,
         }
+        if not items and not extra_tabs:
+            payload["debug"] = {
+                "empty_reason": "no_rows",
+                "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
+            }
+        return payload
 
     def get_vbook_genre(
         self,
@@ -9017,7 +9377,7 @@ class ReaderService:
 
         # Content mode: chạy script tab để lấy books.
         script_ref = self._normalize_vbook_script_ref(plugin, tab_script, default_key="genre")
-        rows, next_value = self._run_vbook_paged_list_script(
+        rows, next_value, diagnostics = self._run_vbook_paged_list_script(
             plugin,
             script_ref=script_ref,
             input_value=tab_input,
@@ -9034,7 +9394,28 @@ class ReaderService:
             tab = self._normalize_vbook_tab_item(row)
             if tab:
                 extra_tabs.append(tab)
-        return {
+        if rows and not items and not extra_tabs:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_LIST_NORMALIZE_FAILED",
+                "Plugin vBook trả dữ liệu danh sách nhưng app không map được thành truyện hoặc tab.",
+                {
+                    "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                    "script": script_ref,
+                    "raw_row_count": len(rows),
+                    "sample_rows": [self._summarize_vbook_debug_row(row) for row in rows[:3]],
+                    "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
+                },
+            )
+        if not rows and not items and not extra_tabs:
+            self._diagnose_vbook_empty_attempts(
+                diagnostics,
+                plugin=plugin,
+                script_ref=script_ref,
+                input_value=tab_input,
+                page=p,
+            )
+        payload = {
             "ok": True,
             "plugin": self._serialize_vbook_plugin(plugin),
             "mode": "content",
@@ -9048,6 +9429,12 @@ class ReaderService:
             "tab_count": len(extra_tabs),
             "has_script": True,
         }
+        if not items and not extra_tabs:
+            payload["debug"] = {
+                "empty_reason": "no_rows",
+                "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
+            }
+        return payload
 
     def _fetch_vbook_detail_raw(self, *, url: str, plugin_id: str = "") -> dict[str, Any]:
         source_url = str(url or "").strip()
@@ -9542,10 +9929,8 @@ class ReaderService:
             state = self._load_vbook_bridge_state()
             entry = self._pick_bridge_host_entry(state, host)
             user_agent = str(entry.get("user_agent") or "").strip()
-            if not user_agent:
-                user_agent = str(state.get("default_user_agent") or "").strip()
             cookie_header = str(entry.get("cookie_header") or "").strip()
-            if not cookie_header:
+            if (not cookie_header) and entry:
                 cookie_header = self._fallback_cookie_header_from_bridge_state(host, state)
 
         if not user_agent:
@@ -10975,6 +11360,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 vp_set_override=active_vp_set,
             )
             unit_map = self.service.storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+            token_map: list[dict[str, Any]] = []
             if not unit_map:
                 detail = self.service.translator.translate_detailed(
                     raw_text,
@@ -10989,6 +11375,16 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     detail.get("unit_map") if isinstance(detail.get("unit_map"), list) else [],
                 )
                 unit_map = self.service.storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+                if translate_mode in {"local", "hanviet"}:
+                    token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
+            elif translate_mode in {"local", "hanviet"}:
+                detail = self.service.translator.translate_detailed(
+                    raw_text,
+                    mode=translate_mode,
+                    name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
+                )
+                token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
 
             state = self.service.storage.get_name_set_state(
                 default_sets=self.service._default_name_sets(),
@@ -11005,6 +11401,8 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 end_offset=end_offset,
                 name_set=active_name_set,
                 unit_map=unit_map,
+                token_map=token_map,
+                translation_mode=translate_mode,
             )
 
             return {
