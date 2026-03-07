@@ -58,6 +58,9 @@ mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("text/css", ".css")
 
 
+_EXPLICIT_LOG_LOCK = threading.Lock()
+
+
 def runtime_base_dir() -> Path:
     """Base dir để resolve path tương đối (config/tools/local).
 
@@ -11293,7 +11296,18 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             raise
 
     def log_message(self, fmt: str, *args):  # noqa: A003
-        return super().log_message(fmt, *args)
+        try:
+            message = "%s - - [%s] %s" % (
+                self.address_string(),
+                self.log_date_time_string(),
+                fmt % args,
+            )
+        except Exception:
+            try:
+                message = str(fmt % args)
+            except Exception:
+                message = str(fmt)
+        safe_console_print(message)
 
     def end_headers(self):  # noqa: N802
         path = urlparse(self.path).path
@@ -11380,6 +11394,12 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 "exception": exc.__class__.__name__,
                 "traceback": traceback.format_exc(limit=5),
             }
+            try:
+                safe_console_print(
+                    f"[API ERROR] trace_id={trace_id} method={method} path={parsed.path}\n{details['traceback']}"
+                )
+            except Exception:
+                pass
             try:
                 self._send_error_json(
                     ApiError(HTTPStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Lỗi hệ thống nội bộ.", details),
@@ -13025,6 +13045,19 @@ def configure_console_output() -> None:
 
 def safe_console_print(text: str) -> None:
     message = str(text or "")
+    explicit_log = (os.environ.get("READER_SERVER_LOG_FILE") or "").strip()
+    if explicit_log:
+        try:
+            log_path = Path(explicit_log)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with _EXPLICIT_LOG_LOCK:
+                with log_path.open("a", encoding="utf-8", errors="backslashreplace") as fp:
+                    fp.write(message)
+                    fp.write("\n")
+                    fp.flush()
+            return
+        except Exception:
+            pass
     try:
         print(message)
         return

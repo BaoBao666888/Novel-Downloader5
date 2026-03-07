@@ -11,7 +11,7 @@ import threading
 import time
 import zipfile
 import webbrowser
-from typing import Optional
+from typing import Optional, Set, Tuple
 
 import requests
 import tkinter as tk
@@ -449,7 +449,7 @@ class ReaderTabMixin:
         except Exception:
             self._reader_server_log_offset = 0
 
-    def _reader_prepare_server_log_capture(self) -> object | None:
+    def _reader_prepare_server_log_capture(self) -> Optional[object]:
         path = self._reader_server_log_path()
         os.makedirs(os.path.dirname(path), exist_ok=True)
         self._reader_reset_log_cursor(to_end=True)
@@ -644,7 +644,7 @@ class ReaderTabMixin:
     def _reader_clear_managed_runtime(self):
         self._reader_set_managed_runtime(proc_pid=0, listener_pid=0)
 
-    def _reader_saved_managed_runtime(self) -> tuple[int, int]:
+    def _reader_saved_managed_runtime(self) -> Tuple[int, int]:
         cfg = self._reader_cfg()
         values = []
         for value in (cfg.get("managed_proc_pid"), cfg.get("managed_listener_pid")):
@@ -654,7 +654,7 @@ class ReaderTabMixin:
                 values.append(0)
         return (values[0] if len(values) > 0 else 0, values[1] if len(values) > 1 else 0)
 
-    def _reader_managed_runtime_pids(self) -> set[int]:
+    def _reader_managed_runtime_pids(self) -> Set[int]:
         saved_proc_pid, saved_listener_pid = self._reader_saved_managed_runtime()
         current_proc = getattr(self, "_reader_server_proc", None)
         current_proc_pid = int(getattr(current_proc, "pid", 0) or 0) if current_proc else 0
@@ -808,6 +808,8 @@ class ReaderTabMixin:
             creationflags = 0x08000000 if sys.platform.startswith("win") else 0
             env = os.environ.copy()
             env["READER_APP_CONFIG"] = self._reader_config_path()
+            env["PYTHONUNBUFFERED"] = "1"
+            env["READER_SERVER_LOG_FILE"] = self._reader_server_log_path()
             log_fp = self._reader_prepare_server_log_capture()
             try:
                 proc = subprocess.Popen(
