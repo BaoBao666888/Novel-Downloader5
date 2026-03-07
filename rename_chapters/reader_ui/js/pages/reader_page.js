@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb27";
+import { initShell } from "../site_common.js?v=20260307-upd1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -33,6 +33,7 @@ const refs = {
   readerTocDrawer: document.getElementById("reader-toc-drawer"),
   readerTocList: document.getElementById("reader-toc-list"),
   btnReaderDownloadBook: document.getElementById("btn-reader-download-book"),
+  btnReaderRefreshToc: document.getElementById("btn-reader-refresh-toc"),
   btnCloseReaderToc: document.getElementById("btn-close-reader-toc"),
   readerTocTitle: document.getElementById("reader-toc-title"),
 
@@ -135,6 +136,7 @@ const state = {
 const TOC_ICON_MARKUP = Object.freeze({
   download: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 11 4 4 4-4"></path><path d="M4 18h16"></path></svg>',
   done: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m8.5 12 2.4 2.4 4.6-4.8"></path></svg>',
+  refresh: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5v6h-6"></path><path d="M20 11a8 8 0 1 1-2.34-5.66L20 7.66"></path></svg>',
 });
 
 function setTocIcon(button, kind) {
@@ -765,6 +767,60 @@ async function downloadBookFromReaderToc() {
   }
 }
 
+async function refreshReaderToc() {
+  if (!state.bookId) return;
+  const preserveRatio = currentChapterRatio();
+  state.shell.showStatus(state.shell.t("statusCheckingBookUpdates"));
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/refresh-toc`, {
+      method: "POST",
+    });
+    await loadBook();
+    const chapterList = Array.isArray(state.book && state.book.chapters) ? state.book.chapters : [];
+    const chapterStillExists = chapterList.some((chapter) => String((chapter && chapter.chapter_id) || "").trim() === String(state.chapterId || "").trim());
+    if (!chapterStillExists) {
+      state.chapterId = String(
+        (state.book && state.book.last_read_chapter_id)
+        || (chapterList[0] && chapterList[0].chapter_id)
+        || "",
+      ).trim();
+      if (state.chapterId) {
+        await loadChapter({ resetFlip: true, preserveRatio: 0 });
+      }
+    } else {
+      renderToc();
+      updateHeader();
+      updateProgress();
+      if (preserveRatio > 0 && state.runtimeMode !== "flip") {
+        window.requestAnimationFrame(() => {
+          applyPositionFromRatio(preserveRatio);
+          updateProgress();
+        });
+      }
+    }
+    if (data && data.changed) {
+      state.shell.showToast(state.shell.t("toastBookUpdatesApplied", {
+        added: Number(data.added || 0),
+        removed: Number(data.removed || 0),
+        renamed: Number(data.renamed || 0),
+      }));
+    } else {
+      state.shell.showToast(state.shell.t("toastBookUpdatesNoChange"));
+    }
+    window.dispatchEvent(new CustomEvent("reader-cache-changed", {
+      detail: {
+        source: "reader-refresh-toc",
+        action: "refresh_toc",
+        book_id: state.bookId,
+      },
+    }));
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
 function clearReaderDownloadWatcher() {
   if (state.downloadEventSource) {
     try {
@@ -1176,6 +1232,11 @@ async function loadBook() {
   if (!state.bookId) return;
   const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(state.mode)}&translation_mode=${encodeURIComponent(state.translateMode)}`);
   state.book = detail;
+  if (refs.btnReaderRefreshToc) {
+    const sourceType = String((detail && detail.source_type) || "").trim().toLowerCase();
+    const isOnline = sourceType === "vbook" || sourceType === "vbook_comic" || sourceType.startsWith("vbook_session");
+    refs.btnReaderRefreshToc.classList.toggle("hidden", !isOnline);
+  }
   if (!supportsTranslation(detail)) {
     state.mode = "raw";
   }
@@ -2609,6 +2670,11 @@ async function init() {
 
   refs.readerTocTitle.textContent = state.shell.t("tocTitle");
   if (refs.btnReaderDownloadBook) refs.btnReaderDownloadBook.textContent = state.shell.t("downloadBook");
+  if (refs.btnReaderRefreshToc) {
+    setTocIcon(refs.btnReaderRefreshToc, "refresh");
+    refs.btnReaderRefreshToc.title = state.shell.t("checkBookUpdates");
+    refs.btnReaderRefreshToc.setAttribute("aria-label", state.shell.t("checkBookUpdates"));
+  }
   refs.btnCloseReaderToc.textContent = state.shell.t("close");
   refs.btnReaderToc.textContent = state.shell.t("readerToc");
   if (refs.btnFooterToc) refs.btnFooterToc.textContent = state.shell.t("readerToc");
@@ -2727,6 +2793,13 @@ async function init() {
   if (refs.btnReaderDownloadBook) {
     refs.btnReaderDownloadBook.addEventListener("click", () => {
       downloadBookFromReaderToc().catch((error) => {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      });
+    });
+  }
+  if (refs.btnReaderRefreshToc) {
+    refs.btnReaderRefreshToc.addEventListener("click", () => {
+      refreshReaderToc().catch((error) => {
         state.shell.showToast(error.message || state.shell.t("toastError"));
       });
     });

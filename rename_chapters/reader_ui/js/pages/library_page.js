@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb27";
+import { initShell } from "../site_common.js?v=20260307-upd1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -22,6 +22,7 @@ const refs = {
   btnCloseBookActions: document.getElementById("btn-close-book-actions"),
   btnActionOpenBook: document.getElementById("btn-action-open-book"),
   btnActionOpenReader: document.getElementById("btn-action-open-reader"),
+  btnActionCheckUpdates: document.getElementById("btn-action-check-updates"),
   btnActionDownload: document.getElementById("btn-action-download"),
   btnActionExportTxt: document.getElementById("btn-action-export-txt"),
   btnActionExportEpub: document.getElementById("btn-action-export-epub"),
@@ -118,6 +119,11 @@ function buildHistorySourceLabel(item) {
   return "vBook";
 }
 
+function isOnlineSourceBook(book) {
+  const sourceType = String((book && book.source_type) || "").trim().toLowerCase();
+  return sourceType === "vbook" || sourceType === "vbook_comic" || sourceType.startsWith("vbook_session");
+}
+
 function closeActions() {
   if (refs.bookActionsDialog && refs.bookActionsDialog.open) {
     refs.bookActionsDialog.close();
@@ -139,6 +145,10 @@ function openActions(bookId) {
   if (refs.btnActionDownload) {
     refs.btnActionDownload.textContent = state.shell.t("downloadBook");
     refs.btnActionDownload.disabled = total > 0 && downloaded >= total;
+  }
+  if (refs.btnActionCheckUpdates) {
+    refs.btnActionCheckUpdates.textContent = state.shell.t("checkBookUpdates");
+    refs.btnActionCheckUpdates.classList.toggle("hidden", !isOnlineSourceBook(book));
   }
   if (!refs.bookActionsDialog.open) {
     refs.bookActionsDialog.showModal();
@@ -638,6 +648,41 @@ async function enqueueBookDownload(bookId) {
   }
 }
 
+async function checkBookUpdates(bookId) {
+  const bid = String(bookId || "").trim();
+  if (!bid) return;
+  state.shell.showStatus(state.shell.t("statusCheckingBookUpdates"));
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(bid)}/refresh-toc`, {
+      method: "POST",
+    });
+    if (data && data.changed) {
+      state.shell.showToast(state.shell.t("toastBookUpdatesApplied", {
+        added: Number(data.added || 0),
+        removed: Number(data.removed || 0),
+        renamed: Number(data.renamed || 0),
+      }));
+    } else {
+      state.shell.showToast(state.shell.t("toastBookUpdatesNoChange"));
+    }
+    await Promise.all([loadLibraryData({ silent: true }), loadDownloadJobs({ syncLibrary: false })]);
+    if (refs.bookActionsDialog && refs.bookActionsDialog.open && state.selectedBookId === bid) {
+      openActions(bid);
+    }
+    window.dispatchEvent(new CustomEvent("reader-cache-changed", {
+      detail: {
+        source: "library-refresh-toc",
+        action: "refresh_toc",
+        book_id: bid,
+      },
+    }));
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
 async function loadGlobalDicts() {
   const data = await state.shell.api("/api/local-dicts/global");
   const dicts = (data && data.global_dicts && typeof data.global_dicts === "object") ? data.global_dicts : {};
@@ -803,6 +848,7 @@ async function init() {
   refs.btnCloseBookActions.textContent = state.shell.t("close");
   refs.btnActionOpenBook.textContent = state.shell.t("openBookInfo");
   refs.btnActionOpenReader.textContent = state.shell.t("openReader");
+  if (refs.btnActionCheckUpdates) refs.btnActionCheckUpdates.textContent = state.shell.t("checkBookUpdates");
   if (refs.btnActionDownload) refs.btnActionDownload.textContent = state.shell.t("downloadBook");
   refs.btnActionExportTxt.textContent = state.shell.t("exportTxt");
   refs.btnActionExportEpub.textContent = state.shell.t("exportEpub");
@@ -837,6 +883,12 @@ async function init() {
     closeActions();
     window.location.href = `/reader?book_id=${encodeURIComponent(state.selectedBookId)}`;
   });
+  if (refs.btnActionCheckUpdates) {
+    refs.btnActionCheckUpdates.addEventListener("click", async () => {
+      if (!state.selectedBookId) return;
+      await checkBookUpdates(state.selectedBookId);
+    });
+  }
   if (refs.btnActionDownload) {
     refs.btnActionDownload.addEventListener("click", async () => {
       if (!state.selectedBookId) return;

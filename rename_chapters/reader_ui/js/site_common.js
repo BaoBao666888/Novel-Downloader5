@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260221-vb27";
+import { t } from "../i18n.vi.js?v=20260307-upd1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -42,6 +42,8 @@ const EFFECT_CLASSES = ["effect-stars", "effect-sparkle", "effect-bubbles", "eff
 const STAR_STYLE_CLASSES = ["star-style-classic", "star-style-dense", "star-style-bling"];
 const PANEL_STYLE_CLASSES = ["panel-style-clear", "panel-style-balanced", "panel-style-solid"];
 let cacheManagerUi = null;
+let toastHideTimer = 0;
+let lastStatusToast = { msg: "", ts: 0 };
 
 function qs(id) {
   return document.getElementById(id);
@@ -145,15 +147,29 @@ function showToast(msg) {
   if (!toast) return;
   toast.textContent = msg;
   toast.classList.add("show");
-  window.setTimeout(() => toast.classList.remove("show"), 2600);
+  if (toastHideTimer) {
+    window.clearTimeout(toastHideTimer);
+    toastHideTimer = 0;
+  }
+  toastHideTimer = window.setTimeout(() => {
+    toast.classList.remove("show");
+    toastHideTimer = 0;
+  }, 2600);
 }
 
 function showStatus(msg) {
   const bar = qs("status-inline");
-  if (!bar) return;
-  bar.textContent = msg || "";
-  bar.classList.toggle("active", Boolean(msg));
-  bar.setAttribute("aria-busy", msg ? "true" : "false");
+  if (bar) {
+    bar.textContent = "";
+    bar.classList.remove("active");
+    bar.setAttribute("aria-busy", "false");
+  }
+  const text = String(msg || "").trim();
+  if (!text) return;
+  const now = Date.now();
+  if (lastStatusToast.msg === text && (now - lastStatusToast.ts) < 700) return;
+  lastStatusToast = { msg: text, ts: now };
+  showToast(text);
 }
 
 function hideStatus() {
@@ -1916,11 +1932,21 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch } =
       let updateCount = 0;
       state.vbook.pluginUpdates = {};
 
-      for (const inst of items) {
-        const match = allRepoPlugins.find(r => r.plugin_id === inst.plugin_id);
-        if (match && match.version && inst.version !== match.version) {
-          state.vbook.pluginUpdates[inst.plugin_id] = match;
-          updateCount++;
+      for (const row of allRepoPlugins) {
+        if (!row || !row.update_available) continue;
+        const installedPluginId = String(row.installed_plugin_id || "").trim();
+        const pluginUrl = String(row.plugin_url || "").trim();
+        if (!installedPluginId || !pluginUrl) continue;
+        const current = state.vbook.pluginUpdates[installedPluginId];
+        if (!current) {
+          state.vbook.pluginUpdates[installedPluginId] = row;
+          updateCount += 1;
+          continue;
+        }
+        const curVersion = Number(current.version ?? -1);
+        const nextVersion = Number(row.version ?? -1);
+        if (Number.isFinite(nextVersion) && Number.isFinite(curVersion) && nextVersion > curVersion) {
+          state.vbook.pluginUpdates[installedPluginId] = row;
         }
       }
 

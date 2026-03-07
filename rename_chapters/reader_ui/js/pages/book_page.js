@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260221-vb27";
+import { initShell } from "../site_common.js?v=20260307-upd1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
 
 const refs = {
@@ -31,6 +31,7 @@ const refs = {
   btnTocModeRaw: document.getElementById("btn-toc-mode-raw"),
   btnTocModeTrans: document.getElementById("btn-toc-mode-trans"),
   btnTranslateTitles: document.getElementById("btn-translate-titles"),
+  btnRefreshBookToc: document.getElementById("btn-refresh-book-toc"),
   tocList: document.getElementById("toc-list"),
   btnTocPrev: document.getElementById("btn-toc-prev"),
   btnTocNext: document.getElementById("btn-toc-next"),
@@ -105,6 +106,7 @@ const state = {
 const TOC_ICON_MARKUP = Object.freeze({
   download: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 11 4 4 4-4"></path><path d="M4 18h16"></path></svg>',
   done: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m8.5 12 2.4 2.4 4.6-4.8"></path></svg>',
+  refresh: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5v6h-6"></path><path d="M20 11a8 8 0 1 1-2.34-5.66L20 7.66"></path></svg>',
 });
 
 function setTocIcon(button, kind) {
@@ -130,6 +132,11 @@ function supportsTranslation(book) {
   if (sourceType === "vbook_comic" || sourceType === "comic") return false;
   const lang = String(book.lang_source || "").toLowerCase();
   return lang === "zh" || lang.startsWith("zh-");
+}
+
+function isOnlineSourceBook(book) {
+  const sourceType = String((book && book.source_type) || "").trim().toLowerCase();
+  return sourceType === "vbook" || sourceType === "vbook_comic" || sourceType.startsWith("vbook_session");
 }
 
 function effectiveModeForBook(book, mode) {
@@ -197,6 +204,9 @@ function populateBook() {
   refs.btnTocModeTrans.classList.toggle("hidden", !canTranslate);
   refs.btnTranslateTitles.classList.toggle("hidden", !canTranslate);
   refs.btnOpenBookNames.classList.toggle("hidden", !canTranslate);
+  if (refs.btnRefreshBookToc) {
+    refs.btnRefreshBookToc.classList.toggle("hidden", !isOnlineSourceBook(book));
+  }
 }
 
 function renderToc() {
@@ -258,7 +268,7 @@ function renderToc() {
   refs.btnTocNext.disabled = state.pagination.page >= state.pagination.total_pages;
 }
 
-async function loadBook({ silent = false, suppressToast = false } = {}) {
+async function loadBook({ silent = false, suppressToast = false, refreshOnline = false } = {}) {
   if (!state.bookId) {
     refs.bookEmpty.textContent = `${state.shell.t("noBookSelected")}. ${state.shell.t("noBookSelectedHint")}`;
     return;
@@ -266,7 +276,7 @@ async function loadBook({ silent = false, suppressToast = false } = {}) {
   if (!silent) state.shell.showStatus(state.shell.t("statusLoadingBookInfo"));
   try {
     const mode = state.mode;
-    const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(mode)}&translation_mode=${encodeURIComponent(state.translateMode)}`);
+    const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(mode)}&translation_mode=${encodeURIComponent(state.translateMode)}&refresh_online=${refreshOnline ? "1" : "0"}`);
     state.book = detail;
     populateBook();
   } catch (error) {
@@ -580,6 +590,37 @@ async function downloadSingleChapter(chapterId) {
   }
 }
 
+async function refreshBookToc() {
+  if (!state.bookId) return;
+  state.shell.showStatus(state.shell.t("statusCheckingBookUpdates"));
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/refresh-toc`, {
+      method: "POST",
+    });
+    if (data && data.changed) {
+      state.shell.showToast(state.shell.t("toastBookUpdatesApplied", {
+        added: Number(data.added || 0),
+        removed: Number(data.removed || 0),
+        renamed: Number(data.renamed || 0),
+      }));
+    } else {
+      state.shell.showToast(state.shell.t("toastBookUpdatesNoChange"));
+    }
+    await refreshDownloadStateSilent();
+    window.dispatchEvent(new CustomEvent("reader-cache-changed", {
+      detail: {
+        source: "book-refresh-toc",
+        action: "refresh_toc",
+        book_id: state.bookId,
+      },
+    }));
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
 function renderBookNameRows() {
   refs.bookNameBody.innerHTML = "";
   const current = state.bookNameSets[state.bookActiveNameSet] || {};
@@ -777,6 +818,11 @@ async function init() {
   refs.btnTranslateTitles.textContent = state.shell.t("translateTitles");
   refs.btnTocPrev.textContent = state.shell.t("tocPrev");
   refs.btnTocNext.textContent = state.shell.t("tocNext");
+  if (refs.btnRefreshBookToc) {
+    setTocIcon(refs.btnRefreshBookToc, "refresh");
+    refs.btnRefreshBookToc.title = state.shell.t("checkBookUpdates");
+    refs.btnRefreshBookToc.setAttribute("aria-label", state.shell.t("checkBookUpdates"));
+  }
 
   refs.bookEditTitle.textContent = state.shell.t("bookEditTitle");
   refs.btnCloseBookEdit.textContent = state.shell.t("close");
@@ -950,6 +996,9 @@ async function init() {
     await loadToc(1);
   });
   refs.btnTranslateTitles.addEventListener("click", translateTitles);
+  if (refs.btnRefreshBookToc) refs.btnRefreshBookToc.addEventListener("click", () => {
+    refreshBookToc().catch(() => {});
+  });
   refs.btnTocPrev.addEventListener("click", () => {
     if (state.pagination.page > 1) loadToc(state.pagination.page - 1);
   });
@@ -1000,7 +1049,7 @@ async function init() {
   state.bookId = (query.book_id || "").trim();
   state.mode = (query.mode || "trans").toLowerCase() === "raw" ? "raw" : "trans";
 
-  await loadBook();
+  await loadBook({ refreshOnline: true });
   await loadToc(1);
   startDownloadWatcher();
 }

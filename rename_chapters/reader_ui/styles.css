@@ -2554,13 +2554,7 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 }
 
 .status-inline {
-  min-height: 24px;
-  padding: 4px 16px;
-  color: var(--muted);
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
+  display: none;
 }
 
 .status-inline.active::before {
