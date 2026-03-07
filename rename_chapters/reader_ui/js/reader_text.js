@@ -1,5 +1,6 @@
 export function normalizeReaderText(text) {
   let value = String(text == null ? "" : text);
+  value = value.replace(/<\s*\/?\s*br\s*\/?\s*>/gi, "\n\n");
   value = value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   value = value.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\r/g, "\n");
   value = value.replace(/\\\s*n/g, "\n");

@@ -1,5 +1,5 @@
 import { initShell } from "../site_common.js?v=20260307-namefix1";
-import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260307-trim1";
+import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260307-br2";
 
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),
@@ -1368,12 +1368,40 @@ function getCurrentDictEntries() {
   return (state.globalDicts && state.globalDicts.vp) || {};
 }
 
+function normalizeNameSourceKey(value) {
+  return String(value || "").trim();
+}
+
+function hasOwnEntry(entries, sourceKey) {
+  if (!entries || typeof entries !== "object" || !sourceKey) return false;
+  return Object.prototype.hasOwnProperty.call(entries, sourceKey);
+}
+
+function hasExistingNameSource(source) {
+  const sourceKey = normalizeNameSourceKey(source);
+  if (!sourceKey) return false;
+  if (hasOwnEntry(state.bookVpDict, sourceKey)) return true;
+  if (hasOwnEntry(state.globalDicts && state.globalDicts.name, sourceKey)) return true;
+  if (hasOwnEntry(state.globalDicts && state.globalDicts.vp, sourceKey)) return true;
+  const nameSets = state.nameSets && typeof state.nameSets === "object" ? state.nameSets : {};
+  return Object.values(nameSets).some((entries) => hasOwnEntry(entries, sourceKey));
+}
+
+function syncNameEntrySubmitLabel() {
+  if (!refs.btnAddNameEntry) return;
+  const source = normalizeNameSourceKey(refs.nameSourceInput && refs.nameSourceInput.value);
+  refs.btnAddNameEntry.textContent = state.shell.t(
+    hasExistingNameSource(source) ? "updateNameEntry" : "addNameEntry",
+  );
+}
+
 function renderNameEntriesTable() {
   refs.namePreviewBody.innerHTML = "";
   const entries = Object.entries(getCurrentDictEntries()).sort((a, b) => a[0].localeCompare(b[0], "zh-Hans-CN"));
   if (!entries.length) {
     refs.namePreviewHint.textContent = state.shell.t("namePreviewEmpty");
     refreshNameSourceSuggestions();
+    syncNameEntrySubmitLabel();
     return;
   }
   refs.namePreviewHint.textContent = state.shell.t("namePreviewCount", { count: entries.length });
@@ -1421,6 +1449,7 @@ function renderNameEntriesTable() {
     refs.namePreviewBody.appendChild(tr);
   }
   refreshNameSourceSuggestions();
+  syncNameEntrySubmitLabel();
 }
 
 async function loadNameSets() {
@@ -1463,6 +1492,7 @@ async function refreshNameEditorData() {
   ]);
   syncNameEditorScopeUi();
   renderNameEntriesTable();
+  syncNameEntrySubmitLabel();
 }
 
 function updateNameSourceSuggestions(items) {
@@ -1617,8 +1647,10 @@ async function applyNameEntry(source, target) {
     await refreshNameEditorData();
     await loadBook();
     await loadChapter({ resetFlip: true, preserveRatio });
+    return true;
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
+    return false;
   } finally {
     state.shell.hideStatus();
   }
@@ -1678,6 +1710,7 @@ function openNameEditor(prefill = {}) {
     else refs.nameSourceInput.focus();
   }
   refreshNameSourceSuggestions((prefill && prefill.suggestions) || []);
+  syncNameEntrySubmitLabel();
   refreshNameEditorData().catch((error) => state.shell.showToast(error.message || state.shell.t("toastError")));
 }
 
@@ -1815,6 +1848,7 @@ function renderNameSuggestRows(items, rightItems = []) {
     const rows = refs.nameSuggestLeftBody.querySelectorAll("tr");
     rows.forEach((el, i) => el.classList.toggle("active", i === idx));
     syncNameSuggestExternalActions();
+    syncNameEntrySubmitLabel();
   };
 
   for (const row of list) {
@@ -1875,6 +1909,7 @@ function renderNameSuggestRows(items, rightItems = []) {
         refs.nameSuggestDialog.close();
         refs.nameTargetInput.focus();
         syncNameSuggestExternalActions();
+        syncNameEntrySubmitLabel();
       });
       tdAction.append(btnUse);
       tr.append(tdTarget, tdOrigin, tdAction);
@@ -2089,7 +2124,7 @@ function bindNameEditor() {
   refs.nameSourceLabel.textContent = state.shell.t("nameSourceLabel");
   refs.nameTargetLabel.textContent = state.shell.t("nameTargetLabel");
   refs.btnOpenNameSuggest.textContent = state.shell.t("nameSuggestButton");
-  refs.btnAddNameEntry.textContent = state.shell.t("addNameEntry");
+  syncNameEntrySubmitLabel();
   refs.nameColSource.textContent = state.shell.t("nameColSource");
   refs.nameColTarget.textContent = state.shell.t("nameColTarget");
   refs.nameColCount.textContent = state.shell.t("nameColType");
@@ -2113,6 +2148,7 @@ function bindNameEditor() {
       state.nameDictType = String(refs.nameDictTypeSelect.value || "name").trim().toLowerCase() === "vp" ? "vp" : "name";
       syncNameEditorScopeUi();
       renderNameEntriesTable();
+      syncNameEntrySubmitLabel();
     });
   }
   if (refs.nameDictScopeSelect) {
@@ -2120,6 +2156,7 @@ function bindNameEditor() {
       state.nameDictScope = String(refs.nameDictScopeSelect.value || "book").trim().toLowerCase() === "global" ? "global" : "book";
       syncNameEditorScopeUi();
       renderNameEntriesTable();
+      syncNameEntrySubmitLabel();
     });
   }
 
@@ -2148,7 +2185,10 @@ function bindNameEditor() {
       );
     });
   }
-  refs.nameSourceInput.addEventListener("input", syncNameSuggestExternalActions);
+  refs.nameSourceInput.addEventListener("input", () => {
+    syncNameSuggestExternalActions();
+    syncNameEntrySubmitLabel();
+  });
   refs.btnRefreshNamePreview.addEventListener("click", refreshNamePreview);
   refs.btnAddNameSet.addEventListener("click", addNameSet);
   refs.btnDeleteNameSet.addEventListener("click", deleteActiveNameSet);
@@ -2174,6 +2214,7 @@ function bindNameEditor() {
       });
       state.activeNameSet = data.active_set || chosen;
       await refreshNamePreview();
+      syncNameEntrySubmitLabel();
     } catch (error) {
       state.shell.showToast(error.message || state.shell.t("toastError"));
     } finally {
@@ -2189,8 +2230,11 @@ function bindNameEditor() {
       state.shell.showToast(state.shell.t("nameSourceTargetRequired"));
       return;
     }
-    await applyNameEntry(source, target);
+    const applied = await applyNameEntry(source, target);
+    if (!applied) return;
     refs.nameEntryForm.reset();
+    syncNameEntrySubmitLabel();
+    refs.nameEditorDialog.close();
   });
 
   refs.selectionNameBtn.textContent = state.shell.t("selectionEditName");
