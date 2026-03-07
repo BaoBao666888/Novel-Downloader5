@@ -2409,6 +2409,16 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   font-size: 15px;
 }
 
+.vbook-manager-search {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.vbook-manager-search input {
+  width: 100%;
+}
+
 .vbook-repo-picker {
   display: grid;
   grid-template-columns: 1fr;

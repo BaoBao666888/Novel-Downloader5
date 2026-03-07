@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260307-namefix1";
+import { t } from "../i18n.vi.js?v=20260307-vbooksearch1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -825,6 +825,7 @@ function fillStaticTexts() {
     ["btn-vbook-save-global-settings", "vbookSaveGlobalSettings"],
     ["btn-vbook-save-plugin-settings", "vbookSavePluginSettings"],
     ["btn-vbook-clear-plugin-settings", "vbookClearPluginSettings"],
+    ["vbook-manager-search-label", "vbookManagerSearchLabel"],
   ];
   for (const [id, key] of pairs) {
     const node = qs(id);
@@ -832,6 +833,8 @@ function fillStaticTexts() {
   }
   const search = qs("search-input");
   if (search) search.placeholder = t("searchPlaceholder");
+  const vbookManagerSearch = qs("vbook-manager-search-input");
+  if (vbookManagerSearch) vbookManagerSearch.placeholder = t("vbookManagerSearchPlaceholder");
 }
 
 export async function initShell({ page, onSearchSubmit, onImported, onSearch, onPrepareImport } = {}) {
@@ -848,6 +851,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
       repoPlugins: [],
       repoErrors: [],
       pluginUpdates: {},
+      searchQuery: "",
       activeRepoUrl: "",
       globalSettings: {
         request_delay_ms: 0,
@@ -1351,6 +1355,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
 
   const pluginSelect = qs("import-url-plugin");
   const vbookManagerDialog = qs("vbook-manager-dialog");
+  const vbookManagerSearchInput = qs("vbook-manager-search-input");
   const vbookRepoSelect = qs("vbook-repo-select");
   const vbookRepoCustomInput = qs("vbook-repo-custom-input");
   const vbookGlobalDelayInput = qs("vbook-global-request-delay-ms");
@@ -1630,6 +1635,25 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
     return out.join(" • ");
   };
 
+  const normalizePluginSearch = (value) => String(value || "").trim().toLowerCase();
+
+  const pluginMatchesManagerSearch = (item) => {
+    const query = normalizePluginSearch(state.vbook.searchQuery);
+    if (!query) return true;
+    const haystacks = [
+      item && item.name,
+      item && item.plugin_id,
+      item && item.author,
+      item && item.description,
+      item && item.source,
+      item && item.locale,
+      item && item.type,
+      item && item.version,
+      item && item.plugin_url,
+    ];
+    return haystacks.some((part) => normalizePluginSearch(part).includes(query));
+  };
+
   const renderImportPluginOptions = (items) => {
     if (!pluginSelect) return;
     const keep = pluginSelect.querySelector('option[value=""]');
@@ -1659,11 +1683,12 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
     const container = qs("vbook-installed-list");
     if (!container) return;
     container.innerHTML = "";
-    const items = Array.isArray(state.vbook.installed) ? state.vbook.installed : [];
+    const allItems = Array.isArray(state.vbook.installed) ? state.vbook.installed : [];
+    const items = allItems.filter(pluginMatchesManagerSearch);
     if (!items.length) {
       const empty = document.createElement("p");
       empty.className = "empty-text";
-      empty.textContent = t("vbookNoInstalledPlugins");
+      empty.textContent = allItems.length ? t("vbookNoMatchedPlugins") : t("vbookNoInstalledPlugins");
       container.appendChild(empty);
       return;
     }
@@ -1816,11 +1841,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
     if (!container) return;
     container.innerHTML = "";
     const allItems = Array.isArray(state.vbook.repoPlugins) ? state.vbook.repoPlugins : [];
-    const items = allItems.filter(item => !item.installed);
+    const items = allItems.filter((item) => !item.installed && pluginMatchesManagerSearch(item));
     if (!items.length) {
       const empty = document.createElement("p");
       empty.className = "empty-text";
-      empty.textContent = t("vbookNoRepoPlugins");
+      empty.textContent = allItems.some((item) => !item.installed) ? t("vbookNoMatchedPlugins") : t("vbookNoRepoPlugins");
       container.appendChild(empty);
       renderRepoErrors();
       return;
@@ -2133,6 +2158,9 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
     qs("btn-manage-vbook").addEventListener("click", async () => {
       if (!vbookManagerDialog) return;
       if (!vbookManagerDialog.open) vbookManagerDialog.showModal();
+      if (vbookManagerSearchInput) {
+        vbookManagerSearchInput.value = String(state.vbook.searchQuery || "");
+      }
       showStatus(t("statusLoadingVbookInstalled"));
       try {
         await loadInstalledVbookPlugins({ silent: true });
@@ -2144,6 +2172,15 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
       } finally {
         hideStatus();
       }
+    });
+  }
+
+  if (vbookManagerSearchInput) {
+    vbookManagerSearchInput.placeholder = t("vbookManagerSearchPlaceholder");
+    vbookManagerSearchInput.addEventListener("input", () => {
+      state.vbook.searchQuery = String(vbookManagerSearchInput.value || "").trim();
+      renderInstalledPlugins();
+      renderRepoPlugins();
     });
   }
 
