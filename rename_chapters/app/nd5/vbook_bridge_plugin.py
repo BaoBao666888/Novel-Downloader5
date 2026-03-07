@@ -152,7 +152,12 @@ class ReaderVBookBridgePlugin:
             ctx,
             "POST",
             "/api/vbook/toc",
-            {"plugin_id": self.vbook_plugin_id, "url": source_url, "all": True},
+            {
+                "plugin_id": self.vbook_plugin_id,
+                "url": source_url,
+                "all": True,
+                "translate_ui": False,
+            },
         )
         rows = toc_resp.get("items") if isinstance(toc_resp.get("items"), list) else []
 
@@ -175,35 +180,6 @@ class ReaderVBookBridgePlugin:
         reader_book_id = ""
         reader_chapter_map: Dict[str, str] = {}
         reader_chapter_downloaded: Dict[str, bool] = {}
-        try:
-            imported = self._api(
-                ctx,
-                "POST",
-                "/api/library/import-url",
-                {"url": source_url, "plugin_id": self.vbook_plugin_id},
-            )
-            book = imported.get("book") if isinstance(imported.get("book"), dict) else {}
-            reader_book_id = str(book.get("book_id") or "").strip()
-            chapters = book.get("chapters") if isinstance(book.get("chapters"), list) else []
-            for row in chapters:
-                if not isinstance(row, dict):
-                    continue
-                try:
-                    order = int(row.get("chapter_order") or 0)
-                except Exception:
-                    order = 0
-                if order <= 0:
-                    continue
-                synthetic = f"c{order}"
-                chapter_id = str(row.get("chapter_id") or "").strip()
-                if chapter_id:
-                    reader_chapter_map[synthetic] = chapter_id
-                    reader_chapter_downloaded[synthetic] = bool(row.get("is_downloaded"))
-        except Exception:
-            # Nếu import lỗi thì vẫn cho ND5 chạy bằng API chap trực tiếp.
-            reader_book_id = ""
-            reader_chapter_map = {}
-            reader_chapter_downloaded = {}
 
         book_seed = f"{self.vbook_plugin_id}|{source_url}"
         book_id = hashlib.sha1(book_seed.encode("utf-8", errors="ignore")).hexdigest()[:16]

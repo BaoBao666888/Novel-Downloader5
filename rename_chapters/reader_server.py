@@ -5577,6 +5577,208 @@ class ReaderService:
         self._remove_import_preview_state(token)
         return created
 
+    def prepare_import_url(
+        self,
+        url: str,
+        *,
+        plugin_id: str | None = None,
+        history_only: bool = False,
+    ) -> dict[str, Any]:
+        self._cleanup_import_previews()
+        source_url = (url or "").strip()
+        if not source_url:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL để import.")
+
+        plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id)
+        existing_normal = self.storage.find_book_by_source(
+            source_url,
+            plugin.plugin_id,
+            include_session=False,
+        )
+        if existing_normal:
+            if not history_only:
+                try:
+                    self.storage.remove_history_by_source(plugin_id=plugin.plugin_id, source_url=source_url)
+                except Exception:
+                    pass
+            return {
+                "ok": True,
+                "book": self.storage.get_book_detail(existing_normal["book_id"]) or existing_normal,
+                "existing": True,
+            }
+
+        if history_only:
+            existing_session = self.storage.find_book_by_source(
+                source_url,
+                plugin.plugin_id,
+                include_session=True,
+            )
+            if existing_session:
+                return {
+                    "ok": True,
+                    "book": self.storage.get_book_detail(existing_session["book_id"]) or existing_session,
+                    "existing": True,
+                }
+
+        payload = self._fetch_vbook_detail_raw(url=source_url, plugin_id=plugin.plugin_id)
+        detail = dict(payload.get("detail") or {})
+        plugin_obj = payload.get("plugin") or plugin
+        plugin_type = str(getattr(plugin_obj, "type", "") or "").strip().lower()
+        locale_norm = normalize_lang_source(str(getattr(plugin_obj, "locale", "") or ""))
+        lang_source = locale_norm or "zh"
+        title_raw = normalize_vbook_display_text(str(detail.get("title_raw") or ""), single_line=True) or source_url
+        author_raw = normalize_vbook_display_text(str(detail.get("author_raw") or ""), single_line=True)
+        description_raw = normalize_vbook_display_text(str(detail.get("description_raw") or ""), single_line=False)
+        title = title_raw
+        author = author_raw
+        summary = description_raw
+        if self.is_reader_translation_enabled():
+            mode = self.reader_translation_mode()
+            title = self._translate_ui_text(title, single_line=True, mode=mode) or title
+            author = self._translate_ui_text(author, single_line=True, mode=mode) or author
+            summary = self._translate_ui_text(summary, single_line=False, mode=mode) or summary
+        cover_raw = str(detail.get("cover_raw") or "").strip()
+        cover = build_vbook_image_proxy_path(
+            cover_raw,
+            plugin_id=str(getattr(plugin_obj, "plugin_id", "") or "").strip(),
+            referer=source_url,
+        )
+        token = uuid.uuid4().hex
+        source_type = "vbook_session_comic" if ("comic" in plugin_type and history_only) else (
+            "vbook_session" if history_only else (
+                "vbook_comic" if "comic" in plugin_type else "vbook"
+            )
+        )
+        state = {
+            "token": token,
+            "kind": "import_url",
+            "source_url": source_url,
+            "plugin_id": str(getattr(plugin_obj, "plugin_id", "") or "").strip(),
+            "history_only": bool(history_only),
+            "created_at": utc_now_iso(),
+            "detail": detail,
+            "preview": {
+                "title": title,
+                "author": author,
+                "summary": summary,
+                "title_raw": title_raw,
+                "author_raw": author_raw,
+                "summary_raw": description_raw,
+                "cover": cover,
+                "lang_source": lang_source,
+                "source_type": source_type,
+                "plugin_name": str(getattr(plugin_obj, "name", "") or "").strip(),
+                "plugin_type": plugin_type,
+                "source_url": source_url,
+                "is_comic": "comic" in plugin_type,
+            },
+        }
+        self._save_import_preview_state(token, state)
+        return {
+            "ok": True,
+            "token": token,
+            "existing": False,
+            "preview": dict(state["preview"]),
+        }
+
+    def commit_import_url_token(self, token: str) -> dict[str, Any]:
+        state = self._load_import_preview_state(token)
+        if str(state.get("kind") or "").strip() != "import_url":
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Token import URL không hợp lệ.")
+
+        source_url = str(state.get("source_url") or "").strip()
+        plugin_id = str(state.get("plugin_id") or "").strip()
+        history_only = bool(state.get("history_only"))
+        if not source_url or not plugin_id:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu dữ liệu import URL.")
+
+        plugin = self._require_vbook_plugin(plugin_id)
+        existing_normal = self.storage.find_book_by_source(
+            source_url,
+            plugin.plugin_id,
+            include_session=False,
+        )
+        if existing_normal:
+            self._remove_import_preview_state(token)
+            if not history_only:
+                try:
+                    self.storage.remove_history_by_source(plugin_id=plugin.plugin_id, source_url=source_url)
+                except Exception:
+                    pass
+            return self.storage.get_book_detail(existing_normal["book_id"]) or existing_normal
+
+        if history_only:
+            existing_session = self.storage.find_book_by_source(
+                source_url,
+                plugin.plugin_id,
+                include_session=True,
+            )
+            if existing_session:
+                self._remove_import_preview_state(token)
+                return self.storage.get_book_detail(existing_session["book_id"]) or existing_session
+
+        toc_rows = self._fetch_vbook_toc(plugin, source_url)
+        detail = dict(state.get("detail") or {})
+        title = normalize_vbook_display_text(
+            str(detail.get("title_raw") or ""),
+            single_line=True,
+        ) or source_url
+        author = normalize_vbook_display_text(str(detail.get("author_raw") or ""), single_line=True)
+        cover_path = str(detail.get("cover_raw") or "").strip()
+        plugin_type = str(plugin.type or "").strip().lower()
+        if history_only:
+            source_type = "vbook_session_comic" if "comic" in plugin_type else "vbook_session"
+        else:
+            source_type = "vbook_comic" if "comic" in plugin_type else "vbook"
+        summary = normalize_vbook_display_text(
+            str(detail.get("description_raw") or ""),
+            single_line=False,
+        ) or (
+            "Truyện tranh được import từ URL (vBook extension)." if "comic" in source_type else "Truyện được import từ URL (vBook extension)."
+        )
+        extra_link = source_url
+        locale_norm = normalize_lang_source(str(plugin.locale or ""))
+        lang_source = locale_norm or "zh"
+
+        chapters: list[dict[str, str]] = []
+        for idx, row in enumerate(toc_rows, start=1):
+            ch_title = normalize_vbook_display_text(
+                str(row.get("name") or f"Chương {idx}"),
+                single_line=True,
+            ) or f"Chương {idx}"
+            remote_url = str(row.get("remote_url") or "").strip()
+            if not remote_url:
+                continue
+            chapters.append({"title": ch_title, "remote_url": remote_url})
+
+        if not chapters:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "VBOOK_TOC_EMPTY",
+                "Không lấy được mục lục từ nguồn (vBook).",
+                {"source_url": source_url, "plugin": plugin.plugin_id},
+            )
+
+        created = self.storage.create_book_remote(
+            title=title,
+            author=author,
+            lang_source=lang_source,
+            source_type=source_type,
+            summary=summary,
+            chapters=chapters,
+            source_url=source_url,
+            source_plugin=plugin.plugin_id,
+            cover_path=cover_path,
+            extra_link=extra_link,
+        )
+        self._remove_import_preview_state(token)
+        if not history_only:
+            try:
+                self.storage.remove_history_by_source(plugin_id=plugin.plugin_id, source_url=source_url)
+            except Exception:
+                pass
+        return created
+
     def import_file(
         self,
         filename: str,
@@ -9507,7 +9709,13 @@ class ReaderService:
             },
         }
 
-    def get_vbook_detail(self, *, url: str, plugin_id: str = "") -> dict[str, Any]:
+    def get_vbook_detail(
+        self,
+        *,
+        url: str,
+        plugin_id: str = "",
+        translate_ui: bool | None = None,
+    ) -> dict[str, Any]:
         payload = self._fetch_vbook_detail_raw(url=url, plugin_id=plugin_id)
         plugin = payload["plugin"]
         detail = dict(payload["detail"] or {})
@@ -9531,7 +9739,11 @@ class ReaderService:
         comment_items = [dict(x or {}) for x in (detail.get("comment_items") or []) if isinstance(x, dict)]
         genre_items = [dict(x or {}) for x in (detail.get("genres") or []) if isinstance(x, dict)]
         extra_fields = [dict(x or {}) for x in (detail.get("extra_fields") or []) if isinstance(x, dict)]
-        if self.is_reader_translation_enabled():
+        if translate_ui is None:
+            translate_on = self.is_reader_translation_enabled()
+        else:
+            translate_on = bool(translate_ui)
+        if translate_on:
             mode = self.reader_translation_mode()
             title = self._translate_ui_text(title, single_line=True, mode=mode) or title
             author = self._translate_ui_text(author, single_line=True, mode=mode) or author
@@ -9660,6 +9872,7 @@ class ReaderService:
         page: int = 1,
         page_size: int = 120,
         all_items: bool = False,
+        translate_ui: bool | None = None,
     ) -> dict[str, Any]:
         source_url = str(url or "").strip()
         if not source_url:
@@ -9684,8 +9897,11 @@ class ReaderService:
             chunk = all_rows[offset : offset + ps]
 
         items: list[dict[str, Any]] = []
+        if translate_ui is None:
+            translate_on = self.is_reader_translation_enabled()
+        else:
+            translate_on = bool(translate_ui)
         translate_mode = self.reader_translation_mode()
-        translate_on = self.is_reader_translation_enabled()
         for idx, row in enumerate(chunk, start=(1 if all_items else ((p - 1) * ps + 1))):
             raw_title = normalize_vbook_display_text(
                 str(row.get("name") or ""),
@@ -10736,7 +10952,18 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             payload = self._read_json_body()
             source_url = str(payload.get("url") or "").strip()
             plugin_id = str(payload.get("plugin_id") or "").strip()
-            return self.service.get_vbook_detail(url=source_url, plugin_id=plugin_id)
+            translate_ui_raw = payload.get("translate_ui")
+            if translate_ui_raw is None:
+                translate_ui = None
+            elif isinstance(translate_ui_raw, bool):
+                translate_ui = translate_ui_raw
+            else:
+                translate_ui = str(translate_ui_raw or "").strip().lower() in {"1", "true", "yes", "on"}
+            return self.service.get_vbook_detail(
+                url=source_url,
+                plugin_id=plugin_id,
+                translate_ui=translate_ui,
+            )
 
         if method == "POST" and path == "/api/vbook/toc":
             payload = self._read_json_body()
@@ -10755,12 +10982,20 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 all_items = all_raw
             else:
                 all_items = str(all_raw or "").strip().lower() in {"1", "true", "yes", "on"}
+            translate_ui_raw = payload.get("translate_ui")
+            if translate_ui_raw is None:
+                translate_ui = None
+            elif isinstance(translate_ui_raw, bool):
+                translate_ui = translate_ui_raw
+            else:
+                translate_ui = str(translate_ui_raw or "").strip().lower() in {"1", "true", "yes", "on"}
             return self.service.get_vbook_toc(
                 url=source_url,
                 plugin_id=plugin_id,
                 page=page,
                 page_size=page_size,
                 all_items=all_items,
+                translate_ui=translate_ui,
             )
 
         if method == "POST" and path == "/api/vbook/chap":
@@ -10839,6 +11074,21 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             if not removed:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy plugin để xóa.")
             return {"ok": True}
+
+        if method == "POST" and path == "/api/library/import-url/prepare":
+            payload = self._read_json_body()
+            url = (payload.get("url") or "").strip()
+            plugin_id = (payload.get("plugin_id") or "").strip() or None
+            history_only = bool(payload.get("history_only", False))
+            return self.service.prepare_import_url(url, plugin_id=plugin_id, history_only=history_only)
+
+        if method == "POST" and path == "/api/library/import-url/commit":
+            payload = self._read_json_body()
+            token = str(payload.get("token") or "").strip()
+            if not token:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu token import URL.")
+            book = self.service.commit_import_url_token(token)
+            return {"ok": True, "book": book}
 
         if method == "POST" and path == "/api/library/import-url":
             payload = self._read_json_body()

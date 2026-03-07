@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260307-vbooksearch1";
+import { initShell } from "../site_common.js?v=20260307-urlimport1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260307-trim1";
 
 const refs = {
@@ -368,6 +368,7 @@ function buildPendingImportRecord() {
   const metadata = preview.metadata || {};
   return {
     temp_id: `pending_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+    import_kind: "file",
     token: String(state.importPreviewToken || "").trim(),
     title: String((refs.importPreviewBookTitleInput && refs.importPreviewBookTitleInput.value) || metadata.title || preview.file_name || "Đang nhập truyện").trim() || "Đang nhập truyện",
     author: String((refs.importPreviewAuthorInput && refs.importPreviewAuthorInput.value) || metadata.author || "").trim(),
@@ -376,6 +377,10 @@ function buildPendingImportRecord() {
     lang_source: String((refs.importPreviewLangSelect && refs.importPreviewLangSelect.value) || metadata.lang_source || "zh").trim(),
     chapter_count: Math.max(0, Number(metadata.chapter_count || 0)),
     summary: String((refs.importPreviewSummaryInput && refs.importPreviewSummaryInput.value) || metadata.summary || "").trim(),
+    source_label: `${state.shell.t("importPendingSource")} • ${String(preview.file_ext || "").trim().toUpperCase() || "TXT"}`,
+    status_text: state.shell.t("importPendingStatus"),
+    badge_text: state.shell.t("importPendingBadge"),
+    meta_text: state.shell.t("importPendingMeta", { count: Math.max(0, Number(metadata.chapter_count || 0)) }),
   };
 }
 
@@ -384,11 +389,59 @@ function addPendingImport(record) {
   renderBooks();
 }
 
+function updatePendingImport(tempId, patch) {
+  const targetId = String(tempId || "").trim();
+  if (!targetId) return;
+  state.pendingImports = state.pendingImports.map((item) => (
+    String(item.temp_id || "") === targetId ? { ...item, ...(patch || {}) } : item
+  ));
+  renderBooks();
+}
+
 function removePendingImport(tempId) {
   const targetId = String(tempId || "").trim();
   if (!targetId) return;
   state.pendingImports = state.pendingImports.filter((item) => String(item.temp_id || "") !== targetId);
   renderBooks();
+}
+
+function buildPendingUrlImportRecord({ url, pluginId }) {
+  let host = "";
+  try {
+    host = new URL(String(url || "").trim()).host || "";
+  } catch {
+    host = "";
+  }
+  const pluginText = String(pluginId || "").trim();
+  return {
+    temp_id: `pending_url_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+    import_kind: "url",
+    source_url: String(url || "").trim(),
+    plugin_id: pluginText,
+    cover_url: "",
+    title: host || String(url || "").trim() || state.shell.t("importPendingUrlTitle"),
+    author: "",
+    source_label: `${state.shell.t("importPendingUrlSource")} • ${host || pluginText || state.shell.t("importUrlPluginAuto")}`,
+    status_text: state.shell.t("importPendingUrlResolving"),
+    badge_text: state.shell.t("importPendingBadge"),
+    meta_text: state.shell.t("importPendingUrlWaiting"),
+    summary: "",
+    chapter_count: 0,
+    lang_source: "zh",
+  };
+}
+
+function pendingUrlSourceLabel(preview, fallbackUrl, fallbackPluginId) {
+  let host = "";
+  const sourceUrl = String((preview && preview.source_url) || fallbackUrl || "").trim();
+  try {
+    host = sourceUrl ? (new URL(sourceUrl).host || "") : "";
+  } catch {
+    host = "";
+  }
+  const pluginName = String((preview && preview.plugin_name) || "").trim();
+  const pluginText = String(fallbackPluginId || "").trim();
+  return `${state.shell.t("importPendingUrlSource")} • ${pluginName || host || pluginText || state.shell.t("importUrlPluginAuto")}`;
 }
 
 async function handlePrepareImport() {
@@ -443,6 +496,60 @@ async function commitPreparedImport() {
     state.importPreviewToken = token;
     removePendingImport(pending.temp_id);
     if (refs.importPreviewDialog && !refs.importPreviewDialog.open) refs.importPreviewDialog.showModal();
+    state.shell.showToast(getErrorMessage(error));
+  }
+}
+
+async function handleImportUrlPrepare({ url, pluginId, resetForm, closeDialog }) {
+  const pending = buildPendingUrlImportRecord({ url, pluginId });
+  closeDialog();
+  resetForm();
+  addPendingImport(pending);
+  try {
+    const prepared = await state.shell.api("/api/library/import-url/prepare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url,
+        plugin_id: pluginId || "",
+      }),
+    });
+    const existingBookId = String((prepared && prepared.book && prepared.book.book_id) || "").trim();
+    if (existingBookId) {
+      pending.resolved_book_id = existingBookId;
+      removePendingImport(pending.temp_id);
+      state.shell.showToast(state.shell.t("toastImportUrlExisting"));
+      await loadLibraryData({ silent: true });
+      return;
+    }
+
+    const preview = (prepared && prepared.preview) || {};
+    updatePendingImport(pending.temp_id, {
+      token: String((prepared && prepared.token) || "").trim(),
+      title: String(preview.title || pending.title || "").trim() || pending.title,
+      author: String(preview.author || "").trim(),
+      cover_url: String(preview.cover || "").trim(),
+      summary: String(preview.summary || "").trim(),
+      lang_source: String(preview.lang_source || pending.lang_source || "zh").trim(),
+      source_label: pendingUrlSourceLabel(preview, url, pluginId),
+      status_text: state.shell.t("importPendingUrlLoadingToc"),
+      meta_text: state.shell.t("importPendingUrlResolved"),
+    });
+
+    const committed = await state.shell.api("/api/library/import-url/commit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: String((prepared && prepared.token) || "").trim(),
+      }),
+    });
+    const bid = String((committed && committed.book && committed.book.book_id) || "").trim();
+    if (bid) pending.resolved_book_id = bid;
+    state.shell.showToast(state.shell.t("toastImportSuccess"));
+    await loadLibraryData({ silent: true });
+    removePendingImport(pending.temp_id);
+  } catch (error) {
+    removePendingImport(pending.temp_id);
     state.shell.showToast(getErrorMessage(error));
   }
 }
@@ -526,15 +633,22 @@ function renderPendingImportCard(item) {
 
   const cover = document.createElement("div");
   cover.className = "book-card-cover book-card-cover-pending";
-  const coverText = document.createElement("div");
-  coverText.className = "book-card-cover-text";
-  coverText.textContent = item.file_ext || "TXT";
-  cover.appendChild(coverText);
+  if (item.cover_url) {
+    const img = document.createElement("img");
+    img.src = item.cover_url;
+    img.alt = normalizeDisplayTitle(item.title || state.shell.t("importPendingUrlTitle"));
+    cover.appendChild(img);
+  } else {
+    const coverText = document.createElement("div");
+    coverText.className = "book-card-cover-text";
+    coverText.textContent = item.import_kind === "url" ? "URL" : (item.file_ext || "TXT");
+    cover.appendChild(coverText);
+  }
 
   const body = document.createElement("div");
   const title = document.createElement("div");
   title.className = "book-card-title";
-  title.textContent = normalizeDisplayTitle(item.title || "Đang nhập truyện");
+  title.textContent = normalizeDisplayTitle(item.title || state.shell.t("importPendingUrlTitle"));
 
   const author = document.createElement("div");
   author.className = "book-card-meta";
@@ -542,24 +656,24 @@ function renderPendingImportCard(item) {
 
   const source = document.createElement("div");
   source.className = "book-card-source";
-  source.textContent = `${state.shell.t("importPendingSource")} • ${item.file_ext || "TXT"}`;
+  source.textContent = String(item.source_label || `${state.shell.t("importPendingSource")} • ${item.file_ext || "TXT"}`);
 
   const infoRow = document.createElement("div");
   infoRow.className = "book-card-progress-row";
 
   const status = document.createElement("div");
   status.className = "book-card-chapter";
-  status.textContent = state.shell.t("importPendingStatus");
+  status.textContent = String(item.status_text || state.shell.t("importPendingStatus"));
 
   const badge = document.createElement("div");
   badge.className = "book-card-percent";
-  badge.textContent = state.shell.t("importPendingBadge");
+  badge.textContent = String(item.badge_text || state.shell.t("importPendingBadge"));
 
   infoRow.append(status, badge);
 
   const meta = document.createElement("div");
   meta.className = "book-card-download";
-  meta.textContent = state.shell.t("importPendingMeta", { count: Math.max(0, Number(item.chapter_count || 0)) });
+  meta.textContent = String(item.meta_text || state.shell.t("importPendingMeta", { count: Math.max(0, Number(item.chapter_count || 0)) }));
 
   const bar = document.createElement("div");
   bar.className = "book-card-import-progress";
@@ -1253,6 +1367,7 @@ async function init() {
     page: "library",
     onSearchSubmit: (q) => state.shell.goSearchPage(q),
     onPrepareImport: handlePrepareImport,
+    onImportUrl: handleImportUrlPrepare,
     onImported: (data) => {
       const bid = data && data.book && data.book.book_id;
       if (bid) {
