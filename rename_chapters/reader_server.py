@@ -59,6 +59,7 @@ mimetypes.add_type("text/css", ".css")
 
 
 _EXPLICIT_LOG_LOCK = threading.Lock()
+_LOG_CLEANUP_LOCK = threading.Lock()
 
 
 def runtime_base_dir() -> Path:
@@ -110,6 +111,42 @@ def resolve_existing_path(raw: str | Path, *bases: Path) -> Path:
     if candidates:
         return candidates[0]
     return p
+
+
+def _reader_log_dir() -> Path:
+    explicit_dir = (os.environ.get("READER_SERVER_LOG_DIR") or "").strip()
+    if explicit_dir:
+        return resolve_path_from_base(explicit_dir, runtime_base_dir())
+    explicit_file = (os.environ.get("READER_SERVER_LOG_FILE") or "").strip()
+    if explicit_file:
+        return Path(explicit_file).resolve().parent
+    return runtime_base_dir() / "logs" / "reader_server"
+
+
+def _reader_log_path_for_now() -> Path:
+    now = datetime.now()
+    return _reader_log_dir() / f"reader_server-{now.strftime('%Y-%m-%d')}.log"
+
+
+def cleanup_reader_log_files(*, keep_days: int = 30) -> None:
+    log_dir = _reader_log_dir()
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        return
+    cutoff = datetime.now() - timedelta(days=max(1, int(keep_days)))
+    pattern = re.compile(r"^reader_server-(\d{4}-\d{2}-\d{2})\.log$")
+    with _LOG_CLEANUP_LOCK:
+        for entry in log_dir.glob("reader_server-*.log"):
+            try:
+                match = pattern.match(entry.name)
+                if not match:
+                    continue
+                stamp = datetime.strptime(match.group(1), "%Y-%m-%d")
+                if stamp < cutoff:
+                    entry.unlink(missing_ok=True)
+            except Exception:
+                continue
 
 
 def set_local_dirs(local_dir: Path) -> None:
@@ -2445,14 +2482,22 @@ class TranslationAdapter:
 
     def _settings(self) -> dict[str, Any]:
         cfg = self.app_config.get("translator_settings") or {}
+        reader_cfg = self.app_config.get("reader_translation") or {}
+        server_cfg = reader_cfg.get("server") if isinstance(reader_cfg, dict) else {}
+        if not isinstance(server_cfg, dict):
+            server_cfg = {}
         return {
-            "serverUrl": cfg.get("serverUrl", "https://dichngay.com/translate/text"),
+            "serverUrl": server_cfg.get("serverUrl") or cfg.get("serverUrl", "https://dichngay.com/translate/text"),
             "hanvietJsonUrl": cfg.get(
                 "hanvietJsonUrl",
                 "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/han_viet/output.json",
             ),
-            "delayMs": int(cfg.get("delayMs", 250) or 250),
-            "maxChars": int(cfg.get("maxChars", 4500) or 4500),
+            "delayMs": int(server_cfg.get("delayMs", cfg.get("delayMs", 250)) or 250),
+            "maxChars": int(server_cfg.get("maxChars", cfg.get("maxChars", 4500)) or 4500),
+            "maxItems": int(server_cfg.get("maxItems", cfg.get("maxItems", 40)) or 40),
+            "retryCount": int(server_cfg.get("retryCount", cfg.get("retryCount", 2)) or 2),
+            "timeoutSec": int(server_cfg.get("timeoutSec", cfg.get("timeoutSec", 60)) or 60),
+            "retryBackoffMs": int(server_cfg.get("retryBackoffMs", cfg.get("retryBackoffMs", 700)) or 700),
             "proxies": cfg.get("proxies"),
         }
 
@@ -2810,8 +2855,14 @@ class ReaderStorage:
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("PRAGMA busy_timeout = 30000")
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA synchronous = NORMAL")
+        except Exception:
+            pass
         return conn
 
     def _init_db(self) -> None:
@@ -3222,24 +3273,40 @@ class ReaderStorage:
 
     def _set_app_state_value(self, key: str, value: str) -> None:
         now = utc_now_iso()
-        with self._connect() as conn:
-            conn.execute(
-                """
-                INSERT INTO app_state(key, value, updated_at)
-                VALUES(?, ?, ?)
-                ON CONFLICT(key) DO UPDATE SET
-                    value = excluded.value,
-                    updated_at = excluded.updated_at
-                """,
-                (key, value, now),
-            )
+        attempts = 4
+        for attempt in range(attempts):
+            try:
+                with self._connect() as conn:
+                    conn.execute(
+                        """
+                        INSERT INTO app_state(key, value, updated_at)
+                        VALUES(?, ?, ?)
+                        ON CONFLICT(key) DO UPDATE SET
+                            value = excluded.value,
+                            updated_at = excluded.updated_at
+                        """,
+                        (key, value, now),
+                    )
+                return
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc).lower() or attempt >= attempts - 1:
+                    raise
+                time.sleep(0.12 * (attempt + 1))
 
     def _delete_app_state_value(self, key: str) -> None:
         key_name = str(key or "").strip()
         if not key_name:
             return
-        with self._connect() as conn:
-            conn.execute("DELETE FROM app_state WHERE key = ?", (key_name,))
+        attempts = 4
+        for attempt in range(attempts):
+            try:
+                with self._connect() as conn:
+                    conn.execute("DELETE FROM app_state WHERE key = ?", (key_name,))
+                return
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc).lower() or attempt >= attempts - 1:
+                    raise
+                time.sleep(0.12 * (attempt + 1))
 
     def _name_set_state_key(self, book_id: str | None = None) -> str:
         bid = str(book_id or "").strip()
@@ -3302,8 +3369,6 @@ class ReaderStorage:
             default_sets=default_sets,
             active_default=active_default,
         )
-        if raw_state is None or self._normalize_name_set_state(raw_state) != normalized:
-            self._persist_name_set_state(normalized, book_id=book_id)
         return normalized
 
     def set_name_set_state(
@@ -5167,7 +5232,7 @@ class ReaderService:
         self.vbook_bridge_cookie_db_path = ROOT_DIR / "qt_browser_profile" / "storage" / "Cookies"
         self._vbook_bridge_state_cache: dict[str, Any] = {}
         self._vbook_bridge_state_mtime: float | None = None
-        self.reader_translation_settings: dict[str, Any] = {"enabled": True, "mode": "server"}
+        self.reader_translation_settings: dict[str, Any] = {"enabled": True, "mode": "local"}
         self.reader_import_settings: dict[str, Any] = normalize_reader_import_settings({})
         self.name_set_state: dict[str, Any] = {"sets": {"Mặc định": {}}, "active_set": "Mặc định", "version": 1}
         # Allow storage to lazy-load remote chapter content (vBook, ...).
@@ -5194,8 +5259,26 @@ class ReaderService:
             return active
         return next(iter(default_sets.keys()))
 
+    def _ensure_reader_config_defaults_persisted(self) -> None:
+        cfg = dict(self.app_config or {}) if isinstance(self.app_config, dict) else {}
+        normalized_translation = self._normalized_reader_translation_settings(cfg)
+        current_translation = cfg.get("reader_translation") if isinstance(cfg.get("reader_translation"), dict) else {}
+        changed = False
+        if current_translation != normalized_translation:
+            cfg["reader_translation"] = normalized_translation
+            changed = True
+        normalized_import = self._normalized_reader_import_settings(cfg)
+        current_import = cfg.get("reader_import") if isinstance(cfg.get("reader_import"), dict) else {}
+        if current_import != normalized_import:
+            cfg["reader_import"] = normalized_import
+            changed = True
+        if changed:
+            save_app_config(cfg)
+            self.app_config = cfg
+
     def refresh_config(self) -> None:
         self.app_config = load_app_config()
+        self._ensure_reader_config_defaults_persisted()
         self.reader_translation_settings = self._normalized_reader_translation_settings(self.app_config)
         self.reader_import_settings = self._normalized_reader_import_settings(self.app_config)
         default_sets = self._default_name_sets()
@@ -6185,6 +6268,31 @@ class ReaderService:
             return default
         return "server"
 
+    def _normalized_server_translate_settings(self, value: Any = None, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+        raw = value if isinstance(value, dict) else {}
+        source_cfg = cfg if isinstance(cfg, dict) else self.app_config
+        translator_cfg = source_cfg.get("translator_settings") if isinstance(source_cfg, dict) else {}
+        if not isinstance(translator_cfg, dict):
+            translator_cfg = {}
+
+        def _to_int(raw_value: Any, default: int, minimum: int, maximum: int) -> int:
+            try:
+                parsed = int(raw_value if raw_value is not None else default)
+            except Exception:
+                parsed = default
+            return max(minimum, min(maximum, parsed))
+
+        return {
+            "serverUrl": str(raw.get("serverUrl") or translator_cfg.get("serverUrl") or "https://dichngay.com/translate/text").strip()
+            or "https://dichngay.com/translate/text",
+            "delayMs": _to_int(raw.get("delayMs", translator_cfg.get("delayMs")), 250, 0, 10_000),
+            "maxChars": _to_int(raw.get("maxChars", translator_cfg.get("maxChars")), 4500, 500, 20_000),
+            "maxItems": _to_int(raw.get("maxItems", translator_cfg.get("maxItems")), 40, 1, 200),
+            "retryCount": _to_int(raw.get("retryCount", translator_cfg.get("retryCount")), 2, 0, 8),
+            "timeoutSec": _to_int(raw.get("timeoutSec", translator_cfg.get("timeoutSec")), 60, 10, 180),
+            "retryBackoffMs": _to_int(raw.get("retryBackoffMs", translator_cfg.get("retryBackoffMs")), 700, 100, 5_000),
+        }
+
     def _normalized_global_local_dicts(self, value: Any) -> dict[str, dict[str, str]]:
         raw = value if isinstance(value, dict) else {}
         return {
@@ -6203,7 +6311,11 @@ class ReaderService:
         merged_local["global_vp_overrides"] = dict(global_dicts.get("vp") or {})
         return {
             "enabled": self._parse_bool(payload.get("enabled"), True),
-            "mode": self._normalize_translate_mode(payload.get("mode"), "server"),
+            "mode": self._normalize_translate_mode(payload.get("mode"), "local"),
+            "server": self._normalized_server_translate_settings(
+                payload.get("server") if isinstance(payload, dict) else None,
+                cfg,
+            ),
             "local": vbook_local_translate.normalize_local_settings(
                 merged_local,
                 default_base_dir="reader_ui/translate/vbook_local",
@@ -6244,7 +6356,11 @@ class ReaderService:
             "ok": True,
             "translation": {
                 "enabled": bool(self.reader_translation_settings.get("enabled", True)),
-                "mode": self._normalize_translate_mode(self.reader_translation_settings.get("mode"), "server"),
+                "mode": self._normalize_translate_mode(self.reader_translation_settings.get("mode"), "local"),
+                "server": self._normalized_server_translate_settings(
+                    self.reader_translation_settings.get("server"),
+                    self.app_config,
+                ),
                 "local": local_settings,
                 "global_dicts": self._normalized_global_local_dicts(
                     self.reader_translation_settings.get("global_dicts")
@@ -6266,12 +6382,18 @@ class ReaderService:
             cfg = {}
         existing = self._normalized_reader_translation_settings(cfg)
         patch_local = patch.get("local")
+        patch_server = patch.get("server")
         patch_global_dicts = patch.get("global_dicts")
         if isinstance(patch_local, dict):
             merged_local = dict(existing.get("local") or {})
             merged_local.update(patch_local)
         else:
             merged_local = existing.get("local") or {}
+        if isinstance(patch_server, dict):
+            merged_server = dict(existing.get("server") or {})
+            merged_server.update(patch_server)
+        else:
+            merged_server = existing.get("server") or {}
         merged_global_dicts = self._normalized_global_local_dicts(existing.get("global_dicts"))
         if isinstance(patch_global_dicts, dict):
             for key in ("name", "vp"):
@@ -6283,6 +6405,7 @@ class ReaderService:
         next_settings = {
             "enabled": self._parse_bool(patch.get("enabled"), existing["enabled"]),
             "mode": self._normalize_translate_mode(patch.get("mode"), existing["mode"]),
+            "server": self._normalized_server_translate_settings(merged_server, cfg),
             "local": vbook_local_translate.normalize_local_settings(
                 local_with_global,
                 default_base_dir="reader_ui/translate/vbook_local",
@@ -6409,7 +6532,7 @@ class ReaderService:
         return bool(self.reader_translation_settings.get("enabled", True))
 
     def reader_translation_mode(self) -> str:
-        return self._normalize_translate_mode(self.reader_translation_settings.get("mode"), "server")
+        return self._normalize_translate_mode(self.reader_translation_settings.get("mode"), "local")
 
     def resolve_translate_mode(self, preferred: Any = None) -> str:
         return self._normalize_translate_mode(preferred, self.reader_translation_mode())
@@ -13046,9 +13169,10 @@ def configure_console_output() -> None:
 def safe_console_print(text: str) -> None:
     message = str(text or "")
     explicit_log = (os.environ.get("READER_SERVER_LOG_FILE") or "").strip()
-    if explicit_log:
+    explicit_dir = (os.environ.get("READER_SERVER_LOG_DIR") or "").strip()
+    if explicit_log or explicit_dir:
         try:
-            log_path = Path(explicit_log)
+            log_path = Path(explicit_log).resolve() if explicit_log else _reader_log_path_for_now()
             log_path.parent.mkdir(parents=True, exist_ok=True)
             with _EXPLICIT_LOG_LOCK:
                 with log_path.open("a", encoding="utf-8", errors="backslashreplace") as fp:
@@ -13082,6 +13206,7 @@ def safe_console_print(text: str) -> None:
 
 def main():
     configure_console_output()
+    cleanup_reader_log_files(keep_days=30)
     args = parse_args()
     ui_dir = Path(args.ui_dir).resolve()
     if not ui_dir.exists():

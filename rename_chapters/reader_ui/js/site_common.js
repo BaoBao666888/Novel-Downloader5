@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260307-export2";
+import { t } from "../i18n.vi.js?v=20260307-rlog1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -16,7 +16,7 @@ const DEFAULT_SETTINGS = {
   backgroundMotion: "on",
   miniBarsEnabled: true,
   translationEnabled: true,
-  translationMode: "server",
+  translationMode: "local",
 };
 
 const LOCAL_TRANSLATION_DEFAULT = {
@@ -30,6 +30,15 @@ const LOCAL_TRANSLATION_DEFAULT = {
   short_mode: true,
   use_pronouns: true,
   use_luat_nhan: true,
+};
+
+const SERVER_TRANSLATION_DEFAULT = {
+  delayMs: 250,
+  maxChars: 4500,
+  maxItems: 40,
+  retryCount: 2,
+  timeoutSec: 60,
+  retryBackoffMs: 700,
 };
 
 const FONT_PRESETS = [
@@ -243,6 +252,25 @@ function normalizeLocalTranslationSettings(raw) {
     use_name_global: true,
     use_name_extra: false,
     use_vp_genre: false,
+  };
+}
+
+function normalizeServerTranslationSettings(raw) {
+  const src = (raw && typeof raw === "object") ? raw : {};
+  const toInt = (value, fallback, min, max) => {
+    const n = Number.parseInt(String(value ?? ""), 10);
+    if (!Number.isFinite(n)) return fallback;
+    if (n < min) return min;
+    if (n > max) return max;
+    return n;
+  };
+  return {
+    delayMs: toInt(src.delayMs, SERVER_TRANSLATION_DEFAULT.delayMs, 0, 10000),
+    maxChars: toInt(src.maxChars, SERVER_TRANSLATION_DEFAULT.maxChars, 500, 20000),
+    maxItems: toInt(src.maxItems, SERVER_TRANSLATION_DEFAULT.maxItems, 1, 200),
+    retryCount: toInt(src.retryCount, SERVER_TRANSLATION_DEFAULT.retryCount, 0, 8),
+    timeoutSec: toInt(src.timeoutSec, SERVER_TRANSLATION_DEFAULT.timeoutSec, 10, 180),
+    retryBackoffMs: toInt(src.retryBackoffMs, SERVER_TRANSLATION_DEFAULT.retryBackoffMs, 100, 5000),
   };
 }
 
@@ -705,6 +733,13 @@ function fillStaticTexts() {
     ["translation-mode-server", "translationModeServer"],
     ["translation-mode-local", "translationModeLocal"],
     ["translation-mode-hanviet", "translationModeHanviet"],
+    ["label-server-translate-settings", "serverTranslateSettings"],
+    ["label-server-delay-ms", "serverDelayMs"],
+    ["label-server-max-chars", "serverMaxChars"],
+    ["label-server-max-items", "serverMaxItems"],
+    ["label-server-retry-count", "serverRetryCount"],
+    ["label-server-timeout-sec", "serverTimeoutSec"],
+    ["label-server-retry-backoff-ms", "serverRetryBackoffMs"],
     ["label-local-translate-settings", "localTranslateSettings"],
     ["label-local-split-mode", "localSplitMode"],
     ["local-split-mode-punct", "localSplitModePunct"],
@@ -860,6 +895,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     themes: [],
     settings: loadSettings(),
     readerTranslationLocal: { ...LOCAL_TRANSLATION_DEFAULT },
+    readerTranslationServer: { ...SERVER_TRANSLATION_DEFAULT },
     vbook: {
       installed: [],
       repoUrls: [],
@@ -900,6 +936,14 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const miniBarsEnabledSelect = qs("mini-bars-enabled-select");
   const translationEnabledSelect = qs("translation-enabled-select");
   const translationModeSelect = qs("translation-mode-select");
+  const localSection = qs("local-translation-settings");
+  const serverTranslateSection = qs("server-translation-settings");
+  const serverDelayMsInput = qs("server-delay-ms-input");
+  const serverMaxCharsInput = qs("server-max-chars-input");
+  const serverMaxItemsInput = qs("server-max-items-input");
+  const serverRetryCountInput = qs("server-retry-count-input");
+  const serverTimeoutSecInput = qs("server-timeout-sec-input");
+  const serverRetryBackoffMsInput = qs("server-retry-backoff-ms-input");
   const localSplitModeSelect = qs("local-split-mode-select");
   const localNameVpPrioritySelect = qs("local-name-vp-priority-select");
   const localPersonalGeneralPrioritySelect = qs("local-personal-general-priority-select");
@@ -1027,6 +1071,29 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     if (localUseLuatNhanSelect) localUseLuatNhanSelect.value = cfg.use_luat_nhan ? "on" : "off";
   };
 
+  const syncServerTranslationForm = () => {
+    const cfg = normalizeServerTranslationSettings(state.readerTranslationServer || {});
+    state.readerTranslationServer = cfg;
+    if (serverDelayMsInput) serverDelayMsInput.value = String(cfg.delayMs);
+    if (serverMaxCharsInput) serverMaxCharsInput.value = String(cfg.maxChars);
+    if (serverMaxItemsInput) serverMaxItemsInput.value = String(cfg.maxItems);
+    if (serverRetryCountInput) serverRetryCountInput.value = String(cfg.retryCount);
+    if (serverTimeoutSecInput) serverTimeoutSecInput.value = String(cfg.timeoutSec);
+    if (serverRetryBackoffMsInput) serverRetryBackoffMsInput.value = String(cfg.retryBackoffMs);
+  };
+
+  const collectServerTranslationSettingsFromForm = () => {
+    state.readerTranslationServer = normalizeServerTranslationSettings({
+      delayMs: serverDelayMsInput && serverDelayMsInput.value,
+      maxChars: serverMaxCharsInput && serverMaxCharsInput.value,
+      maxItems: serverMaxItemsInput && serverMaxItemsInput.value,
+      retryCount: serverRetryCountInput && serverRetryCountInput.value,
+      timeoutSec: serverTimeoutSecInput && serverTimeoutSecInput.value,
+      retryBackoffMs: serverRetryBackoffMsInput && serverRetryBackoffMsInput.value,
+    });
+    return state.readerTranslationServer;
+  };
+
   const collectLocalTranslationSettingsFromForm = () => {
     const current = normalizeLocalTranslationSettings(state.readerTranslationLocal || {});
     const parseOr = (raw, fallback, min, max) => {
@@ -1071,28 +1138,34 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       translationModeSelect.value = state.settings.translationMode;
       translationModeSelect.disabled = !state.settings.translationEnabled;
     }
-    const localSection = qs("local-translation-settings");
-    if (localSection) {
-      localSection.hidden = !["local", "hanviet"].includes(String(state.settings.translationMode || "").toLowerCase());
-    }
+    if (localSection) localSection.hidden = !["local", "hanviet"].includes(String(state.settings.translationMode || "").toLowerCase());
+    if (serverTranslateSection) serverTranslateSection.hidden = String(state.settings.translationMode || "").toLowerCase() !== "server";
+    syncServerTranslationForm();
     syncLocalTranslationForm();
   };
 
-  const applyReaderTranslationSettings = ({ enabled, mode, local }, { emit = true } = {}) => {
+  const applyReaderTranslationSettings = ({ enabled, mode, server, local }, { emit = true } = {}) => {
     state.settings.translationEnabled = enabled !== false;
     state.settings.translationMode = normalizeTranslationMode(mode);
+    state.readerTranslationServer = normalizeServerTranslationSettings(server || state.readerTranslationServer || {});
     state.readerTranslationLocal = normalizeLocalTranslationSettings(local || state.readerTranslationLocal || {});
     syncReaderTranslationForm();
     saveSettings(state.settings);
-    if (emit) emitSettingsChanged({ ...state.settings, translationLocal: state.readerTranslationLocal });
+    if (emit) emitSettingsChanged({
+      ...state.settings,
+      translationServer: state.readerTranslationServer,
+      translationLocal: state.readerTranslationLocal,
+    });
   };
 
   const persistReaderTranslationSettings = async () => {
+    const serverCfg = collectServerTranslationSettingsFromForm();
     const localCfg = collectLocalTranslationSettingsFromForm();
     const payload = {
       translation: {
         enabled: state.settings.translationEnabled !== false,
         mode: normalizeTranslationMode(state.settings.translationMode),
+        server: serverCfg,
         local: localCfg,
       },
     };
@@ -1259,6 +1332,24 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   bindLocalTranslateSetting(localUsePronounsSelect);
   bindLocalTranslateSetting(localUseLuatNhanSelect);
   bindLocalTranslateSetting(localMaxPhraseSizeInput, "input");
+  const bindServerTranslateSetting = (node, eventName = "change") => {
+    if (!node) return;
+    node.addEventListener(eventName, async () => {
+      collectServerTranslationSettingsFromForm();
+      syncReaderTranslationForm();
+      try {
+        await persistReaderTranslationSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
+    });
+  };
+  bindServerTranslateSetting(serverDelayMsInput, "input");
+  bindServerTranslateSetting(serverMaxCharsInput, "input");
+  bindServerTranslateSetting(serverMaxItemsInput, "input");
+  bindServerTranslateSetting(serverRetryCountInput, "input");
+  bindServerTranslateSetting(serverTimeoutSecInput, "input");
+  bindServerTranslateSetting(serverRetryBackoffMsInput, "input");
   if (localMaxPhraseSizeInput) {
     localMaxPhraseSizeInput.addEventListener("input", () => {
       syncLocalMaxPhraseSizeValue(localMaxPhraseSizeInput.value);
@@ -1318,13 +1409,18 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.settings.miniBarsEnabled = (miniBarsEnabledSelect && miniBarsEnabledSelect.value) !== "off";
       state.settings.translationEnabled = (translationEnabledSelect && translationEnabledSelect.value) !== "off";
       state.settings.translationMode = normalizeTranslationMode((translationModeSelect && translationModeSelect.value) || DEFAULT_SETTINGS.translationMode);
+      state.readerTranslationServer = collectServerTranslationSettingsFromForm();
       state.readerTranslationLocal = collectLocalTranslationSettingsFromForm();
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
       syncReaderTranslationForm();
       saveSettings(state.settings);
-      emitSettingsChanged({ ...state.settings, translationLocal: state.readerTranslationLocal });
+      emitSettingsChanged({
+        ...state.settings,
+        translationServer: state.readerTranslationServer,
+        translationLocal: state.readerTranslationLocal,
+      });
       try {
         await persistReaderTranslationSettings();
       } catch (error) {
@@ -1351,6 +1447,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       if (miniBarsEnabledSelect) miniBarsEnabledSelect.value = state.settings.miniBarsEnabled ? "on" : "off";
       if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
       if (translationModeSelect) translationModeSelect.value = normalizeTranslationMode(state.settings.translationMode);
+      state.readerTranslationServer = { ...SERVER_TRANSLATION_DEFAULT };
       if (qs("text-indent-value")) qs("text-indent-value").textContent = `${state.settings.textIndent.toFixed(2)}em`;
       state.readerTranslationLocal = { ...LOCAL_TRANSLATION_DEFAULT };
       applyTheme(state.themes, state.settings);
@@ -1358,7 +1455,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       applyReaderVars(state.settings);
       syncReaderTranslationForm();
       saveSettings(state.settings);
-      emitSettingsChanged({ ...state.settings, translationLocal: state.readerTranslationLocal });
+      emitSettingsChanged({
+        ...state.settings,
+        translationServer: state.readerTranslationServer,
+        translationLocal: state.readerTranslationLocal,
+      });
       try {
         await persistReaderTranslationSettings();
       } catch (error) {

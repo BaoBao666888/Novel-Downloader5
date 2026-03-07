@@ -76,13 +76,15 @@ def _restore_names(text: str, placeholder_map: dict):
         result = re.sub(re.escape(placeholder), data['viet'], result)
     return result
 
-def _split_into_batches(text_list: list, max_chars: int):
+def _split_into_batches(text_list: list, max_chars: int, max_items: int = 40):
     batches = []
     current_batch = []
     current_len = 0
+    item_limit = max(1, int(max_items or 1))
     for text in text_list:
         text_len = len(text)
-        if current_len + text_len > max_chars and current_batch:
+        next_count = len(current_batch) + 1
+        if ((current_len + text_len > max_chars) or (next_count > item_limit)) and current_batch:
             batches.append(current_batch)
             current_batch = [text]
             current_len = text_len
@@ -93,20 +95,43 @@ def _split_into_batches(text_list: list, max_chars: int):
         batches.append(current_batch)
     return batches
 
-def _post_translate_batch(content_array: list, server_url: str, proxies=None, target_lang: str = 'vi'):
+def _post_translate_batch(
+    content_array: list,
+    server_url: str,
+    proxies=None,
+    target_lang: str = 'vi',
+    retry_count: int = 2,
+    retry_backoff_ms: int = 700,
+    timeout_sec: int = 60,
+):
     payload = {'content': json.dumps(content_array, ensure_ascii=False), 'tl': target_lang}
     headers = {'Content-Type': 'application/json', 'Referer': 'https://dichngay.com/'}
-    try:
-        response = requests.post(server_url, json=payload, headers=headers, timeout=60, proxies=proxies)
-        response.raise_for_status()
-        json_response = response.json()
-        translated_content_str = json_response.get('data', {}).get('content') or json_response.get('translatedText', '[]')
-        sanitized_string = translated_content_str.replace('\\', '\\\\').replace('\\\\"', '\\"')
-        return json.loads(sanitized_string)
-    except requests.exceptions.RequestException as e:
-        return [f"[Lỗi mạng: {e}]"] * len(content_array)
-    except json.JSONDecodeError as e:
-        return [f"[Lỗi server response]"] * len(content_array)
+    attempts = max(1, int(retry_count or 0) + 1)
+    last_request_error = None
+    last_parse_error = None
+    for attempt in range(attempts):
+        try:
+            response = requests.post(
+                server_url,
+                json=payload,
+                headers=headers,
+                timeout=max(10, int(timeout_sec or 60)),
+                proxies=proxies,
+            )
+            response.raise_for_status()
+            json_response = response.json()
+            translated_content_str = json_response.get('data', {}).get('content') or json_response.get('translatedText', '[]')
+            sanitized_string = translated_content_str.replace('\\', '\\\\').replace('\\\\"', '\\"')
+            return json.loads(sanitized_string)
+        except requests.exceptions.RequestException as e:
+            last_request_error = e
+        except json.JSONDecodeError as e:
+            last_parse_error = e
+        if attempt < attempts - 1:
+            time.sleep(max(0.1, int(retry_backoff_ms or 700) / 1000.0))
+    if last_request_error is not None:
+        return [f"[Lỗi mạng: {last_request_error}]"] * len(content_array)
+    return [f"[Lỗi server response]"] * len(content_array)
 
 def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_progress_callback=None, target_lang: str = 'vi'):
     if not chunks:
@@ -114,7 +139,11 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
 
     server_url = settings.get('serverUrl', 'https://dichngay.com/translate/text')
     max_chars = settings.get('maxChars', 4500)
+    max_items = settings.get('maxItems', 40)
     delay_ms = settings.get('delayMs', 400)
+    retry_count = settings.get('retryCount', 2)
+    retry_backoff_ms = settings.get('retryBackoffMs', 700)
+    timeout_sec = settings.get('timeoutSec', 60)
 
     if update_progress_callback:
         update_progress_callback("Chuẩn bị và thay thế tên...", 0)
@@ -122,7 +151,7 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
     replacer, placeholder_map = _build_name_set_replacer(name_set)
     texts_with_placeholders = [replacer(chunk) for chunk in chunks]
 
-    batches = _split_into_batches(texts_with_placeholders, max_chars)
+    batches = _split_into_batches(texts_with_placeholders, max_chars, max_items)
     total_batches = len(batches)
     
     all_translated_texts = []
@@ -131,7 +160,15 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
             progress = int((i / total_batches) * 100)
             update_progress_callback(f"Đang dịch gói {i+1}/{total_batches}...", progress)
         
-        translated_batch = _post_translate_batch(batch, server_url, settings.get('proxies'), target_lang=target_lang or 'vi')
+        translated_batch = _post_translate_batch(
+            batch,
+            server_url,
+            settings.get('proxies'),
+            target_lang=target_lang or 'vi',
+            retry_count=retry_count,
+            retry_backoff_ms=retry_backoff_ms,
+            timeout_sec=timeout_sec,
+        )
         all_translated_texts.extend(translated_batch)
         
         if i < total_batches - 1:

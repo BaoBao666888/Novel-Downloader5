@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260307-namefix1";
+import { initShell } from "../site_common.js?v=20260307-rlog1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260307-br2";
 
 const refs = {

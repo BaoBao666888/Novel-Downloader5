@@ -11,6 +11,7 @@ import threading
 import time
 import zipfile
 import webbrowser
+from datetime import datetime, timedelta
 from typing import Optional, Set, Tuple
 
 import requests
@@ -187,6 +188,25 @@ class ReaderTabMixin:
                 "bridge_cookie_fallback": True,
                 "bridge_cookie_db_path": "qt_browser_profile/storage/Cookies",
             },
+            "reader_translation": {
+                "enabled": True,
+                "mode": "local",
+                "server": {
+                    "serverUrl": "https://dichngay.com/translate/text",
+                    "delayMs": 250,
+                    "maxChars": 4500,
+                    "maxItems": 40,
+                    "retryCount": 2,
+                    "timeoutSec": 60,
+                    "retryBackoffMs": 700,
+                },
+                "local": {},
+                "global_dicts": {"name": {}, "vp": {}},
+            },
+            "reader_import": {
+                "txt": {},
+                "epub": {},
+            },
         }
 
     def _reader_load_config_payload(self) -> dict:
@@ -219,11 +239,19 @@ class ReaderTabMixin:
             payload["reader_manager"].update(loaded["reader_manager"])
         if isinstance(loaded.get("vbook"), dict):
             payload["vbook"].update(loaded["vbook"])
+        if isinstance(loaded.get("reader_translation"), dict):
+            payload["reader_translation"].update(loaded["reader_translation"])
+            if isinstance(payload["reader_translation"].get("server"), dict) and isinstance(loaded["reader_translation"].get("server"), dict):
+                payload["reader_translation"]["server"].update(loaded["reader_translation"]["server"])
+            if isinstance(payload["reader_translation"].get("global_dicts"), dict) and isinstance(loaded["reader_translation"].get("global_dicts"), dict):
+                payload["reader_translation"]["global_dicts"].update(loaded["reader_translation"]["global_dicts"])
+        if isinstance(loaded.get("reader_import"), dict):
+            payload["reader_import"].update(loaded["reader_import"])
 
         self._reader_config_payload = payload
 
-        # Tự tạo file riêng nếu chưa tồn tại để các thành phần Reader dùng chung.
-        if not os.path.isfile(cfg_path):
+        # Tự tạo/cập nhật file riêng nếu chưa có hoặc còn thiếu key mặc định.
+        if (not os.path.isfile(cfg_path)) or (loaded != payload):
             self._reader_save_isolated_config()
         return payload
 
@@ -425,8 +453,37 @@ class ReaderTabMixin:
         else:
             self._reader_log("Link IP máy: không xác định (kiểm tra kết nối mạng LAN).")
 
+    def _reader_server_log_dir(self) -> str:
+        path = os.path.normpath(os.path.join(BASE_DIR, "logs", "reader_server"))
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    def _reader_cleanup_server_logs(self, *, keep_days: int = 30):
+        log_dir = self._reader_server_log_dir()
+        cutoff = datetime.now() - timedelta(days=max(1, int(keep_days)))
+        pattern = re.compile(r"^reader_server-\d{4}-\d{2}-\d{2}\.log$")
+        try:
+            for name in os.listdir(log_dir):
+                if not pattern.match(name):
+                    continue
+                path = os.path.join(log_dir, name)
+                try:
+                    stamp = datetime.strptime(name.replace("reader_server-", "").replace(".log", ""), "%Y-%m-%d")
+                except Exception:
+                    continue
+                if stamp < cutoff:
+                    try:
+                        os.remove(path)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
     def _reader_server_log_path(self) -> str:
-        return os.path.normpath(os.path.join(BASE_DIR, "local", "reader_server.log"))
+        self._reader_cleanup_server_logs()
+        return os.path.normpath(
+            os.path.join(self._reader_server_log_dir(), f"reader_server-{time.strftime('%Y-%m-%d')}.log")
+        )
 
     def _reader_append_log_text(self, text: str):
         if not text:
@@ -809,7 +866,7 @@ class ReaderTabMixin:
             env = os.environ.copy()
             env["READER_APP_CONFIG"] = self._reader_config_path()
             env["PYTHONUNBUFFERED"] = "1"
-            env["READER_SERVER_LOG_FILE"] = self._reader_server_log_path()
+            env["READER_SERVER_LOG_DIR"] = self._reader_server_log_dir()
             log_fp = self._reader_prepare_server_log_capture()
             try:
                 proc = subprocess.Popen(
