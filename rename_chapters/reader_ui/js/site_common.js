@@ -816,7 +816,6 @@ function fillStaticTexts() {
     ["btn-vbook-load-custom-repo", "vbookRepoCustomLoad"],
     ["btn-vbook-add-repo", "vbookRepoAdd"],
     ["btn-vbook-remove-repo", "vbookRepoRemove"],
-    ["btn-vbook-save-repos", "vbookRepoSave"],
     ["vbook-plugin-url-label", "vbookPluginUrlLabel"],
     ["vbook-plugin-id-label", "vbookPluginIdLabel"],
     ["btn-vbook-install-url", "vbookInstallFromUrl"],
@@ -2290,12 +2289,6 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       showToast(t("toastVbookRepoRemoved"));
       await saveRepoUrls();
       await loadRepoPlugins({ silent: true });
-    });
-  }
-
-  if (qs("btn-vbook-save-repos")) {
-    qs("btn-vbook-save-repos").addEventListener("click", async () => {
-      await saveRepoUrls();
     });
   }
 

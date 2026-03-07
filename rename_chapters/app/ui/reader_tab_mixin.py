@@ -2,6 +2,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -151,10 +152,13 @@ class ReaderTabMixin:
         ]
 
         self._reader_server_proc = None
+        self._reader_server_log_offset = 0
+        self._reader_server_log_poll_started = False
         self._reader_manifest_cache = {}
         self._reader_manifest_meta = {}
         self._reader_busy = False
         self._reader_update_labels()
+        self._reader_init_log_tail()
 
     # ---------- Config ----------
     def _reader_config_path(self) -> str:
@@ -170,6 +174,8 @@ class ReaderTabMixin:
                 "server_installed_version": "",
                 "ui_installed_version": "",
                 "java_installed_version": "",
+                "managed_proc_pid": 0,
+                "managed_listener_pid": 0,
             },
             "vbook": {
                 "java_bin": "",
@@ -250,6 +256,8 @@ class ReaderTabMixin:
         cfg.setdefault("server_installed_version", "")
         cfg.setdefault("ui_installed_version", "")
         cfg.setdefault("java_installed_version", "")
+        cfg.setdefault("managed_proc_pid", 0)
+        cfg.setdefault("managed_listener_pid", 0)
         return cfg
 
     def _vbook_cfg(self) -> dict:
@@ -417,6 +425,79 @@ class ReaderTabMixin:
         else:
             self._reader_log("Link IP máy: không xác định (kiểm tra kết nối mạng LAN).")
 
+    def _reader_server_log_path(self) -> str:
+        return os.path.normpath(os.path.join(BASE_DIR, "local", "reader_server.log"))
+
+    def _reader_append_log_text(self, text: str):
+        if not text:
+            return
+        try:
+            self.reader_log_text.configure(state="normal")
+            self.reader_log_text.insert(tk.END, text)
+            self.reader_log_text.see(tk.END)
+            self.reader_log_text.configure(state="disabled")
+        except Exception:
+            pass
+
+    def _reader_reset_log_cursor(self, *, to_end: bool = True):
+        path = self._reader_server_log_path()
+        if not os.path.isfile(path):
+            self._reader_server_log_offset = 0
+            return
+        try:
+            self._reader_server_log_offset = os.path.getsize(path) if to_end else 0
+        except Exception:
+            self._reader_server_log_offset = 0
+
+    def _reader_prepare_server_log_capture(self) -> object | None:
+        path = self._reader_server_log_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        self._reader_reset_log_cursor(to_end=True)
+        try:
+            fp = open(path, "a", encoding="utf-8", buffering=1, errors="backslashreplace")
+            fp.write(f"\n===== Reader server session {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n")
+            fp.flush()
+            return fp
+        except Exception:
+            return None
+
+    def _reader_poll_server_log(self):
+        path = self._reader_server_log_path()
+        try:
+            if os.path.isfile(path):
+                current_size = os.path.getsize(path)
+                if current_size < int(getattr(self, "_reader_server_log_offset", 0) or 0):
+                    self._reader_server_log_offset = 0
+                if current_size > int(getattr(self, "_reader_server_log_offset", 0) or 0):
+                    with open(path, "r", encoding="utf-8", errors="replace") as f:
+                        f.seek(int(self._reader_server_log_offset or 0))
+                        chunk = f.read()
+                        self._reader_server_log_offset = f.tell()
+                    if chunk:
+                        normalized = chunk.replace("\r\n", "\n").replace("\r", "\n")
+                        lines = normalized.split("\n")
+                        for line in lines:
+                            if not line:
+                                continue
+                            self._reader_append_log_text(f"[SERVER] {line}\n")
+        except Exception:
+            pass
+        finally:
+            try:
+                self.after(900, self._reader_poll_server_log)
+            except Exception:
+                pass
+
+    def _reader_init_log_tail(self):
+        if self._reader_server_log_poll_started:
+            return
+        self._reader_server_log_poll_started = True
+        self._reader_reset_log_cursor(to_end=True)
+        try:
+            self.after(900, self._reader_poll_server_log)
+        except Exception:
+            pass
+
     # ---------- Manifest ----------
     def _reader_load_manifest(self) -> dict:
         data = {}
@@ -483,6 +564,149 @@ class ReaderTabMixin:
         except Exception:
             return False
 
+    def _reader_listener_pid(self, port: Optional[int] = None) -> int:
+        target_port = int(port or self._reader_parse_port() or 0)
+        if target_port <= 0:
+            return 0
+        if sys.platform.startswith("win"):
+            try:
+                proc = subprocess.run(
+                    ["netstat", "-ano", "-p", "tcp"],
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    timeout=4,
+                    creationflags=0x08000000,
+                )
+                out = (proc.stdout or b"").decode("utf-8", errors="ignore")
+                for raw_line in out.splitlines():
+                    line = raw_line.strip()
+                    if not line:
+                        continue
+                    parts = line.split()
+                    if len(parts) < 5:
+                        continue
+                    proto, local_addr, _foreign_addr, state, pid = parts[:5]
+                    if proto.upper() != "TCP":
+                        continue
+                    if state.upper() != "LISTENING":
+                        continue
+                    if not local_addr.endswith(f":{target_port}"):
+                        continue
+                    try:
+                        return int(pid)
+                    except Exception:
+                        continue
+            except Exception:
+                return 0
+            return 0
+        commands = (
+            ["lsof", "-nP", f"-iTCP:{target_port}", "-sTCP:LISTEN", "-t"],
+            ["ss", "-ltnp"],
+        )
+        for cmd in commands:
+            try:
+                proc = subprocess.run(
+                    cmd,
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    timeout=4,
+                )
+                out = (proc.stdout or b"").decode("utf-8", errors="ignore")
+                if not out.strip():
+                    continue
+                if cmd[0] == "lsof":
+                    for line in out.splitlines():
+                        try:
+                            return int(line.strip())
+                        except Exception:
+                            continue
+                else:
+                    pattern = re.compile(rf":{target_port}\b.*users:\(\(\"[^\"]+\",pid=(\d+),")
+                    for line in out.splitlines():
+                        m = pattern.search(line)
+                        if m:
+                            try:
+                                return int(m.group(1))
+                            except Exception:
+                                continue
+            except Exception:
+                continue
+        return 0
+
+    def _reader_set_managed_runtime(self, *, proc_pid: int = 0, listener_pid: int = 0):
+        cfg = self._reader_cfg()
+        cfg["managed_proc_pid"] = int(proc_pid or 0)
+        cfg["managed_listener_pid"] = int(listener_pid or 0)
+        self._reader_save_isolated_config()
+
+    def _reader_clear_managed_runtime(self):
+        self._reader_set_managed_runtime(proc_pid=0, listener_pid=0)
+
+    def _reader_saved_managed_runtime(self) -> tuple[int, int]:
+        cfg = self._reader_cfg()
+        values = []
+        for value in (cfg.get("managed_proc_pid"), cfg.get("managed_listener_pid")):
+            try:
+                values.append(int(value or 0))
+            except Exception:
+                values.append(0)
+        return (values[0] if len(values) > 0 else 0, values[1] if len(values) > 1 else 0)
+
+    def _reader_managed_runtime_pids(self) -> set[int]:
+        saved_proc_pid, saved_listener_pid = self._reader_saved_managed_runtime()
+        current_proc = getattr(self, "_reader_server_proc", None)
+        current_proc_pid = int(getattr(current_proc, "pid", 0) or 0) if current_proc else 0
+        pids = set()
+        if current_proc_pid > 0:
+            pids.add(current_proc_pid)
+        listener_pid = self._reader_listener_pid()
+        if listener_pid > 0 and listener_pid == saved_listener_pid:
+            pids.add(listener_pid)
+        if current_proc_pid > 0 and saved_proc_pid > 0 and current_proc_pid == saved_proc_pid:
+            pids.add(saved_proc_pid)
+        return pids
+
+    def _reader_is_managed_listener(self, listener_pid: int) -> bool:
+        if listener_pid <= 0:
+            return False
+        _saved_proc_pid, saved_listener_pid = self._reader_saved_managed_runtime()
+        return saved_listener_pid > 0 and listener_pid == saved_listener_pid
+
+    def _reader_kill_pid_tree(self, pid: int):
+        target_pid = int(pid or 0)
+        if target_pid <= 0:
+            return
+        if sys.platform.startswith("win"):
+            try:
+                subprocess.run(
+                    ["taskkill", "/PID", str(target_pid), "/F", "/T"],
+                    check=False,
+                    creationflags=0x08000000,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            except Exception:
+                pass
+            return
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            try:
+                os.kill(target_pid, sig)
+                return
+            except ProcessLookupError:
+                return
+            except Exception:
+                continue
+
+    def _reader_wait_until_stopped(self, timeout: float = 6.0) -> bool:
+        deadline = time.time() + max(0.5, float(timeout))
+        while time.time() < deadline:
+            if not self._reader_server_alive(timeout=0.5):
+                return True
+            time.sleep(0.2)
+        return not self._reader_server_alive(timeout=0.5)
+
     def _reader_port_occupied(self, port: int) -> bool:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -516,7 +740,11 @@ class ReaderTabMixin:
         local_url = urls.get("local", f"http://127.0.0.1:{port}/library")
         machine_url = urls.get("machine", "")
 
-        managed_running = bool(getattr(self, "_reader_server_proc", None) and self._reader_server_proc.poll() is None)
+        proc = getattr(self, "_reader_server_proc", None)
+        listener_pid = self._reader_listener_pid(port=port)
+        managed_running = bool(proc and proc.poll() is None)
+        if (not managed_running) and listener_pid:
+            managed_running = self._reader_is_managed_listener(listener_pid)
         alive = self._reader_server_alive(timeout=0.8)
 
         if managed_running and alive:
@@ -580,37 +808,59 @@ class ReaderTabMixin:
             creationflags = 0x08000000 if sys.platform.startswith("win") else 0
             env = os.environ.copy()
             env["READER_APP_CONFIG"] = self._reader_config_path()
-            proc = subprocess.Popen(
-                cmd,
-                cwd=BASE_DIR,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                env=env,
-                creationflags=creationflags,
-            )
+            log_fp = self._reader_prepare_server_log_capture()
+            try:
+                proc = subprocess.Popen(
+                    cmd,
+                    cwd=BASE_DIR,
+                    stdout=(log_fp if log_fp is not None else subprocess.DEVNULL),
+                    stderr=subprocess.STDOUT,
+                    env=env,
+                    creationflags=creationflags,
+                )
+            finally:
+                try:
+                    if log_fp is not None:
+                        log_fp.close()
+                except Exception:
+                    pass
 
             t0 = time.time()
             while time.time() - t0 < 8.0:
+                if self._reader_server_alive(timeout=0.8):
+                    listener_pid = self._reader_listener_pid()
+                    return {"proc": proc, "listener_pid": listener_pid}
                 if proc.poll() is not None:
                     raise RuntimeError("Server thoát ngay sau khi chạy.")
-                if self._reader_server_alive(timeout=0.8):
-                    return proc
                 time.sleep(0.35)
             try:
-                proc.terminate()
+                self._reader_kill_pid_tree(getattr(proc, "pid", 0))
             except Exception:
                 pass
             raise RuntimeError("Server không phản hồi health sau 8 giây.")
 
-        def done(proc):
+        def done(payload):
             self._reader_set_busy(False)
+            proc = (payload or {}).get("proc")
+            listener_pid = int((payload or {}).get("listener_pid") or 0)
             self._reader_server_proc = proc
+            self._reader_set_managed_runtime(
+                proc_pid=int(getattr(proc, "pid", 0) or 0),
+                listener_pid=listener_pid,
+            )
             self._reader_update_runtime_status()
-            self._reader_log("Đã chạy server Reader thành công.")
+            if listener_pid and listener_pid != int(getattr(proc, "pid", 0) or 0):
+                self._reader_log(
+                    f"Đã chạy server Reader thành công. PID bootstrap={int(getattr(proc, 'pid', 0) or 0)}, "
+                    f"PID listener={listener_pid}"
+                )
+            else:
+                self._reader_log(f"Đã chạy server Reader thành công. PID={listener_pid or int(getattr(proc, 'pid', 0) or 0)}")
             self._reader_log_runtime_urls()
 
         def fail(exc):
             self._reader_set_busy(False)
+            self._reader_clear_managed_runtime()
             self._reader_update_runtime_status()
             port = self._reader_parse_port() or self.READER_DEFAULT_PORT
             if self._reader_port_occupied(port):
@@ -635,24 +885,42 @@ class ReaderTabMixin:
         proc = getattr(self, "_reader_server_proc", None)
         alive = self._reader_server_alive(timeout=0.8)
 
+        managed_pids = self._reader_managed_runtime_pids()
+        listener_pid = self._reader_listener_pid()
+        if listener_pid and self._reader_is_managed_listener(listener_pid):
+            managed_pids.add(listener_pid)
+
         if proc and proc.poll() is None:
-            try:
-                proc.terminate()
-            except Exception:
-                pass
-            for _ in range(10):
-                if proc.poll() is not None:
-                    break
-                time.sleep(0.2)
-            if proc.poll() is None:
+            managed_pids.add(int(getattr(proc, "pid", 0) or 0))
+
+        if managed_pids:
+            for pid in sorted(managed_pids):
+                self._reader_kill_pid_tree(pid)
+            if proc:
                 try:
-                    proc.kill()
+                    for _ in range(10):
+                        if proc.poll() is not None:
+                            break
+                        time.sleep(0.2)
                 except Exception:
                     pass
+            stopped = self._reader_wait_until_stopped(timeout=6.0)
             self._reader_server_proc = None
-            self._reader_update_runtime_status()
-            if not silent:
-                self._reader_log("Đã dừng server Reader (managed).")
+            if stopped:
+                self._reader_clear_managed_runtime()
+                self._reader_update_runtime_status()
+                if not silent:
+                    self._reader_log("Đã dừng server Reader (managed).")
+            else:
+                self._reader_update_runtime_status()
+                if not silent:
+                    self._reader_log("Đã gửi lệnh dừng Reader nhưng tiến trình vẫn còn sống.")
+                    messagebox.showwarning(
+                        "Reader",
+                        "App đã gửi lệnh dừng nhưng reader_server vẫn chưa tắt hẳn.\n"
+                        "Hãy kiểm tra tiến trình reader_server.exe còn chạy hay không.",
+                        parent=self,
+                    )
             return
 
         if alive:
@@ -928,6 +1196,7 @@ class ReaderTabMixin:
             return
         cfg = self._reader_cfg()
         cfg["server_installed_version"] = ""
+        self._reader_clear_managed_runtime()
         self._reader_save_isolated_config()
         self._reader_log("Đã xóa server Reader.")
         self._reader_update_labels()
@@ -992,10 +1261,7 @@ class ReaderTabMixin:
     def _reader_log(self, text: str):
         try:
             now = time.strftime("%H:%M:%S")
-            self.reader_log_text.configure(state="normal")
-            self.reader_log_text.insert(tk.END, f"[{now}] {text}\n")
-            self.reader_log_text.see(tk.END)
-            self.reader_log_text.configure(state="disabled")
+            self._reader_append_log_text(f"[{now}] {text}\n")
         except Exception:
             pass
 
