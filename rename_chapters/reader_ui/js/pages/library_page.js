@@ -1,5 +1,5 @@
-import { initShell } from "../site_common.js?v=20260307-imp1";
-import { normalizeDisplayTitle } from "../reader_text.js?v=20260215-vb01";
+import { initShell } from "../site_common.js?v=20260307-imp5";
+import { normalizeDisplayTitle } from "../reader_text.js?v=20260307-trim1";
 
 const refs = {
   historyTitle: document.getElementById("history-title"),
@@ -76,17 +76,6 @@ const refs = {
   importPreviewAuthorInput: document.getElementById("import-preview-author-input"),
   importPreviewSummaryInput: document.getElementById("import-preview-summary-input"),
   importPreviewLangSelect: document.getElementById("import-preview-lang-select"),
-  importPreviewTargetSizeInput: document.getElementById("import-preview-target-size-input"),
-  importPreviewPrefaceTitleInput: document.getElementById("import-preview-preface-title-input"),
-  importPreviewHeadingPatternsInput: document.getElementById("import-preview-heading-patterns-input"),
-  importPreviewHeadingPresets: document.getElementById("import-preview-heading-presets"),
-  importPreviewEpubTitleKeysInput: document.getElementById("import-preview-epub-title-keys-input"),
-  importPreviewEpubAuthorKeysInput: document.getElementById("import-preview-epub-author-keys-input"),
-  importPreviewEpubSummaryKeysInput: document.getElementById("import-preview-epub-summary-keys-input"),
-  importPreviewEpubLanguageKeysInput: document.getElementById("import-preview-epub-language-keys-input"),
-  importPreviewEpubCoverMetaInput: document.getElementById("import-preview-epub-cover-meta-input"),
-  importPreviewEpubCoverPropsInput: document.getElementById("import-preview-epub-cover-props-input"),
-  importPreviewEpubPresets: document.getElementById("import-preview-epub-presets"),
   importPreviewDiagnostics: document.getElementById("import-preview-diagnostics"),
   importPreviewMetadataCandidates: document.getElementById("import-preview-metadata-candidates"),
   importPreviewChapters: document.getElementById("import-preview-chapters"),
@@ -95,6 +84,7 @@ const refs = {
 const state = {
   historyItems: [],
   books: [],
+  pendingImports: [],
   downloadJobs: [],
   downloadJobsSig: "",
   selectedBookId: null,
@@ -112,8 +102,7 @@ const state = {
   importSettings: null,
   importPresets: null,
   importPreviewToken: "",
-  importPreviewSeq: 0,
-  importPreviewDebounceTimer: 0,
+  importPreviewData: null,
 };
 
 function localTranslationSettingsSignature(shell) {
@@ -208,20 +197,6 @@ function customImportInputs() {
   };
 }
 
-function previewImportInputs() {
-  return {
-    targetSize: refs.importPreviewTargetSizeInput,
-    prefaceTitle: refs.importPreviewPrefaceTitleInput,
-    headingPatterns: refs.importPreviewHeadingPatternsInput,
-    epubTitleKeys: refs.importPreviewEpubTitleKeysInput,
-    epubAuthorKeys: refs.importPreviewEpubAuthorKeysInput,
-    epubSummaryKeys: refs.importPreviewEpubSummaryKeysInput,
-    epubLanguageKeys: refs.importPreviewEpubLanguageKeysInput,
-    epubCoverMeta: refs.importPreviewEpubCoverMetaInput,
-    epubCoverProps: refs.importPreviewEpubCoverPropsInput,
-  };
-}
-
 function addTextareaValue(textarea, value) {
   if (!textarea) return;
   const current = splitMultilineValues(textarea.value);
@@ -250,10 +225,6 @@ function renderImportPresetButtons() {
   renderPresetChipList(refs.importHeadingPresets, txtItems, (item) => {
     addTextareaValue(refs.importHeadingPatternsInput, String(item.pattern || "").trim());
   });
-  renderPresetChipList(refs.importPreviewHeadingPresets, txtItems, (item) => {
-    addTextareaValue(refs.importPreviewHeadingPatternsInput, String(item.pattern || "").trim());
-    scheduleImportPreviewRefresh();
-  });
 
   const epubFieldGroups = [];
   const epubFields = presets.epub_fields || {};
@@ -277,20 +248,7 @@ function renderImportPresetButtons() {
     };
     addTextareaValue(map[targetField], value);
   };
-  const applyEpubPreviewPreset = (targetField, value) => {
-    const map = {
-      title_keys: refs.importPreviewEpubTitleKeysInput,
-      author_keys: refs.importPreviewEpubAuthorKeysInput,
-      summary_keys: refs.importPreviewEpubSummaryKeysInput,
-      language_keys: refs.importPreviewEpubLanguageKeysInput,
-      cover_meta_names: refs.importPreviewEpubCoverMetaInput,
-      cover_properties: refs.importPreviewEpubCoverPropsInput,
-    };
-    addTextareaValue(map[targetField], value);
-    scheduleImportPreviewRefresh();
-  };
   renderPresetChipList(refs.importEpubPresets, epubFieldGroups, (item) => applyEpubPreset(item.field, item.value));
-  renderPresetChipList(refs.importPreviewEpubPresets, epubFieldGroups, (item) => applyEpubPreviewPreset(item.field, item.value));
 }
 
 async function loadImportSettings({ silent = true } = {}) {
@@ -337,6 +295,7 @@ function renderImportMetadataCandidates(items) {
 function renderImportPreview(preview) {
   if (!preview || !refs.importPreviewDialog) return;
   if (preview.presets) state.importPresets = preview.presets;
+  state.importPreviewData = preview;
   const metadata = preview.metadata || {};
   refs.importPreviewFileName.textContent = String(preview.file_name || "");
   refs.importPreviewFileType.textContent = String(preview.file_ext || "").toUpperCase();
@@ -346,18 +305,33 @@ function renderImportPreview(preview) {
   refs.importPreviewAuthorInput.value = String(metadata.author || "");
   refs.importPreviewSummaryInput.value = String(metadata.summary || "");
   refs.importPreviewLangSelect.value = String(metadata.lang_source || "zh").trim().toLowerCase() === "vi" ? "vi" : "zh";
-  applyImportSettingsToInputs(preview.import_settings || state.importSettings || {}, previewImportInputs());
-  renderImportPresetButtons();
 
   const diagnostics = preview.diagnostics || {};
   const splitStrategy = String(diagnostics.split_strategy || "").trim();
-  const strategyLabel = splitStrategy === "regex"
-    ? state.shell.t("importSplitStrategyRegex")
-    : state.shell.t("importSplitStrategyFallback");
-  refs.importPreviewDiagnostics.textContent = state.shell.t("importPreviewDiagnostics", {
-    strategy: strategyLabel,
-    count: Number(diagnostics.matched_heading_count || 0),
-  });
+  const fallbackReasonKeyMap = {
+    empty_after_regex: "importFallbackReasonEmptyRegex",
+    too_many_long_blocks: "importFallbackReasonTooManyLongBlocks",
+    heading_titles_too_long: "importFallbackReasonHeadingTitlesTooLong",
+    headings_too_dense: "importFallbackReasonDenseHeadings",
+    too_few_headings: "importFallbackReasonTooFewHeadings",
+  };
+  let strategyLabel = state.shell.t("importSplitStrategyFallback");
+  if (splitStrategy === "regex") strategyLabel = state.shell.t("importSplitStrategyRegex");
+  else if (splitStrategy === "regex_fallback") strategyLabel = state.shell.t("importSplitStrategyRegexFallback");
+  const diagnosticParts = [strategyLabel];
+  const matchedCount = Number(diagnostics.matched_heading_count || 0);
+  const usedCount = Number(diagnostics.used_heading_count || 0);
+  if (matchedCount > 0) {
+    diagnosticParts.push(state.shell.t("importPreviewDiagnosticsMatched", { count: matchedCount }));
+  }
+  if (splitStrategy === "regex" && usedCount > 0) {
+    diagnosticParts.push(state.shell.t("importPreviewDiagnosticsUsed", { count: usedCount }));
+  }
+  const fallbackReasonKey = fallbackReasonKeyMap[String(diagnostics.fallback_reason || "").trim()] || "";
+  if (splitStrategy === "regex_fallback" && fallbackReasonKey) {
+    diagnosticParts.push(state.shell.t("importPreviewDiagnosticsReason", { reason: state.shell.t(fallbackReasonKey) }));
+  }
+  refs.importPreviewDiagnostics.textContent = diagnosticParts.join(" • ");
   renderImportMetadataCandidates(diagnostics.metadata_candidates || []);
 
   refs.importPreviewChapters.innerHTML = "";
@@ -386,36 +360,35 @@ function collectImportPreviewPayload() {
     author: String((refs.importPreviewAuthorInput && refs.importPreviewAuthorInput.value) || "").trim(),
     summary: String((refs.importPreviewSummaryInput && refs.importPreviewSummaryInput.value) || "").trim(),
     lang_source: String((refs.importPreviewLangSelect && refs.importPreviewLangSelect.value) || "zh").trim(),
-    import_settings: collectImportSettingsFromInputs(previewImportInputs()),
   };
 }
 
-async function refreshImportPreview() {
-  const token = String(state.importPreviewToken || "").trim();
-  if (!token) return;
-  const seq = ++state.importPreviewSeq;
-  try {
-    const data = await state.shell.api("/api/library/import/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(collectImportPreviewPayload()),
-    });
-    if (seq !== state.importPreviewSeq) return;
-    renderImportPreview(data && data.preview ? data.preview : null);
-  } catch (error) {
-    if (seq !== state.importPreviewSeq) return;
-    state.shell.showToast(getErrorMessage(error));
-  }
+function buildPendingImportRecord() {
+  const preview = state.importPreviewData || {};
+  const metadata = preview.metadata || {};
+  return {
+    temp_id: `pending_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+    token: String(state.importPreviewToken || "").trim(),
+    title: String((refs.importPreviewBookTitleInput && refs.importPreviewBookTitleInput.value) || metadata.title || preview.file_name || "Đang nhập truyện").trim() || "Đang nhập truyện",
+    author: String((refs.importPreviewAuthorInput && refs.importPreviewAuthorInput.value) || metadata.author || "").trim(),
+    file_name: String(preview.file_name || "").trim(),
+    file_ext: String(preview.file_ext || "").trim().toUpperCase(),
+    lang_source: String((refs.importPreviewLangSelect && refs.importPreviewLangSelect.value) || metadata.lang_source || "zh").trim(),
+    chapter_count: Math.max(0, Number(metadata.chapter_count || 0)),
+    summary: String((refs.importPreviewSummaryInput && refs.importPreviewSummaryInput.value) || metadata.summary || "").trim(),
+  };
 }
 
-function scheduleImportPreviewRefresh() {
-  if (state.importPreviewDebounceTimer) {
-    window.clearTimeout(state.importPreviewDebounceTimer);
-  }
-  state.importPreviewDebounceTimer = window.setTimeout(() => {
-    state.importPreviewDebounceTimer = 0;
-    refreshImportPreview().catch(() => {});
-  }, 350);
+function addPendingImport(record) {
+  state.pendingImports = [record, ...state.pendingImports.filter((item) => String(item.temp_id || "") !== String(record.temp_id || ""))];
+  renderBooks();
+}
+
+function removePendingImport(tempId) {
+  const targetId = String(tempId || "").trim();
+  if (!targetId) return;
+  state.pendingImports = state.pendingImports.filter((item) => String(item.temp_id || "") !== targetId);
+  renderBooks();
 }
 
 async function handlePrepareImport() {
@@ -447,28 +420,30 @@ async function handlePrepareImport() {
 
 async function commitPreparedImport() {
   if (!state.importPreviewToken) return;
-  state.shell.showStatus(state.shell.t("statusImporting"));
+  const payload = collectImportPreviewPayload();
+  const pending = buildPendingImportRecord();
+  const token = String(state.importPreviewToken || "").trim();
+  state.importPreviewToken = "";
+  if (refs.importPreviewDialog && refs.importPreviewDialog.open) refs.importPreviewDialog.close();
+  addPendingImport(pending);
   try {
     const data = await state.shell.api("/api/library/import/commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(collectImportPreviewPayload()),
+      body: JSON.stringify({ ...payload, token }),
     });
-    state.importPreviewToken = "";
-    if (refs.importPreviewDialog && refs.importPreviewDialog.open) refs.importPreviewDialog.close();
     const importForm = document.getElementById("import-form");
     if (importForm) importForm.reset();
+    const bid = String((data && data.book && data.book.book_id) || "").trim();
+    if (bid) pending.resolved_book_id = bid;
     state.shell.showToast(state.shell.t("toastImportSuccess"));
-    const bid = data && data.book && data.book.book_id;
-    if (bid) {
-      window.location.href = `/book?book_id=${encodeURIComponent(bid)}`;
-      return;
-    }
     await loadLibraryData();
+    removePendingImport(pending.temp_id);
   } catch (error) {
+    state.importPreviewToken = token;
+    removePendingImport(pending.temp_id);
+    if (refs.importPreviewDialog && !refs.importPreviewDialog.open) refs.importPreviewDialog.showModal();
     state.shell.showToast(getErrorMessage(error));
-  } finally {
-    state.shell.hideStatus();
   }
 }
 
@@ -544,17 +519,80 @@ function openActions(bookId) {
   }
 }
 
+function renderPendingImportCard(item) {
+  const card = document.createElement("article");
+  card.className = "book-card book-card-pending";
+  card.setAttribute("aria-disabled", "true");
+
+  const cover = document.createElement("div");
+  cover.className = "book-card-cover book-card-cover-pending";
+  const coverText = document.createElement("div");
+  coverText.className = "book-card-cover-text";
+  coverText.textContent = item.file_ext || "TXT";
+  cover.appendChild(coverText);
+
+  const body = document.createElement("div");
+  const title = document.createElement("div");
+  title.className = "book-card-title";
+  title.textContent = normalizeDisplayTitle(item.title || "Đang nhập truyện");
+
+  const author = document.createElement("div");
+  author.className = "book-card-meta";
+  author.textContent = item.author || state.shell.t("unknownAuthor");
+
+  const source = document.createElement("div");
+  source.className = "book-card-source";
+  source.textContent = `${state.shell.t("importPendingSource")} • ${item.file_ext || "TXT"}`;
+
+  const infoRow = document.createElement("div");
+  infoRow.className = "book-card-progress-row";
+
+  const status = document.createElement("div");
+  status.className = "book-card-chapter";
+  status.textContent = state.shell.t("importPendingStatus");
+
+  const badge = document.createElement("div");
+  badge.className = "book-card-percent";
+  badge.textContent = state.shell.t("importPendingBadge");
+
+  infoRow.append(status, badge);
+
+  const meta = document.createElement("div");
+  meta.className = "book-card-download";
+  meta.textContent = state.shell.t("importPendingMeta", { count: Math.max(0, Number(item.chapter_count || 0)) });
+
+  const bar = document.createElement("div");
+  bar.className = "book-card-import-progress";
+  const fill = document.createElement("div");
+  fill.className = "book-card-import-progress-fill";
+  bar.appendChild(fill);
+
+  body.append(title, author, source, infoRow, meta, bar);
+  card.append(cover, body);
+  return card;
+}
+
 function renderBooks() {
   refs.libraryGrid.innerHTML = "";
-  refs.libraryCount.textContent = state.shell.t("libraryCount", { count: state.books.length });
+  const visiblePending = state.pendingImports.filter((item) => {
+    const resolvedBookId = String((item && item.resolved_book_id) || "").trim();
+    if (!resolvedBookId) return true;
+    return !state.books.some((book) => String((book && book.book_id) || "").trim() === resolvedBookId);
+  });
+  const totalCount = state.books.length + visiblePending.length;
+  refs.libraryCount.textContent = state.shell.t("libraryCount", { count: totalCount });
 
-  if (!state.books.length) {
+  if (!totalCount) {
     refs.libraryEmpty.classList.remove("hidden");
     refs.libraryEmpty.textContent = state.shell.t("libraryEmpty");
     return;
   }
 
   refs.libraryEmpty.classList.add("hidden");
+
+  for (const pending of visiblePending) {
+    refs.libraryGrid.appendChild(renderPendingImportCard(pending));
+  }
 
   for (const book of state.books) {
     const card = document.createElement("article");
@@ -1402,22 +1440,6 @@ async function init() {
       commitPreparedImport().catch(() => {});
     });
   }
-
-  [
-    refs.importPreviewTargetSizeInput,
-    refs.importPreviewPrefaceTitleInput,
-    refs.importPreviewHeadingPatternsInput,
-    refs.importPreviewEpubTitleKeysInput,
-    refs.importPreviewEpubAuthorKeysInput,
-    refs.importPreviewEpubSummaryKeysInput,
-    refs.importPreviewEpubLanguageKeysInput,
-    refs.importPreviewEpubCoverMetaInput,
-    refs.importPreviewEpubCoverPropsInput,
-  ].forEach((node) => {
-    if (!node) return;
-    node.addEventListener("input", scheduleImportPreviewRefresh);
-    node.addEventListener("change", scheduleImportPreviewRefresh);
-  });
 
   window.addEventListener("reader-settings-changed", () => {
     const enabled = typeof state.shell.getTranslationEnabled === "function"

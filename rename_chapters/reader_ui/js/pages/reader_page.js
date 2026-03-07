@@ -1,5 +1,5 @@
-import { initShell } from "../site_common.js?v=20260307-imp1";
-import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260215-vb01";
+import { initShell } from "../site_common.js?v=20260307-imp5";
+import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260307-trim1";
 
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),

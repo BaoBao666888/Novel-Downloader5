@@ -1,5 +1,5 @@
-import { initShell } from "../site_common.js?v=20260307-imp1";
-import { normalizeDisplayTitle } from "../reader_text.js?v=20260220-vb04";
+import { initShell } from "../site_common.js?v=20260307-imp5";
+import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-trim1";
 
 const refs = {
   searchInput: document.getElementById("search-input"),
@@ -536,10 +536,10 @@ function renderPluginSection() {
     ? (String(plugin.locale || "").trim() || "-")
     : "-";
   refs.explorePluginSourceValue.textContent = plugin
-    ? (String(plugin.source || "").trim() || "-")
+    ? (normalizeParagraphDisplayText(plugin.source || "", { singleLine: true }) || "-")
     : "-";
   refs.explorePluginDescriptionValue.textContent = plugin
-    ? (String(plugin.description || "").trim() || state.shell.t("explorePluginDescriptionEmpty"))
+    ? (normalizeParagraphDisplayText(plugin.description || "") || state.shell.t("explorePluginDescriptionEmpty"))
     : state.shell.t("explorePluginDescriptionEmpty");
 
   refs.explorePluginSettingsEffective.textContent = plugin
@@ -702,8 +702,8 @@ function buildOnlineBookCard(item) {
 
   const author = document.createElement("div");
   author.className = "book-card-meta";
-  const authorText = String(item.author || "").trim();
-  const descText = String(item.description || "").trim();
+  const authorText = normalizeParagraphDisplayText(item.author || "", { singleLine: true });
+  const descText = normalizeParagraphDisplayText(item.description || "", { singleLine: true });
   if (authorText && descText) {
     author.textContent = `${authorText} • ${descText}`;
   } else if (authorText) {
@@ -1261,11 +1261,11 @@ function renderVbookDetail() {
   const detail = state.detail.detail || {};
   const loading = Boolean(state.detail.loading);
   const detailError = String(state.detail.errorMessage || "").trim();
-  const title = String(detail.title || detail.name || "").trim() || "Không tiêu đề";
-  const author = String(detail.author || "").trim() || "Khuyết danh";
-  const desc = String(detail.description || "").trim() || state.shell.t("vbookDetailNoDescription");
+  const title = normalizeParagraphDisplayText(detail.title || detail.name || "", { singleLine: true }) || "Không tiêu đề";
+  const author = normalizeParagraphDisplayText(detail.author || "", { singleLine: true }) || "Khuyết danh";
+  const desc = normalizeParagraphDisplayText(detail.description || "") || state.shell.t("vbookDetailNoDescription");
   const cover = String(detail.cover || "").trim();
-  const statusText = String(detail.status_text || "").trim();
+  const statusText = normalizeParagraphDisplayText(detail.status_text || "", { singleLine: true });
   const genres = Array.isArray(detail.genres) ? detail.genres : [];
   const extras = Array.isArray(detail.extra_fields) ? detail.extra_fields : [];
   const suggests = Array.isArray(detail.suggest_items) ? detail.suggest_items : [];
@@ -1355,10 +1355,10 @@ function renderVbookDetail() {
       item.className = "vbook-detail-extra-item";
       const key = document.createElement("h5");
       key.className = "vbook-detail-extra-key";
-      key.textContent = String((row && row.key) || "").trim();
+      key.textContent = normalizeParagraphDisplayText((row && row.key) || "", { singleLine: true });
       const value = document.createElement("pre");
       value.className = "vbook-detail-extra-value";
-      value.textContent = String((row && row.value) || "").trim();
+      value.textContent = normalizeParagraphDisplayText((row && row.value) || "");
       item.append(key, value);
       refs.vbookDetailExtraList.appendChild(item);
     }
@@ -1387,9 +1387,9 @@ function renderVbookDetail() {
       const sub = document.createElement("div");
       sub.className = "chapter-hit-sub";
       const subParts = [];
-      const subAuthor = String((row && row.author) || "").trim();
+      const subAuthor = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true });
       if (subAuthor) subParts.push(subAuthor);
-      const subHost = String((row && row.host) || "").trim();
+      const subHost = normalizeParagraphDisplayText((row && row.host) || "", { singleLine: true });
       if (subHost) subParts.push(subHost);
       sub.textContent = subParts.join(" • ");
       info.append(t, sub);
@@ -1404,9 +1404,9 @@ function renderVbookDetail() {
       openBtn.disabled = !detailUrl;
       openBtn.addEventListener("click", async () => {
         const item = {
-          title: String((row && row.title) || "").trim(),
-          author: String((row && row.author) || "").trim(),
-          description: String((row && row.description) || "").trim(),
+          title: normalizeParagraphDisplayText((row && row.title) || "", { singleLine: true }),
+          author: normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }),
+          description: normalizeParagraphDisplayText((row && row.description) || ""),
           cover: String((row && row.cover) || "").trim(),
           detail_url: detailUrl,
           plugin_id: String((row && row.plugin_id) || state.detail.pluginId || "").trim(),
@@ -1440,14 +1440,14 @@ function renderVbookDetail() {
       head.className = "vbook-detail-comment-head";
       const user = document.createElement("span");
       user.className = "vbook-detail-comment-author";
-      user.textContent = String((row && row.author) || "").trim() || state.shell.t("vbookDetailCommentGuest");
+      user.textContent = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }) || state.shell.t("vbookDetailCommentGuest");
       const when = document.createElement("span");
       when.className = "vbook-detail-comment-time";
-      when.textContent = String((row && row.time) || "").trim();
+      when.textContent = normalizeParagraphDisplayText((row && row.time) || "", { singleLine: true });
       head.append(user, when);
       const content = document.createElement("p");
       content.className = "vbook-detail-comment-content";
-      content.textContent = String((row && row.content) || "").trim();
+      content.textContent = normalizeParagraphDisplayText((row && row.content) || "");
       box.append(head, content);
       li.appendChild(box);
       refs.vbookDetailCommentList.appendChild(li);

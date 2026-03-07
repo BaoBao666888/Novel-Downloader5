@@ -24,8 +24,18 @@ export function normalizeDisplayTitle(text) {
   return value;
 }
 
+export function normalizeParagraphDisplayText(text, { singleLine = false } = {}) {
+  const value = normalizeReaderText(text || "");
+  if (!value) return "";
+  const lines = value.split(/\n/g).map((line) => line.trim());
+  if (singleLine) {
+    return lines.filter(Boolean).join(" ").replace(/\s{2,}/g, " ").trim();
+  }
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export function buildParagraphNodes(text, emptyText) {
-  const content = normalizeReaderText(text);
+  const content = normalizeParagraphDisplayText(text);
   const fragment = document.createDocumentFragment();
   if (!content) {
     const p = document.createElement("p");
@@ -34,10 +44,10 @@ export function buildParagraphNodes(text, emptyText) {
     return fragment;
   }
 
-  const blocks = content.split(/\n{2,}/g).map((x) => x.trim()).filter(Boolean);
+  const blocks = content.split(/\n{2,}/g).map((x) => normalizeParagraphDisplayText(x)).filter(Boolean);
   for (const block of blocks) {
     const p = document.createElement("p");
-    const lines = block.split(/\n/g);
+    const lines = block.split(/\n/g).map((line) => line.trim());
     for (let i = 0; i < lines.length; i += 1) {
       if (i > 0) p.appendChild(document.createElement("br"));
       p.appendChild(document.createTextNode(lines[i]));

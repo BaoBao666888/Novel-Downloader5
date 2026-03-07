@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260307-imp1";
+import { t } from "../i18n.vi.js?v=20260307-imp5";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -145,6 +145,12 @@ async function api(path, options = {}) {
 function showToast(msg) {
   const toast = qs("toast");
   if (!toast) return;
+  const openDialogs = Array.from(document.querySelectorAll("dialog[open]"));
+  const host = openDialogs.length ? openDialogs[openDialogs.length - 1] : document.body;
+  if (host && toast.parentElement !== host) {
+    host.appendChild(toast);
+  }
+  toast.classList.toggle("toast-in-dialog", Boolean(host && host.tagName === "DIALOG"));
   toast.textContent = msg;
   toast.classList.add("show");
   if (toastHideTimer) {

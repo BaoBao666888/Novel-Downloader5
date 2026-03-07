@@ -1,5 +1,5 @@
-import { initShell } from "../site_common.js?v=20260307-imp1";
-import { normalizeDisplayTitle } from "../reader_text.js?v=20260220-vb04";
+import { initShell } from "../site_common.js?v=20260307-imp5";
+import { normalizeDisplayTitle } from "../reader_text.js?v=20260307-trim1";
 
 const refs = {
   searchInput: document.getElementById("search-input"),

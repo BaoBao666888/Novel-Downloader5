@@ -317,10 +317,22 @@ TXT_IMPORT_PRESETS: list[dict[str, str]] = [
         "description": "Bắt dòng tiêu đề dạng Chapter 12 / CHAPTER IV.",
     },
     {
+        "id": "dual_numbered_pipe",
+        "label": "Mã số | số chương",
+        "pattern": r"^(?:\s*)\d{1,4}\s*[｜|]\s*\d{1,4}[\.、．]\s*[^\d\s][^\n]{0,80}$",
+        "description": "Phù hợp TXT có dòng kiểu 001｜1.Tên chương.",
+    },
+    {
         "id": "short_numbered",
         "label": "Dòng số thứ tự ngắn",
-        "pattern": r"^(?:\s*)(?:\d{1,5}|[一二三四五六七八九十百千零两]{1,8})[\.\-、:： )）][^\n]{1,80}$",
+        "pattern": r"^(?:\s*)(?:\d{1,5}|[一二三四五六七八九十百千零两]{1,8})[\.\-、:： )）]\s*[^\d\s][^\n]{0,80}$",
         "description": "Dùng cho TXT có tiêu đề ngắn kiểu 12. Tên chương / 12- Tên chương.",
+    },
+    {
+        "id": "number_space_title",
+        "label": "Số thứ tự + khoảng trắng",
+        "pattern": r"^(?:\s*)\d{1,4}\s+[^\d\s][^\n]{1,80}$",
+        "description": "Dùng cho TXT có dòng tiêu đề kiểu 1 Tên chương.",
     },
 ]
 
@@ -328,7 +340,7 @@ DEFAULT_READER_IMPORT_SETTINGS: dict[str, Any] = {
     "txt": {
         "target_size": 4500,
         "preface_title": "Mở đầu",
-        "heading_patterns": [item["pattern"] for item in TXT_IMPORT_PRESETS[:3]],
+        "heading_patterns": [item["pattern"] for item in TXT_IMPORT_PRESETS],
     },
     "epub": {
         "title_keys": ["title", "book-title"],
@@ -1716,6 +1728,218 @@ def compile_chapter_heading_patterns(patterns: list[str] | tuple[str, ...] | Non
     return compiled or [CHAPTER_HEADING_REGEX]
 
 
+_CJK_NUMBER_DIGITS = {
+    "零": 0,
+    "〇": 0,
+    "一": 1,
+    "二": 2,
+    "两": 2,
+    "兩": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+}
+
+_CJK_NUMBER_UNITS = {
+    "十": 10,
+    "百": 100,
+    "千": 1000,
+    "万": 10000,
+}
+
+
+def parse_cjk_number(value: Any) -> int | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    if raw.isdigit():
+        try:
+            return int(raw)
+        except Exception:
+            return None
+    total = 0
+    section = 0
+    number = 0
+    used = False
+    for ch in raw:
+        if ch in _CJK_NUMBER_DIGITS:
+            number = _CJK_NUMBER_DIGITS[ch]
+            used = True
+            continue
+        unit = _CJK_NUMBER_UNITS.get(ch)
+        if unit is None:
+            return None
+        if number == 0:
+            number = 1
+        section += number * unit
+        number = 0
+        used = True
+    total = section + number
+    if total > 0:
+        return total
+    if used and raw in {"零", "〇", "0"}:
+        return 0
+    return None
+
+
+def extract_heading_index(title: Any) -> int | None:
+    raw = str(title or "").strip()
+    if not raw:
+        return None
+    chapter_match = re.search(r"第\s*([0-9一二三四五六七八九十百千零两兩]+)\s*[章节卷回集部篇]", raw, re.IGNORECASE)
+    if chapter_match:
+        return parse_cjk_number(chapter_match.group(1))
+    pipe_match = re.match(r"^\s*\d{1,4}\s*[｜|]\s*(\d{1,4})(?:[\.\-、:： )）]|\s|$)", raw)
+    if pipe_match:
+        try:
+            return int(pipe_match.group(1))
+        except Exception:
+            return None
+    numbered_match = re.match(r"^\s*(\d{1,4})(?:(?:[\.\-、:： )）]\s*)|\s+)", raw)
+    if numbered_match:
+        try:
+            return int(numbered_match.group(1))
+        except Exception:
+            return None
+    return None
+
+
+def heading_sequence_score(matches: list[dict[str, Any]]) -> float:
+    values = [extract_heading_index(item.get("title")) for item in matches]
+    numbered = [value for value in values if isinstance(value, int)]
+    if len(numbered) < 2:
+        return 0.0
+    good = 0
+    total = 0
+    prev = numbered[0]
+    for current in numbered[1:]:
+        if current == prev:
+            continue
+        total += 1
+        if current == prev + 1:
+            good += 1
+        prev = current
+    if total <= 0:
+        return 0.0
+    return good / total
+
+
+def build_regex_split_candidates(normalized: str, matches: list[dict[str, Any]], preface_title: str) -> list[dict[str, str]]:
+    chapters: list[dict[str, str]] = []
+    if matches and int(matches[0]["start"]) > 0:
+        preface = normalize_text_for_split(normalized[: int(matches[0]["start"])])
+        if preface:
+            chapters.append({"title": str(preface_title or "Mở đầu").strip() or "Mở đầu", "text": preface})
+    for i, match in enumerate(matches):
+        title = str(match.get("title") or "").strip() or f"Chương {i+1}"
+        start = int(match.get("end") or 0)
+        end = int(matches[i + 1]["start"]) if i + 1 < len(matches) else len(normalized)
+        content = normalize_text_for_split(normalized[start:end])
+        if content:
+            chapters.append({"title": title, "text": content})
+    return chapters
+
+
+def analyze_text_split(
+    text: str,
+    *,
+    target_size: int = 4500,
+    heading_patterns: list[str] | tuple[str, ...] | None = None,
+    preface_title: str = "Mở đầu",
+) -> dict[str, Any]:
+    normalized = normalize_text_for_split(text)
+    if not normalized:
+        return {
+            "chapters": [],
+            "diagnostics": {
+                "split_strategy": "newlines",
+                "matched_heading_count": 0,
+                "used_heading_count": 0,
+                "fallback_reason": "",
+                "sequence_score": 0.0,
+            },
+        }
+
+    matches = collect_heading_matches(normalized, compile_chapter_heading_patterns(heading_patterns))
+    if not matches:
+        return {
+            "chapters": split_by_newlines(normalized, target_size=target_size),
+            "diagnostics": {
+                "split_strategy": "newlines",
+                "matched_heading_count": 0,
+                "used_heading_count": 0,
+                "fallback_reason": "",
+                "sequence_score": 0.0,
+            },
+        }
+
+    regex_candidates = build_regex_split_candidates(normalized, matches, preface_title)
+    if not regex_candidates:
+        return {
+            "chapters": split_by_newlines(normalized, target_size=target_size),
+            "diagnostics": {
+                "split_strategy": "regex_fallback",
+                "matched_heading_count": len(matches),
+                "used_heading_count": 0,
+                "fallback_reason": "empty_after_regex",
+                "sequence_score": 0.0,
+            },
+        }
+
+    content_lengths = [len(str(ch.get("text") or "").strip()) for ch in regex_candidates if str(ch.get("text") or "").strip()]
+    avg_len = (sum(content_lengths) / len(content_lengths)) if content_lengths else 0.0
+    min_len = max(800, int(target_size * 0.25))
+    max_len = max(target_size * 2, 9000)
+    tiny_threshold = max(180, int(target_size * 0.1))
+    tiny_ratio = (sum(1 for length in content_lengths if length < tiny_threshold) / len(content_lengths)) if content_lengths else 0.0
+    too_long_count = sum(1 for length in content_lengths if length > max_len * 1.6)
+    title_avg_len = (
+        sum(len(str(item.get("title") or "").strip()) for item in matches) / len(matches)
+        if matches
+        else 0.0
+    )
+    sequence_score = heading_sequence_score(matches)
+
+    fallback_reason = ""
+    if sequence_score < 0.6:
+        if too_long_count > max(2, len(content_lengths) // 8):
+            fallback_reason = "too_many_long_blocks"
+        elif len(matches) >= 8 and title_avg_len > 95:
+            fallback_reason = "heading_titles_too_long"
+        elif len(matches) >= 5 and avg_len < min_len * 0.45 and tiny_ratio > 0.25:
+            fallback_reason = "headings_too_dense"
+        elif len(matches) <= 2 and avg_len < min_len * 0.35:
+            fallback_reason = "too_few_headings"
+
+    if fallback_reason:
+        chapters = split_by_newlines(normalized, target_size=target_size)
+        return {
+            "chapters": chapters,
+            "diagnostics": {
+                "split_strategy": "regex_fallback",
+                "matched_heading_count": len(matches),
+                "used_heading_count": len(matches),
+                "fallback_reason": fallback_reason,
+                "sequence_score": round(sequence_score, 3),
+            },
+        }
+
+    return {
+        "chapters": regex_candidates,
+        "diagnostics": {
+            "split_strategy": "regex",
+            "matched_heading_count": len(matches),
+            "used_heading_count": len(matches),
+            "fallback_reason": "",
+            "sequence_score": round(sequence_score, 3),
+        },
+    }
+
+
 def collect_heading_matches(normalized: str, patterns: list[re.Pattern[str]]) -> list[dict[str, Any]]:
     raw_matches: list[dict[str, Any]] = []
     for pattern in patterns:
@@ -1754,42 +1978,15 @@ def split_text_into_chapters(
     heading_patterns: list[str] | tuple[str, ...] | None = None,
     preface_title: str = "Mở đầu",
 ) -> list[dict[str, str]]:
-    normalized = normalize_text_for_split(text)
-    if not normalized:
-        return []
-    matches = collect_heading_matches(normalized, compile_chapter_heading_patterns(heading_patterns))
-    if not matches:
-        return split_by_newlines(normalized, target_size=target_size)
-
-    chapters: list[dict[str, str]] = []
-    if int(matches[0]["start"]) > 0:
-        preface = normalize_text_for_split(normalized[: int(matches[0]["start"])])
-        if preface:
-            chapters.append({"title": str(preface_title or "Mở đầu").strip() or "Mở đầu", "text": preface})
-
-    for i, m in enumerate(matches):
-        title = str(m.get("title") or "").strip() or f"Chương {i+1}"
-        start = int(m.get("end") or 0)
-        end = int(matches[i + 1]["start"]) if i + 1 < len(matches) else len(normalized)
-        content = normalize_text_for_split(normalized[start:end])
-        if content:
-            chapters.append({"title": title, "text": content})
-
-    if not chapters:
-        return split_by_newlines(normalized, target_size=target_size)
-
-    min_len = max(800, int(target_size * 0.25))
-    max_len = max(target_size * 2, 9000)
-    avg = sum(len(c["text"]) for c in chapters) / max(len(chapters), 1)
-    too_short = sum(1 for c in chapters if len(c["text"]) < min_len // 2)
-    too_long = sum(1 for c in chapters if len(c["text"]) > max_len)
-    fallback = len(chapters) > 5 and (
-        avg < min_len * 0.6 or too_short / len(chapters) > 0.6 or too_long > 0
+    return list(
+        analyze_text_split(
+            text,
+            target_size=target_size,
+            heading_patterns=heading_patterns,
+            preface_title=preface_title,
+        ).get("chapters")
+        or []
     )
-    if fallback:
-        return split_by_newlines(normalized, target_size=target_size)
-
-    return merge_short_chapters(chapters, min_len)
 
 
 def find_first_by_localname(root: ET.Element, name: str) -> ET.Element | None:
@@ -2096,20 +2293,16 @@ def parse_txt_book(
     title = (custom_title or "").strip() or re.sub(r"\.[^.]+$", "", filename or "") or "Untitled"
     author = (custom_author or "").strip()
     summary = (custom_summary or "").strip() or "Sách TXT được nhập và tách chương tự động."
-    chapters = split_text_into_chapters(
+    split_result = analyze_text_split(
         text,
         target_size=int(settings["txt"]["target_size"]),
         heading_patterns=settings["txt"]["heading_patterns"],
         preface_title=str(settings["txt"]["preface_title"] or "Mở đầu"),
     )
+    chapters = list(split_result.get("chapters") or [])
     if not chapters:
         raise ValueError("Không tách được chương từ file TXT.")
-    normalized = normalize_text_for_split(text)
-    matches = collect_heading_matches(
-        normalized,
-        compile_chapter_heading_patterns(settings["txt"]["heading_patterns"]),
-    )
-    split_strategy = "regex" if matches else "newlines"
+    diagnostics = dict(split_result.get("diagnostics") or {})
     return {
         "source_type": "txt",
         "metadata": {
@@ -2123,11 +2316,7 @@ def parse_txt_book(
         "chapters": chapters,
         "cover_bytes": b"",
         "cover_name": "",
-        "diagnostics": {
-            "split_strategy": split_strategy,
-            "matched_heading_count": len(matches),
-            "metadata_candidates": [],
-        },
+        "diagnostics": {**diagnostics, "metadata_candidates": []},
     }
 
 
