@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260307-vbooksearch1";
+import { t } from "../i18n.vi.js?v=20260307-export2";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -362,12 +362,28 @@ async function handleImport(onImported) {
   }
 }
 
-async function handleImportUrl(onImported) {
+async function handleImportUrl(onImported, onImportUrl) {
   const input = qs("import-url-input");
   const url = input ? String(input.value || "").trim() : "";
   if (!url) return;
   const pluginSelect = qs("import-url-plugin");
   const pluginId = pluginSelect ? String(pluginSelect.value || "").trim() : "";
+
+  const helpers = {
+    url,
+    pluginId,
+    resetForm() {
+      if (qs("import-url-form")) qs("import-url-form").reset();
+    },
+    closeDialog() {
+      if (qs("import-url-dialog") && qs("import-url-dialog").open) qs("import-url-dialog").close();
+    },
+  };
+
+  if (typeof onImportUrl === "function") {
+    await onImportUrl(helpers);
+    return;
+  }
 
   showStatus(t("statusImportingUrl"));
   try {
@@ -376,8 +392,8 @@ async function handleImportUrl(onImported) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url, plugin_id: pluginId || "" }),
     });
-    if (qs("import-url-form")) qs("import-url-form").reset();
-    if (qs("import-url-dialog") && qs("import-url-dialog").open) qs("import-url-dialog").close();
+    helpers.resetForm();
+    helpers.closeDialog();
     showToast(t("toastImportSuccess"));
     if (typeof onImported === "function") {
       onImported(data);
@@ -837,7 +853,7 @@ function fillStaticTexts() {
   if (vbookManagerSearch) vbookManagerSearch.placeholder = t("vbookManagerSearchPlaceholder");
 }
 
-export async function initShell({ page, onSearchSubmit, onImported, onSearch, onPrepareImport } = {}) {
+export async function initShell({ page, onSearchSubmit, onImported, onImportUrl, onSearch, onPrepareImport } = {}) {
   fillStaticTexts();
   setNavActive(page || "library");
 
@@ -2150,7 +2166,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onSearch, on
   if (qs("import-url-form")) {
     qs("import-url-form").addEventListener("submit", async (event) => {
       event.preventDefault();
-      await handleImportUrl(onImported);
+      await handleImportUrl(onImported, onImportUrl);
     });
   }
 

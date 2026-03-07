@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260307-urlimport1";
+import { initShell } from "../site_common.js?v=20260307-export2";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260307-trim1";
 
 const refs = {
@@ -24,9 +24,32 @@ const refs = {
   btnActionOpenReader: document.getElementById("btn-action-open-reader"),
   btnActionCheckUpdates: document.getElementById("btn-action-check-updates"),
   btnActionDownload: document.getElementById("btn-action-download"),
-  btnActionExportTxt: document.getElementById("btn-action-export-txt"),
-  btnActionExportEpub: document.getElementById("btn-action-export-epub"),
+  btnActionExport: document.getElementById("btn-action-export"),
   btnActionDeleteBook: document.getElementById("btn-action-delete-book"),
+
+  exportDialog: document.getElementById("export-dialog"),
+  exportDialogTitle: document.getElementById("export-dialog-title"),
+  exportDialogSubtitle: document.getElementById("export-dialog-subtitle"),
+  btnCloseExportDialog: document.getElementById("btn-close-export-dialog"),
+  btnCancelExportDialog: document.getElementById("btn-cancel-export-dialog"),
+  btnSubmitExportDialog: document.getElementById("btn-submit-export-dialog"),
+  exportCover: document.getElementById("export-cover"),
+  exportBookKind: document.getElementById("export-book-kind"),
+  exportBookCounts: document.getElementById("export-book-counts"),
+  exportMetaTitleLabel: document.getElementById("export-meta-title-label"),
+  exportMetaTitle: document.getElementById("export-meta-title"),
+  exportMetaAuthorLabel: document.getElementById("export-meta-author-label"),
+  exportMetaAuthor: document.getElementById("export-meta-author"),
+  exportMetaSummaryLabel: document.getElementById("export-meta-summary-label"),
+  exportMetaSummary: document.getElementById("export-meta-summary"),
+  exportFormatLabel: document.getElementById("export-format-label"),
+  exportFormatSelect: document.getElementById("export-format-select"),
+  exportOptionsList: document.getElementById("export-options-list"),
+  exportUseCachedOnly: document.getElementById("export-use-cached-only"),
+  exportUseCachedOnlyLabel: document.getElementById("export-use-cached-only-label"),
+  exportChaptersTitle: document.getElementById("export-chapters-title"),
+  exportChapterStats: document.getElementById("export-chapter-stats"),
+  exportChapterList: document.getElementById("export-chapter-list"),
 
   btnOpenGlobalDicts: document.getElementById("btn-open-global-dicts"),
   globalDictsDialog: document.getElementById("global-dicts-dialog"),
@@ -103,6 +126,8 @@ const state = {
   importPresets: null,
   importPreviewToken: "",
   importPreviewData: null,
+  exportBookDetail: null,
+  exportFormats: [],
 };
 
 function localTranslationSettingsSignature(shell) {
@@ -608,7 +633,6 @@ function openActions(bookId) {
   const downloaded = Math.max(0, Number(book.downloaded_chapters || 0));
   const total = Math.max(0, Number(book.chapter_count || 0));
   refs.bookActionsSubtitle.textContent = `${book.title_display || book.title || ""} • ${book.author_display || book.author || "Khuyết danh"} • ${state.shell.t("downloadedCountShort", { downloaded, total })}`;
-  if (refs.btnActionExportTxt) refs.btnActionExportTxt.disabled = Boolean(book.is_comic);
   if (refs.btnActionOpenReader) {
     const percent = Number(book.progress_percent || 0);
     refs.btnActionOpenReader.textContent = percent > 0 ? state.shell.t("openReaderContinue") : state.shell.t("openReader");
@@ -621,6 +645,7 @@ function openActions(bookId) {
     refs.btnActionCheckUpdates.textContent = state.shell.t("checkBookUpdates");
     refs.btnActionCheckUpdates.classList.toggle("hidden", !isOnlineSourceBook(book));
   }
+  if (refs.btnActionExport) refs.btnActionExport.textContent = state.shell.t("exportBook");
   if (!refs.bookActionsDialog.open) {
     refs.bookActionsDialog.showModal();
   }
@@ -1313,34 +1338,247 @@ async function openGlobalDictsDialog() {
   }
 }
 
-async function exportBook(format) {
-  if (!state.selectedBookId) return;
-  closeActions();
-  const book = state.books.find((x) => x.book_id === state.selectedBookId) || null;
-  const fmt = String(format || "txt").trim().toLowerCase();
-  if (fmt === "txt" && book && book.is_comic) {
-    state.shell.showToast(state.shell.t("comicExportTxtNotSupported"));
+function getCurrentTranslationMode() {
+  return (typeof state.shell.getTranslationMode === "function" ? state.shell.getTranslationMode() : state.translationMode) || "server";
+}
+
+function buildExportFormats(book) {
+  const isComic = Boolean(book && book.is_comic);
+  const isZh = Boolean(book && !isComic && String(book.lang_source || "").toLowerCase().startsWith("zh"));
+  const opt = (key, code, labelKey, defaultEnabled) => ({ key, code, labelKey, defaultEnabled: Boolean(defaultEnabled) });
+  if (isComic) {
+    return {
+      defaultFormat: "epub",
+      formats: [
+        {
+          id: "epub",
+          label: "EPUB",
+          options: [
+            opt("include_intro", "1b", "exportOptionIntro", true),
+            opt("include_chapter_titles", "3b", "exportOptionChapterTitles", true),
+            opt("include_toc_page", "4b", "exportOptionToc", true),
+          ],
+        },
+        {
+          id: "html",
+          label: "HTML",
+          options: [
+            opt("include_intro", "1b", "exportOptionIntro", true),
+            opt("merge_single_file", "2", "exportOptionMerge", false),
+            opt("include_chapter_titles", "3b", "exportOptionChapterTitles", true),
+            opt("include_toc_page", "4b", "exportOptionToc", true),
+          ],
+        },
+        { id: "cbz", label: "CBZ", options: [] },
+      ],
+    };
+  }
+  const htmlOptions = [
+    opt("include_intro", "1b", "exportOptionIntro", true),
+    opt("merge_single_file", "2b", "exportOptionMerge", true),
+    opt("include_chapter_titles", "3b", "exportOptionChapterTitles", true),
+    opt("include_toc_page", "4", "exportOptionToc", false),
+  ];
+  const txtOptions = [
+    opt("merge_single_file", "2b", "exportOptionMerge", true),
+    opt("include_chapter_titles", "3b", "exportOptionChapterTitles", true),
+  ];
+  const epubOptions = [
+    opt("include_intro", "1b", "exportOptionIntro", true),
+    opt("include_chapter_titles", "3b", "exportOptionChapterTitles", true),
+    opt("include_toc_page", "4", "exportOptionToc", false),
+  ];
+  if (isZh) {
+    htmlOptions.push(opt("use_translated_text", "5b", "exportOptionTranslatedText", true));
+    txtOptions.push(opt("use_translated_text", "5b", "exportOptionTranslatedText", true));
+    epubOptions.push(opt("use_translated_text", "5b", "exportOptionTranslatedText", true));
+  }
+  return {
+    defaultFormat: "txt",
+    formats: [
+      { id: "txt", label: "TXT", options: txtOptions },
+      { id: "epub", label: "EPUB", options: epubOptions },
+      { id: "html", label: "HTML", options: htmlOptions },
+    ],
+  };
+}
+
+function currentExportFormatSpec() {
+  const formatId = String((refs.exportFormatSelect && refs.exportFormatSelect.value) || "").trim().toLowerCase();
+  return (state.exportFormats || []).find((item) => String(item.id || "").trim().toLowerCase() === formatId) || null;
+}
+
+function closeExportDialog() {
+  if (refs.exportDialog && refs.exportDialog.open) refs.exportDialog.close();
+}
+
+function renderExportOptions() {
+  const spec = currentExportFormatSpec();
+  if (!refs.exportOptionsList) return;
+  refs.exportOptionsList.innerHTML = "";
+  if (!spec || !Array.isArray(spec.options) || !spec.options.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-text";
+    empty.textContent = state.shell.t("exportOptionNone");
+    refs.exportOptionsList.appendChild(empty);
     return;
   }
-  const ensureTranslated = (book && book.is_comic)
-    ? false
-    : window.confirm(state.shell.t("ensureTranslate"));
-  const fetchMissing = window.confirm(state.shell.t("exportFetchMissingPrompt"));
-  const useCachedOnly = !fetchMissing;
+  for (const option of spec.options) {
+    const row = document.createElement("label");
+    row.className = "checkbox-row export-option-row";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = Boolean(option.defaultEnabled);
+    checkbox.dataset.optionKey = String(option.key || "");
+    const text = document.createElement("span");
+    const code = String(option.code || "").trim();
+    const label = state.shell.t(String(option.labelKey || ""));
+    text.textContent = code ? `${code} • ${label}` : label;
+    row.append(checkbox, text);
+    refs.exportOptionsList.appendChild(row);
+  }
+}
+
+function renderExportChapterList(book) {
+  if (!refs.exportChapterList) return;
+  refs.exportChapterList.innerHTML = "";
+  const chapters = Array.isArray(book && book.chapters) ? book.chapters : [];
+  const downloaded = chapters.filter((item) => Boolean(item && item.is_downloaded)).length;
+  if (refs.exportChapterStats) {
+    refs.exportChapterStats.textContent = state.shell.t("downloadedCountShort", {
+      downloaded,
+      total: chapters.length,
+    });
+  }
+  if (!chapters.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-text";
+    empty.textContent = state.shell.t("tocNoData");
+    refs.exportChapterList.appendChild(empty);
+    return;
+  }
+  for (const chapter of chapters) {
+    const row = document.createElement("div");
+    row.className = "export-chapter-row";
+    const title = document.createElement("div");
+    title.className = "export-chapter-title";
+    title.textContent = `${chapter.chapter_order || "?"}. ${chapter.title_display || chapter.title_raw || ""}`;
+    const meta = document.createElement("div");
+    meta.className = "export-chapter-meta";
+    meta.textContent = chapter.is_downloaded
+      ? state.shell.t("downloadedTag")
+      : state.shell.t("exportNotDownloaded");
+    row.append(title, meta);
+    if (chapter.is_downloaded) row.classList.add("is-downloaded");
+    refs.exportChapterList.appendChild(row);
+  }
+}
+
+function renderExportCover(book) {
+  if (!refs.exportCover) return;
+  refs.exportCover.innerHTML = "";
+  const coverUrl = String((book && book.cover_url) || "").trim();
+  if (coverUrl) {
+    const img = document.createElement("img");
+    img.src = coverUrl;
+    img.alt = normalizeDisplayTitle(book && (book.title_display || book.title) || state.shell.t("noCover"));
+    refs.exportCover.appendChild(img);
+    return;
+  }
+  refs.exportCover.textContent = state.shell.t("noCover");
+}
+
+function renderExportDialog(book) {
+  state.exportBookDetail = book || null;
+  const exportInfo = buildExportFormats(book || {});
+  state.exportFormats = exportInfo.formats || [];
+  if (refs.exportFormatSelect) {
+    refs.exportFormatSelect.innerHTML = "";
+    for (const format of state.exportFormats) {
+      const option = document.createElement("option");
+      option.value = String(format.id || "");
+      option.textContent = String(format.label || format.id || "");
+      refs.exportFormatSelect.appendChild(option);
+    }
+    refs.exportFormatSelect.value = String(exportInfo.defaultFormat || ((state.exportFormats[0] || {}).id || ""));
+  }
+  if (refs.exportDialogTitle) refs.exportDialogTitle.textContent = state.shell.t("exportDialogTitle");
+  if (refs.exportDialogSubtitle) {
+    refs.exportDialogSubtitle.textContent = `${book.title_display || book.title || ""} • ${book.author_display || book.author || state.shell.t("unknownAuthor")}`;
+  }
+  if (refs.exportMetaTitle) refs.exportMetaTitle.value = String(book.title_display || book.title || "");
+  if (refs.exportMetaAuthor) refs.exportMetaAuthor.value = String(book.author_display || book.author || "");
+  if (refs.exportMetaSummary) refs.exportMetaSummary.value = String(book.summary_display || book.summary || "");
+  if (refs.exportBookKind) {
+    const isZh = Boolean(book && !book.is_comic && String(book.lang_source || "").toLowerCase().startsWith("zh"));
+    refs.exportBookKind.textContent = book.is_comic
+      ? state.shell.t("exportKindComic")
+      : (isZh ? state.shell.t("exportKindZhNovel") : state.shell.t("exportKindNovel"));
+  }
+  if (refs.exportBookCounts) {
+    refs.exportBookCounts.textContent = state.shell.t("exportCountsLine", {
+      total: Number(book.chapter_count || (Array.isArray(book.chapters) ? book.chapters.length : 0) || 0),
+      downloaded: Number(book.downloaded_chapters || 0),
+    });
+  }
+  if (refs.exportUseCachedOnly) refs.exportUseCachedOnly.checked = false;
+  renderExportCover(book);
+  renderExportOptions();
+  renderExportChapterList(book);
+}
+
+async function openExportDialog() {
+  if (!state.selectedBookId) return;
+  closeActions();
+  state.shell.showStatus(state.shell.t("statusLoadingExport"));
+  try {
+    const translateMode = getCurrentTranslationMode();
+    const mode = (typeof state.shell.getTranslationEnabled === "function" ? state.shell.getTranslationEnabled() : true) ? "trans" : "raw";
+    const book = await state.shell.api(
+      `/api/library/book/${encodeURIComponent(state.selectedBookId)}?mode=${encodeURIComponent(mode)}&translation_mode=${encodeURIComponent(translateMode)}`,
+    );
+    renderExportDialog(book);
+    if (refs.exportDialog && !refs.exportDialog.open) refs.exportDialog.showModal();
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function submitExportDialog() {
+  if (!state.selectedBookId || !state.exportBookDetail) return;
+  const spec = currentExportFormatSpec();
+  if (!spec) return;
+  const options = {};
+  for (const checkbox of Array.from(refs.exportOptionsList.querySelectorAll("input[data-option-key]"))) {
+    options[String(checkbox.dataset.optionKey || "")] = Boolean(checkbox.checked);
+  }
   state.shell.showStatus(state.shell.t("statusExporting"));
   try {
     const payload = await state.shell.api(`/api/library/book/${encodeURIComponent(state.selectedBookId)}/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        format: fmt,
-        ensure_translated: ensureTranslated,
-        translation_mode: "server",
-        use_cached_only: useCachedOnly,
+        format: spec.id,
+        translation_mode: getCurrentTranslationMode(),
+        use_cached_only: Boolean(refs.exportUseCachedOnly && refs.exportUseCachedOnly.checked),
+        metadata: {
+          title: String((refs.exportMetaTitle && refs.exportMetaTitle.value) || "").trim(),
+          author: String((refs.exportMetaAuthor && refs.exportMetaAuthor.value) || "").trim(),
+          summary: String((refs.exportMetaSummary && refs.exportMetaSummary.value) || "").trim(),
+        },
+        options,
       }),
     });
+    closeExportDialog();
     if (payload.download_url) {
-      window.open(payload.download_url, "_blank", "noopener,noreferrer");
+      const link = document.createElement("a");
+      link.href = payload.download_url;
+      if (payload.file_name) link.download = String(payload.file_name);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     }
   } catch (error) {
     state.shell.showToast(getErrorMessage(error));
@@ -1393,9 +1631,18 @@ async function init() {
   refs.btnActionOpenReader.textContent = state.shell.t("openReader");
   if (refs.btnActionCheckUpdates) refs.btnActionCheckUpdates.textContent = state.shell.t("checkBookUpdates");
   if (refs.btnActionDownload) refs.btnActionDownload.textContent = state.shell.t("downloadBook");
-  refs.btnActionExportTxt.textContent = state.shell.t("exportTxt");
-  refs.btnActionExportEpub.textContent = state.shell.t("exportEpub");
+  if (refs.btnActionExport) refs.btnActionExport.textContent = state.shell.t("exportBook");
   refs.btnActionDeleteBook.textContent = state.shell.t("deleteBook");
+  if (refs.exportDialogTitle) refs.exportDialogTitle.textContent = state.shell.t("exportDialogTitle");
+  if (refs.btnCloseExportDialog) refs.btnCloseExportDialog.textContent = state.shell.t("close");
+  if (refs.btnCancelExportDialog) refs.btnCancelExportDialog.textContent = state.shell.t("cancel");
+  if (refs.btnSubmitExportDialog) refs.btnSubmitExportDialog.textContent = state.shell.t("exportSubmit");
+  if (refs.exportMetaTitleLabel) refs.exportMetaTitleLabel.textContent = state.shell.t("fieldTitle");
+  if (refs.exportMetaAuthorLabel) refs.exportMetaAuthorLabel.textContent = state.shell.t("fieldAuthor");
+  if (refs.exportMetaSummaryLabel) refs.exportMetaSummaryLabel.textContent = state.shell.t("fieldSummary");
+  if (refs.exportFormatLabel) refs.exportFormatLabel.textContent = state.shell.t("exportFormat");
+  if (refs.exportUseCachedOnlyLabel) refs.exportUseCachedOnlyLabel.textContent = state.shell.t("exportCachedOnly");
+  if (refs.exportChaptersTitle) refs.exportChaptersTitle.textContent = state.shell.t("tocTitle");
   if (refs.btnOpenGlobalDicts) refs.btnOpenGlobalDicts.textContent = state.shell.t("globalDictsButton");
   if (refs.downloadJobsTitle) refs.downloadJobsTitle.textContent = state.shell.t("downloadJobsTitle");
   if (refs.downloadJobsEmpty) refs.downloadJobsEmpty.textContent = state.shell.t("downloadJobsEmpty");
@@ -1439,9 +1686,16 @@ async function init() {
       await enqueueBookDownload(state.selectedBookId);
     });
   }
-  refs.btnActionExportTxt.addEventListener("click", () => exportBook("txt"));
-  refs.btnActionExportEpub.addEventListener("click", () => exportBook("epub"));
+  if (refs.btnActionExport) refs.btnActionExport.addEventListener("click", () => {
+    openExportDialog().catch(() => {});
+  });
   refs.btnActionDeleteBook.addEventListener("click", deleteBook);
+  if (refs.btnCloseExportDialog) refs.btnCloseExportDialog.addEventListener("click", closeExportDialog);
+  if (refs.btnCancelExportDialog) refs.btnCancelExportDialog.addEventListener("click", closeExportDialog);
+  if (refs.btnSubmitExportDialog) refs.btnSubmitExportDialog.addEventListener("click", () => {
+    submitExportDialog().catch(() => {});
+  });
+  if (refs.exportFormatSelect) refs.exportFormatSelect.addEventListener("change", renderExportOptions);
   if (refs.btnOpenGlobalDicts) refs.btnOpenGlobalDicts.addEventListener("click", () => {
     openGlobalDictsDialog().catch(() => {});
   });

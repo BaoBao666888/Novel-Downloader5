@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import concurrent.futures
 import hashlib
 import html
@@ -1489,6 +1490,27 @@ def map_selection_to_name_source(
         ue = int(unit.get("target_end") or 0)
         return max(0, min(ue, seg_end) - max(us, seg_start))
 
+    def select_cover_rows(token_candidates: list[dict[str, Any]], seg_start: int, seg_end: int) -> list[dict[str, Any]]:
+        ordered = sorted(
+            [row for row in token_candidates if isinstance(row, dict)],
+            key=lambda x: (int(x.get("target_start") or 0), int(x.get("target_end") or 0)),
+        )
+        if not ordered:
+            return []
+        overlap_indices = [
+            idx
+            for idx, row in enumerate(ordered)
+            if int(row.get("target_end") or 0) > seg_start and int(row.get("target_start") or 0) < seg_end
+        ]
+        if overlap_indices:
+            return ordered[overlap_indices[0] : overlap_indices[-1] + 1]
+        center = (seg_start + seg_end) / 2.0
+        nearest_idx = min(
+            range(len(ordered)),
+            key=lambda idx: abs((((int(ordered[idx].get("target_start") or 0) + int(ordered[idx].get("target_end") or 0)) / 2.0) - center)),
+        )
+        return [ordered[nearest_idx]]
+
     def build_suggestions(source_start: int, source_end: int, candidate_source: str, rows: list[dict[str, Any]]) -> list[str]:
         suggestion_sources: list[str] = []
         candidate_source = strip_edge_punctuation(candidate_source)
@@ -1528,35 +1550,11 @@ def map_selection_to_name_source(
     )
     mode_norm = str(translation_mode or "").strip().lower()
     if mode_norm in {"local", "hanviet"} and token_rows:
-        overlaps = [u for u in token_rows if int(u.get("target_end") or 0) > start and int(u.get("target_start") or 0) < end]
-        if not overlaps and token_rows:
-            center = (start + end) / 2.0
-            nearest = min(
-                token_rows,
-                key=lambda u: abs(((int(u.get("target_start") or 0) + int(u.get("target_end") or 0)) / 2.0) - center),
-            )
-            overlaps = [nearest]
+        overlaps = select_cover_rows(token_rows, start, end)
 
         if overlaps:
-            def choose_best_token(token_candidates: list[dict[str, Any]], seg_start: int, seg_end: int) -> dict[str, Any]:
-                token_type_priority = {2: 5, 1: 4, 5: 3, 3: 2, 0: 1}
-
-                def score(unit: dict[str, Any]) -> tuple[int, int, float, float, int, float]:
-                    us = int(unit.get("target_start") or 0)
-                    ue = int(unit.get("target_end") or 0)
-                    unit_len = max(1, ue - us)
-                    ov = overlap_len(unit, seg_start, seg_end)
-                    ratio = ov / float(unit_len)
-                    target_norm = normalize_for_compare(str(unit.get("target_text") or ""))
-                    exact_bonus = 1 if selected_norm and target_norm == selected_norm else 0
-                    contains_bonus = 1 if selected_norm and target_norm and (selected_norm in target_norm or target_norm in selected_norm) else 0
-                    priority = token_type_priority.get(int(unit.get("token_type") or 0), 0)
-                    return (exact_bonus, contains_bonus, float(ov), float(ratio), priority, -float(unit_len))
-
-                return sorted(token_candidates, key=score, reverse=True)[0]
-
             chosen_rows = overlaps
-            match_type = "local_token_best_overlap"
+            match_type = "local_token_cover"
             score_value = 0.97
             if related_name_matches:
                 def name_score(item: dict[str, Any]) -> tuple[int, int]:
@@ -1568,22 +1566,25 @@ def map_selection_to_name_source(
                 best_name = sorted(related_name_matches, key=name_score, reverse=True)[0]
                 n_start = int(best_name["start"])
                 n_end = int(best_name["end"])
-                name_tokens = [
+                name_tokens = select_cover_rows([
                     u for u in token_rows
                     if int(u.get("target_end") or 0) > n_start and int(u.get("target_start") or 0) < n_end
-                ]
-                if name_tokens:
+                ], n_start, n_end)
+                if name_tokens and n_start <= start and n_end >= end:
                     chosen_rows = name_tokens
                     match_type = "local_name_token_cover"
                     score_value = 1.0
 
-            chosen = choose_best_token(chosen_rows, start, end)
-            source_start = int(chosen.get("source_start") or 0)
-            source_end = int(chosen.get("source_end") or 0)
-            target_start = int(chosen.get("target_start") or 0)
-            target_end = int(chosen.get("target_end") or 0)
-            source_candidate = strip_edge_punctuation(str(chosen.get("source_text") or "").strip())
-            target_candidate = strip_edge_punctuation(str(chosen.get("target_text") or "").strip()) or strip_edge_punctuation(selected)
+            source_start = min(int(row.get("source_start") or 0) for row in chosen_rows)
+            source_end = max(int(row.get("source_end") or 0) for row in chosen_rows)
+            target_start = min(int(row.get("target_start") or 0) for row in chosen_rows)
+            target_end = max(int(row.get("target_end") or 0) for row in chosen_rows)
+            source_candidate = strip_edge_punctuation(
+                "".join(str(row.get("source_text") or "") for row in chosen_rows).strip()
+            )
+            if not source_candidate:
+                source_candidate = strip_edge_punctuation(source_raw[source_start:source_end].strip())
+            target_candidate = strip_edge_punctuation(source_trans[target_start:target_end].strip()) or strip_edge_punctuation(selected)
 
             if chosen_name_exact is not None:
                 chosen_source_name = strip_edge_punctuation(str(chosen_name_exact.get("source") or "").strip())
@@ -1600,7 +1601,7 @@ def map_selection_to_name_source(
                     "source": strip_edge_punctuation(str(u.get("source_text") or "").strip()),
                     "score": float(overlap_len(u, start, end)),
                 }
-                for u in overlaps[:6]
+                for u in chosen_rows[:6]
                 if strip_edge_punctuation(str(u.get("source_text") or "").strip())
             ]
 
@@ -1612,9 +1613,9 @@ def map_selection_to_name_source(
                 "score": score_value,
                 "source_context": _text_snippet(source_raw, source_start, source_end),
                 "translated_context": _text_snippet(source_trans, target_start, target_end),
-                "unit_start": int(chosen.get("unit_index") or 0),
-                "unit_end": int(chosen.get("unit_index") or 0),
-                "name_suggestions": build_suggestions(source_start, source_end, source_candidate, overlaps),
+                "unit_start": min(int(row.get("unit_index") or 0) for row in chosen_rows),
+                "unit_end": max(int(row.get("unit_index") or 0) for row in chosen_rows),
+                "name_suggestions": build_suggestions(source_start, source_end, source_candidate, chosen_rows),
                 "candidates": candidate_rows,
             }
 
@@ -6451,6 +6452,100 @@ class ReaderService:
     def _translate_ui_text(self, text: str, *, single_line: bool = False, mode: str | None = None) -> str:
         return self._translate_ui_text_with_dicts(text, single_line=single_line, mode=mode)
 
+    def _translate_ui_texts_batch(
+        self,
+        texts: list[str],
+        *,
+        single_line: bool = False,
+        mode: str | None = None,
+    ) -> list[str]:
+        values = [
+            normalize_vbook_display_text(text or "", single_line=False)
+            for text in (texts or [])
+        ]
+        if not values:
+            return []
+        if not self.is_reader_translation_enabled():
+            return [normalize_vbook_display_text(value, single_line=single_line) for value in values]
+
+        translate_mode = self.resolve_translate_mode(mode)
+        if translate_mode != "server":
+            return [
+                self._translate_ui_text_with_dicts(value, single_line=single_line, mode=translate_mode)
+                for value in values
+            ]
+
+        outputs = [normalize_vbook_display_text(value, single_line=single_line) for value in values]
+        unique_sources: list[str] = []
+        seen_sources: set[str] = set()
+        for value in values:
+            if (not value) or (not self._contains_cjk_text(value)):
+                continue
+            if value in seen_sources:
+                continue
+            seen_sources.add(value)
+            unique_sources.append(value)
+        if not unique_sources:
+            return outputs
+
+        trans_sig = self.translator.translation_signature(mode="server")
+        resolved: dict[str, str] = {}
+        try:
+            cached = self.storage.get_translation_memory_batch(unique_sources, "server", trans_sig)
+        except Exception:
+            cached = {}
+        for source_key, translated_value in (cached or {}).items():
+            normalized_source = normalize_vbook_display_text(source_key or "", single_line=False)
+            if not normalized_source:
+                continue
+            normalized_target = normalize_vbook_display_text(
+                normalize_vi_display_text(translated_value or ""),
+                single_line=single_line,
+            )
+            if normalized_target:
+                resolved[normalized_source] = normalized_target
+
+        missing = [source for source in unique_sources if source not in resolved]
+        if missing:
+            translated_list: list[str]
+            try:
+                translated_list = translator_logic.translate_text_chunks(
+                    missing,
+                    name_set={},
+                    settings=self.translator._settings(),
+                    update_progress_callback=None,
+                    target_lang="vi",
+                )
+            except Exception:
+                translated_list = []
+            to_store: list[tuple[str, str]] = []
+            for idx, source_key in enumerate(missing):
+                translated_piece = translated_list[idx] if idx < len(translated_list) else source_key
+                translated_piece = normalize_vi_display_text(translated_piece or "")
+                if (not translated_piece) or translated_piece.startswith("[Lỗi"):
+                    translated_piece = source_key
+                resolved[source_key] = normalize_vbook_display_text(
+                    translated_piece,
+                    single_line=single_line,
+                ) or normalize_vbook_display_text(source_key, single_line=single_line)
+                if translated_piece and translated_piece != source_key and not translated_piece.startswith("[Lỗi"):
+                    to_store.append((source_key, translated_piece))
+            if to_store:
+                try:
+                    self.storage.set_translation_memory_batch(to_store, "server", trans_sig)
+                except Exception:
+                    pass
+
+        for idx, value in enumerate(values):
+            if not value:
+                outputs[idx] = ""
+                continue
+            if not self._contains_cjk_text(value):
+                outputs[idx] = normalize_vbook_display_text(value, single_line=single_line)
+                continue
+            outputs[idx] = resolved.get(value) or normalize_vbook_display_text(value, single_line=single_line)
+        return outputs
+
     def _apply_book_card_translation(self, item: dict[str, Any]) -> dict[str, Any]:
         out = dict(item or {})
         is_zh = is_lang_zh(str(out.get("lang_source") or ""))
@@ -6516,6 +6611,692 @@ class ReaderService:
             ) or (item.get("last_read_chapter_title") or "")
             out.append(item)
         return out
+
+    def _export_format_specs(self, book: dict[str, Any]) -> dict[str, Any]:
+        is_comic = bool(is_book_comic(book))
+        is_zh = bool(book_supports_translation(book))
+
+        def opt(key: str, code: str, label: str, default_enabled: bool) -> dict[str, Any]:
+            return {
+                "key": key,
+                "code": code,
+                "label": label,
+                "default_enabled": bool(default_enabled),
+            }
+
+        if is_comic:
+            formats = [
+                {
+                    "id": "epub",
+                    "label": "EPUB",
+                    "options": [
+                        opt("include_intro", "1b", "Hiển thị trang giới thiệu", True),
+                        opt("include_chapter_titles", "3b", "Hiển thị tên chương", True),
+                        opt("include_toc_page", "4b", "Hiển thị trang mục lục", True),
+                    ],
+                },
+                {
+                    "id": "html",
+                    "label": "HTML",
+                    "options": [
+                        opt("include_intro", "1b", "Hiển thị trang giới thiệu", True),
+                        opt("merge_single_file", "2", "Gộp thành 1 file", False),
+                        opt("include_chapter_titles", "3b", "Hiển thị tên chương", True),
+                        opt("include_toc_page", "4b", "Hiển thị trang mục lục", True),
+                    ],
+                },
+                {
+                    "id": "cbz",
+                    "label": "CBZ",
+                    "options": [],
+                },
+            ]
+            default_format = "epub"
+        else:
+            html_options = [
+                opt("include_intro", "1b", "Hiển thị trang giới thiệu", True),
+                opt("merge_single_file", "2b", "Gộp thành 1 file", True),
+                opt("include_chapter_titles", "3b", "Hiển thị tên chương", True),
+                opt("include_toc_page", "4", "Hiển thị trang mục lục", False),
+            ]
+            txt_options = [
+                opt("merge_single_file", "2b", "Gộp thành 1 file", True),
+                opt("include_chapter_titles", "3b", "Hiển thị tên chương", True),
+            ]
+            epub_options = [
+                opt("include_intro", "1b", "Hiển thị trang giới thiệu", True),
+                opt("include_chapter_titles", "3b", "Hiển thị tên chương", True),
+                opt("include_toc_page", "4", "Hiển thị trang mục lục", False),
+            ]
+            if is_zh:
+                html_options.append(opt("use_translated_text", "5b", "Xuất text dịch", True))
+                txt_options.append(opt("use_translated_text", "5b", "Xuất text dịch", True))
+                epub_options.append(opt("use_translated_text", "5b", "Xuất text dịch", True))
+            formats = [
+                {"id": "txt", "label": "TXT", "options": txt_options},
+                {"id": "epub", "label": "EPUB", "options": epub_options},
+                {"id": "html", "label": "HTML", "options": html_options},
+            ]
+            default_format = "txt"
+        return {
+            "default_format": default_format,
+            "formats": formats,
+        }
+
+    def _normalize_export_options(
+        self,
+        book: dict[str, Any],
+        fmt: str,
+        raw_options: dict[str, Any] | None,
+    ) -> dict[str, bool]:
+        specs = self._export_format_specs(book)
+        format_spec = None
+        for row in specs.get("formats") or []:
+            if str((row or {}).get("id") or "").strip().lower() == fmt:
+                format_spec = row
+                break
+        if not format_spec:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Định dạng export không hợp lệ.")
+        options = dict(raw_options or {}) if isinstance(raw_options, dict) else {}
+        normalized: dict[str, bool] = {}
+        for item in format_spec.get("options") or []:
+            key = str((item or {}).get("key") or "").strip()
+            if not key:
+                continue
+            if key in options:
+                normalized[key] = bool(options.get(key))
+            else:
+                normalized[key] = bool(item.get("default_enabled"))
+        for key in (
+            "include_intro",
+            "merge_single_file",
+            "include_chapter_titles",
+            "include_toc_page",
+            "use_translated_text",
+        ):
+            normalized.setdefault(key, False)
+        if is_book_comic(book):
+            normalized["use_translated_text"] = False
+        elif not book_supports_translation(book):
+            normalized["use_translated_text"] = False
+        return normalized
+
+    def _resolve_export_metadata(self, book: dict[str, Any], raw_metadata: dict[str, Any] | None) -> dict[str, str]:
+        metadata = dict(raw_metadata or {}) if isinstance(raw_metadata, dict) else {}
+        title = normalize_vbook_display_text(
+            str(metadata.get("title") or book.get("title") or ""),
+            single_line=True,
+        ) or "Untitled"
+        author = normalize_vbook_display_text(
+            str(metadata.get("author") or book.get("author") or ""),
+            single_line=True,
+        )
+        summary = normalize_vbook_display_text(
+            str(metadata.get("summary") or book.get("summary") or ""),
+            single_line=False,
+        )
+        return {
+            "title": title,
+            "author": author,
+            "summary": summary,
+        }
+
+    def _guess_export_image_ext(self, *, image_url: str, content_type: str = "") -> str:
+        ctype = str(content_type or "").split(";", 1)[0].strip().lower()
+        ext = mimetypes.guess_extension(ctype) if ctype else None
+        if not ext:
+            ext = Path(urlparse(str(image_url or "").strip()).path).suffix.lower()
+        if not ext:
+            ext = ".bin"
+        if ext == ".jpe":
+            ext = ".jpg"
+        return ext
+
+    def _collect_export_chapters(
+        self,
+        book: dict[str, Any],
+        *,
+        options: dict[str, bool],
+        translate_mode: str,
+        use_cached_only: bool,
+    ) -> list[dict[str, Any]]:
+        chapters = self.storage.get_chapter_rows(str(book.get("book_id") or ""))
+        if not chapters:
+            return []
+
+        _, active_name_set, _ = self.storage.get_active_name_set(
+            default_sets=self._default_name_sets(),
+            active_default=self._default_active_name_set(self._default_name_sets()),
+            book_id=str(book.get("book_id") or ""),
+        )
+        active_vp_set, _ = self.storage.get_book_vp_set(str(book.get("book_id") or ""))
+        use_translated_text = bool(options.get("use_translated_text")) and book_supports_translation(book)
+        is_comic = bool(is_book_comic(book))
+
+        entries: list[dict[str, Any]] = []
+        for idx, chapter in enumerate(chapters, start=1):
+            downloaded = self._chapter_cache_available(chapter, book)
+            if use_cached_only and not downloaded:
+                continue
+            raw_title = normalize_vbook_display_text(
+                str(chapter.get("title_raw") or f"Chương {idx}"),
+                single_line=True,
+            ) or f"Chương {idx}"
+            chapter_title = raw_title
+            if use_translated_text:
+                if translate_mode in {"local", "hanviet"}:
+                    chapter_title = self._translate_ui_text_with_dicts(
+                        raw_title,
+                        single_line=True,
+                        mode=translate_mode,
+                        name_set_override=active_name_set,
+                        vp_set_override=active_vp_set,
+                    ) or raw_title
+                else:
+                    chapter_title = normalize_vi_display_text(chapter.get("title_vi") or "") or self._translate_ui_text(
+                        raw_title,
+                        single_line=True,
+                        mode=translate_mode,
+                    ) or raw_title
+
+            raw_payload = self.storage.get_chapter_text(
+                chapter,
+                book,
+                mode="raw",
+                translator=self.translator,
+                translate_mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+                allow_remote_fetch=not use_cached_only,
+            )
+            comic_payload = decode_comic_payload(raw_payload) if is_comic else None
+            if is_comic:
+                images = [str(x).strip() for x in ((comic_payload or {}).get("images") or []) if str(x).strip()]
+                if not images:
+                    if use_cached_only:
+                        continue
+                    raise ApiError(
+                        HTTPStatus.BAD_GATEWAY,
+                        "EXPORT_COMIC_EMPTY",
+                        "Chương truyện tranh không có ảnh để xuất.",
+                        {
+                            "book_id": str(book.get("book_id") or ""),
+                            "chapter_id": str(chapter.get("chapter_id") or ""),
+                            "chapter_order": int(chapter.get("chapter_order") or idx),
+                        },
+                    )
+                image_entries: list[dict[str, Any]] = []
+                referer = str(chapter.get("remote_url") or book.get("source_url") or "").strip()
+                plugin_id = str(book.get("source_plugin") or "").strip()
+                for image_idx, image_url in enumerate(images, start=1):
+                    cached = self._read_vbook_image_cache(image_url=image_url, plugin_id=plugin_id)
+                    if use_cached_only:
+                        if cached is None:
+                            image_entries = []
+                            break
+                        data, content_type = cached
+                    else:
+                        if cached is not None:
+                            data, content_type = cached
+                        else:
+                            data, content_type = self.fetch_vbook_image(
+                                image_url=image_url,
+                                plugin_id=plugin_id,
+                                referer=referer,
+                            )
+                    ext = self._guess_export_image_ext(image_url=image_url, content_type=content_type)
+                    image_entries.append(
+                        {
+                            "index": image_idx,
+                            "url": image_url,
+                            "content_type": content_type,
+                            "data": data,
+                            "ext": ext,
+                        }
+                    )
+                if not image_entries:
+                    continue
+                entries.append(
+                    {
+                        "chapter_id": str(chapter.get("chapter_id") or ""),
+                        "chapter_order": int(chapter.get("chapter_order") or idx),
+                        "title": chapter_title,
+                        "title_raw": raw_title,
+                        "images": image_entries,
+                        "is_downloaded": bool(downloaded),
+                    }
+                )
+                continue
+
+            text_mode = "trans" if use_translated_text else "raw"
+            text_value = self.storage.get_chapter_text(
+                chapter,
+                book,
+                mode=text_mode,
+                translator=self.translator,
+                translate_mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+                allow_remote_fetch=not use_cached_only,
+            )
+            if not text_value.strip():
+                if use_cached_only:
+                    continue
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "EXPORT_TEXT_EMPTY",
+                    "Chương không có nội dung để xuất.",
+                    {
+                        "book_id": str(book.get("book_id") or ""),
+                        "chapter_id": str(chapter.get("chapter_id") or ""),
+                        "chapter_order": int(chapter.get("chapter_order") or idx),
+                    },
+                )
+            entries.append(
+                {
+                    "chapter_id": str(chapter.get("chapter_id") or ""),
+                    "chapter_order": int(chapter.get("chapter_order") or idx),
+                    "title": chapter_title,
+                    "title_raw": raw_title,
+                    "text": normalize_newlines(text_value),
+                    "is_downloaded": bool(downloaded),
+                }
+            )
+        return entries
+
+    def _render_export_intro_html(self, metadata: dict[str, str]) -> str:
+        parts = [f"<h1>{html.escape(metadata['title'])}</h1>"]
+        if metadata.get("author"):
+            parts.append(f"<p><strong>Tác giả:</strong> {html.escape(metadata['author'])}</p>")
+        if metadata.get("summary"):
+            summary_html = "".join(
+                f"<p>{html.escape(line)}</p>" if line.strip() else "<p><br/></p>"
+                for line in normalize_newlines(metadata["summary"]).split("\n")
+            )
+            parts.append(summary_html)
+        return "".join(parts)
+
+    def _build_export_toc_html(
+        self,
+        chapters: list[dict[str, Any]],
+        *,
+        link_builder: Callable[[dict[str, Any]], str],
+    ) -> str:
+        lines = ["<h2>Mục lục</h2>", "<ol>"]
+        for chapter in chapters:
+            title = html.escape(str(chapter.get("title") or chapter.get("title_raw") or ""))
+            link = html.escape(link_builder(chapter))
+            lines.append(f'<li><a href="{link}">{title}</a></li>')
+        lines.append("</ol>")
+        return "".join(lines)
+
+    def _wrap_export_html_document(self, title: str, body: str) -> str:
+        return (
+            "<!doctype html>"
+            '<html lang="vi"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            f"<title>{html.escape(title)}</title>"
+            "<style>"
+            "body{font-family:'Noto Serif','Times New Roman',serif;max-width:960px;margin:0 auto;padding:28px 18px;line-height:1.9;background:#fff;color:#111;}"
+            "img{display:block;max-width:100%;height:auto;margin:0 auto;}"
+            "h1,h2,h3{line-height:1.35;}"
+            ".chapter{margin:28px 0 40px;}"
+            ".chapter-title{margin:0 0 16px;}"
+            ".toc ol{padding-left:22px;}"
+            ".intro,.toc{margin-bottom:32px;padding-bottom:16px;border-bottom:1px solid #ddd;}"
+            "p{margin:0 0 1em;white-space:pre-wrap;}"
+            "</style></head><body>"
+            f"{body}</body></html>"
+        )
+
+    def _create_export_txt(
+        self,
+        *,
+        metadata: dict[str, str],
+        chapters: list[dict[str, Any]],
+        options: dict[str, bool],
+    ) -> Path:
+        safe_name = self.storage._safe_filename(metadata["title"])
+        ts = utc_now_ts()
+        include_titles = bool(options.get("include_chapter_titles"))
+        merge_single = bool(options.get("merge_single_file"))
+        if merge_single:
+            out = EXPORT_DIR / f"{safe_name}_{ts}.txt"
+            lines: list[str] = []
+            for chapter in chapters:
+                if include_titles:
+                    lines.extend([str(chapter.get("title") or ""), ""])
+                lines.append(str(chapter.get("text") or ""))
+                lines.append("")
+            if not lines:
+                raise ValueError("Không có chương hợp lệ để xuất TXT.")
+            out.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
+            return out
+
+        out = EXPORT_DIR / f"{safe_name}_{ts}.zip"
+        with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for chapter in chapters:
+                chapter_order = int(chapter.get("chapter_order") or 0)
+                chapter_title = self.storage._safe_filename(str(chapter.get("title") or chapter.get("title_raw") or f"Chapter_{chapter_order}"))
+                filename = f"{chapter_order:04d}_{chapter_title}.txt"
+                text_value = str(chapter.get("text") or "")
+                if include_titles:
+                    payload = f"{chapter.get('title') or ''}\n\n{text_value}".strip() + "\n"
+                else:
+                    payload = text_value.strip() + "\n"
+                zf.writestr(filename, payload.encode("utf-8"))
+        return out
+
+    def _create_export_html(
+        self,
+        *,
+        metadata: dict[str, str],
+        chapters: list[dict[str, Any]],
+        options: dict[str, bool],
+        is_comic: bool,
+    ) -> Path:
+        safe_name = self.storage._safe_filename(metadata["title"])
+        ts = utc_now_ts()
+        merge_single = bool(options.get("merge_single_file"))
+        include_intro = bool(options.get("include_intro"))
+        include_titles = bool(options.get("include_chapter_titles"))
+        include_toc = bool(options.get("include_toc_page"))
+
+        def _chapter_section(chapter: dict[str, Any], *, inline_images: bool) -> str:
+            chapter_id = f"chap-{int(chapter.get('chapter_order') or 0)}"
+            parts = [f'<section class="chapter" id="{chapter_id}">']
+            if include_titles:
+                parts.append(f'<h2 class="chapter-title">{html.escape(str(chapter.get("title") or ""))}</h2>')
+            if is_comic:
+                for image_idx, image in enumerate(chapter.get("images") or [], start=1):
+                    data = bytes(image.get("data") or b"")
+                    ctype = str(image.get("content_type") or "application/octet-stream")
+                    if inline_images:
+                        encoded = base64.b64encode(data).decode("ascii")
+                        src = f"data:{ctype};base64,{encoded}"
+                    else:
+                        src = html.escape(str(image.get("href") or ""))
+                    alt = html.escape(f"{chapter.get('title') or 'Chương'} #{image_idx}")
+                    parts.append(f'<p><img src="{src}" alt="{alt}"></p>')
+            else:
+                text_value = str(chapter.get("text") or "")
+                for line in text_value.split("\n"):
+                    parts.append(f"<p>{html.escape(line)}</p>" if line.strip() else "<p><br/></p>")
+            parts.append("</section>")
+            return "".join(parts)
+
+        if merge_single:
+            out = EXPORT_DIR / f"{safe_name}_{ts}.html"
+            body_parts: list[str] = []
+            if include_intro:
+                body_parts.append(f'<section class="intro">{self._render_export_intro_html(metadata)}</section>')
+            if include_toc:
+                toc_html = self._build_export_toc_html(
+                    chapters,
+                    link_builder=lambda chapter: f"#chap-{int(chapter.get('chapter_order') or 0)}",
+                )
+                body_parts.append(
+                    f'<section class="toc">{toc_html}</section>'
+                )
+            for chapter in chapters:
+                body_parts.append(_chapter_section(chapter, inline_images=is_comic))
+            out.write_text(
+                self._wrap_export_html_document(metadata["title"], "".join(body_parts)),
+                encoding="utf-8",
+            )
+            return out
+
+        out = EXPORT_DIR / f"{safe_name}_{ts}.zip"
+        with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            chapter_links: dict[str, str] = {}
+            for chapter in chapters:
+                chapter_order = int(chapter.get("chapter_order") or 0)
+                chapter_slug = self.storage._safe_filename(str(chapter.get("title") or chapter.get("title_raw") or f"Chapter_{chapter_order}"))
+                html_name = f"chapter_{chapter_order:04d}_{chapter_slug}.html"
+                chapter_links[str(chapter.get("chapter_id") or chapter_order)] = html_name
+                chapter_copy = dict(chapter)
+                if is_comic:
+                    remapped_images = []
+                    for image_idx, image in enumerate(chapter.get("images") or [], start=1):
+                        ext = str(image.get("ext") or ".bin")
+                        asset_name = f"assets/{chapter_order:04d}_{image_idx:04d}{ext}"
+                        zf.writestr(asset_name, bytes(image.get("data") or b""))
+                        remapped = dict(image)
+                        remapped["href"] = asset_name
+                        remapped_images.append(remapped)
+                    chapter_copy["images"] = remapped_images
+                zf.writestr(
+                    html_name,
+                    self._wrap_export_html_document(
+                        str(chapter.get("title") or metadata["title"]),
+                        _chapter_section(chapter_copy, inline_images=False),
+                    ).encode("utf-8"),
+                )
+            if include_intro or include_toc:
+                index_parts: list[str] = []
+                if include_intro:
+                    index_parts.append(f'<section class="intro">{self._render_export_intro_html(metadata)}</section>')
+                if include_toc:
+                    toc_html = self._build_export_toc_html(
+                        chapters,
+                        link_builder=lambda chapter: chapter_links.get(
+                            str(chapter.get("chapter_id") or chapter.get("chapter_order") or ""),
+                            "#",
+                        ),
+                    )
+                    index_parts.append(
+                        f'<section class="toc">{toc_html}</section>'
+                    )
+                zf.writestr(
+                    "index.html",
+                    self._wrap_export_html_document(metadata["title"], "".join(index_parts)).encode("utf-8"),
+                )
+        return out
+
+    def _create_export_cbz(
+        self,
+        *,
+        metadata: dict[str, str],
+        chapters: list[dict[str, Any]],
+    ) -> Path:
+        safe_name = self.storage._safe_filename(metadata["title"])
+        ts = utc_now_ts()
+        out = EXPORT_DIR / f"{safe_name}_{ts}.cbz"
+        with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_STORED) as zf:
+            for chapter in chapters:
+                chapter_order = int(chapter.get("chapter_order") or 0)
+                for image in chapter.get("images") or []:
+                    image_idx = int(image.get("index") or 0)
+                    ext = str(image.get("ext") or ".bin")
+                    filename = f"{chapter_order:04d}_{image_idx:04d}{ext}"
+                    zf.writestr(filename, bytes(image.get("data") or b""))
+        return out
+
+    def _create_export_epub(
+        self,
+        *,
+        metadata: dict[str, str],
+        chapters: list[dict[str, Any]],
+        options: dict[str, bool],
+        is_comic: bool,
+        lang_source: str,
+    ) -> Path:
+        safe_name = self.storage._safe_filename(metadata["title"])
+        ts = utc_now_ts()
+        out = EXPORT_DIR / f"{safe_name}_{ts}.epub"
+        uid = hashlib.sha1(f"{metadata['title']}|{ts}".encode("utf-8", errors="ignore")).hexdigest()
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        include_intro = bool(options.get("include_intro"))
+        include_titles = bool(options.get("include_chapter_titles"))
+        include_toc = bool(options.get("include_toc_page"))
+
+        files: dict[str, bytes] = {}
+        files["mimetype"] = b"application/epub+zip"
+        files["META-INF/container.xml"] = (
+            b'<?xml version="1.0" encoding="UTF-8"?>'
+            b'<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
+            b'<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>'
+            b"</container>"
+        )
+        manifest_items = ['<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>']
+        spine_items: list[str] = []
+        nav_points: list[str] = []
+
+        def add_xhtml(item_id: str, filename: str, title: str, body_html: str, play_order: int | None = None) -> None:
+            files[f"OEBPS/Text/{filename}"] = (
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+                '<html xmlns="http://www.w3.org/1999/xhtml"><head>'
+                f"<title>{html.escape(title)}</title>"
+                '<meta charset="utf-8"/></head><body>'
+                f"{body_html}</body></html>"
+            ).encode("utf-8")
+            manifest_items.append(f'<item id="{item_id}" href="Text/{filename}" media-type="application/xhtml+xml"/>')
+            spine_items.append(f'<itemref idref="{item_id}"/>')
+            if play_order is not None:
+                nav_points.append(
+                    f'<navPoint id="navPoint-{play_order}" playOrder="{play_order}"><navLabel><text>{html.escape(title)}</text></navLabel><content src="Text/{filename}"/></navPoint>'
+                )
+
+        play_order = 1
+        if include_intro:
+            add_xhtml("intro", "intro.xhtml", "Giới thiệu", self._render_export_intro_html(metadata), play_order)
+            play_order += 1
+        if include_toc:
+            add_xhtml(
+                "tocpage",
+                "toc.xhtml",
+                "Mục lục",
+                self._build_export_toc_html(chapters, link_builder=lambda chapter: f"chapter_{int(chapter.get('chapter_order') or 0)}.xhtml"),
+                play_order,
+            )
+            play_order += 1
+
+        for chapter in chapters:
+            chapter_order = int(chapter.get("chapter_order") or 0)
+            body_parts: list[str] = []
+            if include_titles:
+                body_parts.append(f"<h2>{html.escape(str(chapter.get('title') or ''))}</h2>")
+            if is_comic:
+                for image_idx, image in enumerate(chapter.get("images") or [], start=1):
+                    ext = str(image.get("ext") or ".bin")
+                    image_name = f"Images/{chapter_order:04d}_{image_idx:04d}{ext}"
+                    files[f"OEBPS/{image_name}"] = bytes(image.get("data") or b"")
+                    media_type = str(image.get("content_type") or "").split(";", 1)[0].strip() or (mimetypes.guess_type(image_name)[0] or "application/octet-stream")
+                    manifest_items.append(
+                        f'<item id="img{chapter_order}_{image_idx}" href="{image_name}" media-type="{html.escape(media_type)}"/>'
+                    )
+                    body_parts.append(f'<p><img src="../{image_name}" alt="{html.escape(str(chapter.get("title") or ""))}"/></p>')
+            else:
+                for line in str(chapter.get("text") or "").split("\n"):
+                    body_parts.append(f"<p>{html.escape(line)}</p>" if line.strip() else "<p><br/></p>")
+            add_xhtml(
+                f"chap{chapter_order}",
+                f"chapter_{chapter_order}.xhtml",
+                str(chapter.get("title") or metadata["title"]),
+                "".join(body_parts),
+                play_order,
+            )
+            play_order += 1
+
+        if not spine_items:
+            raise ValueError("Không có nội dung hợp lệ để xuất EPUB.")
+
+        toc_ncx = (
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head>'
+            f'<meta name="dtb:uid" content="{html.escape(uid)}"/>'
+            '<meta name="dtb:depth" content="1"/><meta name="dtb:totalPageCount" content="0"/><meta name="dtb:maxPageNumber" content="0"/>'
+            f"</head><docTitle><text>{html.escape(metadata['title'])}</text></docTitle><navMap>{''.join(nav_points)}</navMap></ncx>"
+        )
+        language = "vi" if bool(options.get("use_translated_text")) else (normalize_lang_source(lang_source) or "zh")
+        content_opf = (
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            '<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">'
+            '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+            f"<dc:title>{html.escape(metadata['title'])}</dc:title>"
+            f"<dc:language>{html.escape(language)}</dc:language>"
+            f"<dc:identifier id=\"BookId\">{html.escape(uid)}</dc:identifier>"
+            f"<dc:creator>{html.escape(metadata.get('author') or '')}</dc:creator>"
+            f"<dc:description>{html.escape(metadata.get('summary') or '')}</dc:description>"
+            f"<dc:date>{now}</dc:date>"
+            "</metadata>"
+            f"<manifest>{''.join(manifest_items)}</manifest>"
+            f"<spine toc=\"ncx\">{''.join(spine_items)}</spine>"
+            "</package>"
+        )
+        files["OEBPS/toc.ncx"] = toc_ncx.encode("utf-8")
+        files["OEBPS/content.opf"] = content_opf.encode("utf-8")
+        with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("mimetype", files["mimetype"], compress_type=zipfile.ZIP_STORED)
+            for path, data in files.items():
+                if path == "mimetype":
+                    continue
+                zf.writestr(path, data)
+        return out
+
+    def export_book(
+        self,
+        *,
+        book_id: str,
+        fmt: str,
+        translation_mode: str,
+        metadata: dict[str, Any] | None = None,
+        options: dict[str, Any] | None = None,
+        use_cached_only: bool = False,
+    ) -> Path:
+        book = self.storage.find_book(book_id)
+        if not book:
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+        fmt_norm = str(fmt or "").strip().lower()
+        normalized_options = self._normalize_export_options(book, fmt_norm, options)
+        export_metadata = self._resolve_export_metadata(book, metadata)
+        chapters = self._collect_export_chapters(
+            book,
+            options=normalized_options,
+            translate_mode=self.resolve_translate_mode(translation_mode),
+            use_cached_only=bool(use_cached_only),
+        )
+        if not chapters:
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "EXPORT_EMPTY",
+                "Không có chương phù hợp để xuất với lựa chọn hiện tại.",
+            )
+        if fmt_norm == "txt":
+            if is_book_comic(book):
+                raise ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "COMIC_EXPORT_TXT_NOT_SUPPORTED",
+                    "Truyện tranh không hỗ trợ xuất TXT.",
+                )
+            return self._create_export_txt(
+                metadata=export_metadata,
+                chapters=chapters,
+                options=normalized_options,
+            )
+        if fmt_norm == "html":
+            return self._create_export_html(
+                metadata=export_metadata,
+                chapters=chapters,
+                options=normalized_options,
+                is_comic=is_book_comic(book),
+            )
+        if fmt_norm == "cbz":
+            if not is_book_comic(book):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "CBZ chỉ hỗ trợ cho truyện tranh.")
+            return self._create_export_cbz(
+                metadata=export_metadata,
+                chapters=chapters,
+            )
+        if fmt_norm == "epub":
+            return self._create_export_epub(
+                metadata=export_metadata,
+                chapters=chapters,
+                options=normalized_options,
+                is_comic=is_book_comic(book),
+                lang_source=str(book.get("lang_source") or ""),
+            )
+        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Định dạng export không hợp lệ.")
 
     def _download_status_is_active(self, status: str) -> bool:
         return str(status or "").strip().lower() in {"queued", "running"}
@@ -8510,7 +9291,14 @@ class ReaderService:
         )
         return result.get("data"), result.get("next")
 
-    def _normalize_vbook_search_item(self, plugin: Any, item: dict[str, Any], *, query: str) -> dict[str, Any] | None:
+    def _normalize_vbook_search_item(
+        self,
+        plugin: Any,
+        item: dict[str, Any],
+        *,
+        query: str,
+        translate_ui: bool = True,
+    ) -> dict[str, Any] | None:
         if not isinstance(item, dict):
             return None
         plugin_id = str(getattr(plugin, "plugin_id", "") or "")
@@ -8556,7 +9344,7 @@ class ReaderService:
         title_raw = title
         author_raw = author
         description_raw = description
-        if self.is_reader_translation_enabled():
+        if translate_ui and self.is_reader_translation_enabled():
             mode = self.reader_translation_mode()
             title = self._translate_ui_text(title, single_line=True, mode=mode) or title
             author = self._translate_ui_text(author, single_line=True, mode=mode) or author
@@ -8700,12 +9488,12 @@ class ReaderService:
             return normalize_vbook_display_text("\n".join(parts), single_line=single_line)
         return normalize_vbook_display_text(str(value), single_line=single_line)
 
-    def _normalize_vbook_tab_item(self, item: Any) -> dict[str, Any] | None:
+    def _normalize_vbook_tab_item(self, item: Any, *, translate_ui: bool = True) -> dict[str, Any] | None:
         if isinstance(item, str):
             text = normalize_vbook_display_text(str(item), single_line=True)
             if not text:
                 return None
-            if self.is_reader_translation_enabled():
+            if translate_ui and self.is_reader_translation_enabled():
                 mode = self.reader_translation_mode()
                 text = self._translate_ui_text(text, single_line=True, mode=mode) or text
             return {
@@ -8727,7 +9515,7 @@ class ReaderService:
             raw_input = item.get("url")
         if not title:
             return None
-        if self.is_reader_translation_enabled():
+        if translate_ui and self.is_reader_translation_enabled():
             mode = self.reader_translation_mode()
             title = self._translate_ui_text(title, single_line=True, mode=mode) or title
         if isinstance(raw_input, (dict, list, str, int, float, bool)) or raw_input is None:
@@ -8739,6 +9527,66 @@ class ReaderService:
             "script": script,
             "input": input_value,
         }
+
+    def _translate_vbook_items_batch(
+        self,
+        items: list[dict[str, Any]],
+        *,
+        mode: str | None = None,
+    ) -> list[dict[str, Any]]:
+        if not items:
+            return items
+        if not self.is_reader_translation_enabled():
+            return items
+        translate_mode = self.resolve_translate_mode(mode)
+        titles = self._translate_ui_texts_batch(
+            [str((item or {}).get("title_raw") or (item or {}).get("title") or "") for item in items],
+            single_line=True,
+            mode=translate_mode,
+        )
+        authors = self._translate_ui_texts_batch(
+            [str((item or {}).get("author_raw") or (item or {}).get("author") or "") for item in items],
+            single_line=True,
+            mode=translate_mode,
+        )
+        descriptions = self._translate_ui_texts_batch(
+            [str((item or {}).get("description_raw") or (item or {}).get("description") or "") for item in items],
+            single_line=False,
+            mode=translate_mode,
+        )
+        for idx, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+            if idx < len(titles):
+                item["title"] = titles[idx]
+            if idx < len(authors):
+                item["author"] = authors[idx]
+            if idx < len(descriptions):
+                item["description"] = descriptions[idx]
+        return items
+
+    def _translate_vbook_tabs_batch(
+        self,
+        tabs: list[dict[str, Any]],
+        *,
+        mode: str | None = None,
+    ) -> list[dict[str, Any]]:
+        if not tabs:
+            return tabs
+        if not self.is_reader_translation_enabled():
+            return tabs
+        translate_mode = self.resolve_translate_mode(mode)
+        titles = self._translate_ui_texts_batch(
+            [str((item or {}).get("title") or "") for item in tabs],
+            single_line=True,
+            mode=translate_mode,
+        )
+        for idx, item in enumerate(tabs):
+            if not isinstance(item, dict):
+                continue
+            if idx < len(titles):
+                item["title"] = titles[idx]
+        return tabs
 
     def _summarize_vbook_debug_row(self, row: Any) -> Any:
         if isinstance(row, dict):
@@ -8823,7 +9671,7 @@ class ReaderService:
         for row in rows:
             item: dict[str, Any] | None = None
             if isinstance(row, dict):
-                item = self._normalize_vbook_search_item(plugin, row, query="")
+                item = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
                 if item is None:
                     title = normalize_vbook_display_text(
                         str(row.get("name") or row.get("title") or row.get("text") or ""),
@@ -8891,7 +9739,7 @@ class ReaderService:
         rows = self._extract_vbook_list_rows(raw_value)
         tabs: list[dict[str, Any]] = []
         for row in rows:
-            tab = self._normalize_vbook_tab_item(row)
+            tab = self._normalize_vbook_tab_item(row, translate_ui=False)
             if tab:
                 tabs.append(tab)
         if not tabs:
@@ -8915,7 +9763,7 @@ class ReaderService:
             except Exception:
                 continue
             for row in list_rows:
-                normalized = self._normalize_vbook_search_item(plugin, row, query="")
+                normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
                 if not normalized:
                     continue
                 key = f"{str(normalized.get('title') or '').strip().lower()}|{str(normalized.get('detail_url') or '').strip()}"
@@ -9404,9 +10252,11 @@ class ReaderService:
         )
         items: list[dict[str, Any]] = []
         for row in rows or []:
-            normalized = self._normalize_vbook_search_item(plugin, row, query=q)
+            normalized = self._normalize_vbook_search_item(plugin, row, query=q, translate_ui=False)
             if normalized:
                 items.append(normalized)
+        if self.is_reader_translation_enabled():
+            self._translate_vbook_items_batch(items, mode=self.reader_translation_mode())
         return {
             "ok": True,
             "plugin": self._serialize_vbook_plugin(plugin),
@@ -9449,13 +10299,17 @@ class ReaderService:
             tabs: list[dict[str, Any]] = []
             items: list[dict[str, Any]] = []
             for row in rows:
-                normalized = self._normalize_vbook_search_item(plugin, row, query="")
+                normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
                 if normalized:
                     items.append(normalized)
                     continue
-                tab = self._normalize_vbook_tab_item(row)
+                tab = self._normalize_vbook_tab_item(row, translate_ui=False)
                 if tab:
                     tabs.append(tab)
+            if self.is_reader_translation_enabled():
+                mode = self.reader_translation_mode()
+                self._translate_vbook_items_batch(items, mode=mode)
+                self._translate_vbook_tabs_batch(tabs, mode=mode)
             return {
                 "ok": True,
                 "plugin": self._serialize_vbook_plugin(plugin),
@@ -9479,13 +10333,17 @@ class ReaderService:
         items: list[dict[str, Any]] = []
         extra_tabs: list[dict[str, Any]] = []
         for row in rows:
-            normalized = self._normalize_vbook_search_item(plugin, row, query="")
+            normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
             if normalized:
                 items.append(normalized)
                 continue
-            tab = self._normalize_vbook_tab_item(row)
+            tab = self._normalize_vbook_tab_item(row, translate_ui=False)
             if tab:
                 extra_tabs.append(tab)
+        if self.is_reader_translation_enabled():
+            mode = self.reader_translation_mode()
+            self._translate_vbook_items_batch(items, mode=mode)
+            self._translate_vbook_tabs_batch(extra_tabs, mode=mode)
         if rows and not items and not extra_tabs:
             raise ApiError(
                 HTTPStatus.BAD_GATEWAY,
@@ -9559,13 +10417,17 @@ class ReaderService:
             tabs: list[dict[str, Any]] = []
             items: list[dict[str, Any]] = []
             for row in rows:
-                normalized = self._normalize_vbook_search_item(plugin, row, query="")
+                normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
                 if normalized:
                     items.append(normalized)
                     continue
-                tab = self._normalize_vbook_tab_item(row)
+                tab = self._normalize_vbook_tab_item(row, translate_ui=False)
                 if tab:
                     tabs.append(tab)
+            if self.is_reader_translation_enabled():
+                mode = self.reader_translation_mode()
+                self._translate_vbook_items_batch(items, mode=mode)
+                self._translate_vbook_tabs_batch(tabs, mode=mode)
             return {
                 "ok": True,
                 "plugin": self._serialize_vbook_plugin(plugin),
@@ -9589,13 +10451,17 @@ class ReaderService:
         items: list[dict[str, Any]] = []
         extra_tabs: list[dict[str, Any]] = []
         for row in rows:
-            normalized = self._normalize_vbook_search_item(plugin, row, query="")
+            normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
             if normalized:
                 items.append(normalized)
                 continue
-            tab = self._normalize_vbook_tab_item(row)
+            tab = self._normalize_vbook_tab_item(row, translate_ui=False)
             if tab:
                 extra_tabs.append(tab)
+        if self.is_reader_translation_enabled():
+            mode = self.reader_translation_mode()
+            self._translate_vbook_items_batch(items, mode=mode)
+            self._translate_vbook_tabs_batch(extra_tabs, mode=mode)
         if rows and not items and not extra_tabs:
             raise ApiError(
                 HTTPStatus.BAD_GATEWAY,
@@ -9745,35 +10611,84 @@ class ReaderService:
             translate_on = bool(translate_ui)
         if translate_on:
             mode = self.reader_translation_mode()
-            title = self._translate_ui_text(title, single_line=True, mode=mode) or title
-            author = self._translate_ui_text(author, single_line=True, mode=mode) or author
-            description = self._translate_ui_text(description, single_line=False, mode=mode) or description
-            status_text = self._translate_ui_text(status_text, single_line=True, mode=mode) or status_text
-            info_text = self._translate_ui_text(info_text, single_line=False, mode=mode) or info_text
-            for item in suggest_items:
-                if not isinstance(item, dict):
-                    continue
-                item["title"] = self._translate_ui_text(item.get("title") or "", single_line=True, mode=mode) or str(item.get("title") or "")
-                item["author"] = self._translate_ui_text(item.get("author") or "", single_line=True, mode=mode) or str(item.get("author") or "")
-                item["description"] = self._translate_ui_text(
-                    item.get("description") or "",
+            translated_head = self._translate_ui_texts_batch(
+                [title, author, status_text],
+                single_line=True,
+                mode=mode,
+            )
+            translated_body = self._translate_ui_texts_batch(
+                [description, info_text],
+                single_line=False,
+                mode=mode,
+            )
+            if len(translated_head) >= 3:
+                title, author, status_text = translated_head[:3]
+            if len(translated_body) >= 2:
+                description, info_text = translated_body[:2]
+            if suggest_items:
+                suggest_titles = self._translate_ui_texts_batch(
+                    [str(item.get("title") or "") for item in suggest_items],
+                    single_line=True,
+                    mode=mode,
+                )
+                suggest_authors = self._translate_ui_texts_batch(
+                    [str(item.get("author") or "") for item in suggest_items],
+                    single_line=True,
+                    mode=mode,
+                )
+                suggest_descs = self._translate_ui_texts_batch(
+                    [str(item.get("description") or "") for item in suggest_items],
                     single_line=False,
                     mode=mode,
-                ) or str(item.get("description") or "")
-            for item in comment_items:
-                if not isinstance(item, dict):
-                    continue
-                item["author"] = self._translate_ui_text(item.get("author") or "", single_line=True, mode=mode) or str(item.get("author") or "")
-                item["content"] = self._translate_ui_text(item.get("content") or "", single_line=False, mode=mode) or str(item.get("content") or "")
-            for item in genre_items:
-                if not isinstance(item, dict):
-                    continue
-                item["title"] = self._translate_ui_text(item.get("title") or "", single_line=True, mode=mode) or str(item.get("title") or "")
-            for item in extra_fields:
-                if not isinstance(item, dict):
-                    continue
-                item["key"] = self._translate_ui_text(item.get("key") or "", single_line=True, mode=mode) or str(item.get("key") or "")
-                item["value"] = self._translate_ui_text(item.get("value") or "", single_line=False, mode=mode) or str(item.get("value") or "")
+                )
+                for idx, item in enumerate(suggest_items):
+                    if not isinstance(item, dict):
+                        continue
+                    item["title"] = suggest_titles[idx] if idx < len(suggest_titles) else str(item.get("title") or "")
+                    item["author"] = suggest_authors[idx] if idx < len(suggest_authors) else str(item.get("author") or "")
+                    item["description"] = suggest_descs[idx] if idx < len(suggest_descs) else str(item.get("description") or "")
+            if comment_items:
+                comment_authors = self._translate_ui_texts_batch(
+                    [str(item.get("author") or "") for item in comment_items],
+                    single_line=True,
+                    mode=mode,
+                )
+                comment_contents = self._translate_ui_texts_batch(
+                    [str(item.get("content") or "") for item in comment_items],
+                    single_line=False,
+                    mode=mode,
+                )
+                for idx, item in enumerate(comment_items):
+                    if not isinstance(item, dict):
+                        continue
+                    item["author"] = comment_authors[idx] if idx < len(comment_authors) else str(item.get("author") or "")
+                    item["content"] = comment_contents[idx] if idx < len(comment_contents) else str(item.get("content") or "")
+            if genre_items:
+                genre_titles = self._translate_ui_texts_batch(
+                    [str(item.get("title") or "") for item in genre_items],
+                    single_line=True,
+                    mode=mode,
+                )
+                for idx, item in enumerate(genre_items):
+                    if not isinstance(item, dict):
+                        continue
+                    item["title"] = genre_titles[idx] if idx < len(genre_titles) else str(item.get("title") or "")
+            if extra_fields:
+                field_keys = self._translate_ui_texts_batch(
+                    [str(item.get("key") or "") for item in extra_fields],
+                    single_line=True,
+                    mode=mode,
+                )
+                field_values = self._translate_ui_texts_batch(
+                    [str(item.get("value") or "") for item in extra_fields],
+                    single_line=False,
+                    mode=mode,
+                )
+                for idx, item in enumerate(extra_fields):
+                    if not isinstance(item, dict):
+                        continue
+                    item["key"] = field_keys[idx] if idx < len(field_keys) else str(item.get("key") or "")
+                    item["value"] = field_values[idx] if idx < len(field_values) else str(item.get("value") or "")
         return {
             "ok": True,
             "plugin": self._serialize_vbook_plugin(plugin),
@@ -9897,6 +10812,7 @@ class ReaderService:
             chunk = all_rows[offset : offset + ps]
 
         items: list[dict[str, Any]] = []
+        raw_titles: list[str] = []
         if translate_ui is None:
             translate_on = self.is_reader_translation_enabled()
         else:
@@ -9907,7 +10823,15 @@ class ReaderService:
                 str(row.get("name") or ""),
                 single_line=True,
             ) or f"Chương {idx}"
-            title = self._translate_ui_text(raw_title, single_line=True, mode=translate_mode) if translate_on else raw_title
+            raw_titles.append(raw_title)
+        translated_titles = (
+            self._translate_ui_texts_batch(raw_titles, single_line=True, mode=translate_mode)
+            if translate_on
+            else raw_titles
+        )
+        for idx, row in enumerate(chunk, start=(1 if all_items else ((p - 1) * ps + 1))):
+            raw_title = raw_titles[idx - (1 if all_items else ((p - 1) * ps + 1))]
+            title = translated_titles[idx - (1 if all_items else ((p - 1) * ps + 1))] if translated_titles else raw_title
             items.append(
                 {
                     "index": idx,
@@ -11412,42 +12336,26 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             book_id = path.removeprefix("/api/library/book/").removesuffix("/export").strip("/")
             payload = self._read_json_body()
             fmt = (payload.get("format") or "txt").lower().strip()
-            ensure_translated = bool(payload.get("ensure_translated", False))
             translate_mode = (payload.get("translation_mode") or "server").strip()
             use_cached_only = bool(payload.get("use_cached_only", False))
-            book = self.service.storage.find_book(book_id)
-            if not book:
-                raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-            if fmt == "txt" and is_book_comic(book):
-                raise ApiError(
-                    HTTPStatus.BAD_REQUEST,
-                    "COMIC_EXPORT_TXT_NOT_SUPPORTED",
-                    "Truyện tranh không hỗ trợ xuất TXT.",
-                )
-
-            if fmt == "txt":
-                output = self.service.storage.create_export_txt(
-                    book_id,
-                    ensure_translated,
-                    translator=self.service.translator,
-                    translate_mode=translate_mode,
-                    use_cached_only=use_cached_only,
-                )
-            elif fmt == "epub":
-                output = self.service.storage.create_export_epub(
-                    book_id,
-                    ensure_translated,
-                    translator=self.service.translator,
-                    translate_mode=translate_mode,
-                    use_cached_only=use_cached_only,
-                )
-            else:
-                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Định dạng export không hợp lệ.")
+            options = dict(payload.get("options") or {}) if isinstance(payload.get("options"), dict) else {}
+            metadata = dict(payload.get("metadata") or {}) if isinstance(payload.get("metadata"), dict) else {}
+            if "ensure_translated" in payload and "use_translated_text" not in options:
+                options["use_translated_text"] = bool(payload.get("ensure_translated", False))
+            output = self.service.export_book(
+                book_id=book_id,
+                fmt=fmt,
+                translation_mode=translate_mode,
+                metadata=metadata,
+                options=options,
+                use_cached_only=use_cached_only,
+            )
 
             return {
                 "ok": True,
                 "format": fmt,
                 "path": str(output),
+                "file_name": output.name,
                 "download_url": f"/media/export/{quote_url_path(output.name)}",
             }
 

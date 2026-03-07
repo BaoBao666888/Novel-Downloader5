@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260307-indent1">
+  <link rel="stylesheet" href="./styles.css?v=20260307-export2">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -162,9 +162,59 @@
       <button id="btn-action-open-reader" class="btn" type="button"></button>
       <button id="btn-action-check-updates" class="btn" type="button"></button>
       <button id="btn-action-download" class="btn" type="button"></button>
-      <button id="btn-action-export-txt" class="btn" type="button"></button>
-      <button id="btn-action-export-epub" class="btn" type="button"></button>
+      <button id="btn-action-export" class="btn" type="button"></button>
       <button id="btn-action-delete-book" class="btn" type="button"></button>
+    </div>
+  </dialog>
+
+  <dialog id="export-dialog" class="dialog export-dialog">
+    <div class="dialog-head">
+      <h3 id="export-dialog-title"></h3>
+      <button id="btn-close-export-dialog" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="export-dialog-subtitle" class="dialog-subtitle"></p>
+    <div class="export-dialog-grid">
+      <section class="export-pane">
+        <div class="export-cover-wrap">
+          <div id="export-cover" class="cache-book-cover"></div>
+          <div class="export-book-stats">
+            <div id="export-book-kind" class="book-card-source"></div>
+            <div id="export-book-counts" class="book-card-meta"></div>
+          </div>
+        </div>
+        <label>
+          <span id="export-meta-title-label"></span>
+          <input id="export-meta-title" type="text">
+        </label>
+        <label>
+          <span id="export-meta-author-label"></span>
+          <input id="export-meta-author" type="text">
+        </label>
+        <label>
+          <span id="export-meta-summary-label"></span>
+          <textarea id="export-meta-summary" rows="6"></textarea>
+        </label>
+      </section>
+      <section class="export-pane">
+        <label>
+          <span id="export-format-label"></span>
+          <select id="export-format-select"></select>
+        </label>
+        <div id="export-options-list" class="export-options-list"></div>
+        <label class="checkbox-row">
+          <input id="export-use-cached-only" type="checkbox">
+          <span id="export-use-cached-only-label"></span>
+        </label>
+        <div class="export-chapter-head">
+          <strong id="export-chapters-title"></strong>
+          <span id="export-chapter-stats" class="tag"></span>
+        </div>
+        <div id="export-chapter-list" class="export-chapter-list"></div>
+      </section>
+    </div>
+    <div class="dialog-actions">
+      <button id="btn-cancel-export-dialog" class="btn" type="button"></button>
+      <button id="btn-submit-export-dialog" class="btn btn-primary" type="button"></button>
     </div>
   </dialog>
 
@@ -703,7 +753,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260307-urlimport1"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260307-export2"></script>
 </body>
 
 </html>

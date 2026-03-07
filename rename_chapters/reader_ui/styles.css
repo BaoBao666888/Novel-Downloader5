@@ -1964,8 +1964,20 @@ body[data-page="reader"] .reader-actions .btn:hover {
 }
 
 body[data-page="reader"] #btn-open-name-editor {
-  background: color-mix(in srgb, var(--surface-alt) 90%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+body[data-page="reader"] #btn-open-name-editor:hover {
+  background: color-mix(in srgb, var(--surface) 100%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
+}
+
+body[data-page="reader"] .floating-select-btn {
+  background: color-mix(in srgb, var(--surface) 98%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+  color: var(--text);
 }
 
 .settings-drawer.open,
@@ -2288,6 +2300,115 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--text) 92%, transparent);
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.export-dialog {
+  width: min(1080px, 96vw);
+}
+
+.export-dialog-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.export-pane {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.export-cover-wrap {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.export-book-stats {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.export-book-stats .book-card-meta {
+  margin-bottom: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.export-options-list {
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface-alt) 38%, transparent);
+}
+
+.export-option-row {
+  width: 100%;
+}
+
+.export-chapter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.export-chapter-list {
+  max-height: min(48vh, 520px);
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.export-chapter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 12px;
+  padding: 9px 10px;
+  background: color-mix(in srgb, var(--surface-alt) 34%, transparent);
+}
+
+.export-chapter-row.is-downloaded {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.export-chapter-title {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--text) 94%, transparent);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.export-chapter-meta {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .cache-manager-dialog {
@@ -2912,6 +3033,10 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   }
 
   .book-actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .export-dialog-grid {
     grid-template-columns: 1fr;
   }
 
