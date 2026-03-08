@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.43.10
+// @version     3.5.447.43.11
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -3470,6 +3470,24 @@ function decryptDES(encrypted, key, iv) {
                     };
                 }
             }
+        },
+        { // https://czbooks.net/n/xxxxx
+            siteName: 'czbooks',
+            filter: () => {
+                if (!window.location.host.includes('czbooks.net')) return 0;
+                if (window.location.pathname.match(/^\/n\/[^\/]+\/[^\/]+/)) return 2; // chapter page
+                if (window.location.pathname.match(/^\/n\/[^\/]+$/)) return 1; // detail/toc page
+                return 0;
+            },
+            title: (doc) => {
+                const raw = $('.novel-detail .title', doc).text() || '';
+                return raw.replace(/《/g, '').replace(/》/g, '').trim();
+            },
+            writer: '.novel-detail .author > a',
+            intro: '.novel-detail .description',
+            cover: '.thumbnail img',
+            chapter: '#chapter-list li > a',
+            content: '.content',
         },
         {
             siteName: '第一版主 (diyibanzhu)',
