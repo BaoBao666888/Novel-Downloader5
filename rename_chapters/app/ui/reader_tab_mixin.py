@@ -14,12 +14,22 @@ import webbrowser
 from datetime import datetime, timedelta
 from typing import Optional, Set, Tuple
 
-import requests
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 from app.paths import BASE_DIR
-from app.ui.update_dialog import fetch_manifest_from_url
+
+
+def _reader_requests():
+    import requests
+
+    return requests
+
+
+def _reader_fetch_manifest():
+    from app.ui.update_dialog import fetch_manifest_from_url
+
+    return fetch_manifest_from_url
 
 
 class ReaderTabMixin:
@@ -563,7 +573,7 @@ class ReaderTabMixin:
             manifest_url = getattr(self, "VERSION_CHECK_URL", "")
             if manifest_url:
                 try:
-                    data = fetch_manifest_from_url(manifest_url, timeout=10) or {}
+                    data = _reader_fetch_manifest()(manifest_url, timeout=10) or {}
                     self.reader_manifest_src_var.set(f"Manifest: remote ({manifest_url})")
                 except Exception:
                     data = {}
@@ -616,7 +626,7 @@ class ReaderTabMixin:
             return False
         url = f"http://127.0.0.1:{port}/api/health"
         try:
-            resp = requests.get(url, timeout=timeout)
+            resp = _reader_requests().get(url, timeout=timeout)
             return bool(resp.ok)
         except Exception:
             return False
@@ -1013,7 +1023,7 @@ class ReaderTabMixin:
         os.close(tmp_fd)
         try:
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NovelStudio/Reader"}
-            with requests.get(url, timeout=45, stream=True, headers=headers) as resp:
+            with _reader_requests().get(url, timeout=45, stream=True, headers=headers) as resp:
                 resp.raise_for_status()
                 with open(tmp_path, "wb") as f:
                     for chunk in resp.iter_content(chunk_size=1024 * 64):

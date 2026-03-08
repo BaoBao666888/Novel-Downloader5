@@ -19,34 +19,19 @@ try:
 except ImportError:
     ctypes = None
 
-import requests
-from bs4 import BeautifulSoup
 try:
     import pystray
 except ImportError:
     pystray = None
 
-from PIL import Image, ImageTk, ImageFilter, ImageDraw, ImageFont
-import numpy as np
-import cv2
 from app.core import renamer as logic
 import json
 import threading
 import urllib.request
 from urllib.parse import urlparse, urljoin, quote, unquote
 from packaging.version import parse as parse_version
-from extensions import jjwxc_ext
-from extensions import po18_ext
-from extensions import qidian_ext
-from extensions import fanqienovel_ext
-from extensions import ihuaben_ext
-from extensions import wikidich_ext
-from app.core.text_ops import TextOperations
 from app.ui.update_dialog import show_update_window, fetch_manifest_from_url
 from app.ui.cookie_manager import CookieManagerWindow
-from app.core.browser_cookies import load_browser_cookie_jar
-from app.nd5.loader import load_nd5_plugins
-from app.nd5.plugin_api import ND5Context
 import pythoncom
 import random
 import subprocess
@@ -79,9 +64,18 @@ from app.ui.image_tab_mixin import ImageTabMixin
 from app.ui.proxy_mixin import ProxyMixin
 from app.ui.radical_checker import open_radical_checker_dialog
 from app.ui.library_mixin import LibraryMixin
-from app.ui.forum_tab_mixin import ForumTabMixin
 from app.ui.reader_tab_mixin import ReaderTabMixin
-from app.ui.wikidich import WikidichController, WikidichState
+from app.ui.wikidich import WikidichController
+
+FORUM_TAB_ENABLED = os.environ.get("NOVEL_STUDIO_ENABLE_FORUM", "").strip().lower() in ("1", "true", "yes", "on")
+
+if FORUM_TAB_ENABLED:
+    from app.ui.forum_tab_mixin import ForumTabMixin
+else:
+    class ForumTabMixin:
+        """Placeholder khi tab Diễn đàn bị vô hiệu hóa tạm thời."""
+
+        pass
 
 # Đảm bảo chỉ một instance (dùng localhost TCP)
 _SINGLE_INSTANCE_HOST = "127.0.0.1"
@@ -90,6 +84,12 @@ _SINGLE_INSTANCE_MUTEX = "Global\\RenameChaptersSingleInstanceMutex"
 _SINGLE_INSTANCE_SHOW = b"SHOW"
 _SINGLE_INSTANCE_ACK = b"OK"
 _instance_mutex_handle = None
+
+
+def _load_pil_modules():
+    from PIL import Image, ImageTk, ImageDraw, ImageFont
+
+    return Image, ImageTk, ImageDraw, ImageFont
 
 
 def _load_env_file(path):
@@ -996,6 +996,7 @@ class RenamerApp(
         if path and os.path.exists(path):
             if path != getattr(self, "_background_image_path", ""):
                 try:
+                    Image, _ImageTk, _ImageDraw, _ImageFont = _load_pil_modules()
                     self._background_image_original = Image.open(path).convert("RGBA")
                     self._background_image_path = path
                 except Exception as exc:
@@ -1034,6 +1035,7 @@ class RenamerApp(
         if not abs_path:
             return None
         try:
+            Image, ImageTk, _ImageDraw, _ImageFont = _load_pil_modules()
             image = Image.open(abs_path).convert("RGBA")
             image = image.resize((48, 48), Image.LANCZOS)
             photo = ImageTk.PhotoImage(image)
@@ -1553,6 +1555,7 @@ class RenamerApp(
         width = max(1, self._canvas_width or self.winfo_width())
         height = max(1, self._canvas_height or self.winfo_height())
         try:
+            Image, ImageTk, _ImageDraw, _ImageFont = _load_pil_modules()
             resized = self._background_image_original.resize((width, height), Image.LANCZOS)
         except Exception:
             return
@@ -2035,6 +2038,7 @@ class RenamerApp(
                 pass
 
     def _build_tray_image(self):
+        Image, _ImageTk, ImageDraw, ImageFont = _load_pil_modules()
         accent = self.ui_settings.get('accent_color', '#6366f1')
         primary = _hex_to_rgb(accent)
         highlight = _hex_to_rgb(_adjust_color_luminance(accent, 0.18), primary)
@@ -2064,16 +2068,18 @@ class RenamerApp(
         for path in candidates:
             if os.path.isfile(path):
                 try:
+                    Image, _ImageTk, _ImageDraw, _ImageFont = _load_pil_modules()
                     return Image.open(path).convert("RGBA")
                 except Exception:
                     continue
         return None
 
-    def _prepare_tray_image(self, image: Image.Image, size: int = 32) -> Image.Image:
+    def _prepare_tray_image(self, image, size: int = 32):
         """Đảm bảo icon khay kích thước nhỏ, định dạng RGBA."""
         if not image:
             return None
         try:
+            Image, _ImageTk, _ImageDraw, _ImageFont = _load_pil_modules()
             img = image.convert("RGBA")
             if img.size != (size, size):
                 img = img.resize((size, size), Image.LANCZOS)
@@ -2881,7 +2887,8 @@ class RenamerApp(
         self.create_translator_tab()
         self.create_image_processing_tab()
         self.create_wikidich_tab()
-        self.create_forum_tab()
+        if FORUM_TAB_ENABLED:
+            self.create_forum_tab()
         self.create_reader_tab()
         self.create_settings_tab()
 
@@ -2897,8 +2904,6 @@ class RenamerApp(
         self._apply_mouse_glow_setting()
         self._apply_background_image()
         self.browser_overlay = BrowserOverlay(self)
-        if not self.browser_overlay.available():
-            self._set_browser_menu_state(False)
         self._update_cookie_menu_state()
 
     # ==== Logging util ====
@@ -3232,45 +3237,46 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         """
         create_tab("Đọc truyện", reader_guide)
 
-        forum_guide = """
-        --- DIỄN ĐÀN ---
-        Tab này giúp lưu chỉ mục bài viết và tìm nhanh theo chuyên khu/chủ đề.
+        if FORUM_TAB_ENABLED:
+            forum_guide = """
+            --- DIỄN ĐÀN ---
+            Tab này giúp lưu chỉ mục bài viết và tìm nhanh theo chuyên khu/chủ đề.
 
-        1. **Cookie profile**:
-           - Chọn profile có đăng nhập diễn đàn để tải dữ liệu.
-           - Nút ↻ dùng để làm mới danh sách profile.
+            1. **Cookie profile**:
+               - Chọn profile có đăng nhập diễn đàn để tải dữ liệu.
+               - Nút ↻ dùng để làm mới danh sách profile.
 
-        2. **Sync**:
-           - **Đồng bộ gần đây**: tải các bài viết mới từ trang gần đây (chỉ mở sau khi đã Lấy data forum).
-           - **Lấy data forum**: tải file dữ liệu mẫu về máy rồi nhập vào chỉ mục (cần đăng nhập, thao tác bắt buộc lần đầu).
-           - Nếu có quyền, menu Sync sẽ có thêm **Đồng bộ chuyên khu**.
+            2. **Sync**:
+               - **Đồng bộ gần đây**: tải các bài viết mới từ trang gần đây (chỉ mở sau khi đã Lấy data forum).
+               - **Lấy data forum**: tải file dữ liệu mẫu về máy rồi nhập vào chỉ mục (cần đăng nhập, thao tác bắt buộc lần đầu).
+               - Nếu có quyền, menu Sync sẽ có thêm **Đồng bộ chuyên khu**.
 
-        3. **Thao tác**:
-           - **Xuất**: xuất chỉ mục ra JSON để lưu/backup.
-           - **Nhập**: nhập JSON và chọn gộp hoặc thay thế.
+            3. **Thao tác**:
+               - **Xuất**: xuất chỉ mục ra JSON để lưu/backup.
+               - **Nhập**: nhập JSON và chọn gộp hoặc thay thế.
 
-        4. **Mở lọc**:
-           - Bật/tắt khung lọc. Có Từ khóa, User, Từ ngày/Đến ngày và Loại.
-           - User gợi ý theo danh sách đã có trong chỉ mục.
+            4. **Mở lọc**:
+               - Bật/tắt khung lọc. Có Từ khóa, User, Từ ngày/Đến ngày và Loại.
+               - User gợi ý theo danh sách đã có trong chỉ mục.
 
-        5. **Cài đặt**:
-           - Chỉnh thời gian chờ giữa các lần tải, giới hạn trang, và số lần thử lại.
+            5. **Cài đặt**:
+               - Chỉnh thời gian chờ giữa các lần tải, giới hạn trang, và số lần thử lại.
 
-        6. **Chuyên khu / Chủ đề**:
-           - Danh sách bên trái (Chuyên khu) và bên phải (Chủ đề).
-           - Có nút mũi tên ở mép để thu gọn/mở rộng nhanh.
-           - Chọn chuyên khu để xem chủ đề, chọn chủ đề để xem bài viết.
+            6. **Chuyên khu / Chủ đề**:
+               - Danh sách bên trái (Chuyên khu) và bên phải (Chủ đề).
+               - Có nút mũi tên ở mép để thu gọn/mở rộng nhanh.
+               - Chọn chuyên khu để xem chủ đề, chọn chủ đề để xem bài viết.
 
-        7. **Kết quả & Nội dung**:
-           - Bảng Kết quả hiển thị danh sách bài viết. Dòng đầu tô xanh để biết người mở chủ đề.
-           - Chuột phải vào một dòng để sao chép nhanh (link/tiêu đề/toàn bộ).
-           - Khung Nội dung hiển thị bài viết chi tiết.
-           - Kéo đường phân cách giữa Kết quả/Nội dung để thay đổi kích thước.
+            7. **Kết quả & Nội dung**:
+               - Bảng Kết quả hiển thị danh sách bài viết. Dòng đầu tô xanh để biết người mở chủ đề.
+               - Chuột phải vào một dòng để sao chép nhanh (link/tiêu đề/toàn bộ).
+               - Khung Nội dung hiển thị bài viết chi tiết.
+               - Kéo đường phân cách giữa Kết quả/Nội dung để thay đổi kích thước.
 
-        8. **Dừng**:
-           - Dừng tác vụ đang chạy nếu cần.
-        """
-        create_tab("Diễn đàn", forum_guide)
+            8. **Dừng**:
+               - Dừng tác vụ đang chạy nếu cần.
+            """
+            create_tab("Diễn đàn", forum_guide)
 
         nd5_guide = """
         --- NOVEL DOWNLOADER 5 (ND5) ---
@@ -3584,7 +3590,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 if not getattr(self, "_image_ai_tool_checked_on_tab", False):
                     self._image_ai_tool_checked_on_tab = True
                     self._image_ai_check_tool_state(force=True)
-            if tab_text == "Diễn đàn" and hasattr(self, "_forum_ensure_loaded"):
+            if FORUM_TAB_ENABLED and tab_text == "Diễn đàn" and hasattr(self, "_forum_ensure_loaded"):
                 self._forum_ensure_loaded()
             if tab_text == "Đọc truyện" and hasattr(self, "_reader_on_tab_activated"):
                 self._reader_on_tab_activated()

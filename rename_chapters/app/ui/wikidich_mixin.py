@@ -2349,6 +2349,7 @@ class WikidichMixin:
                 msg = fetched.get("error_message") or "Không đọc được cookie Wikidich."
                 self.after(0, lambda: (_set_status("Lỗi tải trang"), messagebox.showerror("Lỗi", msg, parent=win)))
                 return
+            self._wd_commit_volume_snapshot(book, fetched, save_cache=True, refresh_ui=True)
             vols = list(fetched.get("volumes") or [])
             self.after(0, lambda: (_set_status(f"Tải xong {len(vols)} volume"), volumes_data.extend(vols), _populate(vols), _apply_prefill_files()))
 
@@ -4096,7 +4097,8 @@ class WikidichMixin:
         self._wd_cancel_requested = False
         cancelled = False
         cf_paused = False
-        scan_volume_names = bool(scan_volume_names and not sync_counts_only and not self._wd_is_foreign_works())
+        resume_paused = False
+        scan_volume_names = bool(scan_volume_names and not self._wd_is_foreign_works())
         self.log("[Wikidich] Bắt đầu tải chi tiết/văn án...")
         try:
             if sync_counts_only:
@@ -4144,24 +4146,41 @@ class WikidichMixin:
             target_ids = list(dict.fromkeys(target_ids))
             if self.wd_missing_only_var.get():
                 target_ids = [bid for bid in target_ids if not self.wikidich_data.get('books', {}).get(bid, {}).get('summary')]
+            scope_target_ids = list(target_ids)
             resume_detail = self._wd_resume_details if isinstance(self._wd_resume_details, dict) else None
-            resume_total = len(target_ids)
-            resume_offset = 0
+            total_scope = len(scope_target_ids)
+            display_total = total_scope or 1
+            detail_ids = list(scope_target_ids)
+            detail_offset = 0
+            volume_ids = list(scope_target_ids) if scan_volume_names else []
+            volume_offset = 0
+            resume_phase = "detail"
             if resume_detail and resume_detail.get("ids"):
-                resume_ids = [bid for bid in resume_detail.get("ids", []) if bid in target_ids]
+                resume_ids = [bid for bid in resume_detail.get("ids", []) if bid in scope_target_ids]
+                resume_phase = str(resume_detail.get("phase") or "detail").strip().lower()
+                if resume_phase not in {"detail", "volume"}:
+                    resume_phase = "detail"
                 if resume_ids:
-                    target_ids = resume_ids
-                    resume_offset = max(0, resume_total - len(target_ids))
-                    self.log(f"[Wikidich] Resume tải chi tiết còn {len(target_ids)} truyện.")
-            total = len(target_ids)
+                    if resume_phase == "volume":
+                        if scan_volume_names:
+                            volume_ids = resume_ids
+                            volume_offset = max(0, total_scope - len(volume_ids))
+                            self.log(f"[Wikidich] Resume quét tên quyển còn {len(volume_ids)} truyện.")
+                        else:
+                            resume_phase = "detail"
+                    else:
+                        detail_ids = resume_ids
+                        detail_offset = max(0, total_scope - len(detail_ids))
+                        resume_phase = "detail"
+                        self.log(f"[Wikidich] Resume tải chi tiết còn {len(detail_ids)} truyện.")
+            if resume_phase == "volume" and not volume_ids:
+                resume_phase = "detail"
             self._wd_ensure_not_cancelled()
-            if total == 0:
+            if total_scope == 0:
                 self._wd_set_progress("Không có truyện cần tải chi tiết", 0, 1)
                 self.after(0, lambda: messagebox.showinfo("Không có gì để tải", "Tất cả truyện đã có văn án/chi tiết."))
                 self.log("[Wikidich] Không có truyện cần tải chi tiết.")
                 return
-            display_total = resume_total if resume_total else total
-            self._wd_set_progress("Đang tải chi tiết...", resume_offset, display_total)
             wiki_delay_min, wiki_delay_max = self._get_delay_range(
                 'wiki_delay_min',
                 'wiki_delay_max',
@@ -4170,86 +4189,158 @@ class WikidichMixin:
             )
             not_found_books = []
             had_error = False
-            remaining_ids = list(target_ids)
-            for idx, bid in enumerate(target_ids, start=1):
-                book = self.wikidich_data.get('books', {}).get(bid)
-                if not book:
-                    continue
-                try:
-                    updated = wikidich_ext.fetch_book_detail(
-                        session,
-                        book,
-                        current_user,
-                        base_url=self._wd_get_base_url(),
-                        proxies=proxies,
-                        skip_chapter_count=True,
-                        max_retries=int(getattr(self, "api_settings", {}).get("wiki_retry_count", 5))
-                    )
-                    if isinstance(updated, dict):
-                        updated.pop("server_lower", None)
-                        updated.pop("server_lower_reason", None)
-                        if scan_volume_names:
-                            volume_res = self._wd_fetch_upload_volumes(updated, silent=True)
-                            if volume_res.get("ok"):
-                                self._wd_apply_volume_snapshot_to_book(updated, volume_res)
-                            else:
-                                err = str(volume_res.get("error_message") or "").strip()
-                                if err:
-                                    self.log(f"[Wikidich] Quét tên quyển thất bại ({book.get('title', bid)}): {err}")
-                    self.wikidich_data['books'][bid] = updated
-                    self._wd_save_cache()
-                except ValueError as ve:
-                    if "Book deleted" in str(ve):
-                        not_found_books.append(dict(book))
-                        self._wd_record_not_found(book, prompt=False)
-                        had_error = True
-                        try:
-                            self.after(0, lambda b=dict(book): self._wd_handle_not_found_books([b]))
-                        except Exception:
-                             pass
+            detail_ran = False
+            volume_ran = False
+
+            if resume_phase != "volume":
+                display_total = total_scope or len(detail_ids)
+                self._wd_set_progress("Đang tải chi tiết...", detail_offset, display_total)
+                remaining_ids = list(detail_ids)
+                detail_ran = bool(detail_ids)
+                for idx, bid in enumerate(detail_ids, start=1):
+                    book = self.wikidich_data.get('books', {}).get(bid)
+                    if not book:
+                        if bid in remaining_ids:
+                            remaining_ids = [x for x in remaining_ids if x != bid]
+                        self._wd_save_detail_resume(remaining_ids, phase="detail")
                         continue
-                    self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {ve}")
-                    had_error = True
-                except requests.HTTPError as http_err:
-                    resp_cf = getattr(http_err, "response", None)
-                    if self._wd_detect_cloudflare(resp_cf):
-                        cf_paused = True
-                        self.log("[Wikidich] Bị Cloudflare khi tải chi tiết, tạm dừng.")
-                        self._wd_set_progress("Tạm dừng: cần vượt Cloudflare", resume_offset + idx - 1, display_total)
-                        self._wd_pause_for_cloudflare(self._wd_get_base_url())
+                    try:
+                        updated = wikidich_ext.fetch_book_detail(
+                            session,
+                            book,
+                            current_user,
+                            base_url=self._wd_get_base_url(),
+                            proxies=proxies,
+                            skip_chapter_count=True,
+                            max_retries=int(getattr(self, "api_settings", {}).get("wiki_retry_count", 5))
+                        )
+                        if isinstance(updated, dict):
+                            updated.pop("server_lower", None)
+                            updated.pop("server_lower_reason", None)
+                        self.wikidich_data['books'][bid] = updated
+                        self._wd_save_cache()
+                    except ValueError as ve:
+                        if "Book deleted" in str(ve):
+                            not_found_books.append(dict(book))
+                            self._wd_record_not_found(book, prompt=False)
+                            had_error = True
+                            try:
+                                self.after(0, lambda b=dict(book): self._wd_handle_not_found_books([b]))
+                            except Exception:
+                                pass
+                        else:
+                            self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {ve}")
+                            had_error = True
+                    except requests.HTTPError as http_err:
+                        resp_cf = getattr(http_err, "response", None)
+                        if self._wd_detect_cloudflare(resp_cf):
+                            cf_paused = True
+                            resume_paused = True
+                            self.log("[Wikidich] Bị Cloudflare khi tải chi tiết, tạm dừng.")
+                            self._wd_set_progress("Tạm dừng: cần vượt Cloudflare", detail_offset + idx - 1, display_total)
+                            self._wd_save_detail_resume(remaining_ids, phase="detail")
+                            self._wd_pause_for_cloudflare(self._wd_get_base_url())
+                            break
+                        if resp_cf and resp_cf.status_code == 404:
+                            not_found_books.append(dict(book))
+                            self._wd_record_not_found(book, prompt=False)
+                            had_error = True
+                            try:
+                                self.after(0, lambda b=dict(book): self._wd_handle_not_found_books([b]))
+                            except Exception:
+                                pass
+                        else:
+                            self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {http_err}")
+                            had_error = True
+                    except Exception as e:
+                        self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {e}")
+                        had_error = True
+                    if cf_paused:
                         break
-                    if resp_cf and resp_cf.status_code == 404:
-                        not_found_books.append(dict(book))
-                        self._wd_record_not_found(book, prompt=False)
-                        had_error = True
-                        try:
-                            self.after(0, lambda b=dict(book): self._wd_handle_not_found_books([b]))
-                        except Exception:
-                            pass
-                        continue
-                    self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {http_err}")
-                    had_error = True
-                except Exception as e:
-                    self.log(f"[Wikidich] Lỗi khi tải {book.get('title', bid)}: {e}")
-                    had_error = True
+                    display_idx = detail_offset + idx
+                    self._wd_progress_callback("detail", display_idx, display_total, f"Đang tải chi tiết {display_idx}/{display_total}")
+                    if bid in remaining_ids:
+                        remaining_ids = [x for x in remaining_ids if x != bid]
+                    self._wd_save_detail_resume(remaining_ids, phase="detail")
+                    self._wd_ensure_not_cancelled()
+                    delay = random.uniform(wiki_delay_min, wiki_delay_max) if wiki_delay_max > 0 else 0
+                    if delay > 0:
+                        time.sleep(delay)
                 if cf_paused:
-                    break
-                display_idx = resume_offset + idx
-                self._wd_progress_callback("detail", display_idx, display_total, f"Đang tải chi tiết {display_idx}/{display_total}")
-                if bid in remaining_ids:
-                    remaining_ids = [x for x in remaining_ids if x != bid]
-                self._wd_save_detail_resume(remaining_ids)
-                self._wd_ensure_not_cancelled()
-                delay = random.uniform(wiki_delay_min, wiki_delay_max) if wiki_delay_max > 0 else 0
-                if delay > 0:
-                    time.sleep(delay)
-            if cf_paused:
-                self._wd_save_detail_resume(remaining_ids)
-                self._wd_save_cache()
-                return
+                    self._wd_save_detail_resume(remaining_ids, phase="detail")
+                    self._wd_save_cache()
+                    return
+                if scan_volume_names:
+                    volume_ids = list(scope_target_ids)
+                    volume_offset = 0
+                    self._wd_save_detail_resume(volume_ids, phase="volume")
+
+            if scan_volume_names and volume_ids:
+                display_total = total_scope or len(volume_ids)
+                volume_ran = True
+                self._wd_set_progress("Đang quét tên quyển...", volume_offset, display_total)
+                remaining_ids = list(volume_ids)
+                for idx, bid in enumerate(volume_ids, start=1):
+                    book = self.wikidich_data.get('books', {}).get(bid)
+                    if not book:
+                        if bid in remaining_ids:
+                            remaining_ids = [x for x in remaining_ids if x != bid]
+                        self._wd_save_detail_resume(remaining_ids, phase="volume")
+                        continue
+                    self._wd_ensure_not_cancelled()
+                    volume_res = self._wd_fetch_upload_volumes(book, silent=True, session=session, proxies=proxies)
+                    if volume_res.get("ok"):
+                        self._wd_commit_volume_snapshot(book, volume_res, save_cache=True, refresh_ui=False)
+                    else:
+                        err = str(volume_res.get("error_message") or "").strip()
+                        kind = str(volume_res.get("error_kind") or "").strip().lower()
+                        if kind == "cloudflare":
+                            cf_paused = True
+                            resume_paused = True
+                            self.log("[Wikidich] Bị Cloudflare khi quét tên quyển, tạm dừng.")
+                            self._wd_set_progress("Tạm dừng: cần vượt Cloudflare", volume_offset + idx - 1, display_total)
+                            self._wd_save_detail_resume(remaining_ids, phase="volume")
+                            self._wd_pause_for_cloudflare(self._wd_get_base_url())
+                            break
+                        if kind == "network":
+                            resume_paused = True
+                            self.log(f"[Wikidich] Quét tên quyển bị lỗi mạng, tạm dừng tại {book.get('title', bid)}: {err}")
+                            self._wd_set_progress("Tạm dừng: lỗi mạng khi quét tên quyển", volume_offset + idx - 1, display_total)
+                            self._wd_save_detail_resume(remaining_ids, phase="volume")
+                            self.after(0, lambda: messagebox.showinfo(
+                                "Tạm dừng quét tên quyển",
+                                "Đã gặp lỗi mạng khi quét tên quyển.\nNhấn Tải chi tiết lại để tiếp tục từ vị trí đang dở.",
+                                parent=self,
+                            ))
+                            break
+                        if err:
+                            self.log(f"[Wikidich] Quét tên quyển thất bại ({book.get('title', bid)}): {err}")
+                        had_error = True
+                    if cf_paused or resume_paused:
+                        break
+                    display_idx = volume_offset + idx
+                    self._wd_progress_callback("detail", display_idx, display_total, f"Đang quét tên quyển {display_idx}/{display_total}")
+                    if bid in remaining_ids:
+                        remaining_ids = [x for x in remaining_ids if x != bid]
+                    self._wd_save_detail_resume(remaining_ids, phase="volume")
+                    self._wd_ensure_not_cancelled()
+                    delay = random.uniform(wiki_delay_min, wiki_delay_max) if wiki_delay_max > 0 else 0
+                    if delay > 0:
+                        time.sleep(delay)
+                if cf_paused or resume_paused:
+                    self._wd_save_detail_resume(remaining_ids, phase="volume")
+                    self._wd_save_cache()
+                    return
+
             self._wd_save_cache()
             self.after(0, self._wd_apply_filters)
-            final_status = "Hoàn tất tải chi tiết" if not not_found_books and not had_error else "Hoàn tất (có 404/lỗi)"
+            if volume_ran and detail_ran:
+                ok_status = "Hoàn tất tải chi tiết + quét tên quyển"
+            elif volume_ran:
+                ok_status = "Hoàn tất quét tên quyển"
+            else:
+                ok_status = "Hoàn tất tải chi tiết"
+            final_status = ok_status if not not_found_books and not had_error else "Hoàn tất (có 404/lỗi)"
             self._wd_set_progress(final_status, display_total, display_total)
             self.log(f"[Wikidich] {final_status}.")
             if not_found_books:
@@ -4263,7 +4354,7 @@ class WikidichMixin:
                 self._wd_save_cache()
             except Exception:
                 pass
-            if not cancelled and not cf_paused:
+            if not cancelled and not cf_paused and not resume_paused:
                 self._wd_clear_detail_resume()
             self._wd_loading = False
             self._wd_loading_site = None
@@ -5755,15 +5846,19 @@ class WikidichMixin:
         safe_site = re.sub(r"[^a-z0-9_-]+", "_", site_val)
         return os.path.join(BASE_DIR, "local", f"wd_resume_details_{safe_site}.json")
 
-    def _wd_save_detail_resume(self, remaining_ids: list):
-        """Lưu danh sách truyện còn lại khi tải chi tiết để resume."""
+    def _wd_save_detail_resume(self, remaining_ids: list, phase: str = "detail"):
+        """Lưu danh sách truyện còn lại khi tải chi tiết/quét tên quyển để resume."""
         try:
             if not remaining_ids:
                 self._wd_clear_detail_resume()
                 return
             site = getattr(self, "wd_site", "wikidich")
+            phase = str(phase or "detail").strip().lower()
+            if phase not in {"detail", "volume"}:
+                phase = "detail"
             payload = {
                 "site": site,
+                "phase": phase,
                 "ids": list(dict.fromkeys(remaining_ids)),
             }
             path = self._wd_detail_resume_path(site)
@@ -5808,10 +5903,14 @@ class WikidichMixin:
             if site and site != current_site:
                 return
             ids = payload.get("ids")
+            phase = str(payload.get("phase") or "detail").strip().lower()
+            if phase not in {"detail", "volume"}:
+                phase = "detail"
             if isinstance(ids, list) and ids:
-                self._wd_resume_details = {"site": site, "ids": list(ids)}
+                self._wd_resume_details = {"site": site, "phase": phase, "ids": list(ids)}
                 try:
-                    self.log(f"[Wikidich] Phát hiện tiến độ tải chi tiết cần resume ({len(ids)} truyện).")
+                    phase_text = "quét tên quyển" if phase == "volume" else "tải chi tiết"
+                    self.log(f"[Wikidich] Phát hiện tiến độ {phase_text} cần resume ({len(ids)} truyện).")
                 except Exception:
                     pass
         except Exception as exc:
@@ -7632,18 +7731,58 @@ class WikidichMixin:
         book["volume_names_norm"] = [wikidich_ext._normalize(name) for name in names]
         book["volume_scanned_at"] = datetime.now().isoformat(timespec="seconds")
 
-    def _wd_fetch_upload_volumes(self, book: dict, silent: bool = False) -> dict:
+    def _wd_commit_volume_snapshot(self, book: dict, fetched: dict, *, save_cache: bool = True, refresh_ui: bool = True):
+        if not isinstance(book, dict) or not isinstance(fetched, dict) or not fetched.get("ok"):
+            return
+        bid = str(book.get("id") or "").strip()
+        self._wd_apply_volume_snapshot_to_book(book, fetched)
+        local_book = None
+        if bid:
+            books = self.wikidich_data.setdefault("books", {})
+            local_book = books.get(bid)
+            if isinstance(local_book, dict) and local_book is not book:
+                self._wd_apply_volume_snapshot_to_book(local_book, fetched)
+            else:
+                books[bid] = book
+                local_book = book
+        if save_cache:
+            try:
+                self._wd_save_cache()
+            except Exception:
+                pass
+        if refresh_ui and bid:
+            def _refresh():
+                try:
+                    sel = getattr(self, "wd_selected_book", None)
+                    if sel and sel.get("id") == bid:
+                        book_ref = self.wikidich_data.get("books", {}).get(bid) or local_book or book
+                        self._wd_update_volume_names_panel(book_ref)
+                except Exception:
+                    pass
+            self.after(0, _refresh)
+
+    def _wd_fetch_upload_volumes(self, book: dict, silent: bool = False, session=None, proxies=None) -> dict:
         if not isinstance(book, dict) or not book.get("id"):
             return {"ok": False, "error_message": "Thiếu thông tin truyện."}
         edit_page_url = self._wd_normalize_url_for_site(book.get("url", "")) + "/chinh-sua"
-        session, _user, proxies = self._wd_build_wiki_session(include_user=False)
-        if not session:
+        active_session = session
+        active_proxies = proxies
+        if active_session is None:
+            active_session, _user, active_proxies = self._wd_build_wiki_session(include_user=False)
+        if not active_session:
             msg = "Không đọc được cookie Wikidich."
             if not silent:
                 self.log(f"[Wikidich] {msg}")
-            return {"ok": False, "error_message": msg}
+            return {"ok": False, "error_message": msg, "error_kind": "session"}
         try:
-            resp = session.get(edit_page_url, proxies=proxies or {}, timeout=30)
+            resp = active_session.get(edit_page_url, proxies=active_proxies or {}, timeout=30)
+            if self._wd_detect_cloudflare(resp):
+                return {
+                    "ok": False,
+                    "error_message": "Cloudflare chặn trang chỉnh sửa.",
+                    "error_kind": "cloudflare",
+                    "edit_page_url": edit_page_url,
+                }
             resp.raise_for_status()
             html_text = resp.text
             soup = BeautifulSoup(html_text, "html.parser")
@@ -7687,11 +7826,22 @@ class WikidichMixin:
                 "book_id": book_id,
                 "edit_page_url": edit_page_url,
             }
+        except requests.HTTPError as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", "")
+            msg = f"Lỗi tải trang chỉnh sửa{f' (HTTP {status})' if status else ''}: {exc}"
+            if not silent:
+                self.log(f"[Wikidich] {msg}")
+            return {"ok": False, "error_message": msg, "error_kind": "http", "edit_page_url": edit_page_url}
+        except requests.RequestException as exc:
+            msg = f"Lỗi tải trang chỉnh sửa: {exc}"
+            if not silent:
+                self.log(f"[Wikidich] {msg}")
+            return {"ok": False, "error_message": msg, "error_kind": "network", "edit_page_url": edit_page_url}
         except Exception as exc:
             msg = f"Lỗi tải trang chỉnh sửa: {exc}"
             if not silent:
                 self.log(f"[Wikidich] {msg}")
-            return {"ok": False, "error_message": msg}
+            return {"ok": False, "error_message": msg, "error_kind": "parse", "edit_page_url": edit_page_url}
 
     def _wd_pick_auto_upload_volume(self, volumes: list):
         if not isinstance(volumes, list) or not volumes:
@@ -8206,6 +8356,7 @@ class WikidichMixin:
                     _add_history(bid, title, "failed", err, new_before=payload_new_before)
                     self._wd_set_progress(f"{mode_label}: {idx}/{total}", idx, total)
                     continue
+                self._wd_commit_volume_snapshot(book, volumes_data, save_cache=True, refresh_ui=False)
                 volume = self._wd_pick_auto_upload_volume(volumes_data.get("volumes") or [])
                 if not volume:
                     failed_count += 1

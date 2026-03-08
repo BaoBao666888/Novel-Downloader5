@@ -4,17 +4,31 @@ import re
 import threading
 import time
 
-try:
-    from app.ui.qt_browser import run_browser as _run_qt_browser
-    _QT_AVAILABLE = True
-except Exception as _exc:  # pragma: no cover - defensive
-    _run_qt_browser = None
-    _QT_AVAILABLE = False
-    _QT_ERROR = _exc
-else:
-    _QT_ERROR = None
+_run_qt_browser = None
+_QT_AVAILABLE = None
+_QT_ERROR = None
 
 DEFAULT_URL = "https://www.google.com/"
+
+
+def _ensure_qt_runner():
+    global _run_qt_browser, _QT_AVAILABLE, _QT_ERROR
+    if _run_qt_browser is not None:
+        _QT_AVAILABLE = True
+        return _run_qt_browser
+    if _QT_AVAILABLE is False:
+        return None
+    try:
+        from app.ui.qt_browser import run_browser as runner
+    except Exception as exc:  # pragma: no cover - defensive
+        _run_qt_browser = None
+        _QT_AVAILABLE = False
+        _QT_ERROR = exc
+        return None
+    _run_qt_browser = runner
+    _QT_AVAILABLE = True
+    _QT_ERROR = None
+    return _run_qt_browser
 
 
 class BrowserOverlay:
@@ -40,7 +54,7 @@ class BrowserOverlay:
             self.hide()
 
     def available(self):
-        return _QT_AVAILABLE
+        return _ensure_qt_runner() is not None
 
     def is_running(self):
         return bool(self.proc)
@@ -60,6 +74,11 @@ class BrowserOverlay:
             if hasattr(self.app, "log"):
                 self.app.log(f"Không thể mở trình duyệt: thiếu PyQt5/PyQtWebEngine ({_QT_ERROR}).")
             return
+        runner = _ensure_qt_runner()
+        if runner is None:
+            if hasattr(self.app, "log"):
+                self.app.log(f"Không thể mở trình duyệt: thiếu PyQt5/PyQtWebEngine ({_QT_ERROR}).")
+            return
 
         parent_conn, child_conn = multiprocessing.Pipe()
         parent_events, child_events = multiprocessing.Pipe()
@@ -76,7 +95,7 @@ class BrowserOverlay:
         self._event_conn_id += 1
         conn_id = self._event_conn_id
         self.proc = multiprocessing.Process(
-            target=_run_qt_browser,
+            target=runner,
             args=(self.current_url, child_conn, child_events, self.profile_dir, spy_targets),
             daemon=True
         )

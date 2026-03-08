@@ -21,8 +21,6 @@ from typing import Optional
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 
-import requests
-from bs4 import BeautifulSoup
 from packaging.version import parse as parse_version
 
 from app.nd5.loader import load_nd5_plugins
@@ -34,6 +32,18 @@ from app.ui.constants import DEFAULT_API_SETTINGS, DEFAULT_ND5_OPTIONS
 
 _Popen = subprocess.Popen
 CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
+
+
+def _nd5_requests():
+    import requests
+
+    return requests
+
+
+def _nd5_beautiful_soup():
+    from bs4 import BeautifulSoup
+
+    return BeautifulSoup
 
 
 class ND5Mixin:
@@ -59,7 +69,7 @@ class ND5Mixin:
         port = self._nd5_reader_server_port()
         url = f"http://127.0.0.1:{port}/api/health"
         try:
-            resp = requests.get(url, timeout=max(0.3, float(timeout)))
+            resp = _nd5_requests().get(url, timeout=max(0.3, float(timeout)))
             return bool(resp.ok)
         except Exception:
             return False
@@ -100,7 +110,7 @@ class ND5Mixin:
         kwargs: dict = {"timeout": max(1.0, float(timeout or 0))}
         if payload is not None:
             kwargs["json"] = payload
-        resp = requests.request(method.upper(), url, **kwargs)
+        resp = _nd5_requests().request(method.upper(), url, **kwargs)
         try:
             data = resp.json() if resp.content else {}
         except Exception:
@@ -433,7 +443,7 @@ class ND5Mixin:
     def _fanqie_bridge_health(self, timeout: float = 5.0):
         url = self._fanqie_bridge_url("/healthz")
         try:
-            resp = requests.get(url, timeout=max(1.0, float(timeout or 0)))
+            resp = _nd5_requests().get(url, timeout=max(1.0, float(timeout or 0)))
             data = {}
             if (resp.headers.get("content-type", "") or "").lower().startswith("application/json"):
                 try:
@@ -1708,7 +1718,7 @@ class ND5Mixin:
                 }
 
             def _fetch_plugin_list(list_url):
-                resp = requests.get(list_url, timeout=20)
+                resp = _nd5_requests().get(list_url, timeout=20)
                 resp.raise_for_status()
                 payload = resp.json()
                 items = []
@@ -1765,7 +1775,7 @@ class ND5Mixin:
                     tmp_dir = None
                     tmp_file = None
                     try:
-                        resp = requests.get(pkg_url, stream=True, timeout=30)
+                        resp = _nd5_requests().get(pkg_url, stream=True, timeout=30)
                         resp.raise_for_status()
                         tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
                         for chunk in resp.iter_content(chunk_size=8192):
@@ -2575,7 +2585,7 @@ class ND5Mixin:
             text = str(content)
             if "<" in text and ">" in text:
                 try:
-                    soup = BeautifulSoup(text, "html.parser")
+                    soup = _nd5_beautiful_soup()(text, "html.parser")
                     paragraphs = [p.get_text(" ", strip=True) for p in soup.find_all("p")]
                     if paragraphs:
                         return _normalize_newlines("\n\n".join(p for p in paragraphs if p))
@@ -3800,7 +3810,7 @@ class ND5Mixin:
             return False
         for _ in range(max(1, attempts)):
             try:
-                resp = requests.get(self._fanqie_bridge_url("/healthz"), timeout=10)
+                resp = _nd5_requests().get(self._fanqie_bridge_url("/healthz"), timeout=10)
                 if resp.ok:
                     return True
             except Exception:
@@ -3833,7 +3843,7 @@ class ND5Mixin:
         last_exc = None
         for attempt in range(1, retries + 1):
             try:
-                return requests.get(url, headers=headers, proxies=proxies, timeout=timeout)
+                return _nd5_requests().get(url, headers=headers, proxies=proxies, timeout=timeout)
             except Exception as exc:
                 last_exc = exc
                 if attempt >= retries:
@@ -3859,7 +3869,7 @@ class ND5Mixin:
                     hdrs[k] = v
         resp = self._fanqie_request_with_retry(url, headers=hdrs, proxies=proxies)
         resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = _nd5_beautiful_soup()(resp.text, "html.parser")
         nodes = soup.select(".page-directory-content .chapter-item") or soup.select(".page-directory-content a.chapter-item-title")
         toc = []
         if nodes:
@@ -3941,7 +3951,7 @@ class ND5Mixin:
         text = str(content)
         if "<" in text and ">" in text:
             try:
-                soup = BeautifulSoup(text, "html.parser")
+                soup = _nd5_beautiful_soup()(text, "html.parser")
                 paragraphs = [p.get_text(" ", strip=True) for p in soup.find_all("p")]
                 if paragraphs:
                     return re.sub(r"\n{2,}", "\n", "\n\n".join(p for p in paragraphs if p))

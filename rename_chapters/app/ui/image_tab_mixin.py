@@ -12,10 +12,25 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from urllib.parse import urlparse, unquote
 
-import requests
-from PIL import Image, ImageTk
 from app.paths import BASE_DIR
-from app.ui.update_dialog import fetch_manifest_from_url
+
+
+def _image_requests():
+    import requests
+
+    return requests
+
+
+def _image_pil():
+    from PIL import Image, ImageTk
+
+    return Image, ImageTk
+
+
+def _image_fetch_manifest():
+    from app.ui.update_dialog import fetch_manifest_from_url
+
+    return fetch_manifest_from_url
 
 
 class ImageTabMixin:
@@ -197,7 +212,9 @@ class ImageTabMixin:
         self._image_ai_tool_checked = False
         self._image_ai_tool_checked_on_tab = False
         self.image_ai_show_console = False
-        self._refresh_image_ai_ui(force_check=True)
+        # Tránh spawn tool AI ngay lúc startup; chỉ check khi user mở tab Ảnh.
+        self._image_ai_refresh_models()
+        self._image_ai_update_apply_state()
 
         self._image_ai_visible = False
 
@@ -232,7 +249,7 @@ class ImageTabMixin:
             proxies = self._get_proxy_for_request("images") if hasattr(self, "_get_proxy_for_request") else None
             if proxies:
                 self.log(f"Tải ảnh sử dụng proxy: {proxies['http']}")
-            response = requests.get(url, timeout=60, headers={"User-Agent": "Mozilla/5.0"}, proxies=proxies)
+            response = _image_requests().get(url, timeout=60, headers={"User-Agent": "Mozilla/5.0"}, proxies=proxies)
             response.raise_for_status()
             self._process_image_data(io.BytesIO(response.content))
         except Exception as e:
@@ -260,6 +277,7 @@ class ImageTabMixin:
                 messagebox.showerror("Lỗi", "Không có dữ liệu ảnh để lưu.")
                 return
             self.downloaded_image_data.seek(0)
+            Image, _ImageTk = _image_pil()
             img_to_save = Image.open(self.downloaded_image_data)
 
         selected_format = self.image_format_combo.get()
@@ -324,6 +342,7 @@ class ImageTabMixin:
         new_width = max(1, int(source.width * self.image_zoom_factor))
         new_height = max(1, int(source.height * self.image_zoom_factor))
 
+        Image, ImageTk = _image_pil()
         resized_pil = source.resize((new_width, new_height), Image.Resampling.LANCZOS)
         self.tk_photo_image = ImageTk.PhotoImage(resized_pil)
 
@@ -373,6 +392,7 @@ class ImageTabMixin:
         self.downloaded_image_data = io.BytesIO(raw_bytes)
         self._image_source_bytes = raw_bytes
         self._image_source_hash = hashlib.md5(raw_bytes).hexdigest()
+        Image, _ImageTk = _image_pil()
         self.image_original_pil = Image.open(self.downloaded_image_data)
         self.image_display_pil = self.image_original_pil.copy()
         self.image_zoom_factor = 1.0
@@ -504,7 +524,7 @@ class ImageTabMixin:
             manifest_url = getattr(self, "VERSION_CHECK_URL", "")
             if manifest_url:
                 try:
-                    data = fetch_manifest_from_url(manifest_url, timeout=10) or {}
+                    data = _image_fetch_manifest()(manifest_url, timeout=10) or {}
                 except Exception:
                     data = {}
         if not data:
@@ -975,6 +995,7 @@ class ImageTabMixin:
         os.makedirs(cache_dir, exist_ok=True)
         input_path = os.path.join(cache_dir, f"input_{img_hash}.png")
         try:
+            Image, _ImageTk = _image_pil()
             img = Image.open(io.BytesIO(raw_bytes))
             img.save(input_path, format="PNG")
         except Exception:
@@ -1169,6 +1190,7 @@ class ImageTabMixin:
                 if not output_exists or output_size == 0:
                     detail = "\n".join(output_lines[-10:]) if output_lines else "Không có log từ tool."
                     raise RuntimeError(f"Không tìm thấy ảnh đầu ra.\n{detail}")
+                Image, _ImageTk = _image_pil()
                 result = Image.open(output_path)
                 self._image_ai_cache[params_key] = result.copy()
                 try:
@@ -1246,6 +1268,7 @@ class ImageTabMixin:
             if new_w >= source.width and new_h >= source.height:
                 messagebox.showinfo("Không phải giảm", "Kích thước mới phải nhỏ hơn ảnh hiện tại.", parent=self)
                 return
+            Image, _ImageTk = _image_pil()
             resized = source.resize((new_w, new_h), Image.Resampling.LANCZOS)
             self.image_display_pil = resized
             self.undo_image_btn.config(state="normal")
