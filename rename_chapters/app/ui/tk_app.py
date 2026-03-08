@@ -419,7 +419,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.3')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.3.1')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -2323,10 +2323,10 @@ class RenamerApp(
         """Xóa thư mục tạm _MEI* nếu còn (onefile) để tránh rác khi lỗi."""
         candidates = set()
         mei = getattr(sys, "_MEIPASS", None)
-        if mei:
+        if mei and os.path.basename(os.path.normpath(str(mei))).startswith("_MEI"):
             candidates.add(mei)
         env_mei = os.environ.get("_MEIPASS2")
-        if env_mei:
+        if env_mei and os.path.basename(os.path.normpath(str(env_mei))).startswith("_MEI"):
             candidates.add(env_mei)
         for path in candidates:
             try:
