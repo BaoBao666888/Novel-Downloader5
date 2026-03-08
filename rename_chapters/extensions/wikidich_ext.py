@@ -1040,9 +1040,11 @@ def fetch_chapter_edit(
     session: requests.Session,
     edit_url: str,
     proxies=None,
+    headers: Optional[Dict[str, str]] = None,
 ) -> Dict[str, str]:
     """Tải trang chỉnh sửa chương và trích xuất form (nameCn, contentCn)."""
-    resp = session.get(edit_url, timeout=50, proxies=proxies)
+    req_headers = {k: v for k, v in (headers or {}).items() if k and v}
+    resp = session.get(edit_url, timeout=50, proxies=proxies, headers=req_headers or None)
     resp.raise_for_status()
     doc = BeautifulSoup(resp.text, "html.parser")
     name_cn = ""
@@ -1068,17 +1070,22 @@ def save_chapter_edit(
     name_cn: str,
     content_cn: str,
     proxies=None,
+    headers: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     """Lưu nội dung chương lên server qua PUT giống giao diện web."""
     data = {
         "nameCn": name_cn or "",
         "contentCn": content_cn or "",
     }
-    headers = {
+    req_headers = {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         "X-Requested-With": "XMLHttpRequest",
     }
-    resp = session.put(edit_url, data=data, headers=headers, timeout=50, proxies=proxies)
+    if isinstance(headers, dict):
+        for key, value in headers.items():
+            if key and value:
+                req_headers[key] = value
+    resp = session.put(edit_url, data=data, headers=req_headers, timeout=50, proxies=proxies)
     try:
         payload = resp.json()
     except Exception:

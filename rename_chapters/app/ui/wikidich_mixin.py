@@ -3036,6 +3036,33 @@ class WikidichMixin:
         finally:
             self.after(0, lambda: self._wd_set_chapter_buttons_state(True))
 
+    def _wd_build_edit_headers(self, edit_url: str, referer_url: str = "", ajax: bool = False) -> dict:
+        headers = dict(self._wd_default_headers())
+        edit_url = self._wd_normalize_url_for_site(edit_url)
+        referer_url = self._wd_normalize_url_for_site(referer_url or "") or edit_url or (self._wd_get_base_url().rstrip("/") + "/")
+        try:
+            parts = urlparse(edit_url or self._wd_get_base_url())
+            origin = f"{parts.scheme or 'https'}://{parts.netloc}" if parts.netloc else self._wd_get_base_url().rstrip("/")
+        except Exception:
+            origin = self._wd_get_base_url().rstrip("/")
+        headers.update(
+            {
+                "Referer": referer_url,
+                "Origin": origin,
+                "Accept": (
+                    "application/json, text/plain, */*"
+                    if ajax
+                    else (headers.get("Accept") or "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+                ),
+                "Sec-Fetch-Site": "same-origin",
+            }
+        )
+        if ajax:
+            headers["X-Requested-With"] = "XMLHttpRequest"
+            headers["Sec-Fetch-Mode"] = "cors"
+            headers["Sec-Fetch-Dest"] = "empty"
+        return {k: v for k, v in headers.items() if k and v}
+
     def _wd_show_chapter_content(self, chapter: dict, text: str, html: str):
         win = tk.Toplevel(self)
         self._apply_window_icon(win)
@@ -3062,11 +3089,14 @@ class WikidichMixin:
         self._wd_open_edit_modal(chapter, edit_url)
 
     def _wd_open_edit_modal(self, chapter: dict, edit_url: str):
-        session, _user, proxies = self._wd_build_wiki_session(include_user=False)
+        session, _user, proxies = self._wd_build_wiki_session(include_user=True)
         if not session:
             messagebox.showinfo("Thiếu cookie", "Hãy mở trình duyệt tích hợp và đăng nhập Wikidich trước khi sửa chương.", parent=self._wd_chapter_win or self)
             return
         edit_url = self._wd_normalize_url_for_site(edit_url)
+        chapter_url = self._wd_normalize_url_for_site(chapter.get("url", ""))
+        edit_fetch_headers = self._wd_build_edit_headers(edit_url, referer_url=chapter_url or edit_url, ajax=False)
+        edit_save_headers = self._wd_build_edit_headers(edit_url, referer_url=edit_url, ajax=True)
         win = tk.Toplevel(self)
         self._apply_window_icon(win)
         num = chapter.get("number")
@@ -3132,7 +3162,12 @@ class WikidichMixin:
 
         def _do_load():
             try:
-                data = wikidich_ext.fetch_chapter_edit(session, edit_url, proxies=proxies)
+                if chapter_url:
+                    try:
+                        session.get(chapter_url, timeout=20, proxies=proxies)
+                    except Exception:
+                        pass
+                data = wikidich_ext.fetch_chapter_edit(session, edit_url, proxies=proxies, headers=edit_fetch_headers)
                 self.after(0, lambda: _fill(data))
             except Exception as exc:
                 self.after(0, lambda: _load_error(f"Lỗi tải form: {exc}"))
@@ -3144,7 +3179,14 @@ class WikidichMixin:
             content = content_text.get("1.0", tk.END)
             def _worker():
                 try:
-                    wikidich_ext.save_chapter_edit(session, edit_url, name, content, proxies=proxies)
+                    wikidich_ext.save_chapter_edit(
+                        session,
+                        edit_url,
+                        name,
+                        content,
+                        proxies=proxies,
+                        headers=edit_save_headers,
+                    )
                     self.after(0, lambda: _save_done(True, "Đã lưu thành công."))
                 except Exception as exc:
                     self.after(0, lambda: _save_done(False, f"Lỗi lưu: {exc}"))
@@ -7764,18 +7806,32 @@ class WikidichMixin:
     def _wd_fetch_upload_volumes(self, book: dict, silent: bool = False, session=None, proxies=None) -> dict:
         if not isinstance(book, dict) or not book.get("id"):
             return {"ok": False, "error_message": "Thiếu thông tin truyện."}
-        edit_page_url = self._wd_normalize_url_for_site(book.get("url", "")) + "/chinh-sua"
+        book_url = self._wd_normalize_url_for_site(book.get("url", ""))
+        edit_page_url = book_url + "/chinh-sua"
+        edit_headers = self._wd_build_edit_headers(edit_page_url, referer_url=book_url or edit_page_url, ajax=False)
         active_session = session
         active_proxies = proxies
         if active_session is None:
-            active_session, _user, active_proxies = self._wd_build_wiki_session(include_user=False)
+            active_session, _user, active_proxies = self._wd_build_wiki_session(include_user=True)
         if not active_session:
             msg = "Không đọc được cookie Wikidich."
             if not silent:
                 self.log(f"[Wikidich] {msg}")
             return {"ok": False, "error_message": msg, "error_kind": "session"}
         try:
-            resp = active_session.get(edit_page_url, proxies=active_proxies or {}, timeout=30)
+            if book_url:
+                try:
+                    warm_resp = active_session.get(book_url, proxies=active_proxies or {}, timeout=20)
+                    if self._wd_detect_cloudflare(warm_resp):
+                        return {
+                            "ok": False,
+                            "error_message": "Cloudflare chặn trang truyện trước khi mở chỉnh sửa.",
+                            "error_kind": "cloudflare",
+                            "edit_page_url": edit_page_url,
+                        }
+                except requests.RequestException:
+                    pass
+            resp = active_session.get(edit_page_url, proxies=active_proxies or {}, timeout=30, headers=edit_headers)
             if self._wd_detect_cloudflare(resp):
                 return {
                     "ok": False,
