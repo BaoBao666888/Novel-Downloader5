@@ -361,6 +361,55 @@ function updateQueryUrl() {
   }
 }
 
+function getCurrentTranslationMode() {
+  return (typeof state.shell.getTranslationMode === "function" ? state.shell.getTranslationMode() : state.translationMode) || "server";
+}
+
+function getCurrentReaderMode() {
+  const enabled = typeof state.shell.getTranslationEnabled === "function"
+    ? state.shell.getTranslationEnabled()
+    : state.translationEnabled;
+  return enabled ? "trans" : "raw";
+}
+
+function resolveReaderModeForBook(book) {
+  const preferred = getCurrentReaderMode();
+  if (preferred !== "trans") return "raw";
+  if (book && typeof book.translation_supported === "boolean") {
+    return book.translation_supported ? "trans" : "raw";
+  }
+  const sourceType = String((book && book.source_type) || "").trim().toLowerCase();
+  return sourceType.includes("comic") ? "raw" : preferred;
+}
+
+function buildReaderUrl(bookId, chapterId = "", mode = getCurrentReaderMode()) {
+  const params = new URLSearchParams();
+  params.set("book_id", String(bookId || "").trim());
+  const chapter = String(chapterId || "").trim();
+  if (chapter) params.set("chapter_id", chapter);
+  params.set("mode", mode);
+  if (mode === "trans") {
+    params.set("translation_mode", getCurrentTranslationMode());
+  }
+  return `/reader?${params.toString()}`;
+}
+
+function buildImportSeed(sourceUrl, pluginId, historyOnly = false) {
+  const payload = {
+    url: String(sourceUrl || "").trim(),
+    plugin_id: String(pluginId || "").trim(),
+    history_only: Boolean(historyOnly),
+  };
+  const activeDetailUrl = String((state.detail.detail && state.detail.detail.url) || "").trim();
+  if (activeDetailUrl && activeDetailUrl === payload.url && state.detail.detail && typeof state.detail.detail === "object") {
+    payload.detail = { ...state.detail.detail };
+  }
+  if (activeDetailUrl && activeDetailUrl === payload.url && state.detail.tocLoaded && Array.isArray(state.detail.toc) && state.detail.toc.length) {
+    payload.toc = state.detail.toc.map((row) => ({ ...row }));
+  }
+  return payload;
+}
+
 function resetDetailForPluginSwitch() {
   state.detail.item = null;
   state.detail.detail = null;
@@ -1656,11 +1705,7 @@ async function importOnlineBook(item, { openReader = false } = {}) {
     const data = await apiWithRequest("import-url", "/api/library/import-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: sourceUrl,
-        plugin_id: pluginId,
-        history_only: Boolean(openReader),
-      }),
+      body: JSON.stringify(buildImportSeed(sourceUrl, pluginId, Boolean(openReader))),
     });
     let importedBook = (data && data.book && typeof data.book === "object") ? data.book : null;
     let bookId = String((importedBook && importedBook.book_id) || "").trim();
@@ -1698,6 +1743,7 @@ async function importOnlineBook(item, { openReader = false } = {}) {
       (row) => String((row && row.remote_url) || "").trim() === selectedUrl,
     ) || chapters[0];
     const chapterId = String((matchedChapter && matchedChapter.chapter_id) || "").trim();
+    const readerMode = resolveReaderModeForBook(importedBook);
     if (chapterId) {
       try {
         await apiWithRequest(`book-progress-${bookId}`, `/api/library/book/${encodeURIComponent(bookId)}/progress`, {
@@ -1706,14 +1752,14 @@ async function importOnlineBook(item, { openReader = false } = {}) {
           body: JSON.stringify({
             chapter_id: chapterId,
             ratio: 0,
-            mode: "raw",
+            mode: readerMode,
           }),
         });
       } catch {
         // Không chặn mở reader nếu chỉ lỗi lưu tiến độ.
       }
     }
-    window.location.href = `/reader?book_id=${encodeURIComponent(bookId)}`;
+    window.location.href = buildReaderUrl(bookId, chapterId, readerMode);
   } catch (error) {
     if (shouldRenderBusy && !isAbortError(error)) {
       state.detail.errorMessage = getErrorMessage(error);
@@ -1779,11 +1825,7 @@ async function downloadFromDetail() {
     const data = await apiWithRequest("import-url", "/api/library/import-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: sourceUrl,
-        plugin_id: pluginId,
-        history_only: false,
-      }),
+      body: JSON.stringify(buildImportSeed(sourceUrl, pluginId, false)),
     });
     let importedBook = (data && data.book && typeof data.book === "object") ? data.book : null;
     let bookId = String((importedBook && importedBook.book_id) || "").trim();

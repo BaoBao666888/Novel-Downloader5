@@ -1214,34 +1214,7 @@ def build_name_right_suggestions(
                 allow_subsegments=False,
             )
         )
-
-    if not dict_rows:
-        for mapping, origin, score in dict_sources:
-            dict_rows.extend(
-                _collect_dict_suggestion_rows(
-                    source_cjk,
-                    mapping,
-                    origin=origin,
-                    base_score=score,
-                    allow_subsegments=True,
-                )
-            )
     rows.extend(dict_rows)
-
-    if not dict_rows:
-        hv_rows = build_incremental_hv_suggestions(source_cjk, hv_text or "")
-        for idx, row in enumerate(hv_rows):
-            target = str(row.get("han_viet") or "").strip()
-            if not target:
-                continue
-            rows.append(
-                {
-                    "source_text": source_cjk,
-                    "target_text": target,
-                    "origin": "Hán Việt",
-                    "score": 90 - idx,
-                }
-            )
 
     if not rows:
         return []
@@ -6422,6 +6395,8 @@ class ReaderService:
         *,
         plugin_id: str | None = None,
         history_only: bool = False,
+        prefetched_detail: dict[str, Any] | None = None,
+        prefetched_toc: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         source_url = (url or "").strip()
         if not source_url:
@@ -6449,22 +6424,54 @@ class ReaderService:
             )
             if existing_session:
                 return self.storage.get_book_detail(existing_session["book_id"]) or existing_session
-        detail = self._run_vbook_script(plugin, "detail", [source_url])
-        toc_rows = self._fetch_vbook_toc(plugin, source_url)
+
+        detail: dict[str, Any] = {}
+        if isinstance(prefetched_detail, dict):
+            detail = dict(prefetched_detail or {})
+        if str(detail.get("url") or "").strip() != source_url:
+            detail = {}
+        if not detail:
+            payload = self._fetch_vbook_detail_raw(url=source_url, plugin_id=plugin.plugin_id)
+            detail = dict(payload.get("detail") or {})
+
+        toc_rows: list[dict[str, str]] = []
+        if isinstance(prefetched_toc, list):
+            for row in prefetched_toc:
+                if not isinstance(row, dict):
+                    continue
+                ch_title = normalize_vbook_display_text(
+                    str(row.get("title_raw") or row.get("title") or row.get("name") or ""),
+                    single_line=True,
+                )
+                href = str(row.get("remote_url") or row.get("url") or "").strip()
+                host = str(row.get("host") or "").strip()
+                remote_url = href if href.startswith(("http://", "https://")) else self._join_vbook_url(host, href)
+                if not ch_title or not remote_url:
+                    continue
+                toc_rows.append({"name": ch_title, "remote_url": remote_url})
+        if not toc_rows:
+            toc_rows = self._fetch_vbook_toc(plugin, source_url)
 
         title = normalize_vbook_display_text(
-            str((detail or {}).get("name") or (detail or {}).get("title") or ""),
+            str(detail.get("title_raw") or detail.get("name") or detail.get("title") or ""),
             single_line=True,
         ) or source_url
-        author = normalize_vbook_display_text(str((detail or {}).get("author") or ""), single_line=True)
-        cover_path = str((detail or {}).get("cover") or "").strip()
+        author = normalize_vbook_display_text(
+            str(detail.get("author_raw") or detail.get("author") or ""),
+            single_line=True,
+        )
+        cover_path = str(detail.get("cover_raw") or "").strip()
+        if not cover_path:
+            cover_candidate = str(detail.get("cover") or "").strip()
+            if cover_candidate.startswith(("http://", "https://", "data:")):
+                cover_path = cover_candidate
         plugin_type = str(plugin.type or "").strip().lower()
         if history_only:
             source_type = "vbook_session_comic" if "comic" in plugin_type else "vbook_session"
         else:
             source_type = "vbook_comic" if "comic" in plugin_type else "vbook"
         summary = normalize_vbook_display_text(
-            str((detail or {}).get("description") or ""),
+            str(detail.get("description_raw") or detail.get("description") or ""),
             single_line=False,
         ) or (
             "Truyện tranh được import từ URL (vBook extension)." if "comic" in source_type else "Truyện được import từ URL (vBook extension)."
@@ -11487,6 +11494,7 @@ class ReaderService:
                 "title_raw": title_raw,
                 "author_raw": author_raw,
                 "cover": cover,
+                "cover_raw": str(detail.get("cover_raw") or "").strip(),
                 "description": description,
                 "description_raw": description_raw,
                 "url": source_url,
@@ -12871,7 +12879,15 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             url = (payload.get("url") or "").strip()
             plugin_id = (payload.get("plugin_id") or "").strip() or None
             history_only = bool(payload.get("history_only", False))
-            book = self.service.import_vbook_url(url, plugin_id=plugin_id, history_only=history_only)
+            detail = payload.get("detail") if isinstance(payload.get("detail"), dict) else None
+            toc = payload.get("toc") if isinstance(payload.get("toc"), list) else None
+            book = self.service.import_vbook_url(
+                url,
+                plugin_id=plugin_id,
+                history_only=history_only,
+                prefetched_detail=detail,
+                prefetched_toc=toc,
+            )
             return {"ok": True, "book": book}
 
         if method == "POST" and path == "/api/library/import/prepare":

@@ -1,5 +1,5 @@
 import { initShell } from "../site_common.js?v=20260308-junk1";
-import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260307-br2";
+import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260308-br3";
 
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),
@@ -86,6 +86,15 @@ const refs = {
   selectionNameBtn: document.getElementById("selection-name-btn"),
   selectionCopyBtn: document.getElementById("selection-copy-btn"),
   selectionJunkBtn: document.getElementById("selection-junk-btn"),
+  selectionJunkDialog: document.getElementById("selection-junk-dialog"),
+  selectionJunkTitle: document.getElementById("selection-junk-title"),
+  btnCloseSelectionJunk: document.getElementById("btn-close-selection-junk"),
+  selectionJunkHint: document.getElementById("selection-junk-hint"),
+  selectionJunkForm: document.getElementById("selection-junk-form"),
+  selectionJunkInputLabel: document.getElementById("selection-junk-input-label"),
+  selectionJunkInput: document.getElementById("selection-junk-input"),
+  btnCancelSelectionJunk: document.getElementById("btn-cancel-selection-junk"),
+  btnConfirmSelectionJunk: document.getElementById("btn-confirm-selection-junk"),
   readerHead: document.querySelector(".reader-head"),
   readerFooter: document.querySelector(".reader-footer"),
 };
@@ -136,6 +145,8 @@ const state = {
   downloadWatchSig: "",
   downloadWatchHadActive: false,
   downloadWatchIdleTicks: 0,
+  selectionRefreshTimer: null,
+  pendingSelectionJunkRatio: null,
 };
 
 const TOC_ICON_MARKUP = Object.freeze({
@@ -1970,6 +1981,10 @@ async function openNameSuggestDialog() {
 }
 
 function hideSelectionBtn() {
+  if (state.selectionRefreshTimer) {
+    window.clearTimeout(state.selectionRefreshTimer);
+    state.selectionRefreshTimer = null;
+  }
   if (refs.selectionActionMenu) {
     refs.selectionActionMenu.classList.add("hidden");
     refs.selectionActionMenu.style.removeProperty("left");
@@ -1982,6 +1997,70 @@ function hideSelectionBtn() {
     delete node.dataset.startOffset;
     delete node.dataset.endOffset;
   }
+}
+
+function activeReaderSelectionRange() {
+  const selection = window.getSelection && window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+  const range = selection.getRangeAt(0);
+  const ancestor = range.commonAncestorContainer;
+  const rangeContainer = ancestor && ancestor.nodeType === 3 ? ancestor.parentElement : ancestor;
+  if (!rangeContainer || !refs.readerContentBody || !refs.readerContentBody.contains(rangeContainer)) {
+    return null;
+  }
+  return range;
+}
+
+function selectionRectFromRange(range) {
+  if (!range) return null;
+  const rect = typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
+  if (rect && (rect.width > 0 || rect.height > 0)) return rect;
+  const rects = typeof range.getClientRects === "function" ? Array.from(range.getClientRects()) : [];
+  const visibleRects = rects.filter((item) => item && (item.width > 0 || item.height > 0));
+  if (!visibleRects.length) return rect;
+  let left = visibleRects[0].left;
+  let right = visibleRects[0].right;
+  let top = visibleRects[0].top;
+  let bottom = visibleRects[0].bottom;
+  for (let i = 1; i < visibleRects.length; i += 1) {
+    const item = visibleRects[i];
+    left = Math.min(left, item.left);
+    right = Math.max(right, item.right);
+    top = Math.min(top, item.top);
+    bottom = Math.max(bottom, item.bottom);
+  }
+  return {
+    left,
+    right,
+    top,
+    bottom,
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top),
+  };
+}
+
+function shouldSuspendSelectionMenu() {
+  if (refs.selectionJunkDialog && refs.selectionJunkDialog.open) return true;
+  if (refs.nameEditorDialog && refs.nameEditorDialog.open) return true;
+  if (refs.nameSuggestDialog && refs.nameSuggestDialog.open) return true;
+  const active = document.activeElement;
+  if (!active || active === document.body) return false;
+  if (active.tagName === "TEXTAREA") return true;
+  if (active.tagName === "INPUT") {
+    const type = String(active.getAttribute("type") || "text").trim().toLowerCase();
+    if (!["button", "submit", "reset", "checkbox", "radio", "range"].includes(type)) return true;
+  }
+  return Boolean(active.isContentEditable);
+}
+
+function scheduleSelectionMenuRefresh(delay = 60) {
+  if (state.selectionRefreshTimer) {
+    window.clearTimeout(state.selectionRefreshTimer);
+  }
+  state.selectionRefreshTimer = window.setTimeout(() => {
+    state.selectionRefreshTimer = null;
+    handleSelectionButton();
+  }, Math.max(0, Number(delay) || 0));
 }
 
 function renderedTextLength(node) {
@@ -2170,23 +2249,67 @@ async function applySelectionJunkEntry() {
   hideSelectionBtn();
   clearSelectedTextRange();
   if (!payload || !payload.selected) return;
-  const preserveRatio = currentChapterRatio();
-  state.shell.showStatus(state.shell.t("statusApplyingJunkEntry"));
   try {
     let sourceText = payload.selected;
     if (effectiveMode() === "trans" && supportsTranslation(state.book)) {
       state.shell.showStatus(state.shell.t("statusResolvingSelection"));
       sourceText = await resolveSelectionSourceForJunk(payload);
-      state.shell.showStatus(state.shell.t("statusApplyingJunkEntry"));
     }
     if (!sourceText) {
       throw new Error(state.shell.t("junkLineRequired"));
     }
+    state.pendingSelectionJunkRatio = currentChapterRatio();
+    if (refs.selectionJunkInput) {
+      refs.selectionJunkInput.value = sourceText;
+    }
+    if (refs.selectionJunkDialog) {
+      refs.selectionJunkDialog.showModal();
+    }
+    if (refs.selectionJunkInput) {
+      window.setTimeout(() => {
+        refs.selectionJunkInput.focus();
+        try {
+          refs.selectionJunkInput.setSelectionRange(0, refs.selectionJunkInput.value.length);
+        } catch {
+          // ignore
+        }
+      }, 10);
+    }
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+function resetSelectionJunkDialogState() {
+  state.pendingSelectionJunkRatio = null;
+  if (refs.selectionJunkForm) refs.selectionJunkForm.reset();
+}
+
+async function confirmSelectionJunkEntry(event) {
+  if (event) event.preventDefault();
+  const sourceText = String(refs.selectionJunkInput && refs.selectionJunkInput.value || "").trim();
+  if (!sourceText) {
+    state.shell.showToast(state.shell.t("junkLineRequired"));
+    if (refs.selectionJunkInput) refs.selectionJunkInput.focus();
+    return;
+  }
+  const preserveRatio = Number.isFinite(state.pendingSelectionJunkRatio)
+    ? state.pendingSelectionJunkRatio
+    : currentChapterRatio();
+  state.shell.showStatus(state.shell.t("statusApplyingJunkEntry"));
+  try {
     await state.shell.api("/api/junk-lines/global/entry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ new_line: sourceText }),
     });
+    if (refs.selectionJunkDialog && refs.selectionJunkDialog.open) {
+      refs.selectionJunkDialog.close();
+    } else {
+      resetSelectionJunkDialogState();
+    }
     clearChapterCache();
     cancelPrefetch();
     await loadBook();
@@ -2243,6 +2366,10 @@ function handleSelectionButton() {
     hideSelectionBtn();
     return;
   }
+  if (shouldSuspendSelectionMenu()) {
+    hideSelectionBtn();
+    return;
+  }
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) {
     hideSelectionBtn();
@@ -2253,15 +2380,13 @@ function handleSelectionButton() {
     hideSelectionBtn();
     return;
   }
-  const range = sel.getRangeAt(0);
-  const ancestor = range.commonAncestorContainer;
-  const rangeContainer = ancestor && ancestor.nodeType === 3 ? ancestor.parentElement : ancestor;
-  if (!rangeContainer || !refs.readerContentBody.contains(rangeContainer)) {
+  const range = activeReaderSelectionRange();
+  if (!range) {
     hideSelectionBtn();
     return;
   }
-  const rect = range.getBoundingClientRect();
-  if (!rect || !rect.width) {
+  const rect = selectionRectFromRange(range);
+  if (!rect || (!rect.width && !rect.height)) {
     hideSelectionBtn();
     return;
   }
@@ -2332,6 +2457,12 @@ function bindNameEditor() {
   refs.nameSuggestColAction.textContent = state.shell.t("nameSuggestColAction");
   if (refs.btnNameSuggestGoogleTranslate) refs.btnNameSuggestGoogleTranslate.textContent = state.shell.t("nameSuggestGoogleTranslate");
   if (refs.btnNameSuggestGoogleSearch) refs.btnNameSuggestGoogleSearch.textContent = state.shell.t("nameSuggestGoogleSearch");
+  if (refs.selectionJunkTitle) refs.selectionJunkTitle.textContent = state.shell.t("selectionJunkTitle");
+  if (refs.btnCloseSelectionJunk) refs.btnCloseSelectionJunk.textContent = state.shell.t("close");
+  if (refs.selectionJunkHint) refs.selectionJunkHint.textContent = state.shell.t("selectionJunkHint");
+  if (refs.selectionJunkInputLabel) refs.selectionJunkInputLabel.textContent = state.shell.t("selectionJunkInputLabel");
+  if (refs.btnCancelSelectionJunk) refs.btnCancelSelectionJunk.textContent = state.shell.t("cancel");
+  if (refs.btnConfirmSelectionJunk) refs.btnConfirmSelectionJunk.textContent = state.shell.t("selectionJunkConfirm");
   syncNameEditorScopeUi();
 
   if (refs.nameDictTypeSelect) {
@@ -2354,6 +2485,22 @@ function bindNameEditor() {
   refs.btnOpenNameEditor.addEventListener("click", () => openNameEditor({}));
   refs.btnCloseNameEditor.addEventListener("click", () => refs.nameEditorDialog.close());
   refs.btnCloseNameSuggest.addEventListener("click", () => refs.nameSuggestDialog.close());
+  if (refs.btnCloseSelectionJunk) refs.btnCloseSelectionJunk.addEventListener("click", () => {
+    if (refs.selectionJunkDialog) refs.selectionJunkDialog.close();
+  });
+  if (refs.btnCancelSelectionJunk) refs.btnCancelSelectionJunk.addEventListener("click", () => {
+    if (refs.selectionJunkDialog) refs.selectionJunkDialog.close();
+  });
+  if (refs.selectionJunkDialog) {
+    refs.selectionJunkDialog.addEventListener("close", () => {
+      resetSelectionJunkDialogState();
+    });
+  }
+  if (refs.selectionJunkForm) refs.selectionJunkForm.addEventListener("submit", (event) => {
+    confirmSelectionJunkEntry(event).catch((error) => {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    });
+  });
   if (refs.btnNameSuggestGoogleTranslate) {
     refs.btnNameSuggestGoogleTranslate.addEventListener("click", () => {
       const source = currentNameSuggestSourceText();
@@ -3140,8 +3287,15 @@ async function init() {
   // Keydown: chỉ để exit fullscreen fallback
   document.addEventListener("keydown", onFullscreenKeydown, true);
 
-  document.addEventListener("mouseup", () => window.setTimeout(handleSelectionButton, 10));
-  document.addEventListener("touchend", () => window.setTimeout(handleSelectionButton, 10));
+  document.addEventListener("selectionchange", () => {
+    scheduleSelectionMenuRefresh(80);
+  });
+  document.addEventListener("mouseup", () => {
+    scheduleSelectionMenuRefresh(24);
+  });
+  document.addEventListener("touchend", () => {
+    scheduleSelectionMenuRefresh(120);
+  }, { passive: true });
   refs.readerContentBody.addEventListener("contextmenu", (event) => {
     if (!refs.readerContentBody.contains(event.target)) return;
     const sel = window.getSelection();
@@ -3150,9 +3304,14 @@ async function init() {
     }
   });
   document.addEventListener("click", (event) => {
-    if (!refs.selectionActionMenu || !refs.selectionActionMenu.contains(event.target)) {
-      hideSelectionBtn();
+    if (refs.selectionActionMenu && refs.selectionActionMenu.contains(event.target)) {
+      return;
     }
+    if (refs.readerContentBody && refs.readerContentBody.contains(event.target) && activeReaderSelectionRange()) {
+      scheduleSelectionMenuRefresh(40);
+      return;
+    }
+    hideSelectionBtn();
   });
 
   // Nếu body/window scroll (một số layout) thì vẫn canh lại vị trí mini bars.

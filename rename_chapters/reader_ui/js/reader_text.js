@@ -50,8 +50,11 @@ export function buildParagraphNodes(text, emptyText) {
     const p = document.createElement("p");
     const lines = block.split(/\n/g).map((line) => line.trim());
     for (let i = 0; i < lines.length; i += 1) {
+      const lineSpan = document.createElement("span");
+      lineSpan.className = i === 0 ? "reader-line reader-line-first" : "reader-line";
+      lineSpan.textContent = lines[i];
       if (i > 0) p.appendChild(document.createElement("br"));
-      p.appendChild(document.createTextNode(lines[i]));
+      p.appendChild(lineSpan);
     }
     fragment.appendChild(p);
   }

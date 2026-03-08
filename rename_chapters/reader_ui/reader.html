@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260308-junk1">
+  <link rel="stylesheet" href="./styles.css?v=20260308-indent2">
 </head>
 
 <body data-page="reader" class="mpa-body">
@@ -289,6 +289,24 @@
     <button id="selection-junk-btn" class="btn btn-small floating-select-btn" type="button"></button>
   </div>
 
+  <dialog id="selection-junk-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="selection-junk-title"></h3>
+      <button id="btn-close-selection-junk" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="selection-junk-hint" class="dialog-subtitle"></p>
+    <form id="selection-junk-form" class="name-entry-form">
+      <label>
+        <span id="selection-junk-input-label"></span>
+        <textarea id="selection-junk-input" rows="4" spellcheck="false" required></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button id="btn-cancel-selection-junk" class="btn" type="button"></button>
+        <button id="btn-confirm-selection-junk" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
+  </dialog>
+
   <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
     <div class="settings-head">
       <h3 id="settings-title"></h3>
@@ -408,7 +426,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260308-junk1"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260308-junk3"></script>
 </body>
 
 </html>

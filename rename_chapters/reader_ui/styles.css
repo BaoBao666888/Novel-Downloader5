@@ -1716,6 +1716,17 @@ body.panel-style-clear .reader-content-body {
   word-break: break-word;
 }
 
+.reader-content-body p .reader-line {
+  white-space: pre-wrap;
+}
+
+.reader-content-body p br + .reader-line {
+  display: inline-block;
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: var(--reader-text-indent);
+}
+
 .reader-content-body p:last-child {
   margin-bottom: 0;
 }

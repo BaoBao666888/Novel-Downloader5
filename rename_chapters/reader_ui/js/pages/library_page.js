@@ -938,6 +938,7 @@ async function openHistoryDetail(item) {
       body: JSON.stringify({
         url: sourceUrl,
         plugin_id: pluginId,
+        history_only: true,
       }),
     });
     const book = (data && data.book) || {};
@@ -958,6 +959,7 @@ async function openHistoryDetail(item) {
     if (!targetChapter && chapters.length) {
       targetChapter = chapters[0];
     }
+    const readerMode = resolveReaderModeForBook(book);
     if (targetChapter && targetChapter.chapter_id) {
       await state.shell.api(`/api/library/book/${encodeURIComponent(bid)}/progress`, {
         method: "POST",
@@ -965,11 +967,11 @@ async function openHistoryDetail(item) {
         body: JSON.stringify({
           chapter_id: String(targetChapter.chapter_id || ""),
           ratio,
-          mode: "raw",
+          mode: readerMode,
         }),
       });
     }
-    window.location.href = `/reader?book_id=${encodeURIComponent(bid)}`;
+    window.location.href = buildReaderUrl(bid, targetChapter && targetChapter.chapter_id, readerMode);
   } catch (error) {
     state.shell.showToast(getErrorMessage(error));
   } finally {
@@ -1449,6 +1451,35 @@ async function openGlobalJunkDialog() {
 
 function getCurrentTranslationMode() {
   return (typeof state.shell.getTranslationMode === "function" ? state.shell.getTranslationMode() : state.translationMode) || "server";
+}
+
+function getCurrentReaderMode() {
+  const enabled = typeof state.shell.getTranslationEnabled === "function"
+    ? state.shell.getTranslationEnabled()
+    : state.translationEnabled;
+  return enabled ? "trans" : "raw";
+}
+
+function resolveReaderModeForBook(book) {
+  const preferred = getCurrentReaderMode();
+  if (preferred !== "trans") return "raw";
+  if (book && typeof book.translation_supported === "boolean") {
+    return book.translation_supported ? "trans" : "raw";
+  }
+  const sourceType = String((book && book.source_type) || "").trim().toLowerCase();
+  return sourceType.includes("comic") ? "raw" : preferred;
+}
+
+function buildReaderUrl(bookId, chapterId = "", mode = getCurrentReaderMode()) {
+  const params = new URLSearchParams();
+  params.set("book_id", String(bookId || "").trim());
+  const chapter = String(chapterId || "").trim();
+  if (chapter) params.set("chapter_id", chapter);
+  params.set("mode", mode);
+  if (mode === "trans") {
+    params.set("translation_mode", getCurrentTranslationMode());
+  }
+  return `/reader?${params.toString()}`;
 }
 
 function buildExportFormats(book) {
