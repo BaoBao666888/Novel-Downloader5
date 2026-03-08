@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260308-rcfg1";
+import { initShell } from "../site_common.js?v=20260308-junk1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260307-br2";
 
 const refs = {
@@ -50,6 +50,21 @@ const refs = {
   exportChaptersTitle: document.getElementById("export-chapters-title"),
   exportChapterStats: document.getElementById("export-chapter-stats"),
   exportChapterList: document.getElementById("export-chapter-list"),
+
+  btnOpenGlobalJunk: document.getElementById("btn-open-global-junk"),
+  globalJunkDialog: document.getElementById("global-junk-dialog"),
+  globalJunkTitle: document.getElementById("global-junk-title"),
+  btnCloseGlobalJunk: document.getElementById("btn-close-global-junk"),
+  globalJunkTopHint: document.getElementById("global-junk-top-hint"),
+  btnRefreshGlobalJunk: document.getElementById("btn-refresh-global-junk"),
+  globalJunkLineLabel: document.getElementById("global-junk-line-label"),
+  globalJunkLineInput: document.getElementById("global-junk-line-input"),
+  globalJunkEntryForm: document.getElementById("global-junk-entry-form"),
+  btnAddGlobalJunkEntry: document.getElementById("btn-add-global-junk-entry"),
+  globalJunkHint: document.getElementById("global-junk-hint"),
+  globalJunkColLine: document.getElementById("global-junk-col-line"),
+  globalJunkColAction: document.getElementById("global-junk-col-action"),
+  globalJunkBody: document.getElementById("global-junk-body"),
 
   btnOpenGlobalDicts: document.getElementById("btn-open-global-dicts"),
   globalDictsDialog: document.getElementById("global-dicts-dialog"),
@@ -115,6 +130,7 @@ const state = {
   translationEnabled: true,
   translationMode: "server",
   translationLocalSig: "{}",
+  globalJunkLines: [],
   globalDicts: { name: {}, vp: {} },
   globalDictType: "name",
   downloadPollTimer: null,
@@ -1258,6 +1274,86 @@ async function loadGlobalDicts() {
   };
 }
 
+async function loadGlobalJunkLines() {
+  const data = await state.shell.api("/api/junk-lines/global");
+  state.globalJunkLines = Array.isArray(data && data.lines)
+    ? data.lines.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+}
+
+function renderGlobalJunkRows() {
+  if (!refs.globalJunkBody) return;
+  refs.globalJunkBody.innerHTML = "";
+  const items = Array.isArray(state.globalJunkLines) ? state.globalJunkLines.slice() : [];
+  if (refs.globalJunkTopHint) {
+    refs.globalJunkTopHint.textContent = items.length
+      ? state.shell.t("junkPreviewCount", { count: items.length })
+      : state.shell.t("junkPreviewEmpty");
+  }
+  if (refs.globalJunkHint) {
+    refs.globalJunkHint.textContent = items.length
+      ? state.shell.t("junkPreviewHint")
+      : state.shell.t("junkPreviewEmpty");
+  }
+  for (const line of items) {
+    const tr = document.createElement("tr");
+    const tdLine = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "name-target-inline";
+    input.value = line || "";
+    tdLine.appendChild(input);
+    const tdAction = document.createElement("td");
+
+    const btnSave = document.createElement("button");
+    btnSave.type = "button";
+    btnSave.className = "btn btn-small";
+    btnSave.textContent = state.shell.t("saveJunkEntry");
+    btnSave.addEventListener("click", async () => {
+      const nextValue = String(input.value || "").trim();
+      if (!nextValue) {
+        state.shell.showToast(state.shell.t("junkLineRequired"));
+        return;
+      }
+      try {
+        await state.shell.api("/api/junk-lines/global/entry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ line, new_line: nextValue }),
+        });
+        await loadGlobalJunkLines();
+        renderGlobalJunkRows();
+        state.shell.showToast(state.shell.t("junkEntryApplied"));
+      } catch (error) {
+        state.shell.showToast(getErrorMessage(error));
+      }
+    });
+
+    const btnDelete = document.createElement("button");
+    btnDelete.type = "button";
+    btnDelete.className = "btn btn-small";
+    btnDelete.textContent = state.shell.t("deleteJunkEntry");
+    btnDelete.addEventListener("click", async () => {
+      try {
+        await state.shell.api("/api/junk-lines/global/entry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ line, delete: true }),
+        });
+        await loadGlobalJunkLines();
+        renderGlobalJunkRows();
+        state.shell.showToast(state.shell.t("junkEntryDeleted"));
+      } catch (error) {
+        state.shell.showToast(getErrorMessage(error));
+      }
+    });
+
+    tdAction.append(btnSave, btnDelete);
+    tr.append(tdLine, tdAction);
+    refs.globalJunkBody.appendChild(tr);
+  }
+}
+
 function renderGlobalDictRows() {
   if (!refs.globalDictsBody) return;
   refs.globalDictsBody.innerHTML = "";
@@ -1331,6 +1427,19 @@ async function openGlobalDictsDialog() {
     renderGlobalDictRows();
     if (refs.globalDictsTypeSelect) refs.globalDictsTypeSelect.value = state.globalDictType;
     if (refs.globalDictsDialog && !refs.globalDictsDialog.open) refs.globalDictsDialog.showModal();
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function openGlobalJunkDialog() {
+  state.shell.showStatus(state.shell.t("statusLoadingJunkLines"));
+  try {
+    await loadGlobalJunkLines();
+    renderGlobalJunkRows();
+    if (refs.globalJunkDialog && !refs.globalJunkDialog.open) refs.globalJunkDialog.showModal();
   } catch (error) {
     state.shell.showToast(getErrorMessage(error));
   } finally {
@@ -1643,9 +1752,18 @@ async function init() {
   if (refs.exportFormatLabel) refs.exportFormatLabel.textContent = state.shell.t("exportFormat");
   if (refs.exportUseCachedOnlyLabel) refs.exportUseCachedOnlyLabel.textContent = state.shell.t("exportCachedOnly");
   if (refs.exportChaptersTitle) refs.exportChaptersTitle.textContent = state.shell.t("tocTitle");
+  if (refs.btnOpenGlobalJunk) refs.btnOpenGlobalJunk.textContent = state.shell.t("junkButton");
   if (refs.btnOpenGlobalDicts) refs.btnOpenGlobalDicts.textContent = state.shell.t("globalDictsButton");
   if (refs.downloadJobsTitle) refs.downloadJobsTitle.textContent = state.shell.t("downloadJobsTitle");
   if (refs.downloadJobsEmpty) refs.downloadJobsEmpty.textContent = state.shell.t("downloadJobsEmpty");
+
+  if (refs.globalJunkTitle) refs.globalJunkTitle.textContent = state.shell.t("junkDialogTitle");
+  if (refs.btnCloseGlobalJunk) refs.btnCloseGlobalJunk.textContent = state.shell.t("close");
+  if (refs.btnRefreshGlobalJunk) refs.btnRefreshGlobalJunk.textContent = state.shell.t("refreshJunkEntries");
+  if (refs.globalJunkLineLabel) refs.globalJunkLineLabel.textContent = state.shell.t("junkLineLabel");
+  if (refs.btnAddGlobalJunkEntry) refs.btnAddGlobalJunkEntry.textContent = state.shell.t("addJunkEntry");
+  if (refs.globalJunkColLine) refs.globalJunkColLine.textContent = state.shell.t("junkColLine");
+  if (refs.globalJunkColAction) refs.globalJunkColAction.textContent = state.shell.t("junkColAction");
 
   if (refs.globalDictsTitle) refs.globalDictsTitle.textContent = state.shell.t("globalDictsTitle");
   if (refs.btnCloseGlobalDicts) refs.btnCloseGlobalDicts.textContent = state.shell.t("close");
@@ -1696,6 +1814,40 @@ async function init() {
     submitExportDialog().catch(() => {});
   });
   if (refs.exportFormatSelect) refs.exportFormatSelect.addEventListener("change", renderExportOptions);
+  if (refs.btnOpenGlobalJunk) refs.btnOpenGlobalJunk.addEventListener("click", () => {
+    openGlobalJunkDialog().catch(() => {});
+  });
+  if (refs.btnCloseGlobalJunk) refs.btnCloseGlobalJunk.addEventListener("click", () => {
+    if (refs.globalJunkDialog && refs.globalJunkDialog.open) refs.globalJunkDialog.close();
+  });
+  if (refs.btnRefreshGlobalJunk) {
+    refs.btnRefreshGlobalJunk.addEventListener("click", () => {
+      openGlobalJunkDialog().catch(() => {});
+    });
+  }
+  if (refs.globalJunkEntryForm) {
+    refs.globalJunkEntryForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const line = String((refs.globalJunkLineInput && refs.globalJunkLineInput.value) || "").trim();
+      if (!line) {
+        state.shell.showToast(state.shell.t("junkLineRequired"));
+        return;
+      }
+      try {
+        await state.shell.api("/api/junk-lines/global/entry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ new_line: line }),
+        });
+        refs.globalJunkEntryForm.reset();
+        await loadGlobalJunkLines();
+        renderGlobalJunkRows();
+        state.shell.showToast(state.shell.t("junkEntryApplied"));
+      } catch (error) {
+        state.shell.showToast(getErrorMessage(error));
+      }
+    });
+  }
   if (refs.btnOpenGlobalDicts) refs.btnOpenGlobalDicts.addEventListener("click", () => {
     openGlobalDictsDialog().catch(() => {});
   });

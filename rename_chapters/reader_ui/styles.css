@@ -1974,10 +1974,23 @@ body[data-page="reader"] #btn-open-name-editor:hover {
   border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
 }
 
+body[data-page="reader"] .floating-select-menu {
+  background: color-mix(in srgb, var(--surface) 98%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
+  border-radius: 999px;
+  padding: 6px;
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
 body[data-page="reader"] .floating-select-btn {
   background: color-mix(in srgb, var(--surface) 98%, transparent);
   border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
   color: var(--text);
+}
+
+body[data-page="reader"] #reader-content-body,
+body[data-page="reader"] #reader-content-body * {
+  -webkit-touch-callout: none;
 }
 
 .settings-drawer.open,
@@ -2843,10 +2856,22 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-.floating-select-btn {
-  position: absolute;
+.floating-select-menu {
+  position: fixed;
   z-index: 36;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(94vw, 420px);
+}
+
+.floating-select-btn {
   box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.floating-select-menu .floating-select-btn {
+  position: static;
+  box-shadow: none;
 }
 
 .dialog label {

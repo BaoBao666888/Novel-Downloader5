@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260307-namefix2">
+  <link rel="stylesheet" href="./styles.css?v=20260308-junk1">
 </head>
 
 <body data-page="reader" class="mpa-body">
@@ -283,7 +283,11 @@
     </div>
   </dialog>
 
-  <button id="selection-name-btn" class="btn floating-select-btn hidden" type="button"></button>
+  <div id="selection-action-menu" class="floating-select-menu hidden" role="toolbar" aria-label="Tiện ích đoạn chọn">
+    <button id="selection-name-btn" class="btn btn-small floating-select-btn" type="button"></button>
+    <button id="selection-copy-btn" class="btn btn-small floating-select-btn" type="button"></button>
+    <button id="selection-junk-btn" class="btn btn-small floating-select-btn" type="button"></button>
+  </div>
 
   <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
     <div class="settings-head">
@@ -404,7 +408,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260308-rcfg1"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260308-junk1"></script>
 </body>
 
 </html>

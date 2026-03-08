@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260307-export2">
+  <link rel="stylesheet" href="./styles.css?v=20260308-junk1">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -132,6 +132,7 @@
         <div class="cover-btns">
           <button id="btn-import" class="btn btn-primary" type="button"></button>
           <button id="btn-import-url" class="btn" type="button"></button>
+          <button id="btn-open-global-junk" class="btn" type="button"></button>
           <button id="btn-open-global-dicts" class="btn" type="button"></button>
           <button id="btn-manage-vbook" class="btn" type="button"></button>
           <span id="library-count" class="tag"></span>
@@ -252,6 +253,35 @@
             </tr>
           </thead>
           <tbody id="global-dicts-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="global-junk-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="global-junk-title"></h3>
+      <button id="btn-close-global-junk" class="btn btn-small" type="button"></button>
+    </div>
+    <div class="name-editor-head">
+      <p id="global-junk-top-hint" class="empty-text"></p>
+      <button id="btn-refresh-global-junk" class="btn btn-small" type="button"></button>
+    </div>
+    <form id="global-junk-entry-form" class="name-entry-form">
+      <label><span id="global-junk-line-label"></span><input id="global-junk-line-input" type="text" required></label>
+      <button id="btn-add-global-junk-entry" class="btn btn-primary" type="submit"></button>
+    </form>
+    <div class="name-preview-wrap">
+      <p id="global-junk-hint" class="empty-text"></p>
+      <div class="name-preview-table-wrap">
+        <table class="name-preview-table">
+          <thead>
+            <tr>
+              <th id="global-junk-col-line"></th>
+              <th id="global-junk-col-action"></th>
+            </tr>
+          </thead>
+          <tbody id="global-junk-body"></tbody>
         </table>
       </div>
     </div>
@@ -761,7 +791,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260308-rcfg1"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260308-junk1"></script>
 </body>
 
 </html>

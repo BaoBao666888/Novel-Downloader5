@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260308-rcfg1";
+import { initShell } from "../site_common.js?v=20260308-junk1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260307-br2";
 
 const refs = {
@@ -82,7 +82,10 @@ const refs = {
   btnNameSuggestGoogleTranslate: document.getElementById("btn-name-suggest-google-translate"),
   btnNameSuggestGoogleSearch: document.getElementById("btn-name-suggest-google-search"),
 
+  selectionActionMenu: document.getElementById("selection-action-menu"),
   selectionNameBtn: document.getElementById("selection-name-btn"),
+  selectionCopyBtn: document.getElementById("selection-copy-btn"),
+  selectionJunkBtn: document.getElementById("selection-junk-btn"),
   readerHead: document.querySelector(".reader-head"),
   readerFooter: document.querySelector(".reader-footer"),
 };
@@ -1265,6 +1268,7 @@ async function loadBook() {
 
 async function loadChapter({ resetFlip = true, preserveRatio = null } = {}) {
   if (!state.chapterId) return;
+  hideSelectionBtn();
   if (state.activeChapterController) {
     try {
       state.activeChapterController.abort();
@@ -1966,10 +1970,18 @@ async function openNameSuggestDialog() {
 }
 
 function hideSelectionBtn() {
-  refs.selectionNameBtn.classList.add("hidden");
-  delete refs.selectionNameBtn.dataset.text;
-  delete refs.selectionNameBtn.dataset.startOffset;
-  delete refs.selectionNameBtn.dataset.endOffset;
+  if (refs.selectionActionMenu) {
+    refs.selectionActionMenu.classList.add("hidden");
+    refs.selectionActionMenu.style.removeProperty("left");
+    refs.selectionActionMenu.style.removeProperty("top");
+    refs.selectionActionMenu.style.removeProperty("visibility");
+  }
+  for (const node of [refs.selectionActionMenu, refs.selectionNameBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
+    if (!node || !node.dataset) continue;
+    delete node.dataset.text;
+    delete node.dataset.startOffset;
+    delete node.dataset.endOffset;
+  }
 }
 
 function renderedTextLength(node) {
@@ -2060,8 +2072,174 @@ function selectionPayloadFromRange(range) {
   return { selected, start, end };
 }
 
+function currentSelectionPayload() {
+  const source = refs.selectionActionMenu || refs.selectionNameBtn;
+  if (!source || !source.dataset) return null;
+  const selected = String(source.dataset.text || "").trim();
+  const startOffset = Number.parseInt(source.dataset.startOffset || "", 10);
+  const endOffset = Number.parseInt(source.dataset.endOffset || "", 10);
+  if (!selected || Number.isNaN(startOffset) || Number.isNaN(endOffset)) return null;
+  return { selected, start: startOffset, end: endOffset };
+}
+
+function canEditSelectionName(payload) {
+  if (!payload || !payload.selected) return false;
+  if (effectiveMode() !== "trans") return false;
+  if (!supportsTranslation(state.book)) return false;
+  if (payload.selected.length > 80) return false;
+  if (payload.selected.includes("\n")) return false;
+  return true;
+}
+
+function canAddSelectionJunk(payload) {
+  if (!payload || !payload.selected) return false;
+  if (!state.chapterId || state.chapterContentType !== "text") return false;
+  if (payload.selected.length > 240) return false;
+  if (payload.selected.includes("\n")) return false;
+  return true;
+}
+
+function positionSelectionMenu(rect) {
+  const menu = refs.selectionActionMenu;
+  if (!menu) return;
+  menu.classList.remove("hidden");
+  menu.style.visibility = "hidden";
+  const menuWidth = Math.max(120, menu.offsetWidth || 0);
+  const menuHeight = Math.max(36, menu.offsetHeight || 0);
+  let left = rect.left + (rect.width / 2) - (menuWidth / 2);
+  left = Math.max(12, Math.min(left, window.innerWidth - menuWidth - 12));
+  let top = rect.top - menuHeight - 10;
+  if (top < 12) {
+    top = Math.min(window.innerHeight - menuHeight - 12, rect.bottom + 10);
+  }
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(Math.max(12, top))}px`;
+  menu.style.visibility = "";
+}
+
+async function copySelectionToClipboard(text) {
+  const value = String(text || "");
+  if (!value) return;
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const temp = document.createElement("textarea");
+  temp.value = value;
+  temp.setAttribute("readonly", "readonly");
+  temp.style.position = "fixed";
+  temp.style.opacity = "0";
+  temp.style.pointerEvents = "none";
+  document.body.appendChild(temp);
+  temp.select();
+  document.execCommand("copy");
+  temp.remove();
+}
+
+function clearSelectedTextRange() {
+  const selection = window.getSelection && window.getSelection();
+  if (!selection) return;
+  try {
+    selection.removeAllRanges();
+  } catch {
+    // ignore
+  }
+}
+
+async function resolveSelectionSourceForJunk(payload) {
+  if (!payload || !payload.selected) return "";
+  if (effectiveMode() !== "trans" || !supportsTranslation(state.book) || !state.chapterId) {
+    return payload.selected;
+  }
+  const data = await state.shell.api(`/api/library/chapter/${encodeURIComponent(state.chapterId)}/selection-source`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      selected_text: payload.selected,
+      start_offset: payload.start,
+      end_offset: payload.end,
+      translation_mode: state.translateMode,
+      mode: effectiveMode(),
+    }),
+  });
+  return String((data && data.source_candidate) || "").trim() || payload.selected;
+}
+
+async function applySelectionJunkEntry() {
+  const payload = currentSelectionPayload();
+  hideSelectionBtn();
+  clearSelectedTextRange();
+  if (!payload || !payload.selected) return;
+  const preserveRatio = currentChapterRatio();
+  state.shell.showStatus(state.shell.t("statusApplyingJunkEntry"));
+  try {
+    let sourceText = payload.selected;
+    if (effectiveMode() === "trans" && supportsTranslation(state.book)) {
+      state.shell.showStatus(state.shell.t("statusResolvingSelection"));
+      sourceText = await resolveSelectionSourceForJunk(payload);
+      state.shell.showStatus(state.shell.t("statusApplyingJunkEntry"));
+    }
+    if (!sourceText) {
+      throw new Error(state.shell.t("junkLineRequired"));
+    }
+    await state.shell.api("/api/junk-lines/global/entry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ new_line: sourceText }),
+    });
+    clearChapterCache();
+    cancelPrefetch();
+    await loadBook();
+    await loadChapter({ resetFlip: true, preserveRatio });
+    state.shell.showToast(state.shell.t("junkEntryApplied"));
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function editSelectionNameFromMenu() {
+  const payload = currentSelectionPayload();
+  hideSelectionBtn();
+  clearSelectedTextRange();
+  const text = payload ? payload.selected : "";
+  const startOffset = payload ? payload.start : Number.NaN;
+  const endOffset = payload ? payload.end : Number.NaN;
+  if (!text || !state.chapterId || Number.isNaN(startOffset) || Number.isNaN(endOffset)) {
+    openNameEditor({ target: text, source: "" });
+    return;
+  }
+  state.shell.showStatus(state.shell.t("statusMappingSelection"));
+  try {
+    const mapped = await state.shell.api(`/api/library/chapter/${encodeURIComponent(state.chapterId)}/selection-map`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        selected_text: text,
+        start_offset: startOffset,
+        end_offset: endOffset,
+        translation_mode: state.translateMode,
+      }),
+    });
+    if (!mapped.source_candidate) {
+      state.shell.showToast(state.shell.t("selectionMapNoSource"));
+    }
+    openNameEditor({
+      source: mapped.source_candidate || "",
+      target: mapped.target_candidate || text,
+      suggestions: mapped.name_suggestions || [],
+    });
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+    openNameEditor({ target: text, source: "" });
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
 function handleSelectionButton() {
-  if (!supportsTranslation(state.book)) {
+  if (!refs.selectionActionMenu || state.chapterContentType !== "text") {
     hideSelectionBtn();
     return;
   }
@@ -2071,7 +2249,7 @@ function handleSelectionButton() {
     return;
   }
   const text = String(sel.toString() || "").trim();
-  if (!text || text.length > 80 || text.includes("\n")) {
+  if (!text || text.length > 1200) {
     hideSelectionBtn();
     return;
   }
@@ -2092,12 +2270,25 @@ function handleSelectionButton() {
     hideSelectionBtn();
     return;
   }
-  refs.selectionNameBtn.dataset.text = payload.selected;
-  refs.selectionNameBtn.dataset.startOffset = String(payload.start);
-  refs.selectionNameBtn.dataset.endOffset = String(payload.end);
-  refs.selectionNameBtn.style.left = `${Math.max(12, rect.left + window.scrollX)}px`;
-  refs.selectionNameBtn.style.top = `${Math.max(12, rect.top + window.scrollY - 42)}px`;
-  refs.selectionNameBtn.classList.remove("hidden");
+  for (const node of [refs.selectionActionMenu, refs.selectionNameBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
+    if (!node || !node.dataset) continue;
+    node.dataset.text = payload.selected;
+    node.dataset.startOffset = String(payload.start);
+    node.dataset.endOffset = String(payload.end);
+  }
+  if (refs.selectionNameBtn) {
+    refs.selectionNameBtn.textContent = state.shell.t("selectionEditName");
+    refs.selectionNameBtn.classList.toggle("hidden", !canEditSelectionName(payload));
+  }
+  if (refs.selectionCopyBtn) {
+    refs.selectionCopyBtn.textContent = state.shell.t("selectionCopy");
+    refs.selectionCopyBtn.classList.toggle("hidden", false);
+  }
+  if (refs.selectionJunkBtn) {
+    refs.selectionJunkBtn.textContent = state.shell.t("selectionJunk");
+    refs.selectionJunkBtn.classList.toggle("hidden", !canAddSelectionJunk(payload));
+  }
+  positionSelectionMenu(rect);
 }
 
 function bindNameEditor() {
@@ -2237,42 +2428,27 @@ function bindNameEditor() {
     refs.nameEditorDialog.close();
   });
 
-  refs.selectionNameBtn.textContent = state.shell.t("selectionEditName");
-  refs.selectionNameBtn.addEventListener("click", async () => {
-    const text = refs.selectionNameBtn.dataset.text || "";
-    const startOffset = Number.parseInt(refs.selectionNameBtn.dataset.startOffset || "", 10);
-    const endOffset = Number.parseInt(refs.selectionNameBtn.dataset.endOffset || "", 10);
+  if (refs.selectionNameBtn) refs.selectionNameBtn.addEventListener("click", () => {
+    editSelectionNameFromMenu().catch((error) => {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    });
+  });
+  if (refs.selectionCopyBtn) refs.selectionCopyBtn.addEventListener("click", async () => {
+    const payload = currentSelectionPayload();
     hideSelectionBtn();
-    if (!text || !state.chapterId || Number.isNaN(startOffset) || Number.isNaN(endOffset)) {
-      openNameEditor({ target: text, source: "" });
-      return;
-    }
-    state.shell.showStatus(state.shell.t("statusMappingSelection"));
+    clearSelectedTextRange();
+    if (!payload || !payload.selected) return;
     try {
-      const mapped = await state.shell.api(`/api/library/chapter/${encodeURIComponent(state.chapterId)}/selection-map`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selected_text: text,
-          start_offset: startOffset,
-          end_offset: endOffset,
-          translation_mode: state.translateMode,
-        }),
-      });
-      if (!mapped.source_candidate) {
-        state.shell.showToast(state.shell.t("selectionMapNoSource"));
-      }
-      openNameEditor({
-        source: mapped.source_candidate || "",
-        target: mapped.target_candidate || text,
-        suggestions: mapped.name_suggestions || [],
-      });
+      await copySelectionToClipboard(payload.selected);
+      state.shell.showToast(state.shell.t("toastSelectionCopied"));
     } catch (error) {
       state.shell.showToast(error.message || state.shell.t("toastError"));
-      openNameEditor({ target: text, source: "" });
-    } finally {
-      state.shell.hideStatus();
     }
+  });
+  if (refs.selectionJunkBtn) refs.selectionJunkBtn.addEventListener("click", () => {
+    applySelectionJunkEntry().catch((error) => {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    });
   });
 }
 
@@ -2966,8 +3142,15 @@ async function init() {
 
   document.addEventListener("mouseup", () => window.setTimeout(handleSelectionButton, 10));
   document.addEventListener("touchend", () => window.setTimeout(handleSelectionButton, 10));
+  refs.readerContentBody.addEventListener("contextmenu", (event) => {
+    if (!refs.readerContentBody.contains(event.target)) return;
+    const sel = window.getSelection();
+    if (sel && String(sel.toString() || "").trim()) {
+      event.preventDefault();
+    }
+  });
   document.addEventListener("click", (event) => {
-    if (!refs.selectionNameBtn.contains(event.target)) {
+    if (!refs.selectionActionMenu || !refs.selectionActionMenu.contains(event.target)) {
       hideSelectionBtn();
     }
   });

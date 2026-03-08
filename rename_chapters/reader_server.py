@@ -51,6 +51,7 @@ APP_READER_CONFIG_PATH = ROOT_DIR / "local" / "reader.config.json"
 APP_STATE_THEME_ACTIVE_KEY = "theme.active"
 APP_STATE_NAME_SET_STATE_KEY = "reader.name_set_state"
 APP_STATE_BOOK_VP_SET_KEY_PREFIX = "reader.book_vp_set"
+APP_STATE_GLOBAL_JUNK_STATE_KEY = "reader.global_junk_state"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 HISTORY_BOOK_RETENTION_DAYS = 7
 
@@ -431,6 +432,25 @@ def normalize_import_list(value: Any, fallback: list[str] | tuple[str, ...]) -> 
     if out:
         return out
     return [str(x).strip() for x in fallback if str(x).strip()]
+
+
+def normalize_junk_lines(value: Any) -> list[str]:
+    if isinstance(value, list):
+        raw_items = value
+    elif isinstance(value, tuple):
+        raw_items = list(value)
+    else:
+        text = str(value or "").replace("\r\n", "\n").replace("\r", "\n")
+        raw_items = text.split("\n") if text else []
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        text = normalize_newlines(str(item or "")).strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        out.append(text)
+    return out
 
 
 def normalize_reader_import_settings(raw_cfg: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -832,6 +852,22 @@ def normalize_newlines(text: str) -> str:
     value = value.replace("\u2028", "\n").replace("\u2029", "\n")
     value = re.sub(r"\n{3,}", "\n\n", value)
     return value.strip()
+
+
+def apply_junk_lines_to_text(text: str, junk_lines: list[str] | tuple[str, ...] | None = None) -> tuple[str, int]:
+    content = normalize_newlines(text or "")
+    patterns = normalize_junk_lines(junk_lines)
+    if not content or not patterns:
+        return content, 0
+    removed = 0
+    for pattern in patterns:
+        hits = content.count(pattern)
+        if hits <= 0:
+            continue
+        content = content.replace(pattern, "")
+        removed += hits
+    content = normalize_newlines(content)
+    return content, removed
 
 
 def normalize_vbook_display_text(text: str, *, single_line: bool = False) -> str:
@@ -1469,6 +1505,188 @@ def _text_snippet(text: str, start: int, end: int, radius: int = 56) -> str:
     s = max(0, int(start) - radius)
     e = min(len(source), int(end) + radius)
     return source[s:e].strip()
+
+
+def map_selection_to_source_segment(
+    *,
+    raw_text: str,
+    translated_text: str,
+    selected_text: str,
+    start_offset: int,
+    end_offset: int,
+    unit_map: list[dict[str, Any]],
+    token_map: list[dict[str, Any]] | None = None,
+    translation_mode: str = "server",
+) -> dict[str, Any]:
+    selected = normalize_newlines(selected_text or "").strip()
+    source_raw = normalize_newlines(raw_text or "")
+    source_trans = normalize_newlines(translated_text or "")
+    total_len = len(source_trans)
+    start = max(0, min(total_len, int(start_offset or 0)))
+    end = max(0, min(total_len, int(end_offset or 0)))
+    if end < start:
+        start, end = end, start
+    if end == start:
+        end = min(total_len, start + max(1, len(selected)))
+    if not selected and start < end:
+        selected = source_trans[start:end]
+
+    def build_result(
+        source_candidate: str,
+        *,
+        translated_candidate: str = "",
+        match_type: str,
+        source_start: int = -1,
+        source_end: int = -1,
+        target_start: int = -1,
+        target_end: int = -1,
+        candidates: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        source_candidate = strip_edge_punctuation(source_candidate.strip()) if source_candidate else ""
+        translated_candidate = strip_edge_punctuation(translated_candidate.strip()) if translated_candidate else ""
+        return {
+            "selected_text": selected,
+            "source_candidate": source_candidate,
+            "translated_candidate": translated_candidate or strip_edge_punctuation(selected),
+            "match_type": match_type,
+            "source_context": _text_snippet(source_raw, source_start, source_end) if source_start >= 0 and source_end >= 0 else "",
+            "translated_context": _text_snippet(source_trans, target_start, target_end) if target_start >= 0 and target_end >= 0 else _text_snippet(source_trans, start, end),
+            "source_start": source_start,
+            "source_end": source_end,
+            "target_start": target_start,
+            "target_end": target_end,
+            "candidates": candidates or [],
+        }
+
+    if re.search(r"[\u3400-\u9fff]", selected):
+        idx = source_raw.find(selected)
+        return build_result(
+            selected,
+            translated_candidate=selected,
+            match_type="selection_is_cjk",
+            source_start=idx,
+            source_end=(idx + len(selected)) if idx >= 0 else -1,
+            target_start=start,
+            target_end=end,
+            candidates=[{"source": selected, "score": 1.0}],
+        )
+
+    if source_raw and source_trans and source_raw == source_trans:
+        idx = source_raw.find(selected) if selected else -1
+        return build_result(
+            selected,
+            translated_candidate=selected,
+            match_type="raw_text_match",
+            source_start=idx,
+            source_end=(idx + len(selected)) if idx >= 0 else -1,
+            target_start=start,
+            target_end=end,
+            candidates=[{"source": selected, "score": 1.0}] if selected else [],
+        )
+
+    def select_cover_rows(rows: list[dict[str, Any]], start_key: str, end_key: str) -> list[dict[str, Any]]:
+        ordered = sorted(
+            [row for row in rows if isinstance(row, dict)],
+            key=lambda item: (int(item.get(start_key) or 0), int(item.get(end_key) or 0)),
+        )
+        if not ordered:
+            return []
+        overlap_indices = [
+            idx
+            for idx, row in enumerate(ordered)
+            if int(row.get(end_key) or 0) > start and int(row.get(start_key) or 0) < end
+        ]
+        if overlap_indices:
+            return ordered[overlap_indices[0] : overlap_indices[-1] + 1]
+        center = (start + end) / 2.0
+        nearest_idx = min(
+            range(len(ordered)),
+            key=lambda idx: abs((((int(ordered[idx].get(start_key) or 0) + int(ordered[idx].get(end_key) or 0)) / 2.0) - center)),
+        )
+        return [ordered[nearest_idx]]
+
+    mode_norm = str(translation_mode or "").strip().lower()
+    token_rows = [
+        row
+        for row in (token_map or [])
+        if isinstance(row, dict)
+        and strip_edge_punctuation(str(row.get("source_text") or "").strip())
+        and int(row.get("token_type") or 0) != 4
+    ]
+    if mode_norm in {"local", "hanviet"} and token_rows:
+        chosen_rows = select_cover_rows(token_rows, "target_start", "target_end")
+        if chosen_rows:
+            source_start = min(int(row.get("source_start") or 0) for row in chosen_rows)
+            source_end = max(int(row.get("source_end") or 0) for row in chosen_rows)
+            target_start = min(int(row.get("target_start") or 0) for row in chosen_rows)
+            target_end = max(int(row.get("target_end") or 0) for row in chosen_rows)
+            source_candidate = "".join(str(row.get("source_text") or "") for row in chosen_rows).strip()
+            if not source_candidate:
+                source_candidate = source_raw[source_start:source_end].strip()
+            translated_candidate = source_trans[target_start:target_end].strip() or selected
+            candidates = [
+                {
+                    "source": strip_edge_punctuation(str(row.get("source_text") or "").strip()),
+                    "score": float(max(0, min(int(row.get("target_end") or 0), end) - max(int(row.get("target_start") or 0), start))),
+                }
+                for row in chosen_rows[:8]
+                if strip_edge_punctuation(str(row.get("source_text") or "").strip())
+            ]
+            return build_result(
+                source_candidate,
+                translated_candidate=translated_candidate,
+                match_type="local_token_cover",
+                source_start=source_start,
+                source_end=source_end,
+                target_start=target_start,
+                target_end=target_end,
+                candidates=candidates,
+            )
+
+    units = sorted((row for row in unit_map if isinstance(row, dict)), key=lambda item: int(item.get("unit_index") or 0))
+    chosen_units = select_cover_rows(units, "target_start", "target_end")
+    if chosen_units:
+        source_start = min(int(row.get("source_start") or 0) for row in chosen_units)
+        source_end = max(int(row.get("source_end") or 0) for row in chosen_units)
+        target_start = min(int(row.get("target_start") or 0) for row in chosen_units)
+        target_end = max(int(row.get("target_end") or 0) for row in chosen_units)
+        source_candidate = "".join(str(row.get("source_text") or "") for row in chosen_units).strip()
+        if not source_candidate:
+            source_candidate = source_raw[source_start:source_end].strip()
+        translated_candidate = "".join(str(row.get("target_text") or "") for row in chosen_units).strip()
+        if not translated_candidate:
+            translated_candidate = source_trans[target_start:target_end].strip() or selected
+        candidates = [
+            {
+                "source": strip_edge_punctuation(str(row.get("source_text") or "").strip()),
+                "score": float(max(0, min(int(row.get("target_end") or 0), end) - max(int(row.get("target_start") or 0), start))),
+            }
+            for row in chosen_units[:8]
+            if strip_edge_punctuation(str(row.get("source_text") or "").strip())
+        ]
+        return build_result(
+            source_candidate,
+            translated_candidate=translated_candidate,
+            match_type="unit_cover",
+            source_start=source_start,
+            source_end=source_end,
+            target_start=target_start,
+            target_end=target_end,
+            candidates=candidates,
+        )
+
+    idx = source_raw.find(selected) if selected else -1
+    fallback = selected if idx >= 0 or (source_raw and not source_trans) else ""
+    return build_result(
+        fallback,
+        translated_candidate=selected,
+        match_type="fallback",
+        source_start=idx,
+        source_end=(idx + len(fallback)) if idx >= 0 else -1,
+        target_start=start,
+        target_end=end,
+        candidates=[{"source": fallback, "score": 0.25}] if fallback else [],
+    )
 
 
 def map_selection_to_name_source(
@@ -3540,6 +3758,79 @@ class ReaderStorage:
             entries[source_key] = target_value
         return self.set_book_vp_set_state(book_id, entries, bump_version=True)
 
+    def get_global_junk_state(self) -> dict[str, Any]:
+        raw = self._get_app_state_value(APP_STATE_GLOBAL_JUNK_STATE_KEY)
+        parsed: dict[str, Any] | None = None
+        if raw:
+            try:
+                payload = json.loads(raw)
+                if isinstance(payload, dict):
+                    parsed = payload
+            except Exception:
+                parsed = None
+        lines = normalize_junk_lines((parsed or {}).get("lines"))
+        try:
+            version = max(1, int((parsed or {}).get("version") or 1))
+        except Exception:
+            version = 1
+        state = {"lines": lines, "version": version}
+        if parsed is None or normalize_junk_lines(parsed.get("lines")) != lines:
+            self._set_app_state_value(
+                APP_STATE_GLOBAL_JUNK_STATE_KEY,
+                json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            )
+        return state
+
+    def get_global_junk_lines(self) -> tuple[list[str], int]:
+        state = self.get_global_junk_state()
+        return normalize_junk_lines(state.get("lines")), int(state.get("version") or 1)
+
+    def set_global_junk_state(self, lines: list[Any] | tuple[Any, ...] | None, *, bump_version: bool = True) -> dict[str, Any]:
+        current = self.get_global_junk_state()
+        normalized_lines = normalize_junk_lines(lines if isinstance(lines, (list, tuple)) else current.get("lines"))
+        next_version = int(current.get("version") or 1)
+        if bump_version:
+            next_version += 1
+        state = {"lines": normalized_lines, "version": max(1, next_version)}
+        self._set_app_state_value(
+            APP_STATE_GLOBAL_JUNK_STATE_KEY,
+            json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        )
+        return state
+
+    def update_global_junk_entry(self, line: str, new_line: str = "", *, delete: bool = False) -> dict[str, Any]:
+        source_line = normalize_newlines(str(line or "")).strip()
+        target_line = normalize_newlines(str(new_line or "")).strip()
+        if not source_line and not target_line:
+            raise ValueError("Thiếu dòng rác.")
+        state = self.get_global_junk_state()
+        entries = normalize_junk_lines(state.get("lines"))
+        next_entries: list[str] = []
+        source_found = False
+        for item in entries:
+            if item != source_line:
+                next_entries.append(item)
+                continue
+            source_found = True
+            if delete or not target_line:
+                continue
+            if target_line not in next_entries:
+                next_entries.append(target_line)
+        if (not source_found) and (not delete) and target_line and target_line not in next_entries:
+            next_entries.append(target_line)
+        if next_entries == entries:
+            return {"lines": entries, "version": int(state.get("version") or 1)}
+        return self.set_global_junk_state(next_entries, bump_version=True)
+
+    def chapter_text_cleanup(self, text: str) -> tuple[str, int, int]:
+        lines, version = self.get_global_junk_lines()
+        cleaned, removed = apply_junk_lines_to_text(text, lines)
+        return cleaned, removed, version
+
+    def chapter_trans_signature(self, base_sig: str, *, junk_version: int) -> str:
+        normalized = str(base_sig or "").strip() or "raw"
+        return f"{normalized}|junk:v{max(1, int(junk_version or 1))}"
+
     def get_theme_active(self) -> str:
         value = self._get_app_state_value(APP_STATE_THEME_ACTIVE_KEY)
         if value:
@@ -5402,15 +5693,16 @@ class ReaderStorage:
         if comic_payload is not None:
             return cached_raw or encode_comic_payload([])
 
-        raw_text = normalize_newlines(cached_raw or "")
+        raw_text, _, junk_version = self.chapter_text_cleanup(cached_raw or "")
         if mode == "raw" or (not book_supports_translation(book)):
             return raw_text
 
-        current_sig = translator.translation_signature(
+        base_sig = translator.translation_signature(
             mode=translate_mode,
             name_set_override=name_set_override,
             vp_set_override=vp_set_override,
         )
+        current_sig = self.chapter_trans_signature(base_sig, junk_version=junk_version)
         trans_key = chapter.get("trans_key")
         trans_sig = (chapter.get("trans_sig") or "").strip()
         if trans_key and trans_sig == current_sig:
@@ -6771,6 +7063,31 @@ class ReaderService:
             delete=delete,
         )
         return {"ok": True, "book_id": bid, "scope": "book", "dict_type": "vp", **state}
+
+    def get_global_junk_lines(self) -> dict[str, Any]:
+        lines, version = self.storage.get_global_junk_lines()
+        return {"ok": True, "lines": lines, "version": version}
+
+    def set_global_junk_lines(self, lines: Any, *, bump_version: bool = True) -> dict[str, Any]:
+        if (lines is not None) and (not isinstance(lines, (list, tuple, str))):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "lines phải là list hoặc chuỗi nhiều dòng.")
+        if isinstance(lines, str):
+            normalized_lines = normalize_junk_lines(lines)
+        else:
+            normalized_lines = normalize_junk_lines(lines if isinstance(lines, (list, tuple)) else [])
+        state = self.storage.set_global_junk_state(normalized_lines, bump_version=bump_version)
+        return {"ok": True, **state}
+
+    def update_global_junk_entry(self, *, line: str, new_line: str = "", delete: bool = False) -> dict[str, Any]:
+        raw_line = normalize_newlines(str(line or "")).strip()
+        raw_next = normalize_newlines(str(new_line or "")).strip()
+        if not raw_line and not raw_next:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu dòng rác.")
+        try:
+            state = self.storage.update_global_junk_entry(raw_line, raw_next, delete=delete)
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", str(exc)) from exc
+        return {"ok": True, **state}
 
     def is_reader_translation_enabled(self) -> bool:
         return bool(self.reader_translation_settings.get("enabled", True))
@@ -12259,6 +12576,24 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 set_name=payload.get("set_name"),
             )
 
+        if method == "GET" and path == "/api/junk-lines/global":
+            return self.service.get_global_junk_lines()
+
+        if method == "POST" and path == "/api/junk-lines/global":
+            payload = self._read_json_body()
+            return self.service.set_global_junk_lines(
+                payload.get("lines"),
+                bump_version=bool(payload.get("bump_version", True)),
+            )
+
+        if method == "POST" and path == "/api/junk-lines/global/entry":
+            payload = self._read_json_body()
+            return self.service.update_global_junk_entry(
+                line=payload.get("line") or payload.get("source") or "",
+                new_line=payload.get("new_line") or payload.get("target") or "",
+                delete=bool(payload.get("delete", False)),
+            )
+
         if method == "GET" and path == "/api/library/books":
             try:
                 self.service.storage.cleanup_expired_history()
@@ -13029,11 +13364,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             )
-            current_sig = self.service.translator.translation_signature(
+            base_sig = self.service.translator.translation_signature(
                 mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             )
+            _, junk_version = self.service.storage.get_global_junk_lines()
+            current_sig = self.service.storage.chapter_trans_signature(base_sig, junk_version=junk_version)
             unit_map = self.service.storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
             token_map: list[dict[str, Any]] = []
             if not unit_map:
@@ -13090,6 +13427,115 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 "name_set_version": max(1, version),
                 "vp_set_version": max(1, active_vp_version),
                 **mapped,
+            }
+
+        if method == "POST" and path.startswith("/api/library/chapter/") and path.endswith("/selection-source"):
+            chapter_id = path.removeprefix("/api/library/chapter/").removesuffix("/selection-source").strip("/")
+            chapter = self.service.storage.find_chapter(chapter_id)
+            if not chapter:
+                raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy chương.")
+            book = self.service.storage.find_book(chapter["book_id"])
+            if not book:
+                raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+
+            payload = self._read_json_body()
+            selected_text = (payload.get("selected_text") or "").strip()
+            if not selected_text:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu selected_text để xác định source.")
+            if "start_offset" not in payload or "end_offset" not in payload:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu start_offset/end_offset.")
+            try:
+                start_offset = int(payload.get("start_offset"))
+                end_offset = int(payload.get("end_offset"))
+            except Exception:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "start_offset/end_offset phải là số nguyên.")
+            selected_mode = str(payload.get("mode") or "raw").strip().lower()
+            if selected_mode not in {"raw", "trans"}:
+                selected_mode = "raw"
+
+            translate_mode = self.service.resolve_translate_mode(payload.get("translation_mode"))
+            _, active_name_set, _ = self.service.storage.get_active_name_set(
+                default_sets=self.service._default_name_sets(),
+                active_default=self.service._default_active_name_set(self.service._default_name_sets()),
+                book_id=chapter["book_id"],
+            )
+            active_vp_set, _ = self.service.storage.get_book_vp_set(chapter["book_id"])
+            raw_text = self.service.storage.get_chapter_text(
+                chapter,
+                book,
+                mode="raw",
+                translator=self.service.translator,
+                translate_mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            )
+            if selected_mode == "raw" or not self.service.translation_allowed_for_book(book):
+                idx = raw_text.find(selected_text)
+                return {
+                    "ok": True,
+                    "chapter_id": chapter["chapter_id"],
+                    "book_id": chapter["book_id"],
+                    "selected_text": selected_text,
+                    "source_candidate": selected_text,
+                    "translated_candidate": selected_text,
+                    "match_type": "raw_selection",
+                    "source_context": _text_snippet(raw_text, idx, idx + len(selected_text)) if idx >= 0 else "",
+                    "translated_context": selected_text,
+                    "candidates": [{"source": selected_text, "score": 1.0}] if selected_text else [],
+                }
+
+            translated_text = self.service.storage.get_chapter_text(
+                chapter,
+                book,
+                mode="trans",
+                translator=self.service.translator,
+                translate_mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            )
+            base_sig = self.service.translator.translation_signature(
+                mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            )
+            _, junk_version = self.service.storage.get_global_junk_lines()
+            current_sig = self.service.storage.chapter_trans_signature(base_sig, junk_version=junk_version)
+            unit_map = self.service.storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+            token_map: list[dict[str, Any]] = []
+            if not unit_map or translate_mode in {"local", "hanviet"}:
+                detail = self.service.translator.translate_detailed(
+                    raw_text,
+                    mode=translate_mode,
+                    name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
+                )
+                if not unit_map:
+                    self.service.storage.save_translation_unit_map(
+                        chapter["chapter_id"],
+                        current_sig,
+                        translate_mode,
+                        detail.get("unit_map") if isinstance(detail.get("unit_map"), list) else [],
+                    )
+                    unit_map = self.service.storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+                if translate_mode in {"local", "hanviet"}:
+                    token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
+
+            resolved = map_selection_to_source_segment(
+                raw_text=raw_text,
+                translated_text=translated_text,
+                selected_text=selected_text,
+                start_offset=start_offset,
+                end_offset=end_offset,
+                unit_map=unit_map,
+                token_map=token_map,
+                translation_mode=translate_mode,
+            )
+            return {
+                "ok": True,
+                "chapter_id": chapter["chapter_id"],
+                "book_id": chapter["book_id"],
+                "translation_mode": translate_mode,
+                **resolved,
             }
 
         if method == "GET" and path.startswith("/api/library/chapter/"):
@@ -13206,11 +13652,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 "is_downloaded": bool(self.service._chapter_cache_available(chapter, book)),
             }
             if output_mode == "trans":
-                cur_sig = self.service.translator.translation_signature(
+                base_sig = self.service.translator.translation_signature(
                     mode=translate_mode,
                     name_set_override=active_name_set,
                     vp_set_override=active_vp_set,
                 )
+                _, junk_version = self.service.storage.get_global_junk_lines()
+                cur_sig = self.service.storage.chapter_trans_signature(base_sig, junk_version=junk_version)
                 response["trans_sig"] = cur_sig
                 response["map_version"] = 1
                 response["unit_count"] = self.service.storage.get_translation_unit_map_count(
