@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import concurrent.futures
+import gzip
 import hashlib
 import html
 import importlib.util
@@ -20,6 +21,7 @@ import threading
 import time
 import traceback
 import uuid
+import zlib
 import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -50,6 +52,7 @@ APP_STATE_THEME_ACTIVE_KEY = "theme.active"
 APP_STATE_NAME_SET_STATE_KEY = "reader.name_set_state"
 APP_STATE_BOOK_VP_SET_KEY_PREFIX = "reader.book_vp_set"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
+HISTORY_BOOK_RETENTION_DAYS = 7
 
 # Ép MIME chuẩn cho JS module trên Windows/registry lạ để tránh trang trắng
 # (module script bị chặn nếu server trả text/plain).
@@ -529,7 +532,13 @@ def quote_url_path(value: str) -> str:
     return quote(value or "", safe="")
 
 
-def build_vbook_image_proxy_path(image_url: str, *, plugin_id: str = "", referer: str = "") -> str:
+def build_vbook_image_proxy_path(
+    image_url: str,
+    *,
+    plugin_id: str = "",
+    referer: str = "",
+    cache: bool = False,
+) -> str:
     url = str(image_url or "").strip()
     if not url:
         return ""
@@ -542,6 +551,8 @@ def build_vbook_image_proxy_path(image_url: str, *, plugin_id: str = "", referer
     ref = str(referer or "").strip()
     if ref:
         parts.append(f"referer={quote_url_path(ref)}")
+    if cache:
+        parts.append("cache=1")
     return "/media/vbook-image?" + "&".join(parts)
 
 
@@ -828,6 +839,20 @@ def normalize_vbook_display_text(text: str, *, single_line: bool = False) -> str
     if single_line:
         value = re.sub(r"\s*\n+\s*", " ", value)
     return value.strip()
+
+
+def decode_http_encoded_body(data: bytes, *, content_encoding: str = "") -> bytes:
+    if not data:
+        return b""
+    encoding = str(content_encoding or "").strip().lower()
+    try:
+        if "gzip" in encoding or data[:2] == b"\x1f\x8b":
+            return gzip.decompress(data)
+        if "deflate" in encoding:
+            return zlib.decompress(data)
+    except Exception:
+        return data
+    return data
 
 
 _VI_PUNCT_REPLACEMENTS = {
@@ -3903,6 +3928,54 @@ class ReaderStorage:
             "image_bytes_deleted": int(bytes_deleted),
         }
 
+    def _collect_all_comic_vbook_image_cache_keys(self) -> set[str]:
+        keys: set[str] = set()
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT b.source_plugin, c.raw_key
+                FROM books b
+                JOIN chapters c ON c.book_id = b.book_id
+                WHERE lower(COALESCE(b.source_type, '')) IN ('comic', 'vbook_comic', 'vbook_session_comic')
+                """
+            ).fetchall()
+        for row in rows:
+            plugin_id = str(row["source_plugin"] or "").strip()
+            raw_key = str(row["raw_key"] or "").strip()
+            if not raw_key:
+                continue
+            raw_text = self.read_cache(raw_key) or ""
+            if not raw_text:
+                continue
+            for image_url in extract_comic_image_urls(raw_text):
+                url = str(image_url or "").strip()
+                if not url:
+                    continue
+                keys.add(vbook_image_cache_key(image_url=url, plugin_id=plugin_id))
+        return keys
+
+    def cleanup_non_comic_vbook_image_cache(self) -> dict[str, int]:
+        keep_keys = self._collect_all_comic_vbook_image_cache_keys()
+        removed_keys: set[str] = set()
+        scanned = 0
+        if VBOOK_IMAGE_CACHE_DIR.exists():
+            for meta_path in VBOOK_IMAGE_CACHE_DIR.glob("*.json"):
+                scanned += 1
+                stem = meta_path.stem
+                if not stem or stem in keep_keys:
+                    continue
+                removed_keys.add(stem)
+        stats = self._delete_vbook_image_cache_keys(removed_keys) if removed_keys else {
+            "image_cache_deleted": 0,
+            "image_bytes_deleted": 0,
+        }
+        return {
+            "scanned_meta": int(scanned),
+            "kept_keys": int(len(keep_keys)),
+            "removed_keys": int(len(removed_keys)),
+            **stats,
+        }
+
     def sync_remote_book_toc(self, book_id: str, toc_rows: list[dict[str, str]]) -> dict[str, Any]:
         bid = str(book_id or "").strip()
         if not bid:
@@ -4512,10 +4585,25 @@ class ReaderStorage:
     def cleanup_expired_history(self) -> int:
         now = utc_now_iso()
         with self._connect() as conn:
-            row = conn.execute("SELECT COUNT(1) AS c FROM history_books WHERE expire_at <= ?", (now,)).fetchone()
+            row = conn.execute(
+                """
+                SELECT COUNT(1) AS c
+                FROM history_books
+                WHERE expire_at <= ?
+                   OR trim(COALESCE(last_read_chapter_url, '')) = ''
+                """,
+                (now,),
+            ).fetchone()
             deleted = int((row or {"c": 0})["c"] or 0)
             if deleted:
-                conn.execute("DELETE FROM history_books WHERE expire_at <= ?", (now,))
+                conn.execute(
+                    """
+                    DELETE FROM history_books
+                    WHERE expire_at <= ?
+                       OR trim(COALESCE(last_read_chapter_url, '')) = ''
+                    """,
+                    (now,),
+                )
         return deleted
 
     def list_history_books(self) -> list[dict[str, Any]]:
@@ -4577,11 +4665,15 @@ class ReaderStorage:
     ) -> dict[str, Any]:
         plugin = str(plugin_id or "").strip()
         source = str(source_url or "").strip()
+        chapter_url = str(last_read_chapter_url or "").strip()
+        chapter_title = str(last_read_chapter_title or "").strip()
         if not source:
             raise ValueError("Thiếu source_url cho lịch sử xem.")
+        if not chapter_url:
+            raise ValueError("Lịch sử xem chỉ lưu khi đã mở chương.")
         now_dt = datetime.now(timezone.utc)
         now = now_dt.isoformat()
-        expire_at = (now_dt + timedelta(days=7)).isoformat()
+        expire_at = (now_dt + timedelta(days=HISTORY_BOOK_RETENTION_DAYS)).isoformat()
         ratio_val = None
         if isinstance(last_read_ratio, (int, float)):
             ratio_val = max(0.0, min(1.0, float(last_read_ratio)))
@@ -4621,8 +4713,8 @@ class ReaderStorage:
                     normalize_vbook_display_text(str(title or ""), single_line=True) or source,
                     normalize_vbook_display_text(str(author or ""), single_line=True),
                     str(cover_url or "").strip(),
-                    str(last_read_chapter_url or "").strip(),
-                    normalize_vbook_display_text(str(last_read_chapter_title or ""), single_line=True),
+                    chapter_url,
+                    normalize_vbook_display_text(chapter_title, single_line=True),
                     ratio_val,
                     created_at,
                     now,
@@ -6224,6 +6316,13 @@ class ReaderService:
         chapter_title = str(payload.get("last_read_chapter_title_raw") or payload.get("last_read_chapter_title") or "").strip()
         ratio = payload.get("last_read_ratio")
         ratio_value = float(ratio) if isinstance(ratio, (int, float)) else None
+        if not chapter_url:
+            return {
+                "skipped": True,
+                "reason": "missing_last_read_chapter_url",
+                "source_url": source_url,
+                "plugin_id": plugin_id,
+            }
         try:
             return self.storage.upsert_history_book(
                 plugin_id=plugin_id,
@@ -6969,6 +7068,7 @@ class ReaderService:
                                 image_url=image_url,
                                 plugin_id=plugin_id,
                                 referer=referer,
+                                use_cache=True,
                             )
                     ext = self._guess_export_image_ext(image_url=image_url, content_type=content_type)
                     image_entries.append(
@@ -9308,6 +9408,45 @@ class ReaderService:
                 return False
         return True
 
+    def _should_retry_vbook_script_error(self, message: str, *, attempt: int, max_attempts: int) -> bool:
+        if attempt >= max_attempts:
+            return False
+        text = str(message or "").strip().lower()
+        if not text:
+            return True
+        transient_markers = (
+            "timeout",
+            "timed out",
+            "time out",
+            "read timed out",
+            "connect timed out",
+            "connection reset",
+            "connection refused",
+            "connection aborted",
+            "temporarily unavailable",
+            "temporary",
+            "network",
+            "socket",
+            "dns",
+            "ssl",
+            "tls",
+            "econn",
+            "429",
+            "502",
+            "503",
+            "504",
+            "rate limit",
+            "too many requests",
+            "server busy",
+            "máy chủ bận",
+            "quá thời gian",
+            "hết thời gian",
+            "thử lại",
+            "kết nối bị",
+            "lỗi mạng",
+        )
+        return any(token in text for token in transient_markers)
+
     def get_vbook_bridge_state(self) -> dict[str, Any]:
         state = self._load_vbook_bridge_state()
         hosts_raw = state.get("hosts") if isinstance(state, dict) else {}
@@ -9414,7 +9553,10 @@ class ReaderService:
                 # Some plugins might return raw value (non Response.success)
                 return {"code": 0, "data": result}
             except ApiError as exc:
-                should_retry = (exc.error_code == "VBOOK_SCRIPT_ERROR") and (attempt < max_attempts)
+                should_retry = (
+                    exc.error_code == "VBOOK_SCRIPT_ERROR"
+                    and self._should_retry_vbook_script_error(str(exc), attempt=attempt, max_attempts=max_attempts)
+                )
                 if not should_retry:
                     raise
                 time.sleep(retry_sleep_sec)
@@ -10222,6 +10364,14 @@ class ReaderService:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Script tab không hợp lệ.")
         return ref
 
+    def _should_stop_vbook_list_attempts(self, exc: Exception) -> bool:
+        if isinstance(exc, ApiError):
+            if exc.error_code == "VBOOK_SCRIPT_ERROR":
+                return True
+            if exc.error_code in {"BAD_REQUEST", "VBOOK_SCRIPT_MISSING", "VBOOK_PLUGIN_NOT_FOUND"}:
+                return True
+        return False
+
     def _run_vbook_paged_list_script(
         self,
         plugin: Any,
@@ -10244,11 +10394,22 @@ class ReaderService:
                     formatted_input = input_text.replace("{0}", str(p))
             if has_next_token:
                 candidates.append([input_value, next_token])
-            # Ưu tiên truyền page tường minh trước để bám sát contract vBook.
-            # Nhiều ext dùng execute(url, page) và có thể trả rỗng nếu chỉ nhận 1 arg.
-            candidates.extend([[input_value, p], [input_value, str(p)], [input_value], [input_value, ""]])
+            is_direct_script_file = str(script_ref or "").strip().lower().endswith(".js")
+            if is_direct_script_file:
+                # Tab script kiểu `gen.js` từ home/genre thường có contract execute(url, page).
+                # Tránh thử quá nhiều biến thể làm một request lỗi bị nhân 4-5 lần.
+                candidates.extend([[input_value, p], [input_value, str(p)]])
+                if formatted_input:
+                    candidates.append([formatted_input, p])
+                candidates.append([input_value])
+            else:
+                # Script key tổng quát vẫn giữ fallback rộng để tương thích ext cũ.
+                candidates.extend([[input_value, p], [input_value, str(p)], [input_value], [input_value, ""]])
             if formatted_input:
-                candidates.extend([[formatted_input], [formatted_input, p], [formatted_input, str(p)]])
+                if is_direct_script_file:
+                    candidates.append([formatted_input])
+                else:
+                    candidates.extend([[formatted_input], [formatted_input, p], [formatted_input, str(p)]])
         else:
             if has_next_token:
                 candidates.append([next_token])
@@ -10294,6 +10455,8 @@ class ReaderService:
                     }
                 )
                 last_error = exc
+                if self._should_stop_vbook_list_attempts(exc):
+                    break
                 continue
 
         if best_empty_rows is not None:
@@ -11279,9 +11442,23 @@ class ReaderService:
         if not data:
             return None
         ctype = str(meta.get("content_type") or "").strip()
+        content_encoding = str(meta.get("content_encoding") or "").strip()
         if not ctype:
             parsed = urlparse(str(image_url or "").strip())
             ctype = mimetypes.guess_type(parsed.path)[0] or "application/octet-stream"
+        decoded = decode_http_encoded_body(data, content_encoding=content_encoding)
+        if decoded != data:
+            try:
+                self._write_vbook_image_cache(
+                    image_url=image_url,
+                    plugin_id=plugin_id,
+                    content_type=ctype,
+                    content_encoding="",
+                    data=decoded,
+                )
+            except Exception:
+                pass
+            data = decoded
         return data, ctype
 
     def _write_vbook_image_cache(
@@ -11290,6 +11467,7 @@ class ReaderService:
         image_url: str,
         plugin_id: str = "",
         content_type: str = "",
+        content_encoding: str = "",
         data: bytes,
     ) -> None:
         if not data:
@@ -11305,6 +11483,7 @@ class ReaderService:
                     {
                         "ts": datetime.now(timezone.utc).timestamp(),
                         "content_type": str(content_type or "").strip(),
+                        "content_encoding": str(content_encoding or "").strip(),
                         "url": str(image_url or "").strip(),
                         "plugin_id": str(plugin_id or "").strip(),
                     },
@@ -11324,15 +11503,23 @@ class ReaderService:
             except Exception:
                 pass
 
-    def fetch_vbook_image(self, *, image_url: str, plugin_id: str = "", referer: str = "") -> tuple[bytes, str]:
+    def fetch_vbook_image(
+        self,
+        *,
+        image_url: str,
+        plugin_id: str = "",
+        referer: str = "",
+        use_cache: bool = False,
+    ) -> tuple[bytes, str]:
         target = str(image_url or "").strip()
         parsed = urlparse(target)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "URL ảnh vBook không hợp lệ.")
 
-        cached = self._read_vbook_image_cache(image_url=target, plugin_id=plugin_id)
-        if cached is not None:
-            return cached
+        if use_cache:
+            cached = self._read_vbook_image_cache(image_url=target, plugin_id=plugin_id)
+            if cached is not None:
+                return cached
 
         headers = self._build_vbook_image_headers(image_url=target, plugin_id=plugin_id, referer=referer)
         timeout_ms = int((self._vbook_cfg().get("timeout_ms") or 20_000))
@@ -11342,6 +11529,7 @@ class ReaderService:
             with urllib_request.urlopen(req, timeout=timeout_sec) as resp:
                 data = resp.read()
                 content_type = str(resp.headers.get("Content-Type") or "").split(";", 1)[0].strip()
+                content_encoding = str(resp.headers.get("Content-Encoding") or "").strip()
         except urllib_error.HTTPError as exc:
             raise ApiError(
                 HTTPStatus.BAD_GATEWAY,
@@ -11364,13 +11552,16 @@ class ReaderService:
                 "Nguồn ảnh vBook trả dữ liệu rỗng.",
                 {"url": target},
             )
+        data = decode_http_encoded_body(data, content_encoding=content_encoding)
         ctype = content_type or (mimetypes.guess_type(parsed.path)[0] or "application/octet-stream")
-        self._write_vbook_image_cache(
-            image_url=target,
-            plugin_id=plugin_id,
-            content_type=ctype,
-            data=data,
-        )
+        if use_cache:
+            self._write_vbook_image_cache(
+                image_url=target,
+                plugin_id=plugin_id,
+                content_type=ctype,
+                content_encoding="",
+                data=data,
+            )
         return data, ctype
 
     def _join_vbook_url(self, host: str, url: str) -> str:
@@ -12841,7 +13032,12 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     plugin_id = str(book.get("source_plugin") or "").strip()
                     referer = str(chapter.get("remote_url") or book.get("source_url") or "").strip()
                     images = [
-                        build_vbook_image_proxy_path(img, plugin_id=plugin_id, referer=referer)
+                        build_vbook_image_proxy_path(
+                            img,
+                            plugin_id=plugin_id,
+                            referer=referer,
+                            cache=True,
+                        )
                         for img in images
                     ]
                 response_content = ""
@@ -13049,6 +13245,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             image_url = (query.get("url", [""])[0] or "").strip()
             plugin_id = (query.get("plugin_id", [""])[0] or "").strip()
             referer = (query.get("referer", [""])[0] or "").strip()
+            cache_enabled = (query.get("cache", [""])[0] or "").strip().lower() in {"1", "true", "yes", "on"}
             if not image_url:
                 self._send_error_json(ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL ảnh vBook."))
                 return
@@ -13057,6 +13254,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                     image_url=image_url,
                     plugin_id=plugin_id,
                     referer=referer,
+                    use_cache=cache_enabled,
                 )
             except ApiError as exc:
                 self._send_error_json(exc)

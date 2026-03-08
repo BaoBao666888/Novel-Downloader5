@@ -1147,6 +1147,7 @@ async function upsertHistoryFromDetail({
   const chapterUrlText = String(chapterUrl || state.detail.lastReadChapterUrl || "").trim();
   const chapterTitleText = String(chapterTitle || state.detail.lastReadChapterTitle || "").trim();
   const ratio = parseRatio(chapterRatio != null ? chapterRatio : state.detail.lastReadRatio);
+  if (!chapterUrlText) return;
   if (chapterUrlText) payload.last_read_chapter_url = chapterUrlText;
   if (chapterTitleText) payload.last_read_chapter_title = chapterTitleText;
   if (chapterTitleText) payload.last_read_chapter_title_raw = chapterTitleText;
@@ -1601,11 +1602,6 @@ async function openDetailDialog(item, options = {}) {
       state.detail.pluginId = String(plugin.plugin_id || "").trim();
     }
     state.detail.loading = false;
-    await upsertHistoryFromDetail({
-      chapterUrl: state.detail.lastReadChapterUrl,
-      chapterTitle: state.detail.lastReadChapterTitle,
-      chapterRatio: state.detail.lastReadRatio,
-    });
   } catch (error) {
     if (isAbortError(error)) return;
     state.detail.loading = false;

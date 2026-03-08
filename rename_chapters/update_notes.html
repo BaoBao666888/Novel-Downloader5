@@ -1,55 +1,31 @@
-<h1>Phiên bản 0.3.2.1 - Fix nhỏ</h1>
-
-<h2>Sửa lỗi & cải thiện</h2>
-- Thêm tùy chọn "Ưu tiên cache" trong ND5 (chỉ tải chương còn thiếu).
-- Giảm lỗi lưu cache ND5 bị khóa file (WinError 32).
-- Fanqie: bổ sung dòng "Nhãn" khi lấy detail (API/web).
-- Xử lý ảnh: tự gợi ý tên file khi lưu (ưu tiên tên file/URL).
-- Wikidich: sau khi cập nhật xong sẽ hỏi thêm truyện; nếu local < server thì mở nhập URL ngay.
-- Fanqie bridge: cho phép bind 0.0.0.0 (LAN).
-
-
-<h1>Phiên bản 0.3.2 - Big update (Fanqie/Reader/Auto Update)</h1>
+<h1>Phiên bản 0.3.3 - Tối ưu và sửa lỗi</h1>
 
 <h2>Điểm mới</h2>
+<h3>Hiệu năng / Đóng gói</h3>
+- Tăng tốc độ khởi động app rõ rệt.
+- Tối ưu đóng gói để giảm dung lượng ứng dụng.
 
-<b>Fanqie & ND5</b>:
-- Big update: dùng logic Fanqie theo app mới nhất.
-- Điều chỉnh kiểm tra cập nhật Fanqie sang API mới.
-- Auto Update tự đồng bộ số chương trước rồi mới update theo Fanqie.
-- Thêm cache cho truyện tải từ ND5.
+<h3>Trình duyệt Qt / ND5</h3>
+- Thêm cơ chế fetch HTML qua trình duyệt Qt (IPC <b>FETCH_HTML</b>)
+- Thêm API host cho plugin ND5 gọi browser fetch.
+- ND5 hỗ trợ tích hợp tải bằng ext/app VBook khi <b>Reader Server</b> đang chạy.
 
-<b>Wikidich/Koanchay</b>:
-- Thêm điều chỉnh domain trong Cài đặt request và tự update domain trong dữ liệu local.
-- Thêm chỗ lưu riêng cho các truyện đồng quản lý khi tải work (tránh tải lại hết mất thời gian).
-- Thêm Auto Update tự động toàn cục.
+<h3>Đọc truyện</h3>
+- Tối ưu tab <b>Đọc truyện</b>:
+  - Sửa lỗi có lúc không dừng được Reader Server.
+  - Bổ sung log trực quan hơn để theo dõi trạng thái server và thao tác quản lý.
+- Tích hợp tải truyện từ ext của app <b>VBook</b> vào hệ thống Reader.
+- Tối ưu hiệu năng khởi động Reader Server và thay đổi cấu trúc build.
 
-<b>Đọc truyện (Web app)</b>:
-- Thư viện: nhập file, hiển thị các truyện đã nhập.
-- Thông tin book: mục lục, thông tin sách, chỉnh sửa, name riêng.
-- Trang đọc: giao diện web cơ bản như các web đọc truyện phổ biến.
-
-<b>Xóa rác</b>:
-- Tăng cường chức năng Xóa rác (gợi ý/đánh giá, diff preview, pipeline nhiều chế độ).
-
-<b>Đổi tên</b>:
-- Tối ưu chức năng regex cho tab Đổi tên.
-
-<b>Giao diện</b>:
-- Tăng tham số cho tùy chỉnh giao diện.
-
-<h2>Sửa lỗi</h2>
-- Sửa lỗi giải nén bằng app thiếu file.
-- Fix lỗi không nhận được cookie PO18 dù đã đăng nhập trong profile hiện tại.
-
-<h2>Hướng dẫn thao tác (mới)</h2>
-- **Auto Update toàn cục**: Tab Wikidich/Koanchay → menu **Auto Update ▾** → **Đánh dấu** truyện đủ điều kiện → **Tự động** để chạy hàng loạt → **Lịch sử** để xem kết quả.
-- **Đọc truyện**: vào tab **Đọc truyện** để quản lý server + UI; có thể Start/Stop server và mở giao diện đọc ngay từ app.
-- **Xóa rác**: menu **Công cụ → Công cụ Xóa rác...** → chọn File/Thư mục → xem **Diff** trước khi áp dụng.
-- **Gợi ý regex**: Tab **Đổi tên** → nút **Gợi ý** (Tên file/Nội dung) để gợi ý regex theo file đang chọn.
-- **Đổi domain**: Cài đặt request → đổi domain Wikidich/Koanchay; dữ liệu local sẽ tự rewrite theo domain mới.
-- **ND5 cache**: ND5 → **Cài đặt** → **Dữ liệu truyện** để xem/xóa cache theo từng truyện.
+<h3>Wikidich / Koanchay</h3>
+- Cửa sổ <b>Tải chi tiết</b> thêm tùy chọn:
+  - <b>Quét tên quyển trong phạm vi tải chi tiết</b> (chỉ hoạt động với works chính chủ).
+- Bổ sung khu hiển thị <b>Tên quyển hiện có</b> ngay dưới khung <b>Văn án</b>.
+- Bộ lọc cơ bản thêm ô <b>Tên quyển</b> để tìm nhanh theo tên volume đã quét.
+- Khi dùng <b>Tải chi tiết</b> cùng lúc với <b>Quét tên quyển</b>, hệ thống sẽ chạy tuần tự và lưu dần để có thể tiếp tục nếu bị gián đoạn.
+- Khi mở trang <b>Chỉnh sửa</b> hoặc chạy <b>Auto Update</b>, app sẽ tận dụng luôn dữ liệu trang sửa để đồng bộ tên quyển về local.
+- Sửa lỗi nút Chỉnh sửa không hoạt động với Koanchay.
 
 <h2>Hướng dẫn cập nhật</h2>
-- Nhấn <b>Tải & Cài đặt</b> để lên 0.3.2 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
+- Nhấn <b>Tải & Cài đặt</b> để lên 0.3.3 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
 - Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.
