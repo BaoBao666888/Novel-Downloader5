@@ -353,6 +353,9 @@ class ReaderTabMixin:
         rel = (cfg.get("server_path") or "tools/reader_server.exe").strip() or "tools/reader_server.exe"
         return os.path.normpath(os.path.join(BASE_DIR, rel))
 
+    def _reader_server_install_dir(self) -> str:
+        return os.path.normpath(os.path.join(BASE_DIR, "tools", "reader_server"))
+
     def _reader_db_path(self) -> str:
         return os.path.normpath(os.path.join(BASE_DIR, "local", "reader_library.db"))
 
@@ -1045,6 +1048,42 @@ class ReaderTabMixin:
             return dirs[0]
         return extracted_dir
 
+    def _reader_locate_server_payload(self, extracted_root: str, exe_name: str) -> Tuple[str, str, bool]:
+        preferred = os.path.join(extracted_root, exe_name)
+        src_exe = ""
+        if os.path.isfile(preferred):
+            src_exe = preferred
+        else:
+            exe_candidates = []
+            exact_candidates = []
+            for r, _dirs, files in os.walk(extracted_root):
+                for fn in files:
+                    if not fn.lower().endswith(".exe"):
+                        continue
+                    full_path = os.path.join(r, fn)
+                    exe_candidates.append(full_path)
+                    if fn.lower() == exe_name.lower():
+                        exact_candidates.append(full_path)
+            if exact_candidates:
+                src_exe = exact_candidates[0]
+            elif exe_candidates:
+                src_exe = exe_candidates[0]
+        if not src_exe or not os.path.isfile(src_exe):
+            raise RuntimeError("Không tìm thấy file .exe trong gói server.")
+        package_root = os.path.dirname(src_exe)
+        sibling_entries = []
+        try:
+            sibling_entries = [
+                os.path.join(package_root, name)
+                for name in os.listdir(package_root)
+                if os.path.normcase(os.path.abspath(os.path.join(package_root, name)))
+                != os.path.normcase(os.path.abspath(src_exe))
+            ]
+        except Exception:
+            sibling_entries = []
+        install_as_dir = bool(sibling_entries)
+        return src_exe, package_root, install_as_dir
+
     def _reader_install_or_update_server(self):
         meta = self._reader_manifest_meta or self._reader_load_manifest()
         srv = meta.get("server") if isinstance(meta, dict) else {}
@@ -1060,27 +1099,105 @@ class ReaderTabMixin:
         def worker():
             downloaded = self._reader_download_file(url, suffix=os.path.splitext(url)[1] or ".bin")
             exe_name = (srv.get("exe_name") or "reader_server.exe").strip() or "reader_server.exe"
-            target = self._reader_server_path()
-            os.makedirs(os.path.dirname(target), exist_ok=True)
+            target_file = os.path.normpath(os.path.join(BASE_DIR, "tools", exe_name))
+            target_dir = self._reader_server_install_dir()
+            os.makedirs(os.path.dirname(target_file), exist_ok=True)
 
             if downloaded.lower().endswith(".zip"):
                 with tempfile.TemporaryDirectory(prefix="reader_srv_unpack_") as tmpd:
                     with zipfile.ZipFile(downloaded, "r") as zf:
                         zf.extractall(tmpd)
                     root = self._reader_pick_zip_root(tmpd)
-                    src = os.path.join(root, exe_name)
-                    if not os.path.isfile(src):
-                        exe_candidates = []
-                        for r, _dirs, files in os.walk(root):
-                            for fn in files:
-                                if fn.lower().endswith(".exe"):
-                                    exe_candidates.append(os.path.join(r, fn))
-                        if not exe_candidates:
-                            raise RuntimeError("Không tìm thấy file .exe trong gói server.")
-                        src = exe_candidates[0]
-                    shutil.copy2(src, target)
+                    src_exe, package_root, install_as_dir = self._reader_locate_server_payload(root, exe_name)
+                    if install_as_dir:
+                        dir_backup = f"{target_dir}.bak"
+                        file_backup = f"{target_file}.bak"
+                        if os.path.isdir(dir_backup):
+                            shutil.rmtree(dir_backup, ignore_errors=True)
+                        if os.path.isfile(file_backup):
+                            try:
+                                os.remove(file_backup)
+                            except Exception:
+                                pass
+                        if os.path.isdir(target_dir):
+                            os.replace(target_dir, dir_backup)
+                        if os.path.isfile(target_file):
+                            os.replace(target_file, file_backup)
+                        try:
+                            shutil.copytree(package_root, target_dir)
+                            target = os.path.join(target_dir, os.path.basename(src_exe))
+                            if not os.path.isfile(target):
+                                raise RuntimeError(f"Gói server thiếu file chạy: {os.path.basename(src_exe)}")
+                            if os.path.isdir(dir_backup):
+                                shutil.rmtree(dir_backup, ignore_errors=True)
+                            if os.path.isfile(file_backup):
+                                os.remove(file_backup)
+                        except Exception:
+                            if os.path.isdir(target_dir):
+                                shutil.rmtree(target_dir, ignore_errors=True)
+                            if os.path.isdir(dir_backup):
+                                os.replace(dir_backup, target_dir)
+                            if os.path.isfile(file_backup):
+                                os.replace(file_backup, target_file)
+                            raise
+                    else:
+                        dir_backup = f"{target_dir}.bak"
+                        file_backup = f"{target_file}.bak"
+                        if os.path.isdir(dir_backup):
+                            shutil.rmtree(dir_backup, ignore_errors=True)
+                        if os.path.isfile(file_backup):
+                            try:
+                                os.remove(file_backup)
+                            except Exception:
+                                pass
+                        if os.path.isdir(target_dir):
+                            os.replace(target_dir, dir_backup)
+                        if os.path.isfile(target_file):
+                            os.replace(target_file, file_backup)
+                        try:
+                            shutil.copy2(src_exe, target_file)
+                            target = target_file
+                            if os.path.isdir(dir_backup):
+                                shutil.rmtree(dir_backup, ignore_errors=True)
+                            if os.path.isfile(file_backup):
+                                os.remove(file_backup)
+                        except Exception:
+                            if os.path.isfile(target_file):
+                                os.remove(target_file)
+                            if os.path.isdir(dir_backup):
+                                os.replace(dir_backup, target_dir)
+                            if os.path.isfile(file_backup):
+                                os.replace(file_backup, target_file)
+                            raise
             else:
-                shutil.copy2(downloaded, target)
+                dir_backup = f"{target_dir}.bak"
+                file_backup = f"{target_file}.bak"
+                if os.path.isdir(dir_backup):
+                    shutil.rmtree(dir_backup, ignore_errors=True)
+                if os.path.isfile(file_backup):
+                    try:
+                        os.remove(file_backup)
+                    except Exception:
+                        pass
+                if os.path.isdir(target_dir):
+                    os.replace(target_dir, dir_backup)
+                if os.path.isfile(target_file):
+                    os.replace(target_file, file_backup)
+                try:
+                    shutil.copy2(downloaded, target_file)
+                    target = target_file
+                    if os.path.isdir(dir_backup):
+                        shutil.rmtree(dir_backup, ignore_errors=True)
+                    if os.path.isfile(file_backup):
+                        os.remove(file_backup)
+                except Exception:
+                    if os.path.isfile(target_file):
+                        os.remove(target_file)
+                    if os.path.isdir(dir_backup):
+                        os.replace(dir_backup, target_dir)
+                    if os.path.isfile(file_backup):
+                        os.replace(file_backup, target_file)
+                    raise
 
             try:
                 os.remove(downloaded)
@@ -1255,11 +1372,22 @@ class ReaderTabMixin:
         if not os.path.isfile(target):
             messagebox.showinfo("Reader", "Server chưa được cài.", parent=self)
             return
-        if not messagebox.askyesno("Reader", f"Xóa server tại:\n{target}\n\nTiếp tục?", parent=self):
+        managed_dir = self._reader_server_install_dir()
+        delete_target = target
+        label = target
+        if os.path.commonpath([os.path.abspath(target), os.path.abspath(managed_dir)]) == os.path.abspath(managed_dir):
+            delete_target = managed_dir
+            label = f"{managed_dir}\n(bao gồm toàn bộ file server đi kèm)"
+        if not messagebox.askyesno("Reader", f"Xóa server tại:\n{label}\n\nTiếp tục?", parent=self):
             return
         self._reader_stop_server(silent=True)
         try:
-            os.remove(target)
+            if os.path.isdir(delete_target):
+                shutil.rmtree(delete_target)
+            else:
+                os.remove(delete_target)
+            if os.path.exists(delete_target):
+                raise RuntimeError(f"Vẫn còn dữ liệu tại: {delete_target}")
         except Exception as exc:
             messagebox.showerror("Reader", f"Không thể xóa server:\n{exc}", parent=self)
             return
