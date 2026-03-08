@@ -3827,6 +3827,35 @@ class ReaderStorage:
                 ).fetchone()
         return dict(row) if row else None
 
+    def find_books_by_source(
+        self,
+        source_url: str,
+        source_plugin: str | None = None,
+        *,
+        include_session: bool = True,
+        session_only: bool = False,
+    ) -> list[dict[str, Any]]:
+        source = str(source_url or "").strip()
+        plugin = str(source_plugin or "").strip()
+        if not source:
+            return []
+        with self._connect() as conn:
+            sql = """
+                SELECT * FROM books
+                WHERE source_url = ?
+            """
+            params: list[Any] = [source]
+            if plugin:
+                sql += " AND source_plugin = ?"
+                params.append(plugin)
+            if session_only:
+                sql += " AND lower(COALESCE(source_type, '')) LIKE 'vbook_session%'"
+            elif not include_session:
+                sql += " AND lower(COALESCE(source_type, '')) NOT LIKE 'vbook_session%'"
+            sql += " ORDER BY updated_at DESC"
+            rows = conn.execute(sql, tuple(params)).fetchall()
+        return [dict(row) for row in rows]
+
     def _book_cover_url(self, book: dict[str, Any] | None) -> str:
         if not book:
             return ""
@@ -4520,11 +4549,20 @@ class ReaderStorage:
         book["downloaded_chapters"] = int(max(0, min(int(book.get("chapter_count") or len(chapters) or 0), downloaded_count)))
         return book
 
-    def delete_book(self, book_id: str) -> bool:
+    def delete_book(
+        self,
+        book_id: str,
+        *,
+        cleanup_history: bool = True,
+        cleanup_related_source: bool = True,
+    ) -> bool:
         book = self.find_book(book_id)
         chapters = self.get_chapter_rows(book_id)
         if not chapters and not book:
             return False
+        source_url = str((book or {}).get("source_url") or "").strip()
+        source_plugin = str((book or {}).get("source_plugin") or "").strip()
+        source_type = str((book or {}).get("source_type") or "").strip().lower()
 
         content_keys = {ch["raw_key"] for ch in chapters if ch.get("raw_key")}
         content_keys.update(ch["trans_key"] for ch in chapters if ch.get("trans_key"))
@@ -4580,31 +4618,104 @@ class ReaderStorage:
                     cp.unlink()
                 except Exception:
                     pass
+        if cleanup_history and source_url:
+            try:
+                self.remove_history_by_source(plugin_id=source_plugin, source_url=source_url)
+            except Exception:
+                pass
+        if cleanup_related_source and source_url and not source_type.startswith("vbook_session"):
+            try:
+                self._delete_session_books_for_source(
+                    source_url=source_url,
+                    source_plugin=source_plugin,
+                    exclude_book_ids={str(book_id or "").strip()},
+                )
+            except Exception:
+                pass
         return True
+
+    def _delete_session_books_for_source(
+        self,
+        *,
+        source_url: str,
+        source_plugin: str = "",
+        exclude_book_ids: set[str] | None = None,
+    ) -> dict[str, int]:
+        source = str(source_url or "").strip()
+        plugin = str(source_plugin or "").strip()
+        excluded = {str(x or "").strip() for x in (exclude_book_ids or set()) if str(x or "").strip()}
+        if not source:
+            return {"books_deleted": 0}
+        rows = self.find_books_by_source(
+            source,
+            plugin,
+            include_session=True,
+            session_only=True,
+        )
+        deleted = 0
+        for row in rows:
+            bid = str(row.get("book_id") or "").strip()
+            if (not bid) or (bid in excluded):
+                continue
+            if self.delete_book(bid, cleanup_history=False, cleanup_related_source=False):
+                deleted += 1
+        return {"books_deleted": int(deleted)}
+
+    def cleanup_orphan_session_books(self) -> dict[str, int]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT b.book_id
+                FROM books b
+                WHERE lower(COALESCE(b.source_type, '')) LIKE 'vbook_session%'
+                  AND trim(COALESCE(b.source_url, '')) <> ''
+                  AND NOT EXISTS (
+                        SELECT 1
+                        FROM history_books h
+                        WHERE h.source_url = b.source_url
+                          AND (
+                                trim(COALESCE(b.source_plugin, '')) = ''
+                                OR h.plugin_id = b.source_plugin
+                          )
+                    )
+                """
+            ).fetchall()
+        deleted = 0
+        for row in rows:
+            bid = str(row["book_id"] or "").strip()
+            if not bid:
+                continue
+            if self.delete_book(bid, cleanup_history=False, cleanup_related_source=False):
+                deleted += 1
+        return {
+            "orphan_session_books": int(len(rows)),
+            "orphan_session_books_deleted": int(deleted),
+        }
 
     def cleanup_expired_history(self) -> int:
         now = utc_now_iso()
         with self._connect() as conn:
-            row = conn.execute(
+            rows = conn.execute(
                 """
-                SELECT COUNT(1) AS c
+                SELECT history_id, plugin_id, source_url
                 FROM history_books
                 WHERE expire_at <= ?
                    OR trim(COALESCE(last_read_chapter_url, '')) = ''
                 """,
                 (now,),
-            ).fetchone()
-            deleted = int((row or {"c": 0})["c"] or 0)
-            if deleted:
-                conn.execute(
-                    """
-                    DELETE FROM history_books
-                    WHERE expire_at <= ?
-                       OR trim(COALESCE(last_read_chapter_url, '')) = ''
-                    """,
-                    (now,),
-                )
-        return deleted
+            ).fetchall()
+        deleted = 0
+        for row in rows:
+            hid = str(row["history_id"] or "").strip()
+            if not hid:
+                continue
+            if self.delete_history_book(hid):
+                deleted += 1
+        try:
+            self.cleanup_orphan_session_books()
+        except Exception:
+            pass
+        return int(deleted)
 
     def list_history_books(self) -> list[dict[str, Any]]:
         self.cleanup_expired_history()
@@ -4742,9 +4853,23 @@ class ReaderStorage:
         if not hid:
             return False
         with self._connect() as conn:
-            row = conn.execute("SELECT history_id FROM history_books WHERE history_id = ?", (hid,)).fetchone()
-            if not row:
-                return False
+            row = conn.execute(
+                "SELECT history_id, plugin_id, source_url FROM history_books WHERE history_id = ?",
+                (hid,),
+            ).fetchone()
+        if not row:
+            return False
+        source_url = str(row["source_url"] or "").strip()
+        source_plugin = str(row["plugin_id"] or "").strip()
+        if source_url:
+            try:
+                self._delete_session_books_for_source(
+                    source_url=source_url,
+                    source_plugin=source_plugin,
+                )
+            except Exception:
+                pass
+        with self._connect() as conn:
             conn.execute("DELETE FROM history_books WHERE history_id = ?", (hid,))
         return True
 
