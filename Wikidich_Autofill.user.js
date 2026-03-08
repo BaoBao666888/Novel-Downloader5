@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.8
+// @version      0.3.9
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -11,7 +11,7 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.8'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.9'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const MAX_COVER_FILE_SIZE = 500 * 1024;
@@ -19,19 +19,30 @@
     const DEFAULT_SCORE_THRESHOLD = 0.90;
     const SCORE_FALLBACK = 0.65;
     const MAX_TAGS_SELECT = 25;
+    const JJWXC_APP_VERSION_CODE = 486;
+    const JJWXC_APP_USER_AGENT = `Mozilla/5.0 (Linux; Android 16; Pixel 9 Pro Build/TP1A.251005.002.B2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.6998.109 Mobile Safari/537.36/JINJIANG-Android/${JJWXC_APP_VERSION_CODE}(Pixel9Pro;Scale/3.5;isHarmonyOS/false)`;
+    const JJWXC_IMAGE_USER_AGENT = 'Dalvik/2.1.0 (Linux; U; Android 13; Pixel 7 Build/TQ3A.230901.001)';
+    const JJWXC_IMAGE_REFERER = `http://android.jjwxc.net/?v=${JJWXC_APP_VERSION_CODE}`;
+    const JJWXC_API_MODE_NEW = 'new';
+    const JJWXC_API_MODE_OLD = 'old';
+    const DEFAULT_GEMINI_MODEL = 'gemini-3-flash-preview';
+    const GEMINI_LOW_THINKING_LEVEL = 'low';
+    const GEMINI_LOW_THINKING_BUDGET = 1024;
     const ROOT_NEG_WORDS = ['vo', 'khong', 'phi', 'chong', 'phan', 'non', 'no'];
     const ROOT_MODIFIERS = new Set([
         'song', 'nhieu', 'main', 'ca', 'nha', 'nu', 'nam', 'trang', 'phan', 'sat',
         'la', 'toan', 'tap', 'the'
     ]);
+    const geminiModelMetaCache = new Map();
 
     const DEFAULT_SETTINGS = {
         scoreThreshold: DEFAULT_SCORE_THRESHOLD,
         aiMode: 'auto', // 'auto' or 'ai'
         geminiApiKey: '',
-        geminiModel: 'gemini-2.5-flash',
+        geminiModel: DEFAULT_GEMINI_MODEL,
         autoExtractNames: true, // AI auto-extract character names
         autoBreakDesc: false, // Tự xuống dòng văn án ở dấu chấm
+        jjwxcApiMode: '',
         domainSettings: {},
         coverSizeByDomain: {},
     };
@@ -123,6 +134,51 @@
         return Math.max(min, Math.min(n, max));
     }
 
+    function normalizeJjwxcApiMode(mode) {
+        const value = (mode || '').toString().trim().toLowerCase();
+        if (value === JJWXC_API_MODE_OLD) return JJWXC_API_MODE_OLD;
+        if (value === JJWXC_API_MODE_NEW) return JJWXC_API_MODE_NEW;
+        return '';
+    }
+
+    function normalizeGeminiModelName(model) {
+        return (model || '').toString().replace(/^models\//i, '').trim();
+    }
+
+    function rememberGeminiModels(models) {
+        (Array.isArray(models) ? models : []).forEach((item) => {
+            const name = normalizeGeminiModelName(item?.name);
+            if (!name) return;
+            geminiModelMetaCache.set(name, {
+                name,
+                thinking: item?.thinking === true,
+                displayName: (item?.displayName || '').toString().trim(),
+            });
+        });
+    }
+
+    function supportsGeminiThinking(model) {
+        const name = normalizeGeminiModelName(model);
+        if (!name) return false;
+        const meta = geminiModelMetaCache.get(name);
+        if (meta && typeof meta.thinking === 'boolean') return meta.thinking;
+        return /^gemini-3\b/i.test(name) || /^gemini-2\.5\b/i.test(name);
+    }
+
+    function buildGeminiGenerationConfig(model) {
+        const config = {
+            responseMimeType: 'application/json'
+        };
+        const name = normalizeGeminiModelName(model);
+        if (!supportsGeminiThinking(name)) return config;
+        if (/^gemini-3\b/i.test(name)) {
+            config.thinkingConfig = { thinkingLevel: GEMINI_LOW_THINKING_LEVEL };
+            return config;
+        }
+        config.thinkingConfig = { thinkingBudget: GEMINI_LOW_THINKING_BUDGET };
+        return config;
+    }
+
     function normalizeSettings(raw) {
         // Deep copy default
         const base = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
@@ -132,9 +188,10 @@
         if ('scoreThreshold' in raw) base.scoreThreshold = raw.scoreThreshold;
         if (raw.aiMode) base.aiMode = raw.aiMode;
         if (raw.geminiApiKey) base.geminiApiKey = raw.geminiApiKey;
-        if (raw.geminiModel) base.geminiModel = raw.geminiModel;
+        if (raw.geminiModel) base.geminiModel = normalizeGeminiModelName(raw.geminiModel) || DEFAULT_GEMINI_MODEL;
         if (typeof raw.autoExtractNames === 'boolean') base.autoExtractNames = raw.autoExtractNames;
         if (typeof raw.autoBreakDesc === 'boolean') base.autoBreakDesc = raw.autoBreakDesc;
+        if ('jjwxcApiMode' in raw) base.jjwxcApiMode = normalizeJjwxcApiMode(raw.jjwxcApiMode);
         // old
         const oldMap = raw.useDescByDomain;
         if (oldMap && typeof oldMap === 'object') {
@@ -1032,25 +1089,101 @@
     // ================================================
     // COVER HELPERS
     // ================================================
+    function isJjwxcStaticImageUrl(url) {
+        return /^https?:\/\/i\d+(?:-static)?\.jjwxc\.net\//i.test(T.safeText(url));
+    }
+
+    function isJjwxcDynamicCoverUrl(url) {
+        return /^https?:\/\/[^/]*jjwxc\.net\/[^?#]+\.php(?:\?|$)/i.test(T.safeText(url));
+    }
+
+    function getCoverRequestModes(url) {
+        const src = T.safeText(url);
+        if (!src) return ['plain'];
+        if (isJjwxcStaticImageUrl(src)) return ['referer', 'plain'];
+        if (/^https?:\/\/[^/]*sinaimg\.cn\//i.test(src)) return ['plain'];
+        if (/^https?:\/\/(?:img\d+\.)?360buyimg\.com\//i.test(src)) return ['plain'];
+        return ['referer', 'plain'];
+    }
+
+    function buildCoverRequestHeaders(url, mode = 'plain') {
+        const headers = {
+            'user-agent': JJWXC_IMAGE_USER_AGENT,
+        };
+        if (mode === 'referer') {
+            headers.referer = JJWXC_IMAGE_REFERER;
+        }
+        return headers;
+    }
+
+    function requestCoverWithFallback({ method, url, responseType, validateResponse, errorMessage }) {
+        const modes = getCoverRequestModes(url);
+        return new Promise((resolve, reject) => {
+            let idx = 0;
+            let lastError = null;
+            const tryNext = () => {
+                if (idx >= modes.length) {
+                    reject(lastError || new Error(errorMessage || 'Yeu cau anh that bai.'));
+                    return;
+                }
+                const mode = modes[idx++];
+                GM_xmlhttpRequest({
+                    method,
+                    url,
+                    headers: buildCoverRequestHeaders(url, mode),
+                    responseType,
+                    onload(res) {
+                        try {
+                            if (validateResponse && !validateResponse(res)) {
+                                lastError = new Error(`${errorMessage || 'Yeu cau anh that bai.'} [${mode}]`);
+                                tryNext();
+                                return;
+                            }
+                            resolve(res);
+                        } catch (err) {
+                            lastError = err instanceof Error ? err : new Error(errorMessage || 'Yeu cau anh that bai.');
+                            tryNext();
+                        }
+                    },
+                    onerror(err) {
+                        lastError = err instanceof Error ? err : new Error(`${errorMessage || 'Yeu cau anh that bai.'} [${mode}]`);
+                        tryNext();
+                    },
+                    ontimeout() {
+                        lastError = new Error(`${errorMessage || 'Yeu cau anh that bai.'} [${mode}]`);
+                        tryNext();
+                    },
+                });
+            };
+            tryNext();
+        });
+    }
+
     function checkImageUrlValid(url) {
-        return new Promise((resolve) => {
-            GM_xmlhttpRequest({
-                method: 'HEAD',
-                url,
-                onload: (res) => {
+        return requestCoverWithFallback({
+            method: 'HEAD',
+            url,
+            validateResponse: (res) => {
+                if (res.status !== 200) return false;
+                const contentType = (res.responseHeaders || '')
+                    .match(/content-type:\s*([^\r\n]+)/i)?.[1] || '';
+                return contentType.toLowerCase().startsWith('image/');
+            },
+            errorMessage: 'Khong xac minh duoc URL anh.',
+        }).then((res) => {
                     const contentType = (res.responseHeaders || '')
                         .match(/content-type:\s*([^\r\n]+)/i)?.[1] || '';
-                    resolve(res.status === 200 && contentType.toLowerCase().startsWith('image/'));
-                },
-                onerror: () => resolve(false),
-                ontimeout: () => resolve(false),
-            });
-        });
+                    return res.status === 200 && contentType.toLowerCase().startsWith('image/');
+                })
+            .catch(() => false);
     }
 
     async function processJjwxcCover(novelCover) {
         if (!novelCover) return '';
-        const coverRaw = novelCover;
+        const coverRaw = novelCover.replace(/^http:/i, 'https:');
+        if (isJjwxcDynamicCoverUrl(coverRaw)) {
+            return coverRaw;
+        }
         const cleaned = coverRaw.split('?')[0];
         const base = cleaned.replace(/_[0-9]+_[0-9]+(?=\.(?:jpg|jpeg|png|webp))/i, '');
         const baseStem = base.replace(/\.(jpg|jpeg|png|webp)$/i, '');
@@ -1282,20 +1415,34 @@
         });
     }
 
-    function fetchJjwxcData(bookId) {
-        const apiUrl = `http://app.jjwxc.net/androidapi/novelbasicinfo?novelId=${bookId}`;
+    function fetchJjwxcData(bookId, apiMode = JJWXC_API_MODE_NEW) {
+        const mode = normalizeJjwxcApiMode(apiMode) || JJWXC_API_MODE_NEW;
+        const isOldMode = mode === JJWXC_API_MODE_OLD;
+        const apiUrl = isOldMode
+            ? `http://app.jjwxc.net/androidapi/novelbasicinfo?novelId=${bookId}`
+            : `https://app.jjwxc.org/androidapi/novelbasicinfo?novelId=${bookId}`;
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: apiUrl,
                 responseType: 'json',
+                headers: isOldMode ? undefined : {
+                    'referer': `http://android.jjwxc.net/?v=${JJWXC_APP_VERSION_CODE}`,
+                    'origin': 'http://android.jjwxc.net',
+                    'x-requested-with': 'com.jjwxc.reader',
+                    'user-agent': JJWXC_APP_USER_AGENT,
+                },
                 onload(res) {
+                    if (res.status < 200 || res.status >= 300) {
+                        reject(new Error(`JJWXC API ${isOldMode ? 'cũ' : 'mới'} lỗi HTTP: ` + res.status));
+                        return;
+                    }
                     let parsed = res.response;
                     if (!parsed && res.responseText) {
                         try { parsed = JSON.parse(res.responseText); } catch { parsed = null; }
                     }
                     if (!parsed) {
-                        reject(new Error('JJWXC API không có dữ liệu.'));
+                        reject(new Error(`JJWXC API ${isOldMode ? 'cũ' : 'mới'} không có dữ liệu.`));
                         return;
                     }
                     resolve(parsed);
@@ -1938,7 +2085,7 @@
             descCn,
             tags,
             categories,
-            coverUrl: T.safeText(raw.novelCover),
+            coverUrl: T.safeText(raw.novelCover || raw.originalCover || raw.localImg),
             statusHint,
             update_status: undefined,
             extraKeywords,
@@ -2422,6 +2569,12 @@
             if (norm.includes('xuyen qua')) {
                 expanded.push('Xuyên việt');
             }
+            if (norm.includes('架空历史') || /(gia tuong lich su|lich su gia tuong|alternate history)/.test(norm)) {
+                expanded.push('Giả tưởng lịch sử');
+            }
+            if (norm.includes('年代文') || /\b(nian dai wen|nien dai van)\b/.test(norm)) {
+                expanded.push('Niên đại văn');
+            }
         }
         return expanded;
     }
@@ -2508,6 +2661,134 @@
             ? T.normalizeText(textOrList.join(' '))
             : T.normalizeText(textOrList || '');
         return /(xuyen nhanh|快穿)/.test(blob);
+    }
+
+    function buildClassificationSignal(sourceData, translated, extraValues = []) {
+        const parts = []
+            .concat(sourceData?.titleCn || [])
+            .concat(sourceData?.authorCn || [])
+            .concat(sourceData?.descCn || [])
+            .concat(sourceData?.tags || [])
+            .concat(sourceData?.categories || [])
+            .concat(translated?.titleVi || [])
+            .concat(stripTaggedDescLine(translated?.desc || ''))
+            .concat(translated?.tags || [])
+            .concat(translated?.categories || [])
+            .concat(extraValues || [])
+            .map(T.safeText)
+            .filter(Boolean);
+        const raw = parts.join('\n');
+        return {
+            raw,
+            norm: T.normalizeText(raw),
+            keep: normalizeKeepAccents(raw),
+        };
+    }
+
+    function signalHasAny(signal, patterns) {
+        const variants = [signal?.raw || '', signal?.norm || '', signal?.keep || ''];
+        return (patterns || []).some((pattern) => {
+            if (!(pattern instanceof RegExp)) return false;
+            pattern.lastIndex = 0;
+            return variants.some((value) => {
+                pattern.lastIndex = 0;
+                return pattern.test(value);
+            });
+        });
+    }
+
+    function findOptionLabelByPatterns(options, patterns) {
+        const list = Array.isArray(options) ? options : [];
+        return (list.find((opt) => {
+            const label = T.safeText(opt?.label || opt);
+            if (!label) return false;
+            const signal = {
+                raw: label,
+                norm: T.normalizeText(label),
+                keep: normalizeKeepAccents(label),
+            };
+            return signalHasAny(signal, patterns);
+        }) || {}).label || '';
+    }
+
+    function injectPreferredLabels(list, preferredLabels, conflictPatterns) {
+        const current = Array.isArray(list) ? list.map((item) => T.safeText(item)).filter(Boolean) : [];
+        const preferred = Array.isArray(preferredLabels) ? preferredLabels.map((item) => T.safeText(item)).filter(Boolean) : [];
+        if (!preferred.length) return current;
+        const preferredSet = new Set(preferred.map((item) => T.normalizeText(item)));
+        const cleaned = current.filter((item) => {
+            const normalized = T.normalizeText(item);
+            if (preferredSet.has(normalized)) return false;
+            if (!conflictPatterns || !conflictPatterns.length) return true;
+            const signal = { raw: item, norm: normalized, keep: normalizeKeepAccents(item) };
+            return !signalHasAny(signal, conflictPatterns);
+        });
+        return [...preferred, ...cleaned];
+    }
+
+    function boostScoredOptions(scored, preferredLabels, boostedScore = 2.1) {
+        const preferred = new Set((preferredLabels || []).map((label) => T.normalizeText(label)).filter(Boolean));
+        if (!preferred.size) return scored;
+        return scored
+            .map((opt) => {
+                const normalized = T.normalizeText(opt?.label || '');
+                if (!preferred.has(normalized)) return opt;
+                return { ...opt, score: Math.max(opt.score || 0, boostedScore) };
+            })
+            .sort((a, b) => b.score - a.score);
+    }
+
+    function detectPreferredAgeLabel(signal, ageOptions) {
+        const nearModernPatterns = [
+            /民国/i,
+            /dân quốc/i,
+            /dan quoc/i,
+            /一战|二战|第一次世界大战|第二次世界大战/i,
+            /\bwwi\b/i,
+            /\bwwii\b/i,
+            /world war\s*(?:1|2|i|ii)/i,
+            /thế chiến\s*(?:1|2|i|ii)/i,
+            /the chien\s*(?:1|2|i|ii)/i,
+            /phương tây.{0,20}thế kỷ\s*(?:19|xix)/i,
+            /phuong tay.{0,20}(?:the ky|the ki)\s*(?:19|xix)/i,
+            /\bwestern\b.{0,20}(?:19th century|xix)/i,
+            /\bvictorian\b/i,
+            /\bedwardian\b/i,
+        ];
+        const nienDaiPatterns = [
+            /年代文/i,
+            /\bnian dai wen\b/i,
+            /\bnien dai van\b/i,
+        ];
+        const modernPatterns = [
+            /现代/i,
+            /hiện đại/i,
+            /hien dai/i,
+            ...nienDaiPatterns,
+        ];
+        const nearModernLabel = findOptionLabelByPatterns(ageOptions, [/(^| )can dai($| )/i]);
+        const modernLabel = findOptionLabelByPatterns(ageOptions, [/(^| )hien dai($| )/i]);
+        const hasNearModernSignal = signalHasAny(signal, nearModernPatterns);
+        if (hasNearModernSignal && nearModernLabel) return nearModernLabel;
+        if (signalHasAny(signal, modernPatterns) && modernLabel) return modernLabel;
+        return '';
+    }
+
+    function detectPreferredAltHistoryLabel(signal, options) {
+        const altHistoryPatterns = [
+            /架空历史/i,
+            /\balternate history\b/i,
+            /giả tưởng lịch sử/i,
+            /gia tuong lich su/i,
+            /lịch sử giả tưởng/i,
+            /lich su gia tuong/i,
+        ];
+        if (!signalHasAny(signal, altHistoryPatterns)) return '';
+        return findOptionLabelByPatterns(options, [
+            /gia tuong.*lich su/i,
+            /lich su.*gia tuong/i,
+            /\balternate history\b/i,
+        ]);
     }
 
     function normalizeKeepAccents(text = '') {
@@ -2599,6 +2880,7 @@
         const contexts = [];
 
         const keywordList = buildKeywordList(sourceData, translated);
+        const classificationSignal = buildClassificationSignal(sourceData, translated, keywordList);
         const metaText = keywordList.join(' ');
         if (metaText) {
             contexts.push({
@@ -2619,8 +2901,19 @@
             });
         }
 
+        const preferredAgeLabel = detectPreferredAgeLabel(classificationSignal, groups.age);
+        const preferredGenreLabels = [];
+        const preferredTagLabels = [];
+        const preferredAltGenre = detectPreferredAltHistoryLabel(classificationSignal, groups.genre);
+        const preferredAltTag = detectPreferredAltHistoryLabel(classificationSignal, groups.tag);
+        if (preferredAltGenre) preferredGenreLabels.push(preferredAltGenre);
+        if (preferredAltTag) preferredTagLabels.push(preferredAltTag);
+
         const getMulti = (group, limit, isMandatory, collapse) => {
-            const scored = scoreOptions(group, contexts);
+            const preferredLabels = group === groups.age
+                ? (preferredAgeLabel ? [preferredAgeLabel] : [])
+                : (group === groups.genre ? preferredGenreLabels : (group === groups.tag ? preferredTagLabels : []));
+            const scored = boostScoredOptions(scoreOptions(group, contexts), preferredLabels);
             return pickMulti(scored, limit, isMandatory, collapse);
         };
 
@@ -2712,23 +3005,13 @@
     }
 
     function fetchCoverBlob(url) {
-        return new Promise((resolve, reject) => {
-            GM_xmlhttpRequest({
-                method: 'GET',
-                url,
-                responseType: 'blob',
-                onload(res) {
-                    if (res.status < 200 || res.status >= 300) {
-                        reject(new Error('Không tải được ảnh bìa.'));
-                        return;
-                    }
-                    resolve(res.response);
-                },
-                onerror(err) {
-                    reject(err);
-                },
-            });
-        });
+        return requestCoverWithFallback({
+            method: 'GET',
+            url,
+            responseType: 'blob',
+            validateResponse: (res) => res.status >= 200 && res.status < 300,
+            errorMessage: 'Khong tai duoc anh bia.',
+        }).then((res) => res.response);
     }
 
     function loadImageFromBlob(blob) {
@@ -2911,20 +3194,16 @@
     // ================================================
 
 const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.8</span></h2>
+<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.9</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li>🔁 <b>Mô tả VI/ZH hai chiều:</b> Nút đổi nhanh giữa bản dịch và bản gốc, cho phép sửa trực tiếp cả 2 bản.</li>
-    <li>📝 <b>Tối ưu:</b> Chuẩn hóa xử lý mô tả văn án khi dịch. Thay đổi hướng dẫn theo bản mới.</li>
-    <li>⚙️ <b>Gán nhãn theo nguồn:</b> Thêm cột <code>Gán nhãn</code> trong Cấu hình Nguồn; mặc định bật cho tất cả nguồn.</li>
-    <li>🏷️ <b>Popup chọn nhanh nhãn:</b> Thời đại/Kết thúc/Loại hình/Tag có nút <code>Chọn</code>, lấy danh sách trực tiếp từ web và hỗ trợ tìm nhanh.</li>
-    <li>🔒 <b>Popup chặt hơn:</b> Bấm ra ngoài không tự đóng; chỉ đóng bằng nút trong popup.</li>
-    <li>🖼️ <b>Cover WxH theo nguồn:</b> Cấu hình tỷ lệ ảnh bìa giờ lưu theo từng nguồn (Fanqie/PO18/...), không ảnh hưởng lẫn nhau.</li>
-    <li>🧠 <b>Recompute thông minh hơn:</b> Cảnh báo đỏ khi dữ liệu đã đổi; nếu đã dùng AI thì chỉ dịch lại phần thay đổi, giữ tag/thể loại AI. Nếu bạn đã sửa tag/thể loại sau AI, Recompute sẽ hỏi dùng lại đề xuất AI hay giữ chỉnh tay.</li>
-    <li>🧰 <b>Bảng dịch nhanh mới:</b> Nút icon hội thoại cạnh AI mở panel kéo-thả, dịch nhanh theo các chế độ <code>vi/hv/si/tr</code>.</li>
+    <li>🪄 <b>JJWXC mượt hơn:</b> Dùng api cũ hay mới tùy hoàn cảnh; nút <code>Old/New</code> vẫn giữ để đổi nhanh sau đó.</li>
+    <li>⏱️ <b>Gemini rõ ràng hơn:</b> Mặc định ưu tiên <code>gemini-3-flash-preview</code>, có toast/log đếm thời gian và báo rõ khi AI đang chạy thinking mode.</li>
+    <li>🏷️ <b>Tối ưu chọn nhãn:</b> Tinh chỉnh cả AI lẫn keyword cho <code>架空历史</code> → <b>Giả tưởng lịch sử</b>, và <code>年代文</code> ưu tiên <b>Hiện đại</b> thay vì <b>Cận đại</b></li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
 <ul style="list-style-type: none; padding-left: 0; font-size: 13px;">
+    <li><b>v0.3.8:</b> Mô tả VI/ZH hai chiều, gán nhãn theo nguồn, popup chọn nhanh nhãn, popup không tự đóng, cover WxH theo nguồn, recompute thông minh hơn, bảng dịch nhanh mới.</li>
     <li><b>v0.3.7:</b> Fanqie chuyển parse web, sửa nhận diện trạng thái, chuẩn hóa cover origin.</li>
     <li><b>v0.3.6:</b> Loại trừ nâng cấp, check trùng mềm hơn, cập nhật domain Wikidich.</li>
     <li><b>v0.3.5:</b> Thêm nguồn Hải Đường Longma, parse trạng thái tập trung, AI không chọn trạng thái, ghi đè link bổ sung, nút fullscreen + phóng 1.5x.</li>
@@ -3235,7 +3514,36 @@ const CHANGELOG_CONTENT = `
                 flex-wrap: wrap;
                 gap: 0;
             }
+            .${APP_PREFIX}jjwxc-api-btn {
+                display: none;
+                min-width: 48px;
+                justify-content: center;
+                border-color: rgba(139, 92, 246, 0.28);
+            }
+            .${APP_PREFIX}jjwxc-api-btn.show {
+                display: inline-flex;
+            }
+            .${APP_PREFIX}jjwxc-api-btn[data-mode="new"] {
+                background: linear-gradient(135deg, #dcfce7, #bfdbfe);
+                color: #065f46;
+                border-color: rgba(34, 197, 94, 0.28);
+            }
+            .${APP_PREFIX}jjwxc-api-btn[data-mode="old"] {
+                background: linear-gradient(135deg, #fee2e2, #fbcfe8);
+                color: #9f1239;
+                border-color: rgba(244, 63, 94, 0.28);
+            }
             :host([data-theme="dark"]) .${APP_PREFIX}label { color: #d1d5db; }
+            :host([data-theme="dark"]) .${APP_PREFIX}jjwxc-api-btn[data-mode="new"] {
+                background: linear-gradient(135deg, rgba(20, 83, 45, 0.88), rgba(30, 64, 175, 0.78));
+                color: #dcfce7;
+                border-color: rgba(74, 222, 128, 0.32);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}jjwxc-api-btn[data-mode="old"] {
+                background: linear-gradient(135deg, rgba(127, 29, 29, 0.88), rgba(131, 24, 67, 0.82));
+                color: #ffe4e6;
+                border-color: rgba(251, 113, 133, 0.35);
+            }
             .${APP_PREFIX}match {
                 display: inline; font-size: 12px; margin-left: 6px;
                 font-weight: 700; border: none; background: transparent;
@@ -3333,6 +3641,87 @@ const CHANGELOG_CONTENT = `
             .${APP_PREFIX}modal-card.${APP_PREFIX}multi-picker-card {
                 width: 620px;
                 max-width: 96vw;
+            }
+            .${APP_PREFIX}modal-card.${APP_PREFIX}jjwxc-api-card {
+                width: 520px;
+                max-width: 94vw;
+            }
+            .${APP_PREFIX}jjwxc-api-lead {
+                margin: 0 0 10px;
+                font-size: 14px;
+                color: #334155;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}jjwxc-api-lead {
+                color: #dbeafe;
+            }
+            .${APP_PREFIX}jjwxc-api-status {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 700;
+                background: linear-gradient(135deg, rgba(239, 246, 255, 0.92), rgba(250, 245, 255, 0.96));
+                border: 1px solid rgba(99, 102, 241, 0.18);
+                color: #4338ca;
+                margin-bottom: 12px;
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}jjwxc-api-status {
+                background: linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(49, 46, 129, 0.78));
+                border-color: rgba(129, 140, 248, 0.28);
+                color: #c7d2fe;
+            }
+            .${APP_PREFIX}jjwxc-api-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+            .${APP_PREFIX}jjwxc-api-option {
+                border: 1px solid rgba(148, 163, 184, 0.24);
+                border-radius: 16px;
+                padding: 14px;
+                background: rgba(255, 255, 255, 0.84);
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
+            }
+            .${APP_PREFIX}jjwxc-api-option h4 {
+                margin: 0 0 6px;
+                font-size: 14px;
+                font-weight: 800;
+            }
+            .${APP_PREFIX}jjwxc-api-option p {
+                margin: 0 0 12px;
+                font-size: 12px;
+                line-height: 1.55;
+                color: #475569;
+            }
+            .${APP_PREFIX}jjwxc-api-option[data-mode="new"] {
+                background: linear-gradient(180deg, rgba(220, 252, 231, 0.95), rgba(219, 234, 254, 0.95));
+                border-color: rgba(34, 197, 94, 0.2);
+            }
+            .${APP_PREFIX}jjwxc-api-option[data-mode="old"] {
+                background: linear-gradient(180deg, rgba(255, 241, 242, 0.95), rgba(250, 232, 255, 0.95));
+                border-color: rgba(244, 63, 94, 0.2);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}jjwxc-api-option {
+                background: rgba(15, 23, 42, 0.84);
+                border-color: rgba(148, 163, 184, 0.22);
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}jjwxc-api-option[data-mode="new"] {
+                background: linear-gradient(180deg, rgba(20, 83, 45, 0.42), rgba(30, 64, 175, 0.34));
+                border-color: rgba(74, 222, 128, 0.25);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}jjwxc-api-option[data-mode="old"] {
+                background: linear-gradient(180deg, rgba(127, 29, 29, 0.42), rgba(131, 24, 67, 0.34));
+                border-color: rgba(251, 113, 133, 0.28);
+            }
+            :host([data-theme="dark"]) .${APP_PREFIX}jjwxc-api-option p {
+                color: #cbd5e1;
+            }
+            .${APP_PREFIX}jjwxc-api-pick {
+                width: 100%;
+                margin-right: 0;
             }
             .${APP_PREFIX}multi-picker-meta {
                 margin-top: 6px;
@@ -3880,7 +4269,10 @@ const CHANGELOG_CONTENT = `
                 <div id="${APP_PREFIX}recomputeNotice"></div>
                 <div id="${APP_PREFIX}content">
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">URL Web Trung</label>
+                        <div class="${APP_PREFIX}label-row">
+                            <label class="${APP_PREFIX}label">URL Web Trung</label>
+                            <button id="${APP_PREFIX}jjwxcApiMode" class="${APP_PREFIX}tiny-btn ${APP_PREFIX}jjwxc-api-btn" type="button" title="Chọn JJWXC API">New</button>
+                        </div>
                         <input id="${APP_PREFIX}url" class="${APP_PREFIX}input" placeholder="https://fanqienovel.com/page/... hoặc https://www.po18.tw/books/... hoặc https://www.ihuaben.com/book/... hoặc https://www.qidian.com/book/... hoặc https://www.qimao.com/shuku/..." />
                     </div>
                     <div class="${APP_PREFIX}row">
@@ -4099,6 +4491,27 @@ const CHANGELOG_CONTENT = `
                     </div>
                 </div>
             </div>
+            <div id="${APP_PREFIX}jjwxcApiModal" class="${APP_PREFIX}modal">
+                <div class="${APP_PREFIX}modal-card ${APP_PREFIX}jjwxc-api-card">
+                    <div class="${APP_PREFIX}modal-title">Chọn luồng JJWXC</div>
+                    <div class="${APP_PREFIX}modal-body">
+                        <p class="${APP_PREFIX}jjwxc-api-lead">Lần đầu lấy dữ liệu từ JJWXC, hãy chốt API mặc định cho trình duyệt này. Bạn vẫn có thể đổi lại sau bằng nút <b>Old/New</b> cạnh ô URL.</p>
+                        <div id="${APP_PREFIX}jjwxcApiStatus" class="${APP_PREFIX}jjwxc-api-status">Đang lưu: Chưa chọn</div>
+                        <div class="${APP_PREFIX}jjwxc-api-grid">
+                            <div class="${APP_PREFIX}jjwxc-api-option" data-mode="new">
+                                <h4>New</h4>
+                                <p>Dùng endpoint mới. Đây sẽ là lựa chọn mặc định nếu chưa có cấu hình trước đó.</p>
+                                <button id="${APP_PREFIX}jjwxcPickNew" class="${APP_PREFIX}btn ${APP_PREFIX}jjwxc-api-pick" type="button">Dùng New</button>
+                            </div>
+                            <div class="${APP_PREFIX}jjwxc-api-option" data-mode="old">
+                                <h4>Old</h4>
+                                <p>Dùng endpoint cũ. Hữu ích khi muốn so lại dữ liệu hoặc fallback thủ công.</p>
+                                <button id="${APP_PREFIX}jjwxcPickOld" class="${APP_PREFIX}btn secondary ${APP_PREFIX}jjwxc-api-pick" type="button">Dùng Old</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div id="${APP_PREFIX}duplicateModal" class="${APP_PREFIX}modal">
                 <div class="${APP_PREFIX}modal-card">
                     <div class="${APP_PREFIX}modal-title" style="color:#c62828;">Cảnh báo truyện trùng</div>
@@ -4229,6 +4642,10 @@ const CHANGELOG_CONTENT = `
         const manualAiCopy = shadowRoot.getElementById(`${APP_PREFIX}manualAiCopy`);
         const manualAiPaste = shadowRoot.getElementById(`${APP_PREFIX}manualAiPaste`);
         const manualAiClose = shadowRoot.getElementById(`${APP_PREFIX}manualAiClose`);
+        const jjwxcApiModal = shadowRoot.getElementById(`${APP_PREFIX}jjwxcApiModal`);
+        const jjwxcApiStatus = shadowRoot.getElementById(`${APP_PREFIX}jjwxcApiStatus`);
+        const jjwxcPickNew = shadowRoot.getElementById(`${APP_PREFIX}jjwxcPickNew`);
+        const jjwxcPickOld = shadowRoot.getElementById(`${APP_PREFIX}jjwxcPickOld`);
         const duplicateModal = shadowRoot.getElementById(`${APP_PREFIX}duplicateModal`);
         const duplicateBody = shadowRoot.getElementById(`${APP_PREFIX}duplicateBody`);
         const duplicateClose = shadowRoot.getElementById(`${APP_PREFIX}duplicateClose`);
@@ -4277,6 +4694,7 @@ const CHANGELOG_CONTENT = `
         const authorCnInput = shadowRoot.getElementById(`${APP_PREFIX}authorCn`);
         const applyBtn = shadowRoot.getElementById(`${APP_PREFIX}apply`);
         const sourceUrlInput = shadowRoot.getElementById(`${APP_PREFIX}url`);
+        const jjwxcApiModeBtn = shadowRoot.getElementById(`${APP_PREFIX}jjwxcApiMode`);
 
         const setDataActionButtonsEnabled = (enabled) => {
             const ready = !!enabled;
@@ -4318,6 +4736,14 @@ const CHANGELOG_CONTENT = `
                 }, autoHideMs);
             }
         };
+        const updateApplyToastMessage = (message, stateName = 'loading') => {
+            if (!applyToast) return;
+            if (applyToast.classList.contains('enter') && applyToast.getAttribute('data-state') === stateName) {
+                applyToast.textContent = message || '';
+                return;
+            }
+            showApplyToast(message, stateName);
+        };
 
         const deepClone = (v) => {
             try { return JSON.parse(JSON.stringify(v)); } catch { return null; }
@@ -4327,6 +4753,7 @@ const CHANGELOG_CONTENT = `
         let multiPickerContext = null;
         let coverMetaReqId = 0;
         let coverMetaDebounce = null;
+        let jjwxcApiModeResolver = null;
         const MULTI_PICKER_FIELDS = {
             age: { label: 'Thời đại', inputId: `${APP_PREFIX}age` },
             ending: { label: 'Kết thúc', inputId: `${APP_PREFIX}ending` },
@@ -4351,6 +4778,65 @@ const CHANGELOG_CONTENT = `
                 out.push(label);
             });
             return out;
+        };
+        const getStoredJjwxcApiMode = () => normalizeJjwxcApiMode(state.settings?.jjwxcApiMode);
+        const getEffectiveJjwxcApiMode = () => getStoredJjwxcApiMode() || JJWXC_API_MODE_NEW;
+        const persistJjwxcApiMode = (mode) => {
+            const normalized = normalizeJjwxcApiMode(mode);
+            const next = normalizeSettings({
+                ...(state.settings || {}),
+                jjwxcApiMode: normalized,
+            });
+            saveSettings(next);
+            return normalized;
+        };
+        const updateJjwxcApiModalStatus = () => {
+            if (!jjwxcApiStatus) return;
+            const stored = getStoredJjwxcApiMode();
+            jjwxcApiStatus.textContent = stored
+                ? `Đang lưu: ${stored === JJWXC_API_MODE_OLD ? 'Old / API cũ' : 'New / API mới'}`
+                : 'Đang lưu: Chưa chọn';
+        };
+        const resolveJjwxcApiModeModal = (mode) => {
+            const chosen = normalizeJjwxcApiMode(mode) || JJWXC_API_MODE_NEW;
+            if (jjwxcApiModal) jjwxcApiModal.style.display = 'none';
+            const resolver = jjwxcApiModeResolver;
+            jjwxcApiModeResolver = null;
+            if (typeof resolver === 'function') resolver(chosen);
+        };
+        const openJjwxcApiModeModal = () => new Promise((resolve) => {
+            if (!jjwxcApiModal || !jjwxcPickNew || !jjwxcPickOld) {
+                resolve(JJWXC_API_MODE_NEW);
+                return;
+            }
+            jjwxcApiModeResolver = resolve;
+            updateJjwxcApiModalStatus();
+            jjwxcApiModal.style.display = 'flex';
+            const preferred = getEffectiveJjwxcApiMode() === JJWXC_API_MODE_OLD ? jjwxcPickOld : jjwxcPickNew;
+            setTimeout(() => preferred?.focus(), 0);
+        });
+        const updateJjwxcApiModeUi = () => {
+            if (!jjwxcApiModeBtn) return;
+            const mode = getEffectiveJjwxcApiMode();
+            const isJjwxc = detectSource(sourceUrlInput?.value || '')?.type === 'jjwxc';
+            jjwxcApiModeBtn.textContent = mode === JJWXC_API_MODE_OLD ? 'Old' : 'New';
+            jjwxcApiModeBtn.dataset.mode = mode;
+            jjwxcApiModeBtn.classList.toggle('show', isJjwxc);
+            if (!isJjwxc) return;
+            const hasStored = !!getStoredJjwxcApiMode();
+            jjwxcApiModeBtn.title = hasStored
+                ? `JJWXC đang dùng API ${mode === JJWXC_API_MODE_OLD ? 'cũ' : 'mới'}. Bấm để đổi nhanh.`
+                : `JJWXC chưa chốt API. Hiện mặc định ${mode === JJWXC_API_MODE_OLD ? 'Old' : 'New'}; lần fetch đầu sẽ hỏi, hoặc bấm để đổi ngay.`;
+        };
+        const ensureJjwxcApiModeSelected = async () => {
+            const stored = getStoredJjwxcApiMode();
+            if (stored) return stored;
+            const chosen = persistJjwxcApiMode(await openJjwxcApiModeModal()) || JJWXC_API_MODE_NEW;
+            updateJjwxcApiModeUi();
+            if (typeof state.log === 'function') {
+                state.log(`JJWXC: đã lưu dùng API ${chosen === JJWXC_API_MODE_OLD ? 'cũ (Old)' : 'mới (New)'}.`, 'info');
+            }
+            return chosen;
         };
 
         const getActiveSourceType = () => {
@@ -4526,32 +5012,20 @@ const CHANGELOG_CONTENT = `
                 reject(new Error('URL ảnh trống'));
                 return;
             }
-            const img = new Image();
-            let done = false;
-            const timer = setTimeout(() => {
-                if (done) return;
-                done = true;
-                reject(new Error('Timeout đọc kích thước ảnh'));
-            }, 10000);
-            img.onload = () => {
-                if (done) return;
-                done = true;
-                clearTimeout(timer);
-                const width = img.naturalWidth || img.width || 0;
-                const height = img.naturalHeight || img.height || 0;
-                if (!width || !height) {
-                    reject(new Error('Không đọc được kích thước ảnh'));
-                    return;
-                }
-                resolve({ width, height });
-            };
-            img.onerror = () => {
-                if (done) return;
-                done = true;
-                clearTimeout(timer);
-                reject(new Error('Không tải được ảnh'));
-            };
-            img.src = src;
+            fetchCoverBlob(src)
+                .then(loadImageFromBlob)
+                .then((img) => {
+                    const width = img.naturalWidth || img.width || 0;
+                    const height = img.naturalHeight || img.height || 0;
+                    if (!width || !height) {
+                        reject(new Error('Không đọc được kích thước ảnh'));
+                        return;
+                    }
+                    resolve({ width, height });
+                })
+                .catch((err) => {
+                    reject(err instanceof Error ? err : new Error('Không tải được ảnh'));
+                });
         });
 
         const refreshCoverMeta = (url) => {
@@ -5370,6 +5844,21 @@ const CHANGELOG_CONTENT = `
         manualAiClose.addEventListener('click', () => {
             manualAiModal.style.display = 'none';
         });
+        if (jjwxcPickNew) {
+            jjwxcPickNew.addEventListener('click', () => {
+                resolveJjwxcApiModeModal(JJWXC_API_MODE_NEW);
+            });
+        }
+        if (jjwxcPickOld) {
+            jjwxcPickOld.addEventListener('click', () => {
+                resolveJjwxcApiModeModal(JJWXC_API_MODE_OLD);
+            });
+        }
+        if (jjwxcApiModal) {
+            jjwxcApiModal.addEventListener('click', (ev) => {
+                if (ev.target === jjwxcApiModal) return;
+            });
+        }
         manualAiCopy.addEventListener('click', async () => {
             const context = buildAiContext();
             if (!context) return;
@@ -5584,7 +6073,7 @@ const CHANGELOG_CONTENT = `
 
             // Populate models
             settingsGeminiModel.innerHTML = '';
-            const currentModel = s.geminiModel || 'gemini-2.5-flash';
+            const currentModel = normalizeGeminiModelName(s.geminiModel) || DEFAULT_GEMINI_MODEL;
             const option = document.createElement('option');
             option.value = currentModel;
             option.textContent = currentModel;
@@ -5807,10 +6296,21 @@ const CHANGELOG_CONTENT = `
                         try {
                             const data = JSON.parse(res.responseText);
                             if (data.models && Array.isArray(data.models)) {
+                                const currentUiModel = normalizeGeminiModelName(settingsGeminiModel.value);
+                                rememberGeminiModels(data.models);
                                 settingsGeminiModel.innerHTML = '';
+                                const preferredModel = normalizeGeminiModelName(
+                                    currentUiModel || state.settings?.geminiModel || DEFAULT_GEMINI_MODEL
+                                ) || DEFAULT_GEMINI_MODEL;
                                 const models = data.models
                                     .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
-                                    .sort((a, b) => b.displayName.localeCompare(a.displayName)); // Sort desirable
+                                    .sort((a, b) => {
+                                        const nameA = normalizeGeminiModelName(a?.name);
+                                        const nameB = normalizeGeminiModelName(b?.name);
+                                        if (nameA === DEFAULT_GEMINI_MODEL) return -1;
+                                        if (nameB === DEFAULT_GEMINI_MODEL) return 1;
+                                        return (a?.displayName || nameA).localeCompare(b?.displayName || nameB);
+                                    });
 
                                 if (!models.length) {
                                     alert('Không tìm thấy model nào hỗ trợ generateContent.');
@@ -5818,14 +6318,18 @@ const CHANGELOG_CONTENT = `
                                 }
 
                                 models.forEach(m => {
-                                    const name = m.name.replace('models/', '');
+                                    const name = normalizeGeminiModelName(m.name);
                                     const opt = document.createElement('option');
                                     opt.value = name;
-                                    opt.textContent = `${m.displayName} (${name})`;
-                                    if (name === 'gemini-2.5-flash') opt.selected = true;
+                                    opt.textContent = `${m.displayName} (${name})${m.thinking ? ' • thinking' : ''}`;
                                     settingsGeminiModel.appendChild(opt);
                                 });
-                                alert(`Đã tìm thấy ${models.length} maps.`);
+                                const availableNames = new Set(models.map((m) => normalizeGeminiModelName(m.name)));
+                                const selectedModel = availableNames.has(preferredModel)
+                                    ? preferredModel
+                                    : (availableNames.has(DEFAULT_GEMINI_MODEL) ? DEFAULT_GEMINI_MODEL : normalizeGeminiModelName(models[0]?.name));
+                                if (selectedModel) settingsGeminiModel.value = selectedModel;
+                                alert(`Đã tìm thấy ${models.length} model.`);
                             }
                         } catch (e) {
                             alert('Lỗi parse: ' + e.message);
@@ -5844,15 +6348,46 @@ const CHANGELOG_CONTENT = `
 
         // --- GEMINI AI IMPLEMENTATION ---
 
-        async function callGemini(prompt, apiKey, model = 'gemini-2.5-flash') {
+        function extractGeminiErrorDetail(responseText) {
+            try {
+                const data = JSON.parse(responseText || '{}');
+                return data?.error?.message || '';
+            } catch {
+                return ((responseText || '').toString().trim().slice(0, 240));
+            }
+        }
+
+        function formatElapsedTime(ms) {
+            const value = Number(ms);
+            if (!Number.isFinite(value) || value < 0) return '0ms';
+            if (value < 1000) return `${Math.round(value)}ms`;
+            const seconds = value / 1000;
+            if (seconds < 60) return `${seconds.toFixed(seconds >= 10 ? 1 : 2)}s`;
+            const minutes = Math.floor(seconds / 60);
+            const remain = Math.round(seconds % 60);
+            return `${minutes}m ${remain}s`;
+        }
+
+        function buildGeminiUsageLog(meta) {
+            const usage = meta?.usage || {};
+            const parts = [];
+            if (Number.isFinite(usage.promptTokenCount)) parts.push(`prompt ${usage.promptTokenCount}`);
+            if (Number.isFinite(usage.candidatesTokenCount)) parts.push(`output ${usage.candidatesTokenCount}`);
+            if (Number.isFinite(usage.thoughtsTokenCount)) parts.push(`thinking ${usage.thoughtsTokenCount}`);
+            if (Number.isFinite(usage.totalTokenCount)) parts.push(`total ${usage.totalTokenCount}`);
+            if (!parts.length) return '';
+            const modelInfo = meta?.modelVersion || meta?.model || '';
+            return `AI usage${modelInfo ? ` [${modelInfo}]` : ''}: ${parts.join(' | ')}.`;
+        }
+
+        function requestGeminiJson(prompt, apiKey, model, generationConfig) {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json"
-                }
+                generationConfig
             };
             return new Promise((resolve, reject) => {
+                const startedAt = Date.now();
                 GM_xmlhttpRequest({
                     method: 'POST',
                     url: url,
@@ -5864,17 +6399,46 @@ const CHANGELOG_CONTENT = `
                                 const data = JSON.parse(res.responseText);
                                 const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
                                 if (!text) throw new Error('No text in response');
-                                resolve(JSON.parse(text));
+                                resolve({
+                                    result: JSON.parse(text),
+                                    meta: {
+                                        elapsedMs: Date.now() - startedAt,
+                                        model,
+                                        modelVersion: T.safeText(data?.modelVersion || ''),
+                                        usage: data?.usageMetadata || {},
+                                        responseId: T.safeText(data?.responseId || ''),
+                                        thinkingEnabled: !!generationConfig?.thinkingConfig,
+                                    },
+                                });
                             } catch (e) {
                                 reject(new Error('AI Response Parse Error: ' + e.message));
                             }
                         } else {
-                            reject(new Error(`Gemini Error ${res.status}: ${res.statusText}`));
+                            const detail = extractGeminiErrorDetail(res.responseText) || res.statusText || 'Unknown error';
+                            reject(new Error(`Gemini Error ${res.status}: ${detail}`));
                         }
                     },
                     onerror: (err) => reject(err)
                 });
             });
+        }
+
+        async function callGemini(prompt, apiKey, model = DEFAULT_GEMINI_MODEL) {
+            const normalizedModel = normalizeGeminiModelName(model) || DEFAULT_GEMINI_MODEL;
+            const generationConfig = buildGeminiGenerationConfig(normalizedModel);
+            try {
+                return await requestGeminiJson(prompt, apiKey, normalizedModel, generationConfig);
+            } catch (err) {
+                const message = (err && err.message) ? err.message : String(err || '');
+                if (
+                    generationConfig.thinkingConfig &&
+                    /(thinking|thinkingconfig|unknown field|invalid json payload|unsupported|not supported)/i.test(message)
+                ) {
+                    logUi(`Model ${normalizedModel} không nhận thinking low, thử lại không bật suy nghĩ.`, 'warn');
+                    return requestGeminiJson(prompt, apiKey, normalizedModel, { responseMimeType: 'application/json' });
+                }
+                throw err;
+            }
         }
 
         const buildAiContext = () => {
@@ -5934,6 +6498,8 @@ TASK 2: Classify the novel using ONLY the provided lists:
 - ending: ${JSON.stringify(availableOptions.ending)} // Pick 1 (if unclear, you may choose OE or HE). Pick multiple ONLY when tag/genre includes "Xuyên nhanh"/"快穿".
 - genre: ${JSON.stringify(availableOptions.genre)} // Pick multiple
 - tag: ${JSON.stringify(availableOptions.tag)} // Pick multiple
+- IMPORTANT: "架空历史" means "Giả tưởng lịch sử" / alternate history, NOT plain "Lịch sử". If both exist in the provided lists, prefer "Giả tưởng lịch sử".
+- IMPORTANT: "年代文" usually maps to "Hiện đại", NOT "Cận đại". Only choose "Cận đại" when there are clear Republic-era / 民国, World War I-II / 一战二战, or Western 19th-century signals. Use tags + context to infer carefully.
 
 Output JSON format:
 {
@@ -5964,6 +6530,8 @@ Available Lists (Choose from these ONLY):
 - ending: ${JSON.stringify(availableOptions.ending)} // Pick 1 (if unclear, you may choose OE or HE). Pick multiple ONLY when tag/genre includes "Xuyên nhanh"/"快穿".
 - genre: ${JSON.stringify(availableOptions.genre)} // Pick multiple
 - tag: ${JSON.stringify(availableOptions.tag)} // Pick multiple
+- IMPORTANT: "架空历史" means "Giả tưởng lịch sử" / alternate history, NOT plain "Lịch sử". If both exist in the provided lists, prefer "Giả tưởng lịch sử".
+- IMPORTANT: "年代文" usually maps to "Hiện đại", NOT "Cận đại". Only choose "Cận đại" when there are clear Republic-era / 民国, World War I-II / 一战二战, or Western 19th-century signals. Use tags + context to infer carefully.
 
 Output JSON format: { "gender": "...", "official": "...", "age": [...], "ending": [...], "genre": [...], "tag": [...] }
 For arrays, return list of strings. If none fit, return empty array.
@@ -6064,6 +6632,35 @@ For arrays, return list of strings. If none fit, return empty array.
                 log('AI: Kết thúc chỉ chọn 1 (trừ khi có tag/thể loại Xuyên nhanh).', 'warn');
             }
 
+            const aiSignal = buildClassificationSignal(state.sourceData, state.translated, []
+                .concat(result.age || [])
+                .concat(result.genre || [])
+                .concat(result.tag || []));
+            const preferredAiAge = detectPreferredAgeLabel(aiSignal, state.groups?.age || []);
+            if (preferredAiAge) {
+                const nextAge = injectPreferredLabels(result.age, [preferredAiAge], [/(^| )hien dai($| )/i, /(^| )can dai($| )/i]);
+                if (T.normalizeText((result.age || []).join(', ')) !== T.normalizeText(nextAge.join(', '))) {
+                    result.age = nextAge;
+                    log(`AI: Ưu tiên thời đại "${preferredAiAge}" theo ngữ cảnh.`, 'info');
+                }
+            }
+            const preferredAiGenre = detectPreferredAltHistoryLabel(aiSignal, state.groups?.genre || []);
+            if (preferredAiGenre) {
+                const nextGenre = injectPreferredLabels(result.genre, [preferredAiGenre], [/(^| )lich su($| )/i]);
+                if (T.normalizeText((result.genre || []).join(', ')) !== T.normalizeText(nextGenre.join(', '))) {
+                    result.genre = nextGenre;
+                    log(`AI: Ưu tiên thể loại "${preferredAiGenre}" cho 架空历史.`, 'info');
+                }
+            }
+            const preferredAiTag = detectPreferredAltHistoryLabel(aiSignal, state.groups?.tag || []);
+            if (preferredAiTag) {
+                const nextTag = injectPreferredLabels(result.tag, [preferredAiTag], [/(^| )lich su($| )/i]);
+                if (T.normalizeText((result.tag || []).join(', ')) !== T.normalizeText(nextTag.join(', '))) {
+                    result.tag = nextTag;
+                    log(`AI: Ưu tiên tag "${preferredAiTag}" cho 架空历史.`, 'info');
+                }
+            }
+
             if (result.gender) shadowRoot.getElementById(`${APP_PREFIX}gender`).value = result.gender;
             if (result.official) shadowRoot.getElementById(`${APP_PREFIX}official`).value = result.official;
 
@@ -6114,23 +6711,52 @@ For arrays, return list of strings. If none fit, return empty array.
             const context = buildAiContext();
             if (!context) return;
             const shouldExtractNames = context.shouldExtractNames;
+            const geminiModel = normalizeGeminiModelName(state.settings.geminiModel) || DEFAULT_GEMINI_MODEL;
+            const thinkingEnabled = !!buildGeminiGenerationConfig(geminiModel).thinkingConfig;
+            const thinkingStartedAt = Date.now();
+            let thinkingTicker = null;
 
-            log('Đang gửi dữ liệu sang Gemini AI...', 'info');
-            showApplyToast('AI đang phân tích dữ liệu...', 'loading');
+            log(`Đang gửi dữ liệu sang Gemini AI (${geminiModel})...`, 'info');
+            if (thinkingEnabled) {
+                log('Gemini đang bật thinking mode, phản hồi có thể chậm hơn bình thường. Vui lòng chờ...', 'info');
+            }
+            const updateThinkingToast = () => {
+                const elapsedLabel = formatElapsedTime(Date.now() - thinkingStartedAt);
+                updateApplyToastMessage(
+                    thinkingEnabled
+                        ? `AI đang suy nghĩ... ${elapsedLabel}`
+                        : `AI đang phân tích dữ liệu... ${elapsedLabel}`,
+                    'loading'
+                );
+            };
+            updateThinkingToast();
+            thinkingTicker = window.setInterval(updateThinkingToast, 1000);
 
             const availableOptions = context.availableOptions;
             const prompt = buildAiPrompt(shouldExtractNames, availableOptions);
 
             try {
-                const result = await callGemini(prompt, apiKey, state.settings.geminiModel);
-                log('AI đã phân tích xong. Đang áp dụng...');
-                console.log('AI Result:', result);
+                const { result, meta } = await callGemini(prompt, apiKey, geminiModel);
+                const elapsedLabel = formatElapsedTime(meta?.elapsedMs ?? (Date.now() - thinkingStartedAt));
+                log(`AI đã phân tích xong sau ${elapsedLabel}. Đang áp dụng...`, 'ok');
+                if (meta?.thinkingEnabled) {
+                    log(`AI: thinking mode hoàn tất sau ${elapsedLabel}.`, 'info');
+                }
+                const usageLog = buildGeminiUsageLog(meta);
+                if (usageLog) log(usageLog, 'info');
+                console.log('AI Result:', result, meta);
 
                 await applyAiResult(result, shouldExtractNames, availableOptions);
-                showApplyToast('AI đã phân tích xong.', 'success', 1300);
+                showApplyToast(`AI đã phân tích xong sau ${elapsedLabel}.`, 'success', 1500);
             } catch (err) {
-                log('Lỗi AI: ' + err.message, 'error');
+                const elapsedLabel = formatElapsedTime(Date.now() - thinkingStartedAt);
+                log(`Lỗi AI sau ${elapsedLabel}: ${err.message}`, 'error');
                 showApplyToast('AI lỗi, xem log để xử lý.', 'error', 1600);
+            } finally {
+                if (thinkingTicker) {
+                    window.clearInterval(thinkingTicker);
+                    thinkingTicker = null;
+                }
             }
         }
 
@@ -6157,9 +6783,10 @@ For arrays, return list of strings. If none fit, return empty array.
                 scoreThreshold: parseFloat(settingsThreshold.value),
                 aiMode: settingsAiMode.value,
                 geminiApiKey: settingsGeminiKey.value.trim(),
-                geminiModel: settingsGeminiModel.value.trim(),
+                geminiModel: normalizeGeminiModelName(settingsGeminiModel.value) || DEFAULT_GEMINI_MODEL,
                 autoExtractNames: settingsAutoExtractNames.checked,
                 autoBreakDesc: settingsAutoBreakDesc.checked,
+                jjwxcApiMode: normalizeJjwxcApiMode(state.settings?.jjwxcApiMode),
                 domainSettings,
                 coverSizeByDomain: deepClone(state.settings?.coverSizeByDomain || {}),
             };
@@ -6215,10 +6842,18 @@ For arrays, return list of strings. If none fit, return empty array.
                     showApplyToast('Nguồn chưa hỗ trợ.', 'error', 1500);
                     return;
                 }
+                let jjwxcApiMode = '';
+                if (sourceInfo.type === 'jjwxc') {
+                    jjwxcApiMode = await ensureJjwxcApiModeSelected();
+                    updateJjwxcApiModeUi();
+                }
                 const fetchLabel = rule.name ? `Đang gọi ${rule.name}...` : 'Đang gọi nguồn...';
                 log(fetchLabel);
+                if (jjwxcApiMode) {
+                    log(`JJWXC: dùng API ${jjwxcApiMode === JJWXC_API_MODE_OLD ? 'cũ (Old)' : 'mới (New)'}.`, 'info');
+                }
                 showApplyToast('Đang lấy dữ liệu từ nguồn...', 'loading');
-                raw = await rule.fetch(sourceInfo.id);
+                raw = await rule.fetch(sourceInfo.id, jjwxcApiMode);
                 sourceData = rule.normalize(raw);
                 const okLabel = rule.name ? `${rule.name} OK` : 'Nguồn OK';
                 log(`${okLabel}: ${sourceData.titleCn || '(no title)'}`, 'ok');
@@ -6451,16 +7086,24 @@ For arrays, return list of strings. If none fit, return empty array.
                 });
             }
 
+            const classificationSignal = buildClassificationSignal(state.sourceData, state.translated, combinedKeywords);
+            const preferredAgeLabel = detectPreferredAgeLabel(classificationSignal, state.groups.age);
+            const preferredGenreLabels = [];
+            const preferredTagLabels = [];
+            const preferredAltGenre = detectPreferredAltHistoryLabel(classificationSignal, state.groups.genre);
+            const preferredAltTag = detectPreferredAltHistoryLabel(classificationSignal, state.groups.tag);
+            if (preferredAltGenre) preferredGenreLabels.push(preferredAltGenre);
+            if (preferredAltTag) preferredTagLabels.push(preferredAltTag);
             const threshold = getScoreThreshold();
             const allowMultiEnding = hasXuyenNhanh(combinedKeywords);
             const suggestions = {
                 status: state.suggestions?.status || '',
                 official: state.suggestions?.official || '',
                 gender: state.suggestions?.gender || '',
-                age: pickMulti(scoreOptions(state.groups.age, contexts), 4, true, false, threshold),
+                age: pickMulti(boostScoredOptions(scoreOptions(state.groups.age, contexts), preferredAgeLabel ? [preferredAgeLabel] : []), 4, true, false, threshold),
                 ending: pickMulti(scoreOptions(state.groups.ending, contexts), allowMultiEnding ? 3 : 1, true, false, threshold),
-                genre: pickMulti(scoreOptions(state.groups.genre, contexts), 8, true, false, threshold),
-                tag: pickMulti(scoreOptions(state.groups.tag, contexts), MAX_TAGS_SELECT, true, true, threshold),
+                genre: pickMulti(boostScoredOptions(scoreOptions(state.groups.genre, contexts), preferredGenreLabels), 8, true, false, threshold),
+                tag: pickMulti(boostScoredOptions(scoreOptions(state.groups.tag, contexts), preferredTagLabels), MAX_TAGS_SELECT, true, true, threshold),
             };
             state.suggestions = { ...state.suggestions, ...suggestions };
             fillText(`${APP_PREFIX}age`, suggestions.age.join(', '));
@@ -7016,10 +7659,22 @@ For arrays, return list of strings. If none fit, return empty array.
             sourceUrlInput.addEventListener('input', () => {
                 updateCoverSizeSummary();
                 updateCoverSizeTag();
+                updateJjwxcApiModeUi();
             });
             sourceUrlInput.addEventListener('change', () => {
                 updateCoverSizeSummary();
                 updateCoverSizeTag();
+                updateJjwxcApiModeUi();
+            });
+        }
+        if (jjwxcApiModeBtn) {
+            jjwxcApiModeBtn.addEventListener('click', () => {
+                const current = getEffectiveJjwxcApiMode();
+                const next = current === JJWXC_API_MODE_OLD ? JJWXC_API_MODE_NEW : JJWXC_API_MODE_OLD;
+                persistJjwxcApiMode(next);
+                updateJjwxcApiModeUi();
+                updateJjwxcApiModalStatus();
+                log(`JJWXC: chuyển sang API ${next === JJWXC_API_MODE_OLD ? 'cũ (Old)' : 'mới (New)'}.`, 'info');
             });
         }
         // If user edits CN title/author directly on the web form, keep Nhúng button state in sync.
@@ -7042,6 +7697,7 @@ For arrays, return list of strings. If none fit, return empty array.
 
         const last = GM_getValue(`${APP_PREFIX}last_url`, '');
         if (last) shadowRoot.getElementById(`${APP_PREFIX}url`).value = last;
+        updateJjwxcApiModeUi();
         updateCoverSizeSummary();
         updateCoverSizeTag();
         shadowRoot.getElementById(`${APP_PREFIX}nameSet`).addEventListener('input', (ev) => {
