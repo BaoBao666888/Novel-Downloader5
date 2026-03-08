@@ -8303,6 +8303,15 @@ class ReaderService:
         pid = self._normalize_vbook_plugin_id(plugin_id)
         if not pid:
             return
+        try:
+            shutil.rmtree(self._vbook_plugin_storage_dir(pid), ignore_errors=True)
+        except Exception:
+            pass
+        try:
+            # Legacy flat file path from the initial implementation.
+            (self._vbook_local_storage_root() / f"{pid}.json").unlink(missing_ok=True)
+        except Exception:
+            pass
         cfg = load_app_config()
         if not isinstance(cfg, dict):
             cfg = {}
@@ -8324,6 +8333,33 @@ class ReaderService:
             cfg["vbook"] = vcfg
             save_app_config(cfg)
             self.refresh_config()
+
+    def _vbook_local_storage_root(self) -> Path:
+        root = LOCAL_DIR / "vbook_local_storage"
+        root.mkdir(parents=True, exist_ok=True)
+        return root
+
+    def _vbook_plugin_storage_dir(self, plugin_id: str) -> Path:
+        pid = self._normalize_vbook_plugin_id(plugin_id) or "plugin"
+        folder = self._vbook_local_storage_root() / pid
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    def _vbook_plugin_storage_path(self, plugin_id: str) -> Path:
+        pid = self._normalize_vbook_plugin_id(plugin_id) or "plugin"
+        folder = self._vbook_plugin_storage_dir(pid)
+        target = folder / "local_storage.json"
+        legacy = self._vbook_local_storage_root() / f"{pid}.json"
+        if (not target.exists()) and legacy.exists():
+            try:
+                os.replace(legacy, target)
+            except Exception:
+                try:
+                    shutil.copy2(legacy, target)
+                    legacy.unlink(missing_ok=True)
+                except Exception:
+                    pass
+        return target
 
     def _apply_vbook_plugin_runtime_defaults(self, plugin: Any, *, overwrite_existing: bool = False) -> None:
         pid = self._normalize_vbook_plugin_id(str(getattr(plugin, "plugin_id", "") or ""))
@@ -9215,6 +9251,8 @@ class ReaderService:
         runtime_cfg = self._effective_vbook_runtime_settings(plugin_id)
         override["request_delay_ms"] = int(runtime_cfg.get("request_delay_ms") or 0)
         override["supplemental_code"] = str(runtime_cfg.get("supplemental_code") or "")
+        if plugin_id:
+            override["storage_path"] = str(self._vbook_plugin_storage_path(plugin_id))
 
         if self.vbook_bridge_enabled and not disable_bridge:
             state = self._load_vbook_bridge_state()
