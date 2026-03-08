@@ -219,9 +219,18 @@ class ReaderTabMixin:
             },
         }
 
+    def _reader_config_mtime_ns(self) -> Optional[int]:
+        cfg_path = self._reader_config_path()
+        try:
+            return int(os.stat(cfg_path).st_mtime_ns)
+        except Exception:
+            return None
+
     def _reader_load_config_payload(self) -> dict:
         cached = getattr(self, "_reader_config_payload", None)
-        if isinstance(cached, dict):
+        cached_mtime = getattr(self, "_reader_config_payload_mtime_ns", None)
+        current_mtime = self._reader_config_mtime_ns()
+        if isinstance(cached, dict) and cached_mtime == current_mtime:
             return cached
 
         payload = self._reader_default_config_payload()
@@ -259,6 +268,7 @@ class ReaderTabMixin:
             payload["reader_import"].update(loaded["reader_import"])
 
         self._reader_config_payload = payload
+        self._reader_config_payload_mtime_ns = current_mtime
 
         # Tự tạo/cập nhật file riêng nếu chưa có hoặc còn thiếu key mặc định.
         if (not os.path.isfile(cfg_path)) or (loaded != payload):
@@ -266,20 +276,37 @@ class ReaderTabMixin:
         return payload
 
     def _reader_save_isolated_config(self):
-        payload = self._reader_load_config_payload()
+        payload = getattr(self, "_reader_config_payload", None)
+        if not isinstance(payload, dict):
+            payload = self._reader_load_config_payload()
         cfg_path = self._reader_config_path()
         os.makedirs(os.path.dirname(cfg_path), exist_ok=True)
-        tmp_path = f"{cfg_path}.tmp"
-        try:
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                json.dump(payload, f, ensure_ascii=False, indent=2)
-            os.replace(tmp_path, cfg_path)
-        finally:
-            if os.path.exists(tmp_path):
+        encoded = json.dumps(payload, ensure_ascii=False, indent=2)
+        last_error = None
+        for attempt in range(8):
+            tmp_path = f"{cfg_path}.{os.getpid()}.{threading.get_ident()}.{int(time.time() * 1000)}.{attempt}.tmp"
+            try:
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    f.write(encoded)
+                os.replace(tmp_path, cfg_path)
+                self._reader_config_payload = payload
+                self._reader_config_payload_mtime_ns = self._reader_config_mtime_ns()
+                return
+            except Exception as exc:
+                last_error = exc
+                winerror = getattr(exc, "winerror", None)
+                retryable = isinstance(exc, PermissionError) or winerror in {5, 32}
+                if (not retryable) or attempt >= 7:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
+            finally:
                 try:
-                    os.remove(tmp_path)
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
                 except Exception:
                     pass
+        if last_error is not None:
+            raise last_error
 
     def _reader_cfg(self) -> dict:
         payload = self._reader_load_config_payload()

@@ -63,6 +63,7 @@ mimetypes.add_type("text/css", ".css")
 
 _EXPLICIT_LOG_LOCK = threading.Lock()
 _LOG_CLEANUP_LOCK = threading.Lock()
+_APP_CONFIG_LOCK = threading.RLock()
 
 
 def runtime_base_dir() -> Path:
@@ -725,12 +726,30 @@ def resolve_app_config_path() -> Path:
 def save_app_config(config: dict[str, Any]) -> Path:
     target = resolve_app_config_path()
     target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(target.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(config or {}, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    tmp.replace(target)
+    payload = json.dumps(config or {}, ensure_ascii=False, indent=2)
+    last_error: Exception | None = None
+    with _APP_CONFIG_LOCK:
+        for attempt in range(8):
+            tmp = target.with_name(
+                f"{target.name}.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex}.tmp"
+            )
+            try:
+                tmp.write_text(payload, encoding="utf-8")
+                os.replace(tmp, target)
+                return target
+            except Exception as exc:
+                last_error = exc
+                try:
+                    tmp.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                winerror = getattr(exc, "winerror", None)
+                retryable = isinstance(exc, PermissionError) or winerror in {5, 32}
+                if (not retryable) or attempt >= 7:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
+    if last_error is not None:
+        raise last_error
     return target
 
 
@@ -6601,43 +6620,44 @@ class ReaderService:
         else:
             patch = payload
 
-        cfg = load_app_config()
-        if not isinstance(cfg, dict):
-            cfg = {}
-        existing = self._normalized_reader_translation_settings(cfg)
-        patch_local = patch.get("local")
-        patch_server = patch.get("server")
-        patch_global_dicts = patch.get("global_dicts")
-        if isinstance(patch_local, dict):
-            merged_local = dict(existing.get("local") or {})
-            merged_local.update(patch_local)
-        else:
-            merged_local = existing.get("local") or {}
-        if isinstance(patch_server, dict):
-            merged_server = dict(existing.get("server") or {})
-            merged_server.update(patch_server)
-        else:
-            merged_server = existing.get("server") or {}
-        merged_global_dicts = self._normalized_global_local_dicts(existing.get("global_dicts"))
-        if isinstance(patch_global_dicts, dict):
-            for key in ("name", "vp"):
-                if key in patch_global_dicts:
-                    merged_global_dicts[key] = normalize_name_set(patch_global_dicts.get(key))
-        local_with_global = dict(merged_local)
-        local_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
-        local_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
-        next_settings = {
-            "enabled": self._parse_bool(patch.get("enabled"), existing["enabled"]),
-            "mode": self._normalize_translate_mode(patch.get("mode"), existing["mode"]),
-            "server": self._normalized_server_translate_settings(merged_server, cfg),
-            "local": vbook_local_translate.normalize_local_settings(
-                local_with_global,
-                default_base_dir="reader_ui/translate/vbook_local",
-            ),
-            "global_dicts": merged_global_dicts,
-        }
-        cfg["reader_translation"] = next_settings
-        save_app_config(cfg)
+        with _APP_CONFIG_LOCK:
+            cfg = load_app_config()
+            if not isinstance(cfg, dict):
+                cfg = {}
+            existing = self._normalized_reader_translation_settings(cfg)
+            patch_local = patch.get("local")
+            patch_server = patch.get("server")
+            patch_global_dicts = patch.get("global_dicts")
+            if isinstance(patch_local, dict):
+                merged_local = dict(existing.get("local") or {})
+                merged_local.update(patch_local)
+            else:
+                merged_local = existing.get("local") or {}
+            if isinstance(patch_server, dict):
+                merged_server = dict(existing.get("server") or {})
+                merged_server.update(patch_server)
+            else:
+                merged_server = existing.get("server") or {}
+            merged_global_dicts = self._normalized_global_local_dicts(existing.get("global_dicts"))
+            if isinstance(patch_global_dicts, dict):
+                for key in ("name", "vp"):
+                    if key in patch_global_dicts:
+                        merged_global_dicts[key] = normalize_name_set(patch_global_dicts.get(key))
+            local_with_global = dict(merged_local)
+            local_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
+            local_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
+            next_settings = {
+                "enabled": self._parse_bool(patch.get("enabled"), existing["enabled"]),
+                "mode": self._normalize_translate_mode(patch.get("mode"), existing["mode"]),
+                "server": self._normalized_server_translate_settings(merged_server, cfg),
+                "local": vbook_local_translate.normalize_local_settings(
+                    local_with_global,
+                    default_base_dir="reader_ui/translate/vbook_local",
+                ),
+                "global_dicts": merged_global_dicts,
+            }
+            cfg["reader_translation"] = next_settings
+            save_app_config(cfg)
         try:
             vbook_local_translate.clear_bundle_cache()
         except Exception:

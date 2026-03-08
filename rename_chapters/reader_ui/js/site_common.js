@@ -111,6 +111,33 @@ function saveThemeCache(theme) {
   }
 }
 
+function debounceAsync(fn, wait = 250) {
+  let timer = 0;
+  let queuedArgs = [];
+  let pending = [];
+  let inFlight = Promise.resolve();
+  return (...args) => new Promise((resolve, reject) => {
+    queuedArgs = args;
+    pending.push({ resolve, reject });
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      timer = 0;
+      const listeners = pending.splice(0, pending.length);
+      const run = async () => fn(...queuedArgs);
+      const task = inFlight.then(run, run);
+      inFlight = task.catch(() => {});
+      task.then(
+        (result) => {
+          for (const item of listeners) item.resolve(result);
+        },
+        (error) => {
+          for (const item of listeners) item.reject(error);
+        },
+      );
+    }, wait);
+  });
+}
+
 function emitSettingsChanged(settings) {
   window.dispatchEvent(new CustomEvent("reader-settings-changed", { detail: { ...settings } }));
 }
@@ -1158,7 +1185,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     });
   };
 
-  const persistReaderTranslationSettings = async () => {
+  const persistReaderTranslationSettingsNow = async () => {
     const serverCfg = collectServerTranslationSettingsFromForm();
     const localCfg = collectLocalTranslationSettingsFromForm();
     const payload = {
@@ -1180,6 +1207,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     applyReaderTranslationSettings(serverTranslation, { emit: true });
     return serverTranslation;
   };
+  const persistReaderTranslationSettings = debounceAsync(persistReaderTranslationSettingsNow, 250);
 
   try {
     const readerSettings = await api("/api/reader/settings");
