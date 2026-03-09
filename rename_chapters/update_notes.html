@@ -1,34 +1,14 @@
-<h1>Phiên bản 0.3.3.1 - Tối ưu và sửa lỗi</h1>
+<h1>Phiên bản 0.3.3.2 - Tối ưu và sửa lỗi</h1>
 
-<h2>Điểm mới & Sửa lỗi</h2>
+<h2>Sửa lỗi</h2>
+- Trình duyệt: Hỗ trợ nhiều acc cho 1 domain, bổ sung hỗ trợ gọi chạy ngầm.
+- ND5: Chuẩn hóa lại cơ chế <b>số batch</b> khi tải truyện. Tùy chọn cũ dùng chữ "luồng" dễ gây nhầm, nay đã chuyển đúng theo số batch tải song song.
+- ND5: Bổ sung trạng thái cảnh báo khi đóng nd5 lúc đang tại. Sửa lỗi các tùy chỉnh riêng theo từng nguồn không áp dụng ổn định.
+- ND5: Mặc định global của ND5 về <b>1 batch</b> cho ổn định hơn; tự migrate tham số cũ sang tham số mới.
+- Fanqie Setting: Mặc định dùng <b>20 batch</b> và giới hạn tối đa cũng là 20 batch để tránh tải quá mức.
+- Fanqie Bridge: Dọn log cũ theo ngày trước khi ghi tiếp, giúp log runtime gọn và dễ theo dõi hơn.
 
-<h3>Hiệu năng / Đóng gói</h3>
-- Tăng tốc độ khởi động app rõ rệt.
-- Tối ưu đóng gói để giảm dung lượng ứng dụng.
-- Fix lỗi tự xóa app.
-
-<h3>Trình duyệt Qt / ND5</h3>
-- Thêm cơ chế fetch HTML qua trình duyệt Qt (IPC <b>FETCH_HTML</b>)
-- Thêm API host cho plugin ND5 gọi browser fetch.
-- ND5 hỗ trợ tích hợp tải bằng ext/app VBook khi <b>Reader Server</b> đang chạy.
-
-<h3>Đọc truyện</h3>
-- Tối ưu tab <b>Đọc truyện</b>:
-  - Sửa lỗi có lúc không dừng được Reader Server.
-  - Bổ sung log trực quan hơn để theo dõi trạng thái server và thao tác quản lý.
-- Tích hợp tải truyện từ ext của app <b>VBook</b> vào hệ thống Reader.
-- Tối ưu hiệu năng khởi động Reader Server và thay đổi cấu trúc build.
-- Fix lỗi không lưu config Reader Server khi tắt app.
-
-<h3>Wikidich / Koanchay</h3>
-- Cửa sổ <b>Tải chi tiết</b> thêm tùy chọn:
-  - <b>Quét tên quyển trong phạm vi tải chi tiết</b> (chỉ hoạt động với works chính chủ).
-- Bổ sung khu hiển thị <b>Tên quyển hiện có</b> ngay dưới khung <b>Văn án</b>.
-- Bộ lọc cơ bản thêm ô <b>Tên quyển</b> để tìm nhanh theo tên volume đã quét.
-- Khi dùng <b>Tải chi tiết</b> cùng lúc với <b>Quét tên quyển</b>, hệ thống sẽ chạy tuần tự và lưu dần để có thể tiếp tục nếu bị gián đoạn.
-- Khi mở trang <b>Chỉnh sửa</b> hoặc chạy <b>Auto Update</b>, app sẽ tận dụng luôn dữ liệu trang sửa để đồng bộ tên quyển về local.
-- Sửa lỗi nút Chỉnh sửa không hoạt động với Koanchay.
 
 <h2>Hướng dẫn cập nhật</h2>
-- Nhấn <b>Tải & Cài đặt</b> để lên 0.3.3 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
+- Nhấn <b>Tải & Cài đặt</b> để lên 0.3.3.2 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).
 - Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.
