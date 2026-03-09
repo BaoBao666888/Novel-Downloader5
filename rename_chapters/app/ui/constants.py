@@ -130,7 +130,7 @@ DEFAULT_ND5_OPTIONS = {
     "include_cover": True,
     "heading_in_zip": True,
     "prefer_cache": False,
-    "download_threads": 4,
+    "batch_workers": 1,
     "format": "zip",
     "title_tpl": "{num}. {title}",
     "range": "",

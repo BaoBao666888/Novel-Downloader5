@@ -2706,7 +2706,14 @@ class RenamerApp(
             self.wikidich_links = dict(config_data.get('wikidich_links', {}))
             nd5_cfg = config_data.get('novel_downloader5', {})
             if isinstance(nd5_cfg, dict):
-                self.nd5_options = {**DEFAULT_ND5_OPTIONS, **nd5_cfg}
+                self.nd5_options = self._nd5_normalize_global_options(nd5_cfg)
+                self.app_config['novel_downloader5'] = dict(self.nd5_options)
+            else:
+                self.nd5_options = dict(DEFAULT_ND5_OPTIONS)
+            try:
+                self._nd5_normalize_plugin_store()
+            except Exception:
+                pass
             if hasattr(self, "wd_auto_mode_var"):
                 label = None
                 if hasattr(self, "_wd_mode_labels"):

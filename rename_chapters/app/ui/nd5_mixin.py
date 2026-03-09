@@ -47,6 +47,10 @@ def _nd5_beautiful_soup():
 
 
 class ND5Mixin:
+    @staticmethod
+    def _nd5_max_batch_workers() -> int:
+        return 64
+
     def _nd5_reader_server_port(self) -> int:
         fallback = 17171
         cfg = self.app_config.get("reader_manager") if isinstance(getattr(self, "app_config", None), dict) else {}
@@ -133,7 +137,7 @@ class ND5Mixin:
         if not isinstance(store, dict):
             return {}
         raw = store.get(pid)
-        return dict(raw) if isinstance(raw, dict) else {}
+        return self._nd5_normalize_plugin_values(pid, raw if isinstance(raw, dict) else {})
 
     def _nd5_save_plugin_values(self, plugin_id: str, values: dict):
         pid = str(plugin_id or "").strip()
@@ -143,7 +147,7 @@ class ND5Mixin:
         if not isinstance(store, dict):
             store = {}
         store = dict(store)
-        clean_values = dict(values or {})
+        clean_values = self._nd5_normalize_plugin_values(pid, dict(values or {}))
         if clean_values:
             store[pid] = clean_values
         else:
@@ -176,6 +180,93 @@ class ND5Mixin:
             num = min_value
         return num
 
+    def _nd5_global_batch_workers_default(self) -> int:
+        return self._nd5_parse_int(DEFAULT_ND5_OPTIONS.get("batch_workers", 1), 1, 1, self._nd5_max_batch_workers())
+
+    def _nd5_default_batch_workers_for_plugin(self, plugin_id: str, *, is_vbook_bridge: bool = False) -> int:
+        pid = str(plugin_id or "").strip()
+        if is_vbook_bridge or pid.startswith("vbook_ext::"):
+            return 1
+        if pid == "fanqie":
+            return 20
+        return self._nd5_global_batch_workers_default()
+
+    def _nd5_normalize_global_options(self, options: Optional[dict] = None) -> dict:
+        raw = dict(options or {})
+        normalized = dict(DEFAULT_ND5_OPTIONS)
+        for key, value in raw.items():
+            if key == "download_threads":
+                continue
+            normalized[key] = value
+        normalized["batch_workers"] = self._nd5_parse_int(
+            raw.get("batch_workers", normalized.get("batch_workers", 1)),
+            self._nd5_global_batch_workers_default(),
+            1,
+            self._nd5_max_batch_workers(),
+        )
+        return normalized
+
+    def _nd5_normalize_plugin_values(self, plugin_id: str, values: Optional[dict]) -> dict:
+        if not isinstance(values, dict):
+            return {}
+        pid = str(plugin_id or "").strip()
+        normalized = dict(values)
+
+        def _promote(new_key: str, aliases: tuple[str, ...]):
+            if new_key in normalized and str(normalized.get(new_key)).strip() != "":
+                pass
+            else:
+                for alias in aliases:
+                    if alias in normalized and str(normalized.get(alias)).strip() != "":
+                        normalized[new_key] = normalized.get(alias)
+                        break
+            for alias in aliases:
+                normalized.pop(alias, None)
+
+        _promote("nd5_req_delay_min", ("nd5_delay_min",))
+        _promote("nd5_req_delay_max", ("nd5_delay_max",))
+        _promote("nd5_request_retries", ("nd5_retry",))
+        _promote("nd5_batch_workers", ("nd5_download_threads", "nd5_threads"))
+
+        if "nd5_req_delay_min" in normalized:
+            normalized["nd5_req_delay_min"] = self._nd5_parse_float(normalized.get("nd5_req_delay_min"), 0.0, 0.0)
+        if "nd5_req_delay_max" in normalized:
+            base_min = self._nd5_parse_float(normalized.get("nd5_req_delay_min", 0.0), 0.0, 0.0)
+            normalized["nd5_req_delay_max"] = self._nd5_parse_float(normalized.get("nd5_req_delay_max"), base_min, base_min)
+        if "nd5_request_retries" in normalized:
+            normalized["nd5_request_retries"] = self._nd5_parse_int(
+                normalized.get("nd5_request_retries"),
+                DEFAULT_ND5_OPTIONS["request_retries"],
+                1,
+                99,
+            )
+        if "nd5_batch_workers" in normalized:
+            normalized["nd5_batch_workers"] = self._nd5_parse_int(
+                normalized.get("nd5_batch_workers"),
+                self._nd5_default_batch_workers_for_plugin(pid),
+                1,
+                self._nd5_max_batch_workers(),
+            )
+        return normalized
+
+    def _nd5_normalize_plugin_store(self) -> bool:
+        store = self.app_config.get("nd5_plugin_values")
+        if not isinstance(store, dict):
+            return False
+        changed = False
+        normalized_store = {}
+        for pid, raw in store.items():
+            if not isinstance(raw, dict):
+                changed = True
+                continue
+            cleaned = self._nd5_normalize_plugin_values(str(pid), raw)
+            normalized_store[str(pid)] = cleaned
+            if cleaned != raw:
+                changed = True
+        if changed:
+            self.app_config["nd5_plugin_values"] = normalized_store
+        return changed
+
     def _nd5_runtime_options_for_plugin(
         self,
         plugin_id: str,
@@ -184,9 +275,9 @@ class ND5Mixin:
         plugin_values: Optional[dict] = None,
         global_overrides: Optional[dict] = None,
     ) -> dict:
-        opts = dict(getattr(self, "nd5_options", {}) or {})
+        opts = self._nd5_normalize_global_options(getattr(self, "nd5_options", {}) or {})
         if isinstance(global_overrides, dict):
-            for key in ("req_delay_min", "req_delay_max", "request_retries", "download_threads"):
+            for key in ("req_delay_min", "req_delay_max", "request_retries", "batch_workers"):
                 if key in global_overrides:
                     opts[key] = global_overrides.get(key)
         global_delay_min = self._nd5_parse_float(
@@ -207,11 +298,11 @@ class ND5Mixin:
             1,
             99,
         )
-        global_threads = self._nd5_parse_int(
-            opts.get("download_threads", DEFAULT_ND5_OPTIONS["download_threads"]),
-            DEFAULT_ND5_OPTIONS["download_threads"],
+        global_batch_workers = self._nd5_parse_int(
+            opts.get("batch_workers", self._nd5_global_batch_workers_default()),
+            self._nd5_global_batch_workers_default(),
             1,
-            16,
+            self._nd5_max_batch_workers(),
         )
 
         pid = str(plugin_id or "").strip()
@@ -221,11 +312,15 @@ class ND5Mixin:
                 "req_delay_min": 0.0,
                 "req_delay_max": 0.0,
                 "request_retries": 1,
+                "batch_workers": 1,
                 "download_threads": 1,
                 "source": "reader_vbook_managed",
             }
 
-        values = dict(plugin_values) if isinstance(plugin_values, dict) else self._nd5_get_plugin_values(pid)
+        values = self._nd5_normalize_plugin_values(
+            pid,
+            dict(plugin_values) if isinstance(plugin_values, dict) else self._nd5_get_plugin_values(pid),
+        )
 
         def _get_first(keys):
             for key in keys:
@@ -236,21 +331,30 @@ class ND5Mixin:
         delay_min_val = _get_first(["nd5_req_delay_min", "nd5_delay_min"])
         delay_max_val = _get_first(["nd5_req_delay_max", "nd5_delay_max"])
         retry_val = _get_first(["nd5_request_retries", "nd5_retry"])
-        threads_val = _get_first(["nd5_download_threads", "nd5_threads"])
+        batch_workers_val = _get_first(["nd5_batch_workers", "nd5_download_threads", "nd5_threads"])
 
         delay_min = self._nd5_parse_float(delay_min_val, global_delay_min, 0.0)
         delay_max = self._nd5_parse_float(delay_max_val, global_delay_max, delay_min)
         if delay_max < delay_min:
             delay_max = delay_min
         retries = self._nd5_parse_int(retry_val, global_retries, 1, 99)
-        threads = self._nd5_parse_int(threads_val, global_threads, 1, 16)
+        default_batch_workers = self._nd5_default_batch_workers_for_plugin(pid)
+        if pid != "fanqie":
+            default_batch_workers = global_batch_workers
+        batch_workers = self._nd5_parse_int(
+            batch_workers_val,
+            default_batch_workers,
+            1,
+            self._nd5_max_batch_workers(),
+        )
 
         return {
             "req_delay_min": delay_min,
             "req_delay_max": delay_max,
             "request_retries": retries,
-            "download_threads": threads,
-            "source": "plugin_override" if any(v is not None for v in [delay_min_val, delay_max_val, retry_val, threads_val]) else "global",
+            "batch_workers": batch_workers,
+            "download_threads": batch_workers,
+            "source": "plugin_override" if any(v is not None for v in [delay_min_val, delay_max_val, retry_val, batch_workers_val]) else "global",
         }
 
     def _nd5_list_reader_vbook_plugins(self):
@@ -852,7 +956,9 @@ class ND5Mixin:
         fanqie_delay_min_var = tk.StringVar(value=str(fanqie_values.get("nd5_req_delay_min", fanqie_values.get("nd5_delay_min", "")) or ""))
         fanqie_delay_max_var = tk.StringVar(value=str(fanqie_values.get("nd5_req_delay_max", fanqie_values.get("nd5_delay_max", "")) or ""))
         fanqie_retry_var = tk.StringVar(value=str(fanqie_values.get("nd5_request_retries", fanqie_values.get("nd5_retry", "")) or ""))
-        fanqie_threads_var = tk.StringVar(value=str(fanqie_values.get("nd5_download_threads", fanqie_values.get("nd5_threads", "")) or ""))
+        fanqie_threads_var = tk.StringVar(
+            value=str(fanqie_values.get("nd5_batch_workers", self._nd5_default_batch_workers_for_plugin("fanqie")) or "")
+        )
         _alive = {"ok": True}
         _last_log = {"text": None}
         _poll_job = {"id": None}
@@ -870,7 +976,7 @@ class ND5Mixin:
         ttk.Button(button_row, text="Tắt", command=lambda: _stop_bridge()).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_row, text="Reset", command=lambda: _reset_bridge()).pack(side=tk.LEFT)
 
-        perf = ttk.LabelFrame(win, text="Tuỳ chỉnh ND5 cho Fanqie (để trống = dùng global)", padding=10)
+        perf = ttk.LabelFrame(win, text="Tuỳ chỉnh ND5 cho Fanqie (mặc định batch = 20)", padding=10)
         perf.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 6))
         perf.columnconfigure(1, weight=1)
         perf.columnconfigure(3, weight=1)
@@ -880,7 +986,7 @@ class ND5Mixin:
         ttk.Entry(perf, textvariable=fanqie_delay_max_var, width=10).grid(row=0, column=3, sticky="w", padx=(6, 0))
         ttk.Label(perf, text="Retry riêng:").grid(row=1, column=0, sticky="w", pady=(8, 0))
         ttk.Entry(perf, textvariable=fanqie_retry_var, width=10).grid(row=1, column=1, sticky="w", padx=(6, 16), pady=(8, 0))
-        ttk.Label(perf, text="Luồng tải riêng:").grid(row=1, column=2, sticky="w", pady=(8, 0))
+        ttk.Label(perf, text="Số batch riêng:").grid(row=1, column=2, sticky="w", pady=(8, 0))
         ttk.Entry(perf, textvariable=fanqie_threads_var, width=10).grid(row=1, column=3, sticky="w", padx=(6, 0), pady=(8, 0))
 
         perf_btns = ttk.Frame(perf)
@@ -979,8 +1085,14 @@ class ND5Mixin:
                     payload.pop("nd5_retry", None)
 
                 if threads_raw:
-                    payload["nd5_download_threads"] = self._nd5_parse_int(threads_raw, DEFAULT_ND5_OPTIONS["download_threads"], 1, 16)
+                    payload["nd5_batch_workers"] = self._nd5_parse_int(
+                        threads_raw,
+                        self._nd5_default_batch_workers_for_plugin("fanqie"),
+                        1,
+                        self._nd5_max_batch_workers(),
+                    )
                 else:
+                    payload.pop("nd5_batch_workers", None)
                     payload.pop("nd5_download_threads", None)
                     payload.pop("nd5_threads", None)
 
@@ -994,8 +1106,8 @@ class ND5Mixin:
             fanqie_delay_min_var.set("")
             fanqie_delay_max_var.set("")
             fanqie_retry_var.set("")
-            fanqie_threads_var.set("")
-            detail_var.set("Đã xoá tuỳ chỉnh Fanqie (dùng global).")
+            fanqie_threads_var.set(str(self._nd5_default_batch_workers_for_plugin("fanqie")))
+            detail_var.set("Đã xoá override Fanqie (dùng mặc định nguồn: batch 20).")
 
         ttk.Button(perf_btns, text="Xóa override", command=_clear_fanqie_perf).pack(side=tk.RIGHT)
         ttk.Button(perf_btns, text="Lưu tuỳ chỉnh", command=_save_fanqie_perf).pack(side=tk.RIGHT, padx=(0, 6))
@@ -1110,7 +1222,7 @@ class ND5Mixin:
         req_delay_max_var = tk.DoubleVar(value=self.nd5_options.get("req_delay_max", DEFAULT_ND5_OPTIONS["req_delay_max"]))
         req_timeout_var = tk.DoubleVar(value=self.nd5_options.get("request_timeout", DEFAULT_ND5_OPTIONS["request_timeout"]))
         req_retries_var = tk.IntVar(value=self.nd5_options.get("request_retries", DEFAULT_ND5_OPTIONS["request_retries"]))
-        download_threads_var = tk.IntVar(value=self.nd5_options.get("download_threads", DEFAULT_ND5_OPTIONS["download_threads"]))
+        download_threads_var = tk.IntVar(value=self.nd5_options.get("batch_workers", DEFAULT_ND5_OPTIONS["batch_workers"]))
         out_dir_var = tk.StringVar(value=out_dir_override or self.nd5_options.get("out_dir", ""))
         plugin_values_cache = self.app_config.get("nd5_plugin_values")
         if not isinstance(plugin_values_cache, dict):
@@ -1247,14 +1359,14 @@ class ND5Mixin:
         def _get_plugin_values(plugin_id: str):
             raw = plugin_values_cache.get(plugin_id)
             if isinstance(raw, dict):
-                return dict(raw)
+                return self._nd5_normalize_plugin_values(plugin_id, raw)
             return self._nd5_get_plugin_values(plugin_id)
 
         def _save_plugin_values(plugin_id: str, values: dict):
             pid = str(plugin_id or "").strip()
             if not pid:
                 return
-            payload = dict(values or {})
+            payload = self._nd5_normalize_plugin_values(pid, dict(values or {}))
             if payload:
                 plugin_values_cache[pid] = payload
             else:
@@ -1279,12 +1391,14 @@ class ND5Mixin:
                 extra_values["nd5_effective_delay_min"] = runtime_cfg.get("req_delay_min", 0.0)
                 extra_values["nd5_effective_delay_max"] = runtime_cfg.get("req_delay_max", 0.0)
                 extra_values["nd5_effective_request_retries"] = runtime_cfg.get("request_retries", retries)
-                extra_values["nd5_effective_download_threads"] = runtime_cfg.get(
-                    "download_threads",
-                    DEFAULT_ND5_OPTIONS["download_threads"],
+                extra_values["nd5_effective_batch_workers"] = runtime_cfg.get(
+                    "batch_workers",
+                    DEFAULT_ND5_OPTIONS["batch_workers"],
                 )
+                extra_values["nd5_effective_download_threads"] = extra_values["nd5_effective_batch_workers"]
                 # Giữ key cũ để plugin Python cũ vẫn đọc được nếu cần.
-                extra_values["nd5_download_threads"] = extra_values["nd5_effective_download_threads"]
+                extra_values["nd5_batch_workers"] = extra_values["nd5_effective_batch_workers"]
+                extra_values["nd5_download_threads"] = extra_values["nd5_effective_batch_workers"]
                 for field in _get_plugin_extra_fields():
                     key = field["key"]
                     if key not in extra_values and field.get("default") not in (None, ""):
@@ -1343,14 +1457,14 @@ class ND5Mixin:
             except Exception:
                 retries_val = DEFAULT_ND5_OPTIONS["request_retries"]
             try:
-                threads_val = max(1, min(16, int(download_threads_var.get())))
+                threads_val = max(1, min(self._nd5_max_batch_workers(), int(download_threads_var.get())))
             except Exception:
-                threads_val = DEFAULT_ND5_OPTIONS["download_threads"]
+                threads_val = DEFAULT_ND5_OPTIONS["batch_workers"]
             return {
                 "req_delay_min": delay_min_val,
                 "req_delay_max": delay_max_val,
                 "request_retries": retries_val,
-                "download_threads": threads_val,
+                "batch_workers": threads_val,
             }
 
         def _open_search_dialog():
@@ -1535,7 +1649,7 @@ class ND5Mixin:
 
             ttk.Label(body, text="Time nghỉ effective (ms):").grid(row=0, column=0, sticky="w", pady=(2, 6))
             ttk.Label(body, textvariable=value_vars["request_delay_ms"]).grid(row=0, column=1, sticky="w")
-            ttk.Label(body, text="Số luồng effective:").grid(row=1, column=0, sticky="w", pady=(2, 6))
+            ttk.Label(body, text="Số batch effective:").grid(row=1, column=0, sticky="w", pady=(2, 6))
             ttk.Label(body, textvariable=value_vars["download_threads"]).grid(row=1, column=1, sticky="w")
             ttk.Label(body, text="Prefetch effective:").grid(row=2, column=0, sticky="w", pady=(2, 6))
             ttk.Label(body, textvariable=value_vars["prefetch_unread_count"]).grid(row=2, column=1, sticky="w")
@@ -1643,7 +1757,7 @@ class ND5Mixin:
             ttk.Entry(timeout_frame, textvariable=req_timeout_var, width=8).pack(side=tk.LEFT, padx=(6, 0))
             ttk.Label(timeout_frame, text="Số lần thử lại:").pack(side=tk.LEFT, padx=(12, 0))
             ttk.Entry(timeout_frame, textvariable=req_retries_var, width=6).pack(side=tk.LEFT, padx=(6, 0))
-            ttk.Label(timeout_frame, text="Số luồng tải ND5:").pack(side=tk.LEFT, padx=(12, 0))
+            ttk.Label(timeout_frame, text="Số batch ND5:").pack(side=tk.LEFT, padx=(12, 0))
             ttk.Entry(timeout_frame, textvariable=download_threads_var, width=6).pack(side=tk.LEFT, padx=(6, 0))
 
             cache_frame = ttk.Frame(tab_options)
@@ -2356,7 +2470,7 @@ class ND5Mixin:
                 delay_min_raw = perf_vars["nd5_req_delay_min"].get().strip()
                 delay_max_raw = perf_vars["nd5_req_delay_max"].get().strip()
                 retries_raw = perf_vars["nd5_request_retries"].get().strip()
-                threads_raw = perf_vars["nd5_download_threads"].get().strip()
+                threads_raw = perf_vars["nd5_batch_workers"].get().strip()
 
                 if delay_min_raw:
                     values["nd5_req_delay_min"] = self._nd5_parse_float(delay_min_raw, 0.0, 0.0)
@@ -2383,13 +2497,14 @@ class ND5Mixin:
                     values.pop("nd5_retry", None)
 
                 if threads_raw:
-                    values["nd5_download_threads"] = self._nd5_parse_int(
+                    values["nd5_batch_workers"] = self._nd5_parse_int(
                         threads_raw,
-                        DEFAULT_ND5_OPTIONS["download_threads"],
+                        self._nd5_default_batch_workers_for_plugin(plugin.id),
                         1,
-                        16,
+                        self._nd5_max_batch_workers(),
                     )
                 else:
+                    values.pop("nd5_batch_workers", None)
                     values.pop("nd5_download_threads", None)
                     values.pop("nd5_threads", None)
 
@@ -2454,8 +2569,8 @@ class ND5Mixin:
                 perf_vars["nd5_request_retries"] = tk.StringVar(
                     value=str(values.get("nd5_request_retries", values.get("nd5_retry", "")) or "")
                 )
-                perf_vars["nd5_download_threads"] = tk.StringVar(
-                    value=str(values.get("nd5_download_threads", values.get("nd5_threads", "")) or "")
+                perf_vars["nd5_batch_workers"] = tk.StringVar(
+                    value=str(values.get("nd5_batch_workers", "") or "")
                 )
 
                 ttk.Label(perf_frame, text="Delay min (giây):").grid(row=0, column=0, sticky="w")
@@ -2470,15 +2585,15 @@ class ND5Mixin:
                 ttk.Entry(perf_frame, textvariable=perf_vars["nd5_request_retries"], width=12).grid(
                     row=1, column=1, sticky="w", padx=(6, 16), pady=(8, 0)
                 )
-                ttk.Label(perf_frame, text="Luồng tải riêng:").grid(row=1, column=2, sticky="w", pady=(8, 0))
-                ttk.Entry(perf_frame, textvariable=perf_vars["nd5_download_threads"], width=12).grid(
+                ttk.Label(perf_frame, text="Số batch riêng:").grid(row=1, column=2, sticky="w", pady=(8, 0))
+                ttk.Entry(perf_frame, textvariable=perf_vars["nd5_batch_workers"], width=12).grid(
                     row=1, column=3, sticky="w", padx=(6, 0), pady=(8, 0)
                 )
                 row += 1
             elif str(plugin.id) == "fanqie":
                 ttk.Label(
                     inner,
-                    text="Fanqie chỉnh delay/retry/luồng trong nút Fanqie Setting.",
+                    text="Fanqie chỉnh delay/retry/batch trong nút Fanqie Setting.",
                     foreground="#6b7280",
                 ).grid(row=row, column=0, columnspan=2, sticky="w", pady=(0, 10))
                 row += 1
@@ -2778,15 +2893,15 @@ class ND5Mixin:
             except Exception:
                 retries_val = DEFAULT_ND5_OPTIONS["request_retries"]
             try:
-                threads_val = max(1, min(16, int(download_threads_var.get())))
+                threads_val = max(1, min(self._nd5_max_batch_workers(), int(download_threads_var.get())))
             except Exception:
-                threads_val = DEFAULT_ND5_OPTIONS["download_threads"]
+                threads_val = DEFAULT_ND5_OPTIONS["batch_workers"]
             self.nd5_options = {
                 "include_info": include_info_var.get(),
                 "include_cover": include_cover_var.get(),
                 "heading_in_zip": heading_in_zip_var.get(),
                 "prefer_cache": prefer_cache_var.get(),
-                "download_threads": threads_val,
+                "batch_workers": threads_val,
                 "format": fmt_var.get(),
                 "title_tpl": title_tpl_var.get(),
                 "range": range_var.get(),
@@ -3420,8 +3535,8 @@ class ND5Mixin:
                         return ids, missing, {}
 
                     batches = [real_chapters[i:i + batch_size] for i in range(0, len(real_chapters), batch_size)]
-                    thread_count = int(plugin_runtime_cfg.get("download_threads") or DEFAULT_ND5_OPTIONS["download_threads"])
-                    thread_count = max(1, min(16, thread_count))
+                    thread_count = int(plugin_runtime_cfg.get("batch_workers") or DEFAULT_ND5_OPTIONS["batch_workers"])
+                    thread_count = max(1, min(self._nd5_max_batch_workers(), thread_count))
 
                     if thread_count <= 1 or len(batches) <= 1:
                         for batch in batches:
