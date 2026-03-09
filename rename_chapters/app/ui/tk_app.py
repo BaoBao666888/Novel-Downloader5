@@ -48,7 +48,7 @@ except Exception:
     win32api = None
     winerror = None
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from browser_overlay import BrowserOverlay
+from browser_overlay import BrowserBridgeServer, BrowserOverlay
 from app.paths import BASE_DIR, RESOURCE_DIR, BACKGROUND_DIR
 from app.ui.constants import CONFIG_PATH, DEFAULT_API_SETTINGS, DEFAULT_BACKGROUND_SETTINGS, DEFAULT_ND5_OPTIONS, DEFAULT_UI_SETTINGS, DEFAULT_UPLOAD_SETTINGS, MODERN_THEME_NAME, ONLINE_SOURCES, SOURCE_BY_ID, THEME_PRESETS, WD_SORT_OPTIONS
 from app.ui.wikidich_mixin import WikidichMixin
@@ -419,7 +419,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.3.1')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.3.2')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -587,6 +587,7 @@ class RenamerApp(
         self._browser_cookies = {}
         self._browser_bridge_host_updated_at = {}
         self._browser_bridge_last_save_ts = 0.0
+        self._browser_rpc_bridge = None
         self._wd_resume_works = None
         self._wd_resume_details = None
         self._wd_load_resume_state()
@@ -608,6 +609,7 @@ class RenamerApp(
         self.create_widgets()
         self._start_single_instance_listener()
         self.load_config()
+        self._ensure_browser_rpc_bridge()
         self._set_app_icon()
         threading.Thread(target=self._cleanup_legacy_files, daemon=True).start()
         # Đẩy các tác vụ không cần chờ (kiểm tra update, preload nhỏ) sang luồng nền sau khi UI đã lên
@@ -1312,6 +1314,39 @@ class RenamerApp(
             pass
         return os.path.join(BASE_DIR, "qt_browser_profile")
 
+    def _ensure_browser_rpc_bridge(self):
+        vcfg = self.app_config.get("vbook", {}) if isinstance(self.app_config, dict) else {}
+        enabled = bool(vcfg.get("use_browser_bridge", True)) if isinstance(vcfg, dict) else True
+        if not enabled:
+            self._stop_browser_rpc_bridge()
+            return
+        overlay = getattr(self, "browser_overlay", None)
+        if not overlay:
+            return
+        bridge = getattr(self, "_browser_rpc_bridge", None)
+        if bridge is None:
+            bridge = BrowserBridgeServer(overlay)
+            self._browser_rpc_bridge = bridge
+        try:
+            bridge.start()
+        except Exception as exc:
+            try:
+                self.log(f"Không thể mở browser RPC bridge: {exc}")
+            except Exception:
+                pass
+            return
+        self._browser_bridge_save_state(force=True)
+
+    def _stop_browser_rpc_bridge(self):
+        bridge = getattr(self, "_browser_rpc_bridge", None)
+        if not bridge:
+            return
+        try:
+            bridge.stop()
+        except Exception:
+            pass
+        self._browser_bridge_save_state(force=True)
+
     def _browser_bridge_build_state(self) -> dict:
         hosts = {}
         host_keys = set(self._browser_headers.keys()) | set(self._browser_cookies.keys()) | set(self._browser_bridge_host_updated_at.keys())
@@ -1341,12 +1376,16 @@ class RenamerApp(
                 "updated_at": str(self._browser_bridge_host_updated_at.get(host) or datetime.utcnow().isoformat()),
             }
 
+        bridge = getattr(self, "_browser_rpc_bridge", None)
         state = {
             "version": 1,
             "updated_at": datetime.utcnow().isoformat(),
             "default_user_agent": str(self._browser_user_agent or ""),
             "cookie_db_path": self._browser_bridge_current_cookie_db_path(),
             "profile_dir": self._browser_bridge_current_profile_dir(),
+            "rpc_endpoint": str(getattr(bridge, "endpoint", "") or ""),
+            "rpc_token": str(getattr(bridge, "token", "") or ""),
+            "rpc_running": bool(bridge and bridge.is_running()),
             "hosts": hosts,
         }
         return state
@@ -2389,9 +2428,13 @@ class RenamerApp(
     def _perform_exit(self):
         if hasattr(self, "browser_overlay") and self.browser_overlay:
             try:
-                self.browser_overlay.hide()
+                self.browser_overlay.stop()
             except Exception:
                 pass
+        try:
+            self._stop_browser_rpc_bridge()
+        except Exception:
+            pass
         self._stop_tray_icon()
         self._detach_mouse_glow()
         self._stop_single_instance_listener()
@@ -2433,6 +2476,10 @@ class RenamerApp(
                 pass
         try:
             self._browser_bridge_save_state(force=True)
+        except Exception:
+            pass
+        try:
+            self._stop_browser_rpc_bridge()
         except Exception:
             pass
         self.save_config()
@@ -2911,6 +2958,7 @@ class RenamerApp(
         self._apply_mouse_glow_setting()
         self._apply_background_image()
         self.browser_overlay = BrowserOverlay(self)
+        self.browser_overlay.start_event_pump()
         self._update_cookie_menu_state()
 
     # ==== Logging util ====

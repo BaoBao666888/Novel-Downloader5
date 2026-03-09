@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Qt-based browser window launched từ UI Tk, hỗ trợ multi-tab + cookie."""
 
 import json
@@ -15,6 +17,7 @@ from app.core.utils_data import transform_str, revert_str
 import requests
 from PyQt6.QtCore import Qt, QTimer, QUrl, QStringListModel
 from PyQt6.QtGui import QDesktopServices, QIcon
+from PyQt6.QtNetwork import QNetworkCookie
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -627,6 +630,336 @@ class _HeaderSpy(QWebEngineUrlRequestInterceptor):
         except Exception:
             pass
 
+
+def _cookie_pairs_from_header(raw: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    text = str(raw or "").strip()
+    if not text:
+        return out
+    for chunk in text.split(";"):
+        part = chunk.strip()
+        if not part or "=" not in part:
+            continue
+        key, value = part.split("=", 1)
+        key = str(key or "").strip()
+        value = str(value or "").strip()
+        if not key:
+            continue
+        out[key] = value
+    return out
+
+
+def _bridge_bootstrap_js() -> str:
+    return """
+(function(){
+  try {
+    if (!window.__RCBridgeVars) {
+      window.__RCBridgeVars = {};
+    }
+    window.Cache = window.Cache || {};
+    window.Cache.putVariable = function(key, value) {
+      try {
+        window.__RCBridgeVars[String(key)] = String(value == null ? '' : value);
+      } catch (_) {}
+    };
+    window.Cache.getVariable = function(key) {
+      try {
+        return String(window.__RCBridgeVars[String(key)] || '');
+      } catch (_) {
+        return '';
+      }
+    };
+  } catch (_) {}
+})();
+"""
+
+
+class _BridgeUrlSpy(QWebEngineUrlRequestInterceptor):
+    def __init__(self, session: "_HiddenBridgeSession"):
+        super().__init__()
+        self.session = session
+
+    def interceptRequest(self, info):
+        try:
+            self.session.record_url(info.requestUrl().toString())
+        except Exception:
+            pass
+
+
+class _HiddenBridgeSession:
+    def __init__(self, owner: "_BrowserWindow", session_id: str):
+        self.owner = owner
+        self.session_id = str(session_id or "").strip()
+        self.pending_cookies: dict[str, str] = {}
+        self.request_urls: list[str] = []
+        self.profile = QWebEngineProfile(owner)
+        try:
+            self.profile.setHttpUserAgent(owner.profile.httpUserAgent())
+        except Exception:
+            pass
+        self._url_spy = _BridgeUrlSpy(self)
+        try:
+            self.profile.setUrlRequestInterceptor(self._url_spy)
+        except Exception:
+            pass
+        self.page = QWebEnginePage(self.profile, owner)
+        self.current_url = ""
+        self.page.urlChanged.connect(self._on_url_changed)
+
+    def _on_url_changed(self, qurl):
+        try:
+            self.current_url = qurl.toString()
+            self.record_url(self.current_url)
+        except Exception:
+            pass
+
+    def record_url(self, url: str):
+        value = str(url or "").strip()
+        if not value:
+            return
+        self.request_urls.append(value)
+        if len(self.request_urls) > 256:
+            self.request_urls = self.request_urls[-256:]
+
+    def set_user_agent(self, user_agent: str):
+        try:
+            self.profile.setHttpUserAgent(str(user_agent or "").strip())
+        except Exception:
+            pass
+
+    def set_cookies(self, cookies: dict[str, str] | None = None, cookie_header: str = ""):
+        if isinstance(cookies, dict):
+            for key, value in cookies.items():
+                key_s = str(key or "").strip()
+                if not key_s:
+                    continue
+                self.pending_cookies[key_s] = str(value or "")
+        for key, value in _cookie_pairs_from_header(cookie_header).items():
+            self.pending_cookies[key] = value
+
+    def _apply_pending_cookies(self, base_url: str, done: Callable[[], None]):
+        target_url = QUrl(base_url or self.current_url or DEFAULT_HOME)
+        host = target_url.host()
+        cookie_store = self.profile.cookieStore()
+        if not self.pending_cookies or not cookie_store or not host:
+            QTimer.singleShot(0, done)
+            return
+        for key, value in list(self.pending_cookies.items()):
+            try:
+                cookie = QNetworkCookie(key.encode("utf-8"), value.encode("utf-8"))
+                cookie.setDomain(host)
+                cookie.setPath("/")
+                cookie_store.setCookie(cookie, target_url)
+            except Exception:
+                pass
+        QTimer.singleShot(180, done)
+
+    def _capture_html(self, callback: Callable[[str, str, str], None]):
+        js = "(function(){return document.documentElement?document.documentElement.outerHTML:'';})();"
+
+        def _after_js(result):
+            callback(str(result or ""), self.page.url().toString(), self.page.title())
+
+        try:
+            self.page.runJavaScript(js, _after_js)
+        except Exception:
+            callback("", self.page.url().toString(), self.page.title())
+
+    def launch(self, req_id: str, url: str, timeout_ms: int, finish: Callable[[dict], None]):
+        target = str(url or "").strip()
+        if not target:
+            finish({"ok": False, "error": "Thiếu URL."})
+            return
+        self._apply_pending_cookies(target, lambda: self._start_page_load(req_id, lambda: self.page.load(QUrl(target)), timeout_ms, finish))
+
+    def load_html(self, req_id: str, base_url: str, html: str, timeout_ms: int, finish: Callable[[dict], None]):
+        base = str(base_url or "").strip() or DEFAULT_HOME
+        body = str(html or "")
+        self._apply_pending_cookies(base, lambda: self._start_page_load(req_id, lambda: self.page.setHtml(body, QUrl(base)), timeout_ms, finish))
+
+    def _start_page_load(self, req_id: str, starter: Callable[[], None], timeout_ms: int, finish: Callable[[dict], None]):
+        timeout_ms = max(500, int(timeout_ms or 5000))
+        state = {"done": False}
+        timer = QTimer(self.owner)
+        timer.setSingleShot(True)
+        self.owner._retain_bridge_objects(req_id, timer)
+
+        def cleanup():
+            try:
+                self.page.loadFinished.disconnect(on_load_finished)
+            except Exception:
+                pass
+            try:
+                timer.stop()
+            except Exception:
+                pass
+
+        def complete(payload: dict):
+            if state["done"]:
+                return
+            state["done"] = True
+            cleanup()
+            finish(payload)
+
+        def inspect_dom():
+            self._capture_html(
+                lambda html_text, url_text, title_text: complete(
+                    {
+                        "ok": True,
+                        "html": html_text,
+                        "url": url_text,
+                        "title": title_text,
+                    }
+                )
+            )
+
+        def on_timeout():
+            self._capture_html(
+                lambda html_text, url_text, title_text: complete(
+                    {
+                        "ok": bool(html_text),
+                        "html": html_text,
+                        "url": url_text,
+                        "title": title_text,
+                        "error": "" if html_text else "Bridge load timeout.",
+                    }
+                )
+            )
+
+        def on_load_finished(_ok: bool):
+            if state["done"]:
+                return
+            QTimer.singleShot(140, inspect_dom)
+
+        self.page.loadFinished.connect(on_load_finished)
+        timer.timeout.connect(on_timeout)
+        timer.start(timeout_ms)
+        try:
+            starter()
+        except Exception as exc:
+            complete({"ok": False, "error": f"Load lỗi: {exc}"})
+
+    def run_js(self, req_id: str, script: str, wait_ms: int, finish: Callable[[dict], None]):
+        wait_ms = max(0, int(wait_ms or 0))
+        full_script = _bridge_bootstrap_js() + "\n" + str(script or "")
+        timer = QTimer(self.owner)
+        timer.setSingleShot(True)
+        self.owner._retain_bridge_objects(req_id, timer)
+
+        def inspect_dom():
+            self._capture_html(
+                lambda html_text, url_text, title_text: finish(
+                    {
+                        "ok": True,
+                        "html": html_text,
+                        "url": url_text,
+                        "title": title_text,
+                    }
+                )
+            )
+
+        try:
+            self.page.runJavaScript(full_script)
+        except Exception as exc:
+            finish({"ok": False, "error": f"runJavaScript lỗi: {exc}"})
+            return
+        timer.timeout.connect(inspect_dom)
+        timer.start(max(1, wait_ms))
+
+    def get_html(self, req_id: str, wait_ms: int, finish: Callable[[dict], None]):
+        wait_ms = max(0, int(wait_ms or 0))
+        if wait_ms <= 0:
+            self._capture_html(lambda html_text, url_text, title_text: finish({"ok": True, "html": html_text, "url": url_text, "title": title_text}))
+            return
+        timer = QTimer(self.owner)
+        timer.setSingleShot(True)
+        self.owner._retain_bridge_objects(req_id, timer)
+        timer.timeout.connect(lambda: self._capture_html(lambda html_text, url_text, title_text: finish({"ok": True, "html": html_text, "url": url_text, "title": title_text})))
+        timer.start(wait_ms)
+
+    def get_var(self, key: str, finish: Callable[[dict], None]):
+        lookup = json.dumps(str(key or ""))
+        js = _bridge_bootstrap_js() + "\n" + f"(function(){{try{{return String(window.__RCBridgeVars[{lookup}]||'');}}catch(_e){{return '';}}}})();"
+
+        def _after_js(result):
+            finish({"ok": True, "value": str(result or "")})
+
+        try:
+            self.page.runJavaScript(js, _after_js)
+        except Exception as exc:
+            finish({"ok": False, "error": f"getVariable lỗi: {exc}"})
+
+    def wait_url(self, req_id: str, patterns, timeout_ms: int, finish: Callable[[dict], None]):
+        checks = patterns
+        if isinstance(checks, str):
+            text = checks.strip()
+            if text.startswith("[") and text.endswith("]"):
+                try:
+                    checks = json.loads(text)
+                except Exception:
+                    checks = [text]
+            else:
+                checks = [text]
+        if not isinstance(checks, list):
+            checks = [str(checks or "")]
+        wanted = [str(x or "").strip() for x in checks if str(x or "").strip()]
+        if not wanted:
+            finish({"ok": True})
+            return
+        timeout_ms = max(500, int(timeout_ms or 5000))
+        timer = QTimer(self.owner)
+        timer.setSingleShot(True)
+        poller = QTimer(self.owner)
+        poller.setInterval(120)
+        self.owner._retain_bridge_objects(req_id, timer, poller)
+
+        def matched() -> bool:
+            haystack = list(self.request_urls)
+            current = str(self.page.url().toString() or "")
+            if current:
+                haystack.append(current)
+            for item in haystack:
+                for want in wanted:
+                    if want and want in item:
+                        return True
+            return False
+
+        def complete(ok: bool, error: str = ""):
+            try:
+                timer.stop()
+            except Exception:
+                pass
+            try:
+                poller.stop()
+            except Exception:
+                pass
+            finish({"ok": bool(ok), "error": str(error or "")})
+
+        def on_poll():
+            if matched():
+                complete(True)
+
+        def on_timeout():
+            complete(False, "waitUrl timeout.")
+
+        if matched():
+            finish({"ok": True})
+            return
+        poller.timeout.connect(on_poll)
+        timer.timeout.connect(on_timeout)
+        poller.start()
+        timer.start(timeout_ms)
+
+    def close(self):
+        try:
+            self.page.deleteLater()
+        except Exception:
+            pass
+        try:
+            self.profile.deleteLater()
+        except Exception:
+            pass
+
 PASSWORD_DETECTOR_JS = r"""
 (function() {
     function tryCapture(element) {
@@ -823,7 +1156,14 @@ class PasswordManagerDialog(QDialog):
 
 
 class _BrowserWindow(QMainWindow):
-    def __init__(self, initial_url: Optional[str], cmd_conn, event_conn, header_spy_targets: Optional[List[str]] = None):
+    def __init__(
+        self,
+        initial_url: Optional[str],
+        cmd_conn,
+        event_conn,
+        header_spy_targets: Optional[List[str]] = None,
+        start_hidden: bool = False,
+    ):
         super().__init__()
         self.setWindowTitle("Rename Chapters - Browser")
         self.resize(1320, 900)
@@ -840,6 +1180,7 @@ class _BrowserWindow(QMainWindow):
         self.cmd_conn = cmd_conn
         self.event_conn = event_conn
         self._closing = False
+        self._start_hidden = bool(start_hidden)
         self._plus_tab = None
         self._view_progress = {}
 
@@ -852,6 +1193,8 @@ class _BrowserWindow(QMainWindow):
         self._active_downloads: dict[int, QWebEngineDownloadRequest] = {}
         self._pending_retries: dict[str, dict] = {}
         self._pending_fetch_pages: dict[str, dict] = {}
+        self._pending_bridge_tasks: dict[str, list[object]] = {}
+        self._hidden_sessions: dict[str, _HiddenBridgeSession] = {}
         self._download_dialog: Optional[DownloadManagerDialog] = None
         self._search_term_counter: Counter[str] = Counter()
         self.userscript_host: Optional[UserscriptHost] = None
@@ -893,6 +1236,152 @@ class _BrowserWindow(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._poll_commands)
         self.timer.start(120)
+
+    def _retain_bridge_objects(self, req_id: str, *objects):
+        rid = str(req_id or "").strip()
+        if not rid:
+            return
+        bucket = self._pending_bridge_tasks.setdefault(rid, [])
+        for obj in objects:
+            if obj is not None:
+                bucket.append(obj)
+
+    def _release_bridge_task(self, req_id: str):
+        rid = str(req_id or "").strip()
+        if not rid:
+            return
+        items = self._pending_bridge_tasks.pop(rid, [])
+        for obj in items:
+            if isinstance(obj, QTimer):
+                try:
+                    obj.stop()
+                except Exception:
+                    pass
+                try:
+                    obj.deleteLater()
+                except Exception:
+                    pass
+
+    def _send_bridge_result(self, payload: dict):
+        if not self.event_conn:
+            return
+        try:
+            self.event_conn.send(("BRIDGE_RESULT", payload))
+        except Exception:
+            pass
+
+    def _send_window_event(self, name: str):
+        if not self.event_conn:
+            return
+        try:
+            self.event_conn.send((name, None))
+        except Exception:
+            pass
+
+    def _show_window(self):
+        try:
+            self.showNormal()
+            self.raise_()
+            self.activateWindow()
+        except Exception:
+            try:
+                self.show()
+            except Exception:
+                pass
+        self._send_window_event("WINDOW_SHOWN")
+
+    def _hide_window(self):
+        try:
+            self.hide()
+        except Exception:
+            pass
+        self._send_window_event("WINDOW_HIDDEN")
+
+    def _close_hidden_session(self, session_id: str):
+        sid = str(session_id or "").strip()
+        session = self._hidden_sessions.pop(sid, None)
+        if session is None:
+            return
+        try:
+            session.close()
+        except Exception:
+            pass
+
+    def _dispatch_bridge_result(self, req_id: str, payload: dict):
+        rid = str(req_id or "").strip()
+        result = dict(payload or {})
+        result["id"] = rid
+        self._send_bridge_result(result)
+        self._release_bridge_task(rid)
+
+    def _handle_bridge_call(self, payload: dict):
+        req_id = str((payload or {}).get("id") or "").strip()
+        op = str((payload or {}).get("op") or "").strip().upper()
+        if not req_id:
+            return
+        if not op:
+            self._dispatch_bridge_result(req_id, {"ok": False, "error": "Thiếu op."})
+            return
+        if op == "FETCH_HTML":
+            self._handle_fetch_html(payload or {}, sender=self._send_bridge_result)
+            return
+        if op == "CREATE_SESSION":
+            session_id = str((payload or {}).get("session_id") or f"session-{int(time.time() * 1000)}").strip()
+            self._close_hidden_session(session_id)
+            self._hidden_sessions[session_id] = _HiddenBridgeSession(self, session_id)
+            self._dispatch_bridge_result(req_id, {"ok": True, "session_id": session_id})
+            return
+
+        session_id = str((payload or {}).get("session_id") or "").strip()
+        session = self._hidden_sessions.get(session_id)
+        if session is None:
+            self._dispatch_bridge_result(req_id, {"ok": False, "error": "Session bridge không tồn tại."})
+            return
+
+        def finish(result: dict):
+            self._dispatch_bridge_result(req_id, result if isinstance(result, dict) else {"ok": False, "error": "Bridge result không hợp lệ."})
+
+        if op == "CLOSE_SESSION":
+            self._close_hidden_session(session_id)
+            finish({"ok": True})
+            return
+        if op == "SET_USER_AGENT":
+            session.set_user_agent(str((payload or {}).get("user_agent") or ""))
+            finish({"ok": True})
+            return
+        if op == "SET_COOKIE":
+            cookies = (payload or {}).get("cookies")
+            session.set_cookies(cookies if isinstance(cookies, dict) else None, str((payload or {}).get("cookie_header") or ""))
+            finish({"ok": True})
+            return
+        if op == "LAUNCH":
+            session.launch(req_id, str((payload or {}).get("url") or ""), int((payload or {}).get("timeout_ms") or 15000), finish)
+            return
+        if op == "LOAD_HTML":
+            session.load_html(
+                req_id,
+                str((payload or {}).get("base_url") or (payload or {}).get("url") or DEFAULT_HOME),
+                str((payload or {}).get("html") or ""),
+                int((payload or {}).get("timeout_ms") or 4000),
+                finish,
+            )
+            return
+        if op == "RUN_JS":
+            session.run_js(req_id, str((payload or {}).get("script") or ""), int((payload or {}).get("wait_ms") or 0), finish)
+            return
+        if op == "GET_HTML":
+            session.get_html(req_id, int((payload or {}).get("wait_ms") or (payload or {}).get("timeout_ms") or 0), finish)
+            return
+        if op == "GET_VAR":
+            session.get_var(str((payload or {}).get("key") or ""), finish)
+            return
+        if op == "URLS":
+            finish({"ok": True, "urls": list(session.request_urls)})
+            return
+        if op == "WAIT_URL":
+            session.wait_url(req_id, (payload or {}).get("urls"), int((payload or {}).get("timeout_ms") or 15000), finish)
+            return
+        finish({"ok": False, "error": f"Op bridge không hỗ trợ: {op}"})
 
     # --- UI helpers -------------------------------------------------------------
     def _build_ui(self):
@@ -1838,6 +2327,10 @@ class _BrowserWindow(QMainWindow):
                 if cmd == "EXIT":
                     self.close()
                     return
+                elif cmd == "SHOW_WINDOW":
+                    self._show_window()
+                elif cmd == "HIDE_WINDOW":
+                    self._hide_window()
                 elif cmd == "LOAD" and payload:
                     self.address_bar.setText(payload)
                     self._navigate(payload)
@@ -1851,6 +2344,8 @@ class _BrowserWindow(QMainWindow):
                     self._create_tab(start_url=payload or DEFAULT_HOME)
                 elif cmd == "FETCH_HTML":
                     self._handle_fetch_html(payload or {})
+                elif cmd == "BRIDGE_CALL":
+                    self._handle_bridge_call(payload or {})
         except EOFError:
             self.close()
 
@@ -1875,13 +2370,14 @@ class _BrowserWindow(QMainWindow):
         )
         return any(m in t for m in markers) or any(m in h for m in markers)
 
-    def _handle_fetch_html(self, payload: dict):
+    def _handle_fetch_html(self, payload: dict, sender: Callable[[dict], None] | None = None):
+        send_result = sender or self._send_fetch_result
         req_id = str((payload or {}).get("id") or "").strip()
         raw_url = str((payload or {}).get("url") or "").strip()
         if not req_id:
             return
         if not raw_url:
-            self._send_fetch_result({"id": req_id, "ok": False, "error": "Thiếu URL."})
+            send_result({"id": req_id, "ok": False, "error": "Thiếu URL."})
             return
         target_url = raw_url if SCHEME_RE.match(raw_url) else f"https://{raw_url}"
         timeout_ms = max(2000, int((payload or {}).get("timeout_ms") or 30000))
@@ -1911,7 +2407,7 @@ class _BrowserWindow(QMainWindow):
             if state["done"]:
                 return
             state["done"] = True
-            self._send_fetch_result(
+            send_result(
                 {
                     "id": req_id,
                     "ok": bool(ok),
@@ -1974,6 +2470,11 @@ class _BrowserWindow(QMainWindow):
                         page.deleteLater()
                 except Exception:
                     pass
+        for req_id in list(self._pending_bridge_tasks.keys()):
+            self._send_bridge_result({"id": req_id, "ok": False, "error": "Bridge browser đã đóng."})
+            self._release_bridge_task(req_id)
+        for session_id in list(self._hidden_sessions.keys()):
+            self._close_hidden_session(session_id)
         # ensure tất cả web views bị dọn trước khi profile release để tránh cảnh báo
         while self.tabs.count():
             widget = self.tabs.widget(0)
@@ -2373,12 +2874,22 @@ def run_browser(
     cmd_conn,
     event_conn,
     profile_dir: Optional[str] = None,
-    header_spy_targets: Optional[List[str]] = None
+    header_spy_targets: Optional[List[str]] = None,
+    start_hidden: bool = False,
 ):
     """Entry-point for the multiprocessing worker."""
     if profile_dir:
         set_profile_dir(profile_dir)
     app = QApplication(sys.argv)
-    window = _BrowserWindow(initial_url, cmd_conn, event_conn, header_spy_targets=header_spy_targets)
-    window.show()
+    window = _BrowserWindow(
+        initial_url,
+        cmd_conn,
+        event_conn,
+        header_spy_targets=header_spy_targets,
+        start_hidden=bool(start_hidden),
+    )
+    if start_hidden:
+        window._hide_window()
+    else:
+        window._show_window()
     app.exec()

@@ -9825,6 +9825,11 @@ class ReaderService:
 
         if self.vbook_bridge_enabled and not disable_bridge:
             state = self._load_vbook_bridge_state()
+            bridge_url = str(state.get("rpc_endpoint") or "").strip() if isinstance(state, dict) else ""
+            bridge_token = str(state.get("rpc_token") or "").strip() if isinstance(state, dict) else ""
+            if bridge_url and bridge_token:
+                override["browser_bridge_url"] = bridge_url
+                override["browser_bridge_token"] = bridge_token
             host_candidates = self._vbook_bridge_host_candidates(plugin, script_key, args, state)
             entry: dict[str, Any] = {}
             for host in host_candidates:
@@ -9938,6 +9943,8 @@ class ReaderService:
             "enabled": bool(self.vbook_bridge_enabled),
             "state_path": str(self.vbook_bridge_state_path),
             "cookie_db_path": str(self.vbook_bridge_cookie_db_path),
+            "rpc_endpoint": str(state.get("rpc_endpoint") or ""),
+            "rpc_running": bool(state.get("rpc_running")),
             "default_user_agent": str(state.get("default_user_agent") or ""),
             "updated_at": str(state.get("updated_at") or ""),
             "hosts": host_items,
