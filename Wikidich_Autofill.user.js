@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.9
+// @version      0.3.9.1
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -2454,8 +2454,18 @@
                 const translated = await postTranslate(SERVER_URL, batch, 'vi');
                 result.push(...translated);
             } catch (err) {
-                // fallback: giữ nguyên đoạn lỗi
-                result.push(...batch);
+                logUi(`Dịch batch lỗi, thử lại từng đoạn: ${err.message || err}`, 'warn');
+                for (const item of batch) {
+                    try {
+                        const translatedSingle = await postTranslateSingle(SERVER_URL, item, 'vi');
+                        result.push(translatedSingle || item);
+                    } catch (singleErr) {
+                        logUi(`Dịch từng đoạn vẫn lỗi, giữ nguyên text: ${singleErr.message || singleErr}`, 'warn');
+                        result.push(item);
+                    }
+                    await sleep(REQUEST_DELAY_MS);
+                }
+                continue;
             }
             await sleep(REQUEST_DELAY_MS);
         }
@@ -3199,6 +3209,7 @@ const CHANGELOG_CONTENT = `
     <li>🪄 <b>JJWXC mượt hơn:</b> Dùng api cũ hay mới tùy hoàn cảnh; nút <code>Old/New</code> vẫn giữ để đổi nhanh sau đó.</li>
     <li>⏱️ <b>Gemini rõ ràng hơn:</b> Mặc định ưu tiên <code>gemini-3-flash-preview</code>, có toast/log đếm thời gian và báo rõ khi AI đang chạy thinking mode.</li>
     <li>🏷️ <b>Tối ưu chọn nhãn:</b> Tinh chỉnh cả AI lẫn keyword cho <code>架空历史</code> → <b>Giả tưởng lịch sử</b>, và <code>年代文</code> ưu tiên <b>Hiện đại</b> thay vì <b>Cận đại</b></li>
+    <li>🧯 <b>Fix v0.3.9.1:</b> Tăng cường tính năng dịch. </li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
