@@ -191,6 +191,22 @@ class ND5Mixin:
             return 20
         return self._nd5_global_batch_workers_default()
 
+    def _nd5_parse_batch_workers_for_plugin(
+        self,
+        plugin_id: str,
+        value,
+        *,
+        default: Optional[int] = None,
+        is_vbook_bridge: bool = False,
+    ) -> int:
+        pid = str(plugin_id or "").strip()
+        fallback = default if default is not None else self._nd5_default_batch_workers_for_plugin(
+            pid,
+            is_vbook_bridge=is_vbook_bridge,
+        )
+        max_value = 20 if pid == "fanqie" else self._nd5_max_batch_workers()
+        return self._nd5_parse_int(value, fallback, 1, max_value)
+
     def _nd5_normalize_global_options(self, options: Optional[dict] = None) -> dict:
         raw = dict(options or {})
         normalized = dict(DEFAULT_ND5_OPTIONS)
@@ -241,11 +257,10 @@ class ND5Mixin:
                 99,
             )
         if "nd5_batch_workers" in normalized:
-            normalized["nd5_batch_workers"] = self._nd5_parse_int(
+            normalized["nd5_batch_workers"] = self._nd5_parse_batch_workers_for_plugin(
+                pid,
                 normalized.get("nd5_batch_workers"),
-                self._nd5_default_batch_workers_for_plugin(pid),
-                1,
-                self._nd5_max_batch_workers(),
+                default=self._nd5_default_batch_workers_for_plugin(pid),
             )
         return normalized
 
@@ -260,7 +275,8 @@ class ND5Mixin:
                 changed = True
                 continue
             cleaned = self._nd5_normalize_plugin_values(str(pid), raw)
-            normalized_store[str(pid)] = cleaned
+            if cleaned:
+                normalized_store[str(pid)] = cleaned
             if cleaned != raw:
                 changed = True
         if changed:
@@ -341,11 +357,10 @@ class ND5Mixin:
         default_batch_workers = self._nd5_default_batch_workers_for_plugin(pid)
         if pid != "fanqie":
             default_batch_workers = global_batch_workers
-        batch_workers = self._nd5_parse_int(
+        batch_workers = self._nd5_parse_batch_workers_for_plugin(
+            pid,
             batch_workers_val,
-            default_batch_workers,
-            1,
-            self._nd5_max_batch_workers(),
+            default=default_batch_workers,
         )
 
         return {
@@ -570,6 +585,28 @@ class ND5Mixin:
     def _fanqie_bridge_log_path(self) -> str:
         return os.path.join(self._fanqie_bridge_log_dir(), "server.log")
 
+    def _fanqie_bridge_cleanup_old_logs(self):
+        today = datetime.date.today()
+        log_dir = self._fanqie_bridge_log_dir()
+        try:
+            for name in os.listdir(log_dir):
+                path = os.path.join(log_dir, name)
+                if not os.path.isfile(path):
+                    continue
+                if not name.lower().endswith(".log"):
+                    continue
+                try:
+                    modified = datetime.datetime.fromtimestamp(os.path.getmtime(path)).date()
+                except Exception:
+                    modified = None
+                if modified != today:
+                    try:
+                        os.remove(path)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
     def _fanqie_bridge_read_log_tail(self, max_bytes: int = 65536) -> str:
         path = self._fanqie_bridge_log_path()
         if not os.path.isfile(path):
@@ -605,6 +642,7 @@ class ND5Mixin:
                 creation = CREATE_NO_WINDOW
             except Exception:
                 creation = 0
+            self._fanqie_bridge_cleanup_old_logs()
             log_path = self._fanqie_bridge_log_path()
             log_fp = open(log_path, "ab")
             env = os.environ.copy()
@@ -1085,11 +1123,10 @@ class ND5Mixin:
                     payload.pop("nd5_retry", None)
 
                 if threads_raw:
-                    payload["nd5_batch_workers"] = self._nd5_parse_int(
+                    payload["nd5_batch_workers"] = self._nd5_parse_batch_workers_for_plugin(
+                        "fanqie",
                         threads_raw,
-                        self._nd5_default_batch_workers_for_plugin("fanqie"),
-                        1,
-                        self._nd5_max_batch_workers(),
+                        default=self._nd5_default_batch_workers_for_plugin("fanqie"),
                     )
                 else:
                     payload.pop("nd5_batch_workers", None)
@@ -2497,11 +2534,10 @@ class ND5Mixin:
                     values.pop("nd5_retry", None)
 
                 if threads_raw:
-                    values["nd5_batch_workers"] = self._nd5_parse_int(
+                    values["nd5_batch_workers"] = self._nd5_parse_batch_workers_for_plugin(
+                        plugin.id,
                         threads_raw,
-                        self._nd5_default_batch_workers_for_plugin(plugin.id),
-                        1,
-                        self._nd5_max_batch_workers(),
+                        default=self._nd5_default_batch_workers_for_plugin(plugin.id),
                     )
                 else:
                     values.pop("nd5_batch_workers", None)
