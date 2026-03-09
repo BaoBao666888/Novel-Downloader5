@@ -9,6 +9,7 @@ import shutil
 import sys
 import time
 import urllib.parse
+import uuid
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -1050,6 +1051,57 @@ PASSWORD_DETECTOR_JS = r"""
 })();
 """
 
+PASSWORD_FORM_PROBE_JS = r"""
+(function() {
+    function isVisible(el) {
+        if (!el) return false;
+        var style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+        if (style && (style.display === "none" || style.visibility === "hidden")) return false;
+        var rect = el.getBoundingClientRect();
+        return !!(rect.width > 0 && rect.height > 0);
+    }
+    function isUserInput(el) {
+        if (!el || el.disabled || el.readOnly) return false;
+        var t = el.type ? String(el.type).toLowerCase() : "";
+        return t === "text" || t === "email" || t === "tel" || t === "search";
+    }
+    function findUserInput(passInput) {
+        if (!passInput) return null;
+        if (passInput.form) {
+            var formInputs = Array.from(passInput.form.querySelectorAll("input"));
+            var passIdx = formInputs.indexOf(passInput);
+            for (var i = passIdx - 1; i >= 0; i--) {
+                if (isUserInput(formInputs[i])) return formInputs[i];
+            }
+        }
+        var allInputs = Array.from(document.querySelectorAll("input"));
+        var globalIdx = allInputs.indexOf(passInput);
+        for (var j = globalIdx - 1; j >= 0; j--) {
+            if (isUserInput(allInputs[j])) return allInputs[j];
+        }
+        return null;
+    }
+    var allPass = Array.from(document.querySelectorAll("input[type='password']"));
+    var pass = null;
+    for (var i = 0; i < allPass.length; i++) {
+        if (allPass[i].disabled || allPass[i].readOnly) continue;
+        if (!isVisible(allPass[i])) continue;
+        pass = allPass[i];
+        break;
+    }
+    if (!pass) {
+        return { has_password: false, username: "", form_action: "", password_count: allPass.length };
+    }
+    var user = findUserInput(pass);
+    return {
+        has_password: true,
+        username: user && user.value ? String(user.value) : "",
+        form_action: pass.form && pass.form.action ? String(pass.form.action) : "",
+        password_count: allPass.length
+    };
+})();
+"""
+
 from PyQt6.QtCore import pyqtSignal
 
 class BrowserPage(QWebEnginePage):
@@ -1120,16 +1172,23 @@ class PasswordManagerDialog(QDialog):
                     if query not in domain.lower() and query not in user.lower():
                         continue
                 
-                item_text = f"{domain} | {user}"
+                item_text = f"{domain} | {user or '(Không tên)'}"
                 item = QListWidgetItem(item_text)
-                item.setData(Qt.ItemDataRole.UserRole, (domain, acc))
+                item.setData(Qt.ItemDataRole.UserRole, (domain, acc.get("id")))
                 self.list_widget.addItem(item)
 
     def _show_password(self):
         item = self.list_widget.currentItem()
         if not item:
             return
-        domain, acc = item.data(Qt.ItemDataRole.UserRole)
+        domain, account_id = item.data(Qt.ItemDataRole.UserRole)
+        acc = None
+        for candidate in self.password_data.get(domain, []) or []:
+            if candidate.get("id") == account_id:
+                acc = candidate
+                break
+        if not isinstance(acc, dict):
+            return
         password = acc.get("password", "")
         username = acc.get("username", "")
         
@@ -1146,12 +1205,19 @@ class PasswordManagerDialog(QDialog):
         item = self.list_widget.currentItem()
         if not item:
             return
-        domain, acc = item.data(Qt.ItemDataRole.UserRole)
+        domain, account_id = item.data(Qt.ItemDataRole.UserRole)
+        acc = None
+        for candidate in self.password_data.get(domain, []) or []:
+            if candidate.get("id") == account_id:
+                acc = candidate
+                break
+        if not isinstance(acc, dict):
+            return
         username = acc.get("username")
         
         if QMessageBox.question(self, "Xác nhận", f"Xóa mật khẩu cho {domain} ({username})?") == QMessageBox.StandardButton.Yes:
             if self._delete_password_cb:
-                self._delete_password_cb(domain, username)
+                self._delete_password_cb(domain, account_id)
             self._load_data()
 
 
@@ -2736,12 +2802,32 @@ class _BrowserWindow(QMainWindow):
         try:
             with open(PASSWORDS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
+            changed = False
             # Decrypt loaded passwords
             for domain, accounts in data.items():
+                if not isinstance(accounts, list):
+                    data[domain] = []
+                    changed = True
+                    continue
                 for acc in accounts:
+                    if not isinstance(acc, dict):
+                        changed = True
+                        continue
+                    if not acc.get("id"):
+                        acc["id"] = self._new_password_account_id()
+                        changed = True
                     if "password" in acc:
                         acc["password"] = revert_str(acc["password"])
-            self.passwords = data
+            normalized: dict[str, list[dict]] = {}
+            for domain, accounts in data.items():
+                key = self._normalize_password_domain(domain)
+                if not key:
+                    continue
+                normalized.setdefault(key, [])
+                normalized[key].extend([acc for acc in accounts if isinstance(acc, dict)])
+            self.passwords = normalized
+            if changed:
+                self._save_passwords_to_file()
         except Exception as e:
             print(f"Error loading passwords: {e}")
 
@@ -2752,6 +2838,8 @@ class _BrowserWindow(QMainWindow):
             data_to_save = copy.deepcopy(self.passwords)
             for domain, accounts in data_to_save.items():
                 for acc in accounts:
+                    if not acc.get("id"):
+                        acc["id"] = self._new_password_account_id()
                     if "password" in acc:
                         acc["password"] = transform_str(acc["password"])
             
@@ -2768,104 +2856,208 @@ class _BrowserWindow(QMainWindow):
         )
         dlg.exec()
 
-    def _delete_password(self, domain, username):
-        if domain in self.passwords:
-            self.passwords[domain] = [acc for acc in self.passwords[domain] if acc.get("username") != username]
-            if not self.passwords[domain]:
-                del self.passwords[domain]
+    def _new_password_account_id(self) -> str:
+        return f"pwd_{uuid.uuid4().hex}"
+
+    def _normalize_password_domain(self, domain: str) -> str:
+        return str(domain or "").strip().lower()
+
+    def _normalize_password_username(self, username: str) -> str:
+        return str(username or "").strip()
+
+    def _password_account_sort_key(self, acc: dict) -> tuple:
+        last_used = str(acc.get("last_used_at") or "")
+        updated = str(acc.get("updated_at") or "")
+        created = str(acc.get("created_at") or "")
+        return (last_used, updated, created, str(acc.get("id") or ""))
+
+    def _get_password_accounts(self, domain: str) -> list[dict]:
+        key = self._normalize_password_domain(domain)
+        accounts = self.passwords.get(key) or self.passwords.get(domain) or []
+        cleaned = [acc for acc in accounts if isinstance(acc, dict) and acc.get("password")]
+        cleaned.sort(key=self._password_account_sort_key, reverse=True)
+        return cleaned
+
+    def _password_account_label(self, acc: dict, index: int) -> str:
+        username = self._normalize_password_username(acc.get("username") or "")
+        stamp = str(acc.get("last_used_at") or acc.get("updated_at") or acc.get("created_at") or "").strip()
+        suffix = f" · {stamp[:16].replace('T', ' ')}" if stamp else ""
+        if username:
+            return f"{username}{suffix}"
+        return f"Tài khoản {index + 1}{suffix}"
+
+    def _fill_password_account(self, view: BrowserView, acc: dict):
+        if not view or not isinstance(acc, dict):
+            return
+        username = self._normalize_password_username(acc.get("username") or "")
+        password = str(acc.get("password") or "")
+        if not password:
+            return
+        js = f"""
+        (function() {{
+            function isVisible(el) {{
+                if (!el) return false;
+                var style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+                if (style && (style.display === "none" || style.visibility === "hidden")) return false;
+                var rect = el.getBoundingClientRect();
+                return !!(rect.width > 0 && rect.height > 0);
+            }}
+            function isUserInput(el) {{
+                if (!el || el.disabled || el.readOnly) return false;
+                var t = el.type ? String(el.type).toLowerCase() : "";
+                return t === "text" || t === "email" || t === "tel" || t === "search";
+            }}
+            function findUserField(pass) {{
+                if (!pass) return null;
+                if (pass.form) {{
+                    var inputs = Array.from(pass.form.querySelectorAll("input"));
+                    var passIdx = inputs.indexOf(pass);
+                    for (var i = passIdx - 1; i >= 0; i--) {{
+                        if (isUserInput(inputs[i])) return inputs[i];
+                    }}
+                }}
+                var allInputs = Array.from(document.querySelectorAll("input"));
+                var globalIdx = allInputs.indexOf(pass);
+                for (var j = globalIdx - 1; j >= 0; j--) {{
+                    if (isUserInput(allInputs[j])) return allInputs[j];
+                }}
+                return null;
+            }}
+            var allPass = Array.from(document.querySelectorAll("input[type='password']"));
+            var pass = null;
+            for (var i = 0; i < allPass.length; i++) {{
+                if (allPass[i].disabled || allPass[i].readOnly) continue;
+                if (!isVisible(allPass[i])) continue;
+                pass = allPass[i];
+                break;
+            }}
+            if (!pass) return false;
+            var userField = findUserField(pass);
+            if (userField && {json.dumps(bool(username))}) {{
+                userField.focus();
+                userField.value = {json.dumps(username)};
+                userField.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                userField.dispatchEvent(new Event('change', {{ bubbles: true }}));
+            }}
+            pass.focus();
+            pass.value = {json.dumps(password)};
+            pass.dispatchEvent(new Event('input', {{ bubbles: true }}));
+            pass.dispatchEvent(new Event('change', {{ bubbles: true }}));
+            return true;
+        }})();
+        """
+        try:
+            view.page().runJavaScript(js)
+        except Exception:
+            return
+        acc["last_used_at"] = datetime.now().isoformat()
+        self._save_passwords_to_file()
+
+    def _prompt_password_account_choice(self, view: BrowserView, domain: str, accounts: list[dict], current_username: str = ""):
+        if not view or not accounts or len(accounts) <= 1:
+            return
+        normalized_current = self._normalize_password_username(current_username)
+        if normalized_current:
+            for acc in accounts:
+                if self._normalize_password_username(acc.get("username") or "") == normalized_current:
+                    self._fill_password_account(view, acc)
+                    return
+
+        labels = [self._password_account_label(acc, idx) for idx, acc in enumerate(accounts)]
+        default_index = 0
+        selected, ok = QInputDialog.getItem(
+            self,
+            "Chọn tài khoản",
+            f"Chọn tài khoản đã lưu cho {domain}:",
+            labels,
+            default_index,
+            False,
+        )
+        if not ok or not selected:
+            return
+        try:
+            selected_index = labels.index(selected)
+        except ValueError:
+            selected_index = 0
+        if 0 <= selected_index < len(accounts):
+            self._fill_password_account(view, accounts[selected_index])
+
+    def _delete_password(self, domain, account_id):
+        key = self._normalize_password_domain(domain)
+        if key in self.passwords:
+            self.passwords[key] = [acc for acc in self.passwords[key] if acc.get("id") != account_id]
+            if not self.passwords[key]:
+                del self.passwords[key]
             self._save_passwords_to_file()
 
     def _on_password_captured(self, data):
-        domain = data.get("domain")
-        username = data.get("username")
+        domain = self._normalize_password_domain(data.get("domain"))
+        username = self._normalize_password_username(data.get("username"))
         password = data.get("password")
         if not domain or not password:
             return
 
-        # Check if already saved
-        if domain in self.passwords:
-            for acc in self.passwords[domain]:
-                if acc.get("username") == username and acc.get("password") == password:
-                    return # Already saved
+        if domain not in self.passwords or not isinstance(self.passwords.get(domain), list):
+            self.passwords[domain] = []
 
-        # Prompt user
-        msg = f"Bạn có muốn lưu mật khẩu cho trang {domain} không?\nTài khoản: {username or '(Không tên)'}"
-        if QMessageBox.question(self, "Lưu mật khẩu", msg) == QMessageBox.StandardButton.Yes:
-            if domain not in self.passwords:
-                self.passwords[domain] = []
-            
-            # Update if username exists, else append
-            existing = False
-            for acc in self.passwords[domain]:
-                if acc.get("username") == username:
-                    acc["password"] = password
-                    acc["updated_at"] = datetime.now().isoformat()
-                    existing = True
+        existing_accounts = self.passwords[domain]
+        for acc in existing_accounts:
+            if (
+                self._normalize_password_username(acc.get("username")) == username
+                and str(acc.get("password") or "") == str(password)
+            ):
+                return
+
+        matched_account = None
+        if username:
+            for acc in existing_accounts:
+                if self._normalize_password_username(acc.get("username")) == username:
+                    matched_account = acc
                     break
-            
-            if not existing:
+
+        if matched_account and str(matched_account.get("password") or "") == str(password):
+            return
+
+        action_text = "cập nhật" if matched_account else "lưu"
+        msg = f"Bạn có muốn {action_text} mật khẩu cho trang {domain} không?\nTài khoản: {username or '(Không tên)'}"
+        if QMessageBox.question(self, "Lưu mật khẩu", msg) == QMessageBox.StandardButton.Yes:
+            now_iso = datetime.now().isoformat()
+            if matched_account:
+                matched_account["password"] = password
+                matched_account["updated_at"] = now_iso
+            else:
                 self.passwords[domain].append({
+                    "id": self._new_password_account_id(),
                     "username": username,
                     "password": password,
-                    "created_at": datetime.now().isoformat()
+                    "created_at": now_iso,
+                    "updated_at": now_iso,
                 })
-            
             self._save_passwords_to_file()
 
     def _on_page_load_finished(self, view, ok):
-        if not ok:
+        if not ok or not self.isVisible() or view is not self._current_view():
             return
         try:
             url = view.url()
-            domain = url.host()
-            if domain in self.passwords and self.passwords[domain]:
-                # Auto-fill using the first account (or most recently updated)
-                # Sort by updated_at desc if possible, or just take last
-                acc = self.passwords[domain][-1]
-                u = acc.get("username", "")
-                p = acc.get("password", "")
-                if p:
-                    js = f"""
-                    (function() {{
-                        var u = {json.dumps(u)};
-                        var p = {json.dumps(p)};
-                        var inputs = Array.from(document.querySelectorAll("input"));
-                        var pass = null;
-                        
-                        // Find password field
-                        for(var i=0; i<inputs.length; i++) {{
-                            if(inputs[i].type == "password") {{ pass=inputs[i]; break; }}
-                        }}
-                        
-                        if(pass) {{
-                            // Fill password
-                            pass.value = p;
-                            pass.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                            pass.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                            
-                            // Find user field by searching backwards from password field
-                            var userField = null;
-                            var passIdx = inputs.indexOf(pass);
-                            for (var i = passIdx - 1; i >= 0; i--) {{
-                                var t = inputs[i].type ? inputs[i].type.toLowerCase() : "";
-                                if (t === "text" || t === "email" || t === "tel") {{
-                                    userField = inputs[i];
-                                    break;
-                                }}
-                            }}
-                            
-                            if (userField) {{
-                                console.log("DEBUG: Auto-filling username on", userField);
-                                userField.value = u;
-                                userField.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                userField.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                            }} else {{
-                                console.log("DEBUG: No username field found to fill");
-                            }}
-                        }}
-                    }})();
-                    """
-                    view.page().runJavaScript(js)
+            domain = self._normalize_password_domain(url.host())
+            accounts = self._get_password_accounts(domain)
+            if not accounts:
+                return
+
+            def _after_probe(result):
+                try:
+                    if not isinstance(result, dict) or not result.get("has_password"):
+                        return
+                    current_username = self._normalize_password_username(result.get("username"))
+                    if len(accounts) == 1:
+                        self._fill_password_account(view, accounts[0])
+                        return
+                    self._prompt_password_account_choice(view, domain, accounts, current_username=current_username)
+                except Exception:
+                    pass
+
+            view.page().runJavaScript(PASSWORD_FORM_PROBE_JS, _after_probe)
         except Exception:
             pass
 
