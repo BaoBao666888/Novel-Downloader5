@@ -3350,7 +3350,7 @@ const CHANGELOG_CONTENT = `
     <li>🪄 <b>JJWXC mượt hơn:</b> Dùng api cũ hay mới tùy hoàn cảnh; nút <code>Old/New</code> vẫn giữ để đổi nhanh sau đó.</li>
     <li>⏱️ <b>Gemini rõ ràng hơn:</b> Mặc định ưu tiên <code>gemini-3-flash-preview</code>, có toast/log đếm thời gian và báo rõ khi AI đang chạy thinking mode.</li>
     <li>🏷️ <b>Tối ưu chọn nhãn:</b> Tinh chỉnh cả AI lẫn keyword cho <code>架空历史</code> → <b>Giả tưởng lịch sử</b>, và <code>年代文</code> ưu tiên <b>Hiện đại</b> thay vì <b>Cận đại</b></li>
-    <li>🛡️ <b>Check trùng sâu hơn:</b> Thêm chỉ số độ an toàn, nút <code>Mở</code> tác giả, quét trang đầu tác giả và so ảnh bìa để cảnh báo mềm khi nghi trùng.(v0.3.9.2)</li>
+    <li>🛡️ <b>Check trùng sâu hơn:</b> Thêm chỉ số độ an toàn, nút <code>Mở</code> tác giả, quét trang đầu tác giả và so ảnh bìa + tên để cảnh báo mềm khi nghi trùng.(v0.3.9.2)</li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
@@ -3643,15 +3643,15 @@ const CHANGELOG_CONTENT = `
             }
             #${APP_PREFIX}duplicateSafety {
                 display: none;
-                position: absolute;
-                top: 54px;
-                right: -12px;
-                z-index: 4;
-                min-width: 96px;
-                max-width: 132px;
-                padding: 7px 12px;
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 100001;
+                min-width: 82px;
+                max-width: 108px;
+                padding: 6px 10px;
                 border-radius: 999px;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 800;
                 text-align: center;
                 letter-spacing: 0.15px;
@@ -4466,7 +4466,6 @@ const CHANGELOG_CONTENT = `
                 </div>
                 <div id="${APP_PREFIX}noticeBar">
                     <div id="${APP_PREFIX}recomputeNotice"></div>
-                    <div id="${APP_PREFIX}duplicateSafety" data-tone="idle">--</div>
                 </div>
                 <div id="${APP_PREFIX}content">
                     <div class="${APP_PREFIX}row">
@@ -4583,6 +4582,7 @@ const CHANGELOG_CONTENT = `
                     </div>
                 </div>
             </div>
+            <div id="${APP_PREFIX}duplicateSafety" data-tone="idle">--</div>
             <div id="${APP_PREFIX}quickPanel">
                 <div id="${APP_PREFIX}quickHeader">
                     <div>Dịch ngay</div>
@@ -5353,6 +5353,32 @@ const CHANGELOG_CONTENT = `
             duplicateSafetyEl.dataset.tone = check.safetyTone === 'pending' ? 'pending' : 'score';
             duplicateSafetyEl.textContent = shouldShow ? `🛡 ${check.safetyScore}%` : '--';
             duplicateSafetyEl.title = check.safetyReason || '';
+            syncDuplicateSafetyPosition();
+        };
+
+        const syncDuplicateSafetyPosition = () => {
+            if (!duplicateSafetyEl || !panel) return;
+            const chipVisible = duplicateSafetyEl.classList.contains('show');
+            const panelVisible = getComputedStyle(panel).display !== 'none';
+            if (!chipVisible || !panelVisible) {
+                duplicateSafetyEl.style.display = 'none';
+                return;
+            }
+            duplicateSafetyEl.style.display = '';
+            const rect = panel.getBoundingClientRect();
+            const gap = 12;
+            const chipWidth = Math.max(duplicateSafetyEl.offsetWidth || 92, 92);
+            const chipHeight = Math.max(duplicateSafetyEl.offsetHeight || 34, 34);
+            let left = rect.right + gap;
+            if (left + chipWidth > window.innerWidth - 8) {
+                left = Math.max(8, rect.left - chipWidth - gap);
+            }
+            let top = rect.top + 10;
+            if (top + chipHeight > window.innerHeight - 8) {
+                top = Math.max(8, window.innerHeight - chipHeight - 8);
+            }
+            duplicateSafetyEl.style.left = `${Math.round(left)}px`;
+            duplicateSafetyEl.style.top = `${Math.round(top)}px`;
         };
 
         const resetDuplicateCheckState = () => {
@@ -8022,16 +8048,24 @@ For arrays, return list of strings. If none fit, return empty array.
         btn.addEventListener('touchstart', onDragStart, { passive: false });
         window.addEventListener('touchmove', onDragMove, { passive: false });
         window.addEventListener('touchend', onDragEnd);
+        window.addEventListener('resize', () => {
+            syncDuplicateSafetyPosition();
+        });
 
         const openPanel = () => {
             panel.style.display = 'flex';
             updateMatchIndicators();
+            syncDuplicateSafetyPosition();
         };
-        const closePanel = () => { panel.style.display = 'none'; };
+        const closePanel = () => {
+            panel.style.display = 'none';
+            syncDuplicateSafetyPosition();
+        };
         const togglePanel = () => {
             const isHidden = getComputedStyle(panel).display === 'none';
             panel.style.display = isHidden ? 'flex' : 'none';
             if (isHidden) updateMatchIndicators();
+            syncDuplicateSafetyPosition();
         };
         const setQuickPanelVisible = (visible) => {
             if (!quickPanel || !quickToolBtn) return;
@@ -8055,6 +8089,7 @@ For arrays, return list of strings. If none fit, return empty array.
             panel.classList.toggle(panelFullscreenClass, next);
             GM_setValue(`${APP_PREFIX}panel_fullscreen`, next);
             syncFullscreenButton();
+            requestAnimationFrame(syncDuplicateSafetyPosition);
         };
         if (GM_getValue(`${APP_PREFIX}panel_fullscreen`, false)) {
             panel.classList.add(panelFullscreenClass);
@@ -8100,6 +8135,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 const top = Math.max(0, Math.min(maxTop, point.clientY - offsetY));
                 panelEl.style.left = `${left}px`;
                 panelEl.style.top = `${top}px`;
+                if (panelEl === panel) syncDuplicateSafetyPosition();
                 ev.preventDefault();
             };
 
@@ -8108,6 +8144,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 dragging = false;
                 const rect = panelEl.getBoundingClientRect();
                 GM_setValue(storageKey, { left: Math.round(rect.left), top: Math.round(rect.top) });
+                if (panelEl === panel) syncDuplicateSafetyPosition();
             };
 
             handleEl.addEventListener('mousedown', onStart);
@@ -8286,6 +8323,7 @@ For arrays, return list of strings. If none fit, return empty array.
         setQuickPanelVisible(false);
         setDataActionButtonsEnabled(false);
         setApplyByDuplicateState();
+        syncDuplicateSafetyPosition();
 
         const last = GM_getValue(`${APP_PREFIX}last_url`, '');
         if (last) shadowRoot.getElementById(`${APP_PREFIX}url`).value = last;
