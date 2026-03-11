@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.9.1
+// @version      0.3.9.2
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -28,12 +28,15 @@
     const DEFAULT_GEMINI_MODEL = 'gemini-3-flash-preview';
     const GEMINI_LOW_THINKING_LEVEL = 'low';
     const GEMINI_LOW_THINKING_BUDGET = 1024;
+    const DEEP_DUPLICATE_COVER_MATCH_THRESHOLD = 0.92;
+    const COVER_HASH_SIZE = 8;
     const ROOT_NEG_WORDS = ['vo', 'khong', 'phi', 'chong', 'phan', 'non', 'no'];
     const ROOT_MODIFIERS = new Set([
         'song', 'nhieu', 'main', 'ca', 'nha', 'nu', 'nam', 'trang', 'phan', 'sat',
         'la', 'toan', 'tap', 'the'
     ]);
     const geminiModelMetaCache = new Map();
+    const coverHashCache = new Map();
 
     const DEFAULT_SETTINGS = {
         scoreThreshold: DEFAULT_SCORE_THRESHOLD,
@@ -42,6 +45,7 @@
         geminiModel: DEFAULT_GEMINI_MODEL,
         autoExtractNames: true, // AI auto-extract character names
         autoBreakDesc: false, // Tự xuống dòng văn án ở dấu chấm
+        deepDuplicateCheck: true,
         jjwxcApiMode: '',
         domainSettings: {},
         coverSizeByDomain: {},
@@ -71,6 +75,15 @@
             lastKey: '',
             checked: false,
             failed: false,
+            deepPending: false,
+            deepChecked: false,
+            deepPossibleDuplicate: false,
+            deepCandidate: null,
+            hasMoreAuthorPages: false,
+            authorPageUrl: '',
+            safetyScore: null,
+            safetyTone: 'idle',
+            safetyReason: '',
         },
         descEditorMode: 'vi',
         descDraft: {
@@ -191,6 +204,7 @@
         if (raw.geminiModel) base.geminiModel = normalizeGeminiModelName(raw.geminiModel) || DEFAULT_GEMINI_MODEL;
         if (typeof raw.autoExtractNames === 'boolean') base.autoExtractNames = raw.autoExtractNames;
         if (typeof raw.autoBreakDesc === 'boolean') base.autoBreakDesc = raw.autoBreakDesc;
+        if (typeof raw.deepDuplicateCheck === 'boolean') base.deepDuplicateCheck = raw.deepDuplicateCheck;
         if ('jjwxcApiMode' in raw) base.jjwxcApiMode = normalizeJjwxcApiMode(raw.jjwxcApiMode);
         // old
         const oldMap = raw.useDescByDomain;
@@ -3040,6 +3054,133 @@
         });
     }
 
+    function toAbsoluteUrl(url, baseUrl) {
+        const raw = T.safeText(url);
+        if (!raw) return '';
+        try {
+            return new URL(raw, baseUrl || location.origin).href;
+        } catch {
+            return raw;
+        }
+    }
+
+    async function buildCoverAverageHash(url) {
+        const absoluteUrl = toAbsoluteUrl(url);
+        if (!absoluteUrl) throw new Error('Thiếu URL ảnh để so khớp.');
+        if (coverHashCache.has(absoluteUrl)) return coverHashCache.get(absoluteUrl);
+        const task = (async () => {
+            const blob = await fetchCoverBlob(absoluteUrl);
+            const img = await loadImageFromBlob(blob);
+            const canvas = document.createElement('canvas');
+            canvas.width = COVER_HASH_SIZE;
+            canvas.height = COVER_HASH_SIZE;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (!ctx) throw new Error('Không tạo được canvas để so khớp ảnh.');
+            ctx.drawImage(img, 0, 0, COVER_HASH_SIZE, COVER_HASH_SIZE);
+            const pixels = ctx.getImageData(0, 0, COVER_HASH_SIZE, COVER_HASH_SIZE).data;
+            const gray = [];
+            let total = 0;
+            for (let i = 0; i < pixels.length; i += 4) {
+                const value = Math.round((pixels[i] * 0.299) + (pixels[i + 1] * 0.587) + (pixels[i + 2] * 0.114));
+                gray.push(value);
+                total += value;
+            }
+            const avg = total / gray.length;
+            return gray.map((value) => (value >= avg ? 1 : 0));
+        })();
+        coverHashCache.set(absoluteUrl, task);
+        return task;
+    }
+
+    function compareCoverHashes(hashA, hashB) {
+        const a = Array.isArray(hashA) ? hashA : [];
+        const b = Array.isArray(hashB) ? hashB : [];
+        const size = Math.min(a.length, b.length);
+        if (!size) return 0;
+        let same = 0;
+        for (let i = 0; i < size; i++) {
+            if (a[i] === b[i]) same++;
+        }
+        return same / size;
+    }
+
+    function normalizeTitleForCompare(text) {
+        return T.normalizeText(text || '')
+            .replace(/[^a-z0-9]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function tokenizeTitleForCompare(text) {
+        return normalizeTitleForCompare(text).split(' ').filter(Boolean);
+    }
+
+    function computeTokenLcsLength(a, b) {
+        const rows = a.length + 1;
+        const cols = b.length + 1;
+        const dp = Array.from({ length: rows }, () => new Array(cols).fill(0));
+        for (let i = 1; i < rows; i++) {
+            for (let j = 1; j < cols; j++) {
+                dp[i][j] = a[i - 1] === b[j - 1]
+                    ? dp[i - 1][j - 1] + 1
+                    : Math.max(dp[i - 1][j], dp[i][j - 1]);
+            }
+        }
+        return dp[a.length][b.length];
+    }
+
+    function computeTitleSimilarity(sourceTitle, candidateTitle) {
+        const sourceNorm = normalizeTitleForCompare(sourceTitle);
+        const candidateNorm = normalizeTitleForCompare(candidateTitle);
+        if (!sourceNorm || !candidateNorm) {
+            return {
+                score: 0,
+                exact: false,
+                nearContained: false,
+                sourceContainedInCandidate: false,
+                containRatio: 0,
+                sourceCoverage: 0,
+                candidateCoverage: 0,
+            };
+        }
+        const sourceCompact = sourceNorm.replace(/\s+/g, '');
+        const candidateCompact = candidateNorm.replace(/\s+/g, '');
+        const exact = sourceCompact === candidateCompact;
+        const sourceContainedInCandidate = !exact && candidateCompact.includes(sourceCompact);
+        const candidateContainedInSource = !exact && sourceCompact.includes(candidateCompact);
+        const containRatio = sourceContainedInCandidate && candidateCompact.length
+            ? sourceCompact.length / candidateCompact.length
+            : (candidateContainedInSource && sourceCompact.length ? candidateCompact.length / sourceCompact.length : 0);
+        const sourceTokens = tokenizeTitleForCompare(sourceTitle);
+        const candidateTokens = tokenizeTitleForCompare(candidateTitle);
+        const lcs = computeTokenLcsLength(sourceTokens, candidateTokens);
+        const sourceCoverage = sourceTokens.length ? lcs / sourceTokens.length : 0;
+        const candidateCoverage = candidateTokens.length ? lcs / candidateTokens.length : 0;
+        const orderedScore = lcs / Math.max(sourceTokens.length || 1, candidateTokens.length || 1);
+        let score = Math.max(orderedScore, (sourceCoverage * 0.72) + (candidateCoverage * 0.28));
+        if (sourceContainedInCandidate) {
+            score = Math.max(score, 0.78 + (containRatio * 0.22));
+        } else if (candidateContainedInSource) {
+            score = Math.max(score, 0.7 + (containRatio * 0.18));
+        }
+        if (exact) score = 1;
+        const nearContained = exact || (
+            sourceContainedInCandidate
+            && sourceTokens.length >= 3
+            && sourceCoverage >= 0.95
+            && containRatio >= 0.72
+        );
+        return {
+            score: Math.max(0, Math.min(1, score)),
+            exact,
+            nearContained,
+            sourceContainedInCandidate,
+            containRatio,
+            sourceCoverage,
+            candidateCoverage,
+        };
+    }
+
     function canvasToBlob(canvas, type, quality) {
         return new Promise((resolve, reject) => {
             canvas.toBlob((blob) => {
@@ -3209,7 +3350,7 @@ const CHANGELOG_CONTENT = `
     <li>🪄 <b>JJWXC mượt hơn:</b> Dùng api cũ hay mới tùy hoàn cảnh; nút <code>Old/New</code> vẫn giữ để đổi nhanh sau đó.</li>
     <li>⏱️ <b>Gemini rõ ràng hơn:</b> Mặc định ưu tiên <code>gemini-3-flash-preview</code>, có toast/log đếm thời gian và báo rõ khi AI đang chạy thinking mode.</li>
     <li>🏷️ <b>Tối ưu chọn nhãn:</b> Tinh chỉnh cả AI lẫn keyword cho <code>架空历史</code> → <b>Giả tưởng lịch sử</b>, và <code>年代文</code> ưu tiên <b>Hiện đại</b> thay vì <b>Cận đại</b></li>
-    <li>🧯 <b>Fix v0.3.9.1:</b> Tăng cường tính năng dịch. </li>
+    <li>🛡️ <b>Check trùng sâu hơn:</b> Thêm chỉ số độ an toàn, nút <code>Mở</code> tác giả, quét trang đầu tác giả và so ảnh bìa để cảnh báo mềm khi nghi trùng.(v0.3.9.2)</li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
@@ -3291,7 +3432,7 @@ const CHANGELOG_CONTENT = `
         <li>🎯 <b>Loại trừ theo trang:</b> Cấu hình loại trừ tách riêng giữa <code>/chinh-sua</code> và <code>/nhung-file</code>.</li>
         <li>🧱 <b>Popup so sánh mới:</b> Diff trước khi áp, văn án so theo từ + giữ xuống dòng để dễ soát lỗi.</li>
         <li>🔒 <b>Hành vi popup:</b> Bấm ra ngoài không tự đóng; chỉ đóng bằng nút hành động trong popup.</li>
-        <li>🔍 <b>Check trùng truyện:</b> Ở <code>/nhung-file</code>, khi có titleCN + authorCN sẽ kiểm tra trùng ngầm (retry), chưa xong thì chưa cho áp form.</li>
+        <li>🔍 <b>Check trùng truyện:</b> Ở <code>/nhung-file</code>, script check cơ bản để ra mức an toàn 80% / 0%, rồi có thể quét sâu trang tác giả + so ảnh bìa để nâng lên 90/95/100% hoặc cảnh báo mềm 50%.</li>
     </ul>
 </div>
 
@@ -3381,7 +3522,7 @@ const CHANGELOG_CONTENT = `
                 border-radius: var(--wda-radius);
                 box-shadow: var(--wda-shadow);
                 font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
-                z-index: 99999; display: none; flex-direction: column;
+                z-index: 99999; display: none; flex-direction: column; overflow: visible;
             }
             #${APP_PREFIX}quickPanel {
                 position: fixed; top: 72px; left: 20px; width: 420px; max-height: 72vh;
@@ -3477,9 +3618,13 @@ const CHANGELOG_CONTENT = `
                 align-items: center;
                 gap: 6px;
             }
+            #${APP_PREFIX}noticeBar {
+                display: block;
+                margin: 0 14px;
+            }
             #${APP_PREFIX}recomputeNotice {
                 display: none;
-                margin: 0 14px;
+                margin: 0;
                 padding: 6px 10px;
                 border-radius: 8px;
                 font-size: 12px;
@@ -3495,6 +3640,48 @@ const CHANGELOG_CONTENT = `
                 background: rgba(127, 29, 29, 0.22);
                 border-color: rgba(248, 113, 113, 0.45);
                 color: #fecaca;
+            }
+            #${APP_PREFIX}duplicateSafety {
+                display: none;
+                position: absolute;
+                top: 54px;
+                right: -12px;
+                z-index: 4;
+                min-width: 96px;
+                max-width: 132px;
+                padding: 7px 12px;
+                border-radius: 999px;
+                font-size: 12px;
+                font-weight: 800;
+                text-align: center;
+                letter-spacing: 0.15px;
+                border: 1px solid hsla(var(--wda-safety-h, 210), 78%, 72%, 0.6);
+                background: linear-gradient(
+                    135deg,
+                    hsla(var(--wda-safety-h, 210), 100%, 97%, 0.98),
+                    hsla(var(--wda-safety-h2, 228), 95%, 91%, 0.96)
+                );
+                color: hsl(var(--wda-safety-h, 210), 72%, 24%);
+                box-shadow: var(--wda-safety-shadow, 0 14px 28px rgba(30, 41, 59, 0.2));
+                white-space: nowrap;
+                backdrop-filter: blur(8px);
+            }
+            #${APP_PREFIX}duplicateSafety.show {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+            #${APP_PREFIX}duplicateSafety[data-tone="pending"] {
+                animation: ${APP_PREFIX}toast-float 1.4s ease-in-out infinite;
+            }
+            :host([data-theme="dark"]) #${APP_PREFIX}duplicateSafety {
+                background: linear-gradient(
+                    135deg,
+                    hsla(var(--wda-safety-h, 210), 52%, 20%, 0.94),
+                    hsla(var(--wda-safety-h2, 228), 56%, 28%, 0.9)
+                );
+                color: hsl(var(--wda-safety-h, 210), 95%, 88%);
+                border-color: hsla(var(--wda-safety-h, 210), 80%, 62%, 0.38);
             }
             #${APP_PREFIX}content { padding: 12px 14px; overflow: auto; }
             #${APP_PREFIX}quickContent { padding: 12px 14px; overflow: auto; }
@@ -4277,7 +4464,10 @@ const CHANGELOG_CONTENT = `
                         <button id="${APP_PREFIX}close" class="${APP_PREFIX}icon-btn" title="Thu nhỏ">✕</button>
                     </div>
                 </div>
-                <div id="${APP_PREFIX}recomputeNotice"></div>
+                <div id="${APP_PREFIX}noticeBar">
+                    <div id="${APP_PREFIX}recomputeNotice"></div>
+                    <div id="${APP_PREFIX}duplicateSafety" data-tone="idle">--</div>
+                </div>
                 <div id="${APP_PREFIX}content">
                     <div class="${APP_PREFIX}row">
                         <div class="${APP_PREFIX}label-row">
@@ -4307,7 +4497,10 @@ const CHANGELOG_CONTENT = `
                         <input id="${APP_PREFIX}titleCn" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
-                        <label class="${APP_PREFIX}label">Tên tác giả (CN)<span class="${APP_PREFIX}match" data-key="authorCn">?</span></label>
+                        <div class="${APP_PREFIX}label-row">
+                            <label class="${APP_PREFIX}label">Tên tác giả (CN)<span class="${APP_PREFIX}match" data-key="authorCn">?</span></label>
+                            <button id="${APP_PREFIX}authorCheck" class="${APP_PREFIX}tiny-btn" type="button" title="Mở trang tác giả trên web hiện tại">Mở</button>
+                        </div>
                         <input id="${APP_PREFIX}authorCn" class="${APP_PREFIX}input" />
                     </div>
                     <div class="${APP_PREFIX}row">
@@ -4456,6 +4649,11 @@ const CHANGELOG_CONTENT = `
                                     <input id="${APP_PREFIX}settingAutoBreakDesc" type="checkbox" style="margin-left: 8px;" />
                                     <small style="color: #888; margin-left: 8px;">(Tự xuống dòng văn án.)</small>
                                 </label>
+                                <label class="${APP_PREFIX}settings-item" style="margin-top: 4px;">
+                                    <span style="min-width: 80px;">Check sâu:</span>
+                                    <input id="${APP_PREFIX}settingDeepDuplicateCheck" type="checkbox" style="margin-left: 8px;" />
+                                    <small style="color: #888; margin-left: 8px;">(Quét thêm trang tác giả + so khớp ảnh bìa để ước lượng truyện trùng.)</small>
+                                </label>
                             </div>
                         </div>
                         <div class="${APP_PREFIX}row">
@@ -4529,6 +4727,17 @@ const CHANGELOG_CONTENT = `
                     <div class="${APP_PREFIX}modal-body" id="${APP_PREFIX}duplicateBody"></div>
                     <div class="${APP_PREFIX}modal-actions">
                         <button id="${APP_PREFIX}duplicateClose" class="${APP_PREFIX}btn secondary">Đã hiểu</button>
+                    </div>
+                </div>
+            </div>
+            <div id="${APP_PREFIX}duplicateDeepModal" class="${APP_PREFIX}modal">
+                <div class="${APP_PREFIX}modal-card">
+                    <div class="${APP_PREFIX}modal-title" style="color:#b45309;">Nghi có truyện trùng theo ảnh bìa</div>
+                    <div class="${APP_PREFIX}modal-body" id="${APP_PREFIX}duplicateDeepBody"></div>
+                    <div class="${APP_PREFIX}modal-actions">
+                        <button id="${APP_PREFIX}duplicateDeepOpen" class="${APP_PREFIX}btn secondary">Mở</button>
+                        <button id="${APP_PREFIX}duplicateDeepNo" class="${APP_PREFIX}btn">Không trùng</button>
+                        <button id="${APP_PREFIX}duplicateDeepYes" class="${APP_PREFIX}btn secondary">Trùng</button>
                     </div>
                 </div>
             </div>
@@ -4648,6 +4857,7 @@ const CHANGELOG_CONTENT = `
         const settingsAiMode = shadowRoot.getElementById(`${APP_PREFIX}settingAiMode`);
         const settingsAutoExtractNames = shadowRoot.getElementById(`${APP_PREFIX}settingAutoExtractNames`);
         const settingsAutoBreakDesc = shadowRoot.getElementById(`${APP_PREFIX}settingAutoBreakDesc`);
+        const settingsDeepDuplicateCheck = shadowRoot.getElementById(`${APP_PREFIX}settingDeepDuplicateCheck`);
         const manualAiBtn = shadowRoot.getElementById(`${APP_PREFIX}manualAi`);
         const manualAiModal = shadowRoot.getElementById(`${APP_PREFIX}manualAiModal`);
         const manualAiCopy = shadowRoot.getElementById(`${APP_PREFIX}manualAiCopy`);
@@ -4660,6 +4870,11 @@ const CHANGELOG_CONTENT = `
         const duplicateModal = shadowRoot.getElementById(`${APP_PREFIX}duplicateModal`);
         const duplicateBody = shadowRoot.getElementById(`${APP_PREFIX}duplicateBody`);
         const duplicateClose = shadowRoot.getElementById(`${APP_PREFIX}duplicateClose`);
+        const duplicateDeepModal = shadowRoot.getElementById(`${APP_PREFIX}duplicateDeepModal`);
+        const duplicateDeepBody = shadowRoot.getElementById(`${APP_PREFIX}duplicateDeepBody`);
+        const duplicateDeepOpen = shadowRoot.getElementById(`${APP_PREFIX}duplicateDeepOpen`);
+        const duplicateDeepNo = shadowRoot.getElementById(`${APP_PREFIX}duplicateDeepNo`);
+        const duplicateDeepYes = shadowRoot.getElementById(`${APP_PREFIX}duplicateDeepYes`);
         const coverSizeModal = shadowRoot.getElementById(`${APP_PREFIX}coverSizeModal`);
         const coverSizeDomain = shadowRoot.getElementById(`${APP_PREFIX}coverSizeDomain`);
         const coverSizeOriginal = shadowRoot.getElementById(`${APP_PREFIX}coverSizeOriginal`);
@@ -4694,6 +4909,7 @@ const CHANGELOG_CONTENT = `
         const fetchBtn = shadowRoot.getElementById(`${APP_PREFIX}fetch`);
         const recomputeBtn = shadowRoot.getElementById(`${APP_PREFIX}recompute`);
         const applyToast = shadowRoot.getElementById(`${APP_PREFIX}applyToast`);
+        const duplicateSafetyEl = shadowRoot.getElementById(`${APP_PREFIX}duplicateSafety`);
 
         const domainConfig = shadowRoot.getElementById(`${APP_PREFIX}domainConfig`);
         const getDomainInputs = (id) => ({
@@ -4703,6 +4919,8 @@ const CHANGELOG_CONTENT = `
         });
         const titleCnInput = shadowRoot.getElementById(`${APP_PREFIX}titleCn`);
         const authorCnInput = shadowRoot.getElementById(`${APP_PREFIX}authorCn`);
+        const titleViInput = shadowRoot.getElementById(`${APP_PREFIX}titleVi`);
+        const authorCheckBtn = shadowRoot.getElementById(`${APP_PREFIX}authorCheck`);
         const applyBtn = shadowRoot.getElementById(`${APP_PREFIX}apply`);
         const sourceUrlInput = shadowRoot.getElementById(`${APP_PREFIX}url`);
         const jjwxcApiModeBtn = shadowRoot.getElementById(`${APP_PREFIX}jjwxcApiMode`);
@@ -5113,6 +5331,50 @@ const CHANGELOG_CONTENT = `
             const labels = changes.map(keyToChangeLabel).join(', ');
             recomputeNoticeEl.textContent = `Đã thay đổi: ${labels}. Hãy bấm Recompute để cập nhật.`;
             recomputeNoticeEl.classList.add('show');
+        };
+
+        const setDuplicateSafety = (score, tone = 'idle', reason = '') => {
+            const check = state.duplicateCheck || {};
+            check.safetyScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null;
+            check.safetyTone = tone || 'idle';
+            check.safetyReason = T.safeText(reason || '');
+            if (!duplicateSafetyEl) return;
+            const shouldShow = isEmbedPage() && Number.isFinite(check.safetyScore);
+            duplicateSafetyEl.classList.toggle('show', shouldShow);
+            const hue = Number.isFinite(check.safetyScore) ? Math.round((check.safetyScore / 100) * 120) : 210;
+            duplicateSafetyEl.style.setProperty('--wda-safety-h', String(hue));
+            duplicateSafetyEl.style.setProperty('--wda-safety-h2', String(Math.min(140, hue + 18)));
+            duplicateSafetyEl.style.setProperty(
+                '--wda-safety-shadow',
+                check.safetyTone === 'pending'
+                    ? '0 16px 30px rgba(59, 130, 246, 0.26)'
+                    : `0 16px 30px hsla(${Math.max(0, hue - 6)}, 80%, 46%, ${check.safetyScore <= 25 ? 0.3 : 0.22})`
+            );
+            duplicateSafetyEl.dataset.tone = check.safetyTone === 'pending' ? 'pending' : 'score';
+            duplicateSafetyEl.textContent = shouldShow ? `🛡 ${check.safetyScore}%` : '--';
+            duplicateSafetyEl.title = check.safetyReason || '';
+        };
+
+        const resetDuplicateCheckState = () => {
+            state.duplicateCheck = {
+                pending: false,
+                blocked: false,
+                runId: state.duplicateCheck?.runId || 0,
+                lastKey: '',
+                checked: false,
+                failed: false,
+                deepPending: false,
+                deepChecked: false,
+                deepPossibleDuplicate: false,
+                deepCandidate: null,
+                hasMoreAuthorPages: false,
+                authorPageUrl: '',
+                safetyScore: null,
+                safetyTone: 'idle',
+                safetyReason: '',
+            };
+            setDuplicateSafety(null, 'idle', '');
+            try { closeDeepDuplicateModal(); } catch { }
         };
 
         const setRecomputeBaseline = (aiUsed) => {
@@ -5844,6 +6106,32 @@ const CHANGELOG_CONTENT = `
                 if (ev.target === duplicateModal) return;
             });
         }
+        if (duplicateDeepModal) {
+            duplicateDeepModal.addEventListener('click', (ev) => {
+                if (ev.target === duplicateDeepModal) return;
+            });
+        }
+        if (duplicateDeepOpen) {
+            duplicateDeepOpen.addEventListener('click', () => {
+                const targetUrl = pendingDeepDuplicateCandidate?.url || pendingDeepDuplicateCandidate?.authorPageUrl || state.duplicateCheck?.authorPageUrl || '';
+                if (!targetUrl) {
+                    log('Không có link để mở kiểm tra sâu.', 'warn');
+                    return;
+                }
+                openInBrowserTab(targetUrl);
+                log('Đã mở link để bạn tự so lại truyện nghi trùng.', 'info');
+            });
+        }
+        if (duplicateDeepNo) {
+            duplicateDeepNo.addEventListener('click', () => {
+                resolveDeepDuplicateDecision(false);
+            });
+        }
+        if (duplicateDeepYes) {
+            duplicateDeepYes.addEventListener('click', () => {
+                resolveDeepDuplicateDecision(true);
+            });
+        }
 
         manualAiBtn.addEventListener('click', () => {
             if (!state.sourceData) {
@@ -6094,6 +6382,7 @@ const CHANGELOG_CONTENT = `
             settingsAiMode.value = s.aiMode || 'auto';
             settingsAutoExtractNames.checked = s.autoExtractNames !== false; // default true
             settingsAutoBreakDesc.checked = !!s.autoBreakDesc; // default false
+            settingsDeepDuplicateCheck.checked = s.deepDuplicateCheck !== false;
 
             const d = s.domainSettings || DEFAULT_SETTINGS.domainSettings;
             SITE_RULES.forEach((rule) => {
@@ -6797,6 +7086,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 geminiModel: normalizeGeminiModelName(settingsGeminiModel.value) || DEFAULT_GEMINI_MODEL,
                 autoExtractNames: settingsAutoExtractNames.checked,
                 autoBreakDesc: settingsAutoBreakDesc.checked,
+                deepDuplicateCheck: settingsDeepDuplicateCheck.checked,
                 jjwxcApiMode: normalizeJjwxcApiMode(state.settings?.jjwxcApiMode),
                 domainSettings,
                 coverSizeByDomain: deepClone(state.settings?.coverSizeByDomain || {}),
@@ -6808,6 +7098,8 @@ For arrays, return list of strings. If none fit, return empty array.
             state.hasFetchedData = false;
             state.recomputeBaseline = null;
             state.aiLastSuggestions = null;
+            if (duplicateCheckTimer) clearTimeout(duplicateCheckTimer);
+            resetDuplicateCheckState();
             setDataActionButtonsEnabled(false);
             setApplyByDuplicateState();
             updateRecomputeNotice();
@@ -6939,7 +7231,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 fillText(`${APP_PREFIX}tag`, suggestions.tag.join(', '));
                 state.hasFetchedData = true;
                 setApplyByDuplicateState();
-                triggerDuplicateCheck('fetch', true);
+                await triggerDuplicateCheck('fetch', true);
                 setDataActionButtonsEnabled(true);
                 setRecomputeBaseline(false);
                 refreshCoverMeta(sourceData.coverUrl || '');
@@ -6956,6 +7248,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 // -----------------------
             } catch (err) {
                 state.hasFetchedData = false;
+                resetDuplicateCheckState();
                 setDataActionButtonsEnabled(false);
                 setApplyByDuplicateState();
                 state.recomputeBaseline = null;
@@ -7281,6 +7574,10 @@ For arrays, return list of strings. If none fit, return empty array.
             const check = state.duplicateCheck || {};
             if (check.pending) {
                 applyBtn.title = 'Đang kiểm tra truyện trùng trên server...';
+            } else if (check.deepPending) {
+                applyBtn.title = 'Đang quét sâu trang tác giả để đối chiếu ảnh bìa...';
+            } else if (check.deepPossibleDuplicate) {
+                applyBtn.title = 'Đang chờ bạn xác minh truyện nghi trùng trong popup.';
             }
             if (check.blocked) {
                 applyBtn.title = 'Truyện có thể bị trùng. Vẫn cho Áp vào form, nhưng nút Nhúng sẽ bị khóa nếu form trùng đúng cặp.';
@@ -7288,6 +7585,261 @@ For arrays, return list of strings. If none fit, return empty array.
             applyBtn.disabled = false;
             if (!check.pending && !check.blocked) applyBtn.title = '';
             updateEmbedSubmitByDuplicateState('apply-state');
+        };
+        let pendingDeepDuplicateCandidate = null;
+        const renderDeepDuplicateBody = (candidate) => {
+            if (!duplicateDeepBody) return;
+            if (!candidate) {
+                duplicateDeepBody.innerHTML = '<div>Không có dữ liệu để hiển thị.</div>';
+                return;
+            }
+            const coverSimilarity = Math.round((candidate.similarity || 0) * 100);
+            const titleSimilarity = Math.round((candidate.titleSimilarity || 0) * 100);
+            const currentCover = toAbsoluteUrl(coverUrlInput?.value || state.sourceData?.coverUrl || '');
+            const targetUrl = candidate.url || candidate.authorPageUrl || '';
+            const hasMorePages = !!candidate.hasMorePages;
+            duplicateDeepBody.innerHTML = `
+                <div style="margin-bottom:8px;">${escapeHtml(candidate.reasonLabel || 'Trang đầu tác giả trên domain hiện tại có 1 truyện nghi trùng.')}</div>
+                ${candidate.reasonText ? `<div style="margin-bottom:8px; color:#92400e;"><b>Tín hiệu:</b> ${escapeHtml(candidate.reasonText)}</div>` : ''}
+                ${candidate.sourceTitleVi ? `<div style="margin-bottom:8px;"><b>Tên dịch hiện tại:</b> ${escapeHtml(candidate.sourceTitleVi)}</div>` : ''}
+                <div style="margin-bottom:8px;"><b>Truyện nghi trùng:</b> ${escapeHtml(candidate.title || '(không rõ tên)')}</div>
+                ${titleSimilarity ? `<div style="margin-bottom:8px;"><b>Độ giống tên dịch:</b> ${titleSimilarity}%</div>` : ''}
+                ${coverSimilarity ? `<div style="margin-bottom:8px;"><b>Độ giống ảnh bìa:</b> ${coverSimilarity}%</div>` : ''}
+                <div style="margin-bottom:8px; color:#92400e;"><b>Ghi chú:</b> ${hasMorePages ? 'Tác giả còn phân trang, nên nếu bạn xác nhận Không trùng thì độ an toàn tối đa giữ ở 90%.' : 'Không thấy phân trang thêm ở trang tác giả này.'}</div>
+                <div style="margin-bottom:8px; color:#475569;">Bạn có thể bấm <b>Mở</b> để so lại bằng mắt trước, rồi chọn <b>Trùng</b> hoặc <b>Không trùng</b>.</div>
+                <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px; margin-top:10px;">
+                    <div style="border:1px solid rgba(148,163,184,.25); border-radius:12px; padding:10px; background:rgba(255,255,255,.72);">
+                        <div style="font-weight:700; margin-bottom:6px;">Ảnh đang lấy dữ liệu</div>
+                        ${currentCover ? `<img src="${escapeHtml(currentCover)}" style="width:100%; max-height:180px; object-fit:cover; border-radius:10px;" />` : '<div class="' + APP_PREFIX + 'hint">Không có ảnh để so.</div>'}
+                    </div>
+                    <div style="border:1px solid rgba(148,163,184,.25); border-radius:12px; padding:10px; background:rgba(255,255,255,.72);">
+                        <div style="font-weight:700; margin-bottom:6px;">Ảnh trên trang tác giả</div>
+                        ${candidate.coverUrl ? `<img src="${escapeHtml(candidate.coverUrl)}" style="width:100%; max-height:180px; object-fit:cover; border-radius:10px;" />` : '<div class="' + APP_PREFIX + 'hint">Không có ảnh để so.</div>'}
+                    </div>
+                </div>
+                <div style="margin-top:10px;"><b>Link mở kiểm tra:</b> ${targetUrl ? `<a href="${escapeHtml(targetUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(targetUrl)}</a>` : 'Không có'}</div>
+            `;
+        };
+        const showDeepDuplicateModal = (candidate) => {
+            pendingDeepDuplicateCandidate = candidate;
+            renderDeepDuplicateBody(candidate);
+            if (duplicateDeepModal) duplicateDeepModal.style.display = 'flex';
+        };
+        const closeDeepDuplicateModal = () => {
+            if (duplicateDeepModal) duplicateDeepModal.style.display = 'none';
+            pendingDeepDuplicateCandidate = null;
+        };
+        const resolveDeepDuplicateDecision = (isDuplicate) => {
+            const check = state.duplicateCheck || {};
+            const candidate = pendingDeepDuplicateCandidate || check.deepCandidate || null;
+            const hasMorePages = !!(candidate?.hasMorePages || check.hasMoreAuthorPages);
+            check.deepPossibleDuplicate = false;
+            if (isDuplicate) {
+                setDuplicateSafety(0, 'danger', `Bạn đã xác nhận truyện nghi trùng${candidate?.title ? `: ${candidate.title}` : ''}.`);
+                log(`Bạn đã xác nhận truyện nghi trùng${candidate?.title ? ` với "${candidate.title}"` : ''}.`, 'warn');
+            } else {
+                const nextScore = hasMorePages ? 90 : 95;
+                const reason = hasMorePages
+                    ? 'Bạn đã xác nhận Không trùng, nhưng tác giả còn phân trang nên giữ mức an toàn 90%.'
+                    : 'Bạn đã xác nhận Không trùng. Nâng độ an toàn lên 95%.';
+                setDuplicateSafety(nextScore, 'ok', reason);
+                log(`Bạn đã xác nhận không trùng${candidate?.title ? ` với "${candidate.title}"` : ''}. Độ an toàn ${nextScore}%.`, 'ok');
+            }
+            setApplyByDuplicateState();
+            closeDeepDuplicateModal();
+        };
+        const fetchAuthorWorksPage = async (authorCn) => {
+            const url = `${location.origin}/tac-gia/${encodeURIComponent(authorCn)}?start=0`;
+            const res = await fetch(url, {
+                method: 'GET',
+                credentials: 'include',
+                cache: 'no-store',
+                headers: {
+                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'cache-control': 'no-cache',
+                    'pragma': 'no-cache',
+                },
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const html = await res.text();
+            const finalUrl = res.url || url;
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const items = Array.from(doc.querySelectorAll('.book-list .book-item')).map((item) => {
+                const linkEl = item.querySelector('a.cover-wrapper, a[href*="/truyen/"]');
+                const title = T.safeText(item.querySelector('.book-title')?.textContent || linkEl?.textContent || '');
+                const href = toAbsoluteUrl(linkEl?.getAttribute('href') || '', finalUrl);
+                const coverUrl = toAbsoluteUrl(item.querySelector('img')?.getAttribute('src') || '', finalUrl);
+                return { title, url: href, coverUrl };
+            }).filter((item) => item.title || item.url || item.coverUrl);
+            const hasMorePages = Array.from(doc.querySelectorAll('.pagination a[href*="start="]')).some((link) => {
+                const href = toAbsoluteUrl(link.getAttribute('href') || '', finalUrl);
+                try {
+                    return (parseInt(new URL(href).searchParams.get('start') || '0', 10) || 0) > 0;
+                } catch {
+                    return false;
+                }
+            });
+            return { url: finalUrl, items, hasMorePages };
+        };
+        const findBestAuthorCoverMatch = async (sourceCoverUrl, items) => {
+            const sourceHash = await buildCoverAverageHash(sourceCoverUrl);
+            let best = null;
+            for (const item of items || []) {
+                if (!item.coverUrl) continue;
+                try {
+                    const candidateHash = await buildCoverAverageHash(item.coverUrl);
+                    const similarity = compareCoverHashes(sourceHash, candidateHash);
+                    if (!best || similarity > best.similarity) {
+                        best = { ...item, similarity };
+                    }
+                } catch (err) {
+                    log(`Check sâu: bỏ qua 1 ảnh bìa do lỗi đọc ảnh (${err.message}).`, 'warn');
+                }
+            }
+            return best;
+        };
+        const findBestAuthorTitleMatch = (sourceTitle, items) => {
+            const baseTitle = T.safeText(sourceTitle);
+            if (!baseTitle) return null;
+            let best = null;
+            for (const item of items || []) {
+                const candidateTitle = T.safeText(item?.title || '');
+                if (!candidateTitle) continue;
+                const meta = computeTitleSimilarity(baseTitle, candidateTitle);
+                if (!best || meta.score > best.titleSimilarity) {
+                    best = { ...item, titleSimilarity: meta.score, titleMatchMeta: meta };
+                }
+            }
+            return best;
+        };
+        const getTitleMatchRisk = (match, baseScore) => {
+            if (!match || !Number.isFinite(match.titleSimilarity)) return null;
+            const similarityPct = Math.round(match.titleSimilarity * 100);
+            const meta = match.titleMatchMeta || {};
+            if (meta.nearContained || match.titleSimilarity >= 0.985) {
+                return {
+                    score: 0,
+                    requiresConfirm: true,
+                    reason: `Tên dịch gần như nằm gọn trong "${match.title}" (${similarityPct}%).`,
+                };
+            }
+            if (match.titleSimilarity >= 0.93) {
+                return {
+                    score: Math.min(baseScore, 35),
+                    requiresConfirm: true,
+                    reason: `Tên dịch rất giống "${match.title}" (${similarityPct}%).`,
+                };
+            }
+            if (match.titleSimilarity >= 0.86) {
+                return {
+                    score: Math.min(baseScore, 58),
+                    requiresConfirm: false,
+                    reason: `Tên dịch giống cao với "${match.title}" (${similarityPct}%).`,
+                };
+            }
+            if (match.titleSimilarity >= 0.78) {
+                return {
+                    score: Math.min(baseScore, 72),
+                    requiresConfirm: false,
+                    reason: `Tên dịch khá giống "${match.title}" (${similarityPct}%).`,
+                };
+            }
+            if (match.titleSimilarity >= 0.68) {
+                return {
+                    score: Math.min(baseScore, Math.max(60, baseScore - 10)),
+                    requiresConfirm: false,
+                    reason: `Tên dịch hơi gần "${match.title}" (${similarityPct}%).`,
+                };
+            }
+            return null;
+        };
+        const runDeepDuplicateCheck = async ({ authorCn, coverUrl, titleVi, runId }) => {
+            const check = state.duplicateCheck || {};
+            if (!isEmbedPage() || state.settings?.deepDuplicateCheck === false) return;
+            if (!authorCn) return;
+            check.deepPending = true;
+            check.deepChecked = false;
+            check.deepPossibleDuplicate = false;
+            check.deepCandidate = null;
+            setDuplicateSafety(check.safetyScore ?? 80, 'pending', 'Check cơ bản xong, đang quét sâu trang tác giả (ảnh bìa + tên dịch)...');
+            setApplyByDuplicateState();
+            log('Đang quét sâu trang tác giả để đối chiếu ảnh bìa + tên dịch...', 'info');
+            try {
+                const page = await fetchAuthorWorksPage(authorCn);
+                if (state.duplicateCheck.runId !== runId) return;
+                check.deepPending = false;
+                check.deepChecked = true;
+                check.authorPageUrl = page.url;
+                check.hasMoreAuthorPages = !!page.hasMorePages;
+                if (!page.items.length) {
+                    setDuplicateSafety(100, 'ok', 'Trang đầu tác giả chưa có truyện nào để đối chiếu.');
+                    setApplyByDuplicateState();
+                    log('Check sâu xong: trang đầu tác giả không có truyện để đối chiếu, độ an toàn 100%.', 'ok');
+                    return;
+                }
+                const baseScore = page.hasMorePages ? 90 : 100;
+                const bestTitle = findBestAuthorTitleMatch(titleVi, page.items);
+                const titleRisk = getTitleMatchRisk(bestTitle, baseScore);
+                const bestCover = coverUrl ? await findBestAuthorCoverMatch(coverUrl, page.items) : null;
+                if (state.duplicateCheck.runId !== runId) return;
+                const coverRisk = bestCover && bestCover.similarity >= DEEP_DUPLICATE_COVER_MATCH_THRESHOLD
+                    ? {
+                        score: 50,
+                        requiresConfirm: true,
+                        reason: `Ảnh bìa giống "${bestCover.title}" ${Math.round(bestCover.similarity * 100)}%.`,
+                    }
+                    : null;
+                const strongestRisk = [coverRisk && { ...coverRisk, candidate: bestCover }, titleRisk && { ...titleRisk, candidate: bestTitle }]
+                    .filter(Boolean)
+                    .sort((a, b) => a.score - b.score)[0] || null;
+                if (strongestRisk && strongestRisk.requiresConfirm) {
+                    check.deepPossibleDuplicate = true;
+                    const candidate = {
+                        ...(strongestRisk.candidate || {}),
+                        authorPageUrl: page.url,
+                        hasMorePages: page.hasMorePages,
+                        titleSimilarity: strongestRisk.candidate?.titleSimilarity,
+                        reasonLabel: strongestRisk.score <= 0 ? 'Tên dịch nghi trùng rất cao' : 'Nghi trùng cần bạn xác minh',
+                        reasonText: strongestRisk.reason,
+                        sourceTitleVi: T.safeText(titleVi),
+                    };
+                    check.deepCandidate = candidate;
+                    setDuplicateSafety(strongestRisk.score, strongestRisk.score <= 0 ? 'danger' : 'warn', `${strongestRisk.reason} Chờ bạn xác minh.`);
+                    setApplyByDuplicateState();
+                    log(`Check sâu: ${strongestRisk.reason}`, strongestRisk.score <= 0 ? 'error' : 'warn');
+                    showDeepDuplicateModal(candidate);
+                    return;
+                }
+                check.deepCandidate = bestCover || bestTitle;
+                let nextScore = baseScore;
+                const reasonParts = [];
+                if (!coverUrl) {
+                    reasonParts.push('Không có ảnh bìa nguồn nên bỏ qua so ảnh.');
+                    log('Check sâu bỏ qua so ảnh vì chưa có cover URL.', 'warn');
+                }
+                if (titleRisk) {
+                    nextScore = Math.min(nextScore, titleRisk.score);
+                    reasonParts.push(titleRisk.reason);
+                    log(`Check sâu: ${titleRisk.reason}`, nextScore >= 85 ? 'info' : 'warn');
+                }
+                if (!reasonParts.length) {
+                    reasonParts.push(page.hasMorePages
+                        ? 'Quét sâu không thấy trùng ở trang 1 của tác giả; do còn phân trang nên giữ 90%.'
+                        : 'Quét sâu không thấy truyện trùng ở trang đầu tác giả.');
+                }
+                const reason = reasonParts.join(' ');
+                setDuplicateSafety(nextScore, 'ok', reason);
+                setApplyByDuplicateState();
+                log(`Check sâu xong: độ an toàn ${nextScore}%.`, 'ok');
+            } catch (err) {
+                if (state.duplicateCheck.runId !== runId) return;
+                check.deepPending = false;
+                check.deepChecked = false;
+                check.deepPossibleDuplicate = false;
+                setDuplicateSafety(check.checked && !check.blocked ? 80 : check.safetyScore, 'warn', 'Check sâu lỗi, giữ mức an toàn cơ bản.');
+                setApplyByDuplicateState();
+                log(`Check sâu lỗi: ${err.message}`, 'warn');
+            }
         };
         const showDuplicateWarning = () => {
             const { titleCn, authorCn } = getDuplicateInputs();
@@ -7325,21 +7877,20 @@ For arrays, return list of strings. If none fit, return empty array.
             const payload = await res.json();
             return parseDuplicateResponse(payload);
         };
-        const triggerDuplicateCheck = (reason = 'input', force = false) => {
+        const triggerDuplicateCheck = async (reason = 'input', force = false) => {
             if (!isEmbedPage()) return;
             const check = state.duplicateCheck;
             const { titleCn, authorCn } = getDuplicateInputs();
             if (!shouldCheckDuplicate({ titleCn, authorCn })) {
-                check.pending = false;
-                check.blocked = false;
-                check.checked = false;
-                check.failed = false;
-                check.lastKey = '';
+                resetDuplicateCheckState();
+                closeDeepDuplicateModal();
                 setApplyByDuplicateState();
                 return;
             }
             const currentKey = `${titleCn}|||${authorCn}`;
-            if (!force && !check.pending && check.checked && !check.failed && check.lastKey === currentKey) {
+            const shouldRunDeep = reason === 'fetch' && state.settings?.deepDuplicateCheck !== false;
+            const deepReady = !shouldRunDeep || check.blocked || check.deepChecked || check.deepPending;
+            if (!force && !check.pending && check.checked && !check.failed && check.lastKey === currentKey && deepReady) {
                 setApplyByDuplicateState();
                 return;
             }
@@ -7347,46 +7898,66 @@ For arrays, return list of strings. If none fit, return empty array.
             check.blocked = false;
             check.failed = false;
             check.checked = false;
+            check.deepPending = false;
+            check.deepChecked = false;
+            check.deepPossibleDuplicate = false;
+            check.deepCandidate = null;
+            check.hasMoreAuthorPages = false;
+            check.authorPageUrl = '';
             check.lastKey = currentKey;
             const runId = (check.runId || 0) + 1;
             check.runId = runId;
+            closeDeepDuplicateModal();
+            setDuplicateSafety(null, 'idle', '');
             setApplyByDuplicateState();
             log(`Đang kiểm tra trùng truyện trên server (${reason})...`, 'info');
 
-            const doCheck = async () => {
-                const maxRetry = 3;
-                for (let attempt = 1; attempt <= maxRetry; attempt++) {
-                    if (check.runId !== runId) return;
-                    try {
-                        const exists = await fetchDuplicateExists(titleCn, authorCn);
-                        if (check.runId !== runId) return;
-                        check.pending = false;
-                        check.checked = true;
-                        check.failed = false;
-                        check.blocked = !!exists;
-                        setApplyByDuplicateState();
-                        if (exists) {
-                            log('Phát hiện truyện trùng trên server. Sẽ khóa nút Nhúng nếu form trùng đúng cặp tên + tác giả.', 'error');
-                            showDuplicateWarning();
-                        } else {
-                            log('Check trùng xong: không có truyện trùng.', 'ok');
-                        }
-                        return;
-                    } catch (err) {
-                        if (check.runId !== runId) return;
-                        log(`Check trùng lỗi lần ${attempt}/3: ${err.message}`, 'warn');
-                        if (attempt < maxRetry) await sleep(500);
-                    }
-                }
+            const maxRetry = 3;
+            for (let attempt = 1; attempt <= maxRetry; attempt++) {
                 if (check.runId !== runId) return;
-                check.pending = false;
-                check.checked = false;
-                check.failed = true;
-                check.blocked = false;
-                setApplyByDuplicateState();
-                log('Check trùng thất bại sau 3 lần, cho phép Áp vào form.', 'warn');
-            };
-            doCheck();
+                try {
+                    const exists = await fetchDuplicateExists(titleCn, authorCn);
+                    if (check.runId !== runId) return;
+                    check.pending = false;
+                    check.checked = true;
+                    check.failed = false;
+                    check.blocked = !!exists;
+                    if (exists) {
+                        setDuplicateSafety(0, 'danger', 'Check cơ bản trên server báo truyện đã trùng.');
+                        setApplyByDuplicateState();
+                        log('Phát hiện truyện trùng trên server. Sẽ khóa nút Nhúng nếu form trùng đúng cặp tên + tác giả.', 'error');
+                        showDuplicateWarning();
+                        return;
+                    }
+                    setDuplicateSafety(80, shouldRunDeep ? 'pending' : 'ok', shouldRunDeep
+                        ? 'Check cơ bản xong, đang quét sâu trang tác giả...'
+                        : 'Check cơ bản xong: không có truyện trùng trên server.');
+                    setApplyByDuplicateState();
+                    log('Check trùng xong: không có truyện trùng.', 'ok');
+                    if (shouldRunDeep) {
+                        const coverUrl = T.safeText(coverUrlInput?.value || state.sourceData?.coverUrl || '');
+                        const titleVi = T.safeText(titleViInput?.value || state.translated?.titleVi || '');
+                        await runDeepDuplicateCheck({ authorCn, coverUrl, titleVi, runId });
+                    }
+                    return;
+                } catch (err) {
+                    if (check.runId !== runId) return;
+                    log(`Check trùng lỗi lần ${attempt}/3: ${err.message}`, 'warn');
+                    if (attempt < maxRetry) await sleep(500);
+                }
+            }
+            if (check.runId !== runId) return;
+            check.pending = false;
+            check.checked = false;
+            check.failed = true;
+            check.blocked = false;
+            check.deepPending = false;
+            check.deepChecked = false;
+            check.deepPossibleDuplicate = false;
+            check.deepCandidate = null;
+            setDuplicateSafety(null, 'warn', 'Check trùng thất bại.');
+            setApplyByDuplicateState();
+            log('Check trùng thất bại sau 3 lần, cho phép Áp vào form.', 'warn');
         };
         const scheduleDuplicateCheck = (reason = 'input') => {
             if (!isEmbedPage()) return;
@@ -7665,6 +8236,16 @@ For arrays, return list of strings. If none fit, return empty array.
         if (authorCnInput) {
             authorCnInput.addEventListener('input', () => scheduleDuplicateCheck('input'));
             authorCnInput.addEventListener('change', () => scheduleDuplicateCheck('change'));
+        }
+        if (authorCheckBtn) {
+            authorCheckBtn.addEventListener('click', () => {
+                const authorCn = T.safeText(authorCnInput?.value || state.sourceData?.authorCn || '');
+                if (!authorCn) {
+                    log('Chưa có tên tác giả tiếng Trung để mở.', 'warn');
+                    return;
+                }
+                openInBrowserTab(`${location.origin}/tac-gia/${encodeURIComponent(authorCn)}`);
+            });
         }
         if (sourceUrlInput) {
             sourceUrlInput.addEventListener('input', () => {
