@@ -3627,7 +3627,7 @@ const CHANGELOG_CONTENT = `
                 margin: 0;
                 padding: 6px 10px;
                 border-radius: 8px;
-                font-size: 12px;
+                font-size: 13px;
                 line-height: 1.45;
                 background: #fff1f2;
                 border: 1px solid #fecdd3;
@@ -3643,28 +3643,28 @@ const CHANGELOG_CONTENT = `
             }
             #${APP_PREFIX}duplicateSafety {
                 display: none;
-                position: fixed;
+                position: sticky;
                 top: 0;
-                left: 0;
-                z-index: 100001;
-                min-width: 82px;
-                max-width: 108px;
-                padding: 6px 10px;
+                z-index: 3;
+                min-width: auto;
+                max-width: none;
+                padding: 0;
+                margin: -2px 0 8px auto;
+                width: fit-content;
                 border-radius: 999px;
-                font-size: 11px;
+                font-size: 12px;
                 font-weight: 800;
                 text-align: center;
                 letter-spacing: 0.15px;
-                border: 1px solid hsla(var(--wda-safety-h, 210), 78%, 72%, 0.6);
-                background: linear-gradient(
-                    135deg,
-                    hsla(var(--wda-safety-h, 210), 100%, 97%, 0.98),
-                    hsla(var(--wda-safety-h2, 228), 95%, 91%, 0.96)
-                );
+                border: none;
+                background: transparent;
                 color: hsl(var(--wda-safety-h, 210), 72%, 24%);
                 box-shadow: var(--wda-safety-shadow, 0 14px 28px rgba(30, 41, 59, 0.2));
                 white-space: nowrap;
-                backdrop-filter: blur(8px);
+                text-shadow:
+                    0 0 6px hsla(var(--wda-safety-h, 210), 96%, 72%, 0.62),
+                    0 0 14px hsla(var(--wda-safety-h, 210), 94%, 70%, 0.48),
+                    0 0 28px hsla(var(--wda-safety-h2, 228), 92%, 72%, 0.22);
             }
             #${APP_PREFIX}duplicateSafety.show {
                 display: inline-flex;
@@ -3675,15 +3675,13 @@ const CHANGELOG_CONTENT = `
                 animation: ${APP_PREFIX}toast-float 1.4s ease-in-out infinite;
             }
             :host([data-theme="dark"]) #${APP_PREFIX}duplicateSafety {
-                background: linear-gradient(
-                    135deg,
-                    hsla(var(--wda-safety-h, 210), 52%, 20%, 0.94),
-                    hsla(var(--wda-safety-h2, 228), 56%, 28%, 0.9)
-                );
                 color: hsl(var(--wda-safety-h, 210), 95%, 88%);
-                border-color: hsla(var(--wda-safety-h, 210), 80%, 62%, 0.38);
+                text-shadow:
+                    0 0 7px hsla(var(--wda-safety-h, 210), 98%, 76%, 0.72),
+                    0 0 16px hsla(var(--wda-safety-h, 210), 96%, 74%, 0.56),
+                    0 0 30px hsla(var(--wda-safety-h2, 228), 94%, 74%, 0.26);
             }
-            #${APP_PREFIX}content { padding: 12px 14px; overflow: auto; }
+            #${APP_PREFIX}content { padding: 12px 14px; overflow: auto; position: relative; }
             #${APP_PREFIX}quickContent { padding: 12px 14px; overflow: auto; }
             .${APP_PREFIX}row { margin-bottom: 10px; }
             .${APP_PREFIX}quick-mode-row {
@@ -4468,6 +4466,7 @@ const CHANGELOG_CONTENT = `
                     <div id="${APP_PREFIX}recomputeNotice"></div>
                 </div>
                 <div id="${APP_PREFIX}content">
+                    <div id="${APP_PREFIX}duplicateSafety" data-tone="idle">--</div>
                     <div class="${APP_PREFIX}row">
                         <div class="${APP_PREFIX}label-row">
                             <label class="${APP_PREFIX}label">URL Web Trung</label>
@@ -4582,7 +4581,6 @@ const CHANGELOG_CONTENT = `
                     </div>
                 </div>
             </div>
-            <div id="${APP_PREFIX}duplicateSafety" data-tone="idle">--</div>
             <div id="${APP_PREFIX}quickPanel">
                 <div id="${APP_PREFIX}quickHeader">
                     <div>Dịch ngay</div>
@@ -5357,28 +5355,10 @@ const CHANGELOG_CONTENT = `
         };
 
         const syncDuplicateSafetyPosition = () => {
-            if (!duplicateSafetyEl || !panel) return;
-            const chipVisible = duplicateSafetyEl.classList.contains('show');
-            const panelVisible = getComputedStyle(panel).display !== 'none';
-            if (!chipVisible || !panelVisible) {
-                duplicateSafetyEl.style.display = 'none';
-                return;
-            }
+            if (!duplicateSafetyEl) return;
+            duplicateSafetyEl.style.left = '';
+            duplicateSafetyEl.style.top = '';
             duplicateSafetyEl.style.display = '';
-            const rect = panel.getBoundingClientRect();
-            const gap = 12;
-            const chipWidth = Math.max(duplicateSafetyEl.offsetWidth || 92, 92);
-            const chipHeight = Math.max(duplicateSafetyEl.offsetHeight || 34, 34);
-            let left = rect.right + gap;
-            if (left + chipWidth > window.innerWidth - 8) {
-                left = Math.max(8, rect.left - chipWidth - gap);
-            }
-            let top = rect.top + 10;
-            if (top + chipHeight > window.innerHeight - 8) {
-                top = Math.max(8, window.innerHeight - chipHeight - 8);
-            }
-            duplicateSafetyEl.style.left = `${Math.round(left)}px`;
-            duplicateSafetyEl.style.top = `${Math.round(top)}px`;
         };
 
         const resetDuplicateCheckState = () => {
