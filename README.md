@@ -160,6 +160,7 @@ ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.
 *   **TruyenWikiDich_Works_Manager.user.js:** Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TruyenWikiDich_Works_Manager.user.js).
 *   **TruyenWikiDich_Get_Names.user.js:** Lấy danh sách tên nhân vật từ truyenwikidich.net; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TruyenWikiDich_Get_Names.user.js).
 *   **wkidich-search-to-detail.user.js:** Thêm nút tìm truyện Wikidich và hiển thị link nhúng detail từ API; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/wkidich-search-to-detail.user.js).
+*   **fanqie-comments.user.js:** Thêm hiển thị comments truyện fanqie trên trang page, cho phép hiển thị & dịch toàn bộ comments; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/fanqie-comments.user.js)
 
 ### Công cụ & thư mục
 
