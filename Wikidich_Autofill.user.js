@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.9.2
+// @version      0.3.9.3
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -1286,7 +1286,10 @@
                 depth -= 1;
                 if (depth === 0) {
                     try {
-                        return JSON.parse(raw.slice(i, j + 1));
+                        const stateText = raw
+                            .slice(i, j + 1)
+                            .replace(/:\s*undefined(?=\s*[,}])/g, ': null');
+                        return JSON.parse(stateText);
                     } catch {
                         return null;
                     }
@@ -1320,12 +1323,27 @@
     }
 
     function normalizeFanqieCover(url) {
-        const raw = T.safeText(url);
+        let raw = T.safeText(url).trim();
         if (!raw) return '';
-        const match = raw.match(/\/novel-pic\/([^~?]+)/i);
-        if (!match) return raw;
-        const id = match[1];
-        return `https://p6-novel.byteimg.com/origin/novel-pic/${id}`;
+        if (raw.startsWith('//')) raw = `https:${raw}`;
+        raw = raw.replace(/^http:\/\//i, 'https://');
+
+        const picMatch = raw.match(/\/novel-pic\/([^~?#/]+)/i);
+        if (picMatch) {
+            return `https://p6-novel.byteimg.com/origin/novel-pic/${picMatch[1]}`;
+        }
+
+        const staticMatch = raw.match(/^(https:\/\/[^/]+)\/origin\/novel-static\/([^~?#/]+)/i);
+        if (staticMatch) {
+            return `${staticMatch[1]}/origin/novel-static/${staticMatch[2]}`;
+        }
+
+        const staticIdMatch = raw.match(/\/origin\/novel-static\/([^~?#/]+)/i);
+        if (staticIdMatch) {
+            return `https://p1-tt.byteimg.com/origin/novel-static/${staticIdMatch[1]}`;
+        }
+
+        return raw;
     }
 
     function mapFanqieWebStateToRaw(page) {
@@ -3351,6 +3369,7 @@ const CHANGELOG_CONTENT = `
     <li>⏱️ <b>Gemini rõ ràng hơn:</b> Mặc định ưu tiên <code>gemini-3-flash-preview</code>, có toast/log đếm thời gian và báo rõ khi AI đang chạy thinking mode.</li>
     <li>🏷️ <b>Tối ưu chọn nhãn:</b> Tinh chỉnh cả AI lẫn keyword cho <code>架空历史</code> → <b>Giả tưởng lịch sử</b>, và <code>年代文</code> ưu tiên <b>Hiện đại</b> thay vì <b>Cận đại</b></li>
     <li>🛡️ <b>Check trùng sâu hơn:</b> Thêm chỉ số độ an toàn, nút <code>Mở</code> tác giả, quét trang đầu tác giả và so ảnh bìa + tên để cảnh báo mềm khi nghi trùng.(v0.3.9.2)</li>
+    <li>🖼️ <b>Fix ảnh bìa:</b> Do object của Fanqie không phải JSON sạch nên đổi khi bị fallback về DOM tĩnh, đã fix.(v0.3.9.3) </li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
