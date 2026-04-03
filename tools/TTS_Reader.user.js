@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.4.0_beta
+// @version      1.4.1_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
@@ -22,7 +22,7 @@
     const STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const SESSION_KEY = 'twd_tts_reader_session_v1';
     const WELCOME_KEY = `${STORAGE_KEY}_welcome_seen_v1`;
-    const SCRIPT_VERSION = '1.4.0_beta';
+    const SCRIPT_VERSION = '1.4.1_beta';
     const SCRIPT_UPDATE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js';
     const AUTO_START_WINDOW_MS = 10 * 60 * 1000;
     const TIKTOK_API_ENDPOINT = 'https://api16-normal-c-useast1a.tiktokv.com/media/api/text/speech/invoke/';
