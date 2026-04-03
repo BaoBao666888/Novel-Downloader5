@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260308-junk1">
+  <link rel="stylesheet" href="./styles.css?v=20260403-exportq1">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -150,6 +150,15 @@
       <div id="download-jobs-list" class="download-jobs-list"></div>
       <p id="download-jobs-empty" class="empty-text hidden"></p>
     </section>
+
+    <section class="panel library-panel">
+      <div class="panel-head">
+        <h2 id="export-jobs-title"></h2>
+        <span id="export-jobs-count" class="tag"></span>
+      </div>
+      <div id="export-jobs-list" class="download-jobs-list"></div>
+      <p id="export-jobs-empty" class="empty-text hidden"></p>
+    </section>
   </main>
 
   <dialog id="book-actions-dialog" class="dialog book-actions-dialog">
@@ -210,6 +219,7 @@
           <strong id="export-chapters-title"></strong>
           <span id="export-chapter-stats" class="tag"></span>
         </div>
+        <p id="export-chapter-hint" class="export-chapter-hint"></p>
         <div id="export-chapter-list" class="export-chapter-list"></div>
       </section>
     </div>
@@ -791,7 +801,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260308-hist3"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260403-exportq1"></script>
 </body>
 
 </html>

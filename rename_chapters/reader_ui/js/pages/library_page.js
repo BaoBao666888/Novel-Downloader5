@@ -1,5 +1,5 @@
-import { initShell } from "../site_common.js?v=20260308-junk1";
-import { normalizeDisplayTitle } from "../reader_text.js?v=20260307-br2";
+import { initShell } from "../site_common.js?v=20260403-exportq1";
+import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
   historyTitle: document.getElementById("history-title"),
@@ -15,6 +15,10 @@ const refs = {
   downloadJobsCount: document.getElementById("download-jobs-count"),
   downloadJobsList: document.getElementById("download-jobs-list"),
   downloadJobsEmpty: document.getElementById("download-jobs-empty"),
+  exportJobsTitle: document.getElementById("export-jobs-title"),
+  exportJobsCount: document.getElementById("export-jobs-count"),
+  exportJobsList: document.getElementById("export-jobs-list"),
+  exportJobsEmpty: document.getElementById("export-jobs-empty"),
 
   bookActionsDialog: document.getElementById("book-actions-dialog"),
   bookActionsTitle: document.getElementById("book-actions-title"),
@@ -49,6 +53,7 @@ const refs = {
   exportUseCachedOnlyLabel: document.getElementById("export-use-cached-only-label"),
   exportChaptersTitle: document.getElementById("export-chapters-title"),
   exportChapterStats: document.getElementById("export-chapter-stats"),
+  exportChapterHint: document.getElementById("export-chapter-hint"),
   exportChapterList: document.getElementById("export-chapter-list"),
 
   btnOpenGlobalJunk: document.getElementById("btn-open-global-junk"),
@@ -125,6 +130,8 @@ const state = {
   pendingImports: [],
   downloadJobs: [],
   downloadJobsSig: "",
+  exportJobs: [],
+  exportJobsSig: "",
   selectedBookId: null,
   shell: null,
   translationEnabled: true,
@@ -136,6 +143,9 @@ const state = {
   downloadPollTimer: null,
   downloadEventSource: null,
   downloadStreamReconnectTimer: null,
+  exportPollTimer: null,
+  exportEventSource: null,
+  exportStreamReconnectTimer: null,
   libraryRefreshBusy: false,
   lastLibraryRefreshTs: 0,
   importSettings: null,
@@ -1141,6 +1151,210 @@ async function loadDownloadJobs({ syncLibrary = false } = {}) {
   }
 }
 
+function triggerFileDownload(url, fileName = "") {
+  const link = document.createElement("a");
+  link.href = String(url || "");
+  if (fileName) link.download = String(fileName || "");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function formatFileSize(bytes) {
+  const size = Math.max(0, Number(bytes || 0));
+  if (!size) return "";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function renderExportJobs() {
+  if (!refs.exportJobsList || !refs.exportJobsCount || !refs.exportJobsEmpty) return;
+  refs.exportJobsList.innerHTML = "";
+  refs.exportJobsCount.textContent = state.shell.t("exportJobsCount", { count: state.exportJobs.length });
+  if (!state.exportJobs.length) {
+    refs.exportJobsEmpty.classList.remove("hidden");
+    refs.exportJobsEmpty.textContent = state.shell.t("exportJobsEmpty");
+    return;
+  }
+  refs.exportJobsEmpty.classList.add("hidden");
+  for (const job of state.exportJobs) {
+    const row = document.createElement("article");
+    row.className = "download-job-row";
+    if (String(job.status || "") === "completed") row.classList.add("is-completed");
+    if (String(job.status || "") === "failed") row.classList.add("is-failed");
+
+    const title = document.createElement("div");
+    title.className = "download-job-title";
+    const formatLabel = String(job.format_label || job.format || "").trim();
+    title.textContent = `${normalizeDisplayTitle(job.book_title || state.shell.t("libraryTitle"))}${formatLabel ? ` • ${formatLabel}` : ""}`;
+
+    const meta = document.createElement("div");
+    meta.className = "download-job-meta";
+    const done = Math.max(0, Number(job.completed_chapters || 0));
+    const total = Math.max(0, Number(job.total_chapters || 0));
+    const pct = total > 0 ? (done / total) * 100 : Number(job.progress || 0) * 100;
+    const queuePos = Math.max(0, Number(job.queue_position || 0));
+    const queueText = queuePos > 0 ? state.shell.t("downloadQueuePos", { pos: queuePos }) : "";
+    const translatedText = Boolean(job.use_translated_text)
+      ? state.shell.t("exportTranslatedTag")
+      : state.shell.t("exportRawTag");
+    const sizeText = formatFileSize(job.file_size_bytes || 0);
+    meta.textContent = `${translatedText} • ${state.shell.t("exportChapterCountShort", { current: done, total })} • ${state.shell.t("bookPercent", { percent: pct.toFixed(1) })}${queueText ? ` • ${queueText}` : ""}${sizeText ? ` • ${sizeText}` : ""}`;
+
+    const status = document.createElement("div");
+    status.className = "download-job-status";
+    const msg = String(job.message || "").trim();
+    if (msg) {
+      status.textContent = msg;
+    } else if (String(job.status || "") === "running") {
+      status.textContent = state.shell.t("exportStatusRunning");
+    } else if (String(job.status || "") === "queued") {
+      status.textContent = state.shell.t("exportStatusQueued");
+    } else if (String(job.status || "") === "completed") {
+      status.textContent = state.shell.t("exportStatusCompleted");
+    } else {
+      status.textContent = state.shell.t("exportStatusFailed");
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "download-job-actions";
+    if (String(job.status || "") === "completed" && job.download_url) {
+      const btnDownload = document.createElement("button");
+      btnDownload.type = "button";
+      btnDownload.className = "btn btn-small btn-primary";
+      btnDownload.textContent = state.shell.t("downloadExportFile");
+      btnDownload.addEventListener("click", () => {
+        triggerFileDownload(job.download_url, job.file_name || "");
+      });
+      actions.appendChild(btnDownload);
+    }
+    if (String(job.status || "") === "completed" || String(job.status || "") === "failed") {
+      const btnDelete = document.createElement("button");
+      btnDelete.type = "button";
+      btnDelete.className = "btn btn-small";
+      btnDelete.textContent = state.shell.t("deleteExportFile");
+      btnDelete.addEventListener("click", async () => {
+        const confirmed = window.confirm(state.shell.t("confirmDeleteExportJob", {
+          file: String(job.file_name || formatLabel || job.job_id || "").trim() || state.shell.t("exportDialogTitle"),
+        }));
+        if (!confirmed) return;
+        try {
+          await state.shell.api(`/api/library/export/${encodeURIComponent(String(job.job_id || ""))}`, {
+            method: "DELETE",
+          });
+          await loadExportJobs();
+        } catch (error) {
+          state.shell.showToast(getErrorMessage(error));
+        }
+      });
+      actions.appendChild(btnDelete);
+    }
+
+    row.append(title, meta, status, actions);
+    refs.exportJobsList.appendChild(row);
+  }
+}
+
+function buildExportJobsSignature(items) {
+  if (!Array.isArray(items) || !items.length) return "";
+  return items.map((job) => [
+    String(job.job_id || ""),
+    String(job.status || ""),
+    Number(job.completed_chapters || 0),
+    Number(job.total_chapters || 0),
+    Number(job.remaining_translation_chapters || 0),
+    Number(job.queue_position || 0),
+    String(job.file_name || ""),
+    Number(job.file_exists ? 1 : 0),
+  ].join(":")).join("|");
+}
+
+async function applyExportJobsPayload(payload) {
+  const nextItems = Array.isArray(payload && payload.items) ? payload.items : [];
+  state.exportJobs = nextItems;
+  state.exportJobsSig = buildExportJobsSignature(nextItems);
+  renderExportJobs();
+}
+
+async function loadExportJobs() {
+  try {
+    const data = await state.shell.api("/api/library/export/jobs");
+    await applyExportJobsPayload(data);
+  } catch {
+    await applyExportJobsPayload({ items: [] });
+  }
+}
+
+function clearExportWatcher() {
+  if (state.exportEventSource) {
+    try {
+      state.exportEventSource.close();
+    } catch {
+      // ignore
+    }
+    state.exportEventSource = null;
+  }
+  if (state.exportStreamReconnectTimer) {
+    window.clearTimeout(state.exportStreamReconnectTimer);
+    state.exportStreamReconnectTimer = null;
+  }
+  if (state.exportPollTimer) {
+    window.clearInterval(state.exportPollTimer);
+    state.exportPollTimer = null;
+  }
+}
+
+function scheduleExportStreamReconnect() {
+  if (state.exportStreamReconnectTimer) return;
+  state.exportStreamReconnectTimer = window.setTimeout(() => {
+    state.exportStreamReconnectTimer = null;
+    startExportPolling();
+  }, 1200);
+}
+
+function startExportPolling() {
+  if (state.exportEventSource || state.exportPollTimer) return;
+  if (typeof window.EventSource === "function") {
+    const stream = new window.EventSource("/api/library/export/jobs/stream");
+    state.exportEventSource = stream;
+    stream.addEventListener("jobs", (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        payload = null;
+      }
+      applyExportJobsPayload(payload || { items: [] }).catch(() => {});
+    });
+    stream.onmessage = (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        payload = null;
+      }
+      if (!payload || !Array.isArray(payload.items)) return;
+      applyExportJobsPayload(payload).catch(() => {});
+    };
+    stream.onerror = () => {
+      if (state.exportEventSource !== stream) return;
+      try {
+        stream.close();
+      } catch {
+        // ignore
+      }
+      state.exportEventSource = null;
+      scheduleExportStreamReconnect();
+    };
+    return;
+  }
+  state.exportPollTimer = window.setInterval(() => {
+    loadExportJobs().catch(() => {});
+  }, 1500);
+}
+
 function clearDownloadWatcher() {
   if (state.downloadEventSource) {
     try {
@@ -1482,70 +1696,25 @@ function buildReaderUrl(bookId, chapterId = "", mode = getCurrentReaderMode()) {
   return `/reader?${params.toString()}`;
 }
 
-function buildExportFormats(book) {
-  const isComic = Boolean(book && book.is_comic);
-  const isZh = Boolean(book && !isComic && String(book.lang_source || "").toLowerCase().startsWith("zh"));
-  const opt = (key, code, labelKey, defaultEnabled) => ({ key, code, labelKey, defaultEnabled: Boolean(defaultEnabled) });
-  if (isComic) {
-    return {
-      defaultFormat: "epub",
-      formats: [
-        {
-          id: "epub",
-          label: "EPUB",
-          options: [
-            opt("include_intro", "1b", "exportOptionIntro", true),
-            opt("include_chapter_titles", "3b", "exportOptionChapterTitles", true),
-            opt("include_toc_page", "4b", "exportOptionToc", true),
-          ],
-        },
-        {
-          id: "html",
-          label: "HTML",
-          options: [
-            opt("include_intro", "1b", "exportOptionIntro", true),
-            opt("merge_single_file", "2", "exportOptionMerge", false),
-            opt("include_chapter_titles", "3b", "exportOptionChapterTitles", true),
-            opt("include_toc_page", "4b", "exportOptionToc", true),
-          ],
-        },
-        { id: "cbz", label: "CBZ", options: [] },
-      ],
-    };
-  }
-  const htmlOptions = [
-    opt("include_intro", "1b", "exportOptionIntro", true),
-    opt("merge_single_file", "2b", "exportOptionMerge", true),
-    opt("include_chapter_titles", "3b", "exportOptionChapterTitles", true),
-    opt("include_toc_page", "4", "exportOptionToc", false),
-  ];
-  const txtOptions = [
-    opt("merge_single_file", "2b", "exportOptionMerge", true),
-    opt("include_chapter_titles", "3b", "exportOptionChapterTitles", true),
-  ];
-  const epubOptions = [
-    opt("include_intro", "1b", "exportOptionIntro", true),
-    opt("include_chapter_titles", "3b", "exportOptionChapterTitles", true),
-    opt("include_toc_page", "4", "exportOptionToc", false),
-  ];
-  if (isZh) {
-    htmlOptions.push(opt("use_translated_text", "5b", "exportOptionTranslatedText", true));
-    txtOptions.push(opt("use_translated_text", "5b", "exportOptionTranslatedText", true));
-    epubOptions.push(opt("use_translated_text", "5b", "exportOptionTranslatedText", true));
-  }
-  return {
-    defaultFormat: "txt",
-    formats: [
-      { id: "txt", label: "TXT", options: txtOptions },
-      { id: "epub", label: "EPUB", options: epubOptions },
-      { id: "html", label: "HTML", options: htmlOptions },
-    ],
-  };
+function currentExportInfo() {
+  const info = state.exportBookDetail && state.exportBookDetail.export_info;
+  return (info && typeof info === "object") ? info : {};
 }
 
 function currentExportFormatSpec() {
   const formatId = String((refs.exportFormatSelect && refs.exportFormatSelect.value) || "").trim().toLowerCase();
   return (state.exportFormats || []).find((item) => String(item.id || "").trim().toLowerCase() === formatId) || null;
+}
+
+function isExportTranslatedSelected() {
+  const spec = currentExportFormatSpec();
+  if (!spec || !Array.isArray(spec.options)) return false;
+  const hasTranslatedOption = spec.options.some((item) => String(item && item.key || "") === "use_translated_text");
+  if (!hasTranslatedOption) return false;
+  const checkbox = refs.exportOptionsList
+    ? refs.exportOptionsList.querySelector('input[data-option-key="use_translated_text"]')
+    : null;
+  return Boolean(checkbox && checkbox.checked);
 }
 
 function closeExportDialog() {
@@ -1568,12 +1737,13 @@ function renderExportOptions() {
     row.className = "checkbox-row export-option-row";
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-    checkbox.checked = Boolean(option.defaultEnabled);
+    checkbox.checked = Boolean(option.default_enabled ?? option.defaultEnabled);
     checkbox.dataset.optionKey = String(option.key || "");
     const text = document.createElement("span");
-    const code = String(option.code || "").trim();
-    const label = state.shell.t(String(option.labelKey || ""));
-    text.textContent = code ? `${code} • ${label}` : label;
+    text.textContent = String(option.label || option.key || "");
+    checkbox.addEventListener("change", () => {
+      renderExportChapterList(state.exportBookDetail);
+    });
     row.append(checkbox, text);
     refs.exportOptionsList.appendChild(row);
   }
@@ -1582,13 +1752,31 @@ function renderExportOptions() {
 function renderExportChapterList(book) {
   if (!refs.exportChapterList) return;
   refs.exportChapterList.innerHTML = "";
+  const exportInfo = currentExportInfo();
   const chapters = Array.isArray(book && book.chapters) ? book.chapters : [];
-  const downloaded = chapters.filter((item) => Boolean(item && item.is_downloaded)).length;
+  const counts = (exportInfo && typeof exportInfo.counts === "object") ? exportInfo.counts : {};
+  const downloaded = Math.max(0, Number(counts.downloaded_chapters || (book && book.downloaded_chapters) || 0));
+  const total = Math.max(0, Number(counts.total_chapters || chapters.length || 0));
+  const missingDownload = Math.max(0, Number(counts.missing_download_chapters || 0));
+  const pendingTranslation = isExportTranslatedSelected()
+    ? Math.max(0, Number(counts.translation_pending_chapters || 0))
+    : 0;
   if (refs.exportChapterStats) {
     refs.exportChapterStats.textContent = state.shell.t("downloadedCountShort", {
       downloaded,
-      total: chapters.length,
+      total,
     });
+  }
+  if (refs.exportChapterHint) {
+    if (missingDownload > 0) {
+      refs.exportChapterHint.textContent = state.shell.t("exportMissingDownloadHint", { count: missingDownload });
+    } else if (pendingTranslation > 0) {
+      refs.exportChapterHint.textContent = state.shell.t("exportPendingTranslateHint", { count: pendingTranslation });
+    } else if (isExportTranslatedSelected() && chapters.length) {
+      refs.exportChapterHint.textContent = state.shell.t("exportAllTranslatedReady");
+    } else {
+      refs.exportChapterHint.textContent = state.shell.t("exportCachedOnlyLocked");
+    }
   }
   if (!chapters.length) {
     const empty = document.createElement("p");
@@ -1600,16 +1788,29 @@ function renderExportChapterList(book) {
   for (const chapter of chapters) {
     const row = document.createElement("div");
     row.className = "export-chapter-row";
+    const exportState = (chapter && chapter.export && typeof chapter.export === "object") ? chapter.export : {};
+    const canExport = Boolean(exportState.can_export);
+    const needsTranslation = Boolean(isExportTranslatedSelected() && exportState.needs_translation);
+    const translationReady = Boolean(isExportTranslatedSelected() && exportState.translation_cached);
     const title = document.createElement("div");
     title.className = "export-chapter-title";
     title.textContent = `${chapter.chapter_order || "?"}. ${chapter.title_display || chapter.title_raw || ""}`;
     const meta = document.createElement("div");
     meta.className = "export-chapter-meta";
-    meta.textContent = chapter.is_downloaded
-      ? state.shell.t("downloadedTag")
-      : state.shell.t("exportNotDownloaded");
+    if (!canExport) {
+      meta.textContent = state.shell.t("exportNeedsDownload");
+      row.classList.add("is-blocked");
+    } else if (needsTranslation) {
+      meta.textContent = state.shell.t("exportWillTranslate");
+      row.classList.add("is-pending-translation");
+    } else if (translationReady) {
+      meta.textContent = state.shell.t("exportTranslationReady");
+      row.classList.add("is-downloaded");
+    } else {
+      meta.textContent = state.shell.t("exportReady");
+      row.classList.add("is-downloaded");
+    }
     row.append(title, meta);
-    if (chapter.is_downloaded) row.classList.add("is-downloaded");
     refs.exportChapterList.appendChild(row);
   }
 }
@@ -1630,7 +1831,7 @@ function renderExportCover(book) {
 
 function renderExportDialog(book) {
   state.exportBookDetail = book || null;
-  const exportInfo = buildExportFormats(book || {});
+  const exportInfo = currentExportInfo();
   state.exportFormats = exportInfo.formats || [];
   if (refs.exportFormatSelect) {
     refs.exportFormatSelect.innerHTML = "";
@@ -1640,7 +1841,7 @@ function renderExportDialog(book) {
       option.textContent = String(format.label || format.id || "");
       refs.exportFormatSelect.appendChild(option);
     }
-    refs.exportFormatSelect.value = String(exportInfo.defaultFormat || ((state.exportFormats[0] || {}).id || ""));
+    refs.exportFormatSelect.value = String(exportInfo.default_format || exportInfo.defaultFormat || ((state.exportFormats[0] || {}).id || ""));
   }
   if (refs.exportDialogTitle) refs.exportDialogTitle.textContent = state.shell.t("exportDialogTitle");
   if (refs.exportDialogSubtitle) {
@@ -1661,7 +1862,10 @@ function renderExportDialog(book) {
       downloaded: Number(book.downloaded_chapters || 0),
     });
   }
-  if (refs.exportUseCachedOnly) refs.exportUseCachedOnly.checked = false;
+  if (refs.exportUseCachedOnly) {
+    refs.exportUseCachedOnly.checked = true;
+    refs.exportUseCachedOnly.disabled = true;
+  }
   renderExportCover(book);
   renderExportOptions();
   renderExportChapterList(book);
@@ -1690,19 +1894,24 @@ async function submitExportDialog() {
   if (!state.selectedBookId || !state.exportBookDetail) return;
   const spec = currentExportFormatSpec();
   if (!spec) return;
+  const counts = (currentExportInfo() && currentExportInfo().counts) || {};
+  if (Math.max(0, Number(counts.exportable_chapters || 0)) <= 0) {
+    state.shell.showToast(state.shell.t("exportNoDownloadedChapters"));
+    return;
+  }
   const options = {};
   for (const checkbox of Array.from(refs.exportOptionsList.querySelectorAll("input[data-option-key]"))) {
     options[String(checkbox.dataset.optionKey || "")] = Boolean(checkbox.checked);
   }
   state.shell.showStatus(state.shell.t("statusExporting"));
   try {
-    const payload = await state.shell.api(`/api/library/book/${encodeURIComponent(state.selectedBookId)}/export`, {
+    await state.shell.api(`/api/library/book/${encodeURIComponent(state.selectedBookId)}/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         format: spec.id,
         translation_mode: getCurrentTranslationMode(),
-        use_cached_only: Boolean(refs.exportUseCachedOnly && refs.exportUseCachedOnly.checked),
+        use_cached_only: true,
         metadata: {
           title: String((refs.exportMetaTitle && refs.exportMetaTitle.value) || "").trim(),
           author: String((refs.exportMetaAuthor && refs.exportMetaAuthor.value) || "").trim(),
@@ -1712,14 +1921,8 @@ async function submitExportDialog() {
       }),
     });
     closeExportDialog();
-    if (payload.download_url) {
-      const link = document.createElement("a");
-      link.href = payload.download_url;
-      if (payload.file_name) link.download = String(payload.file_name);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    }
+    state.shell.showToast(state.shell.t("exportQueued"));
+    await loadExportJobs();
   } catch (error) {
     state.shell.showToast(getErrorMessage(error));
   } finally {
@@ -1787,6 +1990,8 @@ async function init() {
   if (refs.btnOpenGlobalDicts) refs.btnOpenGlobalDicts.textContent = state.shell.t("globalDictsButton");
   if (refs.downloadJobsTitle) refs.downloadJobsTitle.textContent = state.shell.t("downloadJobsTitle");
   if (refs.downloadJobsEmpty) refs.downloadJobsEmpty.textContent = state.shell.t("downloadJobsEmpty");
+  if (refs.exportJobsTitle) refs.exportJobsTitle.textContent = state.shell.t("exportJobsTitle");
+  if (refs.exportJobsEmpty) refs.exportJobsEmpty.textContent = state.shell.t("exportJobsEmpty");
 
   if (refs.globalJunkTitle) refs.globalJunkTitle.textContent = state.shell.t("junkDialogTitle");
   if (refs.btnCloseGlobalJunk) refs.btnCloseGlobalJunk.textContent = state.shell.t("close");
@@ -1844,7 +2049,10 @@ async function init() {
   if (refs.btnSubmitExportDialog) refs.btnSubmitExportDialog.addEventListener("click", () => {
     submitExportDialog().catch(() => {});
   });
-  if (refs.exportFormatSelect) refs.exportFormatSelect.addEventListener("change", renderExportOptions);
+  if (refs.exportFormatSelect) refs.exportFormatSelect.addEventListener("change", () => {
+    renderExportOptions();
+    renderExportChapterList(state.exportBookDetail);
+  });
   if (refs.btnOpenGlobalJunk) refs.btnOpenGlobalJunk.addEventListener("click", () => {
     openGlobalJunkDialog().catch(() => {});
   });
@@ -2016,11 +2224,18 @@ async function init() {
 
   window.addEventListener("beforeunload", () => {
     clearDownloadWatcher();
+    clearExportWatcher();
   });
 
   state.translationLocalSig = localTranslationSettingsSignature(state.shell);
-  await Promise.all([loadImportSettings({ silent: true }).catch(() => null), loadLibraryData(), loadDownloadJobs({ syncLibrary: false })]);
+  await Promise.all([
+    loadImportSettings({ silent: true }).catch(() => null),
+    loadLibraryData(),
+    loadDownloadJobs({ syncLibrary: false }),
+    loadExportJobs(),
+  ]);
   startDownloadPolling();
+  startExportPolling();
 }
 
 init();

@@ -835,7 +835,17 @@ p {
 
 .download-job-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: flex-end;
+}
+
+.download-job-row.is-completed {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+.download-job-row.is-failed {
+  border-color: color-mix(in srgb, #ff8b8b 44%, var(--line));
 }
 
 .book-card-tools {
@@ -2396,6 +2406,12 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   margin-top: 2px;
 }
 
+.export-chapter-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .export-chapter-list {
   max-height: min(48vh, 520px);
   overflow: auto;
@@ -2418,6 +2434,16 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 .export-chapter-row.is-downloaded {
   border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
   background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.export-chapter-row.is-blocked {
+  border-color: color-mix(in srgb, #ff8b8b 34%, var(--line));
+  background: color-mix(in srgb, #ff8b8b 10%, transparent);
+}
+
+.export-chapter-row.is-pending-translation {
+  border-color: color-mix(in srgb, #ffd166 44%, var(--line));
+  background: color-mix(in srgb, #ffd166 10%, transparent);
 }
 
 .export-chapter-title {

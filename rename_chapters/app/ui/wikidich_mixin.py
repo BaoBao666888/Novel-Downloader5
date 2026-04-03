@@ -126,6 +126,7 @@ class WikidichMixin:
         tools_menu = tk.Menu(tools_mb, tearoff=0)
         tools_menu.add_command(label="Liên kết", command=self._wd_open_global_links)
         tools_menu.add_command(label="Ghi chú", command=self._wd_open_global_notes)
+        tools_menu.add_command(label="Thông tin", command=self._wd_open_row_color_info)
         tools_mb.config(menu=tools_menu)
         tools_mb.grid(row=0, column=2, padx=(6, 0))
         self.wd_tools_menu = tools_menu
@@ -641,6 +642,7 @@ class WikidichMixin:
         self.wd_tree.tag_configure("not_found", foreground="#ef4444")
         self.wd_tree.tag_configure("server_lower", foreground="#f97316")
         self.wd_tree.tag_configure("auto_marked_new", foreground="#38bdf8")
+        self.wd_tree.tag_configure("origin_completed", foreground="#7c3aed")
         self.wd_tree.grid(row=0, column=0, sticky="nsew")
         self.wd_tree.bind("<<TreeviewSelect>>", self._wd_on_select)
         self._wd_tree_fit_job = None
@@ -1402,21 +1404,431 @@ class WikidichMixin:
             return 0
         return 0
 
+    def _wd_get_high_new_style(self):
+        cfg = getattr(self, "api_settings", {}) or {}
+        try:
+            high_thresh = int(cfg.get("wiki_high_new_threshold", 50))
+        except Exception:
+            high_thresh = 50
+        high_thresh = max(1, high_thresh)
+        high_color = (cfg.get("wiki_high_new_color") or "#dc2626").strip() or "#dc2626"
+        return high_thresh, high_color
+
+    def _wd_get_row_color_map(self):
+        _, high_color = self._wd_get_high_new_style()
+        return {
+            "not_found": "#ef4444",
+            "server_lower": "#f97316",
+            "high_new": high_color,
+            "auto_marked_new": "#38bdf8",
+            "has_new": "#16a34a",
+            "origin_completed": "#7c3aed",
+        }
+
+    def _wd_normalize_origin_status(self, raw_status):
+        if raw_status is True:
+            return "Hoàn thành", "completed"
+        if raw_status is False:
+            return "Còn tiếp", "ongoing"
+        if isinstance(raw_status, (int, float)):
+            if int(raw_status) == 2:
+                return "Hoàn thành", "completed"
+            if int(raw_status) in (0, 1):
+                return "Còn tiếp", "ongoing"
+        text = str(raw_status or "").strip()
+        if not text:
+            return "", ""
+        lowered = text.lower()
+        norm = wikidich_ext._normalize(text)
+        if (
+            norm in {"2", "true", "completed", "finished"}
+            or any(token in text for token in ("完结", "完本", "已完结", "已完結"))
+            or any(token in norm for token in ("hoan thanh", "ket thuc", "da hoan", "da xong", "full"))
+        ):
+            return "Hoàn thành", "completed"
+        if (
+            norm in {"pause", "paused", "hiatus"}
+            or any(token in text for token in ("暂停", "暫停", "断更", "斷更"))
+            or any(token in norm for token in ("tam ngung", "ngung cap nhat", "dung cap nhat", "drop", "dropped"))
+        ):
+            return "Tạm ngưng", "paused"
+        if (
+            norm in {"0", "1", "false", "ongoing"}
+            or any(token in text for token in ("连载", "連載", "更新中", "未完结", "未完結", "连更"))
+            or any(token in norm for token in ("con tiep", "dang cap nhat", "dang ra", "ongoing", "serial", "updating"))
+        ):
+            return "Còn tiếp", "ongoing"
+        return text, norm or lowered
+
+    def _wd_is_origin_completed(self, book: dict) -> bool:
+        if not isinstance(book, dict):
+            return False
+        _, status_norm = self._wd_normalize_origin_status(
+            book.get("origin_status_norm") or book.get("origin_status") or ""
+        )
+        return status_norm == "completed"
+
+    def _wd_collect_texts(self, doc: BeautifulSoup, selectors):
+        texts = []
+        for selector in selectors or []:
+            for node in doc.select(selector):
+                text = node.get_text(" ", strip=True)
+                if text:
+                    texts.append(text)
+        return texts
+
+    def _wd_pick_origin_status_from_texts(self, values):
+        for value in values or []:
+            label, norm = self._wd_normalize_origin_status(value)
+            if norm in ("completed", "ongoing", "paused"):
+                return label, norm
+        return "", ""
+
+    def _wd_fetch_fanqie_origin_status(self, url: str, proxies=None, headers=None):
+        book_id = None
+        try:
+            if hasattr(self, "_fanqie_extract_book_id"):
+                book_id = self._fanqie_extract_book_id(url)
+        except Exception:
+            book_id = None
+        if not book_id:
+            match = re.search(r"/(?:page|book|reader)/(\d+)", url or "")
+            if match:
+                book_id = match.group(1)
+        if not book_id:
+            return None
+        page_url = f"https://fanqienovel.com/page/{book_id}"
+        merged_headers = dict(self._get_fanqie_headers()) if hasattr(self, "_get_fanqie_headers") else dict(DEFAULT_API_SETTINGS.get("fanqie_headers", {}))
+        if isinstance(headers, dict):
+            for key, value in headers.items():
+                if value:
+                    merged_headers[key] = value
+        try:
+            if hasattr(self, "_fanqie_request_with_retry"):
+                resp = self._fanqie_request_with_retry(page_url, headers=merged_headers, proxies=proxies)
+            else:
+                resp = requests.get(page_url, headers=merged_headers, timeout=30, proxies=proxies)
+            resp.raise_for_status()
+            doc = BeautifulSoup(resp.text or "", "html.parser")
+            texts = self._wd_collect_texts(
+                doc,
+                [".page-header-info .info-label-yellow", ".info-label-yellow", ".info-label"],
+            )
+            label, norm = self._wd_pick_origin_status_from_texts(texts)
+            return {
+                "origin_status": label,
+                "origin_status_norm": norm,
+                "origin_source": "Fanqie",
+            }
+        except Exception:
+            return None
+
+    def _wd_fetch_jjwxc_origin_status(self, url: str, proxies=None):
+        novel_id = parse_qs(urlparse(url).query).get("novelid", [None])[0]
+        if not novel_id:
+            match = re.search(r"novelid=(\d+)", url or "", re.I)
+            novel_id = match.group(1) if match else None
+        if not novel_id:
+            return None
+        api_url = f"https://app.jjwxc.net/androidapi/novelbasicinfo?novelId={novel_id}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Linux; Android 16; Pixel 9 Pro Build/TP1A.251005.002.B2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.6998.109 Mobile Safari/537.36/JINJIANG-Android/381(Pixel9Pro;Scale/3.5;isHarmonyOS/false)",
+            "Referer": "http://android.jjwxc.net?v=381",
+        }
+        try:
+            resp = requests.get(api_url, headers=headers, timeout=30, proxies=proxies)
+            resp.raise_for_status()
+            data = resp.json() if resp.text else {}
+            raw_status = (
+                data.get("novelStep")
+                or data.get("novelStatus")
+                or data.get("isFinished")
+                or data.get("novelComplete")
+            )
+            label, norm = self._wd_normalize_origin_status(raw_status)
+            return {
+                "origin_status": label,
+                "origin_status_norm": norm,
+                "origin_source": "JJWXC",
+            }
+        except Exception:
+            return None
+
+    def _wd_fetch_qidian_origin_status(self, url: str, proxies=None):
+        match = re.search(r"/book/(\d+)", url or "")
+        if not match:
+            return None
+        book_id = match.group(1)
+        cookie_db_path = self._wd_get_cookie_db_path()
+        cookie_jar = load_browser_cookie_jar(["qidian.com"], required_names=["_csrftoken"], cookie_db_path=cookie_db_path)
+        if not cookie_jar:
+            return None
+        session = requests.Session()
+        session.cookies = cookie_jar
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+            "Referer": "https://www.qidian.com/",
+        }
+        try:
+            resp = session.get(f"https://www.qidian.com/book/{book_id}/", headers=headers, timeout=40, proxies=proxies)
+            resp.raise_for_status()
+            if any(marker in (resp.text or "").lower() for marker in ("captcha", "tcaptcha", "安全验证", "验证码", "滑动验证")):
+                return None
+            doc = BeautifulSoup(resp.text or "", "html.parser")
+            texts = []
+            meta_status = doc.select_one('meta[property="og:novel:status"]')
+            if meta_status:
+                texts.append((meta_status.get("content") or "").strip())
+            texts.extend(self._wd_collect_texts(
+                doc,
+                [".book-attribute span", ".book-attribute p", ".book-info-tag span", ".book-info-tag a"],
+            ))
+            label, norm = self._wd_pick_origin_status_from_texts(texts)
+            return {
+                "origin_status": label,
+                "origin_status_norm": norm,
+                "origin_source": "Qidian",
+            }
+        except Exception:
+            return None
+
+    def _wd_fetch_po18_origin_status(self, url: str, proxies=None):
+        base_url = po18_ext.get_clean_url(url)
+        if not base_url:
+            return None
+        cookie_db_path = self._wd_get_cookie_db_path()
+        cookie_jar = load_browser_cookie_jar(["po18.tw", "members.po18.tw"], cookie_db_path=cookie_db_path)
+        if not cookie_jar:
+            return None
+        session = requests.Session()
+        session.cookies = cookie_jar
+        session.headers.update({"User-Agent": "Mozilla/5.0"})
+        try:
+            resp = session.get(base_url, timeout=40, proxies=proxies)
+            resp.raise_for_status()
+            text = resp.text or ""
+            if "會員登入" in text or "login.php" in text:
+                return None
+            doc = BeautifulSoup(text, "html.parser")
+            texts = self._wd_collect_texts(doc, [".book_info .statu", ".book_info .status", ".statu", ".status"])
+            label, norm = self._wd_pick_origin_status_from_texts(texts)
+            return {
+                "origin_status": label,
+                "origin_status_norm": norm,
+                "origin_source": "PO18",
+            }
+        except Exception:
+            return None
+
+    def _wd_fetch_ihuaben_origin_status(self, url: str, proxies=None):
+        match = re.search(r"/book/(\d+)", url or "")
+        if not match:
+            return None
+        book_id = match.group(1)
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Referer": f"https://www.ihuaben.com/book/{book_id}.html",
+        }
+        try:
+            resp = requests.get(f"https://www.ihuaben.com/book/{book_id}.html", headers=headers, timeout=30, proxies=proxies)
+            resp.raise_for_status()
+            doc = BeautifulSoup(resp.text or "", "html.parser")
+            texts = self._wd_collect_texts(
+                doc,
+                [".simpleinfo label", ".infodetail .simpleinfo label", ".simpleinfo .text-muted"],
+            )
+            label, norm = self._wd_pick_origin_status_from_texts(texts)
+            return {
+                "origin_status": label,
+                "origin_status_norm": norm,
+                "origin_source": "Ihuaben",
+            }
+        except Exception:
+            return None
+
+    def _wd_fetch_qimao_origin_status(self, url: str, proxies=None):
+        book_id = None
+        if hasattr(qimao_ext, "_extract_book_id"):
+            try:
+                book_id = qimao_ext._extract_book_id(url)
+            except Exception:
+                book_id = None
+        if not book_id:
+            match = re.search(r"/shuku/(\d+)", url or "")
+            if match:
+                book_id = match.group(1)
+        if not book_id:
+            return None
+        headers = {"User-Agent": "Mozilla/5.0"}
+        try:
+            resp = requests.get(f"https://www.qimao.com/shuku/{book_id}/", headers=headers, timeout=30, proxies=proxies)
+            resp.raise_for_status()
+            doc = BeautifulSoup(resp.text or "", "html.parser")
+            texts = self._wd_collect_texts(
+                doc,
+                [".book-information .tags-wrap .qm-tag", ".tags-wrap .qm-tag"],
+            )
+            label, norm = self._wd_pick_origin_status_from_texts(texts)
+            return {
+                "origin_status": label,
+                "origin_status_norm": norm,
+                "origin_source": "Qimao",
+            }
+        except Exception:
+            return None
+
+    def _wd_fetch_origin_status(self, book: dict, proxies=None, headers=None):
+        if not isinstance(book, dict):
+            return None
+        source_handlers = [
+            ("fanqienovel.com", self._wd_fetch_fanqie_origin_status),
+            ("jjwxc.net", self._wd_fetch_jjwxc_origin_status),
+            ("qidian.com", self._wd_fetch_qidian_origin_status),
+            ("po18.tw", self._wd_fetch_po18_origin_status),
+            ("ihuaben.com", self._wd_fetch_ihuaben_origin_status),
+            ("qimao.com", self._wd_fetch_qimao_origin_status),
+        ]
+        for domain, handler in source_handlers:
+            url = self._wd_find_link_with_domain(book, domain)
+            if not url:
+                continue
+            try:
+                if domain == "fanqienovel.com":
+                    return handler(url, proxies=proxies, headers=headers)
+                return handler(url, proxies=proxies)
+            except Exception:
+                return None
+        return None
+
+    def _wd_apply_origin_status_info(self, book: dict, info: dict):
+        if not isinstance(book, dict) or not isinstance(info, dict):
+            return False
+        changed = False
+        for key in ("origin_status", "origin_status_norm", "origin_source"):
+            if key not in info:
+                continue
+            new_value = info.get(key) or ""
+            if (book.get(key) or "") != new_value:
+                book[key] = new_value
+                changed = True
+        book["origin_status_checked_at"] = datetime.utcnow().isoformat()
+        return changed
+
+    def _wd_get_book_row_tag(self, book: dict, new_map=None, marked_ids=None, not_found_ids=None, high_thresh=None):
+        if not isinstance(book, dict):
+            return ""
+        book_id = book.get("id")
+        if book_id and not book.get("deleted_404") and isinstance(not_found_ids, set) and book_id in not_found_ids:
+            book["deleted_404"] = True
+        if book.get("deleted_404"):
+            return "not_found"
+        if book.get("server_lower"):
+            return "server_lower"
+        if high_thresh is None:
+            high_thresh, _ = self._wd_get_high_new_style()
+        new_value = None
+        if book_id and isinstance(new_map, dict):
+            value = new_map.get(book_id)
+            if isinstance(value, int) and value > 0:
+                new_value = value
+        if new_value:
+            if new_value >= high_thresh:
+                return "high_new"
+            if book_id and isinstance(marked_ids, set) and book_id in marked_ids:
+                return "auto_marked_new"
+            return "has_new"
+        if self._wd_is_origin_completed(book):
+            return "origin_completed"
+        return ""
+
+    def _wd_get_row_color_legend_entries(self, books=None):
+        books = list(books if books is not None else (getattr(self, "wikidich_filtered", []) or []))
+        marked_ids = self._wd_get_autoupdate_marked_ids()
+        try:
+            not_found_ids = {b.get("id") for b in (self.wd_not_found or []) if b.get("id")}
+        except Exception:
+            not_found_ids = set()
+        high_thresh, high_color = self._wd_get_high_new_style()
+        counts = {
+            "not_found": 0,
+            "server_lower": 0,
+            "high_new": 0,
+            "auto_marked_new": 0,
+            "has_new": 0,
+            "origin_completed": 0,
+            "default": 0,
+        }
+        for book in books:
+            tag = self._wd_get_book_row_tag(
+                book,
+                new_map=getattr(self, "wd_new_chapters", {}),
+                marked_ids=marked_ids,
+                not_found_ids=not_found_ids,
+                high_thresh=high_thresh,
+            )
+            if tag:
+                counts[tag] += 1
+            else:
+                counts["default"] += 1
+        color_map = self._wd_get_row_color_map()
+        return [
+            {
+                "tag": "not_found",
+                "title": "Truyện nghi đã bị xóa / trả 404 trên site hiện tại",
+                "detail": "Ưu tiên cao nhất. Dòng đỏ này báo truyện trên Wikidich/Koanchay có dấu hiệu không còn truy cập được.",
+                "color": color_map["not_found"],
+                "count": counts["not_found"],
+            },
+            {
+                "tag": "server_lower",
+                "title": "Server báo dữ liệu nhỏ hơn local",
+                "detail": "Số chương hoặc ngày cập nhật trên site hiện tại nhỏ hơn dữ liệu local, nên app giữ local và tô màu cảnh báo.",
+                "color": color_map["server_lower"],
+                "count": counts["server_lower"],
+            },
+            {
+                "tag": "high_new",
+                "title": f"Nhiều chương mới (New >= {high_thresh})",
+                "detail": f"Màu này lấy trực tiếp từ Cài đặt request. Hiện ngưỡng là {high_thresh} chương mới.",
+                "color": high_color,
+                "count": counts["high_new"],
+            },
+            {
+                "tag": "auto_marked_new",
+                "title": "Đã đánh dấu Auto Update và đang có chương mới",
+                "detail": "Chỉ hiện khi truyện đã được đánh dấu Auto Update và cột New hiện > 0 nhưng chưa chạm ngưỡng đỏ.",
+                "color": color_map["auto_marked_new"],
+                "count": counts["auto_marked_new"],
+            },
+            {
+                "tag": "has_new",
+                "title": "Có chương mới",
+                "detail": "Truyện có chương mới theo nguồn gốc, nhưng chưa chạm ngưỡng highlight mạnh và chưa nằm trong Auto Update.",
+                "color": color_map["has_new"],
+                "count": counts["has_new"],
+            },
+            {
+                "tag": "origin_completed",
+                "title": "Truyện gốc đã hoàn thành",
+                "detail": "Dựa trên trạng thái của truyện gốc (Fanqie, Qidian, JJWXC, PO18, Ihuaben, Qimao...) quét ở lần Kiểm tra cập nhật gần nhất. Màu này chỉ hiện khi không có cảnh báo/update mạnh hơn.",
+                "color": color_map["origin_completed"],
+                "count": counts["origin_completed"],
+            },
+        ]
+
     def _wd_refresh_tree(self, books):
         self.wd_tree.delete(*self.wd_tree.get_children())
         self._wd_tree_index = {}
         new_map = getattr(self, "wd_new_chapters", {})
         marked_ids = self._wd_get_autoupdate_marked_ids()
         not_found_ids = set()
-        
-        # Settings
-        cfg = getattr(self, "api_settings", {}) or {}
-        high_thresh = int(cfg.get("wiki_high_new_threshold", 50))
-        high_color = cfg.get("wiki_high_new_color", "#dc2626")
+
+        high_thresh, high_color = self._wd_get_high_new_style()
         try:
-             self.wd_tree.tag_configure("high_new", foreground=high_color)
+            self.wd_tree.tag_configure("high_new", foreground=high_color)
+            self.wd_tree.tag_configure("origin_completed", foreground=self._wd_get_row_color_map()["origin_completed"])
         except Exception:
-             pass
+            pass
 
         try:
             not_found_ids = {b.get("id") for b in (self.wd_not_found or []) if b.get("id")}
@@ -1426,31 +1838,19 @@ class WikidichMixin:
         for stt, book in enumerate(books, start=1):
             stats = book.get('stats', {}) or {}
             book_id = book.get('id')
-            # nếu book nằm trong danh sách 404, gắn cờ
-            if book_id and not book.get("deleted_404") and book_id in not_found_ids:
-                book["deleted_404"] = True
             new_count = ""  # default empty
-            is_high = False
             if book_id and isinstance(new_map, dict):
                 val = new_map.get(book_id)
                 if isinstance(val, int) and val > 0:
                     new_count = str(val)
-                    if val >= high_thresh:
-                        is_high = True
-            
-            if book.get("deleted_404"):
-                tags = ("not_found",)
-            elif book.get("server_lower"):
-                tags = ("server_lower",)
-            elif new_count:
-                if is_high:
-                    tags = ("high_new",)
-                elif book_id and book_id in marked_ids:
-                    tags = ("auto_marked_new",)
-                else:
-                    tags = ("has_new",)
-            else:
-                tags = ()
+            tag_name = self._wd_get_book_row_tag(
+                book,
+                new_map=new_map,
+                marked_ids=marked_ids,
+                not_found_ids=not_found_ids,
+                high_thresh=high_thresh,
+            )
+            tags = (tag_name,) if tag_name else ()
             # Build values dynamically based on visible columns
             visible_cols = getattr(self, '_wd_visible_columns', ['title', 'status', 'updated', 'chapters', 'new_chapters', 'views', 'rating', 'author'])
             row_values = []
@@ -2606,6 +3006,112 @@ class WikidichMixin:
         ttk.Button(btn_frame, text="Đóng", command=_close).pack(side=tk.RIGHT)
 
         self._wd_refresh_global_notes_view()
+
+    def _wd_open_row_color_info(self):
+        try:
+            if getattr(self, "_wd_color_info_win", None) and self._wd_color_info_win.winfo_exists():
+                self._wd_color_info_win.lift()
+                return
+        except Exception:
+            self._wd_color_info_win = None
+
+        books = list(getattr(self, "wikidich_filtered", []) or [])
+        entries = self._wd_get_row_color_legend_entries(books)
+        total_rows = len(books)
+        colored_rows = sum(int(item.get("count") or 0) for item in entries)
+        plain_rows = max(0, total_rows - colored_rows)
+        site_label = "Koanchay" if getattr(self, "wd_site", "wikidich") == "koanchay" else "Wikidich"
+
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title(f"Thông tin màu hàng - {site_label}")
+        win.geometry("760x520")
+        win.minsize(620, 420)
+        self._wd_color_info_win = win
+
+        def _close():
+            self._wd_color_info_win = None
+            win.destroy()
+
+        win.protocol("WM_DELETE_WINDOW", _close)
+
+        container = ttk.Frame(win, padding=12)
+        container.pack(fill="both", expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(2, weight=1)
+
+        ttk.Label(
+            container,
+            text=(
+                f"Bảng dưới giải thích các màu dòng hiện có trên danh sách {site_label}. "
+                "Một số màu lấy trực tiếp từ cài đặt hiện tại, nên thông tin ở đây luôn đọc theo cấu hình đang bật."
+            ),
+            wraplength=720,
+            justify="left",
+        ).grid(row=0, column=0, sticky="ew")
+
+        summary_var = tk.StringVar(
+            value=f"Tổng dòng đang hiển thị: {total_rows} | Có tô màu: {colored_rows} | Để mặc định: {plain_rows}"
+        )
+        ttk.Label(container, textvariable=summary_var, foreground="#6b7280").grid(row=1, column=0, sticky="w", pady=(6, 10))
+
+        body = ttk.Frame(container)
+        body.grid(row=2, column=0, sticky="nsew")
+        body.columnconfigure(0, weight=1)
+        body.rowconfigure(0, weight=1)
+
+        canvas = tk.Canvas(body, highlightthickness=0, bd=0)
+        scrollbar = ttk.Scrollbar(body, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
+        inner = ttk.Frame(canvas)
+        inner.columnconfigure(1, weight=1)
+        inner_window = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def _on_inner_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def _on_canvas_configure(event):
+            canvas.itemconfigure(inner_window, width=event.width)
+
+        inner.bind("<Configure>", _on_inner_configure)
+        canvas.bind("<Configure>", _on_canvas_configure)
+
+        for idx, item in enumerate(entries, start=1):
+            row = ttk.Frame(inner, padding=(0, 6))
+            row.grid(row=idx - 1, column=0, sticky="ew")
+            row.columnconfigure(1, weight=1)
+
+            swatch = tk.Canvas(row, width=26, height=16, highlightthickness=1, highlightbackground="#9ca3af")
+            swatch.grid(row=0, column=0, rowspan=2, sticky="nw", padx=(0, 10), pady=(2, 0))
+            swatch.create_rectangle(1, 1, 25, 15, fill=item["color"], outline=item["color"])
+
+            title = f"{item['title']}  |  {item['count']} dòng"
+            ttk.Label(row, text=title, font=("TkDefaultFont", 9, "bold")).grid(row=0, column=1, sticky="w")
+            ttk.Label(
+                row,
+                text=f"{item['detail']}  (Màu hiện tại: {item['color']})",
+                wraplength=650,
+                justify="left",
+            ).grid(row=1, column=1, sticky="ew", pady=(2, 0))
+
+        footer = ttk.Label(
+            container,
+            text=(
+                f"Dòng không tô màu hiện tại: {plain_rows}. "
+                "Màu 'Truyện gốc đã hoàn thành' dựa trên lần Kiểm tra cập nhật gần nhất; nếu chưa kiểm tra lại, dữ liệu có thể là cache cũ."
+            ),
+            wraplength=720,
+            justify="left",
+            foreground="#6b7280",
+        )
+        footer.grid(row=3, column=0, sticky="ew", pady=(12, 0))
+
+        btn_frame = ttk.Frame(container)
+        btn_frame.grid(row=4, column=0, sticky="e", pady=(10, 0))
+        ttk.Button(btn_frame, text="Đóng", command=_close).pack(side=tk.RIGHT)
 
     def _wd_on_global_note_select(self, event=None):
         if not self._wd_notes_tree or not self._wd_notes_preview or not self._wd_global_notes_alive():
@@ -4415,8 +4921,8 @@ class WikidichMixin:
             "Kiểm tra cập nhật",
             "Chức năng chỉ kiểm tra các truyện đang hiển thị trong bảng hiện tại.\n"
             "Bạn phải đảm bảo số chương của các truyện hiện lại là mới nhất theo server để các tính năng hoạt động chính xác!\n\n"
-            "Yes: đồng bộ lại số chương từ server (cần đăng nhập) rồi mới kiểm tra cập nhật.\n"
-            "No: chỉ kiểm tra cập nhật (dùng số chương hiện có).",
+            "Yes: đồng bộ lại số chương từ server (cần đăng nhập), rồi kiểm tra cập nhật và quét trạng thái truyện gốc.\n"
+            "No: chỉ kiểm tra cập nhật bằng số chương hiện có, nhưng vẫn quét trạng thái truyện gốc nếu nguồn hỗ trợ.",
             parent=self
         )
         if resp is None:
@@ -4481,7 +4987,15 @@ class WikidichMixin:
                         results[book_id] = diff
                     else:
                         results.pop(book_id, None)
+                origin_changed = False
+                origin_info = self._wd_fetch_origin_status(book, proxies=proxies, headers=fanqie_headers)
+                if isinstance(origin_info, dict):
+                    origin_changed = self._wd_apply_origin_status_info(book, origin_info)
+                    if book_id and isinstance(self.wikidich_data.get("books"), dict) and book_id in self.wikidich_data["books"]:
+                        self._wd_apply_origin_status_info(self.wikidich_data["books"][book_id], origin_info)
                 if idx == 1 or idx % 5 == 0 or idx == total:
+                    if origin_changed:
+                        self._wd_save_cache()
                     _apply_partial_results()
                 self._wd_progress_callback("check_update", idx, total, f"Đang kiểm tra {idx}/{total}")
                 self._wd_ensure_not_cancelled()
@@ -4489,6 +5003,7 @@ class WikidichMixin:
                 if delay > 0:
                     time.sleep(delay)
             self.wd_new_chapters = results
+            self._wd_save_cache()
             self.after(0, lambda: self._wd_refresh_tree(filtered))
             self._wd_set_progress("Hoàn tất kiểm tra cập nhật", total, total)
             if pending_404:
