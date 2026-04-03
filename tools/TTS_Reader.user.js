@@ -51,6 +51,12 @@
             return false;
         }
     })();
+    const PLAYBACK_RATE_MIN = 0.5;
+    const PLAYBACK_RATE_MAX = 4;
+    const PITCH_MIN = 0.7;
+    const PITCH_MAX = 1.4;
+    const VOLUME_MIN = 0;
+    const VOLUME_MAX = 1;
     const SPLIT_NEAR_WINDOW = 80;
     const BREAK_CHARS_STRONG = new Set(Array.from('.!?;:…。！？；：)）]】}』」》"”’'));
     const BREAK_CHARS_COMMA = new Set(Array.from(',，、'));
@@ -150,6 +156,9 @@
         pickMode: false,
         segments: [],
         segmentIndex: 0,
+        playbackPosition: createPlaybackPosition(),
+        progressCompleted: false,
+        statusMessage: '',
         reading: false,
         paused: false,
         utteranceToken: 0,
@@ -388,6 +397,9 @@
                 merged.replaceRules = [];
             }
             merged.replaceEnabled = !!merged.replaceEnabled;
+            merged.rate = clampPlaybackRate(merged.rate);
+            merged.pitch = clampPitch(merged.pitch);
+            merged.volume = clampVolume(merged.volume);
             return merged;
         } catch (err) {
             return { ...DEFAULT_SETTINGS };
@@ -461,6 +473,17 @@
         updatePickModeButton();
     }
 
+    function createPlaybackPosition() {
+        return {
+            segmentIndex: -1,
+            paragraphNumber: 1,
+            chunkNumber: 0,
+            chunkTotal: 0,
+            percent: 0,
+            isTitle: false
+        };
+    }
+
     function setStartParagraphInput(paragraphNumber) {
         if (!state.ui || !state.ui.startInput) {
             return 1;
@@ -469,6 +492,155 @@
         const safe = clampInt(paragraphNumber, 1, max);
         state.ui.startInput.value = String(safe);
         return safe;
+    }
+
+    function getSegmentParagraphNumber(segment) {
+        if (!segment || segment.isTitle) {
+            return 1;
+        }
+        return clampInt(Number(segment.paragraphIndex) + 1, 1, Math.max(1, state.paragraphs.length || 1));
+    }
+
+    function setPlaybackPosition(segment, options) {
+        if (!segment) {
+            state.playbackPosition = createPlaybackPosition();
+            return;
+        }
+
+        const segmentIndex = Number.isFinite(Number(options && options.segmentIndex))
+            ? Number(options.segmentIndex)
+            : state.segmentIndex;
+        const textLength = Math.max(0, String(segment.text || '').length);
+        const ratioValue = Number(options && options.ratio);
+        const ratio = clampNumber(ratioValue, 0, 1, textLength > 0 ? 0 : 1);
+        const next = {
+            segmentIndex,
+            paragraphNumber: getSegmentParagraphNumber(segment),
+            chunkNumber: segment.isTitle ? 0 : Math.max(1, Number(segment.chunkIndex) + 1),
+            chunkTotal: segment.isTitle ? 0 : Math.max(1, Number(segment.chunkTotal) || 1),
+            percent: Math.round(ratio * 100),
+            isTitle: !!segment.isTitle
+        };
+
+        state.playbackPosition = next;
+        if (!next.isTitle) {
+            setStartParagraphInput(next.paragraphNumber);
+        }
+    }
+
+    function syncPlaybackPositionToSegmentIndex(segmentIndex, options) {
+        if (!state.segments.length) {
+            state.playbackPosition = createPlaybackPosition();
+            return;
+        }
+        const idx = clampInt(segmentIndex, 0, state.segments.length - 1);
+        const segment = state.segments[idx];
+        if (!segment) {
+            state.playbackPosition = createPlaybackPosition();
+            return;
+        }
+        setPlaybackPosition(segment, {
+            segmentIndex: idx,
+            ratio: Number(options && options.ratio)
+        });
+    }
+
+    function updatePlaybackPositionFromBoundary(segment, charIndex, segmentIndex) {
+        const length = Math.max(1, String(segment && segment.text ? segment.text : '').length);
+        const safeCharIndex = clampInt(charIndex, 0, length);
+        setPlaybackPosition(segment, {
+            segmentIndex,
+            ratio: safeCharIndex / length
+        });
+    }
+
+    function updatePlaybackPositionFromAudio(audio, segment, segmentIndex) {
+        if (!audio || !segment) {
+            return;
+        }
+        const duration = Number(audio.duration);
+        const currentTime = Number(audio.currentTime);
+        const ratio = (Number.isFinite(duration) && duration > 0 && Number.isFinite(currentTime))
+            ? (currentTime / duration)
+            : 0;
+        setPlaybackPosition(segment, {
+            segmentIndex,
+            ratio
+        });
+    }
+
+    function getPlaybackSnapshot() {
+        const total = state.segments.length;
+        if (total === 0) {
+            return {
+                total: 0,
+                segmentIndex: -1,
+                segment: null,
+                paragraphNumber: 1,
+                chunkNumber: 0,
+                chunkTotal: 0,
+                percent: 0
+            };
+        }
+
+        const tracked = state.playbackPosition || createPlaybackPosition();
+        let segmentIndex = Number.isFinite(Number(tracked.segmentIndex))
+            ? Number(tracked.segmentIndex)
+            : state.segmentIndex;
+        segmentIndex = clampInt(segmentIndex, 0, total - 1);
+
+        const segment = state.segments[segmentIndex] || null;
+        const hasTrackedSegment = !!segment && Number(tracked.segmentIndex) === segmentIndex;
+
+        return {
+            total,
+            segmentIndex,
+            segment,
+            paragraphNumber: hasTrackedSegment ? tracked.paragraphNumber : getSegmentParagraphNumber(segment),
+            chunkNumber: hasTrackedSegment ? tracked.chunkNumber : (segment && !segment.isTitle ? Math.max(1, Number(segment.chunkIndex) + 1) : 0),
+            chunkTotal: hasTrackedSegment ? tracked.chunkTotal : (segment && !segment.isTitle ? Math.max(1, Number(segment.chunkTotal) || 1) : 0),
+            percent: hasTrackedSegment ? clampInt(tracked.percent, 0, 100) : 0
+        };
+    }
+
+    function renderPlaybackSummary(forceDone) {
+        if (!state.ui || !state.ui.currentPos || !state.ui.currentChunk || !state.ui.currentPercent) {
+            return;
+        }
+
+        if (forceDone) {
+            state.ui.currentPos.textContent = 'Hoàn tất';
+            state.ui.currentChunk.textContent = 'Xong';
+            state.ui.currentPercent.textContent = '100%';
+            return;
+        }
+
+        const snapshot = getPlaybackSnapshot();
+        if (!snapshot.segment) {
+            state.ui.currentPos.textContent = 'Chưa có';
+            state.ui.currentChunk.textContent = '-';
+            state.ui.currentPercent.textContent = '0%';
+            return;
+        }
+
+        if (snapshot.segment.isTitle) {
+            state.ui.currentPos.textContent = 'Tiêu đề';
+            state.ui.currentChunk.textContent = '-';
+            state.ui.currentPercent.textContent = '-';
+            return;
+        }
+
+        state.ui.currentPos.textContent = `Đoạn ${snapshot.paragraphNumber}`;
+        state.ui.currentChunk.textContent = `${snapshot.chunkNumber}/${snapshot.chunkTotal}`;
+        state.ui.currentPercent.textContent = `${snapshot.percent}%`;
+    }
+
+    function getResumeParagraphNumber() {
+        const snapshot = getPlaybackSnapshot();
+        if (snapshot.segment && !snapshot.segment.isTitle) {
+            return snapshot.paragraphNumber;
+        }
+        return clampInt(state.ui && state.ui.startInput ? state.ui.startInput.value : 1, 1, Math.max(1, state.paragraphs.length));
     }
 
     function updatePickModeButton() {
@@ -731,8 +903,8 @@
         try {
             speechSynthesis.cancel();
             const utter = new SpeechSynthesisUtterance(msg);
-            utter.rate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
-            utter.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
+            utter.rate = clampPlaybackRate(state.settings.rate);
+            utter.volume = clampVolume(state.settings.volume);
             const voice = getSelectedVoice();
             if (voice) {
                 utter.voice = voice;
@@ -1715,6 +1887,7 @@
 
     function rebuildSegments(options) {
         const preservePlayback = !!(options && options.preservePlayback);
+        const preferredParagraph = getResumeParagraphNumber();
         if (!preservePlayback) {
             stopReading(false);
         } else {
@@ -1727,6 +1900,8 @@
                 try { state.currentAudio.pause(); } catch (err) { /* ignore */ }
                 state.currentAudio.onended = null;
                 state.currentAudio.onerror = null;
+                state.currentAudio.ontimeupdate = null;
+                state.currentAudio.onloadedmetadata = null;
             }
         }
         const configuredMaxChars = clampInt(state.settings.maxChars, 80, 600);
@@ -1783,7 +1958,9 @@
         });
 
         state.segments = segments;
-        state.segmentIndex = 0;
+        state.segmentIndex = state.segments.length ? findSegmentIndexForParagraph(preferredParagraph) : 0;
+        state.progressCompleted = false;
+        syncPlaybackPositionToSegmentIndex(state.segmentIndex);
         updateProgressText();
     }
 
@@ -1997,15 +2174,35 @@
             return;
         }
         try {
-            audio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
+            audio.volume = clampVolume(state.settings.volume);
         } catch (err) {
 
         }
         try {
-            audio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+            audio.playbackRate = clampPlaybackRate(state.settings.rate);
         } catch (err) {
 
         }
+    }
+
+    function clampNumber(value, min, max, fallback) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) {
+            return Number.isFinite(Number(fallback)) ? Number(fallback) : min;
+        }
+        return Math.max(min, Math.min(max, n));
+    }
+
+    function clampPlaybackRate(value) {
+        return clampNumber(value, PLAYBACK_RATE_MIN, PLAYBACK_RATE_MAX, 1);
+    }
+
+    function clampPitch(value) {
+        return clampNumber(value, PITCH_MIN, PITCH_MAX, 1);
+    }
+
+    function clampVolume(value) {
+        return clampNumber(value, VOLUME_MIN, VOLUME_MAX, 1);
     }
 
     function clampInt(value, min, max) {
@@ -2530,6 +2727,36 @@
                     font-size: 12px;
                 }
 
+                .twd-tts-summary-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 6px;
+                    margin-bottom: 8px;
+                }
+
+                .twd-tts-stat {
+                    padding: 8px;
+                    border-radius: 10px;
+                    border: 1px solid var(--wda-border);
+                    background: rgba(255, 255, 255, 0.52);
+                    display: grid;
+                    gap: 3px;
+                }
+
+                .twd-tts-stat-label {
+                    font-size: 10px;
+                    line-height: 1.2;
+                    letter-spacing: 0.04em;
+                    text-transform: uppercase;
+                    color: var(--wda-muted);
+                }
+
+                .twd-tts-stat strong {
+                    font-size: 13px;
+                    line-height: 1.2;
+                    word-break: break-word;
+                }
+
                 .twd-tts-buttons {
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
@@ -2630,6 +2857,11 @@
                     align-items: center;
                 }
 
+                .twd-tts-inline input[readonly] {
+                    font-family: var(--wda-mono);
+                    font-weight: 700;
+                }
+
                 .twd-tts-check {
                     display: block;
                     font-size: 12px;
@@ -2677,6 +2909,25 @@
                     grid-template-columns: 1fr auto;
                     gap: 6px;
                     align-items: center;
+                }
+
+                .twd-tts-advanced {
+                    margin-top: 8px;
+                    border: 1px solid var(--wda-border);
+                    border-radius: 12px;
+                    background: rgba(255, 255, 255, 0.45);
+                    padding: 0 10px 10px 10px;
+                }
+
+                .twd-tts-advanced summary {
+                    cursor: pointer;
+                    font-weight: 800;
+                    user-select: none;
+                    padding: 9px 0;
+                }
+
+                .twd-tts-advanced[open] summary {
+                    margin-bottom: 2px;
                 }
 
                 #twd-cookie-modal {
@@ -2997,7 +3248,7 @@
                 <div class="twd-tts-header" id="twd-tts-drag-handle">
                     <div class="twd-tts-title-wrap">
                         <div class="twd-tts-title">TTS Reader</div>
-                        <div class="twd-tts-subtitle">Speech To Text</div>
+                        <div class="twd-tts-subtitle">Text To Speech</div>
                     </div>
                     <div class="twd-tts-head-actions">
                         <button type="button" id="twd-tts-help" class="twd-tts-help-btn" title="Hướng dẫn">?</button>
@@ -3010,6 +3261,20 @@
                 </div>
                 <div class="twd-tts-body">
                     <section class="twd-tts-card">
+                        <div class="twd-tts-summary-grid">
+                            <div class="twd-tts-stat">
+                                <span class="twd-tts-stat-label">Hiện tại</span>
+                                <strong id="twd-tts-current-pos">Đoạn 1</strong>
+                            </div>
+                            <div class="twd-tts-stat">
+                                <span class="twd-tts-stat-label">Chunk</span>
+                                <strong id="twd-tts-current-chunk">1/1</strong>
+                            </div>
+                            <div class="twd-tts-stat">
+                                <span class="twd-tts-stat-label">Tiến độ</span>
+                                <strong id="twd-tts-current-percent">0%</strong>
+                            </div>
+                        </div>
                         <div class="twd-tts-row twd-tts-status" id="twd-tts-status">Đang khởi tạo...</div>
                         <div class="twd-tts-row twd-tts-buttons">
                             <button type="button" id="twd-tts-play" class="twd-btn-primary">Play</button>
@@ -3017,17 +3282,15 @@
                             <button type="button" id="twd-tts-stop" class="twd-btn-danger">Stop</button>
                             <button type="button" id="twd-tts-next">Next</button>
                         </div>
-	                        <div class="twd-tts-row twd-tts-grid">
-	                            <label>Bắt đầu từ đoạn</label>
-	                            <div class="twd-tts-inline">
-	                                <input id="twd-tts-start" type="number" min="1" step="1" value="1" readonly />
-	                                <button type="button" id="twd-tts-pick-start" class="twd-btn-secondary">Chọn vị trí</button>
-	                            </div>
-	                            <div class="twd-tts-inline">
-	                                <span class="twd-tts-help">Bấm nút, rồi chọn đoạn trên trang để bắt đầu đọc.</span>
-	                            </div>
-	                        </div>
-	                    </section>
+                        <div class="twd-tts-row twd-tts-grid">
+                            <label>Vị trí đọc</label>
+                            <div class="twd-tts-inline">
+                                <input id="twd-tts-start" type="number" min="1" step="1" value="1" readonly />
+                                <button type="button" id="twd-tts-pick-start" class="twd-btn-secondary">Chọn vị trí</button>
+                            </div>
+                            <div class="twd-tts-help">Số này sẽ tự cập nhật theo đoạn đang phát. Bấm nút để chọn lại từ trang.</div>
+                        </div>
+                    </section>
 
                     <section class="twd-tts-card">
                         <div class="twd-tts-row twd-tts-grid">
@@ -3063,52 +3326,55 @@
                     <section class="twd-tts-card">
                         <div class="twd-tts-row twd-tts-grid">
                             <label>Tốc độ (<span id="twd-rate-text">${state.settings.rate.toFixed(2)}</span>)</label>
-                            <input id="twd-rate" type="range" min="0.6" max="1.6" step="0.05" value="${state.settings.rate}" />
+                            <input id="twd-rate" type="range" min="${PLAYBACK_RATE_MIN}" max="${PLAYBACK_RATE_MAX}" step="0.1" value="${state.settings.rate}" />
                         </div>
-                        <div class="twd-tts-row twd-tts-grid">
+                        <div class="twd-tts-row twd-tts-grid" id="twd-pitch-row">
                             <label>Cao độ (<span id="twd-pitch-text">${state.settings.pitch.toFixed(2)}</span>)</label>
-                            <input id="twd-pitch" type="range" min="0.7" max="1.4" step="0.05" value="${state.settings.pitch}" />
+                            <input id="twd-pitch" type="range" min="${PITCH_MIN}" max="${PITCH_MAX}" step="0.05" value="${state.settings.pitch}" />
                         </div>
                         <div class="twd-tts-row twd-tts-grid">
                             <label>Âm lượng (<span id="twd-volume-text">${state.settings.volume.toFixed(2)}</span>)</label>
-                            <input id="twd-volume" type="range" min="0.2" max="1" step="0.05" value="${state.settings.volume}" />
+                            <input id="twd-volume" type="range" min="${VOLUME_MIN}" max="${VOLUME_MAX}" step="0.05" value="${state.settings.volume}" />
                         </div>
-                        <div class="twd-tts-row twd-tts-grid">
-                            <label>Max ký tự/chunk</label>
-                            <input id="twd-maxchars" type="number" min="80" max="600" step="10" value="${state.settings.maxChars}" />
-                        </div>
-                        <div class="twd-tts-row twd-tts-grid">
-                            <label>Delay giữa mục (ms)</label>
-                            <input id="twd-seg-delay" type="number" min="0" max="5000" step="50" value="${clampInt(state.settings.segmentDelayMs, 0, 5000)}" />
-                        </div>
-	                        <div class="twd-tts-row twd-tts-grid">
-	                            <label>Prefetch (remote)</label>
-	                            <div class="twd-tts-small-grid">
-	                                <label class="twd-tts-check" style="margin:0"><input id="twd-prefetch" type="checkbox" ${state.settings.prefetchEnabled ? 'checked' : ''}/> Bật</label>
-	                                <input id="twd-prefetch-count" type="number" min="0" max="6" step="1" value="${clampInt(state.settings.prefetchCount, 0, 6)}" title="Số mục prefetch" />
-	                            </div>
-	                            <div class="twd-tts-help">Áp dụng cho các giọng remote (TikTok, ...). Browser Speech sẽ bỏ qua.</div>
-	                        </div>
-	                        <div class="twd-tts-row twd-tts-grid">
-	                            <label>Remote: Timeout/Retry/Gap</label>
-	                            <div class="twd-tts-small-grid">
-	                                <input id="twd-remote-timeout" type="number" min="3000" max="60000" step="500" value="${clampInt(state.settings.remoteTimeoutMs, 3000, 60000)}" title="Timeout (ms)" />
-	                                <input id="twd-remote-retries" type="number" min="0" max="5" step="1" value="${clampInt(state.settings.remoteRetries, 0, 5)}" title="Retry" />
-	                            </div>
-	                            <div class="twd-tts-inline" style="margin-top:6px">
-	                                <input id="twd-remote-gap" type="number" min="0" max="2000" step="10" value="${clampInt(state.settings.remoteMinGapMs, 0, 2000)}" title="Min gap (ms)" style="width: 100%" />
-	                            </div>
-	                            <div class="twd-tts-help">Áp dụng chung cho TikTok/Google/Bing. Gap là khoảng cách tối thiểu giữa 2 request.</div>
-	                        </div>
-	                        <div class="twd-tts-row twd-tts-grid">
-	                            <label>Thay thế khi đọc</label>
-	                            <div class="twd-tts-small-grid">
-	                                <label class="twd-tts-check" style="margin:0"><input id="twd-repl-enabled" type="checkbox" ${state.settings.replaceEnabled ? 'checked' : ''}/> Bật</label>
-	                                <button type="button" id="twd-repl-open" class="twd-btn-secondary">Cài đặt</button>
-	                            </div>
-	                            <div class="twd-tts-help" id="twd-repl-info"></div>
-	                        </div>
-	                    </section>
+                        <details class="twd-tts-advanced">
+                            <summary>Tùy chỉnh nâng cao</summary>
+                            <div class="twd-tts-row twd-tts-grid">
+                                <label>Max ký tự/chunk</label>
+                                <input id="twd-maxchars" type="number" min="80" max="600" step="10" value="${state.settings.maxChars}" />
+                            </div>
+                            <div class="twd-tts-row twd-tts-grid">
+                                <label>Delay giữa mục (ms)</label>
+                                <input id="twd-seg-delay" type="number" min="0" max="5000" step="50" value="${clampInt(state.settings.segmentDelayMs, 0, 5000)}" />
+                            </div>
+                            <div class="twd-tts-row twd-tts-grid">
+                                <label>Prefetch (remote)</label>
+                                <div class="twd-tts-small-grid">
+                                    <label class="twd-tts-check" style="margin:0"><input id="twd-prefetch" type="checkbox" ${state.settings.prefetchEnabled ? 'checked' : ''}/> Bật</label>
+                                    <input id="twd-prefetch-count" type="number" min="0" max="6" step="1" value="${clampInt(state.settings.prefetchCount, 0, 6)}" title="Số mục prefetch" />
+                                </div>
+                                <div class="twd-tts-help">Áp dụng cho các giọng remote (TikTok, Google, Bing). Browser Speech sẽ bỏ qua.</div>
+                            </div>
+                            <div class="twd-tts-row twd-tts-grid">
+                                <label>Remote: Timeout/Retry/Gap</label>
+                                <div class="twd-tts-small-grid">
+                                    <input id="twd-remote-timeout" type="number" min="3000" max="60000" step="500" value="${clampInt(state.settings.remoteTimeoutMs, 3000, 60000)}" title="Timeout (ms)" />
+                                    <input id="twd-remote-retries" type="number" min="0" max="5" step="1" value="${clampInt(state.settings.remoteRetries, 0, 5)}" title="Retry" />
+                                </div>
+                                <div class="twd-tts-inline" style="margin-top:6px">
+                                    <input id="twd-remote-gap" type="number" min="0" max="2000" step="10" value="${clampInt(state.settings.remoteMinGapMs, 0, 2000)}" title="Min gap (ms)" style="width: 100%" />
+                                </div>
+                                <div class="twd-tts-help">Áp dụng chung cho TikTok/Google/Bing. Gap là khoảng cách tối thiểu giữa 2 request.</div>
+                            </div>
+                            <div class="twd-tts-row twd-tts-grid">
+                                <label>Thay thế khi đọc</label>
+                                <div class="twd-tts-small-grid">
+                                    <label class="twd-tts-check" style="margin:0"><input id="twd-repl-enabled" type="checkbox" ${state.settings.replaceEnabled ? 'checked' : ''}/> Bật</label>
+                                    <button type="button" id="twd-repl-open" class="twd-btn-secondary">Cài đặt</button>
+                                </div>
+                                <div class="twd-tts-help" id="twd-repl-info"></div>
+                            </div>
+                        </details>
+                    </section>
 
                     <section class="twd-tts-card twd-tts-toggle-grid">
                         <label class="twd-tts-check"><input id="twd-autonext" type="checkbox" ${state.settings.autoNext ? 'checked' : ''}/> Tự qua chương sau</label>
@@ -3201,7 +3467,7 @@
 
 	                        <details open>
 	                            <summary>Tóm tắt nhanh (1 phút)</summary>
-	                            <div class="twd-help-p">1) Chọn Nguồn giọng (Browser/TikTok/Google/Bing) và Giọng đọc.\n2) Bấm Play để bắt đầu. Pause để tạm dừng/tiếp tục, Stop để dừng.\n3) Muốn đọc từ vị trí bất kỳ: bấm Chọn vị trí rồi bấm nút tick ở đoạn trên trang (script sẽ đọc luôn từ đó).</div>
+	                            <div class="twd-help-p">1) Chọn Nguồn giọng (Browser/TikTok/Google/Bing) và Giọng đọc.\n2) Bấm Play để bắt đầu. Pause để tạm dừng/tiếp tục, Stop để dừng.\n3) Muốn đọc từ vị trí bất kỳ: bấm Chọn vị trí rồi bấm nút tick ở đoạn trên trang (script sẽ đọc luôn từ đó).\n4) Ô Vị trí đọc sẽ tự cập nhật theo đoạn thực tế đang phát.</div>
 	                        </details>
 
 	                        <details>
@@ -3245,6 +3511,9 @@
             body: shadow.querySelector('.twd-tts-body'),
             dragHandle: shadow.querySelector('#twd-tts-drag-handle'),
             status: shadow.querySelector('#twd-tts-status'),
+            currentPos: shadow.querySelector('#twd-tts-current-pos'),
+            currentChunk: shadow.querySelector('#twd-tts-current-chunk'),
+            currentPercent: shadow.querySelector('#twd-tts-current-percent'),
             playBtn: shadow.querySelector('#twd-tts-play'),
             pauseBtn: shadow.querySelector('#twd-tts-pause'),
             stopBtn: shadow.querySelector('#twd-tts-stop'),
@@ -3289,6 +3558,7 @@
             cookieModalMsg: shadow.querySelector('#twd-cookie-modal-msg'),
             cookieModalText: shadow.querySelector('#twd-cookie-modal-text'),
             rateInput: shadow.querySelector('#twd-rate'),
+            pitchRow: shadow.querySelector('#twd-pitch-row'),
             pitchInput: shadow.querySelector('#twd-pitch'),
             volumeInput: shadow.querySelector('#twd-volume'),
             maxCharsInput: shadow.querySelector('#twd-maxchars'),
@@ -3563,12 +3833,13 @@
         }
 
         ui.rateInput.addEventListener('input', () => {
-            state.settings.rate = Number(ui.rateInput.value);
+            state.settings.rate = clampPlaybackRate(ui.rateInput.value);
+            ui.rateInput.value = String(state.settings.rate);
             ui.rateText.textContent = state.settings.rate.toFixed(2);
 
             if (state.currentAudio) {
                 try {
-                    state.currentAudio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+                    state.currentAudio.playbackRate = clampPlaybackRate(state.settings.rate);
                 } catch (err) {
 
                 }
@@ -3577,17 +3848,19 @@
         });
 
         ui.pitchInput.addEventListener('input', () => {
-            state.settings.pitch = Number(ui.pitchInput.value);
+            state.settings.pitch = clampPitch(ui.pitchInput.value);
+            ui.pitchInput.value = String(state.settings.pitch);
             ui.pitchText.textContent = state.settings.pitch.toFixed(2);
             saveSettings();
         });
 
         ui.volumeInput.addEventListener('input', () => {
-            state.settings.volume = Number(ui.volumeInput.value);
+            state.settings.volume = clampVolume(ui.volumeInput.value);
+            ui.volumeInput.value = String(state.settings.volume);
             ui.volumeText.textContent = state.settings.volume.toFixed(2);
             if (state.currentAudio) {
                 try {
-                    state.currentAudio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
+                    state.currentAudio.volume = clampVolume(state.settings.volume);
                 } catch (err) {
 
                 }
@@ -3655,8 +3928,8 @@
             if (state.currentAudio && state.currentAudio.paused) {
 
                 try {
-                    state.currentAudio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
-                    state.currentAudio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+                    state.currentAudio.volume = clampVolume(state.settings.volume);
+                    state.currentAudio.playbackRate = clampPlaybackRate(state.settings.rate);
                 } catch (err) {
 
                 }
@@ -3709,8 +3982,8 @@
             setMediaSessionPlaybackStateSafe('playing');
             if (state.currentAudio && state.currentAudio.paused) {
                 try {
-                    state.currentAudio.volume = Math.max(0, Math.min(1, Number(state.settings.volume) || 1));
-                    state.currentAudio.playbackRate = Math.max(0.5, Math.min(2, Number(state.settings.rate) || 1));
+                    state.currentAudio.volume = clampVolume(state.settings.volume);
+                    state.currentAudio.playbackRate = clampPlaybackRate(state.settings.rate);
                 } catch (err) {
 
                 }
@@ -3778,6 +4051,7 @@
         const beginPlay = () => {
             const idx = findSegmentIndexForParagraph(paragraphNumber);
             state.segmentIndex = idx;
+            state.progressCompleted = false;
             resetHighlights();
             markParagraphsBeforeSegmentAsRead(idx);
             stopSpeechOnly(true);
@@ -3809,19 +4083,30 @@
 
         state.reading = true;
         state.paused = false;
+        state.progressCompleted = false;
 
         setMediaSessionPlaybackStateSafe('playing');
 
         const segment = state.segments[state.segmentIndex];
         const token = ++state.utteranceToken;
+        state.statusMessage = '';
 
         // Đặt metadata sớm để Android hiện notification ngay từ đoạn đầu (không phải đợi vài đoạn).
         updateMediaSession(getActiveProviderLabel(), segment);
 
         activateSegmentHighlight(segment);
+        setPlaybackPosition(segment, {
+            segmentIndex: state.segmentIndex,
+            ratio: 0
+        });
+        updateProgressText();
 
         if (segment && segment.skipTts) {
             updateStatus('Bỏ qua đoạn chỉ có dấu câu...');
+            setPlaybackPosition(segment, {
+                segmentIndex: state.segmentIndex,
+                ratio: 1
+            });
             updateProgressText();
             completeCurrentSegment(segment);
             return;
@@ -3840,9 +4125,9 @@
 
     function speakSegmentWithBrowser(segment, token) {
         const utter = new SpeechSynthesisUtterance(segment.text);
-        utter.rate = state.settings.rate;
-        utter.pitch = state.settings.pitch;
-        utter.volume = state.settings.volume;
+        utter.rate = clampPlaybackRate(state.settings.rate);
+        utter.pitch = clampPitch(state.settings.pitch);
+        utter.volume = clampVolume(state.settings.volume);
 
         const selectedVoice = getSelectedVoice();
         if (selectedVoice) {
@@ -3856,8 +4141,23 @@
             if (token !== state.utteranceToken) {
                 return;
             }
+            setPlaybackPosition(segment, {
+                segmentIndex: state.segmentIndex,
+                ratio: 0
+            });
             setMediaSessionPlaybackStateSafe('playing');
             updateStatus('Đang đọc...');
+            updateProgressText();
+        };
+
+        utter.onboundary = (event) => {
+            if (token !== state.utteranceToken || !state.reading || state.paused) {
+                return;
+            }
+            if (!event || !Number.isFinite(Number(event.charIndex))) {
+                return;
+            }
+            updatePlaybackPositionFromBoundary(segment, event.charIndex, state.segmentIndex);
             updateProgressText();
         };
 
@@ -3865,6 +4165,11 @@
             if (token !== state.utteranceToken || !state.reading || state.paused) {
                 return;
             }
+            setPlaybackPosition(segment, {
+                segmentIndex: state.segmentIndex,
+                ratio: 1
+            });
+            updateProgressText();
             completeCurrentSegment(segment);
         };
 
@@ -3910,11 +4215,30 @@
 
                 applyAudioSettings(audio);
                 updateMediaSession(provider.label, segment);
+                audio.onloadedmetadata = () => {
+                    if (token !== state.utteranceToken || !state.reading || state.paused) {
+                        return;
+                    }
+                    updatePlaybackPositionFromAudio(audio, segment, segmentIdxSnapshot);
+                    updateProgressText();
+                };
+                audio.ontimeupdate = () => {
+                    if (token !== state.utteranceToken || !state.reading || state.paused) {
+                        return;
+                    }
+                    updatePlaybackPositionFromAudio(audio, segment, segmentIdxSnapshot);
+                    updateProgressText();
+                };
 
                 audio.onended = () => {
                     if (token !== state.utteranceToken || !state.reading || state.paused) {
                         return;
                     }
+                    setPlaybackPosition(segment, {
+                        segmentIndex: segmentIdxSnapshot,
+                        ratio: 1
+                    });
+                    updateProgressText();
                     // Đoạn kế sẽ cần thời gian tạo audio; bật keepalive trong lúc chờ.
                     startSilentAudioKeepAlive();
                     completeCurrentSegment(segment);
@@ -3932,6 +4256,8 @@
                     if (token !== state.utteranceToken) {
                         return;
                     }
+                    updatePlaybackPositionFromAudio(audio, segment, segmentIdxSnapshot);
+                    updateProgressText();
                     // Đã có audio thật => tắt keepalive để không chồng thêm luồng audio phụ.
                     stopSilentAudioKeepAlive();
                     setMediaSessionPlaybackStateSafe('playing');
@@ -4282,11 +4608,7 @@
     function applyReplaceRulesAndRebuild(options) {
         const wasReading = !!state.reading && !state.paused;
         const wasPaused = !!state.reading && !!state.paused;
-
-        const currentSeg = state.segments && state.segments[state.segmentIndex] ? state.segments[state.segmentIndex] : null;
-        const resumeParagraph = (currentSeg && !currentSeg.isTitle && Number.isFinite(Number(currentSeg.paragraphIndex)))
-            ? (Number(currentSeg.paragraphIndex) + 1)
-            : clampInt(state.ui && state.ui.startInput ? state.ui.startInput.value : 1, 1, Math.max(1, state.paragraphs.length));
+        const resumeParagraph = getResumeParagraphNumber();
 
         clearRemoteAudioCache();
         rebuildSegments();
@@ -4295,6 +4617,8 @@
         setStartParagraphInput(resumeParagraph);
 
         const idx = findSegmentIndexForParagraph(resumeParagraph);
+        state.segmentIndex = idx;
+        syncPlaybackPositionToSegmentIndex(idx);
         markParagraphsBeforeSegmentAsRead(idx);
         const seg = state.segments[idx];
         if (seg) {
@@ -4309,7 +4633,6 @@
             return;
         }
         if (wasPaused) {
-            state.segmentIndex = idx;
             state.reading = true;
             state.paused = true;
             updateStatus(reason === 'toggle' ? 'Đã áp dụng thay thế (đang tạm dừng)' : 'Đã lưu thay thế (đang tạm dừng)');
@@ -5199,6 +5522,8 @@
             state.currentAudio.pause();
             state.currentAudio.onended = null;
             state.currentAudio.onerror = null;
+            state.currentAudio.ontimeupdate = null;
+            state.currentAudio.onloadedmetadata = null;
         }
         if (!keepMediaSession) {
             setMediaSessionPlaybackStateSafe('none');
@@ -5352,6 +5677,8 @@
     function stopReading(showStatus) {
         state.reading = false;
         state.paused = false;
+        state.progressCompleted = false;
+        state.statusMessage = '';
         stopSpeechOnly();
         stopSilentAudioKeepAlive();
         clearActiveHighlight();
@@ -5362,8 +5689,10 @@
     }
 
     function finishChapter() {
+        state.progressCompleted = true;
+        state.statusMessage = '';
         clearActiveHighlight();
-        updateProgressText(true);
+        updateProgressText();
 
         if (advanceToNextPartOrChapter()) {
             return;
@@ -5416,38 +5745,35 @@
     }
 
     function updateProgressText(forceDone) {
-        const total = state.segments.length;
+        const done = !!forceDone || !!state.progressCompleted;
+        const snapshot = getPlaybackSnapshot();
+        const total = snapshot.total;
+        renderPlaybackSummary(done);
+
+        let baseText = '';
         if (total === 0) {
-            state.ui.status.textContent = 'Không có đoạn để đọc';
-            return;
+            baseText = 'Không có đoạn để đọc';
+        } else if (done) {
+            baseText = `Đọc xong ${total}/${total} mục`;
+        } else if (!snapshot.segment) {
+            baseText = `Sẵn sàng (${total} mục)`;
+        } else if (snapshot.segment.isTitle) {
+            baseText = `Mục ${snapshot.segmentIndex + 1}/${total}: Tiêu đề`;
+        } else {
+            baseText = `Mục ${snapshot.segmentIndex + 1}/${total}: Đoạn ${snapshot.paragraphNumber}/${Math.max(1, state.paragraphs.length)}`;
+            if (snapshot.chunkTotal > 1) {
+                baseText += ` • chunk ${snapshot.chunkNumber}/${snapshot.chunkTotal}`;
+            }
         }
 
-        if (forceDone) {
-            state.ui.status.textContent = `Đọc xong ${total}/${total} mục`;
-            return;
-        }
-
-        const current = Math.min(state.segmentIndex + 1, total);
-        const currentSeg = state.segments[Math.min(state.segmentIndex, total - 1)];
-        if (!currentSeg) {
-            state.ui.status.textContent = `Sẵn sàng (${total} mục)`;
-            return;
-        }
-
-        if (currentSeg.isTitle) {
-            state.ui.status.textContent = `Mục ${current}/${total}: Tiêu đề`;
-            return;
-        }
-
-        state.ui.status.textContent = `Mục ${current}/${total}: Đoạn ${currentSeg.paragraphIndex + 1}/${Math.max(1, state.paragraphs.length)}`;
+        state.ui.status.textContent = state.statusMessage
+            ? `${baseText} | ${state.statusMessage}`
+            : baseText;
     }
 
     function updateStatus(text) {
+        state.statusMessage = String(text || '').trim();
         updateProgressText();
-        if (!text) {
-            return;
-        }
-        state.ui.status.textContent = `${state.ui.status.textContent} | ${text}`;
     }
 
     function initVoiceList() {
@@ -5587,6 +5913,9 @@
         }
         if (ui.prefetchCountInput) {
             ui.prefetchCountInput.value = String(clampInt(state.settings.prefetchCount, 0, 6));
+        }
+        if (ui.pitchRow) {
+            ui.pitchRow.classList.toggle('twd-tts-hidden', !isBrowser);
         }
         ui.pitchInput.disabled = !isBrowser;
         ui.pitchInput.title = !isBrowser ? 'Giọng remote không hỗ trợ pitch' : '';

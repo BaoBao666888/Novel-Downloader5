@@ -29,6 +29,7 @@ Script `TTS Reader` dùng để đọc tiêu đề + nội dung chương bằng 
 3. Chọn:
    - `Nguồn giọng` (Browser/TikTok/Google/Bing)
    - `Giọng đọc`
+   - Nếu cần chỉnh sâu hơn thì mở `Tùy chỉnh nâng cao`
 4. Bấm `Play` để bắt đầu.
 5. Bấm `?` (nút hướng dẫn) trên header của panel để xem hướng dẫn ngay trong UI.
 
@@ -38,11 +39,13 @@ Script `TTS Reader` dùng để đọc tiêu đề + nội dung chương bằng 
 - `Stop`: dừng hẳn
 - `Next`: bỏ qua đoạn hiện tại và đọc đoạn kế tiếp
 - `Chọn vị trí`: bật chế độ chọn đoạn trên trang; chọn xong sẽ tự đọc luôn từ đoạn đó
+- `Vị trí đọc`: tự cập nhật theo đoạn đang phát thực tế, nên dừng giữa chừng rồi phát lại sẽ dễ bám đúng vị trí hơn
 
 ## 5) Tùy chọn quan trọng
 - `Tốc độ` / `Âm lượng`:
   - Browser Speech: áp dụng cho SpeechSynthesis.
   - TikTok/Google/Bing: áp dụng cho audio phát ra (rate/volume). (Pitch không áp dụng cho remote.)
+  - Bản hiện tại đã nới trần tốc độ đọc cao hơn trước. Bạn có thể kéo lên tới `4.0x` nếu trình duyệt/thiết bị phát ổn.
 - `Max ký tự/chunk`:
   - TikTok/Google sẽ tự giới hạn 200 ký tự (kể cả bạn set cao hơn).
   - Bing có thể cao hơn.
@@ -50,6 +53,7 @@ Script `TTS Reader` dùng để đọc tiêu đề + nội dung chương bằng 
 - `Prefetch (remote)`: tải trước vài đoạn cho TikTok/Google/Bing để chuyển đoạn nhanh hơn.
 - `Remote: Timeout/Retry/Gap`: timeout/retry/gap dùng chung cho các giọng remote.
 - `Thay thế khi đọc`: thay cụm từ khi đọc (giá trị thay thế sẽ được trim; để trống nghĩa là xóa khỏi câu đọc).
+- Các mục `Max ký tự/chunk`, `Delay`, `Prefetch`, `Remote`, `Thay thế khi đọc` được gom trong `Tùy chỉnh nâng cao` để panel gọn hơn.
 
 ## 6) TikTok TTS: Cookie và cách nhập
 TikTok TTS cần cookie phiên (ví dụ: `sessionid`, `sid_tt`, `sid_guard`). Đây là dữ liệu nhạy cảm, tương đương đăng nhập.
