@@ -1,5 +1,6 @@
-import { initShell } from "../site_common.js?v=20260308-junk1";
+import { initShell } from "../site_common.js?v=20260405-name1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260308-br3";
+import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),
@@ -48,6 +49,7 @@ const refs = {
   nameDictScopeSelect: document.getElementById("name-dict-scope-select"),
   btnAddNameSet: document.getElementById("btn-add-name-set"),
   btnDeleteNameSet: document.getElementById("btn-delete-name-set"),
+  btnQuickAddNameSet: document.getElementById("btn-quick-add-name-set"),
   btnExportNameSet: document.getElementById("btn-export-name-set"),
   btnImportNameSet: document.getElementById("btn-import-name-set"),
   nameSetImportFile: document.getElementById("name-set-import-file"),
@@ -67,6 +69,15 @@ const refs = {
   nameColTarget: document.getElementById("name-col-target"),
   nameColCount: document.getElementById("name-col-count"),
   nameColAction: document.getElementById("name-col-action"),
+  nameBulkDialog: document.getElementById("name-bulk-dialog"),
+  nameBulkTitle: document.getElementById("name-bulk-title"),
+  btnCloseNameBulk: document.getElementById("btn-close-name-bulk"),
+  nameBulkForm: document.getElementById("name-bulk-form"),
+  nameBulkHint: document.getElementById("name-bulk-hint"),
+  nameBulkInputLabel: document.getElementById("name-bulk-input-label"),
+  nameBulkInput: document.getElementById("name-bulk-input"),
+  btnCancelNameBulk: document.getElementById("btn-cancel-name-bulk"),
+  btnConfirmNameBulk: document.getElementById("btn-confirm-name-bulk"),
   nameSuggestDialog: document.getElementById("name-suggest-dialog"),
   nameSuggestTitle: document.getElementById("name-suggest-title"),
   btnCloseNameSuggest: document.getElementById("btn-close-name-suggest"),
@@ -1540,86 +1551,116 @@ function refreshNameSourceSuggestions(extraItems = []) {
   updateNameSourceSuggestions(merged);
 }
 
-function buildNameSetExportData() {
-  const entries = getCurrentDictEntries();
-  const payload = {
-    type: "reader_dict_set",
-    version: 2,
-    scope: state.nameDictScope,
-    dict_type: state.nameDictType,
-    book_id: state.bookId,
-    exported_at: new Date().toISOString(),
-  };
-  if (isNameBookScope()) {
-    const active = state.activeNameSet || "Mặc định";
-    return {
-      ...payload,
+function normalizeNameEntries(entries) {
+  const result = {};
+  for (const [rawSource, rawTarget] of Object.entries(entries || {})) {
+    const source = String(rawSource || "").trim();
+    const target = String(rawTarget || "").trim();
+    if (!source || !target) continue;
+    result[source] = target;
+  }
+  return result;
+}
+
+function buildNameSetExportText() {
+  return serializeNameSetText(getCurrentDictEntries());
+}
+
+function parseNameEntriesOrThrow(rawText) {
+  const parsed = parseNameSetText(rawText);
+  if (!parsed.entryCount) {
+    throw new Error(state.shell.t("nameSetImportInvalid"));
+  }
+  return normalizeNameEntries(parsed.entries);
+}
+
+async function saveBookVpEntries(entries, { replace = false } = {}) {
+  const current = normalizeNameEntries(state.bookVpDict || {});
+  const nextEntries = replace ? normalizeNameEntries(entries) : { ...current, ...normalizeNameEntries(entries) };
+  if (replace) {
+    for (const source of Object.keys(current)) {
+      if (Object.prototype.hasOwnProperty.call(nextEntries, source)) continue;
+      await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dict_type: "vp", source, target: "" }),
+      });
+    }
+  }
+  for (const [source, target] of Object.entries(nextEntries)) {
+    await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dict_type: "vp", source, target }),
+    });
+  }
+}
+
+async function saveCurrentDictEntries(entries, { replace = false } = {}) {
+  const incoming = normalizeNameEntries(entries);
+  if (state.nameDictScope === "global") {
+    const nextEntries = replace ? incoming : { ...normalizeNameEntries(getCurrentDictEntries()), ...incoming };
+    await state.shell.api("/api/local-dicts/global", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state.nameDictType === "vp" ? { vp: nextEntries } : { name: nextEntries }),
+    });
+    return;
+  }
+  if (state.nameDictType === "vp") {
+    await saveBookVpEntries(incoming, { replace });
+    return;
+  }
+  const active = state.activeNameSet || "Mặc định";
+  const nextEntries = replace ? incoming : { ...normalizeNameEntries(getCurrentDictEntries()), ...incoming };
+  await state.shell.api("/api/name-sets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sets: { ...state.nameSets, [active]: nextEntries },
       active_set: active,
-      sets: { [active]: entries },
-    };
-  }
-  return {
-    ...payload,
-    entries,
-  };
+      bump_version: true,
+      book_id: state.bookId,
+    }),
+  });
 }
 
-function downloadNameSetJson(data, filenameBase = "name_set") {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${filenameBase}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+async function applyCurrentDictEntries(entries, { replace = false, toastKey = "nameSetImported" } = {}) {
+  const nextEntries = normalizeNameEntries(entries);
+  if (!Object.keys(nextEntries).length) {
+    state.shell.showToast(state.shell.t("nameSetImportInvalid"));
+    return false;
+  }
+  state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
+  const preserveRatio = currentChapterRatio();
+  try {
+    await saveCurrentDictEntries(nextEntries, { replace });
+    clearChapterCache();
+    cancelPrefetch();
+    await refreshNameEditorData();
+    if (state.bookId) {
+      await loadBook();
+    }
+    if (state.chapterId) {
+      await loadChapter({ resetFlip: true, preserveRatio });
+    }
+    if (toastKey) {
+      state.shell.showToast(state.shell.t(toastKey));
+    }
+    return true;
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+    return false;
+  } finally {
+    state.shell.hideStatus();
+  }
 }
 
-function normalizeImportedNameSet(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  const dictType = String(payload.dict_type || state.nameDictType || "name").trim().toLowerCase() === "vp" ? "vp" : "name";
-  const scope = String(payload.scope || state.nameDictScope || "book").trim().toLowerCase() === "global" ? "global" : "book";
-  if (!(dictType === "name" && scope === "book")) {
-    const entries = payload.entries && typeof payload.entries === "object"
-      ? payload.entries
-      : (payload.sets && payload.active_set && payload.sets[payload.active_set]) || null;
-    if (!entries || typeof entries !== "object") return null;
-    return {
-      dict_type: dictType,
-      scope,
-      entries,
-    };
-  }
-  if (payload.sets && typeof payload.sets === "object") {
-    const activeSet = String(payload.active_set || Object.keys(payload.sets)[0] || "Mặc định");
-    return {
-      sets: payload.sets,
-      active_set: activeSet,
-      bump_version: true,
-      book_id: state.bookId,
-    };
-  }
-  if (payload.entries && typeof payload.entries === "object") {
-    const setName = String(payload.set_name || state.activeNameSet || "Mặc định");
-    return {
-      sets: { [setName]: payload.entries },
-      active_set: setName,
-      bump_version: true,
-      book_id: state.bookId,
-    };
-  }
-  const plainEntries = payload;
-  if (plainEntries && typeof plainEntries === "object") {
-    const setName = String(state.activeNameSet || "Mặc định");
-    return {
-      sets: { [setName]: plainEntries },
-      active_set: setName,
-      bump_version: true,
-      book_id: state.bookId,
-    };
-  }
-  return null;
+function openNameBulkDialog() {
+  if (!refs.nameBulkDialog) return;
+  refs.nameBulkForm.reset();
+  refs.nameBulkDialog.showModal();
+  if (refs.nameBulkInput) refs.nameBulkInput.focus();
 }
 
 async function refreshNamePreview() {
@@ -1785,64 +1826,35 @@ async function deleteActiveNameSet() {
 function exportActiveNameSet() {
   if (!isNameBookScope()) {
     const fileName = `dict_${state.nameDictType}_${state.nameDictScope}`.replace(/[^\w\-]+/g, "_");
-    downloadNameSetJson(buildNameSetExportData(), fileName);
+    downloadPlainTextFile(buildNameSetExportText(), `${fileName}.txt`);
     return;
   }
   const active = state.activeNameSet || "Mặc định";
   const fileName = `name_set_${active}`.replace(/[^\w\-]+/g, "_");
-  downloadNameSetJson(buildNameSetExportData(), fileName);
+  downloadPlainTextFile(buildNameSetExportText(), `${fileName}.txt`);
 }
 
 async function importNameSetFromFile(file) {
   if (!file) return;
-  state.shell.showStatus(state.shell.t("statusLoadingNamePreview"));
   try {
     const raw = await file.text();
-    const parsed = JSON.parse(raw);
-    const payload = normalizeImportedNameSet(parsed);
-    if (!payload) {
-      throw new Error(state.shell.t("nameSetImportInvalid"));
-    }
-    if (payload.entries && payload.dict_type) {
-      if (payload.scope === "global") {
-        await state.shell.api("/api/local-dicts/global", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload.dict_type === "vp" ? { vp: payload.entries } : { name: payload.entries }),
-        });
-      } else if (payload.dict_type === "vp") {
-        for (const [source, target] of Object.entries(payload.entries || {})) {
-          await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ dict_type: "vp", source, target }),
-          });
-        }
-      } else {
-        await state.shell.api("/api/name-sets", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sets: { [state.activeNameSet || "Mặc định"]: payload.entries },
-            active_set: state.activeNameSet || "Mặc định",
-            bump_version: true,
-            book_id: state.bookId,
-          }),
-        });
-      }
-    } else {
-      await state.shell.api("/api/name-sets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    }
-    await refreshNameEditorData();
-    state.shell.showToast(state.shell.t("nameSetImported"));
+    const entries = parseNameEntriesOrThrow(raw);
+    await applyCurrentDictEntries(entries, { replace: true, toastKey: "nameSetImported" });
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
-  } finally {
-    state.shell.hideStatus();
+  }
+}
+
+async function submitQuickAddNameEntries(event) {
+  event.preventDefault();
+  try {
+    const entries = parseNameEntriesOrThrow(refs.nameBulkInput ? refs.nameBulkInput.value : "");
+    const applied = await applyCurrentDictEntries(entries, { replace: false, toastKey: "nameSetQuickAddApplied" });
+    if (applied && refs.nameBulkDialog) {
+      refs.nameBulkDialog.close();
+    }
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
   }
 }
 
@@ -2434,6 +2446,7 @@ function bindNameEditor() {
   refs.btnRefreshNamePreview.textContent = state.shell.t("refreshNamePreview");
   refs.btnAddNameSet.textContent = state.shell.t("nameSetAdd");
   refs.btnDeleteNameSet.textContent = state.shell.t("nameSetDelete");
+  refs.btnQuickAddNameSet.textContent = state.shell.t("nameSetQuickAdd");
   refs.btnExportNameSet.textContent = state.shell.t("nameSetExport");
   refs.btnImportNameSet.textContent = state.shell.t("nameSetImport");
   refs.nameSetLabel.textContent = state.shell.t("nameSetLabel");
@@ -2445,6 +2458,13 @@ function bindNameEditor() {
   refs.nameColTarget.textContent = state.shell.t("nameColTarget");
   refs.nameColCount.textContent = state.shell.t("nameColType");
   refs.nameColAction.textContent = state.shell.t("nameColAction");
+  refs.nameBulkTitle.textContent = state.shell.t("nameSetQuickAddTitle");
+  refs.btnCloseNameBulk.textContent = state.shell.t("close");
+  refs.nameBulkHint.textContent = state.shell.t("nameSetQuickAddHint");
+  refs.nameBulkInputLabel.textContent = state.shell.t("nameSetQuickAddInput");
+  refs.nameBulkInput.placeholder = state.shell.t("nameSetQuickAddPlaceholder");
+  refs.btnCancelNameBulk.textContent = state.shell.t("cancel");
+  refs.btnConfirmNameBulk.textContent = state.shell.t("nameSetQuickAdd");
   refs.namePreviewHint.textContent = state.shell.t("namePreviewEmpty");
   refs.nameSuggestTitle.textContent = state.shell.t("nameSuggestTitle");
   refs.btnCloseNameSuggest.textContent = state.shell.t("close");
@@ -2484,7 +2504,13 @@ function bindNameEditor() {
 
   refs.btnOpenNameEditor.addEventListener("click", () => openNameEditor({}));
   refs.btnCloseNameEditor.addEventListener("click", () => refs.nameEditorDialog.close());
+  refs.btnCloseNameBulk.addEventListener("click", () => refs.nameBulkDialog.close());
   refs.btnCloseNameSuggest.addEventListener("click", () => refs.nameSuggestDialog.close());
+  refs.btnCancelNameBulk.addEventListener("click", () => refs.nameBulkDialog.close());
+  refs.nameBulkDialog.addEventListener("close", () => {
+    if (refs.nameBulkForm) refs.nameBulkForm.reset();
+  });
+  refs.nameBulkForm.addEventListener("submit", submitQuickAddNameEntries);
   if (refs.btnCloseSelectionJunk) refs.btnCloseSelectionJunk.addEventListener("click", () => {
     if (refs.selectionJunkDialog) refs.selectionJunkDialog.close();
   });
@@ -2530,6 +2556,7 @@ function bindNameEditor() {
   refs.btnRefreshNamePreview.addEventListener("click", refreshNamePreview);
   refs.btnAddNameSet.addEventListener("click", addNameSet);
   refs.btnDeleteNameSet.addEventListener("click", deleteActiveNameSet);
+  refs.btnQuickAddNameSet.addEventListener("click", openNameBulkDialog);
   refs.btnExportNameSet.addEventListener("click", exportActiveNameSet);
   refs.btnImportNameSet.addEventListener("click", () => refs.nameSetImportFile.click());
   refs.nameSetImportFile.addEventListener("change", async () => {

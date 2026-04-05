@@ -1,5 +1,6 @@
-import { initShell } from "../site_common.js?v=20260308-rcfg1";
+import { initShell } from "../site_common.js?v=20260405-name1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
+import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
 const refs = {
   bookInfoTitle: document.getElementById("book-info-title"),
@@ -65,6 +66,7 @@ const refs = {
   btnBookNameRefresh: document.getElementById("btn-book-name-refresh"),
   btnBookNameAddSet: document.getElementById("btn-book-name-add-set"),
   btnBookNameDelSet: document.getElementById("btn-book-name-del-set"),
+  btnBookNameQuickAdd: document.getElementById("btn-book-name-quick-add"),
   btnBookNameExport: document.getElementById("btn-book-name-export"),
   btnBookNameImport: document.getElementById("btn-book-name-import"),
   bookNameImportFile: document.getElementById("book-name-import-file"),
@@ -76,6 +78,15 @@ const refs = {
   bookNameTarget: document.getElementById("book-name-target"),
   btnBookNameSaveEntry: document.getElementById("btn-book-name-save-entry"),
   bookNameBody: document.getElementById("book-name-body"),
+  bookNameBulkDialog: document.getElementById("book-name-bulk-dialog"),
+  bookNameBulkTitle: document.getElementById("book-name-bulk-title"),
+  btnCloseBookNameBulk: document.getElementById("btn-close-book-name-bulk"),
+  bookNameBulkForm: document.getElementById("book-name-bulk-form"),
+  bookNameBulkHint: document.getElementById("book-name-bulk-hint"),
+  bookNameBulkInputLabel: document.getElementById("book-name-bulk-input-label"),
+  bookNameBulkInput: document.getElementById("book-name-bulk-input"),
+  btnCancelBookNameBulk: document.getElementById("btn-cancel-book-name-bulk"),
+  btnConfirmBookNameBulk: document.getElementById("btn-confirm-book-name-bulk"),
 };
 
 const state = {
@@ -688,7 +699,7 @@ async function updateBookNameEntry(source, target, del = false) {
         book_id: state.bookId,
       }),
     });
-    await loadBookNameSets();
+    await refreshBookNameEffects();
     state.shell.showToast(state.shell.t("nameEntryApplied"));
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
@@ -697,61 +708,98 @@ async function updateBookNameEntry(source, target, del = false) {
   }
 }
 
-function buildBookNameExportData() {
+function normalizeBookNameEntries(entries) {
+  const result = {};
+  for (const [rawSource, rawTarget] of Object.entries(entries || {})) {
+    const source = String(rawSource || "").trim();
+    const target = String(rawTarget || "").trim();
+    if (!source || !target) continue;
+    result[source] = target;
+  }
+  return result;
+}
+
+function buildBookNameExportText() {
   const active = state.bookActiveNameSet || "Mặc định";
-  const entries = state.bookNameSets[active] || {};
-  return {
-    type: "reader_name_set",
-    version: 1,
-    book_id: state.bookId,
-    active_set: active,
-    sets: { [active]: entries },
-    exported_at: new Date().toISOString(),
-  };
+  return serializeNameSetText(state.bookNameSets[active] || {});
 }
 
-function downloadBookNameJson(data, filenameBase = "book_name_set") {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${filenameBase}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+function parseBookNameEntriesOrThrow(rawText) {
+  const parsed = parseNameSetText(rawText);
+  if (!parsed.entryCount) {
+    throw new Error(state.shell.t("nameSetImportInvalid"));
+  }
+  return normalizeBookNameEntries(parsed.entries);
 }
 
-function normalizeBookImportedNameSet(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  if (payload.sets && typeof payload.sets === "object") {
-    const activeSet = String(payload.active_set || Object.keys(payload.sets)[0] || "Mặc định");
-    return {
-      sets: payload.sets,
-      active_set: activeSet,
+async function refreshBookNameEffects() {
+  const keepPage = Math.max(1, Number(state.pagination.page || 1));
+  await Promise.all([
+    loadBookNameSets(),
+    loadBook({ silent: true, suppressToast: true }),
+  ]);
+  if (state.book) {
+    await loadToc(keepPage, { silent: true, suppressToast: true });
+  }
+}
+
+async function saveBookNameEntries(entries, { replace = false } = {}) {
+  const active = state.bookActiveNameSet || "Mặc định";
+  const nextEntries = replace
+    ? normalizeBookNameEntries(entries)
+    : { ...normalizeBookNameEntries(state.bookNameSets[active] || {}), ...normalizeBookNameEntries(entries) };
+  await state.shell.api("/api/name-sets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sets: { ...state.bookNameSets, [active]: nextEntries },
+      active_set: active,
       bump_version: true,
       book_id: state.bookId,
-    };
+    }),
+  });
+}
+
+async function applyBookNameEntries(entries, { replace = false, toastKey = "nameSetImported" } = {}) {
+  const nextEntries = normalizeBookNameEntries(entries);
+  if (!Object.keys(nextEntries).length) {
+    state.shell.showToast(state.shell.t("nameSetImportInvalid"));
+    return false;
   }
-  if (payload.entries && typeof payload.entries === "object") {
-    const setName = String(payload.set_name || state.bookActiveNameSet || "Mặc định");
-    return {
-      sets: { [setName]: payload.entries },
-      active_set: setName,
-      bump_version: true,
-      book_id: state.bookId,
-    };
+  state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
+  try {
+    await saveBookNameEntries(nextEntries, { replace });
+    await refreshBookNameEffects();
+    if (toastKey) {
+      state.shell.showToast(state.shell.t(toastKey));
+    }
+    return true;
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+    return false;
+  } finally {
+    state.shell.hideStatus();
   }
-  if (typeof payload === "object") {
-    const setName = String(state.bookActiveNameSet || "Mặc định");
-    return {
-      sets: { [setName]: payload },
-      active_set: setName,
-      bump_version: true,
-      book_id: state.bookId,
-    };
+}
+
+function openBookNameBulkDialog() {
+  if (!refs.bookNameBulkDialog) return;
+  refs.bookNameBulkForm.reset();
+  refs.bookNameBulkDialog.showModal();
+  if (refs.bookNameBulkInput) refs.bookNameBulkInput.focus();
+}
+
+async function submitBookNameBulkEntries(event) {
+  event.preventDefault();
+  try {
+    const entries = parseBookNameEntriesOrThrow(refs.bookNameBulkInput ? refs.bookNameBulkInput.value : "");
+    const applied = await applyBookNameEntries(entries, { replace: false, toastKey: "nameSetQuickAddApplied" });
+    if (applied && refs.bookNameBulkDialog) {
+      refs.bookNameBulkDialog.close();
+    }
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
   }
-  return null;
 }
 
 async function loadBookNameSets() {
@@ -846,11 +894,19 @@ async function init() {
   refs.btnBookNameRefresh.textContent = state.shell.t("refreshNamePreview");
   refs.btnBookNameAddSet.textContent = state.shell.t("nameSetAdd");
   refs.btnBookNameDelSet.textContent = state.shell.t("nameSetDelete");
+  refs.btnBookNameQuickAdd.textContent = state.shell.t("nameSetQuickAdd");
   refs.btnBookNameExport.textContent = state.shell.t("nameSetExport");
   refs.btnBookNameImport.textContent = state.shell.t("nameSetImport");
   refs.bookNameSetLabel.textContent = state.shell.t("nameSetLabel");
   refs.bookNameCount.textContent = state.shell.t("bookNameCount", { count: 0 });
   refs.btnBookNameSaveEntry.textContent = state.shell.t("addNameEntry");
+  refs.bookNameBulkTitle.textContent = state.shell.t("nameSetQuickAddTitle");
+  refs.btnCloseBookNameBulk.textContent = state.shell.t("close");
+  refs.bookNameBulkHint.textContent = state.shell.t("nameSetQuickAddHint");
+  refs.bookNameBulkInputLabel.textContent = state.shell.t("nameSetQuickAddInput");
+  refs.bookNameBulkInput.placeholder = state.shell.t("nameSetQuickAddPlaceholder");
+  refs.btnCancelBookNameBulk.textContent = state.shell.t("cancel");
+  refs.btnConfirmBookNameBulk.textContent = state.shell.t("nameSetQuickAdd");
 
   refs.btnOpenExtraLink.addEventListener("click", () => {
     if (!state.book || !state.book.extra_link) return;
@@ -868,6 +924,12 @@ async function init() {
   refs.btnOpenBookEdit.addEventListener("click", () => refs.bookEditDialog.showModal());
   refs.btnCloseBookEdit.addEventListener("click", () => refs.bookEditDialog.close());
   refs.btnCloseBookNames.addEventListener("click", () => refs.bookNameDialog.close());
+  refs.btnCloseBookNameBulk.addEventListener("click", () => refs.bookNameBulkDialog.close());
+  refs.btnCancelBookNameBulk.addEventListener("click", () => refs.bookNameBulkDialog.close());
+  refs.bookNameBulkDialog.addEventListener("close", () => {
+    if (refs.bookNameBulkForm) refs.bookNameBulkForm.reset();
+  });
+  refs.bookNameBulkForm.addEventListener("submit", submitBookNameBulkEntries);
   refs.btnBookNameRefresh.addEventListener("click", loadBookNameSets);
   refs.btnBookNameAddSet.addEventListener("click", async () => {
     const setName = window.prompt(state.shell.t("promptNameSetNew"), "");
@@ -885,7 +947,7 @@ async function init() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sets, active_set: trimmed, bump_version: false, book_id: state.bookId }),
       });
-      await loadBookNameSets();
+      await refreshBookNameEffects();
     } catch (error) {
       state.shell.showToast(error.message || state.shell.t("toastError"));
     } finally {
@@ -911,42 +973,30 @@ async function init() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sets: nextSets, active_set: nextActive, bump_version: false, book_id: state.bookId }),
       });
-      await loadBookNameSets();
+      await refreshBookNameEffects();
     } catch (error) {
       state.shell.showToast(error.message || state.shell.t("toastError"));
     } finally {
       state.shell.hideStatus();
     }
   });
+  refs.btnBookNameQuickAdd.addEventListener("click", openBookNameBulkDialog);
   refs.btnBookNameExport.addEventListener("click", () => {
     const active = state.bookActiveNameSet || "Mặc định";
     const filename = `book_name_set_${active}`.replace(/[^\w\-]+/g, "_");
-    downloadBookNameJson(buildBookNameExportData(), filename);
+    downloadPlainTextFile(buildBookNameExportText(), `${filename}.txt`);
   });
   refs.btnBookNameImport.addEventListener("click", () => refs.bookNameImportFile.click());
   refs.bookNameImportFile.addEventListener("change", async () => {
     const file = refs.bookNameImportFile.files && refs.bookNameImportFile.files[0];
     refs.bookNameImportFile.value = "";
     if (!file) return;
-    state.shell.showStatus(state.shell.t("statusLoadingBookNames"));
     try {
       const raw = await file.text();
-      const parsed = JSON.parse(raw);
-      const payload = normalizeBookImportedNameSet(parsed);
-      if (!payload) {
-        throw new Error(state.shell.t("nameSetImportInvalid"));
-      }
-      await state.shell.api("/api/name-sets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      await loadBookNameSets();
-      state.shell.showToast(state.shell.t("nameSetImported"));
+      const entries = parseBookNameEntriesOrThrow(raw);
+      await applyBookNameEntries(entries, { replace: true, toastKey: "nameSetImported" });
     } catch (error) {
       state.shell.showToast(error.message || state.shell.t("toastError"));
-    } finally {
-      state.shell.hideStatus();
     }
   });
   refs.bookNameEntryForm.addEventListener("submit", async (event) => {
@@ -973,6 +1023,10 @@ async function init() {
       state.bookNameSets = data.sets || state.bookNameSets;
       state.bookActiveNameSet = data.active_set || chosen;
       renderBookNameRows();
+      await loadBook({ silent: true, suppressToast: true });
+      if (state.book) {
+        await loadToc(Math.max(1, Number(state.pagination.page || 1)), { silent: true, suppressToast: true });
+      }
     } catch (error) {
       state.shell.showToast(error.message || state.shell.t("toastError"));
     } finally {

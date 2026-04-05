@@ -212,8 +212,9 @@
         <button id="btn-refresh-name-preview" class="btn btn-small" type="button"></button>
         <button id="btn-add-name-set" class="btn btn-small" type="button"></button>
         <button id="btn-delete-name-set" class="btn btn-small" type="button"></button>
+        <button id="btn-quick-add-name-set" class="btn btn-small" type="button"></button>
         <button id="btn-export-name-set" class="btn btn-small" type="button"></button>
-        <input id="name-set-import-file" type="file" accept=".json,application/json" hidden>
+        <input id="name-set-import-file" type="file" accept=".txt,text/plain" hidden>
         <button id="btn-import-name-set" class="btn btn-small" type="button"></button>
       </div>
     </div>
@@ -243,6 +244,24 @@
         </table>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="name-bulk-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="name-bulk-title"></h3>
+      <button id="btn-close-name-bulk" class="btn btn-small" type="button"></button>
+    </div>
+    <form id="name-bulk-form" class="name-bulk-form">
+      <p id="name-bulk-hint" class="empty-text"></p>
+      <label>
+        <span id="name-bulk-input-label"></span>
+        <textarea id="name-bulk-input" rows="10" spellcheck="false"></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button id="btn-cancel-name-bulk" class="btn btn-small" type="button"></button>
+        <button id="btn-confirm-name-bulk" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
   </dialog>
 
   <dialog id="name-suggest-dialog" class="dialog name-editor-dialog">
@@ -426,7 +445,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260308-junk3"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260405-name1"></script>
 </body>
 
 </html>

@@ -2818,6 +2818,16 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   font-size: 13px;
 }
 
+.name-bulk-form {
+  display: grid;
+  gap: 10px;
+}
+
+.name-bulk-form textarea {
+  min-height: min(42vh, 320px);
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Fira Code", Consolas, monospace;
+}
+
 .name-preview-wrap {
   border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   border-radius: 12px;

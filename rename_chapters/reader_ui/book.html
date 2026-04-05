@@ -228,8 +228,9 @@
         <button id="btn-book-name-refresh" class="btn btn-small" type="button"></button>
         <button id="btn-book-name-add-set" class="btn btn-small" type="button"></button>
         <button id="btn-book-name-del-set" class="btn btn-small" type="button"></button>
+        <button id="btn-book-name-quick-add" class="btn btn-small" type="button"></button>
         <button id="btn-book-name-export" class="btn btn-small" type="button"></button>
-        <input id="book-name-import-file" type="file" accept=".json,application/json" hidden>
+        <input id="book-name-import-file" type="file" accept=".txt,text/plain" hidden>
         <button id="btn-book-name-import" class="btn btn-small" type="button"></button>
       </div>
       <p id="book-name-count" class="empty-text"></p>
@@ -253,6 +254,24 @@
         </table>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="book-name-bulk-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="book-name-bulk-title"></h3>
+      <button id="btn-close-book-name-bulk" class="btn btn-small" type="button"></button>
+    </div>
+    <form id="book-name-bulk-form" class="name-bulk-form">
+      <p id="book-name-bulk-hint" class="empty-text"></p>
+      <label>
+        <span id="book-name-bulk-input-label"></span>
+        <textarea id="book-name-bulk-input" rows="10" spellcheck="false"></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button id="btn-cancel-book-name-bulk" class="btn btn-small" type="button"></button>
+        <button id="btn-confirm-book-name-bulk" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
   </dialog>
 
   <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
@@ -374,7 +393,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/book_page.js?v=20260308-rcfg1"></script>
+  <script type="module" src="./js/pages/book_page.js?v=20260405-name1"></script>
 </body>
 
 </html>
