@@ -191,16 +191,11 @@ def update_book_metadata(storage, book_id: str, payload: dict[str, Any], *, utc_
     if not book:
         return None
     now = utc_now_iso()
-    allowed = {
-        "title": str(payload.get("title") or "").strip(),
-        "title_vi": str(payload.get("title_vi") or "").strip(),
-        "author": str(payload.get("author") or "").strip(),
-        "author_vi": str(payload.get("author_vi") or "").strip(),
-        "summary": str(payload.get("summary") or "").strip(),
-        "extra_link": str(payload.get("extra_link") or "").strip(),
-    }
-    if "cover_path" in payload:
-        allowed["cover_path"] = str(payload.get("cover_path") or "").strip()
+    allowed: dict[str, str] = {}
+    for key in ("title", "title_vi", "author", "author_vi", "summary", "extra_link", "cover_path"):
+        if key not in payload:
+            continue
+        allowed[key] = str(payload.get(key) or "").strip()
 
     set_parts: list[str] = []
     values: list[Any] = []
