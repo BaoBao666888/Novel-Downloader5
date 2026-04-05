@@ -2870,6 +2870,46 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   min-width: 120px;
 }
 
+.name-entry-table thead {
+  display: none;
+}
+
+.name-entry-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.name-entry-row td {
+  padding: 0;
+}
+
+.name-entry-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.name-entry-chip {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Fira Code", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.name-entry-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
 .name-suggest-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

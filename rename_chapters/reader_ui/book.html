@@ -242,7 +242,7 @@
     </form>
     <div class="name-preview-wrap">
       <div class="name-preview-table-wrap">
-        <table class="name-preview-table">
+        <table class="name-preview-table name-entry-table">
           <thead>
             <tr>
               <th>Tên gốc</th>
@@ -272,6 +272,44 @@
         <button id="btn-confirm-book-name-bulk" class="btn btn-primary" type="submit"></button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="book-name-suggest-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="book-name-suggest-title"></h3>
+      <button id="btn-close-book-name-suggest" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="book-name-suggest-hint" class="empty-text"></p>
+    <div class="name-suggest-grid">
+      <div class="name-preview-table-wrap">
+        <table class="name-preview-table">
+          <thead>
+            <tr>
+              <th id="book-name-suggest-col-index"></th>
+              <th id="book-name-suggest-col-source"></th>
+              <th id="book-name-suggest-col-hv"></th>
+            </tr>
+          </thead>
+          <tbody id="book-name-suggest-left-body"></tbody>
+        </table>
+      </div>
+      <div class="name-preview-table-wrap">
+        <table class="name-preview-table">
+          <thead>
+            <tr>
+              <th id="book-name-suggest-col-target"></th>
+              <th id="book-name-suggest-col-origin"></th>
+              <th id="book-name-suggest-col-action"></th>
+            </tr>
+          </thead>
+          <tbody id="book-name-suggest-right-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="dialog-actions name-suggest-actions">
+      <button id="btn-book-name-suggest-google-translate" class="btn btn-small" type="button"></button>
+      <button id="btn-book-name-suggest-google-search" class="btn btn-small" type="button"></button>
+    </div>
   </dialog>
 
   <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">

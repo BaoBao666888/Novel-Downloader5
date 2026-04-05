@@ -87,6 +87,20 @@ const refs = {
   bookNameBulkInput: document.getElementById("book-name-bulk-input"),
   btnCancelBookNameBulk: document.getElementById("btn-cancel-book-name-bulk"),
   btnConfirmBookNameBulk: document.getElementById("btn-confirm-book-name-bulk"),
+  bookNameSuggestDialog: document.getElementById("book-name-suggest-dialog"),
+  bookNameSuggestTitle: document.getElementById("book-name-suggest-title"),
+  btnCloseBookNameSuggest: document.getElementById("btn-close-book-name-suggest"),
+  bookNameSuggestHint: document.getElementById("book-name-suggest-hint"),
+  bookNameSuggestColIndex: document.getElementById("book-name-suggest-col-index"),
+  bookNameSuggestColSource: document.getElementById("book-name-suggest-col-source"),
+  bookNameSuggestColHv: document.getElementById("book-name-suggest-col-hv"),
+  bookNameSuggestColTarget: document.getElementById("book-name-suggest-col-target"),
+  bookNameSuggestColOrigin: document.getElementById("book-name-suggest-col-origin"),
+  bookNameSuggestColAction: document.getElementById("book-name-suggest-col-action"),
+  bookNameSuggestLeftBody: document.getElementById("book-name-suggest-left-body"),
+  bookNameSuggestRightBody: document.getElementById("book-name-suggest-right-body"),
+  btnBookNameSuggestGoogleTranslate: document.getElementById("btn-book-name-suggest-google-translate"),
+  btnBookNameSuggestGoogleSearch: document.getElementById("btn-book-name-suggest-google-search"),
 };
 
 const state = {
@@ -640,7 +654,7 @@ async function refreshBookToc() {
 function renderBookNameRows() {
   refs.bookNameBody.innerHTML = "";
   const current = state.bookNameSets[state.bookActiveNameSet] || {};
-  const entries = Object.entries(current).sort((a, b) => a[0].localeCompare(b[0], "zh-Hans-CN"));
+  const entries = Object.entries(current);
   if (!entries.length) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
@@ -652,21 +666,20 @@ function renderBookNameRows() {
   } else {
     for (const [source, target] of entries) {
       const tr = document.createElement("tr");
-      const tdSource = document.createElement("td");
-      tdSource.textContent = source;
-      const tdTarget = document.createElement("td");
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "name-target-inline";
-      input.value = target || "";
-      tdTarget.appendChild(input);
+      tr.className = "name-entry-row";
       const tdAction = document.createElement("td");
-      const btnSave = document.createElement("button");
-      btnSave.type = "button";
-      btnSave.className = "btn btn-small";
-      btnSave.textContent = state.shell.t("saveNameEntry");
-      btnSave.addEventListener("click", async () => {
-        await updateBookNameEntry(source, input.value.trim(), false);
+      tdAction.colSpan = 3;
+      const card = document.createElement("div");
+      card.className = "name-entry-card";
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "btn name-entry-chip";
+      chip.textContent = `${source}=${target || ""}`;
+      chip.title = `${source}=${target || ""}`;
+      chip.addEventListener("click", () => {
+        openBookNameEntrySuggestFromList(source, target || "").catch((error) => {
+          state.shell.showToast(error.message || state.shell.t("toastError"));
+        });
       });
       const btnDelete = document.createElement("button");
       btnDelete.type = "button";
@@ -675,8 +688,9 @@ function renderBookNameRows() {
       btnDelete.addEventListener("click", async () => {
         await updateBookNameEntry(source, "", true);
       });
-      tdAction.append(btnSave, btnDelete);
-      tr.append(tdSource, tdTarget, tdAction);
+      card.append(chip, btnDelete);
+      tdAction.appendChild(card);
+      tr.appendChild(tdAction);
       refs.bookNameBody.appendChild(tr);
     }
   }
@@ -688,17 +702,11 @@ async function updateBookNameEntry(source, target, del = false) {
   if (!source) return;
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
   try {
-    await state.shell.api("/api/name-sets/entry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source,
-        target,
-        delete: del,
-        set_name: state.bookActiveNameSet,
-        book_id: state.bookId,
-      }),
-    });
+    if (del) {
+      await deleteBookNameEntry(source);
+    } else {
+      await saveBookNameEntries({ [source]: target }, { replace: false });
+    }
     await refreshBookNameEffects();
     state.shell.showToast(state.shell.t("nameEntryApplied"));
   } catch (error) {
@@ -717,6 +725,17 @@ function normalizeBookNameEntries(entries) {
     result[source] = target;
   }
   return result;
+}
+
+function mergeBookNameEntriesWithPriority(currentEntries, incomingEntries) {
+  const current = normalizeBookNameEntries(currentEntries);
+  const incoming = normalizeBookNameEntries(incomingEntries);
+  const merged = { ...incoming };
+  for (const [source, target] of Object.entries(current)) {
+    if (Object.prototype.hasOwnProperty.call(merged, source)) continue;
+    merged[source] = target;
+  }
+  return merged;
 }
 
 function buildBookNameExportText() {
@@ -743,11 +762,31 @@ async function refreshBookNameEffects() {
   }
 }
 
+async function deleteBookNameEntry(source) {
+  const sourceKey = String(source || "").trim();
+  if (!sourceKey || !state.bookId) return false;
+  const active = state.bookActiveNameSet || "Mặc định";
+  const nextEntries = normalizeBookNameEntries(state.bookNameSets[active] || {});
+  if (!Object.prototype.hasOwnProperty.call(nextEntries, sourceKey)) return true;
+  delete nextEntries[sourceKey];
+  await state.shell.api("/api/name-sets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sets: { ...state.bookNameSets, [active]: nextEntries },
+      active_set: active,
+      bump_version: true,
+      book_id: state.bookId,
+    }),
+  });
+  return true;
+}
+
 async function saveBookNameEntries(entries, { replace = false } = {}) {
   const active = state.bookActiveNameSet || "Mặc định";
   const nextEntries = replace
     ? normalizeBookNameEntries(entries)
-    : { ...normalizeBookNameEntries(state.bookNameSets[active] || {}), ...normalizeBookNameEntries(entries) };
+    : mergeBookNameEntriesWithPriority(state.bookNameSets[active] || {}, entries);
   await state.shell.api("/api/name-sets", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -800,6 +839,143 @@ async function submitBookNameBulkEntries(event) {
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   }
+}
+
+function currentBookNameSuggestSourceText() {
+  return String(refs.bookNameSource.value || "").trim();
+}
+
+function syncBookNameSuggestExternalActions() {
+  const source = currentBookNameSuggestSourceText();
+  const disabled = !source;
+  if (refs.btnBookNameSuggestGoogleTranslate) refs.btnBookNameSuggestGoogleTranslate.disabled = disabled;
+  if (refs.btnBookNameSuggestGoogleSearch) refs.btnBookNameSuggestGoogleSearch.disabled = disabled;
+}
+
+function renderBookNameSuggestRows(items, rightItems = []) {
+  refs.bookNameSuggestLeftBody.innerHTML = "";
+  refs.bookNameSuggestRightBody.innerHTML = "";
+  const list = Array.isArray(items) ? items : [];
+  const rightList = Array.isArray(rightItems) ? rightItems : [];
+  refs.bookNameSuggestHint.textContent = state.shell.t("nameSuggestCount", { count: list.length });
+
+  let selectedIndex = -1;
+  const selectRow = (idx) => {
+    selectedIndex = idx;
+    const row = list[idx];
+    if (!row) return;
+    refs.bookNameSource.value = String(row.source_text || "").trim();
+    refs.bookNameTarget.value = String(row.han_viet || "").trim();
+    const rows = refs.bookNameSuggestLeftBody.querySelectorAll("tr");
+    rows.forEach((el, i) => el.classList.toggle("active", i === idx));
+    syncBookNameSuggestExternalActions();
+  };
+
+  for (const row of list) {
+    const trLeft = document.createElement("tr");
+    trLeft.className = "name-suggest-row";
+    const tdIdx = document.createElement("td");
+    tdIdx.textContent = String(row.index || "");
+    const tdSource = document.createElement("td");
+    tdSource.textContent = row.source_text || "";
+    const tdHv = document.createElement("td");
+    tdHv.textContent = row.han_viet || "";
+    trLeft.append(tdIdx, tdSource, tdHv);
+    trLeft.addEventListener("click", () => {
+      const idx = list.indexOf(row);
+      selectRow(idx);
+      refs.bookNameSuggestDialog.close();
+      refs.bookNameTarget.focus();
+    });
+    refs.bookNameSuggestLeftBody.appendChild(trLeft);
+  }
+
+  if (!list.length) {
+    const trEmptyLeft = document.createElement("tr");
+    const tdEmptyLeft = document.createElement("td");
+    tdEmptyLeft.colSpan = 3;
+    tdEmptyLeft.className = "empty-text";
+    tdEmptyLeft.textContent = state.shell.t("nameSuggestEmpty");
+    trEmptyLeft.appendChild(tdEmptyLeft);
+    refs.bookNameSuggestLeftBody.appendChild(trEmptyLeft);
+  }
+
+  if (!rightList.length) {
+    const trPending = document.createElement("tr");
+    const tdPending = document.createElement("td");
+    tdPending.colSpan = 3;
+    tdPending.className = "empty-text";
+    tdPending.textContent = state.shell.t("nameSuggestRightPending");
+    trPending.appendChild(tdPending);
+    refs.bookNameSuggestRightBody.appendChild(trPending);
+  } else {
+    for (const row of rightList) {
+      const tr = document.createElement("tr");
+      const tdTarget = document.createElement("td");
+      tdTarget.textContent = String(row.target_text || "").trim();
+      const tdOrigin = document.createElement("td");
+      tdOrigin.textContent = String(row.origin || "").trim();
+      const tdAction = document.createElement("td");
+      const btnUse = document.createElement("button");
+      btnUse.type = "button";
+      btnUse.className = "btn btn-small";
+      btnUse.textContent = state.shell.t("nameSuggestUse");
+      btnUse.addEventListener("click", () => {
+        const source = String(row.source_text || refs.bookNameSource.value || "").trim();
+        const target = String(row.target_text || "").trim();
+        if (source) refs.bookNameSource.value = source;
+        if (target) refs.bookNameTarget.value = target;
+        refs.bookNameSuggestDialog.close();
+        refs.bookNameTarget.focus();
+        syncBookNameSuggestExternalActions();
+      });
+      tdAction.append(btnUse);
+      tr.append(tdTarget, tdOrigin, tdAction);
+      refs.bookNameSuggestRightBody.appendChild(tr);
+    }
+  }
+
+  if (selectedIndex < 0 && list.length) {
+    selectRow(0);
+  } else {
+    syncBookNameSuggestExternalActions();
+  }
+}
+
+async function openBookNameSuggestDialog(sourceText = String(refs.bookNameSource.value || "").trim()) {
+  const source = String(sourceText || "").trim();
+  if (!source) {
+    state.shell.showToast(state.shell.t("nameSourceTargetRequired"));
+    refs.bookNameSource.focus();
+    return;
+  }
+  state.shell.showStatus(state.shell.t("statusLoadingNameSuggest"));
+  try {
+    const data = await state.shell.api("/api/name-suggest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source_text: source,
+        translation_mode: state.translateMode,
+        book_id: state.bookId,
+        set_name: state.bookActiveNameSet,
+        dict_type: "name",
+        scope: "book",
+      }),
+    });
+    renderBookNameSuggestRows(data.items || [], data.right_items || []);
+    refs.bookNameSuggestDialog.showModal();
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function openBookNameEntrySuggestFromList(source, target) {
+  refs.bookNameSource.value = String(source || "").trim();
+  refs.bookNameTarget.value = String(target || "").trim();
+  await openBookNameSuggestDialog(source);
 }
 
 async function loadBookNameSets() {
@@ -907,6 +1083,17 @@ async function init() {
   refs.bookNameBulkInput.placeholder = state.shell.t("nameSetQuickAddPlaceholder");
   refs.btnCancelBookNameBulk.textContent = state.shell.t("cancel");
   refs.btnConfirmBookNameBulk.textContent = state.shell.t("nameSetQuickAdd");
+  refs.bookNameSuggestTitle.textContent = state.shell.t("nameSuggestTitle");
+  refs.btnCloseBookNameSuggest.textContent = state.shell.t("close");
+  refs.bookNameSuggestHint.textContent = state.shell.t("nameSuggestHint");
+  refs.bookNameSuggestColIndex.textContent = state.shell.t("nameSuggestColIndex");
+  refs.bookNameSuggestColSource.textContent = state.shell.t("nameSuggestColSource");
+  refs.bookNameSuggestColHv.textContent = state.shell.t("nameSuggestColHv");
+  refs.bookNameSuggestColTarget.textContent = state.shell.t("nameSuggestColTarget");
+  refs.bookNameSuggestColOrigin.textContent = state.shell.t("nameSuggestColOrigin");
+  refs.bookNameSuggestColAction.textContent = state.shell.t("nameSuggestColAction");
+  refs.btnBookNameSuggestGoogleTranslate.textContent = state.shell.t("nameSuggestGoogleTranslate");
+  refs.btnBookNameSuggestGoogleSearch.textContent = state.shell.t("nameSuggestGoogleSearch");
 
   refs.btnOpenExtraLink.addEventListener("click", () => {
     if (!state.book || !state.book.extra_link) return;
@@ -925,11 +1112,35 @@ async function init() {
   refs.btnCloseBookEdit.addEventListener("click", () => refs.bookEditDialog.close());
   refs.btnCloseBookNames.addEventListener("click", () => refs.bookNameDialog.close());
   refs.btnCloseBookNameBulk.addEventListener("click", () => refs.bookNameBulkDialog.close());
+  refs.btnCloseBookNameSuggest.addEventListener("click", () => refs.bookNameSuggestDialog.close());
   refs.btnCancelBookNameBulk.addEventListener("click", () => refs.bookNameBulkDialog.close());
   refs.bookNameBulkDialog.addEventListener("close", () => {
     if (refs.bookNameBulkForm) refs.bookNameBulkForm.reset();
   });
   refs.bookNameBulkForm.addEventListener("submit", submitBookNameBulkEntries);
+  refs.bookNameSource.addEventListener("input", syncBookNameSuggestExternalActions);
+  if (refs.btnBookNameSuggestGoogleTranslate) {
+    refs.btnBookNameSuggestGoogleTranslate.addEventListener("click", () => {
+      const source = currentBookNameSuggestSourceText();
+      if (!source) return;
+      window.open(
+        `https://translate.google.com/?sl=zh-CN&tl=vi&text=${encodeURIComponent(source)}&op=translate`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    });
+  }
+  if (refs.btnBookNameSuggestGoogleSearch) {
+    refs.btnBookNameSuggestGoogleSearch.addEventListener("click", () => {
+      const source = currentBookNameSuggestSourceText();
+      if (!source) return;
+      window.open(
+        `https://www.google.com/search?q=${encodeURIComponent(source)}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    });
+  }
   refs.btnBookNameRefresh.addEventListener("click", loadBookNameSets);
   refs.btnBookNameAddSet.addEventListener("click", async () => {
     const setName = window.prompt(state.shell.t("promptNameSetNew"), "");

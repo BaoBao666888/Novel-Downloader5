@@ -1423,7 +1423,7 @@ function syncNameEntrySubmitLabel() {
 
 function renderNameEntriesTable() {
   refs.namePreviewBody.innerHTML = "";
-  const entries = Object.entries(getCurrentDictEntries()).sort((a, b) => a[0].localeCompare(b[0], "zh-Hans-CN"));
+  const entries = Object.entries(getCurrentDictEntries());
   if (!entries.length) {
     refs.namePreviewHint.textContent = state.shell.t("namePreviewEmpty");
     refreshNameSourceSuggestions();
@@ -1431,35 +1431,24 @@ function renderNameEntriesTable() {
     return;
   }
   refs.namePreviewHint.textContent = state.shell.t("namePreviewCount", { count: entries.length });
-  const typeLabel = state.nameDictType === "vp" ? "VP" : "Name";
 
   for (const [source, target] of entries) {
     const tr = document.createElement("tr");
-    const sourceCell = document.createElement("td");
-    sourceCell.textContent = source;
+    tr.className = "name-entry-row";
+    const cell = document.createElement("td");
+    cell.colSpan = 4;
+    const card = document.createElement("div");
+    card.className = "name-entry-card";
 
-    const targetCell = document.createElement("td");
-    const targetInput = document.createElement("input");
-    targetInput.type = "text";
-    targetInput.value = target || "";
-    targetInput.className = "name-target-inline";
-    targetCell.appendChild(targetInput);
-
-    const countCell = document.createElement("td");
-    countCell.textContent = typeLabel;
-
-    const actionCell = document.createElement("td");
-    const saveBtn = document.createElement("button");
-    saveBtn.type = "button";
-    saveBtn.className = "btn btn-small";
-    saveBtn.textContent = state.shell.t("saveNameEntry");
-    saveBtn.addEventListener("click", async () => {
-      const nextTarget = targetInput.value.trim();
-      if (!nextTarget) {
-        state.shell.showToast(state.shell.t("nameTargetRequired"));
-        return;
-      }
-      await applyNameEntry(source, nextTarget);
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "btn name-entry-chip";
+    chip.textContent = `${source}=${target || ""}`;
+    chip.title = `${source}=${target || ""}`;
+    chip.addEventListener("click", () => {
+      openNameEntrySuggestFromList(source, target || "").catch((error) => {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      });
     });
 
     const deleteBtn = document.createElement("button");
@@ -1470,8 +1459,9 @@ function renderNameEntriesTable() {
       await deleteNameEntry(source);
     });
 
-    actionCell.append(saveBtn, deleteBtn);
-    tr.append(sourceCell, targetCell, countCell, actionCell);
+    card.append(chip, deleteBtn);
+    cell.appendChild(card);
+    tr.appendChild(cell);
     refs.namePreviewBody.appendChild(tr);
   }
   refreshNameSourceSuggestions();
@@ -1562,6 +1552,17 @@ function normalizeNameEntries(entries) {
   return result;
 }
 
+function mergeNameEntriesWithPriority(currentEntries, incomingEntries) {
+  const current = normalizeNameEntries(currentEntries);
+  const incoming = normalizeNameEntries(incomingEntries);
+  const merged = { ...incoming };
+  for (const [source, target] of Object.entries(current)) {
+    if (Object.prototype.hasOwnProperty.call(merged, source)) continue;
+    merged[source] = target;
+  }
+  return merged;
+}
+
 function buildNameSetExportText() {
   return serializeNameSetText(getCurrentDictEntries());
 }
@@ -1576,14 +1577,25 @@ function parseNameEntriesOrThrow(rawText) {
 
 async function saveBookVpEntries(entries, { replace = false } = {}) {
   const current = normalizeNameEntries(state.bookVpDict || {});
-  const nextEntries = replace ? normalizeNameEntries(entries) : { ...current, ...normalizeNameEntries(entries) };
+  const incoming = normalizeNameEntries(entries);
+  const nextEntries = replace
+    ? incoming
+    : mergeNameEntriesWithPriority(current, incoming);
   if (replace) {
     for (const source of Object.keys(current)) {
-      if (Object.prototype.hasOwnProperty.call(nextEntries, source)) continue;
       await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dict_type: "vp", source, target: "" }),
+        body: JSON.stringify({ dict_type: "vp", source, target: "", delete: true }),
+      });
+    }
+  } else {
+    for (const source of Object.keys(incoming)) {
+      if (!Object.prototype.hasOwnProperty.call(current, source)) continue;
+      await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dict_type: "vp", source, target: "", delete: true }),
       });
     }
   }
@@ -1599,7 +1611,7 @@ async function saveBookVpEntries(entries, { replace = false } = {}) {
 async function saveCurrentDictEntries(entries, { replace = false } = {}) {
   const incoming = normalizeNameEntries(entries);
   if (state.nameDictScope === "global") {
-    const nextEntries = replace ? incoming : { ...normalizeNameEntries(getCurrentDictEntries()), ...incoming };
+    const nextEntries = replace ? incoming : mergeNameEntriesWithPriority(getCurrentDictEntries(), incoming);
     await state.shell.api("/api/local-dicts/global", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1612,7 +1624,7 @@ async function saveCurrentDictEntries(entries, { replace = false } = {}) {
     return;
   }
   const active = state.activeNameSet || "Mặc định";
-  const nextEntries = replace ? incoming : { ...normalizeNameEntries(getCurrentDictEntries()), ...incoming };
+  const nextEntries = replace ? incoming : mergeNameEntriesWithPriority(getCurrentDictEntries(), incoming);
   await state.shell.api("/api/name-sets", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1656,6 +1668,53 @@ async function applyCurrentDictEntries(entries, { replace = false, toastKey = "n
   }
 }
 
+async function deleteCurrentDictEntry(source) {
+  const sourceKey = normalizeNameSourceKey(source);
+  if (!sourceKey) return false;
+  if (state.nameDictScope === "global") {
+    const current = normalizeNameEntries(getCurrentDictEntries());
+    if (!Object.prototype.hasOwnProperty.call(current, sourceKey)) return true;
+    delete current[sourceKey];
+    await state.shell.api("/api/local-dicts/global", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state.nameDictType === "vp" ? { vp: current } : { name: current }),
+    });
+    return true;
+  }
+  if (state.nameDictType === "vp") {
+    await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dict_type: "vp", source: sourceKey, target: "", delete: true }),
+    });
+    return true;
+  }
+  const active = state.activeNameSet || "Mặc định";
+  const currentSet = normalizeNameEntries((state.nameSets && state.nameSets[active]) || {});
+  if (!Object.prototype.hasOwnProperty.call(currentSet, sourceKey)) return true;
+  delete currentSet[sourceKey];
+  await state.shell.api("/api/name-sets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sets: { ...state.nameSets, [active]: currentSet },
+      active_set: active,
+      bump_version: true,
+      book_id: state.bookId,
+    }),
+  });
+  return true;
+}
+
+async function openNameEntrySuggestFromList(source, target) {
+  refs.nameSourceInput.value = String(source || "").trim();
+  refs.nameTargetInput.value = String(target || "").trim();
+  refreshNameSourceSuggestions([source]);
+  syncNameEntrySubmitLabel();
+  await openNameSuggestDialog();
+}
+
 function openNameBulkDialog() {
   if (!refs.nameBulkDialog) return;
   refs.nameBulkForm.reset();
@@ -1675,66 +1734,14 @@ async function refreshNamePreview() {
 }
 
 async function applyNameEntry(source, target) {
-  state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
-  const preserveRatio = currentChapterRatio();
-  try {
-    if (state.nameDictScope === "global") {
-      await state.shell.api("/api/local-dicts/global/entry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dict_type: state.nameDictType, source, target }),
-      });
-    } else if (state.nameDictType === "vp") {
-      await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dict_type: "vp", source, target }),
-      });
-    } else {
-      await state.shell.api("/api/name-sets/entry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source, target, set_name: state.activeNameSet, book_id: state.bookId }),
-      });
-    }
-    state.shell.showToast(state.shell.t("nameEntryApplied"));
-    clearChapterCache();
-    cancelPrefetch();
-    await refreshNameEditorData();
-    await loadBook();
-    await loadChapter({ resetFlip: true, preserveRatio });
-    return true;
-  } catch (error) {
-    state.shell.showToast(error.message || state.shell.t("toastError"));
-    return false;
-  } finally {
-    state.shell.hideStatus();
-  }
+  return applyCurrentDictEntries({ [source]: target }, { replace: false, toastKey: "nameEntryApplied" });
 }
 
 async function deleteNameEntry(source) {
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
   const preserveRatio = currentChapterRatio();
   try {
-    if (state.nameDictScope === "global") {
-      await state.shell.api("/api/local-dicts/global/entry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dict_type: state.nameDictType, source, target: "", delete: true }),
-      });
-    } else if (state.nameDictType === "vp") {
-      await state.shell.api(`/api/local-dicts/book/${encodeURIComponent(state.bookId)}/entry`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dict_type: "vp", source, target: "", delete: true }),
-      });
-    } else {
-      await state.shell.api("/api/name-sets/entry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source, target: "", delete: true, set_name: state.activeNameSet, book_id: state.bookId }),
-      });
-    }
+    await deleteCurrentDictEntry(source);
     clearChapterCache();
     cancelPrefetch();
     await refreshNameEditorData();
