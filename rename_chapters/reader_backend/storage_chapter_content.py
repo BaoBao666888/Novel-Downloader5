@@ -1,0 +1,285 @@
+from __future__ import annotations
+
+import html
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+
+def chapter_text_cleanup(storage, text: str, *, apply_junk_lines_to_text) -> tuple[str, int, int]:
+    lines, version = storage.get_global_junk_lines()
+    cleaned, removed = apply_junk_lines_to_text(text, lines)
+    return cleaned, removed, version
+
+
+def chapter_trans_signature(base_sig: str, *, junk_version: int) -> str:
+    normalized = str(base_sig or "").strip() or "raw"
+    return f"{normalized}|junk:v{max(1, int(junk_version or 1))}"
+
+
+def save_epub_source(storage, book_id: str, content: bytes, *, cache_dir: Path, utc_now_iso) -> str:
+    folder = cache_dir / "epub_sources"
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{book_id}.epub"
+    path.write_bytes(content)
+    with storage._connect() as conn:
+        conn.execute(
+            "UPDATE books SET source_file_path = ?, updated_at = ? WHERE book_id = ?",
+            (str(path), utc_now_iso(), book_id),
+        )
+    return str(path)
+
+
+def create_export_txt(
+    storage,
+    book_id: str,
+    ensure_translated: bool,
+    translator,
+    translate_mode: str,
+    *,
+    use_cached_only: bool = False,
+    export_dir: Path,
+    utc_now_ts,
+) -> Path:
+    book = storage.find_book(book_id)
+    if not book:
+        raise ValueError("Không tìm thấy truyện.")
+    if bool(book.get("is_comic")):
+        raise ValueError("Truyện tranh không hỗ trợ xuất TXT.")
+    # Keep legacy behavior: inspect actual source type rather than transformed UI fields.
+    if str(book.get("source_type") or "").strip().lower() in {"comic", "vbook_comic", "vbook_session_comic"}:
+        raise ValueError("Truyện tranh không hỗ trợ xuất TXT.")
+    chapters = storage.get_chapter_rows(book_id)
+    if not chapters:
+        raise ValueError("Truyện chưa có chương.")
+    _, active_name_set, _ = storage.get_active_name_set(
+        default_sets={"Mặc định": {}},
+        active_default="Mặc định",
+        book_id=book_id,
+    )
+    active_vp_set, _ = storage.get_book_vp_set(book_id)
+
+    output_lines: list[str] = []
+    for chapter in chapters:
+        if use_cached_only:
+            raw_cached = storage.read_cache(str(chapter.get("raw_key") or "").strip())
+            if raw_cached is None:
+                continue
+        title = chapter["title_vi"] or chapter["title_raw"] or f"Chương {chapter['chapter_order']}"
+        text = storage.get_chapter_text(
+            chapter,
+            book,
+            mode="trans" if ensure_translated else "raw",
+            translator=translator,
+            translate_mode=translate_mode,
+            name_set_override=active_name_set,
+            vp_set_override=active_vp_set,
+            allow_remote_fetch=not use_cached_only,
+        )
+        output_lines.extend([title, "", text, ""])
+    if not output_lines:
+        raise ValueError("Không có chương đã cache để xuất TXT.")
+
+    safe_name = storage._safe_filename(str(book.get("title") or "book"))
+    ts = utc_now_ts()
+    out = export_dir / f"{safe_name}_{ts}.txt"
+    out.write_text("\n".join(output_lines), encoding="utf-8")
+    return out
+
+
+def create_export_epub(
+    storage,
+    book_id: str,
+    ensure_translated: bool,
+    translator,
+    translate_mode: str,
+    *,
+    use_cached_only: bool = False,
+    export_dir: Path,
+    utc_now_ts,
+) -> Path:
+    book = storage.find_book(book_id)
+    if not book:
+        raise ValueError("Không tìm thấy truyện.")
+    chapters = storage.get_chapter_rows(book_id)
+    if not chapters:
+        raise ValueError("Truyện chưa có chương.")
+    _, active_name_set, _ = storage.get_active_name_set(
+        default_sets={"Mặc định": {}},
+        active_default="Mặc định",
+        book_id=book_id,
+    )
+    active_vp_set, _ = storage.get_book_vp_set(book_id)
+
+    safe_name = storage._safe_filename(str(book.get("title") or "book"))
+    ts = utc_now_ts()
+    out = export_dir / f"{safe_name}_{ts}.epub"
+
+    uid = str(book["book_id"])
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    files: dict[str, bytes] = {}
+    files["mimetype"] = b"application/epub+zip"
+    files["META-INF/container.xml"] = (
+        b'<?xml version="1.0" encoding="UTF-8"?><container version="1.0" '
+        b'xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+        b'<rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>'
+        b"</rootfiles></container>"
+    )
+
+    manifest_items = ['<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>']
+    spine_items: list[str] = []
+    nav_points: list[str] = []
+
+    for idx, chapter in enumerate(chapters, start=1):
+        if use_cached_only:
+            raw_cached = storage.read_cache(str(chapter.get("raw_key") or "").strip())
+            if raw_cached is None:
+                continue
+        title = chapter["title_vi"] or chapter["title_raw"] or f"Chương {idx}"
+        text = storage.get_chapter_text(
+            chapter,
+            book,
+            mode="trans" if ensure_translated else "raw",
+            translator=translator,
+            translate_mode=translate_mode,
+            name_set_override=active_name_set,
+            vp_set_override=active_vp_set,
+            allow_remote_fetch=not use_cached_only,
+        )
+        content_html = "\n".join(
+            f"<p>{html.escape(line)}</p>" if line.strip() else "<p><br/></p>"
+            for line in text.split("\n")
+        )
+        xhtml_name = f"Text/chapter_{idx}.xhtml"
+        xhtml = (
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+            '<html xmlns="http://www.w3.org/1999/xhtml">'
+            f"<head><title>{html.escape(title)}</title></head>"
+            f"<body><h2>{html.escape(title)}</h2>{content_html}</body></html>"
+        )
+        files[f"OEBPS/{xhtml_name}"] = xhtml.encode("utf-8")
+        manifest_items.append(
+            f'<item id="chap{idx}" href="{xhtml_name}" media-type="application/xhtml+xml"/>'
+        )
+        spine_items.append(f'<itemref idref="chap{idx}"/>')
+        nav_points.append(
+            f'<navPoint id="navPoint-{idx}" playOrder="{idx}"><navLabel><text>{html.escape(title)}</text></navLabel><content src="{xhtml_name}"/></navPoint>'
+        )
+    if not spine_items:
+        raise ValueError("Không có chương đã cache để xuất EPUB.")
+
+    toc_ncx = (
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">'
+        "<head>"
+        f'<meta name="dtb:uid" content="{html.escape(uid)}"/>'
+        '<meta name="dtb:depth" content="1"/><meta name="dtb:totalPageCount" content="0"/><meta name="dtb:maxPageNumber" content="0"/>'
+        "</head>"
+        f"<docTitle><text>{html.escape(str(book.get('title') or ''))}</text></docTitle>"
+        f"<navMap>{''.join(nav_points)}</navMap>"
+        "</ncx>"
+    )
+
+    content_opf = (
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        '<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">'
+        '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+        f"<dc:title>{html.escape(str(book.get('title') or ''))}</dc:title>"
+        "<dc:language>vi</dc:language>"
+        f"<dc:identifier id=\"BookId\">{html.escape(uid)}</dc:identifier>"
+        f"<dc:creator>{html.escape(str(book.get('author') or ''))}</dc:creator>"
+        f"<dc:date>{now}</dc:date>"
+        "</metadata>"
+        f"<manifest>{''.join(manifest_items)}</manifest>"
+        f"<spine toc=\"ncx\">{''.join(spine_items)}</spine>"
+        "</package>"
+    )
+
+    files["OEBPS/toc.ncx"] = toc_ncx.encode("utf-8")
+    files["OEBPS/content.opf"] = content_opf.encode("utf-8")
+
+    with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("mimetype", files["mimetype"], compress_type=zipfile.ZIP_STORED)
+        for path, data in files.items():
+            if path == "mimetype":
+                continue
+            zf.writestr(path, data)
+
+    return out
+
+
+def get_chapter_text(
+    storage,
+    chapter: dict[str, Any],
+    book: dict[str, Any],
+    *,
+    mode: str,
+    translator,
+    translate_mode: str,
+    name_set_override: dict[str, str] | None = None,
+    vp_set_override: dict[str, str] | None = None,
+    allow_remote_fetch: bool = True,
+    decode_comic_payload,
+    encode_comic_payload,
+    book_supports_translation,
+    normalize_newlines,
+    hash_text,
+) -> str:
+    raw_key = chapter.get("raw_key")
+    cached_raw = storage.read_cache(raw_key) or ""
+    if (
+        allow_remote_fetch
+        and (not cached_raw)
+        and str(book.get("source_type") or "").startswith("vbook")
+        and chapter.get("remote_url")
+        and storage.remote_chapter_fetcher
+    ):
+        cached_raw = storage.remote_chapter_fetcher(chapter, book) or ""
+    comic_payload = decode_comic_payload(cached_raw or "")
+    if comic_payload is not None:
+        return cached_raw or encode_comic_payload([])
+
+    raw_text, _, junk_version = storage.chapter_text_cleanup(cached_raw or "")
+    if mode == "raw" or (not book_supports_translation(book)):
+        return raw_text
+
+    base_sig = translator.translation_signature(
+        mode=translate_mode,
+        name_set_override=name_set_override,
+        vp_set_override=vp_set_override,
+    )
+    current_sig = storage.chapter_trans_signature(base_sig, junk_version=junk_version)
+    trans_key = chapter.get("trans_key")
+    trans_sig = str(chapter.get("trans_sig") or "").strip()
+    if trans_key and trans_sig == current_sig:
+        cached = storage.read_cache(trans_key)
+        if cached is not None:
+            map_count = storage.get_translation_unit_map_count(chapter["chapter_id"], current_sig, translate_mode)
+            if map_count > 0:
+                return normalize_newlines(cached)
+
+    detail = translator.translate_detailed(
+        raw_text,
+        mode=translate_mode,
+        name_set_override=name_set_override,
+        vp_set_override=vp_set_override,
+    )
+    translated = normalize_newlines(detail.get("translated") or "")
+    if not translated:
+        translated = raw_text
+
+    trans_seed = f"{chapter['chapter_id']}|{chapter['raw_key']}|{current_sig}|{translated}"
+    new_key = f"tr_{hash_text(trans_seed)}"
+    storage.write_cache(new_key, "vi", translated)
+    storage.update_chapter_trans(chapter["chapter_id"], new_key, current_sig)
+    storage.save_translation_unit_map(
+        chapter["chapter_id"],
+        current_sig,
+        translate_mode,
+        detail.get("unit_map") if isinstance(detail.get("unit_map"), list) else [],
+    )
+    chapter["trans_key"] = new_key
+    chapter["trans_sig"] = current_sig
+    return translated

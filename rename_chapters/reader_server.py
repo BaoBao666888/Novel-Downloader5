@@ -47,7 +47,10 @@ from reader_backend import http_vbook_import as http_vbook_import_support
 from reader_backend import service_history as service_history_support
 from reader_backend import service_library as service_library_support
 from reader_backend import service_user_state as service_user_state_support
+from reader_backend import storage_book_cleanup as storage_book_cleanup_support
 from reader_backend import storage_history as storage_history_support
+from reader_backend import storage_book_mutation as storage_book_mutation_support
+from reader_backend import storage_chapter_content as storage_chapter_content_support
 from reader_backend import storage_cache as storage_cache_support
 from reader_backend import storage_library as storage_library_support
 from reader_backend import storage_user_state as storage_user_state_support
@@ -3621,13 +3624,17 @@ class ReaderStorage:
         )
 
     def chapter_text_cleanup(self, text: str) -> tuple[str, int, int]:
-        lines, version = self.get_global_junk_lines()
-        cleaned, removed = apply_junk_lines_to_text(text, lines)
-        return cleaned, removed, version
+        return storage_chapter_content_support.chapter_text_cleanup(
+            self,
+            text,
+            apply_junk_lines_to_text=apply_junk_lines_to_text,
+        )
 
     def chapter_trans_signature(self, base_sig: str, *, junk_version: int) -> str:
-        normalized = str(base_sig or "").strip() or "raw"
-        return f"{normalized}|junk:v{max(1, int(junk_version or 1))}"
+        return storage_chapter_content_support.chapter_trans_signature(
+            base_sig,
+            junk_version=junk_version,
+        )
 
     def get_theme_active(self) -> str:
         value = self._get_app_state_value(APP_STATE_THEME_ACTIVE_KEY)
@@ -3649,68 +3656,18 @@ class ReaderStorage:
         chapters: list[dict[str, str]],
         source_file_path: str = "",
     ) -> dict[str, Any]:
-        created_at = utc_now_iso()
-        book_seed = f"{title}|{author}|{created_at}|{source_type}"
-        book_id = f"bk_{hash_text(book_seed)}"
-
-        chapter_rows: list[tuple[Any, ...]] = []
-        for idx, ch in enumerate(chapters, start=1):
-            chapter_title = (ch.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
-            chapter_text = (ch.get("text") or "").strip()
-            chapter_id = f"ch_{hash_text(f'{book_id}|{idx}|{chapter_title}') }"
-            raw_key = f"raw_{hash_text(f'{chapter_id}|{chapter_text}') }"
-            self.write_cache(raw_key, lang_source, chapter_text)
-            chapter_rows.append(
-                (
-                    chapter_id,
-                    book_id,
-                    idx,
-                    chapter_title,
-                    None,
-                    raw_key,
-                    None,
-                    None,
-                    created_at,
-                    len(chapter_text),
-                )
-            )
-
-        with self._connect() as conn:
-            conn.execute(
-                """
-                INSERT INTO books(
-                    book_id, title, title_vi, author, author_vi, lang_source, source_type, source_file_path,
-                    cover_path, extra_link, created_at, updated_at, chapter_count, summary
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    book_id,
-                    title.strip() or "Untitled",
-                    title.strip() if lang_source == "vi" else None,
-                    author.strip(),
-                    author.strip() if lang_source == "vi" else None,
-                    lang_source,
-                    source_type,
-                    source_file_path,
-                    "",
-                    "",
-                    created_at,
-                    created_at,
-                    len(chapter_rows),
-                    summary,
-                ),
-            )
-            conn.executemany(
-                """
-                INSERT INTO chapters(
-                    chapter_id, book_id, chapter_order, title_raw, title_vi,
-                    raw_key, trans_key, trans_sig, updated_at, word_count
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                chapter_rows,
-            )
-
-        return self.get_book_detail(book_id)
+        return storage_book_mutation_support.create_book(
+            self,
+            title=title,
+            author=author,
+            lang_source=lang_source,
+            source_type=source_type,
+            summary=summary,
+            chapters=chapters,
+            source_file_path=source_file_path,
+            utc_now_iso=utc_now_iso,
+            hash_text=hash_text,
+        )
 
     def create_book_remote(
         self,
@@ -3726,78 +3683,21 @@ class ReaderStorage:
         cover_path: str = "",
         extra_link: str = "",
     ) -> dict[str, Any]:
-        """
-        Create a book that fetches chapter content on-demand.
-
-        Notes:
-        - Chapters are inserted with `raw_key` but without creating cache rows.
-        - `remote_url` is stored in chapters for later fetch.
-        """
-        created_at = utc_now_iso()
-        book_seed = f"{title}|{author}|{created_at}|{source_type}|{source_url}|{source_plugin}"
-        book_id = f"bk_{hash_text(book_seed)}"
-
-        chapter_rows: list[tuple[Any, ...]] = []
-        for idx, ch in enumerate(chapters or [], start=1):
-            chapter_title = (ch.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
-            remote_url = (ch.get("remote_url") or "").strip()
-            chapter_id = f"ch_{hash_text(f'{book_id}|{idx}|{chapter_title}|{remote_url}') }"
-            raw_key = f"raw_{hash_text(f'{chapter_id}|{remote_url}') }"
-            chapter_rows.append(
-                (
-                    chapter_id,
-                    book_id,
-                    idx,
-                    chapter_title,
-                    None,
-                    raw_key,
-                    None,
-                    None,
-                    created_at,
-                    0,
-                    remote_url,
-                )
-            )
-
-        with self._connect() as conn:
-            conn.execute(
-                """
-                INSERT INTO books(
-                    book_id, title, title_vi, author, author_vi, lang_source, source_type, source_file_path,
-                    source_url, source_plugin,
-                    cover_path, extra_link, created_at, updated_at, chapter_count, summary
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    book_id,
-                    title.strip() or "Untitled",
-                    title.strip() if lang_source == "vi" else None,
-                    author.strip(),
-                    author.strip() if lang_source == "vi" else None,
-                    lang_source,
-                    source_type,
-                    "",
-                    source_url,
-                    source_plugin,
-                    cover_path or "",
-                    extra_link or "",
-                    created_at,
-                    created_at,
-                    len(chapter_rows),
-                    summary,
-                ),
-            )
-            conn.executemany(
-                """
-                INSERT INTO chapters(
-                    chapter_id, book_id, chapter_order, title_raw, title_vi,
-                    raw_key, trans_key, trans_sig, updated_at, word_count, remote_url
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                chapter_rows,
-            )
-
-        return self.get_book_detail(book_id) or {"book_id": book_id}
+        return storage_book_mutation_support.create_book_remote(
+            self,
+            title=title,
+            author=author,
+            lang_source=lang_source,
+            source_type=source_type,
+            summary=summary,
+            chapters=chapters,
+            source_url=source_url,
+            source_plugin=source_plugin,
+            cover_path=cover_path,
+            extra_link=extra_link,
+            utc_now_iso=utc_now_iso,
+            hash_text=hash_text,
+        )
 
     def list_books(self, *, include_session: bool = False) -> list[dict[str, Any]]:
         return storage_library_support.list_books(
@@ -3810,12 +3710,12 @@ class ReaderStorage:
         )
 
     def update_chapter_word_count(self, chapter_id: str, word_count: int) -> None:
-        now = utc_now_iso()
-        with self._connect() as conn:
-            conn.execute(
-                "UPDATE chapters SET word_count = ?, updated_at = ? WHERE chapter_id = ?",
-                (max(0, int(word_count)), now, chapter_id),
-            )
+        storage_book_mutation_support.update_chapter_word_count(
+            self,
+            chapter_id,
+            word_count,
+            utc_now_iso=utc_now_iso,
+        )
 
     def find_book(self, book_id: str) -> dict[str, Any] | None:
         return storage_library_support.find_book(self, book_id)
@@ -3872,313 +3772,58 @@ class ReaderStorage:
         book: dict[str, Any] | None,
         chapter_rows: list[dict[str, Any]] | None,
     ) -> set[str]:
-        if not book or not is_book_comic(book):
-            return set()
-        plugin_id = str(book.get("source_plugin") or "").strip()
-        keys: set[str] = set()
-        for chapter in chapter_rows or []:
-            if not isinstance(chapter, dict):
-                continue
-            raw_key = str(chapter.get("raw_key") or "").strip()
-            if not raw_key:
-                continue
-            raw_text = self.read_cache(raw_key) or ""
-            if not raw_text:
-                continue
-            for image_url in extract_comic_image_urls(raw_text):
-                url = str(image_url or "").strip()
-                if not url:
-                    continue
-                keys.add(vbook_image_cache_key(image_url=url, plugin_id=plugin_id))
-        return keys
+        return storage_book_mutation_support.collect_vbook_image_cache_keys_for_chapters(
+            self,
+            book=book,
+            chapter_rows=chapter_rows,
+            is_book_comic=is_book_comic,
+            extract_comic_image_urls=extract_comic_image_urls,
+            vbook_image_cache_key=vbook_image_cache_key,
+        )
 
     def _delete_vbook_image_cache_keys(self, keys: set[str]) -> dict[str, int]:
-        deleted = 0
-        bytes_deleted = 0
-        for key in keys or set():
-            cache_body = VBOOK_IMAGE_CACHE_DIR / f"{key}.bin"
-            cache_meta = VBOOK_IMAGE_CACHE_DIR / f"{key}.json"
-            if cache_body.exists():
-                try:
-                    bytes_deleted += int(cache_body.stat().st_size)
-                except Exception:
-                    pass
-                try:
-                    cache_body.unlink()
-                    deleted += 1
-                except Exception:
-                    pass
-            if cache_meta.exists():
-                try:
-                    cache_meta.unlink()
-                except Exception:
-                    pass
-        return {
-            "image_cache_deleted": int(deleted),
-            "image_bytes_deleted": int(bytes_deleted),
-        }
+        return storage_book_mutation_support.delete_vbook_image_cache_keys(
+            keys,
+            image_cache_dir=VBOOK_IMAGE_CACHE_DIR,
+        )
 
     def _collect_all_comic_vbook_image_cache_keys(self) -> set[str]:
-        keys: set[str] = set()
-        with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT b.source_plugin, c.raw_key
-                FROM books b
-                JOIN chapters c ON c.book_id = b.book_id
-                WHERE lower(COALESCE(b.source_type, '')) IN ('comic', 'vbook_comic', 'vbook_session_comic')
-                """
-            ).fetchall()
-        for row in rows:
-            plugin_id = str(row["source_plugin"] or "").strip()
-            raw_key = str(row["raw_key"] or "").strip()
-            if not raw_key:
-                continue
-            raw_text = self.read_cache(raw_key) or ""
-            if not raw_text:
-                continue
-            for image_url in extract_comic_image_urls(raw_text):
-                url = str(image_url or "").strip()
-                if not url:
-                    continue
-                keys.add(vbook_image_cache_key(image_url=url, plugin_id=plugin_id))
-        return keys
+        return storage_book_mutation_support.collect_all_comic_vbook_image_cache_keys(
+            self,
+            extract_comic_image_urls=extract_comic_image_urls,
+            vbook_image_cache_key=vbook_image_cache_key,
+        )
 
     def cleanup_non_comic_vbook_image_cache(self) -> dict[str, int]:
-        keep_keys = self._collect_all_comic_vbook_image_cache_keys()
-        removed_keys: set[str] = set()
-        scanned = 0
-        if VBOOK_IMAGE_CACHE_DIR.exists():
-            for meta_path in VBOOK_IMAGE_CACHE_DIR.glob("*.json"):
-                scanned += 1
-                stem = meta_path.stem
-                if not stem or stem in keep_keys:
-                    continue
-                removed_keys.add(stem)
-        stats = self._delete_vbook_image_cache_keys(removed_keys) if removed_keys else {
-            "image_cache_deleted": 0,
-            "image_bytes_deleted": 0,
-        }
-        return {
-            "scanned_meta": int(scanned),
-            "kept_keys": int(len(keep_keys)),
-            "removed_keys": int(len(removed_keys)),
-            **stats,
-        }
+        return storage_book_mutation_support.cleanup_non_comic_vbook_image_cache(
+            self,
+            image_cache_dir=VBOOK_IMAGE_CACHE_DIR,
+            extract_comic_image_urls=extract_comic_image_urls,
+            vbook_image_cache_key=vbook_image_cache_key,
+        )
 
     def sync_remote_book_toc(self, book_id: str, toc_rows: list[dict[str, str]]) -> dict[str, Any]:
-        bid = str(book_id or "").strip()
-        if not bid:
-            raise ValueError("Thiếu book_id.")
-        book = self.find_book(bid)
-        if not book:
-            raise ValueError("Không tìm thấy truyện.")
-
-        normalized_rows: list[dict[str, Any]] = []
-        seen_urls: set[str] = set()
-        for idx, raw in enumerate(toc_rows or [], start=1):
-            if not isinstance(raw, dict):
-                continue
-            remote_url = str(raw.get("remote_url") or "").strip()
-            if (not remote_url) or (remote_url in seen_urls):
-                continue
-            seen_urls.add(remote_url)
-            title_raw = normalize_vbook_display_text(str(raw.get("title") or raw.get("name") or ""), single_line=True) or f"Chương {idx}"
-            normalized_rows.append(
-                {
-                    "chapter_order": idx,
-                    "title_raw": title_raw,
-                    "remote_url": remote_url,
-                }
-            )
-        if not normalized_rows:
-            raise ValueError("Danh sách mục lục mới rỗng.")
-
-        old_rows = self.get_chapter_rows(bid)
-        old_signature = [
-            (
-                int(row.get("chapter_order") or 0),
-                normalize_vbook_display_text(str(row.get("title_raw") or ""), single_line=True),
-                str(row.get("remote_url") or "").strip(),
-            )
-            for row in old_rows
-        ]
-        new_signature = [
-            (
-                int(row.get("chapter_order") or 0),
-                str(row.get("title_raw") or ""),
-                str(row.get("remote_url") or ""),
-            )
-            for row in normalized_rows
-        ]
-        if old_signature == new_signature:
-            return {
-                "ok": True,
-                "changed": False,
-                "book_id": bid,
-                "chapter_count": int(len(old_rows)),
-                "added": 0,
-                "removed": 0,
-                "renamed": 0,
-                "reordered": 0,
-                "cache_deleted": 0,
-                "deleted_files": 0,
-                "bytes_deleted": 0,
-                "image_cache_deleted": 0,
-                "image_bytes_deleted": 0,
-            }
-
-        old_by_url: dict[str, dict[str, Any]] = {}
-        removed_rows_seed: list[dict[str, Any]] = []
-        for row in old_rows:
-            remote_url = str(row.get("remote_url") or "").strip()
-            if remote_url and remote_url not in old_by_url:
-                old_by_url[remote_url] = row
-            else:
-                removed_rows_seed.append(row)
-
-        updates: list[tuple[Any, ...]] = []
-        inserts: list[tuple[Any, ...]] = []
-        kept_ids: list[str] = []
-        removed_rows = list(removed_rows_seed)
-        added = 0
-        renamed = 0
-        reordered = 0
-        now = utc_now_iso()
-
-        for row in normalized_rows:
-            remote_url = str(row.get("remote_url") or "").strip()
-            title_raw = str(row.get("title_raw") or "").strip()
-            chapter_order = int(row.get("chapter_order") or 0)
-            old_row = old_by_url.pop(remote_url, None)
-            if old_row:
-                chapter_id = str(old_row.get("chapter_id") or "").strip()
-                old_title = normalize_vbook_display_text(str(old_row.get("title_raw") or ""), single_line=True)
-                old_order = int(old_row.get("chapter_order") or 0)
-                title_vi = old_row.get("title_vi")
-                if old_title != title_raw:
-                    renamed += 1
-                    title_vi = None
-                if old_order != chapter_order:
-                    reordered += 1
-                updates.append((chapter_order, title_raw, title_vi, now, chapter_id))
-                kept_ids.append(chapter_id)
-                continue
-
-            chapter_seed = f"{bid}|{remote_url}"
-            chapter_id = f"ch_{hash_text(chapter_seed)}"
-            raw_key = f"raw_{hash_text(f'{chapter_id}|{remote_url}')}"
-            inserts.append(
-                (
-                    chapter_id,
-                    bid,
-                    chapter_order,
-                    title_raw,
-                    None,
-                    raw_key,
-                    None,
-                    None,
-                    now,
-                    0,
-                    remote_url,
-                )
-            )
-            kept_ids.append(chapter_id)
-            added += 1
-
-        removed_rows.extend(old_by_url.values())
-        removed_ids = [str(row.get("chapter_id") or "").strip() for row in removed_rows if str(row.get("chapter_id") or "").strip()]
-        removed_cache_keys = {
-            str(key).strip()
-            for row in removed_rows
-            for key in (row.get("raw_key"), row.get("trans_key"))
-            if str(key or "").strip()
-        }
-        image_cache_keys = self._collect_vbook_image_cache_keys_for_chapters(book=book, chapter_rows=removed_rows)
-        delete_stats = self._delete_cache_keys_with_stats(removed_cache_keys) if removed_cache_keys else {
-            "cache_deleted": 0,
-            "deleted_files": 0,
-            "bytes_deleted": 0,
-        }
-        image_stats = self._delete_vbook_image_cache_keys(image_cache_keys) if image_cache_keys else {
-            "image_cache_deleted": 0,
-            "image_bytes_deleted": 0,
-        }
-
-        with self._connect() as conn:
-            if removed_ids:
-                placeholders = ",".join("?" for _ in removed_ids)
-                conn.execute(
-                    f"DELETE FROM translation_unit_map WHERE chapter_id IN ({placeholders})",
-                    tuple(removed_ids),
-                )
-                conn.execute(
-                    f"DELETE FROM chapters WHERE chapter_id IN ({placeholders})",
-                    tuple(removed_ids),
-                )
-            if updates:
-                conn.executemany(
-                    """
-                    UPDATE chapters
-                    SET chapter_order = ?, title_raw = ?, title_vi = ?, updated_at = ?
-                    WHERE chapter_id = ?
-                    """,
-                    updates,
-                )
-            if inserts:
-                conn.executemany(
-                    """
-                    INSERT INTO chapters(
-                        chapter_id, book_id, chapter_order, title_raw, title_vi,
-                        raw_key, trans_key, trans_sig, updated_at, word_count, remote_url
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    inserts,
-                )
-            last_read_id = str(book.get("last_read_chapter_id") or "").strip()
-            keep_last_read = bool(last_read_id and last_read_id in set(kept_ids))
-            if keep_last_read:
-                conn.execute(
-                    "UPDATE books SET chapter_count = ?, updated_at = ? WHERE book_id = ?",
-                    (len(normalized_rows), now, bid),
-                )
-            else:
-                fallback_last_read = kept_ids[0] if kept_ids else None
-                conn.execute(
-                    """
-                    UPDATE books
-                    SET chapter_count = ?, updated_at = ?, last_read_chapter_id = ?, last_read_ratio = ?
-                    WHERE book_id = ?
-                    """,
-                    (len(normalized_rows), now, fallback_last_read, 0.0, bid),
-                )
-
-        return {
-            "ok": True,
-            "changed": True,
-            "book_id": bid,
-            "chapter_count": int(len(normalized_rows)),
-            "added": int(added),
-            "removed": int(len(removed_rows)),
-            "renamed": int(renamed),
-            "reordered": int(reordered),
-            "cache_deleted": int(delete_stats.get("cache_deleted") or 0),
-            "deleted_files": int(delete_stats.get("deleted_files") or 0),
-            "bytes_deleted": int(delete_stats.get("bytes_deleted") or 0),
-            "image_cache_deleted": int(image_stats.get("image_cache_deleted") or 0),
-            "image_bytes_deleted": int(image_stats.get("image_bytes_deleted") or 0),
-        }
+        return storage_book_mutation_support.sync_remote_book_toc(
+            self,
+            book_id,
+            toc_rows,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+            utc_now_iso=utc_now_iso,
+            hash_text=hash_text,
+            image_cache_dir=VBOOK_IMAGE_CACHE_DIR,
+            is_book_comic=is_book_comic,
+            extract_comic_image_urls=extract_comic_image_urls,
+            vbook_image_cache_key=vbook_image_cache_key,
+        )
 
     def set_book_cover_upload(self, book_id: str, filename: str, content: bytes) -> dict[str, Any] | None:
-        book = self.find_book(book_id)
-        if not book:
-            return None
-        suffix = Path(filename or "cover.jpg").suffix.lower() or ".jpg"
-        if suffix not in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
-            suffix = ".jpg"
-        path = COVER_DIR / f"{book_id}{suffix}"
-        path.write_bytes(content)
-        return self.update_book_metadata(book_id, {"cover_path": str(path)})
+        return storage_book_mutation_support.set_book_cover_upload(
+            self,
+            book_id,
+            filename,
+            content,
+            cover_dir=COVER_DIR,
+        )
 
     def translate_book_titles(
         self,
@@ -4326,12 +3971,13 @@ class ReaderStorage:
         return storage_library_support.get_book_download_counts(self, book_id)
 
     def update_chapter_trans(self, chapter_id: str, trans_key: str, trans_sig: str | None = None) -> None:
-        now = utc_now_iso()
-        with self._connect() as conn:
-            conn.execute(
-                "UPDATE chapters SET trans_key = ?, trans_sig = ?, updated_at = ? WHERE chapter_id = ?",
-                (trans_key, trans_sig, now, chapter_id),
-            )
+        storage_book_mutation_support.update_chapter_trans(
+            self,
+            chapter_id,
+            trans_key,
+            trans_sig,
+            utc_now_iso=utc_now_iso,
+        )
 
     def update_book_progress(
         self,
@@ -4369,93 +4015,23 @@ class ReaderStorage:
         cleanup_history: bool = True,
         cleanup_related_source: bool = True,
     ) -> bool:
-        book = self.find_book(book_id)
-        chapters = self.get_chapter_rows(book_id)
-        if not chapters and not book:
-            return False
-        source_url = str((book or {}).get("source_url") or "").strip()
-        source_plugin = str((book or {}).get("source_plugin") or "").strip()
-        source_type = str((book or {}).get("source_type") or "").strip().lower()
-
-        content_keys = {ch["raw_key"] for ch in chapters if ch.get("raw_key")}
-        content_keys.update(ch["trans_key"] for ch in chapters if ch.get("trans_key"))
-        image_cache_keys: set[str] = set()
-        if is_book_comic(book):
-            plugin_id = str((book or {}).get("source_plugin") or "").strip()
-            for ch in chapters:
-                raw_key = str(ch.get("raw_key") or "").strip()
-                if not raw_key:
-                    continue
-                raw_text = self.read_cache(raw_key) or ""
-                for image_url in extract_comic_image_urls(raw_text):
-                    key = vbook_image_cache_key(image_url=image_url, plugin_id=plugin_id)
-                    if key:
-                        image_cache_keys.add(key)
-
-        with self._connect() as conn:
-            if chapters:
-                conn.executemany(
-                    "DELETE FROM translation_unit_map WHERE chapter_id = ?",
-                    [(ch["chapter_id"],) for ch in chapters if ch.get("chapter_id")],
-                )
-            conn.execute("DELETE FROM chapters WHERE book_id = ?", (book_id,))
-            conn.execute("DELETE FROM books WHERE book_id = ?", (book_id,))
-
-        self._delete_cache_keys(content_keys)
-        for key in image_cache_keys:
-            for suffix in (".bin", ".json"):
-                path = VBOOK_IMAGE_CACHE_DIR / f"{key}{suffix}"
-                if not path.exists():
-                    continue
-                try:
-                    path.unlink()
-                except Exception:
-                    pass
-        self._delete_app_state_value(
-            storage_user_state_support._name_set_state_key(book_id, base_key=APP_STATE_NAME_SET_STATE_KEY)
+        return storage_book_cleanup_support.delete_book(
+            self,
+            book_id,
+            cleanup_history=cleanup_history,
+            cleanup_related_source=cleanup_related_source,
+            is_book_comic=is_book_comic,
+            name_set_state_key=storage_user_state_support._name_set_state_key,
+            book_vp_set_key=storage_user_state_support._book_vp_set_key,
+            app_state_name_set_key=APP_STATE_NAME_SET_STATE_KEY,
+            app_state_book_vp_set_key_prefix=APP_STATE_BOOK_VP_SET_KEY_PREFIX,
+            cache_dir=CACHE_DIR,
+            cover_dir=COVER_DIR,
+            runtime_base_dir=runtime_base_dir,
+            resolve_persisted_path=resolve_persisted_path,
+            root_dir=ROOT_DIR,
+            local_dir=LOCAL_DIR,
         )
-        try:
-            self._delete_app_state_value(
-                storage_user_state_support._book_vp_set_key(book_id, base_prefix=APP_STATE_BOOK_VP_SET_KEY_PREFIX)
-            )
-        except ValueError:
-            pass
-
-        epub_file = CACHE_DIR / "epub_sources" / f"{book_id}.epub"
-        if epub_file.exists():
-            try:
-                epub_file.unlink()
-            except Exception:
-                pass
-        cover_path = (book or {}).get("cover_path") or ""
-        if cover_path and not cover_path.startswith(("http://", "https://", "data:")):
-            cp = resolve_persisted_path(
-                cover_path,
-                runtime_base_dir(),
-                ROOT_DIR,
-                LOCAL_DIR,
-                COVER_DIR,
-            )
-            if cp.exists():
-                try:
-                    cp.unlink()
-                except Exception:
-                    pass
-        if cleanup_history and source_url:
-            try:
-                self.remove_history_by_source(plugin_id=source_plugin, source_url=source_url)
-            except Exception:
-                pass
-        if cleanup_related_source and source_url and not source_type.startswith("vbook_session"):
-            try:
-                self._delete_session_books_for_source(
-                    source_url=source_url,
-                    source_plugin=source_plugin,
-                    exclude_book_ids={str(book_id or "").strip()},
-                )
-            except Exception:
-                pass
-        return True
 
     def _delete_session_books_for_source(
         self,
@@ -4464,56 +4040,15 @@ class ReaderStorage:
         source_plugin: str = "",
         exclude_book_ids: set[str] | None = None,
     ) -> dict[str, int]:
-        source = str(source_url or "").strip()
-        plugin = str(source_plugin or "").strip()
-        excluded = {str(x or "").strip() for x in (exclude_book_ids or set()) if str(x or "").strip()}
-        if not source:
-            return {"books_deleted": 0}
-        rows = self.find_books_by_source(
-            source,
-            plugin,
-            include_session=True,
-            session_only=True,
+        return storage_book_cleanup_support.delete_session_books_for_source(
+            self,
+            source_url=source_url,
+            source_plugin=source_plugin,
+            exclude_book_ids=exclude_book_ids,
         )
-        deleted = 0
-        for row in rows:
-            bid = str(row.get("book_id") or "").strip()
-            if (not bid) or (bid in excluded):
-                continue
-            if self.delete_book(bid, cleanup_history=False, cleanup_related_source=False):
-                deleted += 1
-        return {"books_deleted": int(deleted)}
 
     def cleanup_orphan_session_books(self) -> dict[str, int]:
-        with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT b.book_id
-                FROM books b
-                WHERE lower(COALESCE(b.source_type, '')) LIKE 'vbook_session%'
-                  AND trim(COALESCE(b.source_url, '')) <> ''
-                  AND NOT EXISTS (
-                        SELECT 1
-                        FROM history_books h
-                        WHERE h.source_url = b.source_url
-                          AND (
-                                trim(COALESCE(b.source_plugin, '')) = ''
-                                OR h.plugin_id = b.source_plugin
-                          )
-                    )
-                """
-            ).fetchall()
-        deleted = 0
-        for row in rows:
-            bid = str(row["book_id"] or "").strip()
-            if not bid:
-                continue
-            if self.delete_book(bid, cleanup_history=False, cleanup_related_source=False):
-                deleted += 1
-        return {
-            "orphan_session_books": int(len(rows)),
-            "orphan_session_books_deleted": int(deleted),
-        }
+        return storage_book_cleanup_support.cleanup_orphan_session_books(self)
 
     def cleanup_expired_history(self) -> int:
         return storage_history_support.cleanup_expired_history(self, utc_now_iso=utc_now_iso)
@@ -4609,16 +4144,13 @@ class ReaderStorage:
         )
 
     def save_epub_source(self, book_id: str, content: bytes) -> str:
-        folder = CACHE_DIR / "epub_sources"
-        folder.mkdir(parents=True, exist_ok=True)
-        path = folder / f"{book_id}.epub"
-        path.write_bytes(content)
-        with self._connect() as conn:
-            conn.execute(
-                "UPDATE books SET source_file_path = ?, updated_at = ? WHERE book_id = ?",
-                (str(path), utc_now_iso(), book_id),
-            )
-        return str(path)
+        return storage_chapter_content_support.save_epub_source(
+            self,
+            book_id,
+            content,
+            cache_dir=CACHE_DIR,
+            utc_now_iso=utc_now_iso,
+        )
 
     def create_export_txt(
         self,
@@ -4629,43 +4161,16 @@ class ReaderStorage:
         *,
         use_cached_only: bool = False,
     ) -> Path:
-        book = self.find_book(book_id)
-        if not book:
-            raise ValueError("Không tìm thấy truyện.")
-        if is_book_comic(book):
-            raise ValueError("Truyện tranh không hỗ trợ xuất TXT.")
-        chapters = self.get_chapter_rows(book_id)
-        if not chapters:
-            raise ValueError("Truyện chưa có chương.")
-        _, active_name_set, _ = self.get_active_name_set(default_sets={"Mặc định": {}}, active_default="Mặc định", book_id=book_id)
-        active_vp_set, _ = self.get_book_vp_set(book_id)
-
-        output_lines: list[str] = []
-        for ch in chapters:
-            if use_cached_only:
-                raw_cached = self.read_cache(str(ch.get("raw_key") or "").strip())
-                if raw_cached is None:
-                    continue
-            title = ch["title_vi"] or ch["title_raw"] or f"Chương {ch['chapter_order']}"
-            text = self.get_chapter_text(
-                ch,
-                book,
-                mode="trans" if ensure_translated else "raw",
-                translator=translator,
-                translate_mode=translate_mode,
-                name_set_override=active_name_set,
-                vp_set_override=active_vp_set,
-                allow_remote_fetch=not use_cached_only,
-            )
-            output_lines.extend([title, "", text, ""])
-        if not output_lines:
-            raise ValueError("Không có chương đã cache để xuất TXT.")
-
-        safe_name = self._safe_filename(book["title"])
-        ts = utc_now_ts()
-        out = EXPORT_DIR / f"{safe_name}_{ts}.txt"
-        out.write_text("\n".join(output_lines), encoding="utf-8")
-        return out
+        return storage_chapter_content_support.create_export_txt(
+            self,
+            book_id,
+            ensure_translated,
+            translator,
+            translate_mode,
+            use_cached_only=use_cached_only,
+            export_dir=EXPORT_DIR,
+            utc_now_ts=utc_now_ts,
+        )
 
     def create_export_epub(
         self,
@@ -4676,110 +4181,16 @@ class ReaderStorage:
         *,
         use_cached_only: bool = False,
     ) -> Path:
-        book = self.find_book(book_id)
-        if not book:
-            raise ValueError("Không tìm thấy truyện.")
-        chapters = self.get_chapter_rows(book_id)
-        if not chapters:
-            raise ValueError("Truyện chưa có chương.")
-        _, active_name_set, _ = self.get_active_name_set(default_sets={"Mặc định": {}}, active_default="Mặc định", book_id=book_id)
-        active_vp_set, _ = self.get_book_vp_set(book_id)
-
-        safe_name = self._safe_filename(book["title"])
-        ts = utc_now_ts()
-        out = EXPORT_DIR / f"{safe_name}_{ts}.epub"
-
-        uid = book["book_id"]
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-        files: dict[str, bytes] = {}
-        files["mimetype"] = b"application/epub+zip"
-        files[
-            "META-INF/container.xml"
-        ] = b'<?xml version="1.0" encoding="UTF-8"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>'
-
-        manifest_items = [
-            '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'
-        ]
-        spine_items: list[str] = []
-        nav_points: list[str] = []
-
-        for idx, ch in enumerate(chapters, start=1):
-            if use_cached_only:
-                raw_cached = self.read_cache(str(ch.get("raw_key") or "").strip())
-                if raw_cached is None:
-                    continue
-            title = ch["title_vi"] or ch["title_raw"] or f"Chương {idx}"
-            text = self.get_chapter_text(
-                ch,
-                book,
-                mode="trans" if ensure_translated else "raw",
-                translator=translator,
-                translate_mode=translate_mode,
-                name_set_override=active_name_set,
-                vp_set_override=active_vp_set,
-                allow_remote_fetch=not use_cached_only,
-            )
-            content_html = "\n".join(
-                f"<p>{html.escape(line)}</p>" if line.strip() else "<p><br/></p>"
-                for line in text.split("\n")
-            )
-            xhtml_name = f"Text/chapter_{idx}.xhtml"
-            xhtml = (
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-                '<html xmlns="http://www.w3.org/1999/xhtml">'
-                f"<head><title>{html.escape(title)}</title></head>"
-                f"<body><h2>{html.escape(title)}</h2>{content_html}</body></html>"
-            )
-            files[f"OEBPS/{xhtml_name}"] = xhtml.encode("utf-8")
-            manifest_items.append(
-                f'<item id="chap{idx}" href="{xhtml_name}" media-type="application/xhtml+xml"/>'
-            )
-            spine_items.append(f'<itemref idref="chap{idx}"/>')
-            nav_points.append(
-                f'<navPoint id="navPoint-{idx}" playOrder="{idx}"><navLabel><text>{html.escape(title)}</text></navLabel><content src="{xhtml_name}"/></navPoint>'
-            )
-        if not spine_items:
-            raise ValueError("Không có chương đã cache để xuất EPUB.")
-
-        toc_ncx = (
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-            '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">'
-            "<head>"
-            f'<meta name="dtb:uid" content="{html.escape(uid)}"/>'
-            '<meta name="dtb:depth" content="1"/><meta name="dtb:totalPageCount" content="0"/><meta name="dtb:maxPageNumber" content="0"/>'
-            "</head>"
-            f"<docTitle><text>{html.escape(book['title'])}</text></docTitle>"
-            f"<navMap>{''.join(nav_points)}</navMap>"
-            "</ncx>"
+        return storage_chapter_content_support.create_export_epub(
+            self,
+            book_id,
+            ensure_translated,
+            translator,
+            translate_mode,
+            use_cached_only=use_cached_only,
+            export_dir=EXPORT_DIR,
+            utc_now_ts=utc_now_ts,
         )
-
-        content_opf = (
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-            '<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">'
-            '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
-            f"<dc:title>{html.escape(book['title'])}</dc:title>"
-            "<dc:language>vi</dc:language>"
-            f"<dc:identifier id=\"BookId\">{html.escape(uid)}</dc:identifier>"
-            f"<dc:creator>{html.escape(book['author'] or '')}</dc:creator>"
-            f"<dc:date>{now}</dc:date>"
-            "</metadata>"
-            f"<manifest>{''.join(manifest_items)}</manifest>"
-            f"<spine toc=\"ncx\">{''.join(spine_items)}</spine>"
-            "</package>"
-        )
-
-        files["OEBPS/toc.ncx"] = toc_ncx.encode("utf-8")
-        files["OEBPS/content.opf"] = content_opf.encode("utf-8")
-
-        with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr("mimetype", files["mimetype"], compress_type=zipfile.ZIP_STORED)
-            for path, data in files.items():
-                if path == "mimetype":
-                    continue
-                zf.writestr(path, data)
-
-        return out
 
     def get_chapter_text(
         self,
@@ -4793,62 +4204,22 @@ class ReaderStorage:
         vp_set_override: dict[str, str] | None = None,
         allow_remote_fetch: bool = True,
     ) -> str:
-        raw_key = chapter.get("raw_key")
-        cached_raw = self.read_cache(raw_key) or ""
-        if (
-            allow_remote_fetch
-            and (not cached_raw)
-            and str(book.get("source_type") or "").startswith("vbook")
-            and chapter.get("remote_url")
-            and self.remote_chapter_fetcher
-        ):
-            cached_raw = self.remote_chapter_fetcher(chapter, book) or ""
-        comic_payload = decode_comic_payload(cached_raw or "")
-        if comic_payload is not None:
-            return cached_raw or encode_comic_payload([])
-
-        raw_text, _, junk_version = self.chapter_text_cleanup(cached_raw or "")
-        if mode == "raw" or (not book_supports_translation(book)):
-            return raw_text
-
-        base_sig = translator.translation_signature(
-            mode=translate_mode,
+        return storage_chapter_content_support.get_chapter_text(
+            self,
+            chapter,
+            book,
+            mode=mode,
+            translator=translator,
+            translate_mode=translate_mode,
             name_set_override=name_set_override,
             vp_set_override=vp_set_override,
+            allow_remote_fetch=allow_remote_fetch,
+            decode_comic_payload=decode_comic_payload,
+            encode_comic_payload=encode_comic_payload,
+            book_supports_translation=book_supports_translation,
+            normalize_newlines=normalize_newlines,
+            hash_text=hash_text,
         )
-        current_sig = self.chapter_trans_signature(base_sig, junk_version=junk_version)
-        trans_key = chapter.get("trans_key")
-        trans_sig = (chapter.get("trans_sig") or "").strip()
-        if trans_key and trans_sig == current_sig:
-            cached = self.read_cache(trans_key)
-            if cached is not None:
-                map_count = self.get_translation_unit_map_count(chapter["chapter_id"], current_sig, translate_mode)
-                if map_count > 0:
-                    return normalize_newlines(cached)
-
-        detail = translator.translate_detailed(
-            raw_text,
-            mode=translate_mode,
-            name_set_override=name_set_override,
-            vp_set_override=vp_set_override,
-        )
-        translated = normalize_newlines(detail.get("translated") or "")
-        if not translated:
-            translated = raw_text
-
-        trans_seed = f"{chapter['chapter_id']}|{chapter['raw_key']}|{current_sig}|{translated}"
-        new_key = f"tr_{hash_text(trans_seed)}"
-        self.write_cache(new_key, "vi", translated)
-        self.update_chapter_trans(chapter["chapter_id"], new_key, current_sig)
-        self.save_translation_unit_map(
-            chapter["chapter_id"],
-            current_sig,
-            translate_mode,
-            detail.get("unit_map") if isinstance(detail.get("unit_map"), list) else [],
-        )
-        chapter["trans_key"] = new_key
-        chapter["trans_sig"] = current_sig
-        return translated
 
 
 class ReaderService:
