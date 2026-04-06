@@ -66,6 +66,11 @@ from reader_backend import export_support
 from reader_backend import queue_runtime as queue_runtime_support
 from reader_backend import vbook_search_filters as vbook_search_filters_support
 
+try:
+    from reader_local_urls import VBOOK_RUNNER_INSTALL_URL as _LOCAL_VBOOK_RUNNER_INSTALL_URL
+except Exception:
+    _LOCAL_VBOOK_RUNNER_INSTALL_URL = ""
+
 
 ROOT_DIR = Path(__file__).resolve().parent
 LOCAL_DIR = ROOT_DIR / "local"
@@ -86,6 +91,7 @@ APP_STATE_EXPORT_JOBS_STATE_KEY = "reader.export_jobs_state"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 HISTORY_BOOK_RETENTION_DAYS = 7
 EXPORT_JOB_RETENTION_DAYS = 7
+VBOOK_RUNNER_INSTALL_URL = str(_LOCAL_VBOOK_RUNNER_INSTALL_URL or "").strip()
 
 # Ép MIME chuẩn cho JS module trên Windows/registry lạ để tránh trang trắng
 # (module script bị chặn nếu server trả text/plain).
@@ -6878,20 +6884,6 @@ class ReaderService:
             "retry_count": int(global_cfg.get("retry_count") or 2),
         }
 
-    def _vbook_runner_manifest_meta(self) -> dict[str, Any]:
-        manifest_path = ROOT_DIR / "version.json"
-        try:
-            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
-        if not isinstance(payload, dict):
-            return {}
-        reader_app = payload.get("reader_app")
-        if not isinstance(reader_app, dict):
-            return {}
-        meta = reader_app.get("vbook_runner")
-        return meta if isinstance(meta, dict) else {}
-
     def _vbook_runner_target_path(self) -> Path:
         base_dir = runtime_base_dir()
         vcfg = self._vbook_cfg()
@@ -6928,9 +6920,6 @@ class ReaderService:
             return str(client.get_version(timeout_sec=8.0) or "").strip(), ""
         except Exception as exc:
             return "", str(exc).strip()
-
-    def _version_tuple(self, value: str) -> tuple[int, ...]:
-        return tuple(int(part) for part in re.findall(r"\d+", str(value or "")))
 
     def _is_google_drive_url(self, url: str) -> bool:
         host = str(urlparse(str(url or "")).netloc or "").lower()
@@ -7015,7 +7004,6 @@ class ReaderService:
         raise RuntimeError("Không tìm thấy `vbook_runner.jar` trong file zip.")
 
     def get_vbook_runner_status(self) -> dict[str, Any]:
-        meta = self._vbook_runner_manifest_meta()
         configured_path = self._vbook_runner_target_path()
         runtime_path = self._vbook_runner_runtime_path()
         active_path = runtime_path if runtime_path.exists() else configured_path
@@ -7026,33 +7014,19 @@ class ReaderService:
             installed_version, version_error = self._query_vbook_runner_version(active_path)
         if not installed_version:
             installed_version = str(self._vbook_cfg().get("runner_installed_version") or "").strip()
-        target_version = str(meta.get("version") or "").strip()
-        download_url = str(meta.get("url") or "").strip()
-        needs_update = bool(
-            exists
-            and target_version
-            and (
-                (not installed_version)
-                or (self._version_tuple(target_version) > self._version_tuple(installed_version))
-            )
-        )
         return {
             "exists": exists,
             "configured_path": str(configured_path),
             "path": str(active_path),
             "installed_version": installed_version,
-            "target_version": target_version,
-            "download_url": download_url,
-            "needs_update": needs_update,
             "version_error": version_error,
+            "install_available": bool(VBOOK_RUNNER_INSTALL_URL),
             "install_action": "reinstall" if exists else "install",
             "install_label": "Cài lại" if exists else "Cài đặt",
         }
 
-    def install_vbook_runner(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        meta = self._vbook_runner_manifest_meta()
-        body = payload if isinstance(payload, dict) else {}
-        install_url = str(body.get("url") or meta.get("url") or "").strip()
+    def install_vbook_runner(self) -> dict[str, Any]:
+        install_url = str(VBOOK_RUNNER_INSTALL_URL or "").strip()
         if not install_url:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Chưa có URL cài đặt vBook runner.")
 
@@ -7071,8 +7045,6 @@ class ReaderService:
             verify_version, verify_error = self._query_vbook_runner_version(candidate_path)
             if not verify_version and verify_error:
                 raise RuntimeError(f"Gói vBook runner không hợp lệ: {verify_error}")
-            if not verify_version:
-                verify_version = str(meta.get("version") or "").strip()
             if not verify_version:
                 raise RuntimeError("Không đọc được version của gói vBook runner.")
 

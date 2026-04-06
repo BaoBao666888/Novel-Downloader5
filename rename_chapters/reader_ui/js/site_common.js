@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260406-vbookrunner1";
+import { t } from "../i18n.vi.js?v=20260406-vbookrunner2";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -903,7 +903,6 @@ function fillStaticTexts() {
     ["vbook-runner-hint", "vbookRunnerHint"],
     ["vbook-runner-path-label", "vbookRunnerPathLabel"],
     ["vbook-runner-installed-label", "vbookRunnerInstalledLabel"],
-    ["vbook-runner-target-label", "vbookRunnerTargetLabel"],
     ["btn-vbook-reload-settings", "vbookReloadSettings"],
     ["btn-vbook-save-global-settings", "vbookSaveGlobalSettings"],
     ["btn-vbook-save-plugin-settings", "vbookSavePluginSettings"],
@@ -948,10 +947,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         configured_path: "",
         path: "",
         installed_version: "",
-        target_version: "",
-        download_url: "",
-        needs_update: false,
         version_error: "",
+        install_available: false,
         install_action: "install",
         install_label: "Cài đặt",
       },
@@ -1531,7 +1528,6 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const vbookPluginPrefetchInput = qs("vbook-plugin-prefetch-unread-count");
   const vbookRunnerPathValue = qs("vbook-runner-path-value");
   const vbookRunnerInstalledValue = qs("vbook-runner-installed-value");
-  const vbookRunnerTargetValue = qs("vbook-runner-target-value");
   const vbookRunnerStatusText = qs("vbook-runner-status");
   const vbookRunnerInstallBtn = qs("btn-vbook-runner-install");
 
@@ -1584,10 +1580,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       configured_path: String(raw.configured_path || raw.path || "").trim(),
       path: String(raw.path || raw.configured_path || "").trim(),
       installed_version: String(raw.installed_version || "").trim(),
-      target_version: String(raw.target_version || "").trim(),
-      download_url: String(raw.download_url || "").trim(),
-      needs_update: Boolean(raw.needs_update),
       version_error: String(raw.version_error || "").trim(),
+      install_available: Boolean(raw.install_available),
       install_action: installAction,
       install_label: String(raw.install_label || "").trim() || t(installAction === "reinstall" ? "vbookRunnerReinstall" : "vbookRunnerInstall"),
     };
@@ -1648,21 +1642,16 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         ? (runner.installed_version || t("vbookRunnerUnknown"))
         : t("vbookRunnerMissing");
     }
-    if (vbookRunnerTargetValue) {
-      vbookRunnerTargetValue.textContent = runner.target_version || t("vbookRunnerUnknown");
-    }
     if (vbookRunnerInstallBtn) {
       vbookRunnerInstallBtn.textContent = runner.install_action === "reinstall"
         ? t("vbookRunnerReinstall")
         : t("vbookRunnerInstall");
-      vbookRunnerInstallBtn.disabled = !runner.download_url;
+      vbookRunnerInstallBtn.disabled = !runner.install_available;
     }
     if (vbookRunnerStatusText) {
       let text = "";
       if (!runner.exists) {
         text = t("vbookRunnerStatusMissing");
-      } else if (runner.needs_update) {
-        text = t("vbookRunnerStatusUpdate");
       } else {
         text = t("vbookRunnerStatusReady");
       }

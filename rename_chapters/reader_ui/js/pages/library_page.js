@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260406-vbookrunner1";
+import { initShell } from "../site_common.js?v=20260406-vbookrunner2";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {

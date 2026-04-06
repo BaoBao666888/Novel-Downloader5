@@ -59,8 +59,8 @@ def handle_api(
         return {"ok": True, "runner": handler.service.get_vbook_runner_status()}
 
     if method == "POST" and path == "/api/vbook/runner/install":
-        payload = handler._read_json_body()
-        return handler.service.install_vbook_runner(payload)
+        handler._read_json_body()
+        return handler.service.install_vbook_runner()
 
     if method == "GET" and path == "/api/vbook/settings/effective":
         plugin_id = (query.get("plugin_id", [""])[0] or "").strip()
