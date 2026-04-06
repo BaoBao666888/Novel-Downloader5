@@ -1099,6 +1099,84 @@ p {
   max-height: min(44vh, 420px);
 }
 
+.online-search-filter-chips {
+  padding: 0 12px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.online-search-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 52%, transparent);
+  color: color-mix(in srgb, var(--text) 92%, transparent);
+  font-size: 13px;
+}
+
+.online-search-filter-groups {
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.online-search-filter-actions {
+  padding: 0 12px 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.online-search-filter-actions .btn {
+  min-width: min(220px, 100%);
+}
+
+.online-search-filter-group {
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface-alt) 26%, transparent);
+}
+
+.online-search-filter-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.online-search-filter-label {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.online-search-filter-depth {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.online-search-filter-options {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.online-search-filter-option {
+  border-radius: 999px;
+}
+
+.online-search-filter-option.active {
+  border-color: color-mix(in srgb, var(--accent) 88%, white 12%);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  color: color-mix(in srgb, var(--text) 98%, white 2%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent) inset;
+}
+
 .explore-tab-list {
   list-style: none;
   margin: 0;
@@ -2777,6 +2855,36 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   height: 1px;
   margin: 10px 0;
   background: color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.vbook-runner-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+}
+
+.vbook-runner-meta {
+  display: grid;
+  gap: 8px;
+}
+
+.vbook-runner-row {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.vbook-runner-row code {
+  display: block;
+  word-break: break-all;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface-alt) 58%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  font-size: 12px;
 }
 
 .name-editor-dialog {

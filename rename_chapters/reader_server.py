@@ -16,7 +16,9 @@ import os
 import re
 import shutil
 import sqlite3
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -62,6 +64,7 @@ from reader_backend import export_jobs as export_jobs_support
 from reader_backend import export_runtime as export_runtime_support
 from reader_backend import export_support
 from reader_backend import queue_runtime as queue_runtime_support
+from reader_backend import vbook_search_filters as vbook_search_filters_support
 
 
 ROOT_DIR = Path(__file__).resolve().parent
@@ -4246,6 +4249,45 @@ class ReaderService:
             save_app_config(cfg)
             self.app_config = cfg
 
+    def _vbook_runner_default_rel(self) -> str:
+        return "tools/vbook_runner/vbook_runner.jar"
+
+    def _resolve_vbook_java_bin(
+        self,
+        vcfg: dict[str, Any] | None = None,
+        *,
+        base_dir: Path | None = None,
+        bundle_dir: Path | None = None,
+    ) -> str | None:
+        settings = vcfg if isinstance(vcfg, dict) else self._vbook_cfg()
+        base = base_dir if isinstance(base_dir, Path) else runtime_base_dir()
+        bundle = bundle_dir if isinstance(bundle_dir, Path) else ROOT_DIR
+        java_bin_raw = str(settings.get("java_bin") or "").strip()
+        if not java_bin_raw:
+            return None
+        try:
+            resolved_java = resolve_existing_path(java_bin_raw, base, bundle)
+            return str(resolved_java) if resolved_java.exists() else java_bin_raw
+        except Exception:
+            return java_bin_raw
+
+    def _build_vbook_runner_client(self, jar_path: str | Path | None) -> Any:
+        if not jar_path:
+            return None
+        path = Path(str(jar_path))
+        if not path.exists():
+            return None
+        vcfg = self._vbook_cfg()
+        runner_cfg = {
+            "default_user_agent": str(vcfg.get("default_user_agent") or ""),
+            "default_cookie": str(vcfg.get("default_cookie") or ""),
+            "timeout_ms": int(vcfg.get("timeout_ms") or 20000),
+            "request_delay_ms": int(self.vbook_runtime_global_settings.get("request_delay_ms") or 0),
+            "supplemental_code": "",
+        }
+        java_bin = self._resolve_vbook_java_bin(vcfg, base_dir=runtime_base_dir(), bundle_dir=ROOT_DIR)
+        return vbook_ext.VBookRunnerClient(path, runner_config=runner_cfg, java_bin=java_bin)
+
     def refresh_config(self) -> None:
         self.app_config = load_app_config()
         self._ensure_reader_config_defaults_persisted()
@@ -4290,30 +4332,11 @@ class ReaderService:
         self.vbook_manager = vbook_ext.VBookExtensionManager(resolve_path_from_base(extensions_dir, base_dir))
 
         try:
-            jar_rel = str(vcfg.get("runner_jar") or "tools/vbook_runner/vbook_runner.jar").strip() or "tools/vbook_runner/vbook_runner.jar"
+            jar_rel = str(vcfg.get("runner_jar") or self._vbook_runner_default_rel()).strip() or self._vbook_runner_default_rel()
         except Exception:
-            jar_rel = "tools/vbook_runner/vbook_runner.jar"
+            jar_rel = self._vbook_runner_default_rel()
         jar_path = resolve_existing_path(jar_rel, base_dir, bundle_dir)
-        if jar_path.exists():
-            runner_cfg = {
-                "default_user_agent": str(vcfg.get("default_user_agent") or ""),
-                "default_cookie": str(vcfg.get("default_cookie") or ""),
-                "timeout_ms": int(vcfg.get("timeout_ms") or 20000),
-                "request_delay_ms": int(self.vbook_runtime_global_settings.get("request_delay_ms") or 0),
-                # `supplemental_code` theo plugin sẽ được inject ở per-run override.
-                "supplemental_code": "",
-            }
-            java_bin_raw = str(vcfg.get("java_bin") or "").strip()
-            java_bin = None
-            if java_bin_raw:
-                try:
-                    resolved_java = resolve_existing_path(java_bin_raw, base_dir, bundle_dir)
-                    java_bin = str(resolved_java) if resolved_java.exists() else java_bin_raw
-                except Exception:
-                    java_bin = java_bin_raw
-            self.vbook_runner = vbook_ext.VBookRunnerClient(jar_path, runner_config=runner_cfg, java_bin=java_bin)
-        else:
-            self.vbook_runner = None
+        self.vbook_runner = self._build_vbook_runner_client(jar_path)
 
     def _import_preview_root(self) -> Path:
         return service_local_import_support.import_preview_root(
@@ -6855,9 +6878,242 @@ class ReaderService:
             "retry_count": int(global_cfg.get("retry_count") or 2),
         }
 
+    def _vbook_runner_manifest_meta(self) -> dict[str, Any]:
+        manifest_path = ROOT_DIR / "version.json"
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+        if not isinstance(payload, dict):
+            return {}
+        reader_app = payload.get("reader_app")
+        if not isinstance(reader_app, dict):
+            return {}
+        meta = reader_app.get("vbook_runner")
+        return meta if isinstance(meta, dict) else {}
+
+    def _vbook_runner_target_path(self) -> Path:
+        base_dir = runtime_base_dir()
+        vcfg = self._vbook_cfg()
+        try:
+            jar_rel = str(vcfg.get("runner_jar") or self._vbook_runner_default_rel()).strip() or self._vbook_runner_default_rel()
+        except Exception:
+            jar_rel = self._vbook_runner_default_rel()
+        return resolve_path_from_base(jar_rel, base_dir)
+
+    def _vbook_runner_runtime_path(self) -> Path:
+        base_dir = runtime_base_dir()
+        vcfg = self._vbook_cfg()
+        try:
+            jar_rel = str(vcfg.get("runner_jar") or self._vbook_runner_default_rel()).strip() or self._vbook_runner_default_rel()
+        except Exception:
+            jar_rel = self._vbook_runner_default_rel()
+        return resolve_existing_path(jar_rel, base_dir, ROOT_DIR)
+
+    def _store_vbook_runner_path(self, path: Path) -> str:
+        base_dir = runtime_base_dir()
+        try:
+            rel = os.path.relpath(str(path), str(base_dir))
+            if not rel.startswith(".."):
+                return rel.replace("\\", "/")
+        except Exception:
+            pass
+        return str(path)
+
+    def _query_vbook_runner_version(self, jar_path: Path) -> tuple[str, str]:
+        client = self._build_vbook_runner_client(jar_path)
+        if not client:
+            return "", ""
+        try:
+            return str(client.get_version(timeout_sec=8.0) or "").strip(), ""
+        except Exception as exc:
+            return "", str(exc).strip()
+
+    def _version_tuple(self, value: str) -> tuple[int, ...]:
+        return tuple(int(part) for part in re.findall(r"\d+", str(value or "")))
+
+    def _is_google_drive_url(self, url: str) -> bool:
+        host = str(urlparse(str(url or "")).netloc or "").lower()
+        return "drive.google.com" in host or "docs.google.com" in host
+
+    def _normalize_google_drive_download_url(self, url: str) -> str:
+        raw = str(url or "").strip()
+        if not raw:
+            return ""
+        if not self._is_google_drive_url(raw):
+            return raw
+        for pattern in (
+            r"/file/d/([A-Za-z0-9_-]+)",
+            r"[?&]id=([A-Za-z0-9_-]+)",
+            r"/uc\?(?:[^#]+&)?id=([A-Za-z0-9_-]+)",
+        ):
+            match = re.search(pattern, raw)
+            if match:
+                return f"https://drive.google.com/uc?export=download&id={match.group(1)}"
+        return raw
+
+    def _is_probably_html_file(self, path: Path) -> bool:
+        try:
+            with path.open("rb") as fh:
+                head = fh.read(2048).lower()
+        except Exception:
+            return False
+        return (b"<html" in head) or (b"<!doctype html" in head)
+
+    def _download_vbook_runner_payload(self, url: str, dest_path: Path) -> None:
+        raw_url = str(url or "").strip()
+        if not raw_url:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL tải vBook runner.")
+        if dest_path.exists():
+            dest_path.unlink(missing_ok=True)
+
+        download_url = self._normalize_google_drive_download_url(raw_url)
+        if self._is_google_drive_url(raw_url):
+            gdown_name = "gdown.exe" if os.name == "nt" else "gdown"
+            gdown_path = resolve_existing_path(f"tools/{gdown_name}", runtime_base_dir(), ROOT_DIR)
+            if gdown_path.exists():
+                proc = subprocess.run(
+                    [str(gdown_path), "--fuzzy", "-O", str(dest_path), raw_url],
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=600,
+                    cwd=str(gdown_path.parent),
+                    creationflags=(0x08000000 if os.name == "nt" else 0),
+                )
+                if proc.returncode != 0:
+                    msg = str((proc.stderr or proc.stdout or "")).strip()
+                    raise RuntimeError(msg or f"Gdown thất bại (exit {proc.returncode}).")
+                if self._is_probably_html_file(dest_path):
+                    dest_path.unlink(missing_ok=True)
+                    raise RuntimeError("File tải về là HTML, có thể link Google Drive chưa public hoặc cần xác nhận tải.")
+                return
+
+        req = urllib_request.Request(
+            download_url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NovelStudio/vBookRunner"},
+            method="GET",
+        )
+        with urllib_request.urlopen(req, timeout=120) as resp, dest_path.open("wb") as fh:
+            shutil.copyfileobj(resp, fh)
+        if self._is_probably_html_file(dest_path):
+            dest_path.unlink(missing_ok=True)
+            if self._is_google_drive_url(raw_url):
+                raise RuntimeError("File tải về là HTML, có thể link Google Drive chưa public hoặc cần xác nhận tải.")
+            raise RuntimeError("File tải về không phải gói hợp lệ.")
+
+    def _pick_vbook_runner_jar_from_zip(self, zip_path: Path, extract_dir: Path) -> Path:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            zf.extractall(extract_dir)
+        jar_candidates = sorted(extract_dir.rglob("vbook_runner.jar"))
+        if jar_candidates:
+            return jar_candidates[0]
+        generic_jars = sorted(extract_dir.rglob("*.jar"))
+        if len(generic_jars) == 1:
+            return generic_jars[0]
+        raise RuntimeError("Không tìm thấy `vbook_runner.jar` trong file zip.")
+
+    def get_vbook_runner_status(self) -> dict[str, Any]:
+        meta = self._vbook_runner_manifest_meta()
+        configured_path = self._vbook_runner_target_path()
+        runtime_path = self._vbook_runner_runtime_path()
+        active_path = runtime_path if runtime_path.exists() else configured_path
+        exists = active_path.is_file()
+        installed_version = ""
+        version_error = ""
+        if exists:
+            installed_version, version_error = self._query_vbook_runner_version(active_path)
+        if not installed_version:
+            installed_version = str(self._vbook_cfg().get("runner_installed_version") or "").strip()
+        target_version = str(meta.get("version") or "").strip()
+        download_url = str(meta.get("url") or "").strip()
+        needs_update = bool(
+            exists
+            and target_version
+            and (
+                (not installed_version)
+                or (self._version_tuple(target_version) > self._version_tuple(installed_version))
+            )
+        )
+        return {
+            "exists": exists,
+            "configured_path": str(configured_path),
+            "path": str(active_path),
+            "installed_version": installed_version,
+            "target_version": target_version,
+            "download_url": download_url,
+            "needs_update": needs_update,
+            "version_error": version_error,
+            "install_action": "reinstall" if exists else "install",
+            "install_label": "Cài lại" if exists else "Cài đặt",
+        }
+
+    def install_vbook_runner(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        meta = self._vbook_runner_manifest_meta()
+        body = payload if isinstance(payload, dict) else {}
+        install_url = str(body.get("url") or meta.get("url") or "").strip()
+        if not install_url:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Chưa có URL cài đặt vBook runner.")
+
+        target_path = self._vbook_runner_target_path()
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        backup_path = target_path.with_name(f"{target_path.name}.bak")
+
+        with tempfile.TemporaryDirectory(prefix="reader_vbook_runner_") as tmpd:
+            temp_root = Path(tmpd)
+            download_suffix = str(Path(urlparse(install_url).path).suffix or ".bin").lower()
+            downloaded = temp_root / f"payload{download_suffix}"
+            self._download_vbook_runner_payload(install_url, downloaded)
+            candidate_path = downloaded
+            if downloaded.suffix.lower() == ".zip":
+                candidate_path = self._pick_vbook_runner_jar_from_zip(downloaded, temp_root / "unzipped")
+            verify_version, verify_error = self._query_vbook_runner_version(candidate_path)
+            if not verify_version and verify_error:
+                raise RuntimeError(f"Gói vBook runner không hợp lệ: {verify_error}")
+            if not verify_version:
+                verify_version = str(meta.get("version") or "").strip()
+            if not verify_version:
+                raise RuntimeError("Không đọc được version của gói vBook runner.")
+
+            if backup_path.exists():
+                backup_path.unlink(missing_ok=True)
+            had_existing = target_path.exists()
+            if had_existing:
+                os.replace(target_path, backup_path)
+            try:
+                shutil.copy2(candidate_path, target_path)
+                final_version, final_error = self._query_vbook_runner_version(target_path)
+                if not final_version and final_error:
+                    raise RuntimeError(final_error)
+                final_version = final_version or verify_version
+            except Exception:
+                if target_path.exists():
+                    target_path.unlink(missing_ok=True)
+                if backup_path.exists():
+                    os.replace(backup_path, target_path)
+                raise
+            else:
+                if backup_path.exists():
+                    backup_path.unlink(missing_ok=True)
+
+        cfg = load_app_config()
+        if not isinstance(cfg, dict):
+            cfg = {}
+        vcfg = cfg.get("vbook")
+        if not isinstance(vcfg, dict):
+            vcfg = {}
+        vcfg["runner_jar"] = self._store_vbook_runner_path(target_path)
+        vcfg["runner_installed_version"] = final_version
+        cfg["vbook"] = vcfg
+        save_app_config(cfg)
+        self.refresh_config()
+        return {"ok": True, "runner": self.get_vbook_runner_status()}
+
     def get_vbook_settings_global(self) -> dict[str, Any]:
         vcfg = self._vbook_cfg()
         normalized = dict(self.vbook_runtime_global_settings or self._normalized_vbook_runtime_global_settings(vcfg))
+        runner_status = self.get_vbook_runner_status()
         return {
             "ok": True,
             "settings": normalized,
@@ -6865,6 +7121,7 @@ class ReaderService:
                 "timeout_ms": self._vbook_int(vcfg.get("timeout_ms"), default=20_000, min_value=1_000, max_value=120_000),
                 "has_default_user_agent": bool(str(vcfg.get("default_user_agent") or "").strip()),
                 "has_default_cookie": bool(str(vcfg.get("default_cookie") or "").strip()),
+                **runner_status,
             },
         }
 
@@ -8780,6 +9037,32 @@ class ReaderService:
 
         return self._extract_vbook_list_rows(data), next_value
 
+    def _load_vbook_search_filter_schema(self, plugin: Any) -> dict[str, Any]:
+        manifest = vbook_search_filters_support.load_plugin_manifest(str(getattr(plugin, "path", "") or ""))
+        return vbook_search_filters_support.extract_search_filter_schema(manifest)
+
+    def get_vbook_search_filters(
+        self,
+        *,
+        plugin_id: str,
+        selected_filters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        plugin = self._require_vbook_plugin(plugin_id)
+        schema = self._load_vbook_search_filter_schema(plugin)
+        resolved = vbook_search_filters_support.resolve_search_filter_state(schema, selected_filters)
+        return {
+            "ok": True,
+            "plugin": self._serialize_vbook_plugin(plugin),
+            "supported": bool(resolved.get("supported")),
+            "default_mode": str(resolved.get("default_mode") or "search"),
+            "query_placeholder": str(resolved.get("query_placeholder") or ""),
+            "selected": dict(resolved.get("selected") or {}),
+            "defaults": dict(resolved.get("defaults") or {}),
+            "chips": list(resolved.get("chips") or []),
+            "visible_groups": list(resolved.get("visible_groups") or []),
+            "count": int(resolved.get("count") or 0),
+        }
+
     def search_vbook_books(
         self,
         *,
@@ -8787,18 +9070,48 @@ class ReaderService:
         query: str,
         page: int = 1,
         next_token: Any = None,
+        filters: dict[str, Any] | None = None,
+        search_mode: str = "search",
     ) -> dict[str, Any]:
         plugin = self._require_vbook_plugin(plugin_id)
         self._ensure_plugin_has_script(plugin, "search")
         q = str(query or "").strip()
         if not q:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu từ khóa tìm kiếm.")
+            search_mode = str(search_mode or "search").strip().lower()
+        else:
+            search_mode = str(search_mode or "search").strip().lower()
+        if search_mode not in {"search", "filter"}:
+            search_mode = "search"
         p = max(1, int(page or 1))
+        filter_state = self.get_vbook_search_filters(
+            plugin_id=plugin_id,
+            selected_filters=filters if isinstance(filters, dict) else None,
+        )
+        filter_supported = bool(filter_state.get("supported"))
+        resolved_filters = dict(filter_state.get("selected") or {}) if filter_supported else {}
+        allow_filter_only = filter_supported and search_mode == "filter"
+        if not q and not allow_filter_only:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu từ khóa tìm kiếm.")
 
         candidates: list[list[Any]] = []
-        if next_token is not None and str(next_token).strip() != "":
-            candidates.extend([[q, next_token], [next_token], [q]])
-        candidates.extend([[q, p], [q, str(p)], [q]])
+        if filter_supported:
+            request_payload: dict[str, Any] = {
+                "query": q,
+                "page": p,
+                "filters": resolved_filters,
+                "search_mode": search_mode,
+            }
+            if next_token is not None and str(next_token).strip() != "":
+                request_payload["next"] = next_token
+            candidates.append([request_payload])
+            if q:
+                if next_token is not None and str(next_token).strip() != "":
+                    candidates.extend([[q, next_token, resolved_filters], [q, next_token], [q, resolved_filters]])
+                candidates.extend([[q, p, resolved_filters], [q, str(p), resolved_filters], [q, p], [q, str(p)], [q]])
+        else:
+            if next_token is not None and str(next_token).strip() != "":
+                candidates.extend([[q, next_token], [next_token], [q]])
+            candidates.extend([[q, p], [q, str(p)], [q]])
         seen: set[str] = set()
         last_error: Exception | None = None
         best_data: Any = []
@@ -8883,6 +9196,8 @@ class ReaderService:
             "plugin": self._serialize_vbook_plugin(plugin),
             "query": q,
             "page": p,
+            "search_mode": search_mode,
+            "filter_state": filter_state,
             "items": items,
             "next": best_next,
             "has_next": best_next is not None and str(best_next).strip() != "",
@@ -10026,6 +10341,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             "/library": "/library.html",
             "/search": "/search.html",
             "/explore": "/explore.html",
+            "/online-search": "/online-search.html",
             "/book": "/book.html",
             "/reader": "/reader.html",
         }

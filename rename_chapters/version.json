@@ -24,6 +24,11 @@
       "version": "21.0.10",
       "url": "",
       "notes": "Tuỳ chọn: link zip JRE 21 để app tự tải (nếu để trống sẽ fallback Temurin/Adoptium trên Windows)."
+    },
+    "vbook_runner": {
+      "version": "0.1.0",
+      "url": "https://drive.google.com/file/d/10SG1ZMZO-vFrRg53Mr-isTlNOk-sgLTc/view?usp=sharing",
+      "notes": "Không muốn nói ~~~"
     }
   },
   

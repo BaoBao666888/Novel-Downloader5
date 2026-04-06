@@ -55,6 +55,13 @@ def handle_api(
         payload = handler._read_json_body()
         return handler.service.set_vbook_settings_global(payload)
 
+    if method == "GET" and path == "/api/vbook/runner":
+        return {"ok": True, "runner": handler.service.get_vbook_runner_status()}
+
+    if method == "POST" and path == "/api/vbook/runner/install":
+        payload = handler._read_json_body()
+        return handler.service.install_vbook_runner(payload)
+
     if method == "GET" and path == "/api/vbook/settings/effective":
         plugin_id = (query.get("plugin_id", [""])[0] or "").strip()
         return handler.service.get_vbook_settings_effective(plugin_id=plugin_id)
@@ -75,6 +82,13 @@ def handle_api(
     if method == "GET" and path == "/api/vbook/bridge/state":
         return handler.service.get_vbook_bridge_state()
 
+    if method == "POST" and path == "/api/vbook/search/filters":
+        payload = handler._read_json_body()
+        return handler.service.get_vbook_search_filters(
+            plugin_id=str(payload.get("plugin_id") or "").strip(),
+            selected_filters=payload.get("filters") if isinstance(payload.get("filters"), dict) else None,
+        )
+
     if method == "POST" and path == "/api/vbook/search":
         payload = handler._read_json_body()
         return handler.service.search_vbook_books(
@@ -82,6 +96,8 @@ def handle_api(
             query=str(payload.get("query") or payload.get("q") or "").strip(),
             page=_parse_page(payload),
             next_token=payload.get("next"),
+            filters=payload.get("filters") if isinstance(payload.get("filters"), dict) else None,
+            search_mode=str(payload.get("search_mode") or payload.get("mode") or "search").strip(),
         )
 
     if method == "POST" and path == "/api/vbook/home":

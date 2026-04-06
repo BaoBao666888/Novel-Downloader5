@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260308-rcfg1";
+import { initShell } from "../site_common.js?v=20260406-vbookonline1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 
 const refs = {
@@ -353,12 +353,20 @@ function renderPluginPicker() {
 
 function updateQueryUrl() {
   const params = new URLSearchParams();
-  if (state.query) params.set("q", state.query);
   if (state.online.pluginId) params.set("vpid", state.online.pluginId);
   const next = params.toString() ? `/explore?${params.toString()}` : "/explore";
   if (`${window.location.pathname}${window.location.search}` !== next) {
     window.history.replaceState({}, "", next);
   }
+}
+
+function buildOnlineSearchUrl(queryText = "", pluginId = "") {
+  const params = new URLSearchParams();
+  const query = String(queryText || "").trim();
+  const pid = String(pluginId || "").trim();
+  if (query) params.set("q", query);
+  if (pid) params.set("vpid", pid);
+  return params.toString() ? `/online-search?${params.toString()}` : "/online-search";
 }
 
 function getCurrentTranslationMode() {
@@ -1931,26 +1939,16 @@ async function reloadHomeAndGenre() {
 async function runSearch(queryText, { updateUrl = true } = {}) {
   state.query = String(queryText || "").trim();
   if (refs.searchInput) refs.searchInput.value = state.query;
-  if (updateUrl) updateQueryUrl();
-
-  state.shell.showStatus(state.shell.t("statusLoadingVbookSearch"));
-  try {
-    await loadSearchItems({ page: 1, reset: true });
-  } catch (error) {
-    showToastError(error);
-  } finally {
-    state.shell.hideStatus();
-  }
+  const nextUrl = buildOnlineSearchUrl(state.query, state.online.pluginId);
+  if (!updateUrl && `${window.location.pathname}${window.location.search}` === nextUrl) return;
+  window.location.href = nextUrl;
 }
 
 async function applyPluginSelection(token) {
   try {
     await reloadHomeAndGenre();
     if (token !== state.pluginSwitchToken) return;
-    await Promise.all([
-      loadSearchItems({ page: 1, reset: true }),
-      loadPluginSettings(),
-    ]);
+    await loadPluginSettings();
   } catch (error) {
     showToastError(error);
   } finally {
@@ -2026,7 +2024,7 @@ async function init() {
   refs.vbookPluginLabel.textContent = state.shell.t("vbookSearchPluginLabel");
   refs.btnVbookPluginPickerToggle.textContent = state.shell.t("explorePluginPickerShow");
   refs.btnVbookSearchRun.textContent = state.shell.t("vbookSearchRun");
-  refs.btnVbookSearchReset.textContent = state.shell.t("vbookSearchReset");
+  refs.btnVbookSearchReset.textContent = state.shell.t("exploreSearchClear");
   refs.btnExploreTogglePlugin.textContent = state.shell.t("exploreShowPluginPanel");
   refs.btnExploreLoadHome.textContent = state.shell.t("exploreLoadHome");
   refs.btnExploreLoadGenre.textContent = state.shell.t("exploreLoadGenre");
@@ -2079,11 +2077,23 @@ async function init() {
   const queryParams = state.shell.parseQuery();
   state.query = String(queryParams.q || "").trim();
   state.online.pluginId = String(queryParams.vpid || "").trim();
+  const queryMode = String(queryParams.mode || "").trim().toLowerCase();
+  const rawFilters = String(queryParams.filters || "").trim();
   state.autoOpen.sourceUrl = String(queryParams.open_url || "").trim();
   state.autoOpen.pluginId = String(queryParams.vpid || "").trim();
   state.autoOpen.chapterUrl = String(queryParams.chapter_url || "").trim();
   state.autoOpen.chapterTitle = String(queryParams.chapter_title || "").trim();
   state.autoOpen.chapterRatio = parseRatio(queryParams.chapter_ratio);
+  if (state.query || queryMode === "filter" || rawFilters) {
+    const next = buildOnlineSearchUrl(state.query, state.online.pluginId);
+    const searchParams = new URLSearchParams();
+    if (state.query) searchParams.set("q", state.query);
+    if (state.online.pluginId) searchParams.set("vpid", state.online.pluginId);
+    if (queryMode === "filter") searchParams.set("mode", "filter");
+    if (rawFilters) searchParams.set("filters", rawFilters);
+    window.location.replace(searchParams.toString() ? `/online-search?${searchParams.toString()}` : next);
+    return;
+  }
   if (refs.searchInput) refs.searchInput.value = state.query;
 
   try {
@@ -2154,9 +2164,8 @@ async function init() {
   refs.btnVbookSearchReset.addEventListener("click", async () => {
     state.query = "";
     if (refs.searchInput) refs.searchInput.value = "";
-    state.online.search = createSearchBucket();
     updateQueryUrl();
-    renderSearch();
+    renderAll();
   });
 
   refs.btnExploreLoadHome.addEventListener("click", async () => {

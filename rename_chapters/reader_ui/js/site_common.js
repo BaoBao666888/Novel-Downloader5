@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260405-name1";
+import { t } from "../i18n.vi.js?v=20260406-vbookrunner1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -369,6 +369,7 @@ function setNavActive(page) {
     library: "nav-library",
     search: "nav-search",
     explore: "nav-explore",
+    "online-search": "nav-explore",
     book: "nav-library",
     reader: "nav-library",
   };
@@ -898,6 +899,11 @@ function fillStaticTexts() {
     ["vbook-plugin-prefetch-label", "vbookPluginPrefetchLabel"],
     ["vbook-plugin-supplemental-label", "vbookPluginSupplementalLabel"],
     ["vbook-plugin-fallback-hint", "vbookPluginFallbackHint"],
+    ["vbook-runner-title", "vbookRunnerTitle"],
+    ["vbook-runner-hint", "vbookRunnerHint"],
+    ["vbook-runner-path-label", "vbookRunnerPathLabel"],
+    ["vbook-runner-installed-label", "vbookRunnerInstalledLabel"],
+    ["vbook-runner-target-label", "vbookRunnerTargetLabel"],
     ["btn-vbook-reload-settings", "vbookReloadSettings"],
     ["btn-vbook-save-global-settings", "vbookSaveGlobalSettings"],
     ["btn-vbook-save-plugin-settings", "vbookSavePluginSettings"],
@@ -936,6 +942,18 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         download_threads: 4,
         prefetch_unread_count: 2,
         retry_count: 2,
+      },
+      runnerStatus: {
+        exists: false,
+        configured_path: "",
+        path: "",
+        installed_version: "",
+        target_version: "",
+        download_url: "",
+        needs_update: false,
+        version_error: "",
+        install_action: "install",
+        install_label: "Cài đặt",
       },
       pluginSettings: {},
       selectedRuntimePluginId: "",
@@ -1511,6 +1529,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const vbookPluginDelayInput = qs("vbook-plugin-request-delay-ms");
   const vbookPluginThreadsInput = qs("vbook-plugin-download-threads");
   const vbookPluginPrefetchInput = qs("vbook-plugin-prefetch-unread-count");
+  const vbookRunnerPathValue = qs("vbook-runner-path-value");
+  const vbookRunnerInstalledValue = qs("vbook-runner-installed-value");
+  const vbookRunnerTargetValue = qs("vbook-runner-target-value");
+  const vbookRunnerStatusText = qs("vbook-runner-status");
+  const vbookRunnerInstallBtn = qs("btn-vbook-runner-install");
 
   const clampInt = (raw, min, max, fallback) => {
     const num = Number.parseInt(String(raw ?? ""), 10);
@@ -1547,6 +1570,26 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       request_delay_ms: clampIntOrNull(raw.request_delay_ms, 0, 15000),
       download_threads: clampIntOrNull(raw.download_threads ?? raw.max_concurrency, 1, 16),
       prefetch_unread_count: clampIntOrNull(raw.prefetch_unread_count, 0, 50),
+    };
+  };
+
+  const normalizeVbookRunnerStatus = (payload) => {
+    const raw = (payload && typeof payload === "object") ? payload : {};
+    const exists = Boolean(raw.exists);
+    const installAction = String(raw.install_action || (exists ? "reinstall" : "install")).trim().toLowerCase() === "reinstall"
+      ? "reinstall"
+      : "install";
+    return {
+      exists,
+      configured_path: String(raw.configured_path || raw.path || "").trim(),
+      path: String(raw.path || raw.configured_path || "").trim(),
+      installed_version: String(raw.installed_version || "").trim(),
+      target_version: String(raw.target_version || "").trim(),
+      download_url: String(raw.download_url || "").trim(),
+      needs_update: Boolean(raw.needs_update),
+      version_error: String(raw.version_error || "").trim(),
+      install_action: installAction,
+      install_label: String(raw.install_label || "").trim() || t(installAction === "reinstall" ? "vbookRunnerReinstall" : "vbookRunnerInstall"),
     };
   };
 
@@ -1594,6 +1637,42 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     }
   };
 
+  const renderVbookRunnerStatus = () => {
+    const runner = normalizeVbookRunnerStatus(state.vbook.runnerStatus || {});
+    state.vbook.runnerStatus = runner;
+    if (vbookRunnerPathValue) {
+      vbookRunnerPathValue.textContent = runner.configured_path || runner.path || t("vbookRunnerUnknown");
+    }
+    if (vbookRunnerInstalledValue) {
+      vbookRunnerInstalledValue.textContent = runner.exists
+        ? (runner.installed_version || t("vbookRunnerUnknown"))
+        : t("vbookRunnerMissing");
+    }
+    if (vbookRunnerTargetValue) {
+      vbookRunnerTargetValue.textContent = runner.target_version || t("vbookRunnerUnknown");
+    }
+    if (vbookRunnerInstallBtn) {
+      vbookRunnerInstallBtn.textContent = runner.install_action === "reinstall"
+        ? t("vbookRunnerReinstall")
+        : t("vbookRunnerInstall");
+      vbookRunnerInstallBtn.disabled = !runner.download_url;
+    }
+    if (vbookRunnerStatusText) {
+      let text = "";
+      if (!runner.exists) {
+        text = t("vbookRunnerStatusMissing");
+      } else if (runner.needs_update) {
+        text = t("vbookRunnerStatusUpdate");
+      } else {
+        text = t("vbookRunnerStatusReady");
+      }
+      if (runner.version_error) {
+        text = text ? `${text} ${t("vbookRunnerStatusVersionError")}` : t("vbookRunnerStatusVersionError");
+      }
+      vbookRunnerStatusText.textContent = text.trim();
+    }
+  };
+
   const renderRuntimePluginSelect = () => {
     if (!vbookRuntimePluginSelect) return;
     const prev = String(state.vbook.selectedRuntimePluginId || "").trim();
@@ -1632,13 +1711,16 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     try {
       const payload = await api("/api/vbook/settings/global");
       state.vbook.globalSettings = normalizeVbookGlobalSettings(payload && payload.settings);
+      state.vbook.runnerStatus = normalizeVbookRunnerStatus(payload && payload.runner);
       fillVbookGlobalForm();
       fillVbookPluginForm();
+      renderVbookRunnerStatus();
       return state.vbook.globalSettings;
     } catch (error) {
       if (!silent) showToast(error.message || t("toastError"));
       fillVbookGlobalForm();
       fillVbookPluginForm();
+      renderVbookRunnerStatus();
       return state.vbook.globalSettings;
     } finally {
       if (!silent) hideStatus();
@@ -1683,8 +1765,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         body: JSON.stringify(payload),
       });
       state.vbook.globalSettings = normalizeVbookGlobalSettings(data && data.settings);
+      state.vbook.runnerStatus = normalizeVbookRunnerStatus(data && data.runner);
       fillVbookGlobalForm();
       fillVbookPluginForm();
+      renderVbookRunnerStatus();
       showToast(t("toastVbookSettingsSaved"));
       return state.vbook.globalSettings;
     } catch (error) {
@@ -1746,6 +1830,27 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     } catch (error) {
       showToast(error.message || t("toastError"));
       return null;
+    } finally {
+      hideStatus();
+    }
+  }
+
+  async function installVbookRunner() {
+    showStatus(t("statusInstallingVbookRunner"));
+    try {
+      const data = await api("/api/vbook/runner/install", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      state.vbook.runnerStatus = normalizeVbookRunnerStatus(data && data.runner);
+      renderVbookRunnerStatus();
+      showToast(t("toastVbookRunnerInstalled"));
+      await refreshVbookRuntimeSettings({ silent: true });
+      return state.vbook.runnerStatus;
+    } catch (error) {
+      showToast(error.message || t("toastError"));
+      throw error;
     } finally {
       hideStatus();
     }
@@ -2451,6 +2556,12 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   if (qs("btn-vbook-clear-plugin-settings")) {
     qs("btn-vbook-clear-plugin-settings").addEventListener("click", async () => {
       await clearVbookPluginSettings();
+    });
+  }
+
+  if (vbookRunnerInstallBtn) {
+    vbookRunnerInstallBtn.addEventListener("click", async () => {
+      await installVbookRunner();
     });
   }
 

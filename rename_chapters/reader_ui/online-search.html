@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Khám phá nguồn vBook</title>
+  <title>Tìm online</title>
   <script>
     (() => {
       const SETTINGS_KEY = "reader.ui.settings.v3";
@@ -71,10 +71,10 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260307-indent1">
+  <link rel="stylesheet" href="./styles.css?v=20260406-vbookonline2">
 </head>
 
-<body data-page="explore" class="mpa-body">
+<body data-page="online-search" class="mpa-body">
   <script>
     (() => {
       const root = document.documentElement;
@@ -118,8 +118,8 @@
   <main class="pages single-main one-col">
     <section class="panel search-online-panel">
       <div class="panel-head">
-        <h2 id="explore-title"></h2>
-        <span id="explore-meta" class="tag"></span>
+        <h2 id="online-search-title"></h2>
+        <span id="online-search-meta" class="tag"></span>
       </div>
       <div class="search-online-controls">
         <label>
@@ -132,118 +132,38 @@
           </div>
         </label>
         <div class="search-online-actions">
-          <button id="btn-vbook-search-run" class="btn" type="button"></button>
-          <button id="btn-vbook-search-reset" class="btn" type="button"></button>
-          <button id="btn-explore-toggle-plugin" class="btn" type="button"></button>
-          <button id="btn-explore-load-home" class="btn" type="button"></button>
-          <button id="btn-explore-load-genre" class="btn" type="button"></button>
+          <button id="btn-online-search-run" class="btn" type="button"></button>
+          <button id="btn-online-search-toggle-filter" class="btn" type="button"></button>
+          <button id="btn-online-search-reset" class="btn" type="button"></button>
         </div>
       </div>
+      <p id="online-search-hint" class="book-card-meta"></p>
     </section>
 
-    <section id="explore-plugin-panel" class="panel hidden">
+    <section id="online-search-filter-panel" class="panel hidden">
       <div class="panel-head">
-        <h2 id="explore-plugin-title"></h2>
-        <span id="explore-plugin-version" class="tag"></span>
+        <h2 id="online-search-filter-title"></h2>
+        <span id="online-search-filter-meta" class="tag"></span>
       </div>
-      <div class="book-meta-wrap">
-        <div class="book-view-grid">
-          <article class="book-info-item">
-            <h4 id="explore-plugin-author-label"></h4>
-            <p id="explore-plugin-author-value"></p>
-          </article>
-          <article class="book-info-item">
-            <h4 id="explore-plugin-type-label"></h4>
-            <p id="explore-plugin-type-value"></p>
-          </article>
-          <article class="book-info-item">
-            <h4 id="explore-plugin-locale-label"></h4>
-            <p id="explore-plugin-locale-value"></p>
-          </article>
-          <article class="book-info-item">
-            <h4 id="explore-plugin-source-label"></h4>
-            <p id="explore-plugin-source-value"></p>
-          </article>
-          <article class="book-info-item book-info-item-wide">
-            <h4 id="explore-plugin-description-label"></h4>
-            <p id="explore-plugin-description-value"></p>
-          </article>
-        </div>
-
-        <div class="vbook-runtime-pane">
-          <div class="panel-head">
-            <h4 id="explore-plugin-settings-title"></h4>
-            <span id="explore-plugin-settings-effective" class="tag"></span>
-          </div>
-          <div class="vbook-runtime-grid">
-            <label>
-              <span id="explore-plugin-delay-label"></span>
-              <input id="explore-plugin-delay-input" type="number" min="0" max="15000" step="50">
-            </label>
-            <label>
-              <span id="explore-plugin-threads-label"></span>
-              <input id="explore-plugin-threads-input" type="number" min="1" max="16" step="1">
-            </label>
-            <label>
-              <span id="explore-plugin-prefetch-label"></span>
-              <input id="explore-plugin-prefetch-input" type="number" min="0" max="50" step="1">
-            </label>
-            <label class="vbook-runtime-wide">
-              <span id="explore-plugin-supplemental-label"></span>
-              <textarea id="explore-plugin-supplemental-input"></textarea>
-            </label>
-          </div>
-          <p id="explore-plugin-settings-hint" class="book-card-meta"></p>
-          <div class="settings-actions">
-            <button id="btn-explore-plugin-settings-load" class="btn btn-small" type="button"></button>
-            <button id="btn-explore-plugin-settings-save" class="btn btn-small btn-primary" type="button"></button>
-            <button id="btn-explore-plugin-settings-clear" class="btn btn-small" type="button"></button>
-          </div>
-        </div>
+      <div id="online-search-filter-chips" class="online-search-filter-chips"></div>
+      <div id="online-search-filter-groups" class="online-search-filter-groups"></div>
+      <div class="online-search-filter-actions">
+        <button id="btn-online-search-run-bottom" class="btn btn-primary" type="button"></button>
       </div>
+      <p id="online-search-filter-empty" class="empty-text"></p>
     </section>
 
     <section class="panel">
       <div class="panel-head">
-        <h2 id="explore-home-title"></h2>
-        <span id="explore-home-count" class="tag"></span>
+        <h2 id="online-search-results-title"></h2>
+        <span id="online-search-results-count" class="tag"></span>
       </div>
-      <ul id="explore-home-tabs" class="explore-tab-list"></ul>
-      <div id="explore-home-grid" class="library-grid"></div>
-      <p id="explore-home-empty" class="empty-text"></p>
+      <div id="online-search-results-grid" class="library-grid"></div>
+      <p id="online-search-results-empty" class="empty-text"></p>
       <div class="toc-footer">
-        <button id="btn-explore-home-prev" class="btn btn-small" type="button"></button>
-        <span id="explore-home-page" class="tag"></span>
-        <button id="btn-explore-home-next" class="btn btn-small" type="button"></button>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-head">
-        <h2 id="explore-genre-title"></h2>
-        <span id="explore-genre-count" class="tag"></span>
-      </div>
-      <ul id="explore-genre-tabs" class="explore-tab-list"></ul>
-      <div id="explore-genre-grid" class="library-grid"></div>
-      <p id="explore-genre-empty" class="empty-text"></p>
-      <div class="toc-footer">
-        <button id="btn-explore-genre-prev" class="btn btn-small" type="button"></button>
-        <span id="explore-genre-page" class="tag"></span>
-        <button id="btn-explore-genre-next" class="btn btn-small" type="button"></button>
-      </div>
-    </section>
-
-    <section id="explore-search-section" class="panel hidden">
-      <div class="panel-head">
-        <h2 id="explore-search-title"></h2>
-        <span id="explore-search-count" class="tag"></span>
-      </div>
-      <div id="explore-search-grid" class="library-grid"></div>
-      <p id="explore-search-empty" class="empty-text"></p>
-      <div class="toc-footer">
-        <button id="btn-explore-search-prev" class="btn btn-small" type="button"></button>
-        <span id="explore-search-page" class="tag"></span>
-        <button id="btn-explore-search-next" class="btn btn-small" type="button"></button>
+        <button id="btn-online-search-prev" class="btn btn-small" type="button"></button>
+        <span id="online-search-page" class="tag"></span>
+        <button id="btn-online-search-next" class="btn btn-small" type="button"></button>
       </div>
     </section>
   </main>
@@ -446,7 +366,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/explore_page.js?v=20260406-vbookonline1"></script>
+  <script type="module" src="./js/pages/online_search_page.js?v=20260406-vbookonline2"></script>
 </body>
 
 </html>
