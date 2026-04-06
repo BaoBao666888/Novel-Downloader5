@@ -663,10 +663,22 @@ p {
   transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.book-card.book-card-shell,
+.book-card.book-card-loading {
+  cursor: default;
+}
+
 .book-card:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 72%, var(--line));
   box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.book-card.book-card-shell:hover,
+.book-card.book-card-loading:hover {
+  transform: none;
+  border-color: var(--line);
+  box-shadow: none;
 }
 
 .book-card.book-card-pending {
@@ -689,6 +701,18 @@ p {
   background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--surface-alt) 82%, transparent));
   display: grid;
   place-items: center;
+}
+
+.book-card-cover-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 10%, transparent), color-mix(in srgb, var(--surface-alt) 88%, transparent));
+}
+
+.book-card-cover-glow {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
 }
 
 .book-card-cover img {
@@ -796,6 +820,76 @@ p {
     color-mix(in srgb, var(--accent) 92%, transparent),
     color-mix(in srgb, var(--accent) 20%, transparent));
   animation: importPendingShift 1.2s linear infinite;
+}
+
+.book-card-shell-body {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.ui-skeleton-block,
+.book-card-skeleton-block {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 42%, transparent);
+}
+
+.ui-skeleton-block::after,
+.book-card-skeleton-block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-120%);
+  background: linear-gradient(90deg,
+    transparent,
+    color-mix(in srgb, #ffffff 38%, transparent),
+    transparent);
+  animation: bookCardSkeletonShift 1.35s ease-in-out infinite;
+}
+
+.book-card-skeleton-title {
+  height: 18px;
+  width: min(88%, 240px);
+  border-radius: 9px;
+}
+
+.book-card-skeleton-meta {
+  height: 12px;
+  width: min(62%, 180px);
+}
+
+.book-card-skeleton-chip-row {
+  min-height: 22px;
+}
+
+.book-card-skeleton-chip {
+  width: 108px;
+  height: 22px;
+}
+
+.book-card-skeleton-text {
+  height: 36px;
+  width: 100%;
+  border-radius: 12px;
+}
+
+.book-card-skeleton-pill {
+  height: 24px;
+  width: 76px;
+}
+
+.book-card-skeleton-download {
+  height: 12px;
+  width: 132px;
+}
+
+@keyframes bookCardSkeletonShift {
+  100% {
+    transform: translateX(120%);
+  }
 }
 
 @keyframes importPendingShift {
@@ -1439,6 +1533,95 @@ p {
   gap: 14px;
 }
 
+.book-meta-skeleton-wrap {
+  padding: 12px;
+  display: grid;
+  gap: 14px;
+}
+
+.book-meta-skeleton-hero {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.book-meta-skeleton-cover {
+  width: 140px;
+  height: 200px;
+  border-radius: 12px;
+}
+
+.book-meta-skeleton-info {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.book-meta-skeleton-title {
+  width: min(80%, 420px);
+  height: 28px;
+  border-radius: 12px;
+}
+
+.book-meta-skeleton-subtitle {
+  width: min(52%, 260px);
+  height: 14px;
+}
+
+.book-meta-skeleton-link {
+  width: 138px;
+  height: 34px;
+  border-radius: 12px;
+}
+
+.book-meta-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.book-meta-skeleton-card {
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface-alt) 50%, transparent);
+  display: grid;
+  gap: 8px;
+}
+
+.book-meta-skeleton-card.is-wide {
+  grid-column: 1 / -1;
+}
+
+.book-meta-skeleton-label {
+  width: 76px;
+  height: 12px;
+}
+
+.book-meta-skeleton-value {
+  height: 14px;
+}
+
+.book-meta-skeleton-value.is-short {
+  width: 58%;
+}
+
+.book-meta-skeleton-value.is-medium {
+  width: 84%;
+}
+
+.book-meta-skeleton-value.is-long {
+  width: 100%;
+}
+
+.book-meta-skeleton-value.is-multiline {
+  width: 100%;
+  height: 60px;
+  border-radius: 14px;
+}
+
 .book-view-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1592,6 +1775,45 @@ p {
   border-bottom: 0;
 }
 
+.toc-skeleton-wrap {
+  padding: 10px 12px 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.toc-skeleton-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.toc-skeleton-main {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface-alt) 44%, transparent);
+  display: grid;
+  gap: 8px;
+}
+
+.toc-skeleton-title {
+  width: min(82%, 420px);
+  height: 15px;
+}
+
+.toc-skeleton-sub {
+  width: min(34%, 160px);
+  height: 12px;
+}
+
+.toc-skeleton-action {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
 .reader-panel {
   min-height: 0;
 }
@@ -1642,6 +1864,32 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-footer {
 
 .reader-title-wrap {
   min-width: 0;
+  position: relative;
+}
+
+.reader-title-wrap.is-loading > h2,
+.reader-title-wrap.is-loading > p {
+  visibility: hidden;
+}
+
+.reader-head-skeleton {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.reader-head-skeleton-book {
+  width: min(76%, 460px);
+  height: 28px;
+  border-radius: 12px;
+}
+
+.reader-head-skeleton-sub {
+  width: min(34%, 180px);
+  height: 13px;
 }
 
 #reader-book-title {
@@ -1746,6 +1994,7 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-content-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  position: relative;
   border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   border-radius: 12px;
   padding: 16px;
@@ -1761,9 +2010,77 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-content-body {
   backdrop-filter: none;
 }
 
+.reader-content-scroll.reader-loading .reader-content-body {
+  opacity: 0.18;
+  filter: blur(1px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.reader-content-skeleton {
+  position: absolute;
+  inset: 16px;
+  z-index: 2;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.reader-content-skeleton.hidden,
+.reader-head-skeleton.hidden,
+.toc-skeleton-wrap.hidden,
+.book-meta-skeleton-wrap.hidden {
+  display: none;
+}
+
+.reader-chapter-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.reader-chapter-skeleton-title {
+  width: min(52%, 320px);
+  height: 28px;
+  border-radius: 12px;
+  margin-bottom: 6px;
+}
+
+.reader-chapter-skeleton-line {
+  height: 14px;
+  border-radius: 9px;
+}
+
+.reader-chapter-skeleton-line.is-wide {
+  width: 100%;
+}
+
+.reader-chapter-skeleton-line.is-medium {
+  width: 88%;
+}
+
+.reader-chapter-skeleton-line.is-short {
+  width: 72%;
+}
+
+.reader-chapter-skeleton-line.is-inline {
+  width: 94%;
+}
+
+.reader-comic-skeleton-block {
+  width: 100%;
+  height: clamp(220px, 36vh, 420px);
+  border-radius: 18px;
+}
+
 .reader-viewport.reading-comic .reader-content-body {
   margin: 0;
   padding: 0;
+}
+
+.reader-viewport.reading-comic .reader-content-skeleton {
+  inset: 14px;
+  gap: 14px;
 }
 
 /* Chừa chỗ để mini bars không che chữ khi pin. */
@@ -3261,7 +3578,17 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
     grid-template-columns: 1fr;
   }
 
+  .book-meta-skeleton-hero,
+  .book-meta-skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+
   .cover-wrap {
+    width: min(180px, 50vw);
+    height: min(250px, 64vw);
+  }
+
+  .book-meta-skeleton-cover {
     width: min(180px, 50vw);
     height: min(250px, 64vw);
   }

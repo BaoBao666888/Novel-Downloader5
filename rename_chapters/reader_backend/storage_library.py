@@ -53,7 +53,7 @@ def list_books(
                    fc.chapter_order AS first_chapter_order,
                    fc.title_raw AS first_title_raw,
                    fc.title_vi AS first_title_vi,
-                   COALESCE(dc.downloaded_chapters, 0) AS downloaded_chapters
+                   COALESCE(dc.downloaded_chapters, 0) AS downloaded_chapters_hint
             FROM books b
             LEFT JOIN chapters lr ON lr.chapter_id = b.last_read_chapter_id
             LEFT JOIN chapters fc ON fc.chapter_id = (
@@ -106,7 +106,12 @@ def list_books(
             item["progress_percent"] = 0.0
         else:
             item["progress_percent"] = max(0.0, min(100.0, (((cur_order - 1) + ratio) / total) * 100.0))
-        item["downloaded_chapters"] = max(0, min(total, int(item.get("downloaded_chapters") or 0)))
+        cached_hint = int(item.get("downloaded_chapters_hint") or 0)
+        if cached_hint > 0:
+            downloaded_count, _ = storage.get_book_download_counts(str(item.get("book_id") or ""))
+        else:
+            downloaded_count = 0
+        item["downloaded_chapters"] = max(0, min(total, int(downloaded_count or 0)))
         output.append(item)
     return output
 

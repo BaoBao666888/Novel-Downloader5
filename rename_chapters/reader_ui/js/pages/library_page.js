@@ -154,7 +154,15 @@ const state = {
   importPreviewData: null,
   exportBookDetail: null,
   exportFormats: [],
+  libraryRenderToken: 0,
+  libraryCardObserver: null,
+  libraryHydrateQueue: [],
+  libraryHydrateFrame: 0,
 };
+
+const LIBRARY_LOADING_SKELETON_COUNT = 12;
+const LIBRARY_INITIAL_HYDRATE_COUNT = 12;
+const LIBRARY_HYDRATE_BATCH_SIZE = 8;
 
 function localTranslationSettingsSignature(shell) {
   try {
@@ -737,7 +745,221 @@ function renderPendingImportCard(item) {
   return card;
 }
 
+function cancelLibraryHydrationFrame() {
+  if (!state.libraryHydrateFrame) return;
+  const cancel = window.cancelAnimationFrame || window.clearTimeout;
+  cancel(state.libraryHydrateFrame);
+  state.libraryHydrateFrame = 0;
+}
+
+function teardownLibraryLazyRender() {
+  if (state.libraryCardObserver) {
+    try {
+      state.libraryCardObserver.disconnect();
+    } catch {
+      // ignore
+    }
+    state.libraryCardObserver = null;
+  }
+  cancelLibraryHydrationFrame();
+  state.libraryHydrateQueue = [];
+}
+
+function createLibraryCardObserver(renderToken) {
+  teardownLibraryLazyRender();
+  if (typeof IntersectionObserver !== "function") {
+    state.libraryCardObserver = null;
+    return null;
+  }
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      observer.unobserve(entry.target);
+      queueLibraryCardHydration(entry.target, renderToken);
+    }
+  }, {
+    root: null,
+    rootMargin: "520px 0px",
+    threshold: 0.01,
+  });
+  state.libraryCardObserver = observer;
+  return observer;
+}
+
+function scheduleLibraryHydrationFlush() {
+  if (state.libraryHydrateFrame) return;
+  const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+  state.libraryHydrateFrame = schedule(() => {
+    state.libraryHydrateFrame = 0;
+    flushLibraryHydrationQueue();
+  });
+}
+
+function queueLibraryCardHydration(card, renderToken = state.libraryRenderToken) {
+  if (!card || !card.isConnected) return;
+  if (String(card.dataset.hydrated || "") === "1") return;
+  if (Number(card.dataset.renderToken || 0) !== Number(renderToken || 0)) return;
+  if (String(card.dataset.hydrateQueued || "") === "1") return;
+  card.dataset.hydrateQueued = "1";
+  state.libraryHydrateQueue.push(card);
+  scheduleLibraryHydrationFlush();
+}
+
+function flushLibraryHydrationQueue() {
+  const activeToken = state.libraryRenderToken;
+  let processed = 0;
+  while (state.libraryHydrateQueue.length && processed < LIBRARY_HYDRATE_BATCH_SIZE) {
+    const card = state.libraryHydrateQueue.shift();
+    if (!card || !card.isConnected) continue;
+    card.dataset.hydrateQueued = "";
+    if (String(card.dataset.hydrated || "") === "1") continue;
+    if (Number(card.dataset.renderToken || 0) !== Number(activeToken || 0)) continue;
+    hydrateLibraryBookCard(card);
+    processed += 1;
+  }
+  if (state.libraryHydrateQueue.length) scheduleLibraryHydrationFlush();
+}
+
+function createSkeletonBlock(className = "") {
+  const node = document.createElement("div");
+  node.className = `book-card-skeleton-block${className ? ` ${className}` : ""}`;
+  return node;
+}
+
+function createLibraryBookCardShell(book, renderToken) {
+  const card = document.createElement("article");
+  card.className = "book-card book-card-shell";
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.dataset.bookId = String((book && book.book_id) || "");
+  card.dataset.renderToken = String(renderToken || 0);
+  card.dataset.hydrated = "0";
+  card.dataset.hydrateQueued = "";
+
+  const cover = document.createElement("div");
+  cover.className = "book-card-cover book-card-cover-skeleton";
+  cover.appendChild(createSkeletonBlock("book-card-cover-glow"));
+
+  const body = document.createElement("div");
+  body.className = "book-card-shell-body";
+  body.append(
+    createSkeletonBlock("book-card-skeleton-title"),
+    createSkeletonBlock("book-card-skeleton-meta"),
+  );
+  const chipRow = document.createElement("div");
+  chipRow.className = "book-card-skeleton-chip-row";
+  chipRow.append(
+    createSkeletonBlock("book-card-skeleton-chip"),
+  );
+  const progressRow = document.createElement("div");
+  progressRow.className = "book-card-progress-row";
+  progressRow.append(
+    createSkeletonBlock("book-card-skeleton-text"),
+    createSkeletonBlock("book-card-skeleton-pill"),
+  );
+  body.append(
+    chipRow,
+    progressRow,
+    createSkeletonBlock("book-card-skeleton-download"),
+  );
+
+  card.append(cover, body);
+  card.addEventListener("click", () => openActions(book.book_id));
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openActions(book.book_id);
+    }
+  });
+  card.__book = book;
+  return card;
+}
+
+function populateLibraryBookCard(card, book) {
+  card.innerHTML = "";
+  card.classList.remove("book-card-shell");
+  card.dataset.hydrated = "1";
+
+  const cover = document.createElement("div");
+  cover.className = "book-card-cover";
+  if (book.cover_url) {
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.src = book.cover_url;
+    img.alt = book.title_display || book.title || "Ảnh bìa";
+    cover.appendChild(img);
+  } else {
+    const txt = document.createElement("div");
+    txt.className = "book-card-cover-text";
+    txt.textContent = state.shell.t("noCover");
+    cover.appendChild(txt);
+  }
+
+  const body = document.createElement("div");
+  const title = document.createElement("div");
+  title.className = "book-card-title";
+  title.textContent = normalizeDisplayTitle(book.title_display || book.title || "Không tiêu đề");
+
+  const author = document.createElement("div");
+  author.className = "book-card-meta";
+  author.textContent = book.author_display || book.author || "Khuyết danh";
+
+  const sourceLabel = buildSourceLabel(book);
+  let source = null;
+  if (sourceLabel) {
+    source = document.createElement("div");
+    source.className = "book-card-source";
+    source.textContent = sourceLabel;
+  }
+
+  const infoRow = document.createElement("div");
+  infoRow.className = "book-card-progress-row";
+
+  const ch = document.createElement("div");
+  ch.className = "book-card-chapter";
+  ch.textContent = normalizeDisplayTitle(book.current_chapter_title_display || book.current_chapter_title || "Chương 1");
+
+  const pct = document.createElement("div");
+  pct.className = "book-card-percent";
+  const percent = Math.max(0, Math.min(100, Number(book.progress_percent || 0)));
+  pct.textContent = `${percent.toFixed(1)}%`;
+
+  infoRow.append(ch, pct);
+  const downloaded = Math.max(0, Number(book.downloaded_chapters || 0));
+  const total = Math.max(0, Number(book.chapter_count || 0));
+  const dl = document.createElement("div");
+  dl.className = "book-card-download";
+  dl.textContent = state.shell.t("downloadedCountShort", { downloaded, total });
+
+  if (source) body.append(title, author, source, infoRow, dl);
+  else body.append(title, author, infoRow, dl);
+  card.append(cover, body);
+}
+
+function hydrateLibraryBookCard(card) {
+  if (!card || String(card.dataset.hydrated || "") === "1") return;
+  const book = card.__book;
+  if (!book) return;
+  populateLibraryBookCard(card, book);
+}
+
+function renderLibraryLoadingSkeleton(count = LIBRARY_LOADING_SKELETON_COUNT) {
+  teardownLibraryLazyRender();
+  refs.libraryGrid.innerHTML = "";
+  refs.libraryEmpty.classList.add("hidden");
+  const total = Math.max(1, Number(count || LIBRARY_LOADING_SKELETON_COUNT));
+  for (let i = 0; i < total; i += 1) {
+    const shell = createLibraryBookCardShell({ book_id: `loading_${i}` }, -1);
+    shell.classList.add("book-card-loading");
+    shell.tabIndex = -1;
+    shell.removeAttribute("role");
+    refs.libraryGrid.appendChild(shell);
+  }
+}
+
 function renderBooks() {
+  teardownLibraryLazyRender();
   refs.libraryGrid.innerHTML = "";
   const visiblePending = state.pendingImports.filter((item) => {
     const resolvedBookId = String((item && item.resolved_book_id) || "").trim();
@@ -758,79 +980,24 @@ function renderBooks() {
   for (const pending of visiblePending) {
     refs.libraryGrid.appendChild(renderPendingImportCard(pending));
   }
-
+  const renderToken = Date.now();
+  state.libraryRenderToken = renderToken;
+  const observer = createLibraryCardObserver(renderToken);
+  const initialCards = [];
   for (const book of state.books) {
-    const card = document.createElement("article");
-    card.className = "book-card";
-    card.tabIndex = 0;
-    card.setAttribute("role", "button");
-
-    const cover = document.createElement("div");
-    cover.className = "book-card-cover";
-    if (book.cover_url) {
-      const img = document.createElement("img");
-      img.src = book.cover_url;
-      img.alt = book.title_display || book.title || "Ảnh bìa";
-      cover.appendChild(img);
-    } else {
-      const txt = document.createElement("div");
-      txt.className = "book-card-cover-text";
-      txt.textContent = state.shell.t("noCover");
-      cover.appendChild(txt);
-    }
-
-    const body = document.createElement("div");
-    const title = document.createElement("div");
-    title.className = "book-card-title";
-    title.textContent = normalizeDisplayTitle(book.title_display || book.title || "Không tiêu đề");
-
-    const author = document.createElement("div");
-    author.className = "book-card-meta";
-    author.textContent = book.author_display || book.author || "Khuyết danh";
-
-    const sourceLabel = buildSourceLabel(book);
-    let source = null;
-    if (sourceLabel) {
-      source = document.createElement("div");
-      source.className = "book-card-source";
-      source.textContent = sourceLabel;
-    }
-
-    const infoRow = document.createElement("div");
-    infoRow.className = "book-card-progress-row";
-
-    const ch = document.createElement("div");
-    ch.className = "book-card-chapter";
-    ch.textContent = normalizeDisplayTitle(book.current_chapter_title_display || book.current_chapter_title || "Chương 1");
-
-    const pct = document.createElement("div");
-    pct.className = "book-card-percent";
-    const percent = Math.max(0, Math.min(100, Number(book.progress_percent || 0)));
-    pct.textContent = `${percent.toFixed(1)}%`;
-
-    infoRow.append(ch, pct);
-    const downloaded = Math.max(0, Number(book.downloaded_chapters || 0));
-    const total = Math.max(0, Number(book.chapter_count || 0));
-    const dl = document.createElement("div");
-    dl.className = "book-card-download";
-    dl.textContent = state.shell.t("downloadedCountShort", { downloaded, total });
-
-    if (source) {
-      body.append(title, author, source, infoRow, dl);
-    } else {
-      body.append(title, author, infoRow, dl);
-    }
-    card.append(cover, body);
-    card.addEventListener("click", () => openActions(book.book_id));
-    card.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openActions(book.book_id);
-      }
-    });
-
+    const card = createLibraryBookCardShell(book, renderToken);
     refs.libraryGrid.appendChild(card);
+    if (observer) observer.observe(card);
+    if (initialCards.length < LIBRARY_INITIAL_HYDRATE_COUNT) initialCards.push(card);
   }
+  if (!observer) {
+    for (const card of initialCards) hydrateLibraryBookCard(card);
+    for (const card of Array.from(refs.libraryGrid.querySelectorAll(".book-card-shell"))) {
+      hydrateLibraryBookCard(card);
+    }
+    return;
+  }
+  for (const card of initialCards) queueLibraryCardHydration(card, renderToken);
 }
 
 function renderHistory() {
@@ -1027,7 +1194,12 @@ async function deleteHistoryItem(historyId) {
 }
 
 async function loadLibraryData({ silent = false } = {}) {
-  if (!silent) state.shell.showStatus(state.shell.t("statusLoadingBooks"));
+  const prevBooks = Array.isArray(state.books) ? [...state.books] : [];
+  const prevHistory = Array.isArray(state.historyItems) ? [...state.historyItems] : [];
+  if (!silent) {
+    state.shell.showStatus(state.shell.t("statusLoadingBooks"));
+    renderLibraryLoadingSkeleton();
+  }
   try {
     const [booksData, historyData] = await Promise.all([
       state.shell.api("/api/library/books"),
@@ -1038,6 +1210,12 @@ async function loadLibraryData({ silent = false } = {}) {
     renderHistory();
     renderBooks();
   } catch (error) {
+    if (!silent) {
+      state.books = prevBooks;
+      state.historyItems = prevHistory;
+      renderHistory();
+      renderBooks();
+    }
     if (!silent) state.shell.showToast(getErrorMessage(error));
   } finally {
     if (!silent) state.shell.hideStatus();

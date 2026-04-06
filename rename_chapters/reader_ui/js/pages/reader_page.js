@@ -5,8 +5,11 @@ import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from ".
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),
   readerChapterSub: document.getElementById("reader-chapter-sub"),
+  readerTitleWrap: document.querySelector(".reader-title-wrap"),
+  readerHeadSkeleton: document.getElementById("reader-head-skeleton"),
   readerViewport: document.getElementById("reader-viewport"),
   readerContentScroll: document.getElementById("reader-content-scroll"),
+  readerContentSkeleton: document.getElementById("reader-content-skeleton"),
   readerContentBody: document.getElementById("reader-content-body"),
   readerScrollHint: document.getElementById("reader-scroll-hint"),
   readerChapterCounter: document.getElementById("reader-chapter-counter"),
@@ -32,6 +35,7 @@ const refs = {
   btnNext: document.getElementById("btn-next"),
 
   readerTocDrawer: document.getElementById("reader-toc-drawer"),
+  readerTocSkeleton: document.getElementById("reader-toc-skeleton"),
   readerTocList: document.getElementById("reader-toc-list"),
   btnReaderDownloadBook: document.getElementById("btn-reader-download-book"),
   btnReaderRefreshToc: document.getElementById("btn-reader-refresh-toc"),
@@ -176,6 +180,123 @@ function normalizeTranslateMode(raw) {
   if (mode === "local") return "local";
   if (mode === "hanviet") return "hanviet";
   return "server";
+}
+
+function createSkeletonBlock(className = "") {
+  const node = document.createElement("div");
+  node.className = `ui-skeleton-block${className ? ` ${className}` : ""}`;
+  return node;
+}
+
+function renderReaderHeadSkeleton() {
+  if (!refs.readerHeadSkeleton) return;
+  refs.readerHeadSkeleton.innerHTML = "";
+  refs.readerHeadSkeleton.append(
+    createSkeletonBlock("reader-head-skeleton-book"),
+    createSkeletonBlock("reader-head-skeleton-sub"),
+  );
+}
+
+function showReaderHeadSkeleton(visible) {
+  if (!refs.readerHeadSkeleton || !refs.readerTitleWrap) return;
+  if (visible) {
+    renderReaderHeadSkeleton();
+    refs.readerHeadSkeleton.classList.remove("hidden");
+    refs.readerHeadSkeleton.setAttribute("aria-hidden", "false");
+    refs.readerTitleWrap.classList.add("is-loading");
+    return;
+  }
+  refs.readerHeadSkeleton.classList.add("hidden");
+  refs.readerHeadSkeleton.setAttribute("aria-hidden", "true");
+  refs.readerTitleWrap.classList.remove("is-loading");
+}
+
+function renderReaderTocSkeleton(count = 10) {
+  if (!refs.readerTocSkeleton) return;
+  refs.readerTocSkeleton.innerHTML = "";
+  const total = Math.max(4, Number(count) || 10);
+  for (let index = 0; index < total; index += 1) {
+    const row = document.createElement("div");
+    row.className = "toc-skeleton-row";
+    const main = document.createElement("div");
+    main.className = "toc-skeleton-main";
+    const title = createSkeletonBlock("toc-skeleton-title");
+    if (index % 3 === 1) title.style.width = "66%";
+    if (index % 3 === 2) title.style.width = "80%";
+    main.append(
+      title,
+      createSkeletonBlock("toc-skeleton-sub"),
+    );
+    row.append(
+      main,
+      createSkeletonBlock("toc-skeleton-action"),
+    );
+    refs.readerTocSkeleton.appendChild(row);
+  }
+}
+
+function showReaderTocSkeleton(visible, count = 10) {
+  if (!refs.readerTocSkeleton || !refs.readerTocList) return;
+  if (visible) {
+    renderReaderTocSkeleton(count);
+    refs.readerTocSkeleton.classList.remove("hidden");
+    refs.readerTocSkeleton.setAttribute("aria-hidden", "false");
+    refs.readerTocList.classList.add("hidden");
+    refs.readerTocList.setAttribute("aria-busy", "true");
+    return;
+  }
+  refs.readerTocSkeleton.classList.add("hidden");
+  refs.readerTocSkeleton.setAttribute("aria-hidden", "true");
+  refs.readerTocList.classList.remove("hidden");
+  refs.readerTocList.setAttribute("aria-busy", "false");
+}
+
+function renderReaderContentSkeleton({ comic = false } = {}) {
+  if (!refs.readerContentSkeleton) return;
+  refs.readerContentSkeleton.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "reader-chapter-skeleton";
+  if (comic) {
+    for (let index = 0; index < 3; index += 1) {
+      const block = createSkeletonBlock("reader-comic-skeleton-block");
+      if (index === 1) block.style.height = "min(46vh, 520px)";
+      wrap.appendChild(block);
+    }
+  } else {
+    wrap.appendChild(createSkeletonBlock("reader-chapter-skeleton-title"));
+    const lineKinds = [
+      "is-wide",
+      "is-medium",
+      "is-inline",
+      "is-wide",
+      "is-medium",
+      "is-wide",
+      "is-short",
+      "is-wide",
+      "is-medium",
+      "is-short",
+    ];
+    for (const kind of lineKinds) {
+      wrap.appendChild(createSkeletonBlock(`reader-chapter-skeleton-line ${kind}`));
+    }
+  }
+  refs.readerContentSkeleton.appendChild(wrap);
+}
+
+function showReaderContentSkeleton(visible, { comic = false } = {}) {
+  if (!refs.readerContentSkeleton || !refs.readerContentScroll) return;
+  if (visible) {
+    renderReaderContentSkeleton({ comic });
+    refs.readerContentSkeleton.classList.remove("hidden");
+    refs.readerContentSkeleton.setAttribute("aria-hidden", "false");
+    refs.readerContentScroll.classList.add("reader-loading");
+    refs.readerContentScroll.setAttribute("aria-busy", "true");
+    return;
+  }
+  refs.readerContentSkeleton.classList.add("hidden");
+  refs.readerContentSkeleton.setAttribute("aria-hidden", "true");
+  refs.readerContentScroll.classList.remove("reader-loading");
+  refs.readerContentScroll.setAttribute("aria-busy", "false");
 }
 
 function localTranslationSettingsSignature(shell) {
@@ -721,6 +842,7 @@ function renderToc() {
     li.appendChild(iconBtn);
     refs.readerTocList.appendChild(li);
   }
+  showReaderTocSkeleton(false);
 }
 
 async function downloadCurrentChapterById(chapterId) {
@@ -803,6 +925,7 @@ async function downloadBookFromReaderToc() {
 async function refreshReaderToc() {
   if (!state.bookId) return;
   const preserveRatio = currentChapterRatio();
+  showReaderTocSkeleton(true, 10);
   state.shell.showStatus(state.shell.t("statusCheckingBookUpdates"));
   try {
     const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/refresh-toc`, {
@@ -850,6 +973,7 @@ async function refreshReaderToc() {
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
+    showReaderTocSkeleton(false);
     state.shell.hideStatus();
   }
 }
@@ -1261,34 +1385,52 @@ async function saveProgress() {
   }
 }
 
-async function loadBook() {
+async function loadBook({ showSkeleton = false } = {}) {
   if (!state.bookId) return;
-  const detailMode = state.translationEnabled ? state.mode : "raw";
-  const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(detailMode)}&translation_mode=${encodeURIComponent(state.translateMode)}`);
-  state.book = detail;
-  if (refs.btnReaderRefreshToc) {
-    const sourceType = String((detail && detail.source_type) || "").trim().toLowerCase();
-    const isOnline = sourceType === "vbook" || sourceType === "vbook_comic" || sourceType.startsWith("vbook_session");
-    refs.btnReaderRefreshToc.classList.toggle("hidden", !isOnline);
+  const shouldShowSkeleton = Boolean(showSkeleton && !state.book);
+  if (shouldShowSkeleton) {
+    showReaderHeadSkeleton(true);
+    showReaderTocSkeleton(true, 10);
   }
-  if (!supportsTranslation(detail)) {
-    state.mode = "raw";
-  }
-  if (!state.chapterId) {
-    state.chapterId = detail.last_read_chapter_id || ((detail.chapters && detail.chapters[0] && detail.chapters[0].chapter_id) || "");
-  }
-  syncModeButtons();
-  if (state.shell && typeof state.shell.refreshVbookSettings === "function") {
-    try {
-      const runtimePluginId = String(detail.source_plugin || detail.plugin_id || "").trim();
-      await state.shell.refreshVbookSettings(runtimePluginId);
-    } catch {
-      // ignore runtime settings refresh errors
+  try {
+    const detailMode = state.translationEnabled ? state.mode : "raw";
+    const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(detailMode)}&translation_mode=${encodeURIComponent(state.translateMode)}`);
+    state.book = detail;
+    if (refs.btnReaderRefreshToc) {
+      const sourceType = String((detail && detail.source_type) || "").trim().toLowerCase();
+      const isOnline = sourceType === "vbook" || sourceType === "vbook_comic" || sourceType.startsWith("vbook_session");
+      refs.btnReaderRefreshToc.classList.toggle("hidden", !isOnline);
+    }
+    if (!supportsTranslation(detail)) {
+      state.mode = "raw";
+    }
+    if (!state.chapterId) {
+      state.chapterId = detail.last_read_chapter_id || ((detail.chapters && detail.chapters[0] && detail.chapters[0].chapter_id) || "");
+    }
+    syncModeButtons();
+    showReaderHeadSkeleton(false);
+    updateHeader();
+    if (shouldShowSkeleton) {
+      renderToc();
+      updateProgress();
+    }
+    if (state.shell && typeof state.shell.refreshVbookSettings === "function") {
+      try {
+        const runtimePluginId = String(detail.source_plugin || detail.plugin_id || "").trim();
+        await state.shell.refreshVbookSettings(runtimePluginId);
+      } catch {
+        // ignore runtime settings refresh errors
+      }
+    }
+  } finally {
+    if (shouldShowSkeleton) {
+      showReaderHeadSkeleton(false);
+      showReaderTocSkeleton(false);
     }
   }
 }
 
-async function loadChapter({ resetFlip = true, preserveRatio = null } = {}) {
+async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleton = true } = {}) {
   if (!state.chapterId) return;
   hideSelectionBtn();
   if (state.activeChapterController) {
@@ -1304,6 +1446,10 @@ async function loadChapter({ resetFlip = true, preserveRatio = null } = {}) {
   const translationMode = state.translateMode;
   const controller = new AbortController();
   state.activeChapterController = controller;
+  const shouldShowSkeleton = Boolean(showSkeleton);
+  if (shouldShowSkeleton) {
+    showReaderContentSkeleton(true, { comic: Boolean(state.book && state.book.is_comic) });
+  }
 
   state.shell.showStatus(state.shell.t("statusLoadingChapter"));
   try {
@@ -1337,8 +1483,19 @@ async function loadChapter({ resetFlip = true, preserveRatio = null } = {}) {
     if (isFullscreenActive()) {
       setFullscreenUiVisible(true, { autoHideMs: 1800 });
     }
+    if (requestSeq === state.chapterLoadSeq) {
+      showReaderContentSkeleton(false);
+    }
   } catch (error) {
-    if (isAbortError(error)) return;
+    if (isAbortError(error)) {
+      if (requestSeq === state.chapterLoadSeq) {
+        showReaderContentSkeleton(false);
+      }
+      return;
+    }
+    if (requestSeq === state.chapterLoadSeq) {
+      showReaderContentSkeleton(false);
+    }
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
     if (requestSeq === state.chapterLoadSeq) {
@@ -3199,7 +3356,10 @@ async function init() {
     return;
   }
 
-  await loadBook();
+  showReaderHeadSkeleton(true);
+  showReaderTocSkeleton(true, 10);
+  showReaderContentSkeleton(true, { comic: false });
+  await loadBook({ showSkeleton: true });
   if (!requestedMode && state.book) {
     const savedMode = parseRequestedMode(state.book.last_read_mode || "");
     state.mode = savedMode || "raw";
@@ -3217,7 +3377,7 @@ async function init() {
   ) {
     initialRatio = state.book.last_read_ratio;
   }
-  await loadChapter({ preserveRatio: initialRatio });
+  await loadChapter({ preserveRatio: initialRatio, showSkeleton: true });
   startReaderDownloadWatcher();
 
   refs.btnReaderToc.addEventListener("click", openToc);

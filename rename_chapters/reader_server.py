@@ -4252,6 +4252,8 @@ class ReaderService:
         self._export_running_job_id: str | None = None
         self._export_worker_started = False
         self._export_worker_thread: threading.Thread | None = None
+        self._vbook_singleflight_lock = threading.RLock()
+        self._vbook_singleflight_runs: dict[str, dict[str, Any]] = {}
         with self._export_cv:
             self._load_export_jobs_state_locked()
 
@@ -6395,8 +6397,7 @@ class ReaderService:
         book = self.storage.find_book(book_id)
         if not book:
             raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-        raw_key = str(chapter.get("raw_key") or "").strip()
-        if raw_key and (self.storage.read_cache(raw_key) is not None):
+        if self._chapter_cache_available(chapter, book):
             return {
                 "ok": True,
                 "already_downloaded": True,
@@ -8096,6 +8097,8 @@ class ReaderService:
         args: list[Any],
         *,
         disable_bridge: bool = False,
+        flight_key: str = "",
+        flight_token: str = "",
     ) -> dict[str, Any]:
         if not self.vbook_runner:
             raise ApiError(
@@ -8124,6 +8127,26 @@ class ReaderService:
                     args=args,
                     runner_config_override=(runner_override or None),
                     timeout_sec=30.0,
+                    before_start=(
+                        (lambda: self._ensure_vbook_singleflight_active(flight_key, flight_token))
+                        if flight_key and flight_token
+                        else None
+                    ),
+                    is_cancelled=(
+                        (lambda: not self._is_vbook_singleflight_active(flight_key, flight_token))
+                        if flight_key and flight_token
+                        else None
+                    ),
+                    on_process_started=(
+                        (lambda proc: self._attach_vbook_singleflight_process(flight_key, flight_token, proc))
+                        if flight_key and flight_token
+                        else None
+                    ),
+                    on_process_finished=(
+                        (lambda proc: self._detach_vbook_singleflight_process(flight_key, flight_token, proc))
+                        if flight_key and flight_token
+                        else None
+                    ),
                 )
                 result = payload.get("result")
                 if isinstance(result, dict):
@@ -8166,6 +8189,8 @@ class ReaderService:
                     return result
                 # Some plugins might return raw value (non Response.success)
                 return {"code": 0, "data": result}
+            except vbook_ext.RunnerCancelledError:
+                raise
             except ApiError as exc:
                 should_retry = (
                     exc.error_code == "VBOOK_SCRIPT_ERROR"
@@ -8186,12 +8211,16 @@ class ReaderService:
         args: list[Any],
         *,
         disable_bridge: bool = False,
+        flight_key: str = "",
+        flight_token: str = "",
     ) -> Any:
         result = self._run_vbook_script_result(
             plugin,
             script_key,
             args,
             disable_bridge=disable_bridge,
+            flight_key=flight_key,
+            flight_token=flight_token,
         )
         return result.get("data")
 
@@ -8202,14 +8231,126 @@ class ReaderService:
         args: list[Any],
         *,
         disable_bridge: bool = False,
+        flight_key: str = "",
+        flight_token: str = "",
     ) -> tuple[Any, Any]:
         result = self._run_vbook_script_result(
             plugin,
             script_key,
             args,
             disable_bridge=disable_bridge,
+            flight_key=flight_key,
+            flight_token=flight_token,
         )
         return result.get("data"), result.get("next")
+
+    def _vbook_singleflight_key(self, scope: str, plugin: Any) -> str:
+        scope_norm = re.sub(r"[^a-z0-9._-]+", "_", str(scope or "").strip().lower()).strip("._-") or "browse"
+        plugin_id = self._normalize_vbook_plugin_id(str(getattr(plugin, "plugin_id", "") or ""))
+        return f"{scope_norm}:{plugin_id or 'plugin'}"
+
+    def _begin_vbook_singleflight(self, key: str) -> str:
+        singleflight_key = str(key or "").strip()
+        if not singleflight_key:
+            return ""
+        token = uuid.uuid4().hex
+        prev_proc = None
+        with self._vbook_singleflight_lock:
+            prev = self._vbook_singleflight_runs.get(singleflight_key) or {}
+            prev_proc = prev.get("proc")
+            self._vbook_singleflight_runs[singleflight_key] = {
+                "token": token,
+                "proc": None,
+                "started_at": time.time(),
+            }
+        self._terminate_vbook_process(prev_proc)
+        return token
+
+    def _ensure_vbook_singleflight_active(self, key: str, token: str) -> None:
+        singleflight_key = str(key or "").strip()
+        current_token = str(token or "").strip()
+        if not singleflight_key or not current_token:
+            return
+        if not self._is_vbook_singleflight_active(singleflight_key, current_token):
+            raise vbook_ext.RunnerCancelledError("Yêu cầu vBook cũ đã bị thay thế bởi yêu cầu mới.")
+
+    def _is_vbook_singleflight_active(self, key: str, token: str) -> bool:
+        singleflight_key = str(key or "").strip()
+        current_token = str(token or "").strip()
+        if not singleflight_key or not current_token:
+            return True
+        with self._vbook_singleflight_lock:
+            current = self._vbook_singleflight_runs.get(singleflight_key) or {}
+            return str(current.get("token") or "") == current_token
+
+    def _attach_vbook_singleflight_process(self, key: str, token: str, proc: Any) -> None:
+        singleflight_key = str(key or "").strip()
+        current_token = str(token or "").strip()
+        if not singleflight_key or not current_token or proc is None:
+            return
+        should_cancel = False
+        prev_proc = None
+        with self._vbook_singleflight_lock:
+            current = self._vbook_singleflight_runs.get(singleflight_key)
+            if not isinstance(current, dict) or str(current.get("token") or "") != current_token:
+                should_cancel = True
+            else:
+                prev_proc = current.get("proc")
+                current["proc"] = proc
+        if prev_proc is not None and prev_proc is not proc:
+            self._terminate_vbook_process(prev_proc)
+        if should_cancel:
+            self._terminate_vbook_process(proc)
+            raise vbook_ext.RunnerCancelledError("Yêu cầu vBook cũ đã bị thay thế bởi yêu cầu mới.")
+
+    def _detach_vbook_singleflight_process(self, key: str, token: str, proc: Any) -> None:
+        singleflight_key = str(key or "").strip()
+        current_token = str(token or "").strip()
+        if not singleflight_key or not current_token or proc is None:
+            return
+        with self._vbook_singleflight_lock:
+            current = self._vbook_singleflight_runs.get(singleflight_key)
+            if isinstance(current, dict) and str(current.get("token") or "") == current_token and current.get("proc") is proc:
+                current["proc"] = None
+
+    def _end_vbook_singleflight(self, key: str, token: str) -> None:
+        singleflight_key = str(key or "").strip()
+        current_token = str(token or "").strip()
+        if not singleflight_key or not current_token:
+            return
+        with self._vbook_singleflight_lock:
+            current = self._vbook_singleflight_runs.get(singleflight_key)
+            if isinstance(current, dict) and str(current.get("token") or "") == current_token:
+                self._vbook_singleflight_runs.pop(singleflight_key, None)
+
+    def _terminate_vbook_process(self, proc: Any) -> None:
+        if proc is None:
+            return
+        try:
+            if proc.poll() is not None:
+                return
+        except Exception:
+            return
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        try:
+            proc.wait(timeout=0.4)
+        except Exception:
+            pass
+
+    def _raise_vbook_request_replaced(self, plugin: Any, scope: str, exc: Exception | None = None) -> None:
+        details = {
+            "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+            "scope": str(scope or "").strip().lower() or "browse",
+        }
+        raise ApiError(
+            HTTPStatus.CONFLICT,
+            "VBOOK_REQUEST_REPLACED",
+            "Yêu cầu vBook cũ đã bị thay thế bởi yêu cầu mới.",
+            details,
+        ) from exc
 
     def _normalize_vbook_search_item(
         self,
@@ -8995,6 +9136,8 @@ class ReaderService:
         input_value: Any = None,
         page: int = 1,
         next_token: Any = None,
+        flight_key: str = "",
+        flight_token: str = "",
     ) -> tuple[list[Any], Any, dict[str, Any]]:
         p = max(1, int(page or 1))
         has_next_token = next_token is not None and str(next_token).strip() != ""
@@ -9041,7 +9184,13 @@ class ReaderService:
                 continue
             seen.add(sig)
             try:
-                data, next_value = self._run_vbook_script_with_next(plugin, script_ref, args)
+                data, next_value = self._run_vbook_script_with_next(
+                    plugin,
+                    script_ref,
+                    args,
+                    flight_key=flight_key,
+                    flight_token=flight_token,
+                )
                 rows = self._extract_vbook_list_rows(data)
                 has_next = next_value is not None and str(next_value).strip() != ""
                  # keep lightweight diagnostics for empty/suspicious cases
@@ -9060,6 +9209,8 @@ class ReaderService:
                     best_empty_rows = rows
                     best_empty_next = next_value
                 last_error = None
+            except vbook_ext.RunnerCancelledError:
+                raise
             except Exception as exc:
                 attempt_logs.append(
                     {
@@ -9139,6 +9290,8 @@ class ReaderService:
     ) -> dict[str, Any]:
         plugin = self._require_vbook_plugin(plugin_id)
         self._ensure_plugin_has_script(plugin, "search")
+        flight_key = self._vbook_singleflight_key("search", plugin)
+        flight_token = self._begin_vbook_singleflight(flight_key)
         q = str(query or "").strip()
         if not q:
             search_mode = str(search_mode or "search").strip().lower()
@@ -9183,90 +9336,102 @@ class ReaderService:
         success = False
         best_empty_data: Any = []
         best_empty_next: Any = None
-        
-        for args in candidates:
-            sig = json.dumps(args, ensure_ascii=False, sort_keys=True, default=str)
-            if sig in seen:
-                continue
-            seen.add(sig)
-            try:
-                data, next_value = self._run_vbook_script_with_next(plugin, "search", args)
-                last_error = None
-                success = True
-                rows = self._extract_vbook_list_rows(data)
-                if rows or (next_value is not None and str(next_value).strip() != ""):
-                    best_data = data
-                    best_next = next_value
-                    break
-                if best_empty_data == []:
-                    best_empty_data = data
-                    best_empty_next = next_value
-            except Exception as exc:
-                last_error = exc
-                continue
-                
-        if not success and last_error is not None:
-            if isinstance(last_error, ApiError):
-                raise last_error
-            raise ApiError(
-                HTTPStatus.BAD_GATEWAY,
-                "VBOOK_SEARCH_FAILED",
-                "Không thể tìm kiếm bằng plugin vBook này.",
-                {"plugin_id": plugin_id, "error": str(last_error)},
-            ) from last_error
+        try:
+            for args in candidates:
+                sig = json.dumps(args, ensure_ascii=False, sort_keys=True, default=str)
+                if sig in seen:
+                    continue
+                seen.add(sig)
+                try:
+                    data, next_value = self._run_vbook_script_with_next(
+                        plugin,
+                        "search",
+                        args,
+                        flight_key=flight_key,
+                        flight_token=flight_token,
+                    )
+                    last_error = None
+                    success = True
+                    rows = self._extract_vbook_list_rows(data)
+                    if rows or (next_value is not None and str(next_value).strip() != ""):
+                        best_data = data
+                        best_next = next_value
+                        break
+                    if best_empty_data == []:
+                        best_empty_data = data
+                        best_empty_next = next_value
+                except vbook_ext.RunnerCancelledError:
+                    raise
+                except Exception as exc:
+                    last_error = exc
+                    continue
 
-        if (not best_data) and best_empty_data not in (None, []):
-            best_data = best_empty_data
-            best_next = best_empty_next
-        if success and self._extract_vbook_list_rows(best_data) == [] and (
-            isinstance(best_data, dict) or best_data is None
-        ):
-            diagnostics = {
-                "attempts": [
-                    {
-                        "args": args,
-                        "bridge": "on",
-                        "data_type": type(best_empty_data).__name__ if best_empty_data is not None else "NoneType",
-                    }
-                    for args in candidates
-                ]
-            }
-            self._diagnose_vbook_empty_attempts(
-                diagnostics,
-                plugin=plugin,
-                script_ref="search",
-                input_value=q,
-                page=p,
+            if not success and last_error is not None:
+                if isinstance(last_error, ApiError):
+                    raise last_error
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_SEARCH_FAILED",
+                    "Không thể tìm kiếm bằng plugin vBook này.",
+                    {"plugin_id": plugin_id, "error": str(last_error)},
+                ) from last_error
+
+            if (not best_data) and best_empty_data not in (None, []):
+                best_data = best_empty_data
+                best_next = best_empty_next
+            if success and self._extract_vbook_list_rows(best_data) == [] and (
+                isinstance(best_data, dict) or best_data is None
+            ):
+                diagnostics = {
+                    "attempts": [
+                        {
+                            "args": args,
+                            "bridge": "on",
+                            "data_type": type(best_empty_data).__name__ if best_empty_data is not None else "NoneType",
+                        }
+                        for args in candidates
+                    ]
+                }
+                self._diagnose_vbook_empty_attempts(
+                    diagnostics,
+                    plugin=plugin,
+                    script_ref="search",
+                    input_value=q,
+                    page=p,
+                )
+
+            rows = best_data if isinstance(best_data, list) else (
+                best_data.get("items")
+                if isinstance(best_data, dict) and isinstance(best_data.get("items"), list)
+                else best_data.get("data")
+                if isinstance(best_data, dict) and isinstance(best_data.get("data"), list)
+                else best_data.get("list")
+                if isinstance(best_data, dict) and isinstance(best_data.get("list"), list)
+                else []
             )
-
-        rows = best_data if isinstance(best_data, list) else (
-            best_data.get("items")
-            if isinstance(best_data, dict) and isinstance(best_data.get("items"), list)
-            else best_data.get("data")
-            if isinstance(best_data, dict) and isinstance(best_data.get("data"), list)
-            else best_data.get("list")
-            if isinstance(best_data, dict) and isinstance(best_data.get("list"), list)
-            else []
-        )
-        items: list[dict[str, Any]] = []
-        for row in rows or []:
-            normalized = self._normalize_vbook_search_item(plugin, row, query=q, translate_ui=False)
-            if normalized:
-                items.append(normalized)
-        if self.is_reader_translation_enabled():
-            self._translate_vbook_items_batch(items, mode=self.reader_translation_mode())
-        return {
-            "ok": True,
-            "plugin": self._serialize_vbook_plugin(plugin),
-            "query": q,
-            "page": p,
-            "search_mode": search_mode,
-            "filter_state": filter_state,
-            "items": items,
-            "next": best_next,
-            "has_next": best_next is not None and str(best_next).strip() != "",
-            "count": len(items),
-        }
+            items: list[dict[str, Any]] = []
+            for row in rows or []:
+                normalized = self._normalize_vbook_search_item(plugin, row, query=q, translate_ui=False)
+                if normalized:
+                    items.append(normalized)
+            if self.is_reader_translation_enabled():
+                self._translate_vbook_items_batch(items, mode=self.reader_translation_mode())
+            return {
+                "ok": True,
+                "plugin": self._serialize_vbook_plugin(plugin),
+                "query": q,
+                "page": p,
+                "search_mode": search_mode,
+                "filter_state": filter_state,
+                "items": items,
+                "next": best_next,
+                "has_next": best_next is not None and str(best_next).strip() != "",
+                "count": len(items),
+            }
+        except vbook_ext.RunnerCancelledError as exc:
+            self._raise_vbook_request_replaced(plugin, "search", exc)
+        finally:
+            self._end_vbook_singleflight(flight_key, flight_token)
 
     def get_vbook_home(
         self,
@@ -9278,26 +9443,71 @@ class ReaderService:
         next_token: Any = None,
     ) -> dict[str, Any]:
         plugin = self._require_vbook_plugin(plugin_id)
+        flight_key = self._vbook_singleflight_key("home", plugin)
+        flight_token = self._begin_vbook_singleflight(flight_key)
         p = max(1, int(page or 1))
-        # Root mode: trả tabs từ home.js
-        if not str(tab_script or "").strip():
-            scripts = getattr(plugin, "scripts", None)
-            has_script = isinstance(scripts, dict) and bool(str((scripts.get("home") or "")).strip())
-            if not has_script:
+        try:
+            # Root mode: trả tabs từ home.js
+            if not str(tab_script or "").strip():
+                scripts = getattr(plugin, "scripts", None)
+                has_script = isinstance(scripts, dict) and bool(str((scripts.get("home") or "")).strip())
+                if not has_script:
+                    return {
+                        "ok": True,
+                        "plugin": self._serialize_vbook_plugin(plugin),
+                        "mode": "tabs",
+                        "tabs": [],
+                        "items": [],
+                        "count": 0,
+                        "item_count": 0,
+                        "has_script": False,
+                    }
+                data = self._run_vbook_script(
+                    plugin,
+                    "home",
+                    [],
+                    flight_key=flight_key,
+                    flight_token=flight_token,
+                )
+                rows = self._extract_vbook_list_rows(data)
+                tabs: list[dict[str, Any]] = []
+                items: list[dict[str, Any]] = []
+                for row in rows:
+                    normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
+                    if normalized:
+                        items.append(normalized)
+                        continue
+                    tab = self._normalize_vbook_tab_item(row, translate_ui=False)
+                    if tab:
+                        tabs.append(tab)
+                if self.is_reader_translation_enabled():
+                    mode = self.reader_translation_mode()
+                    self._translate_vbook_items_batch(items, mode=mode)
+                    self._translate_vbook_tabs_batch(tabs, mode=mode)
                 return {
                     "ok": True,
                     "plugin": self._serialize_vbook_plugin(plugin),
                     "mode": "tabs",
-                    "tabs": [],
-                    "items": [],
-                    "count": 0,
-                    "item_count": 0,
-                    "has_script": False,
+                    "tabs": tabs,
+                    "items": items,
+                    "count": len(tabs),
+                    "item_count": len(items),
+                    "has_script": True,
                 }
-            data = self._run_vbook_script(plugin, "home", [])
-            rows = self._extract_vbook_list_rows(data)
-            tabs: list[dict[str, Any]] = []
+
+            # Content mode: chạy script tab để lấy books.
+            script_ref = self._normalize_vbook_script_ref(plugin, tab_script, default_key="home")
+            rows, next_value, diagnostics = self._run_vbook_paged_list_script(
+                plugin,
+                script_ref=script_ref,
+                input_value=tab_input,
+                page=p,
+                next_token=next_token,
+                flight_key=flight_key,
+                flight_token=flight_token,
+            )
             items: list[dict[str, Any]] = []
+            extra_tabs: list[dict[str, Any]] = []
             for row in rows:
                 normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
                 if normalized:
@@ -9305,86 +9515,56 @@ class ReaderService:
                     continue
                 tab = self._normalize_vbook_tab_item(row, translate_ui=False)
                 if tab:
-                    tabs.append(tab)
+                    extra_tabs.append(tab)
             if self.is_reader_translation_enabled():
                 mode = self.reader_translation_mode()
                 self._translate_vbook_items_batch(items, mode=mode)
-                self._translate_vbook_tabs_batch(tabs, mode=mode)
-            return {
+                self._translate_vbook_tabs_batch(extra_tabs, mode=mode)
+            if rows and not items and not extra_tabs:
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_LIST_NORMALIZE_FAILED",
+                    "Plugin vBook trả dữ liệu danh sách nhưng app không map được thành truyện hoặc tab.",
+                    {
+                        "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                        "script": script_ref,
+                        "raw_row_count": len(rows),
+                        "sample_rows": [self._summarize_vbook_debug_row(row) for row in rows[:3]],
+                        "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
+                    },
+                )
+            if not rows and not items and not extra_tabs:
+                self._diagnose_vbook_empty_attempts(
+                    diagnostics,
+                    plugin=plugin,
+                    script_ref=script_ref,
+                    input_value=tab_input,
+                    page=p,
+                )
+            payload = {
                 "ok": True,
                 "plugin": self._serialize_vbook_plugin(plugin),
-                "mode": "tabs",
-                "tabs": tabs,
+                "mode": "content",
+                "script": script_ref,
+                "page": p,
                 "items": items,
-                "count": len(tabs),
-                "item_count": len(items),
+                "tabs": extra_tabs,
+                "next": next_value,
+                "has_next": next_value is not None and str(next_value).strip() != "",
+                "count": len(items),
+                "tab_count": len(extra_tabs),
                 "has_script": True,
             }
-
-        # Content mode: chạy script tab để lấy books.
-        script_ref = self._normalize_vbook_script_ref(plugin, tab_script, default_key="home")
-        rows, next_value, diagnostics = self._run_vbook_paged_list_script(
-            plugin,
-            script_ref=script_ref,
-            input_value=tab_input,
-            page=p,
-            next_token=next_token,
-        )
-        items: list[dict[str, Any]] = []
-        extra_tabs: list[dict[str, Any]] = []
-        for row in rows:
-            normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
-            if normalized:
-                items.append(normalized)
-                continue
-            tab = self._normalize_vbook_tab_item(row, translate_ui=False)
-            if tab:
-                extra_tabs.append(tab)
-        if self.is_reader_translation_enabled():
-            mode = self.reader_translation_mode()
-            self._translate_vbook_items_batch(items, mode=mode)
-            self._translate_vbook_tabs_batch(extra_tabs, mode=mode)
-        if rows and not items and not extra_tabs:
-            raise ApiError(
-                HTTPStatus.BAD_GATEWAY,
-                "VBOOK_LIST_NORMALIZE_FAILED",
-                "Plugin vBook trả dữ liệu danh sách nhưng app không map được thành truyện hoặc tab.",
-                {
-                    "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
-                    "script": script_ref,
-                    "raw_row_count": len(rows),
-                    "sample_rows": [self._summarize_vbook_debug_row(row) for row in rows[:3]],
+            if not items and not extra_tabs:
+                payload["debug"] = {
+                    "empty_reason": "no_rows",
                     "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
-                },
-            )
-        if not rows and not items and not extra_tabs:
-            self._diagnose_vbook_empty_attempts(
-                diagnostics,
-                plugin=plugin,
-                script_ref=script_ref,
-                input_value=tab_input,
-                page=p,
-            )
-        payload = {
-            "ok": True,
-            "plugin": self._serialize_vbook_plugin(plugin),
-            "mode": "content",
-            "script": script_ref,
-            "page": p,
-            "items": items,
-            "tabs": extra_tabs,
-            "next": next_value,
-            "has_next": next_value is not None and str(next_value).strip() != "",
-            "count": len(items),
-            "tab_count": len(extra_tabs),
-            "has_script": True,
-        }
-        if not items and not extra_tabs:
-            payload["debug"] = {
-                "empty_reason": "no_rows",
-                "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
-            }
-        return payload
+                }
+            return payload
+        except vbook_ext.RunnerCancelledError as exc:
+            self._raise_vbook_request_replaced(plugin, "home", exc)
+        finally:
+            self._end_vbook_singleflight(flight_key, flight_token)
 
     def get_vbook_genre(
         self,
@@ -9396,26 +9576,71 @@ class ReaderService:
         next_token: Any = None,
     ) -> dict[str, Any]:
         plugin = self._require_vbook_plugin(plugin_id)
+        flight_key = self._vbook_singleflight_key("genre", plugin)
+        flight_token = self._begin_vbook_singleflight(flight_key)
         p = max(1, int(page or 1))
-        # Root mode: trả tabs từ genre.js
-        if not str(tab_script or "").strip():
-            scripts = getattr(plugin, "scripts", None)
-            has_script = isinstance(scripts, dict) and bool(str((scripts.get("genre") or "")).strip())
-            if not has_script:
+        try:
+            # Root mode: trả tabs từ genre.js
+            if not str(tab_script or "").strip():
+                scripts = getattr(plugin, "scripts", None)
+                has_script = isinstance(scripts, dict) and bool(str((scripts.get("genre") or "")).strip())
+                if not has_script:
+                    return {
+                        "ok": True,
+                        "plugin": self._serialize_vbook_plugin(plugin),
+                        "mode": "tabs",
+                        "tabs": [],
+                        "items": [],
+                        "count": 0,
+                        "item_count": 0,
+                        "has_script": False,
+                    }
+                data = self._run_vbook_script(
+                    plugin,
+                    "genre",
+                    [],
+                    flight_key=flight_key,
+                    flight_token=flight_token,
+                )
+                rows = self._extract_vbook_list_rows(data)
+                tabs: list[dict[str, Any]] = []
+                items: list[dict[str, Any]] = []
+                for row in rows:
+                    normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
+                    if normalized:
+                        items.append(normalized)
+                        continue
+                    tab = self._normalize_vbook_tab_item(row, translate_ui=False)
+                    if tab:
+                        tabs.append(tab)
+                if self.is_reader_translation_enabled():
+                    mode = self.reader_translation_mode()
+                    self._translate_vbook_items_batch(items, mode=mode)
+                    self._translate_vbook_tabs_batch(tabs, mode=mode)
                 return {
                     "ok": True,
                     "plugin": self._serialize_vbook_plugin(plugin),
                     "mode": "tabs",
-                    "tabs": [],
-                    "items": [],
-                    "count": 0,
-                    "item_count": 0,
-                    "has_script": False,
+                    "tabs": tabs,
+                    "items": items,
+                    "count": len(tabs),
+                    "item_count": len(items),
+                    "has_script": True,
                 }
-            data = self._run_vbook_script(plugin, "genre", [])
-            rows = self._extract_vbook_list_rows(data)
-            tabs: list[dict[str, Any]] = []
+
+            # Content mode: chạy script tab để lấy books.
+            script_ref = self._normalize_vbook_script_ref(plugin, tab_script, default_key="genre")
+            rows, next_value, diagnostics = self._run_vbook_paged_list_script(
+                plugin,
+                script_ref=script_ref,
+                input_value=tab_input,
+                page=p,
+                next_token=next_token,
+                flight_key=flight_key,
+                flight_token=flight_token,
+            )
             items: list[dict[str, Any]] = []
+            extra_tabs: list[dict[str, Any]] = []
             for row in rows:
                 normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
                 if normalized:
@@ -9423,94 +9648,77 @@ class ReaderService:
                     continue
                 tab = self._normalize_vbook_tab_item(row, translate_ui=False)
                 if tab:
-                    tabs.append(tab)
+                    extra_tabs.append(tab)
             if self.is_reader_translation_enabled():
                 mode = self.reader_translation_mode()
                 self._translate_vbook_items_batch(items, mode=mode)
-                self._translate_vbook_tabs_batch(tabs, mode=mode)
-            return {
+                self._translate_vbook_tabs_batch(extra_tabs, mode=mode)
+            if rows and not items and not extra_tabs:
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_LIST_NORMALIZE_FAILED",
+                    "Plugin vBook trả dữ liệu danh sách nhưng app không map được thành truyện hoặc tab.",
+                    {
+                        "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                        "script": script_ref,
+                        "raw_row_count": len(rows),
+                        "sample_rows": [self._summarize_vbook_debug_row(row) for row in rows[:3]],
+                        "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
+                    },
+                )
+            if not rows and not items and not extra_tabs:
+                self._diagnose_vbook_empty_attempts(
+                    diagnostics,
+                    plugin=plugin,
+                    script_ref=script_ref,
+                    input_value=tab_input,
+                    page=p,
+                )
+            payload = {
                 "ok": True,
                 "plugin": self._serialize_vbook_plugin(plugin),
-                "mode": "tabs",
-                "tabs": tabs,
+                "mode": "content",
+                "script": script_ref,
+                "page": p,
                 "items": items,
-                "count": len(tabs),
-                "item_count": len(items),
+                "tabs": extra_tabs,
+                "next": next_value,
+                "has_next": next_value is not None and str(next_value).strip() != "",
+                "count": len(items),
+                "tab_count": len(extra_tabs),
                 "has_script": True,
             }
-
-        # Content mode: chạy script tab để lấy books.
-        script_ref = self._normalize_vbook_script_ref(plugin, tab_script, default_key="genre")
-        rows, next_value, diagnostics = self._run_vbook_paged_list_script(
-            plugin,
-            script_ref=script_ref,
-            input_value=tab_input,
-            page=p,
-            next_token=next_token,
-        )
-        items: list[dict[str, Any]] = []
-        extra_tabs: list[dict[str, Any]] = []
-        for row in rows:
-            normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
-            if normalized:
-                items.append(normalized)
-                continue
-            tab = self._normalize_vbook_tab_item(row, translate_ui=False)
-            if tab:
-                extra_tabs.append(tab)
-        if self.is_reader_translation_enabled():
-            mode = self.reader_translation_mode()
-            self._translate_vbook_items_batch(items, mode=mode)
-            self._translate_vbook_tabs_batch(extra_tabs, mode=mode)
-        if rows and not items and not extra_tabs:
-            raise ApiError(
-                HTTPStatus.BAD_GATEWAY,
-                "VBOOK_LIST_NORMALIZE_FAILED",
-                "Plugin vBook trả dữ liệu danh sách nhưng app không map được thành truyện hoặc tab.",
-                {
-                    "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
-                    "script": script_ref,
-                    "raw_row_count": len(rows),
-                    "sample_rows": [self._summarize_vbook_debug_row(row) for row in rows[:3]],
+            if not items and not extra_tabs:
+                payload["debug"] = {
+                    "empty_reason": "no_rows",
                     "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
-                },
-            )
-        if not rows and not items and not extra_tabs:
-            self._diagnose_vbook_empty_attempts(
-                diagnostics,
-                plugin=plugin,
-                script_ref=script_ref,
-                input_value=tab_input,
-                page=p,
-            )
-        payload = {
-            "ok": True,
-            "plugin": self._serialize_vbook_plugin(plugin),
-            "mode": "content",
-            "script": script_ref,
-            "page": p,
-            "items": items,
-            "tabs": extra_tabs,
-            "next": next_value,
-            "has_next": next_value is not None and str(next_value).strip() != "",
-            "count": len(items),
-            "tab_count": len(extra_tabs),
-            "has_script": True,
-        }
-        if not items and not extra_tabs:
-            payload["debug"] = {
-                "empty_reason": "no_rows",
-                "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
-            }
-        return payload
+                }
+            return payload
+        except vbook_ext.RunnerCancelledError as exc:
+            self._raise_vbook_request_replaced(plugin, "genre", exc)
+        finally:
+            self._end_vbook_singleflight(flight_key, flight_token)
 
-    def _fetch_vbook_detail_raw(self, *, url: str, plugin_id: str = "") -> dict[str, Any]:
+    def _fetch_vbook_detail_raw(
+        self,
+        *,
+        url: str,
+        plugin_id: str = "",
+        flight_key: str = "",
+        flight_token: str = "",
+    ) -> dict[str, Any]:
         source_url = str(url or "").strip()
         if not source_url:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL truyện.")
         plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id or None)
         self._ensure_plugin_has_script(plugin, "detail")
-        data = self._run_vbook_script(plugin, "detail", [source_url])
+        data = self._run_vbook_script(
+            plugin,
+            "detail",
+            [source_url],
+            flight_key=flight_key,
+            flight_token=flight_token,
+        )
         detail = data if isinstance(data, dict) else {}
         title = normalize_vbook_display_text(str(detail.get("name") or detail.get("title") or ""), single_line=True) or source_url
         author = normalize_vbook_display_text(str(detail.get("author") or ""), single_line=True)
@@ -9582,140 +9790,156 @@ class ReaderService:
         plugin_id: str = "",
         translate_ui: bool | None = None,
     ) -> dict[str, Any]:
-        payload = self._fetch_vbook_detail_raw(url=url, plugin_id=plugin_id)
-        plugin = payload["plugin"]
-        detail = dict(payload["detail"] or {})
-        source_url = str(detail.get("url") or url or "").strip()
-        title_raw = normalize_vbook_display_text(str(detail.get("title_raw") or ""), single_line=True) or source_url
-        author_raw = normalize_vbook_display_text(str(detail.get("author_raw") or ""), single_line=True)
-        description_raw = normalize_vbook_display_text(str(detail.get("description_raw") or ""), single_line=False)
-        status_text_raw = normalize_vbook_display_text(str(detail.get("status_text_raw") or ""), single_line=True)
-        info_text_raw = normalize_vbook_display_text(str(detail.get("info_text_raw") or ""), single_line=False)
-        title = title_raw
-        author = author_raw
-        description = description_raw
-        status_text = status_text_raw
-        info_text = info_text_raw
-        cover = build_vbook_image_proxy_path(
-            str(detail.get("cover_raw") or "").strip(),
-            plugin_id=str(getattr(plugin, "plugin_id", "") or "").strip(),
-            referer=source_url,
-        )
-        suggest_items = [dict(x or {}) for x in (detail.get("suggest_items") or []) if isinstance(x, dict)]
-        comment_items = [dict(x or {}) for x in (detail.get("comment_items") or []) if isinstance(x, dict)]
-        genre_items = [dict(x or {}) for x in (detail.get("genres") or []) if isinstance(x, dict)]
-        extra_fields = [dict(x or {}) for x in (detail.get("extra_fields") or []) if isinstance(x, dict)]
-        if translate_ui is None:
-            translate_on = self.is_reader_translation_enabled()
-        else:
-            translate_on = bool(translate_ui)
-        if translate_on:
-            mode = self.reader_translation_mode()
-            translated_head = self._translate_ui_texts_batch(
-                [title, author, status_text],
-                single_line=True,
-                mode=mode,
+        source_url = str(url or "").strip()
+        if not source_url:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL truyện.")
+        plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id or None)
+        flight_key = self._vbook_singleflight_key("detail", plugin)
+        flight_token = self._begin_vbook_singleflight(flight_key)
+        try:
+            payload = self._fetch_vbook_detail_raw(
+                url=source_url,
+                plugin_id=str(getattr(plugin, "plugin_id", "") or ""),
+                flight_key=flight_key,
+                flight_token=flight_token,
             )
-            translated_body = self._translate_ui_texts_batch(
-                [description, info_text],
-                single_line=False,
-                mode=mode,
+            plugin = payload["plugin"]
+            detail = dict(payload["detail"] or {})
+            source_url = str(detail.get("url") or source_url or "").strip()
+            title_raw = normalize_vbook_display_text(str(detail.get("title_raw") or ""), single_line=True) or source_url
+            author_raw = normalize_vbook_display_text(str(detail.get("author_raw") or ""), single_line=True)
+            description_raw = normalize_vbook_display_text(str(detail.get("description_raw") or ""), single_line=False)
+            status_text_raw = normalize_vbook_display_text(str(detail.get("status_text_raw") or ""), single_line=True)
+            info_text_raw = normalize_vbook_display_text(str(detail.get("info_text_raw") or ""), single_line=False)
+            title = title_raw
+            author = author_raw
+            description = description_raw
+            status_text = status_text_raw
+            info_text = info_text_raw
+            cover = build_vbook_image_proxy_path(
+                str(detail.get("cover_raw") or "").strip(),
+                plugin_id=str(getattr(plugin, "plugin_id", "") or "").strip(),
+                referer=source_url,
             )
-            if len(translated_head) >= 3:
-                title, author, status_text = translated_head[:3]
-            if len(translated_body) >= 2:
-                description, info_text = translated_body[:2]
-            if suggest_items:
-                suggest_titles = self._translate_ui_texts_batch(
-                    [str(item.get("title") or "") for item in suggest_items],
+            suggest_items = [dict(x or {}) for x in (detail.get("suggest_items") or []) if isinstance(x, dict)]
+            comment_items = [dict(x or {}) for x in (detail.get("comment_items") or []) if isinstance(x, dict)]
+            genre_items = [dict(x or {}) for x in (detail.get("genres") or []) if isinstance(x, dict)]
+            extra_fields = [dict(x or {}) for x in (detail.get("extra_fields") or []) if isinstance(x, dict)]
+            if translate_ui is None:
+                translate_on = self.is_reader_translation_enabled()
+            else:
+                translate_on = bool(translate_ui)
+            if translate_on:
+                mode = self.reader_translation_mode()
+                translated_head = self._translate_ui_texts_batch(
+                    [title, author, status_text],
                     single_line=True,
                     mode=mode,
                 )
-                suggest_authors = self._translate_ui_texts_batch(
-                    [str(item.get("author") or "") for item in suggest_items],
-                    single_line=True,
-                    mode=mode,
-                )
-                suggest_descs = self._translate_ui_texts_batch(
-                    [str(item.get("description") or "") for item in suggest_items],
+                translated_body = self._translate_ui_texts_batch(
+                    [description, info_text],
                     single_line=False,
                     mode=mode,
                 )
-                for idx, item in enumerate(suggest_items):
-                    if not isinstance(item, dict):
-                        continue
-                    item["title"] = suggest_titles[idx] if idx < len(suggest_titles) else str(item.get("title") or "")
-                    item["author"] = suggest_authors[idx] if idx < len(suggest_authors) else str(item.get("author") or "")
-                    item["description"] = suggest_descs[idx] if idx < len(suggest_descs) else str(item.get("description") or "")
-            if comment_items:
-                comment_authors = self._translate_ui_texts_batch(
-                    [str(item.get("author") or "") for item in comment_items],
-                    single_line=True,
-                    mode=mode,
-                )
-                comment_contents = self._translate_ui_texts_batch(
-                    [str(item.get("content") or "") for item in comment_items],
-                    single_line=False,
-                    mode=mode,
-                )
-                for idx, item in enumerate(comment_items):
-                    if not isinstance(item, dict):
-                        continue
-                    item["author"] = comment_authors[idx] if idx < len(comment_authors) else str(item.get("author") or "")
-                    item["content"] = comment_contents[idx] if idx < len(comment_contents) else str(item.get("content") or "")
-            if genre_items:
-                genre_titles = self._translate_ui_texts_batch(
-                    [str(item.get("title") or "") for item in genre_items],
-                    single_line=True,
-                    mode=mode,
-                )
-                for idx, item in enumerate(genre_items):
-                    if not isinstance(item, dict):
-                        continue
-                    item["title"] = genre_titles[idx] if idx < len(genre_titles) else str(item.get("title") or "")
-            if extra_fields:
-                field_keys = self._translate_ui_texts_batch(
-                    [str(item.get("key") or "") for item in extra_fields],
-                    single_line=True,
-                    mode=mode,
-                )
-                field_values = self._translate_ui_texts_batch(
-                    [str(item.get("value") or "") for item in extra_fields],
-                    single_line=False,
-                    mode=mode,
-                )
-                for idx, item in enumerate(extra_fields):
-                    if not isinstance(item, dict):
-                        continue
-                    item["key"] = field_keys[idx] if idx < len(field_keys) else str(item.get("key") or "")
-                    item["value"] = field_values[idx] if idx < len(field_values) else str(item.get("value") or "")
-        return {
-            "ok": True,
-            "plugin": self._serialize_vbook_plugin(plugin),
-            "detail": {
-                "title": title,
-                "author": author,
-                "title_raw": title_raw,
-                "author_raw": author_raw,
-                "cover": cover,
-                "cover_raw": str(detail.get("cover_raw") or "").strip(),
-                "description": description,
-                "description_raw": description_raw,
-                "url": source_url,
-                "host": str(detail.get("host") or "").strip(),
-                "is_comic": bool(detail.get("is_comic")),
-                "source_type": str(detail.get("source_type") or ("vbook_comic" if bool(detail.get("is_comic")) else "vbook")),
-                "ongoing": detail.get("ongoing"),
-                "status_text": status_text,
-                "status_text_raw": status_text_raw,
-                "info_text": info_text,
-                "info_text_raw": info_text_raw,
-                "genres": genre_items,
-                "suggest_items": suggest_items,
-                "comment_items": comment_items,
-                "extra_fields": extra_fields,
-            },
-        }
+                if len(translated_head) >= 3:
+                    title, author, status_text = translated_head[:3]
+                if len(translated_body) >= 2:
+                    description, info_text = translated_body[:2]
+                if suggest_items:
+                    suggest_titles = self._translate_ui_texts_batch(
+                        [str(item.get("title") or "") for item in suggest_items],
+                        single_line=True,
+                        mode=mode,
+                    )
+                    suggest_authors = self._translate_ui_texts_batch(
+                        [str(item.get("author") or "") for item in suggest_items],
+                        single_line=True,
+                        mode=mode,
+                    )
+                    suggest_descs = self._translate_ui_texts_batch(
+                        [str(item.get("description") or "") for item in suggest_items],
+                        single_line=False,
+                        mode=mode,
+                    )
+                    for idx, item in enumerate(suggest_items):
+                        if not isinstance(item, dict):
+                            continue
+                        item["title"] = suggest_titles[idx] if idx < len(suggest_titles) else str(item.get("title") or "")
+                        item["author"] = suggest_authors[idx] if idx < len(suggest_authors) else str(item.get("author") or "")
+                        item["description"] = suggest_descs[idx] if idx < len(suggest_descs) else str(item.get("description") or "")
+                if comment_items:
+                    comment_authors = self._translate_ui_texts_batch(
+                        [str(item.get("author") or "") for item in comment_items],
+                        single_line=True,
+                        mode=mode,
+                    )
+                    comment_contents = self._translate_ui_texts_batch(
+                        [str(item.get("content") or "") for item in comment_items],
+                        single_line=False,
+                        mode=mode,
+                    )
+                    for idx, item in enumerate(comment_items):
+                        if not isinstance(item, dict):
+                            continue
+                        item["author"] = comment_authors[idx] if idx < len(comment_authors) else str(item.get("author") or "")
+                        item["content"] = comment_contents[idx] if idx < len(comment_contents) else str(item.get("content") or "")
+                if genre_items:
+                    genre_titles = self._translate_ui_texts_batch(
+                        [str(item.get("title") or "") for item in genre_items],
+                        single_line=True,
+                        mode=mode,
+                    )
+                    for idx, item in enumerate(genre_items):
+                        if not isinstance(item, dict):
+                            continue
+                        item["title"] = genre_titles[idx] if idx < len(genre_titles) else str(item.get("title") or "")
+                if extra_fields:
+                    field_keys = self._translate_ui_texts_batch(
+                        [str(item.get("key") or "") for item in extra_fields],
+                        single_line=True,
+                        mode=mode,
+                    )
+                    field_values = self._translate_ui_texts_batch(
+                        [str(item.get("value") or "") for item in extra_fields],
+                        single_line=False,
+                        mode=mode,
+                    )
+                    for idx, item in enumerate(extra_fields):
+                        if not isinstance(item, dict):
+                            continue
+                        item["key"] = field_keys[idx] if idx < len(field_keys) else str(item.get("key") or "")
+                        item["value"] = field_values[idx] if idx < len(field_values) else str(item.get("value") or "")
+            return {
+                "ok": True,
+                "plugin": self._serialize_vbook_plugin(plugin),
+                "detail": {
+                    "title": title,
+                    "author": author,
+                    "title_raw": title_raw,
+                    "author_raw": author_raw,
+                    "cover": cover,
+                    "cover_raw": str(detail.get("cover_raw") or "").strip(),
+                    "description": description,
+                    "description_raw": description_raw,
+                    "url": source_url,
+                    "host": str(detail.get("host") or "").strip(),
+                    "is_comic": bool(detail.get("is_comic")),
+                    "source_type": str(detail.get("source_type") or ("vbook_comic" if bool(detail.get("is_comic")) else "vbook")),
+                    "ongoing": detail.get("ongoing"),
+                    "status_text": status_text,
+                    "status_text_raw": status_text_raw,
+                    "info_text": info_text,
+                    "info_text_raw": info_text_raw,
+                    "genres": genre_items,
+                    "suggest_items": suggest_items,
+                    "comment_items": comment_items,
+                    "extra_fields": extra_fields,
+                },
+            }
+        except vbook_ext.RunnerCancelledError as exc:
+            self._raise_vbook_request_replaced(plugin, "detail", exc)
+        finally:
+            self._end_vbook_singleflight(flight_key, flight_token)
 
     def refresh_library_book_detail_from_source(self, book_id: str) -> dict[str, Any] | None:
         bid = str(book_id or "").strip()
@@ -9795,65 +10019,77 @@ class ReaderService:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL truyện.")
         plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id or None)
         self._ensure_plugin_has_script(plugin, "toc")
-        all_rows = self._fetch_vbook_toc(plugin, source_url)
-        total = len(all_rows)
-
-        if all_items:
-            p = 1
-            ps = max(1, total or int(page_size or 120))
-            chunk = all_rows
-            total_pages = 1
-        else:
-            p = max(1, int(page or 1))
-            ps = max(1, min(500, int(page_size or 120)))
-            total_pages = max(1, (total + ps - 1) // ps)
-            if p > total_pages:
-                p = total_pages
-            offset = (p - 1) * ps
-            chunk = all_rows[offset : offset + ps]
-
-        items: list[dict[str, Any]] = []
-        raw_titles: list[str] = []
-        if translate_ui is None:
-            translate_on = self.is_reader_translation_enabled()
-        else:
-            translate_on = bool(translate_ui)
-        translate_mode = self.reader_translation_mode()
-        for idx, row in enumerate(chunk, start=(1 if all_items else ((p - 1) * ps + 1))):
-            raw_title = normalize_vbook_display_text(
-                str(row.get("name") or ""),
-                single_line=True,
-            ) or f"Chương {idx}"
-            raw_titles.append(raw_title)
-        translated_titles = (
-            self._translate_ui_texts_batch(raw_titles, single_line=True, mode=translate_mode)
-            if translate_on
-            else raw_titles
-        )
-        for idx, row in enumerate(chunk, start=(1 if all_items else ((p - 1) * ps + 1))):
-            raw_title = raw_titles[idx - (1 if all_items else ((p - 1) * ps + 1))]
-            title = translated_titles[idx - (1 if all_items else ((p - 1) * ps + 1))] if translated_titles else raw_title
-            items.append(
-                {
-                    "index": idx,
-                    "title": title or raw_title,
-                    "title_raw": raw_title,
-                    "url": str(row.get("remote_url") or "").strip(),
-                }
+        flight_key = self._vbook_singleflight_key("toc", plugin)
+        flight_token = self._begin_vbook_singleflight(flight_key)
+        try:
+            all_rows = self._fetch_vbook_toc(
+                plugin,
+                source_url,
+                flight_key=flight_key,
+                flight_token=flight_token,
             )
-        return {
-            "ok": True,
-            "plugin": self._serialize_vbook_plugin(plugin),
-            "book_url": source_url,
-            "items": items,
-            "pagination": {
-                "page": p,
-                "page_size": ps,
-                "total_items": total,
-                "total_pages": total_pages,
-            },
-            "all": bool(all_items),
-        }
+            total = len(all_rows)
+
+            if all_items:
+                p = 1
+                ps = max(1, total or int(page_size or 120))
+                chunk = all_rows
+                total_pages = 1
+            else:
+                p = max(1, int(page or 1))
+                ps = max(1, min(500, int(page_size or 120)))
+                total_pages = max(1, (total + ps - 1) // ps)
+                if p > total_pages:
+                    p = total_pages
+                offset = (p - 1) * ps
+                chunk = all_rows[offset : offset + ps]
+
+            items: list[dict[str, Any]] = []
+            raw_titles: list[str] = []
+            if translate_ui is None:
+                translate_on = self.is_reader_translation_enabled()
+            else:
+                translate_on = bool(translate_ui)
+            translate_mode = self.reader_translation_mode()
+            for idx, row in enumerate(chunk, start=(1 if all_items else ((p - 1) * ps + 1))):
+                raw_title = normalize_vbook_display_text(
+                    str(row.get("name") or ""),
+                    single_line=True,
+                ) or f"Chương {idx}"
+                raw_titles.append(raw_title)
+            translated_titles = (
+                self._translate_ui_texts_batch(raw_titles, single_line=True, mode=translate_mode)
+                if translate_on
+                else raw_titles
+            )
+            for idx, row in enumerate(chunk, start=(1 if all_items else ((p - 1) * ps + 1))):
+                raw_title = raw_titles[idx - (1 if all_items else ((p - 1) * ps + 1))]
+                title = translated_titles[idx - (1 if all_items else ((p - 1) * ps + 1))] if translated_titles else raw_title
+                items.append(
+                    {
+                        "index": idx,
+                        "title": title or raw_title,
+                        "title_raw": raw_title,
+                        "url": str(row.get("remote_url") or "").strip(),
+                    }
+                )
+            return {
+                "ok": True,
+                "plugin": self._serialize_vbook_plugin(plugin),
+                "book_url": source_url,
+                "items": items,
+                "pagination": {
+                    "page": p,
+                    "page_size": ps,
+                    "total_items": total,
+                    "total_pages": total_pages,
+                },
+                "all": bool(all_items),
+            }
+        except vbook_ext.RunnerCancelledError as exc:
+            self._raise_vbook_request_replaced(plugin, "toc", exc)
+        finally:
+            self._end_vbook_singleflight(flight_key, flight_token)
 
     def get_vbook_chap_debug(self, *, url: str, plugin_id: str = "") -> dict[str, Any]:
         source_url = str(url or "").strip()
@@ -9900,24 +10136,51 @@ class ReaderService:
             },
         }
 
-    def _fetch_vbook_toc(self, plugin: Any, url: str) -> list[dict[str, str]]:
+    def _fetch_vbook_toc(
+        self,
+        plugin: Any,
+        url: str,
+        *,
+        flight_key: str = "",
+        flight_token: str = "",
+    ) -> list[dict[str, str]]:
         pages: list[str] = []
         if getattr(plugin, "scripts", None) and isinstance(plugin.scripts, dict) and plugin.scripts.get("page"):
             try:
-                page_data = self._run_vbook_script(plugin, "page", [url])
+                page_data = self._run_vbook_script(
+                    plugin,
+                    "page",
+                    [url],
+                    flight_key=flight_key,
+                    flight_token=flight_token,
+                )
                 if isinstance(page_data, list):
                     pages = [str(x).strip() for x in page_data if str(x).strip()]
+            except vbook_ext.RunnerCancelledError:
+                raise
             except Exception:
                 pages = []
 
         toc_items: list[Any] = []
         if pages:
             for purl in pages:
-                data = self._run_vbook_script(plugin, "toc", [purl])
+                data = self._run_vbook_script(
+                    plugin,
+                    "toc",
+                    [purl],
+                    flight_key=flight_key,
+                    flight_token=flight_token,
+                )
                 if isinstance(data, list):
                     toc_items.extend(data)
         else:
-            data = self._run_vbook_script(plugin, "toc", [url])
+            data = self._run_vbook_script(
+                plugin,
+                "toc",
+                [url],
+                flight_key=flight_key,
+                flight_token=flight_token,
+            )
             if isinstance(data, list):
                 toc_items.extend(data)
 

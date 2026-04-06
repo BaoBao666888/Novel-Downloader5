@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260308-indent2">
+  <link rel="stylesheet" href="./styles.css?v=20260406-skeleton1">
 </head>
 
 <body data-page="reader" class="mpa-body">
@@ -119,6 +119,7 @@
     <article class="panel reader-panel">
       <div class="reader-head">
         <div class="reader-title-wrap">
+          <div id="reader-head-skeleton" class="reader-head-skeleton hidden" aria-hidden="true"></div>
           <h2 id="reader-book-title"></h2>
           <p id="reader-chapter-sub"></p>
         </div>
@@ -139,6 +140,7 @@
           <div id="reader-mini-chapter-title" class="reader-mini-title"></div>
         </div>
         <div id="reader-content-scroll" class="reader-content-scroll">
+          <div id="reader-content-skeleton" class="reader-content-skeleton hidden" aria-hidden="true"></div>
           <div id="reader-content-body" class="reader-content-body"></div>
         </div>
         <div id="reader-mini-foot" class="reader-mini-foot" aria-hidden="true" hidden>
@@ -177,6 +179,7 @@
         <button id="btn-close-reader-toc" class="btn btn-small" type="button"></button>
       </div>
     </div>
+    <div id="reader-toc-skeleton" class="toc-skeleton-wrap hidden" aria-hidden="true"></div>
     <ul id="reader-toc-list" class="simple-list"></ul>
   </aside>
 
@@ -445,7 +448,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260406-readermode2"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260406-readerskeleton1"></script>
 </body>
 
 </html>

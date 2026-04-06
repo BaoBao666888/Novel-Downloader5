@@ -5,6 +5,7 @@ import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from ".
 const refs = {
   bookInfoTitle: document.getElementById("book-info-title"),
   bookEmpty: document.getElementById("book-empty"),
+  bookViewSkeleton: document.getElementById("book-view-skeleton"),
   bookViewWrap: document.getElementById("book-view-wrap"),
   bookCover: document.getElementById("book-cover"),
   bookTitleDisplay: document.getElementById("book-title-display"),
@@ -33,6 +34,7 @@ const refs = {
   btnTocModeTrans: document.getElementById("btn-toc-mode-trans"),
   btnTranslateTitles: document.getElementById("btn-translate-titles"),
   btnRefreshBookToc: document.getElementById("btn-refresh-book-toc"),
+  tocSkeleton: document.getElementById("toc-skeleton"),
   tocList: document.getElementById("toc-list"),
   btnTocPrev: document.getElementById("btn-toc-prev"),
   btnTocNext: document.getElementById("btn-toc-next"),
@@ -180,7 +182,120 @@ function setCover(url) {
   wrap.classList.add("has-image");
 }
 
+function createSkeletonBlock(className = "") {
+  const node = document.createElement("div");
+  node.className = `ui-skeleton-block${className ? ` ${className}` : ""}`;
+  return node;
+}
+
+function renderBookInfoSkeleton() {
+  if (!refs.bookViewSkeleton) return;
+  refs.bookViewSkeleton.innerHTML = "";
+
+  const hero = document.createElement("div");
+  hero.className = "book-meta-skeleton-hero";
+  hero.append(
+    createSkeletonBlock("book-meta-skeleton-cover"),
+  );
+
+  const info = document.createElement("div");
+  info.className = "book-meta-skeleton-info";
+  info.append(
+    createSkeletonBlock("book-meta-skeleton-title"),
+    createSkeletonBlock("book-meta-skeleton-subtitle"),
+    createSkeletonBlock("book-meta-skeleton-link"),
+  );
+  hero.appendChild(info);
+  refs.bookViewSkeleton.appendChild(hero);
+
+  const grid = document.createElement("div");
+  grid.className = "book-meta-skeleton-grid";
+  const cardKinds = [
+    ["is-short"],
+    ["is-medium"],
+    ["is-short"],
+    ["is-medium"],
+    ["is-wide", "is-multiline"],
+    ["is-wide", "is-medium"],
+  ];
+  for (const kinds of cardKinds) {
+    const card = document.createElement("div");
+    card.className = "book-meta-skeleton-card";
+    if (kinds.includes("is-wide")) card.classList.add("is-wide");
+    card.appendChild(createSkeletonBlock("book-meta-skeleton-label"));
+    const value = createSkeletonBlock("book-meta-skeleton-value");
+    for (const kind of kinds) {
+      if (kind !== "is-wide") value.classList.add(kind);
+    }
+    card.appendChild(value);
+    grid.appendChild(card);
+  }
+  refs.bookViewSkeleton.appendChild(grid);
+}
+
+function showBookInfoSkeleton(visible) {
+  if (!refs.bookViewSkeleton) return;
+  if (visible) {
+    renderBookInfoSkeleton();
+    refs.bookViewSkeleton.classList.remove("hidden");
+    refs.bookViewSkeleton.setAttribute("aria-hidden", "false");
+    refs.bookViewWrap.classList.add("hidden");
+    refs.bookEmpty.classList.add("hidden");
+    return;
+  }
+  refs.bookViewSkeleton.classList.add("hidden");
+  refs.bookViewSkeleton.setAttribute("aria-hidden", "true");
+  if (state.book) {
+    refs.bookViewWrap.classList.remove("hidden");
+    refs.bookEmpty.classList.add("hidden");
+  } else {
+    refs.bookViewWrap.classList.add("hidden");
+    refs.bookEmpty.classList.remove("hidden");
+  }
+}
+
+function renderTocSkeleton(count = 8) {
+  if (!refs.tocSkeleton) return;
+  refs.tocSkeleton.innerHTML = "";
+  const total = Math.max(3, Number(count) || 8);
+  for (let index = 0; index < total; index += 1) {
+    const row = document.createElement("div");
+    row.className = "toc-skeleton-row";
+    const main = document.createElement("div");
+    main.className = "toc-skeleton-main";
+    const title = createSkeletonBlock("toc-skeleton-title");
+    if (index % 3 === 1) title.style.width = "64%";
+    if (index % 3 === 2) title.style.width = "78%";
+    main.append(
+      title,
+      createSkeletonBlock("toc-skeleton-sub"),
+    );
+    row.append(
+      main,
+      createSkeletonBlock("toc-skeleton-action"),
+    );
+    refs.tocSkeleton.appendChild(row);
+  }
+}
+
+function showTocSkeleton(visible, count = 8) {
+  if (!refs.tocSkeleton || !refs.tocList) return;
+  if (visible) {
+    renderTocSkeleton(count);
+    refs.tocSkeleton.classList.remove("hidden");
+    refs.tocSkeleton.setAttribute("aria-hidden", "false");
+    refs.tocList.classList.add("hidden");
+    refs.tocList.setAttribute("aria-busy", "true");
+    return;
+  }
+  refs.tocSkeleton.classList.add("hidden");
+  refs.tocSkeleton.setAttribute("aria-hidden", "true");
+  refs.tocList.classList.remove("hidden");
+  refs.tocList.setAttribute("aria-busy", "false");
+}
+
 function populateBook() {
+  showBookInfoSkeleton(false);
   const book = state.book;
   if (!book) {
     refs.bookViewWrap.classList.add("hidden");
@@ -296,14 +411,18 @@ function renderToc() {
 
   refs.btnTocPrev.disabled = state.pagination.page <= 1;
   refs.btnTocNext.disabled = state.pagination.page >= state.pagination.total_pages;
+  showTocSkeleton(false);
 }
 
-async function loadBook({ silent = false, suppressToast = false, refreshOnline = false } = {}) {
+async function loadBook({ silent = false, suppressToast = false, refreshOnline = false, showSkeleton = !state.book } = {}) {
   if (!state.bookId) {
+    showBookInfoSkeleton(false);
     refs.bookEmpty.textContent = `${state.shell.t("noBookSelected")}. ${state.shell.t("noBookSelectedHint")}`;
     return;
   }
+  const shouldShowSkeleton = !silent && showSkeleton;
   if (!silent) state.shell.showStatus(state.shell.t("statusLoadingBookInfo"));
+  if (shouldShowSkeleton) showBookInfoSkeleton(true);
   try {
     const mode = state.mode;
     const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(mode)}&translation_mode=${encodeURIComponent(state.translateMode)}&refresh_online=${refreshOnline ? "1" : "0"}&include_chapters=0`);
@@ -312,13 +431,19 @@ async function loadBook({ silent = false, suppressToast = false, refreshOnline =
   } catch (error) {
     if (!suppressToast) state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
+    if (shouldShowSkeleton) showBookInfoSkeleton(false);
     if (!silent) state.shell.hideStatus();
   }
 }
 
-async function loadToc(page = 1, { silent = false, suppressToast = false } = {}) {
-  if (!state.bookId || !state.book) return;
+async function loadToc(page = 1, { silent = false, suppressToast = false, showSkeleton = !silent } = {}) {
+  if (!state.bookId || !state.book) {
+    showTocSkeleton(false);
+    return;
+  }
+  const shouldShowSkeleton = !silent && showSkeleton;
   if (!silent) state.shell.showStatus(state.shell.t("statusLoadingToc"));
+  if (shouldShowSkeleton) showTocSkeleton(true, Math.min(10, Number(state.pagination.page_size || 8) || 8));
   try {
     const mode = effectiveModeForBook(state.book, state.mode);
     const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/chapters?page=${page}&page_size=${state.pagination.page_size}&mode=${mode}&translation_mode=${encodeURIComponent(state.translateMode)}`);
@@ -328,6 +453,7 @@ async function loadToc(page = 1, { silent = false, suppressToast = false } = {})
   } catch (error) {
     if (!suppressToast) state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
+    if (shouldShowSkeleton) showTocSkeleton(false);
     if (!silent) state.shell.hideStatus();
   }
 }
@@ -1094,6 +1220,8 @@ async function init() {
   refs.bookNameSuggestColAction.textContent = state.shell.t("nameSuggestColAction");
   refs.btnBookNameSuggestGoogleTranslate.textContent = state.shell.t("nameSuggestGoogleTranslate");
   refs.btnBookNameSuggestGoogleSearch.textContent = state.shell.t("nameSuggestGoogleSearch");
+  renderBookInfoSkeleton();
+  renderTocSkeleton();
 
   refs.btnOpenExtraLink.addEventListener("click", () => {
     if (!state.book || !state.book.extra_link) return;
@@ -1319,8 +1447,8 @@ async function init() {
   state.bookId = (query.book_id || "").trim();
   state.mode = (query.mode || "trans").toLowerCase() === "raw" ? "raw" : "trans";
 
-  await loadBook({ refreshOnline: true });
-  await loadToc(1);
+  await loadBook({ refreshOnline: true, showSkeleton: true });
+  await loadToc(1, { showSkeleton: true });
   startDownloadWatcher();
 }
 
