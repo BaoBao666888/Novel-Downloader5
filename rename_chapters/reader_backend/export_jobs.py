@@ -29,6 +29,10 @@ def build_export_job_state_payload(job: dict[str, Any]) -> dict[str, Any]:
     return {
         "job_id": str(job.get("job_id") or ""),
         "status": str(job.get("status") or "queued"),
+        "current_phase": str(job.get("current_phase") or ""),
+        "current_index": int(job.get("current_index") or 0),
+        "current_chapter_order": int(job.get("current_chapter_order") or 0),
+        "current_title": str(job.get("current_title") or ""),
         "message": str(job.get("message") or ""),
         "book_id": str(job.get("book_id") or ""),
         "book_title": str(job.get("book_title") or ""),
@@ -72,6 +76,10 @@ def create_export_job(
     return {
         "job_id": str(job_id or "").strip(),
         "status": "queued",
+        "current_phase": "queued",
+        "current_index": 0,
+        "current_chapter_order": 0,
+        "current_title": "",
         "message": "Đã thêm vào hàng đợi xuất file.",
         "book_id": str(book_id or "").strip(),
         "book_title": str(book_title or "").strip(),
@@ -99,7 +107,12 @@ def create_export_job(
 
 def mark_export_job_running(job: dict[str, Any], *, started_at: str) -> None:
     job["status"] = "running"
-    job["message"] = "Đang chuẩn bị export..."
+    job["current_phase"] = "prepare"
+    job["current_index"] = 0
+    job["current_chapter_order"] = 0
+    job["current_title"] = ""
+    job["message"] = "Đang khởi tạo job export..."
+    job["progress"] = 0.0
     job["started_at"] = str(started_at or "")
     job["updated_at"] = str(started_at or "")
 
@@ -111,21 +124,94 @@ def apply_export_progress(job: dict[str, Any], *, event: dict[str, Any], updated
     index = max(0, int(event.get("index") or 0))
     total = max(1, int(event.get("total") or job.get("total_chapters") or 1))
     chapter_order = int(event.get("chapter_order") or index or 0)
+    chapter_title = str(event.get("title") or "").strip()
     phase = str(event.get("phase") or "").strip().lower()
     needs_translation = bool(event.get("needs_translation"))
-    if phase == "chapter_start":
-        if needs_translation:
-            job["message"] = f"Đang dịch bổ sung chương {chapter_order} rồi đóng gói..."
+    use_translated_text = bool((job.get("options") or {}).get("use_translated_text"))
+    current_progress = max(0.0, min(1.0, float(job.get("progress") or 0.0)))
+    if phase == "collect_start":
+        job["current_phase"] = "collect"
+        job["current_index"] = 0
+        job["current_chapter_order"] = 0
+        job["current_title"] = ""
+        job["progress"] = max(current_progress, 0.02 if total > 0 else 0.05)
+        if use_translated_text:
+            job["message"] = f"Đang kiểm tra cache RAW và cache dịch của {int(job.get('total_chapters') or total)} chương..."
         else:
-            job["message"] = f"Đang đóng gói chương {chapter_order}..."
+            job["message"] = f"Đang kiểm tra cache RAW của {int(job.get('total_chapters') or total)} chương..."
+    elif phase == "chapter_start":
+        job["current_phase"] = "translate" if needs_translation else "process"
+        job["current_index"] = index
+        job["current_chapter_order"] = chapter_order
+        job["current_title"] = chapter_title
+        chapter_progress = 0.55 if needs_translation else 0.35
+        job["progress"] = max(current_progress, min(0.98, (max(0, index - 1) + chapter_progress) / total))
+        if needs_translation:
+            pending_total = max(0, int(job.get("translation_pending_chapters") or 0))
+            pending_done = max(0, pending_total - int(job.get("remaining_translation_chapters") or 0))
+            pending_next = min(pending_total, pending_done + 1) if pending_total > 0 else 0
+            label = f"Đang dịch chương {index}/{total}"
+            if chapter_title:
+                label += f": {chapter_title}"
+            if pending_total > 0:
+                label += f" • Bổ sung dịch {pending_next}/{pending_total}"
+            job["message"] = label
+        else:
+            if use_translated_text:
+                label = f"Đang lấy cache dịch chương {index}/{total}"
+            else:
+                label = f"Đang lấy nội dung RAW chương {index}/{total}"
+            if chapter_title:
+                label += f": {chapter_title}"
+            job["message"] = label
     elif phase == "chapter_done":
         done = min(total, max(int(job.get("completed_chapters") or 0), index))
         job["completed_chapters"] = done
         if needs_translation:
             remain = max(0, int(job.get("remaining_translation_chapters") or 0) - 1)
             job["remaining_translation_chapters"] = remain
-        job["progress"] = float(done / total) if total > 0 else 1.0
-        job["message"] = f"Đã xử lý {done}/{total} chương..."
+        remain = max(0, int(job.get("remaining_translation_chapters") or 0))
+        job["current_phase"] = "process"
+        job["current_index"] = done
+        job["current_chapter_order"] = chapter_order
+        job["current_title"] = chapter_title
+        job["progress"] = max(current_progress, float(done / total) if total > 0 else 1.0)
+        pending_total = max(0, int(job.get("translation_pending_chapters") or 0))
+        translated_done = max(0, pending_total - remain)
+        if done >= total:
+            job["message"] = "Đã xử lý xong toàn bộ chương. Đang tạo file..."
+        else:
+            if use_translated_text:
+                if pending_total > 0:
+                    job["message"] = (
+                        f"Đã xong {done}/{total} chương. "
+                        f"Đã dịch bổ sung {translated_done}/{pending_total} chương. Đang sang chương tiếp theo..."
+                    )
+                else:
+                    job["message"] = f"Đã xong {done}/{total} chương từ cache dịch. Đang sang chương tiếp theo..."
+            else:
+                job["message"] = f"Đã xong {done}/{total} chương RAW. Đang sang chương tiếp theo..."
+    elif phase == "packaging_start":
+        job["current_phase"] = "packaging"
+        job["current_index"] = int(job.get("completed_chapters") or total)
+        job["current_chapter_order"] = 0
+        job["current_title"] = ""
+        fmt_label = str(event.get("format_label") or job.get("format_label") or job.get("format") or "").strip().upper()
+        done = max(int(job.get("completed_chapters") or 0), total)
+        pending_total = max(0, int(job.get("translation_pending_chapters") or 0))
+        remain = max(0, int(job.get("remaining_translation_chapters") or 0))
+        translated_done = max(0, pending_total - remain)
+        job["completed_chapters"] = done
+        job["progress"] = max(current_progress, 0.99 if total > 0 else 0.95)
+        if use_translated_text and pending_total > 0:
+            job["message"] = (
+                f"Đã gom xong {done}/{total} chương. "
+                f"Đã dịch bổ sung {translated_done}/{pending_total} chương. Đang tạo file {fmt_label}..."
+            )
+        elif use_translated_text:
+            job["message"] = f"Đã gom xong {done}/{total} chương từ cache dịch. Đang tạo file {fmt_label}..."
+        else:
+            job["message"] = f"Đã gom xong {done}/{total} chương RAW. Đang tạo file {fmt_label}..."
     job["updated_at"] = str(updated_at or "")
 
 
@@ -138,6 +224,10 @@ def complete_export_job(
     completed_chapters: int,
 ) -> None:
     job["status"] = "completed"
+    job["current_phase"] = "completed"
+    job["current_index"] = int(completed_chapters or 0)
+    job["current_chapter_order"] = 0
+    job["current_title"] = ""
     job["message"] = "Đã xuất xong. Nhấn Tải xuống để lấy file."
     job["progress"] = 1.0
     job["completed_chapters"] = int(completed_chapters or 0)
@@ -155,6 +245,7 @@ def complete_export_job(
 
 def fail_export_job(job: dict[str, Any], *, message: str, finished_at: str) -> None:
     job["status"] = "failed"
+    job["current_phase"] = "failed"
     job["message"] = str(message or "Xuất file thất bại.")
     job["finished_at"] = str(finished_at or "")
     job["updated_at"] = str(finished_at or "")
@@ -250,6 +341,10 @@ def serialize_export_job(
     payload = {
         "job_id": str(job.get("job_id") or ""),
         "status": str(job.get("status") or "queued"),
+        "current_phase": str(job.get("current_phase") or ""),
+        "current_index": int(job.get("current_index") or 0),
+        "current_chapter_order": int(job.get("current_chapter_order") or 0),
+        "current_title": str(job.get("current_title") or ""),
         "message": str(job.get("message") or ""),
         "book_id": str(job.get("book_id") or ""),
         "book_title": str(job.get("book_title") or ""),

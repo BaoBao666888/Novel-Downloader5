@@ -13,6 +13,7 @@ def parse_export_job(
     return {
         "book_id": str(job.get("book_id") or "").strip(),
         "fmt_norm": str(job.get("format") or "txt").strip().lower() or "txt",
+        "format_label": str(job.get("format_label") or job.get("format") or "txt").strip().upper() or "TXT",
         "translate_mode": resolve_translate_mode(job.get("translation_mode")),
         "metadata": dict(job.get("metadata") or {}),
         "options": dict(job.get("options") or {}),

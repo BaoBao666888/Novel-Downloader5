@@ -833,6 +833,32 @@ p {
   color: color-mix(in srgb, var(--muted) 90%, transparent);
 }
 
+.download-job-progress {
+  display: grid;
+  gap: 6px;
+}
+
+.download-job-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 54%, transparent);
+}
+
+.download-job-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 72%, #ffffff 8%), var(--accent));
+  transition: width .22s ease;
+}
+
+.download-job-progress-summary {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--text) 74%, transparent);
+}
+
 .download-job-actions {
   display: flex;
   flex-wrap: wrap;
@@ -844,8 +870,16 @@ p {
   border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
 }
 
+.download-job-row.is-completed .download-job-progress-fill {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 76%, #ffffff 12%), color-mix(in srgb, var(--accent) 58%, #9ff0cb 42%));
+}
+
 .download-job-row.is-failed {
   border-color: color-mix(in srgb, #ff8b8b 44%, var(--line));
+}
+
+.download-job-row.is-failed .download-job-progress-fill {
+  background: linear-gradient(90deg, color-mix(in srgb, #ff9c9c 82%, transparent), color-mix(in srgb, #ff6c6c 78%, transparent));
 }
 
 .book-card-tools {

@@ -1169,6 +1169,50 @@ function formatFileSize(bytes) {
   return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
+function computeExportJobPercent(job) {
+  const total = Math.max(0, Number(job.total_chapters || 0));
+  const done = Math.max(0, Number(job.completed_chapters || 0));
+  const ratioDone = total > 0 ? (done / total) : 0;
+  const ratioProgress = Math.max(0, Math.min(1, Number(job.progress || 0)));
+  let ratio = Math.max(ratioDone, ratioProgress);
+  if (String(job.status || "") === "completed") ratio = 1;
+  return Math.max(0, Math.min(100, ratio * 100));
+}
+
+function buildExportJobProgressSummary(job) {
+  const status = String(job.status || "").trim().toLowerCase();
+  const phase = String(job.current_phase || "").trim().toLowerCase();
+  const done = Math.max(0, Number(job.completed_chapters || 0));
+  const total = Math.max(0, Number(job.total_chapters || 0));
+  const pendingTotal = Math.max(0, Number(job.translation_pending_chapters || 0));
+  const remaining = Math.max(0, Number(job.remaining_translation_chapters || 0));
+  const translatedDone = Math.max(0, pendingTotal - remaining);
+  const parts = [];
+  if (status === "queued") {
+    parts.push(state.shell.t("exportProgressWaiting"));
+    if (pendingTotal > 0) {
+      parts.push(state.shell.t("exportProgressNeedTranslateShort", { count: pendingTotal }));
+    }
+    return parts.join(" • ");
+  }
+  if (Boolean(job.use_translated_text)) {
+    parts.push(state.shell.t("exportProgressHandledShort", { current: done, total }));
+    if (pendingTotal > 0) {
+      parts.push(state.shell.t("exportProgressTranslatedShort", { current: translatedDone, total: pendingTotal }));
+    } else {
+      parts.push(state.shell.t("exportProgressNoExtraTranslation"));
+    }
+  } else {
+    parts.push(state.shell.t("exportProgressHandledRawShort", { current: done, total }));
+  }
+  if (phase === "packaging") {
+    parts.push(state.shell.t("exportProgressPackaging"));
+  } else if (status === "completed") {
+    parts.push(state.shell.t("exportProgressReady"));
+  }
+  return parts.join(" • ");
+}
+
 function renderExportJobs() {
   if (!refs.exportJobsList || !refs.exportJobsCount || !refs.exportJobsEmpty) return;
   refs.exportJobsList.innerHTML = "";
@@ -1194,7 +1238,7 @@ function renderExportJobs() {
     meta.className = "download-job-meta";
     const done = Math.max(0, Number(job.completed_chapters || 0));
     const total = Math.max(0, Number(job.total_chapters || 0));
-    const pct = total > 0 ? (done / total) * 100 : Number(job.progress || 0) * 100;
+    const pct = computeExportJobPercent(job);
     const queuePos = Math.max(0, Number(job.queue_position || 0));
     const queueText = queuePos > 0 ? state.shell.t("downloadQueuePos", { pos: queuePos }) : "";
     const translatedText = Boolean(job.use_translated_text)
@@ -1202,6 +1246,27 @@ function renderExportJobs() {
       : state.shell.t("exportRawTag");
     const sizeText = formatFileSize(job.file_size_bytes || 0);
     meta.textContent = `${translatedText} • ${state.shell.t("exportChapterCountShort", { current: done, total })} • ${state.shell.t("bookPercent", { percent: pct.toFixed(1) })}${queueText ? ` • ${queueText}` : ""}${sizeText ? ` • ${sizeText}` : ""}`;
+
+    const progress = document.createElement("div");
+    progress.className = "download-job-progress";
+
+    const progressTrack = document.createElement("div");
+    progressTrack.className = "download-job-progress-track";
+    progressTrack.setAttribute("role", "progressbar");
+    progressTrack.setAttribute("aria-valuemin", "0");
+    progressTrack.setAttribute("aria-valuemax", "100");
+    progressTrack.setAttribute("aria-valuenow", pct.toFixed(1));
+
+    const progressFill = document.createElement("div");
+    progressFill.className = "download-job-progress-fill";
+    progressFill.style.width = `${pct.toFixed(1)}%`;
+    progressTrack.appendChild(progressFill);
+
+    const progressSummary = document.createElement("div");
+    progressSummary.className = "download-job-progress-summary";
+    progressSummary.textContent = buildExportJobProgressSummary(job);
+
+    progress.append(progressTrack, progressSummary);
 
     const status = document.createElement("div");
     status.className = "download-job-status";
@@ -1252,7 +1317,7 @@ function renderExportJobs() {
       actions.appendChild(btnDelete);
     }
 
-    row.append(title, meta, status, actions);
+    row.append(title, meta, progress, status, actions);
     refs.exportJobsList.appendChild(row);
   }
 }

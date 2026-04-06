@@ -1263,7 +1263,7 @@ async function saveProgress() {
 
 async function loadBook() {
   if (!state.bookId) return;
-  const detailMode = state.translationEnabled ? "trans" : state.mode;
+  const detailMode = state.translationEnabled ? state.mode : "raw";
   const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(detailMode)}&translation_mode=${encodeURIComponent(state.translateMode)}`);
   state.book = detail;
   if (refs.btnReaderRefreshToc) {

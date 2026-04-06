@@ -43,6 +43,18 @@ def execute_export_request(
     )
     chapters = export_runtime.require_exportable_chapters(chapters)
     export_metadata = resolve_export_metadata(book, dict(request.get("metadata") or {}))
+    if callable(progress_callback):
+        try:
+            progress_callback(
+                {
+                    "phase": "packaging_start",
+                    "index": int(len(chapters)),
+                    "total": int(len(chapters)),
+                    "format_label": str(request.get("format_label") or request.get("fmt_norm") or "").strip().upper(),
+                }
+            )
+        except Exception:
+            pass
     output = create_export_file(
         fmt_norm=str(request.get("fmt_norm") or ""),
         is_comic=is_book_comic(book),

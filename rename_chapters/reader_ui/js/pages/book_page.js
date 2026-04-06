@@ -306,7 +306,7 @@ async function loadBook({ silent = false, suppressToast = false, refreshOnline =
   if (!silent) state.shell.showStatus(state.shell.t("statusLoadingBookInfo"));
   try {
     const mode = state.mode;
-    const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(mode)}&translation_mode=${encodeURIComponent(state.translateMode)}&refresh_online=${refreshOnline ? "1" : "0"}`);
+    const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(mode)}&translation_mode=${encodeURIComponent(state.translateMode)}&refresh_online=${refreshOnline ? "1" : "0"}&include_chapters=0`);
     state.book = detail;
     populateBook();
   } catch (error) {

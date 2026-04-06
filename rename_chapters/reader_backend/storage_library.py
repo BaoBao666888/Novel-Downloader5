@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlite3
+import time
 from pathlib import Path
 from typing import Any
 
@@ -231,14 +233,6 @@ def list_chapters_paged(
     page = max(1, int(page))
     page_size = max(1, min(200, int(page_size)))
     live_title_mode = translate_mode in {"local", "hanviet"}
-    if mode == "trans" and not live_title_mode:
-        storage.translate_book_titles(
-            book_id,
-            translator,
-            translate_mode,
-            name_set_override=name_set_override,
-            vp_set_override=vp_set_override,
-        )
 
     book_row = storage.find_book(book_id)
     with storage._connect() as conn:
@@ -390,25 +384,36 @@ def update_book_progress(
     utc_now_iso,
 ) -> None:
     now = utc_now_iso()
-    with storage._connect() as conn:
-        conn.execute(
-            """
-            UPDATE books SET
-                last_read_chapter_id = COALESCE(?, last_read_chapter_id),
-                last_read_ratio = COALESCE(?, last_read_ratio),
-                last_read_mode = COALESCE(?, last_read_mode),
-                theme_pref = COALESCE(?, theme_pref),
-                updated_at = ?
-            WHERE book_id = ?
-            """,
-            (chapter_id, ratio, mode, theme_pref, now, book_id),
-        )
+    for attempt in range(4):
+        try:
+            with storage._connect() as conn:
+                conn.execute(
+                    """
+                    UPDATE books SET
+                        last_read_chapter_id = COALESCE(?, last_read_chapter_id),
+                        last_read_ratio = COALESCE(?, last_read_ratio),
+                        last_read_mode = COALESCE(?, last_read_mode),
+                        theme_pref = COALESCE(?, theme_pref),
+                        updated_at = ?
+                    WHERE book_id = ?
+                    """,
+                    (chapter_id, ratio, mode, theme_pref, now, book_id),
+                )
+            return
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc).lower():
+                raise
+            if attempt >= 3:
+                # Lưu tiến độ là best-effort; không làm hỏng request đọc chỉ vì DB đang bận.
+                return
+            time.sleep(0.12 * (attempt + 1))
 
 
 def get_book_detail(
     storage,
     book_id: str,
     *,
+    include_chapters: bool = True,
     normalize_lang_source,
     book_supports_translation,
     is_book_comic,
@@ -417,9 +422,12 @@ def get_book_detail(
     book = storage.find_book(book_id)
     if not book:
         return None
-    chapters = storage.get_chapter_rows(book_id)
-    download_map = storage.get_book_download_map(book_id)
-    downloaded_count = sum(1 for value in download_map.values() if value)
+    chapters = storage.get_chapter_rows(book_id) if include_chapters else []
+    download_map = storage.get_book_download_map(book_id) if include_chapters else {}
+    if include_chapters:
+        downloaded_count = sum(1 for value in download_map.values() if value)
+    else:
+        downloaded_count, _ = storage.get_book_download_counts(book_id)
     book["lang_source"] = normalize_lang_source(book.get("lang_source") or "") or str(book.get("lang_source") or "")
     book["translation_supported"] = bool(book_supports_translation(book))
     book["is_comic"] = bool(is_book_comic(book))
@@ -442,7 +450,7 @@ def get_book_detail(
             "remote_url": str(ch.get("remote_url") or ""),
         }
         for ch in chapters
-    ]
+    ] if include_chapters else []
     book["downloaded_chapters"] = int(max(0, min(int(book.get("chapter_count") or len(chapters) or 0), downloaded_count)))
     return book
 

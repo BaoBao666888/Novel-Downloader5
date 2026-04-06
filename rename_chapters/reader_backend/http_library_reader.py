@@ -85,29 +85,31 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                 vp_set_override=active_vp_set,
             ) or raw_summary
         else:
-            book["title_display"] = title_vi or handler.service._translate_ui_text_with_dicts(
-                raw_title,
+            head_inputs = [
+                raw_title if not title_vi else "",
+                raw_author if not author_vi else "",
+            ]
+            head_outputs = handler.service._translate_ui_texts_batch(
+                head_inputs,
                 single_line=True,
                 mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
-            ) or raw_title
-            book["author_display"] = author_vi or handler.service._translate_ui_text_with_dicts(
-                raw_author,
-                single_line=True,
-                mode=translate_mode,
-                name_set_override=active_name_set,
-                vp_set_override=active_vp_set,
-            ) or raw_author
-            book["summary_display"] = handler.service._translate_ui_text_with_dicts(
-                raw_summary,
+            )
+            summary_outputs = handler.service._translate_ui_texts_batch(
+                [raw_summary],
                 single_line=False,
                 mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
-            ) or raw_summary
+            )
+            book["title_display"] = title_vi or (head_outputs[0] if len(head_outputs) > 0 else "") or raw_title
+            book["author_display"] = author_vi or (head_outputs[1] if len(head_outputs) > 1 else "") or raw_author
+            book["summary_display"] = (summary_outputs[0] if summary_outputs else "") or raw_summary
         chapters = book.get("chapters")
         if isinstance(chapters, list):
+            server_title_inputs: list[str] = []
+            server_title_rows: list[dict[str, Any]] = []
             for row in chapters:
                 if not isinstance(row, dict):
                     continue
@@ -122,13 +124,23 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                         vp_set_override=active_vp_set,
                     ) or row_title_raw
                 else:
-                    row["title_display"] = row_title_vi or handler.service._translate_ui_text_with_dicts(
-                        row_title_raw,
-                        single_line=True,
-                        mode=translate_mode,
-                        name_set_override=active_name_set,
-                        vp_set_override=active_vp_set,
-                    ) or row_title_raw
+                    if row_title_vi:
+                        row["title_display"] = row_title_vi
+                    else:
+                        row["title_display"] = row_title_raw
+                        server_title_rows.append(row)
+                        server_title_inputs.append(row_title_raw)
+            if (not live_title_mode) and server_title_inputs:
+                server_title_outputs = handler.service._translate_ui_texts_batch(
+                    server_title_inputs,
+                    single_line=True,
+                    mode=translate_mode,
+                    name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
+                )
+                for idx, row in enumerate(server_title_rows):
+                    translated = server_title_outputs[idx] if idx < len(server_title_outputs) else ""
+                    row["title_display"] = translated or str(row.get("title_display") or "")
     else:
         book["translation_supported"] = False
         book["title_display"] = deps.normalize_vbook_display_text(str(book.get("title") or ""), single_line=True) or str(book.get("title") or "")
@@ -211,6 +223,25 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,
         )
+        if mode == "trans" and translate_mode == "server":
+            rows = data.get("items")
+            if isinstance(rows, list) and rows:
+                raw_titles = [
+                    deps.normalize_vbook_display_text(str((row or {}).get("title_raw") or ""), single_line=True)
+                    for row in rows
+                ]
+                translated_titles = service._translate_ui_texts_batch(
+                    raw_titles,
+                    single_line=True,
+                    mode=translate_mode,
+                    name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
+                )
+                for idx, row in enumerate(rows):
+                    if not isinstance(row, dict):
+                        continue
+                    translated = translated_titles[idx] if idx < len(translated_titles) else ""
+                    row["title_display"] = translated or str(row.get("title_vi") or row.get("title_raw") or "")
         data["book_id"] = book_id
         data["mode"] = mode
         return data
@@ -273,6 +304,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
         translate_titles = (query.get("translate_titles", ["0"])[0] or "0").strip() in {"1", "true", "yes"}
         refresh_online = (query.get("refresh_online", ["0"])[0] or "0").strip().lower() in {"1", "true", "yes", "on"}
+        include_chapters = (query.get("include_chapters", ["1"])[0] or "1").strip().lower() in {"1", "true", "yes", "on"}
         mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
         if mode not in ("raw", "trans"):
             mode = "raw"
@@ -296,7 +328,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             )
-        book = storage.get_book_detail(book_id)
+        book = storage.get_book_detail(book_id, include_chapters=include_chapters)
         if not book:
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
         _apply_book_display_fields(
@@ -307,22 +339,23 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             active_vp_set=active_vp_set,
             deps=deps,
         )
-        export_info = service.build_book_export_info(
-            book,
-            translate_mode=translate_mode,
-            name_set_override=active_name_set,
-            vp_set_override=active_vp_set,
-        )
-        chapter_export_map = dict(export_info.get("chapter_map") or {})
-        export_info.pop("chapter_map", None)
-        chapters = book.get("chapters")
-        if isinstance(chapters, list):
-            for row in chapters:
-                if not isinstance(row, dict):
-                    continue
-                cid = str(row.get("chapter_id") or "").strip()
-                row["export"] = dict(chapter_export_map.get(cid) or {})
-        book["export_info"] = export_info
+        if include_chapters:
+            export_info = service.build_book_export_info(
+                book,
+                translate_mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            )
+            chapter_export_map = dict(export_info.get("chapter_map") or {})
+            export_info.pop("chapter_map", None)
+            chapters = book.get("chapters")
+            if isinstance(chapters, list):
+                for row in chapters:
+                    if not isinstance(row, dict):
+                        continue
+                    cid = str(row.get("chapter_id") or "").strip()
+                    row["export"] = dict(chapter_export_map.get(cid) or {})
+            book["export_info"] = export_info
         if book.get("source_type") == "epub":
             epub_path = deps.cache_dir / "epub_sources" / f"{book_id}.epub"
             if epub_path.exists():
@@ -648,17 +681,6 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         translate_mode = _get_translate_mode_from_query(handler, query)
         if mode == "trans" and not trans_supported:
             mode = "raw"
-        if mode == "trans" and trans_supported:
-            _, active_name_set, _ = _get_active_name_set(handler, chapter["book_id"])
-            active_vp_set, _ = storage.get_book_vp_set(chapter["book_id"])
-            storage.translate_book_titles(
-                chapter["book_id"],
-                service.translator,
-                translate_mode,
-                name_set_override=active_name_set,
-                vp_set_override=active_vp_set,
-            )
-            chapter = storage.find_chapter(chapter_id) or chapter
         _, active_name_set, _ = _get_active_name_set(handler, chapter["book_id"])
         active_vp_set, _ = storage.get_book_vp_set(chapter["book_id"])
         text = storage.get_chapter_text(
@@ -710,10 +732,12 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         title_vi = deps.normalize_vi_display_text(chapter.get("title_vi") or "")
         response_title = chapter["title_raw"]
         if output_mode == "trans":
-            response_title = title_vi or service._translate_ui_text(
+            response_title = title_vi or service._translate_ui_text_with_dicts(
                 chapter["title_raw"],
                 single_line=True,
                 mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
             ) or chapter["title_raw"]
         response = {
             "chapter_id": chapter["chapter_id"],

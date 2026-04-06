@@ -3980,10 +3980,11 @@ class ReaderStorage:
             utc_now_iso=utc_now_iso,
         )
 
-    def get_book_detail(self, book_id: str) -> dict[str, Any] | None:
+    def get_book_detail(self, book_id: str, *, include_chapters: bool = True) -> dict[str, Any] | None:
         return storage_library_support.get_book_detail(
             self,
             book_id,
+            include_chapters=include_chapters,
             normalize_lang_source=normalize_lang_source,
             book_supports_translation=book_supports_translation,
             is_book_comic=is_book_comic,
@@ -5220,6 +5221,8 @@ class ReaderService:
         *,
         single_line: bool = False,
         mode: str | None = None,
+        name_set_override: dict[str, str] | None = None,
+        vp_set_override: dict[str, str] | None = None,
     ) -> list[str]:
         values = [
             normalize_vbook_display_text(text or "", single_line=False)
@@ -5233,7 +5236,13 @@ class ReaderService:
         translate_mode = self.resolve_translate_mode(mode)
         if translate_mode != "server":
             return [
-                self._translate_ui_text_with_dicts(value, single_line=single_line, mode=translate_mode)
+                self._translate_ui_text_with_dicts(
+                    value,
+                    single_line=single_line,
+                    mode=translate_mode,
+                    name_set_override=name_set_override,
+                    vp_set_override=vp_set_override,
+                )
                 for value in values
             ]
 
@@ -5250,7 +5259,11 @@ class ReaderService:
         if not unique_sources:
             return outputs
 
-        trans_sig = self.translator.translation_signature(mode="server")
+        trans_sig = self.translator.translation_signature(
+            mode="server",
+            name_set_override=name_set_override,
+            vp_set_override=vp_set_override,
+        )
         resolved: dict[str, str] = {}
         try:
             cached = self.storage.get_translation_memory_batch(unique_sources, "server", trans_sig)
@@ -5503,6 +5516,17 @@ class ReaderService:
 
         entries: list[dict[str, Any]] = []
         total_chapters = len(chapters)
+        if callable(progress_callback):
+            try:
+                progress_callback(
+                    {
+                        "phase": "collect_start",
+                        "index": 0,
+                        "total": int(total_chapters),
+                    }
+                )
+            except Exception:
+                pass
         for idx, chapter in enumerate(chapters, start=1):
             downloaded = self._chapter_cache_available(chapter, book)
             if use_cached_only and not downloaded:
