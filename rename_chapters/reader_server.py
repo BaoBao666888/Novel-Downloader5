@@ -5143,6 +5143,52 @@ class ReaderService:
     def _translate_ui_text(self, text: str, *, single_line: bool = False, mode: str | None = None) -> str:
         return self._translate_ui_text_with_dicts(text, single_line=single_line, mode=mode)
 
+    def _translate_ui_server_batch_adaptive(
+        self,
+        texts: list[str],
+        *,
+        single_line: bool = False,
+    ) -> list[str]:
+        source_texts = [normalize_vbook_display_text(text or "", single_line=False) for text in (texts or [])]
+        if not source_texts:
+            return []
+
+        settings = dict(self.translator._settings() or {})
+        max_chars_default = self._vbook_int(settings.get("maxChars"), default=4500, min_value=200, max_value=20000)
+        max_items_default = self._vbook_int(settings.get("maxItems"), default=40, min_value=1, max_value=200)
+        if single_line:
+            settings["maxChars"] = min(max_chars_default, 2200)
+            settings["maxItems"] = min(max_items_default, 8)
+        else:
+            settings["maxChars"] = min(max_chars_default, 1800)
+            settings["maxItems"] = min(max_items_default, 3)
+
+        def is_failed_piece(value: str) -> bool:
+            text = normalize_vi_display_text(value or "")
+            return (not text) or text.startswith("[Lỗi")
+
+        def translate_subset(subset: list[str]) -> list[str]:
+            try:
+                translated = translator_logic.translate_text_chunks(
+                    subset,
+                    name_set={},
+                    settings=settings,
+                    update_progress_callback=None,
+                    target_lang="vi",
+                )
+            except Exception:
+                translated = []
+            if len(translated) != len(subset):
+                translated = []
+            if translated and not any(is_failed_piece(piece) for piece in translated):
+                return translated
+            if len(subset) <= 1:
+                return subset
+            mid = max(1, len(subset) // 2)
+            return translate_subset(subset[:mid]) + translate_subset(subset[mid:])
+
+        return translate_subset(source_texts)
+
     def _translate_ui_texts_batch(
         self,
         texts: list[str],
@@ -5199,16 +5245,10 @@ class ReaderService:
         missing = [source for source in unique_sources if source not in resolved]
         if missing:
             translated_list: list[str]
-            try:
-                translated_list = translator_logic.translate_text_chunks(
-                    missing,
-                    name_set={},
-                    settings=self.translator._settings(),
-                    update_progress_callback=None,
-                    target_lang="vi",
-                )
-            except Exception:
-                translated_list = []
+            translated_list = self._translate_ui_server_batch_adaptive(
+                missing,
+                single_line=single_line,
+            )
             to_store: list[tuple[str, str]] = []
             for idx, source_key in enumerate(missing):
                 translated_piece = translated_list[idx] if idx < len(translated_list) else source_key
@@ -8834,6 +8874,7 @@ class ReaderService:
             "category",
             "tags",
             "tag",
+            "extra_fields",
         }
         extras: list[dict[str, str]] = []
         for raw_key, raw_val in detail.items():

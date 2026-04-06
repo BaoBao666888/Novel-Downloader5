@@ -106,6 +106,7 @@ const state = {
   detail: {
     item: null,
     detail: null,
+    requestId: "",
     loading: false,
     errorMessage: "",
     pluginId: "",
@@ -788,6 +789,7 @@ async function handlePluginSelectionChange(pluginId, { autoSearch = false } = {}
 function resetDetailState() {
   state.detail.item = null;
   state.detail.detail = null;
+  state.detail.requestId = "";
   state.detail.loading = false;
   state.detail.errorMessage = "";
   state.detail.pluginId = "";
@@ -991,8 +993,9 @@ function renderVbookDetail() {
   const loading = Boolean(state.detail.loading);
   const detailError = String(state.detail.errorMessage || "").trim();
   const title = normalizeParagraphDisplayText(detail.title || detail.name || "", { singleLine: true }) || "Không tiêu đề";
-  const author = normalizeParagraphDisplayText(detail.author || "", { singleLine: true }) || "Khuyết danh";
-  const desc = normalizeParagraphDisplayText(detail.description || "") || state.shell.t("vbookDetailNoDescription");
+  const authorText = normalizeParagraphDisplayText(detail.author || "", { singleLine: true });
+  const author = authorText || (loading ? "" : "Khuyết danh");
+  const desc = normalizeParagraphDisplayText(detail.description || "") || (loading ? "" : state.shell.t("vbookDetailNoDescription"));
   const cover = String(detail.cover || "").trim();
   const statusText = normalizeParagraphDisplayText(detail.status_text || "", { singleLine: true });
   const genres = Array.isArray(detail.genres) ? detail.genres : [];
@@ -1262,13 +1265,15 @@ async function loadDetailToc({ force = false } = {}) {
 
 async function openDetailDialog(item, options = {}) {
   const openOptions = options && typeof options === "object" ? options : {};
+  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   state.detail.item = item;
+  state.detail.requestId = requestId;
   state.detail.loading = true;
   state.detail.errorMessage = "";
   state.detail.detail = {
     title: item.title || "",
     author: item.author || "",
-    description: item.description || "",
+    description: "",
     cover: item.cover || "",
     url: item.detail_url || "",
   };
@@ -1298,18 +1303,21 @@ async function openDetailDialog(item, options = {}) {
         plugin_id: item.plugin_id || "",
       }),
     });
+    if (state.detail.requestId !== requestId) return;
     const detail = (data && data.detail) || {};
     if (detail && typeof detail === "object") state.detail.detail = detail;
     const plugin = (data && data.plugin) || {};
     if (plugin && plugin.plugin_id) state.detail.pluginId = String(plugin.plugin_id || "").trim();
     state.detail.loading = false;
   } catch (error) {
+    if (state.detail.requestId !== requestId) return;
     if (!isAbortError(error)) {
       state.detail.loading = false;
       state.detail.errorMessage = getErrorMessage(error);
       showToastError(error);
     }
   } finally {
+    if (state.detail.requestId !== requestId) return;
     renderVbookDetail();
     state.shell.hideStatus();
   }
