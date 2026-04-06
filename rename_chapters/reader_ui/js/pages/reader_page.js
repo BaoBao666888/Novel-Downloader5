@@ -138,6 +138,7 @@ const state = {
   chapterPending: new Map(),
   prefetchControllers: new Map(),
   prefetchTimers: new Map(),
+  prefetchRunSeq: 0,
   activeChapterController: null,
   chapterLoadSeq: 0,
   fullscreenUiTimer: null,
@@ -427,6 +428,7 @@ function dropChapterCacheById(chapterId) {
 }
 
 function cancelPrefetch(exceptKeys = new Set()) {
+  state.prefetchRunSeq += 1;
   for (const [key, timer] of state.prefetchTimers.entries()) {
     if (exceptKeys.has(key)) continue;
     window.clearTimeout(timer);
@@ -510,8 +512,6 @@ function prefetchNearbyChapters() {
   const mode = effectiveMode();
   const translationMode = state.translateMode;
   const chapters = [];
-  const prev = findChapterAt(idx - 1);
-  if (prev) chapters.push(prev);
   for (let step = 1; step <= maxForward; step += 1) {
     const next = findChapterAt(idx + step);
     if (!next) break;
@@ -520,38 +520,37 @@ function prefetchNearbyChapters() {
 
   const keepKeys = new Set(chapters.map((ch) => chapterCacheKey(ch.chapter_id, mode, translationMode)));
   cancelPrefetch(keepKeys);
-
-  const threadCount = Math.max(1, options.downloadThreads);
+  const runSeq = state.prefetchRunSeq;
   const delayMs = Math.max(0, options.requestDelayMs);
-  let queued = 0;
 
-  for (const chapter of chapters) {
-    const cid = chapter.chapter_id;
-    if (!cid) continue;
-    const key = chapterCacheKey(cid, mode, translationMode);
-    if (state.chapterCache.has(key) || state.chapterPending.has(key) || state.prefetchControllers.has(key)) continue;
+  (async () => {
+    let firstFetch = true;
+    for (const chapter of chapters) {
+      if (runSeq !== state.prefetchRunSeq) return;
+      const cid = chapter.chapter_id;
+      if (!cid) continue;
+      const key = chapterCacheKey(cid, mode, translationMode);
+      if (state.chapterCache.has(key) || state.chapterPending.has(key) || state.prefetchControllers.has(key)) continue;
 
-    const lane = Math.floor(queued / threadCount);
-    const launchDelay = lane * delayMs;
-    queued += 1;
-    const timer = window.setTimeout(() => {
-      if (state.prefetchTimers.get(key) === timer) {
-        state.prefetchTimers.delete(key);
+      if (!firstFetch && delayMs > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+        if (runSeq !== state.prefetchRunSeq) return;
       }
+      firstFetch = false;
+
       const controller = new AbortController();
       state.prefetchControllers.set(key, controller);
-      fetchChapterContent(cid, { mode, translationMode, signal: controller.signal })
-        .catch(() => {
-          // prefetch fail không chặn UI
-        })
-        .finally(() => {
-          if (state.prefetchControllers.get(key) === controller) {
-            state.prefetchControllers.delete(key);
-          }
-        });
-    }, launchDelay);
-    state.prefetchTimers.set(key, timer);
-  }
+      try {
+        await fetchChapterContent(cid, { mode, translationMode, signal: controller.signal });
+      } catch {
+        // prefetch fail không chặn UI
+      } finally {
+        if (state.prefetchControllers.get(key) === controller) {
+          state.prefetchControllers.delete(key);
+        }
+      }
+    }
+  })();
 }
 
 function chapterTitle(ch) {
@@ -1433,6 +1432,7 @@ async function loadBook({ showSkeleton = false } = {}) {
 async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleton = true } = {}) {
   if (!state.chapterId) return;
   hideSelectionBtn();
+  cancelPrefetch();
   if (state.activeChapterController) {
     try {
       state.activeChapterController.abort();

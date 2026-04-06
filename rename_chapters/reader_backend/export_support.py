@@ -387,6 +387,15 @@ def wrap_export_html_document(
     const target = event.target;
     if (!(target instanceof Element)) return;
     if (target.closest(".export-header") || target.closest(".export-drawer-panel")) return;
+    if (anyDrawerOpen()) {{
+      uiVisible = true;
+      syncUiState();
+      return;
+    }}
+    if (uiVisible) {{
+      hideUiNow();
+      return;
+    }}
     showUi();
   }}, true);
   header?.addEventListener("pointerenter", () => {{
