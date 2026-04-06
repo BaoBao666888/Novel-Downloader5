@@ -639,6 +639,33 @@ p {
   border-radius: 999px;
 }
 
+.btn-filter-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-filter-chip.has-active-filter {
+  border-color: color-mix(in srgb, #ff6b7a 75%, var(--accent));
+}
+
+.filter-count-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff5b6b, #ff7c7c);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 6px 14px color-mix(in srgb, #ff6677 34%, transparent);
+}
+
 .library-grid {
   padding: 10px;
   display: grid;
@@ -1626,6 +1653,172 @@ p {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.category-inline-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+}
+
+.category-inline-label {
+  color: var(--muted);
+  font-size: 13px;
+  padding-top: 6px;
+}
+
+.category-inline-list,
+.category-chip-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.category-inline-list {
+  flex: 1;
+}
+
+.category-inline-add {
+  min-width: 38px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  color: color-mix(in srgb, var(--text) 95%, transparent);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.category-chip.active {
+  border-color: color-mix(in srgb, var(--accent) 74%, var(--line));
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.category-chip-count {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.category-search-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.category-dialog {
+  width: min(760px, 94vw);
+}
+
+.category-manager-dialog {
+  width: min(1080px, 96vw);
+}
+
+.category-manager-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.category-manager-pane {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.category-manager-list,
+.category-manager-books-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(48vh, 480px);
+  overflow: auto;
+}
+
+.category-manager-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 44%, transparent);
+  color: inherit;
+  text-align: left;
+}
+
+.category-manager-item.active {
+  border-color: color-mix(in srgb, var(--accent) 74%, var(--line));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.category-manager-item-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.category-manager-form {
+  display: grid;
+  gap: 10px;
+}
+
+.category-manager-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.category-manager-book-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.category-manager-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.category-manager-book-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 42%, transparent);
+}
+
+.category-manager-book-meta {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.category-manager-book-meta strong,
+.category-manager-book-meta span {
+  overflow-wrap: anywhere;
+}
+
+.category-manager-book-meta span {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .book-info-item {
@@ -3610,6 +3803,10 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   }
 
   .book-view-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .category-manager-grid {
     grid-template-columns: 1fr;
   }
 

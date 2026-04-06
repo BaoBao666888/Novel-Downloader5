@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260406-librarylazy1">
+  <link rel="stylesheet" href="./styles.css?v=20260406-categories1">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -132,6 +132,11 @@
         <div class="cover-btns">
           <button id="btn-import" class="btn btn-primary" type="button"></button>
           <button id="btn-import-url" class="btn" type="button"></button>
+          <button id="btn-library-filter" class="btn btn-filter-chip" type="button">
+            <span id="library-filter-label"></span>
+            <span id="library-filter-count" class="filter-count-badge hidden"></span>
+          </button>
+          <button id="btn-manage-categories" class="btn" type="button"></button>
           <button id="btn-open-global-junk" class="btn" type="button"></button>
           <button id="btn-open-global-dicts" class="btn" type="button"></button>
           <button id="btn-manage-vbook" class="btn" type="button"></button>
@@ -167,6 +172,11 @@
       <button id="btn-close-book-actions" class="btn btn-small" type="button"></button>
     </div>
     <p id="book-actions-subtitle" class="dialog-subtitle"></p>
+    <div id="book-actions-categories-row" class="category-inline-row hidden">
+      <span id="book-actions-categories-label" class="category-inline-label"></span>
+      <div id="book-actions-categories-list" class="category-inline-list"></div>
+      <button id="btn-book-actions-categories" class="btn btn-small category-inline-add" type="button">+</button>
+    </div>
     <div class="book-actions-grid">
       <button id="btn-action-open-book" class="btn" type="button"></button>
       <button id="btn-action-open-reader" class="btn" type="button"></button>
@@ -174,6 +184,88 @@
       <button id="btn-action-download" class="btn" type="button"></button>
       <button id="btn-action-export" class="btn" type="button"></button>
       <button id="btn-action-delete-book" class="btn" type="button"></button>
+    </div>
+  </dialog>
+
+  <dialog id="library-category-filter-dialog" class="dialog category-dialog">
+    <div class="dialog-head">
+      <h3 id="library-category-filter-title"></h3>
+      <button id="btn-close-library-category-filter" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="library-category-filter-hint" class="dialog-subtitle"></p>
+    <label class="category-search-field">
+      <span id="library-category-filter-search-label"></span>
+      <input id="library-category-filter-search" type="search" autocomplete="off">
+    </label>
+    <div id="library-category-filter-list" class="category-chip-picker"></div>
+    <p id="library-category-filter-empty" class="empty-text hidden"></p>
+    <div class="dialog-actions">
+      <button id="btn-library-category-filter-clear" class="btn" type="button"></button>
+      <button id="btn-library-category-filter-apply" class="btn btn-primary" type="button"></button>
+    </div>
+  </dialog>
+
+  <dialog id="category-manager-dialog" class="dialog category-manager-dialog">
+    <div class="dialog-head">
+      <h3 id="category-manager-title"></h3>
+      <button id="btn-close-category-manager" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="category-manager-hint" class="dialog-subtitle"></p>
+    <div class="category-manager-grid">
+      <section class="category-manager-pane">
+        <label class="category-search-field">
+          <span id="category-manager-search-label"></span>
+          <input id="category-manager-search-input" type="search" autocomplete="off">
+        </label>
+        <div id="category-manager-list" class="category-manager-list"></div>
+        <p id="category-manager-empty" class="empty-text hidden"></p>
+        <form id="category-manager-form" class="category-manager-form">
+          <label>
+            <span id="category-manager-name-label"></span>
+            <input id="category-manager-name-input" type="text" maxlength="120">
+          </label>
+          <div class="dialog-actions">
+            <button id="btn-category-create" class="btn btn-primary" type="submit"></button>
+            <button id="btn-category-rename" class="btn" type="button"></button>
+            <button id="btn-category-delete" class="btn" type="button"></button>
+          </div>
+        </form>
+      </section>
+      <section class="category-manager-pane">
+        <p id="category-manager-books-title" class="dialog-subtitle"></p>
+        <label class="category-search-field">
+          <span id="category-manager-books-search-label"></span>
+          <input id="category-manager-books-search-input" type="search" autocomplete="off">
+        </label>
+        <div class="category-manager-book-actions">
+          <label class="category-manager-select-all">
+            <input id="category-manager-books-select-all" type="checkbox">
+            <span id="category-manager-books-select-all-label"></span>
+          </label>
+          <button id="btn-category-manager-add-books" class="btn btn-small" type="button"></button>
+          <button id="btn-category-manager-remove-books" class="btn btn-small" type="button"></button>
+        </div>
+        <div id="category-manager-books-list" class="category-manager-books-list"></div>
+        <p id="category-manager-books-empty" class="empty-text hidden"></p>
+      </section>
+    </div>
+  </dialog>
+
+  <dialog id="book-categories-dialog" class="dialog category-dialog">
+    <div class="dialog-head">
+      <h3 id="book-categories-title"></h3>
+      <button id="btn-close-book-categories" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="book-categories-subtitle" class="dialog-subtitle"></p>
+    <label class="category-search-field">
+      <span id="book-categories-search-label"></span>
+      <input id="book-categories-search-input" type="search" autocomplete="off">
+    </label>
+    <div id="book-categories-list" class="category-chip-picker"></div>
+    <p id="book-categories-empty" class="empty-text hidden"></p>
+    <div class="dialog-actions">
+      <button id="btn-cancel-book-categories" class="btn" type="button"></button>
+      <button id="btn-save-book-categories" class="btn btn-primary" type="button"></button>
     </div>
   </dialog>
 
@@ -824,7 +916,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260406-librarylazy1"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260406-categories2"></script>
 </body>
 
 </html>

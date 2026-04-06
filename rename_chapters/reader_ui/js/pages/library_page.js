@@ -11,6 +11,10 @@ const refs = {
   libraryCount: document.getElementById("library-count"),
   libraryGrid: document.getElementById("library-grid"),
   libraryEmpty: document.getElementById("library-empty"),
+  btnLibraryFilter: document.getElementById("btn-library-filter"),
+  libraryFilterLabel: document.getElementById("library-filter-label"),
+  libraryFilterCount: document.getElementById("library-filter-count"),
+  btnManageCategories: document.getElementById("btn-manage-categories"),
   downloadJobsTitle: document.getElementById("download-jobs-title"),
   downloadJobsCount: document.getElementById("download-jobs-count"),
   downloadJobsList: document.getElementById("download-jobs-list"),
@@ -23,6 +27,10 @@ const refs = {
   bookActionsDialog: document.getElementById("book-actions-dialog"),
   bookActionsTitle: document.getElementById("book-actions-title"),
   bookActionsSubtitle: document.getElementById("book-actions-subtitle"),
+  bookActionsCategoriesRow: document.getElementById("book-actions-categories-row"),
+  bookActionsCategoriesLabel: document.getElementById("book-actions-categories-label"),
+  bookActionsCategoriesList: document.getElementById("book-actions-categories-list"),
+  btnBookActionsCategories: document.getElementById("btn-book-actions-categories"),
   btnCloseBookActions: document.getElementById("btn-close-book-actions"),
   btnActionOpenBook: document.getElementById("btn-action-open-book"),
   btnActionOpenReader: document.getElementById("btn-action-open-reader"),
@@ -55,6 +63,52 @@ const refs = {
   exportChapterStats: document.getElementById("export-chapter-stats"),
   exportChapterHint: document.getElementById("export-chapter-hint"),
   exportChapterList: document.getElementById("export-chapter-list"),
+
+  libraryCategoryFilterDialog: document.getElementById("library-category-filter-dialog"),
+  libraryCategoryFilterTitle: document.getElementById("library-category-filter-title"),
+  btnCloseLibraryCategoryFilter: document.getElementById("btn-close-library-category-filter"),
+  libraryCategoryFilterHint: document.getElementById("library-category-filter-hint"),
+  libraryCategoryFilterSearchLabel: document.getElementById("library-category-filter-search-label"),
+  libraryCategoryFilterSearch: document.getElementById("library-category-filter-search"),
+  libraryCategoryFilterList: document.getElementById("library-category-filter-list"),
+  libraryCategoryFilterEmpty: document.getElementById("library-category-filter-empty"),
+  btnLibraryCategoryFilterClear: document.getElementById("btn-library-category-filter-clear"),
+  btnLibraryCategoryFilterApply: document.getElementById("btn-library-category-filter-apply"),
+
+  categoryManagerDialog: document.getElementById("category-manager-dialog"),
+  categoryManagerTitle: document.getElementById("category-manager-title"),
+  btnCloseCategoryManager: document.getElementById("btn-close-category-manager"),
+  categoryManagerHint: document.getElementById("category-manager-hint"),
+  categoryManagerSearchLabel: document.getElementById("category-manager-search-label"),
+  categoryManagerSearchInput: document.getElementById("category-manager-search-input"),
+  categoryManagerList: document.getElementById("category-manager-list"),
+  categoryManagerEmpty: document.getElementById("category-manager-empty"),
+  categoryManagerForm: document.getElementById("category-manager-form"),
+  categoryManagerNameLabel: document.getElementById("category-manager-name-label"),
+  categoryManagerNameInput: document.getElementById("category-manager-name-input"),
+  btnCategoryCreate: document.getElementById("btn-category-create"),
+  btnCategoryRename: document.getElementById("btn-category-rename"),
+  btnCategoryDelete: document.getElementById("btn-category-delete"),
+  categoryManagerBooksTitle: document.getElementById("category-manager-books-title"),
+  categoryManagerBooksSearchLabel: document.getElementById("category-manager-books-search-label"),
+  categoryManagerBooksSearchInput: document.getElementById("category-manager-books-search-input"),
+  categoryManagerBooksSelectAll: document.getElementById("category-manager-books-select-all"),
+  categoryManagerBooksSelectAllLabel: document.getElementById("category-manager-books-select-all-label"),
+  btnCategoryManagerAddBooks: document.getElementById("btn-category-manager-add-books"),
+  btnCategoryManagerRemoveBooks: document.getElementById("btn-category-manager-remove-books"),
+  categoryManagerBooksList: document.getElementById("category-manager-books-list"),
+  categoryManagerBooksEmpty: document.getElementById("category-manager-books-empty"),
+
+  bookCategoriesDialog: document.getElementById("book-categories-dialog"),
+  bookCategoriesTitle: document.getElementById("book-categories-title"),
+  btnCloseBookCategories: document.getElementById("btn-close-book-categories"),
+  bookCategoriesSubtitle: document.getElementById("book-categories-subtitle"),
+  bookCategoriesSearchLabel: document.getElementById("book-categories-search-label"),
+  bookCategoriesSearchInput: document.getElementById("book-categories-search-input"),
+  bookCategoriesList: document.getElementById("book-categories-list"),
+  bookCategoriesEmpty: document.getElementById("book-categories-empty"),
+  btnCancelBookCategories: document.getElementById("btn-cancel-book-categories"),
+  btnSaveBookCategories: document.getElementById("btn-save-book-categories"),
 
   btnOpenGlobalJunk: document.getElementById("btn-open-global-junk"),
   globalJunkDialog: document.getElementById("global-junk-dialog"),
@@ -134,6 +188,13 @@ const state = {
   exportJobsSig: "",
   selectedBookId: null,
   shell: null,
+  categories: [],
+  selectedCategoryIds: [],
+  categoryFilterDraftIds: [],
+  categoryManagerSelectedId: "",
+  categoryManagerBookCheckedIds: new Set(),
+  bookCategoriesDraftIds: [],
+  bookCategoriesTargetBookId: "",
   translationEnabled: true,
   translationMode: "server",
   translationLocalSig: "{}",
@@ -178,6 +239,190 @@ function localTranslationSettingsSignature(shell) {
 function getErrorMessage(error) {
   if (!error) return state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra.";
   return String(error.displayMessage || error.message || (state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra."));
+}
+
+function normalizeCategoryIds(values) {
+  return Array.from(new Set(
+    (Array.isArray(values) ? values : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean),
+  ));
+}
+
+function getBookCategories(book) {
+  return Array.isArray(book && book.categories) ? book.categories : [];
+}
+
+function getBookCategoryIds(book) {
+  return normalizeCategoryIds(getBookCategories(book).map((item) => item && item.category_id));
+}
+
+function parseLibraryCategoryIdsFromQuery() {
+  const query = state.shell && typeof state.shell.parseQuery === "function"
+    ? state.shell.parseQuery()
+    : {};
+  const raw = String((query && query.category_ids) || "").trim();
+  if (!raw) return [];
+  return normalizeCategoryIds(raw.split(","));
+}
+
+function syncLibraryCategoryQuery() {
+  const params = new URLSearchParams(window.location.search || "");
+  const ids = normalizeCategoryIds(state.selectedCategoryIds);
+  if (ids.length) params.set("category_ids", ids.join(","));
+  else params.delete("category_ids");
+  const next = params.toString();
+  const target = `${window.location.pathname}${next ? `?${next}` : ""}`;
+  window.history.replaceState({}, "", target);
+}
+
+function getFilteredBooks() {
+  const selected = normalizeCategoryIds(state.selectedCategoryIds);
+  if (!selected.length) return Array.isArray(state.books) ? state.books : [];
+  return (Array.isArray(state.books) ? state.books : []).filter((book) => {
+    const bookIds = new Set(getBookCategoryIds(book));
+    return selected.some((item) => bookIds.has(item));
+  });
+}
+
+function updateLibraryFilterBadge() {
+  const count = normalizeCategoryIds(state.selectedCategoryIds).length;
+  if (refs.libraryFilterCount) {
+    refs.libraryFilterCount.textContent = String(count);
+    refs.libraryFilterCount.classList.toggle("hidden", count <= 0);
+  }
+  if (refs.btnLibraryFilter) {
+    refs.btnLibraryFilter.classList.toggle("has-active-filter", count > 0);
+  }
+}
+
+function createCategoryChip(category, { active = false, onClick = null, titleSuffix = "" } = {}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "btn category-chip";
+  if (active) button.classList.add("active");
+  const name = String((category && category.name) || "").trim();
+  const count = Math.max(0, Number(category && category.book_count || 0));
+  button.textContent = name || state.shell.t("categoryUncategorized");
+  if (titleSuffix) {
+    button.title = `${name}${titleSuffix}`;
+  } else if (count > 0) {
+    button.title = `${name} • ${count}`;
+  }
+  if (typeof onClick === "function") {
+    button.addEventListener("click", onClick);
+  }
+  return button;
+}
+
+function syncSelectedCategoryIdsWithCatalog() {
+  const known = new Set((state.categories || []).map((item) => String(item.category_id || "").trim()).filter(Boolean));
+  const next = normalizeCategoryIds(state.selectedCategoryIds).filter((item) => known.has(item));
+  const changed = next.length !== normalizeCategoryIds(state.selectedCategoryIds).length
+    || next.some((item, idx) => item !== normalizeCategoryIds(state.selectedCategoryIds)[idx]);
+  state.selectedCategoryIds = next;
+  if (changed) syncLibraryCategoryQuery();
+  updateLibraryFilterBadge();
+}
+
+function buildCategoryCatalogMap() {
+  const output = new Map();
+  for (const item of state.categories || []) {
+    const id = String((item && item.category_id) || "").trim();
+    if (!id) continue;
+    output.set(id, {
+      category_id: id,
+      name: String((item && item.name) || "").trim(),
+    });
+  }
+  return output;
+}
+
+function normalizeBookCategoriesFromCatalog(categoryIds) {
+  const catalog = buildCategoryCatalogMap();
+  const output = [];
+  for (const id of normalizeCategoryIds(categoryIds)) {
+    const category = catalog.get(id);
+    if (!category) continue;
+    output.push({ ...category });
+  }
+  return output;
+}
+
+function setBookCategoriesLocal(bookId, categories) {
+  const bid = String(bookId || "").trim();
+  if (!bid) return;
+  const next = Array.isArray(categories)
+    ? categories
+      .map((item) => ({
+        category_id: String((item && item.category_id) || "").trim(),
+        name: String((item && item.name) || "").trim(),
+      }))
+      .filter((item) => item.category_id)
+    : [];
+  for (const book of state.books || []) {
+    if (String((book && book.book_id) || "").trim() !== bid) continue;
+    book.categories = next.map((item) => ({ ...item }));
+    break;
+  }
+}
+
+function reconcileBookCategoriesWithCatalog() {
+  for (const book of state.books || []) {
+    book.categories = normalizeBookCategoriesFromCatalog(getBookCategoryIds(book));
+  }
+}
+
+function setCategoriesCatalog(items) {
+  state.categories = Array.isArray(items) ? items : [];
+  syncSelectedCategoryIdsWithCatalog();
+  reconcileBookCategoriesWithCatalog();
+}
+
+function applyBooksCategoryActionLocal(bookIds, categoryIds, action) {
+  const normalizedBookIds = normalizeCategoryIds(bookIds);
+  const normalizedCategoryIds = normalizeCategoryIds(categoryIds);
+  if (!normalizedBookIds.length || !normalizedCategoryIds.length) return;
+  const actionKey = String(action || "").trim().toLowerCase();
+  const categoryMap = buildCategoryCatalogMap();
+  for (const book of state.books || []) {
+    const bid = String((book && book.book_id) || "").trim();
+    if (!normalizedBookIds.includes(bid)) continue;
+    const current = new Set(getBookCategoryIds(book));
+    if (actionKey === "remove") {
+      for (const categoryId of normalizedCategoryIds) current.delete(categoryId);
+    } else {
+      for (const categoryId of normalizedCategoryIds) {
+        if (categoryMap.has(categoryId)) current.add(categoryId);
+      }
+    }
+    book.categories = normalizeBookCategoriesFromCatalog(Array.from(current));
+  }
+}
+
+function syncSelectedBookActions() {
+  if (!(refs.bookActionsDialog && refs.bookActionsDialog.open) || !state.selectedBookId) return;
+  const book = (state.books || []).find((item) => String(item.book_id || "") === String(state.selectedBookId || ""));
+  if (!book) return;
+  openActions(book.book_id);
+}
+
+function renderBookActionsCategories(book) {
+  if (!refs.bookActionsCategoriesRow || !refs.bookActionsCategoriesList || !refs.bookActionsCategoriesLabel) return;
+  refs.bookActionsCategoriesRow.classList.remove("hidden");
+  refs.bookActionsCategoriesLabel.textContent = state.shell.t("bookCategoriesLabel");
+  refs.bookActionsCategoriesList.innerHTML = "";
+  const categories = getBookCategories(book);
+  if (!categories.length) {
+    const empty = document.createElement("span");
+    empty.className = "empty-text";
+    empty.textContent = state.shell.t("bookCategoriesNone");
+    refs.bookActionsCategoriesList.appendChild(empty);
+    return;
+  }
+  for (const category of categories) {
+    refs.bookActionsCategoriesList.appendChild(createCategoryChip(category));
+  }
 }
 
 function splitMultilineValues(value) {
@@ -679,6 +924,7 @@ function openActions(bookId) {
     refs.btnActionCheckUpdates.textContent = state.shell.t("checkBookUpdates");
     refs.btnActionCheckUpdates.classList.toggle("hidden", !isOnlineSourceBook(book));
   }
+  renderBookActionsCategories(book);
   if (refs.btnActionExport) refs.btnActionExport.textContent = state.shell.t("exportBook");
   if (!refs.bookActionsDialog.open) {
     refs.bookActionsDialog.showModal();
@@ -961,17 +1207,25 @@ function renderLibraryLoadingSkeleton(count = LIBRARY_LOADING_SKELETON_COUNT) {
 function renderBooks() {
   teardownLibraryLazyRender();
   refs.libraryGrid.innerHTML = "";
-  const visiblePending = state.pendingImports.filter((item) => {
+  updateLibraryFilterBadge();
+  const hasCategoryFilter = normalizeCategoryIds(state.selectedCategoryIds).length > 0;
+  const filteredBooks = getFilteredBooks();
+  const visiblePending = hasCategoryFilter ? [] : state.pendingImports.filter((item) => {
     const resolvedBookId = String((item && item.resolved_book_id) || "").trim();
     if (!resolvedBookId) return true;
-    return !state.books.some((book) => String((book && book.book_id) || "").trim() === resolvedBookId);
+    return !filteredBooks.some((book) => String((book && book.book_id) || "").trim() === resolvedBookId);
   });
   const totalCount = state.books.length + visiblePending.length;
-  refs.libraryCount.textContent = state.shell.t("libraryCount", { count: totalCount });
+  const visibleCount = filteredBooks.length + visiblePending.length;
+  refs.libraryCount.textContent = normalizeCategoryIds(state.selectedCategoryIds).length
+    ? state.shell.t("libraryCountFiltered", { visible: visibleCount, total: totalCount })
+    : state.shell.t("libraryCount", { count: totalCount });
 
-  if (!totalCount) {
+  if (!visibleCount) {
     refs.libraryEmpty.classList.remove("hidden");
-    refs.libraryEmpty.textContent = state.shell.t("libraryEmpty");
+    refs.libraryEmpty.textContent = hasCategoryFilter
+      ? state.shell.t("libraryEmptyFiltered")
+      : state.shell.t("libraryEmpty");
     return;
   }
 
@@ -984,7 +1238,7 @@ function renderBooks() {
   state.libraryRenderToken = renderToken;
   const observer = createLibraryCardObserver(renderToken);
   const initialCards = [];
-  for (const book of state.books) {
+  for (const book of filteredBooks) {
     const card = createLibraryBookCardShell(book, renderToken);
     refs.libraryGrid.appendChild(card);
     if (observer) observer.observe(card);
@@ -998,6 +1252,383 @@ function renderBooks() {
     return;
   }
   for (const card of initialCards) queueLibraryCardHydration(card, renderToken);
+}
+
+function renderLibraryCategoryFilterList() {
+  if (!refs.libraryCategoryFilterList || !refs.libraryCategoryFilterEmpty) return;
+  refs.libraryCategoryFilterList.innerHTML = "";
+  const term = String((refs.libraryCategoryFilterSearch && refs.libraryCategoryFilterSearch.value) || "").trim().toLowerCase();
+  const items = (state.categories || []).filter((item) => {
+    const name = String((item && item.name) || "").trim();
+    return !term || name.toLowerCase().includes(term);
+  });
+  refs.libraryCategoryFilterEmpty.classList.toggle("hidden", items.length > 0);
+  refs.libraryCategoryFilterEmpty.textContent = state.shell.t("categoryFilterEmpty");
+  for (const category of items) {
+    const id = String(category.category_id || "").trim();
+    const active = normalizeCategoryIds(state.categoryFilterDraftIds).includes(id);
+    const chip = createCategoryChip(category, {
+      active,
+      titleSuffix: ` • ${Math.max(0, Number(category.book_count || 0))}`,
+      onClick: () => {
+        const current = new Set(normalizeCategoryIds(state.categoryFilterDraftIds));
+        if (current.has(id)) current.delete(id);
+        else current.add(id);
+        state.categoryFilterDraftIds = Array.from(current);
+        renderLibraryCategoryFilterList();
+      },
+    });
+    const count = document.createElement("span");
+    count.className = "category-chip-count";
+    count.textContent = String(Math.max(0, Number(category.book_count || 0)));
+    chip.appendChild(count);
+    refs.libraryCategoryFilterList.appendChild(chip);
+  }
+}
+
+function openLibraryCategoryFilterDialog() {
+  state.categoryFilterDraftIds = [...normalizeCategoryIds(state.selectedCategoryIds)];
+  if (refs.libraryCategoryFilterSearch) refs.libraryCategoryFilterSearch.value = "";
+  renderLibraryCategoryFilterList();
+  if (refs.libraryCategoryFilterDialog && !refs.libraryCategoryFilterDialog.open) {
+    refs.libraryCategoryFilterDialog.showModal();
+  }
+}
+
+function applyLibraryCategoryFilter() {
+  state.selectedCategoryIds = normalizeCategoryIds(state.categoryFilterDraftIds);
+  syncLibraryCategoryQuery();
+  updateLibraryFilterBadge();
+  renderBooks();
+  if (refs.libraryCategoryFilterDialog && refs.libraryCategoryFilterDialog.open) {
+    refs.libraryCategoryFilterDialog.close();
+  }
+}
+
+function getCategoryManagerSelected() {
+  return (state.categories || []).find((item) => String(item.category_id || "") === String(state.categoryManagerSelectedId || "")) || null;
+}
+
+function syncCategoryManagerBookSelectionToVisible(checked) {
+  const term = String((refs.categoryManagerBooksSearchInput && refs.categoryManagerBooksSearchInput.value) || "").trim().toLowerCase();
+  const visible = (state.books || []).filter((book) => {
+    const title = normalizeDisplayTitle(book.title_display || book.title || "").toLowerCase();
+    const author = String(book.author_display || book.author || "").trim().toLowerCase();
+    return !term || title.includes(term) || author.includes(term);
+  });
+  for (const book of visible) {
+    const bid = String(book.book_id || "").trim();
+    if (!bid) continue;
+    if (checked) state.categoryManagerBookCheckedIds.add(bid);
+    else state.categoryManagerBookCheckedIds.delete(bid);
+  }
+}
+
+function syncCategoryManagerControls() {
+  const selected = getCategoryManagerSelected();
+  if (refs.categoryManagerNameInput && selected && document.activeElement !== refs.categoryManagerNameInput) {
+    refs.categoryManagerNameInput.value = String(selected.name || "");
+  }
+  if (refs.btnCategoryRename) refs.btnCategoryRename.disabled = !selected;
+  if (refs.btnCategoryDelete) refs.btnCategoryDelete.disabled = !selected;
+  const hasChecked = state.categoryManagerBookCheckedIds.size > 0;
+  if (refs.btnCategoryManagerAddBooks) refs.btnCategoryManagerAddBooks.disabled = !selected || !hasChecked;
+  if (refs.btnCategoryManagerRemoveBooks) refs.btnCategoryManagerRemoveBooks.disabled = !selected || !hasChecked;
+}
+
+function renderCategoryManagerList() {
+  if (!refs.categoryManagerList || !refs.categoryManagerEmpty) return;
+  refs.categoryManagerList.innerHTML = "";
+  const term = String((refs.categoryManagerSearchInput && refs.categoryManagerSearchInput.value) || "").trim().toLowerCase();
+  const items = (state.categories || []).filter((item) => {
+    const name = String((item && item.name) || "").trim();
+    return !term || name.toLowerCase().includes(term);
+  });
+  refs.categoryManagerEmpty.classList.toggle("hidden", items.length > 0);
+  refs.categoryManagerEmpty.textContent = state.shell.t("categoryManagerEmpty");
+  for (const category of items) {
+    const id = String(category.category_id || "").trim();
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "category-manager-item";
+    if (id === state.categoryManagerSelectedId) row.classList.add("active");
+    const name = document.createElement("span");
+    name.className = "category-manager-item-name";
+    name.textContent = String(category.name || "");
+    const count = document.createElement("span");
+    count.className = "tag";
+    count.textContent = String(Math.max(0, Number(category.book_count || 0)));
+    row.append(name, count);
+    row.addEventListener("click", () => {
+      state.categoryManagerSelectedId = id;
+      state.categoryManagerBookCheckedIds = new Set();
+      syncCategoryManagerControls();
+      renderCategoryManagerList();
+      renderCategoryManagerBooks();
+    });
+    refs.categoryManagerList.appendChild(row);
+  }
+  const selected = getCategoryManagerSelected();
+  if (!selected && items.length) {
+    state.categoryManagerSelectedId = String(items[0].category_id || "");
+  }
+  syncCategoryManagerControls();
+}
+
+function renderCategoryManagerBooks() {
+  if (!refs.categoryManagerBooksList || !refs.categoryManagerBooksEmpty || !refs.categoryManagerBooksTitle) return;
+  refs.categoryManagerBooksList.innerHTML = "";
+  const selected = getCategoryManagerSelected();
+  refs.categoryManagerBooksTitle.textContent = selected
+    ? state.shell.t("categoryManagerBooksTitle", { name: selected.name || "" })
+    : state.shell.t("categoryManagerBooksTitleEmpty");
+  if (!selected) {
+    refs.categoryManagerBooksEmpty.classList.remove("hidden");
+    refs.categoryManagerBooksEmpty.textContent = state.shell.t("categoryManagerSelectHint");
+    syncCategoryManagerControls();
+    return;
+  }
+  const selectedId = String(selected.category_id || "");
+  const term = String((refs.categoryManagerBooksSearchInput && refs.categoryManagerBooksSearchInput.value) || "").trim().toLowerCase();
+  const items = (state.books || []).filter((book) => {
+    const title = normalizeDisplayTitle(book.title_display || book.title || "").toLowerCase();
+    const author = String(book.author_display || book.author || "").trim().toLowerCase();
+    return !term || title.includes(term) || author.includes(term);
+  });
+  refs.categoryManagerBooksEmpty.classList.toggle("hidden", items.length > 0);
+  refs.categoryManagerBooksEmpty.textContent = state.shell.t("categoryManagerBooksEmpty");
+  const membershipSet = new Set();
+  for (const book of state.books || []) {
+    if (getBookCategoryIds(book).includes(selectedId)) {
+      membershipSet.add(String(book.book_id || "").trim());
+    }
+  }
+  let visibleChecked = 0;
+  for (const book of items) {
+    const bid = String(book.book_id || "").trim();
+    const row = document.createElement("label");
+    row.className = "category-manager-book-row";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = state.categoryManagerBookCheckedIds.has(bid);
+    if (checkbox.checked) visibleChecked += 1;
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) state.categoryManagerBookCheckedIds.add(bid);
+      else state.categoryManagerBookCheckedIds.delete(bid);
+      syncCategoryManagerControls();
+    });
+
+    const meta = document.createElement("div");
+    meta.className = "category-manager-book-meta";
+    const title = document.createElement("strong");
+    title.textContent = normalizeDisplayTitle(book.title_display || book.title || "");
+    const sub = document.createElement("span");
+    sub.textContent = String(book.author_display || book.author || state.shell.t("unknownAuthor"));
+    meta.append(title, sub);
+
+    const status = document.createElement("span");
+    status.className = membershipSet.has(bid) ? "tag" : "empty-text";
+    status.textContent = membershipSet.has(bid)
+      ? state.shell.t("categoryManagerInCategory")
+      : state.shell.t("categoryManagerNotInCategory");
+
+    row.append(checkbox, meta, status);
+    refs.categoryManagerBooksList.appendChild(row);
+  }
+  if (refs.categoryManagerBooksSelectAll) {
+    refs.categoryManagerBooksSelectAll.checked = items.length > 0 && visibleChecked === items.length;
+    refs.categoryManagerBooksSelectAll.indeterminate = visibleChecked > 0 && visibleChecked < items.length;
+  }
+  syncCategoryManagerControls();
+}
+
+function openCategoryManagerDialog() {
+  if (refs.categoryManagerSearchInput) refs.categoryManagerSearchInput.value = "";
+  if (refs.categoryManagerBooksSearchInput) refs.categoryManagerBooksSearchInput.value = "";
+  state.categoryManagerBookCheckedIds = new Set();
+  if (!state.categoryManagerSelectedId && state.categories.length) {
+    state.categoryManagerSelectedId = String(state.categories[0].category_id || "");
+  }
+  renderCategoryManagerList();
+  renderCategoryManagerBooks();
+  if (refs.categoryManagerDialog && !refs.categoryManagerDialog.open) {
+    refs.categoryManagerDialog.showModal();
+  }
+}
+
+async function createCategoryFromManager() {
+  const name = String((refs.categoryManagerNameInput && refs.categoryManagerNameInput.value) || "").trim();
+  if (!name) {
+    state.shell.showToast(state.shell.t("categoryNameRequired"));
+    return;
+  }
+  try {
+    const data = await state.shell.api("/api/library/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    state.categoryManagerSelectedId = String((data && data.category && data.category.category_id) || "");
+    setCategoriesCatalog(Array.isArray(data && data.items) ? data.items : []);
+    renderBooks();
+    renderCategoryManagerList();
+    renderCategoryManagerBooks();
+    syncSelectedBookActions();
+    state.shell.showToast(state.shell.t("categoryCreated"));
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
+  }
+}
+
+async function renameCategoryFromManager() {
+  const selected = getCategoryManagerSelected();
+  const name = String((refs.categoryManagerNameInput && refs.categoryManagerNameInput.value) || "").trim();
+  if (!selected) {
+    state.shell.showToast(state.shell.t("categoryManagerSelectHint"));
+    return;
+  }
+  if (!name) {
+    state.shell.showToast(state.shell.t("categoryNameRequired"));
+    return;
+  }
+  try {
+    const data = await state.shell.api(`/api/library/categories/${encodeURIComponent(String(selected.category_id || ""))}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    setCategoriesCatalog(Array.isArray(data && data.items) ? data.items : []);
+    renderBooks();
+    renderCategoryManagerList();
+    renderCategoryManagerBooks();
+    syncSelectedBookActions();
+    state.shell.showToast(state.shell.t("categoryRenamed"));
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
+  }
+}
+
+async function deleteCategoryFromManager() {
+  const selected = getCategoryManagerSelected();
+  if (!selected) {
+    state.shell.showToast(state.shell.t("categoryManagerSelectHint"));
+    return;
+  }
+  const confirmed = window.confirm(state.shell.t("confirmDeleteCategory", { name: selected.name || "" }));
+  if (!confirmed) return;
+  try {
+    const data = await state.shell.api(`/api/library/categories/${encodeURIComponent(String(selected.category_id || ""))}`, {
+      method: "DELETE",
+    });
+    state.categoryManagerSelectedId = "";
+    state.categoryManagerBookCheckedIds = new Set();
+    setCategoriesCatalog(Array.isArray(data && data.items) ? data.items : []);
+    renderBooks();
+    renderCategoryManagerList();
+    renderCategoryManagerBooks();
+    syncSelectedBookActions();
+    state.shell.showToast(state.shell.t("categoryDeleted"));
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
+  }
+}
+
+async function applyCategoryManagerBooks(action) {
+  const selected = getCategoryManagerSelected();
+  const bookIds = Array.from(state.categoryManagerBookCheckedIds);
+  if (!selected) {
+    state.shell.showToast(state.shell.t("categoryManagerSelectHint"));
+    return;
+  }
+  if (!bookIds.length) {
+    state.shell.showToast(state.shell.t("categoryManagerBooksChoose"));
+    return;
+  }
+  try {
+    await state.shell.api("/api/library/categories/assign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        book_ids: bookIds,
+        category_ids: [String(selected.category_id || "")],
+        action,
+      }),
+    });
+    applyBooksCategoryActionLocal(bookIds, [String(selected.category_id || "")], action);
+    state.categoryManagerBookCheckedIds = new Set();
+    await loadCategories({ silent: true }).catch(() => null);
+    renderBooks();
+    renderCategoryManagerList();
+    renderCategoryManagerBooks();
+    syncSelectedBookActions();
+    state.shell.showToast(state.shell.t(action === "add" ? "categoryBooksAdded" : "categoryBooksRemoved"));
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
+  }
+}
+
+function renderBookCategoriesDialogList() {
+  if (!refs.bookCategoriesList || !refs.bookCategoriesEmpty) return;
+  refs.bookCategoriesList.innerHTML = "";
+  const term = String((refs.bookCategoriesSearchInput && refs.bookCategoriesSearchInput.value) || "").trim().toLowerCase();
+  const items = (state.categories || []).filter((item) => {
+    const name = String((item && item.name) || "").trim();
+    return !term || name.toLowerCase().includes(term);
+  });
+  refs.bookCategoriesEmpty.classList.toggle("hidden", items.length > 0);
+  refs.bookCategoriesEmpty.textContent = state.shell.t("categoryQuickEmpty");
+  for (const category of items) {
+    const id = String(category.category_id || "").trim();
+    const chip = createCategoryChip(category, {
+      active: normalizeCategoryIds(state.bookCategoriesDraftIds).includes(id),
+      onClick: () => {
+        const next = new Set(normalizeCategoryIds(state.bookCategoriesDraftIds));
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        state.bookCategoriesDraftIds = Array.from(next);
+        renderBookCategoriesDialogList();
+      },
+    });
+    refs.bookCategoriesList.appendChild(chip);
+  }
+}
+
+function openBookCategoriesDialog(bookId = state.selectedBookId) {
+  const bid = String(bookId || "").trim();
+  const book = (state.books || []).find((item) => String(item.book_id || "") === bid);
+  if (!book) return;
+  state.bookCategoriesTargetBookId = bid;
+  state.bookCategoriesDraftIds = getBookCategoryIds(book);
+  if (refs.bookCategoriesSearchInput) refs.bookCategoriesSearchInput.value = "";
+  if (refs.bookCategoriesSubtitle) {
+    refs.bookCategoriesSubtitle.textContent = normalizeDisplayTitle(book.title_display || book.title || "");
+  }
+  renderBookCategoriesDialogList();
+  if (refs.bookCategoriesDialog && !refs.bookCategoriesDialog.open) {
+    refs.bookCategoriesDialog.showModal();
+  }
+}
+
+async function saveBookCategoriesDialog() {
+  const bid = String(state.bookCategoriesTargetBookId || "").trim();
+  if (!bid) return;
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(bid)}/categories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category_ids: normalizeCategoryIds(state.bookCategoriesDraftIds) }),
+    });
+    setBookCategoriesLocal(bid, Array.isArray(data && data.categories) ? data.categories : []);
+    await loadCategories({ silent: true }).catch(() => null);
+    renderBooks();
+    syncSelectedBookActions();
+    renderCategoryManagerList();
+    renderCategoryManagerBooks();
+    if (refs.bookCategoriesDialog && refs.bookCategoriesDialog.open) refs.bookCategoriesDialog.close();
+    state.shell.showToast(state.shell.t("bookCategoriesSaved"));
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
+  }
 }
 
 function renderHistory() {
@@ -1182,6 +1813,17 @@ async function importHistoryItem(item) {
   }
 }
 
+async function loadCategories({ silent = true } = {}) {
+  try {
+    const data = await state.shell.api("/api/library/categories");
+    setCategoriesCatalog(Array.isArray(data && data.items) ? data.items : []);
+    return state.categories;
+  } catch (error) {
+    if (!silent) state.shell.showToast(getErrorMessage(error));
+    throw error;
+  }
+}
+
 async function deleteHistoryItem(historyId) {
   const hid = String(historyId || "").trim();
   if (!hid) return;
@@ -1196,23 +1838,28 @@ async function deleteHistoryItem(historyId) {
 async function loadLibraryData({ silent = false } = {}) {
   const prevBooks = Array.isArray(state.books) ? [...state.books] : [];
   const prevHistory = Array.isArray(state.historyItems) ? [...state.historyItems] : [];
+  const prevCategories = Array.isArray(state.categories) ? [...state.categories] : [];
   if (!silent) {
     state.shell.showStatus(state.shell.t("statusLoadingBooks"));
     renderLibraryLoadingSkeleton();
   }
   try {
-    const [booksData, historyData] = await Promise.all([
+    const [booksData, historyData, categoriesData] = await Promise.all([
       state.shell.api("/api/library/books"),
       state.shell.api("/api/library/history"),
+      state.shell.api("/api/library/categories"),
     ]);
     state.books = booksData.items || [];
     state.historyItems = historyData.items || [];
+    setCategoriesCatalog(Array.isArray(categoriesData && categoriesData.items) ? categoriesData.items : []);
     renderHistory();
     renderBooks();
+    syncSelectedBookActions();
   } catch (error) {
     if (!silent) {
       state.books = prevBooks;
       state.historyItems = prevHistory;
+      state.categories = prevCategories;
       renderHistory();
       renderBooks();
     }
@@ -2207,9 +2854,12 @@ async function init() {
   state.translationMode = typeof state.shell.getTranslationMode === "function"
     ? state.shell.getTranslationMode()
     : "server";
+  state.selectedCategoryIds = parseLibraryCategoryIdsFromQuery();
 
   refs.historyTitle.textContent = state.shell.t("historyTitle");
   refs.libraryTitle.textContent = state.shell.t("libraryTitle");
+  if (refs.libraryFilterLabel) refs.libraryFilterLabel.textContent = state.shell.t("categoryFilterButton");
+  if (refs.btnManageCategories) refs.btnManageCategories.textContent = state.shell.t("categoryManageButton");
 
   refs.bookActionsTitle.textContent = state.shell.t("bookActionsTitle");
   refs.btnCloseBookActions.textContent = state.shell.t("close");
@@ -2219,6 +2869,7 @@ async function init() {
   if (refs.btnActionDownload) refs.btnActionDownload.textContent = state.shell.t("downloadBook");
   if (refs.btnActionExport) refs.btnActionExport.textContent = state.shell.t("exportBook");
   refs.btnActionDeleteBook.textContent = state.shell.t("deleteBook");
+  if (refs.bookActionsCategoriesLabel) refs.bookActionsCategoriesLabel.textContent = state.shell.t("bookCategoriesLabel");
   if (refs.exportDialogTitle) refs.exportDialogTitle.textContent = state.shell.t("exportDialogTitle");
   if (refs.btnCloseExportDialog) refs.btnCloseExportDialog.textContent = state.shell.t("close");
   if (refs.btnCancelExportDialog) refs.btnCancelExportDialog.textContent = state.shell.t("cancel");
@@ -2235,6 +2886,29 @@ async function init() {
   if (refs.downloadJobsEmpty) refs.downloadJobsEmpty.textContent = state.shell.t("downloadJobsEmpty");
   if (refs.exportJobsTitle) refs.exportJobsTitle.textContent = state.shell.t("exportJobsTitle");
   if (refs.exportJobsEmpty) refs.exportJobsEmpty.textContent = state.shell.t("exportJobsEmpty");
+  if (refs.libraryCategoryFilterTitle) refs.libraryCategoryFilterTitle.textContent = state.shell.t("categoryFilterTitle");
+  if (refs.btnCloseLibraryCategoryFilter) refs.btnCloseLibraryCategoryFilter.textContent = state.shell.t("close");
+  if (refs.libraryCategoryFilterHint) refs.libraryCategoryFilterHint.textContent = state.shell.t("categoryFilterHint");
+  if (refs.libraryCategoryFilterSearchLabel) refs.libraryCategoryFilterSearchLabel.textContent = state.shell.t("categorySearchLabel");
+  if (refs.btnLibraryCategoryFilterClear) refs.btnLibraryCategoryFilterClear.textContent = state.shell.t("clearFilter");
+  if (refs.btnLibraryCategoryFilterApply) refs.btnLibraryCategoryFilterApply.textContent = state.shell.t("applyFilter");
+  if (refs.categoryManagerTitle) refs.categoryManagerTitle.textContent = state.shell.t("categoryManagerTitle");
+  if (refs.btnCloseCategoryManager) refs.btnCloseCategoryManager.textContent = state.shell.t("close");
+  if (refs.categoryManagerHint) refs.categoryManagerHint.textContent = state.shell.t("categoryManagerHint");
+  if (refs.categoryManagerSearchLabel) refs.categoryManagerSearchLabel.textContent = state.shell.t("categorySearchLabel");
+  if (refs.categoryManagerNameLabel) refs.categoryManagerNameLabel.textContent = state.shell.t("categoryNameLabel");
+  if (refs.btnCategoryCreate) refs.btnCategoryCreate.textContent = state.shell.t("categoryCreate");
+  if (refs.btnCategoryRename) refs.btnCategoryRename.textContent = state.shell.t("categoryRename");
+  if (refs.btnCategoryDelete) refs.btnCategoryDelete.textContent = state.shell.t("categoryDelete");
+  if (refs.categoryManagerBooksSearchLabel) refs.categoryManagerBooksSearchLabel.textContent = state.shell.t("categoryManagerBooksSearchLabel");
+  if (refs.categoryManagerBooksSelectAllLabel) refs.categoryManagerBooksSelectAllLabel.textContent = state.shell.t("selectAll");
+  if (refs.btnCategoryManagerAddBooks) refs.btnCategoryManagerAddBooks.textContent = state.shell.t("categoryAddBooks");
+  if (refs.btnCategoryManagerRemoveBooks) refs.btnCategoryManagerRemoveBooks.textContent = state.shell.t("categoryRemoveBooks");
+  if (refs.bookCategoriesTitle) refs.bookCategoriesTitle.textContent = state.shell.t("bookCategoriesDialogTitle");
+  if (refs.btnCloseBookCategories) refs.btnCloseBookCategories.textContent = state.shell.t("close");
+  if (refs.bookCategoriesSearchLabel) refs.bookCategoriesSearchLabel.textContent = state.shell.t("categorySearchLabel");
+  if (refs.btnCancelBookCategories) refs.btnCancelBookCategories.textContent = state.shell.t("cancel");
+  if (refs.btnSaveBookCategories) refs.btnSaveBookCategories.textContent = state.shell.t("save");
 
   if (refs.globalJunkTitle) refs.globalJunkTitle.textContent = state.shell.t("junkDialogTitle");
   if (refs.btnCloseGlobalJunk) refs.btnCloseGlobalJunk.textContent = state.shell.t("close");
@@ -2260,6 +2934,55 @@ async function init() {
   if (refs.btnRefreshGlobalDicts) refs.btnRefreshGlobalDicts.textContent = state.shell.t("refreshNamePreview");
 
   refs.btnCloseBookActions.addEventListener("click", closeActions);
+  if (refs.btnLibraryFilter) refs.btnLibraryFilter.addEventListener("click", openLibraryCategoryFilterDialog);
+  if (refs.btnManageCategories) refs.btnManageCategories.addEventListener("click", openCategoryManagerDialog);
+  if (refs.btnCloseLibraryCategoryFilter) refs.btnCloseLibraryCategoryFilter.addEventListener("click", () => {
+    if (refs.libraryCategoryFilterDialog && refs.libraryCategoryFilterDialog.open) refs.libraryCategoryFilterDialog.close();
+  });
+  if (refs.libraryCategoryFilterSearch) refs.libraryCategoryFilterSearch.addEventListener("input", renderLibraryCategoryFilterList);
+  if (refs.btnLibraryCategoryFilterClear) refs.btnLibraryCategoryFilterClear.addEventListener("click", () => {
+    state.categoryFilterDraftIds = [];
+    renderLibraryCategoryFilterList();
+  });
+  if (refs.btnLibraryCategoryFilterApply) refs.btnLibraryCategoryFilterApply.addEventListener("click", applyLibraryCategoryFilter);
+  if (refs.btnBookActionsCategories) refs.btnBookActionsCategories.addEventListener("click", () => {
+    openBookCategoriesDialog(state.selectedBookId);
+  });
+  if (refs.btnCloseBookCategories) refs.btnCloseBookCategories.addEventListener("click", () => {
+    if (refs.bookCategoriesDialog && refs.bookCategoriesDialog.open) refs.bookCategoriesDialog.close();
+  });
+  if (refs.btnCancelBookCategories) refs.btnCancelBookCategories.addEventListener("click", () => {
+    if (refs.bookCategoriesDialog && refs.bookCategoriesDialog.open) refs.bookCategoriesDialog.close();
+  });
+  if (refs.bookCategoriesSearchInput) refs.bookCategoriesSearchInput.addEventListener("input", renderBookCategoriesDialogList);
+  if (refs.btnSaveBookCategories) refs.btnSaveBookCategories.addEventListener("click", () => {
+    saveBookCategoriesDialog().catch(() => {});
+  });
+  if (refs.btnCloseCategoryManager) refs.btnCloseCategoryManager.addEventListener("click", () => {
+    if (refs.categoryManagerDialog && refs.categoryManagerDialog.open) refs.categoryManagerDialog.close();
+  });
+  if (refs.categoryManagerSearchInput) refs.categoryManagerSearchInput.addEventListener("input", renderCategoryManagerList);
+  if (refs.categoryManagerBooksSearchInput) refs.categoryManagerBooksSearchInput.addEventListener("input", renderCategoryManagerBooks);
+  if (refs.categoryManagerBooksSelectAll) refs.categoryManagerBooksSelectAll.addEventListener("change", () => {
+    syncCategoryManagerBookSelectionToVisible(Boolean(refs.categoryManagerBooksSelectAll.checked));
+    renderCategoryManagerBooks();
+  });
+  if (refs.categoryManagerForm) refs.categoryManagerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await createCategoryFromManager();
+  });
+  if (refs.btnCategoryRename) refs.btnCategoryRename.addEventListener("click", () => {
+    renameCategoryFromManager().catch(() => {});
+  });
+  if (refs.btnCategoryDelete) refs.btnCategoryDelete.addEventListener("click", () => {
+    deleteCategoryFromManager().catch(() => {});
+  });
+  if (refs.btnCategoryManagerAddBooks) refs.btnCategoryManagerAddBooks.addEventListener("click", () => {
+    applyCategoryManagerBooks("add").catch(() => {});
+  });
+  if (refs.btnCategoryManagerRemoveBooks) refs.btnCategoryManagerRemoveBooks.addEventListener("click", () => {
+    applyCategoryManagerBooks("remove").catch(() => {});
+  });
   refs.btnActionOpenBook.addEventListener("click", () => {
     if (!state.selectedBookId) return;
     closeActions();
@@ -2479,6 +3202,7 @@ async function init() {
   ]);
   startDownloadPolling();
   startExportPolling();
+  updateLibraryFilterBadge();
 }
 
 init();

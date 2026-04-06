@@ -10,6 +10,10 @@ const refs = {
   bookCover: document.getElementById("book-cover"),
   bookTitleDisplay: document.getElementById("book-title-display"),
   bookSubtitle: document.getElementById("book-subtitle"),
+  bookCategoriesRow: document.getElementById("book-categories-row"),
+  bookCategoriesLabel: document.getElementById("book-categories-label"),
+  bookCategoriesList: document.getElementById("book-categories-list"),
+  btnBookCategoriesEdit: document.getElementById("btn-book-categories-edit"),
   btnOpenExtraLink: document.getElementById("btn-open-extra-link"),
   btnOpenReaderFromBook: document.getElementById("btn-open-reader-from-book"),
   btnDownloadBook: document.getElementById("btn-download-book"),
@@ -103,6 +107,17 @@ const refs = {
   bookNameSuggestRightBody: document.getElementById("book-name-suggest-right-body"),
   btnBookNameSuggestGoogleTranslate: document.getElementById("btn-book-name-suggest-google-translate"),
   btnBookNameSuggestGoogleSearch: document.getElementById("btn-book-name-suggest-google-search"),
+
+  bookCategoriesDialog: document.getElementById("book-categories-dialog"),
+  bookCategoriesDialogTitle: document.getElementById("book-categories-dialog-title"),
+  btnCloseBookCategoriesDialog: document.getElementById("btn-close-book-categories-dialog"),
+  bookCategoriesDialogSubtitle: document.getElementById("book-categories-dialog-subtitle"),
+  bookCategoriesDialogSearchLabel: document.getElementById("book-categories-dialog-search-label"),
+  bookCategoriesDialogSearch: document.getElementById("book-categories-dialog-search"),
+  bookCategoriesDialogList: document.getElementById("book-categories-dialog-list"),
+  bookCategoriesDialogEmpty: document.getElementById("book-categories-dialog-empty"),
+  btnCancelBookCategoriesDialog: document.getElementById("btn-cancel-book-categories-dialog"),
+  btnSaveBookCategoriesDialog: document.getElementById("btn-save-book-categories-dialog"),
 };
 
 const state = {
@@ -121,6 +136,8 @@ const state = {
   bookActiveNameSet: "Mặc định",
   translationEnabled: true,
   translationLocalSig: "{}",
+  categories: [],
+  bookCategoryDraftIds: [],
   downloadWatchTimer: null,
   downloadEventSource: null,
   downloadWatchReconnectTimer: null,
@@ -180,6 +197,118 @@ function setCover(url) {
   }
   refs.bookCover.src = url;
   wrap.classList.add("has-image");
+}
+
+function normalizeCategoryIds(values) {
+  return Array.from(new Set(
+    (Array.isArray(values) ? values : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean),
+  ));
+}
+
+function getBookCategories() {
+  return Array.isArray(state.book && state.book.categories) ? state.book.categories : [];
+}
+
+function createCategoryChip(category, { active = false, onClick = null } = {}) {
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "btn category-chip";
+  if (active) chip.classList.add("active");
+  chip.textContent = String((category && category.name) || "").trim();
+  if (typeof onClick === "function") chip.addEventListener("click", onClick);
+  return chip;
+}
+
+function renderBookCategoriesRow() {
+  if (!refs.bookCategoriesRow || !refs.bookCategoriesList || !refs.bookCategoriesLabel) return;
+  refs.bookCategoriesRow.classList.remove("hidden");
+  refs.bookCategoriesLabel.textContent = state.shell.t("bookCategoriesLabel");
+  refs.bookCategoriesList.innerHTML = "";
+  const items = getBookCategories();
+  if (!items.length) {
+    const empty = document.createElement("span");
+    empty.className = "empty-text";
+    empty.textContent = state.shell.t("bookCategoriesNone");
+    refs.bookCategoriesList.appendChild(empty);
+    return;
+  }
+  for (const category of items) {
+    const chip = createCategoryChip(category);
+    chip.addEventListener("click", () => {
+      const cid = String((category && category.category_id) || "").trim();
+      if (!cid) return;
+      window.location.href = `/library?category_ids=${encodeURIComponent(cid)}`;
+    });
+    refs.bookCategoriesList.appendChild(chip);
+  }
+}
+
+function renderBookCategoriesDialogList() {
+  if (!refs.bookCategoriesDialogList || !refs.bookCategoriesDialogEmpty) return;
+  refs.bookCategoriesDialogList.innerHTML = "";
+  const term = String((refs.bookCategoriesDialogSearch && refs.bookCategoriesDialogSearch.value) || "").trim().toLowerCase();
+  const items = (state.categories || []).filter((item) => {
+    const name = String((item && item.name) || "").trim();
+    return !term || name.toLowerCase().includes(term);
+  });
+  refs.bookCategoriesDialogEmpty.classList.toggle("hidden", items.length > 0);
+  refs.bookCategoriesDialogEmpty.textContent = state.shell.t("categoryQuickEmpty");
+  for (const category of items) {
+    const id = String(category.category_id || "").trim();
+    const chip = createCategoryChip(category, {
+      active: normalizeCategoryIds(state.bookCategoryDraftIds).includes(id),
+      onClick: () => {
+        const next = new Set(normalizeCategoryIds(state.bookCategoryDraftIds));
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        state.bookCategoryDraftIds = Array.from(next);
+        renderBookCategoriesDialogList();
+      },
+    });
+    refs.bookCategoriesDialogList.appendChild(chip);
+  }
+}
+
+async function loadCategories({ silent = true } = {}) {
+  try {
+    const data = await state.shell.api("/api/library/categories");
+    state.categories = Array.isArray(data && data.items) ? data.items : [];
+    return state.categories;
+  } catch (error) {
+    if (!silent) state.shell.showToast(error.message || state.shell.t("toastError"));
+    throw error;
+  }
+}
+
+async function openBookCategoriesDialog() {
+  await loadCategories({ silent: true }).catch(() => null);
+  state.bookCategoryDraftIds = normalizeCategoryIds(getBookCategories().map((item) => item && item.category_id));
+  if (refs.bookCategoriesDialogSubtitle) {
+    refs.bookCategoriesDialogSubtitle.textContent = normalizeDisplayTitle((state.book && (state.book.title_display || state.book.title)) || "");
+  }
+  if (refs.bookCategoriesDialogSearch) refs.bookCategoriesDialogSearch.value = "";
+  renderBookCategoriesDialogList();
+  if (refs.bookCategoriesDialog && !refs.bookCategoriesDialog.open) refs.bookCategoriesDialog.showModal();
+}
+
+async function saveBookCategories() {
+  if (!state.bookId) return;
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/categories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category_ids: normalizeCategoryIds(state.bookCategoryDraftIds) }),
+    });
+    if (state.book) state.book.categories = Array.isArray(data && data.categories) ? data.categories : [];
+    await loadCategories({ silent: true }).catch(() => null);
+    renderBookCategoriesRow();
+    if (refs.bookCategoriesDialog && refs.bookCategoriesDialog.open) refs.bookCategoriesDialog.close();
+    state.shell.showToast(state.shell.t("bookCategoriesSaved"));
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  }
 }
 
 function createSkeletonBlock(className = "") {
@@ -329,6 +458,7 @@ function populateBook() {
   }
 
   setCover(book.cover_url || "");
+  renderBookCategoriesRow();
   refs.btnOpenExtraLink.disabled = !(book.extra_link || "").trim();
   if (refs.btnDownloadBook) {
     const downloaded = Math.max(0, Number(book.downloaded_chapters || 0));
@@ -1155,6 +1285,7 @@ async function init() {
   refs.bookInfoTitle.textContent = state.shell.t("bookInfoTitle");
   refs.bookEmpty.textContent = `${state.shell.t("noBookSelected")}. ${state.shell.t("noBookSelectedHint")}`;
   refs.btnOpenExtraLink.textContent = state.shell.t("openExtraLink");
+  if (refs.bookCategoriesLabel) refs.bookCategoriesLabel.textContent = state.shell.t("bookCategoriesLabel");
   refs.btnOpenReaderFromBook.textContent = state.shell.t("openBookFromInfo");
   if (refs.btnDownloadBook) refs.btnDownloadBook.textContent = state.shell.t("downloadBook");
   refs.btnOpenBookNames.textContent = state.shell.t("bookPrivateNames");
@@ -1220,6 +1351,11 @@ async function init() {
   refs.bookNameSuggestColAction.textContent = state.shell.t("nameSuggestColAction");
   refs.btnBookNameSuggestGoogleTranslate.textContent = state.shell.t("nameSuggestGoogleTranslate");
   refs.btnBookNameSuggestGoogleSearch.textContent = state.shell.t("nameSuggestGoogleSearch");
+  if (refs.bookCategoriesDialogTitle) refs.bookCategoriesDialogTitle.textContent = state.shell.t("bookCategoriesDialogTitle");
+  if (refs.btnCloseBookCategoriesDialog) refs.btnCloseBookCategoriesDialog.textContent = state.shell.t("close");
+  if (refs.bookCategoriesDialogSearchLabel) refs.bookCategoriesDialogSearchLabel.textContent = state.shell.t("categorySearchLabel");
+  if (refs.btnCancelBookCategoriesDialog) refs.btnCancelBookCategoriesDialog.textContent = state.shell.t("cancel");
+  if (refs.btnSaveBookCategoriesDialog) refs.btnSaveBookCategoriesDialog.textContent = state.shell.t("save");
   renderBookInfoSkeleton();
   renderTocSkeleton();
 
@@ -1231,6 +1367,19 @@ async function init() {
   refs.btnOpenReaderFromBook.addEventListener("click", () => {
     if (!state.bookId) return;
     window.location.href = `/reader?book_id=${encodeURIComponent(state.bookId)}`;
+  });
+  if (refs.btnBookCategoriesEdit) refs.btnBookCategoriesEdit.addEventListener("click", () => {
+    openBookCategoriesDialog().catch(() => {});
+  });
+  if (refs.btnCloseBookCategoriesDialog) refs.btnCloseBookCategoriesDialog.addEventListener("click", () => {
+    if (refs.bookCategoriesDialog && refs.bookCategoriesDialog.open) refs.bookCategoriesDialog.close();
+  });
+  if (refs.btnCancelBookCategoriesDialog) refs.btnCancelBookCategoriesDialog.addEventListener("click", () => {
+    if (refs.bookCategoriesDialog && refs.bookCategoriesDialog.open) refs.bookCategoriesDialog.close();
+  });
+  if (refs.bookCategoriesDialogSearch) refs.bookCategoriesDialogSearch.addEventListener("input", renderBookCategoriesDialogList);
+  if (refs.btnSaveBookCategoriesDialog) refs.btnSaveBookCategoriesDialog.addEventListener("click", () => {
+    saveBookCategories().catch(() => {});
   });
   if (refs.btnDownloadBook) refs.btnDownloadBook.addEventListener("click", () => {
     downloadBookChapters().catch(() => {});
@@ -1447,7 +1596,10 @@ async function init() {
   state.bookId = (query.book_id || "").trim();
   state.mode = (query.mode || "trans").toLowerCase() === "raw" ? "raw" : "trans";
 
-  await loadBook({ refreshOnline: true, showSkeleton: true });
+  await Promise.all([
+    loadCategories({ silent: true }).catch(() => null),
+    loadBook({ refreshOnline: true, showSkeleton: true }),
+  ]);
   await loadToc(1, { showSkeleton: true });
   startDownloadWatcher();
 }

@@ -42,6 +42,8 @@ def fetch_one_chapter(
     on_attempt: Callable[[int], None] | None = None,
     chapter_cache_available: Callable[[dict[str, Any], dict[str, Any]], bool],
     fetch_remote_chapter: Callable[[dict[str, Any], dict[str, Any]], Any],
+    repair_cached_chapter: Callable[[dict[str, Any], dict[str, Any]], Any] | None = None,
+    after_remote_fetch: Callable[[dict[str, Any], dict[str, Any], Any], Any] | None = None,
 ) -> tuple[bool, str]:
     retries = max(0, int(retry_count or 0))
     delay_sec = max(0.0, float(retry_delay_sec or 0.0))
@@ -57,9 +59,20 @@ def fetch_one_chapter(
                 pass
         if chapter_cache_available(chapter, book):
             return (True, "")
+        if callable(repair_cached_chapter):
+            try:
+                repair_cached_chapter(chapter, book)
+            except Exception as exc:
+                last_error = str(exc or "").strip() or "Không hoàn tất được dữ liệu chương đã cache."
+            else:
+                last_error = ""
+            if chapter_cache_available(chapter, book):
+                return (True, "")
         if source_type.startswith("vbook"):
             try:
-                fetch_remote_chapter(chapter, book)
+                payload = fetch_remote_chapter(chapter, book)
+                if callable(after_remote_fetch):
+                    after_remote_fetch(chapter, book, payload)
             except Exception as exc:
                 last_error = str(exc or "").strip() or "Không tải được nội dung chương."
             else:

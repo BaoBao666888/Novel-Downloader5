@@ -73,6 +73,9 @@ def list_books(
             sql += "\nWHERE lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'"
         sql += "\nORDER BY b.updated_at DESC"
         rows = conn.execute(sql).fetchall()
+    category_map = storage.get_book_categories_map(
+        [str(dict(row).get("book_id") or "").strip() for row in rows]
+    )
     output: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
@@ -112,6 +115,7 @@ def list_books(
         else:
             downloaded_count = 0
         item["downloaded_chapters"] = max(0, min(total, int(downloaded_count or 0)))
+        item["categories"] = category_map.get(str(item.get("book_id") or "").strip(), [])
         output.append(item)
     return output
 
@@ -429,6 +433,7 @@ def get_book_detail(
         return None
     chapters = storage.get_chapter_rows(book_id) if include_chapters else []
     download_map = storage.get_book_download_map(book_id) if include_chapters else {}
+    categories = storage.get_book_categories(book_id)
     if include_chapters:
         downloaded_count = sum(1 for value in download_map.values() if value)
     else:
@@ -457,6 +462,7 @@ def get_book_detail(
         for ch in chapters
     ] if include_chapters else []
     book["downloaded_chapters"] = int(max(0, min(int(book.get("chapter_count") or len(chapters) or 0), downloaded_count)))
+    book["categories"] = categories
     return book
 
 

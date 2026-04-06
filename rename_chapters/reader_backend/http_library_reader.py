@@ -168,6 +168,53 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         books = service.list_books()
         return {"items": books}
 
+    if method == "GET" and path == "/api/library/categories":
+        return {"ok": True, "items": storage.list_categories()}
+
+    if method == "POST" and path == "/api/library/categories":
+        payload = handler._read_json_body()
+        try:
+            category = storage.create_category(payload.get("name") or "")
+        except ValueError as exc:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", str(exc)) from exc
+        return {"ok": True, "category": category, "items": storage.list_categories()}
+
+    if method == "POST" and path == "/api/library/categories/assign":
+        payload = handler._read_json_body()
+        try:
+            result = storage.update_books_categories(
+                book_ids=payload.get("book_ids") or [],
+                category_ids=payload.get("category_ids") or [],
+                action=payload.get("action") or "",
+            )
+        except ValueError as exc:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", str(exc)) from exc
+        except LookupError as exc:
+            raise api_error(http_status.NOT_FOUND, "NOT_FOUND", str(exc)) from exc
+        return {"ok": True, **result}
+
+    if method == "POST" and path.startswith("/api/library/categories/"):
+        category_id = path.removeprefix("/api/library/categories/").strip("/")
+        if not category_id:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu category_id.")
+        payload = handler._read_json_body()
+        try:
+            category = storage.rename_category(category_id, payload.get("name") or "")
+        except ValueError as exc:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", str(exc)) from exc
+        except LookupError as exc:
+            raise api_error(http_status.NOT_FOUND, "NOT_FOUND", str(exc)) from exc
+        return {"ok": True, "category": category, "items": storage.list_categories()}
+
+    if method == "DELETE" and path.startswith("/api/library/categories/"):
+        category_id = path.removeprefix("/api/library/categories/").strip("/")
+        if not category_id:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu category_id.")
+        deleted = storage.delete_category(category_id)
+        if not deleted:
+            raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy danh mục.")
+        return {"ok": True, "items": storage.list_categories()}
+
     if method == "GET" and path == "/api/library/history":
         items = service.list_history_books()
         return {"ok": True, "items": items, "count": len(items)}
@@ -297,6 +344,17 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
             return {"ok": True, "book": updated}
         raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu file cover hoặc cover_url.")
+
+    if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/categories"):
+        book_id = path.removeprefix("/api/library/book/").removesuffix("/categories").strip("/")
+        payload = handler._read_json_body()
+        try:
+            categories = storage.set_book_categories(book_id, payload.get("category_ids") or [])
+        except ValueError as exc:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", str(exc)) from exc
+        except LookupError as exc:
+            raise api_error(http_status.NOT_FOUND, "NOT_FOUND", str(exc)) from exc
+        return {"ok": True, "book_id": book_id, "categories": categories}
 
     if method == "GET" and path.startswith("/api/library/book/"):
         book_id = path.removeprefix("/api/library/book/").strip()

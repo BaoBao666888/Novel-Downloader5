@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260406-skeleton1">
+  <link rel="stylesheet" href="./styles.css?v=20260406-categories1">
 </head>
 
 <body data-page="book" class="mpa-body">
@@ -140,6 +140,11 @@
           <div class="book-hero-info">
             <h3 id="book-title-display"></h3>
             <p id="book-subtitle"></p>
+            <div id="book-categories-row" class="category-inline-row hidden">
+              <span id="book-categories-label" class="category-inline-label"></span>
+              <div id="book-categories-list" class="category-inline-list"></div>
+              <button id="btn-book-categories-edit" class="btn btn-small category-inline-add" type="button">+</button>
+            </div>
             <button id="btn-open-extra-link" class="btn btn-small" type="button"></button>
           </div>
         </div>
@@ -274,6 +279,24 @@
         <button id="btn-confirm-book-name-bulk" class="btn btn-primary" type="submit"></button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="book-categories-dialog" class="dialog category-dialog">
+    <div class="dialog-head">
+      <h3 id="book-categories-dialog-title"></h3>
+      <button id="btn-close-book-categories-dialog" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="book-categories-dialog-subtitle" class="dialog-subtitle"></p>
+    <label class="category-search-field">
+      <span id="book-categories-dialog-search-label"></span>
+      <input id="book-categories-dialog-search" type="search" autocomplete="off">
+    </label>
+    <div id="book-categories-dialog-list" class="category-chip-picker"></div>
+    <p id="book-categories-dialog-empty" class="empty-text hidden"></p>
+    <div class="dialog-actions">
+      <button id="btn-cancel-book-categories-dialog" class="btn" type="button"></button>
+      <button id="btn-save-book-categories-dialog" class="btn btn-primary" type="button"></button>
+    </div>
   </dialog>
 
   <dialog id="book-name-suggest-dialog" class="dialog name-editor-dialog">
@@ -433,7 +456,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/book_page.js?v=20260406-bookskeleton1"></script>
+  <script type="module" src="./js/pages/book_page.js?v=20260406-bookcategories1"></script>
 </body>
 
 </html>

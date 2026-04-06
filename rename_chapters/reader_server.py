@@ -51,6 +51,7 @@ from reader_backend import service_library as service_library_support
 from reader_backend import service_local_import as service_local_import_support
 from reader_backend import service_user_state as service_user_state_support
 from reader_backend import storage_book_cleanup as storage_book_cleanup_support
+from reader_backend import storage_book_categories as storage_book_categories_support
 from reader_backend import storage_history as storage_history_support
 from reader_backend import storage_book_mutation as storage_book_mutation_support
 from reader_backend import storage_book_titles as storage_book_titles_support
@@ -3334,6 +3335,26 @@ class ReaderStorage:
 
                 CREATE INDEX IF NOT EXISTS idx_history_books_expire
                 ON history_books(expire_at);
+
+                CREATE TABLE IF NOT EXISTS book_categories (
+                    category_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS book_category_map (
+                    book_id TEXT NOT NULL,
+                    category_id TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(book_id, category_id),
+                    FOREIGN KEY(book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+                    FOREIGN KEY(category_id) REFERENCES book_categories(category_id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_book_category_map_category
+                ON book_category_map(category_id, book_id);
                 """
             )
             self._ensure_column(conn, "books", "title_vi", "TEXT")
@@ -3951,6 +3972,42 @@ class ReaderStorage:
 
     def get_book_download_counts(self, book_id: str) -> tuple[int, int]:
         return storage_library_support.get_book_download_counts(self, book_id)
+
+    def list_categories(self) -> list[dict[str, Any]]:
+        return storage_book_categories_support.list_categories(self)
+
+    def get_book_categories(self, book_id: str) -> list[dict[str, Any]]:
+        return storage_book_categories_support.get_book_categories(self, book_id)
+
+    def get_book_categories_map(self, book_ids: list[str] | tuple[str, ...] | set[str]) -> dict[str, list[dict[str, Any]]]:
+        return storage_book_categories_support.get_book_categories_map(self, book_ids)
+
+    def create_category(self, name: str) -> dict[str, Any]:
+        return storage_book_categories_support.create_category(self, name, utc_now_iso=utc_now_iso)
+
+    def rename_category(self, category_id: str, name: str) -> dict[str, Any]:
+        return storage_book_categories_support.rename_category(self, category_id, name, utc_now_iso=utc_now_iso)
+
+    def delete_category(self, category_id: str) -> bool:
+        return storage_book_categories_support.delete_category(self, category_id)
+
+    def set_book_categories(self, book_id: str, category_ids: list[str] | tuple[str, ...] | set[str]) -> list[dict[str, Any]]:
+        return storage_book_categories_support.set_book_categories(self, book_id, category_ids, utc_now_iso=utc_now_iso)
+
+    def update_books_categories(
+        self,
+        *,
+        book_ids: list[str] | tuple[str, ...] | set[str],
+        category_ids: list[str] | tuple[str, ...] | set[str],
+        action: str,
+    ) -> dict[str, int]:
+        return storage_book_categories_support.update_books_categories(
+            self,
+            book_ids=book_ids,
+            category_ids=category_ids,
+            action=action,
+            utc_now_iso=utc_now_iso,
+        )
 
     def update_chapter_trans(self, chapter_id: str, trans_key: str, trans_sig: str | None = None) -> None:
         storage_book_mutation_support.update_chapter_trans(
@@ -6484,6 +6541,35 @@ class ReaderService:
             )
             self._download_cv.notify_all()
 
+    def _ensure_comic_chapter_image_cache(
+        self,
+        chapter: dict[str, Any],
+        book: dict[str, Any],
+        raw_payload: str | None = None,
+    ) -> None:
+        if not is_book_comic(book):
+            return
+        payload_text = str(raw_payload or "")
+        if not payload_text:
+            raw_key = str((chapter or {}).get("raw_key") or "").strip()
+            if raw_key:
+                payload_text = self.storage.read_cache(raw_key) or ""
+        comic_payload = decode_comic_payload(payload_text)
+        images = [str(x).strip() for x in ((comic_payload or {}).get("images") or []) if str(x).strip()]
+        if not images:
+            return
+        plugin_id = str((book or {}).get("source_plugin") or "").strip()
+        referer = str((chapter or {}).get("remote_url") or (book or {}).get("source_url") or "").strip()
+        for image_url in images:
+            if self._read_vbook_image_cache(image_url=image_url, plugin_id=plugin_id) is not None:
+                continue
+            self.fetch_vbook_image(
+                image_url=image_url,
+                plugin_id=plugin_id,
+                referer=referer,
+                use_cache=True,
+            )
+
     def _download_fetch_one_chapter(
         self,
         chapter: dict[str, Any],
@@ -6503,6 +6589,15 @@ class ReaderService:
             on_attempt=on_attempt,
             chapter_cache_available=self._chapter_cache_available,
             fetch_remote_chapter=self._fetch_remote_chapter,
+            repair_cached_chapter=lambda current_chapter, current_book: self._ensure_comic_chapter_image_cache(
+                current_chapter,
+                current_book,
+            ),
+            after_remote_fetch=lambda current_chapter, current_book, payload: self._ensure_comic_chapter_image_cache(
+                current_chapter,
+                current_book,
+                str(payload or ""),
+            ),
         )
 
     def _ensure_download_stop_event(self, job: dict[str, Any]) -> threading.Event:
