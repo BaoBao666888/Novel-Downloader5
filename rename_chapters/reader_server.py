@@ -2848,6 +2848,22 @@ class TranslationAdapter:
             return normalize_name_set(name_set_override)
         return self._active_name_set()
 
+    def _global_server_name_overrides(self) -> dict[str, str]:
+        reader_cfg = self.app_config.get("reader_translation") or {}
+        if not isinstance(reader_cfg, dict):
+            return {}
+        global_dicts = reader_cfg.get("global_dicts")
+        if not isinstance(global_dicts, dict):
+            return {}
+        return normalize_name_set(global_dicts.get("name"))
+
+    def _server_name_set_for_use(self, name_set_override: dict[str, str] | None = None) -> dict[str, str]:
+        merged = self._global_server_name_overrides()
+        active = self._name_set_for_use(name_set_override)
+        if active:
+            merged.update(active)
+        return merged
+
     def translation_signature(
         self,
         mode: str = "server",
@@ -2857,12 +2873,17 @@ class TranslationAdapter:
         mode_norm = (mode or "server").strip().lower()
         if mode_norm not in {"server", "local", "hanviet"}:
             mode_norm = "server"
+        effective_name_set = (
+            self._server_name_set_for_use(name_set_override)
+            if mode_norm == "server"
+            else self._name_set_for_use(name_set_override)
+        )
         payload: dict[str, Any] = {
             "mode": mode_norm,
             "active_set": str(self.active_set_name or "Mặc định"),
             "version": int(self.name_set_version or 1),
             "text_norm_version": 9,
-            "name_set": self._name_set_for_use(name_set_override),
+            "name_set": effective_name_set,
         }
         if mode_norm in {"local", "hanviet"}:
             local_settings = self._local_settings()
@@ -2907,7 +2928,11 @@ class TranslationAdapter:
             }
 
         settings = self._settings()
-        name_set = self._name_set_for_use(name_set_override)
+        name_set = (
+            self._server_name_set_for_use(name_set_override)
+            if mode_norm == "server"
+            else self._name_set_for_use(name_set_override)
+        )
         vp_set = normalize_name_set(vp_set_override or {})
 
         if mode_norm in {"local", "hanviet"}:
@@ -5497,10 +5522,12 @@ class ReaderService:
                         vp_set_override=active_vp_set,
                     ) or raw_title
                 else:
-                    chapter_title = normalize_vi_display_text(chapter.get("title_vi") or "") or self._translate_ui_text(
+                    chapter_title = normalize_vi_display_text(chapter.get("title_vi") or "") or self._translate_ui_text_with_dicts(
                         raw_title,
                         single_line=True,
                         mode=translate_mode,
+                        name_set_override=active_name_set,
+                        vp_set_override=active_vp_set,
                     ) or raw_title
             needs_translation = False
             if use_translated_text and current_sig and downloaded:

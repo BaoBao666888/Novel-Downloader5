@@ -85,9 +85,27 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                 vp_set_override=active_vp_set,
             ) or raw_summary
         else:
-            book["title_display"] = title_vi or handler.service._translate_ui_text(raw_title, single_line=True) or raw_title
-            book["author_display"] = author_vi or handler.service._translate_ui_text(raw_author, single_line=True) or raw_author
-            book["summary_display"] = handler.service._translate_ui_text(raw_summary, single_line=False) or raw_summary
+            book["title_display"] = title_vi or handler.service._translate_ui_text_with_dicts(
+                raw_title,
+                single_line=True,
+                mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            ) or raw_title
+            book["author_display"] = author_vi or handler.service._translate_ui_text_with_dicts(
+                raw_author,
+                single_line=True,
+                mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            ) or raw_author
+            book["summary_display"] = handler.service._translate_ui_text_with_dicts(
+                raw_summary,
+                single_line=False,
+                mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            ) or raw_summary
         chapters = book.get("chapters")
         if isinstance(chapters, list):
             for row in chapters:
@@ -104,7 +122,13 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                         vp_set_override=active_vp_set,
                     ) or row_title_raw
                 else:
-                    row["title_display"] = row_title_vi or row_title_raw
+                    row["title_display"] = row_title_vi or handler.service._translate_ui_text_with_dicts(
+                        row_title_raw,
+                        single_line=True,
+                        mode=translate_mode,
+                        name_set_override=active_name_set,
+                        vp_set_override=active_vp_set,
+                    ) or row_title_raw
     else:
         book["translation_supported"] = False
         book["title_display"] = deps.normalize_vbook_display_text(str(book.get("title") or ""), single_line=True) or str(book.get("title") or "")
