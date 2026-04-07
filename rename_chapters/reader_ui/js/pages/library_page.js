@@ -1246,6 +1246,48 @@ function createLibraryBookCardShell(book, renderToken) {
   return card;
 }
 
+function renderHistoryLoadingSkeleton(count = 4) {
+  if (!refs.historyGrid || !refs.historyCount || !refs.historyEmpty) return;
+  refs.historyGrid.innerHTML = "";
+  refs.historyCount.textContent = state.shell.t("historyCount", { count: 0 });
+  refs.historyEmpty.classList.add("hidden");
+  const total = Math.max(1, Math.min(8, Number(count || 0) || 4));
+  for (let index = 0; index < total; index += 1) {
+    const card = document.createElement("article");
+    card.className = "book-card book-card-shell";
+    card.setAttribute("aria-hidden", "true");
+
+    const cover = document.createElement("div");
+    cover.className = "book-card-cover book-card-cover-skeleton";
+    cover.appendChild(createSkeletonBlock("book-card-cover-glow"));
+
+    const body = document.createElement("div");
+    body.className = "book-card-shell-body";
+    body.append(
+      createSkeletonBlock("book-card-skeleton-title"),
+      createSkeletonBlock("book-card-skeleton-meta"),
+      createSkeletonBlock("book-card-skeleton-meta"),
+    );
+    const progressRow = document.createElement("div");
+    progressRow.className = "book-card-progress-row";
+    progressRow.append(
+      createSkeletonBlock("book-card-skeleton-text"),
+      createSkeletonBlock("book-card-skeleton-pill"),
+    );
+    const toolRow = document.createElement("div");
+    toolRow.className = "book-card-tools";
+    toolRow.append(
+      createSkeletonBlock("book-card-skeleton-chip"),
+      createSkeletonBlock("book-card-skeleton-chip"),
+      createSkeletonBlock("book-card-skeleton-chip"),
+    );
+    body.append(progressRow, toolRow);
+
+    card.append(cover, body);
+    refs.historyGrid.appendChild(card);
+  }
+}
+
 function populateLibraryBookCard(card, book) {
   card.innerHTML = "";
   card.classList.remove("book-card-shell");
@@ -1954,10 +1996,14 @@ async function loadCategories({ silent = true } = {}) {
 async function deleteHistoryItem(historyId) {
   const hid = String(historyId || "").trim();
   if (!hid) return;
+  const prevItems = Array.isArray(state.historyItems) ? [...state.historyItems] : [];
+  state.historyItems = prevItems.filter((item) => String((item && item.history_id) || "").trim() !== hid);
+  renderHistory();
   try {
     await state.shell.api(`/api/library/history/${encodeURIComponent(hid)}`, { method: "DELETE" });
-    await loadLibraryData();
   } catch (error) {
+    state.historyItems = prevItems;
+    renderHistory();
     state.shell.showToast(getErrorMessage(error));
   }
 }
@@ -1968,6 +2014,7 @@ async function loadLibraryData({ silent = false } = {}) {
   const prevCategories = Array.isArray(state.categories) ? [...state.categories] : [];
   if (!silent) {
     state.shell.showStatus(state.shell.t("statusLoadingBooks"));
+    renderHistoryLoadingSkeleton();
     renderLibraryLoadingSkeleton();
   }
   try {

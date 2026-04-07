@@ -10252,7 +10252,52 @@ class ReaderService:
                 {"book_id": book.get("book_id"), "source_url": book.get("source_url"), "remote_url": remote_url},
             )
 
-        data = self._run_vbook_script(plugin, "chap", [remote_url])
+        plugin_id_norm = str(getattr(plugin, "plugin_id", "") or "").strip().lower()
+        plugin_name_norm = str(getattr(plugin, "name", "") or "").strip().lower()
+        plugin_source_norm = str(getattr(plugin, "source", "") or "").strip().lower()
+        book_source_url_norm = str((book or {}).get("source_url") or "").strip().lower()
+        remote_url_norm = remote_url.lower()
+        po18_like = any(
+            "po18" in raw
+            for raw in (
+                plugin_id_norm,
+                plugin_name_norm,
+                plugin_source_norm,
+                book_source_url_norm,
+                remote_url_norm,
+            )
+            if raw
+        )
+        is_vip = bool((chapter or {}).get("is_vip"))
+        vip_sentinel = remote_url_norm.endswith("/error") or remote_url_norm.rstrip("/").endswith("/error")
+        try:
+            data = self._run_vbook_script(plugin, "chap", [remote_url])
+        except ApiError as exc:
+            message_text = str(getattr(exc, "message", "") or str(exc)).strip().lower()
+            generic_like = (
+                ("không tải được chương từ nguồn" in message_text)
+                or ("chương không có nội dung hợp lệ" in message_text)
+                or ("nguồn chưa trả nội dung chương hợp lệ" in message_text)
+            )
+            if po18_like and (is_vip or vip_sentinel) and generic_like:
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_CHAP_EMPTY",
+                    (
+                        "Chương VIP này chưa mở được. Hãy đăng nhập đúng tài khoản PO18, mua chương này trên web, "
+                        "rồi quay lại tải lại mục lục/chương."
+                    ),
+                    {
+                        "book_id": str((book or {}).get("book_id") or ""),
+                        "chapter_id": str((chapter or {}).get("chapter_id") or ""),
+                        "remote_url": remote_url,
+                        "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                        "is_vip": is_vip,
+                        "po18_like": po18_like,
+                        "vip_sentinel": vip_sentinel,
+                    },
+                ) from exc
+            raise
         content = ""
         is_comic = bool(is_book_comic(book))
         if isinstance(data, dict):
@@ -10301,9 +10346,8 @@ class ReaderService:
                 )
         else:
             if not str(core or "").strip():
-                is_vip = bool((chapter or {}).get("is_vip"))
                 empty_message = "Chương không có nội dung hợp lệ."
-                if is_vip:
+                if is_vip or vip_sentinel:
                     empty_message = (
                         "Chương VIP này chưa mở được. Hãy đăng nhập đúng tài khoản PO18, mua chương này trên web, "
                         "rồi quay lại tải lại mục lục/chương."
@@ -10318,6 +10362,8 @@ class ReaderService:
                         "remote_url": remote_url,
                         "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
                         "is_vip": is_vip,
+                        "po18_like": po18_like,
+                        "vip_sentinel": vip_sentinel,
                     },
                 )
 

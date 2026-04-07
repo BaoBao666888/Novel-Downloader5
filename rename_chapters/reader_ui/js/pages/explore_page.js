@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260406-vbookonline1";
+import { initShell } from "../site_common.js?v=20260407-historyvip1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 
 const refs = {
@@ -218,6 +218,19 @@ const state = {
   translationMode: "server",
   translationLocalSig: "{}",
 };
+
+function populateChapterTitleNode(node, title, isVip = false) {
+  if (!node) return;
+  node.textContent = "";
+  const text = document.createElement("span");
+  text.textContent = normalizeDisplayTitle(title || "");
+  node.appendChild(text);
+  if (!isVip) return;
+  const badge = document.createElement("span");
+  badge.className = "chapter-vip-badge";
+  badge.textContent = state.shell ? state.shell.t("vipBadge") : "VIP";
+  node.appendChild(badge);
+}
 
 function localTranslationSettingsSignature(shell) {
   try {
@@ -1548,7 +1561,7 @@ function renderVbookDetail() {
       }
       const titleNode = document.createElement("div");
       titleNode.className = "chapter-hit-title";
-      titleNode.textContent = normalizeDisplayTitle(row.title || `Chương ${row.index || "?"}`);
+      populateChapterTitleNode(titleNode, row.title || `Chương ${row.index || "?"}`, Boolean(row.is_vip));
       const sub = document.createElement("div");
       sub.className = "chapter-hit-sub";
       sub.textContent = `#${row.index || "?"}`;
