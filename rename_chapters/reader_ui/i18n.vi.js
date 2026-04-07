@@ -177,6 +177,8 @@ export const STRINGS = {
   viewAuthorVi: "Tác giả dịch",
   viewSummary: "Văn án",
   viewExtraLink: "Link bổ sung",
+  viewSourceDetail: "Chi tiết từ nguồn",
+  viewSourceFields: "Trường mở rộng từ ext",
   openBookFromInfo: "Mở trang đọc",
   bookPrivateNames: "Name riêng",
   bookPrivateNamesTitle: "Bộ Name riêng của truyện",

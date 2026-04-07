@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260407-themecustom1";
+import { initShell } from "../site_common.js?v=20260407-bookdetail1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -26,12 +26,18 @@ const refs = {
   labelViewAuthorVi: document.getElementById("label-view-author-vi"),
   labelViewSummary: document.getElementById("label-view-summary"),
   labelViewExtraLink: document.getElementById("label-view-extra-link"),
+  labelViewSourceDetail: document.getElementById("label-view-source-detail"),
+  labelViewSourceFields: document.getElementById("label-view-source-fields"),
   viewTitle: document.getElementById("view-title"),
   viewTitleVi: document.getElementById("view-title-vi"),
   viewAuthor: document.getElementById("view-author"),
   viewAuthorVi: document.getElementById("view-author-vi"),
   viewSummary: document.getElementById("view-summary"),
   viewExtraLink: document.getElementById("view-extra-link"),
+  viewSourceDetailItem: document.getElementById("view-source-detail-item"),
+  viewSourceFieldsItem: document.getElementById("view-source-fields-item"),
+  viewSourceDetail: document.getElementById("view-source-detail"),
+  viewSourceFields: document.getElementById("view-source-fields"),
 
   tocTitle: document.getElementById("toc-title"),
   btnTocModeRaw: document.getElementById("btn-toc-mode-raw"),
@@ -145,6 +151,7 @@ const state = {
   downloadWatchSig: "",
   downloadWatchHadActive: false,
   downloadWatchIdleTicks: 0,
+  onlineDetailRequestId: 0,
 };
 
 const TOC_ICON_MARKUP = Object.freeze({
@@ -255,6 +262,76 @@ function renderBookCategoriesRow() {
       window.location.href = `/library?category_ids=${encodeURIComponent(cid)}`;
     });
     refs.bookCategoriesList.appendChild(chip);
+  }
+}
+
+function renderBookOnlineDetail(detail) {
+  if (!(refs.viewSourceDetailItem && refs.viewSourceFieldsItem && refs.viewSourceDetail && refs.viewSourceFields)) return;
+  const payload = (detail && typeof detail === "object") ? detail : {};
+  const detailParts = [];
+  const detailText = normalizeParagraphDisplayText(payload.detail || payload.info_text || payload.status_text || "");
+  if (detailText) detailParts.push(detailText);
+  refs.viewSourceDetail.textContent = detailParts.join("\n\n");
+  refs.viewSourceDetailItem.classList.toggle("hidden", detailParts.length <= 0);
+
+  refs.viewSourceFields.innerHTML = "";
+  const fields = Array.isArray(payload.extra_fields) ? payload.extra_fields : [];
+  const fieldRows = fields
+    .map((item) => ({
+      key: normalizeDisplayTitle((item && item.key) || ""),
+      value: normalizeParagraphDisplayText((item && item.value) || "", { singleLine: true }),
+    }))
+    .filter((item) => item.key || item.value);
+  refs.viewSourceFieldsItem.classList.toggle("hidden", fieldRows.length <= 0);
+  for (const row of fieldRows) {
+    const chip = document.createElement("div");
+    chip.className = "book-source-field-chip";
+    const key = document.createElement("strong");
+    key.textContent = row.key || "•";
+    const value = document.createElement("span");
+    value.textContent = row.value || "—";
+    chip.append(key, value);
+    refs.viewSourceFields.appendChild(chip);
+  }
+}
+
+async function loadBookOnlineDetail(book, { suppressToast = true } = {}) {
+  const requestId = state.onlineDetailRequestId + 1;
+  state.onlineDetailRequestId = requestId;
+  const currentBookId = String(state.bookId || "").trim();
+  if (!book || !isOnlineSourceBook(book)) {
+    renderBookOnlineDetail(null);
+    return null;
+  }
+  const sourceUrl = String(book.source_url || book.extra_link || "").trim();
+  const pluginId = String(book.source_plugin || "").trim();
+  if (!sourceUrl) {
+    renderBookOnlineDetail(null);
+    return null;
+  }
+  try {
+    const data = await state.shell.api("/api/vbook/detail", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: sourceUrl,
+        plugin_id: pluginId,
+        translate_ui: supportsTranslation(book) && state.mode === "trans",
+      }),
+    });
+    if (requestId !== state.onlineDetailRequestId || String(state.bookId || "").trim() !== currentBookId) return null;
+    const detail = (data && data.detail && typeof data.detail === "object") ? data.detail : {};
+    if (state.book && String(state.book.book_id || "").trim() === currentBookId) {
+      state.book.online_detail = detail;
+    }
+    renderBookOnlineDetail(detail);
+    return detail;
+  } catch (error) {
+    if (requestId === state.onlineDetailRequestId && String(state.bookId || "").trim() === currentBookId) {
+      renderBookOnlineDetail(null);
+    }
+    if (!suppressToast) state.shell.showToast(error.message || state.shell.t("toastError"));
+    return null;
   }
 }
 
@@ -469,6 +546,7 @@ function populateBook() {
     a.textContent = book.extra_link;
     refs.viewExtraLink.appendChild(a);
   }
+  renderBookOnlineDetail(book.online_detail || null);
 
   setCover(book.cover_url || "");
   renderBookCategoriesRow();
@@ -575,6 +653,7 @@ async function loadBook({ silent = false, suppressToast = false, refreshOnline =
     const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(mode)}&translation_mode=${encodeURIComponent(state.translateMode)}&refresh_online=${refreshOnline ? "1" : "0"}&include_chapters=0`);
     state.book = detail;
     populateBook();
+    loadBookOnlineDetail(detail, { suppressToast: true }).catch(() => {});
   } catch (error) {
     if (!suppressToast) state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -1314,6 +1393,8 @@ async function init() {
   refs.labelViewAuthorVi.textContent = state.shell.t("viewAuthorVi");
   refs.labelViewSummary.textContent = state.shell.t("viewSummary");
   refs.labelViewExtraLink.textContent = state.shell.t("viewExtraLink");
+  if (refs.labelViewSourceDetail) refs.labelViewSourceDetail.textContent = state.shell.t("viewSourceDetail");
+  if (refs.labelViewSourceFields) refs.labelViewSourceFields.textContent = state.shell.t("viewSourceFields");
 
   refs.tocTitle.textContent = state.shell.t("tocTitle");
   refs.btnTocModeRaw.textContent = state.shell.t("tocModeRaw");

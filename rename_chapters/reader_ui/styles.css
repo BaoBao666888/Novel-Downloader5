@@ -1896,6 +1896,33 @@ p {
   min-height: 52px;
 }
 
+#view-source-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.book-source-field-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
+}
+
+.book-source-field-chip strong {
+  color: color-mix(in srgb, var(--text) 92%, transparent);
+  font-size: 12px;
+}
+
+.book-source-field-chip span {
+  color: var(--muted);
+  font-size: 12px;
+  word-break: break-word;
+}
+
 #explore-plugin-description-value {
   white-space: pre-wrap;
   word-break: break-word;
