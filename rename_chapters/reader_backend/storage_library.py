@@ -249,7 +249,7 @@ def list_chapters_paged(
         offset = (page - 1) * page_size
         rows = conn.execute(
             """
-            SELECT c.chapter_id, c.chapter_order, c.title_raw, c.title_vi, c.updated_at, c.word_count, c.trans_key, c.raw_key,
+            SELECT c.chapter_id, c.chapter_order, c.title_raw, c.title_vi, c.updated_at, c.word_count, c.trans_key, c.raw_key, c.is_vip,
                    CASE WHEN cc.cache_key IS NOT NULL THEN 1 ELSE 0 END AS is_downloaded
             FROM chapters c
             LEFT JOIN content_cache cc ON cc.cache_key = c.raw_key
@@ -294,6 +294,7 @@ def list_chapters_paged(
                 "word_count": int(item["word_count"] or 0) if valid_cached else 0,
                 "has_trans": bool(item.get("trans_key")),
                 "is_downloaded": bool(valid_cached),
+                "is_vip": bool(item.get("is_vip")),
             }
         )
     total_pages = max(1, (total + page_size - 1) // page_size)
@@ -313,7 +314,7 @@ def get_chapter_rows(storage, book_id: str) -> list[dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT chapter_id, book_id, chapter_order, title_raw, title_vi,
-                   raw_key, trans_key, trans_sig, updated_at, word_count, remote_url
+                   raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip
             FROM chapters
             WHERE book_id = ?
             ORDER BY chapter_order ASC
@@ -458,6 +459,7 @@ def get_book_detail(
             "has_trans": bool(ch.get("trans_key")),
             "is_downloaded": bool(download_map.get(str(ch.get("chapter_id") or "").strip(), False)),
             "remote_url": str(ch.get("remote_url") or ""),
+            "is_vip": bool(ch.get("is_vip")),
         }
         for ch in chapters
     ] if include_chapters else []

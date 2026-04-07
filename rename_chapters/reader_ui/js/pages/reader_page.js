@@ -1,10 +1,11 @@
-import { initShell } from "../site_common.js?v=20260405-name1";
+import { initShell } from "../site_common.js?v=20260407-viperrors1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260308-br3";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),
   readerChapterSub: document.getElementById("reader-chapter-sub"),
+  readerChapterVipBadge: document.getElementById("reader-chapter-vip-badge"),
   readerTitleWrap: document.querySelector(".reader-title-wrap"),
   readerHeadSkeleton: document.getElementById("reader-head-skeleton"),
   readerViewport: document.getElementById("reader-viewport"),
@@ -174,6 +175,24 @@ const TOC_ICON_MARKUP = Object.freeze({
 function setTocIcon(button, kind) {
   if (!button) return;
   button.innerHTML = TOC_ICON_MARKUP[kind] || "";
+}
+
+function getErrorMessage(error) {
+  if (!error) return state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra.";
+  return String(error.displayMessage || error.message || (state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra."));
+}
+
+function populateChapterTitleNode(node, title, isVip = false) {
+  if (!node) return;
+  node.textContent = "";
+  const label = document.createElement("span");
+  label.textContent = String(title || "").trim();
+  node.appendChild(label);
+  if (!isVip) return;
+  const badge = document.createElement("span");
+  badge.className = "chapter-vip-badge";
+  badge.textContent = state.shell.t("vipBadge");
+  node.appendChild(badge);
 }
 
 function normalizeTranslateMode(raw) {
@@ -565,6 +584,7 @@ function updateHeader() {
   if (!state.book) {
     refs.readerBookTitle.textContent = state.shell.t("noBookSelected");
     refs.readerChapterSub.textContent = "";
+    if (refs.readerChapterVipBadge) refs.readerChapterVipBadge.classList.add("hidden");
     refs.readerChapterCounter.textContent = state.shell.t("chapterCounter", { current: 0, total: 0 });
     refs.readerPageCounter.textContent = state.shell.t("pageCounter", { current: 0, total: 0 });
     refs.readerBookPercent.textContent = state.shell.t("bookPercent", { percent: "0.0" });
@@ -573,6 +593,7 @@ function updateHeader() {
   }
   const ch = (state.book.chapters || []).find((x) => x.chapter_id === state.chapterId);
   const chapterName = chapterTitle(ch) || state.shell.t("readerEmpty");
+  const chapterVip = Boolean(ch && ch.is_vip);
   const bookName = shouldTranslateReaderChrome()
     ? normalizeDisplayTitle(state.book.title_display || state.book.title_vi || state.book.title)
     : normalizeDisplayTitle(state.book.title || state.book.title_display);
@@ -580,7 +601,11 @@ function updateHeader() {
   // mini header overlay sẽ hiển thị tên chương khi user cuộn vào content.
   refs.readerBookTitle.textContent = bookName;
   refs.readerChapterSub.textContent = `${state.book.author_display || state.book.author || "Khuyết danh"}`;
-  if (refs.readerMiniChapterTitle) refs.readerMiniChapterTitle.textContent = chapterName;
+  if (refs.readerChapterVipBadge) {
+    refs.readerChapterVipBadge.textContent = state.shell.t("vipBadge");
+    refs.readerChapterVipBadge.classList.toggle("hidden", !chapterVip);
+  }
+  if (refs.readerMiniChapterTitle) populateChapterTitleNode(refs.readerMiniChapterTitle, chapterName, chapterVip);
 }
 
 function updateMiniInfoVisibility() {
@@ -809,7 +834,11 @@ function renderToc() {
 
     const title = document.createElement("div");
     title.className = "reader-toc-item-title";
-    title.textContent = `${chapter.chapter_order}. ${chapterTitle(chapter)}`;
+    populateChapterTitleNode(
+      title,
+      `${chapter.chapter_order}. ${chapterTitle(chapter)}`,
+      Boolean(chapter.is_vip),
+    );
 
     btn.appendChild(title);
     btn.addEventListener("click", () => {
@@ -1336,6 +1365,35 @@ function renderChapterContent(resetFlip = true, preserveRatio = null) {
   updateMiniInfoVisibility();
 }
 
+function renderChapterError(message) {
+  refs.readerContentBody.innerHTML = "";
+  const panel = document.createElement("div");
+  panel.className = "reader-inline-error";
+
+  const text = document.createElement("div");
+  text.className = "reader-inline-error-text";
+  text.textContent = String(message || state.shell.t("toastError")).trim() || state.shell.t("toastError");
+
+  const actions = document.createElement("div");
+  actions.className = "reader-inline-error-actions";
+  const retryBtn = document.createElement("button");
+  retryBtn.type = "button";
+  retryBtn.className = "btn btn-primary";
+  retryBtn.textContent = state.shell.t("retryCurrentChapter");
+  retryBtn.addEventListener("click", () => {
+    loadChapter({ resetFlip: true, showSkeleton: true }).catch(() => {});
+  });
+  actions.appendChild(retryBtn);
+
+  panel.append(text, actions);
+  refs.readerContentBody.appendChild(panel);
+  refs.readerContentScroll.scrollTop = 0;
+  refs.readerContentScroll.scrollLeft = 0;
+  clearScrollHint();
+  updateProgress();
+  updateMiniInfoVisibility();
+}
+
 function updateProgress() {
   if (!state.book || !state.chapterId) {
     refs.readerChapterCounter.textContent = state.shell.t("chapterCounter", { current: 0, total: 0 });
@@ -1459,6 +1517,10 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
       signal: controller.signal,
     });
     if (requestSeq !== state.chapterLoadSeq || targetChapterId !== state.chapterId) return;
+    const currentRow = Array.isArray(state.book && state.book.chapters)
+      ? state.book.chapters.find((row) => String((row && row.chapter_id) || "").trim() === String(targetChapterId || "").trim())
+      : null;
+    if (currentRow) currentRow.is_vip = Boolean(chapter && chapter.is_vip);
     state.chapterContentType = String(chapter.content_type || "text").toLowerCase() === "images" ? "images" : "text";
     state.chapterImages = Array.isArray(chapter.images) ? chapter.images.map((x) => String(x || "").trim()).filter(Boolean) : [];
     state.chapterText = chapter.content || "";
@@ -1495,8 +1557,13 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
     }
     if (requestSeq === state.chapterLoadSeq) {
       showReaderContentSkeleton(false);
+      state.chapterContentType = "text";
+      state.chapterImages = [];
+      state.chapterText = "";
+      renderChapterError(getErrorMessage(error));
+      updateHeader();
+      renderToc();
     }
-    state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
     if (requestSeq === state.chapterLoadSeq) {
       state.shell.hideStatus();

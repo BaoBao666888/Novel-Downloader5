@@ -59,6 +59,7 @@ from reader_backend import storage_chapter_content as storage_chapter_content_su
 from reader_backend import storage_cache as storage_cache_support
 from reader_backend import storage_library as storage_library_support
 from reader_backend import storage_user_state as storage_user_state_support
+from reader_backend import theme_presets as theme_presets_support
 from reader_backend import download_runtime as download_runtime_support
 from reader_backend import export_execute as export_execute_support
 from reader_backend import export_jobs as export_jobs_support
@@ -288,93 +289,7 @@ except Exception:
     vbook_local_translate = _load_vbook_local_translate_module()
 
 
-THEME_PRESETS: list[dict[str, Any]] = [
-    {
-        "id": "sao_dem",
-        "name": "Sao đêm",
-        "description": "Nền tối, ánh sao lấp lánh nhẹ.",
-        "tokens": {
-            "bg": "#090a1a",
-            "bg2": "#111433",
-            "surface": "#11162d",
-            "surface_alt": "#151f42",
-            "text": "#eaf2ff",
-            "muted": "#8ca3d4",
-            "accent": "#77b8ff",
-            "glow": "#9fd0ff",
-            "particle": "#ffffff",
-        },
-        "effect": "stars",
-    },
-    {
-        "id": "hong_phan",
-        "name": "Hồng phấn",
-        "description": "Tông pastel mềm, glow dịu mắt.",
-        "tokens": {
-            "bg": "#2d1022",
-            "bg2": "#4a1f3b",
-            "surface": "#4f2242",
-            "surface_alt": "#613053",
-            "text": "#ffeef8",
-            "muted": "#f3bdd8",
-            "accent": "#ff7fba",
-            "glow": "#ff9bd0",
-            "particle": "#ffd3ea",
-        },
-        "effect": "sparkle",
-    },
-    {
-        "id": "xanh_da_troi",
-        "name": "Xanh da trời",
-        "description": "Mát mắt, gradient trong trẻo.",
-        "tokens": {
-            "bg": "#092039",
-            "bg2": "#0e4d77",
-            "surface": "#0f3858",
-            "surface_alt": "#15527a",
-            "text": "#eaf8ff",
-            "muted": "#a8d5ee",
-            "accent": "#69d3ff",
-            "glow": "#90e4ff",
-            "particle": "#def8ff",
-        },
-        "effect": "bubbles",
-    },
-    {
-        "id": "la_vang",
-        "name": "Lá vàng",
-        "description": "Ấm áp mùa thu, hạt vàng bay nhẹ.",
-        "tokens": {
-            "bg": "#2c1707",
-            "bg2": "#673512",
-            "surface": "#553018",
-            "surface_alt": "#70401f",
-            "text": "#fff3de",
-            "muted": "#e7c595",
-            "accent": "#ffbe55",
-            "glow": "#ffd27a",
-            "particle": "#ffe6b8",
-        },
-        "effect": "leaves",
-    },
-    {
-        "id": "tuyet_trang",
-        "name": "Tuyết trắng",
-        "description": "Nền sáng lạnh, tuyết mịn rơi nhẹ.",
-        "tokens": {
-            "bg": "#e4edf9",
-            "bg2": "#ffffff",
-            "surface": "#f7fbff",
-            "surface_alt": "#ecf4ff",
-            "text": "#102440",
-            "muted": "#4b6382",
-            "accent": "#6ab7ff",
-            "glow": "#9bcfff",
-            "particle": "#ffffff",
-        },
-        "effect": "snow",
-    },
-]
+THEME_PRESETS: list[dict[str, Any]] = theme_presets_support.THEME_PRESETS
 
 
 BLOCK_TAGS = {
@@ -3365,6 +3280,7 @@ class ReaderStorage:
             self._ensure_column(conn, "books", "source_plugin", "TEXT DEFAULT ''")
             self._ensure_column(conn, "chapters", "trans_sig", "TEXT")
             self._ensure_column(conn, "chapters", "remote_url", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "chapters", "is_vip", "INTEGER NOT NULL DEFAULT 0")
 
     def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, decl: str) -> None:
         rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
@@ -4767,7 +4683,7 @@ class ReaderService:
         locale_norm = normalize_lang_source(str(plugin.locale or ""))
         lang_source = locale_norm or "zh"
 
-        chapters: list[dict[str, str]] = []
+        chapters: list[dict[str, Any]] = []
         for idx, row in enumerate(toc_rows, start=1):
             ch_title = normalize_vbook_display_text(
                 str(row.get("name") or f"Chương {idx}"),
@@ -4776,7 +4692,13 @@ class ReaderService:
             remote_url = str(row.get("remote_url") or "").strip()
             if not remote_url:
                 continue
-            chapters.append({"title": ch_title, "remote_url": remote_url})
+            chapters.append(
+                {
+                    "title": ch_title,
+                    "remote_url": remote_url,
+                    "is_vip": bool(row.get("is_vip") or row.get("vip") or row.get("pay")),
+                }
+            )
 
         if not chapters:
             raise ApiError(
@@ -4878,7 +4800,7 @@ class ReaderService:
             payload = self._fetch_vbook_detail_raw(url=source_url, plugin_id=plugin.plugin_id)
             detail = dict(payload.get("detail") or {})
 
-        toc_rows: list[dict[str, str]] = []
+        toc_rows: list[dict[str, Any]] = []
         if isinstance(prefetched_toc, list):
             for row in prefetched_toc:
                 if not isinstance(row, dict):
@@ -4892,7 +4814,13 @@ class ReaderService:
                 remote_url = href if href.startswith(("http://", "https://")) else self._join_vbook_url(host, href)
                 if not ch_title or not remote_url:
                     continue
-                toc_rows.append({"name": ch_title, "remote_url": remote_url})
+                toc_rows.append(
+                    {
+                        "name": ch_title,
+                        "remote_url": remote_url,
+                        "is_vip": bool(row.get("is_vip") or row.get("vip") or row.get("pay")),
+                    }
+                )
         if not toc_rows:
             toc_rows = self._fetch_vbook_toc(plugin, source_url)
 
@@ -4928,7 +4856,7 @@ class ReaderService:
         else:
             lang_source = "zh"
 
-        chapters: list[dict[str, str]] = []
+        chapters: list[dict[str, Any]] = []
         for idx, row in enumerate(toc_rows, start=1):
             ch_title = normalize_vbook_display_text(
                 str(row.get("name") or f"Chương {idx}"),
@@ -4937,7 +4865,13 @@ class ReaderService:
             remote_url = str(row.get("remote_url") or "").strip()
             if not remote_url:
                 continue
-            chapters.append({"title": ch_title, "remote_url": remote_url})
+            chapters.append(
+                {
+                    "title": ch_title,
+                    "remote_url": remote_url,
+                    "is_vip": bool(row.get("is_vip") or row.get("vip") or row.get("pay")),
+                }
+            )
 
         if not chapters:
             raise ApiError(
@@ -10166,6 +10100,7 @@ class ReaderService:
                         "title": title or raw_title,
                         "title_raw": raw_title,
                         "url": str(row.get("remote_url") or "").strip(),
+                        "is_vip": bool(row.get("is_vip")),
                     }
                 )
             return {
@@ -10238,7 +10173,7 @@ class ReaderService:
         *,
         flight_key: str = "",
         flight_token: str = "",
-    ) -> list[dict[str, str]]:
+    ) -> list[dict[str, Any]]:
         pages: list[str] = []
         if getattr(plugin, "scripts", None) and isinstance(plugin.scripts, dict) and plugin.scripts.get("page"):
             try:
@@ -10279,7 +10214,7 @@ class ReaderService:
             if isinstance(data, list):
                 toc_items.extend(data)
 
-        output: list[dict[str, str]] = []
+        output: list[dict[str, Any]] = []
         for item in toc_items:
             if not isinstance(item, dict):
                 continue
@@ -10287,9 +10222,10 @@ class ReaderService:
             href = str(item.get("url") or "").strip()
             host = str(item.get("host") or "").strip()
             remote_url = self._join_vbook_url(host, href)
+            is_vip = bool(item.get("is_vip") or item.get("vip") or item.get("pay"))
             if not name or not remote_url:
                 continue
-            output.append({"name": name, "remote_url": remote_url})
+            output.append({"name": name, "remote_url": remote_url, "is_vip": is_vip})
         return output
 
     def _fetch_remote_chapter(self, chapter: dict[str, Any], book: dict[str, Any]) -> str:
@@ -10365,15 +10301,23 @@ class ReaderService:
                 )
         else:
             if not str(core or "").strip():
+                is_vip = bool((chapter or {}).get("is_vip"))
+                empty_message = "Chương không có nội dung hợp lệ."
+                if is_vip:
+                    empty_message = (
+                        "Chương VIP này chưa mở được. Hãy đăng nhập đúng tài khoản PO18, mua chương này trên web, "
+                        "rồi quay lại tải lại mục lục/chương."
+                    )
                 raise ApiError(
                     HTTPStatus.BAD_GATEWAY,
                     "VBOOK_CHAP_EMPTY",
-                    "Chương không có nội dung hợp lệ.",
+                    empty_message,
                     {
                         "book_id": str((book or {}).get("book_id") or ""),
                         "chapter_id": str((chapter or {}).get("chapter_id") or ""),
                         "remote_url": remote_url,
                         "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                        "is_vip": is_vip,
                     },
                 )
 

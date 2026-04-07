@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260405-name1";
+import { initShell } from "../site_common.js?v=20260407-viperrors1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -156,6 +156,19 @@ const TOC_ICON_MARKUP = Object.freeze({
 function setTocIcon(button, kind) {
   if (!button) return;
   button.innerHTML = TOC_ICON_MARKUP[kind] || "";
+}
+
+function populateChapterTitleNode(node, title, isVip = false) {
+  if (!node) return;
+  node.textContent = "";
+  const label = document.createElement("span");
+  label.textContent = String(title || "").trim();
+  node.appendChild(label);
+  if (!isVip) return;
+  const badge = document.createElement("span");
+  badge.className = "chapter-vip-badge";
+  badge.textContent = state.shell.t("vipBadge");
+  node.appendChild(badge);
 }
 
 function localTranslationSettingsSignature(shell) {
@@ -501,7 +514,11 @@ function renderToc() {
 
     const title = document.createElement("div");
     title.className = "toc-item-title";
-    title.textContent = `${chapter.chapter_order}. ${normalizeDisplayTitle(chapter.title_display || chapter.title_raw || "")}`;
+    populateChapterTitleNode(
+      title,
+      `${chapter.chapter_order}. ${normalizeDisplayTitle(chapter.title_display || chapter.title_raw || "")}`,
+      Boolean(chapter.is_vip),
+    );
 
     const sub = document.createElement("div");
     sub.className = "toc-item-sub";

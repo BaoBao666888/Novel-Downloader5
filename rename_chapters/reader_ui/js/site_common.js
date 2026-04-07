@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260406-vbookrunner2";
+import { t } from "../i18n.vi.js?v=20260407-viperrors1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -146,6 +146,44 @@ function emitCacheChanged(detail = {}) {
   window.dispatchEvent(new CustomEvent("reader-cache-changed", { detail: { ...(detail || {}) } }));
 }
 
+function extractApiObjectMessage(source) {
+  if (!source || typeof source !== "object") return "";
+  const lines = [];
+  const push = (value) => {
+    const text = String(value || "").trim();
+    if (!text || lines.includes(text)) return;
+    lines.push(text);
+  };
+  push(source.display_message);
+  push(source.user_message);
+  push(source.hint);
+  push(source.message);
+  const nestedError = source.error;
+  if (typeof nestedError === "string") {
+    push(nestedError);
+  } else if (nestedError && typeof nestedError === "object") {
+    push(nestedError.display_message);
+    push(nestedError.user_message);
+    push(nestedError.hint);
+    push(nestedError.message);
+  }
+  return lines.join("\n");
+}
+
+function extractApiErrorDetailText(details) {
+  if (typeof details === "string") return details.trim();
+  if (details == null) return "";
+  if (typeof details !== "object") return String(details);
+  const direct = extractApiObjectMessage(details);
+  if (direct) return direct;
+  const result = details.result;
+  if (result && typeof result === "object") {
+    const nested = extractApiObjectMessage(result);
+    if (nested) return nested;
+  }
+  return "";
+}
+
 async function api(path, options = {}) {
   const res = await fetch(path, options);
   let payload = null;
@@ -161,19 +199,10 @@ async function api(path, options = {}) {
     err.errorCode = payload && payload.error_code;
     err.traceId = payload && payload.trace_id;
     err.details = payload && payload.details;
-    let detailText = "";
-    if (typeof err.details === "string") {
-      detailText = err.details.trim();
-    } else if (err.details && typeof err.details === "object") {
-      try {
-        detailText = JSON.stringify(err.details, null, 2);
-      } catch {
-        detailText = String(err.details);
-      }
-    } else if (err.details != null) {
-      detailText = String(err.details);
-    }
-    err.displayMessage = detailText ? `${baseMessage}\n${detailText}` : baseMessage;
+    const detailText = extractApiErrorDetailText(err.details);
+    err.displayMessage = detailText && detailText !== baseMessage
+      ? `${baseMessage}\n${detailText}`
+      : baseMessage;
     throw err;
   }
   return payload;

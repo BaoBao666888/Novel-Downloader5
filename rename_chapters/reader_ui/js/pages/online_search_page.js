@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260406-vbookonline2";
+import { initShell } from "../site_common.js?v=20260407-viperrors1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 
 const refs = {
@@ -157,6 +157,19 @@ function getCurrentQuery() {
 function getErrorMessage(error) {
   if (!error) return state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra.";
   return String(error.displayMessage || error.message || (state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra."));
+}
+
+function populateChapterTitleNode(node, title, isVip = false) {
+  if (!node) return;
+  node.textContent = "";
+  const label = document.createElement("span");
+  label.textContent = String(title || "").trim();
+  node.appendChild(label);
+  if (!isVip) return;
+  const badge = document.createElement("span");
+  badge.className = "chapter-vip-badge";
+  badge.textContent = state.shell.t("vipBadge");
+  node.appendChild(badge);
 }
 
 function isAbortError(error) {
@@ -1202,7 +1215,11 @@ function renderVbookDetail() {
       if (chapterUrl && chapterUrl === String(state.detail.selectedChapterUrl || "").trim()) btn.classList.add("active");
       const titleNode = document.createElement("div");
       titleNode.className = "chapter-hit-title";
-      titleNode.textContent = normalizeDisplayTitle(row.title || `Chương ${row.index || "?"}`);
+      populateChapterTitleNode(
+        titleNode,
+        normalizeDisplayTitle(row.title || `Chương ${row.index || "?"}`),
+        Boolean(row.is_vip),
+      );
       const sub = document.createElement("div");
       sub.className = "chapter-hit-sub";
       sub.textContent = `#${row.index || "?"}`;

@@ -202,6 +202,8 @@ export const STRINGS = {
   modeLocal: "Dịch local",
   modeHanviet: "Hán Việt",
   reloadChapter: "Tải lại chương",
+  retryCurrentChapter: "Tải lại",
+  vipBadge: "VIP",
   openNameEditor: "Name riêng",
   selectionEditName: "Sửa name",
   selectionCopy: "Sao chép",

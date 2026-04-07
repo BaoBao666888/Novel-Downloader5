@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260406-vbookrunner2";
+import { initShell } from "../site_common.js?v=20260407-viperrors1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -187,6 +187,7 @@ const state = {
   exportJobs: [],
   exportJobsSig: "",
   selectedBookId: null,
+  deletingBookIds: new Set(),
   shell: null,
   categories: [],
   selectedCategoryIds: [],
@@ -407,6 +408,101 @@ function syncSelectedBookActions() {
   openActions(book.book_id);
 }
 
+function normalizeBookIds(values) {
+  return Array.from(new Set(
+    (Array.isArray(values) ? values : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean),
+  ));
+}
+
+function collectDownloadJobBookIds(items) {
+  return normalizeBookIds((Array.isArray(items) ? items : []).map((job) => job && job.book_id));
+}
+
+function findStateBook(bookId) {
+  const bid = String(bookId || "").trim();
+  if (!bid) return null;
+  return (state.books || []).find((item) => String((item && item.book_id) || "").trim() === bid) || null;
+}
+
+function replaceStateBook(book) {
+  const bid = String((book && book.book_id) || "").trim();
+  if (!bid) return false;
+  const index = (state.books || []).findIndex((item) => String((item && item.book_id) || "").trim() === bid);
+  if (index < 0) return false;
+  state.books[index] = { ...state.books[index], ...book };
+  return true;
+}
+
+function syncLibraryBookCards(bookIds) {
+  const ids = normalizeBookIds(bookIds);
+  if (!ids.length || !refs.libraryGrid) {
+    syncSelectedBookActions();
+    return;
+  }
+  for (const bookId of ids) {
+    const book = findStateBook(bookId);
+    if (!book) continue;
+    const selector = `[data-book-id="${escapeAttrSelectorValue(bookId)}"]`;
+    for (const card of Array.from(refs.libraryGrid.querySelectorAll(selector))) {
+      card.__book = book;
+      card.classList.toggle("book-card-deleting", isBookDeleting(bookId));
+      card.setAttribute("aria-busy", isBookDeleting(bookId) ? "true" : "false");
+      if (String(card.dataset.hydrated || "") === "1") {
+        populateLibraryBookCard(card, book);
+      }
+    }
+  }
+  syncSelectedBookActions();
+}
+
+function applyLocalDownloadJobStateToBooks(items) {
+  const byBook = new Map();
+  for (const job of Array.isArray(items) ? items : []) {
+    const bookId = String((job && job.book_id) || "").trim();
+    if (!bookId) continue;
+    const current = byBook.get(bookId) || { downloaded: 0, total: 0 };
+    current.downloaded = Math.max(current.downloaded, Math.max(0, Number(job && job.downloaded_chapters || 0)));
+    current.total = Math.max(current.total, Math.max(0, Number(job && job.total_chapters || 0)));
+    byBook.set(bookId, current);
+  }
+  const touched = [];
+  for (const [bookId, summary] of byBook.entries()) {
+    const book = findStateBook(bookId);
+    if (!book) continue;
+    const limit = Math.max(0, Number(summary.total || book.chapter_count || 0));
+    const nextDownloaded = Math.max(0, Math.min(limit || Number(summary.downloaded || 0), Number(summary.downloaded || 0)));
+    book.downloaded_chapters = nextDownloaded;
+    touched.push(bookId);
+  }
+  if (touched.length) syncLibraryBookCards(touched);
+  return touched;
+}
+
+async function refreshLibraryBooksByIds(bookIds) {
+  const ids = normalizeBookIds(bookIds);
+  if (!ids.length) return;
+  const results = await Promise.all(ids.map(async (bookId) => {
+    try {
+      const book = findStateBook(bookId);
+      const mode = resolveReaderModeForBook(book);
+      const translateMode = getCurrentTranslationMode();
+      return await state.shell.api(
+        `/api/library/book/${encodeURIComponent(bookId)}?include_chapters=0&mode=${encodeURIComponent(mode)}&translation_mode=${encodeURIComponent(translateMode)}`,
+      );
+    } catch {
+      return null;
+    }
+  }));
+  const refreshedIds = [];
+  for (const book of results) {
+    if (!book || !replaceStateBook(book)) continue;
+    refreshedIds.push(String(book.book_id || "").trim());
+  }
+  if (refreshedIds.length) syncLibraryBookCards(refreshedIds);
+}
+
 function renderBookActionsCategories(book) {
   if (!refs.bookActionsCategoriesRow || !refs.bookActionsCategoriesList || !refs.bookActionsCategoriesLabel) return;
   refs.bookActionsCategoriesRow.classList.remove("hidden");
@@ -432,6 +528,28 @@ function splitMultilineValues(value) {
     .split(/\n+/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function isBookDeleting(bookId) {
+  return state.deletingBookIds.has(String(bookId || "").trim());
+}
+
+function escapeAttrSelectorValue(value) {
+  const raw = String(value || "");
+  if (window.CSS && typeof window.CSS.escape === "function") {
+    return window.CSS.escape(raw);
+  }
+  return raw.replace(/["\\]/g, "\\$&");
+}
+
+function setBookDeletingVisual(bookId, deleting) {
+  const bid = String(bookId || "").trim();
+  if (!bid) return;
+  const selector = `[data-book-id="${escapeAttrSelectorValue(bid)}"]`;
+  for (const card of Array.from(refs.libraryGrid.querySelectorAll(selector))) {
+    card.classList.toggle("book-card-deleting", Boolean(deleting));
+    card.setAttribute("aria-busy", deleting ? "true" : "false");
+  }
 }
 
 function joinMultilineValues(values) {
@@ -906,6 +1024,7 @@ function closeActions() {
 }
 
 function openActions(bookId) {
+  if (isBookDeleting(bookId)) return;
   const book = state.books.find((x) => x.book_id === bookId);
   if (!book) return;
   state.selectedBookId = bookId;
@@ -1075,8 +1194,10 @@ function createSkeletonBlock(className = "") {
 function createLibraryBookCardShell(book, renderToken) {
   const card = document.createElement("article");
   card.className = "book-card book-card-shell";
+  if (isBookDeleting(book && book.book_id)) card.classList.add("book-card-deleting");
   card.tabIndex = 0;
   card.setAttribute("role", "button");
+  card.setAttribute("aria-busy", isBookDeleting(book && book.book_id) ? "true" : "false");
   card.dataset.bookId = String((book && book.book_id) || "");
   card.dataset.renderToken = String(renderToken || 0);
   card.dataset.hydrated = "0";
@@ -1110,10 +1231,14 @@ function createLibraryBookCardShell(book, renderToken) {
   );
 
   card.append(cover, body);
-  card.addEventListener("click", () => openActions(book.book_id));
+  card.addEventListener("click", () => {
+    if (isBookDeleting(book.book_id)) return;
+    openActions(book.book_id);
+  });
   card.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
+      if (isBookDeleting(book.book_id)) return;
       openActions(book.book_id);
     }
   });
@@ -1124,6 +1249,8 @@ function createLibraryBookCardShell(book, renderToken) {
 function populateLibraryBookCard(card, book) {
   card.innerHTML = "";
   card.classList.remove("book-card-shell");
+  card.classList.toggle("book-card-deleting", isBookDeleting(book && book.book_id));
+  card.setAttribute("aria-busy", isBookDeleting(book && book.book_id) ? "true" : "false");
   card.dataset.hydrated = "1";
 
   const cover = document.createElement("div");
@@ -1918,7 +2045,7 @@ function renderDownloadJobs() {
         await state.shell.api(`/api/library/download/${encodeURIComponent(String(job.job_id || ""))}/stop`, {
           method: "POST",
         });
-        await Promise.all([loadDownloadJobs(), loadLibraryData()]);
+        await loadDownloadJobs({ syncLibrary: false });
       } catch (error) {
         state.shell.showToast(getErrorMessage(error));
       }
@@ -1946,24 +2073,22 @@ function buildDownloadJobsSignature(items) {
 }
 
 async function applyDownloadJobsPayload(payload, { syncLibrary = false } = {}) {
+  const prevItems = Array.isArray(state.downloadJobs) ? state.downloadJobs : [];
   const nextItems = Array.isArray(payload && payload.items) ? payload.items : [];
   state.downloadJobs = nextItems;
   const nextSig = buildDownloadJobsSignature(nextItems);
   const changed = nextSig !== state.downloadJobsSig;
   state.downloadJobsSig = nextSig;
   renderDownloadJobs();
-  if (!syncLibrary) return;
+  if (!changed && !syncLibrary) return;
 
-  const now = Date.now();
-  const hasActive = state.downloadJobs.length > 0;
-  const shouldRefresh = changed || (hasActive && (now - state.lastLibraryRefreshTs >= 2800));
-  if (!shouldRefresh || state.libraryRefreshBusy) return;
-  state.libraryRefreshBusy = true;
-  try {
-    await loadLibraryData({ silent: true });
-    state.lastLibraryRefreshTs = Date.now();
-  } finally {
-    state.libraryRefreshBusy = false;
+  const nextBookIds = collectDownloadJobBookIds(nextItems);
+  const prevBookIds = collectDownloadJobBookIds(prevItems);
+  const activeTouchedIds = applyLocalDownloadJobStateToBooks(nextItems);
+  const disappearedIds = prevBookIds.filter((bookId) => !nextBookIds.includes(bookId));
+  const completedIds = disappearedIds.filter((bookId) => !activeTouchedIds.includes(bookId));
+  if (completedIds.length) {
+    await refreshLibraryBooksByIds(completedIds);
   }
 }
 
@@ -2284,7 +2409,7 @@ function startDownloadPolling() {
       } catch {
         payload = null;
       }
-      applyDownloadJobsPayload(payload || { items: [] }, { syncLibrary: true }).catch(() => {});
+      applyDownloadJobsPayload(payload || { items: [] }, { syncLibrary: false }).catch(() => {});
     });
     stream.onmessage = (event) => {
       let payload = null;
@@ -2294,7 +2419,7 @@ function startDownloadPolling() {
         payload = null;
       }
       if (!payload || !Array.isArray(payload.items)) return;
-      applyDownloadJobsPayload(payload, { syncLibrary: true }).catch(() => {});
+      applyDownloadJobsPayload(payload, { syncLibrary: false }).catch(() => {});
     };
     stream.onerror = () => {
       if (state.downloadEventSource !== stream) return;
@@ -2309,7 +2434,7 @@ function startDownloadPolling() {
     return;
   }
   state.downloadPollTimer = window.setInterval(() => {
-    loadDownloadJobs({ syncLibrary: true }).catch(() => {});
+    loadDownloadJobs({ syncLibrary: false }).catch(() => {});
   }, 1300);
 }
 
@@ -2325,10 +2450,11 @@ async function enqueueBookDownload(bookId) {
     });
     if (data && data.already_downloaded) {
       state.shell.showToast(state.shell.t("downloadAlreadyDone"));
+      await refreshLibraryBooksByIds([bid]);
     } else {
       state.shell.showToast(state.shell.t("downloadQueued"));
+      await loadDownloadJobs({ syncLibrary: false });
     }
-    await Promise.all([loadDownloadJobs(), loadLibraryData()]);
   } catch (error) {
     state.shell.showToast(getErrorMessage(error));
   } finally {
@@ -2822,13 +2948,30 @@ async function submitExportDialog() {
 
 async function deleteBook() {
   if (!state.selectedBookId) return;
+  const bookId = String(state.selectedBookId || "").trim();
+  if (!bookId || isBookDeleting(bookId)) return;
   closeActions();
   if (!window.confirm(state.shell.t("confirmDeleteBook"))) return;
+  state.deletingBookIds.add(bookId);
+  setBookDeletingVisual(bookId, true);
   try {
-    await state.shell.api(`/api/library/book/${encodeURIComponent(state.selectedBookId)}`, { method: "DELETE" });
+    await state.shell.api(`/api/library/book/${encodeURIComponent(bookId)}`, { method: "DELETE" });
+    state.deletingBookIds.delete(bookId);
+    state.books = (state.books || []).filter((item) => String((item && item.book_id) || "").trim() !== bookId);
+    if (state.selectedBookId === bookId) state.selectedBookId = null;
+    if (state.bookCategoriesTargetBookId === bookId) state.bookCategoriesTargetBookId = "";
+    renderBooks();
+    await Promise.all([
+      loadCategories({ silent: true }).catch(() => null),
+      loadDownloadJobs({ syncLibrary: false }).catch(() => null),
+    ]);
+    renderBooks();
+    renderCategoryManagerList();
+    renderCategoryManagerBooks();
     state.shell.showToast(state.shell.t("toastBookDeleted"));
-    await loadLibraryData();
   } catch (error) {
+    state.deletingBookIds.delete(bookId);
+    setBookDeletingVisual(bookId, false);
     state.shell.showToast(getErrorMessage(error));
   }
 }

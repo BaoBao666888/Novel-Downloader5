@@ -12,7 +12,7 @@ def create_book(
     lang_source: str,
     source_type: str,
     summary: str,
-    chapters: list[dict[str, str]],
+    chapters: list[dict[str, Any]],
     source_file_path: str = "",
     utc_now_iso,
     hash_text,
@@ -120,6 +120,7 @@ def create_book_remote(
                 created_at,
                 0,
                 remote_url,
+                1 if bool(ch.get("is_vip") or ch.get("vip") or ch.get("pay")) else 0,
             )
         )
 
@@ -155,8 +156,8 @@ def create_book_remote(
             """
             INSERT INTO chapters(
                 chapter_id, book_id, chapter_order, title_raw, title_vi,
-                raw_key, trans_key, trans_sig, updated_at, word_count, remote_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             chapter_rows,
         )
@@ -291,7 +292,7 @@ def cleanup_non_comic_vbook_image_cache(
     }
 
 
-def _normalize_remote_toc_rows(toc_rows: list[dict[str, str]] | None, *, normalize_vbook_display_text) -> list[dict[str, Any]]:
+def _normalize_remote_toc_rows(toc_rows: list[dict[str, Any]] | None, *, normalize_vbook_display_text) -> list[dict[str, Any]]:
     normalized_rows: list[dict[str, Any]] = []
     seen_urls: set[str] = set()
     for idx, raw in enumerate(toc_rows or [], start=1):
@@ -310,6 +311,7 @@ def _normalize_remote_toc_rows(toc_rows: list[dict[str, str]] | None, *, normali
                 "chapter_order": idx,
                 "title_raw": title_raw,
                 "remote_url": remote_url,
+                "is_vip": bool(raw.get("is_vip") or raw.get("vip") or raw.get("pay")),
             }
         )
     return normalized_rows
@@ -318,7 +320,7 @@ def _normalize_remote_toc_rows(toc_rows: list[dict[str, str]] | None, *, normali
 def sync_remote_book_toc(
     storage,
     book_id: str,
-    toc_rows: list[dict[str, str]],
+    toc_rows: list[dict[str, Any]],
     *,
     normalize_vbook_display_text,
     utc_now_iso,
@@ -348,6 +350,7 @@ def sync_remote_book_toc(
             int(row.get("chapter_order") or 0),
             normalize_vbook_display_text(str(row.get("title_raw") or ""), single_line=True),
             str(row.get("remote_url") or "").strip(),
+            1 if bool(row.get("is_vip")) else 0,
         )
         for row in old_rows
     ]
@@ -356,6 +359,7 @@ def sync_remote_book_toc(
             int(row.get("chapter_order") or 0),
             str(row.get("title_raw") or ""),
             str(row.get("remote_url") or ""),
+            1 if bool(row.get("is_vip")) else 0,
         )
         for row in normalized_rows
     ]
@@ -398,6 +402,7 @@ def sync_remote_book_toc(
         remote_url = str(row.get("remote_url") or "").strip()
         title_raw = str(row.get("title_raw") or "").strip()
         chapter_order = int(row.get("chapter_order") or 0)
+        is_vip = 1 if bool(row.get("is_vip")) else 0
         old_row = old_by_url.pop(remote_url, None)
         if old_row:
             chapter_id = str(old_row.get("chapter_id") or "").strip()
@@ -409,7 +414,7 @@ def sync_remote_book_toc(
                 title_vi = None
             if old_order != chapter_order:
                 reordered += 1
-            updates.append((chapter_order, title_raw, title_vi, now, chapter_id))
+            updates.append((chapter_order, title_raw, title_vi, is_vip, now, chapter_id))
             kept_ids.append(chapter_id)
             continue
 
@@ -429,6 +434,7 @@ def sync_remote_book_toc(
                 now,
                 0,
                 remote_url,
+                is_vip,
             )
         )
         kept_ids.append(chapter_id)
@@ -475,7 +481,7 @@ def sync_remote_book_toc(
             conn.executemany(
                 """
                 UPDATE chapters
-                SET chapter_order = ?, title_raw = ?, title_vi = ?, updated_at = ?
+                SET chapter_order = ?, title_raw = ?, title_vi = ?, is_vip = ?, updated_at = ?
                 WHERE chapter_id = ?
                 """,
                 updates,
@@ -485,8 +491,8 @@ def sync_remote_book_toc(
                 """
                 INSERT INTO chapters(
                     chapter_id, book_id, chapter_order, title_raw, title_vi,
-                    raw_key, trans_key, trans_sig, updated_at, word_count, remote_url
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 inserts,
             )

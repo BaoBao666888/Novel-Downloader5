@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from reader_backend import theme_presets as theme_presets_support
+
 
 def _normalize_newlines(text: str) -> str:
     return str(text or "").replace("\r\n", "\n").replace("\r", "\n")
@@ -169,6 +171,43 @@ def guess_export_image_ext(*, image_url: str, content_type: str = "") -> str:
     return ext
 
 
+def _build_export_theme_options_html() -> str:
+    parts: list[str] = []
+    for theme in theme_presets_support.EXPORT_THEME_PRESETS:
+        theme_id = html.escape(str(theme.get("id") or "").strip())
+        theme_name = html.escape(str(theme.get("name") or "").strip() or theme_id)
+        if not theme_id:
+            continue
+        parts.append(f'<option value="{theme_id}">{theme_name}</option>')
+    return "".join(parts)
+
+
+def _build_export_theme_css() -> str:
+    parts: list[str] = []
+    for theme in theme_presets_support.EXPORT_THEME_PRESETS:
+        theme_id = str(theme.get("id") or "").strip()
+        tokens = dict(theme.get("tokens") or {})
+        if not theme_id or not tokens:
+            continue
+        parts.append(
+            (
+                f":root[data-theme='{html.escape(theme_id)}']{{"
+                f"--bg:{tokens.get('bg', '#f5f0e8')};"
+                f"--bg-elev:{tokens.get('bg_elev', '#fffdf8')};"
+                f"--surface:{tokens.get('surface', '#fffaf1')};"
+                f"--surface-strong:{tokens.get('surface_strong', '#ffffff')};"
+                f"--text:{tokens.get('text', '#1f1a17')};"
+                f"--muted:{tokens.get('muted', '#6d6259')};"
+                f"--border:{tokens.get('border', 'rgba(73,54,38,.14)')};"
+                f"--shadow:{tokens.get('shadow', '0 24px 48px rgba(46,31,20,.12)')};"
+                f"--accent:{tokens.get('accent', '#99572a')};"
+                f"--accent-soft:{tokens.get('accent_soft', 'rgba(153,87,42,.14)')};"
+                "}"
+            )
+        )
+    return "".join(parts)
+
+
 def build_export_toc_html(
     chapters: list[dict[str, Any]],
     *,
@@ -208,6 +247,8 @@ def wrap_export_html_document(
     storage_key = "reader-export-html:" + hashlib.sha1(storage_key_seed.encode("utf-8", errors="ignore")).hexdigest()[:16]
     header_title = page_title or title
     toc_section = toc_html or '<div class="export-toc empty"><h2>Mục lục</h2><p>Không có mục lục.</p></div>'
+    theme_options_markup = _build_export_theme_options_html()
+    theme_css = _build_export_theme_css()
     font_choices = (
         '<option value="serif">Serif dễ đọc</option>'
         '<option value="literary">Serif đậm chất sách</option>'
@@ -217,12 +258,7 @@ def wrap_export_html_document(
     settings_markup = (
         '<div class="settings-group">'
         '<label for="setting-theme">Theme</label>'
-        '<select id="setting-theme">'
-        '<option value="paper">Giấy sáng</option>'
-        '<option value="sepia">Sepia</option>'
-        '<option value="graphite">Đêm xám</option>'
-        '<option value="midnight">Đêm đậm</option>'
-        "</select>"
+        f'<select id="setting-theme">{theme_options_markup}</select>'
         "</div>"
         '<div class="settings-group">'
         '<label for="setting-font-family">Font chữ</label>'
@@ -244,6 +280,12 @@ def wrap_export_html_document(
         '<label for="setting-indent">Thụt dòng <span id="setting-indent-value"></span></label>'
         '<input id="setting-indent" type="range" min="0" max="3" step="0.1">'
         "</div>"
+        '<div class="settings-group text-only settings-check">'
+        '<label class="settings-check-label" for="setting-no-indent">'
+        "<span>Không thụt dòng</span>"
+        '<input id="setting-no-indent" type="checkbox">'
+        "</label>"
+        "</div>"
         '<div class="settings-group comic-only">'
         '<label for="setting-image-width">Độ rộng ảnh <span id="setting-image-width-value"></span></label>'
         '<input id="setting-image-width" type="range" min="560" max="1400" step="20">'
@@ -259,8 +301,8 @@ def wrap_export_html_document(
   const STORAGE_KEY = {json.dumps(storage_key, ensure_ascii=False)};
   const IS_COMIC = {str(bool(is_comic)).lower()};
   const defaults = IS_COMIC
-    ? {{ theme: "graphite", fontFamily: "sans", width: 980, fontSize: 18, lineHeight: 1.8, indent: 0, imageWidth: 1080, imageGap: 0.9 }}
-    : {{ theme: "paper", fontFamily: "literary", width: 860, fontSize: 20, lineHeight: 1.9, indent: 1.8, imageWidth: 960, imageGap: 1.0 }};
+    ? {{ theme: "graphite", fontFamily: "sans", width: 980, fontSize: 18, lineHeight: 1.8, indent: 0, noIndent: true, imageWidth: 1080, imageGap: 0.9 }}
+    : {{ theme: "paper", fontFamily: "literary", width: 860, fontSize: 20, lineHeight: 1.9, indent: 1.8, noIndent: false, imageWidth: 960, imageGap: 1.0 }};
   let state = {{ ...defaults }};
   try {{
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -275,8 +317,11 @@ def wrap_export_html_document(
   const main = document.querySelector(".export-main");
   const tocDrawer = document.querySelector('[data-drawer="toc"]');
   const settingsDrawer = document.querySelector('[data-drawer="settings"]');
+  const indentInput = document.getElementById("setting-indent");
+  const noIndentInput = document.getElementById("setting-no-indent");
   let uiVisible = false;
   let hideTimer = 0;
+  let tapTrack = null;
   const anyDrawerOpen = () => Boolean(tocDrawer?.classList.contains("open") || settingsDrawer?.classList.contains("open"));
   const clearHideTimer = () => {{
     if (!hideTimer) return;
@@ -331,21 +376,84 @@ def wrap_export_html_document(
     const node = document.getElementById(id);
     if (node) node.textContent = value;
   }};
+  const resetTapTrack = () => {{
+    tapTrack = null;
+  }};
+  const trackTapStart = (event) => {{
+    const target = event.target;
+    if (!(target instanceof Element)) {{
+      tapTrack = null;
+      return;
+    }}
+    tapTrack = {{
+      pointerId: event.pointerId,
+      startX: Number(event.clientX || 0),
+      startY: Number(event.clientY || 0),
+      startTs: Date.now(),
+      moved: false,
+      interactive: Boolean(target.closest("a,button,input,label,select,textarea,summary")),
+    }};
+  }};
+  const trackTapMove = (event) => {{
+    if (!tapTrack || tapTrack.pointerId !== event.pointerId) return;
+    const dx = Number(event.clientX || 0) - tapTrack.startX;
+    const dy = Number(event.clientY || 0) - tapTrack.startY;
+    if (Math.hypot(dx, dy) > 12) tapTrack.moved = true;
+  }};
+  const commitTapToggle = (event) => {{
+    if (!tapTrack || tapTrack.pointerId !== event.pointerId) {{
+      resetTapTrack();
+      return;
+    }}
+    const target = event.target;
+    const elapsed = Date.now() - tapTrack.startTs;
+    const interactive =
+      tapTrack.interactive ||
+      (target instanceof Element && Boolean(target.closest("a,button,input,label,select,textarea,summary")));
+    const shouldToggle = !interactive && !tapTrack.moved && elapsed <= 320;
+    resetTapTrack();
+    if (!shouldToggle) return;
+    if (anyDrawerOpen()) {{
+      uiVisible = true;
+      syncUiState();
+      return;
+    }}
+    if (uiVisible) {{
+      hideUiNow();
+      return;
+    }}
+    showUi();
+  }};
   const apply = () => {{
+    const width = Number(state.width ?? defaults.width);
+    const fontSize = Number(state.fontSize ?? defaults.fontSize);
+    const lineHeight = Number(state.lineHeight ?? defaults.lineHeight);
+    const indent = Number(state.indent ?? defaults.indent);
+    const imageWidth = Number(state.imageWidth ?? defaults.imageWidth);
+    const imageGap = Number(state.imageGap ?? defaults.imageGap);
+    const noIndent = Boolean(state.noIndent);
     root.dataset.theme = String(state.theme || defaults.theme);
-    root.style.setProperty("--reader-width", `${{Number(state.width || defaults.width)}}px`);
-    root.style.setProperty("--reader-font-size", `${{Number(state.fontSize || defaults.fontSize)}}px`);
-    root.style.setProperty("--reader-line-height", String(state.lineHeight || defaults.lineHeight));
-    root.style.setProperty("--reader-indent", `${{Number(state.indent || defaults.indent)}}em`);
-    root.style.setProperty("--comic-max-width", `${{Number(state.imageWidth || defaults.imageWidth)}}px`);
-    root.style.setProperty("--comic-image-gap", `${{Number(state.imageGap || defaults.imageGap)}}rem`);
+    root.style.setProperty("--reader-width", `${{width}}px`);
+    root.style.setProperty("--reader-font-size", `${{fontSize}}px`);
+    root.style.setProperty("--reader-line-height", String(lineHeight));
+    root.style.setProperty("--reader-indent", `${{noIndent ? 0 : indent}}em`);
+    root.style.setProperty("--comic-max-width", `${{imageWidth}}px`);
+    root.style.setProperty("--comic-image-gap", `${{imageGap}}rem`);
     root.dataset.fontFamily = String(state.fontFamily || defaults.fontFamily);
-    text("setting-width-value", `${{Number(state.width || defaults.width)}}px`);
-    text("setting-font-size-value", `${{Number(state.fontSize || defaults.fontSize)}}px`);
-    text("setting-line-height-value", `${{Number(state.lineHeight || defaults.lineHeight).toFixed(2)}}`);
-    text("setting-indent-value", `${{Number(state.indent || defaults.indent).toFixed(1)}}em`);
-    text("setting-image-width-value", `${{Number(state.imageWidth || defaults.imageWidth)}}px`);
-    text("setting-image-gap-value", `${{Number(state.imageGap || defaults.imageGap).toFixed(2)}}rem`);
+    root.classList.toggle("no-indent", noIndent);
+    text("setting-width-value", `${{width}}px`);
+    text("setting-font-size-value", `${{fontSize}}px`);
+    text("setting-line-height-value", `${{lineHeight.toFixed(2)}}`);
+    text("setting-indent-value", noIndent ? "Tắt" : `${{indent.toFixed(1)}}em`);
+    text("setting-image-width-value", `${{imageWidth}}px`);
+    text("setting-image-gap-value", `${{imageGap.toFixed(2)}}rem`);
+    if (indentInput instanceof HTMLInputElement) {{
+      indentInput.value = String(indent);
+      indentInput.disabled = noIndent;
+    }}
+    if (noIndentInput instanceof HTMLInputElement) {{
+      noIndentInput.checked = noIndent;
+    }}
   }};
   const bind = (id, key, parser = (value) => value) => {{
     const node = document.getElementById(id);
@@ -358,6 +466,16 @@ def wrap_export_html_document(
     }});
     node.addEventListener("change", () => {{
       state[key] = parser(node.value);
+      apply();
+      persist();
+    }});
+  }};
+  const bindChecked = (id, key) => {{
+    const node = document.getElementById(id);
+    if (!(node instanceof HTMLInputElement)) return;
+    node.checked = Boolean(state[key] ?? defaults[key]);
+    node.addEventListener("change", () => {{
+      state[key] = Boolean(node.checked);
       apply();
       persist();
     }});
@@ -383,21 +501,10 @@ def wrap_export_html_document(
     showUi(2600);
   }});
   document.addEventListener("focusin", () => showUi(2600));
-  main?.addEventListener("pointerdown", (event) => {{
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    if (target.closest(".export-header") || target.closest(".export-drawer-panel")) return;
-    if (anyDrawerOpen()) {{
-      uiVisible = true;
-      syncUiState();
-      return;
-    }}
-    if (uiVisible) {{
-      hideUiNow();
-      return;
-    }}
-    showUi();
-  }}, true);
+  main?.addEventListener("pointerdown", trackTapStart, true);
+  main?.addEventListener("pointermove", trackTapMove, true);
+  main?.addEventListener("pointerup", commitTapToggle, true);
+  main?.addEventListener("pointercancel", resetTapTrack, true);
   header?.addEventListener("pointerenter", () => {{
     uiVisible = true;
     clearHideTimer();
@@ -412,6 +519,7 @@ def wrap_export_html_document(
   bind("setting-font-size", "fontSize", (value) => Number(value || defaults.fontSize));
   bind("setting-line-height", "lineHeight", (value) => Number(value || defaults.lineHeight));
   bind("setting-indent", "indent", (value) => Number(value || defaults.indent));
+  bindChecked("setting-no-indent", "noIndent");
   bind("setting-image-width", "imageWidth", (value) => Number(value || defaults.imageWidth));
   bind("setting-image-gap", "imageGap", (value) => Number(value || defaults.imageGap));
   shell?.classList.toggle("is-comic", IS_COMIC);
@@ -427,9 +535,7 @@ def wrap_export_html_document(
         f"<title>{html.escape(title)}</title>"
         "<style>"
         ":root{--bg:#f5f0e8;--bg-elev:#fffdf8;--surface:#fffaf1;--surface-strong:#ffffff;--text:#1f1a17;--muted:#6d6259;--border:rgba(73,54,38,.14);--shadow:0 24px 48px rgba(46,31,20,.12);--accent:#99572a;--accent-soft:rgba(153,87,42,.14);--reader-width:860px;--reader-font-size:20px;--reader-line-height:1.9;--reader-indent:1.8em;--comic-max-width:1080px;--comic-image-gap:.9rem;--font-body:'Georgia','Times New Roman',serif;--font-ui:'Segoe UI',system-ui,sans-serif;}"
-        ":root[data-theme='sepia']{--bg:#efe1c8;--bg-elev:#fbf1dc;--surface:#fff7ea;--surface-strong:#fffaf2;--text:#261d14;--muted:#73604d;--border:rgba(71,48,22,.18);--shadow:0 24px 54px rgba(69,44,18,.15);--accent:#9b5a20;--accent-soft:rgba(155,90,32,.16);}"
-        ":root[data-theme='graphite']{--bg:#181c22;--bg-elev:#20262f;--surface:#242c36;--surface-strong:#2a3440;--text:#eef2f7;--muted:#9aa8ba;--border:rgba(178,194,214,.16);--shadow:0 26px 60px rgba(0,0,0,.32);--accent:#7fc2ff;--accent-soft:rgba(127,194,255,.16);}"
-        ":root[data-theme='midnight']{--bg:#0f1217;--bg-elev:#161b22;--surface:#1d2430;--surface-strong:#252f3d;--text:#f4f7fb;--muted:#9caabd;--border:rgba(185,202,224,.14);--shadow:0 30px 70px rgba(0,0,0,.4);--accent:#9fd3ff;--accent-soft:rgba(159,211,255,.16);}"
+        f"{theme_css}"
         ":root[data-font-family='serif']{--font-body:'Georgia','Times New Roman',serif;}"
         ":root[data-font-family='literary']{--font-body:'Palatino Linotype','Book Antiqua','Noto Serif','Times New Roman',serif;}"
         ":root[data-font-family='sans']{--font-body:'Segoe UI','Helvetica Neue',Arial,sans-serif;}"
@@ -449,8 +555,8 @@ def wrap_export_html_document(
         ".export-nav{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 18px;}.chapter-footer-nav{margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}"
         ".export-drawer{position:fixed;top:0;bottom:0;z-index:40;pointer-events:none;}.export-drawer[data-drawer='toc']{left:0;}.export-drawer[data-drawer='settings']{right:0;}.export-drawer.open{pointer-events:auto;}.export-drawer-backdrop{position:absolute;inset:0;background:rgba(9,12,17,.44);opacity:0;transition:opacity .2s ease;}.export-drawer.open .export-drawer-backdrop{opacity:1;}"
         ".export-drawer-panel{position:absolute;top:0;bottom:0;width:min(360px,86vw);padding:20px;background:var(--bg-elev);box-shadow:var(--shadow);overflow:auto;transition:transform .22s ease;}.export-drawer[data-drawer='toc'] .export-drawer-panel{left:0;transform:translateX(-108%);border-right:1px solid var(--border);}.export-drawer[data-drawer='settings'] .export-drawer-panel{right:0;transform:translateX(108%);border-left:1px solid var(--border);}.export-drawer.open .export-drawer-panel{transform:translateX(0);}"
-        ".export-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}.export-drawer-head h2{margin:0;font-size:18px;}.export-drawer-body{display:grid;gap:14px;}.settings-group{display:grid;gap:8px;}.settings-group label{font-size:13px;font-weight:700;color:var(--muted);}.settings-group input,.settings-group select{width:100%;}.settings-group select{padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font:500 14px/1.2 var(--font-ui);}"
-        "input[type='range']{accent-color:var(--accent);}.comic-only{display:none;}.is-comic .comic-only{display:grid;}.is-comic .text-only{display:none;}"
+        ".export-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}.export-drawer-head h2{margin:0;font-size:18px;}.export-drawer-body{display:grid;gap:14px;}.settings-group{display:grid;gap:8px;}.settings-group label{font-size:13px;font-weight:700;color:var(--muted);}.settings-group input,.settings-group select{width:100%;}.settings-group select{padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font:500 14px/1.2 var(--font-ui);}.settings-check-label{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);font:600 14px/1.3 var(--font-ui);}.settings-check-label span{color:var(--text);font:600 14px/1.3 var(--font-ui);}.settings-check-label input{width:20px;height:20px;flex:0 0 auto;accent-color:var(--accent);}"
+        "input[type='range']{accent-color:var(--accent);}input[type='range']:disabled{opacity:.45;cursor:not-allowed;}.no-indent .chapter-text p{text-indent:0;}.comic-only{display:none;}.is-comic .comic-only{display:grid;}.is-comic .text-only{display:none;}"
         "@media (max-width: 920px){.export-shell{padding:14px 12px 36px;}.export-header{top:8px;width:min(calc(100vw - 24px),1180px);padding:10px 12px;border-radius:16px;}.export-title strong{font-size:14px;}.export-title span{display:none;}.export-reader,.export-reader.is-comic{padding:24px 18px 28px;border-radius:22px;}.chapter-title{margin-bottom:14px;}.export-chip{padding:9px 12px;font-size:12px;}}"
         "@media (max-width: 640px){.export-header{display:grid;grid-template-columns:1fr auto;align-items:center;}.export-header-right{justify-content:flex-end;}.export-header-left{grid-column:1 / span 2;}.export-title{order:-1;text-align:left;}}"
         "</style></head><body>"
