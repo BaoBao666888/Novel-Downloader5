@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260407-viperrors1";
+import { initShell } from "../site_common.js?v=20260407-themecustom1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260308-br3";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 

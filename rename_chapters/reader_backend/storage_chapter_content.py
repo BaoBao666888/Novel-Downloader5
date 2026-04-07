@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from reader_backend import text_paragraphs as text_paragraphs_support
+
 
 def chapter_text_cleanup(storage, text: str, *, apply_junk_lines_to_text) -> tuple[str, int, int]:
     lines, version = storage.get_global_junk_lines()
@@ -77,6 +79,7 @@ def create_export_txt(
             vp_set_override=active_vp_set,
             allow_remote_fetch=not use_cached_only,
         )
+        text = text_paragraphs_support.strip_paragraph_indentation(text)
         output_lines.extend([title, "", text, ""])
     if not output_lines:
         raise ValueError("Không có chương đã cache để xuất TXT.")
@@ -148,6 +151,7 @@ def create_export_epub(
             vp_set_override=active_vp_set,
             allow_remote_fetch=not use_cached_only,
         )
+        text = text_paragraphs_support.strip_paragraph_indentation(text)
         content_html = "\n".join(
             f"<p>{html.escape(line)}</p>" if line.strip() else "<p><br/></p>"
             for line in text.split("\n")

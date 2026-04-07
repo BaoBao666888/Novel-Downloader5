@@ -2738,6 +2738,80 @@ body[data-page="reader"] #reader-content-body * {
   gap: 10px;
 }
 
+.theme-custom-section {
+  margin: 4px 0 0;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-alt) 42%, transparent);
+  display: grid;
+  gap: 10px;
+}
+
+.theme-custom-section legend {
+  padding: 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.theme-custom-toggle {
+  display: grid;
+  gap: 6px;
+}
+
+.theme-custom-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.theme-custom-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.theme-custom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.theme-custom-grid.is-disabled {
+  opacity: 0.72;
+}
+
+.theme-color-control {
+  display: grid;
+  gap: 6px;
+}
+
+.theme-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-color-row input[type="color"] {
+  width: 46px;
+  min-width: 46px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  cursor: pointer;
+}
+
+.theme-color-row code {
+  min-width: 78px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  color: var(--text);
+  font-size: 12px;
+}
+
 .settings-backdrop {
   position: fixed;
   inset: 0;

@@ -1,9 +1,18 @@
-import { t } from "../i18n.vi.js?v=20260407-viperrors1";
+import { t } from "../i18n.vi.js?v=20260407-themecustom1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
 const DEFAULT_SETTINGS = {
   themeId: "sao_dem",
+  themeCustomEnabled: false,
+  themeCustomBg: "",
+  themeCustomBg2: "",
+  themeCustomSurface: "",
+  themeCustomSurfaceAlt: "",
+  themeCustomText: "",
+  themeCustomMuted: "",
+  themeCustomAccent: "",
+  themeCustomGlow: "",
   fontFamily: "'Noto Serif', 'Palatino Linotype', 'Times New Roman', serif",
   fontSize: 21,
   textAlign: "justify",
@@ -46,6 +55,17 @@ const FONT_PRESETS = [
   { id: "sans", text: "'Be Vietnam Pro', 'Segoe UI', Tahoma, sans-serif", labelKey: "fontPresetSans" },
   { id: "book", text: "'Merriweather', 'Noto Serif', serif", labelKey: "fontPresetBook" },
   { id: "mono", text: "'JetBrains Mono', 'Fira Code', monospace", labelKey: "fontPresetMono" },
+];
+
+const THEME_CUSTOM_FIELDS = [
+  { token: "bg", settingKey: "themeCustomBg", labelKey: "themeCustomBg", inputId: "theme-custom-bg-input", valueId: "theme-custom-bg-value" },
+  { token: "bg2", settingKey: "themeCustomBg2", labelKey: "themeCustomBg2", inputId: "theme-custom-bg2-input", valueId: "theme-custom-bg2-value" },
+  { token: "surface", settingKey: "themeCustomSurface", labelKey: "themeCustomSurface", inputId: "theme-custom-surface-input", valueId: "theme-custom-surface-value" },
+  { token: "surface_alt", settingKey: "themeCustomSurfaceAlt", labelKey: "themeCustomSurfaceAlt", inputId: "theme-custom-surface-alt-input", valueId: "theme-custom-surface-alt-value" },
+  { token: "text", settingKey: "themeCustomText", labelKey: "themeCustomText", inputId: "theme-custom-text-input", valueId: "theme-custom-text-value" },
+  { token: "muted", settingKey: "themeCustomMuted", labelKey: "themeCustomMuted", inputId: "theme-custom-muted-input", valueId: "theme-custom-muted-value" },
+  { token: "accent", settingKey: "themeCustomAccent", labelKey: "themeCustomAccent", inputId: "theme-custom-accent-input", valueId: "theme-custom-accent-value" },
+  { token: "glow", settingKey: "themeCustomGlow", labelKey: "themeCustomGlow", inputId: "theme-custom-glow-input", valueId: "theme-custom-glow-value" },
 ];
 
 const EFFECT_CLASSES = ["effect-stars", "effect-sparkle", "effect-bubbles", "effect-leaves", "effect-snow"];
@@ -109,6 +129,62 @@ function saveThemeCache(theme) {
   } catch {
     // ignore
   }
+}
+
+function normalizeHexColor(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+  if (/^#[0-9a-f]{3}$/i.test(raw)) {
+    const chars = raw.slice(1).split("");
+    return `#${chars.map((ch) => ch + ch).join("")}`.toLowerCase();
+  }
+  return "";
+}
+
+function resolveThemeWithCustom(theme, settings) {
+  const base = theme && typeof theme === "object" ? theme : loadThemeCache();
+  if (!base) return null;
+  const resolvedTokens = { ...(base.tokens || {}) };
+  if (settings && settings.themeCustomEnabled) {
+    for (const field of THEME_CUSTOM_FIELDS) {
+      const nextColor = normalizeHexColor(settings[field.settingKey]);
+      if (nextColor) resolvedTokens[field.token] = nextColor;
+    }
+  }
+  return {
+    ...base,
+    tokens: resolvedTokens,
+  };
+}
+
+function buildThemeCustomizerMarkup() {
+  const colorControls = THEME_CUSTOM_FIELDS.map((field) => (
+    `<label class="theme-color-control">
+      <span>${t(field.labelKey)}</span>
+      <div class="theme-color-row">
+        <input id="${field.inputId}" type="color">
+        <code id="${field.valueId}"></code>
+      </div>
+    </label>`
+  )).join("");
+  return (
+    `<fieldset id="theme-custom-section" class="theme-custom-section">
+      <legend>${t("themeCustomLegend")}</legend>
+      <label class="theme-custom-toggle">
+        <span>${t("themeCustomEnabled")}</span>
+        <select id="theme-custom-enabled-select">
+          <option value="off">${t("themeCustomOff")}</option>
+          <option value="on">${t("themeCustomOn")}</option>
+        </select>
+      </label>
+      <div class="theme-custom-actions">
+        <button id="btn-theme-custom-reset" class="btn btn-small" type="button">${t("themeCustomReset")}</button>
+      </div>
+      <p class="theme-custom-hint">${t("themeCustomHint")}</p>
+      <div id="theme-custom-grid" class="theme-custom-grid">${colorControls}</div>
+    </fieldset>`
+  );
 }
 
 function debounceAsync(fn, wait = 250) {
@@ -361,16 +437,17 @@ function applyThemeClasses(target, effect, settings) {
 }
 
 function applyTheme(themes, settings) {
-  const theme = themes.find((x) => x.id === settings.themeId) || themes[0] || loadThemeCache();
-  if (!theme) return;
-  settings.themeId = theme.id;
+  const baseTheme = themes.find((x) => x.id === settings.themeId) || themes[0] || loadThemeCache();
+  const theme = resolveThemeWithCustom(baseTheme, settings);
+  if (!theme || !baseTheme) return;
+  settings.themeId = baseTheme.id;
 
   for (const [key, value] of Object.entries(theme.tokens || {})) {
     document.documentElement.style.setProperty(`--${String(key).split("_").join("-")}`, value);
   }
 
-  applyThemeClasses(document.documentElement, theme.effect, settings);
-  applyThemeClasses(document.body, theme.effect, settings);
+  applyThemeClasses(document.documentElement, baseTheme.effect, settings);
+  applyThemeClasses(document.body, baseTheme.effect, settings);
 
   // Auto-detect: nếu user chọn "on" nhưng thiết bị yếu → tự chuyển lite (chỉ visual, không lưu setting).
   if ((settings.backgroundMotion || "on") === "on" && lowPowerDevice()) {
@@ -378,7 +455,10 @@ function applyTheme(themes, settings) {
     document.body.classList.add("effects-lite");
   }
 
-  saveThemeCache(theme);
+  saveThemeCache({
+    ...baseTheme,
+    tokens: theme.tokens,
+  });
 }
 
 async function persistTheme(themeId) {
@@ -986,6 +1066,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     },
   };
 
+  state.settings.themeCustomEnabled = state.settings.themeCustomEnabled === true;
+  for (const field of THEME_CUSTOM_FIELDS) {
+    state.settings[field.settingKey] = normalizeHexColor(state.settings[field.settingKey]);
+  }
+
   applyPanelStyle(state.settings);
   const cachedTheme = loadThemeCache();
   if (cachedTheme) {
@@ -993,7 +1078,18 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   }
   applyReaderVars(state.settings);
 
+  const settingsForm = qs("settings-form");
   const themeSelect = qs("theme-select");
+  if (settingsForm && themeSelect && !qs("theme-custom-section")) {
+    const host = document.createElement("div");
+    host.innerHTML = buildThemeCustomizerMarkup().trim();
+    const section = host.firstElementChild;
+    const themeLabel = themeSelect.closest("label");
+    if (section) {
+      if (themeLabel && themeLabel.parentNode) themeLabel.insertAdjacentElement("afterend", section);
+      else settingsForm.prepend(section);
+    }
+  }
   const fontFamilySelect = qs("font-family-select");
   const starStyleSelect = qs("star-style-select");
   const backgroundMotionSelect = qs("background-motion-select");
@@ -1027,6 +1123,49 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const localShortModeSelect = qs("local-short-mode-select");
   const localUsePronounsSelect = qs("local-use-pronouns-select");
   const localUseLuatNhanSelect = qs("local-use-luat-nhan-select");
+  const themeCustomEnabledSelect = qs("theme-custom-enabled-select");
+  const themeCustomGrid = qs("theme-custom-grid");
+  const btnThemeCustomReset = qs("btn-theme-custom-reset");
+  const themeCustomInputs = Object.fromEntries(
+    THEME_CUSTOM_FIELDS.map((field) => [field.settingKey, qs(field.inputId)]),
+  );
+  const themeCustomValueNodes = Object.fromEntries(
+    THEME_CUSTOM_FIELDS.map((field) => [field.settingKey, qs(field.valueId)]),
+  );
+
+  const getActiveBaseTheme = () => state.themes.find((x) => x.id === state.settings.themeId) || loadThemeCache() || null;
+  const syncThemeCustomForm = () => {
+    const activeTheme = getActiveBaseTheme();
+    const tokens = (activeTheme && activeTheme.tokens) || {};
+    const enabled = state.settings.themeCustomEnabled === true;
+    if (themeCustomEnabledSelect) themeCustomEnabledSelect.value = enabled ? "on" : "off";
+    if (themeCustomGrid) {
+      themeCustomGrid.classList.toggle("is-disabled", !enabled);
+      themeCustomGrid.setAttribute("aria-disabled", enabled ? "false" : "true");
+    }
+    for (const field of THEME_CUSTOM_FIELDS) {
+      const stored = normalizeHexColor(state.settings[field.settingKey]);
+      const fallback = normalizeHexColor(tokens[field.token]) || "#000000";
+      const resolved = stored || fallback;
+      const input = themeCustomInputs[field.settingKey];
+      const valueNode = themeCustomValueNodes[field.settingKey];
+      if (input) {
+        input.value = resolved;
+        input.disabled = !enabled;
+      }
+      if (valueNode) valueNode.textContent = resolved.toUpperCase();
+    }
+    if (btnThemeCustomReset) {
+      btnThemeCustomReset.disabled = !enabled && !THEME_CUSTOM_FIELDS.some((field) => normalizeHexColor(state.settings[field.settingKey]));
+    }
+  };
+
+  const resetThemeCustomSettings = ({ disable = true } = {}) => {
+    if (disable) state.settings.themeCustomEnabled = false;
+    for (const field of THEME_CUSTOM_FIELDS) {
+      state.settings[field.settingKey] = "";
+    }
+  };
 
   if (fontFamilySelect) {
     fontFamilySelect.innerHTML = "";
@@ -1077,10 +1216,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       themeSelect.value = state.settings.themeId;
     }
     applyTheme(state.themes, state.settings);
+    syncThemeCustomForm();
     saveSettings(state.settings);
     emitSettingsChanged(state.settings);
   } catch {
-    // ignore
+    syncThemeCustomForm();
   }
 
   const settingsDrawer = qs("settings-drawer");
@@ -1307,9 +1447,45 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     themeSelect.addEventListener("change", async () => {
       state.settings.themeId = themeSelect.value;
       applyTheme(state.themes, state.settings);
+      syncThemeCustomForm();
       saveSettings(state.settings);
       emitSettingsChanged(state.settings);
       await persistTheme(state.settings.themeId);
+    });
+  }
+
+  if (themeCustomEnabledSelect) {
+    themeCustomEnabledSelect.addEventListener("change", () => {
+      state.settings.themeCustomEnabled = themeCustomEnabledSelect.value === "on";
+      applyTheme(state.themes, state.settings);
+      syncThemeCustomForm();
+      saveSettings(state.settings);
+      emitSettingsChanged(state.settings);
+    });
+  }
+
+  for (const field of THEME_CUSTOM_FIELDS) {
+    const input = themeCustomInputs[field.settingKey];
+    if (!input) continue;
+    input.addEventListener("input", () => {
+      const nextColor = normalizeHexColor(input.value);
+      state.settings[field.settingKey] = nextColor;
+      if (!state.settings.themeCustomEnabled) state.settings.themeCustomEnabled = true;
+      applyTheme(state.themes, state.settings);
+      syncThemeCustomForm();
+      saveSettings(state.settings);
+      emitSettingsChanged(state.settings);
+    });
+  }
+
+  if (btnThemeCustomReset) {
+    btnThemeCustomReset.addEventListener("click", () => {
+      resetThemeCustomSettings({ disable: true });
+      applyTheme(state.themes, state.settings);
+      syncThemeCustomForm();
+      saveSettings(state.settings);
+      emitSettingsChanged(state.settings);
+      showToast(t("themeCustomReset"));
     });
   }
 
@@ -1469,8 +1645,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     });
   }
 
-  if (qs("settings-form")) {
-    qs("settings-form").addEventListener("submit", async (event) => {
+  if (settingsForm) {
+    settingsForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       state.settings.fontFamily = (fontFamilySelect && fontFamilySelect.value) || DEFAULT_SETTINGS.fontFamily;
       state.settings.starStyle = (starStyleSelect && starStyleSelect.value) || DEFAULT_SETTINGS.starStyle;
@@ -1486,6 +1662,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
+      syncThemeCustomForm();
       syncReaderTranslationForm();
       saveSettings(state.settings);
       emitSettingsChanged({
@@ -1525,6 +1702,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
+      syncThemeCustomForm();
       syncReaderTranslationForm();
       saveSettings(state.settings);
       emitSettingsChanged({

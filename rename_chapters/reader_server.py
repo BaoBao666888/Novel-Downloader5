@@ -59,6 +59,7 @@ from reader_backend import storage_chapter_content as storage_chapter_content_su
 from reader_backend import storage_cache as storage_cache_support
 from reader_backend import storage_library as storage_library_support
 from reader_backend import storage_user_state as storage_user_state_support
+from reader_backend import text_paragraphs as text_paragraphs_support
 from reader_backend import theme_presets as theme_presets_support
 from reader_backend import download_runtime as download_runtime_support
 from reader_backend import export_execute as export_execute_support
@@ -2606,7 +2607,7 @@ def parse_epub_book(
             raw_html = read_text(item["resolved"])
             if not raw_html:
                 continue
-            content = html_to_text(raw_html)
+            content = text_paragraphs_support.strip_paragraph_indentation(html_to_text(raw_html))
             if not content:
                 continue
             chapter_title = toc_labels.get(item["resolved"], "").strip()
@@ -2669,7 +2670,7 @@ def parse_txt_book(
     parser_settings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     settings = normalize_reader_import_settings({"txt": parser_settings or {}})
-    text = decode_text_with_fallback(file_bytes)
+    text = text_paragraphs_support.strip_paragraph_indentation(decode_text_with_fallback(file_bytes))
     title = (custom_title or "").strip() or re.sub(r"\.[^.]+$", "", filename or "") or "Untitled"
     author = (custom_author or "").strip()
     summary = (custom_summary or "").strip() or "Sách TXT được nhập và tách chương tự động."

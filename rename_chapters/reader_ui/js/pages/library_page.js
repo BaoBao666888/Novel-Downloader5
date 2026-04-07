@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260407-viperrors1";
+import { initShell } from "../site_common.js?v=20260407-themecustom1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -435,6 +435,33 @@ function replaceStateBook(book) {
   return true;
 }
 
+function upsertStateBook(book, { prepend = true } = {}) {
+  const bid = String((book && book.book_id) || "").trim();
+  if (!bid) return null;
+  const normalizedCategories = Array.isArray(book.categories)
+    ? book.categories
+      .map((item) => ({
+        category_id: String((item && item.category_id) || "").trim(),
+        name: String((item && item.name) || "").trim(),
+      }))
+      .filter((item) => item.category_id)
+    : null;
+  const index = (state.books || []).findIndex((item) => String((item && item.book_id) || "").trim() === bid);
+  if (index >= 0) {
+    const current = state.books[index] || {};
+    const next = { ...current, ...book };
+    if (normalizedCategories) next.categories = normalizedCategories.map((item) => ({ ...item }));
+    state.books[index] = next;
+    return next;
+  }
+  const next = { ...book };
+  if (normalizedCategories) next.categories = normalizedCategories.map((item) => ({ ...item }));
+  if (!Array.isArray(state.books)) state.books = [];
+  if (prepend) state.books.unshift(next);
+  else state.books.push(next);
+  return next;
+}
+
 function syncLibraryBookCards(bookIds) {
   const ids = normalizeBookIds(bookIds);
   if (!ids.length || !refs.libraryGrid) {
@@ -827,6 +854,27 @@ function removePendingImport(tempId) {
   renderBooks();
 }
 
+async function applyImportedBookLocal(book, { pendingTempId = "", refresh = true } = {}) {
+  const bid = String((book && book.book_id) || "").trim();
+  if (pendingTempId) {
+    const pendingId = String(pendingTempId || "").trim();
+    if (pendingId) {
+      state.pendingImports = state.pendingImports.filter((item) => String(item.temp_id || "") !== pendingId);
+    }
+  }
+  if (!bid) {
+    renderBooks();
+    return null;
+  }
+  const existed = Boolean(findStateBook(bid));
+  const upserted = upsertStateBook(book, { prepend: !existed });
+  renderBooks();
+  if (refresh) {
+    await refreshLibraryBooksByIds([bid]).catch(() => null);
+  }
+  return upserted;
+}
+
 function buildPendingUrlImportRecord({ url, pluginId }) {
   let host = "";
   try {
@@ -912,8 +960,7 @@ async function commitPreparedImport() {
     const bid = String((data && data.book && data.book.book_id) || "").trim();
     if (bid) pending.resolved_book_id = bid;
     state.shell.showToast(state.shell.t("toastImportSuccess"));
-    await loadLibraryData();
-    removePendingImport(pending.temp_id);
+    await applyImportedBookLocal(data && data.book, { pendingTempId: pending.temp_id, refresh: true });
   } catch (error) {
     state.importPreviewToken = token;
     removePendingImport(pending.temp_id);
@@ -939,9 +986,8 @@ async function handleImportUrlPrepare({ url, pluginId, resetForm, closeDialog })
     const existingBookId = String((prepared && prepared.book && prepared.book.book_id) || "").trim();
     if (existingBookId) {
       pending.resolved_book_id = existingBookId;
-      removePendingImport(pending.temp_id);
       state.shell.showToast(state.shell.t("toastImportUrlExisting"));
-      await loadLibraryData({ silent: true });
+      await applyImportedBookLocal(prepared && prepared.book, { pendingTempId: pending.temp_id, refresh: true });
       return;
     }
 
@@ -968,8 +1014,7 @@ async function handleImportUrlPrepare({ url, pluginId, resetForm, closeDialog })
     const bid = String((committed && committed.book && committed.book.book_id) || "").trim();
     if (bid) pending.resolved_book_id = bid;
     state.shell.showToast(state.shell.t("toastImportSuccess"));
-    await loadLibraryData({ silent: true });
-    removePendingImport(pending.temp_id);
+    await applyImportedBookLocal(committed && committed.book, { pendingTempId: pending.temp_id, refresh: true });
   } catch (error) {
     removePendingImport(pending.temp_id);
     state.shell.showToast(getErrorMessage(error));
@@ -3030,12 +3075,9 @@ async function init() {
     onPrepareImport: handlePrepareImport,
     onImportUrl: handleImportUrlPrepare,
     onImported: (data) => {
-      const bid = data && data.book && data.book.book_id;
-      if (bid) {
-        window.location.href = `/book?book_id=${encodeURIComponent(bid)}`;
-        return;
-      }
-      loadLibraryData();
+      applyImportedBookLocal(data && data.book, { refresh: true }).catch((error) => {
+        state.shell.showToast(getErrorMessage(error));
+      });
     },
   });
   state.translationEnabled = typeof state.shell.getTranslationEnabled === "function"
