@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260407-bookdetail1";
+import { initShell } from "../site_common.js?v=20260408-bookrawreplace1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -114,6 +114,27 @@ const refs = {
   btnBookNameSuggestGoogleTranslate: document.getElementById("btn-book-name-suggest-google-translate"),
   btnBookNameSuggestGoogleSearch: document.getElementById("btn-book-name-suggest-google-search"),
 
+  bookReplaceDialog: document.getElementById("book-replace-dialog"),
+  bookReplaceTitle: document.getElementById("book-replace-title"),
+  btnCloseBookReplaces: document.getElementById("btn-close-book-replaces"),
+  btnBookReplaceRefresh: document.getElementById("btn-book-replace-refresh"),
+  bookReplaceHint: document.getElementById("book-replace-hint"),
+  bookReplaceEntryForm: document.getElementById("book-replace-entry-form"),
+  bookReplaceSourceLabel: document.getElementById("book-replace-source-label"),
+  bookReplaceSource: document.getElementById("book-replace-source"),
+  bookReplaceTargetLabel: document.getElementById("book-replace-target-label"),
+  bookReplaceTarget: document.getElementById("book-replace-target"),
+  bookReplaceRegexInput: document.getElementById("book-replace-regex-input"),
+  bookReplaceRegexLabel: document.getElementById("book-replace-regex-label"),
+  bookReplaceIgnoreCaseInput: document.getElementById("book-replace-ignore-case-input"),
+  bookReplaceIgnoreCaseLabel: document.getElementById("book-replace-ignore-case-label"),
+  btnBookReplaceSaveEntry: document.getElementById("btn-book-replace-save-entry"),
+  bookReplacePreviewHint: document.getElementById("book-replace-preview-hint"),
+  bookReplaceColSource: document.getElementById("book-replace-col-source"),
+  bookReplaceColTarget: document.getElementById("book-replace-col-target"),
+  bookReplaceColAction: document.getElementById("book-replace-col-action"),
+  bookReplaceBody: document.getElementById("book-replace-body"),
+
   bookCategoriesDialog: document.getElementById("book-categories-dialog"),
   bookCategoriesDialogTitle: document.getElementById("book-categories-dialog-title"),
   btnCloseBookCategoriesDialog: document.getElementById("btn-close-book-categories-dialog"),
@@ -144,6 +165,7 @@ const state = {
   translationLocalSig: "{}",
   categories: [],
   bookCategoryDraftIds: [],
+  bookReplaceEntries: [],
   downloadWatchTimer: null,
   downloadEventSource: null,
   downloadWatchReconnectTimer: null,
@@ -198,6 +220,14 @@ function supportsTranslation(book) {
   return lang === "zh" || lang.startsWith("zh-");
 }
 
+function supportsRawTextReplace(book) {
+  if (!book) return false;
+  if (supportsTranslation(book)) return false;
+  if (Boolean(book.is_comic)) return false;
+  const sourceType = String(book.source_type || "").toLowerCase();
+  return sourceType !== "vbook_comic" && sourceType !== "comic";
+}
+
 function isOnlineSourceBook(book) {
   const sourceType = String((book && book.source_type) || "").trim().toLowerCase();
   return sourceType === "vbook" || sourceType === "vbook_comic" || sourceType.startsWith("vbook_session");
@@ -217,6 +247,36 @@ function setCover(url) {
   }
   refs.bookCover.src = url;
   wrap.classList.add("has-image");
+}
+
+function validateRegexPattern(pattern) {
+  try {
+    // eslint-disable-next-line no-new
+    new RegExp(String(pattern || ""));
+    return null;
+  } catch (error) {
+    return error;
+  }
+}
+
+function ensureValidRegexOrToast(pattern, useRegex) {
+  if (!useRegex) return true;
+  const error = validateRegexPattern(pattern);
+  if (!error) return true;
+  state.shell.showToast(state.shell.t("invalidRegexPattern", {
+    message: error && error.message ? error.message : String(error || ""),
+  }));
+  return false;
+}
+
+function syncBookRuleButton() {
+  if (!refs.btnOpenBookNames || !state.shell) return;
+  const canTranslate = supportsTranslation(state.book);
+  const canReplace = supportsRawTextReplace(state.book);
+  refs.btnOpenBookNames.classList.toggle("hidden", !(canTranslate || canReplace));
+  refs.btnOpenBookNames.textContent = canReplace
+    ? state.shell.t("openReplaceEditor")
+    : state.shell.t("bookPrivateNames");
 }
 
 function normalizeCategoryIds(values) {
@@ -569,7 +629,7 @@ function populateBook() {
   const canTranslate = supportsTranslation(book);
   refs.btnTocModeTrans.classList.toggle("hidden", !canTranslate);
   refs.btnTranslateTitles.classList.toggle("hidden", !canTranslate);
-  refs.btnOpenBookNames.classList.toggle("hidden", !canTranslate);
+  syncBookRuleButton();
   if (refs.btnRefreshBookToc) {
     refs.btnRefreshBookToc.classList.toggle("hidden", !isOnlineSourceBook(book));
   }
@@ -1103,6 +1163,177 @@ function parseBookNameEntriesOrThrow(rawText) {
   return normalizeBookNameEntries(parsed.entries);
 }
 
+async function loadBookReplaceEntries() {
+  if (!state.bookId) {
+    state.bookReplaceEntries = [];
+    return;
+  }
+  const data = await state.shell.api(`/api/book-replaces/book/${encodeURIComponent(state.bookId)}`);
+  state.bookReplaceEntries = Array.isArray(data && data.entries)
+    ? data.entries.map((item) => ({
+        source: String(item && item.source || "").trim(),
+        target: String(item && item.target || "").trim(),
+        use_regex: Boolean(item && item.use_regex),
+        ignore_case: Boolean(item && item.ignore_case),
+      })).filter((item) => item.source)
+    : [];
+}
+
+function syncBookReplaceEntriesFromState(payload) {
+  state.bookReplaceEntries = Array.isArray(payload && payload.entries)
+    ? payload.entries.map((item) => ({
+        source: String(item && item.source || "").trim(),
+        target: String(item && item.target || "").trim(),
+        use_regex: Boolean(item && item.use_regex),
+        ignore_case: Boolean(item && item.ignore_case),
+      })).filter((item) => item.source)
+    : [];
+}
+
+function renderBookReplaceRows() {
+  if (!refs.bookReplaceBody) return;
+  refs.bookReplaceBody.innerHTML = "";
+  const entries = Array.isArray(state.bookReplaceEntries) ? state.bookReplaceEntries.slice() : [];
+  if (refs.bookReplacePreviewHint) {
+    refs.bookReplacePreviewHint.textContent = entries.length
+      ? state.shell.t("replacePreviewCount", { count: entries.length })
+      : state.shell.t("replacePreviewEmpty");
+  }
+  if (!entries.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 3;
+    td.className = "empty-text";
+    td.textContent = state.shell.t("replacePreviewEmpty");
+    tr.appendChild(td);
+    refs.bookReplaceBody.appendChild(tr);
+    return;
+  }
+  for (const entry of entries) {
+    const source = String(entry && entry.source || "").trim();
+    const target = String(entry && entry.target || "").trim();
+    const useRegex = Boolean(entry && entry.use_regex);
+    const ignoreCase = Boolean(entry && entry.ignore_case);
+    const tr = document.createElement("tr");
+
+    const tdSource = document.createElement("td");
+    const wrap = document.createElement("div");
+    wrap.className = "junk-entry-row";
+    const sourceInput = document.createElement("input");
+    sourceInput.type = "text";
+    sourceInput.className = "name-target-inline";
+    sourceInput.value = source;
+    const regexLabel = document.createElement("label");
+    regexLabel.className = "checkbox-row";
+    const regexInput = document.createElement("input");
+    regexInput.type = "checkbox";
+    regexInput.checked = useRegex;
+    const regexText = document.createElement("span");
+    regexText.textContent = state.shell.t("junkRegexLabel");
+    regexLabel.append(regexInput, regexText);
+    const ignoreLabel = document.createElement("label");
+    ignoreLabel.className = "checkbox-row";
+    const ignoreInput = document.createElement("input");
+    ignoreInput.type = "checkbox";
+    ignoreInput.checked = ignoreCase;
+    const ignoreText = document.createElement("span");
+    ignoreText.textContent = state.shell.t("junkIgnoreCaseLabel");
+    ignoreLabel.append(ignoreInput, ignoreText);
+    wrap.append(sourceInput, regexLabel, ignoreLabel);
+    tdSource.appendChild(wrap);
+
+    const tdTarget = document.createElement("td");
+    const targetInput = document.createElement("input");
+    targetInput.type = "text";
+    targetInput.className = "name-target-inline";
+    targetInput.value = target;
+    tdTarget.appendChild(targetInput);
+
+    const tdAction = document.createElement("td");
+    const btnSave = document.createElement("button");
+    btnSave.type = "button";
+    btnSave.className = "btn btn-small";
+    btnSave.textContent = state.shell.t("saveNameEntry");
+    btnSave.addEventListener("click", async () => {
+      const nextSource = String(sourceInput.value || "").trim();
+      const nextTarget = String(targetInput.value || "").trim();
+      if (!nextSource) {
+        state.shell.showToast(state.shell.t("replaceSourceRequired"));
+        sourceInput.focus();
+        return;
+      }
+      if (!nextTarget) {
+        state.shell.showToast(state.shell.t("replaceTargetRequired"));
+        targetInput.focus();
+        return;
+      }
+      if (!ensureValidRegexOrToast(nextSource, Boolean(regexInput.checked))) {
+        sourceInput.focus();
+        return;
+      }
+      try {
+        const result = await state.shell.api(`/api/book-replaces/book/${encodeURIComponent(state.bookId)}/entry`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source,
+            target,
+            use_regex: useRegex,
+            ignore_case: ignoreCase,
+            new_source: nextSource,
+            new_target: nextTarget,
+            new_use_regex: Boolean(regexInput.checked),
+            new_ignore_case: Boolean(ignoreInput.checked),
+          }),
+        });
+        syncBookReplaceEntriesFromState(result);
+        renderBookReplaceRows();
+        state.shell.showToast(state.shell.t("replaceEntryApplied"));
+      } catch (error) {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      }
+    });
+    const btnDelete = document.createElement("button");
+    btnDelete.type = "button";
+    btnDelete.className = "btn btn-small";
+    btnDelete.textContent = state.shell.t("deleteNameEntry");
+    btnDelete.addEventListener("click", async () => {
+      try {
+        const result = await state.shell.api(`/api/book-replaces/book/${encodeURIComponent(state.bookId)}/entry`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source,
+            target,
+            use_regex: useRegex,
+            ignore_case: ignoreCase,
+            delete: true,
+          }),
+        });
+        syncBookReplaceEntriesFromState(result);
+        renderBookReplaceRows();
+        state.shell.showToast(state.shell.t("replaceEntryDeleted"));
+      } catch (error) {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      }
+    });
+    tdAction.append(btnSave, btnDelete);
+    tr.append(tdSource, tdTarget, tdAction);
+    refs.bookReplaceBody.appendChild(tr);
+  }
+}
+
+async function openBookReplaceDialog() {
+  if (!state.bookId) return;
+  try {
+    await loadBookReplaceEntries();
+    renderBookReplaceRows();
+    if (refs.bookReplaceDialog && !refs.bookReplaceDialog.open) refs.bookReplaceDialog.showModal();
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  }
+}
+
 async function refreshBookNameEffects() {
   const keepPage = Math.max(1, Number(state.pagination.page || 1));
   await Promise.all([
@@ -1349,6 +1580,10 @@ async function loadBookNameSets() {
 
 async function openBookNameDialog() {
   if (!state.bookId) return;
+  if (supportsRawTextReplace(state.book)) {
+    await openBookReplaceDialog();
+    return;
+  }
   state.shell.showStatus(state.shell.t("statusLoadingBookNames"));
   try {
     await loadBookNameSets();
@@ -1449,6 +1684,19 @@ async function init() {
   refs.bookNameSuggestColAction.textContent = state.shell.t("nameSuggestColAction");
   refs.btnBookNameSuggestGoogleTranslate.textContent = state.shell.t("nameSuggestGoogleTranslate");
   refs.btnBookNameSuggestGoogleSearch.textContent = state.shell.t("nameSuggestGoogleSearch");
+  if (refs.bookReplaceTitle) refs.bookReplaceTitle.textContent = state.shell.t("replaceEditorTitle");
+  if (refs.btnCloseBookReplaces) refs.btnCloseBookReplaces.textContent = state.shell.t("close");
+  if (refs.btnBookReplaceRefresh) refs.btnBookReplaceRefresh.textContent = state.shell.t("refreshNamePreview");
+  if (refs.bookReplaceHint) refs.bookReplaceHint.textContent = state.shell.t("replaceEditorHint");
+  if (refs.bookReplaceSourceLabel) refs.bookReplaceSourceLabel.textContent = state.shell.t("replaceSourceLabel");
+  if (refs.bookReplaceTargetLabel) refs.bookReplaceTargetLabel.textContent = state.shell.t("replaceTargetLabel");
+  if (refs.bookReplaceRegexLabel) refs.bookReplaceRegexLabel.textContent = state.shell.t("junkRegexLabel");
+  if (refs.bookReplaceIgnoreCaseLabel) refs.bookReplaceIgnoreCaseLabel.textContent = state.shell.t("junkIgnoreCaseLabel");
+  if (refs.btnBookReplaceSaveEntry) refs.btnBookReplaceSaveEntry.textContent = state.shell.t("addNameEntry");
+  if (refs.bookReplacePreviewHint) refs.bookReplacePreviewHint.textContent = state.shell.t("replacePreviewEmpty");
+  if (refs.bookReplaceColSource) refs.bookReplaceColSource.textContent = state.shell.t("replaceColSource");
+  if (refs.bookReplaceColTarget) refs.bookReplaceColTarget.textContent = state.shell.t("replaceColTarget");
+  if (refs.bookReplaceColAction) refs.bookReplaceColAction.textContent = state.shell.t("replaceColAction");
   if (refs.bookCategoriesDialogTitle) refs.bookCategoriesDialogTitle.textContent = state.shell.t("bookCategoriesDialogTitle");
   if (refs.btnCloseBookCategoriesDialog) refs.btnCloseBookCategoriesDialog.textContent = state.shell.t("close");
   if (refs.bookCategoriesDialogSearchLabel) refs.bookCategoriesDialogSearchLabel.textContent = state.shell.t("categorySearchLabel");
@@ -1486,6 +1734,10 @@ async function init() {
   refs.btnOpenBookEdit.addEventListener("click", () => refs.bookEditDialog.showModal());
   refs.btnCloseBookEdit.addEventListener("click", () => refs.bookEditDialog.close());
   refs.btnCloseBookNames.addEventListener("click", () => refs.bookNameDialog.close());
+  if (refs.btnCloseBookReplaces) refs.btnCloseBookReplaces.addEventListener("click", () => refs.bookReplaceDialog.close());
+  if (refs.btnBookReplaceRefresh) refs.btnBookReplaceRefresh.addEventListener("click", () => {
+    openBookReplaceDialog().catch(() => {});
+  });
   refs.btnCloseBookNameBulk.addEventListener("click", () => refs.bookNameBulkDialog.close());
   refs.btnCloseBookNameSuggest.addEventListener("click", () => refs.bookNameSuggestDialog.close());
   refs.btnCancelBookNameBulk.addEventListener("click", () => refs.bookNameBulkDialog.close());
@@ -1617,6 +1869,45 @@ async function init() {
       state.shell.showToast(error.message || state.shell.t("toastError"));
     } finally {
       state.shell.hideStatus();
+    }
+  });
+  if (refs.bookReplaceEntryForm) refs.bookReplaceEntryForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const source = String(refs.bookReplaceSource && refs.bookReplaceSource.value || "").trim();
+    const target = String(refs.bookReplaceTarget && refs.bookReplaceTarget.value || "").trim();
+    const useRegex = Boolean(refs.bookReplaceRegexInput && refs.bookReplaceRegexInput.checked);
+    const ignoreCase = Boolean(refs.bookReplaceIgnoreCaseInput && refs.bookReplaceIgnoreCaseInput.checked);
+    if (!source) {
+      state.shell.showToast(state.shell.t("replaceSourceRequired"));
+      if (refs.bookReplaceSource) refs.bookReplaceSource.focus();
+      return;
+    }
+    if (!target) {
+      state.shell.showToast(state.shell.t("replaceTargetRequired"));
+      if (refs.bookReplaceTarget) refs.bookReplaceTarget.focus();
+      return;
+    }
+    if (!ensureValidRegexOrToast(source, useRegex)) {
+      if (refs.bookReplaceSource) refs.bookReplaceSource.focus();
+      return;
+    }
+    try {
+      const result = await state.shell.api(`/api/book-replaces/book/${encodeURIComponent(state.bookId)}/entry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source,
+          target,
+          use_regex: useRegex,
+          ignore_case: ignoreCase,
+        }),
+      });
+      syncBookReplaceEntriesFromState(result);
+      renderBookReplaceRows();
+      refs.bookReplaceEntryForm.reset();
+      state.shell.showToast(state.shell.t("replaceEntryApplied"));
+    } catch (error) {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
     }
   });
 

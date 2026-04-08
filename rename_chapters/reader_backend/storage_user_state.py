@@ -1,7 +1,15 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
+
+
+def _validate_regex_or_raise(pattern: str, label: str) -> None:
+    try:
+        re.compile(str(pattern or ""))
+    except re.error as exc:
+        raise ValueError(f"{label} không hợp lệ: {exc}") from exc
 
 
 def _name_set_state_key(book_id: str | None, *, base_key: str) -> str:
@@ -310,6 +318,9 @@ def set_global_junk_state(
 ) -> dict[str, Any]:
     current = get_global_junk_state(storage, state_key=state_key, normalize_junk_entries=normalize_junk_entries)
     normalized_entries = normalize_junk_entries(lines if isinstance(lines, (list, tuple)) else current.get("entries"))
+    for item in normalized_entries:
+        if bool((item or {}).get("use_regex")):
+            _validate_regex_or_raise(str((item or {}).get("text") or ""), "Regex xóa rác")
     next_version = int(current.get("version") or 1)
     if bump_version:
         next_version += 1
@@ -332,7 +343,9 @@ def update_global_junk_entry(
     *,
     delete: bool = False,
     use_regex: bool = False,
+    ignore_case: bool = False,
     new_use_regex: bool | None = None,
+    new_ignore_case: bool | None = None,
     state_key: str,
     normalize_newlines,
     normalize_junk_entries,
@@ -346,21 +359,28 @@ def update_global_junk_entry(
     next_entries: list[dict[str, Any]] = []
     source_found = False
     source_regex = bool(use_regex)
+    source_ignore_case = bool(ignore_case)
     target_regex = bool(source_regex if new_use_regex is None else new_use_regex)
+    target_ignore_case = bool(source_ignore_case if new_ignore_case is None else new_ignore_case)
     for item in entries:
         item_text = str((item or {}).get("text") or "").strip()
         item_regex = bool((item or {}).get("use_regex"))
-        if item_text != source_line or item_regex != source_regex:
+        item_ignore_case = bool((item or {}).get("ignore_case"))
+        if item_text != source_line or item_regex != source_regex or item_ignore_case != source_ignore_case:
             next_entries.append(item)
             continue
         source_found = True
         if delete or not target_line:
             continue
-        candidate = {"text": target_line, "use_regex": target_regex}
+        if target_regex:
+            _validate_regex_or_raise(target_line, "Regex xóa rác")
+        candidate = {"text": target_line, "use_regex": target_regex, "ignore_case": target_ignore_case}
         if candidate not in next_entries:
             next_entries.append(candidate)
     if (not source_found) and (not delete) and target_line:
-        candidate = {"text": target_line, "use_regex": target_regex}
+        if target_regex:
+            _validate_regex_or_raise(target_line, "Regex xóa rác")
+        candidate = {"text": target_line, "use_regex": target_regex, "ignore_case": target_ignore_case}
         if candidate not in next_entries:
             next_entries.append(candidate)
     if next_entries == entries:
@@ -375,4 +395,142 @@ def update_global_junk_entry(
         bump_version=True,
         state_key=state_key,
         normalize_junk_entries=normalize_junk_entries,
+    )
+
+
+def _book_replace_state_key(book_id: str, *, base_prefix: str) -> str:
+    bid = str(book_id or "").strip()
+    return f"{base_prefix}.{bid}" if bid else base_prefix
+
+
+def get_book_replace_state(storage, book_id: str, *, normalize_text_replace_entries, base_prefix: str) -> dict[str, Any]:
+    raw = storage._get_app_state_value(_book_replace_state_key(book_id, base_prefix=base_prefix))
+    parsed: dict[str, Any] | None = None
+    if raw:
+        try:
+            payload = json.loads(raw)
+            if isinstance(payload, dict):
+                parsed = payload
+        except Exception:
+            parsed = None
+    entries = normalize_text_replace_entries((parsed or {}).get("entries"))
+    try:
+        version = max(1, int((parsed or {}).get("version") or 1))
+    except Exception:
+        version = 1
+    state = {"entries": entries, "version": version}
+    parsed_entries = normalize_text_replace_entries((parsed or {}).get("entries") if isinstance(parsed, dict) else None)
+    if parsed is None or parsed_entries != entries:
+        storage._set_app_state_value(
+            _book_replace_state_key(book_id, base_prefix=base_prefix),
+            json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        )
+    return state
+
+
+def get_book_replace_entries(storage, book_id: str, *, normalize_text_replace_entries, base_prefix: str) -> tuple[list[dict[str, Any]], int]:
+    state = get_book_replace_state(storage, book_id, normalize_text_replace_entries=normalize_text_replace_entries, base_prefix=base_prefix)
+    return normalize_text_replace_entries(state.get("entries")), int(state.get("version") or 1)
+
+
+def set_book_replace_state(
+    storage,
+    book_id: str,
+    entries: list[Any] | tuple[Any, ...] | None,
+    *,
+    bump_version: bool = True,
+    normalize_text_replace_entries,
+    base_prefix: str,
+) -> dict[str, Any]:
+    current = get_book_replace_state(storage, book_id, normalize_text_replace_entries=normalize_text_replace_entries, base_prefix=base_prefix)
+    normalized_entries = normalize_text_replace_entries(entries if isinstance(entries, (list, tuple)) else current.get("entries"))
+    for item in normalized_entries:
+        if bool((item or {}).get("use_regex")):
+            _validate_regex_or_raise(str((item or {}).get("source") or ""), "Regex sửa từ")
+    next_version = int(current.get("version") or 1)
+    if bump_version:
+        next_version += 1
+    state = {"entries": normalized_entries, "version": max(1, next_version)}
+    storage._set_app_state_value(
+        _book_replace_state_key(book_id, base_prefix=base_prefix),
+        json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+    )
+    return state
+
+
+def update_book_replace_entry(
+    storage,
+    book_id: str,
+    source: str,
+    target: str = "",
+    *,
+    delete: bool = False,
+    use_regex: bool = False,
+    ignore_case: bool = False,
+    new_source: str = "",
+    new_target: str = "",
+    new_use_regex: bool | None = None,
+    new_ignore_case: bool | None = None,
+    normalize_newlines,
+    normalize_text_replace_entries,
+    base_prefix: str,
+) -> dict[str, Any]:
+    source_text = normalize_newlines(str(source or "")).strip()
+    target_text = normalize_newlines(str(target or "")).strip()
+    next_source_text = normalize_newlines(str(new_source or "")).strip()
+    next_target_text = normalize_newlines(str(new_target or "")).strip()
+    if not source_text and not next_source_text:
+        raise ValueError("Thiếu từ gốc.")
+    state = get_book_replace_state(storage, book_id, normalize_text_replace_entries=normalize_text_replace_entries, base_prefix=base_prefix)
+    entries = normalize_text_replace_entries(state.get("entries"))
+    source_regex = bool(use_regex)
+    source_ignore_case = bool(ignore_case)
+    target_source = next_source_text or source_text
+    target_value = next_target_text if next_target_text else target_text
+    target_regex = bool(source_regex if new_use_regex is None else new_use_regex)
+    target_ignore_case = bool(source_ignore_case if new_ignore_case is None else new_ignore_case)
+    if (not delete) and not target_source:
+        raise ValueError("Thiếu từ gốc.")
+    if (not delete) and not target_value:
+        raise ValueError("Thiếu từ thay thế.")
+    if target_regex:
+        _validate_regex_or_raise(target_source, "Regex sửa từ")
+    next_entries: list[dict[str, Any]] = []
+    source_found = False
+    for item in entries:
+        item_source = str((item or {}).get("source") or "").strip()
+        item_regex = bool((item or {}).get("use_regex"))
+        item_ignore_case = bool((item or {}).get("ignore_case"))
+        if item_source != source_text or item_regex != source_regex or item_ignore_case != source_ignore_case:
+            next_entries.append(item)
+            continue
+        source_found = True
+        if delete:
+            continue
+        candidate = {
+            "source": target_source,
+            "target": target_value,
+            "use_regex": target_regex,
+            "ignore_case": target_ignore_case,
+        }
+        if candidate not in next_entries:
+            next_entries.append(candidate)
+    if (not source_found) and (not delete):
+        candidate = {
+            "source": target_source,
+            "target": target_value,
+            "use_regex": target_regex,
+            "ignore_case": target_ignore_case,
+        }
+        if candidate not in next_entries:
+            next_entries.append(candidate)
+    if next_entries == entries:
+        return {"entries": entries, "version": int(state.get("version") or 1)}
+    return set_book_replace_state(
+        storage,
+        book_id,
+        next_entries,
+        bump_version=True,
+        normalize_text_replace_entries=normalize_text_replace_entries,
+        base_prefix=base_prefix,
     )

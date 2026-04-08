@@ -2709,13 +2709,15 @@ body[data-page="reader"] .reader-actions .btn:hover {
   background: color-mix(in srgb, var(--surface-alt) 92%, transparent);
 }
 
-body[data-page="reader"] #btn-open-name-editor {
+body[data-page="reader"] #btn-open-name-editor,
+body[data-page="reader"] #btn-open-replace-editor {
   background: color-mix(in srgb, var(--surface) 96%, transparent);
   border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
   box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
-body[data-page="reader"] #btn-open-name-editor:hover {
+body[data-page="reader"] #btn-open-name-editor:hover,
+body[data-page="reader"] #btn-open-replace-editor:hover {
   background: color-mix(in srgb, var(--surface) 100%, transparent);
   border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
 }

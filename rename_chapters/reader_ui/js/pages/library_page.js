@@ -120,6 +120,8 @@ const refs = {
   globalJunkLineInput: document.getElementById("global-junk-line-input"),
   globalJunkRegexInput: document.getElementById("global-junk-regex-input"),
   globalJunkRegexLabel: document.getElementById("global-junk-regex-label"),
+  globalJunkIgnoreCaseInput: document.getElementById("global-junk-ignore-case-input"),
+  globalJunkIgnoreCaseLabel: document.getElementById("global-junk-ignore-case-label"),
   globalJunkEntryForm: document.getElementById("global-junk-entry-form"),
   btnAddGlobalJunkEntry: document.getElementById("btn-add-global-junk-entry"),
   globalJunkHint: document.getElementById("global-junk-hint"),
@@ -242,6 +244,15 @@ function localTranslationSettingsSignature(shell) {
 function getErrorMessage(error) {
   if (!error) return state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra.";
   return String(error.displayMessage || error.message || (state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra."));
+}
+
+function validateRegexPattern(pattern) {
+  try {
+    new RegExp(String(pattern || ""));
+    return "";
+  } catch (error) {
+    return String(error && error.message || "Regex không hợp lệ.");
+  }
 }
 
 function normalizeCategoryIds(values) {
@@ -2607,6 +2618,7 @@ async function loadGlobalJunkLines() {
       .map((item) => ({
         text: String(item && (item.text ?? item.line) || "").trim(),
         use_regex: Boolean(item && (item.use_regex ?? item.regex)),
+        ignore_case: Boolean(item && (item.ignore_case ?? item.case_insensitive)),
       }))
       .filter((item) => item.text);
     return;
@@ -2615,6 +2627,7 @@ async function loadGlobalJunkLines() {
     ? data.lines.map((item) => ({
         text: String(item || "").trim(),
         use_regex: false,
+        ignore_case: false,
       })).filter((item) => item.text)
     : [];
 }
@@ -2636,6 +2649,7 @@ function renderGlobalJunkRows() {
   for (const entry of items) {
     const line = String(entry && entry.text || "").trim();
     const useRegex = Boolean(entry && entry.use_regex);
+    const ignoreCase = Boolean(entry && entry.ignore_case);
     const tr = document.createElement("tr");
     const tdLine = document.createElement("td");
     const wrap = document.createElement("div");
@@ -2652,7 +2666,15 @@ function renderGlobalJunkRows() {
     const regexText = document.createElement("span");
     regexText.textContent = state.shell.t("junkRegexLabel");
     regexLabel.append(regexInput, regexText);
-    wrap.append(input, regexLabel);
+    const ignoreCaseLabel = document.createElement("label");
+    ignoreCaseLabel.className = "checkbox-row";
+    const ignoreCaseInput = document.createElement("input");
+    ignoreCaseInput.type = "checkbox";
+    ignoreCaseInput.checked = ignoreCase;
+    const ignoreCaseText = document.createElement("span");
+    ignoreCaseText.textContent = state.shell.t("junkIgnoreCaseLabel");
+    ignoreCaseLabel.append(ignoreCaseInput, ignoreCaseText);
+    wrap.append(input, regexLabel, ignoreCaseLabel);
     tdLine.appendChild(wrap);
     const tdAction = document.createElement("td");
 
@@ -2666,6 +2688,14 @@ function renderGlobalJunkRows() {
         state.shell.showToast(state.shell.t("junkLineRequired"));
         return;
       }
+      if (regexInput.checked) {
+        const regexError = validateRegexPattern(nextValue);
+        if (regexError) {
+          state.shell.showToast(state.shell.t("invalidRegexPattern", { message: regexError }));
+          input.focus();
+          return;
+        }
+      }
       try {
         await state.shell.api("/api/junk-lines/global/entry", {
           method: "POST",
@@ -2673,8 +2703,10 @@ function renderGlobalJunkRows() {
           body: JSON.stringify({
             line,
             use_regex: useRegex,
+            ignore_case: ignoreCase,
             new_line: nextValue,
             new_use_regex: Boolean(regexInput.checked),
+            new_ignore_case: Boolean(ignoreCaseInput.checked),
           }),
         });
         await loadGlobalJunkLines();
@@ -2694,7 +2726,7 @@ function renderGlobalJunkRows() {
         await state.shell.api("/api/junk-lines/global/entry", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ line, use_regex: useRegex, delete: true }),
+          body: JSON.stringify({ line, use_regex: useRegex, ignore_case: ignoreCase, delete: true }),
         });
         await loadGlobalJunkLines();
         renderGlobalJunkRows();
@@ -3179,6 +3211,7 @@ async function init() {
   if (refs.btnRefreshGlobalJunk) refs.btnRefreshGlobalJunk.textContent = state.shell.t("refreshJunkEntries");
   if (refs.globalJunkLineLabel) refs.globalJunkLineLabel.textContent = state.shell.t("junkLineLabel");
   if (refs.globalJunkRegexLabel) refs.globalJunkRegexLabel.textContent = state.shell.t("junkRegexLabel");
+  if (refs.globalJunkIgnoreCaseLabel) refs.globalJunkIgnoreCaseLabel.textContent = state.shell.t("junkIgnoreCaseLabel");
   if (refs.btnAddGlobalJunkEntry) refs.btnAddGlobalJunkEntry.textContent = state.shell.t("addJunkEntry");
   if (refs.globalJunkColLine) refs.globalJunkColLine.textContent = state.shell.t("junkColLine");
   if (refs.globalJunkColAction) refs.globalJunkColAction.textContent = state.shell.t("junkColAction");
@@ -3303,6 +3336,14 @@ async function init() {
         state.shell.showToast(state.shell.t("junkLineRequired"));
         return;
       }
+      if (refs.globalJunkRegexInput && refs.globalJunkRegexInput.checked) {
+        const regexError = validateRegexPattern(line);
+        if (regexError) {
+          state.shell.showToast(state.shell.t("invalidRegexPattern", { message: regexError }));
+          refs.globalJunkLineInput.focus();
+          return;
+        }
+      }
       try {
         await state.shell.api("/api/junk-lines/global/entry", {
           method: "POST",
@@ -3310,6 +3351,7 @@ async function init() {
           body: JSON.stringify({
             new_line: line,
             use_regex: Boolean(refs.globalJunkRegexInput && refs.globalJunkRegexInput.checked),
+            ignore_case: Boolean(refs.globalJunkIgnoreCaseInput && refs.globalJunkIgnoreCaseInput.checked),
           }),
         });
         refs.globalJunkEntryForm.reset();

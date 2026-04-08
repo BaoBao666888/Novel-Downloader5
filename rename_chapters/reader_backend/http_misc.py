@@ -288,6 +288,38 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             set_name=payload.get("set_name"),
         )
 
+    if method == "GET" and path.startswith("/api/book-replaces/book/"):
+        book_id = deps.unquote_func(path.removeprefix("/api/book-replaces/book/")).strip("/")
+        if not book_id:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+        return handler.service.get_book_replace_entries(book_id)
+
+    if method == "POST" and path.startswith("/api/book-replaces/book/") and path.endswith("/entry"):
+        book_id = path.removeprefix("/api/book-replaces/book/").removesuffix("/entry").strip("/")
+        if not book_id:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+        payload = handler._read_json_body()
+        return handler.service.update_book_replace_entry(
+            book_id=book_id,
+            source=payload.get("source") or "",
+            target=payload.get("target") or "",
+            delete=bool(payload.get("delete", False)),
+            use_regex=bool(payload.get("use_regex", False)),
+            ignore_case=bool(payload.get("ignore_case", False)),
+            new_source=payload.get("new_source") or "",
+            new_target=payload.get("new_target") or "",
+            new_use_regex=(
+                bool(payload.get("new_use_regex"))
+                if ("new_use_regex" in payload)
+                else (bool(payload.get("use_regex", False)) if (payload.get("new_source") or payload.get("source") or "") else None)
+            ),
+            new_ignore_case=(
+                bool(payload.get("new_ignore_case"))
+                if ("new_ignore_case" in payload)
+                else (bool(payload.get("ignore_case", False)) if (payload.get("new_source") or payload.get("source") or "") else None)
+            ),
+        )
+
     if method == "GET" and path == "/api/junk-lines/global":
         return handler.service.get_global_junk_lines()
 
@@ -305,10 +337,16 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             new_line=payload.get("new_line") or payload.get("target") or "",
             delete=bool(payload.get("delete", False)),
             use_regex=bool(payload.get("use_regex", False)),
+            ignore_case=bool(payload.get("ignore_case", False)),
             new_use_regex=(
                 bool(payload.get("new_use_regex"))
                 if ("new_use_regex" in payload)
                 else (bool(payload.get("use_regex", False)) if (payload.get("new_line") or payload.get("target") or "") else None)
+            ),
+            new_ignore_case=(
+                bool(payload.get("new_ignore_case"))
+                if ("new_ignore_case" in payload)
+                else (bool(payload.get("ignore_case", False)) if (payload.get("new_line") or payload.get("target") or "") else None)
             ),
         )
 

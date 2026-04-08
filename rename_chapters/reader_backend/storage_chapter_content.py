@@ -316,7 +316,14 @@ def get_chapter_text(
     normalize_import_text = source_type in {"txt", "epub"}
     if normalize_import_text:
         raw_text = text_paragraphs_support.normalize_soft_wrapped_paragraphs(raw_text)
-    if mode == "raw" or (not book_supports_translation(book)):
+    if not book_supports_translation(book):
+        book_id = str(book.get("book_id") or chapter.get("book_id") or "").strip()
+        if book_id:
+            replace_entries, _ = storage.get_book_replace_entries(book_id)
+            if replace_entries:
+                raw_text, _ = storage.apply_text_replace_entries_to_text(raw_text, replace_entries)
+        return raw_text
+    if mode == "raw":
         return raw_text
 
     source_for_translation = raw_text

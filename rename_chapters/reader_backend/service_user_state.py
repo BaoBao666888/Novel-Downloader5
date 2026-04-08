@@ -403,7 +403,9 @@ def update_global_junk_entry(
     new_line: str = "",
     delete: bool = False,
     use_regex: bool = False,
+    ignore_case: bool = False,
     new_use_regex: bool | None = None,
+    new_ignore_case: bool | None = None,
     api_error_cls,
     http_status,
     normalize_newlines,
@@ -418,8 +420,53 @@ def update_global_junk_entry(
             raw_next,
             delete=delete,
             use_regex=use_regex,
+            ignore_case=ignore_case,
             new_use_regex=new_use_regex,
+            new_ignore_case=new_ignore_case,
         )
     except ValueError as exc:
         raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", str(exc)) from exc
     return {"ok": True, **state}
+
+
+def get_book_replace_entries(service, book_id: str) -> dict[str, Any]:
+    entries, version = service.storage.get_book_replace_entries(book_id)
+    return {"ok": True, "book_id": book_id, "entries": entries, "version": version}
+
+
+def update_book_replace_entry(
+    service,
+    *,
+    book_id: str,
+    source: str,
+    target: str = "",
+    delete: bool = False,
+    use_regex: bool = False,
+    ignore_case: bool = False,
+    new_source: str = "",
+    new_target: str = "",
+    new_use_regex: bool | None = None,
+    new_ignore_case: bool | None = None,
+    api_error_cls,
+    http_status,
+    normalize_newlines,
+) -> dict[str, Any]:
+    bid = str(book_id or "").strip()
+    if not bid:
+        raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+    try:
+        state = service.storage.update_book_replace_entry(
+            bid,
+            normalize_newlines(str(source or "")).strip(),
+            normalize_newlines(str(target or "")).strip(),
+            delete=delete,
+            use_regex=use_regex,
+            ignore_case=ignore_case,
+            new_source=normalize_newlines(str(new_source or "")).strip(),
+            new_target=normalize_newlines(str(new_target or "")).strip(),
+            new_use_regex=new_use_regex,
+            new_ignore_case=new_ignore_case,
+        )
+    except ValueError as exc:
+        raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", str(exc)) from exc
+    return {"ok": True, "book_id": bid, **state}

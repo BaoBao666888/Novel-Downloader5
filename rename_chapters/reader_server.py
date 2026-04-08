@@ -90,6 +90,7 @@ APP_STATE_THEME_ACTIVE_KEY = "theme.active"
 APP_STATE_NAME_SET_STATE_KEY = "reader.name_set_state"
 APP_STATE_BOOK_VP_SET_KEY_PREFIX = "reader.book_vp_set"
 APP_STATE_GLOBAL_JUNK_STATE_KEY = "reader.global_junk_state"
+APP_STATE_BOOK_REPLACE_STATE_KEY_PREFIX = "reader.book_replace_state"
 APP_STATE_EXPORT_JOBS_STATE_KEY = "reader.export_jobs_state"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 HISTORY_BOOK_RETENTION_DAYS = 7
@@ -426,24 +427,55 @@ def normalize_junk_entries(value: Any) -> list[dict[str, Any]]:
         text = str(value or "").replace("\r\n", "\n").replace("\r", "\n")
         raw_items = text.split("\n") if text else []
     out: list[dict[str, Any]] = []
-    seen: set[tuple[str, bool]] = set()
+    seen: set[tuple[str, bool, bool]] = set()
     for item in raw_items:
         use_regex = False
+        ignore_case = False
         if isinstance(item, dict):
             text = normalize_newlines(str(item.get("text") or item.get("line") or "")).strip()
             use_regex = bool(item.get("use_regex") or item.get("regex"))
+            ignore_case = bool(item.get("ignore_case") or item.get("case_insensitive"))
         else:
             text = normalize_newlines(str(item or "")).strip()
-        key = (text, use_regex)
+        key = (text, use_regex, ignore_case)
         if not text or key in seen:
             continue
         seen.add(key)
-        out.append({"text": text, "use_regex": use_regex})
+        out.append({"text": text, "use_regex": use_regex, "ignore_case": ignore_case})
     return out
 
 
 def normalize_junk_lines(value: Any) -> list[str]:
     return [str(item.get("text") or "").strip() for item in normalize_junk_entries(value) if str(item.get("text") or "").strip()]
+
+
+def normalize_text_replace_entries(value: Any) -> list[dict[str, Any]]:
+    if isinstance(value, list):
+        raw_items = value
+    elif isinstance(value, tuple):
+        raw_items = list(value)
+    else:
+        raw_items = []
+    out: list[dict[str, Any]] = []
+    seen: set[tuple[str, bool, bool]] = set()
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        source = normalize_newlines(str(item.get("source") or item.get("text") or "")).strip()
+        target = normalize_newlines(str(item.get("target") or item.get("replace") or "")).strip()
+        use_regex = bool(item.get("use_regex") or item.get("regex"))
+        ignore_case = bool(item.get("ignore_case") or item.get("case_insensitive"))
+        key = (source, use_regex, ignore_case)
+        if not source or key in seen:
+            continue
+        seen.add(key)
+        out.append({
+            "source": source,
+            "target": target,
+            "use_regex": use_regex,
+            "ignore_case": ignore_case,
+        })
+    return out
 
 
 def normalize_reader_import_settings(raw_cfg: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -868,22 +900,50 @@ def apply_junk_lines_to_text(text: str, junk_lines: list[Any] | tuple[Any, ...] 
     for entry in entries:
         pattern = str(entry.get("text") or "").strip()
         use_regex = bool(entry.get("use_regex"))
+        ignore_case = bool(entry.get("ignore_case"))
         if not pattern:
             continue
         if use_regex:
             try:
-                content, hits = re.subn(pattern, "", content)
+                flags = re.IGNORECASE if ignore_case else 0
+                content, hits = re.subn(pattern, "", content, flags=flags)
             except re.error:
                 continue
             removed += int(hits or 0)
             continue
-        hits = content.count(pattern)
+        flags = re.IGNORECASE if ignore_case else 0
+        content, hits = re.subn(re.escape(pattern), "", content, flags=flags)
         if hits <= 0:
             continue
-        content = content.replace(pattern, "")
         removed += hits
     content = normalize_newlines(content)
     return content, removed
+
+
+def apply_text_replace_entries_to_text(text: str, entries: list[Any] | tuple[Any, ...] | None = None) -> tuple[str, int]:
+    content = normalize_newlines(text or "")
+    rules = normalize_text_replace_entries(entries)
+    if not content or not rules:
+        return content, 0
+    changed = 0
+    for entry in rules:
+        source = str(entry.get("source") or "").strip()
+        target = normalize_newlines(str(entry.get("target") or ""))
+        use_regex = bool(entry.get("use_regex"))
+        ignore_case = bool(entry.get("ignore_case"))
+        if not source:
+            continue
+        flags = re.IGNORECASE if ignore_case else 0
+        try:
+            if use_regex:
+                content, hits = re.subn(source, target, content, flags=flags)
+            else:
+                content, hits = re.subn(re.escape(source), target, content, flags=flags)
+        except re.error:
+            continue
+        changed += int(hits or 0)
+    content = normalize_newlines(content)
+    return content, changed
 
 
 def normalize_vbook_display_text(text: str, *, single_line: bool = False) -> str:
@@ -3834,7 +3894,9 @@ class ReaderStorage:
         *,
         delete: bool = False,
         use_regex: bool = False,
+        ignore_case: bool = False,
         new_use_regex: bool | None = None,
+        new_ignore_case: bool | None = None,
     ) -> dict[str, Any]:
         return storage_user_state_support.update_global_junk_entry(
             self,
@@ -3842,10 +3904,69 @@ class ReaderStorage:
             new_line,
             delete=delete,
             use_regex=use_regex,
+            ignore_case=ignore_case,
             new_use_regex=new_use_regex,
+            new_ignore_case=new_ignore_case,
             state_key=APP_STATE_GLOBAL_JUNK_STATE_KEY,
             normalize_newlines=normalize_newlines,
             normalize_junk_entries=normalize_junk_entries,
+        )
+
+    def get_book_replace_state(self, book_id: str) -> dict[str, Any]:
+        return storage_user_state_support.get_book_replace_state(
+            self,
+            book_id,
+            normalize_text_replace_entries=normalize_text_replace_entries,
+            base_prefix=APP_STATE_BOOK_REPLACE_STATE_KEY_PREFIX,
+        )
+
+    def get_book_replace_entries(self, book_id: str) -> tuple[list[dict[str, Any]], int]:
+        return storage_user_state_support.get_book_replace_entries(
+            self,
+            book_id,
+            normalize_text_replace_entries=normalize_text_replace_entries,
+            base_prefix=APP_STATE_BOOK_REPLACE_STATE_KEY_PREFIX,
+        )
+
+    def set_book_replace_state(self, book_id: str, entries: list[Any] | tuple[Any, ...] | None, *, bump_version: bool = True) -> dict[str, Any]:
+        return storage_user_state_support.set_book_replace_state(
+            self,
+            book_id,
+            entries,
+            bump_version=bump_version,
+            normalize_text_replace_entries=normalize_text_replace_entries,
+            base_prefix=APP_STATE_BOOK_REPLACE_STATE_KEY_PREFIX,
+        )
+
+    def update_book_replace_entry(
+        self,
+        book_id: str,
+        source: str,
+        target: str = "",
+        *,
+        delete: bool = False,
+        use_regex: bool = False,
+        ignore_case: bool = False,
+        new_source: str = "",
+        new_target: str = "",
+        new_use_regex: bool | None = None,
+        new_ignore_case: bool | None = None,
+    ) -> dict[str, Any]:
+        return storage_user_state_support.update_book_replace_entry(
+            self,
+            book_id,
+            source,
+            target,
+            delete=delete,
+            use_regex=use_regex,
+            ignore_case=ignore_case,
+            new_source=new_source,
+            new_target=new_target,
+            new_use_regex=new_use_regex,
+            new_ignore_case=new_ignore_case,
+            normalize_newlines=normalize_newlines,
+            normalize_text_replace_entries=normalize_text_replace_entries,
+            base_prefix=APP_STATE_BOOK_REPLACE_STATE_KEY_PREFIX,
         )
 
     def chapter_text_cleanup(self, text: str) -> tuple[str, int, int]:
@@ -3854,6 +3975,9 @@ class ReaderStorage:
             text,
             apply_junk_lines_to_text=apply_junk_lines_to_text,
         )
+
+    def apply_text_replace_entries_to_text(self, text: str, entries: list[Any] | tuple[Any, ...] | None = None) -> tuple[str, int]:
+        return apply_text_replace_entries_to_text(text, entries)
 
     def chapter_trans_signature(self, base_sig: str, *, junk_version: int) -> str:
         return storage_chapter_content_support.chapter_trans_signature(
@@ -5360,7 +5484,9 @@ class ReaderService:
         new_line: str = "",
         delete: bool = False,
         use_regex: bool = False,
+        ignore_case: bool = False,
         new_use_regex: bool | None = None,
+        new_ignore_case: bool | None = None,
     ) -> dict[str, Any]:
         return service_user_state_support.update_global_junk_entry(
             self,
@@ -5368,7 +5494,43 @@ class ReaderService:
             new_line=new_line,
             delete=delete,
             use_regex=use_regex,
+            ignore_case=ignore_case,
             new_use_regex=new_use_regex,
+            new_ignore_case=new_ignore_case,
+            api_error_cls=ApiError,
+            http_status=HTTPStatus,
+            normalize_newlines=normalize_newlines,
+        )
+
+    def get_book_replace_entries(self, book_id: str) -> dict[str, Any]:
+        return service_user_state_support.get_book_replace_entries(self, book_id)
+
+    def update_book_replace_entry(
+        self,
+        *,
+        book_id: str,
+        source: str,
+        target: str = "",
+        delete: bool = False,
+        use_regex: bool = False,
+        ignore_case: bool = False,
+        new_source: str = "",
+        new_target: str = "",
+        new_use_regex: bool | None = None,
+        new_ignore_case: bool | None = None,
+    ) -> dict[str, Any]:
+        return service_user_state_support.update_book_replace_entry(
+            self,
+            book_id=book_id,
+            source=source,
+            target=target,
+            delete=delete,
+            use_regex=use_regex,
+            ignore_case=ignore_case,
+            new_source=new_source,
+            new_target=new_target,
+            new_use_regex=new_use_regex,
+            new_ignore_case=new_ignore_case,
             api_error_cls=ApiError,
             http_status=HTTPStatus,
             normalize_newlines=normalize_newlines,

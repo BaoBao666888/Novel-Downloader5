@@ -30,6 +30,7 @@ const refs = {
   btnTranslateMode: document.getElementById("btn-translate-mode"),
   btnReloadChapter: document.getElementById("btn-reload-chapter"),
   btnOpenNameEditor: document.getElementById("btn-open-name-editor"),
+  btnOpenReplaceEditor: document.getElementById("btn-open-replace-editor"),
   btnFullscreen: document.getElementById("btn-fullscreen"),
   btnPrev: document.getElementById("btn-prev"),
   btnFooterToc: document.getElementById("btn-footer-toc"),
@@ -100,7 +101,19 @@ const refs = {
 
   selectionActionMenu: document.getElementById("selection-action-menu"),
   selectionNameBtn: document.getElementById("selection-name-btn"),
+  selectionReplaceBtn: document.getElementById("selection-replace-btn"),
   selectionCopyBtn: document.getElementById("selection-copy-btn"),
+  selectionNameDialog: document.getElementById("selection-name-dialog"),
+  selectionNameTitle: document.getElementById("selection-name-title"),
+  btnCloseSelectionName: document.getElementById("btn-close-selection-name"),
+  selectionNameHint: document.getElementById("selection-name-hint"),
+  selectionNameForm: document.getElementById("selection-name-form"),
+  selectionNameSourceLabel: document.getElementById("selection-name-source-label"),
+  selectionNameSourceInput: document.getElementById("selection-name-source-input"),
+  selectionNameTargetLabel: document.getElementById("selection-name-target-label"),
+  selectionNameTargetInput: document.getElementById("selection-name-target-input"),
+  btnCancelSelectionName: document.getElementById("btn-cancel-selection-name"),
+  btnConfirmSelectionName: document.getElementById("btn-confirm-selection-name"),
   selectionJunkBtn: document.getElementById("selection-junk-btn"),
   selectionJunkDialog: document.getElementById("selection-junk-dialog"),
   selectionJunkTitle: document.getElementById("selection-junk-title"),
@@ -111,8 +124,45 @@ const refs = {
   selectionJunkInput: document.getElementById("selection-junk-input"),
   selectionJunkRegexInput: document.getElementById("selection-junk-regex-input"),
   selectionJunkRegexLabel: document.getElementById("selection-junk-regex-label"),
+  selectionJunkIgnoreCaseInput: document.getElementById("selection-junk-ignore-case-input"),
+  selectionJunkIgnoreCaseLabel: document.getElementById("selection-junk-ignore-case-label"),
   btnCancelSelectionJunk: document.getElementById("btn-cancel-selection-junk"),
   btnConfirmSelectionJunk: document.getElementById("btn-confirm-selection-junk"),
+  selectionReplaceDialog: document.getElementById("selection-replace-dialog"),
+  selectionReplaceTitle: document.getElementById("selection-replace-title"),
+  btnCloseSelectionReplace: document.getElementById("btn-close-selection-replace"),
+  selectionReplaceHint: document.getElementById("selection-replace-hint"),
+  selectionReplaceForm: document.getElementById("selection-replace-form"),
+  selectionReplaceSourceLabel: document.getElementById("selection-replace-source-label"),
+  selectionReplaceSourceInput: document.getElementById("selection-replace-source-input"),
+  selectionReplaceTargetLabel: document.getElementById("selection-replace-target-label"),
+  selectionReplaceTargetInput: document.getElementById("selection-replace-target-input"),
+  selectionReplaceRegexInput: document.getElementById("selection-replace-regex-input"),
+  selectionReplaceRegexLabel: document.getElementById("selection-replace-regex-label"),
+  selectionReplaceIgnoreCaseInput: document.getElementById("selection-replace-ignore-case-input"),
+  selectionReplaceIgnoreCaseLabel: document.getElementById("selection-replace-ignore-case-label"),
+  btnCancelSelectionReplace: document.getElementById("btn-cancel-selection-replace"),
+  btnConfirmSelectionReplace: document.getElementById("btn-confirm-selection-replace"),
+  replaceEditorDialog: document.getElementById("replace-editor-dialog"),
+  replaceEditorTitle: document.getElementById("replace-editor-title"),
+  btnCloseReplaceEditor: document.getElementById("btn-close-replace-editor"),
+  replaceEditorHint: document.getElementById("replace-editor-hint"),
+  btnRefreshReplaceEditor: document.getElementById("btn-refresh-replace-editor"),
+  replaceEntryForm: document.getElementById("replace-entry-form"),
+  replaceSourceLabel: document.getElementById("replace-source-label"),
+  replaceSourceInput: document.getElementById("replace-source-input"),
+  replaceTargetLabel: document.getElementById("replace-target-label"),
+  replaceTargetInput: document.getElementById("replace-target-input"),
+  replaceRegexInput: document.getElementById("replace-regex-input"),
+  replaceRegexLabel: document.getElementById("replace-regex-label"),
+  replaceIgnoreCaseInput: document.getElementById("replace-ignore-case-input"),
+  replaceIgnoreCaseLabel: document.getElementById("replace-ignore-case-label"),
+  btnAddReplaceEntry: document.getElementById("btn-add-replace-entry"),
+  replacePreviewHint: document.getElementById("replace-preview-hint"),
+  replaceColSource: document.getElementById("replace-col-source"),
+  replaceColTarget: document.getElementById("replace-col-target"),
+  replaceColAction: document.getElementById("replace-col-action"),
+  replacePreviewBody: document.getElementById("replace-preview-body"),
   readerHead: document.querySelector(".reader-head"),
   readerFooter: document.querySelector(".reader-footer"),
 };
@@ -166,7 +216,10 @@ const state = {
   downloadWatchHadActive: false,
   downloadWatchIdleTicks: 0,
   selectionRefreshTimer: null,
+  pendingSelectionNameRatio: null,
   pendingSelectionJunkRatio: null,
+  pendingSelectionReplaceRatio: null,
+  bookReplaceEntries: [],
 };
 
 const TOC_ICON_MARKUP = Object.freeze({
@@ -183,6 +236,23 @@ function setTocIcon(button, kind) {
 function getErrorMessage(error) {
   if (!error) return state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra.";
   return String(error.displayMessage || error.message || (state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra."));
+}
+
+function validateRegexPattern(pattern) {
+  try {
+    new RegExp(String(pattern || ""));
+    return "";
+  } catch (error) {
+    return String(error && error.message || "Regex không hợp lệ.");
+  }
+}
+
+function ensureValidRegexOrToast(pattern, useRegex) {
+  if (!useRegex) return true;
+  const message = validateRegexPattern(pattern);
+  if (!message) return true;
+  state.shell.showToast(state.shell.t("invalidRegexPattern", { message }));
+  return false;
 }
 
 function populateChapterTitleNode(node, title, isVip = false) {
@@ -357,11 +427,21 @@ function effectiveMode() {
   return state.mode === "trans" ? "trans" : "raw";
 }
 
+function supportsRawTextReplace(book) {
+  if (!book) return false;
+  if (supportsTranslation(book)) return false;
+  if (Boolean(book.is_comic)) return false;
+  const sourceType = String(book.source_type || "").toLowerCase();
+  return sourceType !== "vbook_comic" && sourceType !== "comic";
+}
+
 function syncModeButtons() {
   const canTranslate = supportsTranslation(state.book);
+  const canReplace = supportsRawTextReplace(state.book);
   if (refs.btnModeTrans) refs.btnModeTrans.classList.toggle("hidden", !canTranslate);
   if (refs.btnTranslateMode) refs.btnTranslateMode.classList.toggle("hidden", !canTranslate);
   if (refs.btnOpenNameEditor) refs.btnOpenNameEditor.classList.toggle("hidden", !canTranslate);
+  if (refs.btnOpenReplaceEditor) refs.btnOpenReplaceEditor.classList.toggle("hidden", !canReplace);
   if (refs.btnModeRaw) refs.btnModeRaw.classList.toggle("active", state.mode === "raw");
   if (refs.btnModeTrans) refs.btnModeTrans.classList.toggle("active", state.mode === "trans");
   if (refs.btnTranslateMode && state.shell) {
@@ -1754,6 +1834,33 @@ async function loadGlobalDicts() {
   };
 }
 
+async function loadBookReplaceEntries() {
+  if (!state.bookId) {
+    state.bookReplaceEntries = [];
+    return;
+  }
+  const data = await state.shell.api(`/api/book-replaces/book/${encodeURIComponent(state.bookId)}`);
+  state.bookReplaceEntries = Array.isArray(data && data.entries)
+    ? data.entries.map((item) => ({
+        source: String(item && item.source || "").trim(),
+        target: String(item && item.target || "").trim(),
+        use_regex: Boolean(item && item.use_regex),
+        ignore_case: Boolean(item && item.ignore_case),
+      })).filter((item) => item.source)
+    : [];
+}
+
+function syncBookReplaceEntriesFromState(payload) {
+  state.bookReplaceEntries = Array.isArray(payload && payload.entries)
+    ? payload.entries.map((item) => ({
+        source: String(item && item.source || "").trim(),
+        target: String(item && item.target || "").trim(),
+        use_regex: Boolean(item && item.use_regex),
+        ignore_case: Boolean(item && item.ignore_case),
+      })).filter((item) => item.source)
+    : [];
+}
+
 async function refreshNameEditorData() {
   await Promise.all([
     loadNameSets(),
@@ -1984,6 +2091,141 @@ async function refreshNamePreview() {
 
 async function applyNameEntry(source, target) {
   return applyCurrentDictEntries({ [source]: target }, { replace: false, toastKey: "nameEntryApplied" });
+}
+
+function renderReplaceEntriesTable() {
+  if (!refs.replacePreviewBody) return;
+  refs.replacePreviewBody.innerHTML = "";
+  const entries = Array.isArray(state.bookReplaceEntries) ? state.bookReplaceEntries.slice() : [];
+  if (refs.replacePreviewHint) {
+    refs.replacePreviewHint.textContent = entries.length
+      ? state.shell.t("replacePreviewCount", { count: entries.length })
+      : state.shell.t("replacePreviewEmpty");
+  }
+  for (const entry of entries) {
+    const source = String(entry && entry.source || "").trim();
+    const target = String(entry && entry.target || "").trim();
+    const useRegex = Boolean(entry && entry.use_regex);
+    const ignoreCase = Boolean(entry && entry.ignore_case);
+    const tr = document.createElement("tr");
+    const tdSource = document.createElement("td");
+    const wrap = document.createElement("div");
+    wrap.className = "junk-entry-row";
+    const sourceInput = document.createElement("input");
+    sourceInput.type = "text";
+    sourceInput.className = "name-target-inline";
+    sourceInput.value = source;
+    const regexLabel = document.createElement("label");
+    regexLabel.className = "checkbox-row";
+    const regexInput = document.createElement("input");
+    regexInput.type = "checkbox";
+    regexInput.checked = useRegex;
+    const regexText = document.createElement("span");
+    regexText.textContent = state.shell.t("junkRegexLabel");
+    regexLabel.append(regexInput, regexText);
+    const ignoreLabel = document.createElement("label");
+    ignoreLabel.className = "checkbox-row";
+    const ignoreInput = document.createElement("input");
+    ignoreInput.type = "checkbox";
+    ignoreInput.checked = ignoreCase;
+    const ignoreText = document.createElement("span");
+    ignoreText.textContent = state.shell.t("junkIgnoreCaseLabel");
+    ignoreLabel.append(ignoreInput, ignoreText);
+    wrap.append(sourceInput, regexLabel, ignoreLabel);
+    tdSource.appendChild(wrap);
+
+    const tdTarget = document.createElement("td");
+    const targetInput = document.createElement("input");
+    targetInput.type = "text";
+    targetInput.className = "name-target-inline";
+    targetInput.value = target;
+    tdTarget.appendChild(targetInput);
+
+    const tdAction = document.createElement("td");
+    const btnSave = document.createElement("button");
+    btnSave.type = "button";
+    btnSave.className = "btn btn-small";
+    btnSave.textContent = state.shell.t("saveNameEntry");
+    btnSave.addEventListener("click", async () => {
+      const nextSource = String(sourceInput.value || "").trim();
+      const nextTarget = String(targetInput.value || "").trim();
+      if (!nextSource) {
+        state.shell.showToast(state.shell.t("replaceSourceRequired"));
+        sourceInput.focus();
+        return;
+      }
+      if (!nextTarget) {
+        state.shell.showToast(state.shell.t("replaceTargetRequired"));
+        targetInput.focus();
+        return;
+      }
+      if (!ensureValidRegexOrToast(nextSource, Boolean(regexInput.checked))) {
+        sourceInput.focus();
+        return;
+      }
+      try {
+        const result = await state.shell.api(`/api/book-replaces/book/${encodeURIComponent(state.bookId)}/entry`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source,
+            target,
+            use_regex: useRegex,
+            ignore_case: ignoreCase,
+            new_source: nextSource,
+            new_target: nextTarget,
+            new_use_regex: Boolean(regexInput.checked),
+            new_ignore_case: Boolean(ignoreInput.checked),
+          }),
+        });
+        syncBookReplaceEntriesFromState(result);
+        renderReplaceEntriesTable();
+        await refreshReaderAfterRawRuleChange({ preserveRatio: currentChapterRatio() });
+        state.shell.showToast(state.shell.t("replaceEntryApplied"));
+      } catch (error) {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      }
+    });
+    const btnDelete = document.createElement("button");
+    btnDelete.type = "button";
+    btnDelete.className = "btn btn-small";
+    btnDelete.textContent = state.shell.t("deleteNameEntry");
+    btnDelete.addEventListener("click", async () => {
+      try {
+        const result = await state.shell.api(`/api/book-replaces/book/${encodeURIComponent(state.bookId)}/entry`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source,
+            target,
+            use_regex: useRegex,
+            ignore_case: ignoreCase,
+            delete: true,
+          }),
+        });
+        syncBookReplaceEntriesFromState(result);
+        renderReplaceEntriesTable();
+        await refreshReaderAfterRawRuleChange({ preserveRatio: currentChapterRatio() });
+        state.shell.showToast(state.shell.t("replaceEntryDeleted"));
+      } catch (error) {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      }
+    });
+    tdAction.append(btnSave, btnDelete);
+    tr.append(tdSource, tdTarget, tdAction);
+    refs.replacePreviewBody.appendChild(tr);
+  }
+}
+
+async function openReplaceEditor() {
+  if (!state.bookId) return;
+  try {
+    await loadBookReplaceEntries();
+    renderReplaceEntriesTable();
+    if (refs.replaceEditorDialog && !refs.replaceEditorDialog.open) refs.replaceEditorDialog.showModal();
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  }
 }
 
 async function deleteNameEntry(source) {
@@ -2258,7 +2500,7 @@ function hideSelectionBtn() {
     refs.selectionActionMenu.style.removeProperty("top");
     refs.selectionActionMenu.style.removeProperty("visibility");
   }
-  for (const node of [refs.selectionActionMenu, refs.selectionNameBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
+  for (const node of [refs.selectionActionMenu, refs.selectionNameBtn, refs.selectionReplaceBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
     if (!node || !node.dataset) continue;
     delete node.dataset.text;
     delete node.dataset.startOffset;
@@ -2308,7 +2550,10 @@ function selectionRectFromRange(range) {
 
 function shouldSuspendSelectionMenu() {
   if (refs.selectionJunkDialog && refs.selectionJunkDialog.open) return true;
+  if (refs.selectionNameDialog && refs.selectionNameDialog.open) return true;
+  if (refs.selectionReplaceDialog && refs.selectionReplaceDialog.open) return true;
   if (refs.nameEditorDialog && refs.nameEditorDialog.open) return true;
+  if (refs.replaceEditorDialog && refs.replaceEditorDialog.open) return true;
   if (refs.nameSuggestDialog && refs.nameSuggestDialog.open) return true;
   const active = document.activeElement;
   if (!active || active === document.body) return false;
@@ -2445,6 +2690,15 @@ function canAddSelectionJunk(payload) {
   return true;
 }
 
+function canEditSelectionReplace(payload) {
+  if (!payload || !payload.selected) return false;
+  if (!state.chapterId || state.chapterContentType !== "text") return false;
+  if (!supportsRawTextReplace(state.book)) return false;
+  if (payload.selected.length > 240) return false;
+  if (payload.selected.includes("\n")) return false;
+  return true;
+}
+
 function positionSelectionMenu(rect) {
   const menu = refs.selectionActionMenu;
   if (!menu) return;
@@ -2511,6 +2765,62 @@ async function resolveSelectionSourceForJunk(payload) {
   return String((data && data.source_candidate) || "").trim() || payload.selected;
 }
 
+function resetSelectionNameDialogState() {
+  state.pendingSelectionNameRatio = null;
+  if (refs.selectionNameForm) refs.selectionNameForm.reset();
+}
+
+async function confirmSelectionNameEntry(event) {
+  if (event) event.preventDefault();
+  const source = String(refs.selectionNameSourceInput && refs.selectionNameSourceInput.value || "").trim();
+  const target = String(refs.selectionNameTargetInput && refs.selectionNameTargetInput.value || "").trim();
+  if (!source || !target) {
+    state.shell.showToast(state.shell.t("nameSourceTargetRequired"));
+    if (!source && refs.selectionNameSourceInput) refs.selectionNameSourceInput.focus();
+    else if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.focus();
+    return;
+  }
+  const preserveRatio = Number.isFinite(state.pendingSelectionNameRatio)
+    ? state.pendingSelectionNameRatio
+    : currentChapterRatio();
+  state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
+  try {
+    await state.shell.api("/api/name-sets/entry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source,
+        target,
+        book_id: state.bookId,
+      }),
+    });
+    if (refs.selectionNameDialog && refs.selectionNameDialog.open) {
+      refs.selectionNameDialog.close();
+    } else {
+      resetSelectionNameDialogState();
+    }
+    await refreshReaderAfterDictChange({ preserveRatio, refreshBook: true });
+    state.shell.showToast(state.shell.t("nameEntryApplied"));
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function refreshReaderAfterRawRuleChange({ preserveRatio = currentChapterRatio() } = {}) {
+  cancelPrefetch();
+  clearChapterCache();
+  if (state.chapterId) {
+    await loadChapter({
+      resetFlip: true,
+      preserveRatio,
+      showSkeleton: false,
+      quiet: true,
+    });
+  }
+}
+
 async function applySelectionJunkEntry() {
   const payload = currentSelectionPayload();
   hideSelectionBtn();
@@ -2518,7 +2828,8 @@ async function applySelectionJunkEntry() {
   if (!payload || !payload.selected) return;
   try {
     let sourceText = payload.selected;
-    if (effectiveMode() === "trans" && supportsTranslation(state.book)) {
+    const shouldResolveSource = effectiveMode() === "trans" && supportsTranslation(state.book);
+    if (shouldResolveSource) {
       state.shell.showStatus(state.shell.t("statusResolvingSelection"));
       sourceText = await resolveSelectionSourceForJunk(payload);
     }
@@ -2563,6 +2874,10 @@ async function confirmSelectionJunkEntry(event) {
     if (refs.selectionJunkInput) refs.selectionJunkInput.focus();
     return;
   }
+  if (!ensureValidRegexOrToast(sourceText, useRegex)) {
+    if (refs.selectionJunkInput) refs.selectionJunkInput.focus();
+    return;
+  }
   const preserveRatio = Number.isFinite(state.pendingSelectionJunkRatio)
     ? state.pendingSelectionJunkRatio
     : currentChapterRatio();
@@ -2571,7 +2886,11 @@ async function confirmSelectionJunkEntry(event) {
     await state.shell.api("/api/junk-lines/global/entry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ new_line: sourceText, use_regex: useRegex }),
+      body: JSON.stringify({
+        new_line: sourceText,
+        use_regex: useRegex,
+        ignore_case: Boolean(refs.selectionJunkIgnoreCaseInput && refs.selectionJunkIgnoreCaseInput.checked),
+      }),
     });
     if (refs.selectionJunkDialog && refs.selectionJunkDialog.open) {
       refs.selectionJunkDialog.close();
@@ -2590,6 +2909,77 @@ async function confirmSelectionJunkEntry(event) {
   }
 }
 
+function resetSelectionReplaceDialogState() {
+  state.pendingSelectionReplaceRatio = null;
+  if (refs.selectionReplaceForm) refs.selectionReplaceForm.reset();
+}
+
+async function applySelectionReplaceEntry() {
+  const payload = currentSelectionPayload();
+  hideSelectionBtn();
+  clearSelectedTextRange();
+  if (!payload || !payload.selected) return;
+  state.pendingSelectionReplaceRatio = currentChapterRatio();
+  if (refs.selectionReplaceSourceInput) refs.selectionReplaceSourceInput.value = payload.selected;
+  if (refs.selectionReplaceTargetInput) refs.selectionReplaceTargetInput.value = "";
+  if (refs.selectionReplaceDialog) refs.selectionReplaceDialog.showModal();
+  if (refs.selectionReplaceTargetInput) {
+    window.setTimeout(() => {
+      refs.selectionReplaceTargetInput.focus();
+    }, 10);
+  }
+}
+
+async function confirmSelectionReplaceEntry(event) {
+  if (event) event.preventDefault();
+  const source = String(refs.selectionReplaceSourceInput && refs.selectionReplaceSourceInput.value || "").trim();
+  const target = String(refs.selectionReplaceTargetInput && refs.selectionReplaceTargetInput.value || "").trim();
+  const useRegex = Boolean(refs.selectionReplaceRegexInput && refs.selectionReplaceRegexInput.checked);
+  const ignoreCase = Boolean(refs.selectionReplaceIgnoreCaseInput && refs.selectionReplaceIgnoreCaseInput.checked);
+  if (!source) {
+    state.shell.showToast(state.shell.t("replaceSourceRequired"));
+    if (refs.selectionReplaceSourceInput) refs.selectionReplaceSourceInput.focus();
+    return;
+  }
+  if (!target) {
+    state.shell.showToast(state.shell.t("replaceTargetRequired"));
+    if (refs.selectionReplaceTargetInput) refs.selectionReplaceTargetInput.focus();
+    return;
+  }
+  if (!ensureValidRegexOrToast(source, useRegex)) {
+    if (refs.selectionReplaceSourceInput) refs.selectionReplaceSourceInput.focus();
+    return;
+  }
+  const preserveRatio = Number.isFinite(state.pendingSelectionReplaceRatio)
+    ? state.pendingSelectionReplaceRatio
+    : currentChapterRatio();
+  state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
+  try {
+    const result = await state.shell.api(`/api/book-replaces/book/${encodeURIComponent(state.bookId)}/entry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source,
+        target,
+        use_regex: useRegex,
+        ignore_case: ignoreCase,
+      }),
+    });
+    syncBookReplaceEntriesFromState(result);
+    if (refs.selectionReplaceDialog && refs.selectionReplaceDialog.open) {
+      refs.selectionReplaceDialog.close();
+    } else {
+      resetSelectionReplaceDialogState();
+    }
+    await refreshReaderAfterRawRuleChange({ preserveRatio });
+    state.shell.showToast(state.shell.t("replaceEntryApplied"));
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
 async function editSelectionNameFromMenu() {
   const payload = currentSelectionPayload();
   hideSelectionBtn();
@@ -2598,7 +2988,14 @@ async function editSelectionNameFromMenu() {
   const startOffset = payload ? payload.start : Number.NaN;
   const endOffset = payload ? payload.end : Number.NaN;
   if (!text || !state.chapterId || Number.isNaN(startOffset) || Number.isNaN(endOffset)) {
-    openNameEditor({ target: text, source: "" });
+    state.pendingSelectionNameRatio = currentChapterRatio();
+    if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.value = "";
+    if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.value = text;
+    if (refs.selectionNameDialog) refs.selectionNameDialog.showModal();
+    window.setTimeout(() => {
+      if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.focus();
+      else if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.focus();
+    }, 10);
     return;
   }
   state.shell.showStatus(state.shell.t("statusMappingSelection"));
@@ -2616,14 +3013,23 @@ async function editSelectionNameFromMenu() {
     if (!mapped.source_candidate) {
       state.shell.showToast(state.shell.t("selectionMapNoSource"));
     }
-    openNameEditor({
-      source: mapped.source_candidate || "",
-      target: mapped.target_candidate || text,
-      suggestions: mapped.name_suggestions || [],
-    });
+    state.pendingSelectionNameRatio = currentChapterRatio();
+    if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.value = mapped.source_candidate || "";
+    if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.value = mapped.target_candidate || text;
+    if (refs.selectionNameDialog) refs.selectionNameDialog.showModal();
+    window.setTimeout(() => {
+      if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.focus();
+    }, 10);
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
-    openNameEditor({ target: text, source: "" });
+    state.pendingSelectionNameRatio = currentChapterRatio();
+    if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.value = "";
+    if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.value = text;
+    if (refs.selectionNameDialog) refs.selectionNameDialog.showModal();
+    window.setTimeout(() => {
+      if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.focus();
+      else if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.focus();
+    }, 10);
   } finally {
     state.shell.hideStatus();
   }
@@ -2663,7 +3069,7 @@ function handleSelectionButton() {
     hideSelectionBtn();
     return;
   }
-  for (const node of [refs.selectionActionMenu, refs.selectionNameBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
+  for (const node of [refs.selectionActionMenu, refs.selectionNameBtn, refs.selectionReplaceBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
     if (!node || !node.dataset) continue;
     node.dataset.text = payload.selected;
     node.dataset.startOffset = String(payload.start);
@@ -2672,6 +3078,10 @@ function handleSelectionButton() {
   if (refs.selectionNameBtn) {
     refs.selectionNameBtn.textContent = state.shell.t("selectionEditName");
     refs.selectionNameBtn.classList.toggle("hidden", !canEditSelectionName(payload));
+  }
+  if (refs.selectionReplaceBtn) {
+    refs.selectionReplaceBtn.textContent = state.shell.t("selectionEditWord");
+    refs.selectionReplaceBtn.classList.toggle("hidden", !canEditSelectionReplace(payload));
   }
   if (refs.selectionCopyBtn) {
     refs.selectionCopyBtn.textContent = state.shell.t("selectionCopy");
@@ -2733,13 +3143,44 @@ function bindNameEditor() {
   refs.nameSuggestColAction.textContent = state.shell.t("nameSuggestColAction");
   if (refs.btnNameSuggestGoogleTranslate) refs.btnNameSuggestGoogleTranslate.textContent = state.shell.t("nameSuggestGoogleTranslate");
   if (refs.btnNameSuggestGoogleSearch) refs.btnNameSuggestGoogleSearch.textContent = state.shell.t("nameSuggestGoogleSearch");
+  if (refs.btnOpenReplaceEditor) refs.btnOpenReplaceEditor.textContent = state.shell.t("openReplaceEditor");
+  if (refs.selectionNameTitle) refs.selectionNameTitle.textContent = state.shell.t("selectionNameTitle");
+  if (refs.selectionNameHint) refs.selectionNameHint.textContent = state.shell.t("selectionNameHint");
+  if (refs.selectionNameSourceLabel) refs.selectionNameSourceLabel.textContent = state.shell.t("selectionNameSourceLabel");
+  if (refs.selectionNameTargetLabel) refs.selectionNameTargetLabel.textContent = state.shell.t("selectionNameTargetLabel");
+  if (refs.btnCloseSelectionName) refs.btnCloseSelectionName.textContent = state.shell.t("close");
+  if (refs.btnCancelSelectionName) refs.btnCancelSelectionName.textContent = state.shell.t("cancel");
+  if (refs.btnConfirmSelectionName) refs.btnConfirmSelectionName.textContent = state.shell.t("selectionNameConfirm");
   if (refs.selectionJunkTitle) refs.selectionJunkTitle.textContent = state.shell.t("selectionJunkTitle");
   if (refs.btnCloseSelectionJunk) refs.btnCloseSelectionJunk.textContent = state.shell.t("close");
   if (refs.selectionJunkHint) refs.selectionJunkHint.textContent = state.shell.t("selectionJunkHint");
   if (refs.selectionJunkInputLabel) refs.selectionJunkInputLabel.textContent = state.shell.t("selectionJunkInputLabel");
   if (refs.selectionJunkRegexLabel) refs.selectionJunkRegexLabel.textContent = state.shell.t("selectionJunkRegexLabel");
+  if (refs.selectionJunkIgnoreCaseLabel) refs.selectionJunkIgnoreCaseLabel.textContent = state.shell.t("selectionJunkIgnoreCaseLabel");
   if (refs.btnCancelSelectionJunk) refs.btnCancelSelectionJunk.textContent = state.shell.t("cancel");
   if (refs.btnConfirmSelectionJunk) refs.btnConfirmSelectionJunk.textContent = state.shell.t("selectionJunkConfirm");
+  if (refs.selectionReplaceTitle) refs.selectionReplaceTitle.textContent = state.shell.t("selectionReplaceTitle");
+  if (refs.selectionReplaceHint) refs.selectionReplaceHint.textContent = state.shell.t("selectionReplaceHint");
+  if (refs.selectionReplaceSourceLabel) refs.selectionReplaceSourceLabel.textContent = state.shell.t("selectionReplaceSourceLabel");
+  if (refs.selectionReplaceTargetLabel) refs.selectionReplaceTargetLabel.textContent = state.shell.t("selectionReplaceTargetLabel");
+  if (refs.selectionReplaceRegexLabel) refs.selectionReplaceRegexLabel.textContent = state.shell.t("selectionReplaceRegexLabel");
+  if (refs.selectionReplaceIgnoreCaseLabel) refs.selectionReplaceIgnoreCaseLabel.textContent = state.shell.t("selectionReplaceIgnoreCaseLabel");
+  if (refs.btnCloseSelectionReplace) refs.btnCloseSelectionReplace.textContent = state.shell.t("close");
+  if (refs.btnCancelSelectionReplace) refs.btnCancelSelectionReplace.textContent = state.shell.t("cancel");
+  if (refs.btnConfirmSelectionReplace) refs.btnConfirmSelectionReplace.textContent = state.shell.t("selectionReplaceConfirm");
+  if (refs.replaceEditorTitle) refs.replaceEditorTitle.textContent = state.shell.t("replaceEditorTitle");
+  if (refs.replaceEditorHint) refs.replaceEditorHint.textContent = state.shell.t("replaceEditorHint");
+  if (refs.btnCloseReplaceEditor) refs.btnCloseReplaceEditor.textContent = state.shell.t("close");
+  if (refs.btnRefreshReplaceEditor) refs.btnRefreshReplaceEditor.textContent = state.shell.t("refreshNamePreview");
+  if (refs.replaceSourceLabel) refs.replaceSourceLabel.textContent = state.shell.t("replaceSourceLabel");
+  if (refs.replaceTargetLabel) refs.replaceTargetLabel.textContent = state.shell.t("replaceTargetLabel");
+  if (refs.replaceRegexLabel) refs.replaceRegexLabel.textContent = state.shell.t("junkRegexLabel");
+  if (refs.replaceIgnoreCaseLabel) refs.replaceIgnoreCaseLabel.textContent = state.shell.t("junkIgnoreCaseLabel");
+  if (refs.btnAddReplaceEntry) refs.btnAddReplaceEntry.textContent = state.shell.t("addNameEntry");
+  if (refs.replacePreviewHint) refs.replacePreviewHint.textContent = state.shell.t("replacePreviewEmpty");
+  if (refs.replaceColSource) refs.replaceColSource.textContent = state.shell.t("replaceColSource");
+  if (refs.replaceColTarget) refs.replaceColTarget.textContent = state.shell.t("replaceColTarget");
+  if (refs.replaceColAction) refs.replaceColAction.textContent = state.shell.t("replaceColAction");
   syncNameEditorScopeUi();
 
   if (refs.nameDictTypeSelect) {
@@ -2760,14 +3201,36 @@ function bindNameEditor() {
   }
 
   refs.btnOpenNameEditor.addEventListener("click", () => openNameEditor({}));
+  if (refs.btnOpenReplaceEditor) refs.btnOpenReplaceEditor.addEventListener("click", () => {
+    openReplaceEditor().catch((error) => {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    });
+  });
   refs.btnCloseNameEditor.addEventListener("click", () => refs.nameEditorDialog.close());
+  if (refs.btnCloseReplaceEditor) refs.btnCloseReplaceEditor.addEventListener("click", () => refs.replaceEditorDialog.close());
   refs.btnCloseNameBulk.addEventListener("click", () => refs.nameBulkDialog.close());
   refs.btnCloseNameSuggest.addEventListener("click", () => refs.nameSuggestDialog.close());
+  if (refs.btnCloseSelectionName) refs.btnCloseSelectionName.addEventListener("click", () => {
+    if (refs.selectionNameDialog) refs.selectionNameDialog.close();
+  });
+  if (refs.btnCancelSelectionName) refs.btnCancelSelectionName.addEventListener("click", () => {
+    if (refs.selectionNameDialog) refs.selectionNameDialog.close();
+  });
   refs.btnCancelNameBulk.addEventListener("click", () => refs.nameBulkDialog.close());
   refs.nameBulkDialog.addEventListener("close", () => {
     if (refs.nameBulkForm) refs.nameBulkForm.reset();
   });
   refs.nameBulkForm.addEventListener("submit", submitQuickAddNameEntries);
+  if (refs.selectionNameDialog) {
+    refs.selectionNameDialog.addEventListener("close", () => {
+      resetSelectionNameDialogState();
+    });
+  }
+  if (refs.selectionNameForm) refs.selectionNameForm.addEventListener("submit", (event) => {
+    confirmSelectionNameEntry(event).catch((error) => {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    });
+  });
   if (refs.btnCloseSelectionJunk) refs.btnCloseSelectionJunk.addEventListener("click", () => {
     if (refs.selectionJunkDialog) refs.selectionJunkDialog.close();
   });
@@ -2783,6 +3246,67 @@ function bindNameEditor() {
     confirmSelectionJunkEntry(event).catch((error) => {
       state.shell.showToast(error.message || state.shell.t("toastError"));
     });
+  });
+  if (refs.btnCloseSelectionReplace) refs.btnCloseSelectionReplace.addEventListener("click", () => {
+    if (refs.selectionReplaceDialog) refs.selectionReplaceDialog.close();
+  });
+  if (refs.btnCancelSelectionReplace) refs.btnCancelSelectionReplace.addEventListener("click", () => {
+    if (refs.selectionReplaceDialog) refs.selectionReplaceDialog.close();
+  });
+  if (refs.selectionReplaceDialog) {
+    refs.selectionReplaceDialog.addEventListener("close", () => {
+      resetSelectionReplaceDialogState();
+    });
+  }
+  if (refs.selectionReplaceForm) refs.selectionReplaceForm.addEventListener("submit", (event) => {
+    confirmSelectionReplaceEntry(event).catch((error) => {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    });
+  });
+  if (refs.btnRefreshReplaceEditor) refs.btnRefreshReplaceEditor.addEventListener("click", () => {
+    openReplaceEditor().catch((error) => {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    });
+  });
+  if (refs.replaceEntryForm) refs.replaceEntryForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const source = String(refs.replaceSourceInput && refs.replaceSourceInput.value || "").trim();
+    const target = String(refs.replaceTargetInput && refs.replaceTargetInput.value || "").trim();
+    const useRegex = Boolean(refs.replaceRegexInput && refs.replaceRegexInput.checked);
+    const ignoreCase = Boolean(refs.replaceIgnoreCaseInput && refs.replaceIgnoreCaseInput.checked);
+    if (!source) {
+      state.shell.showToast(state.shell.t("replaceSourceRequired"));
+      if (refs.replaceSourceInput) refs.replaceSourceInput.focus();
+      return;
+    }
+    if (!target) {
+      state.shell.showToast(state.shell.t("replaceTargetRequired"));
+      if (refs.replaceTargetInput) refs.replaceTargetInput.focus();
+      return;
+    }
+    if (!ensureValidRegexOrToast(source, useRegex)) {
+      if (refs.replaceSourceInput) refs.replaceSourceInput.focus();
+      return;
+    }
+    try {
+      const result = await state.shell.api(`/api/book-replaces/book/${encodeURIComponent(state.bookId)}/entry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source,
+          target,
+          use_regex: useRegex,
+          ignore_case: ignoreCase,
+        }),
+      });
+      syncBookReplaceEntriesFromState(result);
+      refs.replaceEntryForm.reset();
+      renderReplaceEntriesTable();
+      await refreshReaderAfterRawRuleChange({ preserveRatio: currentChapterRatio() });
+      state.shell.showToast(state.shell.t("replaceEntryApplied"));
+    } catch (error) {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    }
   });
   if (refs.btnNameSuggestGoogleTranslate) {
     refs.btnNameSuggestGoogleTranslate.addEventListener("click", () => {
@@ -2862,6 +3386,11 @@ function bindNameEditor() {
 
   if (refs.selectionNameBtn) refs.selectionNameBtn.addEventListener("click", () => {
     editSelectionNameFromMenu().catch((error) => {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    });
+  });
+  if (refs.selectionReplaceBtn) refs.selectionReplaceBtn.addEventListener("click", () => {
+    applySelectionReplaceEntry().catch((error) => {
       state.shell.showToast(error.message || state.shell.t("toastError"));
     });
   });

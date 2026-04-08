@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260407-bookdetail1">
+  <link rel="stylesheet" href="./styles.css?v=20260408-bookrawreplace1">
 </head>
 
 <body data-page="book" class="mpa-body">
@@ -289,6 +289,51 @@
     </form>
   </dialog>
 
+  <dialog id="book-replace-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="book-replace-title"></h3>
+      <button id="btn-close-book-replaces" class="btn btn-small" type="button"></button>
+    </div>
+    <div class="name-editor-head">
+      <p id="book-replace-hint" class="empty-text"></p>
+      <button id="btn-book-replace-refresh" class="btn btn-small" type="button"></button>
+    </div>
+    <form id="book-replace-entry-form" class="name-entry-form">
+      <label>
+        <span id="book-replace-source-label"></span>
+        <input id="book-replace-source" type="text" spellcheck="false" required>
+      </label>
+      <label>
+        <span id="book-replace-target-label"></span>
+        <input id="book-replace-target" type="text" spellcheck="false" required>
+      </label>
+      <label class="checkbox-row">
+        <input id="book-replace-regex-input" type="checkbox">
+        <span id="book-replace-regex-label"></span>
+      </label>
+      <label class="checkbox-row">
+        <input id="book-replace-ignore-case-input" type="checkbox">
+        <span id="book-replace-ignore-case-label"></span>
+      </label>
+      <button id="btn-book-replace-save-entry" class="btn btn-primary" type="submit"></button>
+    </form>
+    <div class="name-preview-wrap">
+      <p id="book-replace-preview-hint" class="empty-text"></p>
+      <div class="name-preview-table-wrap">
+        <table class="name-preview-table name-entry-table">
+          <thead>
+            <tr>
+              <th id="book-replace-col-source"></th>
+              <th id="book-replace-col-target"></th>
+              <th id="book-replace-col-action"></th>
+            </tr>
+          </thead>
+          <tbody id="book-replace-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="book-categories-dialog" class="dialog category-dialog">
     <div class="dialog-head">
       <h3 id="book-categories-dialog-title"></h3>
@@ -464,7 +509,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/book_page.js?v=20260407-bookdetail1"></script>
+  <script type="module" src="./js/pages/book_page.js?v=20260408-bookrawreplace1"></script>
 </body>
 
 </html>

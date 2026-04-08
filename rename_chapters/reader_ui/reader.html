@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260407-importwrap1">
+  <link rel="stylesheet" href="./styles.css?v=20260408-rawreplace1">
 </head>
 
 <body data-page="reader" class="mpa-body">
@@ -134,6 +134,7 @@
           <button id="btn-translate-mode" class="btn btn-small" type="button"></button>
           <button id="btn-reload-chapter" class="btn btn-small" type="button"></button>
           <button id="btn-open-name-editor" class="btn btn-small" type="button"></button>
+          <button id="btn-open-replace-editor" class="btn btn-small" type="button"></button>
           <button id="btn-fullscreen" class="btn btn-small" type="button"></button>
         </div>
       </div>
@@ -310,9 +311,32 @@
 
   <div id="selection-action-menu" class="floating-select-menu hidden" role="toolbar" aria-label="Tiện ích đoạn chọn">
     <button id="selection-name-btn" class="btn btn-small floating-select-btn" type="button"></button>
+    <button id="selection-replace-btn" class="btn btn-small floating-select-btn hidden" type="button"></button>
     <button id="selection-copy-btn" class="btn btn-small floating-select-btn" type="button"></button>
     <button id="selection-junk-btn" class="btn btn-small floating-select-btn" type="button"></button>
   </div>
+
+  <dialog id="selection-name-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="selection-name-title"></h3>
+      <button id="btn-close-selection-name" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="selection-name-hint" class="dialog-subtitle"></p>
+    <form id="selection-name-form" class="name-entry-form">
+      <label>
+        <span id="selection-name-source-label"></span>
+        <input id="selection-name-source-input" type="text" spellcheck="false" required>
+      </label>
+      <label>
+        <span id="selection-name-target-label"></span>
+        <input id="selection-name-target-input" type="text" spellcheck="false" required>
+      </label>
+      <div class="dialog-actions">
+        <button id="btn-cancel-selection-name" class="btn" type="button"></button>
+        <button id="btn-confirm-selection-name" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="selection-junk-dialog" class="dialog name-editor-dialog">
     <div class="dialog-head">
@@ -329,11 +353,90 @@
         <input id="selection-junk-regex-input" type="checkbox">
         <span id="selection-junk-regex-label"></span>
       </label>
+      <label class="checkbox-row">
+        <input id="selection-junk-ignore-case-input" type="checkbox">
+        <span id="selection-junk-ignore-case-label"></span>
+      </label>
       <div class="dialog-actions">
         <button id="btn-cancel-selection-junk" class="btn" type="button"></button>
         <button id="btn-confirm-selection-junk" class="btn btn-primary" type="submit"></button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="selection-replace-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="selection-replace-title"></h3>
+      <button id="btn-close-selection-replace" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="selection-replace-hint" class="dialog-subtitle"></p>
+    <form id="selection-replace-form" class="name-entry-form">
+      <label>
+        <span id="selection-replace-source-label"></span>
+        <input id="selection-replace-source-input" type="text" spellcheck="false" required>
+      </label>
+      <label>
+        <span id="selection-replace-target-label"></span>
+        <input id="selection-replace-target-input" type="text" spellcheck="false" required>
+      </label>
+      <label class="checkbox-row">
+        <input id="selection-replace-regex-input" type="checkbox">
+        <span id="selection-replace-regex-label"></span>
+      </label>
+      <label class="checkbox-row">
+        <input id="selection-replace-ignore-case-input" type="checkbox">
+        <span id="selection-replace-ignore-case-label"></span>
+      </label>
+      <div class="dialog-actions">
+        <button id="btn-cancel-selection-replace" class="btn" type="button"></button>
+        <button id="btn-confirm-selection-replace" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="replace-editor-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="replace-editor-title"></h3>
+      <button id="btn-close-replace-editor" class="btn btn-small" type="button"></button>
+    </div>
+    <div class="name-editor-head">
+      <p id="replace-editor-hint" class="empty-text"></p>
+      <button id="btn-refresh-replace-editor" class="btn btn-small" type="button"></button>
+    </div>
+    <form id="replace-entry-form" class="name-entry-form">
+      <label>
+        <span id="replace-source-label"></span>
+        <input id="replace-source-input" type="text" spellcheck="false" required>
+      </label>
+      <label>
+        <span id="replace-target-label"></span>
+        <input id="replace-target-input" type="text" spellcheck="false" required>
+      </label>
+      <label class="checkbox-row">
+        <input id="replace-regex-input" type="checkbox">
+        <span id="replace-regex-label"></span>
+      </label>
+      <label class="checkbox-row">
+        <input id="replace-ignore-case-input" type="checkbox">
+        <span id="replace-ignore-case-label"></span>
+      </label>
+      <button id="btn-add-replace-entry" class="btn btn-primary" type="submit"></button>
+    </form>
+    <div class="name-preview-wrap">
+      <p id="replace-preview-hint" class="empty-text"></p>
+      <div class="name-preview-table-wrap">
+        <table class="name-preview-table">
+          <thead>
+            <tr>
+              <th id="replace-col-source"></th>
+              <th id="replace-col-target"></th>
+              <th id="replace-col-action"></th>
+            </tr>
+          </thead>
+          <tbody id="replace-preview-body"></tbody>
+        </table>
+      </div>
+    </div>
   </dialog>
 
   <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
@@ -455,7 +558,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260408-junkregex1"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260408-rawreplace1"></script>
 </body>
 
 </html>
