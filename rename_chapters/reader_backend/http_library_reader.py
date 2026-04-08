@@ -161,10 +161,6 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
     storage = service.storage
 
     if method == "GET" and path == "/api/library/books":
-        try:
-            storage.cleanup_expired_history()
-        except Exception:
-            pass
         books = service.list_books()
         return {"items": books}
 
@@ -339,7 +335,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             return {"ok": True, "book": updated}
         cover_url = (form.getfirst("cover_url") or "").strip()
         if cover_url:
-            updated = storage.update_book_metadata(book_id, {"cover_path": cover_url})
+            updated = storage.set_book_cover_url(book_id, cover_url, cover_locked=True, cover_remote_url="")
             if not updated:
                 raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
             return {"ok": True, "book": updated}
@@ -600,13 +596,17 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             )
             token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
         state = _get_name_set_state(handler, chapter["book_id"])
+        if translate_mode == "server":
+            effective_name_set = service.translator._server_name_set_for_use(active_name_set)
+        else:
+            effective_name_set = service.translator._name_set_for_use(active_name_set)
         mapped = deps.map_selection_to_name_source(
             raw_text=raw_text,
             translated_text=translated_text,
             selected_text=selected_text,
             start_offset=start_offset,
             end_offset=end_offset,
-            name_set=active_name_set,
+            name_set=effective_name_set,
             unit_map=unit_map,
             token_map=token_map,
             translation_mode=translate_mode,

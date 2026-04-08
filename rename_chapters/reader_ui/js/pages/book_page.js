@@ -166,6 +166,8 @@ const state = {
   categories: [],
   bookCategoryDraftIds: [],
   bookReplaceEntries: [],
+  translationSupportedHint: null,
+  isComicHint: null,
   downloadWatchTimer: null,
   downloadEventSource: null,
   downloadWatchReconnectTimer: null,
@@ -228,6 +230,86 @@ function supportsRawTextReplace(book) {
   return sourceType !== "vbook_comic" && sourceType !== "comic";
 }
 
+function parseBooleanLike(value) {
+  if (typeof value === "boolean") return value;
+  const raw = String(value == null ? "" : value).trim().toLowerCase();
+  if (!raw) return null;
+  if (["1", "true", "yes", "on"].includes(raw)) return true;
+  if (["0", "false", "no", "off"].includes(raw)) return false;
+  return null;
+}
+
+function hintedSupportsTranslation() {
+  if (state.book) return supportsTranslation(state.book);
+  if (typeof state.translationSupportedHint === "boolean") return state.translationSupportedHint;
+  return true;
+}
+
+function hintedSupportsRawReplace() {
+  if (state.book) return supportsRawTextReplace(state.book);
+  if (state.translationSupportedHint === false) return state.isComicHint !== true;
+  return false;
+}
+
+function coverHashSeed(...parts) {
+  const seed = parts.map((item) => String(item || "").trim()).filter(Boolean).join("|") || "reader";
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = ((hash * 33) + seed.charCodeAt(index)) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function escapeSvgText(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function buildFallbackCoverDataUrl({ title = "", author = "", tag = "" } = {}) {
+  const safeTitle = normalizeDisplayTitle(title || state.shell.t("noCover") || "No Cover");
+  const initials = safeTitle
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((item) => item.charAt(0).toUpperCase())
+    .join("") || "BK";
+  const palette = [
+    ["#233a7a", "#6aa0ff", "#eef5ff"],
+    ["#23545f", "#6bc8d7", "#edfdfd"],
+    ["#5a345b", "#e7a7dd", "#fff1fb"],
+    ["#6b3f28", "#f2b07c", "#fff6ef"],
+    ["#3c4f2d", "#b9d96b", "#f8ffe8"],
+    ["#40456f", "#9ca5ff", "#f3f4ff"],
+  ];
+  const [bg1, bg2, text] = palette[coverHashSeed(safeTitle, author, tag) % palette.length];
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 680">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${bg1}"/>
+          <stop offset="100%" stop-color="${bg2}"/>
+        </linearGradient>
+      </defs>
+      <rect width="480" height="680" rx="28" fill="url(#g)"/>
+      <circle cx="402" cy="90" r="62" fill="rgba(255,255,255,0.10)"/>
+      <circle cx="90" cy="590" r="88" fill="rgba(255,255,255,0.08)"/>
+      <text x="54" y="102" fill="rgba(255,255,255,0.78)" font-size="26" font-family="Arial, sans-serif">${escapeSvgText(String(tag || "BOOK").trim().toUpperCase())}</text>
+      <text x="54" y="250" fill="${text}" font-size="122" font-weight="700" font-family="Arial, sans-serif">${escapeSvgText(initials)}</text>
+      <foreignObject x="54" y="300" width="372" height="228">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, sans-serif; color: ${text}; font-size: 36px; line-height: 1.25; font-weight: 700; word-break: break-word;">
+          ${escapeSvgText(safeTitle)}
+        </div>
+      </foreignObject>
+      <text x="54" y="626" fill="rgba(255,255,255,0.86)" font-size="28" font-family="Arial, sans-serif">${escapeSvgText(String(author || state.shell.t("unknownAuthor")).trim())}</text>
+    </svg>
+  `.trim();
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 function isOnlineSourceBook(book) {
   const sourceType = String((book && book.source_type) || "").trim().toLowerCase();
   return sourceType === "vbook" || sourceType === "vbook_comic" || sourceType.startsWith("vbook_session");
@@ -240,12 +322,14 @@ function effectiveModeForBook(book, mode) {
 
 function setCover(url) {
   const wrap = refs.bookCover.parentElement;
-  if (!url) {
-    refs.bookCover.removeAttribute("src");
-    wrap.classList.remove("has-image");
-    return;
-  }
-  refs.bookCover.src = url;
+  const fallbackUrl = buildFallbackCoverDataUrl({
+    title: state.book && (state.book.title_display || state.book.title) || "",
+    author: state.book && (state.book.author_display || state.book.author) || "",
+    tag: "BOOK",
+  });
+  refs.bookCover.dataset.fallbackUrl = fallbackUrl;
+  refs.bookCover.dataset.fallbackApplied = "0";
+  refs.bookCover.src = String(url || "").trim() || fallbackUrl;
   wrap.classList.add("has-image");
 }
 
@@ -271,12 +355,51 @@ function ensureValidRegexOrToast(pattern, useRegex) {
 
 function syncBookRuleButton() {
   if (!refs.btnOpenBookNames || !state.shell) return;
-  const canTranslate = supportsTranslation(state.book);
-  const canReplace = supportsRawTextReplace(state.book);
+  const canTranslate = hintedSupportsTranslation();
+  const canReplace = hintedSupportsRawReplace();
   refs.btnOpenBookNames.classList.toggle("hidden", !(canTranslate || canReplace));
   refs.btnOpenBookNames.textContent = canReplace
     ? state.shell.t("openReplaceEditor")
     : state.shell.t("bookPrivateNames");
+}
+
+function applyBookUrlHints(params, book) {
+  if (!book || typeof book !== "object") return;
+  const translationSupported = parseBooleanLike(book.translation_supported);
+  const isComic = parseBooleanLike(book.is_comic);
+  if (translationSupported !== null) params.set("translation_supported", translationSupported ? "1" : "0");
+  if (isComic !== null) params.set("is_comic", isComic ? "1" : "0");
+}
+
+function buildBookUrl(bookOrId, mode = state.mode || "raw") {
+  const book = bookOrId && typeof bookOrId === "object" ? bookOrId : null;
+  const bookId = book ? String(book.book_id || "").trim() : String(bookOrId || "").trim();
+  const params = new URLSearchParams();
+  params.set("book_id", bookId);
+  params.set("mode", mode);
+  if (mode === "trans") params.set("translation_mode", state.translateMode);
+  applyBookUrlHints(params, book);
+  return `/book?${params.toString()}`;
+}
+
+function buildReaderUrl(bookOrId, chapterId = "", mode = state.mode || "raw") {
+  const book = bookOrId && typeof bookOrId === "object" ? bookOrId : null;
+  const bookId = book ? String(book.book_id || "").trim() : String(bookOrId || "").trim();
+  const params = new URLSearchParams();
+  params.set("book_id", bookId);
+  const chapter = String(chapterId || "").trim();
+  if (chapter) params.set("chapter_id", chapter);
+  params.set("mode", mode);
+  if (mode === "trans") params.set("translation_mode", state.translateMode);
+  applyBookUrlHints(params, book);
+  return `/reader?${params.toString()}`;
+}
+
+function applyInitialBookUiHints() {
+  const canTranslate = hintedSupportsTranslation();
+  if (refs.btnTocModeTrans) refs.btnTocModeTrans.classList.toggle("hidden", !canTranslate);
+  if (refs.btnTranslateTitles) refs.btnTranslateTitles.classList.toggle("hidden", !canTranslate);
+  syncBookRuleButton();
 }
 
 function normalizeCategoryIds(values) {
@@ -624,7 +747,7 @@ function populateBook() {
   refs.fieldAuthorVi.value = book.author_vi || "";
   refs.fieldSummary.value = book.summary || "";
   refs.fieldExtraLink.value = book.extra_link || "";
-  refs.fieldCoverUrl.value = book.cover_path || book.cover_url || "";
+  refs.fieldCoverUrl.value = book.cover_remote_url || ((String(book.cover_path || "").startsWith("http://") || String(book.cover_path || "").startsWith("https://") || String(book.cover_path || "").startsWith("data:")) ? (book.cover_path || "") : "");
 
   const canTranslate = supportsTranslation(book);
   refs.btnTocModeTrans.classList.toggle("hidden", !canTranslate);
@@ -668,7 +791,8 @@ function renderToc() {
 
     btn.append(title, sub);
     btn.addEventListener("click", () => {
-      window.location.href = `/reader?book_id=${encodeURIComponent(state.bookId)}&chapter_id=${encodeURIComponent(chapter.chapter_id)}`;
+      const mode = effectiveModeForBook(state.book, state.mode);
+      window.location.href = buildReaderUrl(state.book || state.bookId, chapter.chapter_id, mode);
     });
     const iconBtn = document.createElement("button");
     iconBtn.type = "button";
@@ -1600,9 +1724,11 @@ async function init() {
     page: "book",
     onSearchSubmit: (q) => state.shell.goSearchPage(q),
     onImported: (data) => {
-      const bid = data && data.book && data.book.book_id;
+      const book = data && data.book;
+      const bid = book && book.book_id;
       if (bid) {
-        window.location.href = `/book?book_id=${encodeURIComponent(bid)}`;
+        const mode = effectiveModeForBook(book, state.translationEnabled ? "trans" : "raw");
+        window.location.href = buildBookUrl(book, mode);
       }
     },
   });
@@ -1704,6 +1830,12 @@ async function init() {
   if (refs.btnSaveBookCategoriesDialog) refs.btnSaveBookCategoriesDialog.textContent = state.shell.t("save");
   renderBookInfoSkeleton();
   renderTocSkeleton();
+  refs.bookCover.addEventListener("error", () => {
+    const fallbackUrl = String(refs.bookCover.dataset.fallbackUrl || "").trim();
+    if (!fallbackUrl || refs.bookCover.dataset.fallbackApplied === "1") return;
+    refs.bookCover.dataset.fallbackApplied = "1";
+    refs.bookCover.src = fallbackUrl;
+  });
 
   refs.btnOpenExtraLink.addEventListener("click", () => {
     if (!state.book || !state.book.extra_link) return;
@@ -1712,7 +1844,9 @@ async function init() {
 
   refs.btnOpenReaderFromBook.addEventListener("click", () => {
     if (!state.bookId) return;
-    window.location.href = `/reader?book_id=${encodeURIComponent(state.bookId)}`;
+    const targetChapterId = state.book && state.book.last_read_chapter_id ? state.book.last_read_chapter_id : "";
+    const mode = effectiveModeForBook(state.book, state.mode);
+    window.location.href = buildReaderUrl(state.book || state.bookId, targetChapterId, mode);
   });
   if (refs.btnBookCategoriesEdit) refs.btnBookCategoriesEdit.addEventListener("click", () => {
     openBookCategoriesDialog().catch(() => {});
@@ -1983,7 +2117,13 @@ async function init() {
   const query = state.shell.parseQuery();
   state.translationLocalSig = localTranslationSettingsSignature(state.shell);
   state.bookId = (query.book_id || "").trim();
+  state.translationSupportedHint = parseBooleanLike(query.translation_supported);
+  state.isComicHint = parseBooleanLike(query.is_comic);
   state.mode = (query.mode || "trans").toLowerCase() === "raw" ? "raw" : "trans";
+  if (!state.translationEnabled || state.translationSupportedHint === false) {
+    state.mode = "raw";
+  }
+  applyInitialBookUiHints();
 
   await Promise.all([
     loadCategories({ silent: true }).catch(() => null),

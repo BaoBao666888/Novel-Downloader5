@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260408-rawreplace1">
+  <link rel="stylesheet" href="./styles.css?v=20260408-tts4">
 </head>
 
 <body data-page="reader" class="mpa-body">
@@ -129,6 +129,7 @@
         <div class="reader-actions">
           <button id="btn-reader-toc" class="btn btn-small" type="button"></button>
           <button id="btn-open-settings-inline" class="btn btn-small" type="button"></button>
+          <button id="btn-open-tts" class="btn btn-small" type="button"></button>
           <button id="btn-mode-raw" class="btn btn-small" type="button"></button>
           <button id="btn-mode-trans" class="btn btn-small" type="button"></button>
           <button id="btn-translate-mode" class="btn btn-small" type="button"></button>
@@ -310,11 +311,148 @@
   </dialog>
 
   <div id="selection-action-menu" class="floating-select-menu hidden" role="toolbar" aria-label="Tiện ích đoạn chọn">
+    <button id="selection-speak-btn" class="btn btn-small floating-select-btn" type="button"></button>
     <button id="selection-name-btn" class="btn btn-small floating-select-btn" type="button"></button>
     <button id="selection-replace-btn" class="btn btn-small floating-select-btn hidden" type="button"></button>
     <button id="selection-copy-btn" class="btn btn-small floating-select-btn" type="button"></button>
     <button id="selection-junk-btn" class="btn btn-small floating-select-btn" type="button"></button>
   </div>
+
+  <dialog id="tts-dialog" class="dialog tts-dialog">
+    <div class="dialog-head">
+      <h3 id="tts-dialog-title"></h3>
+      <button id="btn-close-tts-dialog" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="tts-dialog-hint" class="dialog-subtitle"></p>
+
+    <section class="tts-status-card">
+      <div class="tts-status-head">
+        <div>
+          <div id="tts-status-text" class="tts-status-text"></div>
+          <div id="tts-status-sub" class="tts-status-sub"></div>
+        </div>
+        <div id="tts-progress-text" class="tts-progress-text"></div>
+      </div>
+      <div class="tts-control-row">
+        <button id="btn-tts-play-chapter" class="btn btn-primary" type="button"></button>
+        <button id="btn-tts-toggle-play" class="btn" type="button"></button>
+        <button id="btn-tts-stop" class="btn" type="button"></button>
+        <button id="btn-tts-prev-segment" class="btn btn-small" type="button"></button>
+        <button id="btn-tts-next-segment" class="btn btn-small" type="button"></button>
+      </div>
+    </section>
+
+    <div class="tts-grid">
+      <label>
+        <span id="tts-provider-label"></span>
+        <select id="tts-provider-select"></select>
+      </label>
+      <label>
+        <span id="tts-voice-label"></span>
+        <select id="tts-voice-select"></select>
+      </label>
+      <label>
+        <span id="tts-rate-label"></span>
+        <div class="tts-range-row">
+          <input id="tts-rate-input" type="range" min="0.5" max="3" step="0.05">
+          <strong id="tts-rate-value"></strong>
+        </div>
+      </label>
+      <label>
+        <span id="tts-pitch-label"></span>
+        <div class="tts-range-row">
+          <input id="tts-pitch-input" type="range" min="0" max="2" step="0.05">
+          <strong id="tts-pitch-value"></strong>
+        </div>
+      </label>
+      <label>
+        <span id="tts-volume-label"></span>
+        <div class="tts-range-row">
+          <input id="tts-volume-input" type="range" min="0" max="1" step="0.05">
+          <strong id="tts-volume-value"></strong>
+        </div>
+      </label>
+      <label>
+        <span id="tts-max-chars-label"></span>
+        <input id="tts-max-chars-input" type="number" min="80" max="600" step="10">
+      </label>
+      <label>
+        <span id="tts-segment-delay-label"></span>
+        <input id="tts-segment-delay-input" type="number" min="0" max="5000" step="50">
+      </label>
+      <label>
+        <span id="tts-prefetch-count-label"></span>
+        <input id="tts-prefetch-count-input" type="number" min="0" max="6" step="1">
+      </label>
+      <label>
+        <span id="tts-remote-timeout-label"></span>
+        <input id="tts-remote-timeout-input" type="number" min="3000" max="120000" step="500">
+      </label>
+      <label>
+        <span id="tts-remote-retries-label"></span>
+        <input id="tts-remote-retries-input" type="number" min="0" max="5" step="1">
+      </label>
+      <label>
+        <span id="tts-remote-gap-label"></span>
+        <input id="tts-remote-gap-input" type="number" min="0" max="4000" step="20">
+      </label>
+    </div>
+
+    <div class="tts-toggle-grid">
+      <label class="checkbox-row">
+        <input id="tts-prefetch-enabled-input" type="checkbox">
+        <span id="tts-prefetch-enabled-label"></span>
+      </label>
+      <label class="checkbox-row">
+        <input id="tts-include-title-input" type="checkbox">
+        <span id="tts-include-title-label"></span>
+      </label>
+      <label class="checkbox-row">
+        <input id="tts-auto-scroll-input" type="checkbox">
+        <span id="tts-auto-scroll-label"></span>
+      </label>
+      <label class="checkbox-row">
+        <input id="tts-auto-next-input" type="checkbox">
+        <span id="tts-auto-next-label"></span>
+      </label>
+      <label class="checkbox-row">
+        <input id="tts-auto-start-next-input" type="checkbox">
+        <span id="tts-auto-start-next-label"></span>
+      </label>
+      <label class="checkbox-row">
+        <input id="tts-replace-enabled-input" type="checkbox">
+        <span id="tts-replace-enabled-label"></span>
+      </label>
+    </div>
+
+    <section class="tts-sleep-card">
+      <div class="tts-sleep-grid">
+        <label>
+          <span id="tts-sleep-label"></span>
+          <select id="tts-sleep-preset-select"></select>
+        </label>
+        <label id="tts-sleep-custom-wrap">
+          <span id="tts-sleep-custom-label"></span>
+          <input id="tts-sleep-custom-input" type="number" min="1" max="1440" step="1">
+        </label>
+      </div>
+      <div class="tts-control-row">
+        <button id="btn-tts-apply-sleep" class="btn btn-small" type="button"></button>
+        <button id="btn-tts-clear-sleep" class="btn btn-small" type="button"></button>
+      </div>
+      <div id="tts-sleep-status" class="tts-sleep-status empty-text"></div>
+    </section>
+
+    <label class="tts-replace-rules-wrap">
+      <span id="tts-replace-rules-label"></span>
+      <textarea id="tts-replace-rules-input" rows="6" spellcheck="false"></textarea>
+      <small id="tts-replace-rules-hint" class="empty-text"></small>
+    </label>
+
+    <div class="dialog-actions">
+      <button id="btn-tts-close-actions" class="btn" type="button"></button>
+    </div>
+  </dialog>
 
   <dialog id="selection-name-dialog" class="dialog name-editor-dialog">
     <div class="dialog-head">
@@ -558,7 +696,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260408-rawreplace1"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260408-tts4"></script>
 </body>
 
 </html>

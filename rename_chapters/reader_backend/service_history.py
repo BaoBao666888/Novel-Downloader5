@@ -55,14 +55,26 @@ def list_history_books(service) -> list[dict[str, Any]]:
     allow = service.is_reader_translation_enabled()
     if not allow:
         return items
-    out: list[dict[str, Any]] = []
+    title_sources: list[str] = []
+    author_sources: list[str] = []
+    chapter_sources: list[str] = []
     for row in items:
+        item = dict(row or {})
+        title_sources.append(str(item.get("title") or ""))
+        author_sources.append(str(item.get("author") or ""))
+        chapter_sources.append(str(item.get("last_read_chapter_title") or ""))
+
+    translated_titles = service._translate_ui_texts_batch(title_sources, single_line=True)
+    translated_authors = service._translate_ui_texts_batch(author_sources, single_line=True)
+    translated_chapters = service._translate_ui_texts_batch(chapter_sources, single_line=True)
+
+    out: list[dict[str, Any]] = []
+    for idx, row in enumerate(items):
         item = dict(row)
-        item["title"] = service._translate_ui_text(item.get("title") or "", single_line=True) or (item.get("title") or "")
-        item["author"] = service._translate_ui_text(item.get("author") or "", single_line=True) or (item.get("author") or "")
-        item["last_read_chapter_title"] = service._translate_ui_text(
-            item.get("last_read_chapter_title") or "",
-            single_line=True,
-        ) or (item.get("last_read_chapter_title") or "")
+        item["title"] = str(translated_titles[idx] if idx < len(translated_titles) else item.get("title") or "")
+        item["author"] = str(translated_authors[idx] if idx < len(translated_authors) else item.get("author") or "")
+        item["last_read_chapter_title"] = str(
+            translated_chapters[idx] if idx < len(translated_chapters) else item.get("last_read_chapter_title") or ""
+        )
         out.append(item)
     return out

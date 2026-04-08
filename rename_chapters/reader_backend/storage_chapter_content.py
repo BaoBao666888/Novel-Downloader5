@@ -311,11 +311,12 @@ def get_chapter_text(
     if comic_payload is not None:
         return cached_raw or encode_comic_payload([])
 
-    raw_text, _, junk_version = storage.chapter_text_cleanup(cached_raw or "")
     source_type = str(book.get("source_type") or "").strip().lower()
     normalize_import_text = source_type in {"txt", "epub"}
+    raw_source_text = cached_raw or ""
     if normalize_import_text:
-        raw_text = text_paragraphs_support.normalize_soft_wrapped_paragraphs(raw_text)
+        raw_source_text = text_paragraphs_support.normalize_soft_wrapped_paragraphs(raw_source_text)
+    raw_text, _, junk_version = storage.chapter_text_cleanup(raw_source_text)
     if not book_supports_translation(book):
         book_id = str(book.get("book_id") or chapter.get("book_id") or "").strip()
         if book_id:

@@ -515,17 +515,12 @@ function buildOnlineBookCard(item) {
 
   const cover = document.createElement("div");
   cover.className = "book-card-cover";
-  if (item.cover) {
-    const img = document.createElement("img");
-    img.src = item.cover;
-    img.alt = item.title || "Ảnh bìa";
-    cover.appendChild(img);
-  } else {
-    const txt = document.createElement("div");
-    txt.className = "book-card-cover-text";
-    txt.textContent = state.shell.t("noCover");
-    cover.appendChild(txt);
-  }
+  appendCoverMedia(cover, {
+    coverUrl: item.cover,
+    title: item.title || "",
+    author: item.author || "",
+    tag: formatPluginLabel(item),
+  });
 
   const body = document.createElement("div");
   const title = document.createElement("div");
@@ -832,6 +827,99 @@ function getCurrentTranslationMode() {
   return (typeof state.shell.getTranslationMode === "function" ? state.shell.getTranslationMode() : state.translationMode) || "server";
 }
 
+function parseBooleanLike(value) {
+  if (typeof value === "boolean") return value;
+  const raw = String(value == null ? "" : value).trim().toLowerCase();
+  if (!raw) return null;
+  if (["1", "true", "yes", "on"].includes(raw)) return true;
+  if (["0", "false", "no", "off"].includes(raw)) return false;
+  return null;
+}
+
+function coverHashSeed(...parts) {
+  const seed = parts.map((item) => String(item || "").trim()).filter(Boolean).join("|") || "reader";
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = ((hash * 33) + seed.charCodeAt(index)) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function escapeSvgText(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function buildFallbackCoverDataUrl({ title = "", author = "", tag = "" } = {}) {
+  const safeTitle = normalizeDisplayTitle(title || state.shell.t("noCover") || "No Cover");
+  const initials = safeTitle
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((item) => item.charAt(0).toUpperCase())
+    .join("") || "BK";
+  const palette = [
+    ["#233a7a", "#6aa0ff", "#eef5ff"],
+    ["#23545f", "#6bc8d7", "#edfdfd"],
+    ["#5a345b", "#e7a7dd", "#fff1fb"],
+    ["#6b3f28", "#f2b07c", "#fff6ef"],
+    ["#3c4f2d", "#b9d96b", "#f8ffe8"],
+    ["#40456f", "#9ca5ff", "#f3f4ff"],
+  ];
+  const [bg1, bg2, text] = palette[coverHashSeed(safeTitle, author, tag) % palette.length];
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 680">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${bg1}"/>
+          <stop offset="100%" stop-color="${bg2}"/>
+        </linearGradient>
+      </defs>
+      <rect width="480" height="680" rx="28" fill="url(#g)"/>
+      <circle cx="402" cy="90" r="62" fill="rgba(255,255,255,0.10)"/>
+      <circle cx="90" cy="590" r="88" fill="rgba(255,255,255,0.08)"/>
+      <text x="54" y="102" fill="rgba(255,255,255,0.78)" font-size="26" font-family="Arial, sans-serif">${escapeSvgText(String(tag || "BOOK").trim().toUpperCase())}</text>
+      <text x="54" y="250" fill="${text}" font-size="122" font-weight="700" font-family="Arial, sans-serif">${escapeSvgText(initials)}</text>
+      <foreignObject x="54" y="300" width="372" height="228">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, sans-serif; color: ${text}; font-size: 36px; line-height: 1.25; font-weight: 700; word-break: break-word;">
+          ${escapeSvgText(safeTitle)}
+        </div>
+      </foreignObject>
+      <text x="54" y="626" fill="rgba(255,255,255,0.86)" font-size="28" font-family="Arial, sans-serif">${escapeSvgText(String(author || state.shell.t("unknownAuthor")).trim())}</text>
+    </svg>
+  `.trim();
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function appendCoverMedia(container, { coverUrl = "", title = "", author = "", tag = "" } = {}) {
+  if (!container) return;
+  container.innerHTML = "";
+  const fallbackUrl = buildFallbackCoverDataUrl({ title, author, tag });
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.alt = normalizeDisplayTitle(title || state.shell.t("noCover"));
+  img.src = String(coverUrl || "").trim() || fallbackUrl;
+  img.addEventListener("error", () => {
+    if (img.dataset.fallbackApplied === "1") return;
+    img.dataset.fallbackApplied = "1";
+    img.src = fallbackUrl;
+  });
+  container.appendChild(img);
+}
+
+function applyBookUrlHints(params, book) {
+  if (!book || typeof book !== "object") return;
+  const translationSupported = parseBooleanLike(book.translation_supported);
+  const isComic = parseBooleanLike(book.is_comic);
+  if (translationSupported !== null) params.set("translation_supported", translationSupported ? "1" : "0");
+  if (isComic !== null) params.set("is_comic", isComic ? "1" : "0");
+}
+
 function getCurrentReaderMode() {
   const enabled = typeof state.shell.getTranslationEnabled === "function"
     ? state.shell.getTranslationEnabled()
@@ -847,13 +935,16 @@ function resolveReaderModeForBook(book) {
   return sourceType.includes("comic") ? "raw" : preferred;
 }
 
-function buildReaderUrl(bookId, chapterId = "", mode = getCurrentReaderMode()) {
+function buildReaderUrl(bookOrId, chapterId = "", mode = getCurrentReaderMode()) {
+  const book = bookOrId && typeof bookOrId === "object" ? bookOrId : null;
+  const bookId = book ? String(book.book_id || "").trim() : String(bookOrId || "").trim();
   const params = new URLSearchParams();
-  params.set("book_id", String(bookId || "").trim());
+  params.set("book_id", bookId);
   const chapter = String(chapterId || "").trim();
   if (chapter) params.set("chapter_id", chapter);
   params.set("mode", mode);
   if (mode === "trans") params.set("translation_mode", getCurrentTranslationMode());
+  applyBookUrlHints(params, book);
   return `/reader?${params.toString()}`;
 }
 
@@ -1046,18 +1137,13 @@ function renderVbookDetail() {
     : state.shell.t("downloadBook");
 
   refs.vbookDetailCover.innerHTML = "";
-  refs.vbookDetailCover.classList.toggle("has-image", Boolean(cover));
-  if (cover) {
-    const img = document.createElement("img");
-    img.src = cover;
-    img.alt = title;
-    refs.vbookDetailCover.appendChild(img);
-  } else {
-    const fallback = document.createElement("div");
-    fallback.className = "book-card-cover-text";
-    fallback.textContent = state.shell.t("noCover");
-    refs.vbookDetailCover.appendChild(fallback);
-  }
+  refs.vbookDetailCover.classList.add("has-image");
+  appendCoverMedia(refs.vbookDetailCover, {
+    coverUrl: cover,
+    title,
+    author: detail.author || item.author || "",
+    tag: formatPluginLabel(item),
+  });
 
   refs.vbookDetailGenresList.innerHTML = "";
   if (loading) refs.vbookDetailGenresEmpty.textContent = state.shell.t("statusLoadingVbookDetail");
@@ -1430,7 +1516,7 @@ async function importOnlineBook(item, { openReader = false } = {}) {
         // ignore
       }
     }
-    window.location.href = buildReaderUrl(bookId, chapterId, readerMode);
+    window.location.href = buildReaderUrl(importedBook || bookId, chapterId, readerMode);
   } catch (error) {
     if (shouldRenderBusy && !isAbortError(error)) {
       state.detail.errorMessage = getErrorMessage(error);

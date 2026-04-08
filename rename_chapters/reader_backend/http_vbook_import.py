@@ -151,11 +151,11 @@ def handle_api(
         )
 
     if method == "GET" and path == "/api/vbook/repos":
-        repo_urls = handler.service.get_vbook_repo_urls()
+        repo_items = handler.service.get_vbook_repo_items()
         return {
             "ok": True,
-            "items": [{"url": u} for u in repo_urls],
-            "count": len(repo_urls),
+            "items": repo_items,
+            "count": len(repo_items),
         }
 
     if method == "POST" and path == "/api/vbook/repos":
@@ -179,7 +179,7 @@ def handle_api(
         repo_urls = handler.service.set_vbook_repo_urls(urls_raw)
         return {
             "ok": True,
-            "items": [{"url": u} for u in repo_urls],
+            "items": [{"url": u, "locked": handler.service.is_vbook_repo_url_locked(u)} for u in repo_urls],
             "count": len(repo_urls),
         }
 

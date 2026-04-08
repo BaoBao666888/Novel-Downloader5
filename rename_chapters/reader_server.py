@@ -45,6 +45,7 @@ from reader_backend import http_library_reader as http_library_reader_support
 from reader_backend import http_media as http_media_support
 from reader_backend import http_misc as http_misc_support
 from reader_backend import http_routes as http_routes_support
+from reader_backend import http_tts as http_tts_support
 from reader_backend import http_vbook_import as http_vbook_import_support
 from reader_backend import service_history as service_history_support
 from reader_backend import service_library as service_library_support
@@ -1816,6 +1817,17 @@ def map_selection_to_name_source(
             related_name_matches.append(nm)
     chosen_name_exact: dict[str, Any] | None = None
     if related_name_matches:
+        covering_candidates = [
+            nm for nm in related_name_matches
+            if int(nm.get("start") or 0) <= start and int(nm.get("end") or 0) >= end
+        ]
+        if covering_candidates:
+            def covering_score(item: dict[str, Any]) -> tuple[int, int]:
+                t_len = len(str(item.get("target") or ""))
+                s_len = len(str(item.get("source") or ""))
+                return (t_len, s_len)
+
+            chosen_name_exact = sorted(covering_candidates, key=covering_score, reverse=True)[0]
         exact_candidates: list[dict[str, Any]] = []
         for nm in related_name_matches:
             target_norm = normalize_for_compare(str(nm.get("target") or ""))
@@ -1828,7 +1840,7 @@ def map_selection_to_name_source(
             is_name_inside_small_selection = target_norm in selected_norm and selected_len <= (target_len + 4)
             if is_exact or is_partial_inside_name or is_name_inside_small_selection:
                 exact_candidates.append(nm)
-        if exact_candidates:
+        if exact_candidates and chosen_name_exact is None:
             def exact_score(item: dict[str, Any]) -> tuple[int, int]:
                 t_len = len(str(item.get("target") or ""))
                 s_len = len(str(item.get("source") or ""))
@@ -3437,6 +3449,8 @@ class ReaderStorage:
                     source_type TEXT NOT NULL,
                     source_file_path TEXT DEFAULT '',
                     cover_path TEXT DEFAULT '',
+                    cover_remote_url TEXT DEFAULT '',
+                    cover_locked INTEGER NOT NULL DEFAULT 0,
                     extra_link TEXT DEFAULT '',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
@@ -3577,9 +3591,23 @@ class ReaderStorage:
             self._ensure_column(conn, "books", "title_vi", "TEXT")
             self._ensure_column(conn, "books", "author_vi", "TEXT")
             self._ensure_column(conn, "books", "cover_path", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "books", "cover_remote_url", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "books", "cover_locked", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(conn, "books", "extra_link", "TEXT DEFAULT ''")
             self._ensure_column(conn, "books", "source_url", "TEXT DEFAULT ''")
             self._ensure_column(conn, "books", "source_plugin", "TEXT DEFAULT ''")
+            conn.execute(
+                """
+                UPDATE books
+                SET cover_locked = 1
+                WHERE cover_locked = 0
+                  AND lower(COALESCE(source_type, '')) LIKE 'vbook%'
+                  AND trim(COALESCE(cover_path, '')) <> ''
+                  AND lower(trim(COALESCE(cover_path, ''))) NOT LIKE 'http://%'
+                  AND lower(trim(COALESCE(cover_path, ''))) NOT LIKE 'https://%'
+                  AND lower(trim(COALESCE(cover_path, ''))) NOT LIKE 'data:%'
+                """
+            )
             self._ensure_column(conn, "chapters", "trans_sig", "TEXT")
             self._ensure_column(conn, "chapters", "remote_url", "TEXT DEFAULT ''")
             self._ensure_column(conn, "chapters", "is_vip", "INTEGER NOT NULL DEFAULT 0")
@@ -4174,6 +4202,40 @@ class ReaderStorage:
             cover_dir=COVER_DIR,
         )
 
+    def set_book_cover_url(
+        self,
+        book_id: str,
+        cover_url: str,
+        *,
+        cover_locked: bool = True,
+        cover_remote_url: str = "",
+    ) -> dict[str, Any] | None:
+        return storage_book_mutation_support.set_book_cover_url(
+            self,
+            book_id,
+            cover_url,
+            cover_dir=COVER_DIR,
+            cover_locked=cover_locked,
+            cover_remote_url=cover_remote_url,
+        )
+
+    def set_book_cover_remote_cached(
+        self,
+        book_id: str,
+        image_url: str,
+        content: bytes,
+        *,
+        content_type: str = "",
+    ) -> dict[str, Any] | None:
+        return storage_book_mutation_support.set_book_cover_remote_cached(
+            self,
+            book_id,
+            image_url,
+            content,
+            content_type=content_type,
+            cover_dir=COVER_DIR,
+        )
+
     def translate_book_titles(
         self,
         book_id: str,
@@ -4556,6 +4618,9 @@ class ReaderStorage:
 
 class ReaderService:
     VERSION = "1.0.0"
+    REQUIRED_VBOOK_REPO_URLS = (
+        "https://raw.githubusercontent.com/Darkrai9x/vbook-extensions/refs/heads/master/tts.json",
+    )
 
     def __init__(self, storage: ReaderStorage):
         self.storage = storage
@@ -5102,7 +5167,14 @@ class ReaderService:
                 self.storage.remove_history_by_source(plugin_id=plugin.plugin_id, source_url=source_url)
             except Exception:
                 pass
-        return created
+        cached = self._cache_online_book_cover_if_allowed(
+            str(created.get("book_id") or ""),
+            cover_path,
+            plugin_id=plugin.plugin_id,
+            referer=source_url,
+            force_refresh=False,
+        ) if cover_path else None
+        return cached or created
 
     def import_file(
         self,
@@ -5274,7 +5346,14 @@ class ReaderService:
                 self.storage.remove_history_by_source(plugin_id=plugin.plugin_id, source_url=source_url)
             except Exception:
                 pass
-        return created
+        cached = self._cache_online_book_cover_if_allowed(
+            str(created.get("book_id") or ""),
+            cover_path,
+            plugin_id=plugin.plugin_id,
+            referer=source_url,
+            force_refresh=False,
+        ) if cover_path else None
+        return cached or created
 
     def reload_chapter(self, chapter_id: str) -> dict[str, Any]:
         return service_library_support.reload_chapter(
@@ -7838,29 +7917,211 @@ class ReaderService:
             return []
         return [self._serialize_vbook_plugin(p) for p in self.vbook_manager.list_plugins()]
 
+    def _resolve_tts_plugin_scripts(self, plugin: Any) -> tuple[str, str]:
+        scripts = getattr(plugin, "scripts", None)
+        if not isinstance(scripts, dict):
+            return "", ""
+        voice_key = ""
+        for key in ("voice", "voices"):
+            if scripts.get(key):
+                voice_key = key
+                break
+        tts_key = ""
+        for key in ("tts", "speak", "audio"):
+            if scripts.get(key):
+                tts_key = key
+                break
+        return voice_key, tts_key
+
+    def _require_tts_plugin(self, plugin_id: str) -> tuple[Any, str, str]:
+        plugin = self._require_vbook_plugin(plugin_id)
+        plugin_type = str(getattr(plugin, "type", "") or "").strip().lower()
+        if plugin_type != "tts":
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "TTS_PLUGIN_INVALID",
+                "Plugin này không phải plugin TTS.",
+                {"plugin_id": str(getattr(plugin, "plugin_id", "") or "")},
+            )
+        voice_key, tts_key = self._resolve_tts_plugin_scripts(plugin)
+        if not voice_key or not tts_key:
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "TTS_PLUGIN_INVALID",
+                "Plugin TTS thiếu script `voice` hoặc `tts`.",
+                {
+                    "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                    "scripts": sorted(list((getattr(plugin, "scripts", None) or {}).keys())),
+                },
+            )
+        return plugin, voice_key, tts_key
+
+    def _normalize_tts_voice_items(self, payload: Any) -> list[dict[str, str]]:
+        items = payload
+        if isinstance(items, dict):
+            if isinstance(items.get("items"), list):
+                items = items.get("items")
+            elif isinstance(items.get("voices"), list):
+                items = items.get("voices")
+        if not isinstance(items, list):
+            return []
+        out: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for index, row in enumerate(items):
+            if isinstance(row, dict):
+                voice_id = str(
+                    row.get("id")
+                    or row.get("voice")
+                    or row.get("voice_id")
+                    or row.get("value")
+                    or ""
+                ).strip()
+                language = str(row.get("language") or row.get("lang") or row.get("locale") or "").strip()
+                name = str(row.get("name") or row.get("label") or voice_id or f"Voice {index + 1}").strip()
+            else:
+                voice_id = str(row or "").strip()
+                language = ""
+                name = voice_id or f"Voice {index + 1}"
+            if not voice_id or voice_id in seen:
+                continue
+            seen.add(voice_id)
+            out.append(
+                {
+                    "id": voice_id,
+                    "name": name or voice_id,
+                    "language": language,
+                }
+            )
+        return out
+
+    def _normalize_tts_audio_payload(self, payload: Any) -> tuple[str, str]:
+        audio_base64 = ""
+        mime_type = "audio/mpeg"
+        if isinstance(payload, dict):
+            audio_base64 = str(
+                payload.get("audio_base64")
+                or payload.get("audio")
+                or payload.get("base64")
+                or payload.get("data")
+                or payload.get("content")
+                or ""
+            ).strip()
+            mime_type = str(
+                payload.get("mime_type")
+                or payload.get("mime")
+                or payload.get("content_type")
+                or "audio/mpeg"
+            ).strip() or "audio/mpeg"
+        elif isinstance(payload, str):
+            audio_base64 = payload.strip()
+        if audio_base64.startswith("data:") and ";base64," in audio_base64:
+            prefix, encoded = audio_base64.split(",", 1)
+            audio_base64 = encoded.strip()
+            mime_match = re.match(r"^data:([^;]+);base64$", prefix.strip(), flags=re.IGNORECASE)
+            if mime_match:
+                mime_type = str(mime_match.group(1) or "").strip() or mime_type
+        if not audio_base64:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "TTS_INVALID_RESPONSE",
+                "Plugin TTS không trả dữ liệu audio hợp lệ.",
+            )
+        try:
+            base64.b64decode(audio_base64, validate=True)
+        except Exception as exc:
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "TTS_INVALID_RESPONSE",
+                "Plugin TTS trả về audio base64 không hợp lệ.",
+                {"error": str(exc)},
+            ) from exc
+        return audio_base64, mime_type
+
+    def list_tts_plugins(self) -> list[dict[str, Any]]:
+        if not self.vbook_manager:
+            return []
+        items: list[dict[str, Any]] = []
+        for plugin in self.vbook_manager.list_plugins():
+            if str(getattr(plugin, "type", "") or "").strip().lower() != "tts":
+                continue
+            voice_key, tts_key = self._resolve_tts_plugin_scripts(plugin)
+            if not voice_key or not tts_key:
+                continue
+            item = self._serialize_vbook_plugin(plugin)
+            item["voice_script"] = voice_key
+            item["tts_script"] = tts_key
+            items.append(item)
+        return items
+
+    def get_tts_plugin_voices(self, plugin_id: str) -> dict[str, Any]:
+        plugin, voice_key, _ = self._require_tts_plugin(plugin_id)
+        payload = self._run_vbook_script(plugin, voice_key, [])
+        voices = self._normalize_tts_voice_items(payload)
+        return {
+            "ok": True,
+            "plugin": self._serialize_vbook_plugin(plugin),
+            "items": voices,
+            "count": len(voices),
+        }
+
+    def synthesize_tts_audio(self, *, plugin_id: str, text: str, voice_id: str = "") -> dict[str, Any]:
+        plugin, _, tts_key = self._require_tts_plugin(plugin_id)
+        content = str(text or "")
+        if not content.strip():
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu nội dung để đọc.")
+        if len(content) > 20_000:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Đoạn văn quá dài cho một lần đọc.")
+        payload = self._run_vbook_script(plugin, tts_key, [content, str(voice_id or "")])
+        audio_base64, mime_type = self._normalize_tts_audio_payload(payload)
+        return {
+            "ok": True,
+            "plugin": self._serialize_vbook_plugin(plugin),
+            "voice_id": str(voice_id or ""),
+            "mime_type": mime_type,
+            "audio_base64": audio_base64,
+        }
+
     def get_vbook_repo_urls(self) -> list[str]:
         vcfg = self._vbook_cfg()
         repo_urls = vcfg.get("repo_urls") or []
-        if not isinstance(repo_urls, list):
-            return []
+        return self._normalize_vbook_repo_urls(repo_urls if isinstance(repo_urls, list) else [])
+
+    def _required_vbook_repo_urls(self) -> list[str]:
         out: list[str] = []
-        for x in repo_urls:
-            u = str(x or "").strip()
-            if u:
-                out.append(u)
+        for raw in self.REQUIRED_VBOOK_REPO_URLS:
+            normalized = self._normalize_vbook_plugin_url(str(raw or ""))
+            if normalized:
+                out.append(normalized)
         return out
 
-    def set_vbook_repo_urls(self, urls: list[str]) -> list[str]:
+    def _normalize_vbook_repo_urls(self, urls: list[str] | tuple[str, ...] | None) -> list[str]:
         normalized: list[str] = []
         seen: set[str] = set()
-        for raw in urls or []:
-            url = str(raw or "").strip()
-            if not url:
-                continue
-            if url in seen:
+        for raw in list(urls or []) + self._required_vbook_repo_urls():
+            url = self._normalize_vbook_plugin_url(str(raw or ""))
+            if not url or url in seen:
                 continue
             seen.add(url)
             normalized.append(url)
+        return normalized
+
+    def is_vbook_repo_url_locked(self, url: str) -> bool:
+        normalized = self._normalize_vbook_plugin_url(str(url or ""))
+        if not normalized:
+            return False
+        return normalized in set(self._required_vbook_repo_urls())
+
+    def get_vbook_repo_items(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "url": url,
+                "locked": self.is_vbook_repo_url_locked(url),
+            }
+            for url in self.get_vbook_repo_urls()
+        ]
+
+    def set_vbook_repo_urls(self, urls: list[str]) -> list[str]:
+        normalized = self._normalize_vbook_repo_urls(urls or [])
         cfg = load_app_config()
         if not isinstance(cfg, dict):
             cfg = {}
@@ -10394,6 +10655,49 @@ class ReaderService:
         finally:
             self._end_vbook_singleflight(flight_key, flight_token)
 
+    def _cache_online_book_cover_if_allowed(
+        self,
+        book_id: str,
+        image_url: str,
+        *,
+        plugin_id: str = "",
+        referer: str = "",
+        force_refresh: bool = False,
+    ) -> dict[str, Any] | None:
+        bid = str(book_id or "").strip()
+        target = str(image_url or "").strip()
+        if not bid or not target.startswith(("http://", "https://")):
+            return self.storage.get_book_detail(bid) if bid else None
+        book = self.storage.find_book(bid)
+        if not book:
+            return None
+        if bool(book.get("cover_locked")):
+            return self.storage.get_book_detail(bid)
+        current_remote = str(book.get("cover_remote_url") or "").strip()
+        current_cover_path = str(book.get("cover_path") or "").strip()
+        if not force_refresh and current_remote == target and current_cover_path and not current_cover_path.startswith(("http://", "https://", "data:")):
+            try:
+                if Path(current_cover_path).exists():
+                    return self.storage.get_book_detail(bid)
+            except Exception:
+                pass
+        try:
+            data, content_type = self.fetch_vbook_image(
+                image_url=target,
+                plugin_id=plugin_id,
+                referer=referer,
+                use_cache=not force_refresh,
+            )
+        except Exception:
+            return self.storage.get_book_detail(bid)
+        updated = self.storage.set_book_cover_remote_cached(
+            bid,
+            target,
+            data,
+            content_type=content_type,
+        )
+        return updated or self.storage.get_book_detail(bid)
+
     def refresh_library_book_detail_from_source(self, book_id: str) -> dict[str, Any] | None:
         bid = str(book_id or "").strip()
         if not bid:
@@ -10422,15 +10726,24 @@ class ReaderService:
             next_payload["author"] = author_raw
         if description_raw and description_raw != str(book.get("summary") or "").strip():
             next_payload["summary"] = description_raw
-        if cover_raw and cover_raw != str(book.get("cover_path") or "").strip():
-            next_payload["cover_path"] = cover_raw
         if source_url and source_url != str(book.get("extra_link") or "").strip():
             next_payload["extra_link"] = source_url
+        current = None
         if next_payload:
             updated = self.storage.update_book_metadata(bid, next_payload)
             if updated:
-                return updated
-        return self.storage.get_book_detail(bid)
+                current = updated
+        if cover_raw:
+            cached = self._cache_online_book_cover_if_allowed(
+                bid,
+                cover_raw,
+                plugin_id=plugin_id,
+                referer=source_url,
+                force_refresh=True,
+            )
+            if cached:
+                current = cached
+        return current or self.storage.get_book_detail(bid)
 
     def refresh_library_book_toc(self, book_id: str) -> dict[str, Any]:
         bid = str(book_id or "").strip()
@@ -11281,6 +11594,17 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         )
         if vbook_import_result is not None:
             return vbook_import_result
+
+        tts_result = http_tts_support.handle_api(
+            self,
+            method,
+            path,
+            query,
+            api_error_cls=ApiError,
+            http_status=HTTPStatus,
+        )
+        if tts_result is not None:
+            return tts_result
 
         library_reader_result = http_library_reader_support.handle_api(
             self,

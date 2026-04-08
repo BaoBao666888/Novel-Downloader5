@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260407-themecustom1";
+import { initShell } from "../site_common.js?v=20260408-commontts1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -1070,6 +1070,101 @@ function buildHistorySourceLabel(item) {
   return "vBook";
 }
 
+function parseBooleanLike(value) {
+  if (typeof value === "boolean") return value;
+  const raw = String(value == null ? "" : value).trim().toLowerCase();
+  if (!raw) return null;
+  if (["1", "true", "yes", "on"].includes(raw)) return true;
+  if (["0", "false", "no", "off"].includes(raw)) return false;
+  return null;
+}
+
+function coverHashSeed(...parts) {
+  const seed = parts.map((item) => String(item || "").trim()).filter(Boolean).join("|") || "reader";
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = ((hash * 33) + seed.charCodeAt(index)) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function escapeSvgText(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function buildFallbackCoverDataUrl({ title = "", author = "", tag = "" } = {}) {
+  const safeTitle = normalizeDisplayTitle(title || state.shell.t("noCover") || "No Cover");
+  const initials = safeTitle
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((item) => item.charAt(0).toUpperCase())
+    .join("") || "BK";
+  const palette = [
+    ["#233a7a", "#6aa0ff", "#eef5ff"],
+    ["#23545f", "#6bc8d7", "#edfdfd"],
+    ["#5a345b", "#e7a7dd", "#fff1fb"],
+    ["#6b3f28", "#f2b07c", "#fff6ef"],
+    ["#3c4f2d", "#b9d96b", "#f8ffe8"],
+    ["#40456f", "#9ca5ff", "#f3f4ff"],
+  ];
+  const [bg1, bg2, text] = palette[coverHashSeed(safeTitle, author, tag) % palette.length];
+  const safeAuthor = String(author || "").trim();
+  const safeTag = String(tag || "").trim().toUpperCase();
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 680">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${bg1}"/>
+          <stop offset="100%" stop-color="${bg2}"/>
+        </linearGradient>
+      </defs>
+      <rect width="480" height="680" rx="28" fill="url(#g)"/>
+      <circle cx="402" cy="90" r="62" fill="rgba(255,255,255,0.10)"/>
+      <circle cx="90" cy="590" r="88" fill="rgba(255,255,255,0.08)"/>
+      <text x="54" y="102" fill="rgba(255,255,255,0.78)" font-size="26" font-family="Arial, sans-serif">${escapeSvgText(safeTag || "READER")}</text>
+      <text x="54" y="250" fill="${text}" font-size="122" font-weight="700" font-family="Arial, sans-serif">${escapeSvgText(initials)}</text>
+      <foreignObject x="54" y="300" width="372" height="228">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, sans-serif; color: ${text}; font-size: 36px; line-height: 1.25; font-weight: 700; word-break: break-word;">
+          ${escapeSvgText(safeTitle)}
+        </div>
+      </foreignObject>
+      <text x="54" y="626" fill="rgba(255,255,255,0.86)" font-size="28" font-family="Arial, sans-serif">${escapeSvgText(safeAuthor || state.shell.t("unknownAuthor"))}</text>
+    </svg>
+  `.trim();
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function appendCoverMedia(container, { coverUrl = "", title = "", author = "", tag = "" } = {}) {
+  if (!container) return;
+  container.innerHTML = "";
+  const fallbackUrl = buildFallbackCoverDataUrl({ title, author, tag });
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.alt = normalizeDisplayTitle(title || state.shell.t("noCover"));
+  img.src = String(coverUrl || "").trim() || fallbackUrl;
+  img.addEventListener("error", () => {
+    if (img.dataset.fallbackApplied === "1") return;
+    img.dataset.fallbackApplied = "1";
+    img.src = fallbackUrl;
+  });
+  container.appendChild(img);
+}
+
+function applyBookUrlHints(params, book) {
+  if (!book || typeof book !== "object") return;
+  const translationSupported = parseBooleanLike(book.translation_supported);
+  const isComic = parseBooleanLike(book.is_comic);
+  if (translationSupported !== null) params.set("translation_supported", translationSupported ? "1" : "0");
+  if (isComic !== null) params.set("is_comic", isComic ? "1" : "0");
+}
+
 function isOnlineSourceBook(book) {
   const sourceType = String((book && book.source_type) || "").trim().toLowerCase();
   return sourceType === "vbook" || sourceType === "vbook_comic" || sourceType.startsWith("vbook_session");
@@ -1115,17 +1210,12 @@ function renderPendingImportCard(item) {
 
   const cover = document.createElement("div");
   cover.className = "book-card-cover book-card-cover-pending";
-  if (item.cover_url) {
-    const img = document.createElement("img");
-    img.src = item.cover_url;
-    img.alt = normalizeDisplayTitle(item.title || state.shell.t("importPendingUrlTitle"));
-    cover.appendChild(img);
-  } else {
-    const coverText = document.createElement("div");
-    coverText.className = "book-card-cover-text";
-    coverText.textContent = item.import_kind === "url" ? "URL" : (item.file_ext || "TXT");
-    cover.appendChild(coverText);
-  }
+  appendCoverMedia(cover, {
+    coverUrl: item.cover_url,
+    title: item.title || state.shell.t("importPendingUrlTitle"),
+    author: item.author || "",
+    tag: item.import_kind === "url" ? "URL" : (item.file_ext || "TXT"),
+  });
 
   const body = document.createElement("div");
   const title = document.createElement("div");
@@ -1355,19 +1445,12 @@ function populateLibraryBookCard(card, book) {
 
   const cover = document.createElement("div");
   cover.className = "book-card-cover";
-  if (book.cover_url) {
-    const img = document.createElement("img");
-    img.loading = "lazy";
-    img.decoding = "async";
-    img.src = book.cover_url;
-    img.alt = book.title_display || book.title || "Ảnh bìa";
-    cover.appendChild(img);
-  } else {
-    const txt = document.createElement("div");
-    txt.className = "book-card-cover-text";
-    txt.textContent = state.shell.t("noCover");
-    cover.appendChild(txt);
-  }
+  appendCoverMedia(cover, {
+    coverUrl: book.cover_url,
+    title: book.title_display || book.title || "",
+    author: book.author_display || book.author || "",
+    tag: buildSourceLabel(book),
+  });
 
   const body = document.createElement("div");
   const title = document.createElement("div");
@@ -1875,17 +1958,12 @@ function renderHistory() {
 
     const cover = document.createElement("div");
     cover.className = "book-card-cover";
-    if (item.cover_url) {
-      const img = document.createElement("img");
-      img.src = item.cover_url;
-      img.alt = item.title || "Ảnh bìa";
-      cover.appendChild(img);
-    } else {
-      const txt = document.createElement("div");
-      txt.className = "book-card-cover-text";
-      txt.textContent = state.shell.t("noCover");
-      cover.appendChild(txt);
-    }
+    appendCoverMedia(cover, {
+      coverUrl: item.cover_url,
+      title: item.title || "",
+      author: item.author || "",
+      tag: buildHistorySourceLabel(item),
+    });
 
     const body = document.createElement("div");
     const title = document.createElement("div");
@@ -2006,7 +2084,7 @@ async function openHistoryDetail(item) {
         }),
       });
     }
-    window.location.href = buildReaderUrl(bid, targetChapter && targetChapter.chapter_id, readerMode);
+    window.location.href = buildReaderUrl(book, targetChapter && targetChapter.chapter_id, readerMode);
   } catch (error) {
     state.shell.showToast(getErrorMessage(error));
   } finally {
@@ -2017,6 +2095,22 @@ async function openHistoryDetail(item) {
 async function importHistoryItem(item) {
   const sourceUrl = String((item && item.source_url) || "").trim();
   if (!sourceUrl) return;
+  const prevHistory = Array.isArray(state.historyItems) ? [...state.historyItems] : [];
+  const pending = {
+    ...buildPendingUrlImportRecord({
+      url: sourceUrl,
+      pluginId: String((item && item.plugin_id) || "").trim(),
+    }),
+    title: String((item && item.title) || "").trim() || state.shell.t("importPendingUrlTitle"),
+    author: String((item && item.author) || "").trim(),
+    cover_url: String((item && item.cover_url) || "").trim(),
+    source_label: buildHistorySourceLabel(item),
+    status_text: state.shell.t("importPendingStatus"),
+    meta_text: state.shell.t("importPendingUrlWaiting"),
+  };
+  state.historyItems = prevHistory.filter((row) => String((row && row.history_id) || "").trim() !== String((item && item.history_id) || "").trim());
+  renderHistory();
+  addPendingImport(pending);
   state.shell.showStatus(state.shell.t("statusImportingUrl"));
   try {
     const data = await state.shell.api("/api/library/import-url", {
@@ -2027,13 +2121,17 @@ async function importHistoryItem(item) {
         plugin_id: String((item && item.plugin_id) || "").trim(),
       }),
     });
-    const bid = data && data.book && data.book.book_id;
-    if (bid) {
-      window.location.href = `/book?book_id=${encodeURIComponent(bid)}`;
-      return;
+    state.shell.showToast(state.shell.t("toastImportSuccess"));
+    await applyImportedBookLocal(data && data.book, { pendingTempId: pending.temp_id, refresh: true });
+    if (item && item.history_id) {
+      state.shell.api(`/api/library/history/${encodeURIComponent(String(item.history_id || "").trim())}`, {
+        method: "DELETE",
+      }).catch(() => {});
     }
-    await loadLibraryData();
   } catch (error) {
+    removePendingImport(pending.temp_id);
+    state.historyItems = prevHistory;
+    renderHistory();
     state.shell.showToast(getErrorMessage(error));
   } finally {
     state.shell.hideStatus();
@@ -2067,37 +2165,68 @@ async function deleteHistoryItem(historyId) {
 }
 
 async function loadLibraryData({ silent = false } = {}) {
-  const prevBooks = Array.isArray(state.books) ? [...state.books] : [];
-  const prevHistory = Array.isArray(state.historyItems) ? [...state.historyItems] : [];
-  const prevCategories = Array.isArray(state.categories) ? [...state.categories] : [];
   if (!silent) {
     state.shell.showStatus(state.shell.t("statusLoadingBooks"));
     renderHistoryLoadingSkeleton();
     renderLibraryLoadingSkeleton();
   }
-  try {
-    const [booksData, historyData, categoriesData] = await Promise.all([
-      state.shell.api("/api/library/books"),
-      state.shell.api("/api/library/history"),
-      state.shell.api("/api/library/categories"),
-    ]);
-    state.books = booksData.items || [];
-    state.historyItems = historyData.items || [];
-    setCategoriesCatalog(Array.isArray(categoriesData && categoriesData.items) ? categoriesData.items : []);
-    renderHistory();
-    renderBooks();
-    syncSelectedBookActions();
-  } catch (error) {
-    if (!silent) {
-      state.books = prevBooks;
-      state.historyItems = prevHistory;
-      state.categories = prevCategories;
-      renderHistory();
+  const loadBooks = async () => {
+    const prevBooks = Array.isArray(state.books) ? [...state.books] : [];
+    try {
+      const data = await state.shell.api("/api/library/books");
+      state.books = data.items || [];
       renderBooks();
+      syncSelectedBookActions();
+    } catch (error) {
+      if (!silent) {
+        state.books = prevBooks;
+        renderBooks();
+      }
+      throw error;
     }
-    if (!silent) state.shell.showToast(getErrorMessage(error));
-  } finally {
-    if (!silent) state.shell.hideStatus();
+  };
+  const loadHistory = async () => {
+    const prevHistory = Array.isArray(state.historyItems) ? [...state.historyItems] : [];
+    try {
+      const data = await state.shell.api("/api/library/history");
+      state.historyItems = data.items || [];
+      renderHistory();
+    } catch (error) {
+      if (!silent) {
+        state.historyItems = prevHistory;
+        renderHistory();
+      }
+      throw error;
+    }
+  };
+  const loadCategories = async () => {
+    const prevCategories = Array.isArray(state.categories) ? [...state.categories] : [];
+    try {
+      const data = await state.shell.api("/api/library/categories");
+      setCategoriesCatalog(Array.isArray(data && data.items) ? data.items : []);
+      renderBooks();
+      syncSelectedBookActions();
+    } catch (error) {
+      if (!silent) {
+        state.categories = prevCategories;
+        syncSelectedCategoryIdsWithCatalog();
+        renderBooks();
+      }
+      throw error;
+    }
+  };
+
+  const results = await Promise.allSettled([
+    loadBooks(),
+    loadHistory(),
+    loadCategories(),
+  ]);
+  if (!silent) {
+    const firstRejected = results.find((item) => item.status === "rejected");
+    if (firstRejected && firstRejected.reason) {
+      state.shell.showToast(getErrorMessage(firstRejected.reason));
+    }
+    state.shell.hideStatus();
   }
 }
 
@@ -2856,15 +2985,31 @@ function resolveReaderModeForBook(book) {
   return sourceType.includes("comic") ? "raw" : preferred;
 }
 
-function buildReaderUrl(bookId, chapterId = "", mode = getCurrentReaderMode()) {
+function buildBookUrl(bookOrId, mode = getCurrentReaderMode()) {
+  const book = bookOrId && typeof bookOrId === "object" ? bookOrId : null;
+  const bookId = book ? String(book.book_id || "").trim() : String(bookOrId || "").trim();
   const params = new URLSearchParams();
-  params.set("book_id", String(bookId || "").trim());
+  params.set("book_id", bookId);
+  params.set("mode", mode);
+  if (mode === "trans") {
+    params.set("translation_mode", getCurrentTranslationMode());
+  }
+  applyBookUrlHints(params, book);
+  return `/book?${params.toString()}`;
+}
+
+function buildReaderUrl(bookOrId, chapterId = "", mode = getCurrentReaderMode()) {
+  const book = bookOrId && typeof bookOrId === "object" ? bookOrId : null;
+  const bookId = book ? String(book.book_id || "").trim() : String(bookOrId || "").trim();
+  const params = new URLSearchParams();
+  params.set("book_id", bookId);
   const chapter = String(chapterId || "").trim();
   if (chapter) params.set("chapter_id", chapter);
   params.set("mode", mode);
   if (mode === "trans") {
     params.set("translation_mode", getCurrentTranslationMode());
   }
+  applyBookUrlHints(params, book);
   return `/reader?${params.toString()}`;
 }
 
@@ -2989,16 +3134,12 @@ function renderExportChapterList(book) {
 
 function renderExportCover(book) {
   if (!refs.exportCover) return;
-  refs.exportCover.innerHTML = "";
-  const coverUrl = String((book && book.cover_url) || "").trim();
-  if (coverUrl) {
-    const img = document.createElement("img");
-    img.src = coverUrl;
-    img.alt = normalizeDisplayTitle(book && (book.title_display || book.title) || state.shell.t("noCover"));
-    refs.exportCover.appendChild(img);
-    return;
-  }
-  refs.exportCover.textContent = state.shell.t("noCover");
+  appendCoverMedia(refs.exportCover, {
+    coverUrl: String((book && book.cover_url) || "").trim(),
+    title: book && (book.title_display || book.title) || "",
+    author: book && (book.author_display || book.author) || "",
+    tag: "EXPORT",
+  });
 }
 
 function renderExportDialog(book) {
@@ -3284,12 +3425,17 @@ async function init() {
   refs.btnActionOpenBook.addEventListener("click", () => {
     if (!state.selectedBookId) return;
     closeActions();
-    window.location.href = `/book?book_id=${encodeURIComponent(state.selectedBookId)}`;
+    const book = findStateBook(state.selectedBookId);
+    const mode = resolveReaderModeForBook(book);
+    window.location.href = buildBookUrl(book || state.selectedBookId, mode);
   });
   refs.btnActionOpenReader.addEventListener("click", () => {
     if (!state.selectedBookId) return;
     closeActions();
-    window.location.href = `/reader?book_id=${encodeURIComponent(state.selectedBookId)}`;
+    const book = findStateBook(state.selectedBookId);
+    const targetChapterId = book && book.last_read_chapter_id ? book.last_read_chapter_id : "";
+    const mode = resolveReaderModeForBook(book);
+    window.location.href = buildReaderUrl(book || state.selectedBookId, targetChapterId, mode);
   });
   if (refs.btnActionCheckUpdates) {
     refs.btnActionCheckUpdates.addEventListener("click", async () => {

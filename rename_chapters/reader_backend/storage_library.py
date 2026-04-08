@@ -109,11 +109,11 @@ def list_books(
             item["progress_percent"] = 0.0
         else:
             item["progress_percent"] = max(0.0, min(100.0, (((cur_order - 1) + ratio) / total) * 100.0))
+        # Library cards only need a lightweight summary. Exact per-chapter cache validation
+        # is intentionally deferred to book/detail flows because doing it here turns the
+        # library endpoint into an N+1 file-scan across every book.
         cached_hint = int(item.get("downloaded_chapters_hint") or 0)
-        if cached_hint > 0:
-            downloaded_count, _ = storage.get_book_download_counts(str(item.get("book_id") or ""))
-        else:
-            downloaded_count = 0
+        downloaded_count = cached_hint if cached_hint > 0 else 0
         item["downloaded_chapters"] = max(0, min(total, int(downloaded_count or 0)))
         item["categories"] = category_map.get(str(item.get("book_id") or "").strip(), [])
         output.append(item)
@@ -203,10 +203,13 @@ def update_book_metadata(storage, book_id: str, payload: dict[str, Any], *, utc_
         return None
     now = utc_now_iso()
     allowed: dict[str, str] = {}
-    for key in ("title", "title_vi", "author", "author_vi", "summary", "extra_link", "cover_path"):
+    for key in ("title", "title_vi", "author", "author_vi", "summary", "extra_link", "cover_path", "cover_remote_url"):
         if key not in payload:
             continue
         allowed[key] = str(payload.get(key) or "").strip()
+    cover_locked = None
+    if "cover_locked" in payload:
+        cover_locked = 1 if bool(payload.get("cover_locked")) else 0
 
     set_parts: list[str] = []
     values: list[Any] = []
@@ -215,6 +218,9 @@ def update_book_metadata(storage, book_id: str, payload: dict[str, Any], *, utc_
             continue
         set_parts.append(f"{key} = ?")
         values.append(value)
+    if cover_locked is not None:
+        set_parts.append("cover_locked = ?")
+        values.append(int(cover_locked))
     if not set_parts:
         return storage.get_book_detail(book_id)
     set_parts.append("updated_at = ?")

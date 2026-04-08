@@ -1,6 +1,15 @@
-import { initShell } from "../site_common.js?v=20260407-themecustom1";
+import { initShell } from "../site_common.js?v=20260408-commontts1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260407-readerpara1";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
+import {
+  TTS_DEFAULT_SETTINGS,
+  buildTtsSegments,
+  createTtsFallbackArtworkDataUrl,
+  loadTtsSettings,
+  normalizeTtsSettings,
+  parseTtsReplaceRules,
+  saveTtsSettings,
+} from "../reader_tts.js?v=20260408-tts4";
 
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),
@@ -25,6 +34,7 @@ const refs = {
 
   btnReaderToc: document.getElementById("btn-reader-toc"),
   btnOpenSettingsInline: document.getElementById("btn-open-settings-inline"),
+  btnOpenTts: document.getElementById("btn-open-tts"),
   btnModeRaw: document.getElementById("btn-mode-raw"),
   btnModeTrans: document.getElementById("btn-mode-trans"),
   btnTranslateMode: document.getElementById("btn-translate-mode"),
@@ -100,6 +110,7 @@ const refs = {
   btnNameSuggestGoogleSearch: document.getElementById("btn-name-suggest-google-search"),
 
   selectionActionMenu: document.getElementById("selection-action-menu"),
+  selectionSpeakBtn: document.getElementById("selection-speak-btn"),
   selectionNameBtn: document.getElementById("selection-name-btn"),
   selectionReplaceBtn: document.getElementById("selection-replace-btn"),
   selectionCopyBtn: document.getElementById("selection-copy-btn"),
@@ -143,6 +154,67 @@ const refs = {
   selectionReplaceIgnoreCaseLabel: document.getElementById("selection-replace-ignore-case-label"),
   btnCancelSelectionReplace: document.getElementById("btn-cancel-selection-replace"),
   btnConfirmSelectionReplace: document.getElementById("btn-confirm-selection-replace"),
+  ttsDialog: document.getElementById("tts-dialog"),
+  ttsDialogTitle: document.getElementById("tts-dialog-title"),
+  btnCloseTtsDialog: document.getElementById("btn-close-tts-dialog"),
+  ttsDialogHint: document.getElementById("tts-dialog-hint"),
+  ttsStatusText: document.getElementById("tts-status-text"),
+  ttsStatusSub: document.getElementById("tts-status-sub"),
+  ttsProgressText: document.getElementById("tts-progress-text"),
+  btnTtsPlayChapter: document.getElementById("btn-tts-play-chapter"),
+  btnTtsTogglePlay: document.getElementById("btn-tts-toggle-play"),
+  btnTtsStop: document.getElementById("btn-tts-stop"),
+  btnTtsPrevSegment: document.getElementById("btn-tts-prev-segment"),
+  btnTtsNextSegment: document.getElementById("btn-tts-next-segment"),
+  ttsProviderLabel: document.getElementById("tts-provider-label"),
+  ttsProviderSelect: document.getElementById("tts-provider-select"),
+  ttsVoiceLabel: document.getElementById("tts-voice-label"),
+  ttsVoiceSelect: document.getElementById("tts-voice-select"),
+  ttsRateLabel: document.getElementById("tts-rate-label"),
+  ttsRateInput: document.getElementById("tts-rate-input"),
+  ttsRateValue: document.getElementById("tts-rate-value"),
+  ttsPitchLabel: document.getElementById("tts-pitch-label"),
+  ttsPitchInput: document.getElementById("tts-pitch-input"),
+  ttsPitchValue: document.getElementById("tts-pitch-value"),
+  ttsVolumeLabel: document.getElementById("tts-volume-label"),
+  ttsVolumeInput: document.getElementById("tts-volume-input"),
+  ttsVolumeValue: document.getElementById("tts-volume-value"),
+  ttsMaxCharsLabel: document.getElementById("tts-max-chars-label"),
+  ttsMaxCharsInput: document.getElementById("tts-max-chars-input"),
+  ttsSegmentDelayLabel: document.getElementById("tts-segment-delay-label"),
+  ttsSegmentDelayInput: document.getElementById("tts-segment-delay-input"),
+  ttsPrefetchCountLabel: document.getElementById("tts-prefetch-count-label"),
+  ttsPrefetchCountInput: document.getElementById("tts-prefetch-count-input"),
+  ttsRemoteTimeoutLabel: document.getElementById("tts-remote-timeout-label"),
+  ttsRemoteTimeoutInput: document.getElementById("tts-remote-timeout-input"),
+  ttsRemoteRetriesLabel: document.getElementById("tts-remote-retries-label"),
+  ttsRemoteRetriesInput: document.getElementById("tts-remote-retries-input"),
+  ttsRemoteGapLabel: document.getElementById("tts-remote-gap-label"),
+  ttsRemoteGapInput: document.getElementById("tts-remote-gap-input"),
+  ttsPrefetchEnabledInput: document.getElementById("tts-prefetch-enabled-input"),
+  ttsPrefetchEnabledLabel: document.getElementById("tts-prefetch-enabled-label"),
+  ttsIncludeTitleInput: document.getElementById("tts-include-title-input"),
+  ttsIncludeTitleLabel: document.getElementById("tts-include-title-label"),
+  ttsAutoScrollInput: document.getElementById("tts-auto-scroll-input"),
+  ttsAutoScrollLabel: document.getElementById("tts-auto-scroll-label"),
+  ttsAutoNextInput: document.getElementById("tts-auto-next-input"),
+  ttsAutoNextLabel: document.getElementById("tts-auto-next-label"),
+  ttsAutoStartNextInput: document.getElementById("tts-auto-start-next-input"),
+  ttsAutoStartNextLabel: document.getElementById("tts-auto-start-next-label"),
+  ttsReplaceEnabledInput: document.getElementById("tts-replace-enabled-input"),
+  ttsReplaceEnabledLabel: document.getElementById("tts-replace-enabled-label"),
+  ttsReplaceRulesLabel: document.getElementById("tts-replace-rules-label"),
+  ttsReplaceRulesInput: document.getElementById("tts-replace-rules-input"),
+  ttsReplaceRulesHint: document.getElementById("tts-replace-rules-hint"),
+  ttsSleepLabel: document.getElementById("tts-sleep-label"),
+  ttsSleepPresetSelect: document.getElementById("tts-sleep-preset-select"),
+  ttsSleepCustomWrap: document.getElementById("tts-sleep-custom-wrap"),
+  ttsSleepCustomLabel: document.getElementById("tts-sleep-custom-label"),
+  ttsSleepCustomInput: document.getElementById("tts-sleep-custom-input"),
+  btnTtsApplySleep: document.getElementById("btn-tts-apply-sleep"),
+  btnTtsClearSleep: document.getElementById("btn-tts-clear-sleep"),
+  ttsSleepStatus: document.getElementById("tts-sleep-status"),
+  btnTtsCloseActions: document.getElementById("btn-tts-close-actions"),
   replaceEditorDialog: document.getElementById("replace-editor-dialog"),
   replaceEditorTitle: document.getElementById("replace-editor-title"),
   btnCloseReplaceEditor: document.getElementById("btn-close-replace-editor"),
@@ -172,6 +244,8 @@ const state = {
   bookId: "",
   chapterId: "",
   book: null,
+  translationSupportedHint: null,
+  isComicHint: null,
   mode: "raw",
   translateMode: "server",
   translationEnabled: true,
@@ -220,6 +294,38 @@ const state = {
   pendingSelectionJunkRatio: null,
   pendingSelectionReplaceRatio: null,
   bookReplaceEntries: [],
+  tts: {
+    settings: loadTtsSettings(),
+    plugins: [],
+    voicesByProvider: new Map(),
+    browserVoices: [],
+    browserVoicesLoaded: false,
+    loadingVoices: false,
+    activeVoiceItems: [],
+    requestId: 0,
+    chapterId: "",
+    segments: [],
+    segmentIndex: -1,
+    paragraphCount: 0,
+    playing: false,
+    paused: false,
+    waiting: false,
+    providerLabel: "",
+    statusMessage: "",
+    statusSub: "",
+    progressText: "",
+    playFromSelectionNext: null,
+    audio: null,
+    audioCache: new Map(),
+    inflight: new Map(),
+    delayTimer: 0,
+    browserUtterance: null,
+    autoAdvancing: false,
+    lastRemoteRequestAt: 0,
+    sleepDeadlineAt: 0,
+    sleepTickTimer: 0,
+    sleepVolumeFactor: 1,
+  },
 };
 
 const TOC_ICON_MARKUP = Object.freeze({
@@ -227,6 +333,17 @@ const TOC_ICON_MARKUP = Object.freeze({
   done: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m8.5 12 2.4 2.4 4.6-4.8"></path></svg>',
   refresh: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5v6h-6"></path><path d="M20 11a8 8 0 1 1-2.34-5.66L20 7.66"></path></svg>',
 });
+
+const TTS_SLEEP_PRESETS = Object.freeze([
+  { value: "off", minutes: 0 },
+  { value: "10", minutes: 10 },
+  { value: "20", minutes: 20 },
+  { value: "30", minutes: 30 },
+  { value: "45", minutes: 45 },
+  { value: "60", minutes: 60 },
+  { value: "90", minutes: 90 },
+  { value: "custom", minutes: null },
+]);
 
 function setTocIcon(button, kind) {
   if (!button) return;
@@ -409,6 +526,15 @@ function parseRequestedMode(rawMode) {
   return "";
 }
 
+function parseBooleanLike(value) {
+  if (typeof value === "boolean") return value;
+  const raw = String(value == null ? "" : value).trim().toLowerCase();
+  if (!raw) return null;
+  if (["1", "true", "yes", "on"].includes(raw)) return true;
+  if (["0", "false", "no", "off"].includes(raw)) return false;
+  return null;
+}
+
 function supportsTranslation(book) {
   if (!book) return false;
   if (typeof book.translation_supported === "boolean") return book.translation_supported;
@@ -416,6 +542,12 @@ function supportsTranslation(book) {
   if (sourceType === "vbook_comic" || sourceType === "vbook_session_comic" || sourceType === "comic") return false;
   const lang = String(book.lang_source || "").toLowerCase();
   return lang === "zh" || lang.startsWith("zh-");
+}
+
+function hintedSupportsTranslation() {
+  if (state.book) return supportsTranslation(state.book);
+  if (typeof state.translationSupportedHint === "boolean") return state.translationSupportedHint;
+  return true;
 }
 
 function shouldTranslateReaderChrome() {
@@ -435,13 +567,42 @@ function supportsRawTextReplace(book) {
   return sourceType !== "vbook_comic" && sourceType !== "comic";
 }
 
+function hintedSupportsRawReplace() {
+  if (state.book) return supportsRawTextReplace(state.book);
+  if (state.translationSupportedHint === false) return state.isComicHint !== true;
+  return false;
+}
+
+function applyReaderUrlHints(params, book) {
+  if (!book || typeof book !== "object") return;
+  const translationSupported = parseBooleanLike(book.translation_supported);
+  const isComic = parseBooleanLike(book.is_comic);
+  if (translationSupported !== null) params.set("translation_supported", translationSupported ? "1" : "0");
+  if (isComic !== null) params.set("is_comic", isComic ? "1" : "0");
+}
+
+function buildReaderUrl(bookOrId, chapterId = "", mode = state.mode || "raw") {
+  const book = bookOrId && typeof bookOrId === "object" ? bookOrId : null;
+  const bookId = book ? String(book.book_id || "").trim() : String(bookOrId || "").trim();
+  const params = new URLSearchParams();
+  params.set("book_id", bookId);
+  const chapter = String(chapterId || "").trim();
+  if (chapter) params.set("chapter_id", chapter);
+  params.set("mode", mode);
+  if (mode === "trans") params.set("translation_mode", state.translateMode);
+  applyReaderUrlHints(params, book);
+  return `/reader?${params.toString()}`;
+}
+
 function syncModeButtons() {
-  const canTranslate = supportsTranslation(state.book);
-  const canReplace = supportsRawTextReplace(state.book);
+  const canTranslate = hintedSupportsTranslation();
+  const canReplace = hintedSupportsRawReplace();
+  const canListen = (state.chapterContentType !== "images") && (state.isComicHint !== true);
   if (refs.btnModeTrans) refs.btnModeTrans.classList.toggle("hidden", !canTranslate);
   if (refs.btnTranslateMode) refs.btnTranslateMode.classList.toggle("hidden", !canTranslate);
   if (refs.btnOpenNameEditor) refs.btnOpenNameEditor.classList.toggle("hidden", !canTranslate);
   if (refs.btnOpenReplaceEditor) refs.btnOpenReplaceEditor.classList.toggle("hidden", !canReplace);
+  if (refs.btnOpenTts) refs.btnOpenTts.classList.toggle("hidden", !canListen);
   if (refs.btnModeRaw) refs.btnModeRaw.classList.toggle("active", state.mode === "raw");
   if (refs.btnModeTrans) refs.btnModeTrans.classList.toggle("active", state.mode === "trans");
   if (refs.btnTranslateMode && state.shell) {
@@ -449,6 +610,42 @@ function syncModeButtons() {
     else if (state.translateMode === "hanviet") refs.btnTranslateMode.textContent = state.shell.t("modeHanviet");
     else refs.btnTranslateMode.textContent = state.shell.t("modeServer");
   }
+}
+
+function canListenCurrentChapter() {
+  if (!state.chapterId) return false;
+  if (state.chapterContentType === "images") return false;
+  if (state.isComicHint === true) return false;
+  return true;
+}
+
+function ensureTtsSettings() {
+  state.tts.settings = normalizeTtsSettings(state.tts.settings || TTS_DEFAULT_SETTINGS);
+  return state.tts.settings;
+}
+
+function saveTtsSettingsState() {
+  state.tts.settings = saveTtsSettings(state.tts.settings || TTS_DEFAULT_SETTINGS);
+  renderTtsDialogState();
+  return state.tts.settings;
+}
+
+function getTtsProviderId() {
+  return String((state.tts.settings && state.tts.settings.provider) || "browser").trim() || "browser";
+}
+
+function isTtsBrowserProvider(providerId = getTtsProviderId()) {
+  return String(providerId || "").trim() === "browser";
+}
+
+function currentTtsSleepMinutes() {
+  const settings = ensureTtsSettings();
+  const preset = String(settings.sleepPreset || "off").trim().toLowerCase();
+  if (!preset || preset === "off") return 0;
+  if (preset === "custom") {
+    return Math.max(1, Number.parseInt(String(settings.sleepCustomMinutes || "0"), 10) || 0);
+  }
+  return Math.max(0, Number.parseInt(preset, 10) || 0);
 }
 
 function selectedReadingMode() {
@@ -885,15 +1082,15 @@ async function handleInfiniteChapterTransition(step) {
 
 async function openChapterById(chapterId, { updateHistory = true, fromToc = false, resetFlip = true } = {}) {
   if (!chapterId) return;
+  if (state.tts.playing && !state.tts.autoAdvancing && String(chapterId || "").trim() !== String(state.chapterId || "").trim()) {
+    stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
+  }
+  if (String(chapterId || "").trim() !== String(state.chapterId || "").trim()) {
+    state.tts.playFromSelectionNext = null;
+  }
   state.chapterId = chapterId;
   if (updateHistory) {
-    const params = new URLSearchParams({
-      book_id: state.bookId,
-      chapter_id: state.chapterId,
-      mode: state.mode,
-      translation_mode: state.translateMode,
-    });
-    window.history.replaceState({}, "", `/reader?${params.toString()}`);
+    window.history.replaceState({}, "", buildReaderUrl(state.book || state.bookId, state.chapterId, state.mode));
   }
   await loadChapter({ resetFlip });
   if (fromToc) closeToc();
@@ -1625,6 +1822,7 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
       }
     }
     applyReaderModeClass();
+    syncModeButtons();
     clearScrollHint();
     renderChapterContent(resetFlip, preserveRatio);
     updateHeader();
@@ -1649,6 +1847,7 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
       state.chapterContentType = "text";
       state.chapterImages = [];
       state.chapterText = "";
+      syncModeButtons();
       renderChapterError(getErrorMessage(error));
       updateHeader();
       renderToc();
@@ -2500,11 +2699,14 @@ function hideSelectionBtn() {
     refs.selectionActionMenu.style.removeProperty("top");
     refs.selectionActionMenu.style.removeProperty("visibility");
   }
-  for (const node of [refs.selectionActionMenu, refs.selectionNameBtn, refs.selectionReplaceBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
+  for (const node of [refs.selectionActionMenu, refs.selectionSpeakBtn, refs.selectionNameBtn, refs.selectionReplaceBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
     if (!node || !node.dataset) continue;
     delete node.dataset.text;
+    delete node.dataset.exactText;
     delete node.dataset.startOffset;
     delete node.dataset.endOffset;
+    delete node.dataset.startParagraphIndex;
+    delete node.dataset.startParagraphOffset;
   }
 }
 
@@ -2648,6 +2850,35 @@ function computeRenderedOffset(containerNode, nodeOffset) {
   return total;
 }
 
+function normalizeSelectionDisplayText(text) {
+  return String(text == null ? "" : text)
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .trim();
+}
+
+function selectionStartParagraphInfoFromRange(range) {
+  if (!range || !refs.readerContentBody) {
+    return { paragraphIndex: 0, paragraphOffset: 0 };
+  }
+  const startNode = range.startContainer;
+  const startElement = startNode && startNode.nodeType === Node.ELEMENT_NODE
+    ? startNode
+    : (startNode && startNode.parentElement);
+  const paragraph = startElement && startElement.closest ? startElement.closest("p") : null;
+  if (!paragraph || !refs.readerContentBody.contains(paragraph)) {
+    return { paragraphIndex: 0, paragraphOffset: 0 };
+  }
+  const nodes = paragraphNodesForTts();
+  const paragraphIndex = Math.max(0, nodes.indexOf(paragraph));
+  const innerOffset = offsetInsideNode(paragraph, range.startContainer, range.startOffset);
+  return {
+    paragraphIndex,
+    paragraphOffset: Math.max(0, Number(innerOffset) || 0),
+  };
+}
+
 function selectionPayloadFromRange(range) {
   const chapterText = normalizeReaderText(state.chapterText || "");
   const startRaw = computeRenderedOffset(range.startContainer, range.startOffset);
@@ -2656,21 +2887,40 @@ function selectionPayloadFromRange(range) {
   let end = Math.max(startRaw, endRaw);
   start = Math.max(0, Math.min(chapterText.length, start));
   end = Math.max(0, Math.min(chapterText.length, end));
+  const exactSelected = normalizeSelectionDisplayText(range.toString() || window.getSelection()?.toString() || "");
   let selected = chapterText.slice(start, end).trim();
   if (!selected) {
-    selected = normalizeReaderText(String(window.getSelection()?.toString() || "")).trim();
+    selected = normalizeReaderText(exactSelected).trim();
   }
-  return { selected, start, end };
+  const paragraphInfo = selectionStartParagraphInfoFromRange(range);
+  return {
+    selected,
+    exactSelected: exactSelected || selected,
+    start,
+    end,
+    startParagraphIndex: paragraphInfo.paragraphIndex,
+    startParagraphOffset: paragraphInfo.paragraphOffset,
+  };
 }
 
 function currentSelectionPayload() {
   const source = refs.selectionActionMenu || refs.selectionNameBtn;
   if (!source || !source.dataset) return null;
   const selected = String(source.dataset.text || "").trim();
+  const exactSelected = normalizeSelectionDisplayText(source.dataset.exactText || selected);
   const startOffset = Number.parseInt(source.dataset.startOffset || "", 10);
   const endOffset = Number.parseInt(source.dataset.endOffset || "", 10);
+  const startParagraphIndex = Number.parseInt(source.dataset.startParagraphIndex || "", 10);
+  const startParagraphOffset = Number.parseInt(source.dataset.startParagraphOffset || "", 10);
   if (!selected || Number.isNaN(startOffset) || Number.isNaN(endOffset)) return null;
-  return { selected, start: startOffset, end: endOffset };
+  return {
+    selected,
+    exactSelected,
+    start: startOffset,
+    end: endOffset,
+    startParagraphIndex: Number.isNaN(startParagraphIndex) ? 0 : startParagraphIndex,
+    startParagraphOffset: Number.isNaN(startParagraphOffset) ? 0 : startParagraphOffset,
+  };
 }
 
 function canEditSelectionName(payload) {
@@ -2683,20 +2933,964 @@ function canEditSelectionName(payload) {
 }
 
 function canAddSelectionJunk(payload) {
-  if (!payload || !payload.selected) return false;
+  const text = normalizeSelectionDisplayText(payload && (payload.exactSelected || payload.selected));
+  if (!text) return false;
   if (!state.chapterId || state.chapterContentType !== "text") return false;
-  if (payload.selected.length > 240) return false;
-  if (payload.selected.includes("\n")) return false;
+  if (text.length > 240) return false;
+  if (text.includes("\n")) return false;
   return true;
 }
 
 function canEditSelectionReplace(payload) {
-  if (!payload || !payload.selected) return false;
+  const text = normalizeSelectionDisplayText(payload && (payload.exactSelected || payload.selected));
+  if (!text) return false;
   if (!state.chapterId || state.chapterContentType !== "text") return false;
   if (!supportsRawTextReplace(state.book)) return false;
-  if (payload.selected.length > 240) return false;
-  if (payload.selected.includes("\n")) return false;
+  if (text.length > 240) return false;
+  if (text.includes("\n")) return false;
   return true;
+}
+
+function canSpeakSelection(payload) {
+  const text = normalizeSelectionDisplayText(payload && (payload.exactSelected || payload.selected));
+  if (!text) return false;
+  if (!canListenCurrentChapter()) return false;
+  if (text.length > 3000) return false;
+  return true;
+}
+
+function currentBookCoverForTts() {
+  const cover = String(
+    (state.book && (state.book.cover_url || state.book.cover || state.book.image_url || state.book.image))
+    || "",
+  ).trim();
+  if (cover) return cover;
+  return createTtsFallbackArtworkDataUrl(
+    (state.book && (state.book.title_display || state.book.title_vi || state.book.title)) || "Nghe truyện",
+  );
+}
+
+function getTtsProviderLabel(providerId = getTtsProviderId()) {
+  if (isTtsBrowserProvider(providerId)) return state.shell.t("ttsProviderBrowser");
+  const plugin = (state.tts.plugins || []).find((item) => String((item && item.plugin_id) || "").trim() === String(providerId || "").trim());
+  return String((plugin && (plugin.name || plugin.plugin_id)) || providerId || "").trim() || state.shell.t("ttsProviderUnknown");
+}
+
+function formatTtsSleepRemaining(ms) {
+  const totalSeconds = Math.max(0, Math.ceil((Number(ms) || 0) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function remainingTtsSleepMs() {
+  if (!(state.tts.sleepDeadlineAt > 0)) return 0;
+  return Math.max(0, state.tts.sleepDeadlineAt - Date.now());
+}
+
+function currentTtsSleepVolumeFactor() {
+  const remaining = remainingTtsSleepMs();
+  if (!(remaining > 0)) return 1;
+  const fadeWindowMs = 15000;
+  if (remaining >= fadeWindowMs) return 1;
+  return Math.max(0.08, Math.min(1, remaining / fadeWindowMs));
+}
+
+function applyTtsLiveOutputVolume() {
+  state.tts.sleepVolumeFactor = currentTtsSleepVolumeFactor();
+  if (state.tts.audio) {
+    try {
+      state.tts.audio.volume = Math.max(0, Math.min(1, (Number(state.tts.settings.volume) || 1) * state.tts.sleepVolumeFactor));
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function clearTtsSleepTickTimer() {
+  if (!state.tts.sleepTickTimer) return;
+  window.clearTimeout(state.tts.sleepTickTimer);
+  state.tts.sleepTickTimer = 0;
+}
+
+function clearTtsSleepTimer({ quiet = false } = {}) {
+  clearTtsSleepTickTimer();
+  state.tts.sleepDeadlineAt = 0;
+  state.tts.sleepVolumeFactor = 1;
+  applyTtsLiveOutputVolume();
+  if (!quiet) {
+    state.tts.statusSub = "";
+  }
+  renderTtsDialogState();
+}
+
+function updateTtsSleepRuntime() {
+  clearTtsSleepTickTimer();
+  if (!(state.tts.sleepDeadlineAt > 0)) {
+    state.tts.sleepVolumeFactor = 1;
+    renderTtsDialogState();
+    return;
+  }
+  const remaining = remainingTtsSleepMs();
+  state.tts.sleepVolumeFactor = currentTtsSleepVolumeFactor();
+  applyTtsLiveOutputVolume();
+  if (remaining <= 0) {
+    clearTtsSleepTickTimer();
+    state.tts.sleepDeadlineAt = 0;
+    if (state.tts.playing || state.tts.paused) {
+      stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
+      state.tts.statusMessage = state.shell.t("ttsStatusStopped");
+      state.tts.statusSub = state.shell.t("ttsSleepStatusExpired");
+    }
+    renderTtsDialogState();
+    return;
+  }
+  state.tts.sleepTickTimer = window.setTimeout(updateTtsSleepRuntime, 500);
+  renderTtsDialogState();
+}
+
+function startTtsSleepTimer({ quiet = false, restart = false } = {}) {
+  const minutes = currentTtsSleepMinutes();
+  if (!(minutes > 0)) {
+    clearTtsSleepTimer({ quiet: true });
+    return false;
+  }
+  if (!restart && state.tts.sleepDeadlineAt > Date.now()) {
+    updateTtsSleepRuntime();
+    return true;
+  }
+  state.tts.sleepDeadlineAt = Date.now() + (minutes * 60 * 1000);
+  state.tts.sleepVolumeFactor = 1;
+  if (!quiet) {
+    state.tts.statusSub = state.shell.t("ttsSleepStatusActive", { time: formatTtsSleepRemaining(minutes * 60 * 1000) });
+  }
+  updateTtsSleepRuntime();
+  return true;
+}
+
+function clearTtsDelayTimer() {
+  if (!state.tts.delayTimer) return;
+  window.clearTimeout(state.tts.delayTimer);
+  state.tts.delayTimer = 0;
+}
+
+function revokeTtsCachedAudio() {
+  for (const value of state.tts.audioCache.values()) {
+    const url = String((value && value.url) || "").trim();
+    if (!url) continue;
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore
+    }
+  }
+  state.tts.audioCache.clear();
+}
+
+function abortTtsInflight() {
+  for (const item of state.tts.inflight.values()) {
+    const controller = item && item.controller;
+    if (!controller) continue;
+    try {
+      controller.abort();
+    } catch {
+      // ignore
+    }
+  }
+  state.tts.inflight.clear();
+}
+
+function clearTtsHighlight() {
+  if (!refs.readerContentBody) return;
+  for (const node of refs.readerContentBody.querySelectorAll(".tts-active-paragraph")) {
+    node.classList.remove("tts-active-paragraph");
+  }
+}
+
+function paragraphNodesForTts() {
+  if (!refs.readerContentBody) return [];
+  return Array.from(refs.readerContentBody.querySelectorAll(":scope > p"));
+}
+
+function highlightTtsParagraph(paragraphIndex) {
+  clearTtsHighlight();
+  if (!Number.isFinite(paragraphIndex) || paragraphIndex < 0) return;
+  const nodes = paragraphNodesForTts();
+  const target = nodes[paragraphIndex];
+  if (!target) return;
+  target.classList.add("tts-active-paragraph");
+  if (!state.tts.settings.autoScroll) return;
+  try {
+    target.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+  } catch {
+    // ignore
+  }
+}
+
+function updateTtsMediaSession(segment) {
+  if (!("mediaSession" in navigator) || !navigator.mediaSession) return;
+  try {
+    const title = normalizeDisplayTitle(
+      (state.book && (state.book.title_display || state.book.title_vi || state.book.title)) || state.shell.t("ttsDefaultTitle"),
+    ) || state.shell.t("ttsDefaultTitle");
+    const artist = `${state.shell.t("ttsMediaArtistPrefix")}: ${getTtsProviderLabel()}`;
+    const album = String((segment && segment.text) || "").trim().slice(0, 96);
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist,
+      album,
+      artwork: [
+        {
+          src: currentBookCoverForTts(),
+          sizes: "512x512",
+          type: currentBookCoverForTts().startsWith("data:image/svg+xml") ? "image/svg+xml" : "image/png",
+        },
+      ],
+    });
+    navigator.mediaSession.playbackState = state.tts.playing && !state.tts.paused ? "playing" : "paused";
+  } catch {
+    // ignore
+  }
+}
+
+function clearTtsMediaSession() {
+  if (!("mediaSession" in navigator) || !navigator.mediaSession) return;
+  try {
+    navigator.mediaSession.playbackState = "paused";
+    navigator.mediaSession.metadata = null;
+  } catch {
+    // ignore
+  }
+}
+
+function bindTtsMediaSessionActions() {
+  if (!("mediaSession" in navigator) || !navigator.mediaSession) return;
+  const safeBind = (action, handler) => {
+    try {
+      navigator.mediaSession.setActionHandler(action, handler);
+    } catch {
+      // ignore unsupported action
+    }
+  };
+  safeBind("play", () => {
+    pauseOrResumeTtsPlayback().catch(() => {});
+  });
+  safeBind("pause", () => {
+    pauseOrResumeTtsPlayback().catch(() => {});
+  });
+  safeBind("stop", () => {
+    stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
+  });
+  safeBind("previoustrack", () => {
+    seekTtsSegment(-1).catch(() => {});
+  });
+  safeBind("nexttrack", () => {
+    seekTtsSegment(1).catch(() => {});
+  });
+}
+
+function ensureTtsAudioElement() {
+  if (state.tts.audio) return state.tts.audio;
+  const audio = new Audio();
+  audio.preload = "auto";
+  audio.crossOrigin = "anonymous";
+  audio.addEventListener("play", () => {
+    state.tts.playing = true;
+    state.tts.paused = false;
+    renderTtsDialogState();
+  });
+  audio.addEventListener("pause", () => {
+    if (!state.tts.playing) return;
+    state.tts.paused = true;
+    renderTtsDialogState();
+  });
+  audio.addEventListener("ended", () => {
+    const sessionId = Number.parseInt(audio.dataset.sessionId || "", 10);
+    if (!Number.isFinite(sessionId) || sessionId !== state.tts.requestId) return;
+    if (!state.tts.playing) return;
+    const nextIndex = state.tts.segmentIndex + 1;
+    if (nextIndex < state.tts.segments.length) {
+      clearTtsDelayTimer();
+      state.tts.delayTimer = window.setTimeout(() => {
+        playTtsSegment(nextIndex, sessionId).catch((error) => {
+          state.shell.showToast(getErrorMessage(error));
+        });
+      }, Math.max(0, Number(state.tts.settings.segmentDelayMs) || 0));
+      return;
+    }
+    handleTtsChapterFinished(sessionId).catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
+  audio.addEventListener("error", () => {
+    if (!state.tts.playing) return;
+    const sessionId = Number.parseInt(audio.dataset.sessionId || "", 10);
+    if (!Number.isFinite(sessionId) || sessionId !== state.tts.requestId) return;
+    stopTtsPlayback({ keepDialogOpen: true, preserveStatus: true });
+    state.tts.statusMessage = state.shell.t("ttsStatusError");
+    state.tts.statusSub = state.shell.t("ttsAudioError");
+    renderTtsDialogState();
+  });
+  state.tts.audio = audio;
+  return audio;
+}
+
+function renderTtsDialogState() {
+  ensureTtsSettings();
+  if (refs.ttsStatusText) refs.ttsStatusText.textContent = state.tts.statusMessage || state.shell.t("ttsStatusIdle");
+  if (refs.ttsStatusSub) refs.ttsStatusSub.textContent = state.tts.statusSub || state.shell.t("ttsStatusIdleHint");
+  if (refs.ttsProgressText) refs.ttsProgressText.textContent = state.tts.progressText || state.shell.t("ttsProgressEmpty");
+
+  const providerId = getTtsProviderId();
+  if (refs.ttsProviderSelect) {
+    const current = String(refs.ttsProviderSelect.value || "").trim();
+    refs.ttsProviderSelect.innerHTML = "";
+    const browserOpt = document.createElement("option");
+    browserOpt.value = "browser";
+    browserOpt.textContent = state.shell.t("ttsProviderBrowser");
+    refs.ttsProviderSelect.appendChild(browserOpt);
+    for (const plugin of state.tts.plugins || []) {
+      const opt = document.createElement("option");
+      opt.value = String(plugin.plugin_id || "");
+      opt.textContent = String(plugin.name || plugin.plugin_id || "");
+      refs.ttsProviderSelect.appendChild(opt);
+    }
+    refs.ttsProviderSelect.value = providerId || current || "browser";
+  }
+
+  const activeVoices = isTtsBrowserProvider(providerId)
+    ? (state.tts.browserVoices || [])
+    : (state.tts.voicesByProvider.get(providerId) || []);
+  state.tts.activeVoiceItems = activeVoices;
+  if (refs.ttsVoiceSelect) {
+    const selectedVoiceId = currentSelectedTtsVoiceId(providerId);
+    refs.ttsVoiceSelect.innerHTML = "";
+    if (!activeVoices.length) {
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = state.tts.loadingVoices
+        ? state.shell.t("ttsVoiceLoading")
+        : state.shell.t("ttsVoiceEmpty");
+      refs.ttsVoiceSelect.appendChild(empty);
+    } else {
+      for (const voice of activeVoices) {
+        const opt = document.createElement("option");
+        opt.value = String(voice.id || "");
+        const lang = String(voice.language || "").trim();
+        opt.textContent = lang ? `${voice.name} · ${lang}` : voice.name;
+        refs.ttsVoiceSelect.appendChild(opt);
+      }
+      refs.ttsVoiceSelect.value = selectedVoiceId || String((activeVoices[0] && activeVoices[0].id) || "");
+    }
+    refs.ttsVoiceSelect.disabled = !activeVoices.length;
+  }
+
+  if (refs.ttsRateInput) refs.ttsRateInput.value = String(state.tts.settings.rate);
+  if (refs.ttsRateValue) refs.ttsRateValue.textContent = Number(state.tts.settings.rate || 1).toFixed(2);
+  if (refs.ttsPitchInput) refs.ttsPitchInput.value = String(state.tts.settings.pitch);
+  if (refs.ttsPitchValue) refs.ttsPitchValue.textContent = Number(state.tts.settings.pitch || 1).toFixed(2);
+  if (refs.ttsVolumeInput) refs.ttsVolumeInput.value = String(state.tts.settings.volume);
+  if (refs.ttsVolumeValue) refs.ttsVolumeValue.textContent = Number(state.tts.settings.volume || 1).toFixed(2);
+  if (refs.ttsMaxCharsInput) refs.ttsMaxCharsInput.value = String(state.tts.settings.maxChars);
+  if (refs.ttsSegmentDelayInput) refs.ttsSegmentDelayInput.value = String(state.tts.settings.segmentDelayMs);
+  if (refs.ttsPrefetchCountInput) refs.ttsPrefetchCountInput.value = String(state.tts.settings.prefetchCount);
+  if (refs.ttsRemoteTimeoutInput) refs.ttsRemoteTimeoutInput.value = String(state.tts.settings.remoteTimeoutMs);
+  if (refs.ttsRemoteRetriesInput) refs.ttsRemoteRetriesInput.value = String(state.tts.settings.remoteRetries);
+  if (refs.ttsRemoteGapInput) refs.ttsRemoteGapInput.value = String(state.tts.settings.remoteMinGapMs);
+  if (refs.ttsPrefetchEnabledInput) refs.ttsPrefetchEnabledInput.checked = Boolean(state.tts.settings.prefetchEnabled);
+  if (refs.ttsIncludeTitleInput) refs.ttsIncludeTitleInput.checked = Boolean(state.tts.settings.includeTitle);
+  if (refs.ttsAutoScrollInput) refs.ttsAutoScrollInput.checked = Boolean(state.tts.settings.autoScroll);
+  if (refs.ttsAutoNextInput) refs.ttsAutoNextInput.checked = Boolean(state.tts.settings.autoNext);
+  if (refs.ttsAutoStartNextInput) refs.ttsAutoStartNextInput.checked = Boolean(state.tts.settings.autoStartOnNextChapter);
+  if (refs.ttsReplaceEnabledInput) refs.ttsReplaceEnabledInput.checked = Boolean(state.tts.settings.replaceEnabled);
+  if (refs.ttsReplaceRulesInput) refs.ttsReplaceRulesInput.value = String(state.tts.settings.replaceRulesText || "");
+  if (refs.ttsReplaceRulesInput) refs.ttsReplaceRulesInput.disabled = !state.tts.settings.replaceEnabled;
+  if (refs.ttsPitchInput) refs.ttsPitchInput.disabled = !isTtsBrowserProvider(providerId);
+  if (refs.ttsReplaceRulesHint) {
+    const count = parseTtsReplaceRules(state.tts.settings.replaceRulesText || "").length;
+    refs.ttsReplaceRulesHint.textContent = state.shell.t("ttsReplaceRulesHint", { count });
+  }
+  if (refs.ttsSleepPresetSelect) {
+    const keep = String(refs.ttsSleepPresetSelect.value || "").trim();
+    refs.ttsSleepPresetSelect.innerHTML = "";
+    for (const item of TTS_SLEEP_PRESETS) {
+      const opt = document.createElement("option");
+      opt.value = item.value;
+      if (item.value === "off") opt.textContent = state.shell.t("ttsSleepOff");
+      else if (item.value === "custom") opt.textContent = state.shell.t("ttsSleepPresetCustom");
+      else opt.textContent = state.shell.t("ttsSleepPresetMinutes", { minutes: item.minutes });
+      refs.ttsSleepPresetSelect.appendChild(opt);
+    }
+    refs.ttsSleepPresetSelect.value = String(state.tts.settings.sleepPreset || keep || "off");
+  }
+  if (refs.ttsSleepCustomWrap) refs.ttsSleepCustomWrap.classList.toggle("hidden", String(state.tts.settings.sleepPreset || "off") !== "custom");
+  if (refs.ttsSleepCustomInput) refs.ttsSleepCustomInput.value = String(state.tts.settings.sleepCustomMinutes || 90);
+  if (refs.ttsSleepStatus) {
+    if (state.tts.sleepDeadlineAt > Date.now()) {
+      refs.ttsSleepStatus.textContent = state.shell.t("ttsSleepStatusActive", { time: formatTtsSleepRemaining(remainingTtsSleepMs()) });
+    } else {
+      refs.ttsSleepStatus.textContent = state.shell.t("ttsSleepStatusNone");
+    }
+  }
+  if (refs.btnTtsTogglePlay) {
+    refs.btnTtsTogglePlay.textContent = state.tts.playing && !state.tts.paused
+      ? state.shell.t("ttsPause")
+      : state.shell.t("ttsResume");
+    refs.btnTtsTogglePlay.disabled = !state.tts.segments.length;
+  }
+  if (refs.btnTtsPlayChapter) {
+    refs.btnTtsPlayChapter.textContent = state.tts.playFromSelectionNext
+      ? state.shell.t("ttsPlayFromSelection")
+      : state.shell.t("ttsPlayFromStart");
+  }
+  if (refs.btnTtsStop) refs.btnTtsStop.disabled = !state.tts.playing && !state.tts.paused;
+  if (refs.btnTtsPrevSegment) refs.btnTtsPrevSegment.disabled = !(state.tts.segmentIndex > 0);
+  if (refs.btnTtsNextSegment) refs.btnTtsNextSegment.disabled = !(state.tts.segmentIndex >= 0 && state.tts.segmentIndex < (state.tts.segments.length - 1));
+  if (refs.btnTtsClearSleep) refs.btnTtsClearSleep.disabled = !(state.tts.sleepDeadlineAt > 0);
+}
+
+function currentSelectedTtsVoiceId(providerId = getTtsProviderId()) {
+  const settings = ensureTtsSettings();
+  if (isTtsBrowserProvider(providerId)) return String(settings.voiceURI || "").trim();
+  const table = (settings.providerVoiceIds && typeof settings.providerVoiceIds === "object") ? settings.providerVoiceIds : {};
+  return String(table[providerId] || "").trim();
+}
+
+function rememberTtsVoiceSelection(providerId, voiceId) {
+  const provider = String(providerId || "").trim() || "browser";
+  const nextVoiceId = String(voiceId || "").trim();
+  if (isTtsBrowserProvider(provider)) {
+    state.tts.settings.voiceURI = nextVoiceId;
+  } else {
+    const table = (state.tts.settings.providerVoiceIds && typeof state.tts.settings.providerVoiceIds === "object")
+      ? { ...state.tts.settings.providerVoiceIds }
+      : {};
+    if (nextVoiceId) table[provider] = nextVoiceId;
+    else delete table[provider];
+    state.tts.settings.providerVoiceIds = table;
+  }
+  saveTtsSettingsState();
+}
+
+function normalizeBrowserVoiceItems(voices) {
+  return (Array.isArray(voices) ? voices : []).map((voice) => ({
+    id: String(voice.voiceURI || voice.name || "").trim(),
+    name: String(voice.name || voice.voiceURI || "").trim() || state.shell.t("ttsVoiceUnknown"),
+    language: String(voice.lang || "").trim(),
+  })).filter((voice) => voice.id);
+}
+
+function refreshBrowserVoices() {
+  if (!window.speechSynthesis || typeof window.speechSynthesis.getVoices !== "function") {
+    state.tts.browserVoices = [];
+    state.tts.browserVoicesLoaded = true;
+    renderTtsDialogState();
+    return;
+  }
+  const voices = window.speechSynthesis.getVoices() || [];
+  state.tts.browserVoices = normalizeBrowserVoiceItems(voices);
+  state.tts.browserVoicesLoaded = true;
+  const currentId = currentSelectedTtsVoiceId("browser");
+  if (!currentId && state.tts.browserVoices.length) {
+    rememberTtsVoiceSelection("browser", state.tts.browserVoices[0].id);
+  } else {
+    renderTtsDialogState();
+  }
+}
+
+async function loadTtsPlugins() {
+  try {
+    const data = await state.shell.api("/api/tts/plugins");
+    state.tts.plugins = Array.isArray(data && data.items) ? data.items : [];
+  } catch {
+    state.tts.plugins = [];
+  }
+  const providerId = getTtsProviderId();
+  if (!isTtsBrowserProvider(providerId)) {
+    const exists = state.tts.plugins.some((item) => String((item && item.plugin_id) || "").trim() === providerId);
+    if (!exists) {
+      state.tts.settings.provider = "browser";
+      saveTtsSettingsState();
+    }
+  }
+  renderTtsDialogState();
+}
+
+async function ensureTtsProviderVoices(providerId = getTtsProviderId()) {
+  const provider = String(providerId || "").trim() || "browser";
+  if (isTtsBrowserProvider(provider)) {
+    refreshBrowserVoices();
+    return state.tts.browserVoices;
+  }
+  if (state.tts.voicesByProvider.has(provider)) {
+    return state.tts.voicesByProvider.get(provider) || [];
+  }
+  state.tts.loadingVoices = true;
+  renderTtsDialogState();
+  try {
+    const data = await state.shell.api("/api/tts/voices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plugin_id: provider }),
+    });
+    const items = Array.isArray(data && data.items) ? data.items : [];
+    state.tts.voicesByProvider.set(provider, items);
+    const currentId = currentSelectedTtsVoiceId(provider);
+    if (!currentId && items.length) {
+      rememberTtsVoiceSelection(provider, String(items[0].id || ""));
+    } else {
+      renderTtsDialogState();
+    }
+    return items;
+  } finally {
+    state.tts.loadingVoices = false;
+    renderTtsDialogState();
+  }
+}
+
+function base64ToBlobUrl(base64Data, mimeType = "audio/mpeg") {
+  const raw = atob(String(base64Data || ""));
+  const bytes = new Uint8Array(raw.length);
+  for (let index = 0; index < raw.length; index += 1) {
+    bytes[index] = raw.charCodeAt(index);
+  }
+  const blob = new Blob([bytes], { type: String(mimeType || "audio/mpeg") || "audio/mpeg" });
+  return URL.createObjectURL(blob);
+}
+
+function clearTtsPlaybackState() {
+  clearTtsDelayTimer();
+  abortTtsInflight();
+  if (state.tts.browserUtterance && window.speechSynthesis) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      // ignore
+    }
+  }
+  state.tts.browserUtterance = null;
+  if (state.tts.audio) {
+    try {
+      state.tts.audio.pause();
+    } catch {
+      // ignore
+    }
+    try {
+      state.tts.audio.removeAttribute("src");
+      state.tts.audio.load();
+    } catch {
+      // ignore
+    }
+  }
+  revokeTtsCachedAudio();
+  clearTtsHighlight();
+  state.tts.segments = [];
+  state.tts.segmentIndex = -1;
+  state.tts.playing = false;
+  state.tts.paused = false;
+  state.tts.waiting = false;
+  state.tts.chapterId = "";
+  state.tts.providerLabel = "";
+  state.tts.progressText = "";
+  state.tts.autoAdvancing = false;
+  clearTtsMediaSession();
+}
+
+function stopTtsPlayback({ keepDialogOpen = true, preserveStatus = false } = {}) {
+  state.tts.requestId += 1;
+  const preservedStatus = preserveStatus ? state.tts.statusMessage : "";
+  const preservedSub = preserveStatus ? state.tts.statusSub : "";
+  clearTtsPlaybackState();
+  if (!preserveStatus) {
+    state.tts.statusMessage = state.shell.t("ttsStatusStopped");
+    state.tts.statusSub = "";
+  } else {
+    state.tts.statusMessage = preservedStatus;
+    state.tts.statusSub = preservedSub;
+  }
+  if (!keepDialogOpen && refs.ttsDialog && refs.ttsDialog.open) refs.ttsDialog.close();
+  renderTtsDialogState();
+}
+
+async function pauseOrResumeTtsPlayback() {
+  if (!state.tts.segments.length) return;
+  if (isTtsBrowserProvider()) {
+    if (!window.speechSynthesis) return;
+    if (state.tts.playing && !state.tts.paused) {
+      try {
+        window.speechSynthesis.pause();
+      } catch {
+        // ignore
+      }
+      state.tts.paused = true;
+      state.tts.statusMessage = state.shell.t("ttsStatusPaused");
+      renderTtsDialogState();
+      return;
+    }
+    if (state.tts.playing && state.tts.paused) {
+      try {
+        window.speechSynthesis.resume();
+      } catch {
+        // ignore
+      }
+      state.tts.paused = false;
+      state.tts.statusMessage = state.shell.t("ttsStatusPlaying");
+      renderTtsDialogState();
+      return;
+    }
+    await startTtsPlayback({ openDialog: true });
+    return;
+  }
+
+  const audio = ensureTtsAudioElement();
+  if (state.tts.playing && !state.tts.paused) {
+    try {
+      audio.pause();
+    } catch {
+      // ignore
+    }
+    state.tts.paused = true;
+    state.tts.statusMessage = state.shell.t("ttsStatusPaused");
+    renderTtsDialogState();
+    return;
+  }
+  if (state.tts.playing && state.tts.paused) {
+    try {
+      applyTtsLiveOutputVolume();
+      await audio.play();
+      state.tts.paused = false;
+      state.tts.statusMessage = state.shell.t("ttsStatusPlaying");
+      renderTtsDialogState();
+    } catch (error) {
+      state.shell.showToast(getErrorMessage(error));
+    }
+    return;
+  }
+  await startTtsPlayback({ openDialog: true });
+}
+
+function currentTtsChapterTitle() {
+  const row = findChapterAt(findChapterIndex());
+  return chapterTitle(row) || state.shell.t("ttsDefaultTitle");
+}
+
+function currentSelectionParagraphInfo() {
+  if (state.tts.playFromSelectionNext) {
+    return {
+      paragraphIndex: Math.max(0, Number(state.tts.playFromSelectionNext.paragraphIndex) || 0),
+      paragraphOffset: Math.max(0, Number(state.tts.playFromSelectionNext.paragraphOffset) || 0),
+    };
+  }
+  const source = refs.selectionActionMenu || refs.selectionSpeakBtn;
+  if (!source || !source.dataset) return { paragraphIndex: 0, paragraphOffset: 0 };
+  const paragraphIndex = Number.parseInt(source.dataset.startParagraphIndex || "", 10);
+  const paragraphOffset = Number.parseInt(source.dataset.startParagraphOffset || "", 10);
+  return {
+    paragraphIndex: Number.isFinite(paragraphIndex) ? paragraphIndex : 0,
+    paragraphOffset: Number.isFinite(paragraphOffset) ? paragraphOffset : 0,
+  };
+}
+
+function buildCurrentTtsSegments({ fromSelection = false } = {}) {
+  const selectionInfo = fromSelection ? currentSelectionParagraphInfo() : { paragraphIndex: 0, paragraphOffset: 0 };
+  return buildTtsSegments({
+    chapterTitle: currentTtsChapterTitle(),
+    content: state.chapterText || "",
+    includeTitle: !fromSelection && Boolean(state.tts.settings.includeTitle),
+    maxChars: state.tts.settings.maxChars,
+    startParagraphIndex: selectionInfo.paragraphIndex,
+    startParagraphOffset: selectionInfo.paragraphOffset,
+    replaceEnabled: state.tts.settings.replaceEnabled,
+    replaceRulesText: state.tts.settings.replaceRulesText,
+  });
+}
+
+async function waitTtsRemoteGap() {
+  const minGap = Math.max(0, Number(state.tts.settings.remoteMinGapMs) || 0);
+  const now = Date.now();
+  const waitMs = Math.max(0, (state.tts.lastRemoteRequestAt + minGap) - now);
+  if (waitMs > 0) {
+    await new Promise((resolve) => window.setTimeout(resolve, waitMs));
+  }
+  state.tts.lastRemoteRequestAt = Date.now();
+}
+
+async function fetchTtsRemoteSegmentAudio(index, sessionId) {
+  const cached = state.tts.audioCache.get(index);
+  if (cached) return cached;
+  const existing = state.tts.inflight.get(index);
+  if (existing) return existing.promise;
+  const segment = state.tts.segments[index];
+  if (!segment || !segment.text) {
+    throw new Error(state.shell.t("ttsSegmentEmpty"));
+  }
+  const controller = new AbortController();
+  const timeoutMs = Math.max(3000, Number(state.tts.settings.remoteTimeoutMs) || 20000);
+  const timer = window.setTimeout(() => {
+    try {
+      controller.abort();
+    } catch {
+      // ignore
+    }
+  }, timeoutMs);
+  const promise = (async () => {
+    const providerId = getTtsProviderId();
+    const voiceId = currentSelectedTtsVoiceId(providerId);
+    const retries = Math.max(0, Number(state.tts.settings.remoteRetries) || 0);
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      if (sessionId !== state.tts.requestId) {
+        throw new DOMException("Playback aborted", "AbortError");
+      }
+      try {
+        await waitTtsRemoteGap();
+        const payload = await state.shell.api("/api/tts/synthesize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            plugin_id: providerId,
+            voice_id: voiceId,
+            text: segment.text,
+          }),
+          signal: controller.signal,
+        });
+        const url = base64ToBlobUrl(payload.audio_base64, payload.mime_type || "audio/mpeg");
+        const item = {
+          url,
+          mimeType: String(payload.mime_type || "audio/mpeg"),
+          providerLabel: getTtsProviderLabel(providerId),
+        };
+        state.tts.audioCache.set(index, item);
+        return item;
+      } catch (error) {
+        lastError = error;
+        if (isAbortError(error) || attempt >= retries) break;
+      }
+    }
+    throw lastError || new Error(state.shell.t("ttsStatusError"));
+  })().finally(() => {
+    window.clearTimeout(timer);
+    const current = state.tts.inflight.get(index);
+    if (current && current.promise === promise) {
+      state.tts.inflight.delete(index);
+    }
+  });
+  state.tts.inflight.set(index, { controller, promise });
+  return promise;
+}
+
+function prefetchTtsSegments(sessionId, fromIndex) {
+  if (!state.tts.settings.prefetchEnabled) return;
+  if (isTtsBrowserProvider()) return;
+  const count = Math.max(0, Number(state.tts.settings.prefetchCount) || 0);
+  for (let offset = 1; offset <= count; offset += 1) {
+    const nextIndex = fromIndex + offset;
+    if (nextIndex >= state.tts.segments.length) break;
+    fetchTtsRemoteSegmentAudio(nextIndex, sessionId).catch(() => {});
+  }
+}
+
+async function playTtsBrowserSegment(index, sessionId) {
+  if (!window.speechSynthesis) {
+    throw new Error(state.shell.t("ttsBrowserUnsupported"));
+  }
+  const segment = state.tts.segments[index];
+  if (!segment || !segment.text) {
+    throw new Error(state.shell.t("ttsSegmentEmpty"));
+  }
+  try {
+    window.speechSynthesis.cancel();
+  } catch {
+    // ignore
+  }
+  const utterance = new SpeechSynthesisUtterance(segment.text);
+  state.tts.browserUtterance = utterance;
+  const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+  const voiceId = currentSelectedTtsVoiceId("browser");
+  const voice = voices.find((item) => String(item.voiceURI || "") === voiceId) || voices[0];
+  if (voice) utterance.voice = voice;
+  utterance.rate = Number(state.tts.settings.rate) || 1;
+  utterance.pitch = Number(state.tts.settings.pitch) || 1;
+  utterance.volume = Math.max(0, Math.min(1, (Number(state.tts.settings.volume) || 1) * currentTtsSleepVolumeFactor()));
+  utterance.onend = () => {
+    if (sessionId !== state.tts.requestId) return;
+    const nextIndex = index + 1;
+    if (nextIndex < state.tts.segments.length) {
+      clearTtsDelayTimer();
+      state.tts.delayTimer = window.setTimeout(() => {
+        playTtsSegment(nextIndex, sessionId).catch((error) => {
+          state.shell.showToast(getErrorMessage(error));
+        });
+      }, Math.max(0, Number(state.tts.settings.segmentDelayMs) || 0));
+      return;
+    }
+    handleTtsChapterFinished(sessionId).catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  };
+  utterance.onerror = (event) => {
+    if (sessionId !== state.tts.requestId) return;
+    stopTtsPlayback({ keepDialogOpen: true, preserveStatus: true });
+    state.tts.statusMessage = state.shell.t("ttsStatusError");
+    state.tts.statusSub = String((event && event.error) || "").trim() || state.shell.t("ttsBrowserUnsupported");
+    renderTtsDialogState();
+  };
+  window.speechSynthesis.speak(utterance);
+}
+
+async function playTtsRemoteSegment(index, sessionId) {
+  const segment = state.tts.segments[index];
+  if (!segment || !segment.text) {
+    throw new Error(state.shell.t("ttsSegmentEmpty"));
+  }
+  const item = await fetchTtsRemoteSegmentAudio(index, sessionId);
+  if (sessionId !== state.tts.requestId) return;
+  const audio = ensureTtsAudioElement();
+  audio.dataset.sessionId = String(sessionId);
+  audio.playbackRate = Number(state.tts.settings.rate) || 1;
+  audio.volume = Math.max(0, Math.min(1, (Number(state.tts.settings.volume) || 1) * currentTtsSleepVolumeFactor()));
+  audio.src = item.url;
+  await audio.play();
+  prefetchTtsSegments(sessionId, index);
+}
+
+async function playTtsSegment(index, sessionId = state.tts.requestId) {
+  if (sessionId !== state.tts.requestId) return;
+  const segment = state.tts.segments[index];
+  if (!segment || !segment.text) {
+    throw new Error(state.shell.t("ttsSegmentEmpty"));
+  }
+  state.tts.segmentIndex = index;
+  state.tts.chapterId = state.chapterId;
+  state.tts.playing = true;
+  state.tts.paused = false;
+  state.tts.waiting = false;
+  state.tts.providerLabel = getTtsProviderLabel();
+  state.tts.statusMessage = state.shell.t("ttsStatusPlaying");
+  state.tts.statusSub = segment.text.slice(0, 120);
+  state.tts.progressText = state.shell.t("ttsProgressSegments", {
+    current: index + 1,
+    total: state.tts.segments.length,
+  });
+  highlightTtsParagraph(segment.paragraphIndex);
+  updateTtsMediaSession(segment);
+  renderTtsDialogState();
+  if (isTtsBrowserProvider()) {
+    await playTtsBrowserSegment(index, sessionId);
+    return;
+  }
+  await playTtsRemoteSegment(index, sessionId);
+}
+
+async function handleTtsChapterFinished(sessionId) {
+  if (sessionId !== state.tts.requestId) return;
+  clearTtsDelayTimer();
+  state.tts.playing = false;
+  state.tts.paused = false;
+  state.tts.progressText = state.shell.t("ttsProgressDone");
+  state.tts.statusMessage = state.shell.t("ttsStatusFinished");
+  state.tts.statusSub = "";
+  renderTtsDialogState();
+  if (!state.tts.settings.autoNext || !hasChapterByStep(1)) {
+    clearTtsMediaSession();
+    clearTtsHighlight();
+    return;
+  }
+  state.tts.autoAdvancing = true;
+  state.tts.statusMessage = state.shell.t("ttsStatusAutoNext");
+  renderTtsDialogState();
+  try {
+    await goChapter(1);
+    if (!state.tts.settings.autoStartOnNextChapter) {
+      state.tts.autoAdvancing = false;
+      state.tts.statusMessage = state.shell.t("ttsStatusReadyNextChapter");
+      state.tts.progressText = state.shell.t("ttsProgressEmpty");
+      renderTtsDialogState();
+      return;
+    }
+    await startTtsPlayback({ openDialog: true, fromSelection: false });
+  } finally {
+    state.tts.autoAdvancing = false;
+  }
+}
+
+async function startTtsPlayback({ openDialog = true, fromSelection = false } = {}) {
+  ensureTtsSettings();
+  if (!canListenCurrentChapter()) {
+    throw new Error(state.shell.t("ttsNoTextChapter"));
+  }
+  if (!state.chapterText || !String(state.chapterText || "").trim()) {
+    throw new Error(state.shell.t("ttsNoTextChapter"));
+  }
+  if (openDialog && refs.ttsDialog && !refs.ttsDialog.open) {
+    refs.ttsDialog.showModal();
+  }
+  const providerId = getTtsProviderId();
+  if (isTtsBrowserProvider(providerId)) {
+    refreshBrowserVoices();
+  } else {
+    await ensureTtsProviderVoices(providerId);
+  }
+  const built = buildCurrentTtsSegments({ fromSelection });
+  state.tts.playFromSelectionNext = null;
+  if (!built.segments.length) {
+    throw new Error(state.shell.t("ttsSegmentEmpty"));
+  }
+  stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
+  const sessionId = state.tts.requestId;
+  state.tts.segments = built.segments;
+  state.tts.paragraphCount = built.paragraphs.length;
+  state.tts.statusMessage = state.shell.t("ttsStatusPreparing");
+  state.tts.statusSub = getTtsProviderLabel(providerId);
+  state.tts.progressText = state.shell.t("ttsProgressSegments", {
+    current: 0,
+    total: built.segments.length,
+  });
+  if (!(state.tts.sleepDeadlineAt > Date.now()) && currentTtsSleepMinutes() > 0) {
+    startTtsSleepTimer({ quiet: true, restart: true });
+  } else if (state.tts.sleepDeadlineAt > 0) {
+    updateTtsSleepRuntime();
+  }
+  renderTtsDialogState();
+  await playTtsSegment(0, sessionId);
+}
+
+async function openTtsDialog({ autoStart = false, fromSelection = false } = {}) {
+  ensureTtsSettings();
+  if (refs.ttsDialog && !refs.ttsDialog.open) {
+    refs.ttsDialog.showModal();
+  }
+  renderTtsDialogState();
+  await loadTtsPlugins();
+  if (isTtsBrowserProvider()) refreshBrowserVoices();
+  else await ensureTtsProviderVoices(getTtsProviderId());
+  if (autoStart) {
+    await startTtsPlayback({ openDialog: true, fromSelection });
+  }
+}
+
+async function seekTtsSegment(direction) {
+  if (!state.tts.segments.length) return;
+  const nextIndex = Math.max(0, Math.min(state.tts.segments.length - 1, state.tts.segmentIndex + direction));
+  if (nextIndex === state.tts.segmentIndex) return;
+  const sessionId = state.tts.requestId;
+  clearTtsDelayTimer();
+  if (isTtsBrowserProvider()) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      // ignore
+    }
+  } else if (state.tts.audio) {
+    try {
+      state.tts.audio.pause();
+    } catch {
+      // ignore
+    }
+  }
+  await playTtsSegment(nextIndex, sessionId);
 }
 
 function positionSelectionMenu(rect) {
@@ -2827,7 +4021,7 @@ async function applySelectionJunkEntry() {
   clearSelectedTextRange();
   if (!payload || !payload.selected) return;
   try {
-    let sourceText = payload.selected;
+    let sourceText = payload.exactSelected || payload.selected;
     const shouldResolveSource = effectiveMode() === "trans" && supportsTranslation(state.book);
     if (shouldResolveSource) {
       state.shell.showStatus(state.shell.t("statusResolvingSelection"));
@@ -2920,7 +4114,7 @@ async function applySelectionReplaceEntry() {
   clearSelectedTextRange();
   if (!payload || !payload.selected) return;
   state.pendingSelectionReplaceRatio = currentChapterRatio();
-  if (refs.selectionReplaceSourceInput) refs.selectionReplaceSourceInput.value = payload.selected;
+  if (refs.selectionReplaceSourceInput) refs.selectionReplaceSourceInput.value = payload.exactSelected || payload.selected;
   if (refs.selectionReplaceTargetInput) refs.selectionReplaceTargetInput.value = "";
   if (refs.selectionReplaceDialog) refs.selectionReplaceDialog.showModal();
   if (refs.selectionReplaceTargetInput) {
@@ -3069,11 +4263,18 @@ function handleSelectionButton() {
     hideSelectionBtn();
     return;
   }
-  for (const node of [refs.selectionActionMenu, refs.selectionNameBtn, refs.selectionReplaceBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
+  for (const node of [refs.selectionActionMenu, refs.selectionSpeakBtn, refs.selectionNameBtn, refs.selectionReplaceBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
     if (!node || !node.dataset) continue;
     node.dataset.text = payload.selected;
+    node.dataset.exactText = payload.exactSelected || payload.selected;
     node.dataset.startOffset = String(payload.start);
     node.dataset.endOffset = String(payload.end);
+    node.dataset.startParagraphIndex = String(payload.startParagraphIndex || 0);
+    node.dataset.startParagraphOffset = String(payload.startParagraphOffset || 0);
+  }
+  if (refs.selectionSpeakBtn) {
+    refs.selectionSpeakBtn.textContent = state.shell.t("ttsSelectionPlay");
+    refs.selectionSpeakBtn.classList.toggle("hidden", !canSpeakSelection(payload));
   }
   if (refs.selectionNameBtn) {
     refs.selectionNameBtn.textContent = state.shell.t("selectionEditName");
@@ -3413,13 +4614,216 @@ function bindNameEditor() {
   });
 }
 
+function bindTtsControls() {
+  if (refs.btnOpenTts) refs.btnOpenTts.textContent = state.shell.t("ttsOpenButton");
+  if (refs.ttsDialogTitle) refs.ttsDialogTitle.textContent = state.shell.t("ttsDialogTitle");
+  if (refs.btnCloseTtsDialog) refs.btnCloseTtsDialog.textContent = state.shell.t("close");
+  if (refs.ttsDialogHint) refs.ttsDialogHint.textContent = state.shell.t("ttsDialogHint");
+  if (refs.btnTtsStop) refs.btnTtsStop.textContent = state.shell.t("ttsStop");
+  if (refs.btnTtsPrevSegment) refs.btnTtsPrevSegment.textContent = state.shell.t("ttsPrevSegment");
+  if (refs.btnTtsNextSegment) refs.btnTtsNextSegment.textContent = state.shell.t("ttsNextSegment");
+  if (refs.btnTtsCloseActions) refs.btnTtsCloseActions.textContent = state.shell.t("close");
+  if (refs.ttsProviderLabel) refs.ttsProviderLabel.textContent = state.shell.t("ttsProviderLabel");
+  if (refs.ttsVoiceLabel) refs.ttsVoiceLabel.textContent = state.shell.t("ttsVoiceLabel");
+  if (refs.ttsRateLabel) refs.ttsRateLabel.textContent = state.shell.t("ttsRateLabel");
+  if (refs.ttsPitchLabel) refs.ttsPitchLabel.textContent = state.shell.t("ttsPitchLabel");
+  if (refs.ttsVolumeLabel) refs.ttsVolumeLabel.textContent = state.shell.t("ttsVolumeLabel");
+  if (refs.ttsMaxCharsLabel) refs.ttsMaxCharsLabel.textContent = state.shell.t("ttsMaxCharsLabel");
+  if (refs.ttsSegmentDelayLabel) refs.ttsSegmentDelayLabel.textContent = state.shell.t("ttsSegmentDelayLabel");
+  if (refs.ttsPrefetchCountLabel) refs.ttsPrefetchCountLabel.textContent = state.shell.t("ttsPrefetchCountLabel");
+  if (refs.ttsRemoteTimeoutLabel) refs.ttsRemoteTimeoutLabel.textContent = state.shell.t("ttsRemoteTimeoutLabel");
+  if (refs.ttsRemoteRetriesLabel) refs.ttsRemoteRetriesLabel.textContent = state.shell.t("ttsRemoteRetriesLabel");
+  if (refs.ttsRemoteGapLabel) refs.ttsRemoteGapLabel.textContent = state.shell.t("ttsRemoteGapLabel");
+  if (refs.ttsPrefetchEnabledLabel) refs.ttsPrefetchEnabledLabel.textContent = state.shell.t("ttsPrefetchEnabledLabel");
+  if (refs.ttsIncludeTitleLabel) refs.ttsIncludeTitleLabel.textContent = state.shell.t("ttsIncludeTitleLabel");
+  if (refs.ttsAutoScrollLabel) refs.ttsAutoScrollLabel.textContent = state.shell.t("ttsAutoScrollLabel");
+  if (refs.ttsAutoNextLabel) refs.ttsAutoNextLabel.textContent = state.shell.t("ttsAutoNextLabel");
+  if (refs.ttsAutoStartNextLabel) refs.ttsAutoStartNextLabel.textContent = state.shell.t("ttsAutoStartNextLabel");
+  if (refs.ttsReplaceEnabledLabel) refs.ttsReplaceEnabledLabel.textContent = state.shell.t("ttsReplaceEnabledLabel");
+  if (refs.ttsReplaceRulesLabel) refs.ttsReplaceRulesLabel.textContent = state.shell.t("ttsReplaceRulesLabel");
+  if (refs.ttsSleepLabel) refs.ttsSleepLabel.textContent = state.shell.t("ttsSleepLabel");
+  if (refs.ttsSleepCustomLabel) refs.ttsSleepCustomLabel.textContent = state.shell.t("ttsSleepCustomLabel");
+  if (refs.btnTtsApplySleep) refs.btnTtsApplySleep.textContent = state.shell.t("ttsSleepApply");
+  if (refs.btnTtsClearSleep) refs.btnTtsClearSleep.textContent = state.shell.t("ttsSleepClear");
+
+  renderTtsDialogState();
+  bindTtsMediaSessionActions();
+
+  if (window.speechSynthesis && typeof window.speechSynthesis.addEventListener === "function") {
+    window.speechSynthesis.addEventListener("voiceschanged", refreshBrowserVoices);
+  }
+  refreshBrowserVoices();
+
+  if (refs.btnOpenTts) refs.btnOpenTts.addEventListener("click", () => {
+    state.tts.playFromSelectionNext = null;
+    openTtsDialog({ autoStart: false, fromSelection: false }).catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
+  if (refs.selectionSpeakBtn) refs.selectionSpeakBtn.addEventListener("click", () => {
+    const payload = currentSelectionPayload();
+    state.tts.playFromSelectionNext = payload ? {
+      paragraphIndex: payload.startParagraphIndex,
+      paragraphOffset: payload.startParagraphOffset,
+    } : null;
+    hideSelectionBtn();
+    clearSelectedTextRange();
+    openTtsDialog({ autoStart: false, fromSelection: true }).catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
+  if (refs.btnCloseTtsDialog) refs.btnCloseTtsDialog.addEventListener("click", () => {
+    if (refs.ttsDialog) refs.ttsDialog.close();
+  });
+  if (refs.btnTtsCloseActions) refs.btnTtsCloseActions.addEventListener("click", () => {
+    if (refs.ttsDialog) refs.ttsDialog.close();
+  });
+  if (refs.btnTtsPlayChapter) refs.btnTtsPlayChapter.addEventListener("click", () => {
+    startTtsPlayback({ openDialog: true, fromSelection: Boolean(state.tts.playFromSelectionNext) }).catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
+  if (refs.btnTtsTogglePlay) refs.btnTtsTogglePlay.addEventListener("click", () => {
+    pauseOrResumeTtsPlayback().catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
+  if (refs.btnTtsStop) refs.btnTtsStop.addEventListener("click", () => {
+    stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
+  });
+  if (refs.btnTtsPrevSegment) refs.btnTtsPrevSegment.addEventListener("click", () => {
+    seekTtsSegment(-1).catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
+  if (refs.btnTtsNextSegment) refs.btnTtsNextSegment.addEventListener("click", () => {
+    seekTtsSegment(1).catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
+  if (refs.ttsProviderSelect) refs.ttsProviderSelect.addEventListener("change", () => {
+    state.tts.settings.provider = String(refs.ttsProviderSelect.value || "browser").trim() || "browser";
+    stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
+    saveTtsSettingsState();
+    ensureTtsProviderVoices(getTtsProviderId()).catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
+  if (refs.ttsVoiceSelect) refs.ttsVoiceSelect.addEventListener("change", () => {
+    rememberTtsVoiceSelection(getTtsProviderId(), refs.ttsVoiceSelect.value || "");
+  });
+
+  const bindNumberInput = (input, updater) => {
+    if (!input) return;
+    input.addEventListener("change", () => {
+      updater();
+      saveTtsSettingsState();
+      if (state.tts.audio) {
+        state.tts.audio.playbackRate = Number(state.tts.settings.rate) || 1;
+        applyTtsLiveOutputVolume();
+      }
+    });
+  };
+  const bindRangeInput = (input, updater) => {
+    if (!input) return;
+    input.addEventListener("input", () => {
+      updater();
+      saveTtsSettingsState();
+      if (state.tts.audio) {
+        state.tts.audio.playbackRate = Number(state.tts.settings.rate) || 1;
+        applyTtsLiveOutputVolume();
+      }
+    });
+  };
+
+  bindRangeInput(refs.ttsRateInput, () => {
+    state.tts.settings.rate = Number.parseFloat(refs.ttsRateInput.value || "1") || 1;
+  });
+  bindRangeInput(refs.ttsPitchInput, () => {
+    state.tts.settings.pitch = Number.parseFloat(refs.ttsPitchInput.value || "1") || 1;
+  });
+  bindRangeInput(refs.ttsVolumeInput, () => {
+    state.tts.settings.volume = Number.parseFloat(refs.ttsVolumeInput.value || "1") || 1;
+  });
+  bindNumberInput(refs.ttsMaxCharsInput, () => {
+    state.tts.settings.maxChars = Number.parseInt(refs.ttsMaxCharsInput.value || "260", 10) || 260;
+  });
+  bindNumberInput(refs.ttsSegmentDelayInput, () => {
+    state.tts.settings.segmentDelayMs = Number.parseInt(refs.ttsSegmentDelayInput.value || "250", 10) || 250;
+  });
+  bindNumberInput(refs.ttsPrefetchCountInput, () => {
+    state.tts.settings.prefetchCount = Number.parseInt(refs.ttsPrefetchCountInput.value || "2", 10) || 0;
+  });
+  bindNumberInput(refs.ttsRemoteTimeoutInput, () => {
+    state.tts.settings.remoteTimeoutMs = Number.parseInt(refs.ttsRemoteTimeoutInput.value || "20000", 10) || 20000;
+  });
+  bindNumberInput(refs.ttsRemoteRetriesInput, () => {
+    state.tts.settings.remoteRetries = Number.parseInt(refs.ttsRemoteRetriesInput.value || "2", 10) || 0;
+  });
+  bindNumberInput(refs.ttsRemoteGapInput, () => {
+    state.tts.settings.remoteMinGapMs = Number.parseInt(refs.ttsRemoteGapInput.value || "220", 10) || 0;
+  });
+
+  const bindToggle = (input, assign) => {
+    if (!input) return;
+    input.addEventListener("change", () => {
+      assign(Boolean(input.checked));
+      saveTtsSettingsState();
+    });
+  };
+  bindToggle(refs.ttsPrefetchEnabledInput, (value) => {
+    state.tts.settings.prefetchEnabled = value;
+  });
+  bindToggle(refs.ttsIncludeTitleInput, (value) => {
+    state.tts.settings.includeTitle = value;
+  });
+  bindToggle(refs.ttsAutoScrollInput, (value) => {
+    state.tts.settings.autoScroll = value;
+  });
+  bindToggle(refs.ttsAutoNextInput, (value) => {
+    state.tts.settings.autoNext = value;
+  });
+  bindToggle(refs.ttsAutoStartNextInput, (value) => {
+    state.tts.settings.autoStartOnNextChapter = value;
+  });
+  bindToggle(refs.ttsReplaceEnabledInput, (value) => {
+    state.tts.settings.replaceEnabled = value;
+  });
+  if (refs.ttsReplaceRulesInput) refs.ttsReplaceRulesInput.addEventListener("change", () => {
+    state.tts.settings.replaceRulesText = String(refs.ttsReplaceRulesInput.value || "");
+    saveTtsSettingsState();
+  });
+  if (refs.ttsSleepPresetSelect) refs.ttsSleepPresetSelect.addEventListener("change", () => {
+    state.tts.settings.sleepPreset = String(refs.ttsSleepPresetSelect.value || "off").trim() || "off";
+    saveTtsSettingsState();
+  });
+  bindNumberInput(refs.ttsSleepCustomInput, () => {
+    state.tts.settings.sleepCustomMinutes = Number.parseInt(refs.ttsSleepCustomInput.value || "90", 10) || 90;
+  });
+  if (refs.btnTtsApplySleep) refs.btnTtsApplySleep.addEventListener("click", () => {
+    if (currentTtsSleepMinutes() <= 0) {
+      clearTtsSleepTimer({ quiet: true });
+      state.shell.showToast(state.shell.t("ttsSleepStatusNone"));
+      return;
+    }
+    startTtsSleepTimer({ quiet: false, restart: true });
+  });
+  if (refs.btnTtsClearSleep) refs.btnTtsClearSleep.addEventListener("click", () => {
+    clearTtsSleepTimer({ quiet: true });
+  });
+}
+
 async function switchMode(nextMode) {
   if (!state.book) return;
   if (nextMode === "trans" && !supportsTranslation(state.book)) {
     state.shell.showToast(state.shell.t("sourceNoTrans"));
     return;
   }
+  if (state.tts.playing && !state.tts.autoAdvancing) {
+    stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
+  }
   state.mode = nextMode;
+  state.tts.playFromSelectionNext = null;
   clearChapterCache();
   cancelPrefetch();
   syncModeButtons();
@@ -3444,6 +4848,9 @@ async function goChapter(step) {
 
 async function reloadCurrentChapter() {
   if (!state.chapterId) return;
+  if (state.tts.playing && !state.tts.autoAdvancing) {
+    stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
+  }
   state.shell.showStatus(state.shell.t("statusReloadingChapter"));
   try {
     if (state.activeChapterController) {
@@ -3870,9 +5277,12 @@ async function init() {
     page: "reader",
     onSearchSubmit: (q) => state.shell.goSearchPage(q),
     onImported: (data) => {
-      const bid = data && data.book && data.book.book_id;
+      const book = data && data.book;
+      const bid = book && book.book_id;
       if (bid) {
-        window.location.href = `/reader?book_id=${encodeURIComponent(bid)}`;
+        const chapterId = String((book && book.last_read_chapter_id) || "").trim();
+        const mode = state.translationEnabled && supportsTranslation(book) ? "trans" : "raw";
+        window.location.href = buildReaderUrl(book, chapterId, mode);
       }
     },
   });
@@ -3945,6 +5355,7 @@ async function init() {
   });
 
   bindNameEditor();
+  bindTtsControls();
   bindFlipDragGesture();
   bindReaderHotkeys();
   document.addEventListener("fullscreenchange", refreshFullscreenMode);
@@ -3953,6 +5364,8 @@ async function init() {
   const query = state.shell.parseQuery();
   state.bookId = (query.book_id || "").trim();
   state.chapterId = (query.chapter_id || "").trim();
+  state.translationSupportedHint = parseBooleanLike(query.translation_supported);
+  state.isComicHint = parseBooleanLike(query.is_comic);
   const requestedMode = parseRequestedMode(query.mode);
   state.mode = requestedMode || "raw";
   state.translationEnabled = (state.shell && typeof state.shell.getTranslationEnabled === "function")
@@ -3971,6 +5384,10 @@ async function init() {
   if (!state.translationEnabled) {
     state.mode = "raw";
   }
+  if (state.translationSupportedHint === false) {
+    state.mode = "raw";
+  }
+  syncModeButtons();
 
   if (!state.bookId) {
     refs.readerBookTitle.textContent = state.shell.t("noBookSelected");
@@ -3981,8 +5398,9 @@ async function init() {
 
   showReaderHeadSkeleton(true);
   showReaderTocSkeleton(true, 10);
-  showReaderContentSkeleton(true, { comic: false });
+  showReaderContentSkeleton(true, { comic: Boolean(state.isComicHint) });
   await loadBook({ showSkeleton: true });
+  loadTtsPlugins().catch(() => {});
   if (!requestedMode && state.book) {
     const savedMode = parseRequestedMode(state.book.last_read_mode || "");
     state.mode = savedMode || "raw";
@@ -4149,6 +5567,7 @@ async function init() {
   }, { passive: true });
 
   window.addEventListener("beforeunload", () => {
+    stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
     clearReaderDownloadWatcher();
   });
 }

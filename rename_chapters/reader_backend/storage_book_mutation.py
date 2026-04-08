@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import mimetypes
 from pathlib import Path
 from typing import Any
 
@@ -130,8 +131,8 @@ def create_book_remote(
             INSERT INTO books(
                 book_id, title, title_vi, author, author_vi, lang_source, source_type, source_file_path,
                 source_url, source_plugin,
-                cover_path, extra_link, created_at, updated_at, chapter_count, summary
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                cover_path, cover_remote_url, cover_locked, extra_link, created_at, updated_at, chapter_count, summary
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 book_id,
@@ -145,6 +146,8 @@ def create_book_remote(
                 source_url,
                 source_plugin,
                 cover_path or "",
+                cover_path if str(cover_path or "").startswith(("http://", "https://")) else "",
+                0,
                 extra_link or "",
                 created_at,
                 created_at,
@@ -163,6 +166,94 @@ def create_book_remote(
         )
 
     return storage.get_book_detail(book_id) or {"book_id": book_id}
+
+
+def _guess_cover_suffix(*, filename: str = "", content_type: str = "") -> str:
+    suffix = Path(filename or "").suffix.lower()
+    mime = str(content_type or "").split(";", 1)[0].strip().lower()
+    if mime:
+        guessed = mimetypes.guess_extension(mime, strict=False) or ""
+        if guessed:
+            suffix = guessed.lower()
+    if suffix in {".jpe", ".jpeg"}:
+        suffix = ".jpg"
+    if suffix not in {".jpg", ".png", ".webp", ".gif"}:
+        suffix = ".jpg"
+    return suffix
+
+
+def _delete_existing_book_cover_variants(book_id: str, *, cover_dir: Path, keep_path: Path | None = None) -> None:
+    bid = str(book_id or "").strip()
+    if not bid:
+        return
+    keep = ""
+    if keep_path is not None:
+        try:
+            keep = str(keep_path.resolve())
+        except Exception:
+            keep = str(keep_path)
+    for suffix in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+        path = cover_dir / f"{bid}{suffix}"
+        try:
+            current = str(path.resolve())
+        except Exception:
+            current = str(path)
+        if keep and current == keep:
+            continue
+        try:
+            path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def set_book_cover_url(
+    storage,
+    book_id: str,
+    cover_url: str,
+    *,
+    cover_dir: Path,
+    cover_locked: bool = True,
+    cover_remote_url: str = "",
+) -> dict[str, Any] | None:
+    book = storage.find_book(book_id)
+    if not book:
+        return None
+    _delete_existing_book_cover_variants(book_id, cover_dir=cover_dir, keep_path=None)
+    return storage.update_book_metadata(
+        book_id,
+        {
+            "cover_path": str(cover_url or "").strip(),
+            "cover_remote_url": str(cover_remote_url or "").strip(),
+            "cover_locked": 1 if cover_locked else 0,
+        },
+    )
+
+
+def set_book_cover_remote_cached(
+    storage,
+    book_id: str,
+    image_url: str,
+    content: bytes,
+    *,
+    content_type: str = "",
+    cover_dir: Path,
+) -> dict[str, Any] | None:
+    book = storage.find_book(book_id)
+    if not book:
+        return None
+    suffix = _guess_cover_suffix(filename=image_url, content_type=content_type)
+    path = cover_dir / f"{book_id}{suffix}"
+    cover_dir.mkdir(parents=True, exist_ok=True)
+    _delete_existing_book_cover_variants(book_id, cover_dir=cover_dir, keep_path=path)
+    path.write_bytes(content)
+    return storage.update_book_metadata(
+        book_id,
+        {
+            "cover_path": str(path),
+            "cover_remote_url": str(image_url or "").strip(),
+            "cover_locked": 0,
+        },
+    )
 
 
 def update_chapter_word_count(storage, chapter_id: str, word_count: int, *, utc_now_iso) -> None:
@@ -542,12 +633,19 @@ def set_book_cover_upload(
     book = storage.find_book(book_id)
     if not book:
         return None
-    suffix = Path(filename or "cover.jpg").suffix.lower() or ".jpg"
-    if suffix not in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
-        suffix = ".jpg"
+    suffix = _guess_cover_suffix(filename=filename, content_type="")
     path = cover_dir / f"{book_id}{suffix}"
+    cover_dir.mkdir(parents=True, exist_ok=True)
+    _delete_existing_book_cover_variants(book_id, cover_dir=cover_dir, keep_path=path)
     path.write_bytes(content)
-    return storage.update_book_metadata(book_id, {"cover_path": str(path)})
+    return storage.update_book_metadata(
+        book_id,
+        {
+            "cover_path": str(path),
+            "cover_remote_url": "",
+            "cover_locked": 1,
+        },
+    )
 
 
 def update_chapter_trans(storage, chapter_id: str, trans_key: str, trans_sig: str | None = None, *, utc_now_iso) -> None:

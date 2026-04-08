@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260407-bookdetail1";
+import { t } from "../i18n.vi.js?v=20260408-commontts1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -1040,6 +1040,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     vbook: {
       installed: [],
       repoUrls: [],
+      lockedRepoUrls: [],
       repoPlugins: [],
       repoErrors: [],
       pluginUpdates: {},
@@ -2411,6 +2412,9 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       } catch {
         // keep raw
       }
+      if ((state.vbook.lockedRepoUrls || []).includes(url)) {
+        label = `${label} • ${t("vbookRepoLockedLabel")}`;
+      }
       opt.textContent = label;
       vbookRepoSelect.appendChild(opt);
     }
@@ -2446,6 +2450,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       });
       const items = Array.isArray(payload && payload.items) ? payload.items : [];
       state.vbook.repoUrls = normalizeRepoUrls(items.map((x) => String((x && x.url) || "").trim()));
+      state.vbook.lockedRepoUrls = normalizeRepoUrls(items.filter((x) => Boolean(x && x.locked)).map((x) => String((x && x.url) || "").trim()));
       renderRepoSelect();
       showToast(t("toastVbookRepoSaved"));
       return state.vbook.repoUrls;
@@ -2533,11 +2538,15 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.vbook.repoUrls = Array.isArray(items)
         ? items.map((x) => String((x && x.url) || "").trim()).filter(Boolean)
         : [];
+      state.vbook.lockedRepoUrls = Array.isArray(items)
+        ? items.filter((x) => Boolean(x && x.locked)).map((x) => String((x && x.url) || "").trim()).filter(Boolean)
+        : [];
       renderRepoSelect();
       return state.vbook.repoUrls;
     } catch (error) {
       if (!silent) showToast(error.message || t("toastError"));
       state.vbook.repoUrls = [];
+      state.vbook.lockedRepoUrls = [];
       renderRepoSelect();
       return [];
     } finally {
@@ -2710,6 +2719,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       const selected = String((vbookRepoSelect && vbookRepoSelect.value) || "").trim();
       if (!selected) {
         showToast(t("toastVbookNeedRepoSelect"));
+        return;
+      }
+      if ((state.vbook.lockedRepoUrls || []).includes(selected)) {
+        showToast(t("toastVbookRepoLocked"));
         return;
       }
       state.vbook.repoUrls = normalizeRepoUrls((state.vbook.repoUrls || []).filter((x) => String(x || "").trim() !== selected));
