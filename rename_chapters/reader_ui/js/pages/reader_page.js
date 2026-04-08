@@ -1,5 +1,5 @@
 import { initShell } from "../site_common.js?v=20260408-commontts1";
-import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260407-readerpara1";
+import { buildParagraphNodes, normalizeDisplayTitle, normalizeParagraphDisplayText, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260408-readerpara2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 import {
   TTS_DEFAULT_SETTINGS,
@@ -9,7 +9,7 @@ import {
   normalizeTtsSettings,
   parseTtsReplaceRules,
   saveTtsSettings,
-} from "../reader_tts.js?v=20260408-tts4";
+} from "../reader_tts.js?v=20260408-tts5";
 
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),
@@ -3114,6 +3114,29 @@ function paragraphNodesForTts() {
   return Array.from(refs.readerContentBody.querySelectorAll(":scope > p"));
 }
 
+function readParagraphNodeTextForTts(node) {
+  if (!node) return "";
+  if (node.nodeType === Node.TEXT_NODE) {
+    return String(node.nodeValue || "");
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return "";
+  const tag = node.tagName ? node.tagName.toLowerCase() : "";
+  if (tag === "br") return "\n";
+  let text = "";
+  for (const child of node.childNodes || []) {
+    text += readParagraphNodeTextForTts(child);
+  }
+  return text;
+}
+
+function currentRenderedTtsParagraphs() {
+  const nodes = paragraphNodesForTts();
+  if (!nodes.length) return [];
+  return nodes
+    .map((node) => normalizeParagraphDisplayText(readParagraphNodeTextForTts(node)))
+    .filter(Boolean);
+}
+
 function highlightTtsParagraph(paragraphIndex) {
   clearTtsHighlight();
   if (!Number.isFinite(paragraphIndex) || paragraphIndex < 0) return;
@@ -3344,6 +3367,7 @@ function renderTtsDialogState() {
     refs.btnTtsPlayChapter.textContent = state.tts.playFromSelectionNext
       ? state.shell.t("ttsPlayFromSelection")
       : state.shell.t("ttsPlayFromStart");
+    refs.btnTtsPlayChapter.classList.toggle("hidden", Boolean(state.tts.playing || state.tts.paused));
   }
   if (refs.btnTtsStop) refs.btnTtsStop.disabled = !state.tts.playing && !state.tts.paused;
   if (refs.btnTtsPrevSegment) refs.btnTtsPrevSegment.disabled = !(state.tts.segmentIndex > 0);
@@ -3595,9 +3619,12 @@ function currentSelectionParagraphInfo() {
 
 function buildCurrentTtsSegments({ fromSelection = false } = {}) {
   const selectionInfo = fromSelection ? currentSelectionParagraphInfo() : { paragraphIndex: 0, paragraphOffset: 0 };
+  const renderedParagraphs = currentRenderedTtsParagraphs();
+  const useRenderedParagraphs = renderedParagraphs.length > 0 && (fromSelection || runtimeReadingMode() !== "flip");
   return buildTtsSegments({
     chapterTitle: currentTtsChapterTitle(),
     content: state.chapterText || "",
+    paragraphs: useRenderedParagraphs ? renderedParagraphs : null,
     includeTitle: !fromSelection && Boolean(state.tts.settings.includeTitle),
     maxChars: state.tts.settings.maxChars,
     startParagraphIndex: selectionInfo.paragraphIndex,

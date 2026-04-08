@@ -15,6 +15,7 @@ def translate_book_titles(
     utc_now_iso,
     book_supports_translation,
     normalize_vi_display_text,
+    author_to_hanviet_display,
 ) -> None:
     book = storage.find_book(book_id)
     if not book:
@@ -23,6 +24,15 @@ def translate_book_titles(
     now = utc_now_iso()
     can_translate = bool(book_supports_translation(book))
     with storage._connect() as conn:
+        raw_author = (book.get("author") or "").strip()
+        vi_author = (book.get("author_vi") or "").strip()
+        author_display = author_to_hanviet_display(raw_author, single_line=True) if raw_author else ""
+        if author_display and author_display != vi_author:
+            conn.execute(
+                "UPDATE books SET author_vi = ?, updated_at = ? WHERE book_id = ?",
+                (author_display, now, book_id),
+            )
+
         if can_translate:
             raw_title = (book.get("title") or "").strip()
             vi_title = (book.get("title_vi") or "").strip()
@@ -42,23 +52,6 @@ def translate_book_titles(
                     "UPDATE books SET title_vi = ?, updated_at = ? WHERE book_id = ?",
                     (vi_title, now, book_id),
                 )
-
-            raw_author = (book.get("author") or "").strip()
-            vi_author = (book.get("author_vi") or "").strip()
-            if raw_author and (not vi_author):
-                translated_author = normalize_vi_display_text(
-                    translator.translate_detailed(
-                        raw_author,
-                        mode=translate_mode,
-                        name_set_override=name_set_override,
-                        vp_set_override=vp_set_override,
-                    ).get("translated", "")
-                )
-                if translated_author:
-                    conn.execute(
-                        "UPDATE books SET author_vi = ?, updated_at = ? WHERE book_id = ?",
-                        (translated_author, now, book_id),
-                    )
 
         rows = conn.execute(
             "SELECT chapter_id, title_raw, title_vi FROM chapters WHERE book_id = ? ORDER BY chapter_order",

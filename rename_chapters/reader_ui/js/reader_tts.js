@@ -1,4 +1,4 @@
-import { normalizeReaderText, splitParagraphBlocks } from "./reader_text.js?v=20260408-tts1";
+import { normalizeParagraphDisplayText, normalizeReaderText, splitParagraphBlocks } from "./reader_text.js?v=20260408-ttsdom1";
 
 export const TTS_SETTINGS_KEY = "reader.ui.tts.settings.v1";
 
@@ -172,6 +172,7 @@ function splitLongTtsChunk(text, budget) {
 export function buildTtsSegments({
   chapterTitle = "",
   content = "",
+  paragraphs = null,
   includeTitle = true,
   maxChars = TTS_DEFAULT_SETTINGS.maxChars,
   startParagraphIndex = 0,
@@ -179,11 +180,12 @@ export function buildTtsSegments({
   replaceEnabled = false,
   replaceRulesText = "",
 } = {}) {
-  const normalizedContent = normalizeReaderText(content || "");
-  const paragraphs = splitParagraphBlocks(normalizedContent);
+  const normalizedParagraphs = Array.isArray(paragraphs)
+    ? paragraphs.map((item) => normalizeParagraphDisplayText(item)).filter(Boolean)
+    : splitParagraphBlocks(normalizeReaderText(content || ""));
   const rules = parseTtsReplaceRules(replaceRulesText);
   const safeMaxChars = clampInt(maxChars, 80, 600, TTS_DEFAULT_SETTINGS.maxChars);
-  const safeStartIndex = Math.max(0, Math.min(paragraphs.length ? paragraphs.length - 1 : 0, Number(startParagraphIndex) || 0));
+  const safeStartIndex = Math.max(0, Math.min(normalizedParagraphs.length ? normalizedParagraphs.length - 1 : 0, Number(startParagraphIndex) || 0));
   const safeStartOffset = Math.max(0, Number(startParagraphOffset) || 0);
   const segments = [];
 
@@ -205,8 +207,8 @@ export function buildTtsSegments({
     pushChunks(titleText, -1, true);
   }
 
-  for (let index = safeStartIndex; index < paragraphs.length; index += 1) {
-    let paragraphText = String(paragraphs[index] || "");
+  for (let index = safeStartIndex; index < normalizedParagraphs.length; index += 1) {
+    let paragraphText = String(normalizedParagraphs[index] || "");
     if (index === safeStartIndex && safeStartOffset > 0) {
       paragraphText = paragraphText.slice(Math.min(safeStartOffset, paragraphText.length)).trimStart();
     }
@@ -214,7 +216,7 @@ export function buildTtsSegments({
     pushChunks(paragraphText, index, false);
   }
 
-  return { segments, paragraphs };
+  return { segments, paragraphs: normalizedParagraphs };
 }
 
 export function createTtsFallbackArtworkDataUrl(title = "") {

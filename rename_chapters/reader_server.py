@@ -1097,6 +1097,36 @@ def capitalize_word_vi(word: str) -> str:
     return value[:1].upper() + value[1:].lower()
 
 
+def titlecase_token_vi(token: str) -> str:
+    value = str(token or "")
+    if not value:
+        return ""
+    chars = list(value)
+    first_alpha = -1
+    for idx, ch in enumerate(chars):
+        if ch.isalpha():
+            first_alpha = idx
+            chars[idx] = ch.upper()
+            break
+    if first_alpha >= 0:
+        for idx in range(first_alpha + 1, len(chars)):
+            ch = chars[idx]
+            if ch.isalpha():
+                chars[idx] = ch.lower()
+    return "".join(chars)
+
+
+def titlecase_hanviet_text(text: str) -> str:
+    value = normalize_vi_punctuation(normalize_newlines(text or ""))
+    if not value:
+        return ""
+    parts = re.split(r"(\s+)", value)
+    return "".join(
+        part if (not part) or part.isspace() else titlecase_token_vi(part)
+        for part in parts
+    ).strip()
+
+
 def lowercase_word_vi(word: str) -> str:
     value = str(word or "").strip()
     if not value:
@@ -4255,6 +4285,7 @@ class ReaderStorage:
             utc_now_iso=utc_now_iso,
             book_supports_translation=book_supports_translation,
             normalize_vi_display_text=normalize_vi_display_text,
+            author_to_hanviet_display=self._author_hanviet_display,
         )
 
     def _comic_raw_cache_complete(self, raw_text: str | None, *, plugin_id: str = "") -> bool:
@@ -5630,6 +5661,29 @@ class ReaderService:
     def _contains_cjk_text(self, text: str) -> bool:
         return bool(re.search(r"[\u3400-\u9fff]", str(text or "")))
 
+    def _author_hanviet_display(self, text: str, *, single_line: bool = False) -> str:
+        value = normalize_vbook_display_text(text or "", single_line=False)
+        if not value:
+            return ""
+        if not self._contains_cjk_text(value):
+            return normalize_vbook_display_text(value, single_line=single_line)
+        hv_text = ""
+        try:
+            hv_text = vbook_local_translate.build_hanviet_text(value, self._local_settings()) or ""
+        except Exception:
+            hv_text = ""
+        if not hv_text:
+            try:
+                hv_map = translator_logic.load_hanviet_json(self._settings().get("hanvietJsonUrl", ""))
+                hv_text = translator_logic.build_hanviet_from_map(value, hv_map) or value
+            except Exception:
+                hv_text = value
+        titled = titlecase_hanviet_text(hv_text) or titlecase_hanviet_text(value)
+        return normalize_vbook_display_text(titled, single_line=single_line) or normalize_vbook_display_text(
+            value,
+            single_line=single_line,
+        )
+
     def _translate_ui_text_with_dicts(
         self,
         text: str,
@@ -6033,22 +6087,13 @@ class ReaderService:
             ) or f"Chương {idx}"
             chapter_title = raw_title
             if use_translated_text:
-                if translate_mode in {"local", "hanviet"}:
-                    chapter_title = self._translate_ui_text_with_dicts(
-                        raw_title,
-                        single_line=True,
-                        mode=translate_mode,
-                        name_set_override=active_name_set,
-                        vp_set_override=active_vp_set,
-                    ) or raw_title
-                else:
-                    chapter_title = normalize_vi_display_text(chapter.get("title_vi") or "") or self._translate_ui_text_with_dicts(
-                        raw_title,
-                        single_line=True,
-                        mode=translate_mode,
-                        name_set_override=active_name_set,
-                        vp_set_override=active_vp_set,
-                    ) or raw_title
+                chapter_title = self._translate_ui_text_with_dicts(
+                    raw_title,
+                    single_line=True,
+                    mode=translate_mode,
+                    name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
+                ) or normalize_vi_display_text(chapter.get("title_vi") or "") or raw_title
             needs_translation = False
             if use_translated_text and current_sig and downloaded:
                 trans_key = str(chapter.get("trans_key") or "").strip()

@@ -294,16 +294,16 @@ def apply_book_card_translation(
     raw_title = normalize_vbook_display_text(str(output.get("title") or ""), single_line=True)
     raw_author = normalize_vbook_display_text(str(output.get("author") or ""), single_line=True)
     vi_title = normalize_vi_display_text(output.get("title_vi") or "")
-    vi_author = normalize_vi_display_text(output.get("author_vi") or "")
+    author_display = service._author_hanviet_display(raw_author, single_line=True) or normalize_vi_display_text(output.get("author_vi") or "")
     if can_translate:
         output["title_display"] = vi_title or service._translate_ui_text(raw_title, single_line=True)
-        output["author_display"] = vi_author or service._translate_ui_text(raw_author, single_line=True)
+        output["author_display"] = author_display or raw_author
         cur_raw = normalize_vbook_display_text(str(output.get("current_chapter_title_raw") or ""), single_line=True)
         cur_vi = normalize_vi_display_text(output.get("current_chapter_title_vi") or "")
         output["current_chapter_title_display"] = cur_vi or service._translate_ui_text(cur_raw, single_line=True) or cur_raw
     else:
         output["title_display"] = raw_title or vi_title
-        output["author_display"] = raw_author or vi_author
+        output["author_display"] = author_display or raw_author
         cur_raw = normalize_vbook_display_text(str(output.get("current_chapter_title_raw") or ""), single_line=True)
         cur_vi = normalize_vi_display_text(output.get("current_chapter_title_vi") or "")
         output["current_chapter_title_display"] = cur_raw or cur_vi
@@ -340,7 +340,6 @@ def _apply_book_card_translation_batch(
 ) -> list[dict[str, Any]]:
     prepared: list[dict[str, Any]] = []
     title_sources: list[str] = []
-    author_sources: list[str] = []
     chapter_title_sources: list[str] = []
 
     for raw_item in items or []:
@@ -350,16 +349,15 @@ def _apply_book_card_translation_batch(
         raw_title = normalize_vbook_display_text(str(output.get("title") or ""), single_line=True)
         raw_author = normalize_vbook_display_text(str(output.get("author") or ""), single_line=True)
         vi_title = normalize_vi_display_text(output.get("title_vi") or "")
-        vi_author = normalize_vi_display_text(output.get("author_vi") or "")
+        author_display = service._author_hanviet_display(raw_author, single_line=True) or normalize_vi_display_text(output.get("author_vi") or "")
         cur_raw = normalize_vbook_display_text(str(output.get("current_chapter_title_raw") or ""), single_line=True)
         cur_vi = normalize_vi_display_text(output.get("current_chapter_title_vi") or "")
 
         output["translation_supported"] = can_translate
         output["_raw_title_display"] = raw_title
-        output["_raw_author_display"] = raw_author
         output["_raw_current_chapter_title_display"] = cur_raw
         output["_vi_title_display"] = vi_title
-        output["_vi_author_display"] = vi_author
+        output["_author_display"] = author_display or raw_author
         output["_vi_current_chapter_title_display"] = cur_vi
         prepared.append(output)
 
@@ -367,32 +365,28 @@ def _apply_book_card_translation_batch(
             continue
         if raw_title and not vi_title:
             title_sources.append(raw_title)
-        if raw_author and not vi_author:
-            author_sources.append(raw_author)
         if cur_raw and not cur_vi:
             chapter_title_sources.append(cur_raw)
 
     translated_titles = _translate_single_line_batch(service, title_sources)
-    translated_authors = _translate_single_line_batch(service, author_sources)
     translated_chapter_titles = _translate_single_line_batch(service, chapter_title_sources)
 
     results: list[dict[str, Any]] = []
     for item in prepared:
         can_translate = bool(item.get("translation_supported"))
         raw_title = str(item.pop("_raw_title_display", "") or "")
-        raw_author = str(item.pop("_raw_author_display", "") or "")
         raw_current = str(item.pop("_raw_current_chapter_title_display", "") or "")
         vi_title = str(item.pop("_vi_title_display", "") or "")
-        vi_author = str(item.pop("_vi_author_display", "") or "")
+        author_display = str(item.pop("_author_display", "") or "")
         vi_current = str(item.pop("_vi_current_chapter_title_display", "") or "")
 
         if can_translate:
             item["title_display"] = vi_title or translated_titles.get(raw_title) or raw_title
-            item["author_display"] = vi_author or translated_authors.get(raw_author) or raw_author
+            item["author_display"] = author_display
             item["current_chapter_title_display"] = vi_current or translated_chapter_titles.get(raw_current) or raw_current
         else:
             item["title_display"] = raw_title or vi_title
-            item["author_display"] = raw_author or vi_author
+            item["author_display"] = author_display
             item["current_chapter_title_display"] = raw_current or vi_current
         results.append(item)
     return results

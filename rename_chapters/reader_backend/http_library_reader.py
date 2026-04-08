@@ -62,6 +62,7 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
         author_vi = deps.normalize_vi_display_text(book.get("author_vi") or "")
         live_title_mode = translate_mode in {"local", "hanviet"}
         book["translation_supported"] = True
+        book["author_display"] = handler.service._author_hanviet_display(raw_author, single_line=True) or author_vi or raw_author
         if live_title_mode:
             book["title_display"] = handler.service._translate_ui_text_with_dicts(
                 raw_title,
@@ -70,13 +71,6 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             ) or raw_title
-            book["author_display"] = handler.service._translate_ui_text_with_dicts(
-                raw_author,
-                single_line=True,
-                mode=translate_mode,
-                name_set_override=active_name_set,
-                vp_set_override=active_vp_set,
-            ) or raw_author
             book["summary_display"] = handler.service._translate_ui_text_with_dicts(
                 raw_summary,
                 single_line=False,
@@ -85,12 +79,8 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                 vp_set_override=active_vp_set,
             ) or raw_summary
         else:
-            head_inputs = [
-                raw_title if not title_vi else "",
-                raw_author if not author_vi else "",
-            ]
-            head_outputs = handler.service._translate_ui_texts_batch(
-                head_inputs,
+            title_outputs = handler.service._translate_ui_texts_batch(
+                [raw_title] if raw_title else [],
                 single_line=True,
                 mode=translate_mode,
                 name_set_override=active_name_set,
@@ -103,8 +93,7 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             )
-            book["title_display"] = title_vi or (head_outputs[0] if len(head_outputs) > 0 else "") or raw_title
-            book["author_display"] = author_vi or (head_outputs[1] if len(head_outputs) > 1 else "") or raw_author
+            book["title_display"] = (title_outputs[0] if title_outputs else "") or title_vi or raw_title
             book["summary_display"] = (summary_outputs[0] if summary_outputs else "") or raw_summary
         chapters = book.get("chapters")
         if isinstance(chapters, list):
@@ -124,12 +113,12 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                         vp_set_override=active_vp_set,
                     ) or row_title_raw
                 else:
-                    if row_title_vi:
-                        row["title_display"] = row_title_vi
-                    else:
+                    if row_title_raw:
                         row["title_display"] = row_title_raw
                         server_title_rows.append(row)
                         server_title_inputs.append(row_title_raw)
+                    else:
+                        row["title_display"] = row_title_vi
             if (not live_title_mode) and server_title_inputs:
                 server_title_outputs = handler.service._translate_ui_texts_batch(
                     server_title_inputs,
@@ -140,11 +129,13 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                 )
                 for idx, row in enumerate(server_title_rows):
                     translated = server_title_outputs[idx] if idx < len(server_title_outputs) else ""
-                    row["title_display"] = translated or str(row.get("title_display") or "")
+                    row["title_display"] = translated or str(row.get("title_vi") or row.get("title_display") or "")
     else:
         book["translation_supported"] = False
         book["title_display"] = deps.normalize_vbook_display_text(str(book.get("title") or ""), single_line=True) or str(book.get("title") or "")
-        book["author_display"] = deps.normalize_vbook_display_text(str(book.get("author") or ""), single_line=True) or str(book.get("author") or "")
+        raw_author = deps.normalize_vbook_display_text(str(book.get("author") or ""), single_line=True) or str(book.get("author") or "")
+        author_vi = deps.normalize_vi_display_text(book.get("author_vi") or "")
+        book["author_display"] = handler.service._author_hanviet_display(raw_author, single_line=True) or author_vi or raw_author
         book["summary_display"] = deps.normalize_vbook_display_text(str(book.get("summary") or ""), single_line=False) or str(book.get("summary") or "")
         chapters = book.get("chapters")
         if isinstance(chapters, list):
@@ -790,13 +781,13 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         title_vi = deps.normalize_vi_display_text(chapter.get("title_vi") or "")
         response_title = chapter["title_raw"]
         if output_mode == "trans":
-            response_title = title_vi or service._translate_ui_text_with_dicts(
+            response_title = service._translate_ui_text_with_dicts(
                 chapter["title_raw"],
                 single_line=True,
                 mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
-            ) or chapter["title_raw"]
+            ) or title_vi or chapter["title_raw"]
         response = {
             "chapter_id": chapter["chapter_id"],
             "book_id": chapter["book_id"],
