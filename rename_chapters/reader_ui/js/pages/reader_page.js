@@ -126,6 +126,7 @@ const refs = {
   selectionNameTargetInput: document.getElementById("selection-name-target-input"),
   btnOpenSelectionNameSuggest: document.getElementById("btn-open-selection-name-suggest"),
   btnCancelSelectionName: document.getElementById("btn-cancel-selection-name"),
+  btnDeleteSelectionName: document.getElementById("btn-delete-selection-name"),
   btnConfirmSelectionName: document.getElementById("btn-confirm-selection-name"),
   selectionJunkBtn: document.getElementById("selection-junk-btn"),
   selectionJunkDialog: document.getElementById("selection-junk-dialog"),
@@ -261,6 +262,9 @@ const state = {
   bookVpDict: {},
   saveTimer: null,
   chapterText: "",
+  chapterTransSig: "",
+  chapterMapVersion: 0,
+  chapterUnitCount: 0,
   flipPages: [],
   flipPageIndex: 0,
   chapterCache: new Map(),
@@ -292,9 +296,16 @@ const state = {
   downloadWatchHadActive: false,
   downloadWatchIdleTicks: 0,
   selectionRefreshTimer: null,
+  selectionMenuPayload: null,
+  selectionNameMapSeq: 0,
   pendingSelectionNameRatio: null,
   pendingSelectionJunkRatio: null,
   pendingSelectionReplaceRatio: null,
+  dictRefreshQueued: false,
+  dictRefreshInFlight: false,
+  dictRefreshRatio: null,
+  dictRefreshBook: false,
+  bookRefreshTimer: 0,
   bookReplaceEntries: [],
   tts: {
     settings: loadTtsSettings(),
@@ -1778,7 +1789,13 @@ async function loadBook({ showSkeleton = false } = {}) {
   }
 }
 
-async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleton = true, quiet = false } = {}) {
+async function loadChapter({
+  resetFlip = true,
+  preserveRatio = null,
+  preserveLivePosition = false,
+  showSkeleton = true,
+  quiet = false,
+} = {}) {
   if (!state.chapterId) return;
   hideSelectionBtn();
   cancelPrefetch();
@@ -1810,6 +1827,9 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
       signal: controller.signal,
     });
     if (requestSeq !== state.chapterLoadSeq || targetChapterId !== state.chapterId) return;
+    const effectivePreserveRatio = preserveRatio == null
+      ? null
+      : (preserveLivePosition ? currentChapterRatio() : preserveRatio);
     const currentRow = Array.isArray(state.book && state.book.chapters)
       ? state.book.chapters.find((row) => String((row && row.chapter_id) || "").trim() === String(targetChapterId || "").trim())
       : null;
@@ -1825,6 +1845,9 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
     state.chapterContentType = String(chapter.content_type || "text").toLowerCase() === "images" ? "images" : "text";
     state.chapterImages = Array.isArray(chapter.images) ? chapter.images.map((x) => String(x || "").trim()).filter(Boolean) : [];
     state.chapterText = chapter.content || "";
+    state.chapterTransSig = String(chapter.trans_sig || "").trim();
+    state.chapterMapVersion = Number.parseInt(String(chapter.map_version || "0"), 10) || 0;
+    state.chapterUnitCount = Number.parseInt(String(chapter.unit_count || "0"), 10) || 0;
     if (state.chapterContentType !== "images" && state.book && state.book.is_comic && state.chapterText) {
       const urlRows = state.chapterText
         .split(/\r?\n/g)
@@ -1839,7 +1862,7 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
     applyReaderModeClass();
     syncModeButtons();
     clearScrollHint();
-    renderChapterContent(resetFlip, preserveRatio);
+    renderChapterContent(resetFlip, effectivePreserveRatio);
     updateHeader();
     renderToc();
     updateProgress();
@@ -1862,6 +1885,9 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
       state.chapterContentType = "text";
       state.chapterImages = [];
       state.chapterText = "";
+      state.chapterTransSig = "";
+      state.chapterMapVersion = 0;
+      state.chapterUnitCount = 0;
       syncModeButtons();
       renderChapterError(getErrorMessage(error));
       updateHeader();
@@ -1884,18 +1910,66 @@ async function refreshReaderAfterDictChange({ preserveRatio = currentChapterRati
     await loadChapter({
       resetFlip: true,
       preserveRatio,
+      preserveLivePosition: true,
       showSkeleton: false,
       quiet: true,
     });
   }
   if (refreshBook && state.bookId) {
+    scheduleReaderBookRefresh();
+  }
+}
+
+function clearReaderBookRefreshTimer() {
+  if (!state.bookRefreshTimer) return;
+  window.clearTimeout(state.bookRefreshTimer);
+  state.bookRefreshTimer = 0;
+}
+
+function scheduleReaderBookRefresh(delayMs = 1200) {
+  clearReaderBookRefreshTimer();
+  const bookId = String(state.bookId || "").trim();
+  if (!bookId) return;
+  state.bookRefreshTimer = window.setTimeout(() => {
+    state.bookRefreshTimer = 0;
+    if (String(state.bookId || "").trim() !== bookId) return;
     loadBook()
       .then(() => {
         renderToc();
         updateProgress();
       })
       .catch(() => {});
-  }
+  }, Math.max(0, Number(delayMs) || 0));
+}
+
+function queueReaderDictRefresh({ preserveRatio = currentChapterRatio(), refreshBook = true } = {}) {
+  state.dictRefreshQueued = true;
+  state.dictRefreshRatio = Number.isFinite(preserveRatio) ? preserveRatio : currentChapterRatio();
+  state.dictRefreshBook = Boolean(state.dictRefreshBook || refreshBook);
+  if (state.dictRefreshInFlight) return;
+  state.dictRefreshInFlight = true;
+  (async () => {
+    try {
+      while (state.dictRefreshQueued) {
+        const nextRatio = Number.isFinite(state.dictRefreshRatio) ? state.dictRefreshRatio : currentChapterRatio();
+        const nextRefreshBook = Boolean(state.dictRefreshBook);
+        state.dictRefreshQueued = false;
+        state.dictRefreshRatio = null;
+        state.dictRefreshBook = false;
+        await refreshReaderAfterDictChange({ preserveRatio: nextRatio, refreshBook: nextRefreshBook });
+      }
+    } catch (error) {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    } finally {
+      state.dictRefreshInFlight = false;
+      if (state.dictRefreshQueued) {
+        queueReaderDictRefresh({
+          preserveRatio: Number.isFinite(state.dictRefreshRatio) ? state.dictRefreshRatio : currentChapterRatio(),
+          refreshBook: state.dictRefreshBook,
+        });
+      }
+    }
+  })();
 }
 
 function openToc() {
@@ -2225,7 +2299,7 @@ async function applyCurrentDictEntries(entries, { replace = false, toastKey = "n
     if (refs.nameSuggestDialog && refs.nameSuggestDialog.open) refs.nameSuggestDialog.close();
     if (refs.nameEditorDialog && refs.nameEditorDialog.open) refs.nameEditorDialog.close();
     refreshNameEditorData().catch(() => {});
-    await refreshReaderAfterDictChange({ preserveRatio, refreshBook: true });
+    queueReaderDictRefresh({ preserveRatio, refreshBook: true });
     if (toastKey) {
       state.shell.showToast(state.shell.t(toastKey));
     }
@@ -2448,7 +2522,7 @@ async function deleteNameEntry(source) {
   try {
     await deleteCurrentDictEntry(source);
     refreshNameEditorData().catch(() => {});
-    await refreshReaderAfterDictChange({ preserveRatio, refreshBook: true });
+    queueReaderDictRefresh({ preserveRatio, refreshBook: true });
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -2748,6 +2822,12 @@ function hideSelectionBtn() {
   }
 }
 
+function currentParagraphSeparatorLength() {
+  const chapterText = normalizeReaderText(state.chapterText || "");
+  if (!chapterText) return 2;
+  return /\n{2,}/.test(chapterText) ? 2 : 1;
+}
+
 function activeReaderSelectionRange() {
   const selection = window.getSelection && window.getSelection();
   if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
@@ -2860,6 +2940,7 @@ function computeRenderedOffset(containerNode, nodeOffset) {
   const body = refs.readerContentBody;
   if (!body || !containerNode) return 0;
   if (!body.contains(containerNode) && containerNode !== body) return 0;
+  const paragraphSeparatorLength = currentParagraphSeparatorLength();
 
   if (containerNode === body) {
     let sum = 0;
@@ -2867,7 +2948,7 @@ function computeRenderedOffset(containerNode, nodeOffset) {
     for (let i = 0; i < limit; i += 1) {
       const node = body.childNodes[i];
       if (node.nodeType === Node.ELEMENT_NODE && node.tagName && node.tagName.toLowerCase() === "p" && i > 0) {
-        sum += 2;
+        sum += paragraphSeparatorLength;
       }
       sum += renderedTextLength(node);
     }
@@ -2878,7 +2959,7 @@ function computeRenderedOffset(containerNode, nodeOffset) {
   let total = 0;
   for (let i = 0; i < paragraphs.length; i += 1) {
     const p = paragraphs[i];
-    if (i > 0) total += 2;
+    if (i > 0) total += paragraphSeparatorLength;
     const inside = offsetInsideNode(p, containerNode, nodeOffset);
     if (inside != null) {
       return total + inside;
@@ -2894,6 +2975,10 @@ function normalizeSelectionDisplayText(text) {
     .replace(/\r/g, "\n")
     .replace(/\u00a0/g, " ")
     .trim();
+}
+
+function selectionHasNameSplitDelimiter(text) {
+  return /[\n\r,，、。！？!?；;：:]/.test(String(text || ""));
 }
 
 function selectionStartParagraphInfoFromRange(range) {
@@ -2945,8 +3030,8 @@ function selectionPayloadFromRange(range) {
   };
 }
 
-function currentSelectionPayload() {
-  const source = refs.selectionActionMenu || refs.selectionNameBtn;
+function currentSelectionPayload(preferredNode = null) {
+  const source = preferredNode || refs.selectionActionMenu || refs.selectionNameBtn;
   if (!source || !source.dataset) return null;
   const selected = String(source.dataset.text || "").trim();
   const rawSelected = String(source.dataset.rawText || source.dataset.exactText || selected);
@@ -2955,24 +3040,54 @@ function currentSelectionPayload() {
   const endOffset = Number.parseInt(source.dataset.endOffset || "", 10);
   const startParagraphIndex = Number.parseInt(source.dataset.startParagraphIndex || "", 10);
   const startParagraphOffset = Number.parseInt(source.dataset.startParagraphOffset || "", 10);
-  if (!selected || Number.isNaN(startOffset) || Number.isNaN(endOffset)) return null;
+  if (selected && !Number.isNaN(startOffset) && !Number.isNaN(endOffset)) {
+    return {
+      selected,
+      rawSelected,
+      exactSelected,
+      start: startOffset,
+      end: endOffset,
+      startParagraphIndex: Number.isNaN(startParagraphIndex) ? 0 : startParagraphIndex,
+      startParagraphOffset: Number.isNaN(startParagraphOffset) ? 0 : startParagraphOffset,
+    };
+  }
+  const fallback = state.selectionMenuPayload;
+  if (!fallback || !fallback.selected || Number.isNaN(Number(fallback.start)) || Number.isNaN(Number(fallback.end))) {
+    return null;
+  }
   return {
-    selected,
-    rawSelected,
-    exactSelected,
-    start: startOffset,
-    end: endOffset,
-    startParagraphIndex: Number.isNaN(startParagraphIndex) ? 0 : startParagraphIndex,
-    startParagraphOffset: Number.isNaN(startParagraphOffset) ? 0 : startParagraphOffset,
+    selected: String(fallback.selected || "").trim(),
+    rawSelected: String(fallback.rawSelected || fallback.exactSelected || fallback.selected || ""),
+    exactSelected: normalizeSelectionDisplayText(fallback.exactSelected || fallback.selected || ""),
+    start: Number(fallback.start) || 0,
+    end: Number(fallback.end) || 0,
+    startParagraphIndex: Number(fallback.startParagraphIndex) || 0,
+    startParagraphOffset: Number(fallback.startParagraphOffset) || 0,
+  };
+}
+
+function saveSelectionPayloadSnapshot(payload) {
+  if (!payload || !payload.selected || Number.isNaN(Number(payload.start)) || Number.isNaN(Number(payload.end))) {
+    return;
+  }
+  state.selectionMenuPayload = {
+    selected: String(payload.selected || "").trim(),
+    rawSelected: String(payload.rawSelected || payload.exactSelected || payload.selected || ""),
+    exactSelected: normalizeSelectionDisplayText(payload.exactSelected || payload.selected || ""),
+    start: Number(payload.start) || 0,
+    end: Number(payload.end) || 0,
+    startParagraphIndex: Number(payload.startParagraphIndex) || 0,
+    startParagraphOffset: Number(payload.startParagraphOffset) || 0,
   };
 }
 
 function canEditSelectionName(payload) {
-  if (!payload || !payload.selected) return false;
+  const text = normalizeSelectionDisplayText(payload && (payload.exactSelected || payload.selected));
+  if (!text) return false;
   if (effectiveMode() !== "trans") return false;
   if (!supportsTranslation(state.book)) return false;
-  if (payload.selected.length > 80) return false;
-  if (payload.selected.includes("\n")) return false;
+  if (text.length > 240) return false;
+  if (selectionHasNameSplitDelimiter(text)) return false;
   return true;
 }
 
@@ -4039,19 +4154,112 @@ async function resolveSelectionSourceForJunk(payload) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      selected_text: payload.selected,
+      selected_text: payload.exactSelected || payload.selected,
       start_offset: payload.start,
       end_offset: payload.end,
       translation_mode: state.translateMode,
       mode: effectiveMode(),
+      translated_text: effectiveMode() === "trans" ? state.chapterText : "",
+      displayed_trans_sig: state.chapterTransSig || "",
     }),
   });
   return String((data && data.source_candidate) || "").trim() || payload.selected;
 }
 
 function resetSelectionNameDialogState() {
+  state.selectionNameMapSeq += 1;
   state.pendingSelectionNameRatio = null;
   if (refs.selectionNameForm) refs.selectionNameForm.reset();
+  if (refs.selectionNameHint) refs.selectionNameHint.textContent = state.shell.t("selectionNameHint");
+  syncSelectionNameDialogActions();
+}
+
+function getSelectionNameEntryMeta(source) {
+  const sourceKey = normalizeNameSourceKey(source);
+  if (!sourceKey) return null;
+  const active = state.activeNameSet || Object.keys(state.nameSets || {})[0] || "Mặc định";
+  const bookEntries = normalizeNameEntries((state.nameSets && state.nameSets[active]) || {});
+  if (Object.prototype.hasOwnProperty.call(bookEntries, sourceKey)) {
+    return {
+      scope: "book",
+      setName: active,
+      target: String(bookEntries[sourceKey] || ""),
+    };
+  }
+  const globalEntries = normalizeNameEntries((state.globalDicts && state.globalDicts.name) || {});
+  if (Object.prototype.hasOwnProperty.call(globalEntries, sourceKey)) {
+    return {
+      scope: "global",
+      target: String(globalEntries[sourceKey] || ""),
+    };
+  }
+  return null;
+}
+
+function syncSelectionNameDialogActions() {
+  const source = normalizeNameSourceKey(refs.selectionNameSourceInput && refs.selectionNameSourceInput.value);
+  const meta = getSelectionNameEntryMeta(source);
+  if (refs.btnConfirmSelectionName) {
+    refs.btnConfirmSelectionName.textContent = state.shell.t(
+      meta ? "selectionNameUpdate" : "selectionNameConfirm",
+    );
+  }
+  if (refs.btnDeleteSelectionName) {
+    refs.btnDeleteSelectionName.textContent = state.shell.t("selectionNameDelete");
+    refs.btnDeleteSelectionName.classList.toggle("hidden", !meta);
+  }
+}
+
+async function saveSelectionNameEntry(source, target) {
+  const meta = getSelectionNameEntryMeta(source);
+  if (meta && meta.scope === "global") {
+    const current = normalizeNameEntries((state.globalDicts && state.globalDicts.name) || {});
+    current[source] = target;
+    await state.shell.api("/api/local-dicts/global", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: current }),
+    });
+    return;
+  }
+  await state.shell.api("/api/name-sets/entry", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source,
+      target,
+      set_name: meta && meta.scope === "book" ? meta.setName : undefined,
+      book_id: state.bookId,
+    }),
+  });
+}
+
+async function deleteSelectionNameEntry(source) {
+  const meta = getSelectionNameEntryMeta(source);
+  if (!meta) return;
+  if (meta.scope === "global") {
+    const current = normalizeNameEntries((state.globalDicts && state.globalDicts.name) || {});
+    if (Object.prototype.hasOwnProperty.call(current, source)) {
+      delete current[source];
+    }
+    await state.shell.api("/api/local-dicts/global", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: current }),
+    });
+    return;
+  }
+  await state.shell.api("/api/name-sets/entry", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source,
+      target: "",
+      delete: true,
+      set_name: meta.setName,
+      book_id: state.bookId,
+    }),
+  });
 }
 
 async function confirmSelectionNameEntry(event) {
@@ -4064,26 +4272,20 @@ async function confirmSelectionNameEntry(event) {
     else if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.focus();
     return;
   }
-  const preserveRatio = Number.isFinite(state.pendingSelectionNameRatio)
-    ? state.pendingSelectionNameRatio
-    : currentChapterRatio();
+  const liveRatio = currentChapterRatio();
+  const preserveRatio = Number.isFinite(liveRatio)
+    ? liveRatio
+    : (Number.isFinite(state.pendingSelectionNameRatio) ? state.pendingSelectionNameRatio : 0);
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
   try {
-    await state.shell.api("/api/name-sets/entry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source,
-        target,
-        book_id: state.bookId,
-      }),
-    });
+    await saveSelectionNameEntry(source, target);
     if (refs.selectionNameDialog && refs.selectionNameDialog.open) {
       refs.selectionNameDialog.close();
     } else {
       resetSelectionNameDialogState();
     }
-    await refreshReaderAfterDictChange({ preserveRatio, refreshBook: true });
+    refreshNameEditorData().catch(() => {});
+    queueReaderDictRefresh({ preserveRatio, refreshBook: true });
     state.shell.showToast(state.shell.t("nameEntryApplied"));
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
@@ -4099,6 +4301,7 @@ async function refreshReaderAfterRawRuleChange({ preserveRatio = currentChapterR
     await loadChapter({
       resetFlip: true,
       preserveRatio,
+      preserveLivePosition: true,
       showSkeleton: false,
       quiet: true,
     });
@@ -4106,7 +4309,7 @@ async function refreshReaderAfterRawRuleChange({ preserveRatio = currentChapterR
 }
 
 async function applySelectionJunkEntry() {
-  const payload = currentSelectionPayload();
+  const payload = currentSelectionPayload(refs.selectionJunkBtn);
   hideSelectionBtn();
   clearSelectedTextRange();
   if (!payload || !payload.selected) return;
@@ -4199,7 +4402,7 @@ function resetSelectionReplaceDialogState() {
 }
 
 async function applySelectionReplaceEntry() {
-  const payload = currentSelectionPayload();
+  const payload = currentSelectionPayload(refs.selectionReplaceBtn);
   hideSelectionBtn();
   clearSelectedTextRange();
   if (!payload || !payload.selected) return;
@@ -4265,16 +4468,17 @@ async function confirmSelectionReplaceEntry(event) {
 }
 
 async function editSelectionNameFromMenu() {
-  const payload = currentSelectionPayload();
+  const payload = currentSelectionPayload(refs.selectionNameBtn);
   hideSelectionBtn();
   clearSelectedTextRange();
-  const text = payload ? payload.selected : "";
+  const text = normalizeSelectionDisplayText(payload && (payload.exactSelected || payload.selected));
   const startOffset = payload ? payload.start : Number.NaN;
   const endOffset = payload ? payload.end : Number.NaN;
   if (!text || !state.chapterId || Number.isNaN(startOffset) || Number.isNaN(endOffset)) {
     state.pendingSelectionNameRatio = currentChapterRatio();
     if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.value = "";
     if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.value = text;
+    syncSelectionNameDialogActions();
     if (refs.selectionNameDialog) refs.selectionNameDialog.showModal();
     window.setTimeout(() => {
       if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.focus();
@@ -4282,41 +4486,59 @@ async function editSelectionNameFromMenu() {
     }, 10);
     return;
   }
-  state.shell.showStatus(state.shell.t("statusMappingSelection"));
-  try {
-    const mapped = await state.shell.api(`/api/library/chapter/${encodeURIComponent(state.chapterId)}/selection-map`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        selected_text: text,
-        start_offset: startOffset,
-        end_offset: endOffset,
-        translation_mode: state.translateMode,
-      }),
-    });
-    if (!mapped.source_candidate) {
-      state.shell.showToast(state.shell.t("selectionMapNoSource"));
-    }
-    state.pendingSelectionNameRatio = currentChapterRatio();
-    if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.value = mapped.source_candidate || "";
-    if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.value = mapped.target_candidate || text;
-    if (refs.selectionNameDialog) refs.selectionNameDialog.showModal();
-    window.setTimeout(() => {
-      if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.focus();
-    }, 10);
-  } catch (error) {
-    state.shell.showToast(error.message || state.shell.t("toastError"));
-    state.pendingSelectionNameRatio = currentChapterRatio();
-    if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.value = "";
-    if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.value = text;
-    if (refs.selectionNameDialog) refs.selectionNameDialog.showModal();
-    window.setTimeout(() => {
-      if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.focus();
-      else if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.focus();
-    }, 10);
-  } finally {
-    state.shell.hideStatus();
+  if (selectionHasNameSplitDelimiter(text)) {
+    state.shell.showToast(state.shell.t("selectionMapNoSource"));
+    return;
   }
+  const mapSeq = ++state.selectionNameMapSeq;
+  state.pendingSelectionNameRatio = currentChapterRatio();
+  if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.value = "";
+  if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.value = text;
+  if (refs.selectionNameHint) refs.selectionNameHint.textContent = state.shell.t("statusMappingSelection");
+  syncSelectionNameDialogActions();
+  if (refs.selectionNameDialog) refs.selectionNameDialog.showModal();
+  window.setTimeout(() => {
+    if (refs.selectionNameTargetInput) refs.selectionNameTargetInput.focus();
+  }, 10);
+  refreshNameEditorData()
+    .then(() => {
+      if (mapSeq !== state.selectionNameMapSeq) return;
+      syncSelectionNameDialogActions();
+    })
+    .catch(() => {});
+  state.shell.api(`/api/library/chapter/${encodeURIComponent(state.chapterId)}/selection-map`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      selected_text: payload.exactSelected || text,
+      start_offset: startOffset,
+      end_offset: endOffset,
+      translation_mode: state.translateMode,
+      translated_text: effectiveMode() === "trans" ? state.chapterText : "",
+      displayed_trans_sig: state.chapterTransSig || "",
+    }),
+  }).then((mapped) => {
+    if (mapSeq !== state.selectionNameMapSeq) return;
+    if (refs.selectionNameSourceInput && !String(refs.selectionNameSourceInput.value || "").trim()) {
+      refs.selectionNameSourceInput.value = mapped.source_candidate || "";
+    }
+    if (refs.selectionNameTargetInput) {
+      const currentTarget = String(refs.selectionNameTargetInput.value || "").trim();
+      if (!currentTarget || currentTarget === text) {
+        refs.selectionNameTargetInput.value = mapped.target_candidate || text;
+      }
+    }
+    if (refs.selectionNameHint) {
+      refs.selectionNameHint.textContent = mapped.source_candidate
+        ? state.shell.t("selectionNameHint")
+        : state.shell.t("selectionMapNoSource");
+    }
+    syncSelectionNameDialogActions();
+  }).catch((error) => {
+    if (mapSeq !== state.selectionNameMapSeq) return;
+    if (refs.selectionNameHint) refs.selectionNameHint.textContent = state.shell.t("selectionNameHint");
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  });
 }
 
 function handleSelectionButton() {
@@ -4349,20 +4571,27 @@ function handleSelectionButton() {
     return;
   }
   const payload = selectionPayloadFromRange(range);
-  if (!payload.selected) {
+  const selectionText = normalizeSelectionDisplayText(payload && (payload.exactSelected || payload.selected));
+  if (!selectionText) {
     hideSelectionBtn();
     return;
   }
   for (const node of [refs.selectionActionMenu, refs.selectionSpeakBtn, refs.selectionNameBtn, refs.selectionReplaceBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
     if (!node || !node.dataset) continue;
-    node.dataset.text = payload.selected;
-    node.dataset.rawText = payload.rawSelected || payload.exactSelected || payload.selected;
-    node.dataset.exactText = payload.exactSelected || payload.selected;
+    node.dataset.text = selectionText;
+    node.dataset.rawText = payload.rawSelected || selectionText;
+    node.dataset.exactText = payload.exactSelected || selectionText;
     node.dataset.startOffset = String(payload.start);
     node.dataset.endOffset = String(payload.end);
     node.dataset.startParagraphIndex = String(payload.startParagraphIndex || 0);
     node.dataset.startParagraphOffset = String(payload.startParagraphOffset || 0);
   }
+  saveSelectionPayloadSnapshot({
+    ...payload,
+    selected: selectionText,
+    rawSelected: payload.rawSelected || selectionText,
+    exactSelected: payload.exactSelected || selectionText,
+  });
   if (refs.selectionSpeakBtn) {
     refs.selectionSpeakBtn.textContent = state.shell.t("ttsSelectionPlay");
     refs.selectionSpeakBtn.classList.toggle("hidden", !canSpeakSelection(payload));
@@ -4443,7 +4672,7 @@ function bindNameEditor() {
   if (refs.btnCloseSelectionName) refs.btnCloseSelectionName.textContent = state.shell.t("close");
   if (refs.btnOpenSelectionNameSuggest) refs.btnOpenSelectionNameSuggest.textContent = state.shell.t("nameSuggestButton");
   if (refs.btnCancelSelectionName) refs.btnCancelSelectionName.textContent = state.shell.t("cancel");
-  if (refs.btnConfirmSelectionName) refs.btnConfirmSelectionName.textContent = state.shell.t("selectionNameConfirm");
+  syncSelectionNameDialogActions();
   if (refs.selectionJunkTitle) refs.selectionJunkTitle.textContent = state.shell.t("selectionJunkTitle");
   if (refs.btnCloseSelectionJunk) refs.btnCloseSelectionJunk.textContent = state.shell.t("close");
   if (refs.selectionJunkHint) refs.selectionJunkHint.textContent = state.shell.t("selectionJunkHint");
@@ -4513,6 +4742,28 @@ function bindNameEditor() {
   });
   if (refs.btnCancelSelectionName) refs.btnCancelSelectionName.addEventListener("click", () => {
     if (refs.selectionNameDialog) refs.selectionNameDialog.close();
+  });
+  if (refs.btnDeleteSelectionName) refs.btnDeleteSelectionName.addEventListener("click", () => {
+    const source = normalizeNameSourceKey(refs.selectionNameSourceInput && refs.selectionNameSourceInput.value);
+    if (!source) return;
+    const liveRatio = currentChapterRatio();
+    const preserveRatio = Number.isFinite(liveRatio)
+      ? liveRatio
+      : (Number.isFinite(state.pendingSelectionNameRatio) ? state.pendingSelectionNameRatio : 0);
+    state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
+    deleteSelectionNameEntry(source)
+      .then(async () => {
+        if (refs.selectionNameDialog && refs.selectionNameDialog.open) refs.selectionNameDialog.close();
+        refreshNameEditorData().catch(() => {});
+        queueReaderDictRefresh({ preserveRatio, refreshBook: true });
+        state.shell.showToast(state.shell.t("nameEntryDeleted"));
+      })
+      .catch((error) => {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      })
+      .finally(() => {
+        state.shell.hideStatus();
+      });
   });
   refs.btnCancelNameBulk.addEventListener("click", () => refs.nameBulkDialog.close());
   refs.nameBulkDialog.addEventListener("close", () => {
@@ -4634,6 +4885,7 @@ function bindNameEditor() {
   });
   if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.addEventListener("input", () => {
     syncNameSuggestExternalActions();
+    syncSelectionNameDialogActions();
   });
   refs.btnRefreshNamePreview.addEventListener("click", refreshNamePreview);
   refs.btnAddNameSet.addEventListener("click", addNameSet);
@@ -4696,7 +4948,7 @@ function bindNameEditor() {
     });
   });
   if (refs.selectionCopyBtn) refs.selectionCopyBtn.addEventListener("click", async () => {
-    const payload = currentSelectionPayload();
+    const payload = currentSelectionPayload(refs.selectionCopyBtn);
     hideSelectionBtn();
     clearSelectedTextRange();
     if (!payload || !payload.selected) return;
@@ -4761,7 +5013,7 @@ function bindTtsControls() {
     });
   });
   if (refs.selectionSpeakBtn) refs.selectionSpeakBtn.addEventListener("click", () => {
-    const payload = currentSelectionPayload();
+    const payload = currentSelectionPayload(refs.selectionSpeakBtn);
     state.tts.playFromSelectionNext = payload ? {
       paragraphIndex: payload.startParagraphIndex,
       paragraphOffset: payload.startParagraphOffset,
@@ -5500,6 +5752,7 @@ async function init() {
   showReaderTocSkeleton(true, 10);
   showReaderContentSkeleton(true, { comic: Boolean(state.isComicHint) });
   await loadBook({ showSkeleton: true });
+  await refreshNameEditorData();
   loadTtsPlugins().catch(() => {});
   if (!requestedMode && state.book) {
     const savedMode = parseRequestedMode(state.book.last_read_mode || "");

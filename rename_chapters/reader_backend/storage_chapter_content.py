@@ -46,6 +46,10 @@ def _load_trans_sig_snapshot(storage, base_sig: str) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
+def load_chapter_trans_sig_snapshot(storage, chapter_trans_sig: str) -> dict[str, Any] | None:
+    return _load_trans_sig_snapshot(storage, _base_sig_from_chapter_trans_sig(chapter_trans_sig))
+
+
 def _save_trans_sig_snapshot(storage, base_sig: str, payload: dict[str, Any] | None) -> None:
     sig = str(base_sig or "").strip()
     if not sig or not isinstance(payload, dict):

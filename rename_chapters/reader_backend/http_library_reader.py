@@ -52,6 +52,10 @@ def _get_translate_mode_from_query(handler, query: dict[str, list[str]]) -> str:
     return handler.service.resolve_translate_mode(raw)
 
 
+def _normalize_client_reader_text(value: Any) -> str:
+    return str(value or "").replace("\r\n", "\n").replace("\r", "\n")
+
+
 def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode: str, active_name_set, active_vp_set, deps: LibraryReaderDeps) -> None:
     allow_translate = handler.service.translation_allowed_for_book(book)
     if allow_translate:
@@ -543,52 +547,72 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             translate_mode=translate_mode,
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,
+            allow_remote_fetch=False,
         )
-        translated_text = storage.get_chapter_text(
-            chapter,
-            book,
-            mode="trans",
-            translator=service.translator,
-            translate_mode=translate_mode,
-            name_set_override=active_name_set,
-            vp_set_override=active_vp_set,
-        )
-        base_sig = service.translator.translation_signature(
-            mode=translate_mode,
-            name_set_override=active_name_set,
-            vp_set_override=active_vp_set,
-        )
-        _, junk_version = storage.get_global_junk_lines()
-        current_sig = storage.chapter_trans_signature(base_sig, junk_version=junk_version)
-        unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+        translated_text = ""
+        current_sig = ""
+        unit_map: list[dict[str, Any]] = []
         token_map: list[dict[str, Any]] = []
-        if not unit_map:
-            detail = service.translator.translate_detailed(
-                raw_text,
+        name_set_for_mapping = None
+        if translate_mode == "server":
+            displayed_sig = str(payload.get("displayed_trans_sig") or "").strip()
+            current_sig = displayed_sig or str(chapter.get("trans_sig") or "").strip()
+            translated_text = _normalize_client_reader_text(payload.get("translated_text") or "")
+            if not translated_text:
+                trans_key = str(chapter.get("trans_key") or "").strip()
+                chapter_sig = str(chapter.get("trans_sig") or "").strip()
+                if trans_key and current_sig and chapter_sig == current_sig:
+                    translated_text = storage.read_cache(trans_key) or ""
+            if current_sig:
+                unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+                snapshot = storage.get_chapter_trans_sig_snapshot(current_sig)
+                if isinstance(snapshot, dict) and isinstance(snapshot.get("name_set"), dict):
+                    name_set_for_mapping = snapshot.get("name_set")
+        else:
+            translated_text = storage.get_chapter_text(
+                chapter,
+                book,
+                mode="trans",
+                translator=service.translator,
+                translate_mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            )
+            base_sig = service.translator.translation_signature(
                 mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             )
-            storage.save_translation_unit_map(
-                chapter["chapter_id"],
-                current_sig,
-                translate_mode,
-                detail.get("unit_map") if isinstance(detail.get("unit_map"), list) else [],
-            )
+            _, junk_version = storage.get_global_junk_lines()
+            current_sig = storage.chapter_trans_signature(base_sig, junk_version=junk_version)
             unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
-            if translate_mode in {"local", "hanviet"}:
+            if not unit_map:
+                detail = service.translator.translate_detailed(
+                    raw_text,
+                    mode=translate_mode,
+                    name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
+                )
+                storage.save_translation_unit_map(
+                    chapter["chapter_id"],
+                    current_sig,
+                    translate_mode,
+                    detail.get("unit_map") if isinstance(detail.get("unit_map"), list) else [],
+                )
+                unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+                if translate_mode in {"local", "hanviet"}:
+                    token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
+            elif translate_mode in {"local", "hanviet"}:
+                detail = service.translator.translate_detailed(
+                    raw_text,
+                    mode=translate_mode,
+                    name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
+                )
                 token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
-        elif translate_mode in {"local", "hanviet"}:
-            detail = service.translator.translate_detailed(
-                raw_text,
-                mode=translate_mode,
-                name_set_override=active_name_set,
-                vp_set_override=active_vp_set,
-            )
-            token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
         state = _get_name_set_state(handler, chapter["book_id"])
         if translate_mode == "server":
-            effective_name_set = service.translator._server_name_set_for_use(active_name_set)
+            effective_name_set = name_set_for_mapping if isinstance(name_set_for_mapping, dict) else service.translator._server_name_set_for_use(active_name_set)
         else:
             effective_name_set = service.translator._name_set_for_use(active_name_set)
         mapped = deps.map_selection_to_name_source(
@@ -647,6 +671,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             translate_mode=translate_mode,
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,
+            allow_remote_fetch=False,
         )
         if selected_mode == "raw" or not service.translation_allowed_for_book(book):
             idx = raw_text.find(selected_text)
@@ -662,41 +687,54 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 "translated_context": selected_text,
                 "candidates": [{"source": selected_text, "score": 1.0}] if selected_text else [],
             }
-        translated_text = storage.get_chapter_text(
-            chapter,
-            book,
-            mode="trans",
-            translator=service.translator,
-            translate_mode=translate_mode,
-            name_set_override=active_name_set,
-            vp_set_override=active_vp_set,
-        )
-        base_sig = service.translator.translation_signature(
-            mode=translate_mode,
-            name_set_override=active_name_set,
-            vp_set_override=active_vp_set,
-        )
-        _, junk_version = storage.get_global_junk_lines()
-        current_sig = storage.chapter_trans_signature(base_sig, junk_version=junk_version)
-        unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+        translated_text = ""
+        unit_map: list[dict[str, Any]] = []
         token_map: list[dict[str, Any]] = []
-        if not unit_map or translate_mode in {"local", "hanviet"}:
-            detail = service.translator.translate_detailed(
-                raw_text,
+        if translate_mode == "server":
+            current_sig = str(payload.get("displayed_trans_sig") or "").strip() or str(chapter.get("trans_sig") or "").strip()
+            translated_text = _normalize_client_reader_text(payload.get("translated_text") or "")
+            if not translated_text:
+                trans_key = str(chapter.get("trans_key") or "").strip()
+                chapter_sig = str(chapter.get("trans_sig") or "").strip()
+                if trans_key and current_sig and chapter_sig == current_sig:
+                    translated_text = storage.read_cache(trans_key) or ""
+            if current_sig:
+                unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+        else:
+            translated_text = storage.get_chapter_text(
+                chapter,
+                book,
+                mode="trans",
+                translator=service.translator,
+                translate_mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            )
+            base_sig = service.translator.translation_signature(
                 mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             )
-            if not unit_map:
-                storage.save_translation_unit_map(
-                    chapter["chapter_id"],
-                    current_sig,
-                    translate_mode,
-                    detail.get("unit_map") if isinstance(detail.get("unit_map"), list) else [],
+            _, junk_version = storage.get_global_junk_lines()
+            current_sig = storage.chapter_trans_signature(base_sig, junk_version=junk_version)
+            unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+            if not unit_map or translate_mode in {"local", "hanviet"}:
+                detail = service.translator.translate_detailed(
+                    raw_text,
+                    mode=translate_mode,
+                    name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
                 )
-                unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
-            if translate_mode in {"local", "hanviet"}:
-                token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
+                if not unit_map:
+                    storage.save_translation_unit_map(
+                        chapter["chapter_id"],
+                        current_sig,
+                        translate_mode,
+                        detail.get("unit_map") if isinstance(detail.get("unit_map"), list) else [],
+                    )
+                    unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
+                if translate_mode in {"local", "hanviet"}:
+                    token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
         resolved = deps.map_selection_to_source_segment(
             raw_text=raw_text,
             translated_text=translated_text,

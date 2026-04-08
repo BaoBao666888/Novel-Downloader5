@@ -1795,6 +1795,20 @@ def map_selection_to_name_source(
         end = min(total_len, start + max(1, len(selected)))
     if not selected and start < end:
         selected = source_trans[start:end]
+    if contains_name_split_delimiter(selected):
+        return {
+            "selected_text": selected,
+            "source_candidate": "",
+            "target_candidate": strip_edge_punctuation(selected),
+            "match_type": "selection_contains_delimiter",
+            "score": 0.0,
+            "source_context": "",
+            "translated_context": _text_snippet(source_trans, start, end),
+            "unit_start": -1,
+            "unit_end": -1,
+            "name_suggestions": [],
+            "candidates": [],
+        }
 
     if re.search(r"[\u3400-\u9fff]", selected):
         cjk_value = strip_edge_punctuation(selected.strip())
@@ -1816,7 +1830,10 @@ def map_selection_to_name_source(
         target_main = str(target_raw or "").strip()
         if not target_main:
             continue
-        target_opts = [target_main] + [x.strip() for x in target_main.split("/") if x.strip()]
+        target_opts: list[str] = []
+        for opt in [target_main] + [x.strip() for x in target_main.split("/") if x.strip()]:
+            if opt and opt not in target_opts:
+                target_opts.append(opt)
         for opt in target_opts:
             if not opt:
                 continue
@@ -1842,10 +1859,6 @@ def map_selection_to_name_source(
         n_end = int(nm["end"])
         if n_end > start and n_start < end:
             related_name_matches.append(nm)
-            continue
-        target_norm = normalize_for_compare(str(nm.get("target") or ""))
-        if selected_norm and target_norm and (selected_norm in target_norm or target_norm in selected_norm):
-            related_name_matches.append(nm)
     chosen_name_exact: dict[str, Any] | None = None
     if related_name_matches:
         covering_candidates = [
@@ -1868,8 +1881,7 @@ def map_selection_to_name_source(
             target_len = len(target_norm)
             is_exact = selected_norm == target_norm
             is_partial_inside_name = selected_norm in target_norm and selected_len >= max(2, int(target_len * 0.45))
-            is_name_inside_small_selection = target_norm in selected_norm and selected_len <= (target_len + 4)
-            if is_exact or is_partial_inside_name or is_name_inside_small_selection:
+            if is_exact or is_partial_inside_name:
                 exact_candidates.append(nm)
         if exact_candidates and chosen_name_exact is None:
             def exact_score(item: dict[str, Any]) -> tuple[int, int]:
@@ -2094,14 +2106,117 @@ def map_selection_to_name_source(
             }
 
     units = sorted((u for u in unit_map if isinstance(u, dict)), key=lambda x: int(x.get("unit_index") or 0))
-    overlaps = [u for u in units if int(u.get("target_end") or 0) > start and int(u.get("target_start") or 0) < end]
-    if not overlaps and units:
-        center = (start + end) / 2.0
-        nearest = min(
-            units,
-            key=lambda u: abs(((int(u.get("target_start") or 0) + int(u.get("target_end") or 0)) / 2.0) - center),
+    def unit_text_value(unit: dict[str, Any], *, key: str, start_key: str, end_key: str, fallback_text: str) -> str:
+        value = str(unit.get(key) or "")
+        if value.strip():
+            return value
+        seg_start = int(unit.get(start_key) or 0)
+        seg_end = int(unit.get(end_key) or 0)
+        if seg_end > seg_start >= 0:
+            return fallback_text[seg_start:seg_end]
+        return ""
+
+    def try_pick_unit_subsegment(
+        chosen_unit: dict[str, Any],
+        unit_name_rows: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if not chosen_unit:
+            return None
+        source_start_all = int(chosen_unit.get("source_start") or 0)
+        source_end_all = int(chosen_unit.get("source_end") or 0)
+        target_start_all = int(chosen_unit.get("target_start") or 0)
+        target_end_all = int(chosen_unit.get("target_end") or 0)
+        source_hits = sorted(
+            [
+                hit for hit in (chosen_unit.get("name_hits") or [])
+                if isinstance(hit, dict) and int(hit.get("end") or 0) > source_start_all and int(hit.get("start") or 0) < source_end_all
+            ],
+            key=lambda row: (int(row.get("start") or 0), int(row.get("end") or 0)),
         )
-        overlaps = [nearest]
+        target_hits = sorted(
+            [
+                row for row in unit_name_rows
+                if int(row.get("end") or 0) > target_start_all and int(row.get("start") or 0) < target_end_all
+            ],
+            key=lambda row: (int(row.get("start") or 0), int(row.get("end") or 0)),
+        )
+        pair_count = min(len(source_hits), len(target_hits))
+        if pair_count <= 0:
+            return None
+        source_hits = source_hits[:pair_count]
+        target_hits = target_hits[:pair_count]
+
+        fragments: list[dict[str, Any]] = []
+        for idx in range(pair_count):
+            source_hit = source_hits[idx]
+            target_hit = target_hits[idx]
+            fragments.append(
+                {
+                    "kind": "name",
+                    "source_start": int(source_hit.get("start") or 0),
+                    "source_end": int(source_hit.get("end") or 0),
+                    "target_start": int(target_hit.get("start") or 0),
+                    "target_end": int(target_hit.get("end") or 0),
+                }
+            )
+            if idx + 1 < pair_count:
+                next_source_hit = source_hits[idx + 1]
+                next_target_hit = target_hits[idx + 1]
+                gap_source_start = int(source_hit.get("end") or 0)
+                gap_source_end = int(next_source_hit.get("start") or 0)
+                gap_target_start = int(target_hit.get("end") or 0)
+                gap_target_end = int(next_target_hit.get("start") or 0)
+                if gap_source_end > gap_source_start and gap_target_end > gap_target_start:
+                    fragments.append(
+                        {
+                            "kind": "gap",
+                            "source_start": gap_source_start,
+                            "source_end": gap_source_end,
+                            "target_start": gap_target_start,
+                            "target_end": gap_target_end,
+                        }
+                    )
+        if not fragments:
+            return None
+
+        touched = [
+            fragment for fragment in fragments
+            if int(fragment.get("target_end") or 0) > start and int(fragment.get("target_start") or 0) < end
+        ]
+        if not touched:
+            return None
+        touched.sort(key=lambda row: (int(row.get("target_start") or 0), int(row.get("target_end") or 0)))
+
+        covered_until = start
+        for fragment in touched:
+            frag_target_start = int(fragment.get("target_start") or 0)
+            frag_target_end = int(fragment.get("target_end") or 0)
+            if frag_target_start > covered_until:
+                return None
+            covered_until = max(covered_until, frag_target_end)
+            if covered_until >= end:
+                break
+        if covered_until < end:
+            return None
+
+        source_candidate_start = min(int(fragment.get("source_start") or 0) for fragment in touched)
+        source_candidate_end = max(int(fragment.get("source_end") or 0) for fragment in touched)
+        target_candidate_start = min(int(fragment.get("target_start") or 0) for fragment in touched)
+        target_candidate_end = max(int(fragment.get("target_end") or 0) for fragment in touched)
+        source_candidate = strip_edge_punctuation(source_raw[source_candidate_start:source_candidate_end].strip())
+        target_candidate = strip_edge_punctuation(source_trans[target_candidate_start:target_candidate_end].strip()) or strip_edge_punctuation(selected)
+        if not source_candidate or not target_candidate:
+            return None
+        return {
+            "source_candidate": source_candidate,
+            "target_candidate": target_candidate,
+            "source_start": source_candidate_start,
+            "source_end": source_candidate_end,
+            "target_start": target_candidate_start,
+            "target_end": target_candidate_end,
+        }
+
+    overlaps = [u for u in units if int(u.get("target_end") or 0) > start and int(u.get("target_start") or 0) < end]
 
     if not overlaps:
         return {
@@ -2157,31 +2272,62 @@ def map_selection_to_name_source(
     target_start = int(chosen.get("target_start") or 0)
     target_end = int(chosen.get("target_end") or 0)
 
+    server_choice: dict[str, Any] | None = None
     if mode_norm == "server" and chosen_name_exact is None:
+        chosen_target_full = strip_edge_punctuation(
+            unit_text_value(
+                chosen,
+                key="target_text",
+                start_key="target_start",
+                end_key="target_end",
+                fallback_text=source_trans,
+            ).strip()
+        )
+        chosen_target_norm = normalize_for_compare(chosen_target_full)
+        if selected_norm and chosen_target_norm and not (selected_norm in chosen_target_norm or chosen_target_norm in selected_norm):
+            return {
+                "selected_text": selected,
+                "source_candidate": "",
+                "target_candidate": selected,
+                "match_type": "unit_text_mismatch",
+                "score": 0.0,
+                "source_context": "",
+                "translated_context": _text_snippet(source_trans, start, end),
+                "unit_start": int(chosen.get("unit_index") or 0),
+                "unit_end": int(chosen.get("unit_index") or 0),
+                "name_suggestions": [],
+                "candidates": [],
+            }
+
         unit_name_matches = [
             nm
             for nm in name_matches
             if int(nm.get("end") or 0) > target_start and int(nm.get("start") or 0) < target_end
         ]
-        gap_choice = try_pick_non_name_gap(chosen, unit_name_matches)
-        if gap_choice is not None:
-            source_start = int(gap_choice["source_start"])
-            source_end = int(gap_choice["source_end"])
-            target_start = int(gap_choice["target_start"])
-            target_end = int(gap_choice["target_end"])
-            match_type = "unit_gap_between_names"
-            score_value = 0.98
+        subsegment_choice = try_pick_unit_subsegment(chosen, unit_name_matches)
+        if subsegment_choice is not None:
+            server_choice = {
+                **subsegment_choice,
+                "match_type": "anchored_fragment_cover",
+                "score": 0.97,
+            }
 
-    source_candidate = strip_edge_punctuation(str(chosen.get("source_text") or "").strip())
-    if not source_candidate:
-        source_candidate = strip_edge_punctuation(source_raw[source_start:source_end].strip())
-    target_candidate = strip_edge_punctuation(str(chosen.get("target_text") or "").strip())
-    if not target_candidate:
-        target_candidate = strip_edge_punctuation(source_trans[target_start:target_end].strip()) or strip_edge_punctuation(selected)
-
-    if mode_norm == "server" and match_type == "unit_gap_between_names":
-        source_candidate = strip_edge_punctuation(source_raw[source_start:source_end].strip())
-        target_candidate = strip_edge_punctuation(source_trans[target_start:target_end].strip()) or strip_edge_punctuation(selected)
+    if server_choice is not None:
+        source_start = int(server_choice["source_start"])
+        source_end = int(server_choice["source_end"])
+        target_start = int(server_choice["target_start"])
+        target_end = int(server_choice["target_end"])
+        match_type = str(server_choice.get("match_type") or match_type)
+        score_value = float(server_choice.get("score") or score_value)
+        source_candidate = strip_edge_punctuation(str(server_choice.get("source_candidate") or "").strip())
+        target_candidate = strip_edge_punctuation(str(server_choice.get("target_candidate") or "").strip()) or strip_edge_punctuation(selected)
+    else:
+        source_candidate = strip_edge_punctuation(str(chosen.get("source_text") or "").strip())
+        if not source_candidate:
+            source_candidate = strip_edge_punctuation(source_raw[source_start:source_end].strip())
+        target_candidate = strip_edge_punctuation(str(chosen.get("target_text") or "").strip())
+        if not target_candidate:
+            target_candidate = strip_edge_punctuation(source_trans[target_start:target_end].strip()) or strip_edge_punctuation(selected)
 
     if chosen_name_exact is not None:
         chosen_source_name = strip_edge_punctuation(str(chosen_name_exact.get("source") or "").strip())
@@ -3295,6 +3441,8 @@ class TranslationAdapter:
                 {
                     "unit_index": int(source_info.get("unit_index") or text_idx),
                     "source_text": str(source_info.get("text") or "").strip(),
+                    "processed_source_text": key,
+                    "target_placeholder_text": translated_placeholder_piece.strip(),
                     "target_text": final_piece.strip(),
                     "source_start": s_start,
                     "source_end": s_end,
@@ -3448,20 +3596,56 @@ class TranslationAdapter:
             s_start = int(source_info.get("start") or 0)
             s_end = int(source_info.get("end") or 0)
             unit_hits = [h for h in hits if int(h.get("start") or -1) < s_end and int(h.get("end") or -1) > s_start]
+            left, core, right = split_space_edges(unit)
+            current_processed_core = normalize_translation_cache_source(core)
 
             previous_row = previous_rows.get(unit_index)
             final_piece = ""
+            placeholder_piece_for_row = ""
             if previous_row is not None:
                 prev_source_text = str(previous_row.get("source_text") or "").strip()
                 prev_target_start = int(previous_row.get("target_start") or 0)
                 prev_target_end = int(previous_row.get("target_end") or 0)
+                prev_processed_core = normalize_translation_cache_source(str(previous_row.get("processed_source_text") or ""))
+                prev_placeholder_piece = str(previous_row.get("target_placeholder_text") or "")
                 if (
                     prev_source_text == source_text.strip()
+                    and prev_processed_core
+                    and current_processed_core
+                    and prev_processed_core == current_processed_core
+                    and prev_placeholder_piece
+                ):
+                    restored_piece = restore_name_placeholders(prev_placeholder_piece, placeholder_map)
+                    restored_piece = normalize_vi_punctuation(restored_piece)
+                    prev_piece = translated_parts[-1] if translated_parts else ""
+                    if prev_piece.rstrip().endswith((",", "，", "、")):
+                        core_lstrip = restored_piece.lstrip()
+                        preserve_case = False
+                        if core_lstrip:
+                            for hit in unit_hits:
+                                hit_target = str(hit.get("target") or "").strip()
+                                if hit_target and core_lstrip.lower().startswith(hit_target.lower()):
+                                    preserve_case = True
+                                    break
+                            if not preserve_case:
+                                for target_name in protected_name_targets:
+                                    if target_name and core_lstrip.lower().startswith(target_name.lower()):
+                                        preserve_case = True
+                                        break
+                        if not preserve_case:
+                            restored_piece = lowercase_first_alpha(restored_piece)
+                    final_piece = _prepend_space_if_needed(prev_piece, restored_piece)
+                    placeholder_piece_for_row = prev_placeholder_piece.strip()
+                    reused_any = True
+                if (
+                    not final_piece
+                    and prev_source_text == source_text.strip()
                     and prev_target_end > prev_target_start >= 0
                     and prev_target_end <= len(previous_translated_text)
                     and not _row_touches_changed_sources(previous_row, source_text)
                 ):
                     final_piece = previous_translated_text[prev_target_start:prev_target_end]
+                    placeholder_piece_for_row = str(previous_row.get("target_placeholder_text") or "").strip()
                     reused_any = True
 
             if not final_piece:
@@ -3475,9 +3659,9 @@ class TranslationAdapter:
                 if not final_piece:
                     final_piece = source_text
                 prev_piece = translated_parts[-1] if translated_parts else ""
+                preserve_case = False
                 if prev_piece.rstrip().endswith((",", "，", "、")):
                     core_lstrip = final_piece.lstrip()
-                    preserve_case = False
                     if core_lstrip:
                         for hit in unit_hits:
                             hit_target = str(hit.get("target") or "").strip()
@@ -3492,12 +3676,16 @@ class TranslationAdapter:
                     if not preserve_case:
                         final_piece = lowercase_first_alpha(final_piece)
                 final_piece = _prepend_space_if_needed(translated_parts[-1] if translated_parts else "", final_piece)
+                if previous_row is not None and prev_processed_core and current_processed_core and prev_processed_core == current_processed_core:
+                    placeholder_piece_for_row = str(previous_row.get("target_placeholder_text") or "").strip()
 
             translated_parts.append(final_piece)
             unit_map.append(
                 {
                     "unit_index": unit_index,
                     "source_text": source_text.strip(),
+                    "processed_source_text": current_processed_core,
+                    "target_placeholder_text": placeholder_piece_for_row,
                     "target_text": final_piece.strip(),
                     "source_start": s_start,
                     "source_end": s_end,
@@ -3842,6 +4030,9 @@ class ReaderStorage:
             trans_sig,
             translation_mode,
         )
+
+    def get_chapter_trans_sig_snapshot(self, chapter_trans_sig: str) -> dict[str, Any] | None:
+        return storage_chapter_content_support.load_chapter_trans_sig_snapshot(self, chapter_trans_sig)
 
     def _get_app_state_value(self, key: str) -> str | None:
         with self._connect() as conn:
