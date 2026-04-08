@@ -16,6 +16,8 @@
         paragraphSpacing: 1.1,
         textIndent: 1.0,
         textAlign: "justify",
+        miniBarsScale: 1,
+        tocSide: "left",
         panelTransparency: "clear",
         starStyle: "classic",
         backgroundMotion: "on",
@@ -58,6 +60,8 @@
       root.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing}em`);
       root.style.setProperty("--reader-text-indent", `${settings.textIndent}em`);
       root.style.setProperty("--reader-text-align", settings.textAlign);
+      root.style.setProperty("--reader-mini-scale", `${settings.miniBarsScale || 1}`);
+      root.dataset.readerTocSide = String(settings.tocSide || "left").toLowerCase() === "right" ? "right" : "left";
       const effects = ["effect-stars", "effect-sparkle", "effect-bubbles", "effect-leaves", "effect-snow"];
       const stars = ["star-style-classic", "star-style-dense", "star-style-bling"];
       const panelStyles = ["panel-style-clear", "panel-style-balanced", "panel-style-solid"];
@@ -71,7 +75,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260408-tts4">
+  <link rel="stylesheet" href="./styles.css?v=20260408-readerfix4">
 </head>
 
 <body data-page="reader" class="mpa-body">
@@ -86,6 +90,7 @@
       for (const cls of [...effects, ...stars, ...panelStyles]) {
         if (root.classList.contains(cls)) body.classList.add(cls);
       }
+      body.dataset.readerTocSide = root.dataset.readerTocSide || "left";
       body.classList.toggle("effects-paused", root.classList.contains("effects-paused"));
       body.classList.toggle("effects-lite", root.classList.contains("effects-lite"));
       body.classList.toggle("effects-off", root.classList.contains("effects-off"));
@@ -469,6 +474,7 @@
         <span id="selection-name-target-label"></span>
         <input id="selection-name-target-input" type="text" spellcheck="false" required>
       </label>
+      <button id="btn-open-selection-name-suggest" class="btn" type="button"></button>
       <div class="dialog-actions">
         <button id="btn-cancel-selection-name" class="btn" type="button"></button>
         <button id="btn-confirm-selection-name" class="btn btn-primary" type="submit"></button>
@@ -696,7 +702,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260408-tts6"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260408-readerfix4"></script>
 </body>
 
 </html>

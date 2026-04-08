@@ -131,8 +131,29 @@ export function parseTtsReplaceRules(text) {
   return rules;
 }
 
+export function normalizeTtsSpeechText(text, { singleLine = false } = {}) {
+  let value = normalizeParagraphDisplayText(text || "", { singleLine });
+  if (!value) return "";
+  value = value
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u200b\u200c\u200d\ufeff]/g, "");
+  try {
+    value = value.normalize("NFC");
+  } catch {
+    // ignore normalize unsupported errors
+  }
+  if (singleLine) {
+    return value.replace(/\s+/g, " ").trim();
+  }
+  return value
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function applyTtsReplaceRules(text, rulesText = "", enabled = false) {
-  const source = String(text || "");
+  const source = normalizeTtsSpeechText(text || "");
   if (!enabled) return source;
   const rules = Array.isArray(rulesText) ? rulesText : parseTtsReplaceRules(rulesText);
   if (!rules.length) return source;
@@ -146,7 +167,7 @@ export function applyTtsReplaceRules(text, rulesText = "", enabled = false) {
 }
 
 function splitLongTtsChunk(text, budget) {
-  const source = String(text || "").trim();
+  const source = normalizeTtsSpeechText(text || "", { singleLine: true });
   if (!source) return [];
   if (source.length <= budget) return [source];
   const out = [];
@@ -181,7 +202,7 @@ export function buildTtsSegments({
   replaceRulesText = "",
 } = {}) {
   const normalizedParagraphs = Array.isArray(paragraphs)
-    ? paragraphs.map((item) => normalizeParagraphDisplayText(item)).filter(Boolean)
+    ? paragraphs.map((item) => normalizeTtsSpeechText(item)).filter(Boolean)
     : splitParagraphBlocks(normalizeReaderText(content || ""));
   const rules = parseTtsReplaceRules(replaceRulesText);
   const safeMaxChars = clampInt(maxChars, 80, 600, TTS_DEFAULT_SETTINGS.maxChars);
@@ -202,7 +223,7 @@ export function buildTtsSegments({
     }
   };
 
-  const titleText = normalizeReaderText(chapterTitle || "").replace(/\n+/g, " ").trim();
+  const titleText = normalizeTtsSpeechText(normalizeReaderText(chapterTitle || "").replace(/\n+/g, " "), { singleLine: true });
   if (includeTitle && titleText && safeStartIndex === 0 && safeStartOffset <= 0) {
     pushChunks(titleText, -1, true);
   }

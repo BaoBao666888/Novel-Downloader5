@@ -5,11 +5,13 @@ import hashlib
 import html
 import json
 import mimetypes
+import urllib.request
 import zipfile
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from reader_backend import theme_presets as theme_presets_support
 from reader_backend import text_paragraphs as text_paragraphs_support
@@ -23,8 +25,125 @@ def _utc_now_ts() -> int:
     return int(datetime.now(timezone.utc).timestamp())
 
 
-def render_export_intro_html(metadata: dict[str, str]) -> str:
+def _bytes_to_data_url(data: bytes, mime_type: str) -> str:
+    encoded = base64.b64encode(bytes(data or b"")).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
+
+def _cover_hash_seed(*parts: str) -> int:
+    seed = "|".join(str(item or "").strip() for item in parts if str(item or "").strip()) or "reader"
+    value = 0
+    for ch in seed:
+        value = ((value * 33) + ord(ch)) & 0xFFFFFFFF
+    return value
+
+
+def _build_default_cover_data_url(title: str, author: str) -> str:
+    safe_title = str(title or "").strip() or "No Cover"
+    initials = "".join(part[:1].upper() for part in safe_title.split()[:2] if part[:1]) or "BK"
+    palette = [
+        ("#233a7a", "#6aa0ff", "#eef5ff"),
+        ("#23545f", "#6bc8d7", "#edfdfd"),
+        ("#5a345b", "#e7a7dd", "#fff1fb"),
+        ("#6b3f28", "#f2b07c", "#fff6ef"),
+        ("#3c4f2d", "#b9d96b", "#f8ffe8"),
+        ("#40456f", "#9ca5ff", "#f3f4ff"),
+    ]
+    bg1, bg2, text = palette[_cover_hash_seed(safe_title, author) % len(palette)]
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 680">'
+        '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+        f'<stop offset="0%" stop-color="{bg1}"/>'
+        f'<stop offset="100%" stop-color="{bg2}"/>'
+        '</linearGradient></defs>'
+        '<rect width="480" height="680" rx="28" fill="url(#g)"/>'
+        '<circle cx="402" cy="90" r="62" fill="rgba(255,255,255,0.10)"/>'
+        '<circle cx="90" cy="590" r="88" fill="rgba(255,255,255,0.08)"/>'
+        f'<text x="54" y="102" fill="rgba(255,255,255,0.78)" font-size="26" font-family="Arial, sans-serif">READER</text>'
+        f'<text x="54" y="250" fill="{text}" font-size="122" font-weight="700" font-family="Arial, sans-serif">{html.escape(initials)}</text>'
+        '<foreignObject x="54" y="300" width="372" height="228">'
+        f'<div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, sans-serif; color: {text}; font-size: 36px; line-height: 1.25; font-weight: 700; word-break: break-word;">{html.escape(safe_title)}</div>'
+        '</foreignObject>'
+        f'<text x="54" y="626" fill="rgba(255,255,255,0.86)" font-size="28" font-family="Arial, sans-serif">{html.escape(str(author or "").strip() or "Unknown Author")}</text>'
+        "</svg>"
+    )
+    return f"data:image/svg+xml;charset=UTF-8,{quote(svg)}"
+
+
+def _guess_cover_mime(candidate: str, content_type: str = "") -> str:
+    raw_type = str(content_type or "").split(";", 1)[0].strip().lower()
+    if raw_type:
+        return raw_type
+    guessed, _ = mimetypes.guess_type(str(candidate or "").split("?", 1)[0])
+    return guessed or "image/jpeg"
+
+
+def _try_resolve_cover_data_url(candidate: str) -> str:
+    raw = str(candidate or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith("data:image/"):
+        return raw
+    if raw.startswith(("http://", "https://")):
+        try:
+            req = urllib.request.Request(
+                raw,
+                headers={"User-Agent": "Mozilla/5.0 NovelStudio/ReaderExport"},
+                method="GET",
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = resp.read()
+                mime_type = _guess_cover_mime(raw, getattr(resp.headers, "get_content_type", lambda: "")())
+            if data:
+                return _bytes_to_data_url(data, mime_type)
+        except Exception:
+            return ""
+        return ""
+    try:
+        path = Path(raw)
+        if path.exists() and path.is_file():
+            data = path.read_bytes()
+            if data:
+                return _bytes_to_data_url(data, _guess_cover_mime(path.name))
+    except Exception:
+        return ""
+    return ""
+
+
+def _resolve_export_cover_data_url(*, book: dict[str, Any], raw_metadata: dict[str, Any] | None) -> str:
+    metadata = dict(raw_metadata or {}) if isinstance(raw_metadata, dict) else {}
+    for candidate in (
+        metadata.get("cover_data_url"),
+        metadata.get("cover_url"),
+        metadata.get("cover_path"),
+        book.get("cover_path"),
+        book.get("cover_remote_url"),
+    ):
+        resolved = _try_resolve_cover_data_url(str(candidate or ""))
+        if resolved:
+            return resolved
+    title = str(metadata.get("title") or book.get("title") or "")
+    author = str(metadata.get("author") or book.get("author") or "")
+    return _build_default_cover_data_url(title, author)
+
+
+def render_export_cover_html(metadata: dict[str, Any]) -> str:
+    cover_src = str(metadata.get("cover_data_url") or "").strip()
+    if not cover_src:
+        return ""
+    alt = html.escape(str(metadata.get("title") or "Cover") or "Cover")
+    return (
+        '<div class="export-cover-wrap">'
+        f'<img class="export-cover" src="{html.escape(cover_src, quote=True)}" alt="{alt}">'
+        "</div>"
+    )
+
+
+def render_export_intro_html(metadata: dict[str, Any]) -> str:
     parts = [f"<h1>{html.escape(metadata['title'])}</h1>"]
+    cover_html = render_export_cover_html(metadata)
+    if cover_html:
+        parts.insert(0, cover_html)
     if metadata.get("author"):
         parts.append(f"<p><strong>Tác giả:</strong> {html.escape(metadata['author'])}</p>")
     if metadata.get("summary"):
@@ -149,7 +268,7 @@ def resolve_export_metadata(
     book: dict[str, Any],
     raw_metadata: dict[str, Any] | None,
     normalize_text: Callable[[str, bool], str],
-) -> dict[str, str]:
+) -> dict[str, Any]:
     metadata = dict(raw_metadata or {}) if isinstance(raw_metadata, dict) else {}
     title = normalize_text(str(metadata.get("title") or book.get("title") or ""), True) or "Untitled"
     author = normalize_text(str(metadata.get("author") or book.get("author") or ""), True)
@@ -158,6 +277,7 @@ def resolve_export_metadata(
         "title": title,
         "author": author,
         "summary": summary,
+        "cover_data_url": _resolve_export_cover_data_url(book=book, raw_metadata=metadata),
     }
 
 
@@ -666,6 +786,8 @@ def wrap_export_html_document(
         ".export-main{max-width:1180px;margin:0 auto;}.export-reader{width:min(100%,var(--reader-width));margin:0 auto;padding:36px 34px;border:1px solid var(--border);border-radius:28px;background:color-mix(in srgb,var(--surface-strong) 92%, transparent);box-shadow:var(--shadow);}"
         ".export-reader.is-comic{width:min(100%,calc(var(--comic-max-width) + 80px));padding:24px 20px 28px;}.export-reader.is-comic .intro,.export-reader.is-comic .toc{max-width:var(--comic-max-width);margin-left:auto;margin-right:auto;}"
         ".intro,.toc{margin:0 0 28px;padding:0 0 22px;border-bottom:1px solid var(--border);}.intro h1{margin:0 0 14px;font:700 clamp(28px,4vw,40px)/1.15 var(--font-body);letter-spacing:-.02em;}.intro p,.toc p,.chapter p{margin:0 0 1em;white-space:pre-wrap;}"
+        ".export-cover-wrap{display:flex;justify-content:center;margin:0 0 22px;}.export-cover{display:block;width:min(280px,100%);max-width:100%;border-radius:22px;border:1px solid var(--border);box-shadow:0 24px 48px rgba(0,0,0,.18);background:var(--surface);}"
+        ".intro.intro-cover-only{display:flex;justify-content:center;padding-bottom:14px;}"
         ".chapter{margin:32px auto 44px;}.chapter-title{margin:0 0 16px;font:700 clamp(22px,3vw,32px)/1.25 var(--font-body);letter-spacing:-.02em;}.chapter-text{font-family:var(--font-body);font-size:var(--reader-font-size);line-height:var(--reader-line-height);}.chapter-text p{text-indent:var(--reader-indent);}.chapter-text p:empty,.chapter-text p.blank{margin-bottom:.4em;text-indent:0;}"
         ".chapter-images{display:flex;flex-direction:column;gap:var(--comic-image-gap);align-items:center;}.chapter-image-wrap{width:100%;max-width:var(--comic-max-width);margin:0 auto;padding:0;border-radius:22px;overflow:hidden;background:color-mix(in srgb,var(--surface) 82%, transparent);box-shadow:0 18px 38px rgba(0,0,0,.18);}.chapter-image{display:block;width:100%;height:auto;}"
         ".export-toc ol{margin:0;padding-left:22px;}.export-toc li+li{margin-top:8px;}.export-toc.empty p{color:var(--muted);}"
@@ -757,6 +879,7 @@ def create_export_html(
     include_intro = bool(options.get("include_intro"))
     include_titles = bool(options.get("include_chapter_titles"))
     include_toc = bool(options.get("include_toc_page"))
+    cover_only_html = render_export_cover_html(metadata)
 
     def _chapter_section(chapter: dict[str, Any], *, inline_images: bool) -> str:
         chapter_id = f"chap-{int(chapter.get('chapter_order') or 0)}"
@@ -796,6 +919,8 @@ def create_export_html(
             )
         if include_intro:
             body_parts.append(f'<section class="intro">{render_export_intro_html(metadata)}</section>')
+        elif cover_only_html:
+            body_parts.append(f'<section class="intro intro-cover-only">{cover_only_html}</section>')
         if include_toc:
             toc_html = build_export_toc_html(
                 chapters,
@@ -867,6 +992,8 @@ def create_export_html(
         index_parts: list[str] = []
         if include_intro:
             index_parts.append(f'<section class="intro">{render_export_intro_html(metadata)}</section>')
+        elif cover_only_html:
+            index_parts.append(f'<section class="intro intro-cover-only">{cover_only_html}</section>')
         if include_toc:
             index_parts.append(f'<section class="toc">{toc_html_all}</section>')
         if not index_parts:

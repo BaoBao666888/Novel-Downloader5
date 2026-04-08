@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260408-commontts1";
+import { initShell } from "../site_common.js?v=20260408-settingsleft1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeParagraphDisplayText, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260408-readerpara2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 import {
@@ -6,10 +6,11 @@ import {
   buildTtsSegments,
   createTtsFallbackArtworkDataUrl,
   loadTtsSettings,
+  normalizeTtsSpeechText,
   normalizeTtsSettings,
   parseTtsReplaceRules,
   saveTtsSettings,
-} from "../reader_tts.js?v=20260408-tts5";
+} from "../reader_tts.js?v=20260408-ttsvi1";
 
 const refs = {
   readerBookTitle: document.getElementById("reader-book-title"),
@@ -123,6 +124,7 @@ const refs = {
   selectionNameSourceInput: document.getElementById("selection-name-source-input"),
   selectionNameTargetLabel: document.getElementById("selection-name-target-label"),
   selectionNameTargetInput: document.getElementById("selection-name-target-input"),
+  btnOpenSelectionNameSuggest: document.getElementById("btn-open-selection-name-suggest"),
   btnCancelSelectionName: document.getElementById("btn-cancel-selection-name"),
   btnConfirmSelectionName: document.getElementById("btn-confirm-selection-name"),
   selectionJunkBtn: document.getElementById("selection-junk-btn"),
@@ -352,6 +354,11 @@ function setTocIcon(button, kind) {
 
 function getErrorMessage(error) {
   if (!error) return state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra.";
+  const name = String(error.name || "").trim();
+  const message = String(error.displayMessage || error.message || "").trim();
+  if (name === "AbortError" || /abort(?:ed)?(?:\s+without\s+reason)?/i.test(message)) {
+    return "Yêu cầu đã bị hủy hoặc quá thời gian chờ.";
+  }
   return String(error.displayMessage || error.message || (state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra."));
 }
 
@@ -1806,7 +1813,15 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
     const currentRow = Array.isArray(state.book && state.book.chapters)
       ? state.book.chapters.find((row) => String((row && row.chapter_id) || "").trim() === String(targetChapterId || "").trim())
       : null;
-    if (currentRow) currentRow.is_vip = Boolean(chapter && chapter.is_vip);
+    if (currentRow) {
+      currentRow.is_vip = Boolean(chapter && chapter.is_vip);
+      if (chapter && typeof chapter.title === "string" && chapter.title.trim()) {
+        currentRow.title_display = chapter.title;
+      }
+      if (chapter && typeof chapter.title_vi === "string") {
+        currentRow.title_vi = chapter.title_vi;
+      }
+    }
     state.chapterContentType = String(chapter.content_type || "text").toLowerCase() === "images" ? "images" : "text";
     state.chapterImages = Array.isArray(chapter.images) ? chapter.images.map((x) => String(x || "").trim()).filter(Boolean) : [];
     state.chapterText = chapter.content || "";
@@ -2561,17 +2576,33 @@ function renderNameSuggestRows(items, rightItems = []) {
   const rightList = Array.isArray(rightItems) ? rightItems : [];
   refs.nameSuggestHint.textContent = state.shell.t("nameSuggestCount", { count: list.length });
 
+  const currentInputs = () => {
+    if (refs.selectionNameDialog && refs.selectionNameDialog.open) {
+      return {
+        sourceInput: refs.selectionNameSourceInput,
+        targetInput: refs.selectionNameTargetInput,
+        isSelectionDialog: true,
+      };
+    }
+    return {
+      sourceInput: refs.nameSourceInput,
+      targetInput: refs.nameTargetInput,
+      isSelectionDialog: false,
+    };
+  };
+
   let selectedIndex = -1;
   const selectRow = (idx) => {
     selectedIndex = idx;
     const row = list[idx];
     if (!row) return;
-    refs.nameSourceInput.value = String(row.source_text || "").trim();
-    refs.nameTargetInput.value = String(row.han_viet || "").trim();
+    const inputs = currentInputs();
+    if (inputs.sourceInput) inputs.sourceInput.value = String(row.source_text || "").trim();
+    if (inputs.targetInput) inputs.targetInput.value = String(row.han_viet || "").trim();
     const rows = refs.nameSuggestLeftBody.querySelectorAll("tr");
     rows.forEach((el, i) => el.classList.toggle("active", i === idx));
     syncNameSuggestExternalActions();
-    syncNameEntrySubmitLabel();
+    if (!inputs.isSelectionDialog) syncNameEntrySubmitLabel();
   };
 
   for (const row of list) {
@@ -2588,7 +2619,8 @@ function renderNameSuggestRows(items, rightItems = []) {
       const idx = list.indexOf(row);
       selectRow(idx);
       refs.nameSuggestDialog.close();
-      refs.nameTargetInput.focus();
+      const inputs = currentInputs();
+      if (inputs.targetInput) inputs.targetInput.focus();
     });
     refs.nameSuggestLeftBody.appendChild(trLeft);
   }
@@ -2625,14 +2657,15 @@ function renderNameSuggestRows(items, rightItems = []) {
       btnUse.className = "btn btn-small";
       btnUse.textContent = state.shell.t("nameSuggestUse");
       btnUse.addEventListener("click", () => {
-        const source = String(row.source_text || refs.nameSourceInput.value || "").trim();
+        const inputs = currentInputs();
+        const source = String(row.source_text || (inputs.sourceInput && inputs.sourceInput.value) || "").trim();
         const target = String(row.target_text || "").trim();
-        if (source) refs.nameSourceInput.value = source;
-        if (target) refs.nameTargetInput.value = target;
+        if (source && inputs.sourceInput) inputs.sourceInput.value = source;
+        if (target && inputs.targetInput) inputs.targetInput.value = target;
         refs.nameSuggestDialog.close();
-        refs.nameTargetInput.focus();
+        if (inputs.targetInput) inputs.targetInput.focus();
         syncNameSuggestExternalActions();
-        syncNameEntrySubmitLabel();
+        if (!inputs.isSelectionDialog) syncNameEntrySubmitLabel();
       });
       tdAction.append(btnUse);
       tr.append(tdTarget, tdOrigin, tdAction);
@@ -2648,7 +2681,10 @@ function renderNameSuggestRows(items, rightItems = []) {
 }
 
 function currentNameSuggestSourceText() {
-  return String(refs.nameSourceInput.value || "").trim();
+  if (refs.selectionNameDialog && refs.selectionNameDialog.open) {
+    return String((refs.selectionNameSourceInput && refs.selectionNameSourceInput.value) || "").trim();
+  }
+  return String((refs.nameSourceInput && refs.nameSourceInput.value) || "").trim();
 }
 
 function syncNameSuggestExternalActions() {
@@ -2659,10 +2695,12 @@ function syncNameSuggestExternalActions() {
 }
 
 async function openNameSuggestDialog() {
-  const sourceText = String(refs.nameSourceInput.value || "").trim();
+  const usingSelectionDialog = Boolean(refs.selectionNameDialog && refs.selectionNameDialog.open);
+  const sourceInput = usingSelectionDialog ? refs.selectionNameSourceInput : refs.nameSourceInput;
+  const sourceText = String((sourceInput && sourceInput.value) || "").trim();
   if (!sourceText) {
     state.shell.showToast(state.shell.t("nameSourceTargetRequired"));
-    refs.nameSourceInput.focus();
+    if (sourceInput) sourceInput.focus();
     return;
   }
   state.shell.showStatus(state.shell.t("statusLoadingNameSuggest"));
@@ -2887,7 +2925,10 @@ function selectionPayloadFromRange(range) {
   let end = Math.max(startRaw, endRaw);
   start = Math.max(0, Math.min(chapterText.length, start));
   end = Math.max(0, Math.min(chapterText.length, end));
-  const exactSelected = normalizeSelectionDisplayText(range.toString() || window.getSelection()?.toString() || "");
+  const rawSelected = String(range.toString() || window.getSelection()?.toString() || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+  const exactSelected = normalizeSelectionDisplayText(rawSelected);
   let selected = chapterText.slice(start, end).trim();
   if (!selected) {
     selected = normalizeReaderText(exactSelected).trim();
@@ -2895,6 +2936,7 @@ function selectionPayloadFromRange(range) {
   const paragraphInfo = selectionStartParagraphInfoFromRange(range);
   return {
     selected,
+    rawSelected: rawSelected || exactSelected || selected,
     exactSelected: exactSelected || selected,
     start,
     end,
@@ -2907,6 +2949,7 @@ function currentSelectionPayload() {
   const source = refs.selectionActionMenu || refs.selectionNameBtn;
   if (!source || !source.dataset) return null;
   const selected = String(source.dataset.text || "").trim();
+  const rawSelected = String(source.dataset.rawText || source.dataset.exactText || selected);
   const exactSelected = normalizeSelectionDisplayText(source.dataset.exactText || selected);
   const startOffset = Number.parseInt(source.dataset.startOffset || "", 10);
   const endOffset = Number.parseInt(source.dataset.endOffset || "", 10);
@@ -2915,6 +2958,7 @@ function currentSelectionPayload() {
   if (!selected || Number.isNaN(startOffset) || Number.isNaN(endOffset)) return null;
   return {
     selected,
+    rawSelected,
     exactSelected,
     start: startOffset,
     end: endOffset,
@@ -2974,6 +3018,21 @@ function getTtsProviderLabel(providerId = getTtsProviderId()) {
   if (isTtsBrowserProvider(providerId)) return state.shell.t("ttsProviderBrowser");
   const plugin = (state.tts.plugins || []).find((item) => String((item && item.plugin_id) || "").trim() === String(providerId || "").trim());
   return String((plugin && (plugin.name || plugin.plugin_id)) || providerId || "").trim() || state.shell.t("ttsProviderUnknown");
+}
+
+function getTtsProviderPlugin(providerId = getTtsProviderId()) {
+  if (isTtsBrowserProvider(providerId)) return null;
+  return (state.tts.plugins || []).find((item) => String((item && item.plugin_id) || "").trim() === String(providerId || "").trim()) || null;
+}
+
+function getEffectiveTtsMaxChars(providerId = getTtsProviderId()) {
+  const requested = Math.max(80, Number(state.tts.settings && state.tts.settings.maxChars) || TTS_DEFAULT_SETTINGS.maxChars || 260);
+  const plugin = getTtsProviderPlugin(providerId);
+  const pluginLimit = Number.parseInt(String(plugin && plugin.config && plugin.config.max_length || ""), 10);
+  if (!Number.isFinite(pluginLimit) || pluginLimit <= 0) return requested;
+  // Chừa headroom vì một số provider fail ngay sát ngưỡng công bố.
+  const safePluginLimit = Math.max(80, pluginLimit - Math.max(8, Math.round(pluginLimit * 0.1)));
+  return Math.min(requested, safePluginLimit);
 }
 
 function formatTtsSleepRemaining(ms) {
@@ -3626,7 +3685,7 @@ function buildCurrentTtsSegments({ fromSelection = false } = {}) {
     content: state.chapterText || "",
     paragraphs: useRenderedParagraphs ? renderedParagraphs : null,
     includeTitle: !fromSelection && Boolean(state.tts.settings.includeTitle),
-    maxChars: state.tts.settings.maxChars,
+    maxChars: getEffectiveTtsMaxChars(),
     startParagraphIndex: selectionInfo.paragraphIndex,
     startParagraphOffset: selectionInfo.paragraphOffset,
     replaceEnabled: state.tts.settings.replaceEnabled,
@@ -3666,6 +3725,7 @@ async function fetchTtsRemoteSegmentAudio(index, sessionId) {
     const providerId = getTtsProviderId();
     const voiceId = currentSelectedTtsVoiceId(providerId);
     const retries = Math.max(0, Number(state.tts.settings.remoteRetries) || 0);
+    const outgoingText = normalizeTtsSpeechText(segment.text, { singleLine: true });
     let lastError = null;
     for (let attempt = 0; attempt <= retries; attempt += 1) {
       if (sessionId !== state.tts.requestId) {
@@ -3679,7 +3739,7 @@ async function fetchTtsRemoteSegmentAudio(index, sessionId) {
           body: JSON.stringify({
             plugin_id: providerId,
             voice_id: voiceId,
-            text: segment.text,
+            text: outgoingText,
           }),
           signal: controller.signal,
         });
@@ -3732,12 +3792,15 @@ async function playTtsBrowserSegment(index, sessionId) {
   } catch {
     // ignore
   }
-  const utterance = new SpeechSynthesisUtterance(segment.text);
+  const utterance = new SpeechSynthesisUtterance(normalizeTtsSpeechText(segment.text, { singleLine: true }));
   state.tts.browserUtterance = utterance;
   const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
   const voiceId = currentSelectedTtsVoiceId("browser");
-  const voice = voices.find((item) => String(item.voiceURI || "") === voiceId) || voices[0];
+  const voice = voices.find((item) => String(item.voiceURI || "") === voiceId)
+    || voices.find((item) => /^vi\b/i.test(String(item.lang || "")))
+    || voices[0];
   if (voice) utterance.voice = voice;
+  utterance.lang = String((voice && voice.lang) || "vi-VN").trim() || "vi-VN";
   utterance.rate = Number(state.tts.settings.rate) || 1;
   utterance.pitch = Number(state.tts.settings.pitch) || 1;
   utterance.volume = Math.max(0, Math.min(1, (Number(state.tts.settings.volume) || 1) * currentTtsSleepVolumeFactor()));
@@ -4293,6 +4356,7 @@ function handleSelectionButton() {
   for (const node of [refs.selectionActionMenu, refs.selectionSpeakBtn, refs.selectionNameBtn, refs.selectionReplaceBtn, refs.selectionCopyBtn, refs.selectionJunkBtn]) {
     if (!node || !node.dataset) continue;
     node.dataset.text = payload.selected;
+    node.dataset.rawText = payload.rawSelected || payload.exactSelected || payload.selected;
     node.dataset.exactText = payload.exactSelected || payload.selected;
     node.dataset.startOffset = String(payload.start);
     node.dataset.endOffset = String(payload.end);
@@ -4377,6 +4441,7 @@ function bindNameEditor() {
   if (refs.selectionNameSourceLabel) refs.selectionNameSourceLabel.textContent = state.shell.t("selectionNameSourceLabel");
   if (refs.selectionNameTargetLabel) refs.selectionNameTargetLabel.textContent = state.shell.t("selectionNameTargetLabel");
   if (refs.btnCloseSelectionName) refs.btnCloseSelectionName.textContent = state.shell.t("close");
+  if (refs.btnOpenSelectionNameSuggest) refs.btnOpenSelectionNameSuggest.textContent = state.shell.t("nameSuggestButton");
   if (refs.btnCancelSelectionName) refs.btnCancelSelectionName.textContent = state.shell.t("cancel");
   if (refs.btnConfirmSelectionName) refs.btnConfirmSelectionName.textContent = state.shell.t("selectionNameConfirm");
   if (refs.selectionJunkTitle) refs.selectionJunkTitle.textContent = state.shell.t("selectionJunkTitle");
@@ -4438,6 +4503,11 @@ function bindNameEditor() {
   if (refs.btnCloseReplaceEditor) refs.btnCloseReplaceEditor.addEventListener("click", () => refs.replaceEditorDialog.close());
   refs.btnCloseNameBulk.addEventListener("click", () => refs.nameBulkDialog.close());
   refs.btnCloseNameSuggest.addEventListener("click", () => refs.nameSuggestDialog.close());
+  if (refs.btnOpenSelectionNameSuggest) refs.btnOpenSelectionNameSuggest.addEventListener("click", () => {
+    openNameSuggestDialog().catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
   if (refs.btnCloseSelectionName) refs.btnCloseSelectionName.addEventListener("click", () => {
     if (refs.selectionNameDialog) refs.selectionNameDialog.close();
   });
@@ -4562,6 +4632,9 @@ function bindNameEditor() {
     syncNameSuggestExternalActions();
     syncNameEntrySubmitLabel();
   });
+  if (refs.selectionNameSourceInput) refs.selectionNameSourceInput.addEventListener("input", () => {
+    syncNameSuggestExternalActions();
+  });
   refs.btnRefreshNamePreview.addEventListener("click", refreshNamePreview);
   refs.btnAddNameSet.addEventListener("click", addNameSet);
   refs.btnDeleteNameSet.addEventListener("click", deleteActiveNameSet);
@@ -4628,7 +4701,7 @@ function bindNameEditor() {
     clearSelectedTextRange();
     if (!payload || !payload.selected) return;
     try {
-      await copySelectionToClipboard(payload.selected);
+      await copySelectionToClipboard(payload.rawSelected || payload.exactSelected || payload.selected);
       state.shell.showToast(state.shell.t("toastSelectionCopied"));
     } catch (error) {
       state.shell.showToast(error.message || state.shell.t("toastError"));

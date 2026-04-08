@@ -1,9 +1,13 @@
-import { t } from "../i18n.vi.js?v=20260408-commontts1";
+import { t } from "../i18n.vi.js?v=20260408-settingsleft1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
+const CUSTOM_THEMES_KEY = "reader.ui.custom.themes.v1";
+const CUSTOM_THEME_PREFIX = "custom_theme_";
 const DEFAULT_SETTINGS = {
   themeId: "sao_dem",
+  miniBarsScale: 1,
+  tocSide: "left",
   themeCustomEnabled: false,
   themeCustomBg: "",
   themeCustomBg2: "",
@@ -142,19 +146,102 @@ function normalizeHexColor(value) {
   return "";
 }
 
-function resolveThemeWithCustom(theme, settings) {
-  const base = theme && typeof theme === "object" ? theme : loadThemeCache();
-  if (!base) return null;
-  const resolvedTokens = { ...(base.tokens || {}) };
-  if (settings && settings.themeCustomEnabled) {
-    for (const field of THEME_CUSTOM_FIELDS) {
-      const nextColor = normalizeHexColor(settings[field.settingKey]);
-      if (nextColor) resolvedTokens[field.token] = nextColor;
-    }
+function normalizeThemeTokens(raw) {
+  const src = (raw && typeof raw === "object") ? raw : {};
+  const out = {};
+  for (const [key, value] of Object.entries(src)) {
+    const text = String(value || "").trim();
+    if (!text) continue;
+    out[String(key)] = text;
   }
+  return out;
+}
+
+function normalizeCustomThemeRecord(raw, fallbackId = "") {
+  if (!raw || typeof raw !== "object") return null;
+  const id = String(raw.id || fallbackId || "").trim();
+  const name = String(raw.name || "").trim();
+  const tokens = normalizeThemeTokens(raw.tokens);
+  if (!id || !name || !Object.keys(tokens).length) return null;
   return {
-    ...base,
-    tokens: resolvedTokens,
+    id,
+    name,
+    effect: String(raw.effect || "stars").trim() || "stars",
+    baseThemeId: String(raw.baseThemeId || "").trim(),
+    tokens,
+    isCustom: true,
+  };
+}
+
+function loadCustomThemes() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_THEMES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item, idx) => normalizeCustomThemeRecord(item, `${CUSTOM_THEME_PREFIX}${idx + 1}`))
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomThemes(themes) {
+  try {
+    const safe = (Array.isArray(themes) ? themes : [])
+      .map((item, idx) => normalizeCustomThemeRecord(item, `${CUSTOM_THEME_PREFIX}${idx + 1}`))
+      .filter(Boolean);
+    localStorage.setItem(CUSTOM_THEMES_KEY, JSON.stringify(safe));
+  } catch {
+    // ignore
+  }
+}
+
+function isCustomThemeId(themeId) {
+  return String(themeId || "").trim().startsWith(CUSTOM_THEME_PREFIX);
+}
+
+function mergeThemeLists(serverThemes, customThemes) {
+  const merged = [];
+  const seen = new Set();
+  for (const row of [...(Array.isArray(serverThemes) ? serverThemes : []), ...(Array.isArray(customThemes) ? customThemes : [])]) {
+    if (!row || typeof row !== "object") continue;
+    const id = String(row.id || "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    merged.push(row);
+  }
+  return merged;
+}
+
+function findThemeById(themes, themeId) {
+  return (Array.isArray(themes) ? themes : []).find((row) => String(row && row.id || "") === String(themeId || "")) || null;
+}
+
+function nextCustomThemeDefaultName(themes) {
+  const used = new Set(
+    (Array.isArray(themes) ? themes : [])
+      .map((item) => String(item && item.name || "").trim())
+      .filter(Boolean),
+  );
+  let index = 1;
+  while (used.has(t("themeCustomDefaultName", { n: index }))) index += 1;
+  return t("themeCustomDefaultName", { n: index });
+}
+
+function createCustomThemeRecordFromBase(baseTheme, themes, { name = "", tokens = null } = {}) {
+  const base = baseTheme && typeof baseTheme === "object" ? baseTheme : loadThemeCache();
+  if (!base) return null;
+  const id = `${CUSTOM_THEME_PREFIX}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const finalName = String(name || "").trim() || nextCustomThemeDefaultName(themes);
+  return {
+    id,
+    name: finalName,
+    effect: String(base.effect || "stars").trim() || "stars",
+    baseThemeId: String(base.baseThemeId || base.id || "").trim(),
+    tokens: normalizeThemeTokens(tokens || base.tokens || {}),
+    isCustom: true,
   };
 }
 
@@ -171,20 +258,133 @@ function buildThemeCustomizerMarkup() {
   return (
     `<fieldset id="theme-custom-section" class="theme-custom-section">
       <legend>${t("themeCustomLegend")}</legend>
-      <label class="theme-custom-toggle">
-        <span>${t("themeCustomEnabled")}</span>
-        <select id="theme-custom-enabled-select">
-          <option value="off">${t("themeCustomOff")}</option>
-          <option value="on">${t("themeCustomOn")}</option>
-        </select>
+      <label id="theme-custom-name-wrap" class="theme-custom-name-wrap" hidden>
+        <span>${t("themeCustomName")}</span>
+        <input id="theme-custom-name-input" type="text" spellcheck="false" maxlength="80">
       </label>
       <div class="theme-custom-actions">
+        <button id="btn-theme-custom-create" class="btn btn-small" type="button">${t("themeCustomCreate")}</button>
+        <button id="btn-theme-custom-delete" class="btn btn-small" type="button" hidden>${t("themeCustomDelete")}</button>
         <button id="btn-theme-custom-reset" class="btn btn-small" type="button">${t("themeCustomReset")}</button>
       </div>
-      <p class="theme-custom-hint">${t("themeCustomHint")}</p>
+      <p id="theme-custom-hint" class="theme-custom-hint">${t("themeCustomHint")}</p>
       <div id="theme-custom-grid" class="theme-custom-grid">${colorControls}</div>
     </fieldset>`
   );
+}
+
+function buildReaderSettingsExtrasMarkup() {
+  return (
+    `<label id="mini-bars-scale-wrap">
+      <span>${t("miniBarsScale")}</span>
+      <input id="mini-bars-scale-input" type="range" min="0.8" max="1.8" step="0.05">
+      <small id="mini-bars-scale-value"></small>
+    </label>
+    <label id="toc-side-wrap">
+      <span>${t("tocSide")}</span>
+      <select id="toc-side-select">
+        <option value="left">${t("tocSideLeft")}</option>
+        <option value="right">${t("tocSideRight")}</option>
+      </select>
+    </label>`
+  );
+}
+
+function appendExistingNodes(parent, nodes) {
+  for (const node of nodes) {
+    if (!node) continue;
+    parent.appendChild(node);
+  }
+}
+
+function buildSettingsSection(title, nodes, { open = false } = {}) {
+  const section = document.createElement("details");
+  section.className = "settings-section";
+  if (open) section.open = true;
+  const summary = document.createElement("summary");
+  summary.className = "settings-section-title";
+  summary.textContent = title;
+  const body = document.createElement("div");
+  body.className = "settings-section-body";
+  appendExistingNodes(body, nodes);
+  section.append(summary, body);
+  return section;
+}
+
+function insertMarkupAfter(referenceNode, markup) {
+  if (!referenceNode || !referenceNode.parentNode) return;
+  const host = document.createElement("div");
+  host.innerHTML = markup.trim();
+  const nodes = Array.from(host.children);
+  let cursor = referenceNode;
+  for (const node of nodes) {
+    cursor.insertAdjacentElement("afterend", node);
+    cursor = node;
+  }
+}
+
+function ensureSettingsEnhancements(settingsForm) {
+  if (!settingsForm) return;
+  const themeSelect = qs("theme-select");
+  const themeLabel = themeSelect && themeSelect.closest("label");
+  if (themeLabel && !qs("theme-custom-section")) {
+    insertMarkupAfter(themeLabel, buildThemeCustomizerMarkup());
+  }
+  const miniBarsLabel = qs("mini-bars-enabled-select") && qs("mini-bars-enabled-select").closest("label");
+  if (miniBarsLabel && !qs("mini-bars-scale-input")) {
+    insertMarkupAfter(miniBarsLabel, buildReaderSettingsExtrasMarkup());
+  }
+  if (settingsForm.dataset.sectionized === "1") return;
+  const groups = [
+    {
+      title: t("settingsSectionTheme"),
+      open: true,
+      nodes: [
+        themeLabel,
+        qs("theme-custom-section"),
+        qs("panel-transparency-select") && qs("panel-transparency-select").closest("label"),
+        qs("star-style-select") && qs("star-style-select").closest("label"),
+        qs("background-motion-select") && qs("background-motion-select").closest("label"),
+      ],
+    },
+    {
+      title: t("settingsSectionTypography"),
+      nodes: [
+        qs("font-family-select") && qs("font-family-select").closest("label"),
+        qs("font-size-input") && qs("font-size-input").closest("label"),
+        qs("text-align-select") && qs("text-align-select").closest("label"),
+        qs("line-height-input") && qs("line-height-input").closest("label"),
+        qs("paragraph-spacing-input") && qs("paragraph-spacing-input").closest("label"),
+        qs("text-indent-input") && qs("text-indent-input").closest("label"),
+        qs("reading-mode-select") && qs("reading-mode-select").closest("label"),
+      ],
+    },
+    {
+      title: t("settingsSectionReaderUi"),
+      nodes: [
+        qs("mini-bars-enabled-select") && qs("mini-bars-enabled-select").closest("label"),
+        qs("mini-bars-scale-wrap"),
+        qs("toc-side-wrap"),
+      ],
+    },
+    {
+      title: t("settingsSectionTranslation"),
+      nodes: [
+        qs("translation-enabled-select") && qs("translation-enabled-select").closest("label"),
+        qs("translation-mode-select") && qs("translation-mode-select").closest("label"),
+        qs("server-translation-settings"),
+        qs("local-translation-settings"),
+      ],
+    },
+  ];
+  const actions = settingsForm.querySelector(".settings-actions");
+  for (const section of groups) {
+    const realNodes = section.nodes.filter((node) => node && settingsForm.contains(node));
+    if (!realNodes.length) continue;
+    settingsForm.appendChild(buildSettingsSection(section.title, realNodes, { open: section.open }));
+  }
+  if (actions && settingsForm.contains(actions)) settingsForm.appendChild(actions);
+  settingsForm.dataset.sectionized = "1";
 }
 
 function debounceAsync(fn, wait = 250) {
@@ -336,6 +536,8 @@ function applyReaderVars(settings) {
   root.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing}em`);
   root.style.setProperty("--reader-text-indent", `${settings.textIndent}em`);
   root.style.setProperty("--reader-text-align", settings.textAlign);
+  root.style.setProperty("--reader-mini-scale", `${normalizeMiniBarsScale(settings.miniBarsScale)}`);
+  applyReaderTocSide(settings);
 }
 
 function normalizePanelTransparency(value) {
@@ -349,6 +551,18 @@ function normalizeTranslationMode(value) {
   if (mode === "local") return "local";
   if (mode === "hanviet") return "hanviet";
   return "server";
+}
+
+function normalizeMiniBarsScale(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 1;
+  if (num < 0.8) return 0.8;
+  if (num > 1.8) return 1.8;
+  return Math.round(num * 100) / 100;
+}
+
+function normalizeTocSide(value) {
+  return String(value || "").trim().toLowerCase() === "right" ? "right" : "left";
 }
 
 function normalizeLocalTranslationSettings(raw) {
@@ -415,6 +629,13 @@ function applyPanelStyle(settings) {
   document.body.classList.add(`panel-style-${style}`);
 }
 
+function applyReaderTocSide(settings) {
+  const side = normalizeTocSide(settings && settings.tocSide);
+  if (settings) settings.tocSide = side;
+  document.documentElement.dataset.readerTocSide = side;
+  if (document.body) document.body.dataset.readerTocSide = side;
+}
+
 function lowPowerDevice() {
   const narrow = window.matchMedia && window.matchMedia("(max-width: 760px)").matches;
   const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -437,17 +658,16 @@ function applyThemeClasses(target, effect, settings) {
 }
 
 function applyTheme(themes, settings) {
-  const baseTheme = themes.find((x) => x.id === settings.themeId) || themes[0] || loadThemeCache();
-  const theme = resolveThemeWithCustom(baseTheme, settings);
-  if (!theme || !baseTheme) return;
-  settings.themeId = baseTheme.id;
+  const theme = findThemeById(themes, settings.themeId) || themes[0] || loadThemeCache();
+  if (!theme) return;
+  settings.themeId = theme.id;
 
   for (const [key, value] of Object.entries(theme.tokens || {})) {
     document.documentElement.style.setProperty(`--${String(key).split("_").join("-")}`, value);
   }
 
-  applyThemeClasses(document.documentElement, baseTheme.effect, settings);
-  applyThemeClasses(document.body, baseTheme.effect, settings);
+  applyThemeClasses(document.documentElement, theme.effect, settings);
+  applyThemeClasses(document.body, theme.effect, settings);
 
   // Auto-detect: nếu user chọn "on" nhưng thiết bị yếu → tự chuyển lite (chỉ visual, không lưu setting).
   if ((settings.backgroundMotion || "on") === "on" && lowPowerDevice()) {
@@ -455,13 +675,11 @@ function applyTheme(themes, settings) {
     document.body.classList.add("effects-lite");
   }
 
-  saveThemeCache({
-    ...baseTheme,
-    tokens: theme.tokens,
-  });
+  saveThemeCache(theme);
 }
 
 async function persistTheme(themeId) {
+  if (isCustomThemeId(themeId)) return;
   try {
     await api("/api/themes/active", {
       method: "POST",
@@ -1033,6 +1251,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   setNavActive(page || "library");
 
   const state = {
+    serverThemes: [],
+    customThemes: loadCustomThemes(),
     themes: [],
     settings: loadSettings(),
     readerTranslationLocal: { ...LOCAL_TRANSLATION_DEFAULT },
@@ -1067,6 +1287,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     },
   };
 
+  state.settings.miniBarsScale = normalizeMiniBarsScale(state.settings.miniBarsScale);
+  state.settings.tocSide = normalizeTocSide(state.settings.tocSide);
   state.settings.themeCustomEnabled = state.settings.themeCustomEnabled === true;
   for (const field of THEME_CUSTOM_FIELDS) {
     state.settings[field.settingKey] = normalizeHexColor(state.settings[field.settingKey]);
@@ -1081,16 +1303,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
 
   const settingsForm = qs("settings-form");
   const themeSelect = qs("theme-select");
-  if (settingsForm && themeSelect && !qs("theme-custom-section")) {
-    const host = document.createElement("div");
-    host.innerHTML = buildThemeCustomizerMarkup().trim();
-    const section = host.firstElementChild;
-    const themeLabel = themeSelect.closest("label");
-    if (section) {
-      if (themeLabel && themeLabel.parentNode) themeLabel.insertAdjacentElement("afterend", section);
-      else settingsForm.prepend(section);
-    }
-  }
+  if (settingsForm) ensureSettingsEnhancements(settingsForm);
   const fontFamilySelect = qs("font-family-select");
   const starStyleSelect = qs("star-style-select");
   const backgroundMotionSelect = qs("background-motion-select");
@@ -1102,6 +1315,9 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const readingModeSelect = qs("reading-mode-select");
   const panelTransparencySelect = qs("panel-transparency-select");
   const miniBarsEnabledSelect = qs("mini-bars-enabled-select");
+  const miniBarsScaleInput = qs("mini-bars-scale-input");
+  const miniBarsScaleValue = qs("mini-bars-scale-value");
+  const tocSideSelect = qs("toc-side-select");
   const translationEnabledSelect = qs("translation-enabled-select");
   const translationModeSelect = qs("translation-mode-select");
   const localSection = qs("local-translation-settings");
@@ -1124,8 +1340,12 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const localShortModeSelect = qs("local-short-mode-select");
   const localUsePronounsSelect = qs("local-use-pronouns-select");
   const localUseLuatNhanSelect = qs("local-use-luat-nhan-select");
-  const themeCustomEnabledSelect = qs("theme-custom-enabled-select");
+  const themeCustomNameWrap = qs("theme-custom-name-wrap");
+  const themeCustomNameInput = qs("theme-custom-name-input");
+  const themeCustomHint = qs("theme-custom-hint");
   const themeCustomGrid = qs("theme-custom-grid");
+  const btnThemeCustomCreate = qs("btn-theme-custom-create");
+  const btnThemeCustomDelete = qs("btn-theme-custom-delete");
   const btnThemeCustomReset = qs("btn-theme-custom-reset");
   const themeCustomInputs = Object.fromEntries(
     THEME_CUSTOM_FIELDS.map((field) => [field.settingKey, qs(field.inputId)]),
@@ -1134,31 +1354,67 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     THEME_CUSTOM_FIELDS.map((field) => [field.settingKey, qs(field.valueId)]),
   );
 
-  const getActiveBaseTheme = () => state.themes.find((x) => x.id === state.settings.themeId) || loadThemeCache() || null;
+  const rebuildThemeCatalog = () => {
+    state.themes = mergeThemeLists(state.serverThemes, state.customThemes);
+    if (!themeSelect) return;
+    themeSelect.innerHTML = "";
+    for (const theme of state.themes) {
+      const opt = document.createElement("option");
+      opt.value = theme.id;
+      opt.textContent = isCustomThemeId(theme.id)
+        ? `${theme.name} • ${t("themeCustomTag")}`
+        : theme.name;
+      themeSelect.appendChild(opt);
+    }
+    if (!state.themes.some((x) => x.id === state.settings.themeId)) {
+      state.settings.themeId = (state.themes[0] && state.themes[0].id) || state.settings.themeId;
+    }
+    if (state.settings.themeId) themeSelect.value = state.settings.themeId;
+  };
+  const getActiveTheme = () => findThemeById(state.themes, state.settings.themeId) || loadThemeCache() || null;
+  const getActiveBaseTheme = () => {
+    const active = getActiveTheme();
+    if (!active) return null;
+    const baseId = String(active.baseThemeId || active.id || "").trim();
+    return findThemeById(state.serverThemes, baseId) || findThemeById(state.themes, baseId) || active;
+  };
+  const saveCustomThemesState = () => {
+    saveCustomThemes(state.customThemes);
+    rebuildThemeCatalog();
+  };
   const syncThemeCustomForm = () => {
-    const activeTheme = getActiveBaseTheme();
-    const tokens = (activeTheme && activeTheme.tokens) || {};
-    const enabled = state.settings.themeCustomEnabled === true;
-    if (themeCustomEnabledSelect) themeCustomEnabledSelect.value = enabled ? "on" : "off";
-    if (themeCustomGrid) {
-      themeCustomGrid.classList.toggle("is-disabled", !enabled);
-      themeCustomGrid.setAttribute("aria-disabled", enabled ? "false" : "true");
+    const activeTheme = getActiveTheme();
+    const isCustom = Boolean(activeTheme && isCustomThemeId(activeTheme.id));
+    const tokenTheme = isCustom ? activeTheme : getActiveBaseTheme();
+    const tokens = (tokenTheme && tokenTheme.tokens) || {};
+    if (themeCustomNameWrap) themeCustomNameWrap.hidden = !isCustom;
+    if (themeCustomNameInput) {
+      themeCustomNameInput.hidden = !isCustom;
+      themeCustomNameInput.value = isCustom ? String(activeTheme.name || "") : "";
+    }
+    if (themeCustomHint) {
+      themeCustomHint.textContent = isCustom
+        ? t("themeCustomActiveHint")
+        : t("themeCustomBuiltinHint");
+    }
+    if (themeCustomGrid) themeCustomGrid.hidden = !isCustom;
+    if (btnThemeCustomDelete) btnThemeCustomDelete.hidden = !isCustom;
+    if (btnThemeCustomReset) btnThemeCustomReset.hidden = !isCustom;
+    if (btnThemeCustomCreate) {
+      btnThemeCustomCreate.textContent = isCustom ? t("themeCustomClone") : t("themeCustomCreate");
     }
     for (const field of THEME_CUSTOM_FIELDS) {
-      const stored = normalizeHexColor(state.settings[field.settingKey]);
       const fallback = normalizeHexColor(tokens[field.token]) || "#000000";
-      const resolved = stored || fallback;
+      const resolved = fallback;
       const input = themeCustomInputs[field.settingKey];
       const valueNode = themeCustomValueNodes[field.settingKey];
       if (input) {
         input.value = resolved;
-        input.disabled = !enabled;
+        input.disabled = !isCustom;
       }
       if (valueNode) valueNode.textContent = resolved.toUpperCase();
     }
-    if (btnThemeCustomReset) {
-      btnThemeCustomReset.disabled = !enabled && !THEME_CUSTOM_FIELDS.some((field) => normalizeHexColor(state.settings[field.settingKey]));
-    }
+    if (btnThemeCustomReset) btnThemeCustomReset.disabled = !isCustom;
   };
 
   const resetThemeCustomSettings = ({ disable = true } = {}) => {
@@ -1166,6 +1422,30 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     for (const field of THEME_CUSTOM_FIELDS) {
       state.settings[field.settingKey] = "";
     }
+  };
+
+  const migrateLegacyCustomThemeIfNeeded = () => {
+    const legacyTokens = {};
+    for (const field of THEME_CUSTOM_FIELDS) {
+      const value = normalizeHexColor(state.settings[field.settingKey]);
+      if (value) legacyTokens[field.token] = value;
+    }
+    const needsMigration = state.settings.themeCustomEnabled === true || Object.keys(legacyTokens).length > 0;
+    if (!needsMigration) return;
+    const baseTheme = findThemeById(state.serverThemes, state.settings.themeId) || state.serverThemes[0] || loadThemeCache();
+    if (!baseTheme) return;
+    const migrated = createCustomThemeRecordFromBase(baseTheme, state.customThemes, {
+      tokens: {
+        ...(baseTheme.tokens || {}),
+        ...legacyTokens,
+      },
+    });
+    if (!migrated) return;
+    state.customThemes.push(migrated);
+    resetThemeCustomSettings({ disable: true });
+    state.settings.themeId = migrated.id;
+    saveCustomThemesState();
+    saveSettings(state.settings);
   };
 
   if (fontFamilySelect) {
@@ -1191,6 +1471,9 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   if (readingModeSelect) readingModeSelect.value = state.settings.readingMode;
   if (panelTransparencySelect) panelTransparencySelect.value = normalizePanelTransparency(state.settings.panelTransparency);
   if (miniBarsEnabledSelect) miniBarsEnabledSelect.value = (state.settings.miniBarsEnabled === false) ? "off" : "on";
+  if (miniBarsScaleInput) miniBarsScaleInput.value = String(normalizeMiniBarsScale(state.settings.miniBarsScale));
+  if (miniBarsScaleValue) miniBarsScaleValue.textContent = `${normalizeMiniBarsScale(state.settings.miniBarsScale).toFixed(2)}x`;
+  if (tocSideSelect) tocSideSelect.value = normalizeTocSide(state.settings.tocSide);
   state.settings.translationEnabled = state.settings.translationEnabled !== false;
   state.settings.translationMode = normalizeTranslationMode(state.settings.translationMode);
   if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
@@ -1202,25 +1485,19 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
 
   try {
     const themesData = await api("/api/themes");
-    state.themes = themesData.items || [];
-    if (themeSelect) {
-      themeSelect.innerHTML = "";
-      for (const th of state.themes) {
-        const opt = document.createElement("option");
-        opt.value = th.id;
-        opt.textContent = th.name;
-        themeSelect.appendChild(opt);
-      }
-      if (!state.themes.some((x) => x.id === state.settings.themeId)) {
-        state.settings.themeId = themesData.active || (state.themes[0] && state.themes[0].id) || state.settings.themeId;
-      }
-      themeSelect.value = state.settings.themeId;
+    state.serverThemes = themesData.items || [];
+    if (!findThemeById(state.serverThemes, state.settings.themeId) && !isCustomThemeId(state.settings.themeId)) {
+      state.settings.themeId = themesData.active || (state.serverThemes[0] && state.serverThemes[0].id) || state.settings.themeId;
     }
+    migrateLegacyCustomThemeIfNeeded();
+    rebuildThemeCatalog();
     applyTheme(state.themes, state.settings);
     syncThemeCustomForm();
     saveSettings(state.settings);
     emitSettingsChanged(state.settings);
   } catch {
+    rebuildThemeCatalog();
+    applyTheme(state.themes, state.settings);
     syncThemeCustomForm();
   }
 
@@ -1444,24 +1721,53 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     closeSettings();
   });
 
+  const syncThemeState = ({ persist = false } = {}) => {
+    applyTheme(state.themes, state.settings);
+    syncThemeCustomForm();
+    saveSettings(state.settings);
+    emitSettingsChanged(state.settings);
+    if (persist) return persistTheme(state.settings.themeId);
+    return Promise.resolve();
+  };
+
   if (themeSelect) {
     themeSelect.addEventListener("change", async () => {
       state.settings.themeId = themeSelect.value;
-      applyTheme(state.themes, state.settings);
-      syncThemeCustomForm();
-      saveSettings(state.settings);
-      emitSettingsChanged(state.settings);
-      await persistTheme(state.settings.themeId);
+      await syncThemeState({ persist: true });
     });
   }
 
-  if (themeCustomEnabledSelect) {
-    themeCustomEnabledSelect.addEventListener("change", () => {
-      state.settings.themeCustomEnabled = themeCustomEnabledSelect.value === "on";
-      applyTheme(state.themes, state.settings);
-      syncThemeCustomForm();
+  if (btnThemeCustomCreate) {
+    btnThemeCustomCreate.addEventListener("click", async () => {
+      const baseTheme = getActiveTheme();
+      const customTheme = createCustomThemeRecordFromBase(baseTheme, state.customThemes, {
+        tokens: normalizeThemeTokens((baseTheme && baseTheme.tokens) || {}),
+      });
+      if (!customTheme) return;
+      state.customThemes.push(customTheme);
+      state.settings.themeId = customTheme.id;
+      saveCustomThemesState();
+      await syncThemeState({ persist: true });
+      showToast(t("themeCustomCreated"));
+    });
+  }
+
+  if (themeCustomNameInput) {
+    themeCustomNameInput.addEventListener("input", () => {
+      const activeTheme = getActiveTheme();
+      if (!activeTheme || !isCustomThemeId(activeTheme.id)) return;
+      const nextName = String(themeCustomNameInput.value || "").trim();
+      if (!nextName) return;
+      activeTheme.name = nextName;
+      saveCustomThemesState();
       saveSettings(state.settings);
-      emitSettingsChanged(state.settings);
+    });
+    themeCustomNameInput.addEventListener("blur", () => {
+      const activeTheme = getActiveTheme();
+      if (!activeTheme || !isCustomThemeId(activeTheme.id)) return;
+      if (!String(themeCustomNameInput.value || "").trim()) {
+        themeCustomNameInput.value = String(activeTheme.name || "");
+      }
     });
   }
 
@@ -1470,23 +1776,43 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     if (!input) continue;
     input.addEventListener("input", () => {
       const nextColor = normalizeHexColor(input.value);
-      state.settings[field.settingKey] = nextColor;
-      if (!state.settings.themeCustomEnabled) state.settings.themeCustomEnabled = true;
-      applyTheme(state.themes, state.settings);
-      syncThemeCustomForm();
-      saveSettings(state.settings);
-      emitSettingsChanged(state.settings);
+      const activeTheme = getActiveTheme();
+      if (!activeTheme || !isCustomThemeId(activeTheme.id) || !nextColor) return;
+      activeTheme.tokens = {
+        ...(activeTheme.tokens || {}),
+        [field.token]: nextColor,
+      };
+      saveCustomThemesState();
+      syncThemeState();
     });
   }
 
   if (btnThemeCustomReset) {
     btnThemeCustomReset.addEventListener("click", () => {
-      resetThemeCustomSettings({ disable: true });
-      applyTheme(state.themes, state.settings);
-      syncThemeCustomForm();
-      saveSettings(state.settings);
-      emitSettingsChanged(state.settings);
+      const activeTheme = getActiveTheme();
+      const baseTheme = getActiveBaseTheme();
+      if (!activeTheme || !isCustomThemeId(activeTheme.id) || !baseTheme) return;
+      activeTheme.tokens = normalizeThemeTokens(baseTheme.tokens || {});
+      saveCustomThemesState();
+      syncThemeState();
       showToast(t("themeCustomReset"));
+    });
+  }
+
+  if (btnThemeCustomDelete) {
+    btnThemeCustomDelete.addEventListener("click", async () => {
+      const activeTheme = getActiveTheme();
+      if (!activeTheme || !isCustomThemeId(activeTheme.id)) return;
+      if (!window.confirm(t("themeCustomDeleteConfirm", { name: activeTheme.name || t("themeCustomTag") }))) return;
+      const fallbackTheme = findThemeById(state.serverThemes, activeTheme.baseThemeId)
+        || state.serverThemes[0]
+        || state.themes.find((item) => item.id !== activeTheme.id)
+        || loadThemeCache();
+      state.customThemes = state.customThemes.filter((item) => item.id !== activeTheme.id);
+      state.settings.themeId = String((fallbackTheme && fallbackTheme.id) || DEFAULT_SETTINGS.themeId);
+      saveCustomThemesState();
+      await syncThemeState({ persist: true });
+      showToast(t("themeCustomDeleted"));
     });
   }
 
@@ -1530,6 +1856,25 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     miniBarsEnabledSelect.addEventListener("change", () => {
       const v = String(miniBarsEnabledSelect.value || "").trim().toLowerCase();
       state.settings.miniBarsEnabled = v !== "off";
+      saveSettings(state.settings);
+      emitSettingsChanged(state.settings);
+    });
+  }
+
+  if (miniBarsScaleInput) {
+    miniBarsScaleInput.addEventListener("input", () => {
+      state.settings.miniBarsScale = normalizeMiniBarsScale(miniBarsScaleInput.value);
+      if (miniBarsScaleValue) miniBarsScaleValue.textContent = `${state.settings.miniBarsScale.toFixed(2)}x`;
+      applyReaderVars(state.settings);
+      saveSettings(state.settings);
+      emitSettingsChanged(state.settings);
+    });
+  }
+
+  if (tocSideSelect) {
+    tocSideSelect.addEventListener("change", () => {
+      state.settings.tocSide = normalizeTocSide(tocSideSelect.value);
+      applyReaderTocSide(state.settings);
       saveSettings(state.settings);
       emitSettingsChanged(state.settings);
     });
@@ -1656,6 +2001,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.settings.readingMode = (readingModeSelect && readingModeSelect.value) || DEFAULT_SETTINGS.readingMode;
       state.settings.panelTransparency = normalizePanelTransparency((panelTransparencySelect && panelTransparencySelect.value) || DEFAULT_SETTINGS.panelTransparency);
       state.settings.miniBarsEnabled = (miniBarsEnabledSelect && miniBarsEnabledSelect.value) !== "off";
+      state.settings.miniBarsScale = normalizeMiniBarsScale((miniBarsScaleInput && miniBarsScaleInput.value) || DEFAULT_SETTINGS.miniBarsScale);
+      state.settings.tocSide = normalizeTocSide((tocSideSelect && tocSideSelect.value) || DEFAULT_SETTINGS.tocSide);
       state.settings.translationEnabled = (translationEnabledSelect && translationEnabledSelect.value) !== "off";
       state.settings.translationMode = normalizeTranslationMode((translationModeSelect && translationModeSelect.value) || DEFAULT_SETTINGS.translationMode);
       state.readerTranslationServer = collectServerTranslationSettingsFromForm();
@@ -1684,6 +2031,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   if (qs("btn-reset-settings")) {
     qs("btn-reset-settings").addEventListener("click", async () => {
       state.settings = { ...DEFAULT_SETTINGS, themeId: state.settings.themeId };
+      state.settings.miniBarsScale = normalizeMiniBarsScale(state.settings.miniBarsScale);
+      state.settings.tocSide = normalizeTocSide(state.settings.tocSide);
       if (fontFamilySelect) fontFamilySelect.value = state.settings.fontFamily;
       if (starStyleSelect) starStyleSelect.value = state.settings.starStyle;
       if (backgroundMotionSelect) backgroundMotionSelect.value = state.settings.backgroundMotion;
@@ -1695,6 +2044,9 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       if (readingModeSelect) readingModeSelect.value = state.settings.readingMode;
       if (panelTransparencySelect) panelTransparencySelect.value = normalizePanelTransparency(state.settings.panelTransparency);
       if (miniBarsEnabledSelect) miniBarsEnabledSelect.value = state.settings.miniBarsEnabled ? "on" : "off";
+      if (miniBarsScaleInput) miniBarsScaleInput.value = String(state.settings.miniBarsScale);
+      if (miniBarsScaleValue) miniBarsScaleValue.textContent = `${state.settings.miniBarsScale.toFixed(2)}x`;
+      if (tocSideSelect) tocSideSelect.value = state.settings.tocSide;
       if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
       if (translationModeSelect) translationModeSelect.value = normalizeTranslationMode(state.settings.translationMode);
       state.readerTranslationServer = { ...SERVER_TRANSLATION_DEFAULT };

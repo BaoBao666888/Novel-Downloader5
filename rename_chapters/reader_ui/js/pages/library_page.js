@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260408-commontts1";
+import { initShell } from "../site_common.js?v=20260408-settingsleft1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {

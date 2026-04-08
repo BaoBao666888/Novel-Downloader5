@@ -22,6 +22,7 @@ import tempfile
 import threading
 import time
 import traceback
+import unicodedata
 import uuid
 import zlib
 import zipfile
@@ -1883,6 +1884,86 @@ def map_selection_to_name_source(
         ue = int(unit.get("target_end") or 0)
         return max(0, min(ue, seg_end) - max(us, seg_start))
 
+    def try_pick_non_name_gap(
+        chosen_unit: dict[str, Any],
+        unit_name_rows: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if not chosen_unit or not unit_name_rows:
+            return None
+        if any(int(row.get("end") or 0) > start and int(row.get("start") or 0) < end for row in unit_name_rows):
+            return None
+        source_start_all = int(chosen_unit.get("source_start") or 0)
+        source_end_all = int(chosen_unit.get("source_end") or 0)
+        target_start_all = int(chosen_unit.get("target_start") or 0)
+        target_end_all = int(chosen_unit.get("target_end") or 0)
+        source_hits = sorted(
+            [
+                hit for hit in (chosen_unit.get("name_hits") or [])
+                if isinstance(hit, dict) and int(hit.get("end") or 0) > source_start_all and int(hit.get("start") or 0) < source_end_all
+            ],
+            key=lambda row: (int(row.get("start") or 0), int(row.get("end") or 0)),
+        )
+        target_hits = sorted(
+            [
+                row for row in unit_name_rows
+                if int(row.get("end") or 0) > target_start_all and int(row.get("start") or 0) < target_end_all
+            ],
+            key=lambda row: (int(row.get("start") or 0), int(row.get("end") or 0)),
+        )
+        if not source_hits or not target_hits:
+            return None
+        pair_count = min(len(source_hits), len(target_hits))
+        source_hits = source_hits[:pair_count]
+        target_hits = target_hits[:pair_count]
+        source_gaps: list[tuple[int, int]] = []
+        target_gaps: list[tuple[int, int]] = []
+        prev_source = source_start_all
+        prev_target = target_start_all
+        for idx in range(pair_count):
+            source_hit = source_hits[idx]
+            target_hit = target_hits[idx]
+            s_gap_start = prev_source
+            s_gap_end = max(s_gap_start, int(source_hit.get("start") or 0))
+            t_gap_start = prev_target
+            t_gap_end = max(t_gap_start, int(target_hit.get("start") or 0))
+            source_gaps.append((s_gap_start, s_gap_end))
+            target_gaps.append((t_gap_start, t_gap_end))
+            prev_source = max(prev_source, int(source_hit.get("end") or 0))
+            prev_target = max(prev_target, int(target_hit.get("end") or 0))
+        source_gaps.append((prev_source, source_end_all))
+        target_gaps.append((prev_target, target_end_all))
+
+        selected_center = (start + end) / 2.0
+        best_index = -1
+        best_score: tuple[int, float] | None = None
+        for idx, (t_start, t_end) in enumerate(target_gaps):
+            gap_len = max(0, t_end - t_start)
+            if gap_len <= 0:
+                continue
+            overlap = max(0, min(t_end, end) - max(t_start, start))
+            contains_center = 1 if (t_start <= selected_center <= t_end) else 0
+            score = (overlap, contains_center + (gap_len / 10000.0))
+            if overlap > 0 or contains_center:
+                if best_score is None or score > best_score:
+                    best_score = score
+                    best_index = idx
+        if best_index < 0:
+            return None
+        src_s, src_e = source_gaps[best_index]
+        tgt_s, tgt_e = target_gaps[best_index]
+        source_candidate = strip_edge_punctuation(source_raw[src_s:src_e].strip())
+        target_candidate = strip_edge_punctuation(source_trans[tgt_s:tgt_e].strip())
+        if not source_candidate or not target_candidate:
+            return None
+        return {
+            "source_candidate": source_candidate,
+            "target_candidate": target_candidate,
+            "source_start": src_s,
+            "source_end": src_e,
+            "target_start": tgt_s,
+            "target_end": tgt_e,
+        }
+
     def select_cover_rows(token_candidates: list[dict[str, Any]], seg_start: int, seg_end: int) -> list[dict[str, Any]]:
         ordered = sorted(
             [row for row in token_candidates if isinstance(row, dict)],
@@ -2076,11 +2157,30 @@ def map_selection_to_name_source(
     target_start = int(chosen.get("target_start") or 0)
     target_end = int(chosen.get("target_end") or 0)
 
+    if mode_norm == "server" and chosen_name_exact is None:
+        unit_name_matches = [
+            nm
+            for nm in name_matches
+            if int(nm.get("end") or 0) > target_start and int(nm.get("start") or 0) < target_end
+        ]
+        gap_choice = try_pick_non_name_gap(chosen, unit_name_matches)
+        if gap_choice is not None:
+            source_start = int(gap_choice["source_start"])
+            source_end = int(gap_choice["source_end"])
+            target_start = int(gap_choice["target_start"])
+            target_end = int(gap_choice["target_end"])
+            match_type = "unit_gap_between_names"
+            score_value = 0.98
+
     source_candidate = strip_edge_punctuation(str(chosen.get("source_text") or "").strip())
     if not source_candidate:
         source_candidate = strip_edge_punctuation(source_raw[source_start:source_end].strip())
     target_candidate = strip_edge_punctuation(str(chosen.get("target_text") or "").strip())
     if not target_candidate:
+        target_candidate = strip_edge_punctuation(source_trans[target_start:target_end].strip()) or strip_edge_punctuation(selected)
+
+    if mode_norm == "server" and match_type == "unit_gap_between_names":
+        source_candidate = strip_edge_punctuation(source_raw[source_start:source_end].strip())
         target_candidate = strip_edge_punctuation(source_trans[target_start:target_end].strip()) or strip_edge_punctuation(selected)
 
     if chosen_name_exact is not None:
@@ -5661,6 +5761,15 @@ class ReaderService:
     def _contains_cjk_text(self, text: str) -> bool:
         return bool(re.search(r"[\u3400-\u9fff]", str(text or "")))
 
+    def _is_effectively_untranslated_ui_text(self, source: str, target: str) -> bool:
+        raw_source = normalize_vbook_display_text(normalize_vi_display_text(source or ""), single_line=False)
+        raw_target = normalize_vbook_display_text(normalize_vi_display_text(target or ""), single_line=False)
+        if (not raw_source) or (not raw_target):
+            return False
+        if not self._contains_cjk_text(source or ""):
+            return False
+        return raw_source == raw_target
+
     def _author_hanviet_display(self, text: str, *, single_line: bool = False) -> str:
         value = normalize_vbook_display_text(text or "", single_line=False)
         if not value:
@@ -5669,12 +5778,12 @@ class ReaderService:
             return normalize_vbook_display_text(value, single_line=single_line)
         hv_text = ""
         try:
-            hv_text = vbook_local_translate.build_hanviet_text(value, self._local_settings()) or ""
+            hv_text = vbook_local_translate.build_hanviet_text(value, self.translator._local_settings()) or ""
         except Exception:
             hv_text = ""
         if not hv_text:
             try:
-                hv_map = translator_logic.load_hanviet_json(self._settings().get("hanvietJsonUrl", ""))
+                hv_map = translator_logic.load_hanviet_json(self.translator._settings().get("hanvietJsonUrl", ""))
                 hv_text = translator_logic.build_hanviet_from_map(value, hv_map) or value
             except Exception:
                 hv_text = value
@@ -5828,26 +5937,47 @@ class ReaderService:
                 single_line=single_line,
             )
             if normalized_target:
+                if self._is_effectively_untranslated_ui_text(normalized_source, normalized_target):
+                    continue
                 resolved[normalized_source] = normalized_target
 
         missing = [source for source in unique_sources if source not in resolved]
         if missing:
             translated_list: list[str]
+            server_name_set = self.translator._server_name_set_for_use(name_set_override)
+            prepared_missing: list[str] = []
+            prepared_placeholder_maps: list[dict[str, dict[str, str]]] = []
+            for source_key in missing:
+                processed_key = source_key
+                placeholder_map: dict[str, dict[str, str]] = {}
+                if server_name_set:
+                    processed_key, placeholder_map, _ = apply_name_placeholders(source_key, server_name_set)
+                prepared_missing.append(processed_key)
+                prepared_placeholder_maps.append(placeholder_map)
             translated_list = self._translate_ui_server_batch_adaptive(
-                missing,
+                prepared_missing,
                 single_line=single_line,
             )
             to_store: list[tuple[str, str]] = []
             for idx, source_key in enumerate(missing):
                 translated_piece = translated_list[idx] if idx < len(translated_list) else source_key
+                placeholder_map = prepared_placeholder_maps[idx] if idx < len(prepared_placeholder_maps) else {}
+                if placeholder_map:
+                    translated_piece = restore_name_placeholders(translated_piece, placeholder_map)
                 translated_piece = normalize_vi_display_text(translated_piece or "")
-                if (not translated_piece) or translated_piece.startswith("[Lỗi"):
+                untranslated_piece = self._is_effectively_untranslated_ui_text(source_key, translated_piece)
+                if (not translated_piece) or translated_piece.startswith("[Lỗi") or untranslated_piece:
                     translated_piece = source_key
                 resolved[source_key] = normalize_vbook_display_text(
                     translated_piece,
                     single_line=single_line,
                 ) or normalize_vbook_display_text(source_key, single_line=single_line)
-                if translated_piece and translated_piece != source_key and not translated_piece.startswith("[Lỗi"):
+                if (
+                    translated_piece
+                    and translated_piece != source_key
+                    and not translated_piece.startswith("[Lỗi")
+                    and not self._is_effectively_untranslated_ui_text(source_key, translated_piece)
+                ):
                     to_store.append((source_key, translated_piece))
             if to_store:
                 try:
@@ -7955,6 +8085,7 @@ class ReaderService:
             "install_repo_url": install_repo_url,
             "default_download_threads": self._vbook_version_to_int(getattr(p, "default_thread_num", None)),
             "default_request_delay_ms": self._vbook_version_to_int(getattr(p, "default_delay_ms", None)),
+            "config": dict(getattr(p, "config", {}) or {}),
         }
 
     def list_vbook_plugins(self) -> list[dict[str, Any]]:
@@ -8111,11 +8242,27 @@ class ReaderService:
 
     def synthesize_tts_audio(self, *, plugin_id: str, text: str, voice_id: str = "") -> dict[str, Any]:
         plugin, _, tts_key = self._require_tts_plugin(plugin_id)
-        content = str(text or "")
+        content = unicodedata.normalize("NFC", str(text or ""))
         if not content.strip():
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu nội dung để đọc.")
         if len(content) > 20_000:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Đoạn văn quá dài cho một lần đọc.")
+        plugin_cfg = getattr(plugin, "config", {}) if isinstance(getattr(plugin, "config", {}), dict) else {}
+        try:
+            plugin_max_length = int(plugin_cfg.get("max_length") or 0)
+        except Exception:
+            plugin_max_length = 0
+        if plugin_max_length > 0 and len(content) > plugin_max_length:
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "TTS_TEXT_TOO_LONG",
+                f"Đoạn đọc quá dài cho plugin TTS này ({len(content)}/{plugin_max_length} ký tự). Giảm độ dài mỗi đoạn rồi thử lại.",
+                {
+                    "max_length": plugin_max_length,
+                    "text_length": len(content),
+                    "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
+                },
+            )
         payload = self._run_vbook_script(plugin, tts_key, [content, str(voice_id or "")])
         audio_base64, mime_type = self._normalize_tts_audio_payload(payload)
         return {
