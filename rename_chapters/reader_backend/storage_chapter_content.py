@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import html
+import json
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from reader_backend import text_paragraphs as text_paragraphs_support
+
+_TRANS_SIG_SNAPSHOT_KEY_PREFIX = "reader.trans_sig_snapshot"
 
 
 def chapter_text_cleanup(storage, text: str, *, apply_junk_lines_to_text) -> tuple[str, int, int]:
@@ -18,6 +21,69 @@ def chapter_text_cleanup(storage, text: str, *, apply_junk_lines_to_text) -> tup
 def chapter_trans_signature(base_sig: str, *, junk_version: int) -> str:
     normalized = str(base_sig or "").strip() or "raw"
     return f"{normalized}|junk:v{max(1, int(junk_version or 1))}"
+
+
+def _count_cjk_chars(text: str) -> int:
+    return sum(1 for ch in str(text or "") if "\u3400" <= ch <= "\u9fff")
+
+
+def _trans_sig_snapshot_key(base_sig: str) -> str:
+    sig = str(base_sig or "").strip()
+    return f"{_TRANS_SIG_SNAPSHOT_KEY_PREFIX}.{sig}" if sig else _TRANS_SIG_SNAPSHOT_KEY_PREFIX
+
+
+def _load_trans_sig_snapshot(storage, base_sig: str) -> dict[str, Any] | None:
+    sig = str(base_sig or "").strip()
+    if not sig:
+        return None
+    raw = storage._get_app_state_value(_trans_sig_snapshot_key(sig))
+    if not raw:
+        return None
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _save_trans_sig_snapshot(storage, base_sig: str, payload: dict[str, Any] | None) -> None:
+    sig = str(base_sig or "").strip()
+    if not sig or not isinstance(payload, dict):
+        return
+    storage._set_app_state_value(
+        _trans_sig_snapshot_key(sig),
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+    )
+
+
+def _base_sig_from_chapter_trans_sig(sig: str) -> str:
+    value = str(sig or "").strip()
+    if not value:
+        return ""
+    return value.split("|junk:", 1)[0].strip()
+
+
+def _junk_suffix_from_chapter_trans_sig(sig: str) -> str:
+    value = str(sig or "").strip()
+    if "|junk:" not in value:
+        return ""
+    return value.split("|junk:", 1)[1].strip()
+
+
+def _looks_suspicious_server_translation(raw_text: str, translated_text: str) -> bool:
+    source = str(raw_text or "").strip()
+    translated = str(translated_text or "").strip()
+    if not source or not translated:
+        return False
+    source_cjk = _count_cjk_chars(source)
+    if source_cjk < 80:
+        return False
+    translated_cjk = _count_cjk_chars(translated)
+    if translated == source:
+        return True
+    if translated_cjk < 80:
+        return False
+    return (translated_cjk / max(1, source_cjk)) >= 0.22
 
 
 def save_epub_source(storage, book_id: str, content: bytes, *, cache_dir: Path, utc_now_iso) -> str:
@@ -246,14 +312,26 @@ def get_chapter_text(
         return cached_raw or encode_comic_payload([])
 
     raw_text, _, junk_version = storage.chapter_text_cleanup(cached_raw or "")
+    source_type = str(book.get("source_type") or "").strip().lower()
+    normalize_import_text = source_type in {"txt", "epub"}
+    if normalize_import_text:
+        raw_text = text_paragraphs_support.normalize_soft_wrapped_paragraphs(raw_text)
     if mode == "raw" or (not book_supports_translation(book)):
         return raw_text
+
+    source_for_translation = raw_text
 
     base_sig = translator.translation_signature(
         mode=translate_mode,
         name_set_override=name_set_override,
         vp_set_override=vp_set_override,
     )
+    current_payload = translator.translation_signature_payload(
+        mode=translate_mode,
+        name_set_override=name_set_override,
+        vp_set_override=vp_set_override,
+    )
+    _save_trans_sig_snapshot(storage, base_sig, current_payload)
     current_sig = storage.chapter_trans_signature(base_sig, junk_version=junk_version)
     trans_key = chapter.get("trans_key")
     trans_sig = str(chapter.get("trans_sig") or "").strip()
@@ -262,17 +340,62 @@ def get_chapter_text(
         if cached is not None:
             map_count = storage.get_translation_unit_map_count(chapter["chapter_id"], current_sig, translate_mode)
             if map_count > 0:
-                return normalize_newlines(cached)
+                cached_text = normalize_newlines(cached)
+                if not (
+                    str(translate_mode or "").strip().lower() == "server"
+                    and _looks_suspicious_server_translation(source_for_translation, cached_text)
+                ):
+                    return cached_text
+
+    if trans_key and trans_sig and trans_sig != current_sig and str(translate_mode or "").strip().lower() == "server":
+        old_cached = storage.read_cache(trans_key)
+        old_unit_map = storage.get_translation_unit_map(chapter["chapter_id"], trans_sig, translate_mode)
+        old_base_sig = _base_sig_from_chapter_trans_sig(trans_sig)
+        old_cached_normalized = normalize_newlines(old_cached or "")
+        if (
+            old_cached
+            and old_unit_map
+            and old_base_sig
+            and _junk_suffix_from_chapter_trans_sig(trans_sig) == _junk_suffix_from_chapter_trans_sig(current_sig)
+            and not _looks_suspicious_server_translation(source_for_translation, old_cached_normalized)
+        ):
+            old_payload = _load_trans_sig_snapshot(storage, old_base_sig)
+            reused_detail = translator.translate_detailed_with_unit_reuse(
+                source_for_translation,
+                previous_translated_text=old_cached_normalized,
+                previous_unit_map=old_unit_map,
+                previous_name_set=(old_payload or {}).get("name_set") if isinstance(old_payload, dict) else None,
+                mode=translate_mode,
+                name_set_override=name_set_override,
+                vp_set_override=vp_set_override,
+            )
+            if isinstance(reused_detail, dict):
+                translated = normalize_newlines(reused_detail.get("translated") or "")
+                if not translated:
+                    translated = source_for_translation
+                trans_seed = f"{chapter['chapter_id']}|{chapter['raw_key']}|{current_sig}|{translated}"
+                new_key = f"tr_{hash_text(trans_seed)}"
+                storage.write_cache(new_key, "vi", translated)
+                storage.update_chapter_trans(chapter["chapter_id"], new_key, current_sig)
+                storage.save_translation_unit_map(
+                    chapter["chapter_id"],
+                    current_sig,
+                    translate_mode,
+                    reused_detail.get("unit_map") if isinstance(reused_detail.get("unit_map"), list) else [],
+                )
+                chapter["trans_key"] = new_key
+                chapter["trans_sig"] = current_sig
+                return translated
 
     detail = translator.translate_detailed(
-        raw_text,
+        source_for_translation,
         mode=translate_mode,
         name_set_override=name_set_override,
         vp_set_override=vp_set_override,
     )
     translated = normalize_newlines(detail.get("translated") or "")
     if not translated:
-        translated = raw_text
+        translated = source_for_translation
 
     trans_seed = f"{chapter['chapter_id']}|{chapter['raw_key']}|{current_sig}|{translated}"
     new_key = f"tr_{hash_text(trans_seed)}"

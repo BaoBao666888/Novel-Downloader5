@@ -417,7 +417,7 @@ def normalize_import_list(value: Any, fallback: list[str] | tuple[str, ...]) -> 
     return [str(x).strip() for x in fallback if str(x).strip()]
 
 
-def normalize_junk_lines(value: Any) -> list[str]:
+def normalize_junk_entries(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, list):
         raw_items = value
     elif isinstance(value, tuple):
@@ -425,15 +425,25 @@ def normalize_junk_lines(value: Any) -> list[str]:
     else:
         text = str(value or "").replace("\r\n", "\n").replace("\r", "\n")
         raw_items = text.split("\n") if text else []
-    out: list[str] = []
-    seen: set[str] = set()
+    out: list[dict[str, Any]] = []
+    seen: set[tuple[str, bool]] = set()
     for item in raw_items:
-        text = normalize_newlines(str(item or "")).strip()
-        if not text or text in seen:
+        use_regex = False
+        if isinstance(item, dict):
+            text = normalize_newlines(str(item.get("text") or item.get("line") or "")).strip()
+            use_regex = bool(item.get("use_regex") or item.get("regex"))
+        else:
+            text = normalize_newlines(str(item or "")).strip()
+        key = (text, use_regex)
+        if not text or key in seen:
             continue
-        seen.add(text)
-        out.append(text)
+        seen.add(key)
+        out.append({"text": text, "use_regex": use_regex})
     return out
+
+
+def normalize_junk_lines(value: Any) -> list[str]:
+    return [str(item.get("text") or "").strip() for item in normalize_junk_entries(value) if str(item.get("text") or "").strip()]
 
 
 def normalize_reader_import_settings(raw_cfg: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -849,13 +859,24 @@ def normalize_newlines(text: str) -> str:
     return value.strip()
 
 
-def apply_junk_lines_to_text(text: str, junk_lines: list[str] | tuple[str, ...] | None = None) -> tuple[str, int]:
+def apply_junk_lines_to_text(text: str, junk_lines: list[Any] | tuple[Any, ...] | None = None) -> tuple[str, int]:
     content = normalize_newlines(text or "")
-    patterns = normalize_junk_lines(junk_lines)
-    if not content or not patterns:
+    entries = normalize_junk_entries(junk_lines)
+    if not content or not entries:
         return content, 0
     removed = 0
-    for pattern in patterns:
+    for entry in entries:
+        pattern = str(entry.get("text") or "").strip()
+        use_regex = bool(entry.get("use_regex"))
+        if not pattern:
+            continue
+        if use_regex:
+            try:
+                content, hits = re.subn(pattern, "", content)
+            except re.error:
+                continue
+            removed += int(hits or 0)
+            continue
         hits = content.count(pattern)
         if hits <= 0:
             continue
@@ -2607,7 +2628,9 @@ def parse_epub_book(
             raw_html = read_text(item["resolved"])
             if not raw_html:
                 continue
-            content = text_paragraphs_support.strip_paragraph_indentation(html_to_text(raw_html))
+            content = text_paragraphs_support.normalize_soft_wrapped_paragraphs(
+                text_paragraphs_support.strip_paragraph_indentation(html_to_text(raw_html))
+            )
             if not content:
                 continue
             chapter_title = toc_labels.get(item["resolved"], "").strip()
@@ -2681,6 +2704,10 @@ def parse_txt_book(
         preface_title=str(settings["txt"]["preface_title"] or "Mở đầu"),
     )
     chapters = list(split_result.get("chapters") or [])
+    for chapter in chapters:
+        if not isinstance(chapter, dict):
+            continue
+        chapter["text"] = text_paragraphs_support.normalize_soft_wrapped_paragraphs(str(chapter.get("text") or ""))
     if not chapters:
         raise ValueError("Không tách được chương từ file TXT.")
     diagnostics = dict(split_result.get("diagnostics") or {})
@@ -2781,12 +2808,12 @@ class TranslationAdapter:
             merged.update(active)
         return merged
 
-    def translation_signature(
+    def translation_signature_payload(
         self,
         mode: str = "server",
         name_set_override: dict[str, str] | None = None,
         vp_set_override: dict[str, str] | None = None,
-    ) -> str:
+    ) -> dict[str, Any]:
         mode_norm = (mode or "server").strip().lower()
         if mode_norm not in {"server", "local", "hanviet"}:
             mode_norm = "server"
@@ -2811,6 +2838,19 @@ class TranslationAdapter:
                 payload["local_bundle_sig"] = ""
         if mode_norm == "local":
             payload["vp_set"] = normalize_name_set(vp_set_override or {})
+        return payload
+
+    def translation_signature(
+        self,
+        mode: str = "server",
+        name_set_override: dict[str, str] | None = None,
+        vp_set_override: dict[str, str] | None = None,
+    ) -> str:
+        payload = self.translation_signature_payload(
+            mode=mode,
+            name_set_override=name_set_override,
+            vp_set_override=vp_set_override,
+        )
         raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha1(raw.encode("utf-8", errors="ignore")).hexdigest()
 
@@ -3099,6 +3139,207 @@ class TranslationAdapter:
 
     def translate(self, text: str, mode: str = "server") -> str:
         return self.translate_detailed(text, mode=mode).get("translated", "")
+
+    def translate_detailed_with_unit_reuse(
+        self,
+        text: str,
+        *,
+        previous_translated_text: str,
+        previous_unit_map: list[dict[str, Any]],
+        previous_name_set: dict[str, str] | None = None,
+        mode: str = "server",
+        name_set_override: dict[str, str] | None = None,
+        vp_set_override: dict[str, str] | None = None,
+    ) -> dict[str, Any] | None:
+        source = (text or "").strip()
+        mode_norm = (mode or "server").strip().lower()
+        if mode_norm != "server":
+            return None
+        if not source or not previous_translated_text or not previous_unit_map:
+            return None
+
+        current_name_set = self._server_name_set_for_use(name_set_override)
+        old_name_set = normalize_name_set(previous_name_set or {})
+        changed_sources = {
+            key
+            for key in (set(old_name_set.keys()) | set(current_name_set.keys()))
+            if str(old_name_set.get(key) or "") != str(current_name_set.get(key) or "")
+        }
+        changed_sources_sorted = sorted((str(x or "").strip() for x in changed_sources if str(x or "").strip()), key=len, reverse=True)
+
+        processed_text, placeholder_map, hits = apply_name_placeholders(source, current_name_set)
+        source_unit_infos = build_text_units_with_offsets(source)
+        units = split_text_for_translation_cache(processed_text)
+        if not units:
+            units = [("text", processed_text)]
+
+        previous_rows: dict[int, dict[str, Any]] = {}
+        for row in previous_unit_map or []:
+            if not isinstance(row, dict):
+                continue
+            try:
+                previous_rows[int(row.get("unit_index") or 0)] = row
+            except Exception:
+                continue
+        if not previous_rows:
+            return None
+
+        protected_name_targets = sorted(
+            {
+                str(v or "").strip()
+                for v in current_name_set.values()
+                if str(v or "").strip()
+            },
+            key=len,
+            reverse=True,
+        )
+
+        def _prepend_space_if_needed(prev_piece: str, next_piece: str) -> str:
+            if not prev_piece or not next_piece:
+                return next_piece
+            if next_piece[0].isspace():
+                return next_piece
+            if prev_piece.endswith((" ", "\t", "\n")):
+                return next_piece
+            next_head = next_piece.lstrip()
+            if next_head:
+                no_space_before = {",", ".", ";", ":", "!", "?", "…", ")", "]", "}", "”", "’", "»", "\"", "'"}
+                if next_head[0] in no_space_before:
+                    return next_piece
+            if prev_piece[-1] in {",", ".", ";", ":", "!", "?", "…"}:
+                return f" {next_piece}"
+            return next_piece
+
+        def _row_touches_changed_sources(row: dict[str, Any], source_text: str) -> bool:
+            if not changed_sources_sorted:
+                return False
+            row_hits = row.get("name_hits") if isinstance(row.get("name_hits"), list) else []
+            for hit in row_hits:
+                hit_source = str((hit or {}).get("source") or "").strip()
+                if hit_source and hit_source in changed_sources:
+                    return True
+            for changed_source in changed_sources_sorted:
+                if changed_source and changed_source in str(source_text or ""):
+                    return True
+            return False
+
+        translated_parts: list[str] = []
+        unit_map: list[dict[str, Any]] = []
+        target_cursor = 0
+        text_idx = 0
+        reused_any = False
+
+        for kind, unit in units:
+            if kind != "text":
+                translated_parts.append(unit)
+                target_cursor += len(unit)
+                continue
+
+            source_info = source_unit_infos[text_idx] if text_idx < len(source_unit_infos) else {
+                "unit_index": text_idx,
+                "text": unit,
+                "start": 0,
+                "end": 0,
+            }
+            unit_index = int(source_info.get("unit_index") or text_idx)
+            source_text = str(source_info.get("text") or "")
+            s_start = int(source_info.get("start") or 0)
+            s_end = int(source_info.get("end") or 0)
+            unit_hits = [h for h in hits if int(h.get("start") or -1) < s_end and int(h.get("end") or -1) > s_start]
+
+            previous_row = previous_rows.get(unit_index)
+            final_piece = ""
+            if previous_row is not None:
+                prev_source_text = str(previous_row.get("source_text") or "").strip()
+                prev_target_start = int(previous_row.get("target_start") or 0)
+                prev_target_end = int(previous_row.get("target_end") or 0)
+                if (
+                    prev_source_text == source_text.strip()
+                    and prev_target_end > prev_target_start >= 0
+                    and prev_target_end <= len(previous_translated_text)
+                    and not _row_touches_changed_sources(previous_row, source_text)
+                ):
+                    final_piece = previous_translated_text[prev_target_start:prev_target_end]
+                    reused_any = True
+
+            if not final_piece:
+                piece_detail = self.translate_detailed(
+                    source_text,
+                    mode=mode_norm,
+                    name_set_override=name_set_override,
+                    vp_set_override=vp_set_override,
+                )
+                final_piece = normalize_newlines(piece_detail.get("translated") or source_text)
+                if not final_piece:
+                    final_piece = source_text
+                prev_piece = translated_parts[-1] if translated_parts else ""
+                if prev_piece.rstrip().endswith((",", "，", "、")):
+                    core_lstrip = final_piece.lstrip()
+                    preserve_case = False
+                    if core_lstrip:
+                        for hit in unit_hits:
+                            hit_target = str(hit.get("target") or "").strip()
+                            if hit_target and core_lstrip.lower().startswith(hit_target.lower()):
+                                preserve_case = True
+                                break
+                        if not preserve_case:
+                            for target_name in protected_name_targets:
+                                if target_name and core_lstrip.lower().startswith(target_name.lower()):
+                                    preserve_case = True
+                                    break
+                    if not preserve_case:
+                        final_piece = lowercase_first_alpha(final_piece)
+                final_piece = _prepend_space_if_needed(translated_parts[-1] if translated_parts else "", final_piece)
+
+            translated_parts.append(final_piece)
+            unit_map.append(
+                {
+                    "unit_index": unit_index,
+                    "source_text": source_text.strip(),
+                    "target_text": final_piece.strip(),
+                    "source_start": s_start,
+                    "source_end": s_end,
+                    "target_start": target_cursor,
+                    "target_end": target_cursor + len(final_piece),
+                    "name_hits": unit_hits,
+                }
+            )
+            target_cursor += len(final_piece)
+            text_idx += 1
+
+        if not reused_any and changed_sources_sorted:
+            return None
+
+        translated = "".join(translated_parts) if translated_parts else source
+        translated = normalize_vi_punctuation(translated)
+        translated = smart_capitalize_vi(translated)
+        if not translated:
+            translated = source
+        placeholders = [
+            {
+                "placeholder": ph,
+                "source": data.get("source") or "",
+                "target": data.get("target") or "",
+            }
+            for ph, data in placeholder_map.items()
+        ]
+        placeholders.sort(key=lambda x: x["placeholder"])
+        return {
+            "source_text": source,
+            "processed_text": processed_text,
+            "translated_with_placeholders": translated,
+            "translated": translated,
+            "mode": mode_norm,
+            "unit_map": unit_map,
+            "name_map": {
+                "active_set": str(self.active_set_name or "Mặc định"),
+                "version": int(self.name_set_version or 1),
+                "size": len(current_name_set),
+                "placeholders": placeholders,
+                "hits": hits,
+            },
+            "hanviet_source": "",
+        }
 
 
 class ReaderStorage:
@@ -3567,14 +3808,14 @@ class ReaderStorage:
         return storage_user_state_support.get_global_junk_state(
             self,
             state_key=APP_STATE_GLOBAL_JUNK_STATE_KEY,
-            normalize_junk_lines=normalize_junk_lines,
+            normalize_junk_entries=normalize_junk_entries,
         )
 
-    def get_global_junk_lines(self) -> tuple[list[str], int]:
+    def get_global_junk_lines(self) -> tuple[list[dict[str, Any]], int]:
         return storage_user_state_support.get_global_junk_lines(
             self,
             state_key=APP_STATE_GLOBAL_JUNK_STATE_KEY,
-            normalize_junk_lines=normalize_junk_lines,
+            normalize_junk_entries=normalize_junk_entries,
         )
 
     def set_global_junk_state(self, lines: list[Any] | tuple[Any, ...] | None, *, bump_version: bool = True) -> dict[str, Any]:
@@ -3583,18 +3824,28 @@ class ReaderStorage:
             lines,
             bump_version=bump_version,
             state_key=APP_STATE_GLOBAL_JUNK_STATE_KEY,
-            normalize_junk_lines=normalize_junk_lines,
+            normalize_junk_entries=normalize_junk_entries,
         )
 
-    def update_global_junk_entry(self, line: str, new_line: str = "", *, delete: bool = False) -> dict[str, Any]:
+    def update_global_junk_entry(
+        self,
+        line: str,
+        new_line: str = "",
+        *,
+        delete: bool = False,
+        use_regex: bool = False,
+        new_use_regex: bool | None = None,
+    ) -> dict[str, Any]:
         return storage_user_state_support.update_global_junk_entry(
             self,
             line,
             new_line,
             delete=delete,
+            use_regex=use_regex,
+            new_use_regex=new_use_regex,
             state_key=APP_STATE_GLOBAL_JUNK_STATE_KEY,
             normalize_newlines=normalize_newlines,
-            normalize_junk_lines=normalize_junk_lines,
+            normalize_junk_entries=normalize_junk_entries,
         )
 
     def chapter_text_cleanup(self, text: str) -> tuple[str, int, int]:
@@ -5099,15 +5350,25 @@ class ReaderService:
             bump_version=bump_version,
             api_error_cls=ApiError,
             http_status=HTTPStatus,
-            normalize_junk_lines=normalize_junk_lines,
+            normalize_junk_entries=normalize_junk_entries,
         )
 
-    def update_global_junk_entry(self, *, line: str, new_line: str = "", delete: bool = False) -> dict[str, Any]:
+    def update_global_junk_entry(
+        self,
+        *,
+        line: str,
+        new_line: str = "",
+        delete: bool = False,
+        use_regex: bool = False,
+        new_use_regex: bool | None = None,
+    ) -> dict[str, Any]:
         return service_user_state_support.update_global_junk_entry(
             self,
             line=line,
             new_line=new_line,
             delete=delete,
+            use_regex=use_regex,
+            new_use_regex=new_use_regex,
             api_error_cls=ApiError,
             http_status=HTTPStatus,
             normalize_newlines=normalize_newlines,

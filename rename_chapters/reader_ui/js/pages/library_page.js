@@ -118,6 +118,8 @@ const refs = {
   btnRefreshGlobalJunk: document.getElementById("btn-refresh-global-junk"),
   globalJunkLineLabel: document.getElementById("global-junk-line-label"),
   globalJunkLineInput: document.getElementById("global-junk-line-input"),
+  globalJunkRegexInput: document.getElementById("global-junk-regex-input"),
+  globalJunkRegexLabel: document.getElementById("global-junk-regex-label"),
   globalJunkEntryForm: document.getElementById("global-junk-entry-form"),
   btnAddGlobalJunkEntry: document.getElementById("btn-add-global-junk-entry"),
   globalJunkHint: document.getElementById("global-junk-hint"),
@@ -2600,8 +2602,20 @@ async function loadGlobalDicts() {
 
 async function loadGlobalJunkLines() {
   const data = await state.shell.api("/api/junk-lines/global");
+  if (Array.isArray(data && data.entries)) {
+    state.globalJunkLines = data.entries
+      .map((item) => ({
+        text: String(item && (item.text ?? item.line) || "").trim(),
+        use_regex: Boolean(item && (item.use_regex ?? item.regex)),
+      }))
+      .filter((item) => item.text);
+    return;
+  }
   state.globalJunkLines = Array.isArray(data && data.lines)
-    ? data.lines.map((item) => String(item || "").trim()).filter(Boolean)
+    ? data.lines.map((item) => ({
+        text: String(item || "").trim(),
+        use_regex: false,
+      })).filter((item) => item.text)
     : [];
 }
 
@@ -2619,14 +2633,27 @@ function renderGlobalJunkRows() {
       ? state.shell.t("junkPreviewHint")
       : state.shell.t("junkPreviewEmpty");
   }
-  for (const line of items) {
+  for (const entry of items) {
+    const line = String(entry && entry.text || "").trim();
+    const useRegex = Boolean(entry && entry.use_regex);
     const tr = document.createElement("tr");
     const tdLine = document.createElement("td");
+    const wrap = document.createElement("div");
+    wrap.className = "junk-entry-row";
     const input = document.createElement("input");
     input.type = "text";
     input.className = "name-target-inline";
     input.value = line || "";
-    tdLine.appendChild(input);
+    const regexLabel = document.createElement("label");
+    regexLabel.className = "checkbox-row";
+    const regexInput = document.createElement("input");
+    regexInput.type = "checkbox";
+    regexInput.checked = useRegex;
+    const regexText = document.createElement("span");
+    regexText.textContent = state.shell.t("junkRegexLabel");
+    regexLabel.append(regexInput, regexText);
+    wrap.append(input, regexLabel);
+    tdLine.appendChild(wrap);
     const tdAction = document.createElement("td");
 
     const btnSave = document.createElement("button");
@@ -2643,7 +2670,12 @@ function renderGlobalJunkRows() {
         await state.shell.api("/api/junk-lines/global/entry", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ line, new_line: nextValue }),
+          body: JSON.stringify({
+            line,
+            use_regex: useRegex,
+            new_line: nextValue,
+            new_use_regex: Boolean(regexInput.checked),
+          }),
         });
         await loadGlobalJunkLines();
         renderGlobalJunkRows();
@@ -2662,7 +2694,7 @@ function renderGlobalJunkRows() {
         await state.shell.api("/api/junk-lines/global/entry", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ line, delete: true }),
+          body: JSON.stringify({ line, use_regex: useRegex, delete: true }),
         });
         await loadGlobalJunkLines();
         renderGlobalJunkRows();
@@ -3146,6 +3178,7 @@ async function init() {
   if (refs.btnCloseGlobalJunk) refs.btnCloseGlobalJunk.textContent = state.shell.t("close");
   if (refs.btnRefreshGlobalJunk) refs.btnRefreshGlobalJunk.textContent = state.shell.t("refreshJunkEntries");
   if (refs.globalJunkLineLabel) refs.globalJunkLineLabel.textContent = state.shell.t("junkLineLabel");
+  if (refs.globalJunkRegexLabel) refs.globalJunkRegexLabel.textContent = state.shell.t("junkRegexLabel");
   if (refs.btnAddGlobalJunkEntry) refs.btnAddGlobalJunkEntry.textContent = state.shell.t("addJunkEntry");
   if (refs.globalJunkColLine) refs.globalJunkColLine.textContent = state.shell.t("junkColLine");
   if (refs.globalJunkColAction) refs.globalJunkColAction.textContent = state.shell.t("junkColAction");
@@ -3274,7 +3307,10 @@ async function init() {
         await state.shell.api("/api/junk-lines/global/entry", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ new_line: line }),
+          body: JSON.stringify({
+            new_line: line,
+            use_regex: Boolean(refs.globalJunkRegexInput && refs.globalJunkRegexInput.checked),
+          }),
         });
         refs.globalJunkEntryForm.reset();
         await loadGlobalJunkLines();

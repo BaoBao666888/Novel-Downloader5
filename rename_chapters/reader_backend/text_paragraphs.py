@@ -19,3 +19,11 @@ def strip_paragraph_indentation(text: str) -> str:
         cleaned = _TRAILING_SPACE_RE.sub("", cleaned)
         lines.append(cleaned)
     return "\n".join(lines).strip("\n")
+
+
+def normalize_soft_wrapped_paragraphs(text: str) -> str:
+    value = strip_paragraph_indentation(text)
+    if not value:
+        return ""
+    value = re.sub(r"\n{2,}", "\n", value)
+    return value.strip("\n")

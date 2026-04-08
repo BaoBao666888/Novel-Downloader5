@@ -304,6 +304,12 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             line=payload.get("line") or payload.get("source") or "",
             new_line=payload.get("new_line") or payload.get("target") or "",
             delete=bool(payload.get("delete", False)),
+            use_regex=bool(payload.get("use_regex", False)),
+            new_use_regex=(
+                bool(payload.get("new_use_regex"))
+                if ("new_use_regex" in payload)
+                else (bool(payload.get("use_regex", False)) if (payload.get("new_line") or payload.get("target") or "") else None)
+            ),
         )
 
     return None

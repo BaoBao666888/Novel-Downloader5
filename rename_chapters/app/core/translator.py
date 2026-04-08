@@ -6,6 +6,7 @@ import re
 
 # --- BIẾN TOÀN CỤC CHO CACHE ---
 hanviet_map_cache = None
+_CJK_RE = re.compile(r"[\u3400-\u9fff]")
 
 def load_hanviet_json(url: str):
     """Tải và cache file Hán-Việt JSON từ URL."""
@@ -95,6 +96,32 @@ def _split_into_batches(text_list: list, max_chars: int, max_items: int = 40):
         batches.append(current_batch)
     return batches
 
+
+def _count_cjk_chars(text: str) -> int:
+    return len(_CJK_RE.findall(str(text or "")))
+
+
+def _looks_untranslated_translation(source_text: str, translated_text: str) -> bool:
+    source = str(source_text or "").strip()
+    translated = str(translated_text or "").strip()
+    if not source or not translated:
+        return False
+    if translated.startswith("[Lỗi"):
+        return False
+    source_cjk = _count_cjk_chars(source)
+    if source_cjk <= 0:
+        return False
+    translated_cjk = _count_cjk_chars(translated)
+    if translated == source:
+        return True
+    if translated_cjk >= max(2, int(source_cjk * 0.55)):
+        return True
+    source_compact = re.sub(r"[\s\W_]+", "", source)
+    translated_compact = re.sub(r"[\s\W_]+", "", translated)
+    if source_compact and translated_compact and source_compact == translated_compact:
+        return True
+    return False
+
 def _post_translate_batch(
     content_array: list,
     server_url: str,
@@ -173,6 +200,34 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
         
         if i < total_batches - 1:
             time.sleep(delay_ms / 1000.0)
+
+    suspicious_indexes = [
+        idx
+        for idx, (source_text, translated_text) in enumerate(zip(texts_with_placeholders, all_translated_texts))
+        if _looks_untranslated_translation(source_text, translated_text)
+    ]
+    if suspicious_indexes:
+        retry_batches = _split_into_batches(
+            [texts_with_placeholders[idx] for idx in suspicious_indexes],
+            min(max(200, int(max_chars or 4500)), 900),
+            max_items=4,
+        )
+        retried_results: list[str] = []
+        for batch in retry_batches:
+            retried_results.extend(
+                _post_translate_batch(
+                    batch,
+                    server_url,
+                    settings.get('proxies'),
+                    target_lang=target_lang or 'vi',
+                    retry_count=retry_count,
+                    retry_backoff_ms=retry_backoff_ms,
+                    timeout_sec=timeout_sec,
+                )
+            )
+        for idx, candidate in zip(suspicious_indexes, retried_results):
+            if not _looks_untranslated_translation(texts_with_placeholders[idx], candidate):
+                all_translated_texts[idx] = candidate
 
     if update_progress_callback:
         update_progress_callback("Khôi phục tên và hoàn tất...", 95)

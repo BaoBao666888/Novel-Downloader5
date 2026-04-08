@@ -1,5 +1,5 @@
 import { initShell } from "../site_common.js?v=20260407-themecustom1";
-import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText } from "../reader_text.js?v=20260308-br3";
+import { buildParagraphNodes, normalizeDisplayTitle, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260407-readerpara1";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
 const refs = {
@@ -109,6 +109,8 @@ const refs = {
   selectionJunkForm: document.getElementById("selection-junk-form"),
   selectionJunkInputLabel: document.getElementById("selection-junk-input-label"),
   selectionJunkInput: document.getElementById("selection-junk-input"),
+  selectionJunkRegexInput: document.getElementById("selection-junk-regex-input"),
+  selectionJunkRegexLabel: document.getElementById("selection-junk-regex-label"),
   btnCancelSelectionJunk: document.getElementById("btn-cancel-selection-junk"),
   btnConfirmSelectionJunk: document.getElementById("btn-confirm-selection-junk"),
   readerHead: document.querySelector(".reader-head"),
@@ -137,6 +139,7 @@ const state = {
   flipPageIndex: 0,
   chapterCache: new Map(),
   chapterPending: new Map(),
+  chapterCacheVersion: 0,
   prefetchControllers: new Map(),
   prefetchTimers: new Map(),
   prefetchRunSeq: 0,
@@ -417,6 +420,7 @@ function isAbortError(error) {
 }
 
 function clearChapterCache() {
+  state.chapterCacheVersion += 1;
   state.chapterCache.clear();
   state.chapterPending.clear();
 }
@@ -472,6 +476,7 @@ async function fetchChapterContent(chapterId, { mode = effectiveMode(), translat
   if (state.chapterPending.has(key)) {
     return state.chapterPending.get(key);
   }
+  const cacheVersion = state.chapterCacheVersion;
 
   const req = state.shell.api(
     `/api/library/chapter/${encodeURIComponent(chapterId)}?mode=${encodeURIComponent(mode)}&translation_mode=${encodeURIComponent(translationMode)}`,
@@ -479,7 +484,9 @@ async function fetchChapterContent(chapterId, { mode = effectiveMode(), translat
   )
     .then((chapter) => {
       const safe = chapter || { content: "" };
-      state.chapterCache.set(key, safe);
+      if (cacheVersion === state.chapterCacheVersion) {
+        state.chapterCache.set(key, safe);
+      }
       return safe;
     })
     .finally(() => {
@@ -1186,7 +1193,7 @@ function buildFlipPages(text) {
   const content = normalizeReaderText(text || "");
   if (!content) return [""];
   const budget = estimateFlipCharBudget();
-  const paragraphs = content.split(/\n{2,}/g).map((x) => x.trim()).filter(Boolean);
+  const paragraphs = splitParagraphBlocks(content);
 
   const pages = [];
   let pageText = "";
@@ -1487,7 +1494,7 @@ async function loadBook({ showSkeleton = false } = {}) {
   }
 }
 
-async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleton = true } = {}) {
+async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleton = true, quiet = false } = {}) {
   if (!state.chapterId) return;
   hideSelectionBtn();
   cancelPrefetch();
@@ -1509,7 +1516,9 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
     showReaderContentSkeleton(true, { comic: Boolean(state.book && state.book.is_comic) });
   }
 
-  state.shell.showStatus(state.shell.t("statusLoadingChapter"));
+  if (!quiet) {
+    state.shell.showStatus(state.shell.t("statusLoadingChapter"));
+  }
   try {
     const chapter = await fetchChapterContent(targetChapterId, {
       mode,
@@ -1565,12 +1574,33 @@ async function loadChapter({ resetFlip = true, preserveRatio = null, showSkeleto
       renderToc();
     }
   } finally {
-    if (requestSeq === state.chapterLoadSeq) {
+    if (!quiet && requestSeq === state.chapterLoadSeq) {
       state.shell.hideStatus();
     }
     if (state.activeChapterController === controller) {
       state.activeChapterController = null;
     }
+  }
+}
+
+async function refreshReaderAfterDictChange({ preserveRatio = currentChapterRatio(), refreshBook = true } = {}) {
+  cancelPrefetch();
+  clearChapterCache();
+  if (state.chapterId) {
+    await loadChapter({
+      resetFlip: true,
+      preserveRatio,
+      showSkeleton: false,
+      quiet: true,
+    });
+  }
+  if (refreshBook && state.bookId) {
+    loadBook()
+      .then(() => {
+        renderToc();
+        updateProgress();
+      })
+      .catch(() => {});
   }
 }
 
@@ -1871,15 +1901,10 @@ async function applyCurrentDictEntries(entries, { replace = false, toastKey = "n
   const preserveRatio = currentChapterRatio();
   try {
     await saveCurrentDictEntries(nextEntries, { replace });
-    clearChapterCache();
-    cancelPrefetch();
-    await refreshNameEditorData();
-    if (state.bookId) {
-      await loadBook();
-    }
-    if (state.chapterId) {
-      await loadChapter({ resetFlip: true, preserveRatio });
-    }
+    if (refs.nameSuggestDialog && refs.nameSuggestDialog.open) refs.nameSuggestDialog.close();
+    if (refs.nameEditorDialog && refs.nameEditorDialog.open) refs.nameEditorDialog.close();
+    refreshNameEditorData().catch(() => {});
+    await refreshReaderAfterDictChange({ preserveRatio, refreshBook: true });
     if (toastKey) {
       state.shell.showToast(state.shell.t(toastKey));
     }
@@ -1966,11 +1991,8 @@ async function deleteNameEntry(source) {
   const preserveRatio = currentChapterRatio();
   try {
     await deleteCurrentDictEntry(source);
-    clearChapterCache();
-    cancelPrefetch();
-    await refreshNameEditorData();
-    await loadBook();
-    await loadChapter({ resetFlip: true, preserveRatio });
+    refreshNameEditorData().catch(() => {});
+    await refreshReaderAfterDictChange({ preserveRatio, refreshBook: true });
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -2019,6 +2041,7 @@ async function addNameSet() {
       body: JSON.stringify({ sets, active_set: trimmed, bump_version: false, book_id: state.bookId }),
     });
     await refreshNameEditorData();
+    await refreshReaderAfterDictChange({ preserveRatio: currentChapterRatio(), refreshBook: true });
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -2047,6 +2070,7 @@ async function deleteActiveNameSet() {
       body: JSON.stringify({ sets: nextSets, active_set: nextActive, bump_version: false, book_id: state.bookId }),
     });
     await refreshNameEditorData();
+    await refreshReaderAfterDictChange({ preserveRatio: currentChapterRatio(), refreshBook: true });
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -2533,6 +2557,7 @@ function resetSelectionJunkDialogState() {
 async function confirmSelectionJunkEntry(event) {
   if (event) event.preventDefault();
   const sourceText = String(refs.selectionJunkInput && refs.selectionJunkInput.value || "").trim();
+  const useRegex = Boolean(refs.selectionJunkRegexInput && refs.selectionJunkRegexInput.checked);
   if (!sourceText) {
     state.shell.showToast(state.shell.t("junkLineRequired"));
     if (refs.selectionJunkInput) refs.selectionJunkInput.focus();
@@ -2546,7 +2571,7 @@ async function confirmSelectionJunkEntry(event) {
     await state.shell.api("/api/junk-lines/global/entry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ new_line: sourceText }),
+      body: JSON.stringify({ new_line: sourceText, use_regex: useRegex }),
     });
     if (refs.selectionJunkDialog && refs.selectionJunkDialog.open) {
       refs.selectionJunkDialog.close();
@@ -2712,6 +2737,7 @@ function bindNameEditor() {
   if (refs.btnCloseSelectionJunk) refs.btnCloseSelectionJunk.textContent = state.shell.t("close");
   if (refs.selectionJunkHint) refs.selectionJunkHint.textContent = state.shell.t("selectionJunkHint");
   if (refs.selectionJunkInputLabel) refs.selectionJunkInputLabel.textContent = state.shell.t("selectionJunkInputLabel");
+  if (refs.selectionJunkRegexLabel) refs.selectionJunkRegexLabel.textContent = state.shell.t("selectionJunkRegexLabel");
   if (refs.btnCancelSelectionJunk) refs.btnCancelSelectionJunk.textContent = state.shell.t("cancel");
   if (refs.btnConfirmSelectionJunk) refs.btnConfirmSelectionJunk.textContent = state.shell.t("selectionJunkConfirm");
   syncNameEditorScopeUi();
@@ -2801,6 +2827,7 @@ function bindNameEditor() {
   refs.nameSetSelect.addEventListener("change", async () => {
     if (!isNameBookScope()) return;
     const chosen = refs.nameSetSelect.value;
+    const preserveRatio = currentChapterRatio();
     state.shell.showStatus(state.shell.t("statusSwitchingNameSet"));
     try {
       const data = await state.shell.api("/api/name-sets", {
@@ -2811,6 +2838,7 @@ function bindNameEditor() {
       state.activeNameSet = data.active_set || chosen;
       await refreshNamePreview();
       syncNameEntrySubmitLabel();
+      await refreshReaderAfterDictChange({ preserveRatio, refreshBook: true });
     } catch (error) {
       state.shell.showToast(error.message || state.shell.t("toastError"));
     } finally {
@@ -2830,7 +2858,6 @@ function bindNameEditor() {
     if (!applied) return;
     refs.nameEntryForm.reset();
     syncNameEntrySubmitLabel();
-    refs.nameEditorDialog.close();
   });
 
   if (refs.selectionNameBtn) refs.selectionNameBtn.addEventListener("click", () => {

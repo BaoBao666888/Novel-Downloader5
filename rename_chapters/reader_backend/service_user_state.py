@@ -372,8 +372,9 @@ def update_local_dict_entry(
 
 
 def get_global_junk_lines(service) -> dict[str, Any]:
-    lines, version = service.storage.get_global_junk_lines()
-    return {"ok": True, "lines": lines, "version": version}
+    entries, version = service.storage.get_global_junk_lines()
+    lines = [str(item.get("text") or "").strip() for item in entries if str(item.get("text") or "").strip()]
+    return {"ok": True, "entries": entries, "lines": lines, "version": version}
 
 
 def set_global_junk_lines(
@@ -383,15 +384,15 @@ def set_global_junk_lines(
     bump_version: bool = True,
     api_error_cls,
     http_status,
-    normalize_junk_lines,
+    normalize_junk_entries,
 ) -> dict[str, Any]:
     if (lines is not None) and (not isinstance(lines, (list, tuple, str))):
         raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "lines phải là list hoặc chuỗi nhiều dòng.")
     if isinstance(lines, str):
-        normalized_lines = normalize_junk_lines(lines)
+        normalized_entries = normalize_junk_entries(lines)
     else:
-        normalized_lines = normalize_junk_lines(lines if isinstance(lines, (list, tuple)) else [])
-    state = service.storage.set_global_junk_state(normalized_lines, bump_version=bump_version)
+        normalized_entries = normalize_junk_entries(lines if isinstance(lines, (list, tuple)) else [])
+    state = service.storage.set_global_junk_state(normalized_entries, bump_version=bump_version)
     return {"ok": True, **state}
 
 
@@ -401,6 +402,8 @@ def update_global_junk_entry(
     line: str,
     new_line: str = "",
     delete: bool = False,
+    use_regex: bool = False,
+    new_use_regex: bool | None = None,
     api_error_cls,
     http_status,
     normalize_newlines,
@@ -410,7 +413,13 @@ def update_global_junk_entry(
     if not raw_line and not raw_next:
         raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu dòng rác.")
     try:
-        state = service.storage.update_global_junk_entry(raw_line, raw_next, delete=delete)
+        state = service.storage.update_global_junk_entry(
+            raw_line,
+            raw_next,
+            delete=delete,
+            use_regex=use_regex,
+            new_use_regex=new_use_regex,
+        )
     except ValueError as exc:
         raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", str(exc)) from exc
     return {"ok": True, **state}

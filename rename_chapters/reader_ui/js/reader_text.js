@@ -35,17 +35,23 @@ export function normalizeParagraphDisplayText(text, { singleLine = false } = {})
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-export function buildParagraphNodes(text, emptyText) {
+export function splitParagraphBlocks(text) {
   const content = normalizeParagraphDisplayText(text);
+  if (!content) return [];
+  const separator = /\n{2,}/.test(content) ? /\n{2,}/g : /\n/g;
+  return content.split(separator).map((x) => normalizeParagraphDisplayText(x)).filter(Boolean);
+}
+
+export function buildParagraphNodes(text, emptyText) {
   const fragment = document.createDocumentFragment();
-  if (!content) {
+  const blocks = splitParagraphBlocks(text);
+  if (!blocks.length) {
     const p = document.createElement("p");
     p.textContent = emptyText;
     fragment.appendChild(p);
     return fragment;
   }
 
-  const blocks = content.split(/\n{2,}/g).map((x) => normalizeParagraphDisplayText(x)).filter(Boolean);
   for (const block of blocks) {
     const p = document.createElement("p");
     const lines = block.split(/\n/g).map((line) => line.trim());

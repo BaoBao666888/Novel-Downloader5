@@ -261,7 +261,7 @@ def update_book_vp_entry(
     )
 
 
-def get_global_junk_state(storage, *, state_key: str, normalize_junk_lines) -> dict[str, Any]:
+def get_global_junk_state(storage, *, state_key: str, normalize_junk_entries) -> dict[str, Any]:
     raw = storage._get_app_state_value(state_key)
     parsed: dict[str, Any] | None = None
     if raw:
@@ -271,13 +271,23 @@ def get_global_junk_state(storage, *, state_key: str, normalize_junk_lines) -> d
                 parsed = payload
         except Exception:
             parsed = None
-    lines = normalize_junk_lines((parsed or {}).get("lines"))
+    raw_entries = (parsed or {}).get("entries")
+    if raw_entries is None:
+        raw_entries = (parsed or {}).get("lines")
+    entries = normalize_junk_entries(raw_entries)
     try:
         version = max(1, int((parsed or {}).get("version") or 1))
     except Exception:
         version = 1
-    state = {"lines": lines, "version": version}
-    if parsed is None or normalize_junk_lines(parsed.get("lines")) != lines:
+    state = {
+        "entries": entries,
+        "lines": [str(item.get("text") or "").strip() for item in entries if str(item.get("text") or "").strip()],
+        "version": version,
+    }
+    parsed_entries = normalize_junk_entries((parsed or {}).get("entries") if isinstance(parsed, dict) else None)
+    if not parsed_entries:
+        parsed_entries = normalize_junk_entries((parsed or {}).get("lines") if isinstance(parsed, dict) else None)
+    if parsed is None or parsed_entries != entries:
         storage._set_app_state_value(
             state_key,
             json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
@@ -285,9 +295,9 @@ def get_global_junk_state(storage, *, state_key: str, normalize_junk_lines) -> d
     return state
 
 
-def get_global_junk_lines(storage, *, state_key: str, normalize_junk_lines) -> tuple[list[str], int]:
-    state = get_global_junk_state(storage, state_key=state_key, normalize_junk_lines=normalize_junk_lines)
-    return normalize_junk_lines(state.get("lines")), int(state.get("version") or 1)
+def get_global_junk_lines(storage, *, state_key: str, normalize_junk_entries) -> tuple[list[dict[str, Any]], int]:
+    state = get_global_junk_state(storage, state_key=state_key, normalize_junk_entries=normalize_junk_entries)
+    return normalize_junk_entries(state.get("entries")), int(state.get("version") or 1)
 
 
 def set_global_junk_state(
@@ -296,14 +306,18 @@ def set_global_junk_state(
     *,
     bump_version: bool = True,
     state_key: str,
-    normalize_junk_lines,
+    normalize_junk_entries,
 ) -> dict[str, Any]:
-    current = get_global_junk_state(storage, state_key=state_key, normalize_junk_lines=normalize_junk_lines)
-    normalized_lines = normalize_junk_lines(lines if isinstance(lines, (list, tuple)) else current.get("lines"))
+    current = get_global_junk_state(storage, state_key=state_key, normalize_junk_entries=normalize_junk_entries)
+    normalized_entries = normalize_junk_entries(lines if isinstance(lines, (list, tuple)) else current.get("entries"))
     next_version = int(current.get("version") or 1)
     if bump_version:
         next_version += 1
-    state = {"lines": normalized_lines, "version": max(1, next_version)}
+    state = {
+        "entries": normalized_entries,
+        "lines": [str(item.get("text") or "").strip() for item in normalized_entries if str(item.get("text") or "").strip()],
+        "version": max(1, next_version),
+    }
     storage._set_app_state_value(
         state_key,
         json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
@@ -317,35 +331,48 @@ def update_global_junk_entry(
     new_line: str = "",
     *,
     delete: bool = False,
+    use_regex: bool = False,
+    new_use_regex: bool | None = None,
     state_key: str,
     normalize_newlines,
-    normalize_junk_lines,
+    normalize_junk_entries,
 ) -> dict[str, Any]:
     source_line = normalize_newlines(str(line or "")).strip()
     target_line = normalize_newlines(str(new_line or "")).strip()
     if not source_line and not target_line:
         raise ValueError("Thiếu dòng rác.")
-    state = get_global_junk_state(storage, state_key=state_key, normalize_junk_lines=normalize_junk_lines)
-    entries = normalize_junk_lines(state.get("lines"))
-    next_entries: list[str] = []
+    state = get_global_junk_state(storage, state_key=state_key, normalize_junk_entries=normalize_junk_entries)
+    entries = normalize_junk_entries(state.get("entries"))
+    next_entries: list[dict[str, Any]] = []
     source_found = False
+    source_regex = bool(use_regex)
+    target_regex = bool(source_regex if new_use_regex is None else new_use_regex)
     for item in entries:
-        if item != source_line:
+        item_text = str((item or {}).get("text") or "").strip()
+        item_regex = bool((item or {}).get("use_regex"))
+        if item_text != source_line or item_regex != source_regex:
             next_entries.append(item)
             continue
         source_found = True
         if delete or not target_line:
             continue
-        if target_line not in next_entries:
-            next_entries.append(target_line)
-    if (not source_found) and (not delete) and target_line and target_line not in next_entries:
-        next_entries.append(target_line)
+        candidate = {"text": target_line, "use_regex": target_regex}
+        if candidate not in next_entries:
+            next_entries.append(candidate)
+    if (not source_found) and (not delete) and target_line:
+        candidate = {"text": target_line, "use_regex": target_regex}
+        if candidate not in next_entries:
+            next_entries.append(candidate)
     if next_entries == entries:
-        return {"lines": entries, "version": int(state.get("version") or 1)}
+        return {
+            "entries": entries,
+            "lines": [str(item.get("text") or "").strip() for item in entries if str(item.get("text") or "").strip()],
+            "version": int(state.get("version") or 1),
+        }
     return set_global_junk_state(
         storage,
         next_entries,
         bump_version=True,
         state_key=state_key,
-        normalize_junk_lines=normalize_junk_lines,
+        normalize_junk_entries=normalize_junk_entries,
     )
