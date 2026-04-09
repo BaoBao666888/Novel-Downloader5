@@ -347,6 +347,11 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", str(exc)) from exc
         return {"ok": True, "book_id": book_id, "categories": categories}
 
+    if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/name-filter/preview"):
+        book_id = path.removeprefix("/api/library/book/").removesuffix("/name-filter/preview").strip("/")
+        payload = handler._read_json_body()
+        return service.preview_book_name_filter(book_id, payload)
+
     if method == "GET" and path.startswith("/api/library/book/"):
         book_id = path.removeprefix("/api/library/book/").strip()
         if not book_id:

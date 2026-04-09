@@ -45,12 +45,14 @@ from reader_backend import http_export_download as http_export_download_support
 from reader_backend import http_library_reader as http_library_reader_support
 from reader_backend import http_media as http_media_support
 from reader_backend import http_misc as http_misc_support
+from reader_backend import http_name_filter as http_name_filter_support
 from reader_backend import http_routes as http_routes_support
 from reader_backend import http_tts as http_tts_support
 from reader_backend import http_vbook_import as http_vbook_import_support
 from reader_backend import service_history as service_history_support
 from reader_backend import service_library as service_library_support
 from reader_backend import service_local_import as service_local_import_support
+from reader_backend import service_name_filter as service_name_filter_support
 from reader_backend import service_user_state as service_user_state_support
 from reader_backend import storage_book_cleanup as storage_book_cleanup_support
 from reader_backend import storage_book_categories as storage_book_categories_support
@@ -97,6 +99,7 @@ APP_STATE_EXPORT_JOBS_STATE_KEY = "reader.export_jobs_state"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 HISTORY_BOOK_RETENTION_DAYS = 7
 EXPORT_JOB_RETENTION_DAYS = 7
+NAME_FILTER_JOB_RETENTION_SECONDS = 1800
 VBOOK_RUNNER_INSTALL_URL = str(_LOCAL_VBOOK_RUNNER_INSTALL_URL or "").strip()
 
 # Ép MIME chuẩn cho JS module trên Windows/registry lạ để tránh trang trắng
@@ -5054,6 +5057,10 @@ class ReaderService:
         self._export_running_job_id: str | None = None
         self._export_worker_started = False
         self._export_worker_thread: threading.Thread | None = None
+        self._name_filter_lock = threading.RLock()
+        self._name_filter_cv = threading.Condition(self._name_filter_lock)
+        self._name_filter_jobs: dict[str, dict[str, Any]] = {}
+        self._name_filter_threads: dict[str, threading.Thread] = {}
         self._vbook_singleflight_lock = threading.RLock()
         self._vbook_singleflight_runs: dict[str, dict[str, Any]] = {}
         with self._export_cv:
@@ -5882,6 +5889,275 @@ class ReaderService:
             self,
             normalize_name_set=normalize_name_set,
         )
+
+    def preview_book_name_filter(self, book_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return service_name_filter_support.preview_book_name_filter(
+            self,
+            book_id,
+            payload,
+            api_error_cls=ApiError,
+            http_status=HTTPStatus,
+            normalize_newlines=normalize_newlines,
+            build_name_right_suggestions=build_name_right_suggestions,
+            normalize_name_set=normalize_name_set,
+            vbook_local_translate=vbook_local_translate,
+        )
+
+    def _name_filter_status_is_active(self, status: str) -> bool:
+        return str(status or "").strip().lower() in {"queued", "running"}
+
+    def _name_filter_status_is_final(self, status: str) -> bool:
+        return str(status or "").strip().lower() in {"completed", "failed"}
+
+    def _cleanup_name_filter_jobs_locked(self) -> None:
+        cutoff_ts = time.time() - max(60, int(NAME_FILTER_JOB_RETENTION_SECONDS))
+        remove_ids: list[str] = []
+        for job_id, job in list(self._name_filter_jobs.items()):
+            status = str(job.get("status") or "").strip().lower()
+            if not self._name_filter_status_is_final(status):
+                continue
+            finished_ts = parse_iso_ts(job.get("finished_at") or job.get("updated_at") or job.get("created_at"))
+            if finished_ts and finished_ts < cutoff_ts:
+                remove_ids.append(job_id)
+        for job_id in remove_ids:
+            self._name_filter_jobs.pop(job_id, None)
+        for job_id, worker in list(self._name_filter_threads.items()):
+            if (job_id not in self._name_filter_jobs) or (not worker.is_alive()):
+                self._name_filter_threads.pop(job_id, None)
+
+    def _serialize_name_filter_job_locked(self, job: dict[str, Any]) -> dict[str, Any]:
+        items = [dict(item) for item in (job.get("items") or []) if isinstance(item, dict)]
+        return {
+            "job_id": str(job.get("job_id") or ""),
+            "book_id": str(job.get("book_id") or ""),
+            "book_title": str(job.get("book_title") or ""),
+            "status": str(job.get("status") or ""),
+            "message": str(job.get("message") or ""),
+            "error_code": str(job.get("error_code") or ""),
+            "scope": str(job.get("scope") or ""),
+            "request": dict(job.get("request") or {}),
+            "filters": dict(job.get("filters") or {}),
+            "downloaded_chapters": int(job.get("downloaded_chapters") or 0),
+            "selected_chapters": int(job.get("selected_chapters") or 0),
+            "chapter_total": int(job.get("chapter_total") or 0),
+            "processed_chapters": int(job.get("processed_chapters") or 0),
+            "scanned_chapters": int(job.get("scanned_chapters") or 0),
+            "chapters_with_cjk": int(job.get("chapters_with_cjk") or 0),
+            "found_candidates": int(job.get("found_candidates") or 0),
+            "current_chapter_order": int(job.get("current_chapter_order") or 0),
+            "current_chapter_title": str(job.get("current_chapter_title") or ""),
+            "items": items,
+            "created_at": str(job.get("created_at") or ""),
+            "started_at": str(job.get("started_at") or ""),
+            "updated_at": str(job.get("updated_at") or ""),
+            "finished_at": str(job.get("finished_at") or ""),
+        }
+
+    def _build_name_filter_jobs_signature_locked(self, items: list[dict[str, Any]]) -> str:
+        raw = json.dumps(items, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha1(raw.encode("utf-8", errors="ignore")).hexdigest()
+
+    def _list_name_filter_jobs_locked(self, *, book_id: str | None = None) -> dict[str, Any]:
+        self._cleanup_name_filter_jobs_locked()
+        book_filter = str(book_id or "").strip()
+        items = [
+            self._serialize_name_filter_job_locked(job)
+            for job in self._name_filter_jobs.values()
+            if (not book_filter) or (str(job.get("book_id") or "").strip() == book_filter)
+        ]
+        items.sort(
+            key=lambda row: (
+                -parse_iso_ts(row.get("created_at")),
+                str(row.get("job_id") or ""),
+            )
+        )
+        return {
+            "ok": True,
+            "items": items,
+            "sig": self._build_name_filter_jobs_signature_locked(items),
+            "generated_at": utc_now_iso(),
+        }
+
+    def list_name_filter_jobs(self, *, book_id: str | None = None) -> dict[str, Any]:
+        with self._name_filter_cv:
+            return self._list_name_filter_jobs_locked(book_id=book_id)
+
+    def wait_name_filter_jobs(
+        self,
+        *,
+        last_sig: str,
+        book_id: str | None = None,
+        timeout_sec: float = 20.0,
+    ) -> dict[str, Any]:
+        with self._name_filter_cv:
+            return queue_runtime_support.wait_for_listing_change(
+                cv=self._name_filter_cv,
+                build_payload=lambda: self._list_name_filter_jobs_locked(book_id=book_id),
+                last_sig=last_sig,
+                timeout_sec=timeout_sec,
+                wait_slice_sec=0.5,
+            )
+
+    def enqueue_book_name_filter(self, book_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        if not bid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+        context = service_name_filter_support.build_book_name_filter_context(
+            self,
+            bid,
+            payload,
+            api_error_cls=ApiError,
+            http_status=HTTPStatus,
+            normalize_name_set=normalize_name_set,
+            vbook_local_translate=vbook_local_translate,
+        )
+        book = dict(context.get("book") or {})
+        request = dict(context.get("request") or {})
+        now = utc_now_iso()
+        seed = f"{bid}|name-filter|{now}|{uuid.uuid4().hex}"
+        job_id = f"nf_{hash_text(seed)}"
+        title = normalize_vbook_display_text(str(book.get("title_display") or book.get("title") or ""), single_line=True)
+        job = {
+            "job_id": job_id,
+            "book_id": bid,
+            "book_title": title or str(book.get("title") or ""),
+            "status": "queued",
+            "message": "Đang chuẩn bị quét name...",
+            "error_code": "",
+            "scope": str(request.get("scope") or "downloaded"),
+            "request": request,
+            "filters": {
+                "min_count": int(request.get("min_count") or 2),
+                "min_length": int(request.get("min_length") or 2),
+                "max_length": int(request.get("max_length") or 4),
+                "max_chapters": int(request.get("max_chapters") or 80),
+                "max_items": int(request.get("max_items") or 120),
+                "skip_existing": bool(request.get("skip_existing")),
+                "include_person": bool(request.get("include_person")),
+                "include_place": bool(request.get("include_place")),
+                "include_title": bool(request.get("include_title")),
+            },
+            "downloaded_chapters": len(context.get("downloaded_rows") or []),
+            "selected_chapters": len(context.get("selected_rows") or []),
+            "chapter_total": len(context.get("chapter_rows") or []),
+            "processed_chapters": 0,
+            "scanned_chapters": 0,
+            "chapters_with_cjk": 0,
+            "found_candidates": 0,
+            "current_chapter_order": 0,
+            "current_chapter_title": "",
+            "items": [],
+            "created_at": now,
+            "started_at": "",
+            "updated_at": now,
+            "finished_at": "",
+        }
+        worker = threading.Thread(
+            target=self._run_name_filter_job,
+            args=(job_id, context),
+            name=f"ReaderNameFilter-{job_id[:8]}",
+            daemon=True,
+        )
+        with self._name_filter_cv:
+            self._cleanup_name_filter_jobs_locked()
+            self._name_filter_jobs[job_id] = job
+            self._name_filter_threads[job_id] = worker
+            worker.start()
+            self._name_filter_cv.notify_all()
+            return {"ok": True, "job": self._serialize_name_filter_job_locked(job)}
+
+    def _run_name_filter_job(self, job_id: str, context: dict[str, Any]) -> None:
+        with self._name_filter_cv:
+            job = self._name_filter_jobs.get(job_id)
+            if not job:
+                return
+            now = utc_now_iso()
+            job["status"] = "running"
+            job["started_at"] = now
+            job["updated_at"] = now
+            job["message"] = "Đang quét name từ chapter RAW đã tải..."
+            self._name_filter_cv.notify_all()
+
+        def on_progress(event: dict[str, Any]) -> None:
+            with self._name_filter_cv:
+                job2 = self._name_filter_jobs.get(job_id)
+                if not job2:
+                    return
+                processed = int(event.get("processed_chapters") or 0)
+                total = int(event.get("total_chapters") or job2.get("selected_chapters") or 0)
+                current_order = int(event.get("current_chapter_order") or 0)
+                current_title = str(event.get("current_chapter_title") or "").strip()
+                job2["status"] = "running"
+                job2["processed_chapters"] = processed
+                job2["selected_chapters"] = total
+                job2["downloaded_chapters"] = int(event.get("downloaded_chapters") or job2.get("downloaded_chapters") or 0)
+                job2["chapter_total"] = int(event.get("chapter_total") or job2.get("chapter_total") or 0)
+                job2["scanned_chapters"] = int(event.get("scanned_chapters") or job2.get("scanned_chapters") or 0)
+                job2["chapters_with_cjk"] = int(event.get("chapters_with_cjk") or job2.get("chapters_with_cjk") or 0)
+                job2["found_candidates"] = int(event.get("found_candidates") or 0)
+                job2["current_chapter_order"] = current_order
+                job2["current_chapter_title"] = current_title
+                job2["items"] = [dict(item) for item in (event.get("items") or []) if isinstance(item, dict)]
+                if current_order > 0:
+                    chapter_label = current_title or f"Chương {current_order}"
+                    job2["message"] = f"Đang quét chương {current_order}/{max(total, 1)}: {chapter_label}"
+                else:
+                    job2["message"] = f"Đang quét {processed}/{max(total, 1)} chương..."
+                job2["updated_at"] = utc_now_iso()
+                self._name_filter_cv.notify_all()
+
+        try:
+            result = service_name_filter_support.run_book_name_filter_with_context(
+                self,
+                context,
+                normalize_newlines=normalize_newlines,
+                build_name_right_suggestions=build_name_right_suggestions,
+                progress_callback=on_progress,
+            )
+            with self._name_filter_cv:
+                job2 = self._name_filter_jobs.get(job_id)
+                if not job2:
+                    return
+                now = utc_now_iso()
+                job2["status"] = "completed"
+                job2["message"] = "Đã lọc name xong."
+                job2["error_code"] = ""
+                job2["processed_chapters"] = int(result.get("selected_chapters") or job2.get("processed_chapters") or 0)
+                job2["selected_chapters"] = int(result.get("selected_chapters") or job2.get("selected_chapters") or 0)
+                job2["downloaded_chapters"] = int(result.get("downloaded_chapters") or job2.get("downloaded_chapters") or 0)
+                job2["chapter_total"] = int(result.get("chapter_total") or job2.get("chapter_total") or 0)
+                job2["scanned_chapters"] = int(result.get("scanned_chapters") or job2.get("scanned_chapters") or 0)
+                job2["chapters_with_cjk"] = int(result.get("chapters_with_cjk") or job2.get("chapters_with_cjk") or 0)
+                job2["found_candidates"] = len(result.get("items") or [])
+                job2["items"] = [dict(item) for item in (result.get("items") or []) if isinstance(item, dict)]
+                job2["filters"] = dict(result.get("filters") or job2.get("filters") or {})
+                job2["updated_at"] = now
+                job2["finished_at"] = now
+                self._name_filter_cv.notify_all()
+        except ApiError as exc:
+            with self._name_filter_cv:
+                job2 = self._name_filter_jobs.get(job_id)
+                if not job2:
+                    return
+                now = utc_now_iso()
+                job2["status"] = "failed"
+                job2["message"] = str(exc.message or "Lọc name thất bại.")
+                job2["error_code"] = str(exc.code or "NAME_FILTER_FAILED")
+                job2["updated_at"] = now
+                job2["finished_at"] = now
+                self._name_filter_cv.notify_all()
+        except Exception as exc:
+            with self._name_filter_cv:
+                job2 = self._name_filter_jobs.get(job_id)
+                if not job2:
+                    return
+                now = utc_now_iso()
+                job2["status"] = "failed"
+                job2["message"] = str(exc) or "Lọc name thất bại."
+                job2["error_code"] = "NAME_FILTER_FAILED"
+                job2["updated_at"] = now
+                job2["finished_at"] = now
+                self._name_filter_cv.notify_all()
 
     def set_local_global_dicts(
         self,
@@ -11880,6 +12156,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/api/library/name-filter/jobs/stream":
+            http_name_filter_support.stream_name_filter_jobs(
+                self,
+                parsed,
+                http_status=HTTPStatus,
+            )
+            return
         route = http_routes_support.match_export_download_route("GET", parsed.path)
         if route is not None and route.name == "export_jobs_stream":
             http_export_download_support.stream_export_jobs(
@@ -12030,6 +12313,15 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         )
         if export_download_result is not None:
             return export_download_result
+
+        name_filter_result = http_name_filter_support.handle_api(
+            self,
+            method,
+            path,
+            query,
+        )
+        if name_filter_result is not None:
+            return name_filter_result
 
         vbook_import_result = http_vbook_import_support.handle_api(
             self,

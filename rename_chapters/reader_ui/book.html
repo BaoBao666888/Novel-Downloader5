@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260408-settingsleft1">
+  <link rel="stylesheet" href="./styles.css?v=20260409-namefilter2">
 </head>
 
 <body data-page="book" class="mpa-body">
@@ -122,6 +122,7 @@
         <div class="meta-actions">
           <button id="btn-open-reader-from-book" class="btn btn-small" type="button"></button>
           <button id="btn-download-book" class="btn btn-small" type="button"></button>
+          <button id="btn-book-name-filter" class="btn btn-small" type="button"></button>
           <button id="btn-open-book-names" class="btn btn-small" type="button"></button>
           <button id="btn-open-book-edit" class="btn btn-small" type="button"></button>
         </div>
@@ -287,6 +288,104 @@
         <button id="btn-confirm-book-name-bulk" class="btn btn-primary" type="submit"></button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="book-name-filter-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="book-name-filter-title"></h3>
+      <button id="btn-close-book-name-filter" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="book-name-filter-hint" class="empty-text"></p>
+    <form id="book-name-filter-form" class="name-filter-form">
+      <label>
+        <span id="book-name-filter-scope-label"></span>
+        <select id="book-name-filter-scope">
+          <option value="downloaded"></option>
+          <option value="first_n"></option>
+          <option value="range"></option>
+        </select>
+      </label>
+      <label id="book-name-filter-first-n-wrap">
+        <span id="book-name-filter-first-n-label"></span>
+        <input id="book-name-filter-first-n" type="number" min="1" step="1" value="20">
+      </label>
+      <label id="book-name-filter-start-wrap">
+        <span id="book-name-filter-start-label"></span>
+        <input id="book-name-filter-start" type="number" min="1" step="1" value="1">
+      </label>
+      <label id="book-name-filter-end-wrap">
+        <span id="book-name-filter-end-label"></span>
+        <input id="book-name-filter-end" type="number" min="1" step="1" value="20">
+      </label>
+      <label>
+        <span id="book-name-filter-min-count-label"></span>
+        <input id="book-name-filter-min-count" type="number" min="1" step="1" value="2">
+      </label>
+      <label>
+        <span id="book-name-filter-min-length-label"></span>
+        <input id="book-name-filter-min-length" type="number" min="1" step="1" value="2">
+      </label>
+      <label>
+        <span id="book-name-filter-max-length-label"></span>
+        <input id="book-name-filter-max-length" type="number" min="1" step="1" value="4">
+      </label>
+      <label>
+        <span id="book-name-filter-max-items-label"></span>
+        <input id="book-name-filter-max-items" type="number" min="1" step="1" value="120">
+      </label>
+      <label>
+        <span id="book-name-filter-max-chapters-label"></span>
+        <input id="book-name-filter-max-chapters" type="number" min="1" step="1" value="80">
+      </label>
+      <fieldset class="name-filter-kind-group">
+        <legend id="book-name-filter-include-label"></legend>
+        <label class="checkbox-row name-filter-checkbox">
+          <input id="book-name-filter-include-person" type="checkbox" checked>
+          <span id="book-name-filter-include-person-label"></span>
+        </label>
+        <label class="checkbox-row name-filter-checkbox">
+          <input id="book-name-filter-include-place" type="checkbox" checked>
+          <span id="book-name-filter-include-place-label"></span>
+        </label>
+        <label class="checkbox-row name-filter-checkbox">
+          <input id="book-name-filter-include-title" type="checkbox" checked>
+          <span id="book-name-filter-include-title-label"></span>
+        </label>
+      </fieldset>
+      <label class="checkbox-row name-filter-checkbox">
+        <input id="book-name-filter-skip-existing" type="checkbox" checked>
+        <span id="book-name-filter-skip-existing-label"></span>
+      </label>
+      <div class="name-filter-form-actions">
+        <button id="btn-book-name-filter-run" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
+    <p id="book-name-filter-summary" class="empty-text"></p>
+    <div class="name-preview-wrap">
+      <div class="name-preview-table-wrap">
+        <table class="name-preview-table">
+          <thead>
+            <tr>
+              <th id="book-name-filter-col-select"></th>
+              <th id="book-name-filter-col-source"></th>
+              <th id="book-name-filter-col-type"></th>
+              <th id="book-name-filter-col-target"></th>
+              <th id="book-name-filter-col-hv"></th>
+              <th id="book-name-filter-col-meta"></th>
+              <th id="book-name-filter-col-context"></th>
+            </tr>
+          </thead>
+          <tbody id="book-name-filter-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="dialog-actions name-filter-actions">
+      <label class="checkbox-row">
+        <input id="book-name-filter-select-all" type="checkbox">
+        <span id="book-name-filter-select-all-label"></span>
+      </label>
+      <button id="btn-book-name-filter-import" class="btn btn-primary" type="button"></button>
+    </div>
   </dialog>
 
   <dialog id="book-replace-dialog" class="dialog name-editor-dialog">
@@ -509,7 +608,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/book_page.js?v=20260408-settingsleft1"></script>
+  <script type="module" src="./js/pages/book_page.js?v=20260409-namefilter2"></script>
 </body>
 
 </html>

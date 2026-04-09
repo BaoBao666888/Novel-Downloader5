@@ -3758,6 +3758,59 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Fira Code", Consolas, monospace;
 }
 
+.name-filter-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.name-filter-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.name-filter-kind-group {
+  display: grid;
+  grid-column: span 3;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-alt) 36%, transparent);
+}
+
+.name-filter-kind-group legend {
+  padding: 0 6px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.name-filter-checkbox {
+  align-self: center;
+  min-height: 40px;
+}
+
+.name-filter-form-actions {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+}
+
+.name-filter-actions {
+  justify-content: space-between;
+}
+
+.book-name-filter-context {
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: min(28vw, 260px);
+}
+
 .name-preview-wrap {
   border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   border-radius: 12px;
@@ -4240,7 +4293,13 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
     grid-template-columns: 1fr;
   }
 
+  .name-filter-form,
   .name-entry-form {
+    grid-template-columns: 1fr;
+  }
+
+  .name-filter-kind-group {
+    grid-column: auto;
     grid-template-columns: 1fr;
   }
 

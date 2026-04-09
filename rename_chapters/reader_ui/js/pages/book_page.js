@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260408-settingsleft1";
+import { initShell } from "../site_common.js?v=20260409-namefilter2";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -17,6 +17,7 @@ const refs = {
   btnOpenExtraLink: document.getElementById("btn-open-extra-link"),
   btnOpenReaderFromBook: document.getElementById("btn-open-reader-from-book"),
   btnDownloadBook: document.getElementById("btn-download-book"),
+  btnBookNameFilter: document.getElementById("btn-book-name-filter"),
   btnOpenBookNames: document.getElementById("btn-open-book-names"),
   btnOpenBookEdit: document.getElementById("btn-open-book-edit"),
 
@@ -99,6 +100,54 @@ const refs = {
   bookNameBulkInput: document.getElementById("book-name-bulk-input"),
   btnCancelBookNameBulk: document.getElementById("btn-cancel-book-name-bulk"),
   btnConfirmBookNameBulk: document.getElementById("btn-confirm-book-name-bulk"),
+  bookNameFilterDialog: document.getElementById("book-name-filter-dialog"),
+  bookNameFilterTitle: document.getElementById("book-name-filter-title"),
+  btnCloseBookNameFilter: document.getElementById("btn-close-book-name-filter"),
+  bookNameFilterHint: document.getElementById("book-name-filter-hint"),
+  bookNameFilterForm: document.getElementById("book-name-filter-form"),
+  bookNameFilterScopeLabel: document.getElementById("book-name-filter-scope-label"),
+  bookNameFilterScope: document.getElementById("book-name-filter-scope"),
+  bookNameFilterFirstNWrap: document.getElementById("book-name-filter-first-n-wrap"),
+  bookNameFilterFirstNLabel: document.getElementById("book-name-filter-first-n-label"),
+  bookNameFilterFirstN: document.getElementById("book-name-filter-first-n"),
+  bookNameFilterStartWrap: document.getElementById("book-name-filter-start-wrap"),
+  bookNameFilterStartLabel: document.getElementById("book-name-filter-start-label"),
+  bookNameFilterStart: document.getElementById("book-name-filter-start"),
+  bookNameFilterEndWrap: document.getElementById("book-name-filter-end-wrap"),
+  bookNameFilterEndLabel: document.getElementById("book-name-filter-end-label"),
+  bookNameFilterEnd: document.getElementById("book-name-filter-end"),
+  bookNameFilterMinCountLabel: document.getElementById("book-name-filter-min-count-label"),
+  bookNameFilterMinCount: document.getElementById("book-name-filter-min-count"),
+  bookNameFilterMinLengthLabel: document.getElementById("book-name-filter-min-length-label"),
+  bookNameFilterMinLength: document.getElementById("book-name-filter-min-length"),
+  bookNameFilterMaxLengthLabel: document.getElementById("book-name-filter-max-length-label"),
+  bookNameFilterMaxLength: document.getElementById("book-name-filter-max-length"),
+  bookNameFilterMaxItemsLabel: document.getElementById("book-name-filter-max-items-label"),
+  bookNameFilterMaxItems: document.getElementById("book-name-filter-max-items"),
+  bookNameFilterMaxChaptersLabel: document.getElementById("book-name-filter-max-chapters-label"),
+  bookNameFilterMaxChapters: document.getElementById("book-name-filter-max-chapters"),
+  bookNameFilterIncludeLabel: document.getElementById("book-name-filter-include-label"),
+  bookNameFilterIncludePerson: document.getElementById("book-name-filter-include-person"),
+  bookNameFilterIncludePersonLabel: document.getElementById("book-name-filter-include-person-label"),
+  bookNameFilterIncludePlace: document.getElementById("book-name-filter-include-place"),
+  bookNameFilterIncludePlaceLabel: document.getElementById("book-name-filter-include-place-label"),
+  bookNameFilterIncludeTitle: document.getElementById("book-name-filter-include-title"),
+  bookNameFilterIncludeTitleLabel: document.getElementById("book-name-filter-include-title-label"),
+  bookNameFilterSkipExisting: document.getElementById("book-name-filter-skip-existing"),
+  bookNameFilterSkipExistingLabel: document.getElementById("book-name-filter-skip-existing-label"),
+  btnBookNameFilterRun: document.getElementById("btn-book-name-filter-run"),
+  bookNameFilterSummary: document.getElementById("book-name-filter-summary"),
+  bookNameFilterColSelect: document.getElementById("book-name-filter-col-select"),
+  bookNameFilterColSource: document.getElementById("book-name-filter-col-source"),
+  bookNameFilterColType: document.getElementById("book-name-filter-col-type"),
+  bookNameFilterColTarget: document.getElementById("book-name-filter-col-target"),
+  bookNameFilterColHv: document.getElementById("book-name-filter-col-hv"),
+  bookNameFilterColMeta: document.getElementById("book-name-filter-col-meta"),
+  bookNameFilterColContext: document.getElementById("book-name-filter-col-context"),
+  bookNameFilterBody: document.getElementById("book-name-filter-body"),
+  bookNameFilterSelectAll: document.getElementById("book-name-filter-select-all"),
+  bookNameFilterSelectAllLabel: document.getElementById("book-name-filter-select-all-label"),
+  btnBookNameFilterImport: document.getElementById("btn-book-name-filter-import"),
   bookNameSuggestDialog: document.getElementById("book-name-suggest-dialog"),
   bookNameSuggestTitle: document.getElementById("book-name-suggest-title"),
   btnCloseBookNameSuggest: document.getElementById("btn-close-book-name-suggest"),
@@ -161,6 +210,14 @@ const state = {
   tocItems: [],
   bookNameSets: { "Mặc định": {} },
   bookActiveNameSet: "Mặc định",
+  bookNameFilterResults: [],
+  bookNameFilterMeta: null,
+  bookNameFilterJobId: "",
+  bookNameFilterJobStatus: "",
+  bookNameFilterWatchTimer: null,
+  bookNameFilterEventSource: null,
+  bookNameFilterWatchReconnectTimer: null,
+  bookNameFilterWatchBusy: false,
   translationEnabled: true,
   translationLocalSig: "{}",
   categories: [],
@@ -363,6 +420,27 @@ function syncBookRuleButton() {
     : state.shell.t("bookPrivateNames");
 }
 
+function canUseBookNameFilter(book = state.book) {
+  const item = book || state.book;
+  if (!item) return false;
+  if (Boolean(item.is_comic)) return false;
+  return Math.max(0, Number(item.chapter_count || 0)) > 0;
+}
+
+function syncBookNameFilterButton() {
+  if (!refs.btnBookNameFilter || !state.shell) return;
+  const visible = !!state.book && canUseBookNameFilter(state.book);
+  refs.btnBookNameFilter.classList.toggle("hidden", !visible);
+  if (!visible) return;
+  const downloaded = Math.max(0, Number((state.book && state.book.downloaded_chapters) || 0));
+  const enabled = downloaded > 0;
+  refs.btnBookNameFilter.disabled = !enabled;
+  refs.btnBookNameFilter.textContent = state.shell.t("bookNameFilter");
+  refs.btnBookNameFilter.title = enabled
+    ? state.shell.t("bookNameFilter")
+    : state.shell.t("nameFilterNeedDownloaded");
+}
+
 function applyBookUrlHints(params, book) {
   if (!book || typeof book !== "object") return;
   const translationSupported = parseBooleanLike(book.translation_supported);
@@ -400,6 +478,7 @@ function applyInitialBookUiHints() {
   if (refs.btnTocModeTrans) refs.btnTocModeTrans.classList.toggle("hidden", !canTranslate);
   if (refs.btnTranslateTitles) refs.btnTranslateTitles.classList.toggle("hidden", !canTranslate);
   syncBookRuleButton();
+  syncBookNameFilterButton();
 }
 
 function normalizeCategoryIds(values) {
@@ -753,6 +832,14 @@ function populateBook() {
   refs.btnTocModeTrans.classList.toggle("hidden", !canTranslate);
   refs.btnTranslateTitles.classList.toggle("hidden", !canTranslate);
   syncBookRuleButton();
+  syncBookNameFilterButton();
+  updateBookNameFilterScopeOptions();
+  updateBookNameFilterHint();
+  if (!state.bookNameFilterMeta) {
+    renderBookNameFilterSummary(null);
+  } else {
+    renderBookNameFilterSummary(state.bookNameFilterMeta);
+  }
   if (refs.btnRefreshBookToc) {
     refs.btnRefreshBookToc.classList.toggle("hidden", !isOnlineSourceBook(book));
   }
@@ -1548,6 +1635,417 @@ async function submitBookNameBulkEntries(event) {
   }
 }
 
+function bookDownloadedChapterCount() {
+  return Math.max(0, Number((state.book && state.book.downloaded_chapters) || 0));
+}
+
+function bookChapterTotalCount() {
+  return Math.max(0, Number((state.book && state.book.chapter_count) || 0));
+}
+
+function isBookNameFilterJobActive(status = state.bookNameFilterJobStatus) {
+  return ["queued", "running"].includes(String(status || "").trim().toLowerCase());
+}
+
+function updateBookNameFilterScopeOptions() {
+  if (!refs.bookNameFilterScope || !state.shell) return;
+  const options = refs.bookNameFilterScope.querySelectorAll("option");
+  const downloaded = bookDownloadedChapterCount();
+  if (options[0]) options[0].textContent = state.shell.t("nameFilterScopeDownloadedCount", { count: downloaded });
+  if (options[1]) options[1].textContent = state.shell.t("nameFilterScopeFirstN");
+  if (options[2]) options[2].textContent = state.shell.t("nameFilterScopeRange");
+}
+
+function updateBookNameFilterHint() {
+  if (!refs.bookNameFilterHint || !state.shell) return;
+  refs.bookNameFilterHint.textContent = state.shell.t("nameFilterHintDetail", {
+    downloaded: bookDownloadedChapterCount(),
+    total: bookChapterTotalCount(),
+  });
+}
+
+function setBookNameFilterRunningUi(running = isBookNameFilterJobActive()) {
+  const active = Boolean(running);
+  if (refs.btnBookNameFilterRun) {
+    refs.btnBookNameFilterRun.disabled = active;
+    refs.btnBookNameFilterRun.textContent = state.shell.t(active ? "nameFilterRunActive" : "nameFilterRun");
+  }
+  syncBookNameFilterSelectionUi();
+}
+
+function syncBookNameFilterScopeFields() {
+  const scope = String((refs.bookNameFilterScope && refs.bookNameFilterScope.value) || "downloaded").trim();
+  if (refs.bookNameFilterFirstNWrap) refs.bookNameFilterFirstNWrap.classList.toggle("hidden", scope !== "first_n");
+  if (refs.bookNameFilterStartWrap) refs.bookNameFilterStartWrap.classList.toggle("hidden", scope !== "range");
+  if (refs.bookNameFilterEndWrap) refs.bookNameFilterEndWrap.classList.toggle("hidden", scope !== "range");
+}
+
+function countSelectedBookNameFilterRows() {
+  return (Array.isArray(state.bookNameFilterResults) ? state.bookNameFilterResults : [])
+    .filter((item) => item && item.selected && String(item.source || "").trim() && String(item.target_suggested || "").trim())
+    .length;
+}
+
+function syncBookNameFilterSelectionUi() {
+  const items = Array.isArray(state.bookNameFilterResults) ? state.bookNameFilterResults : [];
+  const selected = countSelectedBookNameFilterRows();
+  const active = isBookNameFilterJobActive();
+  if (refs.bookNameFilterSelectAll) {
+    refs.bookNameFilterSelectAll.disabled = active || !items.length;
+    refs.bookNameFilterSelectAll.checked = !!items.length && selected === items.length;
+    refs.bookNameFilterSelectAll.indeterminate = selected > 0 && selected < items.length;
+  }
+  if (refs.btnBookNameFilterImport) {
+    refs.btnBookNameFilterImport.disabled = active || selected <= 0;
+  }
+}
+
+function renderBookNameFilterRows() {
+  if (!refs.bookNameFilterBody) return;
+  const items = Array.isArray(state.bookNameFilterResults) ? state.bookNameFilterResults : [];
+  const active = isBookNameFilterJobActive();
+  refs.bookNameFilterBody.innerHTML = "";
+  if (!items.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 7;
+    td.className = "empty-text";
+    td.textContent = state.shell.t("nameFilterEmpty");
+    tr.appendChild(td);
+    refs.bookNameFilterBody.appendChild(tr);
+    syncBookNameFilterSelectionUi();
+    return;
+  }
+  items.forEach((item) => {
+    const tr = document.createElement("tr");
+
+    const tdSelect = document.createElement("td");
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = Boolean(item.selected);
+    check.disabled = active;
+    check.addEventListener("change", () => {
+      item.selected = Boolean(check.checked);
+      syncBookNameFilterSelectionUi();
+    });
+    tdSelect.appendChild(check);
+
+    const tdSource = document.createElement("td");
+    tdSource.textContent = String(item.source || "").trim();
+
+    const tdType = document.createElement("td");
+    tdType.textContent = String(item.entity_type || "").trim();
+
+    const tdTarget = document.createElement("td");
+    const targetInput = document.createElement("input");
+    targetInput.type = "text";
+    targetInput.className = "name-target-inline";
+    targetInput.value = String(item.target_suggested || "").trim();
+    targetInput.placeholder = String(item.han_viet || "").trim();
+    targetInput.disabled = active;
+    targetInput.addEventListener("input", () => {
+      item.target_suggested = targetInput.value;
+      syncBookNameFilterSelectionUi();
+    });
+    tdTarget.appendChild(targetInput);
+
+    const tdHv = document.createElement("td");
+    tdHv.textContent = String(item.han_viet || "").trim();
+
+    const tdMeta = document.createElement("td");
+    const metaParts = [
+      `${state.shell.t("nameFilterCountShort")}: ${Number(item.count || 0)}`,
+      `Conf: ${Number(item.confidence || 0)}`,
+    ];
+    const origins = Array.isArray(item.origins) ? item.origins.filter(Boolean) : [];
+    if (origins.length) metaParts.push(origins.join(", "));
+    tdMeta.textContent = metaParts.join(" • ");
+
+    const tdContext = document.createElement("td");
+    const contexts = Array.isArray(item.sample_contexts) ? item.sample_contexts : [];
+    tdContext.textContent = contexts.join("\n");
+    tdContext.className = "book-name-filter-context";
+
+    tr.append(tdSelect, tdSource, tdType, tdTarget, tdHv, tdMeta, tdContext);
+    refs.bookNameFilterBody.appendChild(tr);
+  });
+  syncBookNameFilterSelectionUi();
+}
+
+function resetBookNameFilterDialog() {
+  state.bookNameFilterResults = [];
+  state.bookNameFilterMeta = null;
+  state.bookNameFilterJobId = "";
+  state.bookNameFilterJobStatus = "";
+  if (refs.bookNameFilterForm) refs.bookNameFilterForm.reset();
+  if (refs.bookNameFilterScope) refs.bookNameFilterScope.value = "downloaded";
+  const downloaded = bookDownloadedChapterCount();
+  const chapterTotal = bookChapterTotalCount();
+  if (refs.bookNameFilterFirstN) refs.bookNameFilterFirstN.value = String(Math.min(Math.max(1, downloaded || 1), 20));
+  if (refs.bookNameFilterStart) refs.bookNameFilterStart.value = "1";
+  if (refs.bookNameFilterEnd) refs.bookNameFilterEnd.value = String(Math.min(Math.max(1, downloaded || chapterTotal || 1), 20));
+  if (refs.bookNameFilterMaxChapters) refs.bookNameFilterMaxChapters.value = String(Math.min(Math.max(1, downloaded || 1), 80));
+  if (refs.bookNameFilterIncludePerson) refs.bookNameFilterIncludePerson.checked = true;
+  if (refs.bookNameFilterIncludePlace) refs.bookNameFilterIncludePlace.checked = true;
+  if (refs.bookNameFilterIncludeTitle) refs.bookNameFilterIncludeTitle.checked = true;
+  if (refs.bookNameFilterSkipExisting) refs.bookNameFilterSkipExisting.checked = true;
+  if (refs.bookNameFilterSummary) refs.bookNameFilterSummary.textContent = "";
+  if (refs.bookNameFilterSelectAll) {
+    refs.bookNameFilterSelectAll.checked = false;
+    refs.bookNameFilterSelectAll.indeterminate = false;
+  }
+  updateBookNameFilterScopeOptions();
+  updateBookNameFilterHint();
+  setBookNameFilterRunningUi(false);
+  syncBookNameFilterScopeFields();
+  renderBookNameFilterRows();
+}
+
+function buildBookNameFilterPayload() {
+  const scope = String((refs.bookNameFilterScope && refs.bookNameFilterScope.value) || "downloaded").trim();
+  return {
+    scope,
+    first_n: Number(refs.bookNameFilterFirstN && refs.bookNameFilterFirstN.value || 0),
+    start_order: Number(refs.bookNameFilterStart && refs.bookNameFilterStart.value || 0),
+    end_order: Number(refs.bookNameFilterEnd && refs.bookNameFilterEnd.value || 0),
+    min_count: Number(refs.bookNameFilterMinCount && refs.bookNameFilterMinCount.value || 2),
+    min_length: Number(refs.bookNameFilterMinLength && refs.bookNameFilterMinLength.value || 2),
+    max_length: Number(refs.bookNameFilterMaxLength && refs.bookNameFilterMaxLength.value || 4),
+    max_items: Number(refs.bookNameFilterMaxItems && refs.bookNameFilterMaxItems.value || 120),
+    max_chapters: Number(refs.bookNameFilterMaxChapters && refs.bookNameFilterMaxChapters.value || 80),
+    skip_existing: Boolean(refs.bookNameFilterSkipExisting && refs.bookNameFilterSkipExisting.checked),
+    include_person: Boolean(refs.bookNameFilterIncludePerson && refs.bookNameFilterIncludePerson.checked),
+    include_place: Boolean(refs.bookNameFilterIncludePlace && refs.bookNameFilterIncludePlace.checked),
+    include_title: Boolean(refs.bookNameFilterIncludeTitle && refs.bookNameFilterIncludeTitle.checked),
+  };
+}
+
+function renderBookNameFilterSummary(payload = state.bookNameFilterMeta) {
+  if (!refs.bookNameFilterSummary || !state.shell) return;
+  if (!payload || typeof payload !== "object") {
+    refs.bookNameFilterSummary.textContent = "";
+    return;
+  }
+  const status = String(payload.status || state.bookNameFilterJobStatus || "").trim().toLowerCase();
+  if (status === "failed") {
+    refs.bookNameFilterSummary.textContent = state.shell.t("nameFilterSummaryFailed", {
+      message: String(payload.message || state.shell.t("toastError")),
+    });
+    return;
+  }
+  const downloaded = Number(payload.downloaded_chapters || bookDownloadedChapterCount());
+  const total = Number(payload.chapter_total || bookChapterTotalCount());
+  const selected = Number(payload.selected_chapters || payload.total_chapters || downloaded);
+  const scanned = Number(payload.scanned_chapters || payload.processed_chapters || 0);
+  const processed = Number(payload.processed_chapters || 0);
+  const count = Array.isArray(payload.items) ? payload.items.length : Number(payload.found_candidates || 0);
+  let text = "";
+  if (isBookNameFilterJobActive(status)) {
+    text = state.shell.t("nameFilterSummaryRunning", {
+      processed,
+      selected,
+      downloaded,
+      total,
+      count,
+    });
+    const currentOrder = Number(payload.current_chapter_order || 0);
+    const currentTitle = String(payload.current_chapter_title || "").trim();
+    if (currentOrder > 0) {
+      text += ` | ${state.shell.t("nameFilterSummaryCurrent", {
+        order: currentOrder,
+        title: currentTitle || `Chương ${currentOrder}`,
+      })}`;
+    }
+    refs.bookNameFilterSummary.textContent = text;
+    return;
+  }
+  refs.bookNameFilterSummary.textContent = state.shell.t("nameFilterSummaryDone", {
+    scanned,
+    selected,
+    downloaded,
+    total,
+    count,
+  });
+}
+
+function applyBookNameFilterJobPayload(job) {
+  if (!job || typeof job !== "object") return;
+  state.bookNameFilterMeta = job;
+  state.bookNameFilterJobId = String(job.job_id || state.bookNameFilterJobId || "");
+  state.bookNameFilterJobStatus = String(job.status || "");
+  state.bookNameFilterResults = Array.isArray(job.items)
+    ? job.items.map((item) => ({ ...item, selected: item.selected !== false }))
+    : [];
+  setBookNameFilterRunningUi();
+  renderBookNameFilterSummary(job);
+  renderBookNameFilterRows();
+}
+
+function pickBookNameFilterJob(items) {
+  const jobs = Array.isArray(items) ? items : [];
+  if (!jobs.length) return null;
+  const currentId = String(state.bookNameFilterJobId || "").trim();
+  if (currentId) {
+    const matched = jobs.find((job) => String((job && job.job_id) || "").trim() === currentId);
+    if (matched) return matched;
+  }
+  const active = jobs.find((job) => isBookNameFilterJobActive(job && job.status));
+  if (active) return active;
+  return jobs[0] || null;
+}
+
+function clearBookNameFilterWatcher({ resetJob = false } = {}) {
+  if (state.bookNameFilterEventSource) {
+    try {
+      state.bookNameFilterEventSource.close();
+    } catch {
+      // ignore
+    }
+    state.bookNameFilterEventSource = null;
+  }
+  if (state.bookNameFilterWatchReconnectTimer) {
+    window.clearTimeout(state.bookNameFilterWatchReconnectTimer);
+    state.bookNameFilterWatchReconnectTimer = null;
+  }
+  if (state.bookNameFilterWatchTimer) {
+    window.clearInterval(state.bookNameFilterWatchTimer);
+    state.bookNameFilterWatchTimer = null;
+  }
+  state.bookNameFilterWatchBusy = false;
+  if (resetJob) {
+    state.bookNameFilterJobId = "";
+    state.bookNameFilterJobStatus = "";
+  }
+}
+
+function scheduleBookNameFilterWatcherReconnect() {
+  if (state.bookNameFilterWatchReconnectTimer) return;
+  state.bookNameFilterWatchReconnectTimer = window.setTimeout(() => {
+    state.bookNameFilterWatchReconnectTimer = null;
+    startBookNameFilterWatcher();
+  }, 1200);
+}
+
+function handleBookNameFilterWatcherPayload(data) {
+  const jobs = Array.isArray(data && data.items) ? data.items : [];
+  const relevant = jobs.filter((job) => String((job && job.book_id) || "").trim() === state.bookId);
+  const picked = pickBookNameFilterJob(relevant);
+  if (!picked) return;
+  applyBookNameFilterJobPayload(picked);
+}
+
+async function pollBookNameFilterWatcherTick() {
+  if (!state.bookId || state.bookNameFilterWatchBusy) return;
+  state.bookNameFilterWatchBusy = true;
+  try {
+    const data = await state.shell.api(`/api/library/name-filter/jobs?book_id=${encodeURIComponent(state.bookId)}`);
+    handleBookNameFilterWatcherPayload(data);
+  } catch {
+    // ignore poll errors
+  } finally {
+    state.bookNameFilterWatchBusy = false;
+  }
+}
+
+function startBookNameFilterWatcher() {
+  if (!state.bookId || !refs.bookNameFilterDialog || !refs.bookNameFilterDialog.open) return;
+  if (state.bookNameFilterEventSource || state.bookNameFilterWatchTimer) return;
+  if (typeof window.EventSource === "function") {
+    const streamUrl = `/api/library/name-filter/jobs/stream?book_id=${encodeURIComponent(state.bookId)}`;
+    const stream = new window.EventSource(streamUrl);
+    state.bookNameFilterEventSource = stream;
+    stream.addEventListener("jobs", (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        payload = null;
+      }
+      if (!payload || !Array.isArray(payload.items)) return;
+      handleBookNameFilterWatcherPayload(payload);
+    });
+    stream.onmessage = (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        payload = null;
+      }
+      if (!payload || !Array.isArray(payload.items)) return;
+      handleBookNameFilterWatcherPayload(payload);
+    };
+    stream.onerror = () => {
+      if (state.bookNameFilterEventSource !== stream) return;
+      try {
+        stream.close();
+      } catch {
+        // ignore
+      }
+      state.bookNameFilterEventSource = null;
+      scheduleBookNameFilterWatcherReconnect();
+    };
+    return;
+  }
+  state.bookNameFilterWatchTimer = window.setInterval(() => {
+    pollBookNameFilterWatcherTick().catch(() => {});
+  }, 1500);
+  pollBookNameFilterWatcherTick().catch(() => {});
+}
+
+async function openBookNameFilterDialog() {
+  if (!state.book || !canUseBookNameFilter(state.book)) return;
+  if (bookDownloadedChapterCount() <= 0) {
+    state.shell.showToast(state.shell.t("nameFilterNeedDownloaded"));
+    return;
+  }
+  clearBookNameFilterWatcher({ resetJob: true });
+  resetBookNameFilterDialog();
+  if (refs.bookNameFilterDialog && !refs.bookNameFilterDialog.open) {
+    refs.bookNameFilterDialog.showModal();
+  }
+  startBookNameFilterWatcher();
+}
+
+async function submitBookNameFilterPreview(event) {
+  event.preventDefault();
+  if (!state.bookId || isBookNameFilterJobActive()) return;
+  const payload = buildBookNameFilterPayload();
+  state.shell.showStatus(state.shell.t("statusFilteringBookNames"));
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/name-filter/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    applyBookNameFilterJobPayload(data.job || {});
+    startBookNameFilterWatcher();
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+    setBookNameFilterRunningUi(false);
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function importSelectedBookNameFilterRows() {
+  const entries = {};
+  for (const item of Array.isArray(state.bookNameFilterResults) ? state.bookNameFilterResults : []) {
+    if (!item || !item.selected) continue;
+    const source = String(item.source || "").trim();
+    const target = String(item.target_suggested || "").trim();
+    if (!source || !target) continue;
+    entries[source] = target;
+  }
+  if (!Object.keys(entries).length) {
+    state.shell.showToast(state.shell.t("nameFilterPickOne"));
+    return;
+  }
+  const applied = await applyBookNameEntries(entries, { replace: false, toastKey: "nameFilterImported" });
+  if (applied && refs.bookNameFilterDialog && refs.bookNameFilterDialog.open) {
+    refs.bookNameFilterDialog.close();
+  }
+}
+
 function currentBookNameSuggestSourceText() {
   return String(refs.bookNameSource.value || "").trim();
 }
@@ -1745,6 +2243,7 @@ async function init() {
   if (refs.bookCategoriesLabel) refs.bookCategoriesLabel.textContent = state.shell.t("bookCategoriesLabel");
   refs.btnOpenReaderFromBook.textContent = state.shell.t("openBookFromInfo");
   if (refs.btnDownloadBook) refs.btnDownloadBook.textContent = state.shell.t("downloadBook");
+  if (refs.btnBookNameFilter) refs.btnBookNameFilter.textContent = state.shell.t("bookNameFilter");
   refs.btnOpenBookNames.textContent = state.shell.t("bookPrivateNames");
   refs.btnOpenBookEdit.textContent = state.shell.t("editBookFromInfo");
 
@@ -1799,6 +2298,35 @@ async function init() {
   refs.bookNameBulkInput.placeholder = state.shell.t("nameSetQuickAddPlaceholder");
   refs.btnCancelBookNameBulk.textContent = state.shell.t("cancel");
   refs.btnConfirmBookNameBulk.textContent = state.shell.t("nameSetQuickAdd");
+  if (refs.bookNameFilterTitle) refs.bookNameFilterTitle.textContent = state.shell.t("bookNameFilterTitle");
+  if (refs.btnCloseBookNameFilter) refs.btnCloseBookNameFilter.textContent = state.shell.t("close");
+  updateBookNameFilterHint();
+  if (refs.bookNameFilterScopeLabel) refs.bookNameFilterScopeLabel.textContent = state.shell.t("nameFilterScopeLabel");
+  updateBookNameFilterScopeOptions();
+  if (refs.bookNameFilterFirstNLabel) refs.bookNameFilterFirstNLabel.textContent = state.shell.t("nameFilterFirstNLabel");
+  if (refs.bookNameFilterStartLabel) refs.bookNameFilterStartLabel.textContent = state.shell.t("nameFilterStartLabel");
+  if (refs.bookNameFilterEndLabel) refs.bookNameFilterEndLabel.textContent = state.shell.t("nameFilterEndLabel");
+  if (refs.bookNameFilterMinCountLabel) refs.bookNameFilterMinCountLabel.textContent = state.shell.t("nameFilterMinCountLabel");
+  if (refs.bookNameFilterMinLengthLabel) refs.bookNameFilterMinLengthLabel.textContent = state.shell.t("nameFilterMinLengthLabel");
+  if (refs.bookNameFilterMaxLengthLabel) refs.bookNameFilterMaxLengthLabel.textContent = state.shell.t("nameFilterMaxLengthLabel");
+  if (refs.bookNameFilterMaxItemsLabel) refs.bookNameFilterMaxItemsLabel.textContent = state.shell.t("nameFilterMaxItemsLabel");
+  if (refs.bookNameFilterMaxChaptersLabel) refs.bookNameFilterMaxChaptersLabel.textContent = state.shell.t("nameFilterMaxChaptersLabel");
+  if (refs.bookNameFilterIncludeLabel) refs.bookNameFilterIncludeLabel.textContent = state.shell.t("nameFilterIncludeLabel");
+  if (refs.bookNameFilterIncludePersonLabel) refs.bookNameFilterIncludePersonLabel.textContent = state.shell.t("nameFilterIncludePerson");
+  if (refs.bookNameFilterIncludePlaceLabel) refs.bookNameFilterIncludePlaceLabel.textContent = state.shell.t("nameFilterIncludePlace");
+  if (refs.bookNameFilterIncludeTitleLabel) refs.bookNameFilterIncludeTitleLabel.textContent = state.shell.t("nameFilterIncludeTitle");
+  if (refs.bookNameFilterSkipExistingLabel) refs.bookNameFilterSkipExistingLabel.textContent = state.shell.t("nameFilterSkipExistingLabel");
+  setBookNameFilterRunningUi();
+  renderBookNameFilterSummary(state.bookNameFilterMeta);
+  if (refs.bookNameFilterColSelect) refs.bookNameFilterColSelect.textContent = state.shell.t("nameFilterColSelect");
+  if (refs.bookNameFilterColSource) refs.bookNameFilterColSource.textContent = state.shell.t("nameFilterColSource");
+  if (refs.bookNameFilterColType) refs.bookNameFilterColType.textContent = state.shell.t("nameFilterColType");
+  if (refs.bookNameFilterColTarget) refs.bookNameFilterColTarget.textContent = state.shell.t("nameFilterColTarget");
+  if (refs.bookNameFilterColHv) refs.bookNameFilterColHv.textContent = state.shell.t("nameFilterColHv");
+  if (refs.bookNameFilterColMeta) refs.bookNameFilterColMeta.textContent = state.shell.t("nameFilterColMeta");
+  if (refs.bookNameFilterColContext) refs.bookNameFilterColContext.textContent = state.shell.t("nameFilterColContext");
+  if (refs.bookNameFilterSelectAllLabel) refs.bookNameFilterSelectAllLabel.textContent = state.shell.t("nameFilterSelectAll");
+  if (refs.btnBookNameFilterImport) refs.btnBookNameFilterImport.textContent = state.shell.t("nameFilterImportSelected");
   refs.bookNameSuggestTitle.textContent = state.shell.t("nameSuggestTitle");
   refs.btnCloseBookNameSuggest.textContent = state.shell.t("close");
   refs.bookNameSuggestHint.textContent = state.shell.t("nameSuggestHint");
@@ -1864,10 +2392,14 @@ async function init() {
   if (refs.btnDownloadBook) refs.btnDownloadBook.addEventListener("click", () => {
     downloadBookChapters().catch(() => {});
   });
+  if (refs.btnBookNameFilter) refs.btnBookNameFilter.addEventListener("click", () => {
+    openBookNameFilterDialog().catch(() => {});
+  });
   refs.btnOpenBookNames.addEventListener("click", openBookNameDialog);
   refs.btnOpenBookEdit.addEventListener("click", () => refs.bookEditDialog.showModal());
   refs.btnCloseBookEdit.addEventListener("click", () => refs.bookEditDialog.close());
   refs.btnCloseBookNames.addEventListener("click", () => refs.bookNameDialog.close());
+  if (refs.btnCloseBookNameFilter) refs.btnCloseBookNameFilter.addEventListener("click", () => refs.bookNameFilterDialog.close());
   if (refs.btnCloseBookReplaces) refs.btnCloseBookReplaces.addEventListener("click", () => refs.bookReplaceDialog.close());
   if (refs.btnBookReplaceRefresh) refs.btnBookReplaceRefresh.addEventListener("click", () => {
     openBookReplaceDialog().catch(() => {});
@@ -1875,10 +2407,31 @@ async function init() {
   refs.btnCloseBookNameBulk.addEventListener("click", () => refs.bookNameBulkDialog.close());
   refs.btnCloseBookNameSuggest.addEventListener("click", () => refs.bookNameSuggestDialog.close());
   refs.btnCancelBookNameBulk.addEventListener("click", () => refs.bookNameBulkDialog.close());
+  if (refs.bookNameFilterDialog) refs.bookNameFilterDialog.addEventListener("close", () => {
+    clearBookNameFilterWatcher({ resetJob: true });
+    state.bookNameFilterResults = [];
+    state.bookNameFilterMeta = null;
+    renderBookNameFilterSummary(null);
+    renderBookNameFilterRows();
+  });
   refs.bookNameBulkDialog.addEventListener("close", () => {
     if (refs.bookNameBulkForm) refs.bookNameBulkForm.reset();
   });
   refs.bookNameBulkForm.addEventListener("submit", submitBookNameBulkEntries);
+  if (refs.bookNameFilterScope) refs.bookNameFilterScope.addEventListener("change", syncBookNameFilterScopeFields);
+  if (refs.bookNameFilterForm) refs.bookNameFilterForm.addEventListener("submit", submitBookNameFilterPreview);
+  if (refs.bookNameFilterSelectAll) refs.bookNameFilterSelectAll.addEventListener("change", () => {
+    if (isBookNameFilterJobActive()) return;
+    const checked = Boolean(refs.bookNameFilterSelectAll.checked);
+    for (const item of Array.isArray(state.bookNameFilterResults) ? state.bookNameFilterResults : []) {
+      if (!item) continue;
+      item.selected = checked;
+    }
+    renderBookNameFilterRows();
+  });
+  if (refs.btnBookNameFilterImport) refs.btnBookNameFilterImport.addEventListener("click", () => {
+    importSelectedBookNameFilterRows().catch(() => {});
+  });
   refs.bookNameSource.addEventListener("input", syncBookNameSuggestExternalActions);
   if (refs.btnBookNameSuggestGoogleTranslate) {
     refs.btnBookNameSuggestGoogleTranslate.addEventListener("click", () => {
