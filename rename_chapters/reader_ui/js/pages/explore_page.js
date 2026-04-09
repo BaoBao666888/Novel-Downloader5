@@ -1421,6 +1421,7 @@ async function openGenreDialog(tag) {
 
 function renderVbookDetail() {
   const detail = state.detail.detail || {};
+  const item = state.detail.item || {};
   const loading = Boolean(state.detail.loading);
   const detailError = String(state.detail.errorMessage || "").trim();
   const title = normalizeParagraphDisplayText(detail.title || detail.name || "", { singleLine: true }) || "Không tiêu đề";
