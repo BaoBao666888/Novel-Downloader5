@@ -225,7 +225,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 }
             )
         right_items = deps.build_name_right_suggestions(
-            source_cjk,
+            source_text,
             hv_text=hv_text,
             personal_name=personal_name,
             personal_vp=personal_vp,
@@ -241,7 +241,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             row["google_search_url"] = f"https://www.google.com/search?q={deps.quote_func(zh)}"
         return {
             "ok": True,
-            "source_text": source_cjk,
+            "source_text": source_text,
             "han_viet_raw": hv_text,
             "items": items,
             "right_items": right_items,

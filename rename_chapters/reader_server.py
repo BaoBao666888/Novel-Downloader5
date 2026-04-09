@@ -1196,6 +1196,49 @@ def titlecase_hanviet_text(text: str) -> str:
     ).strip()
 
 
+_LOWERCASE_NAME_SUFFIXES_CJK = tuple(sorted({
+    "老爷子", "老爺子", "老太爷", "老太爺", "老太太", "老夫人", "老头", "老頭", "老大",
+    "总裁", "總裁", "少爷", "少爺", "小姐", "姑娘", "夫人", "先生", "女士",
+    "教官", "教练", "教練", "同学", "同學", "老师", "老師", "前辈", "前輩",
+    "师兄", "師兄", "师姐", "師姐", "师弟", "師弟", "师妹", "師妹", "师父", "師父",
+    "师尊", "師尊", "师叔", "師叔", "师伯", "師伯", "长老", "長老", "掌门", "掌門",
+    "宗主", "真人", "真君", "尊者", "帝君", "天君", "博士", "大师", "大師", "营长", "營長",
+    "长官", "長官", "夫子", "神医", "神醫", "队长", "隊長", "经理", "經理", "老板",
+    "部长", "部長", "尚书", "尚書", "导演", "導演", "研究员", "研究員", "董事长", "董事長",
+    "教授", "影后", "医生", "醫生", "师傅", "師傅", "团长", "團長", "政委", "书记", "書記",
+    "副官", "副主任", "主任", "皇后", "太后", "郡主", "郡王", "总管", "總管", "国公", "國公",
+    "公公", "婕妤", "淑仪", "淑儀", "督军", "督軍", "仙君", "峰主", "大帅", "大帥", "贵妃", "貴妃",
+    "太傅", "太师", "太師", "上人", "城主", "组长", "組長", "管家", "上将", "上將", "少将", "少將",
+    "侯爷", "侯爺", "王妃", "员外", "員外", "官人", "爱卿", "愛卿", "掌柜", "掌櫃", "公子", "大人",
+    "少主", "家主", "阿姨", "叔叔", "伯伯", "姐姐", "哥哥", "弟弟", "妹妹", "爷爷", "爺爺", "奶奶",
+    "婆婆", "嬷嬷", "嬤嬤", "妈妈", "媽媽", "爸爸", "太太", "大哥", "大姐", "大嫂", "大婶",
+    "大爷", "大爺", "二爷", "二爺", "三爷", "三爺", "四爷", "四爺", "五爷", "五爺", "六爷", "六爺",
+    "七爷", "七爺", "八爷", "八爺", "九爷", "九爺", "老弟", "哥", "姐", "妹", "弟", "叔", "伯",
+    "姨", "嫂", "婶", "嬸", "姑", "婆", "爷", "爺", "妈", "媽", "爸", "总", "總", "导", "導", "董",
+    "少", "宝", "寶", "氏", "家", "府", "宅", "派", "宗", "族", "队", "隊",
+}, key=len, reverse=True))
+
+
+def format_name_hanviet_suggestion(source_text: str, hv_text: str) -> str:
+    source_cjk = extract_name_lookup_text(source_text, keep_ascii=False)
+    hv_norm = titlecase_hanviet_text(hv_text or "")
+    if not source_cjk or not hv_norm:
+        return hv_norm
+    words = [x for x in re.split(r"\s+", hv_norm) if x.strip()]
+    if not words:
+        return hv_norm
+    for suffix in _LOWERCASE_NAME_SUFFIXES_CJK:
+        if not source_cjk.endswith(suffix):
+            continue
+        suffix_len = len(extract_name_lookup_text(suffix, keep_ascii=False))
+        if suffix_len <= 0 or len(words) < suffix_len:
+            continue
+        if len(source_cjk) <= suffix_len or len(words) <= suffix_len:
+            return " ".join(lowercase_word_vi(word) for word in words).strip()
+        return " ".join(words[:-suffix_len] + [lowercase_word_vi(word) for word in words[-suffix_len:]]).strip()
+    return hv_norm
+
+
 def lowercase_word_vi(word: str) -> str:
     value = str(word or "").strip()
     if not value:
@@ -1215,6 +1258,20 @@ def lowercase_first_alpha(text: str) -> str:
             chars[i] = ch.lower()
             break
     return "".join(chars)
+
+
+def extract_name_lookup_text(text: str, *, keep_ascii: bool = True) -> str:
+    value = normalize_newlines(text or "")
+    if not value:
+        return ""
+    out: list[str] = []
+    for ch in value:
+        if re.search(r"[\u3400-\u9fff]", ch):
+            out.append(ch)
+            continue
+        if keep_ascii and ch.isascii() and ch.isalnum():
+            out.append(ch)
+    return "".join(out).strip()
 
 
 def capitalize_after_quote_vi(text: str) -> str:
@@ -1245,14 +1302,20 @@ def build_incremental_hv_suggestions(source_text: str, hv_text: str) -> list[dic
     if not source_raw or not hv_raw:
         return []
     source_cjk = "".join(ch for ch in source_raw if re.search(r"[\u3400-\u9fff]", ch))
-    hv_words_raw = [x for x in re.split(r"\s+", hv_raw) if x.strip()]
+    formatted_base = format_name_hanviet_suggestion(source_cjk, hv_raw)
+    hv_words_raw = [x for x in re.split(r"\s+", formatted_base or hv_raw) if x.strip()]
     if not source_cjk or not hv_words_raw:
         return []
     hv_words = [lowercase_word_vi(x) for x in hv_words_raw]
+    lock_lower_from = len(hv_words)
+    for idx, word in enumerate(hv_words_raw):
+        if titlecase_token_vi(word) != word:
+            lock_lower_from = idx
+            break
 
     variants: list[str] = []
     variants.append(" ".join(hv_words).strip())
-    for idx in range(len(hv_words)):
+    for idx in range(lock_lower_from):
         row_words: list[str] = []
         for w_idx, w in enumerate(hv_words):
             if w_idx <= idx:
@@ -1305,47 +1368,67 @@ def pick_primary_translation_value(raw_value: str) -> str:
 
 
 def _collect_dict_suggestion_rows(
-    source_cjk: str,
+    source_key: str,
     mapping: dict[str, str],
     *,
     origin: str,
     base_score: int,
+    display_source_text: str = "",
     allow_subsegments: bool = True,
 ) -> list[dict[str, Any]]:
-    if not source_cjk or not mapping:
+    if not source_key or not mapping:
         return []
     rows: list[dict[str, Any]] = []
     seen_pairs: set[tuple[str, str]] = set()
+    source_norm = extract_name_lookup_text(source_key, keep_ascii=True)
+    normalized_mapping: dict[str, list[tuple[str, str]]] = {}
+    for raw_key, raw_value in mapping.items():
+        norm_key = extract_name_lookup_text(raw_key, keep_ascii=True)
+        if not norm_key:
+            continue
+        normalized_mapping.setdefault(norm_key, []).append((str(raw_key or ""), str(raw_value or "")))
 
     def add_for_key(candidate_key: str) -> None:
         if not candidate_key:
             return
+        candidate_norm = extract_name_lookup_text(candidate_key, keep_ascii=True)
+        if not candidate_norm:
+            return
+        raw_pairs: list[tuple[str, str]] = []
         raw_value = mapping.get(candidate_key)
-        if raw_value is None:
+        if raw_value is not None:
+            raw_pairs.append((candidate_key, str(raw_value or "")))
+        for raw_key, raw_value_text in normalized_mapping.get(candidate_norm, []):
+            pair = (raw_key, raw_value_text)
+            if pair not in raw_pairs:
+                raw_pairs.append(pair)
+        if not raw_pairs:
             return
-        values = split_multi_translation_values(str(raw_value))
-        if not values:
-            return
-        full_match_bonus = 28 if candidate_key == source_cjk else 0
+        full_match_bonus = 28 if candidate_norm == source_norm else 0
         score_base = base_score + full_match_bonus + len(candidate_key)
-        for idx, target in enumerate(values):
-            pair = (candidate_key, target)
-            if pair in seen_pairs:
+        for raw_key, raw_value_text in raw_pairs:
+            values = split_multi_translation_values(raw_value_text)
+            if not values:
                 continue
-            seen_pairs.add(pair)
-            rows.append(
-                {
-                    "source_text": candidate_key,
-                    "target_text": target,
-                    "origin": origin,
-                    "score": score_base - idx,
-                }
-            )
+            raw_match_bonus = 4 if raw_key == candidate_key else 0
+            for idx, target in enumerate(values):
+                pair = (candidate_key, target)
+                if pair in seen_pairs:
+                    continue
+                seen_pairs.add(pair)
+                rows.append(
+                    {
+                        "source_text": display_source_text if (candidate_norm == source_norm and display_source_text) else candidate_key,
+                        "target_text": target,
+                        "origin": origin,
+                        "score": score_base + raw_match_bonus - idx,
+                    }
+                )
 
-    add_for_key(source_cjk)
+    add_for_key(source_key)
     if not allow_subsegments:
         return rows
-    source_len = len(source_cjk)
+    source_len = len(source_key)
     if source_len < 2:
         return rows
 
@@ -1354,7 +1437,7 @@ def _collect_dict_suggestion_rows(
     cap_len = min(source_len, 14)
     for seg_len in range(cap_len, 1, -1):
         for start in range(0, source_len - seg_len + 1):
-            segment = source_cjk[start:start + seg_len]
+            segment = source_key[start:start + seg_len]
             add_for_key(segment)
             if len(rows) >= 120:
                 return rows
@@ -1373,8 +1456,10 @@ def build_name_right_suggestions(
     prefer_kind: str = "name",
     prefer_scope: str = "book",
 ) -> list[dict[str, Any]]:
-    source_cjk = "".join(ch for ch in normalize_newlines(source_text or "") if re.search(r"[\u3400-\u9fff]", ch))
-    if not source_cjk:
+    source_lookup = extract_name_lookup_text(source_text, keep_ascii=True)
+    source_cjk = extract_name_lookup_text(source_text, keep_ascii=False)
+    source_display = normalize_newlines(source_text or "").strip()
+    if not source_lookup or not source_cjk:
         return []
 
     rows: list[dict[str, Any]] = []
@@ -1405,14 +1490,26 @@ def build_name_right_suggestions(
     for mapping, origin, score in dict_sources:
         dict_rows.extend(
             _collect_dict_suggestion_rows(
-                source_cjk,
+                source_lookup,
                 mapping,
                 origin=origin,
                 base_score=score,
+                display_source_text=source_display,
                 allow_subsegments=False,
             )
         )
     rows.extend(dict_rows)
+
+    hv_candidate = format_name_hanviet_suggestion(source_display or source_cjk, hv_text or "")
+    if hv_candidate:
+        rows.append(
+            {
+                "source_text": source_display or source_lookup,
+                "target_text": hv_candidate,
+                "origin": "Name Trung",
+                "score": 88,
+            }
+        )
 
     if not rows:
         return []
@@ -6027,7 +6124,7 @@ class ReaderService:
             "scope": str(request.get("scope") or "downloaded"),
             "request": request,
             "filters": {
-                "min_count": int(request.get("min_count") or 2),
+                "min_count": int(request.get("min_count") or 5),
                 "min_length": int(request.get("min_length") or 2),
                 "max_length": int(request.get("max_length") or 4),
                 "max_chapters": int(request.get("max_chapters") or 80),
@@ -6110,6 +6207,8 @@ class ReaderService:
             result = service_name_filter_support.run_book_name_filter_with_context(
                 self,
                 context,
+                api_error_cls=ApiError,
+                http_status=HTTPStatus,
                 normalize_newlines=normalize_newlines,
                 build_name_right_suggestions=build_name_right_suggestions,
                 progress_callback=on_progress,
@@ -6325,6 +6424,14 @@ class ReaderService:
             value,
             single_line=single_line,
         )
+
+    def format_name_hanviet_suggestion(self, text: str, *, single_line: bool = True) -> str:
+        value = normalize_vbook_display_text(text or "", single_line=False)
+        if not value:
+            return ""
+        hv_text = self._author_hanviet_display(value, single_line=False)
+        formatted = format_name_hanviet_suggestion(value, hv_text)
+        return normalize_vbook_display_text(formatted or hv_text or value, single_line=single_line)
 
     def _translate_ui_text_with_dicts(
         self,

@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260409-namefilter2";
+import { t } from "../i18n.vi.js?v=20260409-namefilter3";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";

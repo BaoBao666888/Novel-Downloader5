@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import Any
 
 
@@ -8,7 +9,7 @@ _CJK_ONLY_RE = re.compile(r"^[\u3400-\u9fff]+$")
 _ELLIPSIS_MULTI_RE = re.compile(r"\.{3,}|…{2,}")
 
 _TITLE_SUFFIX_RE = re.compile(
-    r"([\u3400-\u9fff]{2,6}(?:师兄|师姐|师父|师尊|师叔|师伯|师弟|师妹|长老|掌门|宗主|老祖|真人|真君|帝君|天君|小姐|公子|少爷|姑娘|夫人|先生|教官|同学|老师|前辈|道友))"
+    r"([\u3400-\u9fff]{1,6}(?:师兄|師兄|师姐|師姐|师父|師父|师尊|師尊|师叔|師叔|师伯|師伯|师弟|師弟|师妹|師妹|长老|長老|掌门|掌門|宗主|老祖|真人|真君|尊者|帝君|天君|小姐|公子|少爷|少爺|姑娘|夫人|先生|女士|教官|教练|教練|同学|同學|老师|老師|前辈|前輩|道友|博士|大师|大師|营长|營長|长官|長官|夫子|神医|神醫|队长|隊長|经理|經理|老板|部长|部長|尚书|尚書|导演|導演|研究员|研究員|董事长|董事長|教授|影后|医生|醫生|师傅|師傅|团长|團長|政委|书记|書記|副官|副主任|主任|皇后|太后|郡主|郡王|总管|總管|国公|國公|公公|婕妤|淑仪|淑儀|督军|督軍|仙君|峰主|大帅|大帥|贵妃|貴妃|太傅|太师|太師|上人|城主|组长|組長|管家|上将|上將|少将|少將|侯爷|侯爺|王妃|员外|員外|官人|爱卿|愛卿|老爷子|老爺子|老太太|老太爷|老太爺|老夫人|老头|老頭|奶奶|婆婆|嬷嬷|嬤嬤))"
 )
 _SPEECH_RE = re.compile(
     r"([\u3400-\u9fff]{2,6}?)(?:轻声|低声|沉声|冷声|柔声|平静地|淡淡地|直接|突然|缓缓|开口|说道|说着|说|說道|說著|說|问道|问|問道|問|答道|答|笑道|笑着说|笑著說|冷笑|怒道|喝道|喊道|叫道|应道|應道|道)"
@@ -20,9 +21,9 @@ _PLACE_CONTEXT_RE = re.compile(
 )
 _CLAN_SUFFIX_RE = re.compile(r"([\u3400-\u9fff]{1,4}(?:氏|家))")
 _CALL_RE = re.compile(
-    r"([\u3400-\u9fff]{1,4}(?:哥|姐|妹|弟|叔|伯|姨|嫂|爷|爺|妈|媽|总|總|导|導|董|少|老师|老師|先生|姑娘|小姐|夫人|公子|掌柜|掌櫃|前辈|前輩|大人|老大|总裁|總裁|少主|家主|阿姨|叔叔|伯伯|姐姐|哥哥))"
+    r"([\u3400-\u9fff]{1,4}(?:哥|姐|妹|弟|叔|伯|姨|嫂|婶|嬸|姑|婆|大爷|大爺|二爷|二爺|三爷|三爺|四爷|四爺|五爷|五爺|六爷|六爺|七爷|七爺|八爷|八爺|九爷|九爺|妈|媽|爸|总|總|导|導|董|少|老师|老師|先生|姑娘|小姐|夫人|公子|掌柜|掌櫃|前辈|前輩|大人|老大|总裁|總裁|少主|家主|阿姨|叔叔|伯伯|姐姐|哥哥|弟弟|妹妹|爷爷|爺爺|奶奶|婆婆|嬷嬷|嬤嬤|妈妈|媽媽|爸爸|太太|老头|老頭|老爷子|老爺子|老太太|老夫人|宝|寶|女士|大哥|大姐|大嫂|大婶|老弟))"
 )
-_REPEAT_NICK_RE = re.compile(r"(([\u3400-\u9fff]{1,2})\2)")
+_ORG_SUFFIX_RE = re.compile(r"([\u3400-\u9fff]{1,6}(?:府|宅|派|宗|族|队|隊|国|國|城|镇|鎮))")
 
 _PATTERN_RULES: tuple[dict[str, Any], ...] = (
     {"origin": "thoai", "entity_type": "person", "pattern": _SPEECH_RE, "capture": 1},
@@ -30,9 +31,9 @@ _PATTERN_RULES: tuple[dict[str, Any], ...] = (
     {"origin": "gioi_thieu", "entity_type": "person", "pattern": _INTRO_RE, "capture": 1},
     {"origin": "chu_y", "entity_type": "person", "pattern": _ATTN_RE, "capture": 1},
     {"origin": "dia_danh", "entity_type": "place", "pattern": _PLACE_CONTEXT_RE, "capture": 1},
+    {"origin": "thế_lực", "entity_type": "place", "pattern": _ORG_SUFFIX_RE, "capture": 1},
     {"origin": "tộc_thị", "entity_type": "title", "pattern": _CLAN_SUFFIX_RE, "capture": 1},
     {"origin": "tên_gọi", "entity_type": "title", "pattern": _CALL_RE, "capture": 1},
-    {"origin": "biệt_danh", "entity_type": "title", "pattern": _REPEAT_NICK_RE, "capture": 1},
 )
 
 _PATTERN_LABELS = {
@@ -41,9 +42,9 @@ _PATTERN_LABELS = {
     "gioi_thieu": "Giới thiệu",
     "chu_y": "Ngữ cảnh",
     "dia_danh": "Địa danh",
+    "thế_lực": "Thế lực",
     "tộc_thị": "Tộc thị",
     "tên_gọi": "Tên gọi",
-    "biệt_danh": "Biệt danh",
 }
 
 _PATTERN_WEIGHTS = {
@@ -52,9 +53,9 @@ _PATTERN_WEIGHTS = {
     "gioi_thieu": 6,
     "chu_y": 2,
     "dia_danh": 5,
+    "thế_lực": 5,
     "tộc_thị": 5,
     "tên_gọi": 5,
-    "biệt_danh": 3,
 }
 
 _ENTITY_LABELS = {
@@ -127,73 +128,6 @@ _TRAILING_DESCRIPTIVE_SUFFIXES = (
     "开口",
     "冷笑",
 )
-
-_REPEAT_NICK_FULL_BLACKLIST = {
-    "伯伯",
-    "爷爷",
-    "爺爺",
-    "哥哥",
-    "姐姐",
-    "弟弟",
-    "妹妹",
-    "妈妈",
-    "媽媽",
-    "偷偷",
-    "慢慢",
-    "轻轻",
-    "淡淡",
-    "大大",
-    "小小",
-    "万万",
-    "萬萬",
-}
-
-_REPEAT_NICK_SINGLE_CHAR_BLACKLIST = {
-    "大",
-    "小",
-    "偷",
-    "慢",
-    "轻",
-    "輕",
-    "淡",
-    "纷",
-    "紛",
-    "刚",
-    "剛",
-    "想",
-    "看",
-    "说",
-    "說",
-    "听",
-    "聽",
-    "静",
-    "靜",
-    "悄",
-    "渐",
-    "漸",
-    "常",
-    "往",
-    "处",
-    "處",
-    "天",
-    "时",
-    "時",
-    "年",
-    "回",
-    "步",
-    "緩",
-    "伯",
-    "哥",
-    "姐",
-    "弟",
-    "妹",
-    "爷",
-    "爺",
-    "妈",
-    "媽",
-    "万",
-    "萬",
-}
 
 _STOPWORDS = {
     "自己",
@@ -326,7 +260,7 @@ def normalize_name_filter_request(payload: dict[str, Any] | None) -> dict[str, A
         "first_n": _parse_int(body.get("first_n"), 20, 1, 999999),
         "start_order": _parse_int(body.get("start_order"), 1, 1, 999999),
         "end_order": _parse_int(body.get("end_order"), 20, 1, 999999),
-        "min_count": _parse_int(body.get("min_count"), 2, 1, 20),
+        "min_count": _parse_int(body.get("min_count"), 5, 1, 20),
         "min_length": min_length,
         "max_length": _parse_int(body.get("max_length"), 4, min_length, 12),
         "max_chapters": _parse_int(body.get("max_chapters"), 80, 1, 500),
@@ -371,6 +305,8 @@ def _looks_like_common_phrase(value: str) -> bool:
         return True
     if text in _COMMON_PHRASE_BLACKLIST:
         return True
+    if any(token in text for token in {"宗", "派", "族", "府", "宅", "国", "國", "城", "镇", "鎮", "队", "隊"}) and text[-1] in {"哥", "姐", "妹", "弟", "叔", "伯", "姨", "嫂", "婶", "嬸", "姑", "婆", "爷", "爺", "妈", "媽", "爸", "总", "總"}:
+        return True
     if text.startswith(("诸位", "諸位", "各位")):
         return True
     if text.startswith(("和", "与", "與", "跟")) and text[-1] in {"家", "哥", "姐", "弟", "叔", "伯", "姨", "人"}:
@@ -398,20 +334,7 @@ def _cleanup_candidate_text(text: str) -> str:
     return value
 
 
-def _is_valid_repeat_nickname(value: str) -> bool:
-    text = str(value or "").strip()
-    if not text:
-        return False
-    if text in _REPEAT_NICK_FULL_BLACKLIST:
-        return False
-    if len(text) == 2 and text[0] == text[1] and text[0] in _REPEAT_NICK_SINGLE_CHAR_BLACKLIST:
-        return False
-    if len(text) == 4 and text[:2] == text[2:] and text[:2] in _REPEAT_NICK_FULL_BLACKLIST:
-        return False
-    return True
-
-
-def _is_valid_candidate(text: str, *, min_length: int, max_length: int, allow_repeated_char: bool = False) -> bool:
+def _is_valid_candidate(text: str, *, min_length: int, max_length: int) -> bool:
     value = str(text or "").strip()
     if not value:
         return False
@@ -427,7 +350,7 @@ def _is_valid_candidate(text: str, *, min_length: int, max_length: int, allow_re
         return False
     if value[-1] in _INVALID_TRAILING_NAME_CHARS:
         return False
-    if len(set(value)) == 1 and not allow_repeated_char:
+    if len(set(value)) == 1:
         return False
     return True
 
@@ -470,14 +393,10 @@ def _add_candidate(
     max_length: int,
 ) -> None:
     candidate = _cleanup_candidate_text(source)
-    allow_repeated_char = str(origin or "").strip() == "biệt_danh"
-    if allow_repeated_char and not _is_valid_repeat_nickname(candidate):
-        return
     if not _is_valid_candidate(
         candidate,
         min_length=min_length,
         max_length=max_length,
-        allow_repeated_char=allow_repeated_char,
     ):
         return
     row = bucket.setdefault(candidate, _candidate_stat())
@@ -597,6 +516,38 @@ def _choose_target_suggestion(
     return hv_text, "Hán Việt" if hv_text else ""
 
 
+def _choose_target_suggestion_exact(
+    source: str,
+    *,
+    hv_text: str,
+    active_name_set: dict[str, str],
+    active_vp_set: dict[str, str],
+    global_name: dict[str, str],
+    global_vp: dict[str, str],
+    bundle_name_general: dict[str, str],
+    bundle_vp_general: dict[str, str],
+    bundle_name_extra: dict[str, str],
+    bundle_vp_genre: dict[str, str],
+) -> tuple[str, str]:
+    source_key = str(source or "").strip()
+    if not source_key:
+        return "", ""
+    for mapping, origin in (
+        (active_name_set, "Name riêng"),
+        (active_vp_set, "VP riêng"),
+        (global_name, "Name chung"),
+        (global_vp, "VP chung"),
+        (bundle_name_general, "Name base"),
+        (bundle_vp_general, "VP base"),
+        (bundle_name_extra, "Name extra"),
+        (bundle_vp_genre, "VP thể loại"),
+    ):
+        target = str((mapping or {}).get(source_key) or "").strip()
+        if target:
+            return target, origin
+    return hv_text, "Hán Việt" if hv_text else ""
+
+
 def _confidence_score(item: dict[str, Any], *, has_dict_target: bool) -> int:
     count = int(item.get("count") or 0)
     chapter_hits = len(item.get("chapters") or [])
@@ -688,6 +639,10 @@ def _build_context(
         local_bundle = vbook_local_translate.get_public_bundle(service.translator._local_settings())
     except Exception:
         local_bundle = None
+    bundle_name_general = normalize_name_set(getattr(local_bundle, "name_general", {})) if local_bundle is not None else {}
+    bundle_vp_general = normalize_name_set(getattr(local_bundle, "vp_general", {})) if local_bundle is not None else {}
+    bundle_name_extra = normalize_name_set(getattr(local_bundle, "name_extra", {})) if local_bundle is not None else {}
+    bundle_vp_genre = normalize_name_set(getattr(local_bundle, "vp_genre", {})) if local_bundle is not None else {}
 
     return {
         "book_id": bid,
@@ -701,6 +656,10 @@ def _build_context(
         "global_name": global_name,
         "global_vp": global_vp,
         "local_bundle": local_bundle,
+        "bundle_name_general": bundle_name_general,
+        "bundle_vp_general": bundle_vp_general,
+        "bundle_name_extra": bundle_name_extra,
+        "bundle_vp_genre": bundle_vp_genre,
         "allowed_entity_types": _collect_allowed_entity_types(request),
     }
 
@@ -734,16 +693,22 @@ def _build_items_from_merged(
     *,
     build_name_right_suggestions,
     max_items: int | None = None,
+    suggestion_cache: dict[str, dict[str, str]] | None = None,
 ) -> list[dict[str, Any]]:
     request = dict(context.get("request") or {})
     active_name_set = dict(context.get("active_name_set") or {})
     active_vp_set = dict(context.get("active_vp_set") or {})
     global_name = dict(context.get("global_name") or {})
     global_vp = dict(context.get("global_vp") or {})
-    local_bundle = context.get("local_bundle")
-    min_count = int(request.get("min_count") or 1)
+    bundle_name_general = dict(context.get("bundle_name_general") or {})
+    bundle_vp_general = dict(context.get("bundle_vp_general") or {})
+    bundle_name_extra = dict(context.get("bundle_name_extra") or {})
+    bundle_vp_genre = dict(context.get("bundle_vp_genre") or {})
+    min_count = int(request.get("min_count") or 5)
     skip_existing = bool(request.get("skip_existing"))
     limit = int(max_items if max_items is not None else (request.get("max_items") or 120))
+    formatter = getattr(service, "format_name_hanviet_suggestion", None)
+    cache = suggestion_cache if isinstance(suggestion_cache, dict) else {}
 
     items: list[dict[str, Any]] = []
     for source, item in merged.items():
@@ -754,18 +719,34 @@ def _build_items_from_merged(
         if skip_existing and existing_target:
             continue
         entity_type_key = _primary_entity_type(item)
-        hv_text = service._author_hanviet_display(source, single_line=True)
-        suggested_target, dict_origin = _choose_target_suggestion(
-            source,
-            hv_text=hv_text,
-            active_name_set=active_name_set,
-            active_vp_set=active_vp_set,
-            global_name=global_name,
-            global_vp=global_vp,
-            local_bundle=local_bundle,
-            build_name_right_suggestions=build_name_right_suggestions,
-        )
-        has_dict_target = bool(dict_origin and dict_origin != "Hán Việt")
+        cached = cache.get(source)
+        if cached is None:
+            if callable(formatter):
+                hv_text = str(formatter(source, single_line=True) or "").strip()
+            else:
+                hv_text = str(service._author_hanviet_display(source, single_line=True) or "").strip()
+            suggested_target, dict_origin = _choose_target_suggestion_exact(
+                source,
+                hv_text=hv_text,
+                active_name_set=active_name_set,
+                active_vp_set=active_vp_set,
+                global_name=global_name,
+                global_vp=global_vp,
+                bundle_name_general=bundle_name_general,
+                bundle_vp_general=bundle_vp_general,
+                bundle_name_extra=bundle_name_extra,
+                bundle_vp_genre=bundle_vp_genre,
+            )
+            cached = {
+                "hv_text": hv_text,
+                "suggested_target": suggested_target,
+                "dict_origin": dict_origin,
+            }
+            cache[source] = cached
+        hv_text = str(cached.get("hv_text") or "").strip()
+        suggested_target = str(cached.get("suggested_target") or "").strip()
+        dict_origin = str(cached.get("dict_origin") or "").strip()
+        has_dict_target = bool(dict_origin and dict_origin not in {"Hán Việt", "Name Trung"})
         confidence = _confidence_score(item, has_dict_target=has_dict_target)
         items.append(
             {
@@ -800,6 +781,8 @@ def run_book_name_filter_with_context(
     service,
     context: dict[str, Any],
     *,
+    api_error_cls,
+    http_status,
     normalize_newlines,
     build_name_right_suggestions,
     progress_callback=None,
@@ -813,8 +796,20 @@ def run_book_name_filter_with_context(
     downloaded_rows = list(context.get("downloaded_rows") or [])
     chapter_rows = list(context.get("chapter_rows") or [])
     total_rows = len(selected_rows)
+    stream_progress = callable(progress_callback)
+    suggestion_cache: dict[str, dict[str, str]] = {}
+    last_live_items: list[dict[str, Any]] = []
+    last_live_build_at = 0.0
+    if total_rows <= 12:
+        live_rebuild_every = 1
+    elif total_rows <= 40:
+        live_rebuild_every = 2
+    elif total_rows <= 120:
+        live_rebuild_every = 4
+    else:
+        live_rebuild_every = 6
 
-    if callable(progress_callback):
+    if stream_progress:
         progress_callback(
             {
                 "processed_chapters": 0,
@@ -830,6 +825,7 @@ def run_book_name_filter_with_context(
         chapter_order = int(chapter.get("chapter_order") or 0)
         raw_key = str(chapter.get("raw_key") or "").strip()
         raw_text = service.storage.read_cache(raw_key) or "" if raw_key else ""
+        merged_dirty = False
         if raw_text:
             scanned_rows += 1
             if service._contains_cjk_text(raw_text):
@@ -843,14 +839,26 @@ def run_book_name_filter_with_context(
                     normalize_newlines=normalize_newlines,
                 )
                 _merge_scan_rows(merged, current)
-        live_items = _build_items_from_merged(
-            service,
-            merged,
-            context,
-            build_name_right_suggestions=build_name_right_suggestions,
-            max_items=min(int(request.get("max_items") or 120), 80),
-        )
-        if callable(progress_callback):
+                merged_dirty = bool(current)
+        if stream_progress:
+            now = time.perf_counter()
+            should_rebuild_live = False
+            if merged and not last_live_items:
+                should_rebuild_live = True
+            elif idx >= total_rows:
+                should_rebuild_live = True
+            elif merged_dirty and ((idx % live_rebuild_every) == 0 or (now - last_live_build_at) >= 0.45):
+                should_rebuild_live = True
+            if should_rebuild_live:
+                last_live_items = _build_items_from_merged(
+                    service,
+                    merged,
+                    context,
+                    build_name_right_suggestions=build_name_right_suggestions,
+                    max_items=min(int(request.get("max_items") or 120), 80),
+                    suggestion_cache=suggestion_cache,
+                )
+                last_live_build_at = now
             progress_callback(
                 {
                     "processed_chapters": idx,
@@ -861,8 +869,8 @@ def run_book_name_filter_with_context(
                     "chapters_with_cjk": cjk_rows,
                     "current_chapter_order": chapter_order,
                     "current_chapter_title": str(chapter.get("title_vi") or chapter.get("title_raw") or "").strip(),
-                    "found_candidates": len(live_items),
-                    "items": live_items,
+                    "found_candidates": len(last_live_items),
+                    "items": last_live_items,
                 }
             )
 
@@ -874,6 +882,7 @@ def run_book_name_filter_with_context(
         merged,
         context,
         build_name_right_suggestions=build_name_right_suggestions,
+        suggestion_cache=suggestion_cache,
     )
     return {
         "ok": True,
@@ -886,7 +895,7 @@ def run_book_name_filter_with_context(
         "chapter_total": int(len(chapter_rows)),
         "items": items,
         "filters": {
-            "min_count": int(request.get("min_count") or 2),
+            "min_count": int(request.get("min_count") or 5),
             "min_length": int(request.get("min_length") or 2),
             "max_length": int(request.get("max_length") or 4),
             "max_chapters": int(request.get("max_chapters") or 80),
@@ -924,6 +933,8 @@ def run_book_name_filter(
     return run_book_name_filter_with_context(
         service,
         context,
+        api_error_cls=api_error_cls,
+        http_status=http_status,
         normalize_newlines=normalize_newlines,
         build_name_right_suggestions=build_name_right_suggestions,
         progress_callback=progress_callback,

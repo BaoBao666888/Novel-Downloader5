@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260409-namefilter2";
+import { initShell } from "../site_common.js?v=20260409-namefilter3";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -1808,7 +1808,7 @@ function buildBookNameFilterPayload() {
     first_n: Number(refs.bookNameFilterFirstN && refs.bookNameFilterFirstN.value || 0),
     start_order: Number(refs.bookNameFilterStart && refs.bookNameFilterStart.value || 0),
     end_order: Number(refs.bookNameFilterEnd && refs.bookNameFilterEnd.value || 0),
-    min_count: Number(refs.bookNameFilterMinCount && refs.bookNameFilterMinCount.value || 2),
+    min_count: Number(refs.bookNameFilterMinCount && refs.bookNameFilterMinCount.value || 5),
     min_length: Number(refs.bookNameFilterMinLength && refs.bookNameFilterMinLength.value || 2),
     max_length: Number(refs.bookNameFilterMaxLength && refs.bookNameFilterMaxLength.value || 4),
     max_items: Number(refs.bookNameFilterMaxItems && refs.bookNameFilterMaxItems.value || 120),
