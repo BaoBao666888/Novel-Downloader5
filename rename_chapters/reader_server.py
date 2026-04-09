@@ -176,6 +176,17 @@ def resolve_persisted_path(raw: str | Path, *bases: Path) -> Path:
     except Exception:
         pass
 
+    wsl_match = re.match(r"^/mnt/(?P<drive>[A-Za-z])/(?P<rest>.+)$", raw_s)
+    if wsl_match:
+        drive = wsl_match.group("drive").upper()
+        rest = wsl_match.group("rest").replace("/", "\\")
+        mapped = Path(f"{drive}:\\{rest}")
+        try:
+            if mapped.exists():
+                return mapped
+        except Exception:
+            pass
+
     win_match = re.match(r"^(?P<drive>[A-Za-z]):[\\/](?P<rest>.+)$", raw_s)
     if win_match:
         drive = win_match.group("drive").lower()
@@ -1015,6 +1026,50 @@ def strip_edge_punctuation(text: str) -> str:
     return value.strip()
 
 
+def starts_with_target_name(text: str, target_name: str) -> bool:
+    name = str(target_name or "").strip()
+    if not name:
+        return False
+    probe = strip_edge_punctuation(text)
+    if not probe:
+        return False
+    return probe.lower().startswith(name.lower())
+
+
+def source_starts_with_cjk(text: str) -> bool:
+    value = str(text or "")
+    if not value:
+        return False
+    value = re.sub(r"^[\s\.,;:!?…，。！？；：、“”\"'‘’()\[\]{}<>《》「」『』\-—]+", "", value)
+    if not value:
+        return False
+    return bool(re.match(r"[\u3400-\u9fff]", value))
+
+
+def should_lowercase_after_comma(
+    prev_piece: str,
+    source_text: str,
+    translated_text: str,
+    unit_hits: list[dict[str, Any]],
+    protected_name_targets: list[str] | set[str] | tuple[str, ...],
+) -> bool:
+    if not str(prev_piece or "").rstrip().endswith((",", "，", "、")):
+        return False
+    if not source_starts_with_cjk(source_text):
+        return False
+    core_lstrip = str(translated_text or "").lstrip()
+    if not core_lstrip:
+        return False
+    for hit in unit_hits:
+        hit_target = str(hit.get("target") or "").strip()
+        if starts_with_target_name(core_lstrip, hit_target):
+            return False
+    for target_name in protected_name_targets:
+        if starts_with_target_name(core_lstrip, target_name):
+            return False
+    return True
+
+
 NAME_SPLIT_DELIMITER_RE = re.compile(r"[\n\r,，、。！？!?；;：:]")
 
 
@@ -1062,23 +1117,33 @@ def smart_capitalize_vi(text: str) -> str:
         return value
     chars = list(value)
     cap_next = True
+    cap_after_quote = False
     sentence_breakers = {".", "!", "?", ";", "…", "\n", "。", "！", "？", ":"}
     skip_when_cap = {" ", "\t", "\"", "'", "“", "”", "‘", "’", "(", "[", "{", "<", "-", "*", "•", ">", "»", "«"}
+    quote_marks = {"\"", "'", "“", "”", "‘", "’", "«", "»"}
+    skip_after_quote = {" ", "\t", "\n", ",", ".", ";", ":", "!", "?", "…", "，", "。", "！", "？", "；", "：", "、"}
     for i, ch in enumerate(chars):
-        if cap_next:
+        if cap_next or cap_after_quote:
             if ch.isalpha():
                 chars[i] = ch.upper()
                 cap_next = False
+                cap_after_quote = False
                 continue
             if ch.isdigit():
                 # Nếu đầu câu là số thì không ép viết hoa từ ngay sau số.
                 cap_next = False
+                cap_after_quote = False
                 continue
-            if ch in skip_when_cap or ch.isspace():
+            if cap_next and (ch in skip_when_cap or ch.isspace()):
+                continue
+            if cap_after_quote and (ch in skip_after_quote or ch.isspace()):
                 continue
             cap_next = False
+            cap_after_quote = False
         if ch in sentence_breakers:
             cap_next = True
+        if ch in quote_marks:
+            cap_after_quote = True
     return "".join(chars).strip()
 
 
@@ -1146,6 +1211,28 @@ def lowercase_first_alpha(text: str) -> str:
         if ch.isalpha():
             chars[i] = ch.lower()
             break
+    return "".join(chars)
+
+
+def capitalize_after_quote_vi(text: str) -> str:
+    value = str(text or "")
+    if not value:
+        return ""
+    chars = list(value)
+    cap_after_quote = False
+    quote_marks = {"\"", "'", "“", "”", "‘", "’", "«", "»"}
+    skip_after_quote = {" ", "\t", "\n", ",", ".", ";", ":", "!", "?", "…", "，", "。", "！", "？", "；", "：", "、"}
+    for i, ch in enumerate(chars):
+        if cap_after_quote:
+            if ch.isalpha():
+                chars[i] = ch.upper()
+                cap_after_quote = False
+                continue
+            if ch in skip_after_quote or ch.isspace():
+                continue
+            cap_after_quote = False
+        if ch in quote_marks:
+            cap_after_quote = True
     return "".join(chars)
 
 
@@ -3417,22 +3504,15 @@ class TranslationAdapter:
 
             # Sau dấu phẩy: text thường không nên bị viết hoa chữ đầu cụm.
             # Riêng Name riêng đã map thì giữ nguyên chữ hoa hiện có.
-            if prev_piece.rstrip().endswith((",", "，", "、")):
-                core_lstrip = restored_core.lstrip()
-                preserve_case = False
-                if core_lstrip:
-                    for hit in unit_hits:
-                        hit_target = str(hit.get("target") or "").strip()
-                        if hit_target and core_lstrip.lower().startswith(hit_target.lower()):
-                            preserve_case = True
-                            break
-                    if not preserve_case:
-                        for target_name in protected_name_targets:
-                            if core_lstrip.lower().startswith(target_name.lower()):
-                                preserve_case = True
-                                break
-                if not preserve_case:
-                    restored_core = lowercase_first_alpha(restored_core)
+            if should_lowercase_after_comma(
+                prev_piece,
+                str(source_info.get("text") or core or unit),
+                restored_core,
+                unit_hits,
+                protected_name_targets,
+            ):
+                restored_core = lowercase_first_alpha(restored_core)
+            restored_core = capitalize_after_quote_vi(restored_core)
 
             final_piece = f"{left}{restored_core}{right}"
             final_piece = _prepend_space_if_needed(prev_piece, final_piece)
@@ -3618,22 +3698,15 @@ class TranslationAdapter:
                     restored_piece = restore_name_placeholders(prev_placeholder_piece, placeholder_map)
                     restored_piece = normalize_vi_punctuation(restored_piece)
                     prev_piece = translated_parts[-1] if translated_parts else ""
-                    if prev_piece.rstrip().endswith((",", "，", "、")):
-                        core_lstrip = restored_piece.lstrip()
-                        preserve_case = False
-                        if core_lstrip:
-                            for hit in unit_hits:
-                                hit_target = str(hit.get("target") or "").strip()
-                                if hit_target and core_lstrip.lower().startswith(hit_target.lower()):
-                                    preserve_case = True
-                                    break
-                            if not preserve_case:
-                                for target_name in protected_name_targets:
-                                    if target_name and core_lstrip.lower().startswith(target_name.lower()):
-                                        preserve_case = True
-                                        break
-                        if not preserve_case:
-                            restored_piece = lowercase_first_alpha(restored_piece)
+                    if should_lowercase_after_comma(
+                        prev_piece,
+                        source_text,
+                        restored_piece,
+                        unit_hits,
+                        protected_name_targets,
+                    ):
+                        restored_piece = lowercase_first_alpha(restored_piece)
+                    restored_piece = capitalize_after_quote_vi(restored_piece)
                     final_piece = _prepend_space_if_needed(prev_piece, restored_piece)
                     placeholder_piece_for_row = prev_placeholder_piece.strip()
                     reused_any = True
@@ -3659,22 +3732,15 @@ class TranslationAdapter:
                 if not final_piece:
                     final_piece = source_text
                 prev_piece = translated_parts[-1] if translated_parts else ""
-                preserve_case = False
-                if prev_piece.rstrip().endswith((",", "，", "、")):
-                    core_lstrip = final_piece.lstrip()
-                    if core_lstrip:
-                        for hit in unit_hits:
-                            hit_target = str(hit.get("target") or "").strip()
-                            if hit_target and core_lstrip.lower().startswith(hit_target.lower()):
-                                preserve_case = True
-                                break
-                        if not preserve_case:
-                            for target_name in protected_name_targets:
-                                if target_name and core_lstrip.lower().startswith(target_name.lower()):
-                                    preserve_case = True
-                                    break
-                    if not preserve_case:
-                        final_piece = lowercase_first_alpha(final_piece)
+                if should_lowercase_after_comma(
+                    prev_piece,
+                    source_text,
+                    final_piece,
+                    unit_hits,
+                    protected_name_targets,
+                ):
+                    final_piece = lowercase_first_alpha(final_piece)
+                final_piece = capitalize_after_quote_vi(final_piece)
                 final_piece = _prepend_space_if_needed(translated_parts[-1] if translated_parts else "", final_piece)
                 if previous_row is not None and prev_processed_core and current_processed_core and prev_processed_core == current_processed_core:
                     placeholder_piece_for_row = str(previous_row.get("target_placeholder_text") or "").strip()

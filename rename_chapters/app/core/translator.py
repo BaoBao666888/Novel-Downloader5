@@ -122,6 +122,98 @@ def _looks_untranslated_translation(source_text: str, translated_text: str) -> b
         return True
     return False
 
+
+def _decode_loose_json_escape(ch: str) -> str:
+    mapping = {
+        '"': '"',
+        "\\": "\\",
+        "/": "/",
+        "b": "\b",
+        "f": "\f",
+        "n": "\n",
+        "r": "\r",
+        "t": "\t",
+    }
+    return mapping.get(ch, ch)
+
+
+def _parse_loose_json_array(content):
+    if isinstance(content, list):
+        return [str(item or "") for item in content]
+
+    raw = str(content or "").strip()
+    if not raw:
+        return []
+
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return [str(item or "") for item in parsed]
+    except Exception:
+        pass
+
+    body = raw
+    if body.startswith("["):
+        body = body[1:]
+    if body.endswith("]"):
+        body = body[:-1]
+
+    items = []
+    i = 0
+    n = len(body)
+    while i < n:
+        while i < n and body[i] in " \t\r\n,":
+            i += 1
+        if i >= n:
+            break
+
+        if body[i] != '"':
+            start = i
+            while i < n and body[i] != ",":
+                i += 1
+            token = body[start:i].strip()
+            if token:
+                items.append(token)
+            continue
+
+        i += 1
+        buf = []
+        while i < n:
+            ch = body[i]
+            if ch == "\\":
+                i += 1
+                if i >= n:
+                    buf.append("\\")
+                    break
+                next_ch = body[i]
+                if next_ch == "u" and i + 4 < n:
+                    hex_part = body[i + 1:i + 5]
+                    try:
+                        buf.append(chr(int(hex_part, 16)))
+                        i += 5
+                        continue
+                    except Exception:
+                        buf.append("u")
+                        i += 1
+                        continue
+                buf.append(_decode_loose_json_escape(next_ch))
+                i += 1
+                continue
+            if ch == '"':
+                j = i + 1
+                while j < n and body[j] in " \t\r\n":
+                    j += 1
+                if j >= n or body[j] == ",":
+                    i = j + 1 if j < n and body[j] == "," else j
+                    break
+                buf.append('"')
+                i += 1
+                continue
+            buf.append(ch)
+            i += 1
+        items.append("".join(buf))
+    return [str(item or "") for item in items]
+
 def _post_translate_batch(
     content_array: list,
     server_url: str,
@@ -147,9 +239,14 @@ def _post_translate_batch(
             )
             response.raise_for_status()
             json_response = response.json()
-            translated_content_str = json_response.get('data', {}).get('content') or json_response.get('translatedText', '[]')
-            sanitized_string = translated_content_str.replace('\\', '\\\\').replace('\\\\"', '\\"')
-            return json.loads(sanitized_string)
+            translated_content = json_response.get('data', {}).get('content')
+            if translated_content in (None, ""):
+                translated_content = json_response.get('translatedText', [])
+            parsed = _parse_loose_json_array(translated_content)
+            if len(parsed) == len(content_array):
+                return parsed
+            if parsed:
+                return parsed
         except requests.exceptions.RequestException as e:
             last_request_error = e
         except json.JSONDecodeError as e:
@@ -159,6 +256,63 @@ def _post_translate_batch(
     if last_request_error is not None:
         return [f"[Lỗi mạng: {last_request_error}]"] * len(content_array)
     return [f"[Lỗi server response]"] * len(content_array)
+
+
+def _translate_batch_resilient(
+    content_array: list,
+    server_url: str,
+    proxies=None,
+    target_lang: str = 'vi',
+    retry_count: int = 2,
+    retry_backoff_ms: int = 700,
+    timeout_sec: int = 60,
+):
+    if not content_array:
+        return []
+
+    translated = _post_translate_batch(
+        content_array,
+        server_url,
+        proxies,
+        target_lang=target_lang,
+        retry_count=retry_count,
+        retry_backoff_ms=retry_backoff_ms,
+        timeout_sec=timeout_sec,
+    )
+    if len(translated) == len(content_array):
+        suspicious = [
+            idx
+            for idx, (source_text, translated_text) in enumerate(zip(content_array, translated))
+            if _looks_untranslated_translation(source_text, translated_text)
+        ]
+        if not suspicious:
+            return translated
+
+    if len(content_array) <= 1:
+        if translated:
+            return translated[:1]
+        return ["[Lỗi server response thiếu item]"]
+
+    mid = max(1, len(content_array) // 2)
+    left = _translate_batch_resilient(
+        content_array[:mid],
+        server_url,
+        proxies,
+        target_lang=target_lang,
+        retry_count=retry_count,
+        retry_backoff_ms=retry_backoff_ms,
+        timeout_sec=timeout_sec,
+    )
+    right = _translate_batch_resilient(
+        content_array[mid:],
+        server_url,
+        proxies,
+        target_lang=target_lang,
+        retry_count=retry_count,
+        retry_backoff_ms=retry_backoff_ms,
+        timeout_sec=timeout_sec,
+    )
+    return left + right
 
 def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_progress_callback=None, target_lang: str = 'vi'):
     if not chunks:
@@ -187,7 +341,7 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
             progress = int((i / total_batches) * 100)
             update_progress_callback(f"Đang dịch gói {i+1}/{total_batches}...", progress)
         
-        translated_batch = _post_translate_batch(
+        translated_batch = _translate_batch_resilient(
             batch,
             server_url,
             settings.get('proxies'),
@@ -215,7 +369,7 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
         retried_results: list[str] = []
         for batch in retry_batches:
             retried_results.extend(
-                _post_translate_batch(
+                _translate_batch_resilient(
                     batch,
                     server_url,
                     settings.get('proxies'),
@@ -228,6 +382,11 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
         for idx, candidate in zip(suspicious_indexes, retried_results):
             if not _looks_untranslated_translation(texts_with_placeholders[idx], candidate):
                 all_translated_texts[idx] = candidate
+
+    if len(all_translated_texts) < len(texts_with_placeholders):
+        all_translated_texts.extend(texts_with_placeholders[len(all_translated_texts):])
+    elif len(all_translated_texts) > len(texts_with_placeholders):
+        all_translated_texts = all_translated_texts[:len(texts_with_placeholders)]
 
     if update_progress_callback:
         update_progress_callback("Khôi phục tên và hoàn tất...", 95)
