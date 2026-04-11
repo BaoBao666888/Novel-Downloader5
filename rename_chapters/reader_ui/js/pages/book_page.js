@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260409-namefilter3";
+import { initShell } from "../site_common.js?v=20260411-dichngaylocal1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -2640,7 +2640,7 @@ async function init() {
       : state.translateMode;
     const localSig = localTranslationSettingsSignature(state.shell);
     const localChanged = localSig !== state.translationLocalSig;
-    if (enabled === state.translationEnabled && mode === state.translateMode && !(["local", "hanviet"].includes(mode) && localChanged)) return;
+    if (enabled === state.translationEnabled && mode === state.translateMode && !((["local", "hanviet", "dichngay_local"].includes(mode)) && localChanged)) return;
     state.translationEnabled = enabled;
     state.translationLocalSig = localSig;
     if (!enabled) {

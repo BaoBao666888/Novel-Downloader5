@@ -111,7 +111,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         if not text:
             raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu text cần preview.")
         translate_mode = (payload.get("translation_mode") or "local").strip().lower()
-        if translate_mode not in {"local", "server", "hanviet"}:
+        if translate_mode not in {"local", "server", "hanviet", "dichngay_local"}:
             translate_mode = "local"
         override_name_set = payload.get("name_set")
         if override_name_set is not None and not isinstance(override_name_set, dict):
@@ -172,11 +172,17 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 personal_vp = {}
         global_dicts = handler.service.get_local_global_dicts()
         local_bundle = None
-        if translate_mode in {"local", "hanviet"}:
+        if translate_mode in {"local", "hanviet", "dichngay_local"}:
             try:
                 local_settings = deps.vbook_local_translate.normalize_local_settings(
-                    (handler.service.reader_translation_settings or {}).get("local") or {},
-                    default_base_dir="reader_ui/translate/vbook_local",
+                    (handler.service.reader_translation_settings or {}).get(
+                        "dichngay_local" if translate_mode == "dichngay_local" else "local"
+                    ) or {},
+                    default_base_dir=(
+                        "local/dichngay_local_pack"
+                        if translate_mode == "dichngay_local"
+                        else "reader_ui/translate/vbook_local"
+                    ),
                 )
                 local_bundle = deps.vbook_local_translate.get_public_bundle(local_settings)
                 hv_text = deps.vbook_local_translate.build_hanviet_text(source_cjk, local_settings) or source_cjk

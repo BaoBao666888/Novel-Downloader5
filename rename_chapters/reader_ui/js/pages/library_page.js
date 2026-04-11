@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260408-settingsleft1";
+import { initShell } from "../site_common.js?v=20260411-dichngaylocal1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -3632,7 +3632,7 @@ async function init() {
       : "server";
     const localSig = localTranslationSettingsSignature(state.shell);
     const localChanged = localSig !== state.translationLocalSig;
-    if (enabled === state.translationEnabled && mode === state.translationMode && !(["local", "hanviet"].includes(mode) && localChanged)) return;
+    if (enabled === state.translationEnabled && mode === state.translationMode && !((["local", "hanviet", "dichngay_local"].includes(mode)) && localChanged)) return;
     state.translationEnabled = enabled;
     state.translationMode = mode;
     state.translationLocalSig = localSig;

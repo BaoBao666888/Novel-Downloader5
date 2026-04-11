@@ -1881,7 +1881,7 @@ def map_selection_to_source_segment(
         and strip_edge_punctuation(str(row.get("source_text") or "").strip())
         and int(row.get("token_type") or 0) != 4
     ]
-    if mode_norm in {"local", "hanviet"} and token_rows:
+    if mode_norm in {"local", "hanviet", "dichngay_local"} and token_rows:
         chosen_rows = select_cover_rows(token_rows, "target_start", "target_end")
         if chosen_rows:
             source_start = min(int(row.get("source_start") or 0) for row in chosen_rows)
@@ -2222,7 +2222,7 @@ def map_selection_to_name_source(
         key=lambda x: (int(x.get("target_start") or 0), int(x.get("target_end") or 0)),
     )
     mode_norm = str(translation_mode or "").strip().lower()
-    if mode_norm in {"local", "hanviet"} and token_rows:
+    if mode_norm in {"local", "hanviet", "dichngay_local"} and token_rows:
         overlaps = select_cover_rows(token_rows, start, end)
 
         if overlaps:
@@ -3293,9 +3293,11 @@ class TranslationAdapter:
             "proxies": cfg.get("proxies"),
         }
 
-    def _local_settings(self) -> dict[str, Any]:
+    def _local_settings(self, mode: str = "local") -> dict[str, Any]:
         reader_cfg = self.app_config.get("reader_translation") or {}
-        local_cfg = reader_cfg.get("local") if isinstance(reader_cfg, dict) else {}
+        mode_norm = str(mode or "local").strip().lower()
+        local_key = "dichngay_local" if mode_norm == "dichngay_local" else "local"
+        local_cfg = reader_cfg.get(local_key) if isinstance(reader_cfg, dict) else {}
         if not isinstance(local_cfg, dict):
             local_cfg = {}
         global_dicts = reader_cfg.get("global_dicts") if isinstance(reader_cfg, dict) else {}
@@ -3304,9 +3306,10 @@ class TranslationAdapter:
         merged_local = dict(local_cfg)
         merged_local["global_name_overrides"] = normalize_name_set(global_dicts.get("name"))
         merged_local["global_vp_overrides"] = normalize_name_set(global_dicts.get("vp"))
+        default_base_dir = "local/dichngay_local_pack" if local_key == "dichngay_local" else "reader_ui/translate/vbook_local"
         return vbook_local_translate.normalize_local_settings(
             merged_local,
-            default_base_dir="reader_ui/translate/vbook_local",
+            default_base_dir=default_base_dir,
         )
 
     def _active_name_set(self) -> dict[str, str]:
@@ -3350,7 +3353,7 @@ class TranslationAdapter:
         vp_set_override: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         mode_norm = (mode or "server").strip().lower()
-        if mode_norm not in {"server", "local", "hanviet"}:
+        if mode_norm not in {"server", "local", "hanviet", "dichngay_local"}:
             mode_norm = "server"
         effective_name_set = (
             self._server_name_set_for_use(name_set_override)
@@ -3364,14 +3367,15 @@ class TranslationAdapter:
             "text_norm_version": 9,
             "name_set": effective_name_set,
         }
-        if mode_norm in {"local", "hanviet"}:
-            local_settings = self._local_settings()
+        if mode_norm in {"local", "hanviet", "dichngay_local"}:
+            local_settings = self._local_settings(mode_norm)
             payload["local_settings"] = local_settings
+            payload["local_mode_key"] = "dichngay_local" if mode_norm == "dichngay_local" else "local"
             try:
                 payload["local_bundle_sig"] = vbook_local_translate.get_public_bundle(local_settings).signature
             except Exception:
                 payload["local_bundle_sig"] = ""
-        if mode_norm == "local":
+        if mode_norm in {"local", "dichngay_local"}:
             payload["vp_set"] = normalize_name_set(vp_set_override or {})
         return payload
 
@@ -3398,7 +3402,7 @@ class TranslationAdapter:
     ) -> dict[str, Any]:
         source = (text or "").strip()
         mode_norm = (mode or "server").strip().lower()
-        if mode_norm not in {"server", "local", "hanviet"}:
+        if mode_norm not in {"server", "local", "hanviet", "dichngay_local"}:
             mode_norm = "server"
         if not source:
             return {
@@ -3427,8 +3431,8 @@ class TranslationAdapter:
         )
         vp_set = normalize_name_set(vp_set_override or {})
 
-        if mode_norm in {"local", "hanviet"}:
-            local_settings = self._local_settings()
+        if mode_norm in {"local", "hanviet", "dichngay_local"}:
+            local_settings = self._local_settings(mode_norm)
             local_detail = vbook_local_translate.translate_detailed(
                 source,
                 settings=local_settings,

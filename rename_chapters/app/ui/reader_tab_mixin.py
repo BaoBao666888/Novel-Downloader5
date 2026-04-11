@@ -211,6 +211,7 @@ class ReaderTabMixin:
                     "retryBackoffMs": 700,
                 },
                 "local": {},
+                "dichngay_local": {},
                 "global_dicts": {"name": {}, "vp": {}},
             },
             "reader_import": {

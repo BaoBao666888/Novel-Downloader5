@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260409-namefilter3";
+import { t } from "../i18n.vi.js?v=20260411-dichngaylocal1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -44,6 +44,7 @@ const LOCAL_TRANSLATION_DEFAULT = {
   use_pronouns: true,
   use_luat_nhan: true,
 };
+const SIM_LOCAL_TRANSLATION_MODE = "dichngay_local";
 
 const SERVER_TRANSLATION_DEFAULT = {
   delayMs: 250,
@@ -549,8 +550,20 @@ function normalizePanelTransparency(value) {
 function normalizeTranslationMode(value) {
   const mode = String(value || "").trim().toLowerCase();
   if (mode === "local") return "local";
+  if (mode === SIM_LOCAL_TRANSLATION_MODE) return SIM_LOCAL_TRANSLATION_MODE;
   if (mode === "hanviet") return "hanviet";
   return "server";
+}
+
+function isLocalLikeTranslationMode(value) {
+  const mode = normalizeTranslationMode(value);
+  return mode === "local" || mode === "hanviet" || mode === SIM_LOCAL_TRANSLATION_MODE;
+}
+
+function localTranslationStateKey(value) {
+  return normalizeTranslationMode(value) === SIM_LOCAL_TRANSLATION_MODE
+    ? "readerTranslationSimLocal"
+    : "readerTranslationLocal";
 }
 
 function normalizeMiniBarsScale(value) {
@@ -1087,6 +1100,7 @@ function fillStaticTexts() {
     ["label-translation-mode", "translationMode"],
     ["translation-mode-server", "translationModeServer"],
     ["translation-mode-local", "translationModeLocal"],
+    ["translation-mode-dichngay-local", "translationModeDichNgayLocal"],
     ["translation-mode-hanviet", "translationModeHanviet"],
     ["label-server-translate-settings", "serverTranslateSettings"],
     ["label-server-delay-ms", "serverDelayMs"],
@@ -1256,6 +1270,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     themes: [],
     settings: loadSettings(),
     readerTranslationLocal: { ...LOCAL_TRANSLATION_DEFAULT },
+    readerTranslationSimLocal: { ...LOCAL_TRANSLATION_DEFAULT },
     readerTranslationServer: { ...SERVER_TRANSLATION_DEFAULT },
     vbook: {
       installed: [],
@@ -1285,6 +1300,17 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       pluginSettings: {},
       selectedRuntimePluginId: "",
     },
+  };
+
+  const getLocalTranslationState = (mode = state.settings.translationMode) => {
+    const key = localTranslationStateKey(mode);
+    return normalizeLocalTranslationSettings(state[key] || {});
+  };
+
+  const setLocalTranslationState = (mode, raw) => {
+    const key = localTranslationStateKey(mode);
+    state[key] = normalizeLocalTranslationSettings(raw || {});
+    return state[key];
   };
 
   state.settings.miniBarsScale = normalizeMiniBarsScale(state.settings.miniBarsScale);
@@ -1545,8 +1571,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   };
 
   const syncLocalTranslationForm = () => {
-    const cfg = normalizeLocalTranslationSettings(state.readerTranslationLocal || {});
-    state.readerTranslationLocal = cfg;
+    const cfg = getLocalTranslationState(state.settings.translationMode);
+    setLocalTranslationState(state.settings.translationMode, cfg);
     if (localSplitModeSelect) localSplitModeSelect.value = String(cfg.split_mode);
     if (localNameVpPrioritySelect) localNameVpPrioritySelect.value = String(cfg.name_vietphrase_priority);
     if (localPersonalGeneralPrioritySelect) localPersonalGeneralPrioritySelect.value = String(cfg.personal_general_priority);
@@ -1584,7 +1610,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   };
 
   const collectLocalTranslationSettingsFromForm = () => {
-    const current = normalizeLocalTranslationSettings(state.readerTranslationLocal || {});
+    const mode = normalizeTranslationMode(state.settings.translationMode);
+    const current = getLocalTranslationState(mode);
     const parseOr = (raw, fallback, min, max) => {
       const n = Number.parseInt(String(raw ?? ""), 10);
       if (!Number.isFinite(n)) return fallback;
@@ -1615,8 +1642,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       use_pronouns: String((localUsePronounsSelect && localUsePronounsSelect.value) || "on").toLowerCase() === "on",
       use_luat_nhan: String((localUseLuatNhanSelect && localUseLuatNhanSelect.value) || "on").toLowerCase() === "on",
     };
-    state.readerTranslationLocal = normalizeLocalTranslationSettings(next);
-    return state.readerTranslationLocal;
+    return setLocalTranslationState(mode, next);
   };
 
   const syncReaderTranslationForm = () => {
@@ -1627,35 +1653,39 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       translationModeSelect.value = state.settings.translationMode;
       translationModeSelect.disabled = !state.settings.translationEnabled;
     }
-    if (localSection) localSection.hidden = !["local", "hanviet"].includes(String(state.settings.translationMode || "").toLowerCase());
+    if (localSection) localSection.hidden = !isLocalLikeTranslationMode(state.settings.translationMode);
     if (serverTranslateSection) serverTranslateSection.hidden = String(state.settings.translationMode || "").toLowerCase() !== "server";
     syncServerTranslationForm();
     syncLocalTranslationForm();
   };
 
-  const applyReaderTranslationSettings = ({ enabled, mode, server, local }, { emit = true } = {}) => {
+  const applyReaderTranslationSettings = ({ enabled, mode, server, local, dichngay_local }, { emit = true } = {}) => {
     state.settings.translationEnabled = enabled !== false;
     state.settings.translationMode = normalizeTranslationMode(mode);
     state.readerTranslationServer = normalizeServerTranslationSettings(server || state.readerTranslationServer || {});
     state.readerTranslationLocal = normalizeLocalTranslationSettings(local || state.readerTranslationLocal || {});
+    state.readerTranslationSimLocal = normalizeLocalTranslationSettings(dichngay_local || state.readerTranslationSimLocal || {});
     syncReaderTranslationForm();
     saveSettings(state.settings);
     if (emit) emitSettingsChanged({
       ...state.settings,
       translationServer: state.readerTranslationServer,
-      translationLocal: state.readerTranslationLocal,
+      translationLocal: getLocalTranslationState(state.settings.translationMode),
     });
   };
 
   const persistReaderTranslationSettingsNow = async () => {
     const serverCfg = collectServerTranslationSettingsFromForm();
-    const localCfg = collectLocalTranslationSettingsFromForm();
+    const activeLocalCfg = collectLocalTranslationSettingsFromForm();
+    const localCfg = normalizeLocalTranslationSettings(state.readerTranslationLocal || {});
+    const simLocalCfg = normalizeLocalTranslationSettings(state.readerTranslationSimLocal || {});
     const payload = {
       translation: {
         enabled: state.settings.translationEnabled !== false,
         mode: normalizeTranslationMode(state.settings.translationMode),
         server: serverCfg,
-        local: localCfg,
+        local: normalizeTranslationMode(state.settings.translationMode) === "local" ? activeLocalCfg : localCfg,
+        dichngay_local: normalizeTranslationMode(state.settings.translationMode) === SIM_LOCAL_TRANSLATION_MODE ? activeLocalCfg : simLocalCfg,
       },
     };
     const data = await api("/api/reader/settings", {
@@ -2006,7 +2036,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.settings.translationEnabled = (translationEnabledSelect && translationEnabledSelect.value) !== "off";
       state.settings.translationMode = normalizeTranslationMode((translationModeSelect && translationModeSelect.value) || DEFAULT_SETTINGS.translationMode);
       state.readerTranslationServer = collectServerTranslationSettingsFromForm();
-      state.readerTranslationLocal = collectLocalTranslationSettingsFromForm();
+      collectLocalTranslationSettingsFromForm();
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
@@ -2016,7 +2046,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       emitSettingsChanged({
         ...state.settings,
         translationServer: state.readerTranslationServer,
-        translationLocal: state.readerTranslationLocal,
+        translationLocal: getLocalTranslationState(state.settings.translationMode),
       });
       try {
         await persistReaderTranslationSettings();
@@ -2052,6 +2082,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.readerTranslationServer = { ...SERVER_TRANSLATION_DEFAULT };
       if (qs("text-indent-value")) qs("text-indent-value").textContent = `${state.settings.textIndent.toFixed(2)}em`;
       state.readerTranslationLocal = { ...LOCAL_TRANSLATION_DEFAULT };
+      state.readerTranslationSimLocal = { ...LOCAL_TRANSLATION_DEFAULT };
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
@@ -2061,7 +2092,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       emitSettingsChanged({
         ...state.settings,
         translationServer: state.readerTranslationServer,
-        translationLocal: state.readerTranslationLocal,
+        translationLocal: getLocalTranslationState(state.settings.translationMode),
       });
       try {
         await persistReaderTranslationSettings();
@@ -3199,7 +3230,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     getReadingMode: () => state.settings.readingMode,
     getTranslationEnabled: () => state.settings.translationEnabled !== false,
     getTranslationMode: () => normalizeTranslationMode(state.settings.translationMode),
-    getTranslationLocalSettings: () => normalizeLocalTranslationSettings(state.readerTranslationLocal || {}),
+    getTranslationLocalSettings: (mode = state.settings.translationMode) => getLocalTranslationState(mode),
     getVbookSettings: (pluginId = "") => runtimeEffectiveSettings(pluginId),
     getVbookGlobalSettings: () => normalizeVbookGlobalSettings(state.vbook.globalSettings || {}),
     refreshVbookSettings: (pluginId = "") => refreshVbookRuntimeSettings({ silent: true, pluginId }),

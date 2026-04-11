@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+SIMULATED_LOCAL_MODE = "dichngay_local"
+SIMULATED_LOCAL_BASE_DIR = "local/dichngay_local_pack"
+
 
 def reader_translation_cfg(service, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     raw_cfg = cfg if isinstance(cfg, dict) else service.app_config
@@ -26,9 +29,9 @@ def parse_bool(value: Any, default: bool = True) -> bool:
 
 def normalize_translate_mode(value: Any, default: str = "server") -> str:
     mode = str(value or "").strip().lower()
-    if mode in {"server", "local", "hanviet"}:
+    if mode in {"server", "local", "hanviet", SIMULATED_LOCAL_MODE}:
         return mode
-    if default in {"local", "hanviet"}:
+    if default in {"local", "hanviet", SIMULATED_LOCAL_MODE}:
         return default
     return "server"
 
@@ -78,10 +81,16 @@ def normalized_reader_translation_settings(
     local_payload = payload.get("local") if isinstance(payload, dict) else {}
     if not isinstance(local_payload, dict):
         local_payload = {}
+    sim_local_payload = payload.get(SIMULATED_LOCAL_MODE) if isinstance(payload, dict) else {}
+    if not isinstance(sim_local_payload, dict):
+        sim_local_payload = {}
     global_dicts = normalized_global_local_dicts(payload.get("global_dicts"), normalize_name_set=normalize_name_set)
     merged_local = dict(local_payload)
     merged_local["global_name_overrides"] = dict(global_dicts.get("name") or {})
     merged_local["global_vp_overrides"] = dict(global_dicts.get("vp") or {})
+    merged_sim_local = dict(sim_local_payload)
+    merged_sim_local["global_name_overrides"] = dict(global_dicts.get("name") or {})
+    merged_sim_local["global_vp_overrides"] = dict(global_dicts.get("vp") or {})
     return {
         "enabled": parse_bool(payload.get("enabled"), True),
         "mode": normalize_translate_mode(payload.get("mode"), "local"),
@@ -93,6 +102,10 @@ def normalized_reader_translation_settings(
         "local": vbook_local_translate.normalize_local_settings(
             merged_local,
             default_base_dir="reader_ui/translate/vbook_local",
+        ),
+        SIMULATED_LOCAL_MODE: vbook_local_translate.normalize_local_settings(
+            merged_sim_local,
+            default_base_dir=SIMULATED_LOCAL_BASE_DIR,
         ),
         "global_dicts": global_dicts,
     }
@@ -142,6 +155,12 @@ def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -
             {},
             default_base_dir="reader_ui/translate/vbook_local",
         )
+    sim_local_settings = service.reader_translation_settings.get(SIMULATED_LOCAL_MODE)
+    if not isinstance(sim_local_settings, dict):
+        sim_local_settings = vbook_local_translate.normalize_local_settings(
+            {},
+            default_base_dir=SIMULATED_LOCAL_BASE_DIR,
+        )
     return {
         "ok": True,
         "translation": {
@@ -153,6 +172,7 @@ def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -
                 service.app_config,
             ),
             "local": local_settings,
+            SIMULATED_LOCAL_MODE: sim_local_settings,
             "global_dicts": normalized_global_local_dicts(
                 service.reader_translation_settings.get("global_dicts"),
                 normalize_name_set=normalize_name_set,
@@ -187,6 +207,7 @@ def set_reader_settings(
             vbook_local_translate=vbook_local_translate,
         )
         patch_local = patch.get("local")
+        patch_sim_local = patch.get(SIMULATED_LOCAL_MODE)
         patch_server = patch.get("server")
         patch_global_dicts = patch.get("global_dicts")
         if isinstance(patch_local, dict):
@@ -194,6 +215,11 @@ def set_reader_settings(
             merged_local.update(patch_local)
         else:
             merged_local = existing.get("local") or {}
+        if isinstance(patch_sim_local, dict):
+            merged_sim_local = dict(existing.get(SIMULATED_LOCAL_MODE) or {})
+            merged_sim_local.update(patch_sim_local)
+        else:
+            merged_sim_local = existing.get(SIMULATED_LOCAL_MODE) or {}
         if isinstance(patch_server, dict):
             merged_server = dict(existing.get("server") or {})
             merged_server.update(patch_server)
@@ -207,6 +233,9 @@ def set_reader_settings(
         local_with_global = dict(merged_local)
         local_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
         local_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
+        sim_local_with_global = dict(merged_sim_local)
+        sim_local_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
+        sim_local_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
         next_settings = {
             "enabled": parse_bool(patch.get("enabled"), existing["enabled"]),
             "mode": normalize_translate_mode(patch.get("mode"), existing["mode"]),
@@ -214,6 +243,10 @@ def set_reader_settings(
             "local": vbook_local_translate.normalize_local_settings(
                 local_with_global,
                 default_base_dir="reader_ui/translate/vbook_local",
+            ),
+            SIMULATED_LOCAL_MODE: vbook_local_translate.normalize_local_settings(
+                sim_local_with_global,
+                default_base_dir=SIMULATED_LOCAL_BASE_DIR,
             ),
             "global_dicts": merged_global_dicts,
         }

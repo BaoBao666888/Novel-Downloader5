@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260408-settingsleft1";
+import { initShell } from "../site_common.js?v=20260411-dichngaylocal1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeParagraphDisplayText, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260408-readerpara2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 import {
@@ -406,6 +406,7 @@ function populateChapterTitleNode(node, title, isVip = false) {
 function normalizeTranslateMode(raw) {
   const mode = String(raw || "").trim().toLowerCase();
   if (mode === "local") return "local";
+  if (mode === "dichngay_local") return "dichngay_local";
   if (mode === "hanviet") return "hanviet";
   return "server";
 }
@@ -625,6 +626,7 @@ function syncModeButtons() {
   if (refs.btnModeTrans) refs.btnModeTrans.classList.toggle("active", state.mode === "trans");
   if (refs.btnTranslateMode && state.shell) {
     if (state.translateMode === "local") refs.btnTranslateMode.textContent = state.shell.t("modeLocal");
+    else if (state.translateMode === "dichngay_local") refs.btnTranslateMode.textContent = state.shell.t("modeDichNgayLocal");
     else if (state.translateMode === "hanviet") refs.btnTranslateMode.textContent = state.shell.t("modeHanviet");
     else refs.btnTranslateMode.textContent = state.shell.t("modeServer");
   }
@@ -5675,7 +5677,7 @@ async function init() {
     const localTranslationChanged = nextLocalSig !== state.globalTranslationLocalSig;
     const translationChanged = (nextEnabled !== state.translationEnabled)
       || (nextMode !== state.globalTranslationMode)
-      || (["local", "hanviet"].includes(nextMode) && localTranslationChanged);
+      || (["local", "hanviet", "dichngay_local"].includes(nextMode) && localTranslationChanged);
     state.translationEnabled = nextEnabled;
     state.globalTranslationMode = nextMode;
     state.globalTranslationLocalSig = nextLocalSig;
@@ -5815,11 +5817,13 @@ async function init() {
   refs.btnModeTrans.addEventListener("click", () => switchMode("trans"));
   refs.btnTranslateMode.addEventListener("click", async () => {
     if (state.translateMode === "server") state.translateMode = "local";
-    else if (state.translateMode === "local") state.translateMode = "hanviet";
+    else if (state.translateMode === "local") state.translateMode = "dichngay_local";
+    else if (state.translateMode === "dichngay_local") state.translateMode = "hanviet";
     else state.translateMode = "server";
     clearChapterCache();
     cancelPrefetch();
     if (state.translateMode === "local") refs.btnTranslateMode.textContent = state.shell.t("modeLocal");
+    else if (state.translateMode === "dichngay_local") refs.btnTranslateMode.textContent = state.shell.t("modeDichNgayLocal");
     else if (state.translateMode === "hanviet") refs.btnTranslateMode.textContent = state.shell.t("modeHanviet");
     else refs.btnTranslateMode.textContent = state.shell.t("modeServer");
     await loadBook();

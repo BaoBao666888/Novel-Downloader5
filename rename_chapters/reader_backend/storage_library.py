@@ -247,7 +247,7 @@ def list_chapters_paged(
 ) -> dict[str, Any]:
     page = max(1, int(page))
     page_size = max(1, min(200, int(page_size)))
-    live_title_mode = translate_mode in {"local", "hanviet"}
+    live_title_mode = translate_mode in {"local", "hanviet", "dichngay_local"}
 
     book_row = storage.find_book(book_id)
     with storage._connect() as conn:

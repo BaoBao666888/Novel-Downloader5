@@ -64,7 +64,7 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
         raw_summary = deps.normalize_vbook_display_text(str(book.get("summary") or ""), single_line=False) or str(book.get("summary") or "")
         title_vi = deps.normalize_vi_display_text(book.get("title_vi") or "")
         author_vi = deps.normalize_vi_display_text(book.get("author_vi") or "")
-        live_title_mode = translate_mode in {"local", "hanviet"}
+        live_title_mode = translate_mode in {"local", "hanviet", "dichngay_local"}
         book["translation_supported"] = True
         book["author_display"] = handler.service._author_hanviet_display(raw_author, single_line=True) or author_vi or raw_author
         if live_title_mode:
@@ -605,9 +605,9 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                     detail.get("unit_map") if isinstance(detail.get("unit_map"), list) else [],
                 )
                 unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
-                if translate_mode in {"local", "hanviet"}:
+                if translate_mode in {"local", "hanviet", "dichngay_local"}:
                     token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
-            elif translate_mode in {"local", "hanviet"}:
+            elif translate_mode in {"local", "hanviet", "dichngay_local"}:
                 detail = service.translator.translate_detailed(
                     raw_text,
                     mode=translate_mode,
@@ -723,7 +723,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             _, junk_version = storage.get_global_junk_lines()
             current_sig = storage.chapter_trans_signature(base_sig, junk_version=junk_version)
             unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
-            if not unit_map or translate_mode in {"local", "hanviet"}:
+            if not unit_map or translate_mode in {"local", "hanviet", "dichngay_local"}:
                 detail = service.translator.translate_detailed(
                     raw_text,
                     mode=translate_mode,
@@ -738,7 +738,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                         detail.get("unit_map") if isinstance(detail.get("unit_map"), list) else [],
                     )
                     unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
-                if translate_mode in {"local", "hanviet"}:
+                if translate_mode in {"local", "hanviet", "dichngay_local"}:
                     token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
         resolved = deps.map_selection_to_source_segment(
             raw_text=raw_text,
