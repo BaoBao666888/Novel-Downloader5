@@ -212,6 +212,7 @@ class ReaderTabMixin:
                 },
                 "local": {},
                 "dichngay_local": {},
+                "hanviet": {},
                 "global_dicts": {"name": {}, "vp": {}},
             },
             "reader_import": {

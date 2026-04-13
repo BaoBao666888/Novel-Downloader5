@@ -95,6 +95,7 @@ APP_STATE_NAME_SET_STATE_KEY = "reader.name_set_state"
 APP_STATE_BOOK_VP_SET_KEY_PREFIX = "reader.book_vp_set"
 APP_STATE_GLOBAL_JUNK_STATE_KEY = "reader.global_junk_state"
 APP_STATE_BOOK_REPLACE_STATE_KEY_PREFIX = "reader.book_replace_state"
+APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX = "reader.chapter_raw_edit"
 APP_STATE_EXPORT_JOBS_STATE_KEY = "reader.export_jobs_state"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 HISTORY_BOOK_RETENTION_DAYS = 7
@@ -913,26 +914,49 @@ def apply_junk_lines_to_text(text: str, junk_lines: list[Any] | tuple[Any, ...] 
     if not content or not entries:
         return content, 0
     removed = 0
+    lines = content.split("\n")
+    kept_lines: list[str] = []
+    compiled_entries: list[tuple[str, re.Pattern[str] | None, bool, bool]] = []
     for entry in entries:
         pattern = str(entry.get("text") or "").strip()
         use_regex = bool(entry.get("use_regex"))
         ignore_case = bool(entry.get("ignore_case"))
         if not pattern:
             continue
-        if use_regex:
+        compiled = None
+        if use_regex or ignore_case:
             try:
                 flags = re.IGNORECASE if ignore_case else 0
-                content, hits = re.subn(pattern, "", content, flags=flags)
+                compiled = re.compile(pattern if use_regex else re.escape(pattern), flags)
             except re.error:
                 continue
-            removed += int(hits or 0)
-            continue
-        flags = re.IGNORECASE if ignore_case else 0
-        content, hits = re.subn(re.escape(pattern), "", content, flags=flags)
-        if hits <= 0:
-            continue
-        removed += hits
-    content = normalize_newlines(content)
+        compiled_entries.append((pattern, compiled, use_regex, ignore_case))
+
+    for raw_line in lines:
+        line = str(raw_line or "")
+        original_blank = not line.strip()
+        line_removed = 0
+        for pattern, compiled, use_regex, ignore_case in compiled_entries:
+            hits = 0
+            if use_regex:
+                if compiled is not None:
+                    line, hits = compiled.subn("", line)
+            elif ignore_case:
+                if compiled is not None:
+                    line, hits = compiled.subn("", line)
+            else:
+                hits = line.count(pattern)
+                if hits:
+                    line = line.replace(pattern, "")
+            line_removed += int(hits or 0)
+        if line_removed > 0:
+            line = re.sub(r"[^\S\n]+$", "", line)
+            removed += line_removed
+            if (not line.strip()) and (not original_blank):
+                continue
+        kept_lines.append(line)
+
+    content = normalize_newlines("\n".join(kept_lines))
     return content, removed
 
 
@@ -3296,7 +3320,12 @@ class TranslationAdapter:
     def _local_settings(self, mode: str = "local") -> dict[str, Any]:
         reader_cfg = self.app_config.get("reader_translation") or {}
         mode_norm = str(mode or "local").strip().lower()
-        local_key = "dichngay_local" if mode_norm == "dichngay_local" else "local"
+        if mode_norm == "dichngay_local":
+            local_key = "dichngay_local"
+        elif mode_norm == "hanviet":
+            local_key = "hanviet"
+        else:
+            local_key = "local"
         local_cfg = reader_cfg.get(local_key) if isinstance(reader_cfg, dict) else {}
         if not isinstance(local_cfg, dict):
             local_cfg = {}
@@ -3306,7 +3335,7 @@ class TranslationAdapter:
         merged_local = dict(local_cfg)
         merged_local["global_name_overrides"] = normalize_name_set(global_dicts.get("name"))
         merged_local["global_vp_overrides"] = normalize_name_set(global_dicts.get("vp"))
-        default_base_dir = "local/dichngay_local_pack" if local_key == "dichngay_local" else "reader_ui/translate/vbook_local"
+        default_base_dir = "reader_ui/translate/dichngay_local" if local_key == "dichngay_local" else "reader_ui/translate/vbook_local"
         return vbook_local_translate.normalize_local_settings(
             merged_local,
             default_base_dir=default_base_dir,
@@ -3370,7 +3399,9 @@ class TranslationAdapter:
         if mode_norm in {"local", "hanviet", "dichngay_local"}:
             local_settings = self._local_settings(mode_norm)
             payload["local_settings"] = local_settings
-            payload["local_mode_key"] = "dichngay_local" if mode_norm == "dichngay_local" else "local"
+            payload["local_mode_key"] = (
+                "dichngay_local" if mode_norm == "dichngay_local" else "hanviet" if mode_norm == "hanviet" else "local"
+            )
             try:
                 payload["local_bundle_sig"] = vbook_local_translate.get_public_bundle(local_settings).signature
             except Exception:
@@ -4247,6 +4278,47 @@ class ReaderStorage:
                 if "locked" not in str(exc).lower() or attempt >= attempts - 1:
                     raise
                 time.sleep(0.12 * (attempt + 1))
+
+    def _chapter_raw_edit_state_key(self, chapter_id: str) -> str:
+        cid = str(chapter_id or "").strip()
+        return f"{APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX}.{cid}" if cid else APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX
+
+    def get_chapter_raw_edit_state(self, chapter_id: str) -> dict[str, Any]:
+        empty = {"edited": False, "updated_at": "", "source": ""}
+        cid = str(chapter_id or "").strip()
+        if not cid:
+            return dict(empty)
+        raw = self._get_app_state_value(self._chapter_raw_edit_state_key(cid))
+        if not raw:
+            return dict(empty)
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            payload = {}
+        if not isinstance(payload, dict):
+            return dict(empty)
+        return {
+            "edited": bool(payload.get("edited")),
+            "updated_at": str(payload.get("updated_at") or ""),
+            "source": str(payload.get("source") or ""),
+        }
+
+    def set_chapter_raw_edit_state(self, chapter_id: str, *, edited: bool, source: str = "") -> dict[str, Any]:
+        empty = {"edited": False, "updated_at": "", "source": ""}
+        cid = str(chapter_id or "").strip()
+        if not cid:
+            return dict(empty)
+        key = self._chapter_raw_edit_state_key(cid)
+        if not edited:
+            self._delete_app_state_value(key)
+            return dict(empty)
+        payload = {
+            "edited": True,
+            "updated_at": utc_now_iso(),
+            "source": str(source or "").strip() or "manual",
+        }
+        self._set_app_state_value(key, json.dumps(payload, ensure_ascii=False))
+        return payload
 
     def load_export_jobs_state(self) -> list[dict[str, Any]]:
         raw = self._get_app_state_value(APP_STATE_EXPORT_JOBS_STATE_KEY)
@@ -6414,7 +6486,7 @@ class ReaderService:
             return normalize_vbook_display_text(value, single_line=single_line)
         hv_text = ""
         try:
-            hv_text = vbook_local_translate.build_hanviet_text(value, self.translator._local_settings()) or ""
+            hv_text = vbook_local_translate.build_hanviet_text(value, self.translator._local_settings("hanviet")) or ""
         except Exception:
             hv_text = ""
         if not hv_text:
@@ -11943,6 +12015,11 @@ class ReaderService:
         raw_key = (chapter or {}).get("raw_key") or ""
         if raw_key:
             self.storage.write_cache(raw_key, str((book or {}).get("lang_source") or "zh"), core)
+        self.storage.set_chapter_raw_edit_state(
+            str((chapter or {}).get("chapter_id") or ""),
+            edited=False,
+            source="source_reload",
+        )
         try:
             if comic_payload is not None:
                 self.storage.update_chapter_word_count(
@@ -12469,7 +12546,9 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 cache_dir=CACHE_DIR,
                 normalize_vbook_display_text=normalize_vbook_display_text,
                 normalize_vi_display_text=normalize_vi_display_text,
+                normalize_newlines=normalize_newlines,
                 decode_comic_payload=decode_comic_payload,
+                encode_comic_payload=encode_comic_payload,
                 build_vbook_image_proxy_path=build_vbook_image_proxy_path,
                 map_selection_to_name_source=map_selection_to_name_source,
                 map_selection_to_source_segment=map_selection_to_source_segment,

@@ -2005,6 +2005,10 @@ p {
   gap: 8px;
 }
 
+.local-translation-settings[hidden] {
+  display: none !important;
+}
+
 .local-translation-settings legend {
   padding: 0 6px;
   font-size: 12px;
@@ -2716,6 +2720,8 @@ body[data-page="reader"] .reader-actions .btn:hover {
 
 body[data-page="reader"] #btn-open-name-editor,
 body[data-page="reader"] #btn-open-replace-editor,
+body[data-page="reader"] #btn-open-book-info,
+body[data-page="reader"] #btn-open-raw-editor,
 body[data-page="reader"] #btn-open-tts {
   background: color-mix(in srgb, var(--surface) 96%, transparent);
   border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
@@ -2724,6 +2730,8 @@ body[data-page="reader"] #btn-open-tts {
 
 body[data-page="reader"] #btn-open-name-editor:hover,
 body[data-page="reader"] #btn-open-replace-editor:hover,
+body[data-page="reader"] #btn-open-book-info:hover,
+body[data-page="reader"] #btn-open-raw-editor:hover,
 body[data-page="reader"] #btn-open-tts:hover {
   background: color-mix(in srgb, var(--surface) 100%, transparent);
   border-color: color-mix(in srgb, var(--accent) 70%, var(--line));

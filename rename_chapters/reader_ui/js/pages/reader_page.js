@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260411-dichngaylocal1";
+import { initShell } from "../site_common.js?v=20260413-rawedit1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeParagraphDisplayText, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260408-readerpara2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 import {
@@ -34,8 +34,10 @@ const refs = {
   readerMiniBookPercent: document.getElementById("reader-mini-book-percent"),
 
   btnReaderToc: document.getElementById("btn-reader-toc"),
+  btnOpenBookInfo: document.getElementById("btn-open-book-info"),
   btnOpenSettingsInline: document.getElementById("btn-open-settings-inline"),
   btnOpenTts: document.getElementById("btn-open-tts"),
+  btnOpenRawEditor: document.getElementById("btn-open-raw-editor"),
   btnModeRaw: document.getElementById("btn-mode-raw"),
   btnModeTrans: document.getElementById("btn-mode-trans"),
   btnTranslateMode: document.getElementById("btn-translate-mode"),
@@ -238,6 +240,16 @@ const refs = {
   replaceColTarget: document.getElementById("replace-col-target"),
   replaceColAction: document.getElementById("replace-col-action"),
   replacePreviewBody: document.getElementById("replace-preview-body"),
+  rawEditorDialog: document.getElementById("raw-editor-dialog"),
+  rawEditorTitle: document.getElementById("raw-editor-title"),
+  btnCloseRawEditor: document.getElementById("btn-close-raw-editor"),
+  rawEditorForm: document.getElementById("raw-editor-form"),
+  rawEditorHint: document.getElementById("raw-editor-hint"),
+  rawEditorInputLabel: document.getElementById("raw-editor-input-label"),
+  rawEditorInput: document.getElementById("raw-editor-input"),
+  rawEditorMeta: document.getElementById("raw-editor-meta"),
+  btnCancelRawEditor: document.getElementById("btn-cancel-raw-editor"),
+  btnSaveRawEditor: document.getElementById("btn-save-raw-editor"),
   readerHead: document.querySelector(".reader-head"),
   readerFooter: document.querySelector(".reader-footer"),
 };
@@ -265,6 +277,12 @@ const state = {
   chapterTransSig: "",
   chapterMapVersion: 0,
   chapterUnitCount: 0,
+  chapterSourceType: "",
+  chapterRemoteUrl: "",
+  chapterRawEdited: false,
+  chapterRawEditUpdatedAt: "",
+  rawEditorChapterId: "",
+  rawEditorInitialText: "",
   flipPages: [],
   flipPageIndex: 0,
   chapterCache: new Map(),
@@ -592,6 +610,18 @@ function hintedSupportsRawReplace() {
   return false;
 }
 
+function supportsRawEditor(book) {
+  if (!book) return false;
+  if (Boolean(book.is_comic)) return false;
+  const sourceType = String(book.source_type || "").toLowerCase();
+  return sourceType !== "vbook_comic" && sourceType !== "vbook_session_comic" && sourceType !== "comic";
+}
+
+function hintedSupportsRawEditor() {
+  if (state.book) return supportsRawEditor(state.book);
+  return state.isComicHint !== true;
+}
+
 function applyReaderUrlHints(params, book) {
   if (!book || typeof book !== "object") return;
   const translationSupported = parseBooleanLike(book.translation_supported);
@@ -613,14 +643,32 @@ function buildReaderUrl(bookOrId, chapterId = "", mode = state.mode || "raw") {
   return `/reader?${params.toString()}`;
 }
 
+function buildBookUrl(bookOrId, mode = effectiveMode()) {
+  const book = bookOrId && typeof bookOrId === "object" ? bookOrId : null;
+  const bookId = book ? String(book.book_id || "").trim() : String(bookOrId || "").trim();
+  const params = new URLSearchParams();
+  params.set("book_id", bookId);
+  params.set("mode", mode === "trans" ? "trans" : "raw");
+  applyReaderUrlHints(params, book);
+  return `/book?${params.toString()}`;
+}
+
+function isCurrentChapterRemoteSource() {
+  const sourceType = String(state.chapterSourceType || ((state.book || {}).source_type) || "").trim().toLowerCase();
+  return sourceType.startsWith("vbook") && Boolean(String(state.chapterRemoteUrl || "").trim());
+}
+
 function syncModeButtons() {
   const canTranslate = hintedSupportsTranslation();
   const canReplace = hintedSupportsRawReplace();
+  const canEditRaw = hintedSupportsRawEditor();
   const canListen = (state.chapterContentType !== "images") && (state.isComicHint !== true);
   if (refs.btnModeTrans) refs.btnModeTrans.classList.toggle("hidden", !canTranslate);
   if (refs.btnTranslateMode) refs.btnTranslateMode.classList.toggle("hidden", !canTranslate);
+  if (refs.btnOpenBookInfo) refs.btnOpenBookInfo.classList.toggle("hidden", !state.bookId);
   if (refs.btnOpenNameEditor) refs.btnOpenNameEditor.classList.toggle("hidden", !canTranslate);
   if (refs.btnOpenReplaceEditor) refs.btnOpenReplaceEditor.classList.toggle("hidden", !canReplace);
+  if (refs.btnOpenRawEditor) refs.btnOpenRawEditor.classList.toggle("hidden", !canEditRaw);
   if (refs.btnOpenTts) refs.btnOpenTts.classList.toggle("hidden", !canListen);
   if (refs.btnModeRaw) refs.btnModeRaw.classList.toggle("active", state.mode === "raw");
   if (refs.btnModeTrans) refs.btnModeTrans.classList.toggle("active", state.mode === "trans");
@@ -794,6 +842,103 @@ async function fetchChapterContent(chapterId, { mode = effectiveMode(), translat
 
   state.chapterPending.set(key, req);
   return req;
+}
+
+async function fetchRawEditorContent(chapterId) {
+  return state.shell.api(`/api/library/chapter/${encodeURIComponent(chapterId)}/raw`);
+}
+
+function resetRawEditorState() {
+  state.rawEditorChapterId = "";
+  state.rawEditorInitialText = "";
+  if (refs.rawEditorForm) refs.rawEditorForm.reset();
+  if (refs.rawEditorMeta) refs.rawEditorMeta.textContent = "";
+}
+
+function syncRawEditorHint(payload = null) {
+  const data = (payload && typeof payload === "object") ? payload : {};
+  const remoteUrl = String(data.remote_url || state.chapterRemoteUrl || "").trim();
+  const rawEdited = Boolean(
+    Object.prototype.hasOwnProperty.call(data, "raw_edited")
+      ? data.raw_edited
+      : state.chapterRawEdited,
+  );
+  if (refs.rawEditorHint) {
+    refs.rawEditorHint.textContent = state.shell.t(remoteUrl ? "rawEditorHintOnline" : "rawEditorHint");
+  }
+  if (!refs.rawEditorMeta) return;
+  if (rawEdited && remoteUrl) {
+    refs.rawEditorMeta.textContent = state.shell.t("rawEditorMetaEditedOnline");
+  } else if (rawEdited) {
+    refs.rawEditorMeta.textContent = state.shell.t("rawEditorMetaEdited");
+  } else if (remoteUrl) {
+    refs.rawEditorMeta.textContent = state.shell.t("rawEditorMetaOnline");
+  } else {
+    refs.rawEditorMeta.textContent = "";
+  }
+}
+
+function closeRawEditor() {
+  if (refs.rawEditorDialog && refs.rawEditorDialog.open) {
+    refs.rawEditorDialog.close();
+    return;
+  }
+  resetRawEditorState();
+}
+
+async function openRawEditor() {
+  if (!state.chapterId) return;
+  if (!hintedSupportsRawEditor()) {
+    state.shell.showToast(state.shell.t("rawEditorUnsupported"));
+    return;
+  }
+  state.shell.showStatus(state.shell.t("statusLoadingRawEditor"));
+  try {
+    const data = await fetchRawEditorContent(state.chapterId);
+    state.rawEditorChapterId = String((data && data.chapter_id) || state.chapterId || "").trim();
+    state.rawEditorInitialText = String((data && data.content) || "");
+    state.chapterSourceType = String((data && data.source_type) || state.chapterSourceType || "");
+    state.chapterRemoteUrl = String((data && data.remote_url) || state.chapterRemoteUrl || "");
+    state.chapterRawEdited = Boolean(data && data.raw_edited);
+    state.chapterRawEditUpdatedAt = String((data && data.raw_edit_updated_at) || "");
+    if (refs.rawEditorInput) refs.rawEditorInput.value = state.rawEditorInitialText;
+    syncRawEditorHint(data);
+    if (refs.rawEditorDialog && !refs.rawEditorDialog.open) refs.rawEditorDialog.showModal();
+    if (refs.rawEditorInput) {
+      refs.rawEditorInput.focus();
+      refs.rawEditorInput.setSelectionRange(0, 0);
+    }
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function saveRawEditor(event) {
+  if (event) event.preventDefault();
+  if (!state.rawEditorChapterId) return;
+  const targetChapterId = state.rawEditorChapterId;
+  const nextContent = String((refs.rawEditorInput && refs.rawEditorInput.value) || "");
+  state.shell.showStatus(state.shell.t("statusSavingRawEditor"));
+  try {
+    const result = await state.shell.api(`/api/library/chapter/${encodeURIComponent(targetChapterId)}/raw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: nextContent }),
+    });
+    state.chapterSourceType = String((result && result.source_type) || state.chapterSourceType || "");
+    state.chapterRemoteUrl = String((result && result.remote_url) || state.chapterRemoteUrl || "");
+    state.chapterRawEdited = Boolean(result && result.raw_edited);
+    state.chapterRawEditUpdatedAt = String((result && result.raw_edit_updated_at) || "");
+    const preserveRatio = currentChapterRatio();
+    dropChapterCacheById(targetChapterId);
+    closeRawEditor();
+    if (String(targetChapterId || "").trim() === String(state.chapterId || "").trim()) {
+      await loadChapter({ resetFlip: true, preserveRatio });
+    }
+    state.shell.showToast(state.shell.t("toastRawSaved"));
+  } finally {
+    state.shell.hideStatus();
+  }
 }
 
 function prefetchOptions() {
@@ -1104,6 +1249,9 @@ async function openChapterById(chapterId, { updateHistory = true, fromToc = fals
   if (!chapterId) return;
   if (state.tts.playing && !state.tts.autoAdvancing && String(chapterId || "").trim() !== String(state.chapterId || "").trim()) {
     stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
+  }
+  if (String(chapterId || "").trim() !== String(state.chapterId || "").trim()) {
+    closeRawEditor();
   }
   if (String(chapterId || "").trim() !== String(state.chapterId || "").trim()) {
     state.tts.playFromSelectionNext = null;
@@ -1850,6 +1998,10 @@ async function loadChapter({
     state.chapterTransSig = String(chapter.trans_sig || "").trim();
     state.chapterMapVersion = Number.parseInt(String(chapter.map_version || "0"), 10) || 0;
     state.chapterUnitCount = Number.parseInt(String(chapter.unit_count || "0"), 10) || 0;
+    state.chapterSourceType = String(chapter.source_type || ((state.book && state.book.source_type) || "")).trim();
+    state.chapterRemoteUrl = String(chapter.remote_url || "").trim();
+    state.chapterRawEdited = Boolean(chapter.raw_edited);
+    state.chapterRawEditUpdatedAt = String(chapter.raw_edit_updated_at || "").trim();
     if (state.chapterContentType !== "images" && state.book && state.book.is_comic && state.chapterText) {
       const urlRows = state.chapterText
         .split(/\r?\n/g)
@@ -5202,6 +5354,11 @@ async function goChapter(step) {
 
 async function reloadCurrentChapter() {
   if (!state.chapterId) return;
+  if (state.chapterRawEdited && isCurrentChapterRemoteSource()) {
+    if (!window.confirm(state.shell.t("confirmReloadChapterEditedRaw"))) {
+      return;
+    }
+  }
   if (state.tts.playing && !state.tts.autoAdvancing) {
     stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
   }
@@ -5654,11 +5811,19 @@ async function init() {
   refs.btnReaderToc.textContent = state.shell.t("readerToc");
   if (refs.btnFooterToc) refs.btnFooterToc.textContent = state.shell.t("readerToc");
   if (refs.btnOpenSettingsInline) refs.btnOpenSettingsInline.textContent = state.shell.t("openSettings");
+  if (refs.btnOpenBookInfo) refs.btnOpenBookInfo.textContent = state.shell.t("readerBookInfo");
+  if (refs.btnOpenRawEditor) refs.btnOpenRawEditor.textContent = state.shell.t("readerRawEditor");
   refs.btnModeRaw.textContent = state.shell.t("raw");
   refs.btnModeTrans.textContent = state.shell.t("trans");
   refs.btnTranslateMode.textContent = state.shell.t("modeServer");
   if (refs.btnReloadChapter) refs.btnReloadChapter.textContent = state.shell.t("reloadChapter");
   refs.btnOpenNameEditor.textContent = state.shell.t("bookPrivateNames");
+  if (refs.rawEditorTitle) refs.rawEditorTitle.textContent = state.shell.t("rawEditorTitle");
+  if (refs.btnCloseRawEditor) refs.btnCloseRawEditor.textContent = state.shell.t("close");
+  if (refs.rawEditorInputLabel) refs.rawEditorInputLabel.textContent = state.shell.t("rawEditorInputLabel");
+  if (refs.btnCancelRawEditor) refs.btnCancelRawEditor.textContent = state.shell.t("cancel");
+  if (refs.btnSaveRawEditor) refs.btnSaveRawEditor.textContent = state.shell.t("save");
+  syncRawEditorHint();
   refs.btnFullscreen.textContent = state.shell.t("fullscreen");
   refs.btnPrev.textContent = state.shell.t("prev");
   refs.btnNext.textContent = state.shell.t("next");
@@ -5798,6 +5963,19 @@ async function init() {
       if (topSettingsBtn) topSettingsBtn.click();
     });
   }
+  if (refs.btnOpenBookInfo) {
+    refs.btnOpenBookInfo.addEventListener("click", () => {
+      if (!state.bookId) return;
+      window.location.href = buildBookUrl(state.book || state.bookId, effectiveMode());
+    });
+  }
+  if (refs.btnOpenRawEditor) {
+    refs.btnOpenRawEditor.addEventListener("click", () => {
+      openRawEditor().catch((error) => {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      });
+    });
+  }
   refs.btnCloseReaderToc.addEventListener("click", closeToc);
   const backdrop = document.getElementById("settings-backdrop");
   const settingsDrawer = document.getElementById("settings-drawer");
@@ -5832,6 +6010,16 @@ async function init() {
   if (refs.btnReloadChapter) {
     refs.btnReloadChapter.addEventListener("click", () => {
       reloadCurrentChapter().catch((error) => {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      });
+    });
+  }
+  if (refs.btnCloseRawEditor) refs.btnCloseRawEditor.addEventListener("click", closeRawEditor);
+  if (refs.btnCancelRawEditor) refs.btnCancelRawEditor.addEventListener("click", closeRawEditor);
+  if (refs.rawEditorDialog) refs.rawEditorDialog.addEventListener("close", resetRawEditorState);
+  if (refs.rawEditorForm) {
+    refs.rawEditorForm.addEventListener("submit", (event) => {
+      saveRawEditor(event).catch((error) => {
         state.shell.showToast(error.message || state.shell.t("toastError"));
       });
     });

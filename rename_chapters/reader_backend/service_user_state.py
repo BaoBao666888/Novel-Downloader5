@@ -3,7 +3,21 @@ from __future__ import annotations
 from typing import Any
 
 SIMULATED_LOCAL_MODE = "dichngay_local"
-SIMULATED_LOCAL_BASE_DIR = "local/dichngay_local_pack"
+SIMULATED_LOCAL_BASE_DIR = "reader_ui/translate/dichngay_local"
+SIMULATED_LOCAL_LEGACY_BASE_DIR = "local/dichngay_local_pack"
+HANVIET_MODE = "hanviet"
+HANVIET_BASE_DIR = "reader_ui/translate/vbook_local"
+
+
+def _normalize_simulated_local_payload(raw: Any) -> dict[str, Any]:
+    payload = dict(raw) if isinstance(raw, dict) else {}
+    base_dir = str(payload.get("dict_base_dir") or "").strip().rstrip("/\\")
+    if base_dir in {
+        SIMULATED_LOCAL_LEGACY_BASE_DIR,
+        f"{SIMULATED_LOCAL_LEGACY_BASE_DIR}/root",
+    }:
+        payload["dict_base_dir"] = SIMULATED_LOCAL_BASE_DIR
+    return payload
 
 
 def reader_translation_cfg(service, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -29,9 +43,9 @@ def parse_bool(value: Any, default: bool = True) -> bool:
 
 def normalize_translate_mode(value: Any, default: str = "server") -> str:
     mode = str(value or "").strip().lower()
-    if mode in {"server", "local", "hanviet", SIMULATED_LOCAL_MODE}:
+    if mode in {"server", "local", HANVIET_MODE, SIMULATED_LOCAL_MODE}:
         return mode
-    if default in {"local", "hanviet", SIMULATED_LOCAL_MODE}:
+    if default in {"local", HANVIET_MODE, SIMULATED_LOCAL_MODE}:
         return default
     return "server"
 
@@ -81,9 +95,10 @@ def normalized_reader_translation_settings(
     local_payload = payload.get("local") if isinstance(payload, dict) else {}
     if not isinstance(local_payload, dict):
         local_payload = {}
-    sim_local_payload = payload.get(SIMULATED_LOCAL_MODE) if isinstance(payload, dict) else {}
-    if not isinstance(sim_local_payload, dict):
-        sim_local_payload = {}
+    sim_local_payload = _normalize_simulated_local_payload(payload.get(SIMULATED_LOCAL_MODE) if isinstance(payload, dict) else {})
+    hanviet_payload = payload.get(HANVIET_MODE) if isinstance(payload, dict) else {}
+    if not isinstance(hanviet_payload, dict):
+        hanviet_payload = {}
     global_dicts = normalized_global_local_dicts(payload.get("global_dicts"), normalize_name_set=normalize_name_set)
     merged_local = dict(local_payload)
     merged_local["global_name_overrides"] = dict(global_dicts.get("name") or {})
@@ -91,6 +106,9 @@ def normalized_reader_translation_settings(
     merged_sim_local = dict(sim_local_payload)
     merged_sim_local["global_name_overrides"] = dict(global_dicts.get("name") or {})
     merged_sim_local["global_vp_overrides"] = dict(global_dicts.get("vp") or {})
+    merged_hanviet = dict(hanviet_payload)
+    merged_hanviet["global_name_overrides"] = dict(global_dicts.get("name") or {})
+    merged_hanviet["global_vp_overrides"] = dict(global_dicts.get("vp") or {})
     return {
         "enabled": parse_bool(payload.get("enabled"), True),
         "mode": normalize_translate_mode(payload.get("mode"), "local"),
@@ -106,6 +124,10 @@ def normalized_reader_translation_settings(
         SIMULATED_LOCAL_MODE: vbook_local_translate.normalize_local_settings(
             merged_sim_local,
             default_base_dir=SIMULATED_LOCAL_BASE_DIR,
+        ),
+        HANVIET_MODE: vbook_local_translate.normalize_local_settings(
+            merged_hanviet,
+            default_base_dir=HANVIET_BASE_DIR,
         ),
         "global_dicts": global_dicts,
     }
@@ -161,6 +183,12 @@ def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -
             {},
             default_base_dir=SIMULATED_LOCAL_BASE_DIR,
         )
+    hanviet_settings = service.reader_translation_settings.get(HANVIET_MODE)
+    if not isinstance(hanviet_settings, dict):
+        hanviet_settings = vbook_local_translate.normalize_local_settings(
+            {},
+            default_base_dir=HANVIET_BASE_DIR,
+        )
     return {
         "ok": True,
         "translation": {
@@ -173,6 +201,7 @@ def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -
             ),
             "local": local_settings,
             SIMULATED_LOCAL_MODE: sim_local_settings,
+            HANVIET_MODE: hanviet_settings,
             "global_dicts": normalized_global_local_dicts(
                 service.reader_translation_settings.get("global_dicts"),
                 normalize_name_set=normalize_name_set,
@@ -208,6 +237,7 @@ def set_reader_settings(
         )
         patch_local = patch.get("local")
         patch_sim_local = patch.get(SIMULATED_LOCAL_MODE)
+        patch_hanviet = patch.get(HANVIET_MODE)
         patch_server = patch.get("server")
         patch_global_dicts = patch.get("global_dicts")
         if isinstance(patch_local, dict):
@@ -220,6 +250,11 @@ def set_reader_settings(
             merged_sim_local.update(patch_sim_local)
         else:
             merged_sim_local = existing.get(SIMULATED_LOCAL_MODE) or {}
+        if isinstance(patch_hanviet, dict):
+            merged_hanviet = dict(existing.get(HANVIET_MODE) or {})
+            merged_hanviet.update(patch_hanviet)
+        else:
+            merged_hanviet = existing.get(HANVIET_MODE) or {}
         if isinstance(patch_server, dict):
             merged_server = dict(existing.get("server") or {})
             merged_server.update(patch_server)
@@ -236,6 +271,9 @@ def set_reader_settings(
         sim_local_with_global = dict(merged_sim_local)
         sim_local_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
         sim_local_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
+        hanviet_with_global = dict(merged_hanviet)
+        hanviet_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
+        hanviet_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
         next_settings = {
             "enabled": parse_bool(patch.get("enabled"), existing["enabled"]),
             "mode": normalize_translate_mode(patch.get("mode"), existing["mode"]),
@@ -247,6 +285,10 @@ def set_reader_settings(
             SIMULATED_LOCAL_MODE: vbook_local_translate.normalize_local_settings(
                 sim_local_with_global,
                 default_base_dir=SIMULATED_LOCAL_BASE_DIR,
+            ),
+            HANVIET_MODE: vbook_local_translate.normalize_local_settings(
+                hanviet_with_global,
+                default_base_dir=HANVIET_BASE_DIR,
             ),
             "global_dicts": merged_global_dicts,
         }

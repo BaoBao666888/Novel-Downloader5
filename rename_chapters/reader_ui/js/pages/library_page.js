@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260411-dichngaylocal1";
+import { initShell } from "../site_common.js?v=20260413-settings3";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {

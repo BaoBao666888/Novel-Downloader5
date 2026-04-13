@@ -75,7 +75,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260408-readerfix13">
+  <link rel="stylesheet" href="./styles.css?v=20260413-rawedit1">
 </head>
 
 <body data-page="reader" class="mpa-body">
@@ -133,8 +133,10 @@
         </div>
         <div class="reader-actions">
           <button id="btn-reader-toc" class="btn btn-small" type="button"></button>
+          <button id="btn-open-book-info" class="btn btn-small" type="button"></button>
           <button id="btn-open-settings-inline" class="btn btn-small" type="button"></button>
           <button id="btn-open-tts" class="btn btn-small" type="button"></button>
+          <button id="btn-open-raw-editor" class="btn btn-small" type="button"></button>
           <button id="btn-mode-raw" class="btn btn-small" type="button"></button>
           <button id="btn-mode-trans" class="btn btn-small" type="button"></button>
           <button id="btn-translate-mode" class="btn btn-small" type="button"></button>
@@ -584,6 +586,25 @@
     </div>
   </dialog>
 
+  <dialog id="raw-editor-dialog" class="dialog name-editor-dialog">
+    <div class="dialog-head">
+      <h3 id="raw-editor-title"></h3>
+      <button id="btn-close-raw-editor" class="btn btn-small" type="button"></button>
+    </div>
+    <form id="raw-editor-form" class="name-bulk-form">
+      <p id="raw-editor-hint" class="empty-text"></p>
+      <label>
+        <span id="raw-editor-input-label"></span>
+        <textarea id="raw-editor-input" rows="18" spellcheck="false"></textarea>
+      </label>
+      <div id="raw-editor-meta" class="empty-text"></div>
+      <div class="dialog-actions">
+        <button id="btn-cancel-raw-editor" class="btn" type="button"></button>
+        <button id="btn-save-raw-editor" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
+  </dialog>
+
   <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
     <div class="settings-head">
       <h3 id="settings-title"></h3>
@@ -704,7 +725,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260411-dichngaylocal1"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260413-rawedit1"></script>
 </body>
 
 </html>

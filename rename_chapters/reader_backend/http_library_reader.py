@@ -13,7 +13,9 @@ class LibraryReaderDeps:
     cache_dir: Path
     normalize_vbook_display_text: Any
     normalize_vi_display_text: Any
+    normalize_newlines: Any
     decode_comic_payload: Any
+    encode_comic_payload: Any
     build_vbook_image_proxy_path: Any
     map_selection_to_name_source: Any
     map_selection_to_source_segment: Any
@@ -456,6 +458,95 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         payload = handler._read_json_body()
         return service.manage_cache(payload)
 
+    if method == "GET" and path.startswith("/api/library/chapter/") and path.endswith("/raw"):
+        chapter_id = path.removeprefix("/api/library/chapter/").removesuffix("/raw").strip("/")
+        chapter = storage.find_chapter(chapter_id)
+        if not chapter:
+            raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy chương.")
+        book = storage.find_book(chapter["book_id"])
+        if not book:
+            raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+        raw_key = str(chapter.get("raw_key") or "").strip()
+        raw_text = storage.read_cache(raw_key) or ""
+        source_type = str(book.get("source_type") or "").strip().lower()
+        if (
+            (not raw_text)
+            and source_type.startswith("vbook")
+            and chapter.get("remote_url")
+            and storage.remote_chapter_fetcher
+        ):
+            raw_text = storage.remote_chapter_fetcher(chapter, book) or ""
+        raw_state = storage.get_chapter_raw_edit_state(chapter["chapter_id"])
+        comic_payload = deps.decode_comic_payload(raw_text)
+        content_type = "text"
+        images: list[str] = []
+        response_content = raw_text
+        if comic_payload is not None:
+            content_type = "images"
+            images = [str(x).strip() for x in (comic_payload.get("images") or []) if str(x).strip()]
+            if source_type.startswith("vbook"):
+                plugin_id = str(book.get("source_plugin") or "").strip()
+                referer = str(chapter.get("remote_url") or book.get("source_url") or "").strip()
+                images = [
+                    deps.build_vbook_image_proxy_path(img, plugin_id=plugin_id, referer=referer, cache=True)
+                    for img in images
+                ]
+            response_content = ""
+        return {
+            "ok": True,
+            "chapter_id": chapter["chapter_id"],
+            "book_id": chapter["book_id"],
+            "chapter_order": chapter["chapter_order"],
+            "title_raw": chapter.get("title_raw") or "",
+            "content_type": content_type,
+            "images": images,
+            "content": response_content,
+            "source_type": str(book.get("source_type") or ""),
+            "remote_url": str(chapter.get("remote_url") or ""),
+            "raw_edited": bool(raw_state.get("edited")),
+            "raw_edit_updated_at": str(raw_state.get("updated_at") or ""),
+        }
+
+    if method == "POST" and path.startswith("/api/library/chapter/") and path.endswith("/raw"):
+        chapter_id = path.removeprefix("/api/library/chapter/").removesuffix("/raw").strip("/")
+        chapter = storage.find_chapter(chapter_id)
+        if not chapter:
+            raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy chương.")
+        book = storage.find_book(chapter["book_id"])
+        if not book:
+            raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+        payload = handler._read_json_body()
+        if "content" not in payload:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu content để lưu raw.")
+        raw_key = str(chapter.get("raw_key") or "").strip()
+        if not raw_key:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Chương này không có raw_key để lưu.")
+        source_type = str(book.get("source_type") or "").strip().lower()
+        is_comic = "comic" in source_type
+        content = _normalize_client_reader_text(payload.get("content") or "")
+        if is_comic and deps.decode_comic_payload(content) is None:
+            maybe_lines = [line.strip() for line in content.splitlines() if line.strip()]
+            if maybe_lines and all(line.startswith("http://") or line.startswith("https://") for line in maybe_lines):
+                content = deps.encode_comic_payload(maybe_lines)
+        storage.write_cache(raw_key, str(book.get("lang_source") or "zh"), content)
+        if is_comic:
+            comic_payload = deps.decode_comic_payload(content) or {}
+            storage.update_chapter_word_count(chapter_id, len(comic_payload.get("images") or []))
+        else:
+            storage.update_chapter_word_count(chapter_id, len(content))
+        cleared = storage.clear_chapter_translated_cache(chapter_id)
+        raw_state = storage.set_chapter_raw_edit_state(chapter_id, edited=True, source="manual")
+        return {
+            "ok": True,
+            "chapter_id": chapter["chapter_id"],
+            "book_id": chapter["book_id"],
+            "source_type": str(book.get("source_type") or ""),
+            "remote_url": str(chapter.get("remote_url") or ""),
+            "raw_edited": bool(raw_state.get("edited")),
+            "raw_edit_updated_at": str(raw_state.get("updated_at") or ""),
+            **cleared,
+        }
+
     if method == "POST" and path.startswith("/api/library/chapter/") and path.endswith("/reload"):
         chapter_id = path.removeprefix("/api/library/chapter/").removesuffix("/reload").strip("/")
         return service.reload_chapter(chapter_id)
@@ -831,6 +922,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             ) or title_vi or chapter["title_raw"]
+        raw_state = storage.get_chapter_raw_edit_state(chapter["chapter_id"])
         response = {
             "chapter_id": chapter["chapter_id"],
             "book_id": chapter["book_id"],
@@ -844,6 +936,10 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             "images": images,
             "content": response_content,
             "is_downloaded": bool(service._chapter_cache_available(chapter, book)),
+            "source_type": str(book.get("source_type") or ""),
+            "remote_url": str(chapter.get("remote_url") or ""),
+            "raw_edited": bool(raw_state.get("edited")),
+            "raw_edit_updated_at": str(raw_state.get("updated_at") or ""),
         }
         if output_mode == "trans":
             base_sig = service.translator.translation_signature(

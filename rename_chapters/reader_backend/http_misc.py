@@ -174,12 +174,11 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         local_bundle = None
         if translate_mode in {"local", "hanviet", "dichngay_local"}:
             try:
+                local_mode_key = "dichngay_local" if translate_mode == "dichngay_local" else "hanviet" if translate_mode == "hanviet" else "local"
                 local_settings = deps.vbook_local_translate.normalize_local_settings(
-                    (handler.service.reader_translation_settings or {}).get(
-                        "dichngay_local" if translate_mode == "dichngay_local" else "local"
-                    ) or {},
+                    (handler.service.reader_translation_settings or {}).get(local_mode_key) or {},
                     default_base_dir=(
-                        "local/dichngay_local_pack"
+                        "reader_ui/translate/dichngay_local"
                         if translate_mode == "dichngay_local"
                         else "reader_ui/translate/vbook_local"
                     ),
