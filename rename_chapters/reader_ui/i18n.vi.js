@@ -234,6 +234,7 @@ export const STRINGS = {
   tocModeTrans: "Hiển thị tiêu đề dịch",
   tocPrev: "Trang trước",
   tocNext: "Trang sau",
+  tocJumpPage: "Nhảy tới trang mục lục",
   tocNoData: "Chưa có dữ liệu mục lục.",
   translateTitles: "Dịch tiêu đề truyện/chương",
 

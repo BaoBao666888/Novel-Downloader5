@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260413-settings3";
+import { initShell } from "../site_common.js?v=20260413-tocpage1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -48,6 +48,7 @@ const refs = {
   tocSkeleton: document.getElementById("toc-skeleton"),
   tocList: document.getElementById("toc-list"),
   btnTocPrev: document.getElementById("btn-toc-prev"),
+  tocPageSelect: document.getElementById("toc-page-select"),
   btnTocNext: document.getElementById("btn-toc-next"),
 
   bookEditDialog: document.getElementById("book-edit-dialog"),
@@ -206,6 +207,7 @@ const state = {
     page: 1,
     page_size: 40,
     total_pages: 1,
+    total_items: 0,
   },
   tocItems: [],
   bookNameSets: { "Mặc định": {} },
@@ -907,7 +909,36 @@ function renderToc() {
 
   refs.btnTocPrev.disabled = state.pagination.page <= 1;
   refs.btnTocNext.disabled = state.pagination.page >= state.pagination.total_pages;
+  renderTocPageSelect();
   showTocSkeleton(false);
+}
+
+function buildTocPageLabel(page, pagination = state.pagination) {
+  const pageSize = Math.max(1, Number((pagination && pagination.page_size) || state.pagination.page_size || 40));
+  const totalItems = Math.max(0, Number((pagination && pagination.total_items) || 0));
+  const totalPages = Math.max(1, Number((pagination && pagination.total_pages) || 1));
+  const safePage = Math.min(totalPages, Math.max(1, Number(page || 1)));
+  const start = ((safePage - 1) * pageSize) + 1;
+  const fallbackEnd = start + pageSize - 1;
+  const end = totalItems > 0 ? Math.min(totalItems, fallbackEnd) : fallbackEnd;
+  return `${start}-${end}`;
+}
+
+function renderTocPageSelect() {
+  if (!refs.tocPageSelect) return;
+  refs.tocPageSelect.innerHTML = "";
+  const totalPages = Math.max(1, Number(state.pagination.total_pages || 1));
+  const currentPage = Math.min(totalPages, Math.max(1, Number(state.pagination.page || 1)));
+  for (let page = 1; page <= totalPages; page += 1) {
+    const option = document.createElement("option");
+    option.value = String(page);
+    option.textContent = buildTocPageLabel(page);
+    refs.tocPageSelect.appendChild(option);
+  }
+  refs.tocPageSelect.value = String(currentPage);
+  refs.tocPageSelect.disabled = totalPages <= 1;
+  refs.tocPageSelect.title = state.shell.t("tocJumpPage");
+  refs.tocPageSelect.setAttribute("aria-label", state.shell.t("tocJumpPage"));
 }
 
 async function loadBook({ silent = false, suppressToast = false, refreshOnline = false, showSkeleton = !state.book } = {}) {
@@ -2262,6 +2293,10 @@ async function init() {
   refs.btnTranslateTitles.textContent = state.shell.t("translateTitles");
   refs.btnTocPrev.textContent = state.shell.t("tocPrev");
   refs.btnTocNext.textContent = state.shell.t("tocNext");
+  if (refs.tocPageSelect) {
+    refs.tocPageSelect.title = state.shell.t("tocJumpPage");
+    refs.tocPageSelect.setAttribute("aria-label", state.shell.t("tocJumpPage"));
+  }
   if (refs.btnRefreshBookToc) {
     setTocIcon(refs.btnRefreshBookToc, "refresh");
     refs.btnRefreshBookToc.title = state.shell.t("checkBookUpdates");
@@ -2625,6 +2660,13 @@ async function init() {
   refs.btnTocPrev.addEventListener("click", () => {
     if (state.pagination.page > 1) loadToc(state.pagination.page - 1);
   });
+  if (refs.tocPageSelect) {
+    refs.tocPageSelect.addEventListener("change", () => {
+      const nextPage = Math.max(1, Number(refs.tocPageSelect.value || 1));
+      if (nextPage === Number(state.pagination.page || 1)) return;
+      loadToc(nextPage);
+    });
+  }
   refs.btnTocNext.addEventListener("click", () => {
     if (state.pagination.page < state.pagination.total_pages) loadToc(state.pagination.page + 1);
   });

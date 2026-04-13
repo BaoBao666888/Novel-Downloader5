@@ -75,7 +75,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260413-rawedit1">
+  <link rel="stylesheet" href="./styles.css?v=20260413-tocpage1">
 </head>
 
 <body data-page="reader" class="mpa-body">
@@ -193,6 +193,11 @@
     </div>
     <div id="reader-toc-skeleton" class="toc-skeleton-wrap hidden" aria-hidden="true"></div>
     <ul id="reader-toc-list" class="simple-list"></ul>
+    <div class="toc-footer reader-toc-footer">
+      <button id="btn-reader-toc-prev" class="btn btn-small" type="button"></button>
+      <select id="reader-toc-page-select" class="toc-page-select" aria-label="Trang mục lục"></select>
+      <button id="btn-reader-toc-next" class="btn btn-small" type="button"></button>
+    </div>
   </aside>
 
   <dialog id="name-editor-dialog" class="dialog name-editor-dialog">
@@ -725,7 +730,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260413-rawedit1"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260413-tocpage1"></script>
 </body>
 
 </html>

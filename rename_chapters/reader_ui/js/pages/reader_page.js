@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260413-rawedit1";
+import { initShell } from "../site_common.js?v=20260413-tocpage1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeParagraphDisplayText, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260408-readerpara2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 import {
@@ -52,6 +52,9 @@ const refs = {
   readerTocDrawer: document.getElementById("reader-toc-drawer"),
   readerTocSkeleton: document.getElementById("reader-toc-skeleton"),
   readerTocList: document.getElementById("reader-toc-list"),
+  btnReaderTocPrev: document.getElementById("btn-reader-toc-prev"),
+  readerTocPageSelect: document.getElementById("reader-toc-page-select"),
+  btnReaderTocNext: document.getElementById("btn-reader-toc-next"),
   btnReaderDownloadBook: document.getElementById("btn-reader-download-book"),
   btnReaderRefreshToc: document.getElementById("btn-reader-refresh-toc"),
   btnCloseReaderToc: document.getElementById("btn-close-reader-toc"),
@@ -304,6 +307,12 @@ const state = {
   chapterTransitioning: false,
   runtimeMode: "hybrid",
   positionApplyRaf: 0,
+  readerTocPagination: {
+    page: 1,
+    page_size: 120,
+    total_pages: 1,
+    total_items: 0,
+  },
   chapterContentType: "text",
   chapterImages: [],
   comicLoadSeq: 0,
@@ -1282,9 +1291,64 @@ async function openChapterById(chapterId, { updateHistory = true, fromToc = fals
   if (fromToc) closeToc();
 }
 
+function buildReaderTocPageLabel(page, pagination = state.readerTocPagination) {
+  const pageSize = Math.max(1, Number((pagination && pagination.page_size) || state.readerTocPagination.page_size || 120));
+  const totalItems = Math.max(0, Number((pagination && pagination.total_items) || 0));
+  const totalPages = Math.max(1, Number((pagination && pagination.total_pages) || 1));
+  const safePage = Math.min(totalPages, Math.max(1, Number(page || 1)));
+  const start = ((safePage - 1) * pageSize) + 1;
+  const fallbackEnd = start + pageSize - 1;
+  const end = totalItems > 0 ? Math.min(totalItems, fallbackEnd) : fallbackEnd;
+  return `${start}-${end}`;
+}
+
+function syncReaderTocPagination({ focusCurrent = false } = {}) {
+  const list = Array.isArray(state.book && state.book.chapters) ? state.book.chapters : [];
+  const totalItems = list.length;
+  const pageSize = Math.max(1, Number(state.readerTocPagination.page_size || 120));
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize) || 1);
+  let page = Math.max(1, Number(state.readerTocPagination.page || 1));
+  if (focusCurrent && totalItems > 0) {
+    const currentIndex = findChapterIndex();
+    if (currentIndex >= 0) {
+      page = Math.floor(currentIndex / pageSize) + 1;
+    }
+  }
+  page = Math.min(totalPages, page);
+  state.readerTocPagination = {
+    ...state.readerTocPagination,
+    page,
+    page_size: pageSize,
+    total_pages: totalPages,
+    total_items: totalItems,
+  };
+}
+
+function renderReaderTocPageSelect() {
+  if (!refs.readerTocPageSelect) return;
+  refs.readerTocPageSelect.innerHTML = "";
+  const totalPages = Math.max(1, Number(state.readerTocPagination.total_pages || 1));
+  const currentPage = Math.min(totalPages, Math.max(1, Number(state.readerTocPagination.page || 1)));
+  for (let page = 1; page <= totalPages; page += 1) {
+    const option = document.createElement("option");
+    option.value = String(page);
+    option.textContent = buildReaderTocPageLabel(page);
+    refs.readerTocPageSelect.appendChild(option);
+  }
+  refs.readerTocPageSelect.value = String(currentPage);
+  refs.readerTocPageSelect.disabled = totalPages <= 1;
+  refs.readerTocPageSelect.title = state.shell.t("tocJumpPage");
+  refs.readerTocPageSelect.setAttribute("aria-label", state.shell.t("tocJumpPage"));
+}
+
 function renderToc() {
   refs.readerTocList.innerHTML = "";
   const list = (state.book && state.book.chapters) || [];
+  syncReaderTocPagination();
+  const page = Math.max(1, Number(state.readerTocPagination.page || 1));
+  const pageSize = Math.max(1, Number(state.readerTocPagination.page_size || 120));
+  const startIndex = (page - 1) * pageSize;
+  const pageItems = list.slice(startIndex, startIndex + pageSize);
   const downloadedCount = list.reduce((acc, chapter) => acc + (chapter && chapter.is_downloaded ? 1 : 0), 0);
   if (refs.btnReaderDownloadBook) {
     refs.btnReaderDownloadBook.textContent = state.shell.t("downloadBook");
@@ -1294,7 +1358,13 @@ function renderToc() {
     });
     refs.btnReaderDownloadBook.disabled = !list.length || downloadedCount >= list.length;
   }
-  for (const chapter of list) {
+  if (!pageItems.length) {
+    const li = document.createElement("li");
+    li.className = "empty-text";
+    li.textContent = state.shell.t("tocNoData");
+    refs.readerTocList.appendChild(li);
+  }
+  for (const chapter of pageItems) {
     const li = document.createElement("li");
     li.className = "toc-row";
     const btn = document.createElement("button");
@@ -1340,6 +1410,9 @@ function renderToc() {
     li.appendChild(iconBtn);
     refs.readerTocList.appendChild(li);
   }
+  if (refs.btnReaderTocPrev) refs.btnReaderTocPrev.disabled = page <= 1;
+  if (refs.btnReaderTocNext) refs.btnReaderTocNext.disabled = page >= state.readerTocPagination.total_pages;
+  renderReaderTocPageSelect();
   showReaderTocSkeleton(false);
 }
 
@@ -2142,6 +2215,8 @@ function queueReaderDictRefresh({ preserveRatio = currentChapterRatio(), refresh
 }
 
 function openToc() {
+  syncReaderTocPagination({ focusCurrent: true });
+  renderToc();
   refs.readerTocDrawer.classList.add("open");
   refs.readerTocDrawer.setAttribute("aria-hidden", "false");
   const backdrop = document.getElementById("settings-backdrop");
@@ -5823,6 +5898,12 @@ async function init() {
     refs.btnReaderRefreshToc.setAttribute("aria-label", state.shell.t("checkBookUpdates"));
   }
   refs.btnCloseReaderToc.textContent = state.shell.t("close");
+  if (refs.btnReaderTocPrev) refs.btnReaderTocPrev.textContent = state.shell.t("tocPrev");
+  if (refs.btnReaderTocNext) refs.btnReaderTocNext.textContent = state.shell.t("tocNext");
+  if (refs.readerTocPageSelect) {
+    refs.readerTocPageSelect.title = state.shell.t("tocJumpPage");
+    refs.readerTocPageSelect.setAttribute("aria-label", state.shell.t("tocJumpPage"));
+  }
   refs.btnReaderToc.textContent = state.shell.t("readerToc");
   if (refs.btnFooterToc) refs.btnFooterToc.textContent = state.shell.t("readerToc");
   if (refs.btnOpenSettingsInline) refs.btnOpenSettingsInline.textContent = state.shell.t("openSettings");
@@ -5992,6 +6073,31 @@ async function init() {
     });
   }
   refs.btnCloseReaderToc.addEventListener("click", closeToc);
+  if (refs.btnReaderTocPrev) {
+    refs.btnReaderTocPrev.addEventListener("click", () => {
+      if (Number(state.readerTocPagination.page || 1) <= 1) return;
+      state.readerTocPagination.page = Math.max(1, Number(state.readerTocPagination.page || 1) - 1);
+      renderToc();
+    });
+  }
+  if (refs.readerTocPageSelect) {
+    refs.readerTocPageSelect.addEventListener("change", () => {
+      const nextPage = Math.max(1, Number(refs.readerTocPageSelect.value || 1));
+      if (nextPage === Number(state.readerTocPagination.page || 1)) return;
+      state.readerTocPagination.page = nextPage;
+      renderToc();
+    });
+  }
+  if (refs.btnReaderTocNext) {
+    refs.btnReaderTocNext.addEventListener("click", () => {
+      if (Number(state.readerTocPagination.page || 1) >= Number(state.readerTocPagination.total_pages || 1)) return;
+      state.readerTocPagination.page = Math.min(
+        Number(state.readerTocPagination.total_pages || 1),
+        Number(state.readerTocPagination.page || 1) + 1,
+      );
+      renderToc();
+    });
+  }
   const backdrop = document.getElementById("settings-backdrop");
   const settingsDrawer = document.getElementById("settings-drawer");
   if (settingsDrawer) {
