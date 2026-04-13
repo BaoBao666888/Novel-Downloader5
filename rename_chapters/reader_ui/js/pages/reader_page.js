@@ -303,6 +303,7 @@ const state = {
   infiniteScrollDirection: 0,
   chapterTransitioning: false,
   runtimeMode: "hybrid",
+  positionApplyRaf: 0,
   chapterContentType: "text",
   chapterImages: [],
   comicLoadSeq: 0,
@@ -1192,6 +1193,22 @@ function applyPositionFromRatio(ratio) {
   wrap.scrollTop = maxY * bounded;
 }
 
+function cancelPendingPositionApply() {
+  if (!state.positionApplyRaf) return;
+  window.cancelAnimationFrame(state.positionApplyRaf);
+  state.positionApplyRaf = 0;
+}
+
+function schedulePositionFromRatio(ratio) {
+  cancelPendingPositionApply();
+  const bounded = clamp01(ratio);
+  state.positionApplyRaf = window.requestAnimationFrame(() => {
+    state.positionApplyRaf = 0;
+    applyPositionFromRatio(bounded);
+    updateProgress();
+  });
+}
+
 function clearScrollHint() {
   state.infiniteScrollDirection = 0;
   state.infiniteScrollProgressPx = 0;
@@ -1253,6 +1270,7 @@ async function openChapterById(chapterId, { updateHistory = true, fromToc = fals
   if (String(chapterId || "").trim() !== String(state.chapterId || "").trim()) {
     closeRawEditor();
   }
+  cancelPendingPositionApply();
   if (String(chapterId || "").trim() !== String(state.chapterId || "").trim()) {
     state.tts.playFromSelectionNext = null;
   }
@@ -1260,7 +1278,7 @@ async function openChapterById(chapterId, { updateHistory = true, fromToc = fals
   if (updateHistory) {
     window.history.replaceState({}, "", buildReaderUrl(state.book || state.bookId, state.chapterId, state.mode));
   }
-  await loadChapter({ resetFlip });
+  await loadChapter({ resetFlip, preserveRatio: 0 });
   if (fromToc) closeToc();
 }
 
@@ -1691,6 +1709,7 @@ function renderFlipPage() {
 }
 
 function renderImageChapter(preserveRatio = null) {
+  cancelPendingPositionApply();
   const loadSeq = ++state.comicLoadSeq;
   refs.readerContentBody.innerHTML = "";
   const images = Array.isArray(state.chapterImages) ? state.chapterImages : [];
@@ -1756,14 +1775,12 @@ function renderImageChapter(preserveRatio = null) {
   if (preserveRatio == null) {
     refs.readerContentScroll.scrollTop = 0;
   } else {
-    window.requestAnimationFrame(() => {
-      applyPositionFromRatio(clamp01(preserveRatio));
-      updateProgress();
-    });
+    schedulePositionFromRatio(preserveRatio);
   }
 }
 
 function renderChapterContent(resetFlip = true, preserveRatio = null) {
+  cancelPendingPositionApply();
   if (state.chapterContentType === "images") {
     state.flipPages = [];
     state.flipPageIndex = 0;
@@ -1802,10 +1819,7 @@ function renderChapterContent(resetFlip = true, preserveRatio = null) {
       const ratio = clamp01(preserveRatio);
       refs.readerContentScroll.scrollTop = 0;
       refs.readerContentScroll.scrollLeft = 0;
-      window.requestAnimationFrame(() => {
-        applyPositionFromRatio(ratio);
-        updateProgress();
-      });
+      schedulePositionFromRatio(ratio);
     }
   }
   // Chỉ scroll cửa sổ về đầu khi vào chương mới. Khi preserveRatio (đổi mode/apply name)
@@ -1818,6 +1832,7 @@ function renderChapterContent(resetFlip = true, preserveRatio = null) {
 }
 
 function renderChapterError(message) {
+  cancelPendingPositionApply();
   refs.readerContentBody.innerHTML = "";
   const panel = document.createElement("div");
   panel.className = "reader-inline-error";
