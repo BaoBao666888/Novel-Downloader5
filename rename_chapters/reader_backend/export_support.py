@@ -16,6 +16,11 @@ from urllib.parse import quote
 from reader_backend import theme_presets as theme_presets_support
 from reader_backend import text_paragraphs as text_paragraphs_support
 
+try:
+    from reader_backend import export_protect_private as export_protect_private_support
+except Exception:  # pragma: no cover - private local module may be absent on public tree
+    export_protect_private_support = None
+
 
 def _normalize_newlines(text: str) -> str:
     return str(text or "").replace("\r\n", "\n").replace("\r", "\n")
@@ -156,12 +161,79 @@ def render_export_intro_html(metadata: dict[str, Any]) -> str:
     return "".join(parts)
 
 
+def _html_private_protection_available() -> bool:
+    return export_protect_private_support is not None
+
+
+def build_export_job_protection_view(options: dict[str, Any] | None) -> dict[str, Any]:
+    if not _html_private_protection_available():
+        return {"enabled": False}
+    return export_protect_private_support.build_job_protection_view(options)
+
+
+def build_export_job_protection_signature(options: dict[str, Any] | None) -> str:
+    if not _html_private_protection_available():
+        return "0"
+    return export_protect_private_support.build_job_protection_signature(options)
+
+
+def finalize_export_job_options(
+    *,
+    fmt: str,
+    options: dict[str, Any] | None,
+    job_id: str,
+    book_id: str,
+    title: str,
+    created_at_iso: str,
+) -> dict[str, Any]:
+    normalized = dict(options or {})
+    fmt_norm = str(fmt or "").strip().lower()
+    if fmt_norm != "html":
+        normalized["protect_content"] = False
+        normalized["protect_with_code"] = False
+        normalized.pop("_protect_state", None)
+        return normalized
+    if not _html_private_protection_available():
+        normalized["protect_content"] = False
+        normalized["protect_with_code"] = False
+        normalized.pop("_protect_state", None)
+        return normalized
+    return export_protect_private_support.finalize_job_protection_options(
+        normalized,
+        job_id=job_id,
+        book_id=book_id,
+        title=title,
+        created_at_iso=created_at_iso,
+    )
+
+
 def build_export_format_specs(*, is_comic: bool, translation_supported: bool) -> dict[str, Any]:
-    def opt(key: str, label: str, default_enabled: bool) -> dict[str, Any]:
+    def opt(
+        key: str,
+        label: str,
+        default_enabled: bool,
+        *,
+        option_type: str = "bool",
+        default_value: int | None = None,
+        minimum: int | None = None,
+        maximum: int | None = None,
+        step: int | None = None,
+        suffix: str = "",
+        depends_on: str = "",
+        hint: str = "",
+    ) -> dict[str, Any]:
         return {
             "key": key,
             "label": label,
+            "type": option_type,
             "default_enabled": bool(default_enabled),
+            "default_value": default_value if default_value is not None else int(bool(default_enabled)),
+            "min": minimum,
+            "max": maximum,
+            "step": step,
+            "suffix": suffix,
+            "depends_on": depends_on,
+            "hint": hint,
         }
 
     if is_comic:
@@ -218,6 +290,15 @@ def build_export_format_specs(*, is_comic: bool, translation_supported: bool) ->
             {"id": "html", "label": "HTML", "options": html_options},
         ]
         default_format = "txt"
+    if _html_private_protection_available():
+        for format_spec in formats:
+            if str((format_spec or {}).get("id") or "").strip().lower() != "html":
+                continue
+            html_option_rows = list(format_spec.get("options") or [])
+            html_option_rows.append(opt("protect_content", "Bảo vệ nội dung HTML", True))
+            for extra in export_protect_private_support.access_code_option_specs():
+                html_option_rows.append(dict(extra))
+            format_spec["options"] = html_option_rows
     return {
         "default_format": default_format,
         "formats": formats,
@@ -231,7 +312,7 @@ def normalize_export_options(
     raw_options: dict[str, Any] | None,
     is_comic: bool,
     translation_supported: bool,
-) -> dict[str, bool]:
+) -> dict[str, Any]:
     format_spec = None
     for row in specs.get("formats") or []:
         if str((row or {}).get("id") or "").strip().lower() == fmt:
@@ -240,12 +321,27 @@ def normalize_export_options(
     if not format_spec:
         raise ValueError("Định dạng export không hợp lệ.")
     options = dict(raw_options or {}) if isinstance(raw_options, dict) else {}
-    normalized: dict[str, bool] = {}
+    normalized: dict[str, Any] = {}
     for item in format_spec.get("options") or []:
         key = str((item or {}).get("key") or "").strip()
         if not key:
             continue
-        if key in options:
+        item_type = str((item or {}).get("type") or "bool").strip().lower()
+        if item_type == "number":
+            default_value = int((item or {}).get("default_value") or 0)
+            raw_value = options.get(key, default_value)
+            try:
+                parsed = int(raw_value)
+            except Exception:
+                parsed = default_value
+            minimum = item.get("min")
+            maximum = item.get("max")
+            if isinstance(minimum, int):
+                parsed = max(minimum, parsed)
+            if isinstance(maximum, int):
+                parsed = min(maximum, parsed)
+            normalized[key] = parsed
+        elif key in options:
             normalized[key] = bool(options.get(key))
         else:
             normalized[key] = bool(item.get("default_enabled"))
@@ -255,8 +351,18 @@ def normalize_export_options(
         "include_chapter_titles",
         "include_toc_page",
         "use_translated_text",
+        "protect_content",
+        "protect_with_code",
     ):
         normalized.setdefault(key, False)
+    normalized.setdefault(
+        "protect_code_minutes",
+        int(
+            getattr(export_protect_private_support, "DEFAULT_ACCESS_CODE_MINUTES", 15)
+            if _html_private_protection_available()
+            else 15
+        ),
+    )
     normalized["use_cached_only"] = True
     if is_comic or (not translation_supported):
         normalized["use_translated_text"] = False
@@ -364,13 +470,49 @@ def wrap_export_html_document(
     page_title: str = "",
     toc_html: str = "",
     is_comic: bool = False,
+    protect_content: bool = False,
+    protect_options: dict[str, Any] | None = None,
 ) -> str:
     storage_key_seed = f"{title}|{'comic' if is_comic else 'text'}"
     storage_key = "reader-export-html:" + hashlib.sha1(storage_key_seed.encode("utf-8", errors="ignore")).hexdigest()[:16]
+    page_storage_seed = f"{page_title or title}|{hashlib.sha1(body.encode('utf-8', errors='ignore')).hexdigest()}"
+    page_storage_key = storage_key + ":page:" + hashlib.sha1(page_storage_seed.encode("utf-8", errors="ignore")).hexdigest()[:16]
     header_title = page_title or title
     toc_section = toc_html or '<div class="export-toc empty"><h2>Mục lục</h2><p>Không có mục lục.</p></div>'
     theme_options_markup = _build_export_theme_options_html()
     theme_css = _build_export_theme_css()
+    protection_context = (
+        export_protect_private_support.build_html_protection_context(
+            title=title,
+            body_html=body,
+            toc_html=toc_section,
+            protect_options=protect_options,
+        )
+        if bool(protect_content and _html_private_protection_available())
+        else {"enabled": False}
+    )
+    protect_enabled = bool(protection_context.get("enabled"))
+    article_markup = (
+        str(protection_context.get("article_markup") or "").replace(
+            'class="export-reader"',
+            f'class="export-reader{" is-comic" if is_comic else ""}"',
+            1,
+        )
+        if protect_enabled
+        else f'<article class="export-reader{" is-comic" if is_comic else ""}">{body}</article>'
+    )
+    toc_drawer_body_markup = (
+        str(protection_context.get("toc_drawer_body_markup") or "")
+        if protect_enabled
+        else f'<div class="export-drawer-body">{toc_section}</div>'
+    )
+    protection_overlay_markup = str(protection_context.get("overlay_markup") or "") if protect_enabled else ""
+    hidden_notice_markup = str(protection_context.get("hidden_notice_markup") or "") if protect_enabled else ""
+    body_classes = [item for item in (protection_context.get("body_class_names") or []) if str(item or "").strip()]
+    body_open_tag = f'<body class="{" ".join(body_classes)}">' if body_classes else "<body>"
+    protection_bootstrap_js = str(protection_context.get("bootstrap_js") or "") if protect_enabled else ""
+    protection_runtime_config = str(protection_context.get("runtime_config_json") or "{}") if protect_enabled else "{}"
+    protection_extra_styles = str(protection_context.get("extra_styles") or "") if protect_enabled else ""
     font_choices = (
         '<option value="serif">Serif dễ đọc</option>'
         '<option value="literary">Serif đậm chất sách</option>'
@@ -438,8 +580,14 @@ def wrap_export_html_document(
     script = f"""
 <script>
 (() => {{
+  {protection_bootstrap_js}
   const STORAGE_KEY = {json.dumps(storage_key, ensure_ascii=False)};
+  const READING_STORAGE_KEY = {json.dumps(page_storage_key, ensure_ascii=False)};
   const IS_COMIC = {str(bool(is_comic)).lower()};
+  const PROTECT_ENABLED = {str(protect_enabled).lower()};
+  const PROTECT_CONFIG = {protection_runtime_config};
+  const PROTECT_REASON_DEFAULT = "Người xuất đã chặn copy nội dung. Vui lòng tắt DevTools, tiện ích copy hoặc công cụ trích xuất rồi mở lại file.";
+  const READING_RESTORE_DELAYS = [0, 160, 520, 1200, 2600];
   const defaults = IS_COMIC
     ? {{ theme: "graphite", fontFamily: "sans", width: 980, fontSize: 18, lineHeight: 1.8, indent: 0, noIndent: true, imageWidth: 1080, imageGap: 0.9, customThemeEnabled: false, customBg: "", customBgElev: "", customSurface: "", customSurfaceStrong: "", customText: "", customMuted: "", customAccent: "" }}
     : {{ theme: "paper", fontFamily: "literary", width: 860, fontSize: 20, lineHeight: 1.9, indent: 1.8, noIndent: false, imageWidth: 960, imageGap: 1.0, customThemeEnabled: false, customBg: "", customBgElev: "", customSurface: "", customSurfaceStrong: "", customText: "", customMuted: "", customAccent: "" }};
@@ -455,6 +603,16 @@ def wrap_export_html_document(
   const shell = document.querySelector(".export-shell");
   const header = document.querySelector(".export-header");
   const main = document.querySelector(".export-main");
+  const protectedBodyHost = document.getElementById("export-protected-body");
+  const protectedTocHost = document.getElementById("export-protected-toc");
+  const protectOverlay = document.getElementById("export-protect-overlay");
+  const protectUnlockPanel = document.getElementById("export-protect-unlock-panel");
+  const protectLockPanel = document.getElementById("export-protect-lock-panel");
+  const protectReasonNode = document.getElementById("export-protect-reason");
+  const protectCodeInput = document.getElementById("export-protect-code-input");
+  const protectCodeSubmit = document.getElementById("export-protect-code-submit");
+  const protectCodeError = document.getElementById("export-protect-code-error");
+  const protectCodeCountdown = document.getElementById("export-protect-code-countdown");
   const tocDrawer = document.querySelector('[data-drawer="toc"]');
   const settingsDrawer = document.querySelector('[data-drawer="settings"]');
   const indentInput = document.getElementById("setting-indent");
@@ -462,9 +620,28 @@ def wrap_export_html_document(
   const themeCustomEnabledInput = document.getElementById("setting-theme-custom-enabled");
   const themeCustomResetButton = document.getElementById("setting-theme-custom-reset");
   const themeCustomGrid = document.getElementById("setting-theme-custom-grid");
+  const protectRuntime = PROTECT_ENABLED && window.__readerExportProtection && typeof window.__readerExportProtection.create === "function"
+    ? window.__readerExportProtection.create(
+      (PROTECT_CONFIG && PROTECT_CONFIG.access_code && typeof PROTECT_CONFIG.access_code === "object")
+        ? PROTECT_CONFIG.access_code
+        : PROTECT_CONFIG
+    )
+    : null;
   let uiVisible = false;
   let hideTimer = 0;
   let tapTrack = null;
+  let protectedLocked = false;
+  let protectedHydrated = false;
+  let protectCountdownTimer = 0;
+  let protectMonitorTimer = 0;
+  let readingSaveTimer = 0;
+  let readingRestoreTimers = [];
+  let readingRestoreApplied = false;
+  let readingSnapshot = null;
+  const PROTECT_DEVTOOLS_GAP_THRESHOLD = 160;
+  const PROTECT_DEBUGGER_STALL_MS = 140;
+  const protectInitialWidthGap = Math.abs(window.outerWidth - window.innerWidth);
+  const protectInitialHeightGap = Math.abs(window.outerHeight - window.innerHeight);
   const themeColorFields = [
     {{ key: "customBg", id: "setting-theme-bg", cssVar: "--bg" }},
     {{ key: "customBgElev", id: "setting-theme-bg-elev", cssVar: "--bg-elev" }},
@@ -474,6 +651,236 @@ def wrap_export_html_document(
     {{ key: "customMuted", id: "setting-theme-muted", cssVar: "--muted" }},
     {{ key: "customAccent", id: "setting-theme-accent", cssVar: "--accent" }},
   ];
+  const isInteractiveTarget = (target) => target instanceof Element && Boolean(
+    target.closest("input,textarea,select,option,button,label,summary,[contenteditable='true']")
+  );
+  const isProtectedTarget = (target) => target instanceof Element && Boolean(
+    target.closest(".export-reader,.export-toc,.export-title,.chapter,.intro,.toc")
+  );
+  const bindHydratedNavLinks = () => {{
+    document.querySelectorAll(".export-toc a, .export-nav-link").forEach((link) => {{
+      if (link.dataset.drawerBound === "1") return;
+      link.dataset.drawerBound = "1";
+      link.addEventListener("click", closeDrawers);
+    }});
+  }};
+  const getSuspiciousExtensionReason = () => {{
+    const extensionHost = document.querySelector(
+      '#extension-mmplj,[id="extension-mmplj"],[id^="extension-"],[class*=" extension-"],[class^="extension-"]'
+    );
+    if (extensionHost && !extensionHost.closest("#export-protect-overlay")) {{
+      return "Phát hiện tiện ích copy đã chèn lớp can thiệp vào file được bảo vệ. Vui lòng tắt extension copy rồi mở lại file.";
+    }}
+    if (document.querySelector('meta[name="tm-extension-id"],meta[name="extension-id"],meta[data-extension-id]')) {{
+      return "Phát hiện dấu vết extension can thiệp vào file được bảo vệ. Vui lòng tắt extension copy rồi mở lại file.";
+    }}
+    for (const styleNode of Array.from(document.querySelectorAll("style"))) {{
+      if (!(styleNode instanceof HTMLStyleElement)) continue;
+      if (styleNode.closest("#export-protect-overlay")) continue;
+      const text = String(styleNode.textContent || "").toLowerCase();
+      if (!text) continue;
+      if (
+        text.includes("user-select: text !important")
+        || text.includes("-webkit-user-select: text !important")
+        || text.includes("-webkit-touch-callout: text !important")
+      ) {{
+        return "Phát hiện mã ngoài cố bật lại copy/chọn chữ trong file được bảo vệ. Vui lòng tắt extension copy rồi mở lại file.";
+      }}
+    }}
+    return "";
+  }};
+  const hasSuspiciousEmbedNodes = () => {{
+    const nodes = document.querySelectorAll("iframe,object,embed");
+    if (!nodes.length) return false;
+    for (const node of Array.from(nodes)) {{
+      if (!(node instanceof Element)) continue;
+      if (node.closest("#export-protect-overlay")) continue;
+      return true;
+    }}
+    return false;
+  }};
+  const hydrateProtectedMarkup = () => {{
+    if (!PROTECT_ENABLED || protectedHydrated || !protectRuntime) return;
+    if (protectedBodyHost) protectedBodyHost.innerHTML = protectRuntime.decodePayload(PROTECT_CONFIG.body_chunks, PROTECT_CONFIG.body_key_b64);
+    if (protectedTocHost) protectedTocHost.innerHTML = protectRuntime.decodePayload(PROTECT_CONFIG.toc_chunks, PROTECT_CONFIG.toc_key_b64);
+    protectedHydrated = true;
+    bindHydratedNavLinks();
+  }};
+  const formatCountdown = (remainingMs) => {{
+    const totalSec = Math.max(0, Math.ceil(Number(remainingMs || 0) / 1000));
+    const minutes = Math.floor(totalSec / 60);
+    const seconds = totalSec % 60;
+    return `${{String(minutes).padStart(2, "0")}}:${{String(seconds).padStart(2, "0")}}`;
+  }};
+  const stopProtectCountdown = () => {{
+    if (!protectCountdownTimer) return;
+    window.clearInterval(protectCountdownTimer);
+    protectCountdownTimer = 0;
+  }};
+  const stopProtectMonitor = () => {{
+    if (!protectMonitorTimer) return;
+    window.clearInterval(protectMonitorTimer);
+    protectMonitorTimer = 0;
+  }};
+  const getScrollHost = () => document.scrollingElement || document.documentElement || document.body;
+  const readStoredReading = () => {{
+    try {{
+      const raw = localStorage.getItem(READING_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    }} catch (_error) {{
+      return null;
+    }}
+  }};
+  const captureReadingSnapshot = () => {{
+    const host = getScrollHost();
+    if (!host) return null;
+    const scrollTop = Math.max(0, Number(window.scrollY || host.scrollTop || 0));
+    const maxScroll = Math.max(0, Number(host.scrollHeight || 0) - window.innerHeight);
+    return {{
+      scroll_y: scrollTop,
+      max_scroll: maxScroll,
+      scroll_ratio: maxScroll > 0 ? (scrollTop / maxScroll) : 0,
+      saved_at_ts: Date.now(),
+    }};
+  }};
+  const persistReadingNow = () => {{
+    if (PROTECT_ENABLED && protectedLocked) return;
+    const snapshot = captureReadingSnapshot();
+    if (!snapshot) return;
+    try {{ localStorage.setItem(READING_STORAGE_KEY, JSON.stringify(snapshot)); }} catch (_error) {{}}
+  }};
+  const schedulePersistReading = () => {{
+    if (readingSaveTimer) window.clearTimeout(readingSaveTimer);
+    readingSaveTimer = window.setTimeout(() => {{
+      readingSaveTimer = 0;
+      persistReadingNow();
+    }}, 180);
+  }};
+  const clearReadingRestoreTimers = () => {{
+    for (const timer of readingRestoreTimers) window.clearTimeout(timer);
+    readingRestoreTimers = [];
+  }};
+  const resolveReadingTarget = (snapshot) => {{
+    const host = getScrollHost();
+    if (!host) return 0;
+    const currentMax = Math.max(0, Number(host.scrollHeight || 0) - window.innerHeight);
+    const savedY = Math.max(0, Number(snapshot?.scroll_y || 0));
+    const savedMax = Math.max(0, Number(snapshot?.max_scroll || 0));
+    const rawRatio = Number(snapshot?.scroll_ratio);
+    const savedRatio = Number.isFinite(rawRatio) ? Math.min(1, Math.max(0, rawRatio)) : null;
+    let target = savedY;
+    if (savedRatio !== null && currentMax > 0) target = currentMax * savedRatio;
+    if (savedMax > 0 && Math.abs(savedMax - currentMax) < 160 && savedY > 0) target = savedY;
+    return Math.min(currentMax, Math.max(0, target));
+  }};
+  const restoreReadingPosition = () => {{
+    if (readingRestoreApplied || window.location.hash) return;
+    if (!readingSnapshot) readingSnapshot = readStoredReading();
+    if (!readingSnapshot) {{
+      readingRestoreApplied = true;
+      return;
+    }}
+    const target = resolveReadingTarget(readingSnapshot);
+    const snapshotHasProgress =
+      Number(readingSnapshot?.scroll_y || 0) > 4
+      || Number(readingSnapshot?.scroll_ratio || 0) > 0.01;
+    if (!(target > 4)) {{
+      if (!snapshotHasProgress) readingRestoreApplied = true;
+      return;
+    }}
+    const previousBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    window.scrollTo(0, target);
+    window.setTimeout(() => {{
+      root.style.scrollBehavior = previousBehavior;
+    }}, 0);
+    const current = Math.max(0, Number(window.scrollY || getScrollHost()?.scrollTop || 0));
+    if (Math.abs(current - target) <= 12) readingRestoreApplied = true;
+  }};
+  const scheduleReadingRestore = () => {{
+    if (readingRestoreApplied || window.location.hash) return;
+    clearReadingRestoreTimers();
+    for (const delay of READING_RESTORE_DELAYS) {{
+      readingRestoreTimers.push(window.setTimeout(() => {{
+        if (PROTECT_ENABLED && !protectedHydrated) return;
+        restoreReadingPosition();
+      }}, delay));
+    }}
+  }};
+  const syncProtectCountdown = () => {{
+    if (!(PROTECT_ENABLED && protectRuntime && PROTECT_CONFIG.access_code_enabled && protectCodeCountdown)) return;
+    const meta = protectRuntime.getAccessMeta();
+    protectCodeCountdown.textContent = formatCountdown(meta.remaining_ms);
+  }};
+  const startProtectCountdown = () => {{
+    if (!(PROTECT_ENABLED && protectRuntime && PROTECT_CONFIG.access_code_enabled)) return;
+    syncProtectCountdown();
+    if (protectCountdownTimer) return;
+    protectCountdownTimer = window.setInterval(() => {{
+      if (protectedLocked) {{
+        stopProtectCountdown();
+        return;
+      }}
+      syncProtectCountdown();
+    }}, 1000);
+  }};
+  const showProtectUnlock = () => {{
+    if (!(protectOverlay && protectUnlockPanel && PROTECT_CONFIG.access_code_enabled)) return;
+    protectOverlay.hidden = false;
+    protectUnlockPanel.hidden = false;
+    if (protectLockPanel) protectLockPanel.hidden = true;
+    document.body.classList.add("protection-await-unlock");
+    if (protectCodeInput instanceof HTMLInputElement) protectCodeInput.focus();
+    startProtectCountdown();
+  }};
+  const hideProtectOverlay = () => {{
+    if (protectOverlay) protectOverlay.hidden = true;
+    if (protectUnlockPanel) protectUnlockPanel.hidden = true;
+    if (protectLockPanel) protectLockPanel.hidden = true;
+    document.body.classList.remove("protection-await-unlock");
+  }};
+  const unlockProtected = () => {{
+    hydrateProtectedMarkup();
+    hideProtectOverlay();
+    if (protectCodeError) protectCodeError.hidden = true;
+    if (protectCodeInput instanceof HTMLInputElement) protectCodeInput.value = "";
+    scheduleReadingRestore();
+  }};
+  const lockProtected = (reason = "") => {{
+    if (!PROTECT_ENABLED || protectedLocked) return;
+    protectedLocked = true;
+    document.body.classList.add("protected-locked");
+    if (protectOverlay) protectOverlay.hidden = false;
+    if (protectUnlockPanel) protectUnlockPanel.hidden = true;
+    if (protectLockPanel) protectLockPanel.hidden = false;
+    if (protectReasonNode) protectReasonNode.textContent = String(reason || PROTECT_REASON_DEFAULT);
+    if (protectedBodyHost) protectedBodyHost.innerHTML = "";
+    if (protectedTocHost) protectedTocHost.innerHTML = "";
+    if (shell) shell.setAttribute("aria-hidden", "true");
+    protectRuntime?.clearRemembered?.();
+    stopProtectCountdown();
+    stopProtectMonitor();
+    clearHideTimer();
+  }};
+  const hasLikelyDockedDevtools = () => {{
+    const widthGap = Math.abs(window.outerWidth - window.innerWidth);
+    const heightGap = Math.abs(window.outerHeight - window.innerHeight);
+    return (
+      widthGap > PROTECT_DEVTOOLS_GAP_THRESHOLD
+      || heightGap > PROTECT_DEVTOOLS_GAP_THRESHOLD
+      || (widthGap - protectInitialWidthGap) > 120
+      || (heightGap - protectInitialHeightGap) > 120
+    );
+  }};
+  const detectDebuggerPause = () => {{
+    if (!PROTECT_ENABLED || protectedLocked) return false;
+    if (document.visibilityState && document.visibilityState !== "visible") return false;
+    const started = performance.now();
+    debugger;
+    return (performance.now() - started) > PROTECT_DEBUGGER_STALL_MS;
+  }};
   const anyDrawerOpen = () => Boolean(tocDrawer?.classList.contains("open") || settingsDrawer?.classList.contains("open"));
   const normalizeHexColor = (value) => {{
     const raw = String(value || "").trim();
@@ -588,6 +995,33 @@ def wrap_export_html_document(
     }}
     syncUiState();
   }};
+  const runProtectionChecks = () => {{
+    if (!PROTECT_ENABLED || protectedLocked) return;
+    const extensionReason = getSuspiciousExtensionReason();
+    if (extensionReason) {{
+      lockProtected(extensionReason);
+      return;
+    }}
+    if (hasSuspiciousEmbedNodes()) {{
+      lockProtected("Phát hiện tiện ích hoặc mã ngoài chèn vào file được bảo vệ. Vui lòng tắt công cụ copy/trích xuất rồi mở lại file.");
+      return;
+    }}
+    if (hasLikelyDockedDevtools()) {{
+      lockProtected("Phát hiện công cụ kiểm tra nội dung đang mở. Người xuất đã chặn copy nội dung này.");
+      return;
+    }}
+    if (detectDebuggerPause()) {{
+      lockProtected("Phát hiện DevTools hoặc trình gỡ lỗi đang mở. Người xuất đã chặn copy nội dung này.");
+    }}
+  }};
+  const startProtectMonitor = () => {{
+    if (!PROTECT_ENABLED || protectMonitorTimer || protectedLocked) return;
+    runProtectionChecks();
+    if (protectedLocked) return;
+    protectMonitorTimer = window.setInterval(() => {{
+      runProtectionChecks();
+    }}, 900);
+  }};
   const persist = () => {{
     try {{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }} catch (_error) {{}}
   }};
@@ -701,6 +1135,34 @@ def wrap_export_html_document(
       persist();
     }});
   }};
+  try {{
+    if (PROTECT_ENABLED) {{
+      if (!protectRuntime) {{
+        lockProtected("Thiếu module bảo vệ nội dung để mở file HTML này.");
+      }} else if (navigator.webdriver) {{
+        lockProtected("Người xuất đã chặn tự động hóa hoặc công cụ trích xuất nội dung.");
+      }} else if (hasLikelyDockedDevtools()) {{
+        lockProtected("Phát hiện công cụ kiểm tra nội dung đang mở. Người xuất đã chặn copy nội dung này.");
+      }} else if (PROTECT_CONFIG.access_code_enabled) {{
+        const remembered = protectRuntime.resumeRemembered();
+        if (remembered && remembered.ok) {{
+          unlockProtected();
+        }} else {{
+          showProtectUnlock();
+        }}
+      }} else {{
+        unlockProtected();
+      }}
+    }}
+  }} catch (error) {{
+    console.warn("reader export protection init failed", error);
+    if (PROTECT_ENABLED && PROTECT_CONFIG.access_code_enabled) {{
+      showProtectUnlock();
+    }} else if (PROTECT_ENABLED) {{
+      unlockProtected();
+    }}
+  }}
+  if (PROTECT_ENABLED) startProtectMonitor();
   document.querySelectorAll("[data-toggle-drawer]").forEach((button) => {{
     button.addEventListener("click", () => toggleDrawer(button.getAttribute("data-toggle-drawer") || ""));
   }});
@@ -713,19 +1175,169 @@ def wrap_export_html_document(
   document.querySelectorAll(".export-toc a, .export-nav-link").forEach((link) => {{
     link.addEventListener("click", closeDrawers);
   }});
-  document.addEventListener("keydown", (event) => {{
+  document.addEventListener("contextmenu", (event) => {{
+    if (!PROTECT_ENABLED || isInteractiveTarget(event.target) || !isProtectedTarget(event.target)) return;
+    event.preventDefault();
+  }});
+  document.addEventListener("copy", (event) => {{
+    if (!PROTECT_ENABLED || isInteractiveTarget(event.target) || !isProtectedTarget(event.target)) return;
+    event.preventDefault();
+    lockProtected();
+  }});
+  document.addEventListener("cut", (event) => {{
+    if (!PROTECT_ENABLED || isInteractiveTarget(event.target) || !isProtectedTarget(event.target)) return;
+    event.preventDefault();
+    lockProtected();
+  }});
+  document.addEventListener("selectstart", (event) => {{
+    if (!PROTECT_ENABLED || isInteractiveTarget(event.target) || !isProtectedTarget(event.target)) return;
+    event.preventDefault();
+  }});
+  document.addEventListener("dragstart", (event) => {{
+    if (!PROTECT_ENABLED || isInteractiveTarget(event.target) || !isProtectedTarget(event.target)) return;
+    event.preventDefault();
+  }});
+  protectCodeSubmit?.addEventListener("click", () => {{
+    if (!(PROTECT_ENABLED && protectRuntime && PROTECT_CONFIG.access_code_enabled)) return;
+    const result = protectRuntime.verifyAccessCode(protectCodeInput instanceof HTMLInputElement ? protectCodeInput.value : "");
+    if (result && result.ok) {{
+      unlockProtected();
+      showUi(2600);
+      return;
+    }}
+    if (protectCodeError) protectCodeError.hidden = false;
+    if (protectCodeInput instanceof HTMLInputElement) {{
+      protectCodeInput.focus();
+      protectCodeInput.select();
+    }}
+  }});
+  protectCodeInput?.addEventListener("keydown", (event) => {{
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    protectCodeSubmit?.click();
+  }});
+  protectCodeInput?.addEventListener("input", () => {{
+    if (protectCodeError) protectCodeError.hidden = true;
+  }});
+  if (PROTECT_ENABLED) {{
+    const observer = new MutationObserver((mutations) => {{
+      for (const mutation of mutations) {{
+        for (const node of Array.from(mutation.addedNodes || [])) {{
+          if (node instanceof HTMLStyleElement) {{
+            const text = String(node.textContent || "").toLowerCase();
+            if (
+              text.includes("user-select: text !important")
+              || text.includes("-webkit-user-select: text !important")
+              || text.includes("-webkit-touch-callout: text !important")
+            ) {{
+              lockProtected("Phát hiện mã ngoài cố bật lại copy/chọn chữ trong file được bảo vệ. Vui lòng tắt extension copy rồi mở lại file.");
+              return;
+            }}
+          }}
+          if (!(node instanceof Element)) continue;
+          const tag = String(node.tagName || "").toLowerCase();
+          if (["script", "iframe", "object", "embed"].includes(tag)) {{
+            lockProtected("Phát hiện tiện ích hoặc mã ngoài chèn vào file được bảo vệ. Vui lòng tắt công cụ copy/trích xuất rồi mở lại file.");
+            return;
+          }}
+          if (
+            tag === "meta"
+            && ["tm-extension-id", "extension-id"].includes(String(node.getAttribute("name") || "").trim().toLowerCase())
+          ) {{
+            lockProtected("Phát hiện dấu vết extension can thiệp vào file được bảo vệ. Vui lòng tắt extension copy rồi mở lại file.");
+            return;
+          }}
+          if (
+            node.matches?.('#extension-mmplj,[id="extension-mmplj"],[id^="extension-"],[class*=" extension-"],[class^="extension-"]')
+          ) {{
+            lockProtected("Phát hiện tiện ích copy đã chèn lớp can thiệp vào file được bảo vệ. Vui lòng tắt extension copy rồi mở lại file.");
+            return;
+          }}
+          if (node.querySelector && node.querySelector("iframe,object,embed")) {{
+            lockProtected("Phát hiện tiện ích hoặc mã ngoài chèn vào file được bảo vệ. Vui lòng tắt công cụ copy/trích xuất rồi mở lại file.");
+            return;
+          }}
+          if (
+            node.querySelector?.('#extension-mmplj,[id="extension-mmplj"],[id^="extension-"],[class*=" extension-"],[class^="extension-"],meta[name="tm-extension-id"],meta[name="extension-id"]')
+          ) {{
+            lockProtected("Phát hiện extension copy hoặc dấu vết can thiệp vào file được bảo vệ. Vui lòng tắt extension copy rồi mở lại file.");
+            return;
+          }}
+          if (node.querySelector) {{
+            for (const styleNode of Array.from(node.querySelectorAll("style"))) {{
+              const text = String(styleNode.textContent || "").toLowerCase();
+              if (
+                text.includes("user-select: text !important")
+                || text.includes("-webkit-user-select: text !important")
+                || text.includes("-webkit-touch-callout: text !important")
+              ) {{
+                lockProtected("Phát hiện mã ngoài cố bật lại copy/chọn chữ trong file được bảo vệ. Vui lòng tắt extension copy rồi mở lại file.");
+                return;
+              }}
+            }}
+          }}
+        }}
+      }}
+    }});
+    observer.observe(document.documentElement, {{ childList: true, subtree: true }});
+    window.addEventListener("resize", () => {{
+      runProtectionChecks();
+    }});
+  }}
+  const handleProtectedKeydown = (event) => {{
+    const key = String(event.key || "").toLowerCase();
+    const modifier = Boolean(event.ctrlKey || event.metaKey);
+    const shiftModifier = Boolean(event.shiftKey);
+    if (
+      PROTECT_ENABLED
+      && (
+        key === "f12"
+        || (modifier && shiftModifier && ["i", "j", "c"].includes(key))
+        || ((modifier && ["a", "c", "x", "s", "p", "u"].includes(key)) && !isInteractiveTarget(event.target))
+      )
+    ) {{
+      event.preventDefault();
+      lockProtected();
+      return;
+    }}
+    if (
+      PROTECT_ENABLED &&
+      modifier
+      && ["a", "c", "x", "s", "p", "u"].includes(key)
+      && !isInteractiveTarget(event.target)
+    ) {{
+      event.preventDefault();
+      showUi(2600);
+      return;
+    }}
     if (event.key === "Escape") {{
       if (anyDrawerOpen()) closeDrawers();
       else hideUiNow();
       return;
     }}
     showUi(2600);
-  }});
+  }};
+  window.addEventListener("keydown", handleProtectedKeydown, true);
   document.addEventListener("focusin", () => showUi(2600));
+  window.addEventListener("scroll", () => {{
+    schedulePersistReading();
+  }}, {{ passive: true }});
+  window.addEventListener("pagehide", persistReadingNow);
+  window.addEventListener("beforeunload", persistReadingNow);
+  document.addEventListener("visibilitychange", () => {{
+    if (document.visibilityState === "hidden") persistReadingNow();
+  }});
+  window.addEventListener("load", scheduleReadingRestore, {{ once: true }});
   main?.addEventListener("pointerdown", trackTapStart, true);
   main?.addEventListener("pointermove", trackTapMove, true);
   main?.addEventListener("pointerup", commitTapToggle, true);
   main?.addEventListener("pointercancel", resetTapTrack, true);
+  document.querySelectorAll(".chapter-image").forEach((image) => {{
+    if (!(image instanceof HTMLImageElement)) return;
+    image.addEventListener("load", () => {{
+      if (!readingRestoreApplied) scheduleReadingRestore();
+    }});
+  }});
   header?.addEventListener("pointerenter", () => {{
     uiVisible = true;
     clearHideTimer();
@@ -761,6 +1373,7 @@ def wrap_export_html_document(
   }});
   shell?.classList.toggle("is-comic", IS_COMIC);
   apply();
+  if (!PROTECT_ENABLED) scheduleReadingRestore();
   hideUiNow();
 }})();
 </script>
@@ -778,6 +1391,7 @@ def wrap_export_html_document(
         ":root[data-font-family='sans']{--font-body:'Segoe UI','Helvetica Neue',Arial,sans-serif;}"
         ":root[data-font-family='mono']{--font-body:'Consolas','SFMono-Regular','Roboto Mono',monospace;}"
         "*{box-sizing:border-box;}html{scroll-behavior:smooth;}body{margin:0;background:radial-gradient(circle at top,var(--bg-elev),var(--bg) 42%);color:var(--text);font-family:var(--font-ui);}"
+        f"{protection_extra_styles}"
         "a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}"
         ".export-shell{min-height:100vh;padding:20px 18px 48px;}.export-header{position:fixed;top:12px;left:50%;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;width:min(calc(100vw - 36px),1180px);margin:0;padding:12px 16px;border:1px solid var(--border);border-radius:18px;background:color-mix(in srgb,var(--surface-strong) 88%, transparent);backdrop-filter:blur(16px);box-shadow:var(--shadow);transform:translate(-50%,-132%);opacity:0;pointer-events:none;transition:transform .22s ease,opacity .18s ease;}"
         ".export-shell.ui-visible .export-header{transform:translate(-50%,0);opacity:1;pointer-events:auto;}"
@@ -796,9 +1410,13 @@ def wrap_export_html_document(
         ".export-drawer-panel{position:absolute;top:0;bottom:0;width:min(360px,86vw);padding:20px;background:var(--bg-elev);box-shadow:var(--shadow);overflow:auto;transition:transform .22s ease;}.export-drawer[data-drawer='toc'] .export-drawer-panel{left:0;transform:translateX(-108%);border-right:1px solid var(--border);}.export-drawer[data-drawer='settings'] .export-drawer-panel{right:0;transform:translateX(108%);border-left:1px solid var(--border);}.export-drawer.open .export-drawer-panel{transform:translateX(0);}"
         ".export-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}.export-drawer-head h2{margin:0;font-size:18px;}.export-drawer-body{display:grid;gap:14px;}.settings-group{display:grid;gap:8px;}.settings-group label{font-size:13px;font-weight:700;color:var(--muted);}.settings-group input,.settings-group select{width:100%;}.settings-group select{padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font:500 14px/1.2 var(--font-ui);}.settings-check-label{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);font:600 14px/1.3 var(--font-ui);}.settings-check-label span{color:var(--text);font:600 14px/1.3 var(--font-ui);}.settings-check-label input{width:20px;height:20px;flex:0 0 auto;accent-color:var(--accent);}.settings-subgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.settings-subgrid.is-disabled{opacity:.72;}.settings-color{display:grid;gap:6px;}.settings-color span{font-size:12px;font-weight:700;color:var(--muted);}.settings-color input[type='color']{width:100%;height:38px;padding:0;border:1px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;}.settings-reset-button{justify-self:end;}"
         "input[type='range']{accent-color:var(--accent);}input[type='range']:disabled,.settings-color input[type='color']:disabled{opacity:.45;cursor:not-allowed;}.no-indent .chapter-text p{text-indent:0;}.comic-only{display:none;}.is-comic .comic-only{display:grid;}.is-comic .text-only{display:none;}"
+        "@media print{.content-protected .export-shell{display:none !important;}.content-protected .export-protect-overlay{display:flex !important;}}"
         "@media (max-width: 920px){.export-shell{padding:14px 12px 36px;}.export-header{top:8px;width:min(calc(100vw - 24px),1180px);padding:10px 12px;border-radius:16px;}.export-title strong{font-size:14px;}.export-title span{display:none;}.export-reader,.export-reader.is-comic{padding:24px 18px 28px;border-radius:22px;}.chapter-title{margin-bottom:14px;}.export-chip{padding:9px 12px;font-size:12px;}.settings-subgrid{grid-template-columns:1fr;}}"
         "@media (max-width: 640px){.export-header{display:grid;grid-template-columns:1fr auto;align-items:center;}.export-header-right{justify-content:flex-end;}.export-header-left{grid-column:1 / span 2;}.export-title{order:-1;text-align:left;}}"
-        "</style></head><body>"
+        "</style>"
+        f"{hidden_notice_markup}"
+        f"</head>{body_open_tag}"
+        f"{protection_overlay_markup}"
         f'<div class="export-shell{" is-comic" if is_comic else ""}">'
         '<header class="export-header">'
         '<div class="export-header-left">'
@@ -811,13 +1429,13 @@ def wrap_export_html_document(
         '<aside class="export-drawer" data-drawer="toc">'
         '<div class="export-drawer-backdrop" data-close-drawer></div>'
         '<div class="export-drawer-panel"><div class="export-drawer-head"><h2>Mục lục</h2><button type="button" class="export-drawer-close" data-close-drawer>Đóng</button></div>'
-        f'<div class="export-drawer-body">{toc_section}</div></div></aside>'
+        f"{toc_drawer_body_markup}</div></aside>"
         '<aside class="export-drawer" data-drawer="settings">'
         '<div class="export-drawer-backdrop" data-close-drawer></div>'
         '<div class="export-drawer-panel"><div class="export-drawer-head"><h2>Tùy chỉnh đọc</h2><button type="button" class="export-drawer-close" data-close-drawer>Đóng</button></div>'
         f'<div class="export-drawer-body">{settings_markup}</div></div></aside>'
         '<main class="export-main">'
-        f'<article class="export-reader{" is-comic" if is_comic else ""}">{body}</article>'
+        f"{article_markup}"
         "</main></div>"
         f"{script}</body></html>"
     )
@@ -879,6 +1497,7 @@ def create_export_html(
     include_intro = bool(options.get("include_intro"))
     include_titles = bool(options.get("include_chapter_titles"))
     include_toc = bool(options.get("include_toc_page"))
+    protect_content = bool(options.get("protect_content"))
     cover_only_html = render_export_cover_html(metadata)
 
     def _chapter_section(chapter: dict[str, Any], *, inline_images: bool) -> str:
@@ -935,6 +1554,8 @@ def create_export_html(
                 "".join(body_parts),
                 toc_html=sidebar_toc_html,
                 is_comic=is_comic,
+                protect_content=protect_content,
+                protect_options=options,
             ),
             encoding="utf-8",
         )
@@ -987,6 +1608,8 @@ def create_export_html(
                     page_title=str(chapter.get("title") or metadata["title"]),
                     toc_html=toc_html_all,
                     is_comic=is_comic,
+                    protect_content=protect_content,
+                    protect_options=options,
                 ).encode("utf-8"),
             )
         index_parts: list[str] = []
@@ -1015,6 +1638,8 @@ def create_export_html(
                 "".join(index_parts),
                 toc_html=toc_html_all,
                 is_comic=is_comic,
+                protect_content=protect_content,
+                protect_options=options,
             ).encode("utf-8"),
         )
     return out

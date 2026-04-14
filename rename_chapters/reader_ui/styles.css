@@ -962,6 +962,35 @@ p {
   color: color-mix(in srgb, var(--muted) 90%, transparent);
 }
 
+.download-job-protection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.download-job-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: color-mix(in srgb, var(--text) 94%, transparent);
+  font-weight: 700;
+}
+
+.download-job-code {
+  font: 700 15px/1 "Consolas", "SFMono-Regular", "Roboto Mono", monospace;
+  letter-spacing: .08em;
+  color: color-mix(in srgb, var(--text) 96%, transparent);
+}
+
+.download-job-protection-meta {
+  color: color-mix(in srgb, var(--muted) 90%, transparent);
+}
+
 .download-job-progress {
   display: grid;
   gap: 6px;
@@ -3318,6 +3347,42 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 
 .export-option-row {
   width: 100%;
+}
+
+.export-option-item {
+  display: grid;
+  gap: 6px;
+}
+
+.export-option-field {
+  display: grid;
+  gap: 8px;
+}
+
+.export-option-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--text) 94%, transparent);
+}
+
+.export-option-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-option-number {
+  width: 120px;
+}
+
+.export-option-unit {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.export-option-help {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .export-chapter-head {

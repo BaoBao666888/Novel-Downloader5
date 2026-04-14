@@ -5,6 +5,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from reader_backend import export_support as export_support
+
 
 def export_status_is_active(status: str) -> bool:
     return str(status or "").strip().lower() in {"queued", "running"}
@@ -338,6 +340,7 @@ def serialize_export_job(
     file_path = resolve_export_job_file_path(job, export_dir=export_dir)
     file_exists = bool(file_path and file_path.exists())
     file_name = str(job.get("file_name") or (file_path.name if file_path else "") or "")
+    protection_view = export_support.build_export_job_protection_view(dict(job.get("options") or {}))
     payload = {
         "job_id": str(job.get("job_id") or ""),
         "status": str(job.get("status") or "queued"),
@@ -367,6 +370,7 @@ def serialize_export_job(
         "file_exists": bool(file_exists),
         "file_size_bytes": int(job.get("file_size_bytes") or (file_path.stat().st_size if file_exists and file_path else 0)),
         "queue_position": 0,
+        "protection": protection_view,
     }
     if queue_positions is not None and payload["status"] == "queued":
         payload["queue_position"] = int(queue_positions.get(payload["job_id"]) or 0)
@@ -389,6 +393,9 @@ def build_export_jobs_signature(items: list[dict[str, Any]]) -> str:
                     str(int(job.get("queue_position") or 0)),
                     str(job.get("updated_at") or ""),
                     "1" if bool(job.get("file_exists")) else "0",
+                    str(((job.get("protection") or {}).get("access_code") or "")),
+                    str(int(((job.get("protection") or {}).get("access_code_expires_at_ts") or 0))),
+                    "1" if bool((job.get("protection") or {}).get("enabled")) else "0",
                 ]
             )
         )

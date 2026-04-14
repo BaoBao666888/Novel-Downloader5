@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260413-settings3";
+import { initShell } from "../site_common.js?v=20260413-exportprotect1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -212,6 +212,8 @@ const state = {
   exportPollTimer: null,
   exportEventSource: null,
   exportStreamReconnectTimer: null,
+  exportCodeTimer: null,
+  exportJobsLoadedAt: 0,
   libraryRefreshBusy: false,
   lastLibraryRefreshTs: 0,
   importSettings: null,
@@ -2353,6 +2355,51 @@ function formatFileSize(bytes) {
   return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
+function formatCountdownSeconds(seconds) {
+  const total = Math.max(0, Math.ceil(Number(seconds || 0)));
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function currentProtectionCountdown(protection) {
+  if (!protection || !protection.access_code_enabled) return 0;
+  const expiresAt = Math.max(0, Number(protection.access_code_expires_at_ts || 0));
+  if (!expiresAt) return Math.max(0, Number(protection.access_code_seconds_remaining || 0));
+  return Math.max(0, expiresAt - Math.floor(Date.now() / 1000));
+}
+
+function getExportJobProtectionInfo(job) {
+  return (job && job.protection && typeof job.protection === "object") ? job.protection : {};
+}
+
+function stopExportCodeTicker() {
+  if (!state.exportCodeTimer) return;
+  window.clearInterval(state.exportCodeTimer);
+  state.exportCodeTimer = null;
+}
+
+function ensureExportCodeTicker() {
+  const hasProtectedCodes = (state.exportJobs || []).some((job) => Boolean(getExportJobProtectionInfo(job).access_code_enabled));
+  if (!hasProtectedCodes) {
+    stopExportCodeTicker();
+    return;
+  }
+  if (state.exportCodeTimer) return;
+  state.exportCodeTimer = window.setInterval(() => {
+    const jobs = Array.isArray(state.exportJobs) ? state.exportJobs : [];
+    const needsReload = jobs.some((job) => {
+      const protection = getExportJobProtectionInfo(job);
+      return Boolean(protection.access_code_enabled) && currentProtectionCountdown(protection) <= 0;
+    });
+    if (needsReload && (Date.now() - Number(state.exportJobsLoadedAt || 0)) > 1200) {
+      loadExportJobs().catch(() => {});
+      return;
+    }
+    renderExportJobs();
+  }, 1000);
+}
+
 function computeExportJobPercent(job) {
   const total = Math.max(0, Number(job.total_chapters || 0));
   const done = Math.max(0, Number(job.completed_chapters || 0));
@@ -2408,6 +2455,7 @@ function renderExportJobs() {
   }
   refs.exportJobsEmpty.classList.add("hidden");
   for (const job of state.exportJobs) {
+    const protection = getExportJobProtectionInfo(job);
     const row = document.createElement("article");
     row.className = "download-job-row";
     if (String(job.status || "") === "completed") row.classList.add("is-completed");
@@ -2430,6 +2478,36 @@ function renderExportJobs() {
       : state.shell.t("exportRawTag");
     const sizeText = formatFileSize(job.file_size_bytes || 0);
     meta.textContent = `${translatedText} • ${state.shell.t("exportChapterCountShort", { current: done, total })} • ${state.shell.t("bookPercent", { percent: pct.toFixed(1) })}${queueText ? ` • ${queueText}` : ""}${sizeText ? ` • ${sizeText}` : ""}`;
+
+    let protectionNode = null;
+    if (protection.enabled) {
+      protectionNode = document.createElement("div");
+      protectionNode.className = "download-job-protection";
+
+      const badge = document.createElement("span");
+      badge.className = "download-job-chip";
+      badge.textContent = state.shell.t("exportProtectedTag");
+      protectionNode.appendChild(badge);
+
+      if (protection.access_code_enabled) {
+        const code = document.createElement("strong");
+        code.className = "download-job-code";
+        code.textContent = protection.access_code_display || protection.access_code || "";
+        protectionNode.appendChild(code);
+
+        const countdown = document.createElement("span");
+        countdown.className = "download-job-protection-meta";
+        countdown.textContent = state.shell.t("exportAccessCodeCountdown", {
+          time: formatCountdownSeconds(currentProtectionCountdown(protection)),
+        });
+        protectionNode.appendChild(countdown);
+      } else {
+        const hint = document.createElement("span");
+        hint.className = "download-job-protection-meta";
+        hint.textContent = state.shell.t("exportProtectedNoCode");
+        protectionNode.appendChild(hint);
+      }
+    }
 
     const progress = document.createElement("div");
     progress.className = "download-job-progress";
@@ -2485,8 +2563,12 @@ function renderExportJobs() {
       btnDelete.className = "btn btn-small";
       btnDelete.textContent = state.shell.t("deleteExportFile");
       btnDelete.addEventListener("click", async () => {
-        const confirmed = window.confirm(state.shell.t("confirmDeleteExportJob", {
+        const confirmKey = protection.access_code_enabled
+          ? "confirmDeleteExportJobProtected"
+          : "confirmDeleteExportJob";
+        const confirmed = window.confirm(state.shell.t(confirmKey, {
           file: String(job.file_name || formatLabel || job.job_id || "").trim() || state.shell.t("exportDialogTitle"),
+          code: String(protection.access_code_display || protection.access_code || "").trim(),
         }));
         if (!confirmed) return;
         try {
@@ -2501,7 +2583,9 @@ function renderExportJobs() {
       actions.appendChild(btnDelete);
     }
 
-    row.append(title, meta, progress, status, actions);
+    row.append(title, meta);
+    if (protectionNode) row.appendChild(protectionNode);
+    row.append(progress, status, actions);
     refs.exportJobsList.appendChild(row);
   }
 }
@@ -2517,6 +2601,8 @@ function buildExportJobsSignature(items) {
     Number(job.queue_position || 0),
     String(job.file_name || ""),
     Number(job.file_exists ? 1 : 0),
+    String((job.protection && job.protection.access_code) || ""),
+    Number((job.protection && job.protection.access_code_expires_at_ts) || 0),
   ].join(":")).join("|");
 }
 
@@ -2524,7 +2610,9 @@ async function applyExportJobsPayload(payload) {
   const nextItems = Array.isArray(payload && payload.items) ? payload.items : [];
   state.exportJobs = nextItems;
   state.exportJobsSig = buildExportJobsSignature(nextItems);
+  state.exportJobsLoadedAt = Date.now();
   renderExportJobs();
+  ensureExportCodeTicker();
 }
 
 async function loadExportJobs() {
@@ -2537,6 +2625,7 @@ async function loadExportJobs() {
 }
 
 function clearExportWatcher() {
+  stopExportCodeTicker();
   if (state.exportEventSource) {
     try {
       state.exportEventSource.close();
@@ -3038,6 +3127,33 @@ function closeExportDialog() {
   if (refs.exportDialog && refs.exportDialog.open) refs.exportDialog.close();
 }
 
+function getExportOptionInput(key) {
+  if (!refs.exportOptionsList) return null;
+  return refs.exportOptionsList.querySelector(`input[data-option-key="${String(key || "")}"]`);
+}
+
+function isExportOptionEnabled(key) {
+  const input = getExportOptionInput(key);
+  if (!(input instanceof HTMLInputElement)) return false;
+  if (input.disabled) return false;
+  const row = input.closest(".export-option-item");
+  if (row && row.hidden) return false;
+  if (input.type === "checkbox") return Boolean(input.checked);
+  return Boolean(String(input.value || "").trim());
+}
+
+function updateExportOptionVisibility() {
+  if (!refs.exportOptionsList) return;
+  const items = Array.from(refs.exportOptionsList.querySelectorAll(".export-option-item"));
+  for (const row of items) {
+    const dependsOn = String(row.dataset.dependsOn || "").trim();
+    const visible = !dependsOn || isExportOptionEnabled(dependsOn);
+    row.hidden = !visible;
+    const input = row.querySelector("[data-option-key]");
+    if (input instanceof HTMLInputElement) input.disabled = !visible;
+  }
+}
+
 function renderExportOptions() {
   const spec = currentExportFormatSpec();
   if (!refs.exportOptionsList) return;
@@ -3050,20 +3166,78 @@ function renderExportOptions() {
     return;
   }
   for (const option of spec.options) {
-    const row = document.createElement("label");
-    row.className = "checkbox-row export-option-row";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = Boolean(option.default_enabled ?? option.defaultEnabled);
-    checkbox.dataset.optionKey = String(option.key || "");
-    const text = document.createElement("span");
-    text.textContent = String(option.label || option.key || "");
-    checkbox.addEventListener("change", () => {
-      renderExportChapterList(state.exportBookDetail);
-    });
-    row.append(checkbox, text);
-    refs.exportOptionsList.appendChild(row);
+    const optionType = String(option && option.type || "bool").trim().toLowerCase();
+    const wrapper = document.createElement("div");
+    wrapper.className = `export-option-item export-option-item-${optionType}`;
+    wrapper.dataset.optionRowKey = String(option.key || "");
+    wrapper.dataset.dependsOn = String(option.depends_on || option.dependsOn || "");
+
+    if (optionType === "number") {
+      wrapper.classList.add("export-option-row");
+      const label = document.createElement("label");
+      label.className = "export-option-field";
+      label.htmlFor = `export-option-${String(option.key || "")}`;
+
+      const text = document.createElement("span");
+      text.className = "export-option-label";
+      text.textContent = String(option.label || option.key || "");
+
+      const inline = document.createElement("div");
+      inline.className = "export-option-inline";
+
+      const input = document.createElement("input");
+      input.type = "number";
+      input.id = `export-option-${String(option.key || "")}`;
+      input.className = "name-target-inline export-option-number";
+      input.value = String(option.default_value ?? option.defaultValue ?? 0);
+      input.min = String(option.min ?? 0);
+      input.max = String(option.max ?? 9999);
+      input.step = String(option.step ?? 1);
+      input.dataset.optionKey = String(option.key || "");
+      input.addEventListener("input", updateExportOptionVisibility);
+
+      inline.appendChild(input);
+      if (option.suffix) {
+        const suffix = document.createElement("span");
+        suffix.className = "export-option-unit";
+        suffix.textContent = String(option.suffix || "");
+        inline.appendChild(suffix);
+      }
+
+      label.append(text, inline);
+      wrapper.appendChild(label);
+    } else {
+      wrapper.classList.add("export-option-row");
+      const label = document.createElement("label");
+      label.className = "checkbox-row";
+      label.htmlFor = `export-option-${String(option.key || "")}`;
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.id = `export-option-${String(option.key || "")}`;
+      checkbox.checked = Boolean(option.default_enabled ?? option.defaultEnabled);
+      checkbox.dataset.optionKey = String(option.key || "");
+      checkbox.addEventListener("change", () => {
+        updateExportOptionVisibility();
+        renderExportChapterList(state.exportBookDetail);
+      });
+
+      const text = document.createElement("span");
+      text.textContent = String(option.label || option.key || "");
+      label.append(checkbox, text);
+      wrapper.appendChild(label);
+    }
+
+    if (option.hint) {
+      const hint = document.createElement("small");
+      hint.className = "export-option-help";
+      hint.textContent = String(option.hint || "");
+      wrapper.appendChild(hint);
+    }
+
+    refs.exportOptionsList.appendChild(wrapper);
   }
+  updateExportOptionVisibility();
 }
 
 function renderExportChapterList(book) {
@@ -3213,8 +3387,18 @@ async function submitExportDialog() {
     return;
   }
   const options = {};
-  for (const checkbox of Array.from(refs.exportOptionsList.querySelectorAll("input[data-option-key]"))) {
-    options[String(checkbox.dataset.optionKey || "")] = Boolean(checkbox.checked);
+  for (const input of Array.from(refs.exportOptionsList.querySelectorAll("input[data-option-key]"))) {
+    const key = String(input.dataset.optionKey || "").trim();
+    if (!key || input.disabled) continue;
+    if (input.type === "checkbox") {
+      options[key] = Boolean(input.checked);
+      continue;
+    }
+    if (input.type === "number") {
+      const rawValue = Number.parseInt(String(input.value || "").trim(), 10);
+      options[key] = Number.isFinite(rawValue) ? rawValue : 0;
+      continue;
+    }
   }
   state.shell.showStatus(state.shell.t("statusExporting"));
   try {

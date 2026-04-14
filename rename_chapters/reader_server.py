@@ -6754,7 +6754,7 @@ class ReaderService:
         book: dict[str, Any],
         fmt: str,
         raw_options: dict[str, Any] | None,
-    ) -> dict[str, bool]:
+    ) -> dict[str, Any]:
         specs = self._export_format_specs(book)
         try:
             return export_support.normalize_export_options(
@@ -7358,6 +7358,14 @@ class ReaderService:
         book_id = str(book.get("book_id") or "").strip()
         seed = f"{book_id}|{fmt}|{translation_mode}|{now}|{uuid.uuid4().hex}"
         job_id = f"ex_{hash_text(seed)}"
+        finalized_options = export_support.finalize_export_job_options(
+            fmt=fmt,
+            options=options,
+            job_id=job_id,
+            book_id=book_id,
+            title=normalize_vbook_display_text(str(book.get("title_display") or book.get("title") or ""), single_line=True),
+            created_at_iso=now,
+        )
         job = export_jobs_support.create_export_job(
             job_id=job_id,
             book_id=book_id,
@@ -7366,7 +7374,7 @@ class ReaderService:
             format_label=format_label,
             translation_mode=translation_mode,
             metadata=metadata,
-            options=options,
+            options=finalized_options,
             chapter_ids=chapter_ids,
             translation_pending_chapters=translation_pending_chapters,
             created_at=now,
