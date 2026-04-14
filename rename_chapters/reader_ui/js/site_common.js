@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260413-exportprotect1";
+import { t } from "../i18n.vi.js?v=20260414-comicedge1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -8,6 +8,8 @@ const DEFAULT_SETTINGS = {
   themeId: "sao_dem",
   miniBarsScale: 1,
   tocSide: "left",
+  comicEdgeTintEnabled: false,
+  comicEdgeTintStrength: 28,
   themeCustomEnabled: false,
   themeCustomBg: "",
   themeCustomBg2: "",
@@ -287,6 +289,18 @@ function buildReaderSettingsExtrasMarkup() {
         <option value="left">${t("tocSideLeft")}</option>
         <option value="right">${t("tocSideRight")}</option>
       </select>
+    </label>
+    <label id="comic-edge-tint-enabled-wrap">
+      <span>${t("comicEdgeTintEnabled")}</span>
+      <select id="comic-edge-tint-enabled-select">
+        <option value="off">${t("comicEdgeTintOff")}</option>
+        <option value="on">${t("comicEdgeTintOn")}</option>
+      </select>
+    </label>
+    <label id="comic-edge-tint-strength-wrap">
+      <span>${t("comicEdgeTintStrength")}</span>
+      <input id="comic-edge-tint-strength-input" type="range" min="0" max="100" step="1">
+      <small id="comic-edge-tint-strength-value"></small>
     </label>`
   );
 }
@@ -366,6 +380,8 @@ function ensureSettingsEnhancements(settingsForm) {
         qs("mini-bars-enabled-select") && qs("mini-bars-enabled-select").closest("label"),
         qs("mini-bars-scale-wrap"),
         qs("toc-side-wrap"),
+        qs("comic-edge-tint-enabled-wrap"),
+        qs("comic-edge-tint-strength-wrap"),
       ],
     },
     {
@@ -538,6 +554,9 @@ function applyReaderVars(settings) {
   root.style.setProperty("--reader-text-indent", `${settings.textIndent}em`);
   root.style.setProperty("--reader-text-align", settings.textAlign);
   root.style.setProperty("--reader-mini-scale", `${normalizeMiniBarsScale(settings.miniBarsScale)}`);
+  const comicEdgeTintStrength = normalizeComicEdgeTintStrength(settings.comicEdgeTintStrength);
+  const comicEdgeTintEnabled = settings.comicEdgeTintEnabled === true;
+  root.style.setProperty("--reader-comic-edge-tint-opacity", comicEdgeTintEnabled ? `${(comicEdgeTintStrength / 100).toFixed(2)}` : "0");
   applyReaderTocSide(settings);
 }
 
@@ -577,6 +596,14 @@ function normalizeMiniBarsScale(value) {
 
 function normalizeTocSide(value) {
   return String(value || "").trim().toLowerCase() === "right" ? "right" : "left";
+}
+
+function normalizeComicEdgeTintStrength(value) {
+  const num = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(num)) return 28;
+  if (num < 0) return 0;
+  if (num > 100) return 100;
+  return num;
 }
 
 function normalizeLocalTranslationSettings(raw) {
@@ -1318,6 +1345,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   state.settings.miniBarsScale = normalizeMiniBarsScale(state.settings.miniBarsScale);
   state.settings.tocSide = normalizeTocSide(state.settings.tocSide);
   state.settings.themeCustomEnabled = state.settings.themeCustomEnabled === true;
+  state.settings.comicEdgeTintEnabled = state.settings.comicEdgeTintEnabled === true;
+  state.settings.comicEdgeTintStrength = normalizeComicEdgeTintStrength(state.settings.comicEdgeTintStrength);
   for (const field of THEME_CUSTOM_FIELDS) {
     state.settings[field.settingKey] = normalizeHexColor(state.settings[field.settingKey]);
   }
@@ -1346,6 +1375,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const miniBarsScaleInput = qs("mini-bars-scale-input");
   const miniBarsScaleValue = qs("mini-bars-scale-value");
   const tocSideSelect = qs("toc-side-select");
+  const comicEdgeTintEnabledSelect = qs("comic-edge-tint-enabled-select");
+  const comicEdgeTintStrengthInput = qs("comic-edge-tint-strength-input");
+  const comicEdgeTintStrengthValue = qs("comic-edge-tint-strength-value");
+  const comicEdgeTintStrengthWrap = qs("comic-edge-tint-strength-wrap");
   const translationEnabledSelect = qs("translation-enabled-select");
   const translationModeSelect = qs("translation-mode-select");
   const localSection = qs("local-translation-settings");
@@ -1503,6 +1536,15 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   if (miniBarsScaleInput) miniBarsScaleInput.value = String(normalizeMiniBarsScale(state.settings.miniBarsScale));
   if (miniBarsScaleValue) miniBarsScaleValue.textContent = `${normalizeMiniBarsScale(state.settings.miniBarsScale).toFixed(2)}x`;
   if (tocSideSelect) tocSideSelect.value = normalizeTocSide(state.settings.tocSide);
+  const syncComicEdgeTintForm = () => {
+    state.settings.comicEdgeTintEnabled = state.settings.comicEdgeTintEnabled === true;
+    state.settings.comicEdgeTintStrength = normalizeComicEdgeTintStrength(state.settings.comicEdgeTintStrength);
+    if (comicEdgeTintEnabledSelect) comicEdgeTintEnabledSelect.value = state.settings.comicEdgeTintEnabled ? "on" : "off";
+    if (comicEdgeTintStrengthInput) comicEdgeTintStrengthInput.value = String(state.settings.comicEdgeTintStrength);
+    if (comicEdgeTintStrengthValue) comicEdgeTintStrengthValue.textContent = `${state.settings.comicEdgeTintStrength}%`;
+    if (comicEdgeTintStrengthWrap) comicEdgeTintStrengthWrap.hidden = !state.settings.comicEdgeTintEnabled;
+  };
+  syncComicEdgeTintForm();
   state.settings.translationEnabled = state.settings.translationEnabled !== false;
   state.settings.translationMode = normalizeTranslationMode(state.settings.translationMode);
   if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
@@ -1923,6 +1965,26 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     });
   }
 
+  if (comicEdgeTintEnabledSelect) {
+    comicEdgeTintEnabledSelect.addEventListener("change", () => {
+      state.settings.comicEdgeTintEnabled = String(comicEdgeTintEnabledSelect.value || "").trim().toLowerCase() === "on";
+      syncComicEdgeTintForm();
+      applyReaderVars(state.settings);
+      saveSettings(state.settings);
+      emitSettingsChanged(state.settings);
+    });
+  }
+
+  if (comicEdgeTintStrengthInput) {
+    comicEdgeTintStrengthInput.addEventListener("input", () => {
+      state.settings.comicEdgeTintStrength = normalizeComicEdgeTintStrength(comicEdgeTintStrengthInput.value);
+      syncComicEdgeTintForm();
+      applyReaderVars(state.settings);
+      saveSettings(state.settings);
+      emitSettingsChanged(state.settings);
+    });
+  }
+
   if (translationEnabledSelect) {
     translationEnabledSelect.addEventListener("change", async () => {
       state.settings.translationEnabled = String(translationEnabledSelect.value || "").trim().toLowerCase() !== "off";
@@ -2046,6 +2108,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.settings.miniBarsEnabled = (miniBarsEnabledSelect && miniBarsEnabledSelect.value) !== "off";
       state.settings.miniBarsScale = normalizeMiniBarsScale((miniBarsScaleInput && miniBarsScaleInput.value) || DEFAULT_SETTINGS.miniBarsScale);
       state.settings.tocSide = normalizeTocSide((tocSideSelect && tocSideSelect.value) || DEFAULT_SETTINGS.tocSide);
+      state.settings.comicEdgeTintEnabled = (comicEdgeTintEnabledSelect && comicEdgeTintEnabledSelect.value) === "on";
+      state.settings.comicEdgeTintStrength = normalizeComicEdgeTintStrength((comicEdgeTintStrengthInput && comicEdgeTintStrengthInput.value) || DEFAULT_SETTINGS.comicEdgeTintStrength);
       state.settings.translationEnabled = (translationEnabledSelect && translationEnabledSelect.value) !== "off";
       state.settings.translationMode = normalizeTranslationMode((translationModeSelect && translationModeSelect.value) || DEFAULT_SETTINGS.translationMode);
       state.readerTranslationServer = collectServerTranslationSettingsFromForm();
@@ -2090,6 +2154,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       if (miniBarsScaleInput) miniBarsScaleInput.value = String(state.settings.miniBarsScale);
       if (miniBarsScaleValue) miniBarsScaleValue.textContent = `${state.settings.miniBarsScale.toFixed(2)}x`;
       if (tocSideSelect) tocSideSelect.value = state.settings.tocSide;
+      if (comicEdgeTintEnabledSelect) comicEdgeTintEnabledSelect.value = state.settings.comicEdgeTintEnabled ? "on" : "off";
+      if (comicEdgeTintStrengthInput) comicEdgeTintStrengthInput.value = String(state.settings.comicEdgeTintStrength);
+      if (comicEdgeTintStrengthValue) comicEdgeTintStrengthValue.textContent = `${state.settings.comicEdgeTintStrength}%`;
+      if (comicEdgeTintStrengthWrap) comicEdgeTintStrengthWrap.hidden = !state.settings.comicEdgeTintEnabled;
       if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
       if (translationModeSelect) translationModeSelect.value = normalizeTranslationMode(state.settings.translationMode);
       state.readerTranslationServer = { ...SERVER_TRANSLATION_DEFAULT };

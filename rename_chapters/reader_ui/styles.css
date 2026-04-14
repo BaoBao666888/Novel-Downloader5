@@ -25,6 +25,8 @@
   --settings-drawer-alpha: 90%;
   --reader-content-alpha: 12%;
   --reader-content-alpha-scroll: 12%;
+  --reader-comic-edge-tint-opacity: 0;
+  --reader-comic-edge-tint-width: clamp(18px, 4vw, 72px);
 }
 
 * {
@@ -2331,6 +2333,40 @@ body[data-page="reader"]:not(.fullscreen-reading) .reader-content-body {
   border-radius: 0;
   background: transparent;
   backdrop-filter: none;
+  isolation: isolate;
+}
+
+.reader-viewport.reading-comic .reader-content-scroll::before,
+.reader-viewport.reading-comic .reader-content-scroll::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--reader-comic-edge-tint-width);
+  z-index: 1;
+  pointer-events: none;
+  opacity: var(--reader-comic-edge-tint-opacity);
+  transition: opacity 0.18s ease;
+}
+
+.reader-viewport.reading-comic .reader-content-scroll::before {
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--bg) 92%, var(--surface) 8%) 0%,
+    color-mix(in srgb, var(--bg) 46%, transparent) 34%,
+    transparent 100%
+  );
+}
+
+.reader-viewport.reading-comic .reader-content-scroll::after {
+  right: 0;
+  background: linear-gradient(
+    270deg,
+    color-mix(in srgb, var(--bg) 92%, var(--surface) 8%) 0%,
+    color-mix(in srgb, var(--bg) 46%, transparent) 34%,
+    transparent 100%
+  );
 }
 
 .reader-content-scroll.reader-loading .reader-content-body {
@@ -2723,9 +2759,9 @@ body.panel-style-clear .reader-content-body {
   height: 100vh;
   border-left: 1px solid var(--line);
   backdrop-filter: blur(10px);
-  box-shadow: -12px 0 30px color-mix(in srgb, var(--bg) 65%, transparent);
+  box-shadow: none;
   transform: translateX(100%);
-  transition: transform 0.24s ease;
+  transition: transform 0.24s ease, box-shadow 0.2s ease;
   z-index: 70;
   display: flex;
   flex-direction: column;
@@ -2802,6 +2838,7 @@ body[data-page="reader"] #reader-content-body * {
 .settings-drawer.open,
 .reader-toc-drawer.open {
   transform: translateX(0);
+  box-shadow: -12px 0 30px color-mix(in srgb, var(--bg) 65%, transparent);
 }
 
 body[data-page="reader"][data-reader-toc-side="left"] .reader-toc-drawer {
@@ -2809,13 +2846,14 @@ body[data-page="reader"][data-reader-toc-side="left"] .reader-toc-drawer {
   right: auto;
   border-left: 0;
   border-right: 1px solid var(--line);
-  box-shadow: 12px 0 30px color-mix(in srgb, var(--bg) 65%, transparent);
+  box-shadow: none;
   transform: translateX(-100%);
   direction: rtl;
 }
 
 body[data-page="reader"][data-reader-toc-side="left"] .reader-toc-drawer.open {
   transform: translateX(0);
+  box-shadow: 12px 0 30px color-mix(in srgb, var(--bg) 65%, transparent);
 }
 
 body[data-page="reader"][data-reader-toc-side="left"] .reader-toc-drawer .settings-head,

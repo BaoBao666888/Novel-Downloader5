@@ -18,6 +18,8 @@
         textAlign: "justify",
         miniBarsScale: 1,
         tocSide: "left",
+        comicEdgeTintEnabled: false,
+        comicEdgeTintStrength: 28,
         panelTransparency: "clear",
         starStyle: "classic",
         backgroundMotion: "on",
@@ -61,6 +63,11 @@
       root.style.setProperty("--reader-text-indent", `${settings.textIndent}em`);
       root.style.setProperty("--reader-text-align", settings.textAlign);
       root.style.setProperty("--reader-mini-scale", `${settings.miniBarsScale || 1}`);
+      const parsedComicEdgeTintStrength = Number.parseInt(String(settings.comicEdgeTintStrength ?? 28), 10);
+      const comicEdgeTintStrength = Number.isFinite(parsedComicEdgeTintStrength)
+        ? Math.max(0, Math.min(100, parsedComicEdgeTintStrength))
+        : 28;
+      root.style.setProperty("--reader-comic-edge-tint-opacity", settings.comicEdgeTintEnabled === true ? `${(comicEdgeTintStrength / 100).toFixed(2)}` : "0");
       root.dataset.readerTocSide = String(settings.tocSide || "left").toLowerCase() === "right" ? "right" : "left";
       const effects = ["effect-stars", "effect-sparkle", "effect-bubbles", "effect-leaves", "effect-snow"];
       const stars = ["star-style-classic", "star-style-dense", "star-style-bling"];
@@ -75,7 +82,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260413-tocpage1">
+  <link rel="stylesheet" href="./styles.css?v=20260414-comicedge2">
 </head>
 
 <body data-page="reader" class="mpa-body">
@@ -730,7 +737,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/reader_page.js?v=20260413-tocpage1"></script>
+  <script type="module" src="./js/pages/reader_page.js?v=20260414-comicedge2"></script>
 </body>
 
 </html>
