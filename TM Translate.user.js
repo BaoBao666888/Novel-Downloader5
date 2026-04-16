@@ -243,6 +243,8 @@
     }
     const INVISIBLE_TEXT_FORMATTING_REGEX = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/;
     const INVISIBLE_TEXT_FORMATTING_GLOBAL_REGEX = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/g;
+    const TOKEN_SPLIT_REGEX = /([^\p{L}\p{N}\p{M}\p{P}\s]+)/gu;
+    const TOKEN_SPECIAL_REGEX = /^[^\p{L}\p{N}\p{M}\p{P}\s]+$/u;
     function hasInvisibleTextFormatting(s) {
         return typeof s === 'string' && INVISIBLE_TEXT_FORMATTING_REGEX.test(s);
     }
@@ -1179,11 +1181,10 @@
     function tokenizeString(str) {
         const normalized = normalizeTextForTranslation(str);
         if (!normalized) return [];
-        const specialCharsRegex = /([^a-zA-Z0-9\u4e00-\u9fa5\s。，、？！：；“”‘’（）《》]+)/g;
-        const parts = normalized.split(specialCharsRegex).filter(Boolean);
+        const parts = normalized.split(TOKEN_SPLIT_REGEX).filter(Boolean);
         const tokens = [];
         for (const part of parts) {
-            if (/([^a-zA-Z0-9\u4e00-\u9fa5\s。，、？！：；“”‘’（）《》]+)/.test(part)) {
+            if (TOKEN_SPECIAL_REGEX.test(part)) {
                 tokens.push({ type: 'special', value: part });
             } else {
                 if (tokens.length > 0 && tokens[tokens.length - 1].type === 'text') {
@@ -8389,6 +8390,7 @@
 ### ✨ v${CURRENT_VERSION}
 - Bổ sung nhẹ cho **Thư viện**: xuất **TXT/EPUB** sẽ dùng tiêu đề truyện và tiêu đề chương đã dịch thay vì giữ nguyên tiêu đề raw.
 - Làm sạch **ký tự ẩn** trong file import để giảm lỗi dịch bị **dính chữ** ở một số chương.
+- Giảm lỗi **dính chữ sau dấu câu** ở một số chương do trước đây text bị tách quá vụn khi gửi đi dịch.
 - Với dữ liệu cũ có ký tự ẩn, script sẽ tự làm sạch và dịch lại chapter/cache khi cần.
 
 ### 📦 Các bản trước (tóm tắt)
