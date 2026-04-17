@@ -4219,6 +4219,28 @@ class ReaderStorage:
             self._ensure_column(conn, "books", "extra_link", "TEXT DEFAULT ''")
             self._ensure_column(conn, "books", "source_url", "TEXT DEFAULT ''")
             self._ensure_column(conn, "books", "source_plugin", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "book_categories", "is_user_category", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(conn, "book_categories", "is_default_category", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(conn, "book_categories", "is_default_removed", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(conn, "book_categories", "default_group_key", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "book_categories", "default_group_label", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "book_categories", "default_group_order", "INTEGER NOT NULL DEFAULT 999")
+            self._ensure_column(conn, "book_categories", "default_selection_mode", "TEXT DEFAULT 'multi'")
+            self._ensure_column(conn, "book_categories", "default_input_name", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "book_categories", "default_input_type", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "book_categories", "default_subgroup_label", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "book_categories", "default_subgroup_order", "INTEGER NOT NULL DEFAULT 999")
+            self._ensure_column(conn, "book_categories", "default_item_order", "INTEGER NOT NULL DEFAULT 999999")
+            self._ensure_column(conn, "book_categories", "default_source_id", "TEXT DEFAULT ''")
+            conn.execute(
+                """
+                UPDATE book_categories
+                SET is_user_category = 1
+                WHERE COALESCE(is_user_category, 0) = 0
+                  AND COALESCE(is_default_category, 0) = 0
+                  AND COALESCE(is_default_removed, 0) = 0
+                """
+            )
             conn.execute(
                 """
                 UPDATE books

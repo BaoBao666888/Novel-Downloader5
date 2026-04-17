@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260417-batchimport3";
+import { initShell } from "../site_common.js?v=20260417-wikicat1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -235,6 +235,7 @@ const state = {
   deletingBookIds: new Set(),
   shell: null,
   categories: [],
+  categoryMap: new Map(),
   selectedCategoryIds: [],
   selectedExcludedCategoryIds: [],
   selectedCategoryMatchMode: "or",
@@ -296,6 +297,10 @@ const LIBRARY_INITIAL_HYDRATE_COUNT = 12;
 const LIBRARY_HYDRATE_BATCH_SIZE = 8;
 const BATCH_IMPORT_PREPARE_CONCURRENCY = 6;
 const BATCH_IMPORT_COMMIT_CONCURRENCY = 3;
+const CATEGORY_SECTION_USER_KEY = "user_custom";
+const CATEGORY_SECTION_REMOVED_KEY = "removed_default";
+const CATEGORY_SECTION_USER_ORDER = 1000;
+const CATEGORY_SECTION_REMOVED_ORDER = 1100;
 
 function localTranslationSettingsSignature(shell) {
   try {
@@ -330,6 +335,28 @@ function normalizeCategoryIds(values) {
   ));
 }
 
+function normalizeCategoryItem(item) {
+  return {
+    ...(item && typeof item === "object" ? item : {}),
+    category_id: String((item && item.category_id) || "").trim(),
+    name: String((item && item.name) || "").trim(),
+    book_count: Math.max(0, Number(item && item.book_count || 0)),
+    is_user_category: Boolean(item && item.is_user_category),
+    is_default_category: Boolean(item && item.is_default_category),
+    is_default_removed: Boolean(item && item.is_default_removed),
+    default_group_key: String((item && item.default_group_key) || "").trim(),
+    default_group_label: String((item && item.default_group_label) || "").trim(),
+    default_group_order: Number(item && item.default_group_order || 999),
+    default_selection_mode: String((item && item.default_selection_mode) || "multi").trim().toLowerCase() === "single" ? "single" : "multi",
+    default_input_name: String((item && item.default_input_name) || "").trim(),
+    default_input_type: String((item && item.default_input_type) || "").trim(),
+    default_subgroup_label: String((item && item.default_subgroup_label) || "").trim(),
+    default_subgroup_order: Number(item && item.default_subgroup_order || 999),
+    default_item_order: Number(item && item.default_item_order || 999999),
+    default_source_id: String((item && item.default_source_id) || "").trim(),
+  };
+}
+
 function normalizeAuthorFilterValue(value) {
   return String(value || "").trim();
 }
@@ -343,6 +370,214 @@ function buildDistinctCategoryFilters(includeValues, excludeValues) {
   const includeSet = new Set(include);
   const exclude = normalizeCategoryIds(excludeValues).filter((item) => !includeSet.has(item));
   return { include, exclude };
+}
+
+function getCategoryById(categoryId) {
+  const id = String(categoryId || "").trim();
+  if (!id) return null;
+  return (state.categoryMap instanceof Map ? state.categoryMap.get(id) : null) || null;
+}
+
+function getCategorySingleSelectionGroupKey(category) {
+  const item = normalizeCategoryItem(category);
+  if (!item.category_id || !item.is_default_category) return "";
+  if (item.default_selection_mode !== "single") return "";
+  return String(item.default_group_key || "").trim().toLowerCase();
+}
+
+function applySingleSelectionRules(categoryIds) {
+  const normalized = normalizeCategoryIds(categoryIds);
+  const lastChoiceByGroup = new Map();
+  for (const categoryId of normalized) {
+    const groupKey = getCategorySingleSelectionGroupKey(getCategoryById(categoryId));
+    if (groupKey) lastChoiceByGroup.set(groupKey, categoryId);
+  }
+  return normalized.filter((categoryId) => {
+    const groupKey = getCategorySingleSelectionGroupKey(getCategoryById(categoryId));
+    return !groupKey || lastChoiceByGroup.get(groupKey) === categoryId;
+  });
+}
+
+function toggleCategoryIdWithRules(currentIds, categoryId) {
+  const id = String(categoryId || "").trim();
+  if (!id) return applySingleSelectionRules(currentIds);
+  const next = new Set(normalizeCategoryIds(currentIds));
+  if (next.has(id)) {
+    next.delete(id);
+    return Array.from(next);
+  }
+  const groupKey = getCategorySingleSelectionGroupKey(getCategoryById(id));
+  if (groupKey) {
+    for (const category of state.categories || []) {
+      if (getCategorySingleSelectionGroupKey(category) === groupKey) {
+        next.delete(String((category && category.category_id) || "").trim());
+      }
+    }
+  }
+  next.add(id);
+  return applySingleSelectionRules(Array.from(next));
+}
+
+function categoryMatchesSearch(category, term) {
+  const needle = String(term || "").trim().toLowerCase();
+  if (!needle) return true;
+  const item = normalizeCategoryItem(category);
+  return [
+    item.name,
+    item.default_group_label,
+    item.default_subgroup_label,
+  ].some((value) => String(value || "").trim().toLowerCase().includes(needle));
+}
+
+function compareCategoriesForDisplay(left, right) {
+  const a = normalizeCategoryItem(left);
+  const b = normalizeCategoryItem(right);
+  return a.default_group_order - b.default_group_order
+    || a.default_subgroup_order - b.default_subgroup_order
+    || a.default_item_order - b.default_item_order
+    || String(a.name || "").localeCompare(String(b.name || ""), "vi", { sensitivity: "base" });
+}
+
+function getCategoryDisplaySections(category) {
+  const item = normalizeCategoryItem(category);
+  const sections = [];
+  if (item.is_default_category && item.default_group_key) {
+    sections.push({
+      section_key: `default:${item.default_group_key}`,
+      section_label: item.default_group_label || item.default_group_key,
+      section_order: Number(item.default_group_order || 999),
+      subgroup_label: item.default_subgroup_label || "",
+      subgroup_order: Number(item.default_subgroup_order || 999),
+    });
+  }
+  if (item.is_user_category) {
+    sections.push({
+      section_key: CATEGORY_SECTION_USER_KEY,
+      section_label: state.shell ? state.shell.t("categorySectionUser") : "Danh mục của bạn",
+      section_order: CATEGORY_SECTION_USER_ORDER,
+      subgroup_label: "",
+      subgroup_order: 999,
+    });
+  }
+  if (item.is_default_removed) {
+    sections.push({
+      section_key: CATEGORY_SECTION_REMOVED_KEY,
+      section_label: state.shell ? state.shell.t("categorySectionRemovedDefault") : "Danh mục bị xóa khỏi mặc định",
+      section_order: CATEGORY_SECTION_REMOVED_ORDER,
+      subgroup_label: "",
+      subgroup_order: 999,
+    });
+  }
+  return sections;
+}
+
+function buildVisibleCategorySections(term) {
+  const sectionsByKey = new Map();
+  for (const raw of state.categories || []) {
+    const category = normalizeCategoryItem(raw);
+    if (!category.category_id || !categoryMatchesSearch(category, term)) continue;
+    for (const sectionEntry of getCategoryDisplaySections(category)) {
+      let section = sectionsByKey.get(sectionEntry.section_key);
+      if (!section) {
+        section = {
+          key: sectionEntry.section_key,
+          label: sectionEntry.section_label,
+          order: Number(sectionEntry.section_order || 999),
+          groupsByKey: new Map(),
+        };
+        sectionsByKey.set(sectionEntry.section_key, section);
+      }
+      const subgroupLabel = String(sectionEntry.subgroup_label || "").trim();
+      const subgroupOrder = Number(sectionEntry.subgroup_order || 999);
+      const subgroupKey = subgroupLabel ? `subgroup:${subgroupOrder}:${subgroupLabel}` : "__default__";
+      let subgroup = section.groupsByKey.get(subgroupKey);
+      if (!subgroup) {
+        subgroup = {
+          key: subgroupKey,
+          label: subgroupLabel,
+          order: subgroupLabel ? subgroupOrder : -1,
+          items: [],
+        };
+        section.groupsByKey.set(subgroupKey, subgroup);
+      }
+      subgroup.items.push(category);
+    }
+  }
+  return Array.from(sectionsByKey.values())
+    .map((section) => ({
+      ...section,
+      groups: Array.from(section.groupsByKey.values())
+        .map((group) => ({
+          ...group,
+          items: group.items.slice().sort(compareCategoriesForDisplay),
+        }))
+        .sort((a, b) => a.order - b.order || String(a.label || "").localeCompare(String(b.label || ""), "vi", { sensitivity: "base" })),
+    }))
+    .sort((a, b) => a.order - b.order || String(a.label || "").localeCompare(String(b.label || ""), "vi", { sensitivity: "base" }));
+}
+
+function renderCategoryPickerSections(container, {
+  term = "",
+  activeIds = [],
+  emptyNode = null,
+  emptyText = "",
+  showCount = false,
+  onToggle = null,
+} = {}) {
+  if (!container) return [];
+  container.innerHTML = "";
+  const activeSet = new Set(normalizeCategoryIds(activeIds));
+  const sections = buildVisibleCategorySections(term);
+  if (emptyNode) {
+    emptyNode.classList.toggle("hidden", sections.length > 0);
+    emptyNode.textContent = emptyText || "";
+  }
+  for (const section of sections) {
+    const sectionEl = document.createElement("section");
+    sectionEl.className = "category-picker-section";
+
+    const head = document.createElement("div");
+    head.className = "category-picker-section-head";
+    const title = document.createElement("strong");
+    title.textContent = String(section.label || "").trim();
+    head.appendChild(title);
+    sectionEl.appendChild(head);
+
+    for (const group of section.groups || []) {
+      let target = sectionEl;
+      if (group.label) {
+        const subgroup = document.createElement("div");
+        subgroup.className = "category-picker-subgroup";
+        const subgroupTitle = document.createElement("div");
+        subgroupTitle.className = "category-picker-subgroup-title";
+        subgroupTitle.textContent = String(group.label || "").trim();
+        subgroup.appendChild(subgroupTitle);
+        sectionEl.appendChild(subgroup);
+        target = subgroup;
+      }
+      const list = document.createElement("div");
+      list.className = "category-chip-picker-row";
+      for (const category of group.items || []) {
+        const id = String((category && category.category_id) || "").trim();
+        const chip = createCategoryChip(category, {
+          active: activeSet.has(id),
+          titleSuffix: showCount ? ` • ${Math.max(0, Number(category && category.book_count || 0))}` : "",
+          onClick: typeof onToggle === "function" ? () => onToggle(id, category, section) : null,
+        });
+        if (showCount) {
+          const count = document.createElement("span");
+          count.className = "category-chip-count";
+          count.textContent = String(Math.max(0, Number(category && category.book_count || 0)));
+          chip.appendChild(count);
+        }
+        list.appendChild(chip);
+      }
+      target.appendChild(list);
+    }
+
+    container.appendChild(sectionEl);
+  }
+  return sections;
 }
 
 function getBookCategories(book) {
@@ -476,16 +711,20 @@ function syncSelectedCategoryIdsWithCatalog() {
     normalizeCategoryIds(state.selectedCategoryIds).filter((item) => known.has(item)),
     normalizeCategoryIds(state.selectedExcludedCategoryIds).filter((item) => known.has(item)),
   );
-  const selectedChanged = selectedPair.include.length !== normalizeCategoryIds(state.selectedCategoryIds).length
-    || selectedPair.exclude.length !== normalizeCategoryIds(state.selectedExcludedCategoryIds).length
-    || selectedPair.include.some((item, idx) => item !== normalizeCategoryIds(state.selectedCategoryIds)[idx])
-    || selectedPair.exclude.some((item, idx) => item !== normalizeCategoryIds(state.selectedExcludedCategoryIds)[idx]);
-  state.selectedCategoryIds = selectedPair.include;
-  state.selectedExcludedCategoryIds = selectedPair.exclude;
-  state.categoryFilterDraftIds = normalizeCategoryIds(state.categoryFilterDraftIds).filter((item) => known.has(item));
-  state.categoryFilterDraftExcludeIds = normalizeCategoryIds(state.categoryFilterDraftExcludeIds).filter((item) => known.has(item));
-  state.importSelectedCategoryIds = normalizeCategoryIds(state.importSelectedCategoryIds).filter((item) => known.has(item));
-  state.bookCategoriesDraftIds = normalizeCategoryIds(state.bookCategoriesDraftIds).filter((item) => known.has(item));
+  const nextInclude = applySingleSelectionRules(selectedPair.include);
+  const nextExclude = applySingleSelectionRules(selectedPair.exclude);
+  const prevInclude = normalizeCategoryIds(state.selectedCategoryIds);
+  const prevExclude = normalizeCategoryIds(state.selectedExcludedCategoryIds);
+  const selectedChanged = nextInclude.length !== prevInclude.length
+    || nextExclude.length !== prevExclude.length
+    || nextInclude.some((item, idx) => item !== prevInclude[idx])
+    || nextExclude.some((item, idx) => item !== prevExclude[idx]);
+  state.selectedCategoryIds = nextInclude;
+  state.selectedExcludedCategoryIds = nextExclude;
+  state.categoryFilterDraftIds = applySingleSelectionRules(normalizeCategoryIds(state.categoryFilterDraftIds).filter((item) => known.has(item)));
+  state.categoryFilterDraftExcludeIds = applySingleSelectionRules(normalizeCategoryIds(state.categoryFilterDraftExcludeIds).filter((item) => known.has(item)));
+  state.importSelectedCategoryIds = applySingleSelectionRules(normalizeCategoryIds(state.importSelectedCategoryIds).filter((item) => known.has(item)));
+  state.bookCategoriesDraftIds = applySingleSelectionRules(normalizeCategoryIds(state.bookCategoriesDraftIds).filter((item) => known.has(item)));
   if (selectedChanged) syncLibraryCategoryQuery();
   updateLibraryFilterBadge();
   renderImportCategoryList();
@@ -493,19 +732,16 @@ function syncSelectedCategoryIdsWithCatalog() {
 
 function buildCategoryCatalogMap() {
   const output = new Map();
-  for (const item of state.categories || []) {
-    const id = String((item && item.category_id) || "").trim();
-    if (!id) continue;
-    output.set(id, {
-      category_id: id,
-      name: String((item && item.name) || "").trim(),
-    });
+  for (const raw of state.categories || []) {
+    const item = normalizeCategoryItem(raw);
+    if (!item.category_id) continue;
+    output.set(item.category_id, item);
   }
   return output;
 }
 
 function normalizeBookCategoriesFromCatalog(categoryIds) {
-  const catalog = buildCategoryCatalogMap();
+  const catalog = state.categoryMap instanceof Map ? state.categoryMap : buildCategoryCatalogMap();
   const output = [];
   for (const id of normalizeCategoryIds(categoryIds)) {
     const category = catalog.get(id);
@@ -520,10 +756,7 @@ function setBookCategoriesLocal(bookId, categories) {
   if (!bid) return;
   const next = Array.isArray(categories)
     ? categories
-      .map((item) => ({
-        category_id: String((item && item.category_id) || "").trim(),
-        name: String((item && item.name) || "").trim(),
-      }))
+      .map((item) => normalizeCategoryItem(item))
       .filter((item) => item.category_id)
     : [];
   for (const book of state.books || []) {
@@ -540,7 +773,10 @@ function reconcileBookCategoriesWithCatalog() {
 }
 
 function setCategoriesCatalog(items) {
-  state.categories = Array.isArray(items) ? items : [];
+  state.categories = Array.isArray(items)
+    ? items.map((item) => normalizeCategoryItem(item)).filter((item) => item.category_id)
+    : [];
+  state.categoryMap = buildCategoryCatalogMap();
   syncSelectedCategoryIdsWithCatalog();
   reconcileBookCategoriesWithCatalog();
   renderLibraryCategoryFilterList();
@@ -549,10 +785,10 @@ function setCategoriesCatalog(items) {
 
 function applyBooksCategoryActionLocal(bookIds, categoryIds, action) {
   const normalizedBookIds = normalizeCategoryIds(bookIds);
-  const normalizedCategoryIds = normalizeCategoryIds(categoryIds);
+  const normalizedCategoryIds = applySingleSelectionRules(categoryIds);
   if (!normalizedBookIds.length || !normalizedCategoryIds.length) return;
   const actionKey = String(action || "").trim().toLowerCase();
-  const categoryMap = buildCategoryCatalogMap();
+  const categoryMap = state.categoryMap instanceof Map ? state.categoryMap : buildCategoryCatalogMap();
   for (const book of state.books || []) {
     const bid = String((book && book.book_id) || "").trim();
     if (!normalizedBookIds.includes(bid)) continue;
@@ -561,6 +797,14 @@ function applyBooksCategoryActionLocal(bookIds, categoryIds, action) {
       for (const categoryId of normalizedCategoryIds) current.delete(categoryId);
     } else {
       for (const categoryId of normalizedCategoryIds) {
+        const groupKey = getCategorySingleSelectionGroupKey(categoryMap.get(categoryId));
+        if (groupKey) {
+          for (const existingId of Array.from(current)) {
+            if (getCategorySingleSelectionGroupKey(categoryMap.get(existingId)) === groupKey) {
+              current.delete(existingId);
+            }
+          }
+        }
         if (categoryMap.has(categoryId)) current.add(categoryId);
       }
     }
@@ -607,10 +851,7 @@ function upsertStateBook(book, { prepend = true } = {}) {
   if (!bid) return null;
   const normalizedCategories = Array.isArray(book.categories)
     ? book.categories
-      .map((item) => ({
-        category_id: String((item && item.category_id) || "").trim(),
-        name: String((item && item.name) || "").trim(),
-      }))
+      .map((item) => normalizeCategoryItem(item))
       .filter((item) => item.category_id)
     : null;
   const index = (state.books || []).findIndex((item) => String((item && item.book_id) || "").trim() === bid);
@@ -904,42 +1145,27 @@ function buildImportCategorySummaryText() {
 
 function renderImportCategoryList() {
   if (!refs.importCategoriesList || !refs.importCategoriesEmpty) return;
-  refs.importCategoriesList.innerHTML = "";
-  const selectedIds = normalizeCategoryIds(state.importSelectedCategoryIds);
+  const selectedIds = applySingleSelectionRules(state.importSelectedCategoryIds);
   state.importSelectedCategoryIds = selectedIds;
   const selectedSet = new Set(selectedIds);
   const term = String((refs.importCategoriesSearchInput && refs.importCategoriesSearchInput.value) || "").trim().toLowerCase();
-  const items = (state.categories || []).filter((item) => {
-    const name = String((item && item.name) || "").trim();
-    return !term || name.toLowerCase().includes(term);
-  });
-  refs.importCategoriesEmpty.classList.toggle("hidden", items.length > 0);
-  refs.importCategoriesEmpty.textContent = state.shell.t("importCategoriesEmpty");
   if (refs.importCategoriesCount) {
     refs.importCategoriesCount.textContent = String(selectedSet.size);
     refs.importCategoriesCount.classList.toggle("hidden", selectedSet.size <= 0);
     const summary = buildImportCategorySummaryText();
     refs.importCategoriesCount.title = summary || "";
   }
-  for (const category of items) {
-    const id = String((category && category.category_id) || "").trim();
-    const chip = createCategoryChip(category, {
-      active: selectedSet.has(id),
-      titleSuffix: ` • ${Math.max(0, Number(category && category.book_count || 0))}`,
-      onClick: () => {
-        const next = new Set(normalizeCategoryIds(state.importSelectedCategoryIds));
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        state.importSelectedCategoryIds = Array.from(next);
-        renderImportCategoryList();
-      },
-    });
-    const count = document.createElement("span");
-    count.className = "category-chip-count";
-    count.textContent = String(Math.max(0, Number(category && category.book_count || 0)));
-    chip.appendChild(count);
-    refs.importCategoriesList.appendChild(chip);
-  }
+  renderCategoryPickerSections(refs.importCategoriesList, {
+    term,
+    activeIds: selectedIds,
+    emptyNode: refs.importCategoriesEmpty,
+    emptyText: state.shell.t("importCategoriesEmpty"),
+    showCount: true,
+    onToggle: (id) => {
+      state.importSelectedCategoryIds = toggleCategoryIdWithRules(state.importSelectedCategoryIds, id);
+      renderImportCategoryList();
+    },
+  });
 }
 
 function scheduleBatchImportDialogRender() {
@@ -1048,7 +1274,7 @@ async function runItemsWithConcurrency(items, limit, worker) {
 
 async function applyImportCategoriesToBooks(bookIds, { silent = false } = {}) {
   const targetBookIds = normalizeBookIds(bookIds);
-  const categoryIds = normalizeCategoryIds(state.importSelectedCategoryIds);
+  const categoryIds = applySingleSelectionRules(state.importSelectedCategoryIds);
   if (!targetBookIds.length || !categoryIds.length) return true;
   try {
     await state.shell.api("/api/library/categories/assign", {
@@ -2390,20 +2616,12 @@ function renderBooks() {
 
 function renderLibraryCategoryFilterList() {
   if (!refs.libraryCategoryFilterEmpty || !refs.libraryCategoryFilterIncludeList || !refs.libraryCategoryFilterExcludeList) return;
-  refs.libraryCategoryFilterIncludeList.innerHTML = "";
-  refs.libraryCategoryFilterExcludeList.innerHTML = "";
   const term = String((refs.libraryCategoryFilterSearch && refs.libraryCategoryFilterSearch.value) || "").trim().toLowerCase();
-  const items = (state.categories || []).filter((item) => {
-    const name = String((item && item.name) || "").trim();
-    return !term || name.toLowerCase().includes(term);
-  });
   const draftPair = buildDistinctCategoryFilters(state.categoryFilterDraftIds, state.categoryFilterDraftExcludeIds);
-  state.categoryFilterDraftIds = draftPair.include;
-  state.categoryFilterDraftExcludeIds = draftPair.exclude;
-  const includeSet = new Set(draftPair.include);
-  const excludeSet = new Set(draftPair.exclude);
-  refs.libraryCategoryFilterEmpty.classList.toggle("hidden", items.length > 0);
-  refs.libraryCategoryFilterEmpty.textContent = state.shell.t("categoryFilterEmpty");
+  state.categoryFilterDraftIds = applySingleSelectionRules(draftPair.include);
+  state.categoryFilterDraftExcludeIds = applySingleSelectionRules(draftPair.exclude);
+  const includeSet = new Set(state.categoryFilterDraftIds);
+  const excludeSet = new Set(state.categoryFilterDraftExcludeIds);
   if (refs.libraryCategoryMatchModeSelect) {
     refs.libraryCategoryMatchModeSelect.value = normalizeCategoryMatchMode(state.categoryFilterDraftMatchMode);
     refs.libraryCategoryMatchModeSelect.disabled = includeSet.size < 2;
@@ -2416,53 +2634,32 @@ function renderLibraryCategoryFilterList() {
     refs.libraryCategoryExcludeCount.textContent = String(excludeSet.size);
     refs.libraryCategoryExcludeCount.classList.toggle("hidden", excludeSet.size <= 0);
   }
-  for (const category of items) {
-    const id = String(category.category_id || "").trim();
-    const countValue = Math.max(0, Number(category.book_count || 0));
-    const includeChip = createCategoryChip(category, {
-      active: includeSet.has(id),
-      titleSuffix: ` • ${countValue}`,
-      onClick: () => {
-        const nextInclude = new Set(normalizeCategoryIds(state.categoryFilterDraftIds));
-        const nextExclude = new Set(normalizeCategoryIds(state.categoryFilterDraftExcludeIds));
-        if (nextInclude.has(id)) nextInclude.delete(id);
-        else {
-          nextInclude.add(id);
-          nextExclude.delete(id);
-        }
-        state.categoryFilterDraftIds = Array.from(nextInclude);
-        state.categoryFilterDraftExcludeIds = Array.from(nextExclude);
-        renderLibraryCategoryFilterList();
-      },
-    });
-    const includeCount = document.createElement("span");
-    includeCount.className = "category-chip-count";
-    includeCount.textContent = String(countValue);
-    includeChip.appendChild(includeCount);
-    refs.libraryCategoryFilterIncludeList.appendChild(includeChip);
-
-    const excludeChip = createCategoryChip(category, {
-      active: excludeSet.has(id),
-      titleSuffix: ` • ${Math.max(0, Number(category.book_count || 0))}`,
-      onClick: () => {
-        const nextInclude = new Set(normalizeCategoryIds(state.categoryFilterDraftIds));
-        const nextExclude = new Set(normalizeCategoryIds(state.categoryFilterDraftExcludeIds));
-        if (nextExclude.has(id)) nextExclude.delete(id);
-        else {
-          nextExclude.add(id);
-          nextInclude.delete(id);
-        }
-        state.categoryFilterDraftIds = Array.from(nextInclude);
-        state.categoryFilterDraftExcludeIds = Array.from(nextExclude);
-        renderLibraryCategoryFilterList();
-      },
-    });
-    const excludeCount = document.createElement("span");
-    excludeCount.className = "category-chip-count";
-    excludeCount.textContent = String(countValue);
-    excludeChip.appendChild(excludeCount);
-    refs.libraryCategoryFilterExcludeList.appendChild(excludeChip);
-  }
+  renderCategoryPickerSections(refs.libraryCategoryFilterIncludeList, {
+    term,
+    activeIds: state.categoryFilterDraftIds,
+    emptyNode: refs.libraryCategoryFilterEmpty,
+    emptyText: state.shell.t("categoryFilterEmpty"),
+    showCount: true,
+    onToggle: (id) => {
+      const nextExclude = new Set(normalizeCategoryIds(state.categoryFilterDraftExcludeIds));
+      nextExclude.delete(id);
+      state.categoryFilterDraftIds = toggleCategoryIdWithRules(state.categoryFilterDraftIds, id);
+      state.categoryFilterDraftExcludeIds = Array.from(nextExclude);
+      renderLibraryCategoryFilterList();
+    },
+  });
+  renderCategoryPickerSections(refs.libraryCategoryFilterExcludeList, {
+    term,
+    activeIds: state.categoryFilterDraftExcludeIds,
+    showCount: true,
+    onToggle: (id) => {
+      const nextInclude = new Set(normalizeCategoryIds(state.categoryFilterDraftIds));
+      nextInclude.delete(id);
+      state.categoryFilterDraftExcludeIds = toggleCategoryIdWithRules(state.categoryFilterDraftExcludeIds, id);
+      state.categoryFilterDraftIds = Array.from(nextInclude);
+      renderLibraryCategoryFilterList();
+    },
+  });
 }
 
 function openLibraryCategoryFilterDialog() {
@@ -2481,9 +2678,9 @@ function openLibraryCategoryFilterDialog() {
 
 function applyLibraryCategoryFilter() {
   const draftPair = buildDistinctCategoryFilters(state.categoryFilterDraftIds, state.categoryFilterDraftExcludeIds);
-  state.selectedCategoryIds = draftPair.include;
-  state.selectedExcludedCategoryIds = draftPair.exclude;
-  state.selectedCategoryMatchMode = draftPair.include.length >= 2
+  state.selectedCategoryIds = applySingleSelectionRules(draftPair.include);
+  state.selectedExcludedCategoryIds = applySingleSelectionRules(draftPair.exclude);
+  state.selectedCategoryMatchMode = state.selectedCategoryIds.length >= 2
     ? normalizeCategoryMatchMode(
     (refs.libraryCategoryMatchModeSelect && refs.libraryCategoryMatchModeSelect.value) || state.categoryFilterDraftMatchMode,
     )
@@ -2523,8 +2720,8 @@ function syncCategoryManagerControls() {
   if (refs.categoryManagerNameInput && selected && document.activeElement !== refs.categoryManagerNameInput) {
     refs.categoryManagerNameInput.value = String(selected.name || "");
   }
-  if (refs.btnCategoryRename) refs.btnCategoryRename.disabled = !selected;
-  if (refs.btnCategoryDelete) refs.btnCategoryDelete.disabled = !selected;
+  if (refs.btnCategoryRename) refs.btnCategoryRename.disabled = !selected || Boolean(selected && (selected.is_default_category || selected.is_default_removed));
+  if (refs.btnCategoryDelete) refs.btnCategoryDelete.disabled = !selected || !Boolean(selected && selected.is_user_category);
   const hasChecked = state.categoryManagerBookCheckedIds.size > 0;
   if (refs.btnCategoryManagerAddBooks) refs.btnCategoryManagerAddBooks.disabled = !selected || !hasChecked;
   if (refs.btnCategoryManagerRemoveBooks) refs.btnCategoryManagerRemoveBooks.disabled = !selected || !hasChecked;
@@ -2534,12 +2731,15 @@ function renderCategoryManagerList() {
   if (!refs.categoryManagerList || !refs.categoryManagerEmpty) return;
   refs.categoryManagerList.innerHTML = "";
   const term = String((refs.categoryManagerSearchInput && refs.categoryManagerSearchInput.value) || "").trim().toLowerCase();
-  const items = (state.categories || []).filter((item) => {
-    const name = String((item && item.name) || "").trim();
-    return !term || name.toLowerCase().includes(term);
-  });
+  const items = (state.categories || [])
+    .map((item) => normalizeCategoryItem(item))
+    .filter((item) => item.is_user_category)
+    .filter((item) => categoryMatchesSearch(item, term));
   refs.categoryManagerEmpty.classList.toggle("hidden", items.length > 0);
   refs.categoryManagerEmpty.textContent = state.shell.t("categoryManagerEmpty");
+  if (state.categoryManagerSelectedId && !items.some((item) => String(item.category_id || "") === String(state.categoryManagerSelectedId || ""))) {
+    state.categoryManagerSelectedId = items.length ? String(items[0].category_id || "") : "";
+  }
   for (const category of items) {
     const id = String(category.category_id || "").trim();
     const row = document.createElement("button");
@@ -2640,8 +2840,9 @@ function openCategoryManagerDialog() {
   if (refs.categoryManagerSearchInput) refs.categoryManagerSearchInput.value = "";
   if (refs.categoryManagerBooksSearchInput) refs.categoryManagerBooksSearchInput.value = "";
   state.categoryManagerBookCheckedIds = new Set();
-  if (!state.categoryManagerSelectedId && state.categories.length) {
-    state.categoryManagerSelectedId = String(state.categories[0].category_id || "");
+  if (!state.categoryManagerSelectedId) {
+    const firstUserCategory = (state.categories || []).find((item) => Boolean(item && item.is_user_category));
+    state.categoryManagerSelectedId = String((firstUserCategory && firstUserCategory.category_id) || "");
   }
   renderCategoryManagerList();
   renderCategoryManagerBooks();
@@ -2763,28 +2964,18 @@ async function applyCategoryManagerBooks(action) {
 
 function renderBookCategoriesDialogList() {
   if (!refs.bookCategoriesList || !refs.bookCategoriesEmpty) return;
-  refs.bookCategoriesList.innerHTML = "";
   const term = String((refs.bookCategoriesSearchInput && refs.bookCategoriesSearchInput.value) || "").trim().toLowerCase();
-  const items = (state.categories || []).filter((item) => {
-    const name = String((item && item.name) || "").trim();
-    return !term || name.toLowerCase().includes(term);
+  state.bookCategoriesDraftIds = applySingleSelectionRules(state.bookCategoriesDraftIds);
+  renderCategoryPickerSections(refs.bookCategoriesList, {
+    term,
+    activeIds: state.bookCategoriesDraftIds,
+    emptyNode: refs.bookCategoriesEmpty,
+    emptyText: state.shell.t("categoryQuickEmpty"),
+    onToggle: (id) => {
+      state.bookCategoriesDraftIds = toggleCategoryIdWithRules(state.bookCategoriesDraftIds, id);
+      renderBookCategoriesDialogList();
+    },
   });
-  refs.bookCategoriesEmpty.classList.toggle("hidden", items.length > 0);
-  refs.bookCategoriesEmpty.textContent = state.shell.t("categoryQuickEmpty");
-  for (const category of items) {
-    const id = String(category.category_id || "").trim();
-    const chip = createCategoryChip(category, {
-      active: normalizeCategoryIds(state.bookCategoriesDraftIds).includes(id),
-      onClick: () => {
-        const next = new Set(normalizeCategoryIds(state.bookCategoriesDraftIds));
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        state.bookCategoriesDraftIds = Array.from(next);
-        renderBookCategoriesDialogList();
-      },
-    });
-    refs.bookCategoriesList.appendChild(chip);
-  }
 }
 
 function openBookCategoriesDialog(bookId = state.selectedBookId) {
@@ -2792,7 +2983,7 @@ function openBookCategoriesDialog(bookId = state.selectedBookId) {
   const book = (state.books || []).find((item) => String(item.book_id || "") === bid);
   if (!book) return;
   state.bookCategoriesTargetBookId = bid;
-  state.bookCategoriesDraftIds = getBookCategoryIds(book);
+  state.bookCategoriesDraftIds = applySingleSelectionRules(getBookCategoryIds(book));
   if (refs.bookCategoriesSearchInput) refs.bookCategoriesSearchInput.value = "";
   if (refs.bookCategoriesSubtitle) {
     refs.bookCategoriesSubtitle.textContent = normalizeDisplayTitle(book.title_display || book.title || "");
@@ -2810,7 +3001,7 @@ async function saveBookCategoriesDialog() {
     const data = await state.shell.api(`/api/library/book/${encodeURIComponent(bid)}/categories`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category_ids: normalizeCategoryIds(state.bookCategoriesDraftIds) }),
+      body: JSON.stringify({ category_ids: applySingleSelectionRules(state.bookCategoriesDraftIds) }),
     });
     setBookCategoriesLocal(bid, Array.isArray(data && data.categories) ? data.categories : []);
     await loadCategories({ silent: true }).catch(() => null);
