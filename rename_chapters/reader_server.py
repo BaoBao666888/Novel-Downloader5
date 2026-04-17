@@ -81,17 +81,77 @@ except Exception:
     _LOCAL_VBOOK_RUNNER_INSTALL_URL = ""
 
 
-ROOT_DIR = Path(__file__).resolve().parent
-LOCAL_DIR = ROOT_DIR / "local"
+BUNDLE_ROOT = Path(__file__).resolve().parent
+
+
+def _candidate_runtime_roots_bootstrap() -> list[Path]:
+    candidates: list[Path] = []
+    seen: set[str] = set()
+
+    def add(path: Path | None) -> None:
+        if path is None:
+            return
+        try:
+            resolved = path.resolve(strict=False)
+        except Exception:
+            resolved = path
+        key = str(resolved)
+        if key in seen:
+            return
+        seen.add(key)
+        candidates.append(resolved)
+
+    try:
+        add(Path.cwd())
+    except Exception:
+        pass
+
+    add(BUNDLE_ROOT)
+
+    if getattr(sys, "frozen", False):
+        try:
+            exe_dir = Path(sys.executable).resolve().parent
+        except Exception:
+            exe_dir = None
+        add(exe_dir)
+        for parent in list((exe_dir or Path()).parents):
+            add(parent)
+
+    return candidates
+
+
+def _looks_like_runtime_root(path: Path) -> bool:
+    try:
+        return (
+            (path / "reader_ui").exists()
+            or (path / "config.json").exists()
+            or (path / "local" / "version.json").exists()
+            or (path / "reader_server.py").exists()
+        )
+    except Exception:
+        return False
+
+
+def _detect_runtime_root_bootstrap() -> Path:
+    candidates = _candidate_runtime_roots_bootstrap()
+    for candidate in candidates:
+        if _looks_like_runtime_root(candidate):
+            return candidate
+    return candidates[0] if candidates else BUNDLE_ROOT
+
+
+ROOT_DIR = BUNDLE_ROOT
+RUNTIME_ROOT = _detect_runtime_root_bootstrap()
+LOCAL_DIR = RUNTIME_ROOT / "local"
 CACHE_DIR = LOCAL_DIR / "reader_cache"
 EXPORT_DIR = LOCAL_DIR / "reader_exports"
 COVER_DIR = LOCAL_DIR / "reader_covers"
 VBOOK_IMAGE_CACHE_DIR = CACHE_DIR / "vbook_image_cache"
 IMPORT_PREVIEW_DIR = CACHE_DIR / "import_previews"
 DB_PATH = LOCAL_DIR / "reader_library.db"
-DEFAULT_UI_DIR = ROOT_DIR / "reader_ui"
-APP_CONFIG_PATH = ROOT_DIR / "config.json"
-APP_READER_CONFIG_PATH = ROOT_DIR / "local" / "reader.config.json"
+DEFAULT_UI_DIR = RUNTIME_ROOT / "reader_ui"
+APP_CONFIG_PATH = RUNTIME_ROOT / "config.json"
+APP_READER_CONFIG_PATH = RUNTIME_ROOT / "local" / "reader.config.json"
 APP_STATE_THEME_ACTIVE_KEY = "theme.active"
 APP_STATE_NAME_SET_STATE_KEY = "reader.name_set_state"
 APP_STATE_BOOK_VP_SET_KEY_PREFIX = "reader.book_vp_set"
@@ -126,9 +186,12 @@ def runtime_base_dir() -> Path:
     Khi chạy dev trực tiếp ở repo root, base cũng là repo root.
     """
     try:
-        return Path.cwd().resolve()
+        cwd = Path.cwd().resolve()
+        if _looks_like_runtime_root(cwd):
+            return cwd
     except Exception:
-        return ROOT_DIR
+        pass
+    return _detect_runtime_root_bootstrap()
 
 
 def resolve_path_from_base(raw: str | Path, base_dir: Path) -> Path:
@@ -8082,7 +8145,7 @@ class ReaderService:
             category_ids = list(job.get("category_ids") or [])
         if imported_book_ids and category_ids:
             try:
-                self.update_books_categories(
+                self.storage.update_books_categories(
                     book_ids=imported_book_ids,
                     category_ids=category_ids,
                     action="add",
