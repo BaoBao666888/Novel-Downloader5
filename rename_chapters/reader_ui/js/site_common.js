@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260414-comicedge1";
+import { t } from "../i18n.vi.js?v=20260417-batchimport1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -1177,6 +1177,10 @@ function fillStaticTexts() {
     ["btn-reset-settings", "resetSettings"],
     ["btn-import-customize", "importCustomize"],
     ["import-title", "importTitle"],
+    ["import-mode-label", "importMode"],
+    ["import-mode-single", "importModeSingle"],
+    ["import-mode-batch", "importModeBatch"],
+    ["import-batch-note", "importBatchNote"],
     ["import-file-label", "importFile"],
     ["import-lang-label", "importLang"],
     ["import-book-title-label", "importBookTitle"],
@@ -1228,6 +1232,11 @@ function fillStaticTexts() {
     ["btn-import-preview-close", "close"],
     ["btn-import-preview-cancel", "cancel"],
     ["btn-import-preview-commit", "confirmImport"],
+    ["import-batch-title", "importBatchTitle"],
+    ["import-batch-hint", "importBatchHint"],
+    ["btn-import-batch-close", "close"],
+    ["btn-import-batch-cancel", "cancel"],
+    ["btn-import-batch-commit", "importBatchCommit"],
     ["import-url-title", "importUrlTitle"],
     ["import-url-label", "importUrlLabel"],
     ["import-url-plugin-label", "importUrlPlugin"],

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TTS Reader
 // @namespace    TTSReader
-// @version      1.4.1_beta
+// @version      1.4.3_beta
 // @description  Đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, tự qua chương.
 // @author       QuocBao
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js
@@ -22,7 +22,7 @@
     const STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const SESSION_KEY = 'twd_tts_reader_session_v1';
     const WELCOME_KEY = `${STORAGE_KEY}_welcome_seen_v1`;
-    const SCRIPT_VERSION = '1.4.1_beta';
+    const SCRIPT_VERSION = '1.4.3_beta';
     const SCRIPT_UPDATE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js';
     const AUTO_START_WINDOW_MS = 10 * 60 * 1000;
     const TIKTOK_API_ENDPOINT = 'https://api16-normal-c-useast1a.tiktokv.com/media/api/text/speech/invoke/';
@@ -170,6 +170,7 @@
         mediaSessionBound: false,
         remoteAudioCache: new Map(),
         remoteAudioInflight: new Map(),
+        remoteRetryState: { key: '', attempts: 0 },
         prefetchJobId: 0,
         tiktokCookieParsedCache: { raw: '', parsed: null },
         bingTokenCache: null,
@@ -4090,6 +4091,20 @@
         const segment = state.segments[state.segmentIndex];
         const token = ++state.utteranceToken;
         state.statusMessage = '';
+        if (isRemoteProvider()) {
+            const activeProvider = getActiveRemoteProvider();
+            const retryKey = buildRemoteRetryKey(
+                getProviderId(),
+                activeProvider ? activeProvider.getVoiceId() : '',
+                state.segmentIndex,
+                segment
+            );
+            if (!state.remoteRetryState || state.remoteRetryState.key !== retryKey) {
+                state.remoteRetryState = { key: retryKey, attempts: 0 };
+            }
+        } else {
+            resetRemoteRetryState();
+        }
 
         // Đặt metadata sớm để Android hiện notification ngay từ đoạn đầu (không phải đợi vài đoạn).
         updateMediaSession(getActiveProviderLabel(), segment);
@@ -4248,6 +4263,9 @@
                     if (token !== state.utteranceToken || !state.reading || state.paused) {
                         return;
                     }
+                    if (scheduleRemoteSegmentRetry(providerId, segment, segmentIdxSnapshot, voiceId, `${provider.label} bị hụt lúc chuyển đoạn, đang thử lại...`)) {
+                        return;
+                    }
                     failCurrentSegment(`Không phát được audio ${provider.label}`);
                 };
 
@@ -4264,6 +4282,9 @@
                     updateStatus(`Đang đọc ${provider.label}...`);
                     scheduleRemotePrefetch(providerId, segmentIdxSnapshot + 1);
                 }).catch((err) => {
+                    if (scheduleRemoteSegmentRetry(providerId, segment, segmentIdxSnapshot, voiceId, `${provider.label} play lỗi, đang thử lại đoạn này...`)) {
+                        return;
+                    }
                     failCurrentSegment(`Play ${provider.label} thất bại: ${err && err.message ? err.message : 'unknown'}`);
                 });
             })
@@ -4272,12 +4293,16 @@
                 if (providerId === 'tiktok' && err && (err.code === 'NEED_COOKIE' || err.code === 'COOKIE_INVALID')) {
                     provider.onAuthRequired();
                 }
+                if (scheduleRemoteSegmentRetry(providerId, segment, segmentIdxSnapshot, voiceId, `${provider.label} chậm phản hồi, đang thử lại đoạn này...`)) {
+                    return;
+                }
                 failCurrentSegment(`${provider.label} TTS lỗi: ${msg}.`, true);
             });
     }
 
     function completeCurrentSegment(segment) {
         finalizeSegment(segment);
+        resetRemoteRetryState();
         state.segmentIndex += 1;
         if (state.segmentIndex >= state.segments.length) {
             finishChapter();
@@ -4288,11 +4313,13 @@
 
     function failCurrentSegment(message, stopNow) {
         if (stopNow) {
+            resetRemoteRetryState();
             stopReading(false);
             updateStatus(message);
             return;
         }
 
+        resetRemoteRetryState();
         state.segmentIndex += 1;
         if (state.segmentIndex >= state.segments.length) {
             finishChapter();
@@ -4644,6 +4671,65 @@
         const voice = String(voiceId || '');
         const cleanText = normalizeText(text);
         return `${provider}\n${voice}\n${cleanText}`;
+    }
+
+    function deleteRemoteAudioCacheEntry(providerId, voiceId, text) {
+        const key = createRemoteCacheKey(providerId, voiceId, text);
+        if (state.remoteAudioCache && typeof state.remoteAudioCache.delete === 'function') {
+            state.remoteAudioCache.delete(key);
+        }
+        if (state.remoteAudioInflight && typeof state.remoteAudioInflight.delete === 'function') {
+            state.remoteAudioInflight.delete(key);
+        }
+    }
+
+    function resetRemoteRetryState() {
+        state.remoteRetryState = { key: '', attempts: 0 };
+    }
+
+    function buildRemoteRetryKey(providerId, voiceId, segmentIndex, segment) {
+        return [
+            String(providerId || ''),
+            String(voiceId || ''),
+            String(segmentIndex),
+            normalizeText(segment && segment.text ? segment.text : '')
+        ].join('\n');
+    }
+
+    function scheduleRemoteSegmentRetry(providerId, segment, segmentIndex, voiceId, reason) {
+        if (String(providerId || '') !== 'bing' || !segment || !state.reading || state.paused) {
+            return false;
+        }
+
+        const retryKey = buildRemoteRetryKey(providerId, voiceId, segmentIndex, segment);
+        const current = state.remoteRetryState && state.remoteRetryState.key === retryKey
+            ? state.remoteRetryState
+            : { key: retryKey, attempts: 0 };
+        if (current.attempts >= 1) {
+            state.remoteRetryState = current;
+            return false;
+        }
+
+        state.remoteRetryState = {
+            key: retryKey,
+            attempts: current.attempts + 1
+        };
+
+        deleteRemoteAudioCacheEntry(providerId, voiceId, segment.text);
+        clearBingTokenCache();
+        stopSpeechOnly(true);
+        startSilentAudioKeepAlive();
+        updateStatus(reason || 'Bing đang thử lại đoạn vừa rồi...');
+        setTimeout(() => {
+            if (!state.reading || state.paused) {
+                return;
+            }
+            if (getProviderId() !== providerId || state.segmentIndex !== segmentIndex) {
+                return;
+            }
+            speakCurrentSegment();
+        }, 900);
+        return true;
     }
 
     function cacheRemoteAudio(key, base64Audio) {
@@ -5679,6 +5765,7 @@
         state.paused = false;
         state.progressCompleted = false;
         state.statusMessage = '';
+        resetRemoteRetryState();
         stopSpeechOnly();
         stopSilentAudioKeepAlive();
         clearActiveHighlight();
@@ -5691,6 +5778,7 @@
     function finishChapter() {
         state.progressCompleted = true;
         state.statusMessage = '';
+        resetRemoteRetryState();
         clearActiveHighlight();
         updateProgressText();
 

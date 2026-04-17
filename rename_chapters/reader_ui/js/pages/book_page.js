@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260413-tocpage1";
+import { initShell } from "../site_common.js?v=20260417-batchimport1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -529,6 +529,38 @@ function renderBookCategoriesRow() {
   }
 }
 
+function goLibraryWithAuthorFilter(authorText) {
+  const author = normalizeParagraphDisplayText(authorText || "", { singleLine: true });
+  if (!author) return;
+  const params = new URLSearchParams();
+  params.set("author", author);
+  window.location.href = `/library?${params.toString()}`;
+}
+
+function createAuthorFilterLink(authorText) {
+  const author = normalizeParagraphDisplayText(authorText || "", { singleLine: true });
+  if (!author) return null;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "text-action-link";
+  button.textContent = author;
+  button.addEventListener("click", () => {
+    goLibraryWithAuthorFilter(author);
+  });
+  return button;
+}
+
+function renderAuthorField(container, authorText) {
+  if (!container) return;
+  container.innerHTML = "";
+  const link = createAuthorFilterLink(authorText);
+  if (link) {
+    container.appendChild(link);
+    return;
+  }
+  container.textContent = normalizeParagraphDisplayText(authorText || "", { singleLine: true });
+}
+
 function renderBookOnlineDetail(detail) {
   if (!(refs.viewSourceDetailItem && refs.viewSourceFieldsItem && refs.viewSourceDetail && refs.viewSourceFields)) return;
   const payload = (detail && typeof detail === "object") ? detail : {};
@@ -789,16 +821,20 @@ function populateBook() {
   refs.bookEmpty.classList.add("hidden");
 
   refs.bookTitleDisplay.textContent = normalizeDisplayTitle(book.title_display || book.title || "Không tiêu đề");
-  refs.bookSubtitle.textContent = `${book.author_display || book.author || "Khuyết danh"} • ${book.chapter_count || 0} chương • ${book.lang_source || "zh"}`;
+  refs.bookSubtitle.innerHTML = "";
+  const subtitleAuthor = createAuthorFilterLink(book.author_display || book.author || "");
+  if (subtitleAuthor) refs.bookSubtitle.appendChild(subtitleAuthor);
+  else refs.bookSubtitle.appendChild(document.createTextNode(book.author_display || book.author || "Khuyết danh"));
+  refs.bookSubtitle.appendChild(document.createTextNode(` • ${book.chapter_count || 0} chương • ${book.lang_source || "zh"}`));
 
   refs.viewTitle.textContent = normalizeParagraphDisplayText(book.title || "", { singleLine: true });
   refs.viewTitleVi.textContent = normalizeDisplayTitle(
     supportsTranslation(book) ? (book.title_display || book.title_vi || "") : (book.title_vi || ""),
   );
-  refs.viewAuthor.textContent = normalizeParagraphDisplayText(book.author || "", { singleLine: true });
-  refs.viewAuthorVi.textContent = normalizeParagraphDisplayText(
+  renderAuthorField(refs.viewAuthor, book.author || "");
+  renderAuthorField(
+    refs.viewAuthorVi,
     supportsTranslation(book) ? (book.author_display || book.author_vi || "") : (book.author_vi || ""),
-    { singleLine: true },
   );
   refs.viewSummary.textContent = normalizeParagraphDisplayText(book.summary_display || book.summary || "");
   refs.viewExtraLink.innerHTML = "";

@@ -3241,6 +3241,96 @@ def parse_epub_chapters(data: bytes, custom_title: str | None = None) -> tuple[s
     )
 
 
+TXT_FILE_PREFIX_RE = re.compile(r"^\s*\[[^\]]*]\s*")
+TXT_FILE_LEADING_TAG_RE = re.compile(r"^(?:【[^】]{1,20}】\s*)+")
+TXT_FILE_AUTHOR_RE = re.compile(r"(?:作者|作家)\s*[:：]\s*(?P<author>.+?)\s*$", re.IGNORECASE)
+TXT_FILE_BY_RE = re.compile(r"(?P<title>.+?)\s*by\s*(?P<author>.+?)\s*$", re.IGNORECASE)
+TXT_CONTENT_AUTHOR_RE = re.compile(r"^\s*(?:作者|作家)\s*[:：]\s*(?P<author>.+?)\s*$", re.IGNORECASE)
+TXT_CONTENT_TITLE_RE = re.compile(
+    r"^\s*(?:书名|書名|小说名|小說名|作品名|文名|标题|標題|title)\s*[:：]\s*(?P<title>.+?)\s*$",
+    re.IGNORECASE,
+)
+TXT_CONTENT_LINK_RE = re.compile(r"^\s*(?:link|url|网址|網址|website|web)\s*[:：]\s*\S+", re.IGNORECASE)
+
+
+def cleanup_txt_metadata_text(value: str) -> str:
+    text = unicodedata.normalize("NFKC", str(value or ""))
+    text = re.sub(r"\s+", " ", text).strip()
+    return text.strip(" \t\r\n-_")
+
+
+def remove_txt_filename_prefix(text: str) -> str:
+    current = cleanup_txt_metadata_text(text)
+    while True:
+        updated = TXT_FILE_PREFIX_RE.sub("", current, count=1).strip()
+        if updated == current:
+            return current
+        current = cleanup_txt_metadata_text(updated)
+
+
+def split_txt_filename_author(text: str) -> tuple[str, str]:
+    author_match = TXT_FILE_AUTHOR_RE.search(text)
+    if author_match:
+        author = cleanup_txt_metadata_text(author_match.group("author"))
+        head = cleanup_txt_metadata_text(text[:author_match.start()])
+        return head, author
+    by_match = TXT_FILE_BY_RE.search(text)
+    if by_match:
+        title = cleanup_txt_metadata_text(by_match.group("title"))
+        author = cleanup_txt_metadata_text(by_match.group("author"))
+        return title, author
+    return cleanup_txt_metadata_text(text), ""
+
+
+def parse_txt_filename_metadata(filename: str) -> tuple[str, str]:
+    stem = Path(str(filename or "imported")).stem
+    text = cleanup_txt_metadata_text(remove_txt_filename_prefix(stem))
+    working_title, author = split_txt_filename_author(text)
+    quoted_match = re.search(r"《(?P<title>[^》]+)》", working_title)
+    if quoted_match:
+        return cleanup_txt_metadata_text(quoted_match.group("title")), author
+    plain_title = cleanup_txt_metadata_text(TXT_FILE_LEADING_TAG_RE.sub("", working_title))
+    if plain_title:
+        return plain_title, author
+    fallback = cleanup_txt_metadata_text(text) or cleanup_txt_metadata_text(stem)
+    return fallback, author
+
+
+def parse_txt_content_metadata(text: str, *, max_visible_lines: int = 8) -> tuple[str, str]:
+    lines = str(text or "").splitlines()
+    visible_lines: list[str] = []
+    for raw_line in lines:
+        line_text = str(raw_line or "").strip()
+        if not line_text:
+            continue
+        visible_lines.append(line_text)
+        if len(visible_lines) >= max(4, int(max_visible_lines or 8)):
+            break
+    if len(visible_lines) < 2:
+        return "", ""
+
+    for idx, line_text in enumerate(visible_lines):
+        author_match = TXT_CONTENT_AUTHOR_RE.match(line_text)
+        if not author_match:
+            continue
+        author = normalize_vbook_display_text(author_match.group("author"), single_line=True)
+        title = ""
+        for back_idx in range(idx - 1, -1, -1):
+            candidate = visible_lines[back_idx]
+            if not candidate or TXT_CONTENT_LINK_RE.match(candidate):
+                continue
+            title_match = TXT_CONTENT_TITLE_RE.match(candidate)
+            if title_match:
+                title = normalize_vbook_display_text(title_match.group("title"), single_line=True)
+            else:
+                title = normalize_vbook_display_text(candidate, single_line=True)
+            if title:
+                break
+        if author:
+            return title, author
+    return "", ""
+
+
 def parse_txt_book(
     filename: str,
     file_bytes: bytes,
@@ -3253,9 +3343,19 @@ def parse_txt_book(
 ) -> dict[str, Any]:
     settings = normalize_reader_import_settings({"txt": parser_settings or {}})
     text = text_paragraphs_support.strip_paragraph_indentation(decode_text_with_fallback(file_bytes))
-    title = (custom_title or "").strip() or re.sub(r"\.[^.]+$", "", filename or "") or "Untitled"
-    author = (custom_author or "").strip()
-    summary = (custom_summary or "").strip() or "Sách TXT được nhập và tách chương tự động."
+    filename_title, filename_author = parse_txt_filename_metadata(filename)
+    detected_title, detected_author = parse_txt_content_metadata(text)
+    title = (custom_title or "").strip()
+    if not title:
+        if filename_title and filename_author:
+            title = filename_title
+        elif detected_title:
+            title = detected_title
+        elif filename_title:
+            title = filename_title
+        else:
+            title = re.sub(r"\.[^.]+$", "", filename or "") or "Untitled"
+    author = (custom_author or "").strip() or detected_author or filename_author
     split_result = analyze_text_split(
         text,
         target_size=int(settings["txt"]["target_size"]),
@@ -3269,6 +3369,10 @@ def parse_txt_book(
         chapter["text"] = text_paragraphs_support.normalize_soft_wrapped_paragraphs(str(chapter.get("text") or ""))
     if not chapters:
         raise ValueError("Không tách được chương từ file TXT.")
+    summary = (custom_summary or "").strip() or normalize_vbook_display_text(
+        str((chapters[0] or {}).get("text") or ""),
+        single_line=False,
+    ) or "Sách TXT được nhập và tách chương tự động."
     diagnostics = dict(split_result.get("diagnostics") or {})
     return {
         "source_type": "txt",

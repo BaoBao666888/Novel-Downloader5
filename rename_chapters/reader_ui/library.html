@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260413-translateui1">
+  <link rel="stylesheet" href="./styles.css?v=20260417-batchimport2">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -194,10 +194,34 @@
     </div>
     <p id="library-category-filter-hint" class="dialog-subtitle"></p>
     <label class="category-search-field">
+      <span id="library-author-filter-label"></span>
+      <input id="library-author-filter-input" type="search" autocomplete="off">
+    </label>
+    <label class="category-search-field">
+      <span id="library-category-match-mode-label"></span>
+      <select id="library-category-match-mode-select">
+        <option id="library-category-match-mode-or" value="or"></option>
+        <option id="library-category-match-mode-and" value="and"></option>
+      </select>
+    </label>
+    <label class="category-search-field">
       <span id="library-category-filter-search-label"></span>
       <input id="library-category-filter-search" type="search" autocomplete="off">
     </label>
-    <div id="library-category-filter-list" class="category-chip-picker"></div>
+    <section class="category-filter-section">
+      <div class="category-filter-section-head">
+        <strong id="library-category-include-title"></strong>
+        <span id="library-category-include-count" class="tag hidden"></span>
+      </div>
+      <div id="library-category-filter-include-list" class="category-chip-picker"></div>
+    </section>
+    <section class="category-filter-section">
+      <div class="category-filter-section-head">
+        <strong id="library-category-exclude-title"></strong>
+        <span id="library-category-exclude-count" class="tag hidden"></span>
+      </div>
+      <div id="library-category-filter-exclude-list" class="category-chip-picker"></div>
+    </section>
     <p id="library-category-filter-empty" class="empty-text hidden"></p>
     <div class="dialog-actions">
       <button id="btn-library-category-filter-clear" class="btn" type="button"></button>
@@ -585,6 +609,14 @@
     <form id="import-form" method="dialog">
       <h3 id="import-title"></h3>
       <label>
+        <span id="import-mode-label"></span>
+        <select id="import-mode-select" name="import_mode">
+          <option id="import-mode-single" value="single"></option>
+          <option id="import-mode-batch" value="batch"></option>
+        </select>
+      </label>
+      <p id="import-batch-note" class="dialog-subtitle hidden"></p>
+      <label>
         <span id="import-file-label"></span>
         <input id="import-file" name="file" type="file" accept=".txt,.epub" required>
       </label>
@@ -603,6 +635,22 @@
         <span id="import-author-label"></span>
         <input id="import-author" name="author" type="text" placeholder="Không bắt buộc">
       </label>
+      <section class="import-category-section">
+        <div class="import-category-head">
+          <strong id="import-categories-label"></strong>
+          <div class="import-category-head-actions">
+            <span id="import-categories-count" class="tag hidden"></span>
+            <button id="btn-import-categories-clear" class="btn btn-small" type="button"></button>
+          </div>
+        </div>
+        <p id="import-categories-hint" class="dialog-subtitle"></p>
+        <label class="category-search-field">
+          <span id="import-categories-search-label"></span>
+          <input id="import-categories-search" type="search" autocomplete="off">
+        </label>
+        <div id="import-categories-list" class="category-chip-picker import-category-picker"></div>
+        <p id="import-categories-empty" class="empty-text hidden"></p>
+      </section>
       <div class="dialog-actions">
         <button id="btn-import-cancel" class="btn" type="button"></button>
         <button id="btn-import-submit" class="btn btn-primary" type="submit"></button>
@@ -721,6 +769,21 @@
     <div class="dialog-actions">
       <button id="btn-import-preview-cancel" class="btn" type="button"></button>
       <button id="btn-import-preview-commit" class="btn btn-primary" type="button"></button>
+    </div>
+  </dialog>
+
+  <dialog id="import-batch-dialog" class="dialog import-batch-dialog">
+    <div class="dialog-head">
+      <h3 id="import-batch-title"></h3>
+      <button id="btn-import-batch-close" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="import-batch-hint" class="dialog-subtitle"></p>
+    <p id="import-batch-summary" class="dialog-subtitle"></p>
+    <div id="import-batch-grid" class="library-grid import-batch-grid"></div>
+    <p id="import-batch-empty" class="empty-text hidden"></p>
+    <div class="dialog-actions">
+      <button id="btn-import-batch-cancel" class="btn" type="button"></button>
+      <button id="btn-import-batch-commit" class="btn btn-primary" type="button"></button>
     </div>
   </dialog>
 
@@ -919,7 +982,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260414-exportminutesfix1"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260417-batchimport2"></script>
 </body>
 
 </html>

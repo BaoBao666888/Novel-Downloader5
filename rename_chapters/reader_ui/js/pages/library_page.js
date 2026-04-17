@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260413-exportprotect1";
+import { initShell } from "../site_common.js?v=20260417-batchimport2";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -68,9 +68,18 @@ const refs = {
   libraryCategoryFilterTitle: document.getElementById("library-category-filter-title"),
   btnCloseLibraryCategoryFilter: document.getElementById("btn-close-library-category-filter"),
   libraryCategoryFilterHint: document.getElementById("library-category-filter-hint"),
+  libraryAuthorFilterLabel: document.getElementById("library-author-filter-label"),
+  libraryAuthorFilterInput: document.getElementById("library-author-filter-input"),
+  libraryCategoryMatchModeLabel: document.getElementById("library-category-match-mode-label"),
+  libraryCategoryMatchModeSelect: document.getElementById("library-category-match-mode-select"),
   libraryCategoryFilterSearchLabel: document.getElementById("library-category-filter-search-label"),
   libraryCategoryFilterSearch: document.getElementById("library-category-filter-search"),
-  libraryCategoryFilterList: document.getElementById("library-category-filter-list"),
+  libraryCategoryIncludeTitle: document.getElementById("library-category-include-title"),
+  libraryCategoryIncludeCount: document.getElementById("library-category-include-count"),
+  libraryCategoryFilterIncludeList: document.getElementById("library-category-filter-include-list"),
+  libraryCategoryExcludeTitle: document.getElementById("library-category-exclude-title"),
+  libraryCategoryExcludeCount: document.getElementById("library-category-exclude-count"),
+  libraryCategoryFilterExcludeList: document.getElementById("library-category-filter-exclude-list"),
   libraryCategoryFilterEmpty: document.getElementById("library-category-filter-empty"),
   btnLibraryCategoryFilterClear: document.getElementById("btn-library-category-filter-clear"),
   btnLibraryCategoryFilterApply: document.getElementById("btn-library-category-filter-apply"),
@@ -149,6 +158,22 @@ const refs = {
   globalDictsBody: document.getElementById("global-dicts-body"),
 
   btnImportCustomize: document.getElementById("btn-import-customize"),
+  importDialog: document.getElementById("import-dialog"),
+  importForm: document.getElementById("import-form"),
+  importFileInput: document.getElementById("import-file"),
+  importModeSelect: document.getElementById("import-mode-select"),
+  importBatchNote: document.getElementById("import-batch-note"),
+  importLangInput: document.getElementById("import-lang"),
+  importBookTitleInput: document.getElementById("import-book-title"),
+  importAuthorInput: document.getElementById("import-author"),
+  importCategoriesLabel: document.getElementById("import-categories-label"),
+  importCategoriesCount: document.getElementById("import-categories-count"),
+  btnImportCategoriesClear: document.getElementById("btn-import-categories-clear"),
+  importCategoriesHint: document.getElementById("import-categories-hint"),
+  importCategoriesSearchLabel: document.getElementById("import-categories-search-label"),
+  importCategoriesSearchInput: document.getElementById("import-categories-search"),
+  importCategoriesList: document.getElementById("import-categories-list"),
+  importCategoriesEmpty: document.getElementById("import-categories-empty"),
   importCustomizeDialog: document.getElementById("import-customize-dialog"),
   btnImportCustomizeClose: document.getElementById("btn-import-customize-close"),
   importCustomizeForm: document.getElementById("import-customize-form"),
@@ -180,6 +205,15 @@ const refs = {
   importPreviewDiagnostics: document.getElementById("import-preview-diagnostics"),
   importPreviewMetadataCandidates: document.getElementById("import-preview-metadata-candidates"),
   importPreviewChapters: document.getElementById("import-preview-chapters"),
+  importBatchDialog: document.getElementById("import-batch-dialog"),
+  importBatchTitle: document.getElementById("import-batch-title"),
+  btnImportBatchClose: document.getElementById("btn-import-batch-close"),
+  importBatchHint: document.getElementById("import-batch-hint"),
+  importBatchSummary: document.getElementById("import-batch-summary"),
+  importBatchGrid: document.getElementById("import-batch-grid"),
+  importBatchEmpty: document.getElementById("import-batch-empty"),
+  btnImportBatchCancel: document.getElementById("btn-import-batch-cancel"),
+  btnImportBatchCommit: document.getElementById("btn-import-batch-commit"),
 };
 
 const state = {
@@ -195,7 +229,13 @@ const state = {
   shell: null,
   categories: [],
   selectedCategoryIds: [],
+  selectedExcludedCategoryIds: [],
+  selectedCategoryMatchMode: "or",
+  selectedAuthorFilter: "",
   categoryFilterDraftIds: [],
+  categoryFilterDraftExcludeIds: [],
+  categoryFilterDraftMatchMode: "or",
+  authorFilterDraft: "",
   categoryManagerSelectedId: "",
   categoryManagerBookCheckedIds: new Set(),
   bookCategoriesDraftIds: [],
@@ -220,6 +260,13 @@ const state = {
   importPresets: null,
   importPreviewToken: "",
   importPreviewData: null,
+  importPreviewContext: "single",
+  importPreviewBatchItemId: "",
+  importSelectedCategoryIds: [],
+  batchImportItems: [],
+  batchImportPrepareRunId: 0,
+  batchImportCommitBusy: false,
+  batchImportRenderTimer: 0,
   exportBookDetail: null,
   exportFormats: [],
   libraryRenderToken: 0,
@@ -231,6 +278,8 @@ const state = {
 const LIBRARY_LOADING_SKELETON_COUNT = 12;
 const LIBRARY_INITIAL_HYDRATE_COUNT = 12;
 const LIBRARY_HYDRATE_BATCH_SIZE = 8;
+const BATCH_IMPORT_PREPARE_CONCURRENCY = 6;
+const BATCH_IMPORT_COMMIT_CONCURRENCY = 3;
 
 function localTranslationSettingsSignature(shell) {
   try {
@@ -265,6 +314,21 @@ function normalizeCategoryIds(values) {
   ));
 }
 
+function normalizeAuthorFilterValue(value) {
+  return String(value || "").trim();
+}
+
+function normalizeCategoryMatchMode(value) {
+  return String(value || "").trim().toLowerCase() === "and" ? "and" : "or";
+}
+
+function buildDistinctCategoryFilters(includeValues, excludeValues) {
+  const include = normalizeCategoryIds(includeValues);
+  const includeSet = new Set(include);
+  const exclude = normalizeCategoryIds(excludeValues).filter((item) => !includeSet.has(item));
+  return { include, exclude };
+}
+
 function getBookCategories(book) {
   return Array.isArray(book && book.categories) ? book.categories : [];
 }
@@ -273,36 +337,95 @@ function getBookCategoryIds(book) {
   return normalizeCategoryIds(getBookCategories(book).map((item) => item && item.category_id));
 }
 
-function parseLibraryCategoryIdsFromQuery() {
+function parseCategoryIdsQueryParam(key) {
   const query = state.shell && typeof state.shell.parseQuery === "function"
     ? state.shell.parseQuery()
     : {};
-  const raw = String((query && query.category_ids) || "").trim();
+  const raw = String((query && query[key]) || "").trim();
   if (!raw) return [];
   return normalizeCategoryIds(raw.split(","));
+}
+
+function parseLibraryCategoryIdsFromQuery() {
+  return parseCategoryIdsQueryParam("category_ids");
+}
+
+function parseLibraryExcludedCategoryIdsFromQuery() {
+  return parseCategoryIdsQueryParam("category_exclude_ids");
+}
+
+function parseLibraryCategoryMatchModeFromQuery() {
+  const query = state.shell && typeof state.shell.parseQuery === "function"
+    ? state.shell.parseQuery()
+    : {};
+  return normalizeCategoryMatchMode((query && query.category_mode) || "or");
+}
+
+function parseLibraryAuthorFromQuery() {
+  const query = state.shell && typeof state.shell.parseQuery === "function"
+    ? state.shell.parseQuery()
+    : {};
+  return normalizeAuthorFilterValue((query && query.author) || "");
 }
 
 function syncLibraryCategoryQuery() {
   const params = new URLSearchParams(window.location.search || "");
   const ids = normalizeCategoryIds(state.selectedCategoryIds);
+  const excludeIds = normalizeCategoryIds(state.selectedExcludedCategoryIds);
+  const matchMode = normalizeCategoryMatchMode(state.selectedCategoryMatchMode);
+  const author = normalizeAuthorFilterValue(state.selectedAuthorFilter);
   if (ids.length) params.set("category_ids", ids.join(","));
   else params.delete("category_ids");
+  if (excludeIds.length) params.set("category_exclude_ids", excludeIds.join(","));
+  else params.delete("category_exclude_ids");
+  if (ids.length > 1 && matchMode === "and") params.set("category_mode", "and");
+  else params.delete("category_mode");
+  if (author) params.set("author", author);
+  else params.delete("author");
   const next = params.toString();
   const target = `${window.location.pathname}${next ? `?${next}` : ""}`;
   window.history.replaceState({}, "", target);
 }
 
+function hasActiveLibraryFilter() {
+  return normalizeCategoryIds(state.selectedCategoryIds).length > 0
+    || normalizeCategoryIds(state.selectedExcludedCategoryIds).length > 0
+    || !!normalizeAuthorFilterValue(state.selectedAuthorFilter);
+}
+
+function bookMatchesAuthorFilter(book, rawNeedle) {
+  const needle = normalizeAuthorFilterValue(rawNeedle).toLowerCase();
+  if (!needle) return true;
+  const values = [
+    book && book.author,
+    book && book.author_vi,
+    book && book.author_display,
+  ];
+  return values.some((value) => String(value || "").trim().toLowerCase().includes(needle));
+}
+
 function getFilteredBooks() {
   const selected = normalizeCategoryIds(state.selectedCategoryIds);
-  if (!selected.length) return Array.isArray(state.books) ? state.books : [];
+  const excluded = normalizeCategoryIds(state.selectedExcludedCategoryIds);
+  const matchMode = normalizeCategoryMatchMode(state.selectedCategoryMatchMode);
+  const author = normalizeAuthorFilterValue(state.selectedAuthorFilter);
+  if (!selected.length && !excluded.length && !author) return Array.isArray(state.books) ? state.books : [];
   return (Array.isArray(state.books) ? state.books : []).filter((book) => {
     const bookIds = new Set(getBookCategoryIds(book));
-    return selected.some((item) => bookIds.has(item));
+    const matchesInclude = !selected.length || (
+      matchMode === "and"
+        ? selected.every((item) => bookIds.has(item))
+        : selected.some((item) => bookIds.has(item))
+    );
+    const matchesExclude = !excluded.length || !excluded.some((item) => bookIds.has(item));
+    return matchesInclude && matchesExclude && bookMatchesAuthorFilter(book, author);
   });
 }
 
 function updateLibraryFilterBadge() {
-  const count = normalizeCategoryIds(state.selectedCategoryIds).length;
+  const count = normalizeCategoryIds(state.selectedCategoryIds).length
+    + normalizeCategoryIds(state.selectedExcludedCategoryIds).length
+    + (normalizeAuthorFilterValue(state.selectedAuthorFilter) ? 1 : 0);
   if (refs.libraryFilterCount) {
     refs.libraryFilterCount.textContent = String(count);
     refs.libraryFilterCount.classList.toggle("hidden", count <= 0);
@@ -333,12 +456,23 @@ function createCategoryChip(category, { active = false, onClick = null, titleSuf
 
 function syncSelectedCategoryIdsWithCatalog() {
   const known = new Set((state.categories || []).map((item) => String(item.category_id || "").trim()).filter(Boolean));
-  const next = normalizeCategoryIds(state.selectedCategoryIds).filter((item) => known.has(item));
-  const changed = next.length !== normalizeCategoryIds(state.selectedCategoryIds).length
-    || next.some((item, idx) => item !== normalizeCategoryIds(state.selectedCategoryIds)[idx]);
-  state.selectedCategoryIds = next;
-  if (changed) syncLibraryCategoryQuery();
+  const selectedPair = buildDistinctCategoryFilters(
+    normalizeCategoryIds(state.selectedCategoryIds).filter((item) => known.has(item)),
+    normalizeCategoryIds(state.selectedExcludedCategoryIds).filter((item) => known.has(item)),
+  );
+  const selectedChanged = selectedPair.include.length !== normalizeCategoryIds(state.selectedCategoryIds).length
+    || selectedPair.exclude.length !== normalizeCategoryIds(state.selectedExcludedCategoryIds).length
+    || selectedPair.include.some((item, idx) => item !== normalizeCategoryIds(state.selectedCategoryIds)[idx])
+    || selectedPair.exclude.some((item, idx) => item !== normalizeCategoryIds(state.selectedExcludedCategoryIds)[idx]);
+  state.selectedCategoryIds = selectedPair.include;
+  state.selectedExcludedCategoryIds = selectedPair.exclude;
+  state.categoryFilterDraftIds = normalizeCategoryIds(state.categoryFilterDraftIds).filter((item) => known.has(item));
+  state.categoryFilterDraftExcludeIds = normalizeCategoryIds(state.categoryFilterDraftExcludeIds).filter((item) => known.has(item));
+  state.importSelectedCategoryIds = normalizeCategoryIds(state.importSelectedCategoryIds).filter((item) => known.has(item));
+  state.bookCategoriesDraftIds = normalizeCategoryIds(state.bookCategoriesDraftIds).filter((item) => known.has(item));
+  if (selectedChanged) syncLibraryCategoryQuery();
   updateLibraryFilterBadge();
+  renderImportCategoryList();
 }
 
 function buildCategoryCatalogMap() {
@@ -393,6 +527,8 @@ function setCategoriesCatalog(items) {
   state.categories = Array.isArray(items) ? items : [];
   syncSelectedCategoryIdsWithCatalog();
   reconcileBookCategoriesWithCatalog();
+  renderLibraryCategoryFilterList();
+  renderBookCategoriesDialogList();
 }
 
 function applyBooksCategoryActionLocal(bookIds, categoryIds, action) {
@@ -739,6 +875,109 @@ function openImportCustomizeDialog() {
   if (!refs.importCustomizeDialog.open) refs.importCustomizeDialog.showModal();
 }
 
+function buildImportCategorySummaryText() {
+  const catalog = buildCategoryCatalogMap();
+  const names = normalizeCategoryIds(state.importSelectedCategoryIds)
+    .map((item) => catalog.get(item))
+    .filter(Boolean)
+    .map((item) => String(item.name || "").trim())
+    .filter(Boolean);
+  if (!names.length) return "";
+  return names.join(", ");
+}
+
+function renderImportCategoryList() {
+  if (!refs.importCategoriesList || !refs.importCategoriesEmpty) return;
+  refs.importCategoriesList.innerHTML = "";
+  const selectedIds = normalizeCategoryIds(state.importSelectedCategoryIds);
+  state.importSelectedCategoryIds = selectedIds;
+  const selectedSet = new Set(selectedIds);
+  const term = String((refs.importCategoriesSearchInput && refs.importCategoriesSearchInput.value) || "").trim().toLowerCase();
+  const items = (state.categories || []).filter((item) => {
+    const name = String((item && item.name) || "").trim();
+    return !term || name.toLowerCase().includes(term);
+  });
+  refs.importCategoriesEmpty.classList.toggle("hidden", items.length > 0);
+  refs.importCategoriesEmpty.textContent = state.shell.t("importCategoriesEmpty");
+  if (refs.importCategoriesCount) {
+    refs.importCategoriesCount.textContent = String(selectedSet.size);
+    refs.importCategoriesCount.classList.toggle("hidden", selectedSet.size <= 0);
+    const summary = buildImportCategorySummaryText();
+    refs.importCategoriesCount.title = summary || "";
+  }
+  for (const category of items) {
+    const id = String((category && category.category_id) || "").trim();
+    const chip = createCategoryChip(category, {
+      active: selectedSet.has(id),
+      titleSuffix: ` • ${Math.max(0, Number(category && category.book_count || 0))}`,
+      onClick: () => {
+        const next = new Set(normalizeCategoryIds(state.importSelectedCategoryIds));
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        state.importSelectedCategoryIds = Array.from(next);
+        renderImportCategoryList();
+      },
+    });
+    const count = document.createElement("span");
+    count.className = "category-chip-count";
+    count.textContent = String(Math.max(0, Number(category && category.book_count || 0)));
+    chip.appendChild(count);
+    refs.importCategoriesList.appendChild(chip);
+  }
+}
+
+function scheduleBatchImportDialogRender() {
+  if (state.batchImportRenderTimer) return;
+  state.batchImportRenderTimer = window.setTimeout(() => {
+    state.batchImportRenderTimer = 0;
+    renderBatchImportDialog();
+  }, 80);
+}
+
+async function runItemsWithConcurrency(items, limit, worker) {
+  const queue = Array.isArray(items) ? items : [];
+  const total = queue.length;
+  if (!total) return;
+  const workerCount = Math.max(1, Math.min(Math.floor(Number(limit) || 1), total));
+  let nextIndex = 0;
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < total) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      await worker(queue[currentIndex], currentIndex);
+    }
+  }));
+}
+
+async function applyImportCategoriesToBooks(bookIds, { silent = false } = {}) {
+  const targetBookIds = normalizeBookIds(bookIds);
+  const categoryIds = normalizeCategoryIds(state.importSelectedCategoryIds);
+  if (!targetBookIds.length || !categoryIds.length) return true;
+  try {
+    await state.shell.api("/api/library/categories/assign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        book_ids: targetBookIds,
+        category_ids: categoryIds,
+        action: "add",
+      }),
+    });
+    applyBooksCategoryActionLocal(targetBookIds, categoryIds, "add");
+    await loadCategories({ silent: true }).catch(() => null);
+    renderBooks();
+    renderCategoryManagerList();
+    renderCategoryManagerBooks();
+    syncSelectedBookActions();
+    return true;
+  } catch (error) {
+    if (!silent) {
+      state.shell.showToast(`${state.shell.t("importCategoriesAssignFailed")} ${getErrorMessage(error)}`);
+    }
+    return false;
+  }
+}
+
 function renderImportMetadataCandidates(items) {
   if (!refs.importPreviewMetadataCandidates) return;
   refs.importPreviewMetadataCandidates.innerHTML = "";
@@ -756,19 +995,102 @@ function renderImportMetadataCandidates(items) {
   }
 }
 
-function renderImportPreview(preview) {
+function currentImportMode() {
+  return String((refs.importModeSelect && refs.importModeSelect.value) || "single").trim().toLowerCase() === "batch"
+    ? "batch"
+    : "single";
+}
+
+function syncImportModeUi() {
+  const batch = currentImportMode() === "batch";
+  if (refs.importBatchNote) refs.importBatchNote.hidden = !batch;
+  if (refs.importFileInput) {
+    refs.importFileInput.multiple = batch;
+    refs.importFileInput.setAttribute("accept", ".txt,.epub");
+  }
+  if (refs.importBookTitleInput) refs.importBookTitleInput.disabled = batch;
+  const fileLabel = document.getElementById("import-file-label");
+  if (fileLabel && state.shell) {
+    fileLabel.textContent = state.shell.t(batch ? "importFileBatch" : "importFile");
+  }
+}
+
+function resetImportFormUi() {
+  const mode = currentImportMode();
+  const lang = String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh";
+  if (refs.importForm) refs.importForm.reset();
+  if (refs.importModeSelect) refs.importModeSelect.value = mode;
+  if (refs.importLangInput) refs.importLangInput.value = lang;
+  if (refs.importCategoriesSearchInput) refs.importCategoriesSearchInput.value = "";
+  syncImportModeUi();
+  renderImportCategoryList();
+}
+
+function getBatchImportItem(itemId) {
+  const targetId = String(itemId || "").trim();
+  return (state.batchImportItems || []).find((item) => String(item && item.id || "").trim() === targetId) || null;
+}
+
+function getBatchImportItemPayload(item) {
+  const preview = item && item.preview && typeof item.preview === "object" ? item.preview : {};
+  const metadata = preview && preview.metadata && typeof preview.metadata === "object" ? preview.metadata : {};
+  return {
+    title: String((item && item.edits && item.edits.title) || metadata.title || "").trim(),
+    author: String((item && item.edits && item.edits.author) || metadata.author || "").trim(),
+    summary: String((item && item.edits && item.edits.summary) || metadata.summary || "").trim(),
+    lang_source: String((item && item.edits && item.edits.lang_source) || metadata.lang_source || "zh").trim() || "zh",
+  };
+}
+
+function updateBatchImportItem(itemId, patch) {
+  const targetId = String(itemId || "").trim();
+  if (!targetId) return;
+  state.batchImportItems = (state.batchImportItems || []).map((item) => (
+    String((item && item.id) || "").trim() === targetId
+      ? { ...item, ...(patch || {}) }
+      : item
+  ));
+  scheduleBatchImportDialogRender();
+}
+
+function buildBatchImportCardTitle(item) {
+  const payload = getBatchImportItemPayload(item);
+  return payload.title || String((item && item.file_name) || "").trim() || state.shell.t("importBatchPreparing");
+}
+
+function syncImportPreviewCommitButton() {
+  if (!refs.btnImportPreviewCommit || !state.shell) return;
+  refs.btnImportPreviewCommit.textContent = state.shell.t(
+    state.importPreviewContext === "batch" ? "importPreviewSaveEdits" : "confirmImport",
+  );
+}
+
+function renderImportPreview(preview, { context = "single", batchItemId = "" } = {}) {
   if (!preview || !refs.importPreviewDialog) return;
   if (preview.presets) state.importPresets = preview.presets;
+  state.importPreviewContext = context === "batch" ? "batch" : "single";
+  state.importPreviewBatchItemId = state.importPreviewContext === "batch" ? String(batchItemId || "").trim() : "";
   state.importPreviewData = preview;
+  state.importPreviewToken = state.importPreviewContext === "batch"
+    ? String((getBatchImportItem(state.importPreviewBatchItemId) && getBatchImportItem(state.importPreviewBatchItemId).token) || "").trim()
+    : String(state.importPreviewToken || "").trim();
   const metadata = preview.metadata || {};
+  const payload = state.importPreviewContext === "batch"
+    ? getBatchImportItemPayload(getBatchImportItem(state.importPreviewBatchItemId))
+    : {
+      title: String(metadata.title || ""),
+      author: String(metadata.author || ""),
+      summary: String(metadata.summary || ""),
+      lang_source: String(metadata.lang_source || "zh").trim() || "zh",
+    };
   refs.importPreviewFileName.textContent = String(preview.file_name || "");
   refs.importPreviewFileType.textContent = String(preview.file_ext || "").toUpperCase();
   refs.importPreviewChapterCount.textContent = String(metadata.chapter_count || 0);
   refs.importPreviewDetectedLang.textContent = String(metadata.detected_lang || metadata.lang_source || "-").trim() || "-";
-  refs.importPreviewBookTitleInput.value = String(metadata.title || "");
-  refs.importPreviewAuthorInput.value = String(metadata.author || "");
-  refs.importPreviewSummaryInput.value = String(metadata.summary || "");
-  refs.importPreviewLangSelect.value = String(metadata.lang_source || "zh").trim().toLowerCase() === "vi" ? "vi" : "zh";
+  refs.importPreviewBookTitleInput.value = payload.title;
+  refs.importPreviewAuthorInput.value = payload.author;
+  refs.importPreviewSummaryInput.value = payload.summary;
+  refs.importPreviewLangSelect.value = String(payload.lang_source || "zh").trim().toLowerCase() === "vi" ? "vi" : "zh";
 
   const diagnostics = preview.diagnostics || {};
   const splitStrategy = String(diagnostics.split_strategy || "").trim();
@@ -795,6 +1117,10 @@ function renderImportPreview(preview) {
   if (splitStrategy === "regex_fallback" && fallbackReasonKey) {
     diagnosticParts.push(state.shell.t("importPreviewDiagnosticsReason", { reason: state.shell.t(fallbackReasonKey) }));
   }
+  const categorySummary = buildImportCategorySummaryText();
+  if (categorySummary) {
+    diagnosticParts.push(`${state.shell.t("importCategoriesLabel")}: ${categorySummary}`);
+  }
   refs.importPreviewDiagnostics.textContent = diagnosticParts.join(" • ");
   renderImportMetadataCandidates(diagnostics.metadata_candidates || []);
 
@@ -814,6 +1140,7 @@ function renderImportPreview(preview) {
     card.append(head, meta, body);
     refs.importPreviewChapters.appendChild(card);
   }
+  syncImportPreviewCommitButton();
   if (!refs.importPreviewDialog.open) refs.importPreviewDialog.showModal();
 }
 
@@ -846,6 +1173,230 @@ function buildPendingImportRecord() {
     badge_text: state.shell.t("importPendingBadge"),
     meta_text: state.shell.t("importPendingMeta", { count: Math.max(0, Number(metadata.chapter_count || 0)) }),
   };
+}
+
+function createBatchImportSkeletonCard(item) {
+  const card = document.createElement("article");
+  card.className = "book-card book-card-shell book-card-loading";
+  card.setAttribute("aria-hidden", "true");
+
+  const cover = document.createElement("div");
+  cover.className = "book-card-cover book-card-cover-skeleton";
+  cover.appendChild(createSkeletonBlock("book-card-cover-glow"));
+
+  const body = document.createElement("div");
+  body.className = "book-card-shell-body";
+  body.append(
+    createSkeletonBlock("book-card-skeleton-title"),
+    createSkeletonBlock("book-card-skeleton-meta"),
+  );
+  const chipRow = document.createElement("div");
+  chipRow.className = "book-card-skeleton-chip-row";
+  chipRow.append(createSkeletonBlock("book-card-skeleton-chip"));
+  const progressRow = document.createElement("div");
+  progressRow.className = "book-card-progress-row";
+  progressRow.append(
+    createSkeletonBlock("book-card-skeleton-text"),
+    createSkeletonBlock("book-card-skeleton-pill"),
+  );
+  body.append(chipRow, progressRow, createSkeletonBlock("book-card-skeleton-download"));
+  card.append(cover, body);
+  return card;
+}
+
+function setOverflowMarqueeText(element, text) {
+  if (!element) return;
+  const value = String(text || "").trim();
+  element.innerHTML = "";
+  element.classList.remove("overflow-marquee", "is-overflowing");
+  if (!value) {
+    element.textContent = "";
+    element.removeAttribute("title");
+    return;
+  }
+  element.title = value;
+  element.classList.add("overflow-marquee");
+  const track = document.createElement("span");
+  track.className = "overflow-marquee-track";
+  const primary = document.createElement("span");
+  primary.className = "overflow-marquee-segment";
+  primary.textContent = value;
+  const duplicate = document.createElement("span");
+  duplicate.className = "overflow-marquee-segment overflow-marquee-copy";
+  duplicate.textContent = value;
+  track.append(primary, duplicate);
+  element.appendChild(track);
+
+  const syncOverflow = () => {
+    const needs = primary.scrollWidth > (element.clientWidth + 4);
+    element.classList.toggle("is-overflowing", needs);
+  };
+  const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+  schedule(() => schedule(syncOverflow));
+  window.setTimeout(syncOverflow, 120);
+}
+
+function renderBatchImportCard(item) {
+  if (!item || item.status === "loading") return createBatchImportSkeletonCard(item);
+  const payload = getBatchImportItemPayload(item);
+  const card = document.createElement("article");
+  card.className = "book-card";
+  if (item.status === "ready") card.classList.add("book-card-import-ready");
+  if (item.status === "error") card.classList.add("book-card-import-error");
+  if (item.status === "done") card.classList.add("book-card-import-done");
+  const interactive = item.status === "ready" || (item.status === "error" && !!item.preview);
+  if (interactive) {
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+  } else {
+    card.setAttribute("aria-disabled", "true");
+  }
+
+  const cover = document.createElement("div");
+  cover.className = "book-card-cover";
+  appendCoverMedia(cover, {
+    title: buildBatchImportCardTitle(item),
+    author: payload.author || "",
+    tag: String((item.file_ext || "TXT")).toUpperCase(),
+  });
+
+  const body = document.createElement("div");
+  const title = document.createElement("div");
+  title.className = "book-card-title";
+  setOverflowMarqueeText(title, normalizeDisplayTitle(buildBatchImportCardTitle(item)));
+
+  const author = document.createElement("div");
+  author.className = "book-card-meta";
+  author.textContent = payload.author || state.shell.t("unknownAuthor");
+
+  const source = document.createElement("div");
+  source.className = "book-card-source";
+  setOverflowMarqueeText(
+    source,
+    state.shell.t("importBatchFileName", { name: String(item.file_name || "").trim() || "unknown.txt" }),
+  );
+
+  const infoRow = document.createElement("div");
+  infoRow.className = "book-card-progress-row";
+
+  const chapterInfo = document.createElement("div");
+  chapterInfo.className = "book-card-chapter";
+  chapterInfo.textContent = state.shell.t("importBatchChapterCount", { count: Math.max(0, Number(item.chapter_count || 0)) });
+
+  const badge = document.createElement("div");
+  badge.className = "book-card-percent";
+  if (item.status === "error") badge.textContent = state.shell.t("importBatchPrepareFailed");
+  else if (item.status === "importing") badge.textContent = state.shell.t("importBatchImporting");
+  else if (item.status === "done") badge.textContent = state.shell.t("importBatchImported");
+  else badge.textContent = state.shell.t("importBatchReady");
+
+  infoRow.append(chapterInfo, badge);
+
+  const meta = document.createElement("div");
+  meta.className = "book-card-download";
+  meta.textContent = `${String((item.file_ext || "txt")).toUpperCase()} • ${String(payload.lang_source || "zh").toUpperCase()}`;
+
+  body.append(title, author, source, infoRow, meta);
+
+  if (item.status === "error" || interactive) {
+    const hint = document.createElement("div");
+    hint.className = "book-card-inline-hint";
+    hint.textContent = item.status === "error"
+      ? String(item.error || state.shell.t("importBatchPrepareFailed"))
+      : state.shell.t("importBatchOpenEditor");
+    body.appendChild(hint);
+  }
+
+  card.append(cover, body);
+  if (interactive) {
+    const openEditor = () => {
+      const current = getBatchImportItem(item.id);
+      if (!current || !current.preview) return;
+      renderImportPreview(current.preview, { context: "batch", batchItemId: current.id });
+    };
+    card.addEventListener("click", openEditor);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openEditor();
+      }
+    });
+  }
+  return card;
+}
+
+function renderBatchImportDialog() {
+  if (!refs.importBatchGrid || !refs.importBatchSummary || !refs.btnImportBatchCommit || !refs.importBatchEmpty) return;
+  if (state.batchImportRenderTimer) {
+    window.clearTimeout(state.batchImportRenderTimer);
+    state.batchImportRenderTimer = 0;
+  }
+  refs.importBatchGrid.innerHTML = "";
+  const items = Array.isArray(state.batchImportItems) ? state.batchImportItems : [];
+  const total = items.length;
+  const loadingCount = items.filter((item) => item.status === "loading").length;
+  const readyCount = items.filter((item) => item.status === "ready").length;
+  const doneCount = items.filter((item) => item.status === "done").length;
+  const failedCount = items.filter((item) => item.status === "error").length;
+  const importingCount = items.filter((item) => item.status === "importing").length;
+  const preparedCount = total - loadingCount;
+
+  if (!total) {
+    refs.importBatchEmpty.classList.remove("hidden");
+    refs.importBatchEmpty.textContent = state.shell.t("importBatchEmpty");
+    refs.importBatchSummary.textContent = "";
+    if (refs.importBatchHint) refs.importBatchHint.textContent = state.shell.t("importBatchHint");
+    refs.btnImportBatchCommit.textContent = state.shell.t("importBatchCommit");
+    refs.btnImportBatchCommit.disabled = true;
+    return;
+  }
+  refs.importBatchEmpty.classList.add("hidden");
+
+  if (refs.importBatchHint) {
+    const categorySummary = buildImportCategorySummaryText();
+    refs.importBatchHint.textContent = categorySummary
+      ? `${state.shell.t("importBatchHint")}\n${state.shell.t("importCategoriesLabel")}: ${categorySummary}`
+      : state.shell.t("importBatchHint");
+  }
+
+  for (const item of items) {
+    refs.importBatchGrid.appendChild(renderBatchImportCard(item));
+  }
+
+  const summaryParts = [];
+  if (loadingCount > 0) {
+    summaryParts.push(state.shell.t("importBatchSummaryLoading", { done: preparedCount, total }));
+  } else if (state.batchImportCommitBusy || importingCount > 0 || (doneCount > 0 && readyCount <= 0)) {
+    summaryParts.push(state.shell.t("importBatchSummaryDone", { done: doneCount, total }));
+  } else {
+    summaryParts.push(state.shell.t("importBatchSummaryReady", { ready: readyCount, total }));
+  }
+  if (failedCount > 0) summaryParts.push(state.shell.t("importBatchSummaryFailed", { failed: failedCount }));
+  refs.importBatchSummary.textContent = summaryParts.join(" • ");
+
+  const commitCount = state.batchImportCommitBusy ? importingCount || readyCount : readyCount;
+  refs.btnImportBatchCommit.textContent = commitCount > 0
+    ? state.shell.t("importBatchCommitCount", { count: commitCount })
+    : state.shell.t("importBatchCommit");
+  refs.btnImportBatchCommit.disabled = state.batchImportCommitBusy || loadingCount > 0 || readyCount <= 0;
+}
+
+async function saveBatchImportPreviewEdits() {
+  const itemId = String(state.importPreviewBatchItemId || "").trim();
+  const item = getBatchImportItem(itemId);
+  if (!item) return;
+  const payload = collectImportPreviewPayload();
+  updateBatchImportItem(itemId, {
+    status: item.status === "error" ? "ready" : item.status,
+    error: "",
+    edits: {
+      title: String(payload.title || "").trim(),
+      author: String(payload.author || "").trim(),
+      summary: String(payload.summary || "").trim(),
+      lang_source: String(payload.lang_source || "zh").trim() || "zh",
+    },
+  });
+  if (refs.importPreviewDialog && refs.importPreviewDialog.open) refs.importPreviewDialog.close();
 }
 
 function addPendingImport(record) {
@@ -929,26 +1480,115 @@ function pendingUrlSourceLabel(preview, fallbackUrl, fallbackPluginId) {
   return `${state.shell.t("importPendingUrlSource")} • ${pluginName || host || pluginText || state.shell.t("importUrlPluginAuto")}`;
 }
 
-async function handlePrepareImport() {
-  const fileInput = document.getElementById("import-file");
-  const file = fileInput && fileInput.files && fileInput.files[0];
-  if (!file) return;
-
+function buildImportPrepareForm(file, { title = "", author = "" } = {}) {
   const form = new FormData();
-  form.set("file", file, file.name || "import.txt");
-  form.set("lang_source", (document.getElementById("import-lang") && document.getElementById("import-lang").value) || "zh");
-  form.set("title", (document.getElementById("import-book-title") && document.getElementById("import-book-title").value) || "");
-  form.set("author", (document.getElementById("import-author") && document.getElementById("import-author").value) || "");
+  form.set("file", file, (file && file.name) || "import.txt");
+  form.set("lang_source", String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh");
+  form.set("title", String(title || "").trim());
+  form.set("author", String(author || "").trim());
   form.set("import_settings", JSON.stringify(state.importSettings || {}));
+  return form;
+}
+
+function buildBatchImportItem(file, index) {
+  const rawName = String((file && file.name) || "").trim() || `import_${index + 1}.txt`;
+  const fileExt = rawName.includes(".") ? rawName.split(".").pop() : "txt";
+  return {
+    id: `batch_${Date.now()}_${index}_${Math.random().toString(16).slice(2, 8)}`,
+    file,
+    file_name: rawName,
+    file_ext: String(fileExt || "txt").toLowerCase(),
+    token: "",
+    preview: null,
+    edits: {},
+    chapter_count: 0,
+    status: "loading",
+    error: "",
+  };
+}
+
+async function prepareBatchImports(files) {
+  const items = Array.isArray(files) ? files.filter(Boolean) : [];
+  if (!items.length) return;
+  const runId = Date.now();
+  state.batchImportPrepareRunId = runId;
+  state.batchImportCommitBusy = false;
+  state.batchImportItems = items.map((file, index) => buildBatchImportItem(file, index));
+  renderBatchImportDialog();
+  if (refs.importDialog && refs.importDialog.open) refs.importDialog.close();
+  if (refs.importBatchDialog && !refs.importBatchDialog.open) refs.importBatchDialog.showModal();
+
+  const sharedAuthor = String((refs.importAuthorInput && refs.importAuthorInput.value) || "").trim();
+  const sharedTitle = items.length === 1
+    ? String((refs.importBookTitleInput && refs.importBookTitleInput.value) || "").trim()
+    : "";
+
+  state.shell.showStatus(state.shell.t("importBatchPreparing"));
+  try {
+    await runItemsWithConcurrency(state.batchImportItems, BATCH_IMPORT_PREPARE_CONCURRENCY, async (item) => {
+      if (state.batchImportPrepareRunId !== runId) return;
+      try {
+        const data = await state.shell.api("/api/library/import/prepare", {
+          method: "POST",
+          body: buildImportPrepareForm(item.file, {
+            title: sharedTitle,
+            author: sharedAuthor,
+          }),
+        });
+        if (state.batchImportPrepareRunId !== runId) return;
+        const preview = data && data.preview ? data.preview : null;
+        const metadata = preview && preview.metadata && typeof preview.metadata === "object" ? preview.metadata : {};
+        updateBatchImportItem(item.id, {
+          token: String((data && data.token) || "").trim(),
+          preview,
+          chapter_count: Math.max(0, Number(metadata.chapter_count || 0)),
+          status: "ready",
+          error: "",
+          edits: {
+            title: String(metadata.title || "").trim(),
+            author: String(metadata.author || "").trim(),
+            summary: String(metadata.summary || "").trim(),
+            lang_source: String(metadata.lang_source || "zh").trim() || "zh",
+          },
+        });
+      } catch (error) {
+        if (state.batchImportPrepareRunId !== runId) return;
+        updateBatchImportItem(item.id, {
+          status: "error",
+          error: getErrorMessage(error),
+        });
+      }
+    });
+    resetImportFormUi();
+    renderBatchImportDialog();
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function handlePrepareImport() {
+  const fileInput = refs.importFileInput;
+  const files = Array.from((fileInput && fileInput.files) || []).filter(Boolean);
+  if (!files.length) return;
+  if (currentImportMode() === "batch") {
+    await prepareBatchImports(files);
+    return;
+  }
+
+  const file = files[0];
+  const form = buildImportPrepareForm(file, {
+    title: (refs.importBookTitleInput && refs.importBookTitleInput.value) || "",
+    author: (refs.importAuthorInput && refs.importAuthorInput.value) || "",
+  });
 
   state.shell.showStatus(state.shell.t("statusPreparingImport"));
   try {
     const data = await state.shell.api("/api/library/import/prepare", { method: "POST", body: form });
     state.importPreviewToken = String((data && data.token) || "").trim();
-    if (document.getElementById("import-dialog") && document.getElementById("import-dialog").open) {
-      document.getElementById("import-dialog").close();
-    }
-    renderImportPreview(data && data.preview ? data.preview : null);
+    state.importPreviewContext = "single";
+    state.importPreviewBatchItemId = "";
+    if (refs.importDialog && refs.importDialog.open) refs.importDialog.close();
+    renderImportPreview(data && data.preview ? data.preview : null, { context: "single" });
   } catch (error) {
     state.shell.showToast(getErrorMessage(error));
   } finally {
@@ -956,7 +1596,68 @@ async function handlePrepareImport() {
   }
 }
 
+async function commitBatchImports() {
+  if (state.batchImportCommitBusy) return;
+  const items = (state.batchImportItems || []).filter((item) => item.status === "ready" && String(item.token || "").trim());
+  if (!items.length) return;
+  state.batchImportCommitBusy = true;
+  renderBatchImportDialog();
+  let successCount = 0;
+  let failedCount = 0;
+  const importedBookIds = [];
+  state.shell.showStatus(state.shell.t("importBatchImporting"));
+  try {
+    await runItemsWithConcurrency(items, BATCH_IMPORT_COMMIT_CONCURRENCY, async (item) => {
+      updateBatchImportItem(item.id, { status: "importing", error: "" });
+      try {
+        const payload = getBatchImportItemPayload(item);
+        const data = await state.shell.api("/api/library/import/commit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: String(item.token || "").trim(),
+            ...payload,
+          }),
+        });
+        const importedBookId = String((data && data.book && data.book.book_id) || "").trim();
+        successCount += 1;
+        if (importedBookId) importedBookIds.push(importedBookId);
+        updateBatchImportItem(item.id, {
+          status: "done",
+          error: "",
+          imported_book_id: importedBookId,
+        });
+        await applyImportedBookLocal(data && data.book, { refresh: false });
+      } catch (error) {
+        failedCount += 1;
+        updateBatchImportItem(item.id, {
+          status: "error",
+          error: getErrorMessage(error),
+        });
+      }
+    });
+    const categoriesApplied = await applyImportCategoriesToBooks(importedBookIds, { silent: true });
+    renderBatchImportDialog();
+    if (importedBookIds.length && normalizeCategoryIds(state.importSelectedCategoryIds).length > 0 && !categoriesApplied) {
+      state.shell.showToast(state.shell.t("importCategoriesAssignFailed"));
+    }
+    if (successCount > 0 && failedCount <= 0) {
+      state.shell.showToast(state.shell.t("importBatchImported"));
+    } else if (failedCount > 0) {
+      state.shell.showToast(state.shell.t("importBatchSkippedFailed", { count: failedCount }));
+    }
+  } finally {
+    state.batchImportCommitBusy = false;
+    renderBatchImportDialog();
+    state.shell.hideStatus();
+  }
+}
+
 async function commitPreparedImport() {
+  if (state.importPreviewContext === "batch") {
+    await saveBatchImportPreviewEdits();
+    return;
+  }
   if (!state.importPreviewToken) return;
   const payload = collectImportPreviewPayload();
   const pending = buildPendingImportRecord();
@@ -970,12 +1671,13 @@ async function commitPreparedImport() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...payload, token }),
     });
-    const importForm = document.getElementById("import-form");
-    if (importForm) importForm.reset();
+    resetImportFormUi();
     const bid = String((data && data.book && data.book.book_id) || "").trim();
     if (bid) pending.resolved_book_id = bid;
     state.shell.showToast(state.shell.t("toastImportSuccess"));
-    await applyImportedBookLocal(data && data.book, { pendingTempId: pending.temp_id, refresh: true });
+    await applyImportedBookLocal(data && data.book, { pendingTempId: pending.temp_id, refresh: false });
+    await applyImportCategoriesToBooks(bid ? [bid] : [], { silent: false });
+    if (bid) await refreshLibraryBooksByIds([bid]).catch(() => null);
   } catch (error) {
     state.importPreviewToken = token;
     removePendingImport(pending.temp_id);
@@ -1222,7 +1924,7 @@ function renderPendingImportCard(item) {
   const body = document.createElement("div");
   const title = document.createElement("div");
   title.className = "book-card-title";
-  title.textContent = normalizeDisplayTitle(item.title || state.shell.t("importPendingUrlTitle"));
+  setOverflowMarqueeText(title, normalizeDisplayTitle(item.title || state.shell.t("importPendingUrlTitle")));
 
   const author = document.createElement("div");
   author.className = "book-card-meta";
@@ -1230,7 +1932,7 @@ function renderPendingImportCard(item) {
 
   const source = document.createElement("div");
   source.className = "book-card-source";
-  source.textContent = String(item.source_label || `${state.shell.t("importPendingSource")} • ${item.file_ext || "TXT"}`);
+  setOverflowMarqueeText(source, String(item.source_label || `${state.shell.t("importPendingSource")} • ${item.file_ext || "TXT"}`));
 
   const infoRow = document.createElement("div");
   infoRow.className = "book-card-progress-row";
@@ -1457,7 +2159,7 @@ function populateLibraryBookCard(card, book) {
   const body = document.createElement("div");
   const title = document.createElement("div");
   title.className = "book-card-title";
-  title.textContent = normalizeDisplayTitle(book.title_display || book.title || "Không tiêu đề");
+  setOverflowMarqueeText(title, normalizeDisplayTitle(book.title_display || book.title || "Không tiêu đề"));
 
   const author = document.createElement("div");
   author.className = "book-card-meta";
@@ -1468,7 +2170,7 @@ function populateLibraryBookCard(card, book) {
   if (sourceLabel) {
     source = document.createElement("div");
     source.className = "book-card-source";
-    source.textContent = sourceLabel;
+    setOverflowMarqueeText(source, sourceLabel);
   }
 
   const infoRow = document.createElement("div");
@@ -1520,22 +2222,22 @@ function renderBooks() {
   teardownLibraryLazyRender();
   refs.libraryGrid.innerHTML = "";
   updateLibraryFilterBadge();
-  const hasCategoryFilter = normalizeCategoryIds(state.selectedCategoryIds).length > 0;
+  const hasActiveFilter = hasActiveLibraryFilter();
   const filteredBooks = getFilteredBooks();
-  const visiblePending = hasCategoryFilter ? [] : state.pendingImports.filter((item) => {
+  const visiblePending = hasActiveFilter ? [] : state.pendingImports.filter((item) => {
     const resolvedBookId = String((item && item.resolved_book_id) || "").trim();
     if (!resolvedBookId) return true;
     return !filteredBooks.some((book) => String((book && book.book_id) || "").trim() === resolvedBookId);
   });
   const totalCount = state.books.length + visiblePending.length;
   const visibleCount = filteredBooks.length + visiblePending.length;
-  refs.libraryCount.textContent = normalizeCategoryIds(state.selectedCategoryIds).length
+  refs.libraryCount.textContent = hasActiveFilter
     ? state.shell.t("libraryCountFiltered", { visible: visibleCount, total: totalCount })
     : state.shell.t("libraryCount", { count: totalCount });
 
   if (!visibleCount) {
     refs.libraryEmpty.classList.remove("hidden");
-    refs.libraryEmpty.textContent = hasCategoryFilter
+    refs.libraryEmpty.textContent = hasActiveFilter
       ? state.shell.t("libraryEmptyFiltered")
       : state.shell.t("libraryEmpty");
     return;
@@ -1567,39 +2269,89 @@ function renderBooks() {
 }
 
 function renderLibraryCategoryFilterList() {
-  if (!refs.libraryCategoryFilterList || !refs.libraryCategoryFilterEmpty) return;
-  refs.libraryCategoryFilterList.innerHTML = "";
+  if (!refs.libraryCategoryFilterEmpty || !refs.libraryCategoryFilterIncludeList || !refs.libraryCategoryFilterExcludeList) return;
+  refs.libraryCategoryFilterIncludeList.innerHTML = "";
+  refs.libraryCategoryFilterExcludeList.innerHTML = "";
   const term = String((refs.libraryCategoryFilterSearch && refs.libraryCategoryFilterSearch.value) || "").trim().toLowerCase();
   const items = (state.categories || []).filter((item) => {
     const name = String((item && item.name) || "").trim();
     return !term || name.toLowerCase().includes(term);
   });
+  const draftPair = buildDistinctCategoryFilters(state.categoryFilterDraftIds, state.categoryFilterDraftExcludeIds);
+  state.categoryFilterDraftIds = draftPair.include;
+  state.categoryFilterDraftExcludeIds = draftPair.exclude;
+  const includeSet = new Set(draftPair.include);
+  const excludeSet = new Set(draftPair.exclude);
   refs.libraryCategoryFilterEmpty.classList.toggle("hidden", items.length > 0);
   refs.libraryCategoryFilterEmpty.textContent = state.shell.t("categoryFilterEmpty");
+  if (refs.libraryCategoryMatchModeSelect) {
+    refs.libraryCategoryMatchModeSelect.value = normalizeCategoryMatchMode(state.categoryFilterDraftMatchMode);
+    refs.libraryCategoryMatchModeSelect.disabled = includeSet.size < 2;
+  }
+  if (refs.libraryCategoryIncludeCount) {
+    refs.libraryCategoryIncludeCount.textContent = String(includeSet.size);
+    refs.libraryCategoryIncludeCount.classList.toggle("hidden", includeSet.size <= 0);
+  }
+  if (refs.libraryCategoryExcludeCount) {
+    refs.libraryCategoryExcludeCount.textContent = String(excludeSet.size);
+    refs.libraryCategoryExcludeCount.classList.toggle("hidden", excludeSet.size <= 0);
+  }
   for (const category of items) {
     const id = String(category.category_id || "").trim();
-    const active = normalizeCategoryIds(state.categoryFilterDraftIds).includes(id);
-    const chip = createCategoryChip(category, {
-      active,
-      titleSuffix: ` • ${Math.max(0, Number(category.book_count || 0))}`,
+    const countValue = Math.max(0, Number(category.book_count || 0));
+    const includeChip = createCategoryChip(category, {
+      active: includeSet.has(id),
+      titleSuffix: ` • ${countValue}`,
       onClick: () => {
-        const current = new Set(normalizeCategoryIds(state.categoryFilterDraftIds));
-        if (current.has(id)) current.delete(id);
-        else current.add(id);
-        state.categoryFilterDraftIds = Array.from(current);
+        const nextInclude = new Set(normalizeCategoryIds(state.categoryFilterDraftIds));
+        const nextExclude = new Set(normalizeCategoryIds(state.categoryFilterDraftExcludeIds));
+        if (nextInclude.has(id)) nextInclude.delete(id);
+        else {
+          nextInclude.add(id);
+          nextExclude.delete(id);
+        }
+        state.categoryFilterDraftIds = Array.from(nextInclude);
+        state.categoryFilterDraftExcludeIds = Array.from(nextExclude);
         renderLibraryCategoryFilterList();
       },
     });
-    const count = document.createElement("span");
-    count.className = "category-chip-count";
-    count.textContent = String(Math.max(0, Number(category.book_count || 0)));
-    chip.appendChild(count);
-    refs.libraryCategoryFilterList.appendChild(chip);
+    const includeCount = document.createElement("span");
+    includeCount.className = "category-chip-count";
+    includeCount.textContent = String(countValue);
+    includeChip.appendChild(includeCount);
+    refs.libraryCategoryFilterIncludeList.appendChild(includeChip);
+
+    const excludeChip = createCategoryChip(category, {
+      active: excludeSet.has(id),
+      titleSuffix: ` • ${Math.max(0, Number(category.book_count || 0))}`,
+      onClick: () => {
+        const nextInclude = new Set(normalizeCategoryIds(state.categoryFilterDraftIds));
+        const nextExclude = new Set(normalizeCategoryIds(state.categoryFilterDraftExcludeIds));
+        if (nextExclude.has(id)) nextExclude.delete(id);
+        else {
+          nextExclude.add(id);
+          nextInclude.delete(id);
+        }
+        state.categoryFilterDraftIds = Array.from(nextInclude);
+        state.categoryFilterDraftExcludeIds = Array.from(nextExclude);
+        renderLibraryCategoryFilterList();
+      },
+    });
+    const excludeCount = document.createElement("span");
+    excludeCount.className = "category-chip-count";
+    excludeCount.textContent = String(countValue);
+    excludeChip.appendChild(excludeCount);
+    refs.libraryCategoryFilterExcludeList.appendChild(excludeChip);
   }
 }
 
 function openLibraryCategoryFilterDialog() {
   state.categoryFilterDraftIds = [...normalizeCategoryIds(state.selectedCategoryIds)];
+  state.categoryFilterDraftExcludeIds = [...normalizeCategoryIds(state.selectedExcludedCategoryIds)];
+  state.categoryFilterDraftMatchMode = normalizeCategoryMatchMode(state.selectedCategoryMatchMode);
+  state.authorFilterDraft = normalizeAuthorFilterValue(state.selectedAuthorFilter);
+  if (refs.libraryAuthorFilterInput) refs.libraryAuthorFilterInput.value = state.authorFilterDraft;
+  if (refs.libraryCategoryMatchModeSelect) refs.libraryCategoryMatchModeSelect.value = state.categoryFilterDraftMatchMode;
   if (refs.libraryCategoryFilterSearch) refs.libraryCategoryFilterSearch.value = "";
   renderLibraryCategoryFilterList();
   if (refs.libraryCategoryFilterDialog && !refs.libraryCategoryFilterDialog.open) {
@@ -1608,7 +2360,17 @@ function openLibraryCategoryFilterDialog() {
 }
 
 function applyLibraryCategoryFilter() {
-  state.selectedCategoryIds = normalizeCategoryIds(state.categoryFilterDraftIds);
+  const draftPair = buildDistinctCategoryFilters(state.categoryFilterDraftIds, state.categoryFilterDraftExcludeIds);
+  state.selectedCategoryIds = draftPair.include;
+  state.selectedExcludedCategoryIds = draftPair.exclude;
+  state.selectedCategoryMatchMode = draftPair.include.length >= 2
+    ? normalizeCategoryMatchMode(
+    (refs.libraryCategoryMatchModeSelect && refs.libraryCategoryMatchModeSelect.value) || state.categoryFilterDraftMatchMode,
+    )
+    : "or";
+  state.selectedAuthorFilter = normalizeAuthorFilterValue(
+    (refs.libraryAuthorFilterInput && refs.libraryAuthorFilterInput.value) || state.authorFilterDraft,
+  );
   syncLibraryCategoryQuery();
   updateLibraryFilterBadge();
   renderBooks();
@@ -1970,7 +2732,7 @@ function renderHistory() {
     const body = document.createElement("div");
     const title = document.createElement("div");
     title.className = "book-card-title";
-    title.textContent = normalizeDisplayTitle(item.title || "Không tiêu đề");
+    setOverflowMarqueeText(title, normalizeDisplayTitle(item.title || "Không tiêu đề"));
 
     const author = document.createElement("div");
     author.className = "book-card-meta";
@@ -1978,7 +2740,7 @@ function renderHistory() {
 
     const source = document.createElement("div");
     source.className = "book-card-source";
-    source.textContent = buildHistorySourceLabel(item);
+    setOverflowMarqueeText(source, buildHistorySourceLabel(item));
 
     const infoRow = document.createElement("div");
     infoRow.className = "book-card-progress-row";
@@ -3475,7 +4237,15 @@ async function init() {
   state.translationMode = typeof state.shell.getTranslationMode === "function"
     ? state.shell.getTranslationMode()
     : "server";
-  state.selectedCategoryIds = parseLibraryCategoryIdsFromQuery();
+  const initialCategoryPair = buildDistinctCategoryFilters(
+    parseLibraryCategoryIdsFromQuery(),
+    parseLibraryExcludedCategoryIdsFromQuery(),
+  );
+  state.selectedCategoryIds = initialCategoryPair.include;
+  state.selectedExcludedCategoryIds = initialCategoryPair.exclude;
+  state.selectedCategoryMatchMode = parseLibraryCategoryMatchModeFromQuery();
+  state.selectedAuthorFilter = parseLibraryAuthorFromQuery();
+  state.authorFilterDraft = state.selectedAuthorFilter;
 
   refs.historyTitle.textContent = state.shell.t("historyTitle");
   refs.libraryTitle.textContent = state.shell.t("libraryTitle");
@@ -3510,7 +4280,16 @@ async function init() {
   if (refs.libraryCategoryFilterTitle) refs.libraryCategoryFilterTitle.textContent = state.shell.t("categoryFilterTitle");
   if (refs.btnCloseLibraryCategoryFilter) refs.btnCloseLibraryCategoryFilter.textContent = state.shell.t("close");
   if (refs.libraryCategoryFilterHint) refs.libraryCategoryFilterHint.textContent = state.shell.t("categoryFilterHint");
+  if (refs.libraryAuthorFilterLabel) refs.libraryAuthorFilterLabel.textContent = state.shell.t("libraryAuthorFilterLabel");
+  if (refs.libraryAuthorFilterInput) refs.libraryAuthorFilterInput.placeholder = state.shell.t("libraryAuthorFilterPlaceholder");
+  if (refs.libraryCategoryMatchModeLabel) refs.libraryCategoryMatchModeLabel.textContent = state.shell.t("categoryFilterMatchModeLabel");
+  const libraryCategoryMatchModeOr = document.getElementById("library-category-match-mode-or");
+  const libraryCategoryMatchModeAnd = document.getElementById("library-category-match-mode-and");
+  if (libraryCategoryMatchModeOr) libraryCategoryMatchModeOr.textContent = state.shell.t("categoryFilterModeOr");
+  if (libraryCategoryMatchModeAnd) libraryCategoryMatchModeAnd.textContent = state.shell.t("categoryFilterModeAnd");
   if (refs.libraryCategoryFilterSearchLabel) refs.libraryCategoryFilterSearchLabel.textContent = state.shell.t("categorySearchLabel");
+  if (refs.libraryCategoryIncludeTitle) refs.libraryCategoryIncludeTitle.textContent = state.shell.t("categoryFilterIncludeTitle");
+  if (refs.libraryCategoryExcludeTitle) refs.libraryCategoryExcludeTitle.textContent = state.shell.t("categoryFilterExcludeTitle");
   if (refs.btnLibraryCategoryFilterClear) refs.btnLibraryCategoryFilterClear.textContent = state.shell.t("clearFilter");
   if (refs.btnLibraryCategoryFilterApply) refs.btnLibraryCategoryFilterApply.textContent = state.shell.t("applyFilter");
   if (refs.categoryManagerTitle) refs.categoryManagerTitle.textContent = state.shell.t("categoryManagerTitle");
@@ -3530,6 +4309,10 @@ async function init() {
   if (refs.bookCategoriesSearchLabel) refs.bookCategoriesSearchLabel.textContent = state.shell.t("categorySearchLabel");
   if (refs.btnCancelBookCategories) refs.btnCancelBookCategories.textContent = state.shell.t("cancel");
   if (refs.btnSaveBookCategories) refs.btnSaveBookCategories.textContent = state.shell.t("save");
+  if (refs.importCategoriesLabel) refs.importCategoriesLabel.textContent = state.shell.t("importCategoriesLabel");
+  if (refs.btnImportCategoriesClear) refs.btnImportCategoriesClear.textContent = state.shell.t("importCategoriesClear");
+  if (refs.importCategoriesHint) refs.importCategoriesHint.textContent = state.shell.t("importCategoriesHint");
+  if (refs.importCategoriesSearchLabel) refs.importCategoriesSearchLabel.textContent = state.shell.t("importCategoriesSearchLabel");
 
   if (refs.globalJunkTitle) refs.globalJunkTitle.textContent = state.shell.t("junkDialogTitle");
   if (refs.btnCloseGlobalJunk) refs.btnCloseGlobalJunk.textContent = state.shell.t("close");
@@ -3563,11 +4346,43 @@ async function init() {
     if (refs.libraryCategoryFilterDialog && refs.libraryCategoryFilterDialog.open) refs.libraryCategoryFilterDialog.close();
   });
   if (refs.libraryCategoryFilterSearch) refs.libraryCategoryFilterSearch.addEventListener("input", renderLibraryCategoryFilterList);
+  if (refs.libraryAuthorFilterInput) {
+    refs.libraryAuthorFilterInput.addEventListener("input", () => {
+      state.authorFilterDraft = normalizeAuthorFilterValue(refs.libraryAuthorFilterInput.value);
+    });
+    refs.libraryAuthorFilterInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        applyLibraryCategoryFilter();
+      }
+    });
+  }
+  if (refs.libraryCategoryMatchModeSelect) {
+    refs.libraryCategoryMatchModeSelect.addEventListener("change", () => {
+      state.categoryFilterDraftMatchMode = normalizeCategoryMatchMode(refs.libraryCategoryMatchModeSelect.value);
+      renderLibraryCategoryFilterList();
+    });
+  }
   if (refs.btnLibraryCategoryFilterClear) refs.btnLibraryCategoryFilterClear.addEventListener("click", () => {
     state.categoryFilterDraftIds = [];
+    state.categoryFilterDraftExcludeIds = [];
+    state.categoryFilterDraftMatchMode = "or";
+    state.authorFilterDraft = "";
+    if (refs.libraryAuthorFilterInput) refs.libraryAuthorFilterInput.value = "";
+    if (refs.libraryCategoryMatchModeSelect) refs.libraryCategoryMatchModeSelect.value = "or";
     renderLibraryCategoryFilterList();
   });
   if (refs.btnLibraryCategoryFilterApply) refs.btnLibraryCategoryFilterApply.addEventListener("click", applyLibraryCategoryFilter);
+  if (refs.importModeSelect) refs.importModeSelect.addEventListener("change", () => {
+    if (refs.importFileInput) refs.importFileInput.value = "";
+    syncImportModeUi();
+  });
+  if (refs.importCategoriesSearchInput) refs.importCategoriesSearchInput.addEventListener("input", renderImportCategoryList);
+  if (refs.btnImportCategoriesClear) refs.btnImportCategoriesClear.addEventListener("click", () => {
+    state.importSelectedCategoryIds = [];
+    if (refs.importCategoriesSearchInput) refs.importCategoriesSearchInput.value = "";
+    renderImportCategoryList();
+  });
   if (refs.btnBookActionsCategories) refs.btnBookActionsCategories.addEventListener("click", () => {
     openBookCategoriesDialog(state.selectedBookId);
   });
@@ -3806,6 +4621,21 @@ async function init() {
       commitPreparedImport().catch(() => {});
     });
   }
+  if (refs.btnImportBatchClose) {
+    refs.btnImportBatchClose.addEventListener("click", () => {
+      if (refs.importBatchDialog && refs.importBatchDialog.open) refs.importBatchDialog.close();
+    });
+  }
+  if (refs.btnImportBatchCancel) {
+    refs.btnImportBatchCancel.addEventListener("click", () => {
+      if (refs.importBatchDialog && refs.importBatchDialog.open) refs.importBatchDialog.close();
+    });
+  }
+  if (refs.btnImportBatchCommit) {
+    refs.btnImportBatchCommit.addEventListener("click", () => {
+      commitBatchImports().catch(() => {});
+    });
+  }
 
   window.addEventListener("reader-settings-changed", () => {
     const enabled = typeof state.shell.getTranslationEnabled === "function"
@@ -3834,6 +4664,9 @@ async function init() {
   });
 
   state.translationLocalSig = localTranslationSettingsSignature(state.shell);
+  syncImportModeUi();
+  renderImportCategoryList();
+  syncImportPreviewCommitButton();
   await Promise.all([
     loadImportSettings({ silent: true }).catch(() => null),
     loadLibraryData(),
