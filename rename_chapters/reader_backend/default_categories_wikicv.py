@@ -3,13 +3,15 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sys
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
-DEFAULT_CATEGORY_MANIFEST_PATH = Path(__file__).with_name("default_categories_wikicv.json")
+ROOT_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_CATEGORY_MANIFEST_RELATIVE_PATH = Path("reader_ui") / "default_categories_wikicv.json"
 MANIFEST_SCHEMA_VERSION = 1
 
 REMOVED_DEFAULT_GROUP_KEY = "removed_default"
@@ -38,6 +40,82 @@ WIKICV_LABEL_TO_INPUT = {
 }
 
 
+def _candidate_reader_roots() -> list[Path]:
+    candidates: list[Path] = []
+    seen: set[str] = set()
+
+    def add(path: Path | None) -> None:
+        if path is None:
+            return
+        try:
+            resolved = path.resolve(strict=False)
+        except Exception:
+            resolved = path
+        key = str(resolved)
+        if key in seen:
+            return
+        seen.add(key)
+        candidates.append(resolved)
+
+    try:
+        add(Path.cwd())
+    except Exception:
+        pass
+
+    add(ROOT_DIR)
+
+    if getattr(sys, "frozen", False):
+        try:
+            exe_dir = Path(sys.executable).resolve().parent
+        except Exception:
+            exe_dir = None
+        add(exe_dir)
+        for parent in list((exe_dir or Path()).parents):
+            add(parent)
+
+    return candidates
+
+
+def _looks_like_reader_root(base_dir: Path) -> bool:
+    return (
+        (base_dir / "reader_ui").exists()
+        or (base_dir / "config.json").exists()
+        or (base_dir / "reader_server.py").exists()
+    )
+
+
+def get_runtime_root_dir() -> Path:
+    candidates = _candidate_reader_roots()
+    for candidate in candidates:
+        if _looks_like_reader_root(candidate):
+            return candidate
+    return candidates[0] if candidates else ROOT_DIR
+
+
+def get_default_category_manifest_path(path: Path | str | None = None) -> Path:
+    if path is None:
+        return get_runtime_root_dir() / DEFAULT_CATEGORY_MANIFEST_RELATIVE_PATH
+
+    manifest_path = Path(path)
+    if manifest_path.is_absolute():
+        return manifest_path
+
+    candidates: list[Path] = []
+    for base_dir in (get_runtime_root_dir(), ROOT_DIR):
+        try:
+            candidates.append((base_dir / manifest_path).resolve(strict=False))
+        except Exception:
+            candidates.append(base_dir / manifest_path)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0] if candidates else manifest_path
+
+
+DEFAULT_CATEGORY_MANIFEST_PATH = get_default_category_manifest_path()
+
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -58,8 +136,8 @@ def stable_category_key_from_name(raw: Any) -> str:
     return f"wikicv_{digest}"
 
 
-def load_category_manifest(path: Path | str = DEFAULT_CATEGORY_MANIFEST_PATH) -> dict[str, Any]:
-    manifest_path = Path(path)
+def load_category_manifest(path: Path | str | None = None) -> dict[str, Any]:
+    manifest_path = get_default_category_manifest_path(path)
     if not manifest_path.exists():
         return {}
     try:
@@ -134,8 +212,8 @@ def merge_default_category_manifest(parsed_manifest: dict[str, Any], existing_ma
     }
 
 
-def save_category_manifest(manifest: dict[str, Any], path: Path | str = DEFAULT_CATEGORY_MANIFEST_PATH) -> Path:
-    output_path = Path(path)
+def save_category_manifest(manifest: dict[str, Any], path: Path | str | None = None) -> Path:
+    output_path = get_default_category_manifest_path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return output_path

@@ -45,7 +45,7 @@ def _category_row_to_dict(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
 
 
 def _ensure_default_categories_synced(storage) -> None:
-    manifest_path = default_wikicv_support.DEFAULT_CATEGORY_MANIFEST_PATH
+    manifest_path = default_wikicv_support.get_default_category_manifest_path()
     try:
         stat = manifest_path.stat()
         next_sig = (int(stat.st_mtime_ns), int(stat.st_size))
