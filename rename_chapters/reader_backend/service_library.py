@@ -502,16 +502,14 @@ def search(
     is_lang_zh,
     normalize_vbook_display_text,
     normalize_vi_display_text,
+    scope: str = "all",
 ) -> dict[str, Any]:
-    data = service.storage.search(query)
-    books = list_books(
-        service,
-        is_book_comic=is_book_comic,
-        is_lang_zh=is_lang_zh,
-        normalize_vbook_display_text=normalize_vbook_display_text,
-        normalize_vi_display_text=normalize_vi_display_text,
-    )
-    if str(query or "").strip():
+    scope_key = str(scope or "all").strip().lower()
+    if scope_key not in {"all", "books", "chapters"}:
+        scope_key = "all"
+    data = service.storage.search(query, scope=scope_key)
+    books: list[dict[str, Any]] = []
+    if scope_key != "chapters" and str(query or "").strip():
         books = _apply_book_card_translation_batch(
             service,
             data.get("books") or [],
@@ -519,22 +517,24 @@ def search(
             is_lang_zh=is_lang_zh,
             normalize_vbook_display_text=normalize_vbook_display_text,
             normalize_vi_display_text=normalize_vi_display_text,
+            allow_live_translation=False,
         )
     chapters_raw = data.get("chapters") or []
     chapters: list[dict[str, Any]] = []
-    allow = service.is_reader_translation_enabled()
-    for row in chapters_raw:
-        item = dict(row or {})
-        is_zh = is_lang_zh(str(item.get("lang_source") or "zh"))
-        title_raw = normalize_vbook_display_text(str(item.get("title_raw") or ""), single_line=True)
-        title_vi = normalize_vi_display_text(item.get("title_vi") or "")
-        book_title_raw = normalize_vbook_display_text(str(item.get("book_title") or ""), single_line=True)
-        book_title_vi = normalize_vi_display_text(item.get("book_title_vi") or "")
-        if allow and is_zh:
-            item["title_display"] = title_vi or service._translate_ui_text(title_raw, single_line=True) or title_raw
-            item["book_title_display"] = book_title_vi or service._translate_ui_text(book_title_raw, single_line=True) or book_title_raw
-        else:
-            item["title_display"] = title_raw or title_vi
-            item["book_title_display"] = book_title_raw or book_title_vi
-        chapters.append(item)
+    if scope_key != "books":
+        allow = service.is_reader_translation_enabled()
+        for row in chapters_raw:
+            item = dict(row or {})
+            is_zh = is_lang_zh(str(item.get("lang_source") or "zh"))
+            title_raw = normalize_vbook_display_text(str(item.get("title_raw") or ""), single_line=True)
+            title_vi = normalize_vi_display_text(item.get("title_vi") or "")
+            book_title_raw = normalize_vbook_display_text(str(item.get("book_title") or ""), single_line=True)
+            book_title_vi = normalize_vi_display_text(item.get("book_title_vi") or "")
+            if allow and is_zh:
+                item["title_display"] = title_vi or service._translate_ui_text(title_raw, single_line=True) or title_raw
+                item["book_title_display"] = book_title_vi or service._translate_ui_text(book_title_raw, single_line=True) or book_title_raw
+            else:
+                item["title_display"] = title_raw or title_vi
+                item["book_title_display"] = book_title_raw or book_title_vi
+            chapters.append(item)
     return {"books": books, "chapters": chapters}

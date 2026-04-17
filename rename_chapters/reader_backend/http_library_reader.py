@@ -1064,6 +1064,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
 
     if method == "GET" and path == "/api/search":
         query_text = query.get("q", [""])[0]
-        return service.search(query_text)
+        scope = query.get("scope", ["all"])[0]
+        return service.search(query_text, scope=scope)
 
     return None

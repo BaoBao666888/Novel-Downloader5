@@ -307,6 +307,10 @@ def handle_api(
         payload = handler._read_json_body()
         return handler.service.enqueue_import_job(payload)
 
+    if method == "POST" and path == "/api/library/import/jobs/action":
+        payload = handler._read_json_body()
+        return handler.service.run_import_notification_action(payload)
+
     if method == "POST" and path == "/api/library/import":
         form = handler._read_multipart_form()
         if "file" not in form:

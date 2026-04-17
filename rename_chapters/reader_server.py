@@ -165,6 +165,7 @@ SEARCH_CACHE_VERSION = "2"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 HISTORY_BOOK_RETENTION_DAYS = 7
 EXPORT_JOB_RETENTION_DAYS = 7
+IMPORT_JOB_SNAPSHOT_RETENTION_DAYS = 14
 NOTIFICATION_RETENTION_DAYS = notification_center_support.NOTIFICATION_RETENTION_DAYS
 NAME_FILTER_JOB_RETENTION_SECONDS = 1800
 VBOOK_RUNNER_INSTALL_URL = str(_LOCAL_VBOOK_RUNNER_INSTALL_URL or "").strip()
@@ -5411,11 +5412,12 @@ class ReaderStorage:
             utc_now_iso=utc_now_iso,
         )
 
-    def search(self, query: str) -> dict[str, Any]:
+    def search(self, query: str, *, scope: str = "all") -> dict[str, Any]:
         return storage_library_support.search(
             self,
             query,
             normalize_vi_display_text=normalize_vi_display_text,
+            scope=scope,
         )
 
     def save_epub_source(self, book_id: str, content: bytes) -> str:
@@ -5573,6 +5575,7 @@ class ReaderService:
             self._load_notifications_state_locked()
         with self._export_cv:
             self._load_export_jobs_state_locked()
+        self._cleanup_import_job_snapshots()
 
     def _default_name_sets(self) -> dict[str, dict[str, str]]:
         return normalize_name_sets_collection(self.app_config.get("nameSets") or {})
@@ -7338,7 +7341,7 @@ class ReaderService:
                 self._library_title_cache_cv.notify_all()
         return {"ok": True, "queued_ids": queued_ids, "pending_ids": pending_ids}
 
-    def search(self, query: str) -> dict[str, Any]:
+    def search(self, query: str, *, scope: str = "all") -> dict[str, Any]:
         return service_library_support.search(
             self,
             query,
@@ -7346,6 +7349,7 @@ class ReaderService:
             is_lang_zh=is_lang_zh,
             normalize_vbook_display_text=normalize_vbook_display_text,
             normalize_vi_display_text=normalize_vi_display_text,
+            scope=scope,
         )
 
     def list_history_books(self) -> list[dict[str, Any]]:
@@ -8171,6 +8175,156 @@ class ReaderService:
             self._persist_notifications_locked()
             self._notifications_cv.notify_all()
 
+    def _import_snapshot_root(self) -> Path:
+        root = LOCAL_DIR / "reader_import_jobs"
+        root.mkdir(parents=True, exist_ok=True)
+        return root
+
+    def _import_snapshot_path(self, snapshot_id: str) -> Path:
+        sid = str(snapshot_id or "").strip() or "default"
+        return self._import_snapshot_root() / f"{hash_text(sid)}.json"
+
+    def _cleanup_import_job_snapshots(self, *, max_age_days: int = IMPORT_JOB_SNAPSHOT_RETENTION_DAYS) -> None:
+        root = self._import_snapshot_root()
+        cutoff = time.time() - max(1, int(max_age_days or IMPORT_JOB_SNAPSHOT_RETENTION_DAYS)) * 86400
+        for path in root.glob("*.json"):
+            try:
+                if path.stat().st_mtime >= cutoff:
+                    continue
+                path.unlink(missing_ok=True)
+            except Exception:
+                continue
+
+    def _normalize_import_job_item(self, raw: dict[str, Any], *, fallback_idx: int) -> dict[str, Any]:
+        item = dict(raw or {})
+        token = str(item.get("token") or "").strip()
+        file_name = normalize_vbook_display_text(
+            str(item.get("file_name") or f"import_{fallback_idx + 1}.txt"),
+            single_line=True,
+        ) or f"import_{fallback_idx + 1}.txt"
+        status = str(item.get("status") or "pending").strip().lower() or "pending"
+        if status not in {"pending", "running", "success", "failed"}:
+            status = "pending"
+        return {
+            "token": token,
+            "file_name": file_name,
+            "title": str(item.get("title") or "").strip(),
+            "author": str(item.get("author") or "").strip(),
+            "summary": str(item.get("summary") or "").strip(),
+            "lang_source": normalize_lang_source(str(item.get("lang_source") or "").strip()) or "zh",
+            "import_settings": dict(item.get("import_settings") or {}) if isinstance(item.get("import_settings"), dict) else {},
+            "status": status,
+            "error": str(item.get("error") or "").strip(),
+            "book_id": str(item.get("book_id") or "").strip(),
+            "book_title": normalize_vbook_display_text(str(item.get("book_title") or ""), single_line=True),
+        }
+
+    def _find_import_job_item_locked(self, job: dict[str, Any], token: str) -> dict[str, Any] | None:
+        target = str(token or "").strip()
+        if not target:
+            return None
+        for item in (job.get("items") or []):
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("token") or "").strip() == target:
+                return item
+        return None
+
+    def _recount_import_job_locked(self, job: dict[str, Any]) -> None:
+        items = [item for item in (job.get("items") or []) if isinstance(item, dict)]
+        total = len(items)
+        success_items = [item for item in items if str(item.get("status") or "").strip().lower() == "success"]
+        failed_items = [item for item in items if str(item.get("status") or "").strip().lower() == "failed"]
+        completed = len(success_items) + len(failed_items)
+        job["total"] = total
+        job["completed_count"] = completed
+        job["success_count"] = len(success_items)
+        job["failed_count"] = len(failed_items)
+        imported_book_ids: list[str] = []
+        imported_book_titles: list[str] = []
+        seen_ids: set[str] = set()
+        for item in success_items:
+            book_id = str(item.get("book_id") or "").strip()
+            book_title = normalize_vbook_display_text(str(item.get("book_title") or ""), single_line=True)
+            if book_id and book_id not in seen_ids:
+                seen_ids.add(book_id)
+                imported_book_ids.append(book_id)
+                if book_title:
+                    imported_book_titles.append(book_title)
+        job["imported_book_ids"] = imported_book_ids
+        job["imported_book_titles"] = imported_book_titles
+        job["errors"] = [
+            {
+                "file_name": normalize_vbook_display_text(str(item.get("file_name") or ""), single_line=True) or "import.txt",
+                "error": str(item.get("error") or "").strip() or "Nhập file thất bại.",
+            }
+            for item in failed_items
+        ]
+
+    def _persist_import_job_snapshot_locked(self, job: dict[str, Any]) -> None:
+        snapshot_id = str(job.get("snapshot_id") or "").strip()
+        if not snapshot_id:
+            return
+        payload = {
+            "snapshot_id": snapshot_id,
+            "job_id": str(job.get("job_id") or "").strip(),
+            "notification_id": str(job.get("notification_id") or "").strip(),
+            "kind": str(job.get("kind") or "").strip(),
+            "title": str(job.get("title") or "").strip(),
+            "status": str(job.get("status") or "").strip().lower(),
+            "phase": str(job.get("phase") or "").strip().lower(),
+            "category_ids": [
+                str(item or "").strip()
+                for item in (job.get("category_ids") or [])
+                if str(item or "").strip()
+            ],
+            "category_names": [
+                normalize_vbook_display_text(str(item or ""), single_line=True)
+                for item in (job.get("category_names") or [])
+                if str(item or "").strip()
+            ],
+            "category_assign_error": str(job.get("category_assign_error") or "").strip(),
+            "current_file": str(job.get("current_file") or "").strip(),
+            "created_at": str(job.get("created_at") or ""),
+            "updated_at": str(job.get("updated_at") or ""),
+            "started_at": str(job.get("started_at") or ""),
+            "finished_at": str(job.get("finished_at") or ""),
+            "items": [
+                self._normalize_import_job_item(item, fallback_idx=idx)
+                for idx, item in enumerate(job.get("items") or [])
+                if isinstance(item, dict) and str(item.get("token") or "").strip()
+            ],
+        }
+        try:
+            self._import_snapshot_path(snapshot_id).write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
+
+    def _load_import_job_snapshot(self, snapshot_id: str) -> dict[str, Any] | None:
+        sid = str(snapshot_id or "").strip()
+        if not sid:
+            return None
+        path = self._import_snapshot_path(sid)
+        if not path.exists():
+            return None
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        if not isinstance(raw, dict):
+            return None
+        raw["snapshot_id"] = sid
+        raw["items"] = [
+            self._normalize_import_job_item(item, fallback_idx=idx)
+            for idx, item in enumerate(raw.get("items") or [])
+            if isinstance(item, dict) and str(item.get("token") or "").strip()
+        ]
+        self._recount_import_job_locked(raw)
+        return raw
+
     def _import_status_is_active(self, status: str) -> bool:
         return str(status or "").strip().lower() in {"queued", "running", "importing", "finishing"}
 
@@ -8232,13 +8386,32 @@ class ReaderService:
             for item in (job.get("imported_book_titles") or [])
             if str(item or "").strip()
         ]
+        snapshot_id = str(job.get("snapshot_id") or "").strip()
         category_names = [
             normalize_vbook_display_text(str(item or ""), single_line=True)
             for item in (job.get("category_names") or [])
             if str(item or "").strip()
         ]
+        category_ids = [
+            str(item or "").strip()
+            for item in (job.get("category_ids") or [])
+            if str(item or "").strip()
+        ]
         category_assign_error = str(job.get("category_assign_error") or "").strip()
         errors = list(job.get("errors") or []) if isinstance(job.get("errors"), list) else []
+        item_rows = [item for item in (job.get("items") or []) if isinstance(item, dict)]
+        pending_count = sum(
+            1
+            for item in item_rows
+            if str(item.get("status") or "").strip().lower() in {"pending", "running"}
+        )
+        retry_count = sum(
+            1
+            for item in item_rows
+            if str(item.get("status") or "").strip().lower() == "failed"
+        )
+        can_resume = bool(snapshot_id and pending_count > 0 and status in {"warning", "failed"})
+        can_retry = bool(snapshot_id and (retry_count > 0 or (category_assign_error and imported_book_ids)))
 
         if status == "queued":
             preview = f"Đã tải lên xong, đang chờ nhập {completed}/{total} truyện."
@@ -8311,6 +8484,13 @@ class ReaderService:
                 "failed_count": failed,
                 "current_file": current_file,
                 "book_ids_csv": ",".join(imported_book_ids),
+                "snapshot_id": snapshot_id,
+                "category_ids_csv": ",".join(category_ids),
+                "category_names_csv": "||".join(category_names),
+                "pending_count": pending_count,
+                "retry_count": retry_count,
+                "can_resume": can_resume,
+                "can_retry": can_retry,
             },
         }
 
@@ -8325,6 +8505,233 @@ class ReaderService:
             self._persist_notifications_locked()
             self._notifications_cv.notify_all()
 
+    def _import_category_ids_from_notification_item(self, item: dict[str, Any] | None) -> tuple[list[str], list[str]]:
+        payload = dict(item or {})
+        meta = dict(payload.get("meta") or {}) if isinstance(payload.get("meta"), dict) else {}
+        category_ids = list(dict.fromkeys(
+            str(part or "").strip()
+            for part in str(meta.get("category_ids_csv") or "").split(",")
+            if str(part or "").strip()
+        ))
+        category_names = [
+            normalize_vbook_display_text(str(part or ""), single_line=True)
+            for part in str(meta.get("category_names_csv") or "").split("||")
+            if str(part or "").strip()
+        ]
+        if not category_names:
+            detail = str(payload.get("detail") or "")
+            for raw_line in detail.splitlines():
+                line = str(raw_line or "").strip()
+                if not line.startswith("Danh mục:"):
+                    continue
+                names_part = line.split(":", 1)[1] if ":" in line else ""
+                category_names = [
+                    normalize_vbook_display_text(part, single_line=True)
+                    for part in names_part.split(",")
+                    if str(part or "").strip()
+                ]
+                break
+        if category_ids:
+            return category_ids, [name for name in category_names if name]
+        if not category_names:
+            return [], []
+        normalized_map: dict[str, dict[str, Any]] = {}
+        for row in self.storage.list_categories():
+            if not isinstance(row, dict):
+                continue
+            name = normalize_vbook_display_text(str(row.get("name") or ""), single_line=True)
+            cid = str(row.get("category_id") or "").strip()
+            if not name or not cid:
+                continue
+            normalized_map.setdefault(name.casefold(), row)
+        resolved_ids: list[str] = []
+        resolved_names: list[str] = []
+        for name in category_names:
+            row = normalized_map.get(str(name or "").casefold())
+            if not row:
+                continue
+            cid = str(row.get("category_id") or "").strip()
+            label = normalize_vbook_display_text(str(row.get("name") or ""), single_line=True)
+            if cid and cid not in resolved_ids:
+                resolved_ids.append(cid)
+                resolved_names.append(label or name)
+        return resolved_ids, resolved_names
+
+    def _retry_import_categories_only(
+        self,
+        *,
+        notification_id: str,
+        snapshot: dict[str, Any] | None = None,
+        fallback_item: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        snapshot_payload = dict(snapshot or {})
+        notification_payload = dict(fallback_item or {})
+        imported_book_ids = list(dict.fromkeys(
+            str(item or "").strip()
+            for item in (snapshot_payload.get("imported_book_ids") or [])
+            if str(item or "").strip()
+        ))
+        category_ids = list(dict.fromkeys(
+            str(item or "").strip()
+            for item in (snapshot_payload.get("category_ids") or [])
+            if str(item or "").strip()
+        ))
+        category_names = [
+            normalize_vbook_display_text(str(item or ""), single_line=True)
+            for item in (snapshot_payload.get("category_names") or [])
+            if str(item or "").strip()
+        ]
+        if (not imported_book_ids) and notification_payload:
+            meta = dict(notification_payload.get("meta") or {}) if isinstance(notification_payload.get("meta"), dict) else {}
+            imported_book_ids = list(dict.fromkeys(
+                str(item or "").strip()
+                for item in str(meta.get("book_ids_csv") or "").split(",")
+                if str(item or "").strip()
+            ))
+        if (not category_ids) and notification_payload:
+            category_ids, category_names = self._import_category_ids_from_notification_item(notification_payload)
+        if not imported_book_ids:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Không có truyện đã nhập để gán lại danh mục.")
+        if not category_ids:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Không tìm được danh mục để gán lại.")
+        self.storage.update_books_categories(
+            book_ids=imported_book_ids,
+            category_ids=category_ids,
+            action="add",
+        )
+        now = utc_now_iso()
+        if snapshot_payload:
+            snapshot_payload["notification_id"] = notification_id
+            snapshot_payload["snapshot_id"] = str(snapshot_payload.get("snapshot_id") or notification_id).strip() or notification_id
+            snapshot_payload["category_ids"] = category_ids
+            snapshot_payload["category_names"] = category_names
+            snapshot_payload["category_assign_error"] = ""
+            snapshot_payload["status"] = "completed" if int(snapshot_payload.get("failed_count") or 0) <= 0 else "warning"
+            snapshot_payload["phase"] = "done"
+            snapshot_payload["current_file"] = ""
+            snapshot_payload["updated_at"] = now
+            snapshot_payload["finished_at"] = now
+            self._recount_import_job_locked(snapshot_payload)
+            self._persist_import_job_snapshot_locked(snapshot_payload)
+            self._sync_import_notification_locked(snapshot_payload)
+        elif notification_payload:
+            meta = dict(notification_payload.get("meta") or {}) if isinstance(notification_payload.get("meta"), dict) else {}
+            meta["category_ids_csv"] = ",".join(category_ids)
+            meta["category_names_csv"] = "||".join(category_names)
+            meta["can_resume"] = False
+            meta["can_retry"] = False
+            failed_count = max(0, int(meta.get("failed_count") or 0))
+            payload = {
+                **notification_payload,
+                "id": notification_id,
+                "status": "warning" if failed_count > 0 else "success",
+                "preview": f"Đã gán lại danh mục cho {len(imported_book_ids)} truyện.",
+                "updated_at": now,
+                "detail": (
+                    f"{str(notification_payload.get('detail') or '').strip()}\n\n"
+                    f"Đã thử lại gán danh mục thành công lúc {now}."
+                ).strip(),
+                "meta": meta,
+            }
+            with self._notifications_cv:
+                self._upsert_notification_locked(payload)
+                self._persist_notifications_locked()
+                listing = self._list_notifications_locked(limit=160)
+                self._notifications_cv.notify_all()
+            return {"ok": True, "reapplied_categories": True, "listing": listing}
+        listing = self.list_notifications(limit=160)
+        return {"ok": True, "reapplied_categories": True, "listing": listing}
+
+    def run_import_notification_action(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        body = payload if isinstance(payload, dict) else {}
+        notification_id = str(body.get("notification_id") or body.get("id") or "").strip()
+        action = str(body.get("action") or "").strip().lower()
+        if not notification_id:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu notification_id.")
+        if action not in {"resume", "retry"}:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Action import không hợp lệ.")
+        with self._notifications_cv:
+            current_item = dict(self._notifications.get(notification_id) or {})
+        if not current_item:
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy thông báo import.")
+        if str(current_item.get("topic") or "").strip().lower() != "import":
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thông báo này không hỗ trợ tiếp tục/thử lại import.")
+        with self._import_cv:
+            for job in self._import_jobs.values():
+                if not isinstance(job, dict):
+                    continue
+                if str(job.get("notification_id") or "").strip() != notification_id:
+                    continue
+                if self._import_status_is_active(str(job.get("status") or "")):
+                    return {"ok": True, "already_running": True, "job": self._serialize_import_job_locked(job)}
+        meta = dict(current_item.get("meta") or {}) if isinstance(current_item.get("meta"), dict) else {}
+        snapshot_id = str(meta.get("snapshot_id") or notification_id).strip() or notification_id
+        snapshot = self._load_import_job_snapshot(snapshot_id)
+        if snapshot:
+            if not list(snapshot.get("category_ids") or []):
+                category_ids, category_names = self._import_category_ids_from_notification_item(current_item)
+                snapshot["category_ids"] = category_ids
+                snapshot["category_names"] = category_names
+            run_tokens: list[str] = []
+            for item in (snapshot.get("items") or []):
+                if not isinstance(item, dict):
+                    continue
+                status = str(item.get("status") or "").strip().lower()
+                token = str(item.get("token") or "").strip()
+                if not token:
+                    continue
+                if action == "resume" and status in {"pending", "running"}:
+                    item["status"] = "pending"
+                    item["error"] = ""
+                    run_tokens.append(token)
+                if action == "retry" and status == "failed":
+                    item["status"] = "pending"
+                    item["error"] = ""
+                    run_tokens.append(token)
+            if not run_tokens and str(snapshot.get("category_assign_error") or "").strip():
+                return self._retry_import_categories_only(
+                    notification_id=notification_id,
+                    snapshot=snapshot,
+                    fallback_item=current_item,
+                )
+            if not run_tokens:
+                raise ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "BAD_REQUEST",
+                    "Không còn mục nào phù hợp để tiếp tục/thử lại.",
+                )
+            snapshot["notification_id"] = notification_id
+            snapshot["snapshot_id"] = snapshot_id
+            snapshot["status"] = "queued"
+            snapshot["phase"] = "queued"
+            snapshot["current_file"] = ""
+            snapshot["category_assign_error"] = ""
+            snapshot["updated_at"] = utc_now_iso()
+            snapshot["finished_at"] = ""
+            self._recount_import_job_locked(snapshot)
+            return self.enqueue_import_job(
+                {
+                    "notification_id": notification_id,
+                    "snapshot_id": snapshot_id,
+                    "title": str(snapshot.get("title") or current_item.get("title") or "").strip(),
+                    "kind": str(snapshot.get("kind") or current_item.get("kind") or "import_file").strip(),
+                    "category_ids": list(snapshot.get("category_ids") or []),
+                    "items": list(snapshot.get("items") or []),
+                    "run_tokens": run_tokens,
+                }
+            )
+        if action == "retry":
+            return self._retry_import_categories_only(
+                notification_id=notification_id,
+                snapshot=None,
+                fallback_item=current_item,
+            )
+        raise ApiError(
+            HTTPStatus.BAD_REQUEST,
+            "BAD_REQUEST",
+            "Không còn snapshot tiến trình để tiếp tục. Chỉ hỗ trợ với job mới từ sau bản vá này.",
+        )
+
     def enqueue_import_job(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         body = payload if isinstance(payload, dict) else {}
         items_raw = body.get("items")
@@ -8338,25 +8745,49 @@ class ReaderService:
             token = str(raw.get("token") or "").strip()
             if not token or token in seen_tokens:
                 continue
-            preview_state = self._load_import_preview_state(token)
-            file_name = normalize_vbook_display_text(
-                str(raw.get("file_name") or preview_state.get("file_name") or f"import_{idx + 1}.txt"),
-                single_line=True,
-            ) or f"import_{idx + 1}.txt"
-            normalized_items.append(
-                {
-                    "token": token,
-                    "file_name": file_name,
-                    "title": str(raw.get("title") or "").strip(),
-                    "author": str(raw.get("author") or "").strip(),
-                    "summary": str(raw.get("summary") or "").strip(),
-                    "lang_source": normalize_lang_source(str(raw.get("lang_source") or "").strip()) or "zh",
-                    "import_settings": dict(raw.get("import_settings") or {}) if isinstance(raw.get("import_settings"), dict) else None,
-                }
-            )
+            item = self._normalize_import_job_item(raw, fallback_idx=idx)
+            try:
+                preview_state = self._load_import_preview_state(token)
+            except Exception:
+                preview_state = {}
+            if preview_state:
+                if not str(item.get("file_name") or "").strip():
+                    item["file_name"] = normalize_vbook_display_text(
+                        str(preview_state.get("file_name") or f"import_{idx + 1}.txt"),
+                        single_line=True,
+                    ) or f"import_{idx + 1}.txt"
+                if not str(item.get("title") or "").strip():
+                    item["title"] = str(preview_state.get("title") or "").strip()
+                if not str(item.get("author") or "").strip():
+                    item["author"] = str(preview_state.get("author") or "").strip()
+                if not str(item.get("summary") or "").strip():
+                    item["summary"] = str(preview_state.get("summary") or "").strip()
+                if not str(item.get("lang_source") or "").strip():
+                    item["lang_source"] = normalize_lang_source(str(preview_state.get("lang_source") or "").strip()) or "zh"
+                if (not item.get("import_settings")) and isinstance(preview_state.get("import_settings"), dict):
+                    item["import_settings"] = dict(preview_state.get("import_settings") or {})
+            normalized_items.append(item)
             seen_tokens.add(token)
         if not normalized_items:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Không có file hợp lệ để nhập.")
+        valid_token_set = {
+            str(item.get("token") or "").strip()
+            for item in normalized_items
+            if str(item.get("token") or "").strip()
+        }
+        run_tokens = [
+            str(item or "").strip()
+            for item in (body.get("run_tokens") or [])
+            if str(item or "").strip() in valid_token_set
+        ]
+        if not run_tokens:
+            run_tokens = [
+                str(item.get("token") or "").strip()
+                for item in normalized_items
+                if str(item.get("status") or "").strip().lower() in {"pending", "running"}
+            ]
+        if not run_tokens:
+            run_tokens = [str(item.get("token") or "").strip() for item in normalized_items if str(item.get("token") or "").strip()]
 
         category_ids = list(dict.fromkeys(
             str(item or "").strip()
@@ -8381,15 +8812,18 @@ class ReaderService:
         seed = f"{title}|{len(normalized_items)}|{now}|{uuid.uuid4().hex}"
         job_id = f"imp_{hash_text(seed)}"
         notification_id = str(body.get("notification_id") or f"import:{job_id}").strip() or f"import:{job_id}"
+        snapshot_id = str(body.get("snapshot_id") or notification_id).strip() or notification_id
         job = {
             "job_id": job_id,
             "notification_id": notification_id,
+            "snapshot_id": snapshot_id,
             "kind": kind,
             "title": title,
             "status": "queued",
             "phase": "queued",
             "items": normalized_items,
-            "total": len(normalized_items),
+            "run_tokens": run_tokens,
+            "total": 0,
             "completed_count": 0,
             "success_count": 0,
             "failed_count": 0,
@@ -8404,11 +8838,13 @@ class ReaderService:
             "updated_at": now,
             "finished_at": "",
         }
+        self._recount_import_job_locked(job)
         with self._import_cv:
             self._cleanup_import_jobs_locked()
             self._import_jobs[job_id] = job
             self._import_queue.append(job_id)
             self._import_start_worker_locked()
+            self._persist_import_job_snapshot_locked(job)
             self._import_cv.notify_all()
             self._sync_import_notification_locked(job)
             return {"ok": True, "job": self._serialize_import_job_locked(job)}
@@ -8423,7 +8859,18 @@ class ReaderService:
             job["phase"] = "importing"
             job["updated_at"] = started_at
             job["started_at"] = started_at
-            items = [dict(item) for item in (job.get("items") or []) if isinstance(item, dict)]
+            run_token_set = {
+                str(item or "").strip()
+                for item in (job.get("run_tokens") or [])
+                if str(item or "").strip()
+            }
+            items = [
+                dict(item)
+                for item in (job.get("items") or [])
+                if isinstance(item, dict) and str(item.get("token") or "").strip() in run_token_set
+            ]
+            self._recount_import_job_locked(job)
+            self._persist_import_job_snapshot_locked(job)
             self._import_cv.notify_all()
             self._sync_import_notification_locked(job)
 
@@ -8434,9 +8881,15 @@ class ReaderService:
                 job = self._import_jobs.get(job_id)
                 if not job:
                     return
+                item_ref = self._find_import_job_item_locked(job, token)
+                if item_ref is not None:
+                    item_ref["status"] = "running"
+                    item_ref["error"] = ""
                 job["current_file"] = file_name
                 job["phase"] = "importing"
                 job["updated_at"] = utc_now_iso()
+                self._recount_import_job_locked(job)
+                self._persist_import_job_snapshot_locked(job)
                 self._import_cv.notify_all()
                 self._sync_import_notification_locked(job)
             try:
@@ -8457,13 +8910,16 @@ class ReaderService:
                     job = self._import_jobs.get(job_id)
                     if not job:
                         return
-                    job["success_count"] = max(0, int(job.get("success_count") or 0)) + 1
-                    job["completed_count"] = max(0, int(job.get("completed_count") or 0)) + 1
+                    item_ref = self._find_import_job_item_locked(job, token)
+                    if item_ref is not None:
+                        item_ref["status"] = "success"
+                        item_ref["error"] = ""
+                        item_ref["book_id"] = book_id
+                        item_ref["book_title"] = book_title
                     job["current_file"] = ""
                     job["updated_at"] = utc_now_iso()
-                    if book_id:
-                        job.setdefault("imported_book_ids", []).append(book_id)
-                        job.setdefault("imported_book_titles", []).append(book_title)
+                    self._recount_import_job_locked(job)
+                    self._persist_import_job_snapshot_locked(job)
                     self._import_cv.notify_all()
                     self._sync_import_notification_locked(job)
             except ApiError as exc:
@@ -8472,11 +8928,14 @@ class ReaderService:
                     job = self._import_jobs.get(job_id)
                     if not job:
                         return
-                    job["failed_count"] = max(0, int(job.get("failed_count") or 0)) + 1
-                    job["completed_count"] = max(0, int(job.get("completed_count") or 0)) + 1
+                    item_ref = self._find_import_job_item_locked(job, token)
+                    if item_ref is not None:
+                        item_ref["status"] = "failed"
+                        item_ref["error"] = message
                     job["current_file"] = ""
-                    job.setdefault("errors", []).append({"file_name": file_name, "error": message})
                     job["updated_at"] = utc_now_iso()
+                    self._recount_import_job_locked(job)
+                    self._persist_import_job_snapshot_locked(job)
                     self._import_cv.notify_all()
                     self._sync_import_notification_locked(job)
             except Exception as exc:
@@ -8485,11 +8944,14 @@ class ReaderService:
                     job = self._import_jobs.get(job_id)
                     if not job:
                         return
-                    job["failed_count"] = max(0, int(job.get("failed_count") or 0)) + 1
-                    job["completed_count"] = max(0, int(job.get("completed_count") or 0)) + 1
+                    item_ref = self._find_import_job_item_locked(job, token)
+                    if item_ref is not None:
+                        item_ref["status"] = "failed"
+                        item_ref["error"] = message
                     job["current_file"] = ""
-                    job.setdefault("errors", []).append({"file_name": file_name, "error": message})
                     job["updated_at"] = utc_now_iso()
+                    self._recount_import_job_locked(job)
+                    self._persist_import_job_snapshot_locked(job)
                     self._import_cv.notify_all()
                     self._sync_import_notification_locked(job)
 
@@ -8500,6 +8962,8 @@ class ReaderService:
             job["phase"] = "finishing"
             job["current_file"] = ""
             job["updated_at"] = utc_now_iso()
+            self._recount_import_job_locked(job)
+            self._persist_import_job_snapshot_locked(job)
             self._import_cv.notify_all()
             self._sync_import_notification_locked(job)
 
@@ -8534,10 +8998,13 @@ class ReaderService:
             else:
                 job["status"] = "failed"
             job["phase"] = "done"
+            job["run_tokens"] = []
             job["current_file"] = ""
             finished_at = utc_now_iso()
             job["finished_at"] = finished_at
             job["updated_at"] = finished_at
+            self._recount_import_job_locked(job)
+            self._persist_import_job_snapshot_locked(job)
             self._import_cv.notify_all()
             self._sync_import_notification_locked(job)
 

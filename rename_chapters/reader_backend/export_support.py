@@ -651,12 +651,18 @@ def wrap_export_html_document(
   let protectedHydrated = false;
   let protectCountdownTimer = 0;
   let protectMonitorTimer = 0;
+  let protectMonitorStartTimer = 0;
+  let protectAutoSubmitTimer = 0;
+  let protectDockedDevtoolsHits = 0;
+  let protectUnlockedAtMs = 0;
   let readingSaveTimer = 0;
   let readingRestoreTimers = [];
   let readingRestoreApplied = false;
   let readingSnapshot = null;
-  const PROTECT_DEVTOOLS_GAP_THRESHOLD = 160;
+  const PROTECT_DEVTOOLS_DELTA_THRESHOLD = 220;
+  const PROTECT_DEVTOOLS_CONFIRM_HITS = 3;
   const PROTECT_DEBUGGER_STALL_MS = 140;
+  const PROTECT_MONITOR_GRACE_MS = 1800;
   const protectInitialWidthGap = Math.abs(window.outerWidth - window.innerWidth);
   const protectInitialHeightGap = Math.abs(window.outerHeight - window.innerHeight);
   const themeColorFields = [
@@ -725,8 +731,16 @@ def wrap_export_html_document(
   }};
   const formatCountdown = (remainingMs) => {{
     const totalSec = Math.max(0, Math.ceil(Number(remainingMs || 0) / 1000));
-    const minutes = Math.floor(totalSec / 60);
+    const days = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
     const seconds = totalSec % 60;
+    if (days > 0) {{
+      return `${{days}} ngày ${{String(hours).padStart(2, "0")}}:${{String(minutes).padStart(2, "0")}}:${{String(seconds).padStart(2, "0")}}`;
+    }}
+    if (hours > 0) {{
+      return `${{String(hours).padStart(2, "0")}}:${{String(minutes).padStart(2, "0")}}:${{String(seconds).padStart(2, "0")}}`;
+    }}
     return `${{String(minutes).padStart(2, "0")}}:${{String(seconds).padStart(2, "0")}}`;
   }};
   const stopProtectCountdown = () => {{
@@ -734,11 +748,26 @@ def wrap_export_html_document(
     window.clearInterval(protectCountdownTimer);
     protectCountdownTimer = 0;
   }};
+  const clearProtectMonitorStart = () => {{
+    if (!protectMonitorStartTimer) return;
+    window.clearTimeout(protectMonitorStartTimer);
+    protectMonitorStartTimer = 0;
+  }};
+  const clearProtectAutoSubmit = () => {{
+    if (!protectAutoSubmitTimer) return;
+    window.clearTimeout(protectAutoSubmitTimer);
+    protectAutoSubmitTimer = 0;
+  }};
   const stopProtectMonitor = () => {{
+    clearProtectMonitorStart();
     if (!protectMonitorTimer) return;
     window.clearInterval(protectMonitorTimer);
     protectMonitorTimer = 0;
   }};
+  const inProtectMonitorGrace = () => (
+    protectUnlockedAtMs > 0
+    && (Date.now() - protectUnlockedAtMs) < PROTECT_MONITOR_GRACE_MS
+  );
   const getScrollHost = () => document.scrollingElement || document.documentElement || document.body;
   const readStoredReading = () => {{
     try {{
@@ -845,11 +874,23 @@ def wrap_export_html_document(
   }};
   const showProtectUnlock = () => {{
     if (!(protectOverlay && protectUnlockPanel && PROTECT_CONFIG.access_code_enabled)) return;
+    stopProtectMonitor();
+    protectDockedDevtoolsHits = 0;
     protectOverlay.hidden = false;
     protectUnlockPanel.hidden = false;
     if (protectLockPanel) protectLockPanel.hidden = true;
+    document.body.classList.remove("protected-locked");
     document.body.classList.add("protection-await-unlock");
-    if (protectCodeInput instanceof HTMLInputElement) protectCodeInput.focus();
+    if (shell) shell.removeAttribute("aria-hidden");
+    if (protectCodeInput instanceof HTMLInputElement) {{
+      window.setTimeout(() => {{
+        try {{
+          protectCodeInput.focus({{ preventScroll: true }});
+        }} catch (_error) {{
+          protectCodeInput.focus();
+        }}
+      }}, 40);
+    }}
     startProtectCountdown();
   }};
   const hideProtectOverlay = () => {{
@@ -857,17 +898,55 @@ def wrap_export_html_document(
     if (protectUnlockPanel) protectUnlockPanel.hidden = true;
     if (protectLockPanel) protectLockPanel.hidden = true;
     document.body.classList.remove("protection-await-unlock");
+    stopProtectCountdown();
+  }};
+  const startProtectMonitor = (delayMs = 0) => {{
+    if (!PROTECT_ENABLED || protectedLocked || !protectedHydrated) return;
+    clearProtectMonitorStart();
+    if (protectMonitorTimer) return;
+    const launch = () => {{
+      if (!PROTECT_ENABLED || protectedLocked || !protectedHydrated) return;
+      runProtectionChecks();
+      if (protectedLocked || protectMonitorTimer) return;
+      protectMonitorTimer = window.setInterval(() => {{
+        runProtectionChecks();
+      }}, 900);
+    }};
+    const delay = Math.max(0, Number(delayMs || 0));
+    if (delay > 0) {{
+      protectMonitorStartTimer = window.setTimeout(() => {{
+        protectMonitorStartTimer = 0;
+        launch();
+      }}, delay);
+      return;
+    }}
+    launch();
+  }};
+  const normalizeProtectCodeInputValue = () => {{
+    if (!(protectCodeInput instanceof HTMLInputElement)) return "";
+    const digits = String(protectCodeInput.value || "").replace(/\\D+/g, "").slice(-6);
+    if (protectCodeInput.value !== digits) protectCodeInput.value = digits;
+    return digits;
   }};
   const unlockProtected = () => {{
     hydrateProtectedMarkup();
+    protectedLocked = false;
+    protectDockedDevtoolsHits = 0;
+    protectUnlockedAtMs = Date.now();
+    document.body.classList.remove("protected-locked");
     hideProtectOverlay();
     if (protectCodeError) protectCodeError.hidden = true;
     if (protectCodeInput instanceof HTMLInputElement) protectCodeInput.value = "";
+    if (shell) shell.removeAttribute("aria-hidden");
+    clearProtectAutoSubmit();
     scheduleReadingRestore();
+    startProtectMonitor(1400);
   }};
   const lockProtected = (reason = "") => {{
     if (!PROTECT_ENABLED || protectedLocked) return;
     protectedLocked = true;
+    protectDockedDevtoolsHits = 0;
+    clearProtectAutoSubmit();
     document.body.classList.add("protected-locked");
     if (protectOverlay) protectOverlay.hidden = false;
     if (protectUnlockPanel) protectUnlockPanel.hidden = true;
@@ -884,11 +963,11 @@ def wrap_export_html_document(
   const hasLikelyDockedDevtools = () => {{
     const widthGap = Math.abs(window.outerWidth - window.innerWidth);
     const heightGap = Math.abs(window.outerHeight - window.innerHeight);
+    const widthDelta = Math.max(0, widthGap - protectInitialWidthGap);
+    const heightDelta = Math.max(0, heightGap - protectInitialHeightGap);
     return (
-      widthGap > PROTECT_DEVTOOLS_GAP_THRESHOLD
-      || heightGap > PROTECT_DEVTOOLS_GAP_THRESHOLD
-      || (widthGap - protectInitialWidthGap) > 120
-      || (heightGap - protectInitialHeightGap) > 120
+      widthDelta > PROTECT_DEVTOOLS_DELTA_THRESHOLD
+      || heightDelta > PROTECT_DEVTOOLS_DELTA_THRESHOLD
     );
   }};
   const detectDebuggerPause = () => {{
@@ -1013,31 +1092,29 @@ def wrap_export_html_document(
     syncUiState();
   }};
   const runProtectionChecks = () => {{
-    if (!PROTECT_ENABLED || protectedLocked) return;
+    if (!PROTECT_ENABLED || protectedLocked || !protectedHydrated || inProtectMonitorGrace()) return;
     const extensionReason = getSuspiciousExtensionReason();
     if (extensionReason) {{
+      protectDockedDevtoolsHits = 0;
       lockProtected(extensionReason);
       return;
     }}
     if (hasSuspiciousEmbedNodes()) {{
+      protectDockedDevtoolsHits = 0;
       lockProtected("Phát hiện tiện ích hoặc mã ngoài chèn vào file được bảo vệ. Vui lòng tắt công cụ copy/trích xuất rồi mở lại file.");
       return;
     }}
     if (hasLikelyDockedDevtools()) {{
-      lockProtected("Phát hiện công cụ kiểm tra nội dung đang mở. Người xuất đã chặn copy nội dung này.");
+      protectDockedDevtoolsHits += 1;
+      if (protectDockedDevtoolsHits >= PROTECT_DEVTOOLS_CONFIRM_HITS) {{
+        lockProtected("Phát hiện công cụ kiểm tra nội dung đang mở. Người xuất đã chặn copy nội dung này.");
+      }}
       return;
     }}
+    protectDockedDevtoolsHits = 0;
     if (detectDebuggerPause()) {{
       lockProtected("Phát hiện DevTools hoặc trình gỡ lỗi đang mở. Người xuất đã chặn copy nội dung này.");
     }}
-  }};
-  const startProtectMonitor = () => {{
-    if (!PROTECT_ENABLED || protectMonitorTimer || protectedLocked) return;
-    runProtectionChecks();
-    if (protectedLocked) return;
-    protectMonitorTimer = window.setInterval(() => {{
-      runProtectionChecks();
-    }}, 900);
   }};
   const persist = () => {{
     try {{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }} catch (_error) {{}}
@@ -1158,8 +1235,6 @@ def wrap_export_html_document(
         lockProtected("Thiếu module bảo vệ nội dung để mở file HTML này.");
       }} else if (navigator.webdriver) {{
         lockProtected("Người xuất đã chặn tự động hóa hoặc công cụ trích xuất nội dung.");
-      }} else if (hasLikelyDockedDevtools()) {{
-        lockProtected("Phát hiện công cụ kiểm tra nội dung đang mở. Người xuất đã chặn copy nội dung này.");
       }} else if (PROTECT_CONFIG.access_code_enabled) {{
         const remembered = protectRuntime.resumeRemembered();
         if (remembered && remembered.ok) {{
@@ -1179,7 +1254,6 @@ def wrap_export_html_document(
       unlockProtected();
     }}
   }}
-  if (PROTECT_ENABLED) startProtectMonitor();
   document.querySelectorAll("[data-toggle-drawer]").forEach((button) => {{
     button.addEventListener("click", () => toggleDrawer(button.getAttribute("data-toggle-drawer") || ""));
   }});
@@ -1216,7 +1290,8 @@ def wrap_export_html_document(
   }});
   protectCodeSubmit?.addEventListener("click", () => {{
     if (!(PROTECT_ENABLED && protectRuntime && PROTECT_CONFIG.access_code_enabled)) return;
-    const result = protectRuntime.verifyAccessCode(protectCodeInput instanceof HTMLInputElement ? protectCodeInput.value : "");
+    clearProtectAutoSubmit();
+    const result = protectRuntime.verifyAccessCode(normalizeProtectCodeInputValue());
     if (result && result.ok) {{
       unlockProtected();
       showUi(2600);
@@ -1224,7 +1299,11 @@ def wrap_export_html_document(
     }}
     if (protectCodeError) protectCodeError.hidden = false;
     if (protectCodeInput instanceof HTMLInputElement) {{
-      protectCodeInput.focus();
+      try {{
+        protectCodeInput.focus({{ preventScroll: true }});
+      }} catch (_error) {{
+        protectCodeInput.focus();
+      }}
       protectCodeInput.select();
     }}
   }});
@@ -1235,9 +1314,18 @@ def wrap_export_html_document(
   }});
   protectCodeInput?.addEventListener("input", () => {{
     if (protectCodeError) protectCodeError.hidden = true;
+    const digits = normalizeProtectCodeInputValue();
+    clearProtectAutoSubmit();
+    if (digits.length === 6) {{
+      protectAutoSubmitTimer = window.setTimeout(() => {{
+        protectAutoSubmitTimer = 0;
+        protectCodeSubmit?.click();
+      }}, 80);
+    }}
   }});
   if (PROTECT_ENABLED) {{
     const observer = new MutationObserver((mutations) => {{
+      if (!PROTECT_ENABLED || protectedLocked || !protectedHydrated || inProtectMonitorGrace()) return;
       for (const mutation of mutations) {{
         for (const node of Array.from(mutation.addedNodes || [])) {{
           if (node instanceof HTMLStyleElement) {{

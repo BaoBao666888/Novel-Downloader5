@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260417-import2";
+import { initShell } from "../site_common.js?v=20260417-notify1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260307-br2";
 
 const refs = {
@@ -18,6 +18,10 @@ const state = {
   query: "",
   books: [],
   chapters: [],
+  booksLoading: false,
+  chaptersLoading: false,
+  searchSeq: 0,
+  searchController: null,
   translationEnabled: true,
   translationMode: "server",
   translationLocalSig: "{}",
@@ -44,9 +48,69 @@ function updateQueryUrl() {
   }
 }
 
+function createSkeletonBlock(className = "") {
+  const node = document.createElement("div");
+  node.className = `ui-skeleton-block${className ? ` ${className}` : ""}`;
+  return node;
+}
+
+function createSearchBookSkeletonCard(index = 0) {
+  const card = document.createElement("article");
+  card.className = "book-card book-card-shell book-card-loading";
+  card.setAttribute("aria-hidden", "true");
+  card.dataset.skeletonId = String(index);
+
+  const cover = document.createElement("div");
+  cover.className = "book-card-cover book-card-cover-skeleton";
+
+  const body = document.createElement("div");
+  body.append(
+    createSkeletonBlock("book-card-skeleton-title"),
+    createSkeletonBlock("book-card-skeleton-meta"),
+  );
+
+  const progressRow = document.createElement("div");
+  progressRow.className = "book-card-progress-row";
+  progressRow.append(
+    createSkeletonBlock("book-card-skeleton-text"),
+    createSkeletonBlock("book-card-skeleton-pill"),
+  );
+  body.append(progressRow, createSkeletonBlock("book-card-skeleton-download"));
+
+  card.append(cover, body);
+  return card;
+}
+
+function createSearchChapterSkeleton(index = 0) {
+  const li = document.createElement("li");
+  li.setAttribute("aria-hidden", "true");
+  li.dataset.skeletonId = String(index);
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "chapter-hit is-skeleton";
+  btn.disabled = true;
+
+  const title = createSkeletonBlock("chapter-hit-skeleton-line");
+  const sub = createSkeletonBlock("chapter-hit-skeleton-line is-short");
+  btn.append(title, sub);
+  li.appendChild(btn);
+  return li;
+}
+
 function renderBooks() {
   refs.searchBooksGrid.innerHTML = "";
-  refs.searchBooksCount.textContent = state.shell.t("libraryCount", { count: state.books.length });
+  refs.searchBooksCount.textContent = state.booksLoading
+    ? "..."
+    : state.shell.t("libraryCount", { count: state.books.length });
+
+  if (state.booksLoading) {
+    refs.searchBooksEmpty.textContent = state.shell.t("searchBooksLoading");
+    for (let i = 0; i < 6; i += 1) {
+      refs.searchBooksGrid.appendChild(createSearchBookSkeletonCard(i));
+    }
+    return;
+  }
 
   if (!state.books.length) {
     refs.searchBooksEmpty.textContent = state.query
@@ -103,7 +167,17 @@ function renderBooks() {
 
 function renderChapterHits() {
   refs.chapterHitList.innerHTML = "";
-  refs.chapterHitsCount.textContent = state.shell.t("searchChapterCount", { count: state.chapters.length });
+  refs.chapterHitsCount.textContent = state.chaptersLoading
+    ? "..."
+    : state.shell.t("searchChapterCount", { count: state.chapters.length });
+
+  if (state.chaptersLoading) {
+    refs.chapterHitsEmpty.textContent = state.shell.t("chapterHitsLoading");
+    for (let i = 0; i < 5; i += 1) {
+      refs.chapterHitList.appendChild(createSearchChapterSkeleton(i));
+    }
+    return;
+  }
 
   if (!state.chapters.length) {
     refs.chapterHitsEmpty.textContent = state.query
@@ -137,30 +211,69 @@ function renderChapterHits() {
   }
 }
 
+async function fetchSearchScope(queryText, scope, signal) {
+  return state.shell.api(
+    `/api/search?q=${encodeURIComponent(queryText)}&scope=${encodeURIComponent(scope)}`,
+    { signal },
+  );
+}
+
 async function runSearch(queryText, { updateUrl = true } = {}) {
   state.query = String(queryText || "").trim();
   if (refs.searchInput) refs.searchInput.value = state.query;
   if (updateUrl) updateQueryUrl();
+  if (state.searchController) {
+    try {
+      state.searchController.abort();
+    } catch {
+      // ignore aborted controller cleanup
+    }
+    state.searchController = null;
+  }
 
   if (!state.query) {
     state.books = [];
     state.chapters = [];
+    state.booksLoading = false;
+    state.chaptersLoading = false;
     renderBooks();
     renderChapterHits();
     return;
   }
 
+  const searchSeq = state.searchSeq + 1;
+  state.searchSeq = searchSeq;
+  const controller = new AbortController();
+  state.searchController = controller;
+  state.books = [];
+  state.chapters = [];
+  state.booksLoading = true;
+  state.chaptersLoading = true;
+  renderBooks();
+  renderChapterHits();
   state.shell.showStatus(state.shell.t("statusSearching"));
   try {
-    const data = await state.shell.api(`/api/search?q=${encodeURIComponent(state.query)}`);
-    state.books = Array.isArray(data.books) ? data.books : [];
-    state.chapters = Array.isArray(data.chapters) ? data.chapters : [];
+    const booksData = await fetchSearchScope(state.query, "books", controller.signal);
+    if (searchSeq !== state.searchSeq) return;
+    state.books = Array.isArray(booksData && booksData.books) ? booksData.books : [];
+    state.booksLoading = false;
     renderBooks();
+
+    const chaptersData = await fetchSearchScope(state.query, "chapters", controller.signal);
+    if (searchSeq !== state.searchSeq) return;
+    state.chapters = Array.isArray(chaptersData && chaptersData.chapters) ? chaptersData.chapters : [];
+    state.chaptersLoading = false;
     renderChapterHits();
   } catch (error) {
+    if (error && error.name === "AbortError") return;
+    state.booksLoading = false;
+    state.chaptersLoading = false;
+    renderBooks();
+    renderChapterHits();
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
-    state.shell.hideStatus();
+    if (state.searchController === controller) state.searchController = null;
+    if (searchSeq === state.searchSeq) state.shell.hideStatus();
   }
 }
 

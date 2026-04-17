@@ -1306,6 +1306,26 @@ p {
   margin-top: 4px;
 }
 
+.chapter-hit.is-skeleton {
+  cursor: default;
+  pointer-events: none;
+}
+
+.chapter-hit.is-skeleton:hover {
+  transform: none;
+  border-color: var(--line);
+}
+
+.chapter-hit-skeleton-line {
+  width: min(100%, 440px);
+  height: 13px;
+}
+
+.chapter-hit-skeleton-line.is-short {
+  width: min(42%, 180px);
+  margin-top: 8px;
+}
+
 .toc-download-btn {
   align-self: stretch;
   white-space: nowrap;
@@ -3567,6 +3587,17 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
+}
+
+.notification-card-actions,
+.notification-detail-actions-extra {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notification-card-actions {
+  margin-top: 2px;
 }
 
 .notification-status-chip {

@@ -923,39 +923,48 @@ def search(
     query: str,
     *,
     normalize_vi_display_text,
+    scope: str = "all",
 ) -> dict[str, Any]:
+    scope_key = str(scope or "all").strip().lower()
+    if scope_key not in {"all", "books", "chapters"}:
+        scope_key = "all"
     key = normalize_search_text(query)
     if not key:
-        books = storage.list_books()
-        return {"books": books, "chapters": []}
+        books = storage.list_books() if scope_key != "chapters" else []
+        chapters: list[dict[str, Any]] = []
+        return {"books": books, "chapters": chapters}
 
+    book_rows: list[sqlite3.Row] = []
+    chapter_rows: list[sqlite3.Row] = []
     with storage._connect() as conn:
-        book_rows = conn.execute(
-            """
-            SELECT book_id, title, title_vi, author, author_vi, lang_source, source_type, chapter_count, updated_at, cover_path
-            FROM books
-            WHERE lower(COALESCE(source_type, '')) NOT LIKE 'vbook_session%'
-              AND instr(COALESCE(search_text, ''), ?) > 0
-            ORDER BY updated_at DESC
-            """,
-            (key,),
-        ).fetchall()
-        chapter_rows = conn.execute(
-            """
-            SELECT c.chapter_id, c.book_id, c.chapter_order, c.title_raw, c.title_vi, c.updated_at,
-                   b.title AS book_title, b.title_vi AS book_title_vi
-            FROM chapters c
-            JOIN books b ON b.book_id = c.book_id
-            WHERE lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'
-              AND (
-                    instr(COALESCE(c.search_text, ''), ?) > 0
-                    OR instr(COALESCE(b.search_text, ''), ?) > 0
-                  )
-            ORDER BY c.updated_at DESC
-            LIMIT 120
-            """,
-            (key, key),
-        ).fetchall()
+        if scope_key in {"all", "books"}:
+            book_rows = conn.execute(
+                """
+                SELECT book_id, title, title_vi, author, author_vi, lang_source, source_type, chapter_count, updated_at, cover_path
+                FROM books
+                WHERE lower(COALESCE(source_type, '')) NOT LIKE 'vbook_session%'
+                  AND instr(COALESCE(search_text, ''), ?) > 0
+                ORDER BY updated_at DESC
+                """,
+                (key,),
+            ).fetchall()
+        if scope_key in {"all", "chapters"}:
+            chapter_rows = conn.execute(
+                """
+                SELECT c.chapter_id, c.book_id, c.chapter_order, c.title_raw, c.title_vi, c.updated_at,
+                       b.title AS book_title, b.title_vi AS book_title_vi
+                FROM chapters c
+                JOIN books b ON b.book_id = c.book_id
+                WHERE lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'
+                  AND (
+                        instr(COALESCE(c.search_text, ''), ?) > 0
+                        OR instr(COALESCE(b.search_text, ''), ?) > 0
+                      )
+                ORDER BY c.updated_at DESC
+                LIMIT 120
+                """,
+                (key, key),
+            ).fetchall()
 
     return {
         "books": [

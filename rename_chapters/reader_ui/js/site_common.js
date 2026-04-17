@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260417-library3";
+import { t } from "../i18n.vi.js?v=20260417-notify1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -1774,6 +1774,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     activeCount: 0,
     sig: "",
     selected: new Set(),
+    pendingActions: new Set(),
     ui: null,
     eventSource: null,
     reconnectTimer: 0,
@@ -1846,6 +1847,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         <p id="notification-detail-created" class="dialog-subtitle"></p>
         <pre id="notification-detail-body" class="notification-detail-body"></pre>
         <div class="dialog-actions">
+          <div id="notification-detail-actions-extra" class="notification-detail-actions-extra"></div>
           <button id="btn-notification-detail-read" class="btn" type="button">${t("notificationMarkRead")}</button>
           <button id="btn-notification-detail-delete" class="btn" type="button">${t("notificationDeleteOne")}</button>
         </div>
@@ -1873,6 +1875,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       detailUpdated: qs("notification-detail-updated"),
       detailCreated: qs("notification-detail-created"),
       detailBody: qs("notification-detail-body"),
+      detailActionsExtra: qs("notification-detail-actions-extra"),
       btnDetailClose: qs("btn-notification-detail-close"),
       btnDetailRead: qs("btn-notification-detail-read"),
       btnDetailDelete: qs("btn-notification-detail-delete"),
@@ -1917,6 +1920,67 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       ui.bellButton.title = t("notifications");
     };
 
+    const normalizeNotificationMetaBool = (value) => {
+      if (typeof value === "boolean") return value;
+      return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+    };
+
+    const buildImportNotificationActions = (item) => {
+      if (!item || String(item.topic || "").trim().toLowerCase() !== "import") return [];
+      const meta = (item.meta && typeof item.meta === "object") ? item.meta : {};
+      const status = normalizeNotificationStatus(item.status);
+      const snapshotId = String(meta.snapshot_id || "").trim();
+      const hasBookIds = String(meta.book_ids_csv || "").trim().length > 0;
+      const pendingCount = Math.max(0, Number(meta.pending_count || 0));
+      const retryCount = Math.max(0, Number(meta.retry_count || 0));
+      const hasExplicitResume = Object.prototype.hasOwnProperty.call(meta, "can_resume");
+      const hasExplicitRetry = Object.prototype.hasOwnProperty.call(meta, "can_retry");
+      const canResume = hasExplicitResume
+        ? normalizeNotificationMetaBool(meta.can_resume)
+        : Boolean(status === "warning" && snapshotId && pendingCount > 0);
+      const canRetry = hasExplicitRetry
+        ? normalizeNotificationMetaBool(meta.can_retry)
+        : Boolean((status === "failed" || status === "warning") && (snapshotId || hasBookIds || retryCount > 0));
+      const actions = [];
+      if (canResume) actions.push({ id: "resume", label: t("notificationResume") });
+      if (canRetry) actions.push({ id: "retry", label: t("notificationRetry") });
+      return actions;
+    };
+
+    const triggerNotificationAction = async (item, action) => {
+      const notifId = String((item && item.id) || "").trim();
+      if (!notifId) return;
+      const pendingKey = `${notifId}:${String(action || "").trim().toLowerCase()}`;
+      if (!pendingKey || notificationState.pendingActions.has(pendingKey)) return;
+      notificationState.pendingActions.add(pendingKey);
+      renderNotificationList();
+      const currentDetail = notificationState.items.find((row) => String((row && row.id) || "").trim() === ui.activeDetailId);
+      if (currentDetail && ui.detailDialog && ui.detailDialog.open) renderNotificationDetail(currentDetail);
+      try {
+        const data = await api("/api/library/import/jobs/action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            notification_id: notifId,
+            action: String(action || "").trim().toLowerCase(),
+          }),
+        });
+        if (data && data.listing) applyNotificationListing(data.listing);
+        if (data && data.reapplied_categories) {
+          showToast("Đã gán lại danh mục cho các truyện đã nhập.");
+        } else if (data && data.job) {
+          showToast(action === "resume" ? "Đã đưa tiến trình trở lại hàng chờ." : "Đã gửi yêu cầu thử lại.");
+        }
+      } catch (error) {
+        showToast(error.displayMessage || error.message || t("toastError"));
+      } finally {
+        notificationState.pendingActions.delete(pendingKey);
+        renderNotificationList();
+        const nextDetail = notificationState.items.find((row) => String((row && row.id) || "").trim() === ui.activeDetailId);
+        if (nextDetail && ui.detailDialog && ui.detailDialog.open) renderNotificationDetail(nextDetail);
+      }
+    };
+
     const renderNotificationDetail = (item) => {
       if (!item || !ui.detailDialog) return;
       ui.activeDetailId = String(item.id || "").trim();
@@ -1945,6 +2009,22 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         const detailText = String(item.detail || "").trim();
         if (detailText) lines.push(detailText);
         ui.detailBody.textContent = lines.filter(Boolean).join("\n\n").trim();
+      }
+      if (ui.detailActionsExtra) {
+        ui.detailActionsExtra.innerHTML = "";
+        const actions = buildImportNotificationActions(item);
+        for (const actionDef of actions) {
+          const pendingKey = `${String(item.id || "").trim()}:${actionDef.id}`;
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "btn btn-small";
+          btn.textContent = String(actionDef.label || "").trim();
+          btn.disabled = notificationState.pendingActions.has(pendingKey);
+          btn.addEventListener("click", () => {
+            triggerNotificationAction(item, actionDef.id).catch(() => {});
+          });
+          ui.detailActionsExtra.appendChild(btn);
+        }
       }
       if (ui.btnDetailRead) {
         ui.btnDetailRead.textContent = item.read ? t("notificationMarkUnread") : t("notificationMarkRead");
@@ -2033,6 +2113,26 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         }
         meta.textContent = metaParts.join(" • ");
         body.append(head, meta);
+        const actions = buildImportNotificationActions(item);
+        if (actions.length) {
+          const actionRow = document.createElement("div");
+          actionRow.className = "notification-card-actions";
+          for (const actionDef of actions) {
+            const pendingKey = `${String(item.id || "").trim()}:${actionDef.id}`;
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "btn btn-small";
+            btn.textContent = String(actionDef.label || "").trim();
+            btn.disabled = notificationState.pendingActions.has(pendingKey);
+            btn.addEventListener("click", (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              triggerNotificationAction(item, actionDef.id).catch(() => {});
+            });
+            actionRow.appendChild(btn);
+          }
+          body.appendChild(actionRow);
+        }
         if (Number(item.progress_total || 0) > 0) {
           const progressOuter = document.createElement("div");
           progressOuter.className = "notification-progress";
