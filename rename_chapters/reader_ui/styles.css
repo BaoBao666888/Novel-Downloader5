@@ -718,6 +718,27 @@ p {
   overflow: auto;
 }
 
+.library-toolbar {
+  padding: 0 10px 6px;
+}
+
+.library-search-field {
+  display: grid;
+  gap: 6px;
+  max-width: min(520px, 100%);
+  color: color-mix(in srgb, var(--muted) 92%, transparent);
+  font-size: 13px;
+}
+
+.library-search-field input {
+  width: 100%;
+}
+
+.library-scroll-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
 .history-panel .library-grid {
   max-height: min(34vh, 340px);
 }

@@ -30,55 +30,223 @@ def book_cover_url(
     return f"/media/cover/{quote_url_path(Path(cover).name)}"
 
 
-def list_books(
-    storage,
+def _normalize_book_query_value(raw: Any) -> str:
+    return str(raw or "").strip()
+
+
+def _normalize_book_query_ids(values: Any) -> list[str]:
+    if not isinstance(values, (list, tuple, set)):
+        return []
+    output: list[str] = []
+    seen: set[str] = set()
+    for item in values:
+        value = str(item or "").strip()
+        if (not value) or (value in seen):
+            continue
+        seen.add(value)
+        output.append(value)
+    return output
+
+
+def _normalize_book_category_match_mode(raw: Any) -> str:
+    return "and" if str(raw or "").strip().lower() == "and" else "or"
+
+
+def _build_book_list_query_context(
     *,
-    include_session: bool = False,
+    include_session: bool,
+    category_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+    category_exclude_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+    category_match_mode: str = "or",
+    author_query: str = "",
+) -> tuple[str, list[Any]]:
+    clauses: list[str] = []
+    params: list[Any] = []
+
+    if not include_session:
+        clauses.append("lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'")
+
+    author_key = _normalize_book_query_value(author_query).lower()
+    if author_key:
+        like = f"%{author_key}%"
+        clauses.append(
+            """
+            (
+                lower(COALESCE(b.author, '')) LIKE ?
+                OR lower(COALESCE(b.author_vi, '')) LIKE ?
+            )
+            """.strip()
+        )
+        params.extend([like, like])
+
+    include_ids = _normalize_book_query_ids(category_ids)
+    exclude_ids = _normalize_book_query_ids(category_exclude_ids)
+    match_mode = _normalize_book_category_match_mode(category_match_mode)
+
+    if include_ids:
+        if match_mode == "and":
+            for category_id in include_ids:
+                clauses.append(
+                    """
+                    EXISTS (
+                        SELECT 1
+                        FROM book_category_map bcm_include
+                        WHERE bcm_include.book_id = b.book_id
+                          AND bcm_include.category_id = ?
+                    )
+                    """.strip()
+                )
+                params.append(category_id)
+        else:
+            placeholders = ",".join("?" for _ in include_ids)
+            clauses.append(
+                f"""
+                EXISTS (
+                    SELECT 1
+                    FROM book_category_map bcm_include
+                    WHERE bcm_include.book_id = b.book_id
+                      AND bcm_include.category_id IN ({placeholders})
+                )
+                """.strip()
+            )
+            params.extend(include_ids)
+
+    if exclude_ids:
+        placeholders = ",".join("?" for _ in exclude_ids)
+        clauses.append(
+            f"""
+            NOT EXISTS (
+                SELECT 1
+                FROM book_category_map bcm_exclude
+                WHERE bcm_exclude.book_id = b.book_id
+                  AND bcm_exclude.category_id IN ({placeholders})
+            )
+            """.strip()
+        )
+        params.extend(exclude_ids)
+
+    where_sql = f"\nWHERE {' AND '.join(clauses)}" if clauses else ""
+    return where_sql, params
+
+
+def _book_list_select_sql(where_sql: str = "") -> str:
+    return f"""
+        SELECT b.book_id, b.title, b.title_vi, b.author, b.lang_source, b.source_type, b.source_file_path,
+               b.source_url, b.source_plugin,
+               b.author_vi, b.cover_path, b.extra_link,
+               b.created_at, b.updated_at, b.chapter_count,
+               b.last_read_chapter_id, b.last_read_ratio, b.last_read_mode, b.theme_pref,
+               b.summary
+        FROM books b
+        {where_sql}
+        ORDER BY b.updated_at DESC
+    """.strip()
+
+
+def _book_list_query_matches(row: sqlite3.Row | dict[str, Any], query_text: str) -> bool:
+    needle = _normalize_book_query_value(query_text).casefold()
+    if not needle:
+        return True
+    data = dict(row)
+    for key in ("title", "title_vi", "author", "author_vi"):
+        if needle in str(data.get(key) or "").casefold():
+            return True
+    return False
+
+
+def _book_list_fetch_chapter_map_by_ids(conn: sqlite3.Connection, chapter_ids: list[str]) -> dict[str, dict[str, Any]]:
+    normalized = [str(item or "").strip() for item in chapter_ids if str(item or "").strip()]
+    if not normalized:
+        return {}
+    placeholders = ",".join("?" for _ in normalized)
+    rows = conn.execute(
+        f"""
+        SELECT chapter_id, book_id, chapter_order, title_raw, title_vi
+        FROM chapters
+        WHERE chapter_id IN ({placeholders})
+        """.strip(),
+        tuple(normalized),
+    ).fetchall()
+    return {
+        str(row["chapter_id"] or "").strip(): dict(row)
+        for row in rows
+        if str(row["chapter_id"] or "").strip()
+    }
+
+
+def _book_list_fetch_first_chapter_map(conn: sqlite3.Connection, book_ids: list[str]) -> dict[str, dict[str, Any]]:
+    normalized = [str(item or "").strip() for item in book_ids if str(item or "").strip()]
+    if not normalized:
+        return {}
+    placeholders = ",".join("?" for _ in normalized)
+    rows = conn.execute(
+        f"""
+        SELECT c.book_id, c.chapter_id, c.chapter_order, c.title_raw, c.title_vi
+        FROM chapters c
+        JOIN (
+            SELECT book_id, MIN(chapter_order) AS first_order
+            FROM chapters
+            WHERE book_id IN ({placeholders})
+            GROUP BY book_id
+        ) firsts
+          ON firsts.book_id = c.book_id
+         AND firsts.first_order = c.chapter_order
+        """.strip(),
+        tuple(normalized),
+    ).fetchall()
+    output: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        book_id = str(row["book_id"] or "").strip()
+        if book_id and book_id not in output:
+            output[book_id] = dict(row)
+    return output
+
+
+def _book_list_fetch_download_count_map(conn: sqlite3.Connection, book_ids: list[str]) -> dict[str, int]:
+    normalized = [str(item or "").strip() for item in book_ids if str(item or "").strip()]
+    if not normalized:
+        return {}
+    placeholders = ",".join("?" for _ in normalized)
+    rows = conn.execute(
+        f"""
+        SELECT c.book_id AS book_id, COUNT(1) AS downloaded_chapters
+        FROM chapters c
+        JOIN content_cache cc ON cc.cache_key = c.raw_key
+        WHERE c.book_id IN ({placeholders})
+        GROUP BY c.book_id
+        """.strip(),
+        tuple(normalized),
+    ).fetchall()
+    return {
+        str(row["book_id"] or "").strip(): int(row["downloaded_chapters"] or 0)
+        for row in rows
+        if str(row["book_id"] or "").strip()
+    }
+
+
+def _decorate_book_list_rows(
+    storage,
+    rows,
+    *,
     normalize_vi_display_text,
     normalize_lang_source,
     book_supports_translation,
     is_book_comic,
+    include_download_counts: bool = False,
 ) -> list[dict[str, Any]]:
+    book_ids = [str(dict(row).get("book_id") or "").strip() for row in rows if str(dict(row).get("book_id") or "").strip()]
+    category_map = storage.get_book_categories_map(book_ids)
     with storage._connect() as conn:
-        sql = """
-            SELECT b.book_id, b.title, b.title_vi, b.author, b.lang_source, b.source_type, b.source_file_path,
-                   b.source_url, b.source_plugin,
-                   b.author_vi, b.cover_path, b.extra_link,
-                   b.created_at, b.updated_at, b.chapter_count,
-                   b.last_read_chapter_id, b.last_read_ratio, b.last_read_mode, b.theme_pref,
-                   b.summary,
-                   lr.chapter_order AS lr_chapter_order,
-                   lr.title_raw AS lr_title_raw,
-                   lr.title_vi AS lr_title_vi,
-                   fc.chapter_order AS first_chapter_order,
-                   fc.title_raw AS first_title_raw,
-                   fc.title_vi AS first_title_vi,
-                   COALESCE(dc.downloaded_chapters, 0) AS downloaded_chapters_hint
-            FROM books b
-            LEFT JOIN chapters lr ON lr.chapter_id = b.last_read_chapter_id
-            LEFT JOIN chapters fc ON fc.chapter_id = (
-                SELECT c.chapter_id FROM chapters c
-                WHERE c.book_id = b.book_id
-                ORDER BY c.chapter_order ASC
-                LIMIT 1
-            )
-            LEFT JOIN (
-                SELECT c.book_id AS book_id, COUNT(1) AS downloaded_chapters
-                FROM chapters c
-                JOIN content_cache cc ON cc.cache_key = c.raw_key
-                GROUP BY c.book_id
-            ) dc ON dc.book_id = b.book_id
-        """
-        if not include_session:
-            sql += "\nWHERE lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'"
-        sql += "\nORDER BY b.updated_at DESC"
-        rows = conn.execute(sql).fetchall()
-    category_map = storage.get_book_categories_map(
-        [str(dict(row).get("book_id") or "").strip() for row in rows]
-    )
+        last_read_map = _book_list_fetch_chapter_map_by_ids(
+            conn,
+            [str(dict(row).get("last_read_chapter_id") or "").strip() for row in rows],
+        )
+        first_chapter_map = _book_list_fetch_first_chapter_map(conn, book_ids)
+        downloaded_map = _book_list_fetch_download_count_map(conn, book_ids) if include_download_counts else {}
     output: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
+        book_id = str(item.get("book_id") or "").strip()
         item["title_vi"] = normalize_vi_display_text(item.get("title_vi") or "")
         item["author_vi"] = normalize_vi_display_text(item.get("author_vi") or "")
         item["title_display"] = item.get("title_vi") or item.get("title")
@@ -88,14 +256,18 @@ def list_books(
         item["is_comic"] = bool(is_book_comic(item))
         item["cover_url"] = storage._book_cover_url(item)
 
-        if item.get("last_read_chapter_id") and item.get("lr_chapter_order"):
-            cur_order = int(item.get("lr_chapter_order") or 1)
-            cur_title_raw = str(item.get("lr_title_raw") or "").strip()
-            cur_title_vi = normalize_vi_display_text(item.get("lr_title_vi") or "")
+        last_read_id = str(item.get("last_read_chapter_id") or "").strip()
+        last_read_row = last_read_map.get(last_read_id) or {}
+        first_row = first_chapter_map.get(book_id) or {}
+
+        if last_read_id and last_read_row:
+            cur_order = int(last_read_row.get("chapter_order") or 1)
+            cur_title_raw = str(last_read_row.get("title_raw") or "").strip()
+            cur_title_vi = normalize_vi_display_text(last_read_row.get("title_vi") or "")
         else:
-            cur_order = int(item.get("first_chapter_order") or 1)
-            cur_title_raw = str(item.get("first_title_raw") or "").strip()
-            cur_title_vi = normalize_vi_display_text(item.get("first_title_vi") or "")
+            cur_order = int(first_row.get("chapter_order") or 1)
+            cur_title_raw = str(first_row.get("title_raw") or "").strip()
+            cur_title_vi = normalize_vi_display_text(first_row.get("title_vi") or "")
 
         item["current_chapter_order"] = cur_order
         item["current_chapter_title_raw"] = cur_title_raw
@@ -109,15 +281,101 @@ def list_books(
             item["progress_percent"] = 0.0
         else:
             item["progress_percent"] = max(0.0, min(100.0, (((cur_order - 1) + ratio) / total) * 100.0))
-        # Library cards only need a lightweight summary. Exact per-chapter cache validation
-        # is intentionally deferred to book/detail flows because doing it here turns the
-        # library endpoint into an N+1 file-scan across every book.
-        cached_hint = int(item.get("downloaded_chapters_hint") or 0)
-        downloaded_count = cached_hint if cached_hint > 0 else 0
+        downloaded_count = int(downloaded_map.get(book_id) or 0)
         item["downloaded_chapters"] = max(0, min(total, int(downloaded_count or 0)))
-        item["categories"] = category_map.get(str(item.get("book_id") or "").strip(), [])
+        item["categories"] = category_map.get(book_id, [])
         output.append(item)
     return output
+
+
+def list_books(
+    storage,
+    *,
+    include_session: bool = False,
+    normalize_vi_display_text,
+    normalize_lang_source,
+    book_supports_translation,
+    is_book_comic,
+) -> list[dict[str, Any]]:
+    where_sql, params = _build_book_list_query_context(include_session=include_session)
+    with storage._connect() as conn:
+        rows = conn.execute(_book_list_select_sql(where_sql), tuple(params)).fetchall()
+    return _decorate_book_list_rows(
+        storage,
+        rows,
+        normalize_vi_display_text=normalize_vi_display_text,
+        normalize_lang_source=normalize_lang_source,
+        book_supports_translation=book_supports_translation,
+        is_book_comic=is_book_comic,
+        include_download_counts=False,
+    )
+
+
+def list_books_paged(
+    storage,
+    *,
+    include_session: bool = False,
+    offset: int = 0,
+    limit: int = 48,
+    query_text: str = "",
+    author_query: str = "",
+    category_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+    category_exclude_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+    category_match_mode: str = "or",
+    normalize_vi_display_text,
+    normalize_lang_source,
+    book_supports_translation,
+    is_book_comic,
+) -> dict[str, Any]:
+    offset = max(0, int(offset or 0))
+    limit = max(1, min(120, int(limit or 48)))
+    query_key = _normalize_book_query_value(query_text)
+    where_sql, params = _build_book_list_query_context(
+        include_session=include_session,
+        category_ids=category_ids,
+        category_exclude_ids=category_exclude_ids,
+        category_match_mode=category_match_mode,
+        author_query=author_query,
+    )
+
+    with storage._connect() as conn:
+        if query_key:
+            all_rows = conn.execute(_book_list_select_sql(where_sql), tuple(params)).fetchall()
+            filtered_rows = [row for row in all_rows if _book_list_query_matches(row, query_key)]
+            total_count = len(filtered_rows)
+            rows = filtered_rows[offset:offset + limit]
+        else:
+            count_row = conn.execute(
+                f"SELECT COUNT(1) AS c FROM books b{where_sql}",
+                tuple(params),
+            ).fetchone()
+            total_count = int((count_row["c"] if count_row else 0) or 0)
+            rows = conn.execute(
+                f"{_book_list_select_sql(where_sql)}\nLIMIT ? OFFSET ?",
+                tuple(params) + (limit, offset),
+            ).fetchall()
+
+    items = _decorate_book_list_rows(
+        storage,
+        rows,
+        normalize_vi_display_text=normalize_vi_display_text,
+        normalize_lang_source=normalize_lang_source,
+        book_supports_translation=book_supports_translation,
+        is_book_comic=is_book_comic,
+        include_download_counts=False,
+    )
+    next_offset = offset + len(items)
+    has_more = next_offset < total_count
+    return {
+        "items": items,
+        "offset": int(offset),
+        "limit": int(limit),
+        "returned_count": int(len(items)),
+        "total_count": int(total_count),
+        "has_more": bool(has_more),
+        "next_offset": int(next_offset) if has_more else None,
+        "search_exhaustive": bool(query_key),
+    }
 
 
 def find_book(storage, book_id: str) -> dict[str, Any] | None:

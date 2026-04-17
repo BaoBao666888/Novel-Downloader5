@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260417-import2";
+import { initShell } from "../site_common.js?v=20260417-library3";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -10,6 +10,10 @@ const refs = {
   libraryTitle: document.getElementById("library-title"),
   libraryCount: document.getElementById("library-count"),
   libraryGrid: document.getElementById("library-grid"),
+  librarySearchLabel: document.getElementById("library-search-label"),
+  librarySearchInput: document.getElementById("library-search-input"),
+  libraryLoadMoreStatus: document.getElementById("library-load-more-status"),
+  libraryLoadMoreSentinel: document.getElementById("library-load-more-sentinel"),
   libraryEmpty: document.getElementById("library-empty"),
   btnLibraryFilter: document.getElementById("btn-library-filter"),
   libraryFilterLabel: document.getElementById("library-filter-label"),
@@ -230,6 +234,17 @@ const refs = {
 const state = {
   historyItems: [],
   books: [],
+  libraryTotalCount: 0,
+  libraryHasMore: false,
+  libraryNextOffset: 0,
+  libraryPageSize: 48,
+  librarySearchQuery: "",
+  libraryLoadingPage: false,
+  libraryLoadingMode: "",
+  libraryLoadRequestSeq: 0,
+  libraryLoadObserver: null,
+  libraryScrollFallbackBound: false,
+  librarySearchTimer: 0,
   pendingImports: [],
   downloadJobs: [],
   downloadJobsSig: "",
@@ -248,6 +263,9 @@ const state = {
   categoryFilterDraftExcludeIds: [],
   categoryFilterDraftMatchMode: "or",
   authorFilterDraft: "",
+  categoryManagerBooks: [],
+  categoryManagerBooksLoaded: false,
+  categoryManagerBooksLoading: false,
   categoryManagerSelectedId: "",
   categoryManagerBookCheckedIds: new Set(),
   bookCategoriesDraftIds: [],
@@ -303,6 +321,10 @@ const state = {
   libraryCardObserver: null,
   libraryHydrateQueue: [],
   libraryHydrateFrame: 0,
+  libraryCardRefreshQueue: [],
+  libraryCardRefreshQueuedIds: new Set(),
+  libraryCardRefreshBusy: false,
+  libraryCardRefreshTimer: 0,
 };
 
 const LIBRARY_LOADING_SKELETON_COUNT = 12;
@@ -807,12 +829,38 @@ function parseLibraryAuthorFromQuery() {
   return normalizeAuthorFilterValue((query && query.author) || "");
 }
 
-function syncLibraryCategoryQuery() {
+function normalizeLibrarySearchValue(raw) {
+  return String(raw || "").trim();
+}
+
+function bookMatchesClientSearch(book, rawNeedle) {
+  const needle = String(rawNeedle || "").trim().toLowerCase();
+  if (!needle) return true;
+  const values = [
+    book && book.title_display,
+    book && book.title_vi,
+    book && book.title,
+    book && book.author_display,
+    book && book.author_vi,
+    book && book.author,
+  ];
+  return values.some((value) => String(value || "").trim().toLowerCase().includes(needle));
+}
+
+function parseLibrarySearchFromQuery() {
+  const query = state.shell && typeof state.shell.parseQuery === "function"
+    ? state.shell.parseQuery()
+    : {};
+  return normalizeLibrarySearchValue((query && query.q) || "");
+}
+
+function syncLibraryQuery() {
   const params = new URLSearchParams(window.location.search || "");
   const ids = normalizeCategoryIds(state.selectedCategoryIds);
   const excludeIds = normalizeCategoryIds(state.selectedExcludedCategoryIds);
   const matchMode = normalizeCategoryMatchMode(state.selectedCategoryMatchMode);
   const author = normalizeAuthorFilterValue(state.selectedAuthorFilter);
+  const search = normalizeLibrarySearchValue(state.librarySearchQuery);
   if (ids.length) params.set("category_ids", ids.join(","));
   else params.delete("category_ids");
   if (excludeIds.length) params.set("category_exclude_ids", excludeIds.join(","));
@@ -821,6 +869,8 @@ function syncLibraryCategoryQuery() {
   else params.delete("category_mode");
   if (author) params.set("author", author);
   else params.delete("author");
+  if (search) params.set("q", search);
+  else params.delete("q");
   const next = params.toString();
   const target = `${window.location.pathname}${next ? `?${next}` : ""}`;
   window.history.replaceState({}, "", target);
@@ -829,7 +879,8 @@ function syncLibraryCategoryQuery() {
 function hasActiveLibraryFilter() {
   return normalizeCategoryIds(state.selectedCategoryIds).length > 0
     || normalizeCategoryIds(state.selectedExcludedCategoryIds).length > 0
-    || !!normalizeAuthorFilterValue(state.selectedAuthorFilter);
+    || !!normalizeAuthorFilterValue(state.selectedAuthorFilter)
+    || !!normalizeLibrarySearchValue(state.librarySearchQuery);
 }
 
 function bookMatchesAuthorFilter(book, rawNeedle) {
@@ -844,21 +895,7 @@ function bookMatchesAuthorFilter(book, rawNeedle) {
 }
 
 function getFilteredBooks() {
-  const selected = normalizeCategoryIds(state.selectedCategoryIds);
-  const excluded = normalizeCategoryIds(state.selectedExcludedCategoryIds);
-  const matchMode = normalizeCategoryMatchMode(state.selectedCategoryMatchMode);
-  const author = normalizeAuthorFilterValue(state.selectedAuthorFilter);
-  if (!selected.length && !excluded.length && !author) return Array.isArray(state.books) ? state.books : [];
-  return (Array.isArray(state.books) ? state.books : []).filter((book) => {
-    const bookIds = new Set(getBookCategoryIds(book));
-    const matchesInclude = !selected.length || (
-      matchMode === "and"
-        ? selected.every((item) => bookIds.has(item))
-        : selected.some((item) => bookIds.has(item))
-    );
-    const matchesExclude = !excluded.length || !excluded.some((item) => bookIds.has(item));
-    return matchesInclude && matchesExclude && bookMatchesAuthorFilter(book, author);
-  });
+  return Array.isArray(state.books) ? state.books : [];
 }
 
 function updateLibraryFilterBadge() {
@@ -913,7 +950,7 @@ function syncSelectedCategoryIdsWithCatalog() {
   state.categoryFilterDraftExcludeIds = applySingleSelectionRules(normalizeCategoryIds(state.categoryFilterDraftExcludeIds).filter((item) => known.has(item)));
   state.importSelectedCategoryIds = applySingleSelectionRules(normalizeCategoryIds(state.importSelectedCategoryIds).filter((item) => known.has(item)));
   state.bookCategoriesDraftIds = applySingleSelectionRules(normalizeCategoryIds(state.bookCategoriesDraftIds).filter((item) => known.has(item)));
-  if (selectedChanged) syncLibraryCategoryQuery();
+  if (selectedChanged) syncLibraryQuery();
   updateLibraryFilterBadge();
   renderImportCategoryList();
 }
@@ -939,6 +976,32 @@ function normalizeBookCategoriesFromCatalog(categoryIds) {
   return output;
 }
 
+function getStateBooksCollection() {
+  return Array.isArray(state.books) ? state.books : [];
+}
+
+function getCategoryManagerBooksCollection() {
+  return Array.isArray(state.categoryManagerBooks) ? state.categoryManagerBooks : [];
+}
+
+function forEachLocalBookCollection(callback) {
+  for (const collection of [getStateBooksCollection(), getCategoryManagerBooksCollection()]) {
+    callback(collection);
+  }
+}
+
+function reconcileCategoryListWithCatalog(list) {
+  for (const book of Array.isArray(list) ? list : []) {
+    book.categories = normalizeBookCategoriesFromCatalog(getBookCategoryIds(book));
+  }
+}
+
+function invalidateCategoryManagerBooks() {
+  state.categoryManagerBooks = [];
+  state.categoryManagerBooksLoaded = false;
+  state.categoryManagerBooksLoading = false;
+}
+
 function setBookCategoriesLocal(bookId, categories) {
   const bid = String(bookId || "").trim();
   if (!bid) return;
@@ -947,17 +1010,17 @@ function setBookCategoriesLocal(bookId, categories) {
       .map((item) => normalizeCategoryItem(item))
       .filter((item) => item.category_id)
     : [];
-  for (const book of state.books || []) {
-    if (String((book && book.book_id) || "").trim() !== bid) continue;
-    book.categories = next.map((item) => ({ ...item }));
-    break;
-  }
+  forEachLocalBookCollection((collection) => {
+    for (const book of collection) {
+      if (String((book && book.book_id) || "").trim() !== bid) continue;
+      book.categories = next.map((item) => ({ ...item }));
+    }
+  });
 }
 
 function reconcileBookCategoriesWithCatalog() {
-  for (const book of state.books || []) {
-    book.categories = normalizeBookCategoriesFromCatalog(getBookCategoryIds(book));
-  }
+  reconcileCategoryListWithCatalog(state.books || []);
+  reconcileCategoryListWithCatalog(state.categoryManagerBooks || []);
 }
 
 function setCategoriesCatalog(items) {
@@ -977,27 +1040,29 @@ function applyBooksCategoryActionLocal(bookIds, categoryIds, action) {
   if (!normalizedBookIds.length || !normalizedCategoryIds.length) return;
   const actionKey = String(action || "").trim().toLowerCase();
   const categoryMap = state.categoryMap instanceof Map ? state.categoryMap : buildCategoryCatalogMap();
-  for (const book of state.books || []) {
-    const bid = String((book && book.book_id) || "").trim();
-    if (!normalizedBookIds.includes(bid)) continue;
-    const current = new Set(getBookCategoryIds(book));
-    if (actionKey === "remove") {
-      for (const categoryId of normalizedCategoryIds) current.delete(categoryId);
-    } else {
-      for (const categoryId of normalizedCategoryIds) {
-        const groupKey = getCategorySingleSelectionGroupKey(categoryMap.get(categoryId));
-        if (groupKey) {
-          for (const existingId of Array.from(current)) {
-            if (getCategorySingleSelectionGroupKey(categoryMap.get(existingId)) === groupKey) {
-              current.delete(existingId);
+  forEachLocalBookCollection((collection) => {
+    for (const book of collection) {
+      const bid = String((book && book.book_id) || "").trim();
+      if (!normalizedBookIds.includes(bid)) continue;
+      const current = new Set(getBookCategoryIds(book));
+      if (actionKey === "remove") {
+        for (const categoryId of normalizedCategoryIds) current.delete(categoryId);
+      } else {
+        for (const categoryId of normalizedCategoryIds) {
+          const groupKey = getCategorySingleSelectionGroupKey(categoryMap.get(categoryId));
+          if (groupKey) {
+            for (const existingId of Array.from(current)) {
+              if (getCategorySingleSelectionGroupKey(categoryMap.get(existingId)) === groupKey) {
+                current.delete(existingId);
+              }
             }
           }
+          if (categoryMap.has(categoryId)) current.add(categoryId);
         }
-        if (categoryMap.has(categoryId)) current.add(categoryId);
       }
+      book.categories = normalizeBookCategoriesFromCatalog(Array.from(current));
     }
-    book.categories = normalizeBookCategoriesFromCatalog(Array.from(current));
-  }
+  });
 }
 
 function syncSelectedBookActions() {
@@ -1030,7 +1095,14 @@ function replaceStateBook(book) {
   if (!bid) return false;
   const index = (state.books || []).findIndex((item) => String((item && item.book_id) || "").trim() === bid);
   if (index < 0) return false;
-  state.books[index] = { ...state.books[index], ...book };
+  const current = state.books[index] || {};
+  state.books[index] = {
+    ...current,
+    ...book,
+    _libraryCardNeedsHydrate: false,
+    _libraryCardLazyRefreshDone: Boolean(book && book._libraryCardLazyRefreshDone != null ? book._libraryCardLazyRefreshDone : true),
+    _libraryCardLazyRefreshQueued: false,
+  };
   return true;
 }
 
@@ -1056,6 +1128,89 @@ function upsertStateBook(book, { prepend = true } = {}) {
   if (prepend) state.books.unshift(next);
   else state.books.push(next);
   return next;
+}
+
+function needsLazyLibraryCardRefresh(book) {
+  if (!book) return false;
+  if (Boolean(book._libraryCardLazyRefreshDone) || Boolean(book._libraryCardLazyRefreshQueued)) return false;
+  if (Boolean(book._libraryCardNeedsHydrate)) return true;
+  if (getCurrentReaderMode() !== "trans") return false;
+  if (!Boolean(parseBooleanLike(book.translation_supported))) return false;
+  const titleVi = String(book.title_vi || "").trim();
+  const currentVi = String(book.current_chapter_title_vi || "").trim();
+  const rawTitle = String(book.title || "").trim();
+  const rawCurrent = String(book.current_chapter_title_raw || book.current_chapter_title || "").trim();
+  const titleDisplay = String(book.title_display || "").trim();
+  const currentDisplay = String(book.current_chapter_title_display || "").trim();
+  const titleNeeds = !titleVi && (!titleDisplay || titleDisplay === rawTitle);
+  const currentNeeds = !currentVi && (!currentDisplay || currentDisplay === rawCurrent);
+  return titleNeeds || currentNeeds;
+}
+
+function prepareLibraryPageBook(book) {
+  const prepared = { ...(book && typeof book === "object" ? book : {}) };
+  prepared._libraryCardNeedsHydrate = true;
+  prepared._libraryCardLazyRefreshDone = false;
+  prepared._libraryCardLazyRefreshQueued = false;
+  return prepared;
+}
+
+function clearLibraryCardRefreshQueue() {
+  state.libraryCardRefreshQueue = [];
+  state.libraryCardRefreshQueuedIds = new Set();
+  state.libraryCardRefreshBusy = false;
+  if (state.libraryCardRefreshTimer) {
+    window.clearTimeout(state.libraryCardRefreshTimer);
+    state.libraryCardRefreshTimer = 0;
+  }
+}
+
+function markLibraryCardRefreshFinished(bookIds) {
+  for (const bookId of normalizeBookIds(bookIds)) {
+    const book = findStateBook(bookId);
+    if (!book) continue;
+    book._libraryCardNeedsHydrate = false;
+    book._libraryCardLazyRefreshDone = true;
+    book._libraryCardLazyRefreshQueued = false;
+  }
+}
+
+function scheduleLibraryCardRefreshFlush() {
+  if (state.libraryCardRefreshTimer) return;
+  state.libraryCardRefreshTimer = window.setTimeout(() => {
+    state.libraryCardRefreshTimer = 0;
+    flushLibraryCardRefreshQueue().catch(() => {});
+  }, 100);
+}
+
+async function flushLibraryCardRefreshQueue() {
+  if (state.libraryCardRefreshBusy) return;
+  const batch = [];
+  while (state.libraryCardRefreshQueue.length && batch.length < 6) {
+    const bookId = String(state.libraryCardRefreshQueue.shift() || "").trim();
+    if (!bookId) continue;
+    state.libraryCardRefreshQueuedIds.delete(bookId);
+    batch.push(bookId);
+  }
+  if (!batch.length) return;
+  state.libraryCardRefreshBusy = true;
+  try {
+    await refreshLibraryBooksByIds(batch);
+  } finally {
+    markLibraryCardRefreshFinished(batch);
+    state.libraryCardRefreshBusy = false;
+    if (state.libraryCardRefreshQueue.length) scheduleLibraryCardRefreshFlush();
+  }
+}
+
+function queueLibraryCardRefresh(book) {
+  if (!needsLazyLibraryCardRefresh(book)) return;
+  const bookId = String((book && book.book_id) || "").trim();
+  if (!bookId || state.libraryCardRefreshQueuedIds.has(bookId)) return;
+  state.libraryCardRefreshQueuedIds.add(bookId);
+  book._libraryCardLazyRefreshQueued = true;
+  state.libraryCardRefreshQueue.push(bookId);
+  scheduleLibraryCardRefreshFlush();
 }
 
 function syncLibraryBookCards(bookIds) {
@@ -2199,17 +2354,17 @@ async function applyImportedBookLocal(book, { pendingTempId = "", refresh = true
       state.pendingImports = state.pendingImports.filter((item) => String(item.temp_id || "") !== pendingId);
     }
   }
+  invalidateCategoryManagerBooks();
   if (!bid) {
     renderBooks();
     return null;
   }
-  const existed = Boolean(findStateBook(bid));
-  const upserted = upsertStateBook(book, { prepend: !existed });
-  renderBooks();
   if (refresh) {
-    await refreshLibraryBooksByIds([bid]).catch(() => null);
+    await reloadLibraryBooks({ silent: true }).catch(() => null);
+  } else {
+    renderBooks();
   }
-  return upserted;
+  return findStateBook(bid);
 }
 
 function buildPendingUrlImportRecord({ url, pluginId }) {
@@ -2908,6 +3063,57 @@ function teardownLibraryLazyRender() {
   state.libraryHydrateQueue = [];
 }
 
+function teardownLibraryLoadObserver() {
+  if (state.libraryLoadObserver) {
+    try {
+      state.libraryLoadObserver.disconnect();
+    } catch {
+      // ignore
+    }
+    state.libraryLoadObserver = null;
+  }
+}
+
+function maybeLoadMoreLibraryBooks() {
+  if (state.libraryLoadingPage || !state.libraryHasMore) return;
+  const sentinel = refs.libraryLoadMoreSentinel;
+  if (!sentinel) return;
+  const rect = sentinel.getBoundingClientRect();
+  if (rect.top <= (window.innerHeight || document.documentElement.clientHeight || 0) + 1400) {
+    loadNextLibraryPage().catch(() => {});
+  }
+}
+
+function bindLibraryScrollFallback() {
+  if (state.libraryScrollFallbackBound) return;
+  const onScroll = () => {
+    maybeLoadMoreLibraryBooks();
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", onScroll);
+  state.libraryScrollFallbackBound = true;
+}
+
+function ensureLibraryLoadObserver() {
+  teardownLibraryLoadObserver();
+  if (!refs.libraryLoadMoreSentinel) return;
+  if (typeof IntersectionObserver !== "function") {
+    bindLibraryScrollFallback();
+    return;
+  }
+  state.libraryLoadObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      loadNextLibraryPage().catch(() => {});
+    }
+  }, {
+    root: null,
+    rootMargin: "1400px 0px",
+    threshold: 0.01,
+  });
+  state.libraryLoadObserver.observe(refs.libraryLoadMoreSentinel);
+}
+
 function createLibraryCardObserver(renderToken) {
   teardownLibraryLazyRender();
   if (typeof IntersectionObserver !== "function") {
@@ -3128,57 +3334,60 @@ function hydrateLibraryBookCard(card) {
   const book = card.__book;
   if (!book) return;
   populateLibraryBookCard(card, book);
+  queueLibraryCardRefresh(book);
 }
 
-function renderLibraryLoadingSkeleton(count = LIBRARY_LOADING_SKELETON_COUNT) {
-  teardownLibraryLazyRender();
-  refs.libraryGrid.innerHTML = "";
-  refs.libraryEmpty.classList.add("hidden");
-  const total = Math.max(1, Number(count || LIBRARY_LOADING_SKELETON_COUNT));
-  for (let i = 0; i < total; i += 1) {
-    const shell = createLibraryBookCardShell({ book_id: `loading_${i}` }, -1);
-    shell.classList.add("book-card-loading");
-    shell.tabIndex = -1;
-    shell.removeAttribute("role");
-    refs.libraryGrid.appendChild(shell);
-  }
-}
-
-function renderBooks() {
-  teardownLibraryLazyRender();
-  refs.libraryGrid.innerHTML = "";
-  updateLibraryFilterBadge();
-  const hasActiveFilter = hasActiveLibraryFilter();
-  const filteredBooks = getFilteredBooks();
-  const visiblePending = hasActiveFilter ? [] : state.pendingImports.filter((item) => {
+function getLibraryVisiblePendingItems() {
+  if (hasActiveLibraryFilter()) return [];
+  return state.pendingImports.filter((item) => {
     const resolvedBookId = String((item && item.resolved_book_id) || "").trim();
     if (!resolvedBookId) return true;
-    return !filteredBooks.some((book) => String((book && book.book_id) || "").trim() === resolvedBookId);
+    return !(state.books || []).some((book) => String((book && book.book_id) || "").trim() === resolvedBookId);
   });
-  const totalCount = state.books.length + visiblePending.length;
-  const visibleCount = filteredBooks.length + visiblePending.length;
-  refs.libraryCount.textContent = hasActiveFilter
+}
+
+function updateLibraryCountDisplay() {
+  const visiblePending = getLibraryVisiblePendingItems();
+  const totalCount = Math.max(0, Number(state.libraryTotalCount || 0)) + visiblePending.length;
+  const visibleCount = Math.max(0, (state.books || []).length) + visiblePending.length;
+  refs.libraryCount.textContent = hasActiveLibraryFilter()
     ? state.shell.t("libraryCountFiltered", { visible: visibleCount, total: totalCount })
     : state.shell.t("libraryCount", { count: totalCount });
+}
 
-  if (!visibleCount) {
-    refs.libraryEmpty.classList.remove("hidden");
-    refs.libraryEmpty.textContent = hasActiveFilter
-      ? state.shell.t("libraryEmptyFiltered")
-      : state.shell.t("libraryEmpty");
+function renderLibraryLoadMoreStatus() {
+  if (!refs.libraryLoadMoreStatus) return;
+  const visiblePending = getLibraryVisiblePendingItems();
+  const loadedCount = Math.max(0, (state.books || []).length) + visiblePending.length;
+  const totalCount = Math.max(0, Number(state.libraryTotalCount || 0)) + visiblePending.length;
+  if (state.libraryLoadingPage && loadedCount > 0) {
+    refs.libraryLoadMoreStatus.classList.remove("hidden");
+    refs.libraryLoadMoreStatus.textContent = state.shell.t("libraryLoadingMore");
     return;
   }
-
-  refs.libraryEmpty.classList.add("hidden");
-
-  for (const pending of visiblePending) {
-    refs.libraryGrid.appendChild(renderPendingImportCard(pending));
+  if (loadedCount <= 0 || totalCount <= loadedCount) {
+    refs.libraryLoadMoreStatus.classList.add("hidden");
+    refs.libraryLoadMoreStatus.textContent = "";
+    return;
   }
+  refs.libraryLoadMoreStatus.classList.remove("hidden");
+  refs.libraryLoadMoreStatus.textContent = state.shell.t("libraryCountFiltered", { visible: loadedCount, total: totalCount });
+}
+
+function beginLibraryRenderSession() {
+  teardownLibraryLazyRender();
+  refs.libraryGrid.innerHTML = "";
   const renderToken = Date.now();
   state.libraryRenderToken = renderToken;
   const observer = createLibraryCardObserver(renderToken);
+  ensureLibraryLoadObserver();
+  return { renderToken, observer };
+}
+
+function appendLibraryBookCards(items, { renderToken = state.libraryRenderToken, observer = state.libraryCardObserver } = {}) {
+  const books = Array.isArray(items) ? items : [];
   const initialCards = [];
-  for (const book of filteredBooks) {
+  for (const book of books) {
     const card = createLibraryBookCardShell(book, renderToken);
     refs.libraryGrid.appendChild(card);
     if (observer) observer.observe(card);
@@ -3192,6 +3401,65 @@ function renderBooks() {
     return;
   }
   for (const card of initialCards) queueLibraryCardHydration(card, renderToken);
+}
+
+function renderLibraryLoadingSkeleton(count = LIBRARY_LOADING_SKELETON_COUNT) {
+  teardownLibraryLazyRender();
+  teardownLibraryLoadObserver();
+  clearLibraryCardRefreshQueue();
+  refs.libraryGrid.innerHTML = "";
+  refs.libraryEmpty.classList.add("hidden");
+  if (refs.libraryLoadMoreStatus) {
+    refs.libraryLoadMoreStatus.classList.add("hidden");
+    refs.libraryLoadMoreStatus.textContent = "";
+  }
+  const total = Math.max(1, Number(count || LIBRARY_LOADING_SKELETON_COUNT));
+  for (let i = 0; i < total; i += 1) {
+    const shell = createLibraryBookCardShell({ book_id: `loading_${i}` }, -1);
+    shell.classList.add("book-card-loading");
+    shell.tabIndex = -1;
+    shell.removeAttribute("role");
+    refs.libraryGrid.appendChild(shell);
+  }
+}
+
+function renderBooks({ append = false, appendedItems = [] } = {}) {
+  const visiblePending = getLibraryVisiblePendingItems();
+  updateLibraryFilterBadge();
+  updateLibraryCountDisplay();
+  const visibleCount = (state.books || []).length + visiblePending.length;
+  if (!append) {
+    teardownLibraryLoadObserver();
+    const { renderToken, observer } = beginLibraryRenderSession();
+    if (!visibleCount) {
+      refs.libraryEmpty.classList.remove("hidden");
+      refs.libraryEmpty.textContent = hasActiveLibraryFilter()
+        ? state.shell.t("libraryEmptyFiltered")
+        : state.shell.t("libraryEmpty");
+      renderLibraryLoadMoreStatus();
+      return;
+    }
+    refs.libraryEmpty.classList.add("hidden");
+    for (const pending of visiblePending) {
+      refs.libraryGrid.appendChild(renderPendingImportCard(pending));
+    }
+    appendLibraryBookCards(state.books || [], { renderToken, observer });
+    renderLibraryLoadMoreStatus();
+    return;
+  }
+
+  if (!visibleCount) {
+    refs.libraryEmpty.classList.remove("hidden");
+    refs.libraryEmpty.textContent = hasActiveLibraryFilter()
+      ? state.shell.t("libraryEmptyFiltered")
+      : state.shell.t("libraryEmpty");
+    renderLibraryLoadMoreStatus();
+    return;
+  }
+  updateLibraryFilterBadge();
+  refs.libraryEmpty.classList.add("hidden");
+  appendLibraryBookCards(appendedItems || []);
+  renderLibraryLoadMoreStatus();
 }
 
 function renderLibraryCategoryFilterList() {
@@ -3256,7 +3524,7 @@ function openLibraryCategoryFilterDialog() {
   }
 }
 
-function applyLibraryCategoryFilter() {
+async function applyLibraryCategoryFilter() {
   const draftPair = buildDistinctCategoryFilters(state.categoryFilterDraftIds, state.categoryFilterDraftExcludeIds);
   state.selectedCategoryIds = applySingleSelectionRules(draftPair.include);
   state.selectedExcludedCategoryIds = applySingleSelectionRules(draftPair.exclude);
@@ -3268,9 +3536,9 @@ function applyLibraryCategoryFilter() {
   state.selectedAuthorFilter = normalizeAuthorFilterValue(
     (refs.libraryAuthorFilterInput && refs.libraryAuthorFilterInput.value) || state.authorFilterDraft,
   );
-  syncLibraryCategoryQuery();
+  syncLibraryQuery();
   updateLibraryFilterBadge();
-  renderBooks();
+  await reloadLibraryBooks({ silent: true });
   if (refs.libraryCategoryFilterDialog && refs.libraryCategoryFilterDialog.open) {
     refs.libraryCategoryFilterDialog.close();
   }
@@ -3282,11 +3550,7 @@ function getCategoryManagerSelected() {
 
 function syncCategoryManagerBookSelectionToVisible(checked) {
   const term = String((refs.categoryManagerBooksSearchInput && refs.categoryManagerBooksSearchInput.value) || "").trim().toLowerCase();
-  const visible = (state.books || []).filter((book) => {
-    const title = normalizeDisplayTitle(book.title_display || book.title || "").toLowerCase();
-    const author = String(book.author_display || book.author || "").trim().toLowerCase();
-    return !term || title.includes(term) || author.includes(term);
-  });
+  const visible = getCategoryManagerBooksCollection().filter((book) => bookMatchesClientSearch(book, term));
   for (const book of visible) {
     const bid = String(book.book_id || "").trim();
     if (!bid) continue;
@@ -3362,17 +3626,19 @@ function renderCategoryManagerBooks() {
     syncCategoryManagerControls();
     return;
   }
+  if (state.categoryManagerBooksLoading && !state.categoryManagerBooksLoaded) {
+    refs.categoryManagerBooksEmpty.classList.remove("hidden");
+    refs.categoryManagerBooksEmpty.textContent = state.shell.t("categoryManagerBooksLoading");
+    syncCategoryManagerControls();
+    return;
+  }
   const selectedId = String(selected.category_id || "");
   const term = String((refs.categoryManagerBooksSearchInput && refs.categoryManagerBooksSearchInput.value) || "").trim().toLowerCase();
-  const items = (state.books || []).filter((book) => {
-    const title = normalizeDisplayTitle(book.title_display || book.title || "").toLowerCase();
-    const author = String(book.author_display || book.author || "").trim().toLowerCase();
-    return !term || title.includes(term) || author.includes(term);
-  });
+  const items = getCategoryManagerBooksCollection().filter((book) => bookMatchesClientSearch(book, term));
   refs.categoryManagerBooksEmpty.classList.toggle("hidden", items.length > 0);
   refs.categoryManagerBooksEmpty.textContent = state.shell.t("categoryManagerBooksEmpty");
   const membershipSet = new Set();
-  for (const book of state.books || []) {
+  for (const book of getCategoryManagerBooksCollection()) {
     if (getBookCategoryIds(book).includes(selectedId)) {
       membershipSet.add(String(book.book_id || "").trim());
     }
@@ -3416,13 +3682,20 @@ function renderCategoryManagerBooks() {
   syncCategoryManagerControls();
 }
 
-function openCategoryManagerDialog() {
+async function openCategoryManagerDialog() {
   if (refs.categoryManagerSearchInput) refs.categoryManagerSearchInput.value = "";
   if (refs.categoryManagerBooksSearchInput) refs.categoryManagerBooksSearchInput.value = "";
   state.categoryManagerBookCheckedIds = new Set();
   if (!state.categoryManagerSelectedId) {
     const firstUserCategory = (state.categories || []).find((item) => Boolean(item && item.is_user_category));
     state.categoryManagerSelectedId = String((firstUserCategory && firstUserCategory.category_id) || "");
+  }
+  renderCategoryManagerList();
+  renderCategoryManagerBooks();
+  try {
+    await ensureCategoryManagerBooksLoaded();
+  } catch (error) {
+    state.shell.showToast(getErrorMessage(error));
   }
   renderCategoryManagerList();
   renderCategoryManagerBooks();
@@ -3804,6 +4077,144 @@ async function loadCategories({ silent = true } = {}) {
   }
 }
 
+function buildLibraryBooksApiPath({ offset = 0, limit = state.libraryPageSize } = {}) {
+  const params = new URLSearchParams();
+  params.set("offset", String(Math.max(0, Number(offset || 0))));
+  params.set("limit", String(Math.max(1, Number(limit || state.libraryPageSize || 48))));
+  const ids = normalizeCategoryIds(state.selectedCategoryIds);
+  const excludeIds = normalizeCategoryIds(state.selectedExcludedCategoryIds);
+  const matchMode = normalizeCategoryMatchMode(state.selectedCategoryMatchMode);
+  const author = normalizeAuthorFilterValue(state.selectedAuthorFilter);
+  const search = normalizeLibrarySearchValue(state.librarySearchQuery);
+  if (ids.length) params.set("category_ids", ids.join(","));
+  if (excludeIds.length) params.set("category_exclude_ids", excludeIds.join(","));
+  if (ids.length > 1 && matchMode === "and") params.set("category_mode", "and");
+  if (author) params.set("author", author);
+  if (search) params.set("q", search);
+  return `/api/library/books?${params.toString()}`;
+}
+
+function applyLibrarySearchNow() {
+  const next = normalizeLibrarySearchValue((refs.librarySearchInput && refs.librarySearchInput.value) || "");
+  if (next === state.librarySearchQuery) return;
+  state.librarySearchQuery = next;
+  syncLibraryQuery();
+  reloadLibraryBooks({ silent: true }).catch((error) => {
+    state.shell.showToast(getErrorMessage(error));
+  });
+}
+
+function scheduleLibrarySearchApply() {
+  if (state.librarySearchTimer) {
+    window.clearTimeout(state.librarySearchTimer);
+    state.librarySearchTimer = 0;
+  }
+  state.librarySearchTimer = window.setTimeout(() => {
+    state.librarySearchTimer = 0;
+    applyLibrarySearchNow();
+  }, 260);
+}
+
+function resetLibraryPaginationState() {
+  clearLibraryCardRefreshQueue();
+  state.books = [];
+  state.libraryTotalCount = 0;
+  state.libraryHasMore = false;
+  state.libraryNextOffset = 0;
+  state.libraryLoadingPage = false;
+  state.libraryLoadingMode = "";
+}
+
+async function loadLibraryBooksPage({ reset = false, silent = false } = {}) {
+  const requestSeq = ++state.libraryLoadRequestSeq;
+  const offset = reset ? 0 : Math.max(0, Number(state.libraryNextOffset || (state.books || []).length || 0));
+  const mode = reset ? "reset" : "append";
+  state.libraryLoadingPage = true;
+  state.libraryLoadingMode = mode;
+  if (reset) {
+    resetLibraryPaginationState();
+    state.libraryLoadingPage = true;
+    state.libraryLoadingMode = mode;
+    if (!silent) {
+      state.shell.showStatus(state.shell.t("statusLoadingBooks"));
+      renderLibraryLoadingSkeleton();
+    } else {
+      renderLibraryLoadMoreStatus();
+    }
+  } else {
+    renderLibraryLoadMoreStatus();
+  }
+  try {
+    const data = await state.shell.api(buildLibraryBooksApiPath({ offset, limit: state.libraryPageSize }));
+    if (requestSeq !== state.libraryLoadRequestSeq) return;
+    const items = Array.isArray(data && data.items) ? data.items.map((item) => prepareLibraryPageBook(item)) : [];
+    const appendedItems = [];
+    if (reset) {
+      state.books = items;
+    } else {
+      const known = new Set((state.books || []).map((item) => String((item && item.book_id) || "").trim()).filter(Boolean));
+      for (const item of items) {
+        const bid = String((item && item.book_id) || "").trim();
+        if (!bid || known.has(bid)) continue;
+        known.add(bid);
+        state.books.push(item);
+        appendedItems.push(item);
+      }
+    }
+    state.libraryTotalCount = Math.max(0, Number(data && data.total_count || 0));
+    state.libraryHasMore = Boolean(data && data.has_more);
+    state.libraryNextOffset = Math.max(0, Number(
+      (data && data.next_offset != null)
+        ? data.next_offset
+        : ((state.books || []).length || 0),
+    ));
+    renderBooks({ append: !reset, appendedItems: reset ? [] : appendedItems });
+  } catch (error) {
+    if (requestSeq !== state.libraryLoadRequestSeq) return;
+    if (reset) {
+      state.books = [];
+      state.libraryTotalCount = 0;
+      state.libraryHasMore = false;
+      state.libraryNextOffset = 0;
+      renderBooks();
+    } else {
+      state.shell.showToast(getErrorMessage(error));
+    }
+    throw error;
+  } finally {
+    if (requestSeq === state.libraryLoadRequestSeq) {
+      state.libraryLoadingPage = false;
+      state.libraryLoadingMode = "";
+      renderLibraryLoadMoreStatus();
+      if (reset && !silent) state.shell.hideStatus();
+    }
+  }
+}
+
+async function loadNextLibraryPage() {
+  if (state.libraryLoadingPage || !state.libraryHasMore) return;
+  await loadLibraryBooksPage({ reset: false, silent: true });
+}
+
+async function reloadLibraryBooks({ silent = false } = {}) {
+  await loadLibraryBooksPage({ reset: true, silent });
+  syncSelectedBookActions();
+}
+
+async function ensureCategoryManagerBooksLoaded({ force = false } = {}) {
+  if (!force && state.categoryManagerBooksLoaded) return state.categoryManagerBooks;
+  if (state.categoryManagerBooksLoading) return state.categoryManagerBooks;
+  state.categoryManagerBooksLoading = true;
+  try {
+    const data = await state.shell.api("/api/library/books/all");
+    state.categoryManagerBooks = Array.isArray(data && data.items) ? data.items : [];
+    state.categoryManagerBooksLoaded = true;
+    return state.categoryManagerBooks;
+  } finally {
+    state.categoryManagerBooksLoading = false;
+  }
+}
+
 async function deleteHistoryItem(historyId) {
   const hid = String(historyId || "").trim();
   if (!hid) return;
@@ -3823,22 +4234,10 @@ async function loadLibraryData({ silent = false } = {}) {
   if (!silent) {
     state.shell.showStatus(state.shell.t("statusLoadingBooks"));
     renderHistoryLoadingSkeleton();
-    renderLibraryLoadingSkeleton();
   }
   const loadBooks = async () => {
-    const prevBooks = Array.isArray(state.books) ? [...state.books] : [];
-    try {
-      const data = await state.shell.api("/api/library/books");
-      state.books = data.items || [];
-      renderBooks();
-      syncSelectedBookActions();
-    } catch (error) {
-      if (!silent) {
-        state.books = prevBooks;
-        renderBooks();
-      }
-      throw error;
-    }
+    await reloadLibraryBooks({ silent });
+    syncSelectedBookActions();
   };
   const loadHistory = async () => {
     const prevHistory = Array.isArray(state.historyItems) ? [...state.historyItems] : [];
@@ -3859,13 +4258,11 @@ async function loadLibraryData({ silent = false } = {}) {
     try {
       const data = await state.shell.api("/api/library/categories");
       setCategoriesCatalog(Array.isArray(data && data.items) ? data.items : []);
-      renderBooks();
       syncSelectedBookActions();
     } catch (error) {
       if (!silent) {
         state.categories = prevCategories;
         syncSelectedCategoryIdsWithCatalog();
-        renderBooks();
       }
       throw error;
     }
@@ -3881,7 +4278,7 @@ async function loadLibraryData({ silent = false } = {}) {
     if (firstRejected && firstRejected.reason) {
       state.shell.showToast(getErrorMessage(firstRejected.reason));
     }
-    state.shell.hideStatus();
+    if (!state.libraryLoadingPage) state.shell.hideStatus();
   }
 }
 
@@ -5101,6 +5498,9 @@ async function deleteBook() {
     await state.shell.api(`/api/library/book/${encodeURIComponent(bookId)}`, { method: "DELETE" });
     state.deletingBookIds.delete(bookId);
     state.books = (state.books || []).filter((item) => String((item && item.book_id) || "").trim() !== bookId);
+    state.libraryTotalCount = Math.max(0, Number(state.libraryTotalCount || 0) - 1);
+    state.libraryNextOffset = Math.max(0, Number(state.libraryNextOffset || 0) - 1);
+    invalidateCategoryManagerBooks();
     if (state.selectedBookId === bookId) state.selectedBookId = null;
     if (state.bookCategoriesTargetBookId === bookId) state.bookCategoriesTargetBookId = "";
     renderBooks();
@@ -5151,9 +5551,15 @@ async function init() {
   state.selectedCategoryMatchMode = parseLibraryCategoryMatchModeFromQuery();
   state.selectedAuthorFilter = parseLibraryAuthorFromQuery();
   state.authorFilterDraft = state.selectedAuthorFilter;
+  state.librarySearchQuery = parseLibrarySearchFromQuery();
 
   refs.historyTitle.textContent = state.shell.t("historyTitle");
   refs.libraryTitle.textContent = state.shell.t("libraryTitle");
+  if (refs.librarySearchLabel) refs.librarySearchLabel.textContent = state.shell.t("librarySearchLabel");
+  if (refs.librarySearchInput) {
+    refs.librarySearchInput.placeholder = state.shell.t("librarySearchPlaceholder");
+    refs.librarySearchInput.value = state.librarySearchQuery;
+  }
   if (refs.libraryFilterLabel) refs.libraryFilterLabel.textContent = state.shell.t("categoryFilterButton");
   if (refs.btnManageCategories) refs.btnManageCategories.textContent = state.shell.t("categoryManageButton");
 
@@ -5247,7 +5653,20 @@ async function init() {
 
   refs.btnCloseBookActions.addEventListener("click", closeActions);
   if (refs.btnLibraryFilter) refs.btnLibraryFilter.addEventListener("click", openLibraryCategoryFilterDialog);
-  if (refs.btnManageCategories) refs.btnManageCategories.addEventListener("click", openCategoryManagerDialog);
+  if (refs.btnManageCategories) refs.btnManageCategories.addEventListener("click", () => {
+    openCategoryManagerDialog().catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
+  if (refs.librarySearchInput) {
+    refs.librarySearchInput.addEventListener("input", scheduleLibrarySearchApply);
+    refs.librarySearchInput.addEventListener("search", applyLibrarySearchNow);
+    refs.librarySearchInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      applyLibrarySearchNow();
+    });
+  }
   if (refs.btnCloseLibraryCategoryFilter) refs.btnCloseLibraryCategoryFilter.addEventListener("click", () => {
     if (refs.libraryCategoryFilterDialog && refs.libraryCategoryFilterDialog.open) refs.libraryCategoryFilterDialog.close();
   });
@@ -5259,7 +5678,9 @@ async function init() {
     refs.libraryAuthorFilterInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        applyLibraryCategoryFilter();
+        applyLibraryCategoryFilter().catch((error) => {
+          state.shell.showToast(getErrorMessage(error));
+        });
       }
     });
   }
@@ -5278,7 +5699,11 @@ async function init() {
     if (refs.libraryCategoryMatchModeSelect) refs.libraryCategoryMatchModeSelect.value = "or";
     renderLibraryCategoryFilterList();
   });
-  if (refs.btnLibraryCategoryFilterApply) refs.btnLibraryCategoryFilterApply.addEventListener("click", applyLibraryCategoryFilter);
+  if (refs.btnLibraryCategoryFilterApply) refs.btnLibraryCategoryFilterApply.addEventListener("click", () => {
+    applyLibraryCategoryFilter().catch((error) => {
+      state.shell.showToast(getErrorMessage(error));
+    });
+  });
   if (refs.importModeSelect) refs.importModeSelect.addEventListener("change", () => {
     if (refs.importFileInput) refs.importFileInput.value = "";
     syncImportModeUi();
@@ -5576,11 +6001,11 @@ async function init() {
     state.translationEnabled = enabled;
     state.translationMode = mode;
     state.translationLocalSig = localSig;
-    loadLibraryData().catch(() => {});
+    reloadLibraryBooks({ silent: true }).catch(() => {});
   });
 
   window.addEventListener("reader-cache-changed", () => {
-    loadLibraryData({ silent: true }).catch(() => {});
+    reloadLibraryBooks({ silent: true }).catch(() => {});
     loadDownloadJobs({ syncLibrary: false }).catch(() => {});
   });
 

@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260417-import2";
+import { t } from "../i18n.vi.js?v=20260417-library3";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";

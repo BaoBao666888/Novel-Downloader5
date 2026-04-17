@@ -58,6 +58,31 @@ def _normalize_client_reader_text(value: Any) -> str:
     return str(value or "").replace("\r\n", "\n").replace("\r", "\n")
 
 
+def _first_query_value(query: dict[str, list[str]], key: str, default: str = "") -> str:
+    values = query.get(key) or []
+    return str(values[0] if values else default or "").strip()
+
+
+def _parse_int_query(query: dict[str, list[str]], key: str, default: int, *, minimum: int = 0, maximum: int | None = None) -> int:
+    raw = _first_query_value(query, key, str(default))
+    try:
+        value = int(raw)
+    except Exception:
+        value = int(default)
+    if value < minimum:
+        value = minimum
+    if maximum is not None and value > maximum:
+        value = maximum
+    return value
+
+
+def _parse_csv_query_ids(query: dict[str, list[str]], key: str) -> list[str]:
+    raw = _first_query_value(query, key, "")
+    if not raw:
+        return []
+    return [part.strip() for part in raw.split(",") if part.strip()]
+
+
 def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode: str, active_name_set, active_vp_set, deps: LibraryReaderDeps) -> None:
     allow_translate = handler.service.translation_allowed_for_book(book)
     if allow_translate:
@@ -158,8 +183,22 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
     storage = service.storage
 
     if method == "GET" and path == "/api/library/books":
+        return {
+            "ok": True,
+            **service.list_books_paged(
+                offset=_parse_int_query(query, "offset", 0, minimum=0),
+                limit=_parse_int_query(query, "limit", 48, minimum=1, maximum=120),
+                query_text=_first_query_value(query, "q", ""),
+                author_query=_first_query_value(query, "author", ""),
+                category_ids=_parse_csv_query_ids(query, "category_ids"),
+                category_exclude_ids=_parse_csv_query_ids(query, "category_exclude_ids"),
+                category_match_mode=_first_query_value(query, "category_mode", "or"),
+            ),
+        }
+
+    if method == "GET" and path == "/api/library/books/all":
         books = service.list_books()
-        return {"items": books}
+        return {"ok": True, "items": books, "count": len(books)}
 
     if method == "GET" and path == "/api/library/categories":
         return {"ok": True, "items": storage.list_categories()}

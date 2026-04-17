@@ -4868,6 +4868,38 @@ class ReaderStorage:
             is_book_comic=is_book_comic,
         )
 
+    def list_books_paged(
+        self,
+        *,
+        include_session: bool = False,
+        offset: int = 0,
+        limit: int = 48,
+        query_text: str = "",
+        author_query: str = "",
+        category_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+        category_exclude_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+        category_match_mode: str = "or",
+        normalize_vi_display_text=normalize_vi_display_text,
+        normalize_lang_source=normalize_lang_source,
+        book_supports_translation=book_supports_translation,
+        is_book_comic=is_book_comic,
+    ) -> dict[str, Any]:
+        return storage_library_support.list_books_paged(
+            self,
+            include_session=include_session,
+            offset=offset,
+            limit=limit,
+            query_text=query_text,
+            author_query=author_query,
+            category_ids=category_ids,
+            category_exclude_ids=category_exclude_ids,
+            category_match_mode=category_match_mode,
+            normalize_vi_display_text=normalize_vi_display_text,
+            normalize_lang_source=normalize_lang_source,
+            book_supports_translation=book_supports_translation,
+            is_book_comic=is_book_comic,
+        )
+
     def update_chapter_word_count(self, chapter_id: str, word_count: int) -> None:
         storage_book_mutation_support.update_chapter_word_count(
             self,
@@ -6967,6 +6999,34 @@ class ReaderService:
             self,
             is_book_comic=is_book_comic,
             is_lang_zh=is_lang_zh,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+            normalize_vi_display_text=normalize_vi_display_text,
+        )
+
+    def list_books_paged(
+        self,
+        *,
+        offset: int = 0,
+        limit: int = 48,
+        query_text: str = "",
+        author_query: str = "",
+        category_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+        category_exclude_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+        category_match_mode: str = "or",
+    ) -> dict[str, Any]:
+        return service_library_support.list_books_paged(
+            self,
+            offset=offset,
+            limit=limit,
+            query_text=query_text,
+            author_query=author_query,
+            category_ids=category_ids,
+            category_exclude_ids=category_exclude_ids,
+            category_match_mode=category_match_mode,
+            is_book_comic=is_book_comic,
+            is_lang_zh=is_lang_zh,
+            normalize_lang_source=normalize_lang_source,
+            book_supports_translation=book_supports_translation,
             normalize_vbook_display_text=normalize_vbook_display_text,
             normalize_vi_display_text=normalize_vi_display_text,
         )

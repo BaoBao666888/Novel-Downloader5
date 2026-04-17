@@ -289,8 +289,9 @@ def apply_book_card_translation(
 ) -> dict[str, Any]:
     output = dict(item or {})
     is_zh = is_lang_zh(str(output.get("lang_source") or ""))
-    can_translate = bool((not is_book_comic(output)) and is_zh and service.is_reader_translation_enabled())
-    output["translation_supported"] = can_translate
+    translation_supported = bool((not is_book_comic(output)) and is_zh)
+    can_translate = bool(translation_supported and service.is_reader_translation_enabled())
+    output["translation_supported"] = translation_supported
     raw_title = normalize_vbook_display_text(str(output.get("title") or ""), single_line=True)
     raw_author = normalize_vbook_display_text(str(output.get("author") or ""), single_line=True)
     vi_title = normalize_vi_display_text(output.get("title_vi") or "")
@@ -302,11 +303,11 @@ def apply_book_card_translation(
         cur_vi = normalize_vi_display_text(output.get("current_chapter_title_vi") or "")
         output["current_chapter_title_display"] = cur_vi or service._translate_ui_text(cur_raw, single_line=True) or cur_raw
     else:
-        output["title_display"] = raw_title or vi_title
+        output["title_display"] = vi_title or raw_title
         output["author_display"] = author_display or raw_author
         cur_raw = normalize_vbook_display_text(str(output.get("current_chapter_title_raw") or ""), single_line=True)
         cur_vi = normalize_vi_display_text(output.get("current_chapter_title_vi") or "")
-        output["current_chapter_title_display"] = cur_raw or cur_vi
+        output["current_chapter_title_display"] = cur_vi or cur_raw
     return output
 
 
@@ -337,6 +338,7 @@ def _apply_book_card_translation_batch(
     is_lang_zh,
     normalize_vbook_display_text,
     normalize_vi_display_text,
+    allow_live_translation: bool = True,
 ) -> list[dict[str, Any]]:
     prepared: list[dict[str, Any]] = []
     title_sources: list[str] = []
@@ -345,7 +347,12 @@ def _apply_book_card_translation_batch(
     for raw_item in items or []:
         output = dict(raw_item or {})
         is_zh = is_lang_zh(str(output.get("lang_source") or ""))
-        can_translate = bool((not is_book_comic(output)) and is_zh and service.is_reader_translation_enabled())
+        translation_supported = bool((not is_book_comic(output)) and is_zh)
+        can_translate = bool(
+            allow_live_translation
+            and translation_supported
+            and service.is_reader_translation_enabled()
+        )
         raw_title = normalize_vbook_display_text(str(output.get("title") or ""), single_line=True)
         raw_author = normalize_vbook_display_text(str(output.get("author") or ""), single_line=True)
         vi_title = normalize_vi_display_text(output.get("title_vi") or "")
@@ -353,7 +360,7 @@ def _apply_book_card_translation_batch(
         cur_raw = normalize_vbook_display_text(str(output.get("current_chapter_title_raw") or ""), single_line=True)
         cur_vi = normalize_vi_display_text(output.get("current_chapter_title_vi") or "")
 
-        output["translation_supported"] = can_translate
+        output["translation_supported"] = translation_supported
         output["_raw_title_display"] = raw_title
         output["_raw_current_chapter_title_display"] = cur_raw
         output["_vi_title_display"] = vi_title
@@ -385,9 +392,9 @@ def _apply_book_card_translation_batch(
             item["author_display"] = author_display
             item["current_chapter_title_display"] = vi_current or translated_chapter_titles.get(raw_current) or raw_current
         else:
-            item["title_display"] = raw_title or vi_title
+            item["title_display"] = vi_title or raw_title
             item["author_display"] = author_display
-            item["current_chapter_title_display"] = raw_current or vi_current
+            item["current_chapter_title_display"] = vi_current or raw_current
         results.append(item)
     return results
 
@@ -408,7 +415,54 @@ def list_books(
         is_lang_zh=is_lang_zh,
         normalize_vbook_display_text=normalize_vbook_display_text,
         normalize_vi_display_text=normalize_vi_display_text,
+        allow_live_translation=False,
     )
+
+
+def list_books_paged(
+    service,
+    *,
+    offset: int = 0,
+    limit: int = 48,
+    query_text: str = "",
+    author_query: str = "",
+    category_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+    category_exclude_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+    category_match_mode: str = "or",
+    is_book_comic,
+    is_lang_zh,
+    normalize_lang_source,
+    book_supports_translation,
+    normalize_vbook_display_text,
+    normalize_vi_display_text,
+    allow_live_translation: bool = False,
+) -> dict[str, Any]:
+    data = service.storage.list_books_paged(
+        offset=offset,
+        limit=limit,
+        query_text=query_text,
+        author_query=author_query,
+        category_ids=category_ids,
+        category_exclude_ids=category_exclude_ids,
+        category_match_mode=category_match_mode,
+        normalize_vi_display_text=normalize_vi_display_text,
+        normalize_lang_source=normalize_lang_source,
+        book_supports_translation=book_supports_translation,
+        is_book_comic=is_book_comic,
+    )
+    items = _apply_book_card_translation_batch(
+        service,
+        data.get("items") or [],
+        is_book_comic=is_book_comic,
+        is_lang_zh=is_lang_zh,
+        normalize_vbook_display_text=normalize_vbook_display_text,
+        normalize_vi_display_text=normalize_vi_display_text,
+        allow_live_translation=allow_live_translation,
+    )
+    return {
+        **data,
+        "items": items,
+    }
 
 
 def search(
