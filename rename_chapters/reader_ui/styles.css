@@ -686,10 +686,16 @@ p {
   background: color-mix(in srgb, var(--surface-alt) var(--panel-alt-alpha), transparent);
   padding: 12px;
   display: grid;
-  grid-template-columns: 117px 1fr;
+  grid-template-columns: 117px minmax(0, 1fr);
   gap: 12px;
+  min-width: 0;
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.book-card > :last-child {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .book-card.book-card-shell,
@@ -808,6 +814,8 @@ p {
   color: var(--muted);
   font-size: 12px;
   margin-bottom: 3px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .book-card-source {
@@ -829,11 +837,14 @@ p {
 }
 
 .overflow-marquee {
+  display: block;
+  width: 100%;
   position: relative;
   max-width: 100%;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .overflow-marquee-track {
@@ -841,7 +852,14 @@ p {
   align-items: center;
   gap: 24px;
   min-width: max-content;
+  max-width: none;
   will-change: transform;
+}
+
+.overflow-marquee-segment {
+  flex: 0 0 auto;
+  display: inline-block;
+  max-width: none;
 }
 
 .overflow-marquee-copy {
@@ -926,6 +944,8 @@ p {
   display: grid;
   align-content: start;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ui-skeleton-block,
@@ -4733,7 +4753,7 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   }
 
   .book-card {
-    grid-template-columns: 92px 1fr;
+    grid-template-columns: 92px minmax(0, 1fr);
     gap: 10px;
     padding: 10px;
   }
