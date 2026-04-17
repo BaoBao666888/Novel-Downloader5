@@ -1002,6 +1002,98 @@
         };
     }
 
+    function extractJsonParsePosition(err) {
+        const message = (err && err.message ? err.message : String(err || '')).toString();
+        const match = message.match(/position\s+(\d+)/i);
+        return match ? parseInt(match[1], 10) : -1;
+    }
+
+    function buildDebugSnippet(text, position = -1, radius = 180) {
+        const raw = String(text || '');
+        if (!raw) return '';
+        const pos = Number.isInteger(position) && position >= 0 ? position : -1;
+        if (pos < 0 || pos >= raw.length) {
+            return raw.slice(0, Math.min(raw.length, radius * 2));
+        }
+        const start = Math.max(0, pos - radius);
+        const end = Math.min(raw.length, pos + radius);
+        const head = start > 0 ? '...' : '';
+        const tail = end < raw.length ? '...' : '';
+        return `${head}${raw.slice(start, pos)}<<<ERROR_AT_${pos}>>>${raw.slice(pos, end)}${tail}`;
+    }
+
+    function logTranslationParseFailure(error, meta = {}) {
+        const label = `[tm-translate] Parse JSON lỗi từ server (${meta.provider || 'unknown'}, ${meta.batchSize || 0} đoạn, ${meta.totalChars || 0} ký tự)`;
+        try {
+            console.groupCollapsed(label);
+            console.error(error);
+            console.log('[tm-translate] Meta:', meta);
+            if (meta.responseSnippet) {
+                console.log('[tm-translate] Response snippet:', meta.responseSnippet);
+            }
+            if (meta.translatedSnippet) {
+                console.log('[tm-translate] translatedContent snippet:', meta.translatedSnippet);
+            }
+            if (meta.sanitizedSnippet) {
+                console.log('[tm-translate] sanitizedContent snippet:', meta.sanitizedSnippet);
+            }
+            console.groupEnd();
+        } catch (logErr) {
+            console.error(label, error, meta, logErr);
+        }
+    }
+
+    function buildTranslationError(message, code, meta = {}, cause = null) {
+        const err = new Error(message);
+        if (code) err.code = code;
+        err.meta = meta;
+        if (cause) err.cause = cause;
+        return err;
+    }
+
+    function parseDichngayTranslationResponse(responseText, requestMeta = {}) {
+        const jsonResponse = JSON.parse(responseText);
+        const translatedContentString = jsonResponse?.data?.content ?? jsonResponse?.translatedText;
+
+        if (typeof translatedContentString !== 'string') {
+            throw buildTranslationError(
+                "Server response 'content' was not a string.",
+                'TRANSLATION_BAD_RESPONSE',
+                {
+                    ...requestMeta,
+                    responseSnippet: buildDebugSnippet(responseText)
+                }
+            );
+        }
+
+        const sanitizedString = translatedContentString
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+            .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+
+        try {
+            return JSON.parse(sanitizedString);
+        } catch (err) {
+            const position = extractJsonParsePosition(err);
+            const meta = {
+                ...requestMeta,
+                position,
+                responseLength: String(responseText || '').length,
+                translatedLength: translatedContentString.length,
+                sanitizedLength: sanitizedString.length,
+                responseSnippet: buildDebugSnippet(responseText),
+                translatedSnippet: buildDebugSnippet(translatedContentString, position),
+                sanitizedSnippet: buildDebugSnippet(sanitizedString, position)
+            };
+            logTranslationParseFailure(err, meta);
+            throw buildTranslationError(
+                `Failed to parse response from server at position ${position >= 0 ? position : 'unknown'}.`,
+                'TRANSLATION_PARSE_ERROR',
+                meta,
+                err
+            );
+        }
+    }
+
     function postTranslate(serverUrl, contentArray, targetLang) {
         return new Promise((resolve, reject) => {
             const payload = { content: JSON.stringify(contentArray), tl: targetLang };
@@ -1014,25 +1106,58 @@
                 onload(res) {
                     if (res.status >= 200 && res.status < 300) {
                         try {
-                            const jsonResponse = JSON.parse(res.responseText);
-                            let translatedContentString = jsonResponse?.data?.content ?? jsonResponse?.translatedText;
-
-                            if (typeof translatedContentString !== 'string') {
-                                throw new Error("Server response 'content' was not a string.");
-                            }
-
-                            const sanitizedString = translatedContentString
-                                .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-                                .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
-
-                            resolve(JSON.parse(sanitizedString));
-
+                            resolve(parseDichngayTranslationResponse(res.responseText, {
+                                provider: 'dichngay',
+                                endpoint: serverUrl,
+                                batchSize: Array.isArray(contentArray) ? contentArray.length : 0,
+                                totalChars: Array.isArray(contentArray) ? contentArray.reduce((sum, item) => sum + String(item || '').length, 0) : 0,
+                                status: res.status
+                            }));
                         } catch (e) {
-                            console.error("Lỗi nghiêm trọng khi parse JSON từ server:", e);
-                            reject(new Error('Failed to parse response from server. Error: ' + e));
+                            if (!(e && e.code === 'TRANSLATION_PARSE_ERROR')) {
+                                console.error('[tm-translate] Lỗi xử lý response từ server:', e);
+                            }
+                            reject(e instanceof Error ? e : new Error('Failed to parse response from server. Error: ' + e));
                         }
                     } else {
                         reject(new Error('HTTP Error: ' + res.status));
+                    }
+                },
+                onerror(err) { reject(err); }
+            });
+        });
+    }
+
+    function postTranslateSingle(serverUrl, contentText, targetLang) {
+        return new Promise((resolve, reject) => {
+            const payload = { content: String(contentText ?? ''), tl: targetLang };
+
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: serverUrl,
+                headers: { 'Content-Type': 'application/json', 'referer': 'https://dichngay.com/' },
+                data: JSON.stringify(payload),
+                onload(res) {
+                    if (res.status < 200 || res.status >= 300) {
+                        reject(new Error('HTTP Error: ' + res.status));
+                        return;
+                    }
+                    try {
+                        const parsed = parseDichngayTranslationResponse(res.responseText, {
+                            provider: 'dichngay',
+                            endpoint: serverUrl,
+                            batchSize: 1,
+                            totalChars: String(contentText || '').length,
+                            status: res.status,
+                            single: true
+                        });
+                        if (Array.isArray(parsed)) {
+                            resolve((parsed[0] || '').toString());
+                            return;
+                        }
+                        resolve(String(parsed ?? ''));
+                    } catch (e) {
+                        reject(e instanceof Error ? e : new Error(String(e)));
                     }
                 },
                 onerror(err) { reject(err); }
@@ -1128,6 +1253,18 @@
         }
         return await postTranslate(endpoint, contentArray, config.targetLang);
     }
+
+    async function requestServerTranslationSingleText(text) {
+        const provider = (config.serverProvider || 'dichngay');
+        const endpoint = getServerEndpoint(provider);
+        if (provider === 'dichnhanh') {
+            const translated = await postTranslateDichnhanh([text], config.dichnhanhOptions, endpoint);
+            if (Array.isArray(translated)) return (translated[0] || '').toString();
+            return String(translated ?? '');
+        }
+        return await postTranslateSingle(endpoint, text, config.targetLang);
+    }
+
     async function requestServerTranslation(contentArray) {
         const retries = Math.max(0, parseInt(config.retryCount, 10) || 0);
         let attempt = 0;
@@ -1142,6 +1279,51 @@
             }
             attempt++;
         }
+
+        const safeArray = Array.isArray(contentArray) ? contentArray : [];
+        const provider = (config.serverProvider || 'dichngay');
+        const delayMs = config.delayMs || 0;
+        if (safeArray.length > 1) {
+            console.warn('[tm-translate] Dịch batch lỗi, thử lại từng đoạn.', {
+                provider,
+                items: safeArray.length,
+                totalChars: safeArray.reduce((sum, item) => sum + String(item || '').length, 0),
+                error: lastError?.message || lastError
+            });
+            const recovered = [];
+            for (let i = 0; i < safeArray.length; i++) {
+                const item = safeArray[i];
+                try {
+                    const translatedSingle = await requestServerTranslationSingleText(item);
+                    recovered.push(translatedSingle || item);
+                } catch (singleErr) {
+                    console.warn('[tm-translate] Dịch từng đoạn vẫn lỗi, giữ nguyên text.', {
+                        provider,
+                        index: i + 1,
+                        total: safeArray.length,
+                        length: String(item || '').length,
+                        error: singleErr?.message || singleErr,
+                        meta: singleErr?.meta || null
+                    });
+                    recovered.push(item);
+                }
+                if (i < safeArray.length - 1 && delayMs > 0) {
+                    await sleep(delayMs);
+                }
+            }
+            return recovered;
+        }
+
+        if (safeArray.length === 1) {
+            console.warn('[tm-translate] Dịch đoạn đơn vẫn lỗi sau khi thử lại, giữ nguyên text.', {
+                provider,
+                length: String(safeArray[0] || '').length,
+                error: lastError?.message || lastError,
+                meta: lastError?.meta || null
+            });
+            return [safeArray[0]];
+        }
+
         throw lastError || new Error('Dịch thất bại.');
     }
 
