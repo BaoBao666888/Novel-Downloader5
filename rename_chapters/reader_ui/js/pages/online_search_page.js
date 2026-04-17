@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260413-settings3";
+import { initShell } from "../site_common.js?v=20260417-notify1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 
 const refs = {
@@ -1451,6 +1451,7 @@ async function importOnlineBook(item, { openReader = false } = {}) {
   const sourceUrl = String((item.detail_url || (state.detail.detail && state.detail.detail.url) || "")).trim();
   if (!sourceUrl) return;
   const pluginId = String((item.plugin_id || state.detail.pluginId || "")).trim();
+  const notificationId = !openReader ? state.shell.createNotificationTaskId("import_url") : "";
   const activeDetailSource = String(((state.detail.detail && state.detail.detail.url) || (state.detail.item && state.detail.item.detail_url) || "")).trim();
   const busyAction = openReader ? "read" : "import";
   const shouldRenderBusy = Boolean(activeDetailSource && activeDetailSource === sourceUrl);
@@ -1462,6 +1463,18 @@ async function importOnlineBook(item, { openReader = false } = {}) {
   }
   state.shell.showStatus(state.shell.t(openReader ? "statusOpeningReaderFromOnline" : "statusAddingBookToLibrary"));
   try {
+    if (notificationId) {
+      await state.shell.upsertNotificationTask({
+        id: notificationId,
+        kind: "import_url",
+        topic: "import",
+        topic_label: "Nhập bằng URL",
+        title: "Nhập từ Tìm online",
+        preview: `Đang thêm truyện: ${sourceUrl}`,
+        detail: `URL: ${sourceUrl}\nPlugin: ${pluginId || "Tự nhận diện"}`,
+        status: "running",
+      }).catch(() => {});
+    }
     const data = await apiWithRequest("import-url", "/api/library/import-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1476,11 +1489,35 @@ async function importOnlineBook(item, { openReader = false } = {}) {
       if (!importedBook) importedBook = fallback.book;
     }
     if (!bookId) {
+      if (notificationId) {
+        await state.shell.upsertNotificationTask({
+          id: notificationId,
+          kind: "import_url",
+          topic: "import",
+          topic_label: "Nhập bằng URL",
+          title: "Nhập từ Tìm online",
+          preview: `Thất bại: ${sourceUrl}`,
+          detail: `URL: ${sourceUrl}\nLỗi: ${state.shell.t("toastImportBookMissingId")}`,
+          status: "failed",
+        }).catch(() => {});
+      }
       state.shell.showToast(state.shell.t("toastImportBookMissingId"));
       return;
     }
 
     if (!openReader) {
+      await state.shell.upsertNotificationTask({
+        id: notificationId,
+        kind: "import_url",
+        topic: "import",
+        topic_label: "Nhập bằng URL",
+        title: "Nhập từ Tìm online",
+        preview: "Hoàn tất: thành công 1 • lỗi 0",
+        detail: `URL: ${sourceUrl}\nTên truyện: ${String((importedBook && (importedBook.title_display || importedBook.title)) || "").trim() || "Không rõ"}\nKết quả: thành công 1 • lỗi 0`,
+        status: "success",
+        book_id: bookId,
+        book_title: String((importedBook && (importedBook.title_display || importedBook.title)) || "").trim(),
+      }).catch(() => {});
       state.shell.showToast(state.shell.t("toastBookAddedToLibrary"));
       return;
     }
@@ -1520,6 +1557,18 @@ async function importOnlineBook(item, { openReader = false } = {}) {
   } catch (error) {
     if (shouldRenderBusy && !isAbortError(error)) {
       state.detail.errorMessage = getErrorMessage(error);
+    }
+    if (notificationId) {
+      await state.shell.upsertNotificationTask({
+        id: notificationId,
+        kind: "import_url",
+        topic: "import",
+        topic_label: "Nhập bằng URL",
+        title: "Nhập từ Tìm online",
+        preview: `Thất bại: ${sourceUrl}`,
+        detail: `URL: ${sourceUrl}\nLỗi: ${getErrorMessage(error)}`,
+        status: "failed",
+      }).catch(() => {});
     }
     showToastError(error);
   } finally {
@@ -1572,11 +1621,22 @@ async function downloadFromDetail() {
     return;
   }
   const pluginId = String(state.detail.pluginId || state.detail.item.plugin_id || "").trim();
+  const importNotificationId = state.shell.createNotificationTaskId("import_url");
   state.detail.actionBusy = "download";
   state.detail.errorMessage = "";
   renderVbookDetail();
   state.shell.showStatus(state.shell.t("statusQueueDownload"));
   try {
+    await state.shell.upsertNotificationTask({
+      id: importNotificationId,
+      kind: "import_url",
+      topic: "import",
+      topic_label: "Nhập bằng URL",
+      title: "Nhập để tải truyện",
+      preview: `Đang đồng bộ truyện local: ${sourceUrl}`,
+      detail: `URL: ${sourceUrl}\nPlugin: ${pluginId || "Tự nhận diện"}`,
+      status: "running",
+    }).catch(() => {});
     const data = await apiWithRequest("import-url", "/api/library/import-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1590,6 +1650,16 @@ async function downloadFromDetail() {
       bookId = String(fallback.bookId || "").trim();
     }
     if (!bookId) {
+      await state.shell.upsertNotificationTask({
+        id: importNotificationId,
+        kind: "import_url",
+        topic: "import",
+        topic_label: "Nhập bằng URL",
+        title: "Nhập để tải truyện",
+        preview: `Thất bại: ${sourceUrl}`,
+        detail: `URL: ${sourceUrl}\nLỗi: ${state.shell.t("toastImportBookMissingId")}`,
+        status: "failed",
+      }).catch(() => {});
       state.shell.showToast(state.shell.t("toastImportBookMissingId"));
       return;
     }
@@ -1598,10 +1668,34 @@ async function downloadFromDetail() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
+    await state.shell.upsertNotificationTask({
+      id: importNotificationId,
+      kind: "import_url",
+      topic: "import",
+      topic_label: "Nhập bằng URL",
+      title: "Nhập để tải truyện",
+      preview: queued && queued.already_downloaded
+        ? "Truyện đã có sẵn local, không cần tải thêm."
+        : "Đã nhập local, job tải truyện đang chạy.",
+      detail: `URL: ${sourceUrl}\nTên truyện: ${String((importedBook && (importedBook.title_display || importedBook.title)) || "").trim() || "Không rõ"}\nKết quả: đã đồng bộ truyện local và chuyển sang bước tải chương.`,
+      status: "success",
+      book_id: bookId,
+      book_title: String((importedBook && (importedBook.title_display || importedBook.title)) || "").trim(),
+    }).catch(() => {});
     if (queued && queued.already_downloaded) state.shell.showToast(state.shell.t("downloadAlreadyDone"));
     else state.shell.showToast(state.shell.t("downloadQueued"));
   } catch (error) {
     if (!isAbortError(error)) state.detail.errorMessage = getErrorMessage(error);
+    await state.shell.upsertNotificationTask({
+      id: importNotificationId,
+      kind: "import_url",
+      topic: "import",
+      topic_label: "Nhập bằng URL",
+      title: "Nhập để tải truyện",
+      preview: `Thất bại: ${sourceUrl}`,
+      detail: `URL: ${sourceUrl}\nLỗi: ${getErrorMessage(error)}`,
+      status: "failed",
+    }).catch(() => {});
     showToastError(error);
   } finally {
     state.detail.actionBusy = "";

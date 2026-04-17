@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260417-batchimport1";
+import { t } from "../i18n.vi.js?v=20260417-notify1";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -545,6 +545,64 @@ function hideStatus() {
   bar.setAttribute("aria-busy", "false");
 }
 
+function formatLocalDateTime(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function formatRelativeTime(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "";
+  const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (diffSec < 10) return "Vừa xong";
+  if (diffSec < 60) return `${diffSec}s trước`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} phút trước`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour} giờ trước`;
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffDay < 30) return `${diffDay} ngày trước`;
+  return formatLocalDateTime(raw);
+}
+
+function normalizeNotificationStatus(status) {
+  const raw = String(status || "").trim().toLowerCase();
+  if (raw === "queued" || raw === "running" || raw === "active" || raw === "progress") return "running";
+  if (raw === "success" || raw === "completed" || raw === "done") return "success";
+  if (raw === "failed" || raw === "error") return "failed";
+  if (raw === "warning" || raw === "stopped" || raw === "cancelled" || raw === "canceled") return "warning";
+  return "info";
+}
+
+function notificationStatusLabel(status) {
+  const normalized = normalizeNotificationStatus(status);
+  if (normalized === "running") return t("notificationStatusRunning");
+  if (normalized === "success") return t("notificationStatusSuccess");
+  if (normalized === "failed") return t("notificationStatusFailed");
+  if (normalized === "warning") return t("notificationStatusWarning");
+  return t("notificationStatusInfo");
+}
+
+function buildNotificationBellSvg() {
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 22a2.6 2.6 0 0 0 2.45-1.75h-4.9A2.6 2.6 0 0 0 12 22Zm6.25-5.25H5.75l1.44-1.64c.5-.57.78-1.3.78-2.06V10.5A4.05 4.05 0 0 1 11.25 6.6V5.75a.75.75 0 0 1 1.5 0v.85a4.05 4.05 0 0 1 3.28 3.9v2.55c0 .76.28 1.49.78 2.06l1.44 1.64ZM12 8.1a2.55 2.55 0 0 0-2.53 2.4v2.55c0 1.12-.41 2.18-1.14 3H14.67c-.73-.82-1.14-1.88-1.14-3V10.5A2.55 2.55 0 0 0 12 8.1Z"></path>
+    </svg>
+  `.trim();
+}
+
 function applyReaderVars(settings) {
   const root = document.documentElement;
   root.style.setProperty("--reader-font-family", settings.fontFamily);
@@ -763,6 +821,7 @@ async function handleImport(onImported) {
   const fileInput = qs("import-file");
   const file = fileInput && fileInput.files && fileInput.files[0];
   if (!file) return;
+  const notificationId = `import_file_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
   const form = new FormData();
   form.set("file", file);
@@ -772,14 +831,67 @@ async function handleImport(onImported) {
 
   showStatus(t("statusImporting"));
   try {
+    await api("/api/notifications/task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: notificationId,
+        kind: "import_file",
+        topic: "import",
+        topic_label: "Nhập vào thư viện",
+        title: "Nhập file vào thư viện",
+        preview: `Đang nhập: ${String(file.name || "").trim() || "Tệp mới"}`,
+        detail: `Tệp: ${String(file.name || "").trim() || "Không rõ"}`,
+        status: "running",
+        progress_current: 0,
+        progress_total: 1,
+        progress_percent: 0,
+      }),
+    }).catch(() => {});
     const data = await api("/api/library/import", { method: "POST", body: form });
     if (qs("import-form")) qs("import-form").reset();
     if (qs("import-dialog") && qs("import-dialog").open) qs("import-dialog").close();
+    await api("/api/notifications/task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: notificationId,
+        kind: "import_file",
+        topic: "import",
+        topic_label: "Nhập vào thư viện",
+        title: "Nhập file vào thư viện",
+        preview: "Hoàn tất: thành công 1 • lỗi 0",
+        detail: `Tệp: ${String(file.name || "").trim() || "Không rõ"}\nKết quả: thành công 1 • lỗi 0`,
+        status: "success",
+        progress_current: 1,
+        progress_total: 1,
+        progress_percent: 100,
+        book_id: String((data && data.book && data.book.book_id) || "").trim(),
+        book_title: String((data && data.book && (data.book.title_display || data.book.title)) || "").trim(),
+      }),
+    }).catch(() => {});
     showToast(t("toastImportSuccess"));
     if (typeof onImported === "function") {
       onImported(data);
     }
   } catch (error) {
+    await api("/api/notifications/task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: notificationId,
+        kind: "import_file",
+        topic: "import",
+        topic_label: "Nhập vào thư viện",
+        title: "Nhập file vào thư viện",
+        preview: `Thất bại: ${String(file.name || "").trim() || "Tệp import"}`,
+        detail: `Tệp: ${String(file.name || "").trim() || "Không rõ"}\nLỗi: ${error.message || t("toastError")}`,
+        status: "failed",
+        progress_current: 1,
+        progress_total: 1,
+        progress_percent: 100,
+      }),
+    }).catch(() => {});
     showToast(error.message || t("toastError"));
   } finally {
     hideStatus();
@@ -792,6 +904,7 @@ async function handleImportUrl(onImported, onImportUrl) {
   if (!url) return;
   const pluginSelect = qs("import-url-plugin");
   const pluginId = pluginSelect ? String(pluginSelect.value || "").trim() : "";
+  const notificationId = `import_url_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
   const helpers = {
     url,
@@ -811,6 +924,20 @@ async function handleImportUrl(onImported, onImportUrl) {
 
   showStatus(t("statusImportingUrl"));
   try {
+    await api("/api/notifications/task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: notificationId,
+        kind: "import_url",
+        topic: "import",
+        topic_label: "Nhập bằng URL",
+        title: "Nhập truyện bằng URL",
+        preview: `Đang lấy thông tin: ${url}`,
+        detail: `URL: ${url}\nPlugin: ${pluginId || "Tự nhận diện"}`,
+        status: "running",
+      }),
+    }).catch(() => {});
     const data = await api("/api/library/import-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -818,11 +945,41 @@ async function handleImportUrl(onImported, onImportUrl) {
     });
     helpers.resetForm();
     helpers.closeDialog();
+    await api("/api/notifications/task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: notificationId,
+        kind: "import_url",
+        topic: "import",
+        topic_label: "Nhập bằng URL",
+        title: "Nhập truyện bằng URL",
+        preview: "Hoàn tất: thành công 1 • lỗi 0",
+        detail: `URL: ${url}\nTên truyện: ${String((data && data.book && (data.book.title_display || data.book.title)) || "").trim() || "Không rõ"}\nKết quả: thành công 1 • lỗi 0`,
+        status: "success",
+        book_id: String((data && data.book && data.book.book_id) || "").trim(),
+        book_title: String((data && data.book && (data.book.title_display || data.book.title)) || "").trim(),
+      }),
+    }).catch(() => {});
     showToast(t("toastImportSuccess"));
     if (typeof onImported === "function") {
       onImported(data);
     }
   } catch (error) {
+    await api("/api/notifications/task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: notificationId,
+        kind: "import_url",
+        topic: "import",
+        topic_label: "Nhập bằng URL",
+        title: "Nhập truyện bằng URL",
+        preview: `Thất bại: ${url}`,
+        detail: `URL: ${url}\nLỗi: ${error.message || t("toastError")}`,
+        status: "failed",
+      }),
+    }).catch(() => {});
     showToast(error.message || t("toastError"));
   } finally {
     hideStatus();
@@ -1185,6 +1342,7 @@ function fillStaticTexts() {
     ["import-lang-label", "importLang"],
     ["import-book-title-label", "importBookTitle"],
     ["import-author-label", "importAuthor"],
+    ["import-skip-prepare-label", "importSkipPrepare"],
     ["import-lang-zh", "importLangZh"],
     ["import-lang-vi", "importLangVi"],
     ["btn-import-cancel", "cancel"],
@@ -1237,6 +1395,7 @@ function fillStaticTexts() {
     ["btn-import-batch-close", "close"],
     ["btn-import-batch-cancel", "cancel"],
     ["btn-import-batch-commit", "importBatchCommit"],
+    ["btn-import-progress-hide", "importProgressHide"],
     ["import-url-title", "importUrlTitle"],
     ["import-url-label", "importUrlLabel"],
     ["import-url-plugin-label", "importUrlPlugin"],
@@ -1606,6 +1765,489 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     syncBackdrop();
   };
   syncBackdrop();
+
+  const notificationState = {
+    items: [],
+    count: 0,
+    unreadCount: 0,
+    activeCount: 0,
+    sig: "",
+    selected: new Set(),
+    ui: null,
+    eventSource: null,
+    reconnectTimer: 0,
+  };
+
+  const ensureNotificationUi = () => {
+    if (notificationState.ui) return notificationState.ui;
+    const actionsHost = document.querySelector(".topbar-actions");
+    if (!actionsHost) return null;
+
+    let bellButton = qs("btn-open-notifications");
+    if (!bellButton) {
+      bellButton = document.createElement("button");
+      bellButton.id = "btn-open-notifications";
+      bellButton.type = "button";
+      bellButton.className = "btn btn-icon btn-notification-bell";
+      bellButton.setAttribute("aria-label", t("notifications"));
+      bellButton.innerHTML = `
+        <span class="notification-bell-icon">${buildNotificationBellSvg()}</span>
+        <span id="notification-badge" class="notification-badge hidden" aria-hidden="true"></span>
+      `;
+      const settingsButton = qs("btn-open-settings");
+      if (settingsButton && settingsButton.parentElement === actionsHost) {
+        actionsHost.insertBefore(bellButton, settingsButton);
+      } else {
+        actionsHost.appendChild(bellButton);
+      }
+    }
+
+    let dialog = qs("notifications-dialog");
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.id = "notifications-dialog";
+      dialog.className = "dialog notification-center-dialog";
+      dialog.innerHTML = `
+        <div class="dialog-head">
+          <h3 id="notifications-title">${t("notificationTitle")}</h3>
+          <button id="btn-notifications-close" class="btn btn-small" type="button">${t("close")}</button>
+        </div>
+        <p id="notifications-summary" class="dialog-subtitle"></p>
+        <div class="notification-toolbar">
+          <span id="notifications-selection-summary" class="notification-selection-summary hidden"></span>
+          <button id="btn-notifications-mark-read" class="btn btn-small" type="button">${t("notificationMarkSelectedRead")}</button>
+          <button id="btn-notifications-delete" class="btn btn-small" type="button">${t("notificationDeleteSelected")}</button>
+          <button id="btn-notifications-clear-read" class="btn btn-small" type="button">${t("notificationClearRead")}</button>
+          <button id="btn-notifications-clear-all" class="btn btn-small" type="button">${t("notificationClearAll")}</button>
+        </div>
+        <div id="notifications-list" class="notification-list"></div>
+        <p id="notifications-empty" class="empty-text hidden">${t("notificationEmpty")}</p>
+      `;
+      document.body.appendChild(dialog);
+    }
+
+    let detailDialog = qs("notification-detail-dialog");
+    if (!detailDialog) {
+      detailDialog = document.createElement("dialog");
+      detailDialog.id = "notification-detail-dialog";
+      detailDialog.className = "dialog notification-detail-dialog";
+      detailDialog.innerHTML = `
+        <div class="dialog-head">
+          <h3 id="notification-detail-title">${t("notificationDetailTitle")}</h3>
+          <button id="btn-notification-detail-close" class="btn btn-small" type="button">${t("close")}</button>
+        </div>
+        <div class="notification-detail-meta">
+          <span id="notification-detail-status" class="notification-status-chip"></span>
+          <span id="notification-detail-topic" class="notification-detail-topic"></span>
+        </div>
+        <p id="notification-detail-updated" class="dialog-subtitle"></p>
+        <p id="notification-detail-created" class="dialog-subtitle"></p>
+        <pre id="notification-detail-body" class="notification-detail-body"></pre>
+        <div class="dialog-actions">
+          <button id="btn-notification-detail-read" class="btn" type="button">${t("notificationMarkRead")}</button>
+          <button id="btn-notification-detail-delete" class="btn" type="button">${t("notificationDeleteOne")}</button>
+        </div>
+      `;
+      document.body.appendChild(detailDialog);
+    }
+
+    const ui = {
+      bellButton,
+      badge: qs("notification-badge"),
+      dialog,
+      detailDialog,
+      summary: qs("notifications-summary"),
+      selectionSummary: qs("notifications-selection-summary"),
+      btnClose: qs("btn-notifications-close"),
+      btnMarkRead: qs("btn-notifications-mark-read"),
+      btnDelete: qs("btn-notifications-delete"),
+      btnClearRead: qs("btn-notifications-clear-read"),
+      btnClearAll: qs("btn-notifications-clear-all"),
+      list: qs("notifications-list"),
+      empty: qs("notifications-empty"),
+      detailTitle: qs("notification-detail-title"),
+      detailStatus: qs("notification-detail-status"),
+      detailTopic: qs("notification-detail-topic"),
+      detailUpdated: qs("notification-detail-updated"),
+      detailCreated: qs("notification-detail-created"),
+      detailBody: qs("notification-detail-body"),
+      btnDetailClose: qs("btn-notification-detail-close"),
+      btnDetailRead: qs("btn-notification-detail-read"),
+      btnDetailDelete: qs("btn-notification-detail-delete"),
+      activeDetailId: "",
+    };
+
+    const syncNotificationControls = () => {
+      const selectedCount = notificationState.selected.size;
+      if (ui.selectionSummary) {
+        ui.selectionSummary.textContent = selectedCount > 0
+          ? t("notificationSelectionSummary", { count: selectedCount })
+          : "";
+        ui.selectionSummary.classList.toggle("hidden", selectedCount <= 0);
+      }
+      if (ui.btnMarkRead) ui.btnMarkRead.disabled = selectedCount <= 0;
+      if (ui.btnDelete) ui.btnDelete.disabled = selectedCount <= 0;
+      if (ui.btnClearRead) {
+        ui.btnClearRead.disabled = notificationState.items.every((item) => {
+          if (!item || !item.read) return true;
+          return normalizeNotificationStatus(item.status) === "running";
+        });
+      }
+      if (ui.btnClearAll) ui.btnClearAll.disabled = notificationState.items.length <= 0;
+    };
+
+    const syncNotificationBadge = () => {
+      if (!ui.badge) return;
+      const unreadCount = Math.max(0, Number(notificationState.unreadCount || 0));
+      const activeCount = Math.max(0, Number(notificationState.activeCount || 0));
+      ui.badge.classList.remove("hidden", "active", "unread");
+      if (unreadCount > 0) {
+        ui.badge.classList.add("unread");
+        ui.bellButton.title = `${t("notifications")} • ${unreadCount} chưa đọc`;
+        return;
+      }
+      if (activeCount > 0) {
+        ui.badge.classList.add("active");
+        ui.bellButton.title = `${t("notifications")} • ${activeCount} đang chạy`;
+        return;
+      }
+      ui.badge.classList.add("hidden");
+      ui.bellButton.title = t("notifications");
+    };
+
+    const renderNotificationDetail = (item) => {
+      if (!item || !ui.detailDialog) return;
+      ui.activeDetailId = String(item.id || "").trim();
+      if (ui.detailTitle) ui.detailTitle.textContent = String(item.title || t("notificationDetailTitle"));
+      if (ui.detailStatus) {
+        const status = normalizeNotificationStatus(item.status);
+        ui.detailStatus.className = `notification-status-chip ${status}`;
+        ui.detailStatus.textContent = notificationStatusLabel(status);
+      }
+      if (ui.detailTopic) ui.detailTopic.textContent = String(item.topic_label || item.topic || "");
+      if (ui.detailUpdated) {
+        ui.detailUpdated.textContent = `${t("notificationUpdatedAt")}: ${formatLocalDateTime(item.updated_at) || "-"}`;
+      }
+      if (ui.detailCreated) {
+        ui.detailCreated.textContent = `${t("notificationCreatedAt")}: ${formatLocalDateTime(item.created_at) || "-"}`;
+      }
+      if (ui.detailBody) {
+        const lines = [];
+        if (item.preview) lines.push(String(item.preview || "").trim());
+        if (Number(item.progress_total || 0) > 0) {
+          const current = Math.max(0, Number(item.progress_current || 0));
+          const total = Math.max(0, Number(item.progress_total || 0));
+          const percent = Math.max(0, Math.min(100, Number(item.progress_percent || 0)));
+          lines.push(`Tiến độ: ${current}/${total} • ${percent.toFixed(0)}%`);
+        }
+        const detailText = String(item.detail || "").trim();
+        if (detailText) lines.push(detailText);
+        ui.detailBody.textContent = lines.filter(Boolean).join("\n\n").trim();
+      }
+      if (ui.btnDetailRead) {
+        ui.btnDetailRead.textContent = item.read ? t("notificationMarkUnread") : t("notificationMarkRead");
+      }
+      if (!ui.detailDialog.open) ui.detailDialog.showModal();
+    };
+
+    const renderNotificationList = () => {
+      if (!ui.list || !ui.empty) return;
+      ui.list.innerHTML = "";
+      const items = Array.isArray(notificationState.items) ? notificationState.items : [];
+      if (ui.summary) {
+        if (notificationState.unreadCount > 0 && notificationState.activeCount > 0) {
+          ui.summary.textContent = t("notificationSummary", {
+            unread: notificationState.unreadCount,
+            active: notificationState.activeCount,
+          });
+        } else if (notificationState.unreadCount > 0) {
+          ui.summary.textContent = t("notificationSummaryNoActive", { unread: notificationState.unreadCount });
+        } else if (notificationState.activeCount > 0) {
+          ui.summary.textContent = t("notificationSummaryNoUnread", { active: notificationState.activeCount });
+        } else {
+          ui.summary.textContent = "";
+        }
+      }
+      if (!items.length) {
+        ui.empty.classList.remove("hidden");
+        syncNotificationControls();
+        syncNotificationBadge();
+        return;
+      }
+      ui.empty.classList.add("hidden");
+      for (const item of items) {
+        if (!item || typeof item !== "object") continue;
+        const status = normalizeNotificationStatus(item.status);
+        const card = document.createElement("article");
+        card.className = `notification-card ${status}${item.read && status !== "running" ? " read" : ""}`;
+        card.setAttribute("data-notification-id", String(item.id || ""));
+
+        const selector = document.createElement("label");
+        selector.className = "notification-card-select";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = notificationState.selected.has(String(item.id || ""));
+        checkbox.addEventListener("click", (event) => event.stopPropagation());
+        checkbox.addEventListener("change", () => {
+          const notifId = String(item.id || "").trim();
+          if (!notifId) return;
+          if (checkbox.checked) notificationState.selected.add(notifId);
+          else notificationState.selected.delete(notifId);
+          syncNotificationControls();
+        });
+        selector.appendChild(checkbox);
+
+        const body = document.createElement("div");
+        body.className = "notification-card-body";
+        const head = document.createElement("div");
+        head.className = "notification-card-head";
+        const titleWrap = document.createElement("div");
+        titleWrap.className = "notification-card-title-wrap";
+        const titleNode = document.createElement("div");
+        titleNode.className = "notification-card-title";
+        titleNode.textContent = String(item.title || "");
+        const previewNode = document.createElement("div");
+        previewNode.className = "notification-card-preview";
+        previewNode.textContent = String(item.preview || "");
+        titleWrap.append(titleNode, previewNode);
+
+        const side = document.createElement("div");
+        side.className = "notification-card-side";
+        const chip = document.createElement("span");
+        chip.className = `notification-status-chip ${status}`;
+        chip.textContent = notificationStatusLabel(status);
+        const timeNode = document.createElement("span");
+        timeNode.className = "notification-card-time";
+        timeNode.textContent = formatRelativeTime(item.updated_at) || formatLocalDateTime(item.updated_at);
+        side.append(chip, timeNode);
+        head.append(titleWrap, side);
+
+        const meta = document.createElement("div");
+        meta.className = "notification-card-meta";
+        const metaParts = [];
+        if (item.topic_label || item.topic) metaParts.push(String(item.topic_label || item.topic));
+        if (Number(item.progress_total || 0) > 0) {
+          metaParts.push(`${Math.max(0, Number(item.progress_current || 0))}/${Math.max(0, Number(item.progress_total || 0))}`);
+        }
+        meta.textContent = metaParts.join(" • ");
+        body.append(head, meta);
+        if (Number(item.progress_total || 0) > 0) {
+          const progressOuter = document.createElement("div");
+          progressOuter.className = "notification-progress";
+          const progressInner = document.createElement("div");
+          progressInner.className = "notification-progress-fill";
+          progressInner.style.width = `${Math.max(0, Math.min(100, Number(item.progress_percent || 0))).toFixed(1)}%`;
+          progressOuter.appendChild(progressInner);
+          body.appendChild(progressOuter);
+        }
+        card.append(selector, body);
+        card.addEventListener("click", async () => {
+          renderNotificationDetail(item);
+          if (!item.read) {
+            markNotificationsRead([String(item.id || "").trim()], true).catch(() => {});
+          }
+        });
+        ui.list.appendChild(card);
+      }
+      syncNotificationControls();
+      syncNotificationBadge();
+    };
+
+    const applyNotificationListing = (payload) => {
+      const items = Array.isArray(payload && payload.items) ? payload.items : [];
+      const validIds = new Set(
+        items
+          .map((item) => String((item && item.id) || "").trim())
+          .filter(Boolean),
+      );
+      notificationState.items = items;
+      notificationState.count = Math.max(0, Number((payload && payload.count) || items.length || 0));
+      notificationState.unreadCount = Math.max(0, Number((payload && payload.unread_count) || 0));
+      notificationState.activeCount = Math.max(0, Number((payload && payload.active_count) || 0));
+      notificationState.sig = String((payload && payload.sig) || "");
+      notificationState.selected = new Set(Array.from(notificationState.selected).filter((id) => validIds.has(id)));
+      if (ui.activeDetailId) {
+        const current = items.find((item) => String((item && item.id) || "").trim() === ui.activeDetailId);
+        if (current && ui.detailDialog && ui.detailDialog.open) {
+          renderNotificationDetail(current);
+        } else {
+          ui.activeDetailId = "";
+          if (ui.detailDialog && ui.detailDialog.open) ui.detailDialog.close();
+        }
+      }
+      renderNotificationList();
+    };
+
+    const loadNotifications = async () => {
+      const data = await api("/api/notifications?limit=160");
+      applyNotificationListing(data);
+      return data;
+    };
+
+    const markNotificationsRead = async (ids, read = true) => {
+      const notifIds = Array.isArray(ids) ? ids.filter(Boolean) : [];
+      if (!notifIds.length) return null;
+      const data = await api("/api/notifications/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: notifIds, read: Boolean(read) }),
+      });
+      if (data && data.listing) applyNotificationListing(data.listing);
+      return data;
+    };
+
+    const deleteNotifications = async (ids) => {
+      const notifIds = Array.isArray(ids) ? ids.filter(Boolean) : [];
+      if (!notifIds.length) return null;
+      const data = await api("/api/notifications/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: notifIds }),
+      });
+      if (data && data.listing) applyNotificationListing(data.listing);
+      return data;
+    };
+
+    const clearNotifications = async (scope = "read") => {
+      const data = await api("/api/notifications/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope }),
+      });
+      if (data && data.listing) applyNotificationListing(data.listing);
+      return data;
+    };
+
+    const closeNotificationStream = () => {
+      if (notificationState.eventSource) {
+        notificationState.eventSource.close();
+        notificationState.eventSource = null;
+      }
+      if (notificationState.reconnectTimer) {
+        window.clearTimeout(notificationState.reconnectTimer);
+        notificationState.reconnectTimer = 0;
+      }
+    };
+
+    const scheduleNotificationReconnect = () => {
+      if (notificationState.reconnectTimer) return;
+      notificationState.reconnectTimer = window.setTimeout(() => {
+        notificationState.reconnectTimer = 0;
+        startNotificationStream();
+      }, 1800);
+    };
+
+    const startNotificationStream = () => {
+      closeNotificationStream();
+      const params = new URLSearchParams();
+      params.set("limit", "160");
+      if (notificationState.sig) params.set("last_sig", notificationState.sig);
+      const stream = new EventSource(`/api/notifications/stream?${params.toString()}`);
+      notificationState.eventSource = stream;
+      stream.addEventListener("notifications", (event) => {
+        try {
+          const payload = JSON.parse(event.data || "{}");
+          applyNotificationListing(payload);
+        } catch {
+          // ignore malformed event
+        }
+      });
+      stream.addEventListener("error", () => {
+        closeNotificationStream();
+        scheduleNotificationReconnect();
+      });
+    };
+
+    const upsertNotificationTask = async (payload) => {
+      if (!payload || typeof payload !== "object") return null;
+      const data = await api("/api/notifications/task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (data && data.listing) applyNotificationListing(data.listing);
+      return data;
+    };
+
+    const createNotificationTaskId = (prefix = "task") => {
+      const head = String(prefix || "task").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_") || "task";
+      return `${head}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    };
+
+    bellButton.addEventListener("click", async () => {
+      if (!dialog.open) dialog.showModal();
+      if (!notificationState.items.length) {
+        try {
+          await loadNotifications();
+        } catch {
+          // ignore temporary network error
+        }
+      }
+    });
+    if (ui.btnClose) ui.btnClose.addEventListener("click", () => { if (dialog.open) dialog.close(); });
+    if (ui.btnMarkRead) {
+      ui.btnMarkRead.addEventListener("click", async () => {
+        const ids = Array.from(notificationState.selected);
+        if (!ids.length) return;
+        await markNotificationsRead(ids, true);
+      });
+    }
+    if (ui.btnDelete) {
+      ui.btnDelete.addEventListener("click", async () => {
+        const ids = Array.from(notificationState.selected);
+        if (!ids.length) return;
+        if (!window.confirm("Xóa các thông báo đã chọn?")) return;
+        await deleteNotifications(ids);
+      });
+    }
+    if (ui.btnClearRead) {
+      ui.btnClearRead.addEventListener("click", async () => {
+        if (!window.confirm("Dọn tất cả thông báo đã đọc?")) return;
+        await clearNotifications("read");
+      });
+    }
+    if (ui.btnClearAll) {
+      ui.btnClearAll.addEventListener("click", async () => {
+        if (!window.confirm("Xóa toàn bộ thông báo?")) return;
+        await clearNotifications("all");
+      });
+    }
+    if (ui.btnDetailClose) ui.btnDetailClose.addEventListener("click", () => {
+      ui.activeDetailId = "";
+      if (ui.detailDialog.open) ui.detailDialog.close();
+    });
+    if (ui.btnDetailRead) {
+      ui.btnDetailRead.addEventListener("click", async () => {
+        const current = notificationState.items.find((item) => String((item && item.id) || "").trim() === ui.activeDetailId);
+        if (!current) return;
+        await markNotificationsRead([ui.activeDetailId], !current.read);
+      });
+    }
+    if (ui.btnDetailDelete) {
+      ui.btnDetailDelete.addEventListener("click", async () => {
+        if (!ui.activeDetailId) return;
+        if (!window.confirm("Xóa thông báo này?")) return;
+        await deleteNotifications([ui.activeDetailId]);
+      });
+    }
+
+    notificationState.ui = {
+      ...ui,
+      applyNotificationListing,
+      loadNotifications,
+      markNotificationsRead,
+      deleteNotifications,
+      clearNotifications,
+      closeNotificationStream,
+      startNotificationStream,
+      upsertNotificationTask,
+      createNotificationTaskId,
+    };
+    renderNotificationList();
+    return notificationState.ui;
+  };
+
+  const notificationUi = ensureNotificationUi();
 
   const syncLocalMaxPhraseSizeValue = (rawValue) => {
     let value = Number.parseInt(String(rawValue ?? ""), 10);
@@ -3307,6 +3949,17 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
 
   await loadInstalledVbookPlugins({ silent: true });
   await refreshVbookRuntimeSettings({ silent: true });
+  if (notificationUi) {
+    try {
+      await notificationUi.loadNotifications();
+    } catch {
+      // ignore temporary notification fetch error
+    }
+    notificationUi.startNotificationStream();
+    window.addEventListener("beforeunload", () => {
+      notificationUi.closeNotificationStream();
+    });
+  }
 
   if (qs("btn-clear-cache")) qs("btn-clear-cache").addEventListener("click", clearCache);
 
@@ -3325,6 +3978,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     getVbookSettings: (pluginId = "") => runtimeEffectiveSettings(pluginId),
     getVbookGlobalSettings: () => normalizeVbookGlobalSettings(state.vbook.globalSettings || {}),
     refreshVbookSettings: (pluginId = "") => refreshVbookRuntimeSettings({ silent: true, pluginId }),
+    createNotificationTaskId: (prefix = "task") => (notificationUi ? notificationUi.createNotificationTaskId(prefix) : `${prefix}_${Date.now()}`),
+    upsertNotificationTask: (payload) => (notificationUi ? notificationUi.upsertNotificationTask(payload) : Promise.resolve(null)),
+    markNotificationsRead: (ids, read = true) => (notificationUi ? notificationUi.markNotificationsRead(ids, read) : Promise.resolve(null)),
+    deleteNotifications: (ids) => (notificationUi ? notificationUi.deleteNotifications(ids) : Promise.resolve(null)),
+    clearNotifications: (scope = "read") => (notificationUi ? notificationUi.clearNotifications(scope) : Promise.resolve(null)),
     goSearchPage,
   };
 }

@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260417-wikicat1">
+  <link rel="stylesheet" href="./styles.css?v=20260417-notify1">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -635,6 +635,10 @@
         <span id="import-author-label"></span>
         <input id="import-author" name="author" type="text" placeholder="Không bắt buộc">
       </label>
+      <label class="checkbox-row">
+        <input id="import-skip-prepare" name="skip_prepare" type="checkbox">
+        <span id="import-skip-prepare-label"></span>
+      </label>
       <section class="import-category-section">
         <div class="import-category-head">
           <strong id="import-categories-label"></strong>
@@ -790,6 +794,7 @@
   <dialog id="import-progress-dialog" class="dialog import-progress-dialog">
     <div class="dialog-head">
       <h3 id="import-progress-title"></h3>
+      <button id="btn-import-progress-hide" class="btn btn-small" type="button"></button>
     </div>
     <p id="import-progress-hint" class="dialog-subtitle"></p>
     <div class="import-progress-bar" aria-hidden="true">
@@ -995,7 +1000,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260417-wikicat1"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260417-notify1"></script>
 </body>
 
 </html>

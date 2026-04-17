@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260413-settings3";
+import { initShell } from "../site_common.js?v=20260417-notify1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260307-br2";
 
 const refs = {

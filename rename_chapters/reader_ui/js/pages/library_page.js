@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260417-wikicat1";
+import { initShell } from "../site_common.js?v=20260417-notify1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -166,6 +166,7 @@ const refs = {
   importLangInput: document.getElementById("import-lang"),
   importBookTitleInput: document.getElementById("import-book-title"),
   importAuthorInput: document.getElementById("import-author"),
+  importSkipPrepareInput: document.getElementById("import-skip-prepare"),
   importCategoriesLabel: document.getElementById("import-categories-label"),
   importCategoriesCount: document.getElementById("import-categories-count"),
   btnImportCategoriesClear: document.getElementById("btn-import-categories-clear"),
@@ -216,6 +217,7 @@ const refs = {
   btnImportBatchCommit: document.getElementById("btn-import-batch-commit"),
   importProgressDialog: document.getElementById("import-progress-dialog"),
   importProgressTitle: document.getElementById("import-progress-title"),
+  btnImportProgressHide: document.getElementById("btn-import-progress-hide"),
   importProgressHint: document.getElementById("import-progress-hint"),
   importProgressFill: document.getElementById("import-progress-fill"),
   importProgressSummary: document.getElementById("import-progress-summary"),
@@ -283,6 +285,11 @@ const state = {
     failed: 0,
     currentFile: "",
     phase: "idle",
+    title: "",
+    hidden: false,
+    notificationId: "",
+    detail: "",
+    errors: [],
   },
   exportBookDetail: null,
   exportFormats: [],
@@ -316,6 +323,104 @@ function localTranslationSettingsSignature(shell) {
 function getErrorMessage(error) {
   if (!error) return state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra.";
   return String(error.displayMessage || error.message || (state.shell ? state.shell.t("toastError") : "Có lỗi xảy ra."));
+}
+
+function shouldSkipImportPrepare() {
+  return Boolean(refs.importSkipPrepareInput && refs.importSkipPrepareInput.checked);
+}
+
+function ensureBatchImportNotificationId(prefix = "import_file") {
+  const current = String((state.batchImportProgress && state.batchImportProgress.notificationId) || "").trim();
+  if (current) return current;
+  const created = state.shell && typeof state.shell.createNotificationTaskId === "function"
+    ? state.shell.createNotificationTaskId(prefix)
+    : `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+  state.batchImportProgress.notificationId = created;
+  return created;
+}
+
+function buildImportProgressPreview(progress) {
+  const total = Math.max(0, Number((progress && progress.total) || 0));
+  const completed = Math.max(0, Number((progress && progress.completed) || 0));
+  const success = Math.max(0, Number((progress && progress.success) || 0));
+  const failed = Math.max(0, Number((progress && progress.failed) || 0));
+  if ((progress && progress.phase) === "finishing") {
+    return `Đang hoàn tất nhập: ${success} thành công, ${failed} lỗi.`;
+  }
+  if (total > 0) {
+    return `Đã xử lý ${completed}/${total} truyện • thành công ${success} • lỗi ${failed}`;
+  }
+  return "Đang nhập truyện vào thư viện...";
+}
+
+function buildImportProgressDetail(progress) {
+  const lines = [];
+  const title = String((progress && progress.title) || "").trim();
+  const total = Math.max(0, Number((progress && progress.total) || 0));
+  const completed = Math.max(0, Number((progress && progress.completed) || 0));
+  const success = Math.max(0, Number((progress && progress.success) || 0));
+  const failed = Math.max(0, Number((progress && progress.failed) || 0));
+  if (title) lines.push(title);
+  lines.push(`Đã xử lý: ${completed}/${total}`);
+  lines.push(`Thành công: ${success}`);
+  lines.push(`Thất bại: ${failed}`);
+  if ((progress && progress.phase) === "finishing") {
+    lines.push("Đang hoàn tất và gán danh mục...");
+  }
+  const currentFile = String((progress && progress.currentFile) || "").trim();
+  if (currentFile) lines.push(`Đang xử lý: ${currentFile}`);
+  const errorItems = Array.isArray(progress && progress.errors) ? progress.errors : [];
+  if (errorItems.length) {
+    lines.push("");
+    lines.push("Các file lỗi:");
+    for (const item of errorItems.slice(0, 12)) {
+      lines.push(`- ${String(item.file_name || "").trim() || "Không rõ file"}: ${String(item.error || "").trim() || "Lỗi không rõ"}`);
+    }
+    if (errorItems.length > 12) {
+      lines.push(`- ... còn ${errorItems.length - 12} file lỗi khác`);
+    }
+  }
+  return lines.join("\n").trim();
+}
+
+async function syncBatchImportNotification({
+  status = "running",
+  title = "",
+  kind = "import_file",
+} = {}) {
+  if (!state.shell || typeof state.shell.upsertNotificationTask !== "function") return;
+  const progress = state.batchImportProgress || {};
+  const notificationId = ensureBatchImportNotificationId(kind);
+  try {
+    await state.shell.upsertNotificationTask({
+      id: notificationId,
+      kind,
+      topic: "import",
+      topic_label: "Nhập vào thư viện",
+      title: String(title || progress.title || "").trim() || "Nhập vào thư viện",
+      preview: buildImportProgressPreview(progress),
+      detail: buildImportProgressDetail(progress),
+      status,
+      progress_current: Math.max(0, Number(progress.completed || 0)),
+      progress_total: Math.max(0, Number(progress.total || 0)),
+      progress_percent: Math.max(0, Math.min(100, Number(progress.total || 0) > 0 ? (Number(progress.completed || 0) / Number(progress.total || 1)) * 100 : 0)),
+    });
+  } catch {
+    // notification lỗi không chặn luồng import chính
+  }
+}
+
+async function finalizeBatchImportNotification({
+  status = "success",
+  title = "",
+  kind = "import_file",
+} = {}) {
+  if (!state.batchImportProgress) return;
+  await syncBatchImportNotification({
+    status,
+    title: String(title || state.batchImportProgress.title || "").trim(),
+    kind: String(kind || state.batchImportProgress.kind || "import_file").trim() || "import_file",
+  });
 }
 
 function validateRegexPattern(pattern) {
@@ -1185,6 +1290,11 @@ function resetBatchImportProgress() {
     failed: 0,
     currentFile: "",
     phase: "idle",
+    title: "",
+    hidden: false,
+    notificationId: "",
+    detail: "",
+    errors: [],
   };
 }
 
@@ -1196,12 +1306,16 @@ function renderBatchImportProgressDialog() {
   const success = Math.max(0, Number(progress.success || 0));
   const failed = Math.max(0, Number(progress.failed || 0));
   const percent = total > 0 ? Math.max(0, Math.min(100, (completed / total) * 100)) : 0;
-  if (refs.importProgressTitle) refs.importProgressTitle.textContent = state.shell.t("importProgressTitle");
+  if (refs.importProgressTitle) {
+    refs.importProgressTitle.textContent = String(progress.title || "").trim()
+      || state.shell.t(total <= 1 ? "importProgressTitleSingle" : "importProgressTitle");
+  }
   if (refs.importProgressHint) {
     refs.importProgressHint.textContent = progress.phase === "finishing"
       ? state.shell.t("importProgressFinishing")
       : state.shell.t("importProgressHint");
   }
+  if (refs.btnImportProgressHide) refs.btnImportProgressHide.disabled = !progress.active;
   if (refs.importProgressFill) refs.importProgressFill.style.width = `${percent.toFixed(1)}%`;
   if (refs.importProgressSummary) refs.importProgressSummary.textContent = state.shell.t("importProgressSummary", { done: completed, total });
   if (refs.importProgressStats) refs.importProgressStats.textContent = state.shell.t("importProgressStats", { success, failed });
@@ -1211,14 +1325,14 @@ function renderBatchImportProgressDialog() {
       ? state.shell.t("importProgressCurrentFile", { name: currentFile })
       : "";
   }
-  if (progress.active) {
+  if (progress.active && !progress.hidden) {
     if (!refs.importProgressDialog.open) refs.importProgressDialog.showModal();
   } else if (refs.importProgressDialog.open) {
     refs.importProgressDialog.close();
   }
 }
 
-function openBatchImportProgressDialog(total) {
+function openBatchImportProgressDialog(total, { title = "", notificationId = "", kind = "import_file" } = {}) {
   state.batchImportProgress = {
     active: true,
     total: Math.max(0, Number(total || 0)),
@@ -1227,8 +1341,19 @@ function openBatchImportProgressDialog(total) {
     failed: 0,
     currentFile: "",
     phase: "importing",
+    title: String(title || "").trim(),
+    hidden: false,
+    notificationId: String(notificationId || "").trim(),
+    detail: "",
+    errors: [],
+    kind: String(kind || "import_file").trim() || "import_file",
   };
   renderBatchImportProgressDialog();
+  syncBatchImportNotification({
+    status: "running",
+    title: state.batchImportProgress.title,
+    kind: state.batchImportProgress.kind || "import_file",
+  }).catch(() => {});
 }
 
 function updateBatchImportProgress(patch = {}) {
@@ -1237,6 +1362,13 @@ function updateBatchImportProgress(patch = {}) {
     ...(patch || {}),
   };
   renderBatchImportProgressDialog();
+  if (state.batchImportProgress && state.batchImportProgress.active) {
+    syncBatchImportNotification({
+      status: "running",
+      title: state.batchImportProgress.title,
+      kind: state.batchImportProgress.kind || "import_file",
+    }).catch(() => {});
+  }
 }
 
 function closeBatchImportProgressDialog() {
@@ -1332,6 +1464,10 @@ function syncImportModeUi() {
     refs.importFileInput.setAttribute("accept", ".txt,.epub");
   }
   if (refs.importBookTitleInput) refs.importBookTitleInput.disabled = batch;
+  const submitButton = document.getElementById("btn-import-submit");
+  if (submitButton && state.shell) {
+    submitButton.textContent = state.shell.t(shouldSkipImportPrepare() ? "importDirectSubmit" : "prepareImport");
+  }
   const fileLabel = document.getElementById("import-file-label");
   if (fileLabel && state.shell) {
     fileLabel.textContent = state.shell.t(batch ? "importFileBatch" : "importFile");
@@ -1341,9 +1477,11 @@ function syncImportModeUi() {
 function resetImportFormUi() {
   const mode = currentImportMode();
   const lang = String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh";
+  const skipPrepare = shouldSkipImportPrepare();
   if (refs.importForm) refs.importForm.reset();
   if (refs.importModeSelect) refs.importModeSelect.value = mode;
   if (refs.importLangInput) refs.importLangInput.value = lang;
+  if (refs.importSkipPrepareInput) refs.importSkipPrepareInput.checked = skipPrepare;
   if (refs.importCategoriesSearchInput) refs.importCategoriesSearchInput.value = "";
   syncImportModeUi();
   renderImportCategoryList();
@@ -1495,6 +1633,29 @@ function buildPendingImportRecord() {
     status_text: state.shell.t("importPendingStatus"),
     badge_text: state.shell.t("importPendingBadge"),
     meta_text: state.shell.t("importPendingMeta", { count: Math.max(0, Number(metadata.chapter_count || 0)) }),
+  };
+}
+
+function buildSingleDirectImportPendingRecord(file) {
+  const fileName = String((file && file.name) || "").trim() || "import.txt";
+  const fileExt = fileName.includes(".") ? fileName.split(".").pop() : "txt";
+  const titleInput = String((refs.importBookTitleInput && refs.importBookTitleInput.value) || "").trim();
+  const authorInput = String((refs.importAuthorInput && refs.importAuthorInput.value) || "").trim();
+  return {
+    temp_id: `pending_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+    import_kind: "file",
+    token: "",
+    title: titleInput || fileName || "Đang nhập truyện",
+    author: authorInput,
+    file_name: fileName,
+    file_ext: String(fileExt || "txt").trim().toUpperCase(),
+    lang_source: String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh",
+    chapter_count: 0,
+    summary: "",
+    source_label: `${state.shell.t("importPendingSource")} • ${String(fileExt || "txt").trim().toUpperCase() || "TXT"}`,
+    status_text: state.shell.t("importPendingStatus"),
+    badge_text: state.shell.t("importPendingBadge"),
+    meta_text: "",
   };
 }
 
@@ -1890,10 +2051,162 @@ async function prepareBatchImports(files) {
   }
 }
 
+async function importSingleFileDirect(file) {
+  if (!file) return;
+  const pending = buildSingleDirectImportPendingRecord(file);
+  const notificationId = state.shell.createNotificationTaskId("import_file");
+  if (refs.importDialog && refs.importDialog.open) refs.importDialog.close();
+  addPendingImport(pending);
+  openBatchImportProgressDialog(1, {
+    title: state.shell.t("importProgressTitleSingle"),
+    notificationId,
+    kind: "import_file",
+  });
+  state.shell.showStatus(state.shell.t("statusImporting"));
+  try {
+    updateBatchImportProgress({
+      currentFile: String(file.name || "").trim(),
+      phase: "importing",
+    });
+    const data = await state.shell.api("/api/library/import", {
+      method: "POST",
+      body: buildImportPrepareForm(file, {
+        title: (refs.importBookTitleInput && refs.importBookTitleInput.value) || "",
+        author: (refs.importAuthorInput && refs.importAuthorInput.value) || "",
+      }),
+    });
+    const bookId = String((data && data.book && data.book.book_id) || "").trim();
+    updateBatchImportProgress({
+      completed: 1,
+      success: 1,
+      failed: 0,
+      currentFile: "",
+      phase: "finishing",
+    });
+    await applyImportedBookLocal(data && data.book, { pendingTempId: pending.temp_id, refresh: false });
+    await applyImportCategoriesToBooks(bookId ? [bookId] : [], { silent: false });
+    if (bookId) await refreshLibraryBooksByIds([bookId]).catch(() => null);
+    await finalizeBatchImportNotification({
+      status: "success",
+      title: "Nhập file vào thư viện",
+      kind: "import_file",
+    });
+    resetImportFormUi();
+    state.shell.showToast(state.shell.t("toastImportSuccess"));
+  } catch (error) {
+    removePendingImport(pending.temp_id);
+    updateBatchImportProgress({
+      completed: 1,
+      success: 0,
+      failed: 1,
+      currentFile: "",
+      phase: "finishing",
+      errors: [{ file_name: String(file.name || "").trim(), error: getErrorMessage(error) }],
+    });
+    await finalizeBatchImportNotification({
+      status: "failed",
+      title: "Nhập file vào thư viện",
+      kind: "import_file",
+    });
+    state.shell.showToast(getErrorMessage(error));
+  } finally {
+    closeBatchImportProgressDialog();
+    state.shell.hideStatus();
+  }
+}
+
+async function importBatchFilesDirect(files) {
+  const items = Array.isArray(files) ? files.filter(Boolean) : [];
+  if (!items.length) return;
+  const importedBookIds = [];
+  const failedRows = [];
+  let successCount = 0;
+  let failedCount = 0;
+  if (refs.importDialog && refs.importDialog.open) refs.importDialog.close();
+  openBatchImportProgressDialog(items.length, {
+    title: state.shell.t("importProgressTitle"),
+    notificationId: state.shell.createNotificationTaskId("import_file_batch"),
+    kind: "import_file_batch",
+  });
+  state.shell.showStatus(state.shell.t("importBatchImporting"));
+  try {
+    await runItemsWithConcurrency(items, BATCH_IMPORT_COMMIT_CONCURRENCY, async (file) => {
+      const fileName = String((file && file.name) || "").trim();
+      updateBatchImportProgress({
+        currentFile: fileName,
+        phase: "importing",
+      });
+      try {
+        const data = await state.shell.api("/api/library/import", {
+          method: "POST",
+          body: buildImportPrepareForm(file, { title: "", author: (refs.importAuthorInput && refs.importAuthorInput.value) || "" }),
+        });
+        const importedBookId = String((data && data.book && data.book.book_id) || "").trim();
+        successCount += 1;
+        if (importedBookId) importedBookIds.push(importedBookId);
+        updateBatchImportProgress({
+          completed: successCount + failedCount,
+          success: successCount,
+          failed: failedCount,
+          errors: failedRows,
+        });
+        await applyImportedBookLocal(data && data.book, { refresh: false });
+      } catch (error) {
+        failedCount += 1;
+        failedRows.push({
+          file_name: fileName,
+          error: getErrorMessage(error),
+        });
+        updateBatchImportProgress({
+          completed: successCount + failedCount,
+          success: successCount,
+          failed: failedCount,
+          errors: failedRows,
+        });
+      }
+    });
+    updateBatchImportProgress({
+      phase: "finishing",
+      currentFile: "",
+      completed: successCount + failedCount,
+      success: successCount,
+      failed: failedCount,
+      errors: failedRows,
+    });
+    const categoriesApplied = await applyImportCategoriesToBooks(importedBookIds, { silent: true });
+    if (importedBookIds.length && normalizeCategoryIds(state.importSelectedCategoryIds).length > 0 && !categoriesApplied) {
+      state.shell.showToast(state.shell.t("importCategoriesAssignFailed"));
+    }
+    const finalStatus = successCount > 0 && failedCount <= 0 ? "success" : (successCount > 0 ? "warning" : "failed");
+    await finalizeBatchImportNotification({
+      status: finalStatus,
+      title: "Nhập file hàng loạt vào thư viện",
+      kind: "import_file_batch",
+    });
+    resetImportFormUi();
+    if (successCount > 0 && failedCount <= 0) {
+      state.shell.showToast(state.shell.t("importBatchImported"));
+    } else if (failedCount > 0) {
+      state.shell.showToast(state.shell.t("importBatchSkippedFailed", { count: failedCount }));
+    }
+  } finally {
+    closeBatchImportProgressDialog();
+    state.shell.hideStatus();
+  }
+}
+
 async function handlePrepareImport() {
   const fileInput = refs.importFileInput;
   const files = Array.from((fileInput && fileInput.files) || []).filter(Boolean);
   if (!files.length) return;
+  if (shouldSkipImportPrepare()) {
+    if (currentImportMode() === "batch") {
+      await importBatchFilesDirect(files);
+      return;
+    }
+    await importSingleFileDirect(files[0]);
+    return;
+  }
   if (currentImportMode() === "batch") {
     await prepareBatchImports(files);
     return;
@@ -1925,9 +2238,14 @@ async function commitBatchImports() {
   const items = (state.batchImportItems || []).filter((item) => item.status === "ready" && String(item.token || "").trim());
   if (!items.length) return;
   state.batchImportCommitBusy = true;
+  const failedRows = [];
   if (refs.importPreviewDialog && refs.importPreviewDialog.open) refs.importPreviewDialog.close();
   if (refs.importBatchDialog && refs.importBatchDialog.open) refs.importBatchDialog.close();
-  openBatchImportProgressDialog(items.length);
+  openBatchImportProgressDialog(items.length, {
+    title: state.shell.t("importProgressTitle"),
+    notificationId: state.shell.createNotificationTaskId("import_file_batch"),
+    kind: "import_file_batch",
+  });
   let successCount = 0;
   let failedCount = 0;
   const importedBookIds = [];
@@ -1961,10 +2279,15 @@ async function commitBatchImports() {
           completed: successCount + failedCount,
           success: successCount,
           failed: failedCount,
+          errors: failedRows,
         });
         await applyImportedBookLocal(data && data.book, { refresh: false });
       } catch (error) {
         failedCount += 1;
+        failedRows.push({
+          file_name: String(item.file_name || "").trim(),
+          error: getErrorMessage(error),
+        });
         updateBatchImportItem(item.id, {
           status: "error",
           error: getErrorMessage(error),
@@ -1973,6 +2296,7 @@ async function commitBatchImports() {
           completed: successCount + failedCount,
           success: successCount,
           failed: failedCount,
+          errors: failedRows,
         });
       }
     });
@@ -1982,11 +2306,18 @@ async function commitBatchImports() {
       completed: successCount + failedCount,
       success: successCount,
       failed: failedCount,
+      errors: failedRows,
     });
     const categoriesApplied = await applyImportCategoriesToBooks(importedBookIds, { silent: true });
     if (importedBookIds.length && normalizeCategoryIds(state.importSelectedCategoryIds).length > 0 && !categoriesApplied) {
       state.shell.showToast(state.shell.t("importCategoriesAssignFailed"));
     }
+    const finalStatus = successCount > 0 && failedCount <= 0 ? "success" : (successCount > 0 ? "warning" : "failed");
+    await finalizeBatchImportNotification({
+      status: finalStatus,
+      title: "Nhập file hàng loạt vào thư viện",
+      kind: "import_file_batch",
+    });
     if (successCount > 0 && failedCount <= 0) {
       state.shell.showToast(state.shell.t("importBatchImported"));
     } else if (failedCount > 0) {
@@ -2009,9 +2340,23 @@ async function commitPreparedImport() {
   const pending = buildPendingImportRecord();
   const token = String(state.importPreviewToken || "").trim();
   state.importPreviewToken = "";
+  const notificationId = state.shell.createNotificationTaskId("import_file");
   if (refs.importPreviewDialog && refs.importPreviewDialog.open) refs.importPreviewDialog.close();
   addPendingImport(pending);
   try {
+    await state.shell.upsertNotificationTask({
+      id: notificationId,
+      kind: "import_file",
+      topic: "import",
+      topic_label: "Nhập vào thư viện",
+      title: "Nhập file vào thư viện",
+      preview: `Đang nhập: ${String(pending.title || pending.file_name || "Truyện mới").trim()}`,
+      detail: `Tên truyện: ${String(pending.title || "").trim() || "Không rõ"}\nTệp: ${String(pending.file_name || "").trim() || "Không rõ"}`,
+      status: "running",
+      progress_current: 0,
+      progress_total: 1,
+      progress_percent: 0,
+    }).catch(() => {});
     const data = await state.shell.api("/api/library/import/commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2024,20 +2369,59 @@ async function commitPreparedImport() {
     await applyImportedBookLocal(data && data.book, { pendingTempId: pending.temp_id, refresh: false });
     await applyImportCategoriesToBooks(bid ? [bid] : [], { silent: false });
     if (bid) await refreshLibraryBooksByIds([bid]).catch(() => null);
+    await state.shell.upsertNotificationTask({
+      id: notificationId,
+      kind: "import_file",
+      topic: "import",
+      topic_label: "Nhập vào thư viện",
+      title: "Nhập file vào thư viện",
+      preview: "Hoàn tất: thành công 1 • lỗi 0",
+      detail: `Tên truyện: ${String((data && data.book && (data.book.title_display || data.book.title)) || pending.title || "").trim() || "Không rõ"}\nKết quả: thành công 1 • lỗi 0`,
+      status: "success",
+      progress_current: 1,
+      progress_total: 1,
+      progress_percent: 100,
+      book_id: bid,
+      book_title: String((data && data.book && (data.book.title_display || data.book.title)) || pending.title || "").trim(),
+    }).catch(() => {});
   } catch (error) {
     state.importPreviewToken = token;
     removePendingImport(pending.temp_id);
     if (refs.importPreviewDialog && !refs.importPreviewDialog.open) refs.importPreviewDialog.showModal();
+    await state.shell.upsertNotificationTask({
+      id: notificationId,
+      kind: "import_file",
+      topic: "import",
+      topic_label: "Nhập vào thư viện",
+      title: "Nhập file vào thư viện",
+      preview: `Thất bại: ${String(pending.file_name || pending.title || "").trim() || "Tệp import"}`,
+      detail: `Tên truyện: ${String(pending.title || "").trim() || "Không rõ"}\nTệp: ${String(pending.file_name || "").trim() || "Không rõ"}\nLỗi: ${getErrorMessage(error)}`,
+      status: "failed",
+      progress_current: 1,
+      progress_total: 1,
+      progress_percent: 100,
+    }).catch(() => {});
     state.shell.showToast(getErrorMessage(error));
   }
 }
 
 async function handleImportUrlPrepare({ url, pluginId, resetForm, closeDialog }) {
   const pending = buildPendingUrlImportRecord({ url, pluginId });
+  const notificationId = state.shell.createNotificationTaskId("import_url");
   closeDialog();
   resetForm();
   addPendingImport(pending);
   try {
+    await state.shell.upsertNotificationTask({
+      id: notificationId,
+      kind: "import_url",
+      topic: "import",
+      topic_label: "Nhập bằng URL",
+      title: "Nhập truyện bằng URL",
+      preview: `Đang lấy thông tin: ${url}`,
+      detail: `URL: ${url}\nPlugin: ${pluginId || "Tự nhận diện"}`,
+      status: "running",
+    }).catch(() => {});
     const prepared = await state.shell.api("/api/library/import-url/prepare", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2051,10 +2435,32 @@ async function handleImportUrlPrepare({ url, pluginId, resetForm, closeDialog })
       pending.resolved_book_id = existingBookId;
       state.shell.showToast(state.shell.t("toastImportUrlExisting"));
       await applyImportedBookLocal(prepared && prepared.book, { pendingTempId: pending.temp_id, refresh: true });
+      await state.shell.upsertNotificationTask({
+        id: notificationId,
+        kind: "import_url",
+        topic: "import",
+        topic_label: "Nhập bằng URL",
+        title: "Nhập truyện bằng URL",
+        preview: "Truyện này đã có sẵn trong thư viện.",
+        detail: `URL: ${url}\nKết quả: truyện đã có sẵn trong thư viện.`,
+        status: "success",
+        book_id: existingBookId,
+        book_title: String((prepared && prepared.book && (prepared.book.title_display || prepared.book.title)) || "").trim(),
+      }).catch(() => {});
       return;
     }
 
     const preview = (prepared && prepared.preview) || {};
+    await state.shell.upsertNotificationTask({
+      id: notificationId,
+      kind: "import_url",
+      topic: "import",
+      topic_label: "Nhập bằng URL",
+      title: "Nhập truyện bằng URL",
+      preview: "Đã lấy thông tin, đang nhập mục lục...",
+      detail: `URL: ${url}\nTên truyện: ${String(preview.title || pending.title || "").trim() || "Không rõ"}\nĐang lấy mục lục và tạo truyện local.`,
+      status: "running",
+    }).catch(() => {});
     updatePendingImport(pending.temp_id, {
       token: String((prepared && prepared.token) || "").trim(),
       title: String(preview.title || pending.title || "").trim() || pending.title,
@@ -2078,8 +2484,30 @@ async function handleImportUrlPrepare({ url, pluginId, resetForm, closeDialog })
     if (bid) pending.resolved_book_id = bid;
     state.shell.showToast(state.shell.t("toastImportSuccess"));
     await applyImportedBookLocal(committed && committed.book, { pendingTempId: pending.temp_id, refresh: true });
+    await state.shell.upsertNotificationTask({
+      id: notificationId,
+      kind: "import_url",
+      topic: "import",
+      topic_label: "Nhập bằng URL",
+      title: "Nhập truyện bằng URL",
+      preview: "Hoàn tất: thành công 1 • lỗi 0",
+      detail: `URL: ${url}\nTên truyện: ${String((committed && committed.book && (committed.book.title_display || committed.book.title)) || preview.title || pending.title || "").trim() || "Không rõ"}\nKết quả: thành công 1 • lỗi 0`,
+      status: "success",
+      book_id: bid,
+      book_title: String((committed && committed.book && (committed.book.title_display || committed.book.title)) || preview.title || pending.title || "").trim(),
+    }).catch(() => {});
   } catch (error) {
     removePendingImport(pending.temp_id);
+    await state.shell.upsertNotificationTask({
+      id: notificationId,
+      kind: "import_url",
+      topic: "import",
+      topic_label: "Nhập bằng URL",
+      title: "Nhập truyện bằng URL",
+      preview: `Thất bại: ${url}`,
+      detail: `URL: ${url}\nLỗi: ${getErrorMessage(error)}`,
+      status: "failed",
+    }).catch(() => {});
     state.shell.showToast(getErrorMessage(error));
   }
 }
@@ -4688,6 +5116,9 @@ async function init() {
     if (refs.importFileInput) refs.importFileInput.value = "";
     syncImportModeUi();
   });
+  if (refs.importSkipPrepareInput) refs.importSkipPrepareInput.addEventListener("change", () => {
+    syncImportModeUi();
+  });
   if (refs.importCategoriesSearchInput) refs.importCategoriesSearchInput.addEventListener("input", renderImportCategoryList);
   if (refs.btnImportCategoriesClear) refs.btnImportCategoriesClear.addEventListener("click", () => {
     state.importSelectedCategoryIds = [];
@@ -4952,6 +5383,16 @@ async function init() {
       if (state.batchImportProgress && state.batchImportProgress.active) {
         event.preventDefault();
       }
+    });
+  }
+  if (refs.btnImportProgressHide) {
+    refs.btnImportProgressHide.addEventListener("click", () => {
+      if (!state.batchImportProgress || !state.batchImportProgress.active) return;
+      state.batchImportProgress = {
+        ...(state.batchImportProgress || {}),
+        hidden: true,
+      };
+      renderBatchImportProgressDialog();
     });
   }
 

@@ -45,10 +45,12 @@ from reader_backend import http_export_download as http_export_download_support
 from reader_backend import http_library_reader as http_library_reader_support
 from reader_backend import http_media as http_media_support
 from reader_backend import http_misc as http_misc_support
+from reader_backend import http_notifications as http_notifications_support
 from reader_backend import http_name_filter as http_name_filter_support
 from reader_backend import http_routes as http_routes_support
 from reader_backend import http_tts as http_tts_support
 from reader_backend import http_vbook_import as http_vbook_import_support
+from reader_backend import notification_center as notification_center_support
 from reader_backend import service_history as service_history_support
 from reader_backend import service_library as service_library_support
 from reader_backend import service_local_import as service_local_import_support
@@ -97,9 +99,11 @@ APP_STATE_GLOBAL_JUNK_STATE_KEY = "reader.global_junk_state"
 APP_STATE_BOOK_REPLACE_STATE_KEY_PREFIX = "reader.book_replace_state"
 APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX = "reader.chapter_raw_edit"
 APP_STATE_EXPORT_JOBS_STATE_KEY = "reader.export_jobs_state"
+APP_STATE_NOTIFICATIONS_STATE_KEY = "reader.notifications_state"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 HISTORY_BOOK_RETENTION_DAYS = 7
 EXPORT_JOB_RETENTION_DAYS = 7
+NOTIFICATION_RETENTION_DAYS = notification_center_support.NOTIFICATION_RETENTION_DAYS
 NAME_FILTER_JOB_RETENTION_SECONDS = 1800
 VBOOK_RUNNER_INSTALL_URL = str(_LOCAL_VBOOK_RUNNER_INSTALL_URL or "").strip()
 
@@ -4472,6 +4476,32 @@ class ReaderStorage:
             json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
         )
 
+    def load_notifications_state(self) -> list[dict[str, Any]]:
+        raw = self._get_app_state_value(APP_STATE_NOTIFICATIONS_STATE_KEY)
+        if not raw:
+            return []
+        try:
+            data = json.loads(raw)
+        except Exception:
+            return []
+        if not isinstance(data, list):
+            return []
+        out: list[dict[str, Any]] = []
+        for item in data:
+            if isinstance(item, dict):
+                out.append(dict(item))
+        return out
+
+    def save_notifications_state(self, items: list[dict[str, Any]]) -> None:
+        payload = []
+        for item in items or []:
+            if isinstance(item, dict):
+                payload.append(dict(item))
+        self._set_app_state_value(
+            APP_STATE_NOTIFICATIONS_STATE_KEY,
+            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+        )
+
     def get_name_set_state(
         self,
         *,
@@ -5356,12 +5386,17 @@ class ReaderService:
         self._export_running_job_id: str | None = None
         self._export_worker_started = False
         self._export_worker_thread: threading.Thread | None = None
+        self._notifications_lock = threading.RLock()
+        self._notifications_cv = threading.Condition(self._notifications_lock)
+        self._notifications: dict[str, dict[str, Any]] = {}
         self._name_filter_lock = threading.RLock()
         self._name_filter_cv = threading.Condition(self._name_filter_lock)
         self._name_filter_jobs: dict[str, dict[str, Any]] = {}
         self._name_filter_threads: dict[str, threading.Thread] = {}
         self._vbook_singleflight_lock = threading.RLock()
         self._vbook_singleflight_runs: dict[str, dict[str, Any]] = {}
+        with self._notifications_cv:
+            self._load_notifications_state_locked()
         with self._export_cv:
             self._load_export_jobs_state_locked()
 
@@ -7376,6 +7411,319 @@ class ReaderService:
             )
         raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Định dạng export không hợp lệ.")
 
+    def _notification_state_payload_locked(self, item: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": str(item.get("id") or ""),
+            "kind": str(item.get("kind") or ""),
+            "topic": str(item.get("topic") or ""),
+            "topic_label": str(item.get("topic_label") or ""),
+            "title": str(item.get("title") or ""),
+            "preview": str(item.get("preview") or ""),
+            "detail": str(item.get("detail") or ""),
+            "status": str(item.get("status") or "info"),
+            "read": bool(item.get("read")),
+            "read_at": str(item.get("read_at") or ""),
+            "created_at": str(item.get("created_at") or ""),
+            "updated_at": str(item.get("updated_at") or ""),
+            "progress_current": int(item.get("progress_current") or 0),
+            "progress_total": int(item.get("progress_total") or 0),
+            "progress_percent": float(item.get("progress_percent") or 0.0),
+            "book_id": str(item.get("book_id") or ""),
+            "book_title": str(item.get("book_title") or ""),
+            "job_id": str(item.get("job_id") or ""),
+            "meta": dict(item.get("meta") or {}),
+        }
+
+    def _persist_notifications_locked(self) -> None:
+        items = [self._notification_state_payload_locked(item) for item in self._notifications.values()]
+        items.sort(
+            key=lambda row: (
+                str(row.get("created_at") or ""),
+                str(row.get("updated_at") or ""),
+                str(row.get("id") or ""),
+            )
+        )
+        self.storage.save_notifications_state(items)
+
+    def _load_notifications_state_locked(self) -> None:
+        self._notifications = {}
+        now_iso = utc_now_iso()
+        loaded = self.storage.load_notifications_state()
+        self._notifications, changed = notification_center_support.restore_notification_records(
+            loaded,
+            now_iso=now_iso,
+        )
+        cleanup_changed = self._cleanup_notifications_locked()
+        if changed or cleanup_changed or loaded:
+            self._persist_notifications_locked()
+
+    def _cleanup_notifications_locked(self) -> bool:
+        return notification_center_support.cleanup_notification_records(
+            self._notifications,
+            now_ts=time.time(),
+            keep_days=NOTIFICATION_RETENTION_DAYS,
+        )
+
+    def _list_notifications_locked(self, *, limit: int = 120) -> dict[str, Any]:
+        changed = self._cleanup_notifications_locked()
+        if changed:
+            self._persist_notifications_locked()
+        return notification_center_support.build_notifications_listing(
+            self._notifications,
+            limit=limit,
+            generated_at=utc_now_iso(),
+        )
+
+    def list_notifications(self, *, limit: int = 120) -> dict[str, Any]:
+        with self._notifications_cv:
+            return self._list_notifications_locked(limit=limit)
+
+    def wait_notifications(
+        self,
+        *,
+        last_sig: str,
+        limit: int = 120,
+        timeout_sec: float = 20.0,
+    ) -> dict[str, Any]:
+        with self._notifications_cv:
+            return queue_runtime_support.wait_for_listing_change(
+                cv=self._notifications_cv,
+                build_payload=lambda: self._list_notifications_locked(limit=limit),
+                last_sig=last_sig,
+                timeout_sec=timeout_sec,
+                wait_slice_sec=0.5,
+            )
+
+    def _upsert_notification_locked(self, payload: dict[str, Any]) -> dict[str, Any] | None:
+        notif_id = str((payload or {}).get("id") or (payload or {}).get("notification_id") or "").strip()
+        if not notif_id:
+            return None
+        item = notification_center_support.normalize_notification_record(
+            payload,
+            now_iso=utc_now_iso(),
+            existing=self._notifications.get(notif_id),
+        )
+        if item is None:
+            return None
+        self._notifications[item["id"]] = item
+        return item
+
+    def upsert_notification_task(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        body = payload if isinstance(payload, dict) else {}
+        notif_id = str(body.get("id") or body.get("notification_id") or "").strip()
+        if not notif_id:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu id notification.")
+        with self._notifications_cv:
+            item = self._upsert_notification_locked(body)
+            if item is None:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Notification không hợp lệ.")
+            self._persist_notifications_locked()
+            listing = self._list_notifications_locked()
+            self._notifications_cv.notify_all()
+            return {"ok": True, "item": dict(item), "listing": listing}
+
+    def mark_notifications_read(self, ids: Any, *, read: bool = True) -> dict[str, Any]:
+        notif_ids = notification_center_support.normalize_notification_ids(ids)
+        changed = 0
+        with self._notifications_cv:
+            now_iso = utc_now_iso()
+            for notif_id in notif_ids:
+                item = self._notifications.get(notif_id)
+                if not item:
+                    continue
+                if bool(item.get("read")) == bool(read):
+                    continue
+                item["read"] = bool(read)
+                item["read_at"] = now_iso if read else ""
+                changed += 1
+            if changed > 0:
+                self._persist_notifications_locked()
+            listing = self._list_notifications_locked()
+            if changed > 0:
+                self._notifications_cv.notify_all()
+            return {"ok": True, "changed": int(changed), "listing": listing}
+
+    def delete_notifications(self, ids: Any) -> dict[str, Any]:
+        notif_ids = notification_center_support.normalize_notification_ids(ids)
+        deleted = 0
+        with self._notifications_cv:
+            for notif_id in notif_ids:
+                if notif_id in self._notifications:
+                    self._notifications.pop(notif_id, None)
+                    deleted += 1
+            if deleted > 0:
+                self._persist_notifications_locked()
+            listing = self._list_notifications_locked()
+            if deleted > 0:
+                self._notifications_cv.notify_all()
+            return {"ok": True, "deleted": int(deleted), "listing": listing}
+
+    def clear_notifications(self, *, scope: str = "read") -> dict[str, Any]:
+        scope_norm = str(scope or "read").strip().lower() or "read"
+        deleted = 0
+        with self._notifications_cv:
+            if scope_norm == "all":
+                deleted = len(self._notifications)
+                self._notifications.clear()
+            else:
+                remove_ids = [
+                    notif_id
+                    for notif_id, item in self._notifications.items()
+                    if bool(item.get("read")) and (not notification_center_support.notification_status_is_active(item.get("status")))
+                ]
+                deleted = len(remove_ids)
+                for notif_id in remove_ids:
+                    self._notifications.pop(notif_id, None)
+            if deleted > 0:
+                self._persist_notifications_locked()
+            listing = self._list_notifications_locked()
+            if deleted > 0:
+                self._notifications_cv.notify_all()
+            return {"ok": True, "scope": scope_norm, "deleted": int(deleted), "listing": listing}
+
+    def _notification_status_label(self, status: str) -> str:
+        normalized = notification_center_support.normalize_notification_status(status)
+        if normalized == "running":
+            return "Đang chạy"
+        if normalized == "success":
+            return "Thành công"
+        if normalized == "failed":
+            return "Thất bại"
+        if normalized == "warning":
+            return "Đã dừng"
+        return "Thông báo"
+
+    def _build_download_notification_payload_locked(self, job: dict[str, Any]) -> dict[str, Any] | None:
+        job_id = str(job.get("job_id") or "").strip()
+        if not job_id:
+            return None
+        status = str(job.get("status") or "").strip().lower()
+        kind = str(job.get("type") or "book").strip().lower() or "book"
+        book_title = normalize_vbook_display_text(str(job.get("book_title") or ""), single_line=True) or "Truyện"
+        total = max(0, int(job.get("total_chapters") or 0))
+        if total <= 0:
+            total = len([x for x in (job.get("chapter_ids") or []) if str(x or "").strip()])
+        if kind == "chapter" and total <= 0:
+            total = 1
+        downloaded = max(0, int(job.get("downloaded_chapters") or 0))
+        failed = max(0, int(job.get("failed_chapters") or 0))
+        progress_current = min(total, max(downloaded + failed, downloaded))
+        preview = str(job.get("message") or "").strip()
+        topic_label = "Tải truyện" if kind == "book" else "Tải chương"
+        source_bits = [str(job.get("source_plugin") or "").strip(), str(job.get("source_type") or "").strip()]
+        source_text = " • ".join([bit for bit in source_bits if bit])
+        detail_lines = [
+            f"Truyện: {book_title}",
+            f"Trạng thái: {self._notification_status_label(status)}",
+        ]
+        if total > 0:
+            detail_lines.append(f"Tiến độ: {downloaded}/{total} chương")
+        if failed > 0:
+            detail_lines.append(f"Chương lỗi: {failed}")
+        if source_text:
+            detail_lines.append(f"Nguồn: {source_text}")
+        if preview:
+            detail_lines.append(f"Thông điệp: {preview}")
+        mapped_status = {
+            "queued": "running",
+            "running": "running",
+            "completed": "success",
+            "failed": "failed",
+            "stopped": "warning",
+        }.get(status, "info")
+        return {
+            "id": f"download:{job_id}",
+            "kind": "download",
+            "topic": "download",
+            "topic_label": topic_label,
+            "title": f"{topic_label}: {book_title}",
+            "preview": preview or f"Đã xử lý {downloaded}/{total} chương.",
+            "detail": "\n".join(detail_lines).strip(),
+            "status": mapped_status,
+            "progress_current": progress_current,
+            "progress_total": total,
+            "progress_percent": float(job.get("progress") or 0.0) * 100.0,
+            "book_id": str(job.get("book_id") or "").strip(),
+            "book_title": book_title,
+            "job_id": job_id,
+            "created_at": str(job.get("created_at") or ""),
+            "updated_at": str(job.get("updated_at") or ""),
+            "meta": {"job_type": kind},
+        }
+
+    def _sync_download_notification_locked(self, job: dict[str, Any] | None) -> None:
+        if not isinstance(job, dict):
+            return
+        payload = self._build_download_notification_payload_locked(job)
+        if payload is None:
+            return
+        with self._notifications_cv:
+            self._upsert_notification_locked(payload)
+            self._persist_notifications_locked()
+            self._notifications_cv.notify_all()
+
+    def _build_export_notification_payload_locked(self, job: dict[str, Any]) -> dict[str, Any] | None:
+        job_id = str(job.get("job_id") or "").strip()
+        if not job_id:
+            return None
+        status = str(job.get("status") or "").strip().lower()
+        book_title = normalize_vbook_display_text(str(job.get("book_title") or ""), single_line=True) or "Truyện"
+        format_label = str(job.get("format_label") or job.get("format") or "FILE").strip().upper()
+        total = max(0, int(job.get("total_chapters") or 0))
+        completed = max(0, int(job.get("completed_chapters") or 0))
+        pending_translate = max(0, int(job.get("translation_pending_chapters") or 0))
+        remain_translate = max(0, int(job.get("remaining_translation_chapters") or 0))
+        preview = str(job.get("message") or "").strip()
+        detail_lines = [
+            f"Truyện: {book_title}",
+            f"Định dạng: {format_label}",
+            f"Trạng thái: {self._notification_status_label(status)}",
+        ]
+        if total > 0:
+            detail_lines.append(f"Tiến độ: {completed}/{total} chương")
+        if pending_translate > 0:
+            detail_lines.append(f"Dịch bổ sung: {pending_translate - remain_translate}/{pending_translate} chương")
+        file_name = str(job.get("file_name") or "").strip()
+        if file_name:
+            detail_lines.append(f"File tạo ra: {file_name}")
+        if preview:
+            detail_lines.append(f"Thông điệp: {preview}")
+        mapped_status = {
+            "queued": "running",
+            "running": "running",
+            "completed": "success",
+            "failed": "failed",
+        }.get(status, "info")
+        return {
+            "id": f"export:{job_id}",
+            "kind": "export",
+            "topic": "export",
+            "topic_label": "Xuất file",
+            "title": f"Xuất {format_label}: {book_title}",
+            "preview": preview or f"Đã xử lý {completed}/{total} chương.",
+            "detail": "\n".join(detail_lines).strip(),
+            "status": mapped_status,
+            "progress_current": completed,
+            "progress_total": total,
+            "progress_percent": float(job.get("progress") or 0.0) * 100.0,
+            "book_id": str(job.get("book_id") or "").strip(),
+            "book_title": book_title,
+            "job_id": job_id,
+            "created_at": str(job.get("created_at") or ""),
+            "updated_at": str(job.get("updated_at") or ""),
+        }
+
+    def _sync_export_notification_locked(self, job: dict[str, Any] | None) -> None:
+        if not isinstance(job, dict):
+            return
+        payload = self._build_export_notification_payload_locked(job)
+        if payload is None:
+            return
+        with self._notifications_cv:
+            self._upsert_notification_locked(payload)
+            self._persist_notifications_locked()
+            self._notifications_cv.notify_all()
+
     def _export_status_is_active(self, status: str) -> bool:
         return export_jobs_support.export_status_is_active(status)
 
@@ -7403,6 +7751,8 @@ class ReaderService:
         self._cleanup_export_jobs_locked()
         if changed or loaded:
             self._persist_export_jobs_locked()
+        for job in self._export_jobs.values():
+            self._sync_export_notification_locked(job)
 
     def _cleanup_export_jobs_locked(self) -> None:
         changed, next_running_job_id = export_jobs_support.cleanup_export_jobs_state(
@@ -7510,6 +7860,7 @@ class ReaderService:
         self._persist_export_jobs_locked()
         self._export_start_worker_locked()
         self._export_cv.notify_all()
+        self._sync_export_notification_locked(job)
         return job
 
     def enqueue_book_export(self, book_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -7608,6 +7959,7 @@ class ReaderService:
             export_jobs_support.mark_export_job_running(job, started_at=started_at)
             self._persist_export_jobs_locked()
             self._export_cv.notify_all()
+            self._sync_export_notification_locked(job)
 
         try:
             with self._export_cv:
@@ -7627,6 +7979,7 @@ class ReaderService:
                         return
                     export_jobs_support.apply_export_progress(job2, event=event, updated_at=utc_now_iso())
                     self._export_cv.notify_all()
+                    self._sync_export_notification_locked(job2)
 
             output, completed_chapters = export_execute_support.execute_export_request(
                 request=request,
@@ -7659,6 +8012,7 @@ class ReaderService:
                 )
                 self._persist_export_jobs_locked()
                 self._export_cv.notify_all()
+                self._sync_export_notification_locked(job2)
         except LookupError as exc:
             with self._export_cv:
                 job2 = self._export_jobs.get(job_id)
@@ -7671,6 +8025,7 @@ class ReaderService:
                 )
                 self._persist_export_jobs_locked()
                 self._export_cv.notify_all()
+                self._sync_export_notification_locked(job2)
         except ApiError as exc:
             with self._export_cv:
                 job2 = self._export_jobs.get(job_id)
@@ -7683,6 +8038,7 @@ class ReaderService:
                 )
                 self._persist_export_jobs_locked()
                 self._export_cv.notify_all()
+                self._sync_export_notification_locked(job2)
         except Exception as exc:
             with self._export_cv:
                 job2 = self._export_jobs.get(job_id)
@@ -7695,6 +8051,7 @@ class ReaderService:
                 )
                 self._persist_export_jobs_locked()
                 self._export_cv.notify_all()
+                self._sync_export_notification_locked(job2)
 
     def _export_worker_loop(self) -> None:
         while True:
@@ -7787,6 +8144,7 @@ class ReaderService:
         self._download_queue.append(job_id)
         self._download_start_worker_locked()
         self._download_cv.notify_all()
+        self._sync_download_notification_locked(job)
         return job
 
     def _build_download_jobs_signature_locked(self, items: list[dict[str, Any]]) -> str:
@@ -7953,6 +8311,7 @@ class ReaderService:
             download_jobs_support.request_stop_download_job(job, updated_at=now)
             if status == "queued":
                 self._download_queue = [x for x in self._download_queue if x != jid]
+            self._sync_download_notification_locked(job)
             return {"ok": True, "job": self._serialize_download_job_locked(job)}
 
     def stop_download_jobs_for_book(self, book_id: str) -> int:
@@ -7973,6 +8332,7 @@ class ReaderService:
                     event.set()
                 now = utc_now_iso()
                 download_jobs_support.request_stop_download_job(job, updated_at=now)
+                self._sync_download_notification_locked(job)
                 stopped += 1
             if stopped:
                 active_ids = {jid for jid, j in self._download_jobs.items() if self._download_status_is_active(str(j.get("status") or ""))}
@@ -8002,6 +8362,7 @@ class ReaderService:
                 updated_at=utc_now_iso(),
             )
             self._download_cv.notify_all()
+            self._sync_download_notification_locked(job)
 
     def _ensure_comic_chapter_image_cache(
         self,
@@ -8092,6 +8453,7 @@ class ReaderService:
                 if not job2:
                     return
                 download_jobs_support.mark_download_job_missing_book(job2, updated_at=utc_now_iso())
+                self._sync_download_notification_locked(job2)
             return
         except ValueError:
             with self._download_cv:
@@ -8099,6 +8461,7 @@ class ReaderService:
                 if not job2:
                     return
                 download_jobs_support.mark_download_job_no_valid_chapters(job2, updated_at=utc_now_iso())
+                self._sync_download_notification_locked(job2)
             return
 
         book = dict(context.get("book") or {})
@@ -8114,12 +8477,14 @@ class ReaderService:
             if job2:
                 download_jobs_support.mark_download_job_preparing(job2, updated_at=utc_now_iso())
                 self._refresh_download_job_counts_locked(job2)
+                self._sync_download_notification_locked(job2)
         if not pending_rows:
             with self._download_cv:
                 job2 = self._download_jobs.get(job_id)
                 if job2:
                     download_jobs_support.mark_download_job_all_cached(job2, updated_at=utc_now_iso())
                     self._refresh_download_job_counts_locked(job2)
+                    self._sync_download_notification_locked(job2)
             return
 
         def on_attempt(row: dict[str, Any], attempt_idx: int) -> None:
@@ -8150,6 +8515,7 @@ class ReaderService:
                     self._refresh_download_job_counts_locked(job2)
                     job2["failed_chapters"] = int(failed_count)
                     job2["updated_at"] = utc_now_iso()
+                    self._sync_download_notification_locked(job2)
 
         failed = download_batch_support.run_download_batch(
             pending_rows=pending_rows,
@@ -8180,6 +8546,7 @@ class ReaderService:
                 failed_chapters=failed,
                 stopped=bool(stop_event.is_set()),
             )
+            self._sync_download_notification_locked(job2)
 
     def _download_worker_loop(self) -> None:
         while True:
@@ -8195,6 +8562,7 @@ class ReaderService:
                     continue
                 download_jobs_support.mark_download_job_running(job, started_at=utc_now_iso())
                 self._download_running_job_id = job_id
+                self._sync_download_notification_locked(job)
             try:
                 self._run_download_job(job_id)
             except Exception as exc:
@@ -8206,6 +8574,7 @@ class ReaderService:
                             message=str(exc) or "Lỗi tải chương.",
                             updated_at=utc_now_iso(),
                         )
+                        self._sync_download_notification_locked(job)
             finally:
                 with self._download_cv:
                     if self._download_running_job_id == job_id:
@@ -12478,6 +12847,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/api/notifications/stream":
+            http_notifications_support.stream_notifications(
+                self,
+                parsed,
+                http_status=HTTPStatus,
+            )
+            return
         if parsed.path == "/api/library/name-filter/jobs/stream":
             http_name_filter_support.stream_name_filter_jobs(
                 self,
@@ -12644,6 +13020,17 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         )
         if name_filter_result is not None:
             return name_filter_result
+
+        notifications_result = http_notifications_support.handle_api(
+            self,
+            method,
+            path,
+            query,
+            api_error_cls=ApiError,
+            http_status=HTTPStatus,
+        )
+        if notifications_result is not None:
+            return notifications_result
 
         vbook_import_result = http_vbook_import_support.handle_api(
             self,
