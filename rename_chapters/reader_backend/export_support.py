@@ -644,6 +644,7 @@ def wrap_export_html_document(
         : PROTECT_CONFIG
     )
     : null;
+  const protectCurrentScript = document.currentScript instanceof HTMLScriptElement ? document.currentScript : null;
   let uiVisible = false;
   let hideTimer = 0;
   let tapTrack = null;
@@ -663,6 +664,7 @@ def wrap_export_html_document(
   const PROTECT_DEVTOOLS_CONFIRM_HITS = 3;
   const PROTECT_DEBUGGER_STALL_MS = 140;
   const PROTECT_MONITOR_GRACE_MS = 1800;
+  const PROTECT_EXTENSION_SCHEMES = ["chrome-extension://", "moz-extension://", "safari-extension://", "ms-browser-extension://"];
   const protectInitialWidthGap = Math.abs(window.outerWidth - window.innerWidth);
   const protectInitialHeightGap = Math.abs(window.outerHeight - window.innerHeight);
   const themeColorFields = [
@@ -712,6 +714,38 @@ def wrap_export_html_document(
     }}
     return "";
   }};
+  const hasExtensionSchemeUrl = (value) => {{
+    const raw = String(value || "").trim().toLowerCase();
+    if (!raw) return false;
+    return PROTECT_EXTENSION_SCHEMES.some((prefix) => raw.startsWith(prefix));
+  }};
+  const getSuspiciousScriptReason = () => {{
+    for (const node of Array.from(document.querySelectorAll("script"))) {{
+      if (!(node instanceof HTMLScriptElement)) continue;
+      if (protectCurrentScript && node === protectCurrentScript) continue;
+      const src = String(node.getAttribute("src") || node.src || "").trim();
+      if (hasExtensionSchemeUrl(src)) {{
+        return "Phát hiện extension đã chèn script vào file được bảo vệ. Vui lòng tắt extension/script copy rồi mở lại file.";
+      }}
+      return "Phát hiện script ngoài chèn vào file được bảo vệ. Vui lòng tắt extension/script copy rồi mở lại file.";
+    }}
+    return "";
+  }};
+  const getSuspiciousLinkedResourceReason = () => {{
+    for (const node of Array.from(document.querySelectorAll("link[href],iframe[src],object[data],embed[src]"))) {{
+      if (!(node instanceof Element)) continue;
+      if (node.closest("#export-protect-overlay")) continue;
+      const url = String(
+        node.getAttribute("href")
+        || node.getAttribute("src")
+        || node.getAttribute("data")
+        || ""
+      ).trim();
+      if (!hasExtensionSchemeUrl(url)) continue;
+      return "Phát hiện extension đã chèn tài nguyên ngoài vào file được bảo vệ. Vui lòng tắt extension/script copy rồi mở lại file.";
+    }}
+    return "";
+  }};
   const hasSuspiciousEmbedNodes = () => {{
     const nodes = document.querySelectorAll("iframe,object,embed");
     if (!nodes.length) return false;
@@ -721,6 +755,18 @@ def wrap_export_html_document(
       return true;
     }}
     return false;
+  }};
+  const getSuspiciousInjectionReason = () => {{
+    const extensionReason = getSuspiciousExtensionReason();
+    if (extensionReason) return extensionReason;
+    const scriptReason = getSuspiciousScriptReason();
+    if (scriptReason) return scriptReason;
+    const linkedReason = getSuspiciousLinkedResourceReason();
+    if (linkedReason) return linkedReason;
+    if (hasSuspiciousEmbedNodes()) {{
+      return "Phát hiện tiện ích hoặc mã ngoài chèn vào file được bảo vệ. Vui lòng tắt công cụ copy/trích xuất rồi mở lại file.";
+    }}
+    return "";
   }};
   const hydrateProtectedMarkup = () => {{
     if (!PROTECT_ENABLED || protectedHydrated || !protectRuntime) return;
@@ -892,6 +938,7 @@ def wrap_export_html_document(
       }}, 40);
     }}
     startProtectCountdown();
+    startProtectMonitor(240);
   }};
   const hideProtectOverlay = () => {{
     if (protectOverlay) protectOverlay.hidden = true;
@@ -901,11 +948,11 @@ def wrap_export_html_document(
     stopProtectCountdown();
   }};
   const startProtectMonitor = (delayMs = 0) => {{
-    if (!PROTECT_ENABLED || protectedLocked || !protectedHydrated) return;
+    if (!PROTECT_ENABLED || protectedLocked) return;
     clearProtectMonitorStart();
     if (protectMonitorTimer) return;
     const launch = () => {{
-      if (!PROTECT_ENABLED || protectedLocked || !protectedHydrated) return;
+      if (!PROTECT_ENABLED || protectedLocked) return;
       runProtectionChecks();
       if (protectedLocked || protectMonitorTimer) return;
       protectMonitorTimer = window.setInterval(() => {{
@@ -929,6 +976,11 @@ def wrap_export_html_document(
     return digits;
   }};
   const unlockProtected = () => {{
+    const injectionReason = getSuspiciousInjectionReason();
+    if (injectionReason) {{
+      lockProtected(injectionReason);
+      return;
+    }}
     hydrateProtectedMarkup();
     protectedLocked = false;
     protectDockedDevtoolsHits = 0;
@@ -1092,18 +1144,14 @@ def wrap_export_html_document(
     syncUiState();
   }};
   const runProtectionChecks = () => {{
-    if (!PROTECT_ENABLED || protectedLocked || !protectedHydrated || inProtectMonitorGrace()) return;
-    const extensionReason = getSuspiciousExtensionReason();
-    if (extensionReason) {{
+    if (!PROTECT_ENABLED || protectedLocked) return;
+    const injectionReason = getSuspiciousInjectionReason();
+    if (injectionReason) {{
       protectDockedDevtoolsHits = 0;
-      lockProtected(extensionReason);
+      lockProtected(injectionReason);
       return;
     }}
-    if (hasSuspiciousEmbedNodes()) {{
-      protectDockedDevtoolsHits = 0;
-      lockProtected("Phát hiện tiện ích hoặc mã ngoài chèn vào file được bảo vệ. Vui lòng tắt công cụ copy/trích xuất rồi mở lại file.");
-      return;
-    }}
+    if (!protectedHydrated || inProtectMonitorGrace()) return;
     if (hasLikelyDockedDevtools()) {{
       protectDockedDevtoolsHits += 1;
       if (protectDockedDevtoolsHits >= PROTECT_DEVTOOLS_CONFIRM_HITS) {{
@@ -1231,7 +1279,10 @@ def wrap_export_html_document(
   }};
   try {{
     if (PROTECT_ENABLED) {{
-      if (!protectRuntime) {{
+      const injectionReason = getSuspiciousInjectionReason();
+      if (injectionReason) {{
+        lockProtected(injectionReason);
+      }} else if (!protectRuntime) {{
         lockProtected("Thiếu module bảo vệ nội dung để mở file HTML này.");
       }} else if (navigator.webdriver) {{
         lockProtected("Người xuất đã chặn tự động hóa hoặc công cụ trích xuất nội dung.");
@@ -1325,7 +1376,7 @@ def wrap_export_html_document(
   }});
   if (PROTECT_ENABLED) {{
     const observer = new MutationObserver((mutations) => {{
-      if (!PROTECT_ENABLED || protectedLocked || !protectedHydrated || inProtectMonitorGrace()) return;
+      if (!PROTECT_ENABLED || protectedLocked || inProtectMonitorGrace()) return;
       for (const mutation of mutations) {{
         for (const node of Array.from(mutation.addedNodes || [])) {{
           if (node instanceof HTMLStyleElement) {{
