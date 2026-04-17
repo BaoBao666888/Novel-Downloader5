@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260417-batchimport2">
+  <link rel="stylesheet" href="./styles.css?v=20260417-batchimport3">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -787,6 +787,19 @@
     </div>
   </dialog>
 
+  <dialog id="import-progress-dialog" class="dialog import-progress-dialog">
+    <div class="dialog-head">
+      <h3 id="import-progress-title"></h3>
+    </div>
+    <p id="import-progress-hint" class="dialog-subtitle"></p>
+    <div class="import-progress-bar" aria-hidden="true">
+      <div id="import-progress-fill" class="import-progress-fill"></div>
+    </div>
+    <p id="import-progress-summary" class="dialog-subtitle"></p>
+    <p id="import-progress-stats" class="dialog-subtitle"></p>
+    <p id="import-progress-current-file" class="dialog-subtitle"></p>
+  </dialog>
+
   <dialog id="import-url-dialog" class="dialog">
     <form id="import-url-form" method="dialog">
       <h3 id="import-url-title"></h3>
@@ -982,7 +995,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260417-batchimport2"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260417-batchimport3"></script>
 </body>
 
 </html>

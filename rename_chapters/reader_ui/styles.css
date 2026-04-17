@@ -3278,6 +3278,30 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   width: min(1240px, 97vw);
 }
 
+.import-progress-dialog {
+  width: min(520px, 92vw);
+}
+
+.import-progress-bar {
+  width: 100%;
+  height: 12px;
+  margin: 14px 0 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 54%, transparent);
+}
+
+.import-progress-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--accent) 32%, transparent),
+    color-mix(in srgb, var(--accent) 94%, transparent));
+  transition: width 0.18s ease;
+}
+
 .import-config-form {
   display: grid;
   gap: 14px;

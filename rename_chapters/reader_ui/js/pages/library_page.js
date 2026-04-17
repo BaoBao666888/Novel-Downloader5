@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260417-batchimport2";
+import { initShell } from "../site_common.js?v=20260417-batchimport3";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -214,6 +214,13 @@ const refs = {
   importBatchEmpty: document.getElementById("import-batch-empty"),
   btnImportBatchCancel: document.getElementById("btn-import-batch-cancel"),
   btnImportBatchCommit: document.getElementById("btn-import-batch-commit"),
+  importProgressDialog: document.getElementById("import-progress-dialog"),
+  importProgressTitle: document.getElementById("import-progress-title"),
+  importProgressHint: document.getElementById("import-progress-hint"),
+  importProgressFill: document.getElementById("import-progress-fill"),
+  importProgressSummary: document.getElementById("import-progress-summary"),
+  importProgressStats: document.getElementById("import-progress-stats"),
+  importProgressCurrentFile: document.getElementById("import-progress-current-file"),
 };
 
 const state = {
@@ -267,6 +274,15 @@ const state = {
   batchImportPrepareRunId: 0,
   batchImportCommitBusy: false,
   batchImportRenderTimer: 0,
+  batchImportProgress: {
+    active: false,
+    total: 0,
+    completed: 0,
+    success: 0,
+    failed: 0,
+    currentFile: "",
+    phase: "idle",
+  },
   exportBookDetail: null,
   exportFormats: [],
   libraryRenderToken: 0,
@@ -934,6 +950,87 @@ function scheduleBatchImportDialogRender() {
   }, 80);
 }
 
+function resetBatchImportProgress() {
+  state.batchImportProgress = {
+    active: false,
+    total: 0,
+    completed: 0,
+    success: 0,
+    failed: 0,
+    currentFile: "",
+    phase: "idle",
+  };
+}
+
+function renderBatchImportProgressDialog() {
+  if (!refs.importProgressDialog) return;
+  const progress = state.batchImportProgress || {};
+  const total = Math.max(0, Number(progress.total || 0));
+  const completed = Math.max(0, Math.min(total || 0, Number(progress.completed || 0)));
+  const success = Math.max(0, Number(progress.success || 0));
+  const failed = Math.max(0, Number(progress.failed || 0));
+  const percent = total > 0 ? Math.max(0, Math.min(100, (completed / total) * 100)) : 0;
+  if (refs.importProgressTitle) refs.importProgressTitle.textContent = state.shell.t("importProgressTitle");
+  if (refs.importProgressHint) {
+    refs.importProgressHint.textContent = progress.phase === "finishing"
+      ? state.shell.t("importProgressFinishing")
+      : state.shell.t("importProgressHint");
+  }
+  if (refs.importProgressFill) refs.importProgressFill.style.width = `${percent.toFixed(1)}%`;
+  if (refs.importProgressSummary) refs.importProgressSummary.textContent = state.shell.t("importProgressSummary", { done: completed, total });
+  if (refs.importProgressStats) refs.importProgressStats.textContent = state.shell.t("importProgressStats", { success, failed });
+  if (refs.importProgressCurrentFile) {
+    const currentFile = String(progress.currentFile || "").trim();
+    refs.importProgressCurrentFile.textContent = currentFile
+      ? state.shell.t("importProgressCurrentFile", { name: currentFile })
+      : "";
+  }
+  if (progress.active) {
+    if (!refs.importProgressDialog.open) refs.importProgressDialog.showModal();
+  } else if (refs.importProgressDialog.open) {
+    refs.importProgressDialog.close();
+  }
+}
+
+function openBatchImportProgressDialog(total) {
+  state.batchImportProgress = {
+    active: true,
+    total: Math.max(0, Number(total || 0)),
+    completed: 0,
+    success: 0,
+    failed: 0,
+    currentFile: "",
+    phase: "importing",
+  };
+  renderBatchImportProgressDialog();
+}
+
+function updateBatchImportProgress(patch = {}) {
+  state.batchImportProgress = {
+    ...(state.batchImportProgress || {}),
+    ...(patch || {}),
+  };
+  renderBatchImportProgressDialog();
+}
+
+function closeBatchImportProgressDialog() {
+  if (refs.importProgressDialog && refs.importProgressDialog.open) refs.importProgressDialog.close();
+  resetBatchImportProgress();
+}
+
+function clearBatchImportSession() {
+  state.batchImportPrepareRunId = 0;
+  state.batchImportCommitBusy = false;
+  state.batchImportItems = [];
+  state.importPreviewBatchItemId = "";
+  state.importPreviewContext = "single";
+  if (state.batchImportRenderTimer) {
+    window.clearTimeout(state.batchImportRenderTimer);
+    state.batchImportRenderTimer = 0;
+  }
+  renderBatchImportDialog();
+}
+
 async function runItemsWithConcurrency(items, limit, worker) {
   const queue = Array.isArray(items) ? items : [];
   const total = queue.length;
@@ -1511,6 +1608,7 @@ async function prepareBatchImports(files) {
   const items = Array.isArray(files) ? files.filter(Boolean) : [];
   if (!items.length) return;
   const runId = Date.now();
+  closeBatchImportProgressDialog();
   state.batchImportPrepareRunId = runId;
   state.batchImportCommitBusy = false;
   state.batchImportItems = items.map((file, index) => buildBatchImportItem(file, index));
@@ -1601,7 +1699,9 @@ async function commitBatchImports() {
   const items = (state.batchImportItems || []).filter((item) => item.status === "ready" && String(item.token || "").trim());
   if (!items.length) return;
   state.batchImportCommitBusy = true;
-  renderBatchImportDialog();
+  if (refs.importPreviewDialog && refs.importPreviewDialog.open) refs.importPreviewDialog.close();
+  if (refs.importBatchDialog && refs.importBatchDialog.open) refs.importBatchDialog.close();
+  openBatchImportProgressDialog(items.length);
   let successCount = 0;
   let failedCount = 0;
   const importedBookIds = [];
@@ -1609,6 +1709,10 @@ async function commitBatchImports() {
   try {
     await runItemsWithConcurrency(items, BATCH_IMPORT_COMMIT_CONCURRENCY, async (item) => {
       updateBatchImportItem(item.id, { status: "importing", error: "" });
+      updateBatchImportProgress({
+        currentFile: String(item.file_name || "").trim(),
+        phase: "importing",
+      });
       try {
         const payload = getBatchImportItemPayload(item);
         const data = await state.shell.api("/api/library/import/commit", {
@@ -1627,6 +1731,11 @@ async function commitBatchImports() {
           error: "",
           imported_book_id: importedBookId,
         });
+        updateBatchImportProgress({
+          completed: successCount + failedCount,
+          success: successCount,
+          failed: failedCount,
+        });
         await applyImportedBookLocal(data && data.book, { refresh: false });
       } catch (error) {
         failedCount += 1;
@@ -1634,10 +1743,21 @@ async function commitBatchImports() {
           status: "error",
           error: getErrorMessage(error),
         });
+        updateBatchImportProgress({
+          completed: successCount + failedCount,
+          success: successCount,
+          failed: failedCount,
+        });
       }
     });
+    updateBatchImportProgress({
+      phase: "finishing",
+      currentFile: "",
+      completed: successCount + failedCount,
+      success: successCount,
+      failed: failedCount,
+    });
     const categoriesApplied = await applyImportCategoriesToBooks(importedBookIds, { silent: true });
-    renderBatchImportDialog();
     if (importedBookIds.length && normalizeCategoryIds(state.importSelectedCategoryIds).length > 0 && !categoriesApplied) {
       state.shell.showToast(state.shell.t("importCategoriesAssignFailed"));
     }
@@ -1647,8 +1767,8 @@ async function commitBatchImports() {
       state.shell.showToast(state.shell.t("importBatchSkippedFailed", { count: failedCount }));
     }
   } finally {
-    state.batchImportCommitBusy = false;
-    renderBatchImportDialog();
+    clearBatchImportSession();
+    closeBatchImportProgressDialog();
     state.shell.hideStatus();
   }
 }
@@ -4634,6 +4754,13 @@ async function init() {
   if (refs.btnImportBatchCommit) {
     refs.btnImportBatchCommit.addEventListener("click", () => {
       commitBatchImports().catch(() => {});
+    });
+  }
+  if (refs.importProgressDialog) {
+    refs.importProgressDialog.addEventListener("cancel", (event) => {
+      if (state.batchImportProgress && state.batchImportProgress.active) {
+        event.preventDefault();
+      }
     });
   }
 
