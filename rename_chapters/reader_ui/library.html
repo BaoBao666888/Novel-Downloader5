@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260417-notify1">
+  <link rel="stylesheet" href="./styles.css?v=20260417-import2">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -319,6 +319,10 @@
         <label>
           <span id="export-meta-summary-label"></span>
           <textarea id="export-meta-summary" rows="6"></textarea>
+        </label>
+        <label class="checkbox-row">
+          <input id="export-include-categories" type="checkbox" checked>
+          <span id="export-include-categories-label"></span>
         </label>
       </section>
       <section class="export-pane">
@@ -1000,7 +1004,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260417-notify1"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260417-import2"></script>
 </body>
 
 </html>

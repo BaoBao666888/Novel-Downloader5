@@ -151,6 +151,8 @@ def render_export_intro_html(metadata: dict[str, Any]) -> str:
         parts.insert(0, cover_html)
     if metadata.get("author"):
         parts.append(f"<p><strong>Tác giả:</strong> {html.escape(metadata['author'])}</p>")
+    if metadata.get("categories_text"):
+        parts.append(f"<p><strong>Danh mục:</strong> {html.escape(metadata['categories_text'])}</p>")
     if metadata.get("summary"):
         summary_text = text_paragraphs_support.strip_paragraph_indentation(metadata["summary"])
         summary_html = "".join(
@@ -159,6 +161,19 @@ def render_export_intro_html(metadata: dict[str, Any]) -> str:
         )
         parts.append(summary_html)
     return "".join(parts)
+
+
+def render_export_intro_text(metadata: dict[str, Any]) -> str:
+    lines = [str(metadata.get("title") or "").strip() or "Untitled"]
+    if metadata.get("author"):
+        lines.append(f"Tác giả: {str(metadata.get('author') or '').strip()}")
+    if metadata.get("categories_text"):
+        lines.append(f"Danh mục: {str(metadata.get('categories_text') or '').strip()}")
+    if metadata.get("summary"):
+        summary_text = text_paragraphs_support.strip_paragraph_indentation(str(metadata.get("summary") or ""))
+        if summary_text.strip():
+            lines.extend(["", summary_text.strip()])
+    return "\n".join(lines).strip()
 
 
 def _html_private_protection_available() -> bool:
@@ -379,9 +394,11 @@ def resolve_export_metadata(
     title = normalize_text(str(metadata.get("title") or book.get("title") or ""), True) or "Untitled"
     author = normalize_text(str(metadata.get("author") or book.get("author") or ""), True)
     summary = normalize_text(str(metadata.get("summary") or book.get("summary") or ""), False)
+    categories_text = normalize_text(str(metadata.get("categories_text") or ""), True)
     return {
         "title": title,
         "author": author,
+        "categories_text": categories_text,
         "summary": summary,
         "cover_data_url": _resolve_export_cover_data_url(book=book, raw_metadata=metadata),
     }
@@ -1450,13 +1467,15 @@ def create_export_txt(
     options: dict[str, bool],
     safe_filename: Callable[[str], str],
 ) -> Path:
-    _ = metadata
     ts = _utc_now_ts()
     include_titles = bool(options.get("include_chapter_titles"))
     merge_single = bool(options.get("merge_single_file"))
+    intro_text = render_export_intro_text(metadata)
     if merge_single:
         out = export_dir / f"{safe_name}_{ts}.txt"
         lines: list[str] = []
+        if intro_text:
+            lines.extend([intro_text, "", "====================", ""])
         for chapter in chapters:
             if include_titles:
                 lines.extend([str(chapter.get("title") or ""), ""])
@@ -1469,6 +1488,8 @@ def create_export_txt(
 
     out = export_dir / f"{safe_name}_{ts}.zip"
     with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        if intro_text:
+            zf.writestr("0000_Gioi_thieu.txt", (intro_text.strip() + "\n").encode("utf-8"))
         for chapter in chapters:
             chapter_order = int(chapter.get("chapter_order") or 0)
             chapter_title = safe_filename(str(chapter.get("title") or chapter.get("title_raw") or f"Chapter_{chapter_order}"))

@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260417-notify1";
+import { t } from "../i18n.vi.js?v=20260417-import2";
 
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
@@ -1396,6 +1396,7 @@ function fillStaticTexts() {
     ["btn-import-batch-cancel", "cancel"],
     ["btn-import-batch-commit", "importBatchCommit"],
     ["btn-import-progress-hide", "importProgressHide"],
+    ["export-include-categories-label", "exportIncludeCategories"],
     ["import-url-title", "importUrlTitle"],
     ["import-url-label", "importUrlLabel"],
     ["import-url-plugin-label", "importUrlPlugin"],
@@ -1776,6 +1777,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     ui: null,
     eventSource: null,
     reconnectTimer: 0,
+    listeners: new Set(),
   };
 
   const ensureNotificationUi = () => {
@@ -2076,6 +2078,19 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         }
       }
       renderNotificationList();
+      for (const listener of Array.from(notificationState.listeners)) {
+        try {
+          listener({
+            items: notificationState.items,
+            count: notificationState.count,
+            unread_count: notificationState.unreadCount,
+            active_count: notificationState.activeCount,
+            sig: notificationState.sig,
+          });
+        } catch {
+          // ignore listener errors from page modules
+        }
+      }
     };
 
     const loadNotifications = async () => {
@@ -2174,6 +2189,25 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       return `${head}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
     };
 
+    const subscribeNotifications = (listener) => {
+      if (typeof listener !== "function") return () => {};
+      notificationState.listeners.add(listener);
+      try {
+        listener({
+          items: notificationState.items,
+          count: notificationState.count,
+          unread_count: notificationState.unreadCount,
+          active_count: notificationState.activeCount,
+          sig: notificationState.sig,
+        });
+      } catch {
+        // ignore listener bootstrap errors
+      }
+      return () => {
+        notificationState.listeners.delete(listener);
+      };
+    };
+
     bellButton.addEventListener("click", async () => {
       if (!dialog.open) dialog.showModal();
       if (!notificationState.items.length) {
@@ -2242,6 +2276,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       startNotificationStream,
       upsertNotificationTask,
       createNotificationTaskId,
+      subscribeNotifications,
     };
     renderNotificationList();
     return notificationState.ui;
@@ -3983,6 +4018,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     markNotificationsRead: (ids, read = true) => (notificationUi ? notificationUi.markNotificationsRead(ids, read) : Promise.resolve(null)),
     deleteNotifications: (ids) => (notificationUi ? notificationUi.deleteNotifications(ids) : Promise.resolve(null)),
     clearNotifications: (scope = "read") => (notificationUi ? notificationUi.clearNotifications(scope) : Promise.resolve(null)),
+    subscribeNotifications: (listener) => (notificationUi ? notificationUi.subscribeNotifications(listener) : (() => {})),
     goSearchPage,
   };
 }

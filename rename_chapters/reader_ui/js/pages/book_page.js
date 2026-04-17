@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260417-notify1";
+import { initShell } from "../site_common.js?v=20260417-import2";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 

@@ -5386,6 +5386,13 @@ class ReaderService:
         self._export_running_job_id: str | None = None
         self._export_worker_started = False
         self._export_worker_thread: threading.Thread | None = None
+        self._import_lock = threading.RLock()
+        self._import_cv = threading.Condition(self._import_lock)
+        self._import_jobs: dict[str, dict[str, Any]] = {}
+        self._import_queue: list[str] = []
+        self._import_running_job_id: str | None = None
+        self._import_worker_started = False
+        self._import_worker_thread: threading.Thread | None = None
         self._notifications_lock = threading.RLock()
         self._notifications_cv = threading.Condition(self._notifications_lock)
         self._notifications: dict[str, dict[str, Any]] = {}
@@ -5599,6 +5606,16 @@ class ReaderService:
             parsed,
             file_bytes,
             normalize_lang_source=normalize_lang_source,
+        )
+
+    def upload_import_file(self, filename: str, file_bytes: bytes) -> dict[str, Any]:
+        return service_local_import_support.create_upload_import_token(
+            filename,
+            file_bytes,
+            import_preview_dir=IMPORT_PREVIEW_DIR,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+            utc_now_iso=utc_now_iso,
         )
 
     def prepare_import_file(
@@ -7723,6 +7740,399 @@ class ReaderService:
             self._upsert_notification_locked(payload)
             self._persist_notifications_locked()
             self._notifications_cv.notify_all()
+
+    def _import_status_is_active(self, status: str) -> bool:
+        return str(status or "").strip().lower() in {"queued", "running", "importing", "finishing"}
+
+    def _cleanup_import_jobs_locked(self) -> None:
+        self._import_queue = [
+            job_id
+            for job_id in self._import_queue
+            if job_id in self._import_jobs and str((self._import_jobs[job_id] or {}).get("status") or "").strip().lower() == "queued"
+        ]
+        if self._import_running_job_id and self._import_running_job_id not in self._import_jobs:
+            self._import_running_job_id = None
+
+    def _import_start_worker_locked(self) -> None:
+        self._import_worker_started, self._import_worker_thread = queue_runtime_support.start_worker_thread(
+            worker_started=self._import_worker_started,
+            worker_thread=self._import_worker_thread,
+            target=self._import_worker_loop,
+            name="ReaderImportWorker",
+        )
+
+    def _serialize_import_job_locked(self, job: dict[str, Any]) -> dict[str, Any]:
+        items = list(job.get("items") or []) if isinstance(job.get("items"), list) else []
+        return {
+            "job_id": str(job.get("job_id") or "").strip(),
+            "notification_id": str(job.get("notification_id") or "").strip(),
+            "status": str(job.get("status") or "").strip().lower(),
+            "kind": str(job.get("kind") or "").strip(),
+            "title": str(job.get("title") or "").strip(),
+            "total": max(0, int(job.get("total") or len(items))),
+            "completed": max(0, int(job.get("completed_count") or 0)),
+            "success": max(0, int(job.get("success_count") or 0)),
+            "failed": max(0, int(job.get("failed_count") or 0)),
+            "current_file": str(job.get("current_file") or "").strip(),
+            "created_at": str(job.get("created_at") or ""),
+            "updated_at": str(job.get("updated_at") or ""),
+        }
+
+    def _build_import_notification_payload_locked(self, job: dict[str, Any]) -> dict[str, Any] | None:
+        job_id = str(job.get("job_id") or "").strip()
+        notification_id = str(job.get("notification_id") or "").strip()
+        if not job_id or not notification_id:
+            return None
+        status = str(job.get("status") or "").strip().lower()
+        phase = str(job.get("phase") or status or "").strip().lower()
+        title = str(job.get("title") or "").strip() or "Nhập vào thư viện"
+        total = max(0, int(job.get("total") or 0))
+        success = max(0, int(job.get("success_count") or 0))
+        failed = max(0, int(job.get("failed_count") or 0))
+        completed = max(0, int(job.get("completed_count") or (success + failed)))
+        completed = min(total or completed, completed)
+        current_file = normalize_vbook_display_text(str(job.get("current_file") or ""), single_line=True)
+        imported_book_ids = [
+            str(item or "").strip()
+            for item in (job.get("imported_book_ids") or [])
+            if str(item or "").strip()
+        ]
+        imported_book_titles = [
+            normalize_vbook_display_text(str(item or ""), single_line=True)
+            for item in (job.get("imported_book_titles") or [])
+            if str(item or "").strip()
+        ]
+        category_names = [
+            normalize_vbook_display_text(str(item or ""), single_line=True)
+            for item in (job.get("category_names") or [])
+            if str(item or "").strip()
+        ]
+        category_assign_error = str(job.get("category_assign_error") or "").strip()
+        errors = list(job.get("errors") or []) if isinstance(job.get("errors"), list) else []
+
+        if status == "queued":
+            preview = f"Đã tải lên xong, đang chờ nhập {completed}/{total} truyện."
+        elif phase == "finishing":
+            preview = f"Đang hoàn tất: thành công {success} • lỗi {failed}"
+        elif status in {"completed", "warning", "failed"}:
+            preview = f"Hoàn tất: thành công {success} • lỗi {failed}"
+        elif current_file:
+            preview = f"Đang nhập: {current_file}"
+        else:
+            preview = f"Đã xử lý {completed}/{total} truyện • thành công {success} • lỗi {failed}"
+
+        detail_lines = [
+            f"Trạng thái: {self._notification_status_label(status)}",
+            f"Đã xử lý: {completed}/{total}",
+            f"Thành công: {success}",
+            f"Thất bại: {failed}",
+        ]
+        if current_file:
+            detail_lines.append(f"Đang xử lý: {current_file}")
+        if category_names:
+            detail_lines.append(f"Danh mục: {', '.join(category_names)}")
+        if category_assign_error:
+            detail_lines.append(f"Gán danh mục thất bại: {category_assign_error}")
+        if imported_book_titles:
+            detail_lines.append(f"Truyện đã nhập: {', '.join(imported_book_titles[:6])}")
+            if len(imported_book_titles) > 6:
+                detail_lines.append(f"... còn {len(imported_book_titles) - 6} truyện khác")
+        if errors:
+            detail_lines.append("")
+            detail_lines.append("Các file lỗi:")
+            for row in errors[:12]:
+                file_name = normalize_vbook_display_text(str((row or {}).get("file_name") or ""), single_line=True) or "Không rõ file"
+                message = normalize_vbook_display_text(str((row or {}).get("error") or ""), single_line=True) or "Lỗi không rõ"
+                detail_lines.append(f"- {file_name}: {message}")
+            if len(errors) > 12:
+                detail_lines.append(f"- ... còn {len(errors) - 12} file lỗi khác")
+
+        mapped_status = {
+            "queued": "running",
+            "running": "running",
+            "importing": "running",
+            "finishing": "running",
+            "completed": "success",
+            "failed": "failed",
+            "warning": "warning",
+        }.get(status, "info")
+        primary_book_id = imported_book_ids[0] if len(imported_book_ids) == 1 else ""
+        primary_book_title = imported_book_titles[0] if len(imported_book_titles) == 1 else ""
+        return {
+            "id": notification_id,
+            "kind": str(job.get("kind") or "import_file").strip() or "import_file",
+            "topic": "import",
+            "topic_label": "Nhập vào thư viện",
+            "title": title,
+            "preview": preview,
+            "detail": "\n".join(detail_lines).strip(),
+            "status": mapped_status,
+            "progress_current": completed,
+            "progress_total": total,
+            "progress_percent": (float(completed) / float(total) * 100.0) if total > 0 else 0.0,
+            "book_id": primary_book_id,
+            "book_title": primary_book_title,
+            "job_id": job_id,
+            "created_at": str(job.get("created_at") or ""),
+            "updated_at": str(job.get("updated_at") or ""),
+            "meta": {
+                "phase": phase or status,
+                "success_count": success,
+                "failed_count": failed,
+                "current_file": current_file,
+                "book_ids_csv": ",".join(imported_book_ids),
+            },
+        }
+
+    def _sync_import_notification_locked(self, job: dict[str, Any] | None) -> None:
+        if not isinstance(job, dict):
+            return
+        payload = self._build_import_notification_payload_locked(job)
+        if payload is None:
+            return
+        with self._notifications_cv:
+            self._upsert_notification_locked(payload)
+            self._persist_notifications_locked()
+            self._notifications_cv.notify_all()
+
+    def enqueue_import_job(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        body = payload if isinstance(payload, dict) else {}
+        items_raw = body.get("items")
+        if not isinstance(items_raw, list) or not items_raw:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu danh sách file để nhập.")
+        normalized_items: list[dict[str, Any]] = []
+        seen_tokens: set[str] = set()
+        for idx, raw in enumerate(items_raw):
+            if not isinstance(raw, dict):
+                continue
+            token = str(raw.get("token") or "").strip()
+            if not token or token in seen_tokens:
+                continue
+            preview_state = self._load_import_preview_state(token)
+            file_name = normalize_vbook_display_text(
+                str(raw.get("file_name") or preview_state.get("file_name") or f"import_{idx + 1}.txt"),
+                single_line=True,
+            ) or f"import_{idx + 1}.txt"
+            normalized_items.append(
+                {
+                    "token": token,
+                    "file_name": file_name,
+                    "title": str(raw.get("title") or "").strip(),
+                    "author": str(raw.get("author") or "").strip(),
+                    "summary": str(raw.get("summary") or "").strip(),
+                    "lang_source": normalize_lang_source(str(raw.get("lang_source") or "").strip()) or "zh",
+                    "import_settings": dict(raw.get("import_settings") or {}) if isinstance(raw.get("import_settings"), dict) else None,
+                }
+            )
+            seen_tokens.add(token)
+        if not normalized_items:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Không có file hợp lệ để nhập.")
+
+        category_ids = list(dict.fromkeys(
+            str(item or "").strip()
+            for item in (body.get("category_ids") or [])
+            if str(item or "").strip()
+        ))
+        category_names: list[str] = []
+        if category_ids:
+            try:
+                category_names = [
+                    normalize_vbook_display_text(str(item.get("name") or ""), single_line=True)
+                    for item in self.storage.list_categories()
+                    if str(item.get("category_id") or "").strip() in set(category_ids)
+                ]
+                category_names = [item for item in category_names if item]
+            except Exception:
+                category_names = []
+
+        kind = str(body.get("kind") or "").strip() or ("import_file_batch" if len(normalized_items) > 1 else "import_file")
+        title = str(body.get("title") or "").strip() or ("Nhập file hàng loạt vào thư viện" if len(normalized_items) > 1 else "Nhập file vào thư viện")
+        now = utc_now_iso()
+        seed = f"{title}|{len(normalized_items)}|{now}|{uuid.uuid4().hex}"
+        job_id = f"imp_{hash_text(seed)}"
+        notification_id = str(body.get("notification_id") or f"import:{job_id}").strip() or f"import:{job_id}"
+        job = {
+            "job_id": job_id,
+            "notification_id": notification_id,
+            "kind": kind,
+            "title": title,
+            "status": "queued",
+            "phase": "queued",
+            "items": normalized_items,
+            "total": len(normalized_items),
+            "completed_count": 0,
+            "success_count": 0,
+            "failed_count": 0,
+            "current_file": "",
+            "errors": [],
+            "category_ids": category_ids,
+            "category_names": category_names,
+            "category_assign_error": "",
+            "imported_book_ids": [],
+            "imported_book_titles": [],
+            "created_at": now,
+            "updated_at": now,
+            "finished_at": "",
+        }
+        with self._import_cv:
+            self._cleanup_import_jobs_locked()
+            self._import_jobs[job_id] = job
+            self._import_queue.append(job_id)
+            self._import_start_worker_locked()
+            self._import_cv.notify_all()
+            self._sync_import_notification_locked(job)
+            return {"ok": True, "job": self._serialize_import_job_locked(job)}
+
+    def _run_import_job(self, job_id: str) -> None:
+        with self._import_cv:
+            job = self._import_jobs.get(job_id)
+            if not job:
+                return
+            started_at = utc_now_iso()
+            job["status"] = "running"
+            job["phase"] = "importing"
+            job["updated_at"] = started_at
+            job["started_at"] = started_at
+            items = [dict(item) for item in (job.get("items") or []) if isinstance(item, dict)]
+            self._import_cv.notify_all()
+            self._sync_import_notification_locked(job)
+
+        for item in items:
+            token = str(item.get("token") or "").strip()
+            file_name = normalize_vbook_display_text(str(item.get("file_name") or ""), single_line=True) or "import.txt"
+            with self._import_cv:
+                job = self._import_jobs.get(job_id)
+                if not job:
+                    return
+                job["current_file"] = file_name
+                job["phase"] = "importing"
+                job["updated_at"] = utc_now_iso()
+                self._import_cv.notify_all()
+                self._sync_import_notification_locked(job)
+            try:
+                created = self.commit_import_token(
+                    token,
+                    lang_source=str(item.get("lang_source") or ""),
+                    title=str(item.get("title") or ""),
+                    author=str(item.get("author") or ""),
+                    summary=str(item.get("summary") or ""),
+                    import_settings=item.get("import_settings") if isinstance(item.get("import_settings"), dict) else None,
+                )
+                book_id = str((created or {}).get("book_id") or "").strip()
+                book_title = normalize_vbook_display_text(
+                    str((created or {}).get("title_display") or (created or {}).get("title") or file_name),
+                    single_line=True,
+                ) or file_name
+                with self._import_cv:
+                    job = self._import_jobs.get(job_id)
+                    if not job:
+                        return
+                    job["success_count"] = max(0, int(job.get("success_count") or 0)) + 1
+                    job["completed_count"] = max(0, int(job.get("completed_count") or 0)) + 1
+                    job["current_file"] = ""
+                    job["updated_at"] = utc_now_iso()
+                    if book_id:
+                        job.setdefault("imported_book_ids", []).append(book_id)
+                        job.setdefault("imported_book_titles", []).append(book_title)
+                    self._import_cv.notify_all()
+                    self._sync_import_notification_locked(job)
+            except ApiError as exc:
+                message = str(exc.message or "Nhập file thất bại.").strip() or "Nhập file thất bại."
+                with self._import_cv:
+                    job = self._import_jobs.get(job_id)
+                    if not job:
+                        return
+                    job["failed_count"] = max(0, int(job.get("failed_count") or 0)) + 1
+                    job["completed_count"] = max(0, int(job.get("completed_count") or 0)) + 1
+                    job["current_file"] = ""
+                    job.setdefault("errors", []).append({"file_name": file_name, "error": message})
+                    job["updated_at"] = utc_now_iso()
+                    self._import_cv.notify_all()
+                    self._sync_import_notification_locked(job)
+            except Exception as exc:
+                message = str(exc or "Nhập file thất bại.").strip() or "Nhập file thất bại."
+                with self._import_cv:
+                    job = self._import_jobs.get(job_id)
+                    if not job:
+                        return
+                    job["failed_count"] = max(0, int(job.get("failed_count") or 0)) + 1
+                    job["completed_count"] = max(0, int(job.get("completed_count") or 0)) + 1
+                    job["current_file"] = ""
+                    job.setdefault("errors", []).append({"file_name": file_name, "error": message})
+                    job["updated_at"] = utc_now_iso()
+                    self._import_cv.notify_all()
+                    self._sync_import_notification_locked(job)
+
+        with self._import_cv:
+            job = self._import_jobs.get(job_id)
+            if not job:
+                return
+            job["phase"] = "finishing"
+            job["current_file"] = ""
+            job["updated_at"] = utc_now_iso()
+            self._import_cv.notify_all()
+            self._sync_import_notification_locked(job)
+
+        category_assign_error = ""
+        with self._import_cv:
+            job = self._import_jobs.get(job_id)
+            if not job:
+                return
+            imported_book_ids = list(job.get("imported_book_ids") or [])
+            category_ids = list(job.get("category_ids") or [])
+        if imported_book_ids and category_ids:
+            try:
+                self.update_books_categories(
+                    book_ids=imported_book_ids,
+                    category_ids=category_ids,
+                    action="add",
+                )
+            except Exception as exc:
+                category_assign_error = str(exc or "").strip() or "Không gán được danh mục."
+
+        with self._import_cv:
+            job = self._import_jobs.get(job_id)
+            if not job:
+                return
+            success = max(0, int(job.get("success_count") or 0))
+            failed = max(0, int(job.get("failed_count") or 0))
+            job["category_assign_error"] = category_assign_error
+            if success > 0 and failed <= 0 and not category_assign_error:
+                job["status"] = "completed"
+            elif success > 0:
+                job["status"] = "warning"
+            else:
+                job["status"] = "failed"
+            job["phase"] = "done"
+            job["current_file"] = ""
+            finished_at = utc_now_iso()
+            job["finished_at"] = finished_at
+            job["updated_at"] = finished_at
+            self._import_cv.notify_all()
+            self._sync_import_notification_locked(job)
+
+    def _import_worker_loop(self) -> None:
+        while True:
+            with self._import_cv:
+                job_id, job = queue_runtime_support.wait_for_next_queued_job(
+                    cv=self._import_cv,
+                    cleanup=self._cleanup_import_jobs_locked,
+                    queue=self._import_queue,
+                    jobs=self._import_jobs,
+                    idle_wait_sec=1.0,
+                )
+                if not job_id or not job:
+                    continue
+                self._import_running_job_id = job_id
+            try:
+                self._run_import_job(job_id)
+            finally:
+                with self._import_cv:
+                    if self._import_running_job_id == job_id:
+                        self._import_running_job_id = None
+                    self._import_jobs.pop(job_id, None)
+                    self._cleanup_import_jobs_locked()
+                    self._import_cv.notify_all()
 
     def _export_status_is_active(self, status: str) -> bool:
         return export_jobs_support.export_status_is_active(status)

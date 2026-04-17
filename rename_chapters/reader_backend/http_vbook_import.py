@@ -248,6 +248,18 @@ def handle_api(
         )
         return {"ok": True, "book": book}
 
+    if method == "POST" and path == "/api/library/import/upload":
+        form = handler._read_multipart_form()
+        if "file" not in form:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu file upload.")
+        file_item = form.get_file("file")
+        if file_item is None:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "File upload không hợp lệ.")
+        return handler.service.upload_import_file(
+            file_item.filename or "import.txt",
+            file_item.content,
+        )
+
     if method == "POST" and path == "/api/library/import/prepare":
         form = handler._read_multipart_form()
         if "file" not in form:
@@ -290,6 +302,10 @@ def handle_api(
             import_settings=payload.get("import_settings") if isinstance(payload.get("import_settings"), dict) else None,
         )
         return {"ok": True, "book": book}
+
+    if method == "POST" and path == "/api/library/import/jobs":
+        payload = handler._read_json_body()
+        return handler.service.enqueue_import_job(payload)
 
     if method == "POST" and path == "/api/library/import":
         form = handler._read_multipart_form()

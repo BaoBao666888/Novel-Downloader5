@@ -338,6 +338,53 @@ def prepare_import_file(
     }
 
 
+def create_upload_import_token(
+    filename: str,
+    file_bytes: bytes,
+    *,
+    import_preview_dir: Path,
+    ApiError,
+    HTTPStatus,
+    utc_now_iso,
+) -> dict[str, Any]:
+    cleanup_import_previews(import_preview_dir=import_preview_dir)
+    safe_name = str(filename or "").strip() or "import.txt"
+    suffix = Path(safe_name).suffix or ".txt"
+    token = uuid.uuid4().hex
+    folder = import_preview_dir_for_token(
+        token,
+        import_preview_dir=import_preview_dir,
+        ApiError=ApiError,
+        HTTPStatus=HTTPStatus,
+    )
+    folder.mkdir(parents=True, exist_ok=True)
+    source_name = f"source{suffix}"
+    payload = bytes(file_bytes or b"")
+    (folder / source_name).write_bytes(payload)
+    save_import_preview_state(
+        token,
+        {
+            "token": token,
+            "kind": "upload_file",
+            "file_name": safe_name,
+            "source_name": source_name,
+            "created_at": utc_now_iso(),
+            "updated_at": utc_now_iso(),
+            "size_bytes": len(payload),
+        },
+        import_preview_dir=import_preview_dir,
+        ApiError=ApiError,
+        HTTPStatus=HTTPStatus,
+    )
+    return {
+        "ok": True,
+        "token": token,
+        "file_name": safe_name,
+        "file_ext": suffix.lstrip(".").lower(),
+        "size_bytes": len(payload),
+    }
+
+
 def preview_import_token(
     service,
     token: str,
