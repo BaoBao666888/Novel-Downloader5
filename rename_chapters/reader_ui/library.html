@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260417-library3">
+  <link rel="stylesheet" href="./styles.css?v=20260417-library5">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -143,16 +143,12 @@
           <span id="library-count" class="tag"></span>
         </div>
       </div>
-      <div class="library-toolbar">
-        <label class="library-search-field">
-          <span id="library-search-label"></span>
-          <input id="library-search-input" type="search" autocomplete="off">
-        </label>
+      <div id="library-list-scroll" class="library-list-scroll">
+        <div id="library-grid" class="library-grid"></div>
+        <p id="library-load-more-status" class="empty-text hidden"></p>
+        <div id="library-load-more-sentinel" class="library-scroll-sentinel" aria-hidden="true"></div>
+        <p id="library-empty" class="empty-text hidden"></p>
       </div>
-      <div id="library-grid" class="library-grid"></div>
-      <p id="library-load-more-status" class="empty-text hidden"></p>
-      <div id="library-load-more-sentinel" class="library-scroll-sentinel" aria-hidden="true"></div>
-      <p id="library-empty" class="empty-text hidden"></p>
     </section>
 
     <section class="panel library-panel">
@@ -1012,7 +1008,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260417-library3"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260417-library5"></script>
 </body>
 
 </html>

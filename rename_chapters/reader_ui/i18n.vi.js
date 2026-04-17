@@ -25,6 +25,7 @@ export const STRINGS = {
   librarySearchLabel: "Tìm trong thư viện",
   librarySearchPlaceholder: "Tìm theo tên truyện RAW / Việt hoặc tác giả",
   libraryLoadingMore: "Đang nạp thêm truyện...",
+  libraryTitleTranslating: "Đang dịch tiêu đề...",
   categoryFilterButton: "Lọc",
   categoryManageButton: "Quản lý DM",
   categoryFilterTitle: "Lọc theo danh mục",

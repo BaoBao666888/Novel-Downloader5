@@ -196,6 +196,23 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             ),
         }
 
+    if method == "POST" and path == "/api/library/books/by-ids":
+        payload = handler._read_json_body()
+        if not isinstance(payload, dict):
+            payload = {}
+        book_ids = payload.get("book_ids") or payload.get("ids") or []
+        items = service.list_books_by_ids(book_ids)
+        return {"ok": True, "items": items, "count": len(items)}
+
+    if method == "POST" and path == "/api/library/books/title-cache/ensure":
+        payload = handler._read_json_body()
+        if not isinstance(payload, dict):
+            payload = {}
+        return service.enqueue_library_visible_title_cache(
+            payload.get("book_ids") or payload.get("ids") or [],
+            translate_mode=payload.get("translation_mode"),
+        )
+
     if method == "GET" and path == "/api/library/books/all":
         books = service.list_books()
         return {"ok": True, "items": books, "count": len(books)}

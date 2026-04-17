@@ -160,6 +160,8 @@ APP_STATE_BOOK_REPLACE_STATE_KEY_PREFIX = "reader.book_replace_state"
 APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX = "reader.chapter_raw_edit"
 APP_STATE_EXPORT_JOBS_STATE_KEY = "reader.export_jobs_state"
 APP_STATE_NOTIFICATIONS_STATE_KEY = "reader.notifications_state"
+APP_STATE_SEARCH_CACHE_VERSION_KEY = "reader.search_cache_version"
+SEARCH_CACHE_VERSION = "2"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 HISTORY_BOOK_RETENTION_DAYS = 7
 EXPORT_JOB_RETENTION_DAYS = 7
@@ -4149,7 +4151,8 @@ class ReaderStorage:
                     last_read_ratio REAL,
                     last_read_mode TEXT DEFAULT 'raw',
                     theme_pref TEXT,
-                    summary TEXT DEFAULT ''
+                    summary TEXT DEFAULT '',
+                    search_text TEXT DEFAULT ''
                 );
 
                 CREATE TABLE IF NOT EXISTS chapters (
@@ -4163,6 +4166,7 @@ class ReaderStorage:
                     trans_sig TEXT,
                     updated_at TEXT NOT NULL,
                     word_count INTEGER NOT NULL DEFAULT 0,
+                    search_text TEXT DEFAULT '',
                     FOREIGN KEY(book_id) REFERENCES books(book_id) ON DELETE CASCADE
                 );
 
@@ -4280,6 +4284,7 @@ class ReaderStorage:
             )
             self._ensure_column(conn, "books", "title_vi", "TEXT")
             self._ensure_column(conn, "books", "author_vi", "TEXT")
+            self._ensure_column(conn, "books", "search_text", "TEXT DEFAULT ''")
             self._ensure_column(conn, "books", "cover_path", "TEXT DEFAULT ''")
             self._ensure_column(conn, "books", "cover_remote_url", "TEXT DEFAULT ''")
             self._ensure_column(conn, "books", "cover_locked", "INTEGER NOT NULL DEFAULT 0")
@@ -4321,8 +4326,29 @@ class ReaderStorage:
                 """
             )
             self._ensure_column(conn, "chapters", "trans_sig", "TEXT")
+            self._ensure_column(conn, "chapters", "search_text", "TEXT DEFAULT ''")
             self._ensure_column(conn, "chapters", "remote_url", "TEXT DEFAULT ''")
             self._ensure_column(conn, "chapters", "is_vip", "INTEGER NOT NULL DEFAULT 0")
+            cached_search_version = conn.execute(
+                "SELECT value FROM app_state WHERE key = ?",
+                (APP_STATE_SEARCH_CACHE_VERSION_KEY,),
+            ).fetchone()
+            cached_search_version_value = ""
+            if cached_search_version and cached_search_version["value"] is not None:
+                cached_search_version_value = str(cached_search_version["value"])
+            if cached_search_version_value != SEARCH_CACHE_VERSION:
+                self.sync_book_search_texts(conn=conn)
+                self.sync_chapter_search_texts(conn=conn)
+                conn.execute(
+                    """
+                    INSERT INTO app_state(key, value, updated_at)
+                    VALUES(?, ?, ?)
+                    ON CONFLICT(key) DO UPDATE SET
+                        value = excluded.value,
+                        updated_at = excluded.updated_at
+                    """,
+                    (APP_STATE_SEARCH_CACHE_VERSION_KEY, SEARCH_CACHE_VERSION, utc_now_iso()),
+                )
 
     def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, decl: str) -> None:
         rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
@@ -4900,6 +4926,24 @@ class ReaderStorage:
             is_book_comic=is_book_comic,
         )
 
+    def list_books_by_ids(
+        self,
+        book_ids: list[str] | tuple[str, ...] | set[str],
+        *,
+        normalize_vi_display_text=normalize_vi_display_text,
+        normalize_lang_source=normalize_lang_source,
+        book_supports_translation=book_supports_translation,
+        is_book_comic=is_book_comic,
+    ) -> list[dict[str, Any]]:
+        return storage_library_support.list_books_by_ids(
+            self,
+            book_ids,
+            normalize_vi_display_text=normalize_vi_display_text,
+            normalize_lang_source=normalize_lang_source,
+            book_supports_translation=book_supports_translation,
+            is_book_comic=is_book_comic,
+        )
+
     def update_chapter_word_count(self, chapter_id: str, word_count: int) -> None:
         storage_book_mutation_support.update_chapter_word_count(
             self,
@@ -4955,6 +4999,28 @@ class ReaderStorage:
             book_id,
             payload,
             utc_now_iso=utc_now_iso,
+        )
+
+    def sync_book_search_texts(
+        self,
+        book_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+        *,
+        conn: sqlite3.Connection | None = None,
+    ) -> int:
+        return storage_library_support.sync_book_search_texts(self, book_ids, conn=conn)
+
+    def sync_chapter_search_texts(
+        self,
+        chapter_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+        *,
+        book_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+        conn: sqlite3.Connection | None = None,
+    ) -> int:
+        return storage_library_support.sync_chapter_search_texts(
+            self,
+            chapter_ids,
+            book_ids=book_ids,
+            conn=conn,
         )
 
     def _collect_vbook_image_cache_keys_for_chapters(
@@ -5495,6 +5561,12 @@ class ReaderService:
         self._name_filter_cv = threading.Condition(self._name_filter_lock)
         self._name_filter_jobs: dict[str, dict[str, Any]] = {}
         self._name_filter_threads: dict[str, threading.Thread] = {}
+        self._library_title_cache_lock = threading.RLock()
+        self._library_title_cache_cv = threading.Condition(self._library_title_cache_lock)
+        self._library_title_cache_queue: list[str] = []
+        self._library_title_cache_queued_ids: set[str] = set()
+        self._library_title_cache_running_ids: set[str] = set()
+        self._library_title_cache_worker_thread: threading.Thread | None = None
         self._vbook_singleflight_lock = threading.RLock()
         self._vbook_singleflight_runs: dict[str, dict[str, Any]] = {}
         with self._notifications_cv:
@@ -7030,6 +7102,241 @@ class ReaderService:
             normalize_vbook_display_text=normalize_vbook_display_text,
             normalize_vi_display_text=normalize_vi_display_text,
         )
+
+    def list_books_by_ids(
+        self,
+        book_ids: list[str] | tuple[str, ...] | set[str],
+    ) -> list[dict[str, Any]]:
+        return service_library_support.list_books_by_ids(
+            self,
+            book_ids,
+            is_book_comic=is_book_comic,
+            is_lang_zh=is_lang_zh,
+            normalize_lang_source=normalize_lang_source,
+            book_supports_translation=book_supports_translation,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+            normalize_vi_display_text=normalize_vi_display_text,
+        )
+
+    def _book_title_cache_needs_translation(self, book_id: str) -> bool:
+        bid = str(book_id or "").strip()
+        if not bid:
+            return False
+        books = self.storage.list_books_by_ids([bid])
+        book = books[0] if books else None
+        if not book:
+            return False
+        if not book_supports_translation(book):
+            return False
+        raw_title = normalize_vbook_display_text(str(book.get("title") or ""), single_line=True)
+        raw_current = normalize_vbook_display_text(str(book.get("current_chapter_title_raw") or ""), single_line=True)
+        title_missing = bool(
+            raw_title
+            and self._contains_cjk_text(raw_title)
+            and (not normalize_vi_display_text(book.get("title_vi") or ""))
+        )
+        current_missing = bool(
+            str(book.get("current_chapter_id") or "").strip()
+            and raw_current
+            and self._contains_cjk_text(raw_current)
+            and (not normalize_vi_display_text(book.get("current_chapter_title_vi") or ""))
+        )
+        return title_missing or current_missing
+
+    def _cache_book_title_translation_batch(
+        self,
+        book_ids: list[str] | tuple[str, ...] | set[str],
+    ) -> list[str]:
+        normalized_ids: list[str] = []
+        seen_ids: set[str] = set()
+        for item in (book_ids or []):
+            bid = str(item or "").strip()
+            if (not bid) or bid in seen_ids:
+                continue
+            seen_ids.add(bid)
+            normalized_ids.append(bid)
+        if not normalized_ids:
+            return []
+
+        book_rows = self.storage.list_books_by_ids(normalized_ids)
+        book_map = {
+            str((book or {}).get("book_id") or "").strip(): book
+            for book in (book_rows or [])
+            if str((book or {}).get("book_id") or "").strip()
+        }
+
+        pending_rows: list[tuple[str, str]] = []
+        title_inputs: list[str] = []
+        pending_current_rows: list[tuple[str, str]] = []
+        current_inputs: list[str] = []
+        for bid in normalized_ids:
+            book = book_map.get(bid)
+            if not book or not self.translation_allowed_for_book(book):
+                continue
+            existing_title = normalize_vi_display_text(book.get("title_vi") or "")
+            if existing_title:
+                pass
+            else:
+                raw_title = normalize_vbook_display_text(str(book.get("title") or ""), single_line=True)
+                if raw_title and self._contains_cjk_text(raw_title):
+                    pending_rows.append((bid, raw_title))
+                    title_inputs.append(raw_title)
+            current_id = str(book.get("current_chapter_id") or "").strip()
+            current_vi = normalize_vi_display_text(book.get("current_chapter_title_vi") or "")
+            current_raw = normalize_vbook_display_text(str(book.get("current_chapter_title_raw") or ""), single_line=True)
+            if current_id and (not current_vi) and current_raw and self._contains_cjk_text(current_raw):
+                pending_current_rows.append((current_id, current_raw))
+                current_inputs.append(current_raw)
+        if (not pending_rows) and (not pending_current_rows):
+            return []
+
+        translated_list = self._translate_ui_texts_batch(title_inputs, single_line=True, mode="server")
+        translated_current_list = self._translate_ui_texts_batch(current_inputs, single_line=True, mode="server")
+        updates: list[tuple[str, str]] = []
+        current_updates: list[tuple[str, str]] = []
+        updated_ids: list[str] = []
+        updated_chapter_ids: list[str] = []
+        for idx, (bid, raw_title) in enumerate(pending_rows):
+            translated = normalize_vi_display_text(translated_list[idx] if idx < len(translated_list) else "")
+            translated = normalize_vbook_display_text(translated, single_line=True)
+            if (not translated) or translated.startswith("[Lỗi"):
+                continue
+            if translated == raw_title or self._is_effectively_untranslated_ui_text(raw_title, translated):
+                continue
+            updates.append((translated, bid))
+            updated_ids.append(bid)
+        for idx, (chapter_id, raw_title) in enumerate(pending_current_rows):
+            translated = normalize_vi_display_text(translated_current_list[idx] if idx < len(translated_current_list) else "")
+            translated = normalize_vbook_display_text(translated, single_line=True)
+            if (not translated) or translated.startswith("[Lỗi"):
+                continue
+            if translated == raw_title or self._is_effectively_untranslated_ui_text(raw_title, translated):
+                continue
+            current_updates.append((translated, chapter_id))
+            updated_chapter_ids.append(chapter_id)
+        if updates:
+            with self.storage._connect() as conn:
+                conn.executemany(
+                    """
+                    UPDATE books
+                    SET title_vi = ?
+                    WHERE book_id = ?
+                      AND trim(COALESCE(title_vi, '')) = ''
+                    """.strip(),
+                    updates,
+                )
+                if updated_ids:
+                    self.storage.sync_book_search_texts(updated_ids, conn=conn)
+                if current_updates:
+                    conn.executemany(
+                        """
+                        UPDATE chapters
+                        SET title_vi = ?
+                        WHERE chapter_id = ?
+                          AND trim(COALESCE(title_vi, '')) = ''
+                        """.strip(),
+                        current_updates,
+                    )
+                    if updated_chapter_ids:
+                        self.storage.sync_chapter_search_texts(chapter_ids=updated_chapter_ids, conn=conn)
+        elif current_updates:
+            with self.storage._connect() as conn:
+                conn.executemany(
+                    """
+                    UPDATE chapters
+                    SET title_vi = ?
+                    WHERE chapter_id = ?
+                      AND trim(COALESCE(title_vi, '')) = ''
+                    """.strip(),
+                    current_updates,
+                )
+                if updated_chapter_ids:
+                    self.storage.sync_chapter_search_texts(chapter_ids=updated_chapter_ids, conn=conn)
+        return updated_ids
+
+    def _ensure_library_title_cache_worker_locked(self) -> None:
+        worker_alive = bool(self._library_title_cache_worker_thread and self._library_title_cache_worker_thread.is_alive())
+        if worker_alive:
+            return
+        worker = threading.Thread(
+            target=self._run_library_title_cache_worker,
+            name="ReaderLibraryTitleCache",
+            daemon=True,
+        )
+        self._library_title_cache_worker_thread = worker
+        worker.start()
+
+    def _run_library_title_cache_worker(self) -> None:
+        while True:
+            with self._library_title_cache_cv:
+                while not self._library_title_cache_queue:
+                    self._library_title_cache_cv.wait(timeout=60.0)
+                batch_ids: list[str] = []
+                while self._library_title_cache_queue and len(batch_ids) < 8:
+                    book_id = str(self._library_title_cache_queue.pop(0) or "").strip()
+                    self._library_title_cache_queued_ids.discard(book_id)
+                    if not book_id:
+                        continue
+                    batch_ids.append(book_id)
+                    self._library_title_cache_running_ids.add(book_id)
+                if not batch_ids:
+                    continue
+            try:
+                self._cache_book_title_translation_batch(batch_ids)
+            except Exception:
+                pass
+            finally:
+                with self._library_title_cache_cv:
+                    for book_id in batch_ids:
+                        self._library_title_cache_running_ids.discard(book_id)
+                    self._library_title_cache_cv.notify_all()
+
+    def enqueue_library_visible_title_cache(
+        self,
+        book_ids: list[str] | tuple[str, ...] | set[str],
+        *,
+        translate_mode: Any = None,
+    ) -> dict[str, Any]:
+        normalized_ids: list[str] = []
+        seen_ids: set[str] = set()
+        for item in (book_ids or []):
+            bid = str(item or "").strip()
+            if (not bid) or bid in seen_ids:
+                continue
+            seen_ids.add(bid)
+            normalized_ids.append(bid)
+        mode = self.resolve_translate_mode(translate_mode)
+        if mode != "server":
+            return {
+                "ok": True,
+                "queued_ids": [],
+                "pending_ids": [],
+                "skipped": True,
+                "reason": "UNSUPPORTED_TRANSLATE_MODE",
+            }
+        if not self.is_reader_translation_enabled():
+            return {
+                "ok": True,
+                "queued_ids": [],
+                "pending_ids": [],
+                "skipped": True,
+                "reason": "TRANSLATION_DISABLED",
+            }
+        pending_ids = [book_id for book_id in normalized_ids if self._book_title_cache_needs_translation(book_id)]
+        if not pending_ids:
+            return {"ok": True, "queued_ids": [], "pending_ids": []}
+        queued_ids: list[str] = []
+        with self._library_title_cache_cv:
+            self._ensure_library_title_cache_worker_locked()
+            for book_id in pending_ids:
+                if book_id in self._library_title_cache_queued_ids or book_id in self._library_title_cache_running_ids:
+                    continue
+                self._library_title_cache_queue.append(book_id)
+                self._library_title_cache_queued_ids.add(book_id)
+                queued_ids.append(book_id)
+            if queued_ids:
+                self._library_title_cache_cv.notify_all()
+        return {"ok": True, "queued_ids": queued_ids, "pending_ids": pending_ids}
 
     def search(self, query: str) -> dict[str, Any]:
         return service_library_support.search(

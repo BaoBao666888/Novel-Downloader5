@@ -2,8 +2,155 @@ from __future__ import annotations
 
 import sqlite3
 import time
+import unicodedata
 from pathlib import Path
 from typing import Any
+
+
+def normalize_search_text(value: Any) -> str:
+    text = unicodedata.normalize("NFKC", str(value or "")).casefold()
+    return " ".join(text.split())
+
+
+def _strip_search_diacritics(value: str) -> str:
+    normalized = "".join(ch for ch in unicodedata.normalize("NFKD", value) if unicodedata.category(ch) != "Mn")
+    return normalized.replace("đ", "d").replace("Đ", "D")
+
+
+def build_search_text(*values: Any) -> str:
+    parts: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        folded = normalize_search_text(raw)
+        if folded and folded not in seen:
+            seen.add(folded)
+            parts.append(folded)
+        ascii_folded = _strip_search_diacritics(folded)
+        if ascii_folded and ascii_folded not in seen:
+            seen.add(ascii_folded)
+            parts.append(ascii_folded)
+    return "\n".join(parts)
+
+
+def build_book_search_text(
+    *,
+    title: Any = "",
+    title_vi: Any = "",
+    author: Any = "",
+    author_vi: Any = "",
+) -> str:
+    return build_search_text(title, title_vi, author, author_vi)
+
+
+def build_chapter_search_text(
+    *,
+    title_raw: Any = "",
+    title_vi: Any = "",
+) -> str:
+    return build_search_text(title_raw, title_vi)
+
+
+def _normalize_row_ids(values: list[str] | tuple[str, ...] | set[str] | None) -> list[str]:
+    output: list[str] = []
+    seen: set[str] = set()
+    for item in (values or []):
+        value = str(item or "").strip()
+        if (not value) or (value in seen):
+            continue
+        seen.add(value)
+        output.append(value)
+    return output
+
+
+def sync_book_search_texts(
+    storage,
+    book_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+    *,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    normalized_ids = _normalize_row_ids(book_ids)
+    select_sql = """
+        SELECT book_id, title, title_vi, author, author_vi
+        FROM books
+    """.strip()
+    params: list[Any] = []
+    if normalized_ids:
+        placeholders = ",".join("?" for _ in normalized_ids)
+        select_sql += f" WHERE book_id IN ({placeholders})"
+        params.extend(normalized_ids)
+
+    def _run(active_conn: sqlite3.Connection) -> int:
+        rows = active_conn.execute(select_sql, tuple(params)).fetchall()
+        updates = [
+            (
+                build_book_search_text(
+                    title=row["title"],
+                    title_vi=row["title_vi"],
+                    author=row["author"],
+                    author_vi=row["author_vi"],
+                ),
+                row["book_id"],
+            )
+            for row in rows
+            if str(row["book_id"] or "").strip()
+        ]
+        if updates:
+            active_conn.executemany("UPDATE books SET search_text = ? WHERE book_id = ?", updates)
+        return int(len(updates))
+
+    if conn is not None:
+        return _run(conn)
+    with storage._connect() as active_conn:
+        return _run(active_conn)
+
+
+def sync_chapter_search_texts(
+    storage,
+    chapter_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+    *,
+    book_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    normalized_chapter_ids = _normalize_row_ids(chapter_ids)
+    normalized_book_ids = _normalize_row_ids(book_ids)
+    select_sql = """
+        SELECT chapter_id, title_raw, title_vi
+        FROM chapters
+    """.strip()
+    params: list[Any] = []
+    clauses: list[str] = []
+    if normalized_chapter_ids:
+        placeholders = ",".join("?" for _ in normalized_chapter_ids)
+        clauses.append(f"chapter_id IN ({placeholders})")
+        params.extend(normalized_chapter_ids)
+    if normalized_book_ids:
+        placeholders = ",".join("?" for _ in normalized_book_ids)
+        clauses.append(f"book_id IN ({placeholders})")
+        params.extend(normalized_book_ids)
+    if clauses:
+        select_sql += f" WHERE {' OR '.join(clauses)}"
+
+    def _run(active_conn: sqlite3.Connection) -> int:
+        rows = active_conn.execute(select_sql, tuple(params)).fetchall()
+        updates = [
+            (
+                build_chapter_search_text(
+                    title_raw=row["title_raw"],
+                    title_vi=row["title_vi"],
+                ),
+                row["chapter_id"],
+            )
+            for row in rows
+            if str(row["chapter_id"] or "").strip()
+        ]
+        if updates:
+            active_conn.executemany("UPDATE chapters SET search_text = ? WHERE chapter_id = ?", updates)
+        return int(len(updates))
+
+    if conn is not None:
+        return _run(conn)
+    with storage._connect() as active_conn:
+        return _run(active_conn)
 
 
 def book_cover_url(
@@ -261,14 +408,17 @@ def _decorate_book_list_rows(
         first_row = first_chapter_map.get(book_id) or {}
 
         if last_read_id and last_read_row:
+            cur_id = str(last_read_row.get("chapter_id") or "").strip()
             cur_order = int(last_read_row.get("chapter_order") or 1)
             cur_title_raw = str(last_read_row.get("title_raw") or "").strip()
             cur_title_vi = normalize_vi_display_text(last_read_row.get("title_vi") or "")
         else:
+            cur_id = str(first_row.get("chapter_id") or "").strip()
             cur_order = int(first_row.get("chapter_order") or 1)
             cur_title_raw = str(first_row.get("title_raw") or "").strip()
             cur_title_vi = normalize_vi_display_text(first_row.get("title_vi") or "")
 
+        item["current_chapter_id"] = cur_id
         item["current_chapter_order"] = cur_order
         item["current_chapter_title_raw"] = cur_title_raw
         item["current_chapter_title_vi"] = cur_title_vi
@@ -378,6 +528,39 @@ def list_books_paged(
     }
 
 
+def list_books_by_ids(
+    storage,
+    book_ids: list[str] | tuple[str, ...] | set[str],
+    *,
+    normalize_vi_display_text,
+    normalize_lang_source,
+    book_supports_translation,
+    is_book_comic,
+) -> list[dict[str, Any]]:
+    normalized_ids = _normalize_book_query_ids(book_ids)
+    if not normalized_ids:
+        return []
+    placeholders = ",".join("?" for _ in normalized_ids)
+    where_sql = f"WHERE b.book_id IN ({placeholders})"
+    with storage._connect() as conn:
+        rows = conn.execute(_book_list_select_sql(where_sql), tuple(normalized_ids)).fetchall()
+    items = _decorate_book_list_rows(
+        storage,
+        rows,
+        normalize_vi_display_text=normalize_vi_display_text,
+        normalize_lang_source=normalize_lang_source,
+        book_supports_translation=book_supports_translation,
+        is_book_comic=is_book_comic,
+        include_download_counts=False,
+    )
+    by_id = {
+        str(item.get("book_id") or "").strip(): item
+        for item in items
+        if str(item.get("book_id") or "").strip()
+    }
+    return [by_id[book_id] for book_id in normalized_ids if book_id in by_id]
+
+
 def find_book(storage, book_id: str) -> dict[str, Any] | None:
     with storage._connect() as conn:
         row = conn.execute("SELECT * FROM books WHERE book_id = ?", (book_id,)).fetchone()
@@ -481,11 +664,14 @@ def update_book_metadata(storage, book_id: str, payload: dict[str, Any], *, utc_
         values.append(int(cover_locked))
     if not set_parts:
         return storage.get_book_detail(book_id)
+    search_related = bool(set(allowed.keys()) & {"title", "title_vi", "author", "author_vi"})
     set_parts.append("updated_at = ?")
     values.append(now)
     values.append(book_id)
     with storage._connect() as conn:
         conn.execute(f"UPDATE books SET {', '.join(set_parts)} WHERE book_id = ?", tuple(values))
+        if search_related:
+            storage.sync_book_search_texts([book_id], conn=conn)
     return storage.get_book_detail(book_id)
 
 
@@ -738,7 +924,7 @@ def search(
     *,
     normalize_vi_display_text,
 ) -> dict[str, Any]:
-    key = str(query or "").strip().lower()
+    key = normalize_search_text(query)
     if not key:
         books = storage.list_books()
         return {"books": books, "chapters": []}
@@ -749,27 +935,26 @@ def search(
             SELECT book_id, title, title_vi, author, author_vi, lang_source, source_type, chapter_count, updated_at, cover_path
             FROM books
             WHERE lower(COALESCE(source_type, '')) NOT LIKE 'vbook_session%'
-              AND (
-                lower(title) LIKE ? OR lower(COALESCE(title_vi,'')) LIKE ?
-                OR lower(author) LIKE ? OR lower(COALESCE(author_vi,'')) LIKE ?
-              )
+              AND instr(COALESCE(search_text, ''), ?) > 0
             ORDER BY updated_at DESC
             """,
-            (f"%{key}%", f"%{key}%", f"%{key}%", f"%{key}%"),
+            (key,),
         ).fetchall()
-
         chapter_rows = conn.execute(
             """
-            SELECT c.chapter_id, c.book_id, c.chapter_order, c.title_raw, c.title_vi,
+            SELECT c.chapter_id, c.book_id, c.chapter_order, c.title_raw, c.title_vi, c.updated_at,
                    b.title AS book_title, b.title_vi AS book_title_vi
             FROM chapters c
             JOIN books b ON b.book_id = c.book_id
             WHERE lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'
-              AND (lower(c.title_raw) LIKE ? OR lower(COALESCE(c.title_vi, '')) LIKE ?)
+              AND (
+                    instr(COALESCE(c.search_text, ''), ?) > 0
+                    OR instr(COALESCE(b.search_text, ''), ?) > 0
+                  )
             ORDER BY c.updated_at DESC
             LIMIT 120
             """,
-            (f"%{key}%", f"%{key}%"),
+            (key, key),
         ).fetchall()
 
     return {

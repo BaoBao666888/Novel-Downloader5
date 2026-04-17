@@ -718,6 +718,21 @@ p {
   overflow: auto;
 }
 
+.library-list-scroll {
+  min-height: 320px;
+  max-height: min(72vh, 920px);
+  overflow: auto;
+  scrollbar-gutter: stable both-edges;
+}
+
+.library-list-scroll .library-grid {
+  overflow: visible;
+}
+
+.library-list-scroll > .empty-text {
+  padding: 0 10px 10px;
+}
+
 .library-toolbar {
   padding: 0 10px 6px;
 }

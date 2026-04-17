@@ -9,9 +9,8 @@ const refs = {
 
   libraryTitle: document.getElementById("library-title"),
   libraryCount: document.getElementById("library-count"),
+  libraryListScroll: document.getElementById("library-list-scroll"),
   libraryGrid: document.getElementById("library-grid"),
-  librarySearchLabel: document.getElementById("library-search-label"),
-  librarySearchInput: document.getElementById("library-search-input"),
   libraryLoadMoreStatus: document.getElementById("library-load-more-status"),
   libraryLoadMoreSentinel: document.getElementById("library-load-more-sentinel"),
   libraryEmpty: document.getElementById("library-empty"),
@@ -238,13 +237,11 @@ const state = {
   libraryHasMore: false,
   libraryNextOffset: 0,
   libraryPageSize: 48,
-  librarySearchQuery: "",
   libraryLoadingPage: false,
   libraryLoadingMode: "",
   libraryLoadRequestSeq: 0,
   libraryLoadObserver: null,
   libraryScrollFallbackBound: false,
-  librarySearchTimer: 0,
   pendingImports: [],
   downloadJobs: [],
   downloadJobsSig: "",
@@ -325,6 +322,9 @@ const state = {
   libraryCardRefreshQueuedIds: new Set(),
   libraryCardRefreshBusy: false,
   libraryCardRefreshTimer: 0,
+  libraryPendingTitleBookIds: new Set(),
+  libraryTitlePollTimer: 0,
+  libraryTitlePollInFlight: false,
 };
 
 const LIBRARY_LOADING_SKELETON_COUNT = 12;
@@ -829,10 +829,6 @@ function parseLibraryAuthorFromQuery() {
   return normalizeAuthorFilterValue((query && query.author) || "");
 }
 
-function normalizeLibrarySearchValue(raw) {
-  return String(raw || "").trim();
-}
-
 function bookMatchesClientSearch(book, rawNeedle) {
   const needle = String(rawNeedle || "").trim().toLowerCase();
   if (!needle) return true;
@@ -847,20 +843,12 @@ function bookMatchesClientSearch(book, rawNeedle) {
   return values.some((value) => String(value || "").trim().toLowerCase().includes(needle));
 }
 
-function parseLibrarySearchFromQuery() {
-  const query = state.shell && typeof state.shell.parseQuery === "function"
-    ? state.shell.parseQuery()
-    : {};
-  return normalizeLibrarySearchValue((query && query.q) || "");
-}
-
 function syncLibraryQuery() {
   const params = new URLSearchParams(window.location.search || "");
   const ids = normalizeCategoryIds(state.selectedCategoryIds);
   const excludeIds = normalizeCategoryIds(state.selectedExcludedCategoryIds);
   const matchMode = normalizeCategoryMatchMode(state.selectedCategoryMatchMode);
   const author = normalizeAuthorFilterValue(state.selectedAuthorFilter);
-  const search = normalizeLibrarySearchValue(state.librarySearchQuery);
   if (ids.length) params.set("category_ids", ids.join(","));
   else params.delete("category_ids");
   if (excludeIds.length) params.set("category_exclude_ids", excludeIds.join(","));
@@ -869,8 +857,7 @@ function syncLibraryQuery() {
   else params.delete("category_mode");
   if (author) params.set("author", author);
   else params.delete("author");
-  if (search) params.set("q", search);
-  else params.delete("q");
+  params.delete("q");
   const next = params.toString();
   const target = `${window.location.pathname}${next ? `?${next}` : ""}`;
   window.history.replaceState({}, "", target);
@@ -879,8 +866,7 @@ function syncLibraryQuery() {
 function hasActiveLibraryFilter() {
   return normalizeCategoryIds(state.selectedCategoryIds).length > 0
     || normalizeCategoryIds(state.selectedExcludedCategoryIds).length > 0
-    || !!normalizeAuthorFilterValue(state.selectedAuthorFilter)
-    || !!normalizeLibrarySearchValue(state.librarySearchQuery);
+    || !!normalizeAuthorFilterValue(state.selectedAuthorFilter);
 }
 
 function bookMatchesAuthorFilter(book, rawNeedle) {
@@ -1133,6 +1119,7 @@ function upsertStateBook(book, { prepend = true } = {}) {
 function needsLazyLibraryCardRefresh(book) {
   if (!book) return false;
   if (Boolean(book._libraryCardLazyRefreshDone) || Boolean(book._libraryCardLazyRefreshQueued)) return false;
+  if (getCurrentReaderMode() === "trans" && getCurrentTranslationMode() === "server") return false;
   if (Boolean(book._libraryCardNeedsHydrate)) return true;
   if (getCurrentReaderMode() !== "trans") return false;
   if (!Boolean(parseBooleanLike(book.translation_supported))) return false;
@@ -1153,6 +1140,116 @@ function prepareLibraryPageBook(book) {
   prepared._libraryCardLazyRefreshDone = false;
   prepared._libraryCardLazyRefreshQueued = false;
   return prepared;
+}
+
+function isServerLibraryTitleCacheMode() {
+  return getCurrentReaderMode() === "trans" && getCurrentTranslationMode() === "server";
+}
+
+function bookNeedsServerTitleCache(book) {
+  if (!book || !isServerLibraryTitleCacheMode()) return false;
+  if (!Boolean(parseBooleanLike(book.translation_supported))) return false;
+  const rawTitle = String(book.title || "").trim();
+  const titleVi = String(book.title_vi || "").trim();
+  const rawCurrent = String(book.current_chapter_title_raw || "").trim();
+  const currentVi = String(book.current_chapter_title_vi || "").trim();
+  return (Boolean(rawTitle) && !titleVi) || (Boolean(rawCurrent) && !currentVi);
+}
+
+function clearLibraryTitleCacheState() {
+  state.libraryPendingTitleBookIds = new Set();
+  if (state.libraryTitlePollTimer) {
+    window.clearTimeout(state.libraryTitlePollTimer);
+    state.libraryTitlePollTimer = 0;
+  }
+  state.libraryTitlePollInFlight = false;
+}
+
+function collectPendingLibraryTitleCacheBookIds(bookIds = null) {
+  const filterIds = bookIds ? new Set(normalizeBookIds(bookIds)) : null;
+  const pending = [];
+  for (const book of Array.isArray(state.books) ? state.books : []) {
+    const bookId = String((book && book.book_id) || "").trim();
+    if (!bookId) continue;
+    if (filterIds && !filterIds.has(bookId)) continue;
+    if (!bookNeedsServerTitleCache(book)) continue;
+    pending.push(bookId);
+  }
+  return normalizeBookIds(pending);
+}
+
+async function ensureLibraryTitleCacheForBookIds(bookIds = null) {
+  if (!state.shell || !isServerLibraryTitleCacheMode()) {
+    clearLibraryTitleCacheState();
+    return;
+  }
+  const pendingIds = collectPendingLibraryTitleCacheBookIds(bookIds);
+  if (!pendingIds.length) return;
+  try {
+    const data = await state.shell.api("/api/library/books/title-cache/ensure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        book_ids: pendingIds,
+        translation_mode: getCurrentTranslationMode(),
+      }),
+    });
+    const nextPendingIds = normalizeBookIds(data && data.pending_ids);
+    for (const bookId of nextPendingIds) state.libraryPendingTitleBookIds.add(bookId);
+    if (state.libraryPendingTitleBookIds.size) scheduleLibraryTitleCachePoll();
+  } catch {
+    // Dịch title nền là best-effort, không làm gián đoạn UI thư viện.
+  }
+}
+
+function scheduleLibraryTitleCachePoll(delay = 650) {
+  if (state.libraryTitlePollTimer || state.libraryTitlePollInFlight) return;
+  if (!state.libraryPendingTitleBookIds.size || !isServerLibraryTitleCacheMode()) return;
+  state.libraryTitlePollTimer = window.setTimeout(() => {
+    state.libraryTitlePollTimer = 0;
+    flushLibraryTitleCachePoll().catch(() => {});
+  }, Math.max(120, Number(delay || 0) || 650));
+}
+
+async function flushLibraryTitleCachePoll() {
+  if (state.libraryTitlePollInFlight) return;
+  if (!isServerLibraryTitleCacheMode()) {
+    clearLibraryTitleCacheState();
+    return;
+  }
+  const bookIds = normalizeBookIds(Array.from(state.libraryPendingTitleBookIds));
+  if (!bookIds.length) return;
+  state.libraryTitlePollInFlight = true;
+  try {
+    const data = await state.shell.api("/api/library/books/by-ids", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ book_ids: bookIds }),
+    });
+    const items = Array.isArray(data && data.items) ? data.items : [];
+    const touchedIds = [];
+    for (const item of items) {
+      if (!item || !replaceStateBook(item)) continue;
+      touchedIds.push(String(item.book_id || "").trim());
+    }
+    if (touchedIds.length) syncLibraryBookCards(touchedIds);
+    state.libraryPendingTitleBookIds = new Set(collectPendingLibraryTitleCacheBookIds(bookIds));
+  } catch {
+    // Poll lỗi thì vòng sau thử lại, không chặn thao tác khác.
+  } finally {
+    state.libraryTitlePollInFlight = false;
+    if (state.libraryPendingTitleBookIds.size) scheduleLibraryTitleCachePoll(900);
+  }
+}
+
+function getLibraryBookTitleText(book) {
+  const rawTitle = normalizeDisplayTitle(String((book && book.title) || "").trim());
+  const translatedTitle = normalizeDisplayTitle(String((book && (book.title_display || book.title_vi)) || "").trim());
+  if (bookNeedsServerTitleCache(book)) {
+    if (translatedTitle && translatedTitle !== rawTitle) return translatedTitle;
+    return state.shell.t("libraryTitleTranslating");
+  }
+  return translatedTitle || rawTitle || "Không tiêu đề";
 }
 
 function clearLibraryCardRefreshQueue() {
@@ -3078,8 +3175,12 @@ function maybeLoadMoreLibraryBooks() {
   if (state.libraryLoadingPage || !state.libraryHasMore) return;
   const sentinel = refs.libraryLoadMoreSentinel;
   if (!sentinel) return;
+  const scrollRoot = refs.libraryListScroll;
   const rect = sentinel.getBoundingClientRect();
-  if (rect.top <= (window.innerHeight || document.documentElement.clientHeight || 0) + 1400) {
+  const viewportBottom = scrollRoot
+    ? scrollRoot.getBoundingClientRect().bottom
+    : (window.innerHeight || document.documentElement.clientHeight || 0);
+  if (rect.top <= viewportBottom + 1200) {
     loadNextLibraryPage().catch(() => {});
   }
 }
@@ -3089,7 +3190,8 @@ function bindLibraryScrollFallback() {
   const onScroll = () => {
     maybeLoadMoreLibraryBooks();
   };
-  window.addEventListener("scroll", onScroll, { passive: true });
+  if (refs.libraryListScroll) refs.libraryListScroll.addEventListener("scroll", onScroll, { passive: true });
+  else window.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("resize", onScroll);
   state.libraryScrollFallbackBound = true;
 }
@@ -3107,8 +3209,8 @@ function ensureLibraryLoadObserver() {
       loadNextLibraryPage().catch(() => {});
     }
   }, {
-    root: null,
-    rootMargin: "1400px 0px",
+    root: refs.libraryListScroll || null,
+    rootMargin: "1200px 0px",
     threshold: 0.01,
   });
   state.libraryLoadObserver.observe(refs.libraryLoadMoreSentinel);
@@ -3127,7 +3229,7 @@ function createLibraryCardObserver(renderToken) {
       queueLibraryCardHydration(entry.target, renderToken);
     }
   }, {
-    root: null,
+    root: refs.libraryListScroll || null,
     rootMargin: "520px 0px",
     threshold: 0.01,
   });
@@ -3281,9 +3383,10 @@ function populateLibraryBookCard(card, book) {
 
   const cover = document.createElement("div");
   cover.className = "book-card-cover";
+  const displayTitle = getLibraryBookTitleText(book);
   appendCoverMedia(cover, {
     coverUrl: book.cover_url,
-    title: book.title_display || book.title || "",
+    title: String((book && (book.title_vi || book.title_display || book.title)) || "").trim(),
     author: book.author_display || book.author || "",
     tag: buildSourceLabel(book),
   });
@@ -3291,7 +3394,7 @@ function populateLibraryBookCard(card, book) {
   const body = document.createElement("div");
   const title = document.createElement("div");
   title.className = "book-card-title";
-  setOverflowMarqueeText(title, normalizeDisplayTitle(book.title_display || book.title || "Không tiêu đề"));
+  setOverflowMarqueeText(title, displayTitle);
 
   const author = document.createElement("div");
   author.className = "book-card-meta";
@@ -3310,7 +3413,13 @@ function populateLibraryBookCard(card, book) {
 
   const ch = document.createElement("div");
   ch.className = "book-card-chapter";
-  ch.textContent = normalizeDisplayTitle(book.current_chapter_title_display || book.current_chapter_title || "Chương 1");
+  ch.textContent = normalizeDisplayTitle(
+    book.current_chapter_title_display
+      || book.current_chapter_title_vi
+      || book.current_chapter_title_raw
+      || book.current_chapter_title
+      || "Chương 1",
+  );
 
   const pct = document.createElement("div");
   pct.className = "book-card-percent";
@@ -4085,38 +4194,16 @@ function buildLibraryBooksApiPath({ offset = 0, limit = state.libraryPageSize } 
   const excludeIds = normalizeCategoryIds(state.selectedExcludedCategoryIds);
   const matchMode = normalizeCategoryMatchMode(state.selectedCategoryMatchMode);
   const author = normalizeAuthorFilterValue(state.selectedAuthorFilter);
-  const search = normalizeLibrarySearchValue(state.librarySearchQuery);
   if (ids.length) params.set("category_ids", ids.join(","));
   if (excludeIds.length) params.set("category_exclude_ids", excludeIds.join(","));
   if (ids.length > 1 && matchMode === "and") params.set("category_mode", "and");
   if (author) params.set("author", author);
-  if (search) params.set("q", search);
   return `/api/library/books?${params.toString()}`;
-}
-
-function applyLibrarySearchNow() {
-  const next = normalizeLibrarySearchValue((refs.librarySearchInput && refs.librarySearchInput.value) || "");
-  if (next === state.librarySearchQuery) return;
-  state.librarySearchQuery = next;
-  syncLibraryQuery();
-  reloadLibraryBooks({ silent: true }).catch((error) => {
-    state.shell.showToast(getErrorMessage(error));
-  });
-}
-
-function scheduleLibrarySearchApply() {
-  if (state.librarySearchTimer) {
-    window.clearTimeout(state.librarySearchTimer);
-    state.librarySearchTimer = 0;
-  }
-  state.librarySearchTimer = window.setTimeout(() => {
-    state.librarySearchTimer = 0;
-    applyLibrarySearchNow();
-  }, 260);
 }
 
 function resetLibraryPaginationState() {
   clearLibraryCardRefreshQueue();
+  clearLibraryTitleCacheState();
   state.books = [];
   state.libraryTotalCount = 0;
   state.libraryHasMore = false;
@@ -4169,6 +4256,10 @@ async function loadLibraryBooksPage({ reset = false, silent = false } = {}) {
         : ((state.books || []).length || 0),
     ));
     renderBooks({ append: !reset, appendedItems: reset ? [] : appendedItems });
+    const visibleIds = reset
+      ? (state.books || []).map((item) => item && item.book_id)
+      : (appendedItems || []).map((item) => item && item.book_id);
+    ensureLibraryTitleCacheForBookIds(visibleIds).catch(() => {});
   } catch (error) {
     if (requestSeq !== state.libraryLoadRequestSeq) return;
     if (reset) {
@@ -5551,15 +5642,9 @@ async function init() {
   state.selectedCategoryMatchMode = parseLibraryCategoryMatchModeFromQuery();
   state.selectedAuthorFilter = parseLibraryAuthorFromQuery();
   state.authorFilterDraft = state.selectedAuthorFilter;
-  state.librarySearchQuery = parseLibrarySearchFromQuery();
 
   refs.historyTitle.textContent = state.shell.t("historyTitle");
   refs.libraryTitle.textContent = state.shell.t("libraryTitle");
-  if (refs.librarySearchLabel) refs.librarySearchLabel.textContent = state.shell.t("librarySearchLabel");
-  if (refs.librarySearchInput) {
-    refs.librarySearchInput.placeholder = state.shell.t("librarySearchPlaceholder");
-    refs.librarySearchInput.value = state.librarySearchQuery;
-  }
   if (refs.libraryFilterLabel) refs.libraryFilterLabel.textContent = state.shell.t("categoryFilterButton");
   if (refs.btnManageCategories) refs.btnManageCategories.textContent = state.shell.t("categoryManageButton");
 
@@ -5658,15 +5743,6 @@ async function init() {
       state.shell.showToast(getErrorMessage(error));
     });
   });
-  if (refs.librarySearchInput) {
-    refs.librarySearchInput.addEventListener("input", scheduleLibrarySearchApply);
-    refs.librarySearchInput.addEventListener("search", applyLibrarySearchNow);
-    refs.librarySearchInput.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
-      applyLibrarySearchNow();
-    });
-  }
   if (refs.btnCloseLibraryCategoryFilter) refs.btnCloseLibraryCategoryFilter.addEventListener("click", () => {
     if (refs.libraryCategoryFilterDialog && refs.libraryCategoryFilterDialog.open) refs.libraryCategoryFilterDialog.close();
   });
@@ -6001,15 +6077,18 @@ async function init() {
     state.translationEnabled = enabled;
     state.translationMode = mode;
     state.translationLocalSig = localSig;
+    clearLibraryTitleCacheState();
     reloadLibraryBooks({ silent: true }).catch(() => {});
   });
 
   window.addEventListener("reader-cache-changed", () => {
+    clearLibraryTitleCacheState();
     reloadLibraryBooks({ silent: true }).catch(() => {});
     loadDownloadJobs({ syncLibrary: false }).catch(() => {});
   });
 
   window.addEventListener("beforeunload", () => {
+    clearLibraryTitleCacheState();
     clearDownloadWatcher();
     clearExportWatcher();
   });

@@ -4,6 +4,8 @@ import mimetypes
 from pathlib import Path
 from typing import Any
 
+from .storage_library import build_book_search_text, build_chapter_search_text
+
 
 def create_book(
     storage,
@@ -36,6 +38,7 @@ def create_book(
                 idx,
                 chapter_title,
                 None,
+                build_chapter_search_text(title_raw=chapter_title, title_vi=""),
                 raw_key,
                 None,
                 None,
@@ -49,8 +52,8 @@ def create_book(
             """
             INSERT INTO books(
                 book_id, title, title_vi, author, author_vi, lang_source, source_type, source_file_path,
-                cover_path, extra_link, created_at, updated_at, chapter_count, summary
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                cover_path, extra_link, created_at, updated_at, chapter_count, summary, search_text
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 book_id,
@@ -67,14 +70,20 @@ def create_book(
                 created_at,
                 len(chapter_rows),
                 summary,
+                build_book_search_text(
+                    title=title.strip() or "Untitled",
+                    title_vi=title.strip() if lang_source == "vi" else None,
+                    author=author.strip(),
+                    author_vi=author.strip() if lang_source == "vi" else None,
+                ),
             ),
         )
         conn.executemany(
             """
             INSERT INTO chapters(
-                chapter_id, book_id, chapter_order, title_raw, title_vi,
+                chapter_id, book_id, chapter_order, title_raw, title_vi, search_text,
                 raw_key, trans_key, trans_sig, updated_at, word_count
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             chapter_rows,
         )
@@ -115,6 +124,7 @@ def create_book_remote(
                 idx,
                 chapter_title,
                 None,
+                build_chapter_search_text(title_raw=chapter_title, title_vi=""),
                 raw_key,
                 None,
                 None,
@@ -131,8 +141,8 @@ def create_book_remote(
             INSERT INTO books(
                 book_id, title, title_vi, author, author_vi, lang_source, source_type, source_file_path,
                 source_url, source_plugin,
-                cover_path, cover_remote_url, cover_locked, extra_link, created_at, updated_at, chapter_count, summary
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                cover_path, cover_remote_url, cover_locked, extra_link, created_at, updated_at, chapter_count, summary, search_text
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 book_id,
@@ -153,14 +163,20 @@ def create_book_remote(
                 created_at,
                 len(chapter_rows),
                 summary,
+                build_book_search_text(
+                    title=title.strip() or "Untitled",
+                    title_vi=title.strip() if lang_source == "vi" else None,
+                    author=author.strip(),
+                    author_vi=author.strip() if lang_source == "vi" else None,
+                ),
             ),
         )
         conn.executemany(
             """
             INSERT INTO chapters(
-                chapter_id, book_id, chapter_order, title_raw, title_vi,
+                chapter_id, book_id, chapter_order, title_raw, title_vi, search_text,
                 raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             chapter_rows,
         )
@@ -519,6 +535,7 @@ def sync_remote_book_toc(
                 chapter_order,
                 title_raw,
                 None,
+                build_chapter_search_text(title_raw=title_raw, title_vi=""),
                 raw_key,
                 None,
                 None,
@@ -581,12 +598,14 @@ def sync_remote_book_toc(
             conn.executemany(
                 """
                 INSERT INTO chapters(
-                    chapter_id, book_id, chapter_order, title_raw, title_vi,
+                    chapter_id, book_id, chapter_order, title_raw, title_vi, search_text,
                     raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 inserts,
             )
+        if updates or inserts or removed_ids:
+            storage.sync_chapter_search_texts(book_ids=[bid], conn=conn)
         last_read_id = str(book.get("last_read_chapter_id") or "").strip()
         keep_last_read = bool(last_read_id and last_read_id in set(kept_ids))
         if keep_last_read:

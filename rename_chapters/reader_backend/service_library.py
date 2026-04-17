@@ -419,6 +419,35 @@ def list_books(
     )
 
 
+def list_books_by_ids(
+    service,
+    book_ids: list[str] | tuple[str, ...] | set[str],
+    *,
+    is_book_comic,
+    is_lang_zh,
+    normalize_lang_source,
+    book_supports_translation,
+    normalize_vbook_display_text,
+    normalize_vi_display_text,
+) -> list[dict[str, Any]]:
+    items = service.storage.list_books_by_ids(
+        book_ids,
+        normalize_vi_display_text=normalize_vi_display_text,
+        normalize_lang_source=normalize_lang_source,
+        book_supports_translation=book_supports_translation,
+        is_book_comic=is_book_comic,
+    )
+    return _apply_book_card_translation_batch(
+        service,
+        items,
+        is_book_comic=is_book_comic,
+        is_lang_zh=is_lang_zh,
+        normalize_vbook_display_text=normalize_vbook_display_text,
+        normalize_vi_display_text=normalize_vi_display_text,
+        allow_live_translation=False,
+    )
+
+
 def list_books_paged(
     service,
     *,

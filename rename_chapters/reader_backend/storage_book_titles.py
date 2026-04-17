@@ -23,6 +23,8 @@ def translate_book_titles(
 
     now = utc_now_iso()
     can_translate = bool(book_supports_translation(book))
+    chapter_ids_updated: list[str] = []
+    book_updated = False
     with storage._connect() as conn:
         raw_author = (book.get("author") or "").strip()
         vi_author = (book.get("author_vi") or "").strip()
@@ -32,6 +34,7 @@ def translate_book_titles(
                 "UPDATE books SET author_vi = ?, updated_at = ? WHERE book_id = ?",
                 (author_display, now, book_id),
             )
+            book_updated = True
 
         if can_translate:
             raw_title = (book.get("title") or "").strip()
@@ -52,6 +55,7 @@ def translate_book_titles(
                     "UPDATE books SET title_vi = ?, updated_at = ? WHERE book_id = ?",
                     (vi_title, now, book_id),
                 )
+                book_updated = True
 
         rows = conn.execute(
             "SELECT chapter_id, title_raw, title_vi FROM chapters WHERE book_id = ? ORDER BY chapter_order",
@@ -78,6 +82,11 @@ def translate_book_titles(
                     "UPDATE chapters SET title_vi = ?, updated_at = ? WHERE chapter_id = ?",
                     (translated, now, row["chapter_id"]),
                 )
+                chapter_ids_updated.append(str(row["chapter_id"] or "").strip())
+        if book_updated:
+            storage.sync_book_search_texts([book_id], conn=conn)
+        if chapter_ids_updated:
+            storage.sync_chapter_search_texts(chapter_ids=chapter_ids_updated, conn=conn)
 
 
 def comic_raw_cache_complete(
