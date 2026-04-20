@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260420-updatepopup3">
+  <link rel="stylesheet" href="./styles.css?v=20260420-bookvolume1">
 </head>
 
 <body data-page="book" class="mpa-body">
@@ -198,6 +198,12 @@
         </div>
       </div>
       <div id="toc-skeleton" class="toc-skeleton-wrap hidden" aria-hidden="true"></div>
+      <div id="toc-volume-wrap" class="toc-volume-wrap hidden">
+        <label class="toc-volume-field" for="toc-volume-select">
+          <span id="toc-volume-label">Quyển</span>
+          <select id="toc-volume-select" class="toc-volume-select" aria-label="Chọn quyển"></select>
+        </label>
+      </div>
       <ul id="toc-list" class="simple-list"></ul>
       <div class="toc-footer">
         <button id="btn-toc-prev" class="btn btn-small" type="button"></button>
@@ -610,7 +616,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/book_page.js?v=20260420-updatepopup3"></script>
+  <script type="module" src="./js/pages/book_page.js?v=20260420-bookvolume1"></script>
 </body>
 
 </html>

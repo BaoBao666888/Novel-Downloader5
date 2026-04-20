@@ -310,6 +310,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
         page = int((query.get("page", ["1"])[0] or "1"))
         page_size = int((query.get("page_size", ["120"])[0] or "120"))
+        volume_id = (query.get("volume_id", [""])[0] or "").strip()
         mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
         if mode not in ("raw", "trans"):
             mode = "raw"
@@ -322,6 +323,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             book_id,
             page=page,
             page_size=page_size,
+            volume_id=volume_id,
             mode=mode,
             translator=service.translator,
             translate_mode=translate_mode,
@@ -343,6 +345,24 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                     vp_set_override=active_vp_set,
                 )
                 for idx, row in enumerate(rows):
+                    if not isinstance(row, dict):
+                        continue
+                    translated = translated_titles[idx] if idx < len(translated_titles) else ""
+                    row["title_display"] = translated or str(row.get("title_vi") or row.get("title_raw") or "")
+            volume_rows = data.get("volumes")
+            if isinstance(volume_rows, list) and volume_rows:
+                raw_titles = [
+                    deps.normalize_vbook_display_text(str((row or {}).get("title_raw") or ""), single_line=True)
+                    for row in volume_rows
+                ]
+                translated_titles = service._translate_ui_texts_batch(
+                    raw_titles,
+                    single_line=True,
+                    mode=translate_mode,
+                    name_set_override=active_name_set,
+                    vp_set_override=active_vp_set,
+                )
+                for idx, row in enumerate(volume_rows):
                     if not isinstance(row, dict):
                         continue
                     translated = translated_titles[idx] if idx < len(translated_titles) else ""
@@ -413,6 +433,19 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         except LookupError as exc:
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", str(exc)) from exc
         return {"ok": True, "book_id": book_id, "categories": categories}
+
+    if method == "GET" and path.startswith("/api/library/book/") and path.endswith("/change-history"):
+        book_id = path.removeprefix("/api/library/book/").removesuffix("/change-history").strip("/")
+        if not book_id:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+        if not storage.find_book(book_id):
+            raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+        limit = int((query.get("limit", ["200"])[0] or "200"))
+        return {
+            "ok": True,
+            "book_id": book_id,
+            "items": storage.list_book_change_events(book_id, limit=limit),
+        }
 
     if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/name-filter/preview"):
         book_id = path.removeprefix("/api/library/book/").removesuffix("/name-filter/preview").strip("/")

@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260420-updatepopup3";
+import { initShell } from "../site_common.js?v=20260420-bookvolume1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -46,6 +46,9 @@ const refs = {
   btnTranslateTitles: document.getElementById("btn-translate-titles"),
   btnRefreshBookToc: document.getElementById("btn-refresh-book-toc"),
   tocSkeleton: document.getElementById("toc-skeleton"),
+  tocVolumeWrap: document.getElementById("toc-volume-wrap"),
+  tocVolumeLabel: document.getElementById("toc-volume-label"),
+  tocVolumeSelect: document.getElementById("toc-volume-select"),
   tocList: document.getElementById("toc-list"),
   btnTocPrev: document.getElementById("btn-toc-prev"),
   tocPageSelect: document.getElementById("toc-page-select"),
@@ -205,11 +208,13 @@ const state = {
   translateMode: "server",
   pagination: {
     page: 1,
-    page_size: 40,
+    page_size: 501,
     total_pages: 1,
     total_items: 0,
   },
   tocItems: [],
+  tocVolumes: [],
+  selectedTocVolumeId: "",
   bookNameSets: { "Mặc định": {} },
   bookActiveNameSet: "Mặc định",
   bookNameFilterResults: [],
@@ -242,6 +247,9 @@ const CATEGORY_SECTION_USER_KEY = "user_custom";
 const CATEGORY_SECTION_REMOVED_KEY = "removed_default";
 const CATEGORY_SECTION_USER_ORDER = 1000;
 const CATEGORY_SECTION_REMOVED_ORDER = 1100;
+const TOC_PHONE_MEDIA_QUERY = "(max-width: 760px)";
+const TOC_PAGE_SIZE_PHONE = 100;
+const TOC_PAGE_SIZE_DESKTOP = 501;
 
 const TOC_ICON_MARKUP = Object.freeze({
   download: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 11 4 4 4-4"></path><path d="M4 18h16"></path></svg>',
@@ -293,6 +301,29 @@ function supportsRawTextReplace(book) {
   if (Boolean(book.is_comic)) return false;
   const sourceType = String(book.source_type || "").toLowerCase();
   return sourceType !== "vbook_comic" && sourceType !== "comic";
+}
+
+function resolveTocPageSize() {
+  try {
+    return window.matchMedia(TOC_PHONE_MEDIA_QUERY).matches ? TOC_PAGE_SIZE_PHONE : TOC_PAGE_SIZE_DESKTOP;
+  } catch {
+    return TOC_PAGE_SIZE_DESKTOP;
+  }
+}
+
+function syncTocPageSize() {
+  const nextPageSize = resolveTocPageSize();
+  const changed = Number(state.pagination.page_size || 0) !== nextPageSize;
+  if (changed) {
+    state.pagination = { ...state.pagination, page_size: nextPageSize };
+  }
+  return changed;
+}
+
+function buildTocVolumeLabel(volume) {
+  const title = normalizeDisplayTitle(String((volume && (volume.title_display || volume.title_vi || volume.title_raw)) || "").trim());
+  const count = Math.max(0, Number(volume && volume.chapter_count || 0));
+  return count > 0 ? `${title} (${count})` : title;
 }
 
 function parseBooleanLike(value) {
@@ -1152,10 +1183,12 @@ function populateBook() {
 }
 
 function renderToc() {
+  renderTocVolumeSelect();
   refs.tocList.innerHTML = "";
   if (!state.tocItems.length) {
     const li = document.createElement("li");
     li.className = "empty-text";
+    li.style.gridColumn = "1 / -1";
     li.textContent = state.shell.t("tocNoData");
     refs.tocList.appendChild(li);
   }
@@ -1217,6 +1250,25 @@ function renderToc() {
   showTocSkeleton(false);
 }
 
+function renderTocVolumeSelect() {
+  if (!refs.tocVolumeWrap || !refs.tocVolumeSelect) return;
+  const volumes = Array.isArray(state.tocVolumes) ? state.tocVolumes : [];
+  refs.tocVolumeSelect.innerHTML = "";
+  if (volumes.length <= 1) {
+    refs.tocVolumeWrap.classList.add("hidden");
+    return;
+  }
+  refs.tocVolumeWrap.classList.remove("hidden");
+  for (const volume of volumes) {
+    const option = document.createElement("option");
+    option.value = String((volume && volume.volume_id) || "").trim();
+    option.textContent = buildTocVolumeLabel(volume);
+    refs.tocVolumeSelect.appendChild(option);
+  }
+  const activeVolumeId = String(state.selectedTocVolumeId || volumes[0].volume_id || "").trim();
+  refs.tocVolumeSelect.value = activeVolumeId;
+}
+
 function buildTocPageLabel(page, pagination = state.pagination) {
   const pageSize = Math.max(1, Number((pagination && pagination.page_size) || state.pagination.page_size || 40));
   const totalItems = Math.max(0, Number((pagination && pagination.total_items) || 0));
@@ -1273,13 +1325,24 @@ async function loadToc(page = 1, { silent = false, suppressToast = false, showSk
     showTocSkeleton(false);
     return;
   }
+  syncTocPageSize();
   const shouldShowSkeleton = !silent && showSkeleton;
   if (!silent) state.shell.showStatus(state.shell.t("statusLoadingToc"));
   if (shouldShowSkeleton) showTocSkeleton(true, Math.min(10, Number(state.pagination.page_size || 8) || 8));
   try {
     const mode = effectiveModeForBook(state.book, state.mode);
-    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/chapters?page=${page}&page_size=${state.pagination.page_size}&mode=${mode}&translation_mode=${encodeURIComponent(state.translateMode)}`);
+    const volumeQuery = state.selectedTocVolumeId
+      ? `&volume_id=${encodeURIComponent(state.selectedTocVolumeId)}`
+      : "";
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/chapters?page=${page}&page_size=${state.pagination.page_size}${volumeQuery}&mode=${mode}&translation_mode=${encodeURIComponent(state.translateMode)}`);
     state.tocItems = data.items || [];
+    state.tocVolumes = Array.isArray(data.volumes) ? data.volumes : [];
+    state.selectedTocVolumeId = String(
+      data.active_volume_id
+      || state.selectedTocVolumeId
+      || (state.tocVolumes[0] && state.tocVolumes[0].volume_id)
+      || "",
+    ).trim();
     state.pagination = { ...state.pagination, ...(data.pagination || {}) };
     renderToc();
   } catch (error) {
@@ -1319,6 +1382,15 @@ async function refreshDownloadStateSilent() {
     loadBook({ silent: true, suppressToast: true }),
     loadToc(keepPage, { silent: true, suppressToast: true }),
   ]);
+}
+
+function handleTocViewportChange() {
+  if (!state.bookId || !state.book) {
+    syncTocPageSize();
+    return;
+  }
+  if (!syncTocPageSize()) return;
+  loadToc(1, { silent: true, suppressToast: true, showSkeleton: false }).catch(() => {});
 }
 
 function scheduleDownloadWatcherReconnect() {
@@ -2595,12 +2667,14 @@ async function init() {
   refs.btnTocModeRaw.textContent = state.shell.t("tocModeRaw");
   refs.btnTocModeTrans.textContent = state.shell.t("tocModeTrans");
   refs.btnTranslateTitles.textContent = state.shell.t("translateTitles");
+  if (refs.tocVolumeLabel) refs.tocVolumeLabel.textContent = "Quyển";
   refs.btnTocPrev.textContent = state.shell.t("tocPrev");
   refs.btnTocNext.textContent = state.shell.t("tocNext");
   if (refs.tocPageSelect) {
     refs.tocPageSelect.title = state.shell.t("tocJumpPage");
     refs.tocPageSelect.setAttribute("aria-label", state.shell.t("tocJumpPage"));
   }
+  if (refs.tocVolumeSelect) refs.tocVolumeSelect.setAttribute("aria-label", "Chọn quyển");
   if (refs.btnRefreshBookToc) {
     setTocIcon(refs.btnRefreshBookToc, "refresh");
     refs.btnRefreshBookToc.title = state.shell.t("checkBookUpdates");
@@ -2971,6 +3045,14 @@ async function init() {
       loadToc(nextPage);
     });
   }
+  if (refs.tocVolumeSelect) {
+    refs.tocVolumeSelect.addEventListener("change", () => {
+      const nextVolumeId = String(refs.tocVolumeSelect.value || "").trim();
+      if (nextVolumeId === String(state.selectedTocVolumeId || "").trim()) return;
+      state.selectedTocVolumeId = nextVolumeId;
+      loadToc(1);
+    });
+  }
   refs.btnTocNext.addEventListener("click", () => {
     if (state.pagination.page < state.pagination.total_pages) loadToc(state.pagination.page + 1);
   });
@@ -3012,9 +3094,12 @@ async function init() {
   window.addEventListener("beforeunload", () => {
     clearDownloadWatcher();
   });
+  window.addEventListener("resize", handleTocViewportChange);
+  window.addEventListener("orientationchange", handleTocViewportChange);
 
   const query = state.shell.parseQuery();
   state.translationLocalSig = localTranslationSettingsSignature(state.shell);
+  syncTocPageSize();
   state.bookId = (query.book_id || "").trim();
   state.translationSupportedHint = parseBooleanLike(query.translation_supported);
   state.isComicHint = parseBooleanLike(query.is_comic);

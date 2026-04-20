@@ -2388,6 +2388,31 @@ p {
   align-items: center;
 }
 
+.toc-volume-wrap {
+  padding: 0 12px 12px;
+}
+
+.toc-volume-field {
+  display: grid;
+  gap: 6px;
+  max-width: min(360px, 100%);
+}
+
+.toc-volume-field > span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.toc-volume-select {
+  width: 100%;
+}
+
+.toc-panel #toc-list.simple-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
+}
+
 .toc-footer {
   border-top: 1px solid var(--line);
   border-bottom: 0;
@@ -5049,6 +5074,14 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   .reader-actions,
   .toc-head-actions {
     justify-content: flex-start;
+  }
+
+  .toc-panel #toc-list.simple-list {
+    grid-template-columns: 1fr;
+  }
+
+  .toc-volume-field {
+    max-width: 100%;
   }
 
   .library-grid {

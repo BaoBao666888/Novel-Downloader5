@@ -4,7 +4,13 @@ import mimetypes
 from pathlib import Path
 from typing import Any
 
-from .storage_library import build_book_search_text, build_chapter_search_text
+from .storage_library import (
+    build_book_search_text,
+    build_chapter_search_text,
+    build_default_book_volume_id,
+    ensure_default_book_volume,
+)
+from .storage_book_change import append_book_change_event
 
 
 def create_book(
@@ -23,6 +29,7 @@ def create_book(
     created_at = utc_now_iso()
     book_seed = f"{title}|{author}|{created_at}|{source_type}"
     book_id = f"bk_{hash_text(book_seed)}"
+    default_volume_id = build_default_book_volume_id(book_id, hash_text=hash_text)
 
     chapter_rows: list[tuple[Any, ...]] = []
     for idx, ch in enumerate(chapters, start=1):
@@ -36,6 +43,7 @@ def create_book(
                 chapter_id,
                 book_id,
                 idx,
+                default_volume_id,
                 chapter_title,
                 None,
                 build_chapter_search_text(title_raw=chapter_title, title_vi=""),
@@ -78,14 +86,36 @@ def create_book(
                 ),
             ),
         )
+        ensure_default_book_volume(
+            storage,
+            book_id,
+            conn=conn,
+            hash_text=hash_text,
+            utc_now_iso=utc_now_iso,
+        )
         conn.executemany(
             """
             INSERT INTO chapters(
-                chapter_id, book_id, chapter_order, title_raw, title_vi, search_text,
+                chapter_id, book_id, chapter_order, volume_id, title_raw, title_vi, search_text,
                 raw_key, trans_key, trans_sig, updated_at, word_count
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             chapter_rows,
+        )
+        append_book_change_event(
+            storage,
+            book_id=book_id,
+            event_type="book_created",
+            event_scope="book",
+            payload={
+                "source_mode": "file",
+                "source_type": str(source_type or "").strip() or "txt",
+                "chapter_count": int(len(chapter_rows)),
+                "source_file_path": str(source_file_path or "").strip(),
+            },
+            conn=conn,
+            hash_text=hash_text,
+            utc_now_iso=utc_now_iso,
         )
 
     return storage.get_book_detail(book_id)
@@ -110,6 +140,7 @@ def create_book_remote(
     created_at = utc_now_iso()
     book_seed = f"{title}|{author}|{created_at}|{source_type}|{source_url}|{source_plugin}"
     book_id = f"bk_{hash_text(book_seed)}"
+    default_volume_id = build_default_book_volume_id(book_id, hash_text=hash_text)
 
     chapter_rows: list[tuple[Any, ...]] = []
     for idx, ch in enumerate(chapters or [], start=1):
@@ -122,6 +153,7 @@ def create_book_remote(
                 chapter_id,
                 book_id,
                 idx,
+                default_volume_id,
                 chapter_title,
                 None,
                 build_chapter_search_text(title_raw=chapter_title, title_vi=""),
@@ -171,14 +203,37 @@ def create_book_remote(
                 ),
             ),
         )
+        ensure_default_book_volume(
+            storage,
+            book_id,
+            conn=conn,
+            hash_text=hash_text,
+            utc_now_iso=utc_now_iso,
+        )
         conn.executemany(
             """
             INSERT INTO chapters(
-                chapter_id, book_id, chapter_order, title_raw, title_vi, search_text,
+                chapter_id, book_id, chapter_order, volume_id, title_raw, title_vi, search_text,
                 raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             chapter_rows,
+        )
+        append_book_change_event(
+            storage,
+            book_id=book_id,
+            event_type="book_created",
+            event_scope="book",
+            payload={
+                "source_mode": "link",
+                "source_type": str(source_type or "").strip() or "vbook",
+                "chapter_count": int(len(chapter_rows)),
+                "source_url": str(source_url or "").strip(),
+                "source_plugin": str(source_plugin or "").strip(),
+            },
+            conn=conn,
+            hash_text=hash_text,
+            utc_now_iso=utc_now_iso,
         )
 
     return storage.get_book_detail(book_id) or {"book_id": book_id}
@@ -504,6 +559,7 @@ def sync_remote_book_toc(
     renamed = 0
     reordered = 0
     now = utc_now_iso()
+    default_volume_id = build_default_book_volume_id(bid, hash_text=hash_text)
 
     for row in normalized_rows:
         remote_url = str(row.get("remote_url") or "").strip()
@@ -516,12 +572,13 @@ def sync_remote_book_toc(
             old_title = normalize_vbook_display_text(str(old_row.get("title_raw") or ""), single_line=True)
             old_order = int(old_row.get("chapter_order") or 0)
             title_vi = old_row.get("title_vi")
+            volume_id = str(old_row.get("volume_id") or "").strip() or default_volume_id
             if old_title != title_raw:
                 renamed += 1
                 title_vi = None
             if old_order != chapter_order:
                 reordered += 1
-            updates.append((chapter_order, title_raw, title_vi, is_vip, now, chapter_id))
+            updates.append((chapter_order, title_raw, title_vi, volume_id, is_vip, now, chapter_id))
             kept_ids.append(chapter_id)
             continue
 
@@ -533,6 +590,7 @@ def sync_remote_book_toc(
                 chapter_id,
                 bid,
                 chapter_order,
+                default_volume_id,
                 title_raw,
                 None,
                 build_chapter_search_text(title_raw=title_raw, title_vi=""),
@@ -575,6 +633,13 @@ def sync_remote_book_toc(
     }
 
     with storage._connect() as conn:
+        ensure_default_book_volume(
+            storage,
+            bid,
+            conn=conn,
+            hash_text=hash_text,
+            utc_now_iso=utc_now_iso,
+        )
         if removed_ids:
             placeholders = ",".join("?" for _ in removed_ids)
             conn.execute(
@@ -589,7 +654,7 @@ def sync_remote_book_toc(
             conn.executemany(
                 """
                 UPDATE chapters
-                SET chapter_order = ?, title_raw = ?, title_vi = ?, is_vip = ?, updated_at = ?
+                SET chapter_order = ?, title_raw = ?, title_vi = ?, volume_id = ?, is_vip = ?, updated_at = ?
                 WHERE chapter_id = ?
                 """,
                 updates,
@@ -598,9 +663,9 @@ def sync_remote_book_toc(
             conn.executemany(
                 """
                 INSERT INTO chapters(
-                    chapter_id, book_id, chapter_order, title_raw, title_vi, search_text,
+                    chapter_id, book_id, chapter_order, volume_id, title_raw, title_vi, search_text,
                     raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 inserts,
             )
@@ -623,6 +688,24 @@ def sync_remote_book_toc(
                 """,
                 (len(normalized_rows), now, fallback_last_read, 0.0, bid),
             )
+        append_book_change_event(
+            storage,
+            book_id=bid,
+            event_type="source_toc_sync",
+            event_scope="volume_default",
+            payload={
+                "sync_scope": "default_volume",
+                "source_mode": "link",
+                "added": int(added),
+                "removed": int(len(removed_rows)),
+                "renamed": int(renamed),
+                "reordered": int(reordered),
+                "chapter_count": int(len(normalized_rows)),
+            },
+            conn=conn,
+            hash_text=hash_text,
+            utc_now_iso=utc_now_iso,
+        )
 
     return {
         "ok": True,

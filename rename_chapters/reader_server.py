@@ -58,6 +58,7 @@ from reader_backend import service_name_filter as service_name_filter_support
 from reader_backend import service_user_state as service_user_state_support
 from reader_backend import storage_book_cleanup as storage_book_cleanup_support
 from reader_backend import storage_book_categories as storage_book_categories_support
+from reader_backend import storage_book_change as storage_book_change_support
 from reader_backend import storage_history as storage_history_support
 from reader_backend import storage_book_mutation as storage_book_mutation_support
 from reader_backend import storage_book_titles as storage_book_titles_support
@@ -166,6 +167,7 @@ COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 HISTORY_BOOK_RETENTION_DAYS = 7
 EXPORT_JOB_RETENTION_DAYS = 7
 IMPORT_JOB_SNAPSHOT_RETENTION_DAYS = 14
+BOOK_SUPPLEMENT_RETENTION_DAYS = 30
 NOTIFICATION_RETENTION_DAYS = notification_center_support.NOTIFICATION_RETENTION_DAYS
 NAME_FILTER_JOB_RETENTION_SECONDS = 1800
 VBOOK_RUNNER_INSTALL_URL = str(_LOCAL_VBOOK_RUNNER_INSTALL_URL or "").strip()
@@ -4294,10 +4296,32 @@ class ReaderStorage:
                     search_text TEXT DEFAULT ''
                 );
 
+                CREATE TABLE IF NOT EXISTS book_volumes (
+                    volume_id TEXT PRIMARY KEY,
+                    book_id TEXT NOT NULL,
+                    volume_order INTEGER NOT NULL,
+                    volume_kind TEXT NOT NULL DEFAULT 'default',
+                    title_raw TEXT NOT NULL,
+                    title_vi TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    deleted_at TEXT DEFAULT '',
+                    delete_expire_at TEXT DEFAULT '',
+                    FOREIGN KEY(book_id) REFERENCES books(book_id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_book_volumes_book_order
+                ON book_volumes(book_id, volume_order, created_at, volume_id);
+
                 CREATE TABLE IF NOT EXISTS chapters (
                     chapter_id TEXT PRIMARY KEY,
                     book_id TEXT NOT NULL,
                     chapter_order INTEGER NOT NULL,
+                    volume_id TEXT DEFAULT '',
+                    origin_type TEXT DEFAULT 'base',
+                    supplement_batch_id TEXT DEFAULT '',
+                    supplement_stack_order INTEGER NOT NULL DEFAULT 0,
+                    supplement_note TEXT DEFAULT '',
                     title_raw TEXT NOT NULL,
                     title_vi TEXT,
                     raw_key TEXT NOT NULL,
@@ -4306,10 +4330,35 @@ class ReaderStorage:
                     updated_at TEXT NOT NULL,
                     word_count INTEGER NOT NULL DEFAULT 0,
                     search_text TEXT DEFAULT '',
+                    deleted_at TEXT DEFAULT '',
+                    delete_expire_at TEXT DEFAULT '',
                     FOREIGN KEY(book_id) REFERENCES books(book_id) ON DELETE CASCADE
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_chapters_book_order ON chapters(book_id, chapter_order);
+
+                CREATE TABLE IF NOT EXISTS book_supplement_batches (
+                    batch_id TEXT PRIMARY KEY,
+                    book_id TEXT NOT NULL,
+                    volume_id TEXT NOT NULL DEFAULT '',
+                    source_kind TEXT NOT NULL DEFAULT 'txt',
+                    file_mode TEXT NOT NULL DEFAULT '',
+                    note TEXT DEFAULT '',
+                    payload_json TEXT DEFAULT '',
+                    stack_order INTEGER NOT NULL DEFAULT 0,
+                    chapter_count INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    deleted_at TEXT DEFAULT '',
+                    delete_expire_at TEXT DEFAULT '',
+                    FOREIGN KEY(book_id) REFERENCES books(book_id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_book_supplement_batches_book
+                ON book_supplement_batches(book_id, created_at DESC, batch_id);
+
+                CREATE INDEX IF NOT EXISTS idx_book_supplement_batches_expire
+                ON book_supplement_batches(delete_expire_at);
 
                 CREATE TABLE IF NOT EXISTS content_cache (
                     cache_key TEXT PRIMARY KEY,
@@ -4400,6 +4449,24 @@ class ReaderStorage:
                 CREATE INDEX IF NOT EXISTS idx_history_books_expire
                 ON history_books(expire_at);
 
+                CREATE TABLE IF NOT EXISTS book_change_history (
+                    event_id TEXT PRIMARY KEY,
+                    book_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    event_scope TEXT DEFAULT '',
+                    ref_id TEXT DEFAULT '',
+                    payload_json TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    expire_at TEXT DEFAULT '',
+                    FOREIGN KEY(book_id) REFERENCES books(book_id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_book_change_history_book
+                ON book_change_history(book_id, created_at DESC, event_id);
+
+                CREATE INDEX IF NOT EXISTS idx_book_change_history_expire
+                ON book_change_history(expire_at);
+
                 CREATE TABLE IF NOT EXISTS book_categories (
                     category_id TEXT PRIMARY KEY,
                     name TEXT NOT NULL COLLATE NOCASE UNIQUE,
@@ -4443,6 +4510,9 @@ class ReaderStorage:
             self._ensure_column(conn, "book_categories", "default_subgroup_order", "INTEGER NOT NULL DEFAULT 999")
             self._ensure_column(conn, "book_categories", "default_item_order", "INTEGER NOT NULL DEFAULT 999999")
             self._ensure_column(conn, "book_categories", "default_source_id", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "book_volumes", "volume_kind", "TEXT NOT NULL DEFAULT 'default'")
+            self._ensure_column(conn, "book_volumes", "deleted_at", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "book_volumes", "delete_expire_at", "TEXT DEFAULT ''")
             conn.execute(
                 """
                 UPDATE book_categories
@@ -4468,6 +4538,47 @@ class ReaderStorage:
             self._ensure_column(conn, "chapters", "search_text", "TEXT DEFAULT ''")
             self._ensure_column(conn, "chapters", "remote_url", "TEXT DEFAULT ''")
             self._ensure_column(conn, "chapters", "is_vip", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(conn, "chapters", "volume_id", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "chapters", "origin_type", "TEXT DEFAULT 'base'")
+            self._ensure_column(conn, "chapters", "supplement_batch_id", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "chapters", "supplement_stack_order", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(conn, "chapters", "supplement_note", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "chapters", "deleted_at", "TEXT DEFAULT ''")
+            self._ensure_column(conn, "chapters", "delete_expire_at", "TEXT DEFAULT ''")
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_chapters_book_volume_order
+                ON chapters(book_id, volume_id, chapter_order)
+                """
+            )
+            conn.execute(
+                """
+                UPDATE book_volumes
+                SET volume_kind = 'default'
+                WHERE trim(COALESCE(volume_kind, '')) = ''
+                """
+            )
+            book_rows = conn.execute("SELECT book_id FROM books ORDER BY created_at ASC, book_id ASC").fetchall()
+            for row in book_rows:
+                book_id = str(row["book_id"] or "").strip()
+                if not book_id:
+                    continue
+                default_volume_id = storage_library_support.ensure_default_book_volume(
+                    self,
+                    book_id,
+                    conn=conn,
+                    hash_text=hash_text,
+                    utc_now_iso=utc_now_iso,
+                )
+                conn.execute(
+                    """
+                    UPDATE chapters
+                    SET volume_id = ?
+                    WHERE book_id = ?
+                      AND trim(COALESCE(volume_id, '')) = ''
+                    """,
+                    (default_volume_id, book_id),
+                )
             cached_search_version = conn.execute(
                 "SELECT value FROM app_state WHERE key = ?",
                 (APP_STATE_SEARCH_CACHE_VERSION_KEY,),
@@ -5315,6 +5426,7 @@ class ReaderStorage:
         *,
         page: int,
         page_size: int,
+        volume_id: str | None = None,
         mode: str,
         translator: TranslationAdapter,
         translate_mode: str,
@@ -5326,6 +5438,7 @@ class ReaderStorage:
             book_id,
             page=page,
             page_size=page_size,
+            volume_id=volume_id,
             mode=mode,
             translator=translator,
             translate_mode=translate_mode,
@@ -5333,13 +5446,14 @@ class ReaderStorage:
             vp_set_override=vp_set_override,
             book_supports_translation=book_supports_translation,
             normalize_vi_display_text=normalize_vi_display_text,
+            deleted_retention_days=BOOK_SUPPLEMENT_RETENTION_DAYS,
         )
 
-    def get_chapter_rows(self, book_id: str) -> list[dict[str, Any]]:
-        return storage_library_support.get_chapter_rows(self, book_id)
+    def get_chapter_rows(self, book_id: str, *, include_deleted: bool = False) -> list[dict[str, Any]]:
+        return storage_library_support.get_chapter_rows(self, book_id, include_deleted=include_deleted)
 
-    def find_chapter(self, chapter_id: str) -> dict[str, Any] | None:
-        return storage_library_support.find_chapter(self, chapter_id)
+    def find_chapter(self, chapter_id: str, *, include_deleted: bool = False) -> dict[str, Any] | None:
+        return storage_library_support.find_chapter(self, chapter_id, include_deleted=include_deleted)
 
     def get_book_download_map(self, book_id: str, chapter_ids: list[str] | None = None) -> dict[str, bool]:
         return storage_library_support.get_book_download_map(self, book_id, chapter_ids)
@@ -5420,6 +5534,7 @@ class ReaderStorage:
             book_supports_translation=book_supports_translation,
             is_book_comic=is_book_comic,
             normalize_vi_display_text=normalize_vi_display_text,
+            deleted_retention_days=BOOK_SUPPLEMENT_RETENTION_DAYS,
         )
 
     def delete_book(
@@ -5467,12 +5582,42 @@ class ReaderStorage:
     def cleanup_expired_history(self) -> int:
         return storage_history_support.cleanup_expired_history(self, utc_now_iso=utc_now_iso)
 
+    def cleanup_expired_book_recycle_bin(self) -> dict[str, int]:
+        return storage_book_change_support.cleanup_expired_book_recycle_bin(self, utc_now_iso=utc_now_iso)
+
     def list_history_books(self) -> list[dict[str, Any]]:
         return storage_history_support.list_history_books(
             self,
             normalize_vbook_display_text=normalize_vbook_display_text,
             build_vbook_image_proxy_path=build_vbook_image_proxy_path,
         )
+
+    def append_book_change_event(
+        self,
+        *,
+        book_id: str,
+        event_type: str,
+        event_scope: str = "",
+        ref_id: str = "",
+        payload: dict[str, Any] | None = None,
+        expire_days: int = 0,
+        conn: sqlite3.Connection | None = None,
+    ) -> str:
+        return storage_book_change_support.append_book_change_event(
+            self,
+            book_id=book_id,
+            event_type=event_type,
+            event_scope=event_scope,
+            ref_id=ref_id,
+            payload=payload,
+            expire_days=expire_days,
+            conn=conn,
+            hash_text=hash_text,
+            utc_now_iso=utc_now_iso,
+        )
+
+    def list_book_change_events(self, book_id: str, *, limit: int = 200) -> list[dict[str, Any]]:
+        return storage_book_change_support.list_book_change_events(self, book_id, limit=limit)
 
     def get_history_book(self, history_id: str) -> dict[str, Any] | None:
         return storage_history_support.get_history_book(self, history_id)
@@ -5672,6 +5817,10 @@ class ReaderService:
         self.refresh_config()
         try:
             self.storage.cleanup_expired_history()
+        except Exception:
+            pass
+        try:
+            self.storage.cleanup_expired_book_recycle_bin()
         except Exception:
             pass
         self._download_lock = threading.RLock()

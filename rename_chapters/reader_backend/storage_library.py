@@ -50,6 +50,175 @@ def build_chapter_search_text(
     return build_search_text(title_raw, title_vi)
 
 
+DEFAULT_BOOK_VOLUME_TITLE = "Mục lục"
+
+
+def normalize_volume_title(value: Any) -> str:
+    text = str(value or "").strip()
+    return text or DEFAULT_BOOK_VOLUME_TITLE
+
+
+def is_remote_library_source(book: dict[str, Any] | None) -> bool:
+    source_type = str((book or {}).get("source_type") or "").strip().lower()
+    return bool(source_type.startswith("vbook"))
+
+
+def build_book_volume_manage_policy(
+    book: dict[str, Any] | None,
+    *,
+    is_default_volume: bool,
+    deleted_retention_days: int = 30,
+) -> dict[str, Any]:
+    is_remote_book = is_remote_library_source(book)
+    can_append = (not is_default_volume) or (not is_remote_book)
+    can_delete = (not is_default_volume) or (not is_remote_book)
+    return {
+        "source_mode": "link" if is_remote_book else "file",
+        "is_remote_book": bool(is_remote_book),
+        "is_default_volume": bool(is_default_volume),
+        "can_rename": True,
+        "can_append": bool(can_append),
+        "can_delete": bool(can_delete),
+        "sync_with_source_toc": bool(is_remote_book and is_default_volume),
+        "deleted_retention_days": max(1, int(deleted_retention_days or 30)),
+    }
+
+
+def build_default_book_volume_id(book_id: str, *, hash_text) -> str:
+    bid = str(book_id or "").strip()
+    return f"vol_{hash_text(f'{bid}|default_toc')}"
+
+
+def ensure_default_book_volume(
+    storage,
+    book_id: str,
+    *,
+    conn: sqlite3.Connection,
+    hash_text,
+    utc_now_iso,
+) -> str:
+    bid = str(book_id or "").strip()
+    if not bid:
+        raise ValueError("Thiếu book_id.")
+    row = conn.execute(
+        """
+        SELECT volume_id
+        FROM book_volumes
+        WHERE book_id = ?
+          AND trim(COALESCE(deleted_at, '')) = ''
+        ORDER BY volume_order ASC, created_at ASC, volume_id ASC
+        LIMIT 1
+        """,
+        (bid,),
+    ).fetchone()
+    if row and str(row["volume_id"] or "").strip():
+        return str(row["volume_id"] or "").strip()
+    now = utc_now_iso()
+    volume_id = build_default_book_volume_id(bid, hash_text=hash_text)
+    conn.execute(
+        """
+        INSERT INTO book_volumes(
+            volume_id, book_id, volume_order, volume_kind, title_raw, title_vi, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(volume_id) DO UPDATE SET
+            volume_kind = excluded.volume_kind,
+            deleted_at = '',
+            delete_expire_at = '',
+            updated_at = excluded.updated_at
+        """,
+        (volume_id, bid, 1, "default", DEFAULT_BOOK_VOLUME_TITLE, DEFAULT_BOOK_VOLUME_TITLE, now, now),
+    )
+    return volume_id
+
+
+def list_book_volumes(
+    storage,
+    book_id: str,
+    *,
+    mode: str,
+    translator,
+    translate_mode: str,
+    name_set_override: dict[str, str] | None = None,
+    vp_set_override: dict[str, str] | None = None,
+    book_supports_translation,
+    normalize_vi_display_text,
+    deleted_retention_days: int = 30,
+) -> list[dict[str, Any]]:
+    bid = str(book_id or "").strip()
+    if not bid:
+        return []
+    book_row = storage.find_book(bid)
+    live_title_mode = translate_mode in {"local", "hanviet", "dichngay_local"}
+    with storage._connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT v.volume_id, v.volume_order, v.volume_kind, v.title_raw, v.title_vi, v.created_at, v.updated_at,
+                   COUNT(c.chapter_id) AS chapter_count,
+                   MIN(c.chapter_order) AS first_chapter_order,
+                   MAX(c.chapter_order) AS last_chapter_order
+            FROM book_volumes v
+            LEFT JOIN chapters c
+              ON c.book_id = v.book_id
+             AND c.volume_id = v.volume_id
+             AND trim(COALESCE(c.deleted_at, '')) = ''
+            WHERE v.book_id = ?
+              AND trim(COALESCE(v.deleted_at, '')) = ''
+            GROUP BY v.volume_id, v.volume_order, v.volume_kind, v.title_raw, v.title_vi, v.created_at, v.updated_at
+            ORDER BY v.volume_order ASC, v.created_at ASC, v.volume_id ASC
+            """,
+            (bid,),
+        ).fetchall()
+    items: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        title_raw = normalize_volume_title(item.get("title_raw") or "")
+        title_vi = normalize_vi_display_text(item.get("title_vi") or "") or title_raw
+        is_default_volume = str(item.get("volume_kind") or "").strip().lower() == "default"
+        if mode == "trans":
+            display_title = title_vi
+            if (
+                live_title_mode
+                and title_raw
+                and (title_raw != DEFAULT_BOOK_VOLUME_TITLE)
+                and book_supports_translation(book_row)
+            ):
+                try:
+                    display_title = normalize_vi_display_text(
+                        translator.translate_detailed(
+                            title_raw,
+                            mode=translate_mode,
+                            name_set_override=name_set_override,
+                            vp_set_override=vp_set_override,
+                        ).get("translated", "")
+                    ) or title_vi or title_raw
+                except Exception:
+                    display_title = title_vi or title_raw
+        else:
+            display_title = title_raw
+        items.append(
+            {
+                "volume_id": str(item.get("volume_id") or "").strip(),
+                "volume_order": int(item.get("volume_order") or 0),
+                "volume_kind": str(item.get("volume_kind") or "").strip().lower() or ("default" if is_default_volume else "supplement"),
+                "is_default_volume": bool(is_default_volume),
+                "title_raw": title_raw,
+                "title_vi": title_vi,
+                "title_display": display_title or title_raw,
+                "chapter_count": int(item.get("chapter_count") or 0),
+                "first_chapter_order": int(item.get("first_chapter_order") or 0),
+                "last_chapter_order": int(item.get("last_chapter_order") or 0),
+                "created_at": str(item.get("created_at") or ""),
+                "updated_at": str(item.get("updated_at") or ""),
+                "policy": build_book_volume_manage_policy(
+                    book_row,
+                    is_default_volume=is_default_volume,
+                    deleted_retention_days=deleted_retention_days,
+                ),
+            }
+        )
+    return items
+
+
 def _normalize_row_ids(values: list[str] | tuple[str, ...] | set[str] | None) -> list[str]:
     output: list[str] = []
     seen: set[str] = set()
@@ -681,6 +850,7 @@ def list_chapters_paged(
     *,
     page: int,
     page_size: int,
+    volume_id: str | None = None,
     mode: str,
     translator,
     translate_mode: str,
@@ -688,26 +858,55 @@ def list_chapters_paged(
     vp_set_override: dict[str, str] | None = None,
     book_supports_translation,
     normalize_vi_display_text,
+    deleted_retention_days: int = 30,
 ) -> dict[str, Any]:
     page = max(1, int(page))
-    page_size = max(1, min(200, int(page_size)))
+    page_size = max(1, min(600, int(page_size)))
     live_title_mode = translate_mode in {"local", "hanviet", "dichngay_local"}
 
     book_row = storage.find_book(book_id)
+    requested_volume_id = str(volume_id or "").strip()
+    volumes = list_book_volumes(
+        storage,
+        book_id,
+        mode=mode,
+        translator=translator,
+        translate_mode=translate_mode,
+        name_set_override=name_set_override,
+        vp_set_override=vp_set_override,
+        book_supports_translation=book_supports_translation,
+        normalize_vi_display_text=normalize_vi_display_text,
+        deleted_retention_days=deleted_retention_days,
+    )
+    active_volume_id = ""
+    if volumes:
+        active_volume_id = requested_volume_id if any(
+            str(item.get("volume_id") or "").strip() == requested_volume_id
+            for item in volumes
+        ) else str(volumes[0].get("volume_id") or "").strip()
     with storage._connect() as conn:
-        total = conn.execute("SELECT COUNT(1) AS c FROM chapters WHERE book_id = ?", (book_id,)).fetchone()["c"]
+        where_sql = "WHERE c.book_id = ?"
+        params: list[Any] = [book_id]
+        where_sql += " AND trim(COALESCE(c.deleted_at, '')) = ''"
+        if active_volume_id:
+            where_sql += " AND c.volume_id = ?"
+            params.append(active_volume_id)
+        total = conn.execute(
+            f"SELECT COUNT(1) AS c FROM chapters c {where_sql}",
+            tuple(params),
+        ).fetchone()["c"]
         offset = (page - 1) * page_size
         rows = conn.execute(
-            """
-            SELECT c.chapter_id, c.chapter_order, c.title_raw, c.title_vi, c.updated_at, c.word_count, c.trans_key, c.raw_key, c.is_vip,
+            f"""
+            SELECT c.chapter_id, c.chapter_order, c.volume_id, c.title_raw, c.title_vi, c.updated_at, c.word_count, c.trans_key, c.raw_key, c.is_vip,
                    CASE WHEN cc.cache_key IS NOT NULL THEN 1 ELSE 0 END AS is_downloaded
             FROM chapters c
             LEFT JOIN content_cache cc ON cc.cache_key = c.raw_key
-            WHERE c.book_id = ?
+            {where_sql}
             ORDER BY chapter_order ASC
             LIMIT ? OFFSET ?
             """,
-            (book_id, page_size, offset),
+            (*params, page_size, offset),
         ).fetchall()
     items = []
     for row in rows:
@@ -737,6 +936,7 @@ def list_chapters_paged(
             {
                 "chapter_id": item["chapter_id"],
                 "chapter_order": item["chapter_order"],
+                "volume_id": str(item.get("volume_id") or "").strip(),
                 "title_raw": item["title_raw"],
                 "title_vi": item.get("title_vi"),
                 "title_display": display_title,
@@ -750,6 +950,8 @@ def list_chapters_paged(
     total_pages = max(1, (total + page_size - 1) // page_size)
     return {
         "items": items,
+        "volumes": volumes,
+        "active_volume_id": active_volume_id,
         "pagination": {
             "page": page,
             "page_size": page_size,
@@ -759,14 +961,19 @@ def list_chapters_paged(
     }
 
 
-def get_chapter_rows(storage, book_id: str) -> list[dict[str, Any]]:
+def get_chapter_rows(storage, book_id: str, *, include_deleted: bool = False) -> list[dict[str, Any]]:
+    where_sql = "WHERE book_id = ?"
+    if not include_deleted:
+        where_sql += " AND trim(COALESCE(deleted_at, '')) = ''"
     with storage._connect() as conn:
         rows = conn.execute(
-            """
-            SELECT chapter_id, book_id, chapter_order, title_raw, title_vi,
-                   raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip
+            f"""
+            SELECT chapter_id, book_id, chapter_order, volume_id, title_raw, title_vi,
+                   raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip,
+                   origin_type, supplement_batch_id, supplement_stack_order, supplement_note,
+                   deleted_at, delete_expire_at
             FROM chapters
-            WHERE book_id = ?
+            {where_sql}
             ORDER BY chapter_order ASC
             """,
             (book_id,),
@@ -774,9 +981,12 @@ def get_chapter_rows(storage, book_id: str) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def find_chapter(storage, chapter_id: str) -> dict[str, Any] | None:
+def find_chapter(storage, chapter_id: str, *, include_deleted: bool = False) -> dict[str, Any] | None:
     with storage._connect() as conn:
-        row = conn.execute("SELECT * FROM chapters WHERE chapter_id = ?", (chapter_id,)).fetchone()
+        sql = "SELECT * FROM chapters WHERE chapter_id = ?"
+        if not include_deleted:
+            sql += " AND trim(COALESCE(deleted_at, '')) = ''"
+        row = conn.execute(sql, (chapter_id,)).fetchone()
     return dict(row) if row else None
 
 
@@ -793,7 +1003,7 @@ def get_book_download_map(storage, book_id: str, chapter_ids: list[str] | None =
                 f"""
                 SELECT c.chapter_id, c.raw_key
                 FROM chapters c
-                WHERE c.book_id = ? AND c.chapter_id IN ({placeholders})
+                WHERE c.book_id = ? AND trim(COALESCE(c.deleted_at, '')) = '' AND c.chapter_id IN ({placeholders})
                 ORDER BY c.chapter_order ASC
                 """,
                 (bid, *chapter_filter),
@@ -803,7 +1013,7 @@ def get_book_download_map(storage, book_id: str, chapter_ids: list[str] | None =
                 """
                 SELECT c.chapter_id, c.raw_key
                 FROM chapters c
-                WHERE c.book_id = ?
+                WHERE c.book_id = ? AND trim(COALESCE(c.deleted_at, '')) = ''
                 ORDER BY c.chapter_order ASC
                 """,
                 (bid,),
@@ -878,6 +1088,7 @@ def get_book_detail(
     book_supports_translation,
     is_book_comic,
     normalize_vi_display_text,
+    deleted_retention_days: int = 30,
 ) -> dict[str, Any] | None:
     book = storage.find_book(book_id)
     if not book:
@@ -887,8 +1098,21 @@ def get_book_detail(
     categories = storage.get_book_categories(book_id)
     if include_chapters:
         downloaded_count = sum(1 for value in download_map.values() if value)
+        visible_chapter_count = int(len(chapters))
     else:
         downloaded_count, _ = storage.get_book_download_counts(book_id)
+        with storage._connect() as conn:
+            visible_chapter_count = int(
+                conn.execute(
+                    """
+                    SELECT COUNT(1) AS c
+                    FROM chapters
+                    WHERE book_id = ?
+                      AND trim(COALESCE(deleted_at, '')) = ''
+                    """,
+                    (book_id,),
+                ).fetchone()["c"] or 0
+            )
     book["lang_source"] = normalize_lang_source(book.get("lang_source") or "") or str(book.get("lang_source") or "")
     book["translation_supported"] = bool(book_supports_translation(book))
     book["is_comic"] = bool(is_book_comic(book))
@@ -901,6 +1125,7 @@ def get_book_detail(
         {
             "chapter_id": ch["chapter_id"],
             "chapter_order": ch["chapter_order"],
+            "volume_id": str(ch.get("volume_id") or "").strip(),
             "title_raw": ch["title_raw"],
             "title_vi": normalize_vi_display_text(ch["title_vi"] or ""),
             "title_display": normalize_vi_display_text(ch["title_vi"] or "") or ch["title_raw"],
@@ -913,8 +1138,14 @@ def get_book_detail(
         }
         for ch in chapters
     ] if include_chapters else []
-    book["downloaded_chapters"] = int(max(0, min(int(book.get("chapter_count") or len(chapters) or 0), downloaded_count)))
+    book["chapter_count"] = int(visible_chapter_count)
+    book["downloaded_chapters"] = int(max(0, min(visible_chapter_count, downloaded_count)))
     book["categories"] = categories
+    book["supplement_policy"] = build_book_volume_manage_policy(
+        book,
+        is_default_volume=True,
+        deleted_retention_days=deleted_retention_days,
+    )
     return book
 
 
@@ -956,6 +1187,7 @@ def search(
                 FROM chapters c
                 JOIN books b ON b.book_id = c.book_id
                 WHERE lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'
+                  AND trim(COALESCE(c.deleted_at, '')) = ''
                   AND (
                         instr(COALESCE(c.search_text, ''), ?) > 0
                         OR instr(COALESCE(b.search_text, ''), ?) > 0
