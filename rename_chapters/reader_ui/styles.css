@@ -1985,6 +1985,13 @@ p {
   width: min(760px, 94vw);
 }
 
+.category-dialog-scroll {
+  max-height: min(66vh, 720px);
+  overflow: auto;
+  padding-right: 4px;
+  margin-right: -2px;
+}
+
 .category-filter-section {
   display: grid;
   gap: 8px;
@@ -2017,6 +2024,10 @@ p {
 
 .category-picker-section-head strong {
   font-size: 13px;
+}
+
+.category-section-toggle {
+  flex: 0 0 auto;
 }
 
 .category-picker-subgroup {
@@ -3467,11 +3478,42 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 }
 
 .notification-center-dialog {
-  width: min(760px, 95vw);
+  width: min(920px, 96vw);
+  max-height: 92vh;
+}
+
+.reader-update-dialog {
+  width: min(720px, 94vw);
+  max-height: 88vh;
+  gap: 10px;
+}
+
+.reader-update-detail {
+  margin: 0;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--line) 86%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 64%, transparent);
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  min-height: 180px;
+  max-height: min(52vh, 460px);
+  font: inherit;
+  line-height: 1.6;
 }
 
 .notification-detail-dialog {
-  width: min(660px, 94vw);
+  width: min(920px, 96vw);
+  max-height: 92vh;
+}
+
+.notification-center-dialog[open],
+.reader-update-dialog[open],
+.notification-detail-dialog[open] {
+  display: flex;
+  flex-direction: column;
 }
 
 .notification-toolbar {
@@ -3491,7 +3533,9 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 .notification-list {
   display: grid;
   gap: 12px;
-  max-height: 62vh;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
   padding-right: 4px;
 }
@@ -3516,6 +3560,12 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 .notification-card.read {
   opacity: 0.66;
   background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.notification-card.pinned {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+  background: color-mix(in srgb, var(--surface-alt) 84%, transparent);
 }
 
 .notification-card.running {
@@ -3656,12 +3706,19 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .notification-detail-topic {
   color: var(--muted);
   font-size: 13px;
+}
+
+.notification-detail-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .notification-detail-body {
@@ -3673,7 +3730,7 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 48vh;
+  max-height: none;
   overflow: auto;
   font: inherit;
   line-height: 1.55;

@@ -1,0 +1,32 @@
+Bản này tập trung vào tìm kiếm nhanh hơn, thông báo rõ hơn và HTML mượt hơn khi mở truyện dài.
+
+Tìm kiếm và thư viện
+- Ô tìm kiếm có skeleton khi đang tải để dễ biết hệ thống vẫn đang xử lý.
+- Kết quả ưu tiên tìm theo truyện trước, rồi mới mở rộng sang chương.
+- Reader sẽ tự cache thêm các tên truyện còn thiếu để tìm bằng tên Việt ổn định hơn.
+- Việc cache tên chạy nền khi mở server và có tiến độ ngay trong thông báo.
+
+Thông báo và tiến trình
+- Có thêm 2 thẻ hệ thống luôn ghim ở đầu là Changelog và Hướng dẫn.
+- Mở từng thẻ thông báo giờ xem nội dung dài hơn, cuộn thoải mái hơn.
+- Tiến trình nhập có nút Tiếp tục và Thử lại rõ ràng hơn cho trạng thái Đã dừng và Thất bại.
+- Nếu truyện đã nhập xong nhưng còn vướng bước cuối như gán danh mục, có thể xử lý lại từ thông báo thay vì làm lại từ đầu.
+- Khi có bản Reader mới, web server sẽ hiện popup nhắc cập nhật thủ công và có thể ẩn trong 2 giờ.
+
+Danh mục và thông tin truyện
+- Bộ lọc danh mục trong thư viện gọn hơn: nhóm Tags mặc định ẩn, các nhóm còn lại vẫn hiện sẵn.
+- Nút Bỏ lọc và Áp dụng luôn nằm ngoài vùng cuộn để dễ bấm.
+- Giao diện chọn danh mục trong trang thông tin truyện đã đồng bộ với cách hiển thị ở thư viện.
+- Văn án tiếng Trung sẽ được cố dịch lại cho phần hiển thị nếu vẫn còn sót.
+
+Xuất HTML
+- File HTML gộp 1 file giờ chỉ tải vài chương quanh vị trí đang xem nên mở truyện dài mượt hơn nhiều.
+- Bấm mục lục hoặc nút chương trước/sau sẽ nạp lại vùng chương xung quanh, không còn dựng cả truyện lên cùng lúc.
+- Nếu bật mã mở file, thời gian nhớ mã đã được nới lên tối đa 1 năm.
+- Màn nhập mã đã dễ thao tác hơn trên iPhone.
+- Giảm lỗi bị khóa oan sau khi tải lại trang trên Edge.
+- Vẫn giữ chặn extension, script lạ và DevTools khi bật bảo vệ nội dung.
+- Khi tải lại đúng chương đang đọc, việc giữ vị trí trong chương đã ổn định hơn trước.
+
+Khác
+- Thẻ Hướng dẫn đã được làm dài và chi tiết hơn để người dùng tra cứu ngay trong notify.

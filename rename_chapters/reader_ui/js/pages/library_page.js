@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260417-notify1";
+import { initShell } from "../site_common.js?v=20260420-updatepopup3";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -259,6 +259,7 @@ const state = {
   categoryFilterDraftIds: [],
   categoryFilterDraftExcludeIds: [],
   categoryFilterDraftMatchMode: "or",
+  categorySectionExpanded: {},
   authorFilterDraft: "",
   categoryManagerBooks: [],
   categoryManagerBooksLoaded: false,
@@ -726,6 +727,36 @@ function buildVisibleCategorySections(term) {
     .sort((a, b) => a.order - b.order || String(a.label || "").localeCompare(String(b.label || ""), "vi", { sensitivity: "base" }));
 }
 
+function isCategoryTagsSection(section) {
+  const key = String((section && section.key) || "").trim().toLowerCase();
+  if (key === "default:tags" || key.endsWith(":tags")) return true;
+  const label = String((section && section.label) || "").trim().toLowerCase();
+  return label === "tags" || label === "tag";
+}
+
+function getCategorySectionExpandStateKey(scopeKey, sectionKey) {
+  return `${String(scopeKey || "default").trim() || "default"}::${String(sectionKey || "").trim()}`;
+}
+
+function isCategorySectionExpanded(scopeKey, section, activeSet = new Set()) {
+  const sectionKey = getCategorySectionExpandStateKey(scopeKey, section && section.key);
+  if (Object.prototype.hasOwnProperty.call(state.categorySectionExpanded, sectionKey)) {
+    return state.categorySectionExpanded[sectionKey] !== false;
+  }
+  for (const group of (section && section.groups) || []) {
+    for (const category of (group && group.items) || []) {
+      const id = String((category && category.category_id) || "").trim();
+      if (id && activeSet.has(id)) return true;
+    }
+  }
+  return !isCategoryTagsSection(section);
+}
+
+function setCategorySectionExpanded(scopeKey, section, expanded) {
+  const sectionKey = getCategorySectionExpandStateKey(scopeKey, section && section.key);
+  state.categorySectionExpanded[sectionKey] = Boolean(expanded);
+}
+
 function renderCategoryPickerSections(container, {
   term = "",
   activeIds = [],
@@ -733,6 +764,8 @@ function renderCategoryPickerSections(container, {
   emptyText = "",
   showCount = false,
   onToggle = null,
+  scopeKey = "",
+  collapsibleSections = false,
 } = {}) {
   if (!container) return [];
   container.innerHTML = "";
@@ -751,7 +784,33 @@ function renderCategoryPickerSections(container, {
     const title = document.createElement("strong");
     title.textContent = String(section.label || "").trim();
     head.appendChild(title);
+    const expanded = collapsibleSections ? isCategorySectionExpanded(scopeKey, section, activeSet) : true;
+    if (collapsibleSections) {
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.className = "btn btn-small category-section-toggle";
+      toggleBtn.textContent = expanded ? state.shell.t("categorySectionHide") : state.shell.t("categorySectionShow");
+      toggleBtn.addEventListener("click", () => {
+        setCategorySectionExpanded(scopeKey, section, !expanded);
+        renderCategoryPickerSections(container, {
+          term,
+          activeIds,
+          emptyNode,
+          emptyText,
+          showCount,
+          onToggle,
+          scopeKey,
+          collapsibleSections,
+        });
+      });
+      head.appendChild(toggleBtn);
+    }
     sectionEl.appendChild(head);
+
+    if (!expanded) {
+      container.appendChild(sectionEl);
+      continue;
+    }
 
     for (const group of section.groups || []) {
       let target = sectionEl;
@@ -3597,6 +3656,8 @@ function renderLibraryCategoryFilterList() {
     emptyNode: refs.libraryCategoryFilterEmpty,
     emptyText: state.shell.t("categoryFilterEmpty"),
     showCount: true,
+    scopeKey: "library-filter-include",
+    collapsibleSections: true,
     onToggle: (id) => {
       const nextExclude = new Set(normalizeCategoryIds(state.categoryFilterDraftExcludeIds));
       nextExclude.delete(id);
@@ -3609,6 +3670,8 @@ function renderLibraryCategoryFilterList() {
     term,
     activeIds: state.categoryFilterDraftExcludeIds,
     showCount: true,
+    scopeKey: "library-filter-exclude",
+    collapsibleSections: true,
     onToggle: (id) => {
       const nextInclude = new Set(normalizeCategoryIds(state.categoryFilterDraftIds));
       nextInclude.delete(id);
@@ -3933,6 +3996,8 @@ function renderBookCategoriesDialogList() {
     activeIds: state.bookCategoriesDraftIds,
     emptyNode: refs.bookCategoriesEmpty,
     emptyText: state.shell.t("categoryQuickEmpty"),
+    scopeKey: "library-book-categories",
+    collapsibleSections: true,
     onToggle: (id) => {
       state.bookCategoriesDraftIds = toggleCategoryIdWithRules(state.bookCategoriesDraftIds, id);
       renderBookCategoriesDialogList();

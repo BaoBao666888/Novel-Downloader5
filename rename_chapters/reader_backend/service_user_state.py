@@ -112,6 +112,7 @@ def normalized_reader_translation_settings(
     return {
         "enabled": parse_bool(payload.get("enabled"), True),
         "mode": normalize_translate_mode(payload.get("mode"), "local"),
+        "title_cache_auto": parse_bool(payload.get("title_cache_auto"), True),
         "server": normalized_server_translate_settings(
             service,
             payload.get("server") if isinstance(payload, dict) else None,
@@ -194,6 +195,7 @@ def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -
         "translation": {
             "enabled": bool(service.reader_translation_settings.get("enabled", True)),
             "mode": normalize_translate_mode(service.reader_translation_settings.get("mode"), "local"),
+            "title_cache_auto": parse_bool(service.reader_translation_settings.get("title_cache_auto"), True),
             "server": normalized_server_translate_settings(
                 service,
                 service.reader_translation_settings.get("server"),
@@ -277,6 +279,7 @@ def set_reader_settings(
         next_settings = {
             "enabled": parse_bool(patch.get("enabled"), existing["enabled"]),
             "mode": normalize_translate_mode(patch.get("mode"), existing["mode"]),
+            "title_cache_auto": parse_bool(patch.get("title_cache_auto"), existing.get("title_cache_auto", True)),
             "server": normalized_server_translate_settings(service, merged_server, cfg),
             "local": vbook_local_translate.normalize_local_settings(
                 local_with_global,
@@ -299,6 +302,10 @@ def set_reader_settings(
     except Exception:
         pass
     service.refresh_config()
+    try:
+        service.ensure_library_title_cache_autofill(reason="settings")
+    except Exception:
+        pass
     return get_reader_settings(service, normalize_name_set=normalize_name_set, vbook_local_translate=vbook_local_translate)
 
 

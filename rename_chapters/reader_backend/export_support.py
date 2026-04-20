@@ -777,6 +777,78 @@ def wrap_export_html_document(
     }}
   }};
   const isVirtualChapterSnapshot = (snapshot) => Boolean(snapshot && snapshot.mode === "virtual-chapters");
+  const VIRTUAL_HASH_RATIO_SCALE = 10000;
+  const parseVirtualChapterHash = (hash = window.location.hash) => {{
+    const rawHash = String(hash || "").trim();
+    if (!rawHash.startsWith("#")) return null;
+    let decoded = "";
+    try {{
+      decoded = decodeURIComponent(rawHash.slice(1));
+    }} catch (_error) {{
+      decoded = rawHash.slice(1);
+    }}
+    let chapterId = String(decoded || "").trim();
+    if (!chapterId) return null;
+    let withinRatio = null;
+    let rawOffset = null;
+    const match = chapterId.match(/^(.*?)(?:@r([0-9]{{1,6}})|@o([0-9]{{1,8}}))$/i);
+    if (match) {{
+      chapterId = String(match[1] || "").trim();
+      if (match[2] != null) {{
+        withinRatio = Math.min(1, Math.max(0, Number(match[2]) / VIRTUAL_HASH_RATIO_SCALE));
+      }} else if (match[3] != null) {{
+        rawOffset = Math.max(0, Number(match[3]));
+      }}
+    }}
+    if (!chapterId) return null;
+    return {{
+      rawHash,
+      chapterId,
+      withinRatio,
+      rawOffset,
+      hasPosition: Number.isFinite(Number(withinRatio)) || Number.isFinite(Number(rawOffset)),
+    }};
+  }};
+  const buildVirtualChapterHash = (chapterId, snapshot = null) => {{
+    const cleanId = String(chapterId || "").trim();
+    if (!cleanId) return "";
+    const baseHash = `#${{encodeURIComponent(cleanId)}}`;
+    const rawRatio = Number(snapshot?.chapter_ratio);
+    const rawOffset = Number(snapshot?.chapter_offset);
+    const ratio = Number.isFinite(rawRatio) ? Math.min(1, Math.max(0, rawRatio)) : null;
+    const hasMeaningfulOffset = (Number.isFinite(rawOffset) && rawOffset > 24) || (ratio !== null && ratio > 0.003);
+    if (!hasMeaningfulOffset || ratio === null) return baseHash;
+    return `${{baseHash}}@r${{Math.round(ratio * VIRTUAL_HASH_RATIO_SCALE)}}`;
+  }};
+  const syncVirtualChapterHash = (snapshot, mode = "replace") => {{
+    const chapterId = String(snapshot?.chapter_id || "");
+    const nextHash = buildVirtualChapterHash(chapterId, snapshot);
+    if (!nextHash || String(window.location.hash || "") === nextHash) return nextHash;
+    try {{
+      if (mode === "push") history.pushState(null, "", nextHash);
+      else history.replaceState(null, "", nextHash);
+    }} catch (_error) {{
+      if (window.location.hash !== nextHash) window.location.hash = nextHash;
+    }}
+    return nextHash;
+  }};
+  const resolveVirtualHashSnapshot = (hash = window.location.hash) => {{
+    const parsed = parseVirtualChapterHash(hash);
+    if (!(parsed && parsed.chapterId)) return null;
+    const payload = ensureVirtualChapterPayload();
+    if (payload && payload.enabled && !virtualChapterIndexMap.has(parsed.chapterId)) return null;
+    return {{
+      mode: "virtual-chapters",
+      chapter_id: parsed.chapterId,
+      chapter_index: virtualChapterIndexMap.has(parsed.chapterId)
+        ? Number(virtualChapterIndexMap.get(parsed.chapterId))
+        : -1,
+      chapter_offset: Number.isFinite(Number(parsed.rawOffset)) ? Math.max(0, Number(parsed.rawOffset)) : 0,
+      chapter_ratio: Number.isFinite(Number(parsed.withinRatio)) ? Math.min(1, Math.max(0, Number(parsed.withinRatio))) : 0,
+      hash_has_position: Boolean(parsed.hasPosition),
+      source: "hash",
+    }};
+  }};
   const syncVirtualChapterLinkState = () => {{
     const payload = ensureVirtualChapterPayload();
     const activeId = (
@@ -840,29 +912,25 @@ def wrap_export_html_document(
   const handleVirtualChapterHash = (hash = window.location.hash, options = {{}}) => {{
     const payload = ensureVirtualChapterPayload();
     if (!(payload && payload.enabled)) return false;
-    const rawHash = String(hash || "").trim();
-    if (!rawHash.startsWith("#")) return false;
-    let chapterId = "";
-    try {{
-      chapterId = decodeURIComponent(rawHash.slice(1));
-    }} catch (_error) {{
-      chapterId = rawHash.slice(1);
-    }}
+    const parsedHash = parseVirtualChapterHash(hash);
+    const chapterId = String(parsedHash?.chapterId || "");
     if (!chapterId || !virtualChapterIndexMap.has(chapterId)) return false;
     const index = Number(virtualChapterIndexMap.get(chapterId));
+    const rawWithinRatio = Number(options.withinRatio);
+    const rawOffset = Number(options.rawOffset);
     return renderVirtualChapterWindow(index, {{
       force: Boolean(options.force),
       scroll: options.scroll !== false,
       scrollToId: chapterId,
-      withinRatio: options.withinRatio,
-      rawOffset: options.rawOffset,
+      withinRatio: Number.isFinite(rawWithinRatio) ? rawWithinRatio : parsedHash?.withinRatio,
+      rawOffset: Number.isFinite(rawOffset) ? rawOffset : parsedHash?.rawOffset,
     }});
   }};
   const initializeLocalChapterRendering = (options = {{}}) => {{
     const payload = ensureVirtualChapterPayload();
     if (!(payload && payload.enabled)) return false;
     const hash = String(options.hash || window.location.hash || "").trim();
-    if (handleVirtualChapterHash(hash, {{ force: Boolean(options.force), scroll: false }})) return true;
+    if (handleVirtualChapterHash(hash, {{ force: Boolean(options.force), scroll: Boolean(hash) }})) return true;
     const fallbackIndex = virtualChapterActiveIndex >= 0 ? virtualChapterActiveIndex : 0;
     return renderVirtualChapterWindow(fallbackIndex, {{ force: Boolean(options.force), scroll: false }});
   }};
@@ -1032,6 +1100,10 @@ def wrap_export_html_document(
       chapter_index: chapterIndex,
       chapter_offset: rawOffset,
       chapter_ratio: chapterMax > 0 ? (rawOffset / chapterMax) : 0,
+      chapter_hash: buildVirtualChapterHash(chapterId, {{
+        chapter_ratio: chapterMax > 0 ? (rawOffset / chapterMax) : 0,
+        chapter_offset: rawOffset,
+      }}),
       saved_at_ts: Date.now(),
     }};
   }};
@@ -1054,6 +1126,7 @@ def wrap_export_html_document(
     if (!readingRestoreApplied) return;
     const snapshot = captureReadingSnapshot();
     if (!snapshot) return;
+    if (isVirtualChapterSnapshot(snapshot)) syncVirtualChapterHash(snapshot, "replace");
     try {{ localStorage.setItem(READING_STORAGE_KEY, JSON.stringify(snapshot)); }} catch (_error) {{}}
   }};
   const schedulePersistReading = () => {{
@@ -1080,6 +1153,20 @@ def wrap_export_html_document(
     if (savedMax > 0 && Math.abs(savedMax - currentMax) < 160 && savedY > 0) target = savedY;
     return Math.min(currentMax, Math.max(0, target));
   }};
+  const resolveEffectiveReadingSnapshot = () => {{
+    if (!readingSnapshot) readingSnapshot = readStoredReading();
+    const storedSnapshot = readingSnapshot;
+    const storedVirtualSnapshot = isVirtualChapterSnapshot(storedSnapshot) ? storedSnapshot : null;
+    const hashSnapshot = resolveVirtualHashSnapshot(window.location.hash);
+    if (hashSnapshot) {{
+      if (hashSnapshot.hash_has_position) return hashSnapshot;
+      if (storedVirtualSnapshot && String(storedVirtualSnapshot.chapter_id || "") === String(hashSnapshot.chapter_id || "")) {{
+        return storedVirtualSnapshot;
+      }}
+      return hashSnapshot;
+    }}
+    return storedSnapshot;
+  }};
   const restoreVirtualReadingPosition = (snapshot) => {{
     const payload = ensureVirtualChapterPayload();
     if (!(payload && payload.enabled)) return false;
@@ -1097,37 +1184,49 @@ def wrap_export_html_document(
     if (!rendered) return false;
     const targetId = chapterId || payload.chapters[chapterIndex]?.id || "";
     window.requestAnimationFrame(() => {{
-      const target = scrollToVirtualChapter(
-        targetId,
-        Number(snapshot?.chapter_ratio),
-        Number(snapshot?.chapter_offset),
-      );
-      if (!Number.isFinite(Number(target))) return;
-      const settleDelay = window.location.hash ? 900 : 140;
-      window.setTimeout(() => {{
-        const current = Math.max(0, Number(window.scrollY || getScrollHost()?.scrollTop || 0));
-        if (Math.abs(current - Number(target || 0)) <= 12) readingRestoreApplied = true;
-      }}, settleDelay);
+      const settleDelays = window.location.hash ? [0, 80, 260, 720, 1500] : [0, 80, 260, 620];
+      settleDelays.forEach((delay, settleIndex) => {{
+        window.setTimeout(() => {{
+          const target = scrollToVirtualChapter(
+            targetId,
+            Number(snapshot?.chapter_ratio),
+            Number(snapshot?.chapter_offset),
+          );
+          if (!Number.isFinite(Number(target))) return;
+          syncVirtualChapterHash(
+            {{
+              chapter_id: targetId,
+              chapter_ratio: Number(snapshot?.chapter_ratio),
+              chapter_offset: Number(snapshot?.chapter_offset),
+            }},
+            "replace",
+          );
+          if (settleIndex !== settleDelays.length - 1) return;
+          const current = Math.max(0, Number(window.scrollY || getScrollHost()?.scrollTop || 0));
+          if (Math.abs(current - Number(target || 0)) <= 12) readingRestoreApplied = true;
+        }}, delay);
+      }});
     }});
     return true;
   }};
   const restoreReadingPosition = () => {{
-    if (!readingSnapshot) readingSnapshot = readStoredReading();
-    const hasVirtualSnapshot = isVirtualChapterSnapshot(readingSnapshot);
-    if (readingRestoreApplied || (window.location.hash && !hasVirtualSnapshot)) return;
-    if (!readingSnapshot) {{
+    const effectiveSnapshot = resolveEffectiveReadingSnapshot();
+    const hasVirtualSnapshot = isVirtualChapterSnapshot(effectiveSnapshot);
+    const hasVirtualHash = Boolean(resolveVirtualHashSnapshot(window.location.hash));
+    if (readingRestoreApplied || (window.location.hash && !hasVirtualHash && !hasVirtualSnapshot)) return;
+    if (!effectiveSnapshot) {{
       readingRestoreApplied = true;
       return;
     }}
     if (hasVirtualSnapshot) {{
-      if (restoreVirtualReadingPosition(readingSnapshot)) return;
+      if (restoreVirtualReadingPosition(effectiveSnapshot)) return;
       readingRestoreApplied = true;
       return;
     }}
-    const target = resolveReadingTarget(readingSnapshot);
+    const target = resolveReadingTarget(effectiveSnapshot);
     const snapshotHasProgress =
-      Number(readingSnapshot?.scroll_y || 0) > 4
-      || Number(readingSnapshot?.scroll_ratio || 0) > 0.01;
+      Number(effectiveSnapshot?.scroll_y || 0) > 4
+      || Number(effectiveSnapshot?.scroll_ratio || 0) > 0.01;
     if (!(target > 4)) {{
       if (!snapshotHasProgress) readingRestoreApplied = true;
       return;
@@ -1142,9 +1241,10 @@ def wrap_export_html_document(
     if (Math.abs(current - target) <= 12) readingRestoreApplied = true;
   }};
   const scheduleReadingRestore = () => {{
-    if (!readingSnapshot) readingSnapshot = readStoredReading();
-    const hasVirtualSnapshot = isVirtualChapterSnapshot(readingSnapshot);
-    if (readingRestoreApplied || (window.location.hash && !hasVirtualSnapshot)) return;
+    const effectiveSnapshot = resolveEffectiveReadingSnapshot();
+    const hasVirtualSnapshot = isVirtualChapterSnapshot(effectiveSnapshot);
+    const hasVirtualHash = Boolean(resolveVirtualHashSnapshot(window.location.hash));
+    if (readingRestoreApplied || (window.location.hash && !hasVirtualHash && !hasVirtualSnapshot)) return;
     clearReadingRestoreTimers();
     for (const delay of READING_RESTORE_DELAYS) {{
       readingRestoreTimers.push(window.setTimeout(() => {{

@@ -85,13 +85,13 @@ def _parse_csv_query_ids(query: dict[str, list[str]], key: str) -> list[str]:
 
 def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode: str, active_name_set, active_vp_set, deps: LibraryReaderDeps) -> None:
     allow_translate = handler.service.translation_allowed_for_book(book)
+    live_title_mode = translate_mode in {"local", "hanviet", "dichngay_local"}
+    raw_summary = deps.normalize_vbook_display_text(str(book.get("summary") or ""), single_line=False) or str(book.get("summary") or "")
     if allow_translate:
         raw_title = deps.normalize_vbook_display_text(str(book.get("title") or ""), single_line=True) or str(book.get("title") or "")
         raw_author = deps.normalize_vbook_display_text(str(book.get("author") or ""), single_line=True) or str(book.get("author") or "")
-        raw_summary = deps.normalize_vbook_display_text(str(book.get("summary") or ""), single_line=False) or str(book.get("summary") or "")
         title_vi = deps.normalize_vi_display_text(book.get("title_vi") or "")
         author_vi = deps.normalize_vi_display_text(book.get("author_vi") or "")
-        live_title_mode = translate_mode in {"local", "hanviet", "dichngay_local"}
         book["translation_supported"] = True
         book["author_display"] = handler.service._author_hanviet_display(raw_author, single_line=True) or author_vi or raw_author
         if live_title_mode:
@@ -102,13 +102,6 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             ) or raw_title
-            book["summary_display"] = handler.service._translate_ui_text_with_dicts(
-                raw_summary,
-                single_line=False,
-                mode=translate_mode,
-                name_set_override=active_name_set,
-                vp_set_override=active_vp_set,
-            ) or raw_summary
         else:
             title_outputs = handler.service._translate_ui_texts_batch(
                 [raw_title] if raw_title else [],
@@ -117,15 +110,7 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             )
-            summary_outputs = handler.service._translate_ui_texts_batch(
-                [raw_summary],
-                single_line=False,
-                mode=translate_mode,
-                name_set_override=active_name_set,
-                vp_set_override=active_vp_set,
-            )
             book["title_display"] = (title_outputs[0] if title_outputs else "") or title_vi or raw_title
-            book["summary_display"] = (summary_outputs[0] if summary_outputs else "") or raw_summary
         chapters = book.get("chapters")
         if isinstance(chapters, list):
             server_title_inputs: list[str] = []
@@ -174,6 +159,30 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                 if not isinstance(row, dict):
                     continue
                 row["title_display"] = deps.normalize_vbook_display_text(str(row.get("title_raw") or ""), single_line=True) or str(row.get("title_raw") or "")
+    summary_display = deps.normalize_vbook_display_text(str(book.get("summary_display") or raw_summary), single_line=False) or raw_summary
+    if raw_summary and handler.service.is_reader_translation_enabled() and handler.service._contains_cjk_text(raw_summary):
+        if live_title_mode:
+            translated_summary = handler.service._translate_ui_text_with_dicts(
+                raw_summary,
+                single_line=False,
+                mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            )
+        else:
+            outputs = handler.service._translate_ui_texts_batch(
+                [raw_summary],
+                single_line=False,
+                mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            )
+            translated_summary = outputs[0] if outputs else ""
+        translated_summary = deps.normalize_vbook_display_text(str(translated_summary or ""), single_line=False) or str(translated_summary or "").strip()
+        if translated_summary and (not translated_summary.startswith("[Lỗi")):
+            if translated_summary != raw_summary and (not handler.service._is_effectively_untranslated_ui_text(raw_summary, translated_summary)):
+                summary_display = translated_summary
+    book["summary_display"] = summary_display
 
 
 def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, deps: LibraryReaderDeps) -> dict[str, Any] | None:

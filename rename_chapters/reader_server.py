@@ -169,6 +169,10 @@ IMPORT_JOB_SNAPSHOT_RETENTION_DAYS = 14
 NOTIFICATION_RETENTION_DAYS = notification_center_support.NOTIFICATION_RETENTION_DAYS
 NAME_FILTER_JOB_RETENTION_SECONDS = 1800
 VBOOK_RUNNER_INSTALL_URL = str(_LOCAL_VBOOK_RUNNER_INSTALL_URL or "").strip()
+READER_SERVER_RUNTIME_VERSION = "0.1.6"
+READER_UI_RUNTIME_VERSION = "0.1.5"
+READER_VERSION_MANIFEST_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
+READER_UPDATE_STATUS_CACHE_TTL_SECONDS = 900
 
 # Ép MIME chuẩn cho JS module trên Windows/registry lạ để tránh trang trắng
 # (module script bị chặn nếu server trả text/plain).
@@ -178,6 +182,140 @@ mimetypes.add_type("text/css", ".css")
 
 
 _EXPLICIT_LOG_LOCK = threading.Lock()
+
+
+class _HtmlTextExtractor(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self._parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        if data:
+            self._parts.append(data)
+
+    def get_text(self) -> str:
+        return "".join(self._parts)
+
+
+def _strip_html_to_text(value: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        parser = _HtmlTextExtractor()
+        parser.feed(raw)
+        parser.close()
+        text = parser.get_text()
+    except Exception:
+        text = re.sub(r"<[^>]+>", " ", raw)
+    text = html.unescape(text)
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    lines = [line.strip() for line in text.split("\n")]
+    return "\n".join(line for line in lines if line)
+
+
+def _normalize_notice_text(value: str) -> str:
+    raw = str(value or "")
+    if not raw:
+        return ""
+    raw = raw.replace("\r\n", "\n").replace("\r", "\n")
+    lines = [line.rstrip() for line in raw.split("\n")]
+    text = "\n".join(lines).strip()
+    return re.sub(r"\n{3,}", "\n\n", text)
+
+
+def _read_notice_text_file_if_exists(path: Path) -> str:
+    try:
+        if not path.exists() or not path.is_file():
+            return ""
+        raw = path.read_text(encoding="utf-8")
+        if path.suffix.lower() in {".html", ".htm"}:
+            return _normalize_notice_text(_strip_html_to_text(raw))
+        return _normalize_notice_text(raw)
+    except Exception:
+        return ""
+
+
+def _build_notice_file_candidates(configured_values: list[str], fallback_names: tuple[str, ...], base_dirs: list[Path]) -> list[Path]:
+    candidates: list[Path] = []
+    seen: set[str] = set()
+
+    def add(path: Path | None) -> None:
+        if path is None:
+            return
+        try:
+            resolved = path.resolve(strict=False)
+        except Exception:
+            resolved = path
+        key = str(resolved)
+        if key in seen:
+            return
+        seen.add(key)
+        candidates.append(resolved)
+
+    for raw_value in configured_values:
+        value = str(raw_value or "").strip()
+        if not value:
+            continue
+        candidate = Path(value)
+        if candidate.is_absolute():
+            add(candidate)
+            continue
+        for base_dir in base_dirs:
+            add(base_dir / candidate)
+
+    for name in fallback_names:
+        fallback = str(name or "").strip()
+        if not fallback:
+            continue
+        candidate = Path(fallback)
+        if candidate.is_absolute():
+            add(candidate)
+            continue
+        for base_dir in base_dirs:
+            add(base_dir / candidate)
+
+    return candidates
+
+
+def _version_cmp_key(value: Any) -> tuple[tuple[int, Any], ...]:
+    text = str(value or "").strip()
+    if not text:
+        return ()
+    parts: list[tuple[int, Any]] = []
+    for token in re.findall(r"\d+|[A-Za-z]+", text):
+        if token.isdigit():
+            parts.append((0, int(token)))
+        else:
+            parts.append((1, token.lower()))
+    return tuple(parts)
+
+
+def _is_remote_version_newer(remote_value: Any, local_value: Any) -> bool:
+    remote_key = _version_cmp_key(remote_value)
+    if not remote_key:
+        return False
+    local_key = _version_cmp_key(local_value)
+    if not local_key:
+        return True
+    max_len = max(len(remote_key), len(local_key))
+    for index in range(max_len):
+        remote_part = remote_key[index] if index < len(remote_key) else (0, 0)
+        local_part = local_key[index] if index < len(local_key) else (0, 0)
+        if remote_part == local_part:
+            continue
+        return remote_part > local_part
+    return False
+
+
+def _load_json_file_if_exists(path: Path) -> dict[str, Any]:
+    try:
+        if not path.exists():
+            return {}
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return dict(data) if isinstance(data, dict) else {}
+    except Exception:
+        return {}
 _LOG_CLEANUP_LOCK = threading.Lock()
 _APP_CONFIG_LOCK = threading.RLock()
 
@@ -5500,7 +5638,8 @@ class ReaderStorage:
 
 
 class ReaderService:
-    VERSION = "1.0.0"
+    VERSION = READER_SERVER_RUNTIME_VERSION
+    UI_VERSION = READER_UI_RUNTIME_VERSION
     REQUIRED_VBOOK_REPO_URLS = (
         "https://raw.githubusercontent.com/Darkrai9x/vbook-extensions/refs/heads/master/tts.json",
     )
@@ -5554,6 +5693,9 @@ class ReaderService:
         self._import_jobs: dict[str, dict[str, Any]] = {}
         self._import_queue: list[str] = []
         self._import_running_job_id: str | None = None
+        self._reader_update_lock = threading.RLock()
+        self._reader_update_cache: dict[str, Any] | None = None
+        self._reader_update_cache_ts = 0.0
         self._import_worker_started = False
         self._import_worker_thread: threading.Thread | None = None
         self._notifications_lock = threading.RLock()
@@ -5569,6 +5711,10 @@ class ReaderService:
         self._library_title_cache_queued_ids: set[str] = set()
         self._library_title_cache_running_ids: set[str] = set()
         self._library_title_cache_worker_thread: threading.Thread | None = None
+        self._library_title_autofill_running = False
+        self._library_title_autofill_thread: threading.Thread | None = None
+        self._library_title_autofill_started_at = ""
+        self._library_title_autofill_reason = ""
         self._vbook_singleflight_lock = threading.RLock()
         self._vbook_singleflight_runs: dict[str, dict[str, Any]] = {}
         with self._notifications_cv:
@@ -5576,6 +5722,7 @@ class ReaderService:
         with self._export_cv:
             self._load_export_jobs_state_locked()
         self._cleanup_import_job_snapshots()
+        self.ensure_library_title_cache_autofill(reason="startup")
 
     def _default_name_sets(self) -> dict[str, dict[str, str]]:
         return normalize_name_sets_collection(self.app_config.get("nameSets") or {})
@@ -7121,13 +7268,11 @@ class ReaderService:
             normalize_vi_display_text=normalize_vi_display_text,
         )
 
-    def _book_title_cache_needs_translation(self, book_id: str) -> bool:
-        bid = str(book_id or "").strip()
-        if not bid:
-            return False
-        books = self.storage.list_books_by_ids([bid])
-        book = books[0] if books else None
-        if not book:
+    def is_library_title_cache_auto_enabled(self) -> bool:
+        return bool(self.reader_translation_settings.get("title_cache_auto", True))
+
+    def _book_row_needs_title_cache(self, book: dict[str, Any] | None) -> bool:
+        if not isinstance(book, dict):
             return False
         if not book_supports_translation(book):
             return False
@@ -7145,6 +7290,27 @@ class ReaderService:
             and (not normalize_vi_display_text(book.get("current_chapter_title_vi") or ""))
         )
         return title_missing or current_missing
+
+    def _book_title_cache_needs_translation(self, book_id: str) -> bool:
+        bid = str(book_id or "").strip()
+        if not bid:
+            return False
+        books = self.storage.list_books_by_ids([bid])
+        book = books[0] if books else None
+        return self._book_row_needs_title_cache(book)
+
+    def _list_library_title_cache_missing_book_ids(self) -> list[str]:
+        output: list[str] = []
+        seen: set[str] = set()
+        for book in self.storage.list_books():
+            bid = str((book or {}).get("book_id") or "").strip()
+            if (not bid) or bid in seen:
+                continue
+            if not self._book_row_needs_title_cache(book):
+                continue
+            seen.add(bid)
+            output.append(bid)
+        return output
 
     def _cache_book_title_translation_batch(
         self,
@@ -7337,9 +7503,202 @@ class ReaderService:
                 self._library_title_cache_queue.append(book_id)
                 self._library_title_cache_queued_ids.add(book_id)
                 queued_ids.append(book_id)
-            if queued_ids:
-                self._library_title_cache_cv.notify_all()
+                if queued_ids:
+                    self._library_title_cache_cv.notify_all()
         return {"ok": True, "queued_ids": queued_ids, "pending_ids": pending_ids}
+
+    def _build_library_title_cache_notification_payload(
+        self,
+        *,
+        status: str,
+        total: int,
+        processed: int,
+        updated: int,
+        remaining: int,
+        reason: str = "",
+        error_text: str = "",
+        created_at: str = "",
+    ) -> dict[str, Any]:
+        total_value = max(0, int(total or 0))
+        processed_value = max(0, min(total_value, int(processed or 0))) if total_value > 0 else max(0, int(processed or 0))
+        updated_value = max(0, int(updated or 0))
+        remaining_value = max(0, int(remaining or 0))
+        status_key = notification_center_support.normalize_notification_status(status)
+        percent = 100.0 if total_value <= 0 else max(0.0, min(100.0, (processed_value / float(total_value)) * 100.0))
+        if status_key == "running":
+            preview = f"Đang cache tên truyện {processed_value}/{total_value}."
+        elif status_key == "success":
+            preview = (
+                f"Đã cache xong {updated_value}/{total_value} truyện cần bổ sung."
+                if total_value > 0
+                else "Thư viện đã có đủ cache tên truyện."
+            )
+        elif status_key == "failed":
+            preview = "Cache tên truyện bị lỗi giữa chừng."
+        else:
+            preview = f"Còn {remaining_value} truyện chưa cache xong." if remaining_value > 0 else "Tiến trình cache tên truyện đã dừng."
+        detail_lines = [
+            f"Trạng thái: {self._notification_status_label(status_key)}",
+        ]
+        if total_value > 0:
+            detail_lines.append(f"Tiến độ: {processed_value}/{total_value} truyện")
+        detail_lines.append(f"Đã ghi title cache: {updated_value} truyện")
+        if remaining_value > 0:
+            detail_lines.append(f"Còn thiếu sau lượt này: {remaining_value} truyện")
+        if reason:
+            detail_lines.append(f"Lý do chạy: {reason}")
+        if error_text:
+            detail_lines.append(f"Lỗi: {error_text}")
+        return {
+            "id": "title-cache:auto",
+            "kind": "title_cache",
+            "topic": "title_cache",
+            "topic_label": "Cache tên truyện",
+            "title": "Cache tên truyện cho tìm kiếm",
+            "preview": preview,
+            "detail": "\n".join(detail_lines).strip(),
+            "status": status_key,
+            "progress_current": processed_value,
+            "progress_total": total_value,
+            "progress_percent": percent,
+            "created_at": created_at or utc_now_iso(),
+            "updated_at": utc_now_iso(),
+            "meta": {
+                "reason": str(reason or "").strip(),
+                "remaining": remaining_value,
+                "updated_books": updated_value,
+            },
+        }
+
+    def _sync_library_title_cache_notification(
+        self,
+        *,
+        status: str,
+        total: int,
+        processed: int,
+        updated: int,
+        remaining: int,
+        reason: str = "",
+        error_text: str = "",
+        created_at: str = "",
+    ) -> None:
+        payload = self._build_library_title_cache_notification_payload(
+            status=status,
+            total=total,
+            processed=processed,
+            updated=updated,
+            remaining=remaining,
+            reason=reason,
+            error_text=error_text,
+            created_at=created_at,
+        )
+        with self._notifications_cv:
+            self._upsert_notification_locked(payload)
+            self._persist_notifications_locked()
+            self._notifications_cv.notify_all()
+
+    def _run_library_title_autofill_worker(
+        self,
+        pending_ids: list[str],
+        *,
+        reason: str,
+        created_at: str,
+    ) -> None:
+        total = len(pending_ids)
+        processed = 0
+        updated = 0
+        error_text = ""
+        try:
+            self._sync_library_title_cache_notification(
+                status="running",
+                total=total,
+                processed=0,
+                updated=0,
+                remaining=total,
+                reason=reason,
+                created_at=created_at,
+            )
+            for index in range(0, total, 8):
+                batch_ids = pending_ids[index:index + 8]
+                updated_ids = self._cache_book_title_translation_batch(batch_ids)
+                processed += len(batch_ids)
+                updated += len(updated_ids)
+                remaining = max(0, total - processed)
+                self._sync_library_title_cache_notification(
+                    status="running" if remaining > 0 else "success",
+                    total=total,
+                    processed=processed,
+                    updated=updated,
+                    remaining=remaining,
+                    reason=reason,
+                    created_at=created_at,
+                )
+            remaining = len(self._list_library_title_cache_missing_book_ids())
+            self._sync_library_title_cache_notification(
+                status="success" if remaining <= 0 else "warning",
+                total=total,
+                processed=total,
+                updated=updated,
+                remaining=remaining,
+                reason=reason,
+                created_at=created_at,
+            )
+        except Exception as exc:
+            error_text = str(exc) or exc.__class__.__name__
+            self._sync_library_title_cache_notification(
+                status="failed",
+                total=total,
+                processed=processed,
+                updated=updated,
+                remaining=max(0, total - processed),
+                reason=reason,
+                error_text=error_text,
+                created_at=created_at,
+            )
+        finally:
+            with self._library_title_cache_cv:
+                self._library_title_autofill_running = False
+                self._library_title_autofill_reason = ""
+                self._library_title_autofill_started_at = ""
+                self._library_title_autofill_thread = None
+                self._library_title_cache_cv.notify_all()
+
+    def ensure_library_title_cache_autofill(self, *, reason: str = "startup") -> dict[str, Any]:
+        reason_text = str(reason or "startup").strip() or "startup"
+        if not self.is_library_title_cache_auto_enabled():
+            return {"ok": True, "started": False, "reason": "DISABLED"}
+        if not self.is_reader_translation_enabled():
+            return {"ok": True, "started": False, "reason": "TRANSLATION_DISABLED"}
+        with self._library_title_cache_cv:
+            worker_alive = bool(self._library_title_autofill_thread and self._library_title_autofill_thread.is_alive())
+            if self._library_title_autofill_running and worker_alive:
+                return {"ok": True, "started": False, "reason": "ALREADY_RUNNING"}
+        pending_ids = self._list_library_title_cache_missing_book_ids()
+        if not pending_ids:
+            return {"ok": True, "started": False, "reason": "ALREADY_CACHED", "pending_count": 0}
+        created_at = utc_now_iso()
+        worker = threading.Thread(
+            target=self._run_library_title_autofill_worker,
+            kwargs={
+                "pending_ids": pending_ids,
+                "reason": reason_text,
+                "created_at": created_at,
+            },
+            name="ReaderLibraryTitleAutofill",
+            daemon=True,
+        )
+        with self._library_title_cache_cv:
+            self._library_title_autofill_running = True
+            self._library_title_autofill_reason = reason_text
+            self._library_title_autofill_started_at = created_at
+            self._library_title_autofill_thread = worker
+        worker.start()
+        return {
+            "ok": True,
+            "started": True,
+            "reason": reason_text,
+            "pending_count": len(pending_ids),
+        }
 
     def search(self, query: str, *, scope: str = "all") -> dict[str, Any]:
         return service_library_support.search(
@@ -7882,6 +8241,11 @@ class ReaderService:
             "book_id": str(item.get("book_id") or ""),
             "book_title": str(item.get("book_title") or ""),
             "job_id": str(item.get("job_id") or ""),
+            "pinned": bool(item.get("pinned")),
+            "pin_order": int(item.get("pin_order") if item.get("pin_order") is not None else 999),
+            "allow_delete": bool(item.get("allow_delete", True)),
+            "allow_clear": bool(item.get("allow_clear", True)),
+            "retain_days": int(item.get("retain_days") if item.get("retain_days") is not None else NOTIFICATION_RETENTION_DAYS),
             "meta": dict(item.get("meta") or {}),
         }
 
@@ -7904,8 +8268,9 @@ class ReaderService:
             loaded,
             now_iso=now_iso,
         )
+        system_changed = self._ensure_system_notifications_locked()
         cleanup_changed = self._cleanup_notifications_locked()
-        if changed or cleanup_changed or loaded:
+        if changed or system_changed or cleanup_changed or loaded:
             self._persist_notifications_locked()
 
     def _cleanup_notifications_locked(self) -> bool:
@@ -7916,7 +8281,9 @@ class ReaderService:
         )
 
     def _list_notifications_locked(self, *, limit: int = 120) -> dict[str, Any]:
-        changed = self._cleanup_notifications_locked()
+        changed = self._ensure_system_notifications_locked()
+        cleanup_changed = self._cleanup_notifications_locked()
+        changed = bool(changed or cleanup_changed)
         if changed:
             self._persist_notifications_locked()
         return notification_center_support.build_notifications_listing(
@@ -7999,9 +8366,11 @@ class ReaderService:
         deleted = 0
         with self._notifications_cv:
             for notif_id in notif_ids:
-                if notif_id in self._notifications:
-                    self._notifications.pop(notif_id, None)
-                    deleted += 1
+                item = self._notifications.get(notif_id)
+                if not item or (not bool(item.get("allow_delete", True))):
+                    continue
+                self._notifications.pop(notif_id, None)
+                deleted += 1
             if deleted > 0:
                 self._persist_notifications_locked()
             listing = self._list_notifications_locked()
@@ -8014,13 +8383,21 @@ class ReaderService:
         deleted = 0
         with self._notifications_cv:
             if scope_norm == "all":
-                deleted = len(self._notifications)
-                self._notifications.clear()
+                remove_ids = [
+                    notif_id
+                    for notif_id, item in self._notifications.items()
+                    if bool(item.get("allow_clear", True))
+                ]
+                deleted = len(remove_ids)
+                for notif_id in remove_ids:
+                    self._notifications.pop(notif_id, None)
             else:
                 remove_ids = [
                     notif_id
                     for notif_id, item in self._notifications.items()
-                    if bool(item.get("read")) and (not notification_center_support.notification_status_is_active(item.get("status")))
+                    if bool(item.get("allow_clear", True))
+                    and bool(item.get("read"))
+                    and (not notification_center_support.notification_status_is_active(item.get("status")))
                 ]
                 deleted = len(remove_ids)
                 for notif_id in remove_ids:
@@ -8031,6 +8408,176 @@ class ReaderService:
             if deleted > 0:
                 self._notifications_cv.notify_all()
             return {"ok": True, "scope": scope_norm, "deleted": int(deleted), "listing": listing}
+
+    def _fetch_remote_reader_manifest(self, *, timeout_sec: float = 8.0) -> dict[str, Any]:
+        request = urllib_request.Request(
+            READER_VERSION_MANIFEST_URL,
+            headers={
+                "User-Agent": f"NovelStudioReader/{self.VERSION}",
+                "Accept": "application/json,text/plain,*/*",
+            },
+        )
+        with urllib_request.urlopen(request, timeout=max(1.0, float(timeout_sec or 8.0))) as response:
+            raw = response.read().decode("utf-8", errors="replace")
+        parsed = json.loads(raw)
+        return dict(parsed) if isinstance(parsed, dict) else {}
+
+    def _build_reader_update_status_payload(self, remote_manifest: dict[str, Any] | None, *, remote_error: str = "") -> dict[str, Any]:
+        version_meta = self._load_runtime_version_metadata()
+        remote_data = dict(remote_manifest) if isinstance(remote_manifest, dict) else {}
+        remote_reader_app = remote_data.get("reader_app") if isinstance(remote_data.get("reader_app"), dict) else {}
+        remote_server_meta = remote_reader_app.get("server") if isinstance(remote_reader_app.get("server"), dict) else {}
+        remote_ui_meta = remote_reader_app.get("ui") if isinstance(remote_reader_app.get("ui"), dict) else {}
+
+        local_server_version = str(self.VERSION or "").strip()
+        local_ui_version = str(self.UI_VERSION or "").strip()
+        local_app_version = str(version_meta.get("app_version") or "").strip()
+        local_manifest_server_version = str(version_meta.get("reader_server_version") or "").strip()
+        local_manifest_ui_version = str(version_meta.get("reader_ui_version") or "").strip()
+
+        remote_app_version = str(remote_data.get("version") or "").strip()
+        remote_server_version = str(remote_server_meta.get("version") or "").strip()
+        remote_ui_version = str(remote_ui_meta.get("version") or "").strip()
+        remote_ok = bool(remote_data)
+
+        update_parts: list[str] = []
+        items: list[dict[str, Any]] = []
+
+        server_update = _is_remote_version_newer(remote_server_version, local_server_version)
+        if server_update:
+            update_parts.append("server")
+        items.append(
+            {
+                "id": "server",
+                "label": "Reader Server",
+                "local_version": local_server_version,
+                "remote_version": remote_server_version,
+                "update_available": server_update,
+            }
+        )
+
+        ui_update = _is_remote_version_newer(remote_ui_version, local_ui_version)
+        if ui_update:
+            update_parts.append("ui")
+        items.append(
+            {
+                "id": "ui",
+                "label": "Reader UI",
+                "local_version": local_ui_version,
+                "remote_version": remote_ui_version,
+                "update_available": ui_update,
+            }
+        )
+
+        update_available = bool(update_parts)
+        if len(update_parts) >= 2:
+            preview = "Reader Server và Reader UI đã có bản mới."
+        elif update_parts == ["server"]:
+            preview = "Reader Server đã có bản mới."
+        elif update_parts == ["ui"]:
+            preview = "Reader UI đã có bản mới."
+        elif remote_ok:
+            preview = "Reader đang ở bản mới nhất."
+        else:
+            preview = "Chưa kiểm tra được phiên bản online."
+
+        detail_lines = [
+            "Đang dùng:",
+            f"- Reader Server: {local_server_version or '?'}",
+            f"- Reader UI: {local_ui_version or '?'}",
+        ]
+        if local_app_version:
+            detail_lines.append(f"- Novel Studio: {local_app_version}")
+        if remote_ok:
+            detail_lines.extend(
+                [
+                    "",
+                    "Bản mới nhất:",
+                    f"- Reader Server: {remote_server_version or '?'}",
+                    f"- Reader UI: {remote_ui_version or '?'}",
+                ]
+            )
+            if remote_app_version:
+                detail_lines.append(f"- Novel Studio: {remote_app_version}")
+        else:
+            detail_lines.extend(["", "Không đọc được version online lúc này."])
+            if remote_error:
+                detail_lines.append(f"Lý do: {remote_error}")
+        if update_available:
+            detail_lines.extend(
+                [
+                    "",
+                    "Hãy mở tab Đọc truyện trong Novel Studio để cập nhật thủ công thành phần cần thiết.",
+                ]
+            )
+
+        content_sig = hashlib.sha1(
+            json.dumps(
+                {
+                    "local_server_version": local_server_version,
+                    "local_ui_version": local_ui_version,
+                    "local_app_version": local_app_version,
+                    "remote_server_version": remote_server_version,
+                    "remote_ui_version": remote_ui_version,
+                    "remote_app_version": remote_app_version,
+                    "update_parts": update_parts,
+                    "remote_ok": remote_ok,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8", errors="ignore")
+        ).hexdigest()
+
+        return {
+            "ok": True,
+            "title": "Cập nhật Reader",
+            "preview": preview,
+            "detail": "\n".join(detail_lines).strip(),
+            "update_available": update_available,
+            "update_parts": update_parts,
+            "items": items,
+            "content_sig": content_sig,
+            "checked_at": utc_now_iso(),
+            "remote_ok": remote_ok,
+            "remote_error": remote_error,
+            "source_url": READER_VERSION_MANIFEST_URL,
+            "local": {
+                "app_version": local_app_version,
+                "reader_server_version": local_server_version,
+                "reader_ui_version": local_ui_version,
+            },
+            "local_manifest": {
+                "app_version": local_app_version,
+                "reader_server_version": local_manifest_server_version,
+                "reader_ui_version": local_manifest_ui_version,
+            },
+            "remote": {
+                "app_version": remote_app_version,
+                "reader_server_version": remote_server_version,
+                "reader_ui_version": remote_ui_version,
+            },
+        }
+
+    def get_reader_update_status(self, *, force: bool = False) -> dict[str, Any]:
+        with self._reader_update_lock:
+            now = time.time()
+            if (
+                (not force)
+                and isinstance(self._reader_update_cache, dict)
+                and (now - float(self._reader_update_cache_ts or 0.0)) < READER_UPDATE_STATUS_CACHE_TTL_SECONDS
+            ):
+                return dict(self._reader_update_cache)
+            remote_manifest: dict[str, Any] | None = None
+            remote_error = ""
+            try:
+                remote_manifest = self._fetch_remote_reader_manifest(timeout_sec=8.0)
+            except Exception as exc:
+                remote_error = normalize_vbook_display_text(str(exc) or "Không kiểm tra được version online.", single_line=True)
+            payload = self._build_reader_update_status_payload(remote_manifest, remote_error=remote_error)
+            self._reader_update_cache = dict(payload)
+            self._reader_update_cache_ts = now
+            return payload
 
     def _notification_status_label(self, status: str) -> str:
         normalized = notification_center_support.normalize_notification_status(status)
@@ -8043,6 +8590,246 @@ class ReaderService:
         if normalized == "warning":
             return "Đã dừng"
         return "Thông báo"
+
+    def _load_runtime_version_metadata(self) -> dict[str, Any]:
+        version_data: dict[str, Any] = {}
+        version_path = ""
+        for candidate in (
+            RUNTIME_ROOT / "local" / "version.json",
+            RUNTIME_ROOT / "version.json",
+            ROOT_DIR / "version.json",
+        ):
+            version_data = _load_json_file_if_exists(candidate)
+            if version_data:
+                version_path = str(candidate)
+                break
+        reader_app = version_data.get("reader_app") if isinstance(version_data.get("reader_app"), dict) else {}
+        server_meta = reader_app.get("server") if isinstance(reader_app.get("server"), dict) else {}
+        ui_meta = reader_app.get("ui") if isinstance(reader_app.get("ui"), dict) else {}
+        version_dir = Path(version_path).parent if version_path else None
+        notice_base_dirs: list[Path] = []
+        for candidate in (version_dir, RUNTIME_ROOT / "local", RUNTIME_ROOT / "reader_ui", RUNTIME_ROOT, ROOT_DIR / "reader_ui", ROOT_DIR):
+            if candidate is None:
+                continue
+            try:
+                resolved = candidate.resolve(strict=False)
+            except Exception:
+                resolved = candidate
+            if resolved not in notice_base_dirs:
+                notice_base_dirs.append(resolved)
+
+        changelog_text = ""
+        changelog_path = ""
+        changelog_files = [
+            str(version_data.get("reader_changelog_file") or "").strip(),
+            str(reader_app.get("changelog_file") or "").strip(),
+            str(version_data.get("notes_file_local") or "").strip(),
+        ]
+        for candidate in _build_notice_file_candidates(
+            changelog_files,
+            (
+                "reader_changelog.txt",
+                "reader_changelog.md",
+                "reader_changelog.html",
+                "update_notes.txt",
+                "update_notes.md",
+                "update_notes.html",
+            ),
+            notice_base_dirs,
+        ):
+            changelog_text = _read_notice_text_file_if_exists(candidate)
+            if changelog_text:
+                changelog_path = str(candidate)
+                break
+
+        guide_text = ""
+        guide_path = ""
+        guide_files = [
+            str(version_data.get("reader_guide_file") or "").strip(),
+            str(reader_app.get("guide_file") or "").strip(),
+        ]
+        for candidate in _build_notice_file_candidates(
+            guide_files,
+            (
+                "reader_guide.txt",
+                "reader_guide.md",
+                "reader_guide.html",
+                "hd.txt",
+            ),
+            notice_base_dirs,
+        ):
+            guide_text = _read_notice_text_file_if_exists(candidate)
+            if guide_text:
+                guide_path = str(candidate)
+                break
+        payload = {
+            "app_version": str(version_data.get("version") or "").strip(),
+            "reader_server_version": str(server_meta.get("version") or "").strip(),
+            "reader_ui_version": str(ui_meta.get("version") or "").strip(),
+            "local_reader_server_version": str(self.VERSION or "").strip(),
+            "local_reader_ui_version": str(self.UI_VERSION or "").strip(),
+            "reader_server_notes": str(server_meta.get("notes") or "").strip(),
+            "reader_ui_notes": str(ui_meta.get("notes") or "").strip(),
+            "update_notes": changelog_text,
+            "guide_text": guide_text,
+            "version_path": version_path,
+            "notes_path": changelog_path,
+            "guide_path": guide_path,
+            "runtime_root": str(RUNTIME_ROOT),
+            "service_version": str(self.VERSION or "").strip(),
+            "version_manifest_url": READER_VERSION_MANIFEST_URL,
+        }
+        payload["signature"] = hashlib.sha1(
+            json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8", errors="ignore")
+        ).hexdigest()
+        return payload
+
+    def _build_system_changelog_notification_payload_locked(self) -> dict[str, Any]:
+        version_meta = self._load_runtime_version_metadata()
+        package_server_version = str(version_meta.get("local_reader_server_version") or version_meta.get("reader_server_version") or "").strip()
+        package_ui_version = str(version_meta.get("local_reader_ui_version") or version_meta.get("reader_ui_version") or "").strip()
+        app_version = str(version_meta.get("app_version") or "").strip()
+        update_notes = str(version_meta.get("update_notes") or "").strip()
+        preview = update_notes.splitlines()[0].strip() if update_notes else ""
+        if not preview:
+            preview = "Xem nhanh những thay đổi mới trong Reader."
+        detail_lines: list[str] = []
+        version_bits: list[str] = []
+        if package_server_version:
+            version_bits.append(f"Lõi đọc {package_server_version}")
+        if package_ui_version:
+            version_bits.append(f"Giao diện {package_ui_version}")
+        if app_version:
+            version_bits.append(f"Novel Studio {app_version}")
+        if version_bits:
+            detail_lines.append("Phiên bản hiện tại: " + " • ".join(version_bits))
+        if update_notes:
+            if detail_lines:
+                detail_lines.append("")
+            detail_lines.append(update_notes)
+        else:
+            if detail_lines:
+                detail_lines.append("")
+            detail_lines.append("Chưa có changelog đi kèm trong bản Reader hiện tại.")
+        content_sig = hashlib.sha1(
+            json.dumps(
+                {
+                    "reader_server_version": package_server_version,
+                    "reader_ui_version": package_ui_version,
+                    "app_version": app_version,
+                    "detail": detail_lines,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8", errors="ignore")
+        ).hexdigest()
+        return {
+            "id": "system:changelog",
+            "kind": "system",
+            "topic": "system",
+            "topic_label": "Changelog",
+            "title": "Changelog Reader",
+            "preview": preview,
+            "detail": "\n".join(detail_lines).strip(),
+            "status": "info",
+            "pinned": True,
+            "pin_order": 0,
+            "allow_delete": False,
+            "allow_clear": False,
+            "retain_days": 0,
+            "meta": {
+                "system_card": "changelog",
+                "content_sig": content_sig,
+                "reader_server_version": package_server_version,
+                "reader_ui_version": package_ui_version,
+                "app_version": app_version,
+            },
+        }
+
+    def _build_system_guide_notification_payload_locked(self) -> dict[str, Any]:
+        version_meta = self._load_runtime_version_metadata()
+        guide_text = str(version_meta.get("guide_text") or "").strip()
+        local_server_version = str(version_meta.get("local_reader_server_version") or version_meta.get("reader_server_version") or "").strip()
+        local_ui_version = str(version_meta.get("local_reader_ui_version") or version_meta.get("reader_ui_version") or "").strip()
+        app_version = str(version_meta.get("app_version") or "").strip()
+        if not guide_text:
+            guide_text = (
+                "Hướng dẫn Reader đang được cập nhật.\n\n"
+                "- Mở Trung tâm thông báo để xem changelog, hướng dẫn và tiến độ.\n"
+                "- `Tiếp tục` dùng cho tiến trình còn làm dở.\n"
+                "- `Thử lại` dùng để chạy lại bước cuối bị lỗi hoặc còn thiếu."
+            )
+        content_sig = hashlib.sha1(
+            json.dumps(
+                {
+                    "guide_text": guide_text,
+                    "reader_server_version": local_server_version,
+                    "reader_ui_version": local_ui_version,
+                    "app_version": app_version,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8", errors="ignore")
+        ).hexdigest()
+        return {
+            "id": "system:guide",
+            "kind": "system",
+            "topic": "system",
+            "topic_label": "Hướng dẫn",
+            "title": "Hướng dẫn dùng Reader",
+            "preview": "Tổng hợp cách dùng thư viện, đọc truyện, thông báo, nhập và xuất file.",
+            "detail": guide_text,
+            "status": "info",
+            "pinned": True,
+            "pin_order": 1,
+            "allow_delete": False,
+            "allow_clear": False,
+            "retain_days": 0,
+            "meta": {
+                "system_card": "guide",
+                "content_sig": content_sig,
+            },
+        }
+
+    def _upsert_system_notification_card_locked(self, payload: dict[str, Any]) -> bool:
+        notif_id = str(payload.get("id") or "").strip()
+        if not notif_id:
+            return False
+        existing = self._notifications.get(notif_id)
+        before = self._notification_state_payload_locked(existing) if isinstance(existing, dict) else None
+        payload = dict(payload)
+        now_iso = utc_now_iso()
+        payload.setdefault("created_at", str(existing.get("created_at") or now_iso) if isinstance(existing, dict) else now_iso)
+        payload.setdefault("updated_at", now_iso)
+        old_sig = str(((existing or {}).get("meta") or {}).get("content_sig") or "").strip()
+        new_sig = str((payload.get("meta") or {}).get("content_sig") or "").strip()
+        if not isinstance(existing, dict):
+            payload["read"] = False
+            payload["read_at"] = ""
+        elif new_sig and (new_sig != old_sig):
+            payload["read"] = False
+            payload["read_at"] = ""
+            payload["updated_at"] = now_iso
+        else:
+            payload["read"] = bool(existing.get("read"))
+            payload["read_at"] = str(existing.get("read_at") or "")
+            payload["updated_at"] = str(existing.get("updated_at") or payload.get("updated_at") or now_iso)
+        item = self._upsert_notification_locked(payload)
+        if item is None:
+            return False
+        after = self._notification_state_payload_locked(item)
+        return before != after
+
+    def _ensure_system_notifications_locked(self) -> bool:
+        changed = False
+        for payload in (
+            self._build_system_changelog_notification_payload_locked(),
+            self._build_system_guide_notification_payload_locked(),
+        ):
+            changed = bool(self._upsert_system_notification_card_locked(payload) or changed)
+        return changed
 
     def _build_download_notification_payload_locked(self, job: dict[str, Any]) -> dict[str, Any] | None:
         job_id = str(job.get("job_id") or "").strip()

@@ -80,6 +80,33 @@ def _normalize_meta_dict(value: Any) -> dict[str, Any]:
     return out
 
 
+def _normalize_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(int(value))
+    text = str(value or "").strip().lower()
+    if not text:
+        return bool(default)
+    if text in {"1", "true", "yes", "on", "enable", "enabled"}:
+        return True
+    if text in {"0", "false", "no", "off", "disable", "disabled"}:
+        return False
+    return bool(default)
+
+
+def _normalize_int(value: Any, default: int = 0, *, minimum: int | None = None, maximum: int | None = None) -> int:
+    try:
+        parsed = int(value if value is not None else default)
+    except Exception:
+        parsed = int(default)
+    if minimum is not None:
+        parsed = max(minimum, parsed)
+    if maximum is not None:
+        parsed = min(maximum, parsed)
+    return parsed
+
+
 def normalize_notification_record(
     raw: dict[str, Any] | None,
     *,
@@ -150,6 +177,11 @@ def normalize_notification_record(
         "book_id": _normalize_plain_text(raw.get("book_id") or prev.get("book_id") or ""),
         "book_title": _normalize_plain_text(raw.get("book_title") or prev.get("book_title") or ""),
         "job_id": _normalize_plain_text(raw.get("job_id") or prev.get("job_id") or ""),
+        "pinned": _normalize_bool(raw.get("pinned") if "pinned" in raw else prev.get("pinned"), False),
+        "pin_order": _normalize_int(raw.get("pin_order") if "pin_order" in raw else prev.get("pin_order"), 999, minimum=0, maximum=999999),
+        "allow_delete": _normalize_bool(raw.get("allow_delete") if "allow_delete" in raw else prev.get("allow_delete"), True),
+        "allow_clear": _normalize_bool(raw.get("allow_clear") if "allow_clear" in raw else prev.get("allow_clear"), True),
+        "retain_days": _normalize_int(raw.get("retain_days") if "retain_days" in raw else prev.get("retain_days"), NOTIFICATION_RETENTION_DAYS),
         "meta": _normalize_meta_dict(raw.get("meta") if "meta" in raw else prev.get("meta")),
     }
     return item
@@ -190,14 +222,17 @@ def cleanup_notification_records(
 ) -> bool:
     if not records:
         return False
-    keep_seconds = max(1, int(keep_days)) * 86400.0
     remove_ids: list[str] = []
     for notif_id, item in records.items():
+        retain_days = _normalize_int(item.get("retain_days"), keep_days)
+        if retain_days <= 0:
+            continue
         created_ts = parse_notification_ts(item.get("created_at"))
         if created_ts <= 0:
             created_ts = parse_notification_ts(item.get("updated_at"))
         if created_ts <= 0:
             created_ts = now_ts
+        keep_seconds = max(1, retain_days) * 86400.0
         if (now_ts - created_ts) >= keep_seconds:
             remove_ids.append(notif_id)
     if not remove_ids:
@@ -207,11 +242,13 @@ def cleanup_notification_records(
     return True
 
 
-def notification_sort_key(item: dict[str, Any]) -> tuple[float, float, str]:
+def notification_sort_key(item: dict[str, Any]) -> tuple[int, int, float, float, str]:
+    pinned = 0 if _normalize_bool(item.get("pinned"), False) else 1
+    pin_order = _normalize_int(item.get("pin_order"), 999, minimum=0, maximum=999999)
     updated_ts = parse_notification_ts(item.get("updated_at"))
     created_ts = parse_notification_ts(item.get("created_at"))
     notif_id = str(item.get("id") or "")
-    return (updated_ts, created_ts, notif_id)
+    return (pinned, pin_order, -updated_ts, -created_ts, notif_id)
 
 
 def build_notifications_signature(items: list[dict[str, Any]]) -> str:
@@ -227,6 +264,8 @@ def build_notifications_signature(items: list[dict[str, Any]]) -> str:
             "progress_current": int(item.get("progress_current") or 0),
             "progress_total": int(item.get("progress_total") or 0),
             "preview": str(item.get("preview") or ""),
+            "pinned": bool(item.get("pinned")),
+            "pin_order": int(item.get("pin_order") or 0),
         }
         for item in items
     ]
@@ -241,7 +280,7 @@ def build_notifications_listing(
     generated_at: str = "",
 ) -> dict[str, Any]:
     items = [dict(item) for item in records.values() if isinstance(item, dict)]
-    items.sort(key=notification_sort_key, reverse=True)
+    items.sort(key=notification_sort_key)
     max_items = max(1, min(300, int(limit or 120)))
     limited = items[:max_items]
     unread_count = sum(1 for item in items if not bool(item.get("read")))

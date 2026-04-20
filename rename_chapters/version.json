@@ -2,6 +2,8 @@
   "version": "0.3.3.2",
   "url": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/0.3.3.2/Novel-Studio-setup.exe",
   "notes_file": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/update_notes.html",
+  "reader_changelog_file": "reader_ui/reader_changelog.txt",
+  "reader_guide_file": "reader_ui/reader_guide.txt",
   "regex_dataset": {
     "url": "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/regex_dataset.json"
   },

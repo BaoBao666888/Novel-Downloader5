@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260417-library5">
+  <link rel="stylesheet" href="./styles.css?v=20260420-updatepopup3">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -196,37 +196,39 @@
       <h3 id="library-category-filter-title"></h3>
       <button id="btn-close-library-category-filter" class="btn btn-small" type="button"></button>
     </div>
-    <p id="library-category-filter-hint" class="dialog-subtitle"></p>
-    <label class="category-search-field">
-      <span id="library-author-filter-label"></span>
-      <input id="library-author-filter-input" type="search" autocomplete="off">
-    </label>
-    <label class="category-search-field">
-      <span id="library-category-match-mode-label"></span>
-      <select id="library-category-match-mode-select">
-        <option id="library-category-match-mode-or" value="or"></option>
-        <option id="library-category-match-mode-and" value="and"></option>
-      </select>
-    </label>
-    <label class="category-search-field">
-      <span id="library-category-filter-search-label"></span>
-      <input id="library-category-filter-search" type="search" autocomplete="off">
-    </label>
-    <section class="category-filter-section">
-      <div class="category-filter-section-head">
-        <strong id="library-category-include-title"></strong>
-        <span id="library-category-include-count" class="tag hidden"></span>
-      </div>
-      <div id="library-category-filter-include-list" class="category-chip-picker"></div>
-    </section>
-    <section class="category-filter-section">
-      <div class="category-filter-section-head">
-        <strong id="library-category-exclude-title"></strong>
-        <span id="library-category-exclude-count" class="tag hidden"></span>
-      </div>
-      <div id="library-category-filter-exclude-list" class="category-chip-picker"></div>
-    </section>
-    <p id="library-category-filter-empty" class="empty-text hidden"></p>
+    <div class="category-dialog-scroll">
+      <p id="library-category-filter-hint" class="dialog-subtitle"></p>
+      <label class="category-search-field">
+        <span id="library-author-filter-label"></span>
+        <input id="library-author-filter-input" type="search" autocomplete="off">
+      </label>
+      <label class="category-search-field">
+        <span id="library-category-match-mode-label"></span>
+        <select id="library-category-match-mode-select">
+          <option id="library-category-match-mode-or" value="or"></option>
+          <option id="library-category-match-mode-and" value="and"></option>
+        </select>
+      </label>
+      <label class="category-search-field">
+        <span id="library-category-filter-search-label"></span>
+        <input id="library-category-filter-search" type="search" autocomplete="off">
+      </label>
+      <section class="category-filter-section">
+        <div class="category-filter-section-head">
+          <strong id="library-category-include-title"></strong>
+          <span id="library-category-include-count" class="tag hidden"></span>
+        </div>
+        <div id="library-category-filter-include-list" class="category-chip-picker"></div>
+      </section>
+      <section class="category-filter-section">
+        <div class="category-filter-section-head">
+          <strong id="library-category-exclude-title"></strong>
+          <span id="library-category-exclude-count" class="tag hidden"></span>
+        </div>
+        <div id="library-category-filter-exclude-list" class="category-chip-picker"></div>
+      </section>
+      <p id="library-category-filter-empty" class="empty-text hidden"></p>
+    </div>
     <div class="dialog-actions">
       <button id="btn-library-category-filter-clear" class="btn" type="button"></button>
       <button id="btn-library-category-filter-apply" class="btn btn-primary" type="button"></button>
@@ -1008,7 +1010,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260417-notify1"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260420-updatepopup3"></script>
 </body>
 
 </html>

@@ -1,0 +1,72 @@
+Hướng dẫn dùng Reader
+
+1. Bắt đầu
+- Mở tab Đọc truyện trong Novel Studio và cài đủ các module cần thiết trước khi dùng.
+- Khi server đã chạy, IP máy là địa chỉ để mở Reader từ điện thoại hoặc máy khác cùng mạng Wi-Fi.
+- Nếu đổi mạng hoặc đổi IP, hãy mở lại tab Đọc truyện để lấy địa chỉ mới.
+
+2. Trung tâm thông báo
+- Biểu tượng chuông là nơi xem changelog, hướng dẫn, tiến độ import, cache nền và các thông báo khác.
+- Thẻ Changelog và Hướng dẫn luôn được ghim ở đầu, không thể xóa, để lúc nào cũng mở lại được.
+- Nếu một thẻ có nội dung dài, cứ bấm mở thẻ rồi cuộn trong phần chi tiết.
+- `Tiếp tục` dùng cho tiến trình đang làm dở và còn dữ liệu để chạy tiếp.
+- `Thử lại` dùng khi bước cuối bị lỗi hoặc còn thiếu một phần cần xử lý lại.
+
+3. Tìm kiếm trong thư viện
+- Có thể tìm theo tên truyện, tên gần đúng hoặc các tên đã được cache lại.
+- Hệ thống ưu tiên trả kết quả theo truyện trước, rồi mới tới chương.
+- Khi đang tải kết quả sẽ có skeleton để dễ nhìn hơn.
+- Nếu vừa thêm nhiều truyện mới, server sẽ tự cache nốt các tên còn thiếu để tìm bằng tên Việt ổn định hơn.
+
+4. Danh mục trong thư viện
+- Mở bộ lọc danh mục để chọn nhanh các nhóm muốn giữ hoặc loại ra.
+- Nhóm Tags mặc định được thu gọn vì thường quá nhiều.
+- Các nút Bỏ lọc và Áp dụng luôn nằm ngoài vùng cuộn để dễ bấm trên màn hình nhỏ.
+- Nếu muốn chỉnh danh mục cho từng truyện, có thể vào trang thông tin truyện để sửa trực tiếp.
+
+5. Trang thông tin truyện
+- Trang này là nơi xem bìa, tác giả, văn án, danh mục và các thao tác liên quan tới riêng truyện đó.
+- Nếu văn án còn là tiếng Trung, Reader sẽ cố dịch lại cho phần hiển thị.
+- Danh sách danh mục ở đây có cách hiển thị giống thư viện để dễ nhìn và dễ chọn hơn.
+- Nếu dùng Name riêng cho từng truyện, nên quản lý từ đây hoặc ngay trong trang đọc.
+
+6. Đọc truyện
+- Reader sẽ tự nhớ vị trí đọc gần nhất.
+- Có thể đổi theme, font, cỡ chữ, dãn dòng và các tuỳ chỉnh đọc ngay trong trang.
+- Khi bật fullscreen, các chế độ đọc nâng cao sẽ hoạt động đầy đủ hơn.
+- Nếu chỉnh Name riêng hoặc tải lại chương, hệ thống sẽ cố giữ lại vị trí đang đọc.
+
+7. Nhập truyện và nguồn vBook
+- Có thể nhập từ file TXT, EPUB hoặc từ nguồn vBook tuỳ cấu hình hiện có.
+- Trong mục Nguồn vBook, nên kiểm tra cập nhật vBook Runner trước khi nhập hoặc tìm truyện.
+- Nếu một đợt import bị dừng giữa chừng, hãy mở notify để xem còn lỗi ở bước nào.
+- Trường hợp truyện đã vào thư viện nhưng còn thiếu bước cuối như gán danh mục, thường có thể xử lý tiếp từ nút Tiếp tục hoặc Thử lại.
+
+8. Cập nhật Reader
+- Nếu web server phát hiện Reader Server hoặc Reader UI đang cũ hơn bản mới, sẽ hiện popup nhắc cập nhật thủ công.
+- Có thể bấm `Ẩn 2 giờ` nếu chưa muốn xử lý ngay.
+- Khi cần cập nhật, hãy mở lại tab Đọc truyện trong Novel Studio để cập nhật thủ công thành phần cần thiết.
+- Sau khi cập nhật xong, thẻ Changelog và Hướng dẫn sẽ trở về chưa đọc để dễ xem lại thay đổi của bản mới.
+
+9. Xuất file HTML
+- Với tuỳ chọn Gộp thành 1 file, HTML chỉ nạp vài chương quanh vị trí đang xem để giảm lag.
+- Mục lục, giới thiệu và ảnh bìa vẫn có sẵn ngay khi mở file.
+- Khi bấm vào một chương trong mục lục, file sẽ nạp chương đó cùng vài chương trước và sau để đọc mượt hơn.
+- Nếu bật mã mở file, mã có thể được nhớ trên trình duyệt trong thời gian dài hơn trước.
+- Nếu muốn nhận các cải tiến mới của file HTML, hãy xuất lại file từ Reader.
+
+10. Xuất file có bảo vệ nội dung
+- Khi bật bảo vệ, file sẽ chặn sao chép trực tiếp và chặn một số công cụ can thiệp như extension copy hoặc DevTools.
+- Nếu file báo đang có công cụ can thiệp, hãy tắt tiện ích liên quan rồi mở lại.
+- Trên điện thoại, đặc biệt là iPhone, ô nhập mã đã được tối ưu hơn nhưng vẫn nên nhập dứt khoát đủ mã rồi chờ file tự mở.
+
+11. TTS và các lưu ý hiện tại
+- Một số nguồn TTS có thể hoạt động khác nhau tuỳ cookie và trạng thái đăng nhập.
+- Hiện tại TikTok TTS có thể chưa nhận cookie ổn định trong một số trường hợp.
+- Nếu gọi TTS thất bại, hãy thử lại sau hoặc chuyển sang nguồn khác đang hoạt động tốt hơn.
+
+12. Khi cần kiểm tra nhanh
+- Không thấy truyện mới trong tìm kiếm: chờ notify cache tên chạy xong rồi thử lại.
+- Import bị dừng: mở notify để xem log, ưu tiên dùng Tiếp tục hoặc Thử lại trước khi làm lại từ đầu.
+- File HTML cũ chưa có cải tiến mới: xuất lại file mới.
+- Muốn xem lại thay đổi của bản đang dùng: mở thẻ Changelog trong notify.

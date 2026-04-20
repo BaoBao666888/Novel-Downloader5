@@ -1,9 +1,13 @@
-import { t } from "../i18n.vi.js?v=20260417-notify1";
+import { t } from "../i18n.vi.js?v=20260420-updatepopup3";
 
+const UI_RUNTIME_VERSION = "0.1.5";
 const SETTINGS_KEY = "reader.ui.settings.v3";
 const THEME_CACHE_KEY = "reader.ui.theme.cache.v1";
 const CUSTOM_THEMES_KEY = "reader.ui.custom.themes.v1";
 const CUSTOM_THEME_PREFIX = "custom_theme_";
+const READER_UPDATE_POPUP_HIDE_KEY = "reader.ui.update_popup.hide.v1";
+const READER_UPDATE_POPUP_SESSION_KEY = "reader.ui.update_popup.session.v1";
+const READER_UPDATE_POPUP_HIDE_MS = 2 * 60 * 60 * 1000;
 const DEFAULT_SETTINGS = {
   themeId: "sao_dem",
   miniBarsScale: 1,
@@ -305,6 +309,18 @@ function buildReaderSettingsExtrasMarkup() {
   );
 }
 
+function buildTitleCacheSettingMarkup() {
+  return (
+    `<label id="title-cache-auto-wrap">
+      <span id="label-title-cache-auto">${t("titleCacheAutoLabel")}</span>
+      <select id="title-cache-auto-select">
+        <option id="title-cache-auto-on" value="on">${t("titleCacheAutoOn")}</option>
+        <option id="title-cache-auto-off" value="off">${t("titleCacheAutoOff")}</option>
+      </select>
+    </label>`
+  );
+}
+
 function appendExistingNodes(parent, nodes) {
   for (const node of nodes) {
     if (!node) continue;
@@ -349,6 +365,10 @@ function ensureSettingsEnhancements(settingsForm) {
   if (miniBarsLabel && !qs("mini-bars-scale-input")) {
     insertMarkupAfter(miniBarsLabel, buildReaderSettingsExtrasMarkup());
   }
+  const translationModeLabel = qs("translation-mode-select") && qs("translation-mode-select").closest("label");
+  if (translationModeLabel && !qs("title-cache-auto-wrap")) {
+    insertMarkupAfter(translationModeLabel, buildTitleCacheSettingMarkup());
+  }
   if (settingsForm.dataset.sectionized === "1") return;
   const groups = [
     {
@@ -389,6 +409,7 @@ function ensureSettingsEnhancements(settingsForm) {
       nodes: [
         qs("translation-enabled-select") && qs("translation-enabled-select").closest("label"),
         qs("translation-mode-select") && qs("translation-mode-select").closest("label"),
+        qs("title-cache-auto-wrap"),
         qs("server-translation-settings"),
         qs("local-translation-settings"),
       ],
@@ -499,6 +520,48 @@ async function api(path, options = {}) {
     throw err;
   }
   return payload;
+}
+
+function readReaderUpdatePopupHideState() {
+  try {
+    const raw = localStorage.getItem(READER_UPDATE_POPUP_HIDE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const contentSig = String(parsed.content_sig || "").trim();
+    const hideUntilTs = Math.max(0, Number(parsed.hide_until_ts || 0));
+    if (!contentSig || !(hideUntilTs > 0)) return null;
+    return { contentSig, hideUntilTs };
+  } catch {
+    return null;
+  }
+}
+
+function writeReaderUpdatePopupHideState(contentSig, hideUntilTs) {
+  try {
+    localStorage.setItem(READER_UPDATE_POPUP_HIDE_KEY, JSON.stringify({
+      content_sig: String(contentSig || "").trim(),
+      hide_until_ts: Math.max(0, Number(hideUntilTs || 0)),
+    }));
+  } catch {
+    // ignore
+  }
+}
+
+function markReaderUpdatePopupSeenThisSession(contentSig) {
+  try {
+    sessionStorage.setItem(READER_UPDATE_POPUP_SESSION_KEY, String(contentSig || "").trim());
+  } catch {
+    // ignore
+  }
+}
+
+function hasSeenReaderUpdatePopupThisSession(contentSig) {
+  try {
+    return String(sessionStorage.getItem(READER_UPDATE_POPUP_SESSION_KEY) || "").trim() === String(contentSig || "").trim();
+  } catch {
+    return false;
+  }
 }
 
 function showToast(msg) {
@@ -1470,6 +1533,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     readerTranslationSimLocal: { ...LOCAL_TRANSLATION_DEFAULT },
     readerTranslationHanviet: { ...LOCAL_TRANSLATION_DEFAULT },
     readerTranslationServer: { ...SERVER_TRANSLATION_DEFAULT },
+    readerTranslationTitleCacheAuto: true,
     vbook: {
       installed: [],
       repoUrls: [],
@@ -1498,6 +1562,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       pluginSettings: {},
       selectedRuntimePluginId: "",
     },
+    readerUpdateStatus: null,
   };
 
   const getLocalTranslationState = (mode = state.settings.translationMode) => {
@@ -1550,6 +1615,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const comicEdgeTintStrengthWrap = qs("comic-edge-tint-strength-wrap");
   const translationEnabledSelect = qs("translation-enabled-select");
   const translationModeSelect = qs("translation-mode-select");
+  const titleCacheAutoSelect = qs("title-cache-auto-select");
   const localSection = qs("local-translation-settings");
   const localSectionLegend = qs("label-local-translate-settings");
   const serverTranslateSection = qs("server-translation-settings");
@@ -1780,6 +1846,153 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     reconnectTimer: 0,
     listeners: new Set(),
   };
+  let readerUpdateUi = null;
+  let readerUpdateAutoOpenTimer = 0;
+
+  const clearReaderUpdateAutoOpenTimer = () => {
+    if (!readerUpdateAutoOpenTimer) return;
+    window.clearTimeout(readerUpdateAutoOpenTimer);
+    readerUpdateAutoOpenTimer = 0;
+  };
+
+  const listOpenDialogs = () => Array.from(document.querySelectorAll("dialog[open]"))
+    .filter((node) => node instanceof HTMLDialogElement);
+
+  const hasBlockingDialogForReaderUpdate = () => (
+    listOpenDialogs().some((dialogNode) => dialogNode.id !== "reader-update-dialog")
+  );
+
+  const ensureReaderUpdateUi = () => {
+    if (readerUpdateUi) return readerUpdateUi;
+    let dialog = qs("reader-update-dialog");
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.id = "reader-update-dialog";
+      dialog.className = "dialog reader-update-dialog";
+      dialog.innerHTML = `
+        <div class="dialog-head">
+          <h3 id="reader-update-title">${t("readerUpdateTitle")}</h3>
+          <button id="btn-reader-update-close-top" class="btn btn-small" type="button">${t("close")}</button>
+        </div>
+        <p id="reader-update-preview" class="dialog-subtitle"></p>
+        <pre id="reader-update-detail" class="reader-update-detail"></pre>
+        <div class="dialog-actions">
+          <button id="btn-reader-update-hide-2h" class="btn" type="button">${t("readerUpdateHideTwoHours")}</button>
+          <button id="btn-reader-update-close" class="btn" type="button">${t("close")}</button>
+        </div>
+      `;
+      document.body.appendChild(dialog);
+    }
+    const ui = {
+      dialog,
+      title: qs("reader-update-title"),
+      preview: qs("reader-update-preview"),
+      detail: qs("reader-update-detail"),
+      btnCloseTop: qs("btn-reader-update-close-top"),
+      btnHideTwoHours: qs("btn-reader-update-hide-2h"),
+      btnClose: qs("btn-reader-update-close"),
+      currentSig: "",
+    };
+    const closeDialog = ({ rememberSeen = true } = {}) => {
+      clearReaderUpdateAutoOpenTimer();
+      if (rememberSeen && ui.currentSig) markReaderUpdatePopupSeenThisSession(ui.currentSig);
+      if (ui.dialog.open) ui.dialog.close();
+    };
+    const closeDialogByUser = () => {
+      closeDialog({ rememberSeen: true });
+    };
+    ui.btnCloseTop?.addEventListener("click", closeDialogByUser);
+    ui.btnClose?.addEventListener("click", closeDialogByUser);
+    ui.btnHideTwoHours?.addEventListener("click", () => {
+      if (ui.currentSig) {
+        const hideUntilTs = Date.now() + READER_UPDATE_POPUP_HIDE_MS;
+        writeReaderUpdatePopupHideState(ui.currentSig, hideUntilTs);
+        markReaderUpdatePopupSeenThisSession(ui.currentSig);
+      }
+      closeDialog({ rememberSeen: false });
+    });
+    ui.dialog.addEventListener("close", () => {
+      clearReaderUpdateAutoOpenTimer();
+      if (ui.currentSig) markReaderUpdatePopupSeenThisSession(ui.currentSig);
+    });
+    ui.dialog.addEventListener("cancel", () => {
+      clearReaderUpdateAutoOpenTimer();
+    });
+    ui.closeDialog = closeDialog;
+    readerUpdateUi = ui;
+    return ui;
+  };
+
+  const shouldAutoOpenReaderUpdateDialog = (status) => {
+    if (!(status && status.update_available)) return false;
+    const contentSig = String(status.content_sig || "").trim();
+    if (!contentSig) return false;
+    const hideState = readReaderUpdatePopupHideState();
+    if (hideState && hideState.contentSig === contentSig && hideState.hideUntilTs > Date.now()) return false;
+    if (hasSeenReaderUpdatePopupThisSession(contentSig)) return false;
+    return true;
+  };
+
+  const renderReaderUpdateDialog = (status) => {
+    const ui = ensureReaderUpdateUi();
+    if (!ui) return null;
+    const localServerVersion = String(((status && status.local) || {}).reader_server_version || "").trim();
+    const localUiVersion = String(((status && status.local) || {}).reader_ui_version || "").trim() || UI_RUNTIME_VERSION;
+    const nextServerVersion = String(((status && status.remote) || {}).reader_server_version || "").trim();
+    const nextUiVersion = String(((status && status.remote) || {}).reader_ui_version || "").trim();
+    const detailParts = [];
+    const detailText = String((status && status.detail) || "").trim();
+    if (detailText) detailParts.push(detailText);
+    if (!detailText && (localServerVersion || localUiVersion || nextServerVersion || nextUiVersion)) {
+      detailParts.push(
+        [
+          "Đang dùng:",
+          `- Reader Server: ${localServerVersion || "?"}`,
+          `- Reader UI: ${localUiVersion || "?"}`,
+          "",
+          "Bản mới nhất:",
+          `- Reader Server: ${nextServerVersion || "?"}`,
+          `- Reader UI: ${nextUiVersion || "?"}`,
+        ].join("\n"),
+      );
+    }
+    ui.currentSig = String((status && status.content_sig) || "").trim();
+    if (ui.title) ui.title.textContent = String((status && status.title) || t("readerUpdateTitle"));
+    if (ui.preview) ui.preview.textContent = String((status && status.preview) || t("readerUpdatePreview"));
+    if (ui.detail) ui.detail.textContent = detailParts.join("\n\n").trim();
+    return ui;
+  };
+
+  const scheduleReaderUpdateAutoOpen = (status, delay = 0) => {
+    clearReaderUpdateAutoOpenTimer();
+    if (!shouldAutoOpenReaderUpdateDialog(status)) return;
+    readerUpdateAutoOpenTimer = window.setTimeout(() => {
+      readerUpdateAutoOpenTimer = 0;
+      if (hasBlockingDialogForReaderUpdate()) {
+        scheduleReaderUpdateAutoOpen(status, 320);
+        return;
+      }
+      const ui = renderReaderUpdateDialog(status);
+      if (!(ui && !ui.dialog.open)) return;
+      try {
+        ui.dialog.showModal();
+      } catch {
+        scheduleReaderUpdateAutoOpen(status, 320);
+      }
+    }, Math.max(0, Number(delay || 0)));
+  };
+
+  const checkReaderUpdateStatus = async ({ force = false, autoOpen = false } = {}) => {
+    const data = await api(`/api/reader/update-status${force ? "?force=1" : ""}`);
+    if (data && typeof data === "object") {
+      state.readerUpdateStatus = data;
+      if (!((data.local || {}).reader_ui_version)) {
+        data.local = { ...(data.local || {}), reader_ui_version: UI_RUNTIME_VERSION };
+      }
+      if (autoOpen) scheduleReaderUpdateAutoOpen(data, 0);
+    }
+    return data;
+  };
 
   const ensureNotificationUi = () => {
     if (notificationState.ui) return notificationState.ui;
@@ -1839,13 +2052,15 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
           <h3 id="notification-detail-title">${t("notificationDetailTitle")}</h3>
           <button id="btn-notification-detail-close" class="btn btn-small" type="button">${t("close")}</button>
         </div>
-        <div class="notification-detail-meta">
-          <span id="notification-detail-status" class="notification-status-chip"></span>
-          <span id="notification-detail-topic" class="notification-detail-topic"></span>
+        <div class="notification-detail-content">
+          <div class="notification-detail-meta">
+            <span id="notification-detail-status" class="notification-status-chip"></span>
+            <span id="notification-detail-topic" class="notification-detail-topic"></span>
+          </div>
+          <p id="notification-detail-updated" class="dialog-subtitle"></p>
+          <p id="notification-detail-created" class="dialog-subtitle"></p>
+          <pre id="notification-detail-body" class="notification-detail-body"></pre>
         </div>
-        <p id="notification-detail-updated" class="dialog-subtitle"></p>
-        <p id="notification-detail-created" class="dialog-subtitle"></p>
-        <pre id="notification-detail-body" class="notification-detail-body"></pre>
         <div class="dialog-actions">
           <div id="notification-detail-actions-extra" class="notification-detail-actions-extra"></div>
           <button id="btn-notification-detail-read" class="btn" type="button">${t("notificationMarkRead")}</button>
@@ -1880,6 +2095,35 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       btnDetailRead: qs("btn-notification-detail-read"),
       btnDetailDelete: qs("btn-notification-detail-delete"),
       activeDetailId: "",
+      returnToNotificationList: false,
+    };
+
+    const openNotificationCenterDialog = async () => {
+      ui.returnToNotificationList = false;
+      if (ui.detailDialog && ui.detailDialog.open) ui.detailDialog.close();
+      if (readerUpdateUi && readerUpdateUi.dialog.open) {
+        readerUpdateUi.closeDialog?.();
+      }
+      if (!ui.dialog.open) ui.dialog.showModal();
+      if (!notificationState.items.length) {
+        try {
+          await loadNotifications();
+        } catch {
+          // ignore temporary network error
+        }
+      }
+    };
+
+    const openNotificationDetailDialog = () => {
+      if (!ui.detailDialog) return;
+      if (readerUpdateUi && readerUpdateUi.dialog.open) {
+        readerUpdateUi.closeDialog?.();
+      }
+      const cameFromList = Boolean(ui.dialog && ui.dialog.open);
+      if (cameFromList) ui.returnToNotificationList = true;
+      else if (!ui.detailDialog.open) ui.returnToNotificationList = false;
+      if (cameFromList) ui.dialog.close();
+      if (!ui.detailDialog.open) ui.detailDialog.showModal();
     };
 
     const syncNotificationControls = () => {
@@ -1891,14 +2135,14 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         ui.selectionSummary.classList.toggle("hidden", selectedCount <= 0);
       }
       if (ui.btnMarkRead) ui.btnMarkRead.disabled = selectedCount <= 0;
-      if (ui.btnDelete) ui.btnDelete.disabled = selectedCount <= 0;
+      if (ui.btnDelete) ui.btnDelete.disabled = getSelectedDeletableNotificationIds().length <= 0;
       if (ui.btnClearRead) {
         ui.btnClearRead.disabled = notificationState.items.every((item) => {
-          if (!item || !item.read) return true;
+          if (!item || !notificationAllowsClear(item) || !item.read) return true;
           return normalizeNotificationStatus(item.status) === "running";
         });
       }
-      if (ui.btnClearAll) ui.btnClearAll.disabled = notificationState.items.length <= 0;
+      if (ui.btnClearAll) ui.btnClearAll.disabled = notificationState.items.every((item) => !notificationAllowsClear(item));
     };
 
     const syncNotificationBadge = () => {
@@ -1924,6 +2168,15 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       if (typeof value === "boolean") return value;
       return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
     };
+
+    const notificationAllowsDelete = (item) => item && item.allow_delete !== false;
+    const notificationAllowsClear = (item) => item && item.allow_clear !== false;
+    const getSelectedDeletableNotificationIds = () => (
+      Array.from(notificationState.selected).filter((notifId) => {
+        const current = notificationState.items.find((item) => String((item && item.id) || "").trim() === String(notifId || "").trim());
+        return notificationAllowsDelete(current);
+      })
+    );
 
     const buildImportNotificationActions = (item) => {
       if (!item || String(item.topic || "").trim().toLowerCase() !== "import") return [];
@@ -1990,7 +2243,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         ui.detailStatus.className = `notification-status-chip ${status}`;
         ui.detailStatus.textContent = notificationStatusLabel(status);
       }
-      if (ui.detailTopic) ui.detailTopic.textContent = String(item.topic_label || item.topic || "");
+      if (ui.detailTopic) {
+        const topicBits = [String(item.topic_label || item.topic || "").trim()];
+        if (item.pinned) topicBits.push(t("notificationPinned"));
+        ui.detailTopic.textContent = topicBits.filter(Boolean).join(" • ");
+      }
       if (ui.detailUpdated) {
         ui.detailUpdated.textContent = `${t("notificationUpdatedAt")}: ${formatLocalDateTime(item.updated_at) || "-"}`;
       }
@@ -2029,7 +2286,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       if (ui.btnDetailRead) {
         ui.btnDetailRead.textContent = item.read ? t("notificationMarkUnread") : t("notificationMarkRead");
       }
-      if (!ui.detailDialog.open) ui.detailDialog.showModal();
+      if (ui.btnDetailDelete) {
+        ui.btnDetailDelete.hidden = !notificationAllowsDelete(item);
+        ui.btnDetailDelete.disabled = !notificationAllowsDelete(item);
+      }
+      openNotificationDetailDialog();
     };
 
     const renderNotificationList = () => {
@@ -2062,6 +2323,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         const status = normalizeNotificationStatus(item.status);
         const card = document.createElement("article");
         card.className = `notification-card ${status}${item.read && status !== "running" ? " read" : ""}`;
+        if (item.pinned) card.classList.add("pinned");
         card.setAttribute("data-notification-id", String(item.id || ""));
 
         const selector = document.createElement("label");
@@ -2069,6 +2331,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.checked = notificationState.selected.has(String(item.id || ""));
+        checkbox.disabled = !notificationAllowsDelete(item);
         checkbox.addEventListener("click", (event) => event.stopPropagation());
         checkbox.addEventListener("change", () => {
           const notifId = String(item.id || "").trim();
@@ -2107,6 +2370,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         const meta = document.createElement("div");
         meta.className = "notification-card-meta";
         const metaParts = [];
+        if (item.pinned) metaParts.push(t("notificationPinned"));
         if (item.topic_label || item.topic) metaParts.push(String(item.topic_label || item.topic));
         if (Number(item.progress_total || 0) > 0) {
           metaParts.push(`${Math.max(0, Number(item.progress_current || 0))}/${Math.max(0, Number(item.progress_total || 0))}`);
@@ -2308,17 +2572,31 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       };
     };
 
-    bellButton.addEventListener("click", async () => {
-      if (!dialog.open) dialog.showModal();
-      if (!notificationState.items.length) {
-        try {
-          await loadNotifications();
-        } catch {
-          // ignore temporary network error
-        }
-      }
+    bellButton.addEventListener("click", () => {
+      openNotificationCenterDialog().catch(() => {});
     });
     if (ui.btnClose) ui.btnClose.addEventListener("click", () => { if (dialog.open) dialog.close(); });
+    if (ui.detailDialog) {
+      ui.detailDialog.addEventListener("close", () => {
+        ui.activeDetailId = "";
+        const shouldReturnToList = ui.returnToNotificationList;
+        ui.returnToNotificationList = false;
+        if (shouldReturnToList) {
+          window.setTimeout(() => {
+            if (!ui.dialog.open) {
+              try {
+                if (readerUpdateUi && readerUpdateUi.dialog.open) {
+                  readerUpdateUi.closeDialog?.();
+                }
+                ui.dialog.showModal();
+              } catch {
+                // ignore invalid modal state
+              }
+            }
+          }, 0);
+        }
+      });
+    }
     if (ui.btnMarkRead) {
       ui.btnMarkRead.addEventListener("click", async () => {
         const ids = Array.from(notificationState.selected);
@@ -2328,7 +2606,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     }
     if (ui.btnDelete) {
       ui.btnDelete.addEventListener("click", async () => {
-        const ids = Array.from(notificationState.selected);
+        const ids = getSelectedDeletableNotificationIds();
         if (!ids.length) return;
         if (!window.confirm("Xóa các thông báo đã chọn?")) return;
         await deleteNotifications(ids);
@@ -2347,7 +2625,6 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       });
     }
     if (ui.btnDetailClose) ui.btnDetailClose.addEventListener("click", () => {
-      ui.activeDetailId = "";
       if (ui.detailDialog.open) ui.detailDialog.close();
     });
     if (ui.btnDetailRead) {
@@ -2360,6 +2637,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     if (ui.btnDetailDelete) {
       ui.btnDetailDelete.addEventListener("click", async () => {
         if (!ui.activeDetailId) return;
+        const current = notificationState.items.find((item) => String((item && item.id) || "").trim() === ui.activeDetailId);
+        if (!notificationAllowsDelete(current)) {
+          showToast(t("notificationProtectedCard"));
+          return;
+        }
         if (!window.confirm("Xóa thông báo này?")) return;
         await deleteNotifications([ui.activeDetailId]);
       });
@@ -2479,12 +2761,14 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const syncReaderTranslationForm = () => {
     state.settings.translationEnabled = state.settings.translationEnabled !== false;
     state.settings.translationMode = normalizeTranslationMode(state.settings.translationMode);
+    state.readerTranslationTitleCacheAuto = state.readerTranslationTitleCacheAuto !== false;
     const activeMode = state.settings.translationEnabled ? state.settings.translationMode : "off";
     if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
     if (translationModeSelect) {
       translationModeSelect.value = state.settings.translationMode;
       translationModeSelect.disabled = !state.settings.translationEnabled;
     }
+    if (titleCacheAutoSelect) titleCacheAutoSelect.value = state.readerTranslationTitleCacheAuto ? "on" : "off";
     if (localSectionLegend) {
       if (activeMode === SIM_LOCAL_TRANSLATION_MODE) localSectionLegend.textContent = t("localTranslateSettingsDichNgayLocal");
       else if (activeMode === "hanviet") localSectionLegend.textContent = t("localTranslateSettingsHanviet");
@@ -2496,13 +2780,14 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     syncLocalTranslationForm();
   };
 
-  const applyReaderTranslationSettings = ({ enabled, mode, server, local, dichngay_local, hanviet }, { emit = true } = {}) => {
+  const applyReaderTranslationSettings = ({ enabled, mode, server, local, dichngay_local, hanviet, title_cache_auto }, { emit = true } = {}) => {
     state.settings.translationEnabled = enabled !== false;
     state.settings.translationMode = normalizeTranslationMode(mode);
     state.readerTranslationServer = normalizeServerTranslationSettings(server || state.readerTranslationServer || {});
     state.readerTranslationLocal = normalizeLocalTranslationSettings(local || state.readerTranslationLocal || {});
     state.readerTranslationSimLocal = normalizeLocalTranslationSettings(dichngay_local || state.readerTranslationSimLocal || {});
     state.readerTranslationHanviet = normalizeLocalTranslationSettings(hanviet || state.readerTranslationHanviet || {});
+    state.readerTranslationTitleCacheAuto = title_cache_auto !== false;
     syncReaderTranslationForm();
     saveSettings(state.settings);
     if (emit) emitSettingsChanged({
@@ -2523,6 +2808,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       translation: {
         enabled: state.settings.translationEnabled !== false,
         mode,
+        title_cache_auto: state.readerTranslationTitleCacheAuto !== false,
         server: serverCfg,
         local: mode === "local" ? activeLocalCfg : localCfg,
         dichngay_local: mode === SIM_LOCAL_TRANSLATION_MODE ? activeLocalCfg : simLocalCfg,
@@ -2795,6 +3081,18 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     });
   }
 
+  if (titleCacheAutoSelect) {
+    titleCacheAutoSelect.addEventListener("change", async () => {
+      state.readerTranslationTitleCacheAuto = String(titleCacheAutoSelect.value || "").trim().toLowerCase() !== "off";
+      syncReaderTranslationForm();
+      try {
+        await persistReaderTranslationSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
+    });
+  }
+
   const bindLocalTranslateSetting = (node, eventName = "change") => {
     if (!node) return;
     node.addEventListener(eventName, async () => {
@@ -2946,6 +3244,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       if (comicEdgeTintStrengthWrap) comicEdgeTintStrengthWrap.hidden = !state.settings.comicEdgeTintEnabled;
       if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
       if (translationModeSelect) translationModeSelect.value = normalizeTranslationMode(state.settings.translationMode);
+      state.readerTranslationTitleCacheAuto = true;
+      if (titleCacheAutoSelect) titleCacheAutoSelect.value = "on";
       state.readerTranslationServer = { ...SERVER_TRANSLATION_DEFAULT };
       if (qs("text-indent-value")) qs("text-indent-value").textContent = `${state.settings.textIndent.toFixed(2)}em`;
       state.readerTranslationLocal = { ...LOCAL_TRANSLATION_DEFAULT };
@@ -4096,6 +4396,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     });
   }
 
+  window.setTimeout(() => {
+    checkReaderUpdateStatus({ autoOpen: true }).catch(() => {});
+  }, 80);
+
   if (qs("btn-clear-cache")) qs("btn-clear-cache").addEventListener("click", clearCache);
 
   return {
@@ -4119,6 +4423,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     deleteNotifications: (ids) => (notificationUi ? notificationUi.deleteNotifications(ids) : Promise.resolve(null)),
     clearNotifications: (scope = "read") => (notificationUi ? notificationUi.clearNotifications(scope) : Promise.resolve(null)),
     subscribeNotifications: (listener) => (notificationUi ? notificationUi.subscribeNotifications(listener) : (() => {})),
+    checkReaderUpdateStatus,
     goSearchPage,
   };
 }

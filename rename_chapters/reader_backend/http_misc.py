@@ -35,6 +35,11 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
     if method == "GET" and path == "/api/reader/settings":
         return handler.service.get_reader_settings()
 
+    if method == "GET" and path == "/api/reader/update-status":
+        force_raw = str((query.get("force", [""])[0] or "")).strip().lower()
+        force = force_raw in {"1", "true", "yes", "on"}
+        return handler.service.get_reader_update_status(force=force)
+
     if method == "POST" and path == "/api/reader/settings":
         payload = handler._read_json_body()
         return handler.service.set_reader_settings(payload)
