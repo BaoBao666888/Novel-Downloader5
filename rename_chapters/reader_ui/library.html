@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260420-exportqueue1">
+  <link rel="stylesheet" href="./styles.css?v=20260420-exportqueue2">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -375,6 +375,16 @@
         <div class="export-chapter-head">
           <strong id="export-chapters-title"></strong>
           <span id="export-chapter-stats" class="tag"></span>
+        </div>
+        <div class="export-range-grid">
+          <label class="export-range-field">
+            <span id="export-range-start-label"></span>
+            <select id="export-range-start-select"></select>
+          </label>
+          <label class="export-range-field">
+            <span id="export-range-end-label"></span>
+            <select id="export-range-end-select"></select>
+          </label>
         </div>
         <p id="export-chapter-hint" class="export-chapter-hint"></p>
         <div id="export-chapter-list" class="export-chapter-list"></div>
@@ -1041,7 +1051,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260420-exportqueue1"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260420-exportqueue2"></script>
 </body>
 
 </html>

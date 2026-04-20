@@ -79,6 +79,10 @@ const refs = {
   exportUseCachedOnlyLabel: document.getElementById("export-use-cached-only-label"),
   exportChaptersTitle: document.getElementById("export-chapters-title"),
   exportChapterStats: document.getElementById("export-chapter-stats"),
+  exportRangeStartLabel: document.getElementById("export-range-start-label"),
+  exportRangeStartSelect: document.getElementById("export-range-start-select"),
+  exportRangeEndLabel: document.getElementById("export-range-end-label"),
+  exportRangeEndSelect: document.getElementById("export-range-end-select"),
   exportChapterHint: document.getElementById("export-chapter-hint"),
   exportChapterList: document.getElementById("export-chapter-list"),
 
@@ -5575,7 +5579,7 @@ function currentExportFormatSpec() {
   return (state.exportFormats || []).find((item) => String(item.id || "").trim().toLowerCase() === formatId) || null;
 }
 
-function currentExportableChapterIds() {
+function getExportableChapterRows() {
   const chapters = Array.isArray(state.exportBookDetail && state.exportBookDetail.chapters)
     ? state.exportBookDetail.chapters
     : [];
@@ -5584,9 +5588,83 @@ function currentExportableChapterIds() {
     const exportState = (chapter && chapter.export && typeof chapter.export === "object") ? chapter.export : {};
     if (!exportState.can_export) continue;
     const chapterId = String((chapter && chapter.chapter_id) || "").trim();
-    if (chapterId) result.push(chapterId);
+    if (chapterId) result.push(chapter);
   }
   return result;
+}
+
+function buildExportRangeOptionLabel(chapter, fallbackIndex = 1) {
+  const order = Math.max(1, Number((chapter && chapter.chapter_order) || fallbackIndex || 1));
+  const title = normalizeDisplayTitle(
+    (chapter && (chapter.title_display || chapter.title_raw || chapter.title_vi)) || "",
+  );
+  return `${order}. ${title || `Chương ${order}`}`;
+}
+
+function syncExportRangeOptions() {
+  const startSelect = refs.exportRangeStartSelect;
+  const endSelect = refs.exportRangeEndSelect;
+  if (!startSelect || !endSelect) return;
+  const chapters = getExportableChapterRows();
+  const prevStart = String(startSelect.value || "").trim();
+  const prevEnd = String(endSelect.value || "").trim();
+  startSelect.innerHTML = "";
+  endSelect.innerHTML = "";
+  for (let index = 0; index < chapters.length; index += 1) {
+    const chapter = chapters[index];
+    const chapterId = String((chapter && chapter.chapter_id) || "").trim();
+    if (!chapterId) continue;
+    const label = buildExportRangeOptionLabel(chapter, index + 1);
+    const optionStart = document.createElement("option");
+    optionStart.value = chapterId;
+    optionStart.textContent = label;
+    startSelect.appendChild(optionStart);
+    const optionEnd = document.createElement("option");
+    optionEnd.value = chapterId;
+    optionEnd.textContent = label;
+    endSelect.appendChild(optionEnd);
+  }
+  if (!chapters.length) {
+    startSelect.disabled = true;
+    endSelect.disabled = true;
+    return;
+  }
+  const chapterIds = chapters.map((chapter) => String((chapter && chapter.chapter_id) || "").trim());
+  startSelect.disabled = false;
+  endSelect.disabled = false;
+  startSelect.value = chapterIds.includes(prevStart) ? prevStart : chapterIds[0];
+  endSelect.value = chapterIds.includes(prevEnd) ? prevEnd : chapterIds[chapterIds.length - 1];
+  const startIndex = chapterIds.indexOf(String(startSelect.value || "").trim());
+  const endIndex = chapterIds.indexOf(String(endSelect.value || "").trim());
+  if (startIndex > endIndex) endSelect.value = startSelect.value;
+}
+
+function getSelectedExportChapterRows() {
+  const chapters = getExportableChapterRows();
+  if (!chapters.length) return [];
+  const chapterIds = chapters.map((chapter) => String((chapter && chapter.chapter_id) || "").trim());
+  const startId = String((refs.exportRangeStartSelect && refs.exportRangeStartSelect.value) || "").trim();
+  const endId = String((refs.exportRangeEndSelect && refs.exportRangeEndSelect.value) || "").trim();
+  let startIndex = chapterIds.indexOf(startId);
+  let endIndex = chapterIds.indexOf(endId);
+  if (startIndex < 0) startIndex = 0;
+  if (endIndex < 0) endIndex = chapterIds.length - 1;
+  if (startIndex > endIndex) [startIndex, endIndex] = [endIndex, startIndex];
+  return chapters.slice(startIndex, endIndex + 1);
+}
+
+function currentExportableChapterIds() {
+  return getSelectedExportChapterRows()
+    .map((chapter) => String((chapter && chapter.chapter_id) || "").trim())
+    .filter(Boolean);
+}
+
+function currentExportPendingTranslationCount() {
+  if (!isExportTranslatedSelected()) return 0;
+  return getSelectedExportChapterRows().reduce((count, chapter) => {
+    const exportState = (chapter && chapter.export && typeof chapter.export === "object") ? chapter.export : {};
+    return count + (exportState.needs_translation ? 1 : 0);
+  }, 0);
 }
 
 function isExportTranslatedSelected() {
@@ -5722,38 +5800,42 @@ function renderExportChapterList(book) {
   refs.exportChapterList.innerHTML = "";
   const exportInfo = currentExportInfo();
   const chapters = Array.isArray(book && book.chapters) ? book.chapters : [];
+  const exportableRows = getExportableChapterRows();
+  const selectedRows = getSelectedExportChapterRows();
   const counts = (exportInfo && typeof exportInfo.counts === "object") ? exportInfo.counts : {};
   const downloaded = Math.max(0, Number(counts.downloaded_chapters || (book && book.downloaded_chapters) || 0));
   const total = Math.max(0, Number(counts.total_chapters || chapters.length || 0));
   const missingDownload = Math.max(0, Number(counts.missing_download_chapters || 0));
-  const pendingTranslation = isExportTranslatedSelected()
-    ? Math.max(0, Number(counts.translation_pending_chapters || 0))
-    : 0;
+  const pendingTranslation = currentExportPendingTranslationCount();
+  const selectedCount = selectedRows.length;
+  const exportableCount = exportableRows.length;
   if (refs.exportChapterStats) {
-    refs.exportChapterStats.textContent = state.shell.t("downloadedCountShort", {
-      downloaded,
-      total,
-    });
+    refs.exportChapterStats.textContent = `${selectedCount}/${exportableCount || downloaded || 0} chương xuất`;
   }
   if (refs.exportChapterHint) {
-    if (missingDownload > 0) {
-      refs.exportChapterHint.textContent = state.shell.t("exportMissingDownloadHint", { count: missingDownload });
+    const rangeText = selectedCount > 0
+      ? `Đang chọn ${selectedCount} chương đã tải để xuất`
+      : "Chưa có chương đã tải để chọn xuất";
+    if (selectedCount > 0 && selectedCount < exportableCount) {
+      refs.exportChapterHint.textContent = `${rangeText}. Có ${exportableCount - selectedCount} chương đã tải nằm ngoài khoảng đang chọn.`;
+    } else if (missingDownload > 0 && selectedCount === exportableCount) {
+      refs.exportChapterHint.textContent = `${rangeText}. ${state.shell.t("exportMissingDownloadHint", { count: missingDownload })}`;
     } else if (pendingTranslation > 0) {
-      refs.exportChapterHint.textContent = state.shell.t("exportPendingTranslateHint", { count: pendingTranslation });
-    } else if (isExportTranslatedSelected() && chapters.length) {
-      refs.exportChapterHint.textContent = state.shell.t("exportAllTranslatedReady");
+      refs.exportChapterHint.textContent = `${rangeText}. ${state.shell.t("exportPendingTranslateHint", { count: pendingTranslation })}`;
+    } else if (isExportTranslatedSelected() && selectedCount > 0) {
+      refs.exportChapterHint.textContent = `${rangeText}. ${state.shell.t("exportAllTranslatedReady")}`;
     } else {
-      refs.exportChapterHint.textContent = state.shell.t("exportCachedOnlyLocked");
+      refs.exportChapterHint.textContent = `${rangeText}. ${state.shell.t("exportCachedOnlyLocked")}`;
     }
   }
-  if (!chapters.length) {
+  if (!selectedRows.length) {
     const empty = document.createElement("p");
     empty.className = "empty-text";
-    empty.textContent = state.shell.t("tocNoData");
+    empty.textContent = exportableRows.length ? "Khoảng chọn hiện tại chưa hợp lệ." : state.shell.t("tocNoData");
     refs.exportChapterList.appendChild(empty);
     return;
   }
-  for (const chapter of chapters) {
+  for (const chapter of selectedRows) {
     const row = document.createElement("div");
     row.className = "export-chapter-row";
     const exportState = (chapter && chapter.export && typeof chapter.export === "object") ? chapter.export : {};
@@ -5833,6 +5915,7 @@ function renderExportDialog(book) {
   }
   renderExportCover(book);
   renderExportOptions();
+  syncExportRangeOptions();
   renderExportChapterList(book);
 }
 
@@ -5883,9 +5966,7 @@ async function submitExportDialog() {
     state.shell.showToast(state.shell.t("exportNoDownloadedChapters"));
     return;
   }
-  const pendingTranslation = Boolean(options.use_translated_text)
-    ? Math.max(0, Number(counts.translation_pending_chapters || 0))
-    : 0;
+  const pendingTranslation = currentExportPendingTranslationCount();
   const optimisticJob = buildOptimisticExportJob({
     book: state.exportBookDetail,
     spec,
@@ -6041,6 +6122,8 @@ async function init() {
   if (refs.exportFormatLabel) refs.exportFormatLabel.textContent = state.shell.t("exportFormat");
   if (refs.exportUseCachedOnlyLabel) refs.exportUseCachedOnlyLabel.textContent = state.shell.t("exportCachedOnly");
   if (refs.exportChaptersTitle) refs.exportChaptersTitle.textContent = state.shell.t("tocTitle");
+  if (refs.exportRangeStartLabel) refs.exportRangeStartLabel.textContent = "Từ chương đã tải";
+  if (refs.exportRangeEndLabel) refs.exportRangeEndLabel.textContent = "Đến chương đã tải";
   if (refs.btnOpenGlobalJunk) refs.btnOpenGlobalJunk.textContent = state.shell.t("junkButton");
   if (refs.btnOpenGlobalDicts) refs.btnOpenGlobalDicts.textContent = state.shell.t("globalDictsButton");
   if (refs.downloadJobsTitle) refs.downloadJobsTitle.textContent = state.shell.t("downloadJobsTitle");
@@ -6250,6 +6333,34 @@ async function init() {
   if (refs.btnSubmitExportDialog) refs.btnSubmitExportDialog.addEventListener("click", () => {
     submitExportDialog().catch(() => {});
   });
+  if (refs.exportRangeStartSelect) {
+    refs.exportRangeStartSelect.addEventListener("change", () => {
+      const chapters = getExportableChapterRows();
+      const ids = chapters.map((chapter) => String((chapter && chapter.chapter_id) || "").trim());
+      const startId = String(refs.exportRangeStartSelect.value || "").trim();
+      const endId = String((refs.exportRangeEndSelect && refs.exportRangeEndSelect.value) || "").trim();
+      const startIndex = ids.indexOf(startId);
+      const endIndex = ids.indexOf(endId);
+      if (startIndex >= 0 && endIndex >= 0 && startIndex > endIndex && refs.exportRangeEndSelect) {
+        refs.exportRangeEndSelect.value = startId;
+      }
+      renderExportChapterList(state.exportBookDetail);
+    });
+  }
+  if (refs.exportRangeEndSelect) {
+    refs.exportRangeEndSelect.addEventListener("change", () => {
+      const chapters = getExportableChapterRows();
+      const ids = chapters.map((chapter) => String((chapter && chapter.chapter_id) || "").trim());
+      const startId = String((refs.exportRangeStartSelect && refs.exportRangeStartSelect.value) || "").trim();
+      const endId = String(refs.exportRangeEndSelect.value || "").trim();
+      const startIndex = ids.indexOf(startId);
+      const endIndex = ids.indexOf(endId);
+      if (startIndex >= 0 && endIndex >= 0 && endIndex < startIndex && refs.exportRangeStartSelect) {
+        refs.exportRangeStartSelect.value = endId;
+      }
+      renderExportChapterList(state.exportBookDetail);
+    });
+  }
   if (refs.exportJobsSearchInput) {
     refs.exportJobsSearchInput.addEventListener("input", () => {
       state.exportJobsFilters.search = String(refs.exportJobsSearchInput.value || "").trim();
@@ -6298,6 +6409,7 @@ async function init() {
   }
   if (refs.exportFormatSelect) refs.exportFormatSelect.addEventListener("change", () => {
     renderExportOptions();
+    syncExportRangeOptions();
     renderExportChapterList(state.exportBookDetail);
   });
   if (refs.btnOpenGlobalJunk) refs.btnOpenGlobalJunk.addEventListener("click", () => {

@@ -4091,6 +4091,23 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   margin-top: 2px;
 }
 
+.export-range-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.export-range-field {
+  display: grid;
+  gap: 6px;
+}
+
+.export-range-field span {
+  font-size: 12px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--muted) 90%, transparent);
+}
+
 .export-chapter-hint {
   margin: 0;
   font-size: 12px;
@@ -5210,6 +5227,10 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   .export-jobs-pager {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .export-range-grid {
+    grid-template-columns: 1fr;
   }
 
   .tts-control-row .btn {

@@ -28,5 +28,11 @@ Xuất HTML
 - Vẫn giữ chặn extension, script lạ và DevTools khi bật bảo vệ nội dung.
 - Khi tải lại đúng chương đang đọc, việc giữ vị trí trong chương đã ổn định hơn trước.
 
+Xuất file và hàng đợi xuất file
+- Bấm Xuất file giờ sẽ đóng cửa sổ ngay và đưa truyện vào hàng đợi sớm hơn, không phải chờ đứng lâu mới thấy job xuất.
+- Hàng đợi xuất file đã có tìm nhanh, lọc theo định dạng, lọc theo ngày và phân trang để dễ xem khi có nhiều file.
+- Danh sách file xuất có vùng cuộn riêng nên không làm trang thư viện bị dài lê thê.
+- Khi xuất có thể chọn trước khoảng chương đã tải xuống thay vì luôn đóng gói toàn bộ phần đã tải.
+
 Khác
 - Thẻ Hướng dẫn đã được làm dài và chi tiết hơn để người dùng tra cứu ngay trong notify.
