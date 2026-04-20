@@ -9975,38 +9975,53 @@ class ReaderService:
             raise ApiError(HTTPStatus.BAD_REQUEST, "COMIC_EXPORT_TXT_NOT_SUPPORTED", "Truyện tranh không hỗ trợ xuất TXT.")
         if fmt_norm == "cbz" and (not is_book_comic(book)):
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "CBZ chỉ hỗ trợ cho truyện tranh.")
-
-        _, active_name_set, _ = self.storage.get_active_name_set(
-            default_sets=self._default_name_sets(),
-            active_default=self._default_active_name_set(self._default_name_sets()),
-            book_id=bid,
-        )
-        active_vp_set, _ = self.storage.get_book_vp_set(bid)
-        export_info = self.build_book_export_info(
-            book,
-            translate_mode=translate_mode,
-            name_set_override=active_name_set,
-            vp_set_override=active_vp_set,
-        )
-        chapter_map = export_info.get("chapter_map") or {}
-        chapter_ids = [
-            cid for cid, info in chapter_map.items()
-            if isinstance(info, dict) and bool(info.get("can_export"))
-        ]
-        if not chapter_ids:
-            raise ApiError(
-                HTTPStatus.BAD_REQUEST,
-                "EXPORT_NO_DOWNLOADED_CHAPTERS",
-                "Chưa có chương nào đã tải. Hãy tải chương trước khi xuất.",
+        payload_chapter_ids_raw = body.get("chapter_ids")
+        payload_chapter_ids = payload_chapter_ids_raw if isinstance(payload_chapter_ids_raw, list) else []
+        chapter_ids = list(dict.fromkeys(
+            str(item or "").strip()
+            for item in payload_chapter_ids
+            if str(item or "").strip()
+        ))
+        format_label = str(body.get("format_label") or "").strip()
+        pending_translation = 0
+        if chapter_ids:
+            if not format_label:
+                format_label = fmt_norm.upper()
+            if bool(normalized_options.get("use_translated_text")):
+                pending_translation = max(0, int(body.get("translation_pending_chapters") or 0))
+        else:
+            _, active_name_set, _ = self.storage.get_active_name_set(
+                default_sets=self._default_name_sets(),
+                active_default=self._default_active_name_set(self._default_name_sets()),
+                book_id=bid,
             )
+            active_vp_set, _ = self.storage.get_book_vp_set(bid)
+            export_info = self.build_book_export_info(
+                book,
+                translate_mode=translate_mode,
+                name_set_override=active_name_set,
+                vp_set_override=active_vp_set,
+            )
+            chapter_map = export_info.get("chapter_map") or {}
+            chapter_ids = [
+                cid for cid, info in chapter_map.items()
+                if isinstance(info, dict) and bool(info.get("can_export"))
+            ]
+            if not chapter_ids:
+                raise ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "EXPORT_NO_DOWNLOADED_CHAPTERS",
+                    "Chưa có chương nào đã tải. Hãy tải chương trước khi xuất.",
+                )
 
-        format_label = fmt_norm.upper()
-        for item in export_info.get("formats") or []:
-            if str((item or {}).get("id") or "").strip().lower() == fmt_norm:
-                format_label = str((item or {}).get("label") or format_label)
-                break
-        counts = export_info.get("counts") or {}
-        pending_translation = int(counts.get("translation_pending_chapters") or 0) if bool(normalized_options.get("use_translated_text")) else 0
+            if not format_label:
+                format_label = fmt_norm.upper()
+                for item in export_info.get("formats") or []:
+                    if str((item or {}).get("id") or "").strip().lower() == fmt_norm:
+                        format_label = str((item or {}).get("label") or format_label)
+                        break
+            counts = export_info.get("counts") or {}
+            pending_translation = int(counts.get("translation_pending_chapters") or 0) if bool(normalized_options.get("use_translated_text")) else 0
         with self._export_cv:
             self._cleanup_export_jobs_locked()
             job = self._create_export_job_locked(

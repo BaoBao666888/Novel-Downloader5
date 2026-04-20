@@ -26,6 +26,19 @@ const refs = {
   exportJobsCount: document.getElementById("export-jobs-count"),
   exportJobsList: document.getElementById("export-jobs-list"),
   exportJobsEmpty: document.getElementById("export-jobs-empty"),
+  exportJobsSearchLabel: document.getElementById("export-jobs-search-label"),
+  exportJobsSearchInput: document.getElementById("export-jobs-search-input"),
+  exportJobsFormatLabel: document.getElementById("export-jobs-format-label"),
+  exportJobsFormatFilter: document.getElementById("export-jobs-format-filter"),
+  exportJobsDateFromLabel: document.getElementById("export-jobs-date-from-label"),
+  exportJobsDateFrom: document.getElementById("export-jobs-date-from"),
+  exportJobsDateToLabel: document.getElementById("export-jobs-date-to-label"),
+  exportJobsDateTo: document.getElementById("export-jobs-date-to"),
+  btnExportJobsFilterClear: document.getElementById("btn-export-jobs-filter-clear"),
+  exportJobsSummary: document.getElementById("export-jobs-summary"),
+  exportJobsPageSummary: document.getElementById("export-jobs-page-summary"),
+  btnExportJobsPrev: document.getElementById("btn-export-jobs-prev"),
+  btnExportJobsNext: document.getElementById("btn-export-jobs-next"),
 
   bookActionsDialog: document.getElementById("book-actions-dialog"),
   bookActionsTitle: document.getElementById("book-actions-title"),
@@ -246,7 +259,16 @@ const state = {
   downloadJobs: [],
   downloadJobsSig: "",
   exportJobs: [],
+  exportOptimisticJobs: [],
   exportJobsSig: "",
+  exportJobsPage: 1,
+  exportJobsPageSize: 8,
+  exportJobsFilters: {
+    search: "",
+    format: "all",
+    dateFrom: "",
+    dateTo: "",
+  },
   selectedBookId: null,
   deletingBookIds: new Set(),
   shell: null,
@@ -333,6 +355,7 @@ const LIBRARY_INITIAL_HYDRATE_COUNT = 12;
 const LIBRARY_HYDRATE_BATCH_SIZE = 8;
 const BATCH_IMPORT_PREPARE_CONCURRENCY = 6;
 const BATCH_IMPORT_COMMIT_CONCURRENCY = 3;
+const EXPORT_JOBS_PAGE_SIZE = 8;
 const CATEGORY_SECTION_USER_KEY = "user_custom";
 const CATEGORY_SECTION_REMOVED_KEY = "removed_default";
 const CATEGORY_SECTION_USER_ORDER = 1000;
@@ -4579,6 +4602,196 @@ function getExportJobProtectionInfo(job) {
   return (job && job.protection && typeof job.protection === "object") ? job.protection : {};
 }
 
+function getAllExportJobs() {
+  const optimistic = Array.isArray(state.exportOptimisticJobs) ? state.exportOptimisticJobs : [];
+  const serverJobs = Array.isArray(state.exportJobs) ? state.exportJobs : [];
+  return [...optimistic, ...serverJobs];
+}
+
+function parseIsoMs(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return 0;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function formatExportJobDateTime(value) {
+  const ms = parseIsoMs(value);
+  if (!ms) return "";
+  try {
+    return new Intl.DateTimeFormat("vi-VN", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(ms));
+  } catch {
+    return new Date(ms).toLocaleString("vi-VN");
+  }
+}
+
+function exportJobFilterTimeMs(job) {
+  return Math.max(
+    parseIsoMs(job && job.finished_at),
+    parseIsoMs(job && job.created_at),
+  );
+}
+
+function exportJobTimeLabel(job) {
+  const finishedText = formatExportJobDateTime(job && job.finished_at);
+  if (finishedText) return `Xuất: ${finishedText}`;
+  const createdText = formatExportJobDateTime(job && job.created_at);
+  if (createdText) return `Tạo: ${createdText}`;
+  return "";
+}
+
+function parseLocalDateStartMs(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return 0;
+  const parts = raw.split("-").map((item) => Number.parseInt(item, 10));
+  if (parts.length !== 3 || parts.some((item) => !Number.isFinite(item))) return 0;
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
+}
+
+function parseLocalDateEndExclusiveMs(value) {
+  const startMs = parseLocalDateStartMs(value);
+  if (!startMs) return 0;
+  return startMs + (24 * 60 * 60 * 1000);
+}
+
+function exportJobMatchesFilters(job) {
+  const filters = state.exportJobsFilters || {};
+  const query = String(filters.search || "").trim().toLowerCase();
+  if (query) {
+    const haystack = [
+      String((job && job.book_title) || ""),
+      String((job && job.file_name) || ""),
+      String((job && job.format_label) || ""),
+      String((job && job.format) || ""),
+      String((job && job.message) || ""),
+    ].join(" ").toLowerCase();
+    if (!haystack.includes(query)) return false;
+  }
+  const formatFilter = String(filters.format || "all").trim().toLowerCase();
+  if (formatFilter && formatFilter !== "all") {
+    if (String((job && job.format) || "").trim().toLowerCase() !== formatFilter) return false;
+  }
+  const fromMs = parseLocalDateStartMs(filters.dateFrom);
+  const toExclusiveMs = parseLocalDateEndExclusiveMs(filters.dateTo);
+  if (fromMs || toExclusiveMs) {
+    const jobMs = exportJobFilterTimeMs(job);
+    if (!jobMs) return false;
+    if (fromMs && jobMs < fromMs) return false;
+    if (toExclusiveMs && jobMs >= toExclusiveMs) return false;
+  }
+  return true;
+}
+
+function getFilteredExportJobs() {
+  return getAllExportJobs().filter((job) => exportJobMatchesFilters(job));
+}
+
+function syncExportJobsFormatFilterOptions() {
+  if (!refs.exportJobsFormatFilter) return;
+  const current = String((refs.exportJobsFormatFilter.value || state.exportJobsFilters.format || "all")).trim().toLowerCase() || "all";
+  const formats = Array.from(new Set(
+    getAllExportJobs()
+      .map((job) => String((job && job.format) || "").trim().toLowerCase())
+      .filter(Boolean),
+  )).sort((a, b) => a.localeCompare(b));
+  refs.exportJobsFormatFilter.innerHTML = "";
+  const allOption = document.createElement("option");
+  allOption.value = "all";
+  allOption.textContent = "Tất cả";
+  refs.exportJobsFormatFilter.appendChild(allOption);
+  for (const fmt of formats) {
+    const option = document.createElement("option");
+    option.value = fmt;
+    option.textContent = String(fmt || "").toUpperCase();
+    refs.exportJobsFormatFilter.appendChild(option);
+  }
+  refs.exportJobsFormatFilter.value = formats.includes(current) || current === "all" ? current : "all";
+  state.exportJobsFilters.format = String(refs.exportJobsFormatFilter.value || "all").trim().toLowerCase() || "all";
+}
+
+function clampExportJobsPage(filteredCount) {
+  const pageSize = Math.max(1, Number(state.exportJobsPageSize || EXPORT_JOBS_PAGE_SIZE || 8));
+  const totalPages = Math.max(1, Math.ceil(Math.max(0, Number(filteredCount || 0)) / pageSize));
+  state.exportJobsPage = Math.max(1, Math.min(totalPages, Number(state.exportJobsPage || 1)));
+  return totalPages;
+}
+
+function resetExportJobsFilters() {
+  state.exportJobsFilters = {
+    search: "",
+    format: "all",
+    dateFrom: "",
+    dateTo: "",
+  };
+  state.exportJobsPage = 1;
+  if (refs.exportJobsSearchInput) refs.exportJobsSearchInput.value = "";
+  if (refs.exportJobsFormatFilter) refs.exportJobsFormatFilter.value = "all";
+  if (refs.exportJobsDateFrom) refs.exportJobsDateFrom.value = "";
+  if (refs.exportJobsDateTo) refs.exportJobsDateTo.value = "";
+}
+
+function addOptimisticExportJob(job) {
+  if (!job || typeof job !== "object") return;
+  state.exportOptimisticJobs = [
+    job,
+    ...(Array.isArray(state.exportOptimisticJobs) ? state.exportOptimisticJobs : []),
+  ];
+}
+
+function removeOptimisticExportJob(jobId) {
+  const target = String(jobId || "").trim();
+  if (!target) return;
+  state.exportOptimisticJobs = (Array.isArray(state.exportOptimisticJobs) ? state.exportOptimisticJobs : [])
+    .filter((job) => String((job && job.job_id) || "").trim() !== target);
+}
+
+function nextOptimisticExportQueuePosition() {
+  return getAllExportJobs().reduce((maxPos, job) => {
+    const status = String((job && job.status) || "").trim().toLowerCase();
+    if (status !== "queued") return maxPos;
+    return Math.max(maxPos, Number((job && job.queue_position) || 0));
+  }, 0) + 1;
+}
+
+function buildOptimisticExportJob({ book, spec, options, chapterIds, pendingTranslation }) {
+  const createdAt = new Date().toISOString();
+  return {
+    job_id: `pending_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    status: "queued",
+    current_phase: "queued",
+    current_index: 0,
+    current_chapter_order: 0,
+    current_title: "",
+    message: "Đang thêm vào hàng đợi xuất file...",
+    book_id: String((book && book.book_id) || "").trim(),
+    book_title: normalizeDisplayTitle((book && (book.title_display || book.title)) || state.shell.t("libraryTitle")),
+    format: String((spec && spec.id) || "").trim().toLowerCase(),
+    format_label: String((spec && (spec.label || spec.id)) || "").trim(),
+    translation_mode: getCurrentTranslationMode(),
+    use_translated_text: Boolean(options && options.use_translated_text),
+    total_chapters: Math.max(0, Number((chapterIds && chapterIds.length) || 0)),
+    completed_chapters: 0,
+    translation_pending_chapters: Boolean(options && options.use_translated_text) ? Math.max(0, Number(pendingTranslation || 0)) : 0,
+    remaining_translation_chapters: Boolean(options && options.use_translated_text) ? Math.max(0, Number(pendingTranslation || 0)) : 0,
+    progress: 0,
+    created_at: createdAt,
+    updated_at: createdAt,
+    started_at: "",
+    finished_at: "",
+    expires_at: "",
+    file_name: "",
+    download_url: "",
+    file_exists: false,
+    file_size_bytes: 0,
+    queue_position: nextOptimisticExportQueuePosition(),
+    protection: {},
+  };
+}
+
 function stopExportCodeTicker() {
   if (!state.exportCodeTimer) return;
   window.clearInterval(state.exportCodeTimer);
@@ -4586,14 +4799,14 @@ function stopExportCodeTicker() {
 }
 
 function ensureExportCodeTicker() {
-  const hasProtectedCodes = (state.exportJobs || []).some((job) => Boolean(getExportJobProtectionInfo(job).access_code_enabled));
+  const hasProtectedCodes = getAllExportJobs().some((job) => Boolean(getExportJobProtectionInfo(job).access_code_enabled));
   if (!hasProtectedCodes) {
     stopExportCodeTicker();
     return;
   }
   if (state.exportCodeTimer) return;
   state.exportCodeTimer = window.setInterval(() => {
-    const jobs = Array.isArray(state.exportJobs) ? state.exportJobs : [];
+    const jobs = getAllExportJobs();
     const needsReload = jobs.some((job) => {
       const protection = getExportJobProtectionInfo(job);
       return Boolean(protection.access_code_enabled) && currentProtectionCountdown(protection) <= 0;
@@ -4653,14 +4866,49 @@ function buildExportJobProgressSummary(job) {
 function renderExportJobs() {
   if (!refs.exportJobsList || !refs.exportJobsCount || !refs.exportJobsEmpty) return;
   refs.exportJobsList.innerHTML = "";
-  refs.exportJobsCount.textContent = state.shell.t("exportJobsCount", { count: state.exportJobs.length });
-  if (!state.exportJobs.length) {
+  syncExportJobsFormatFilterOptions();
+  const allJobs = getAllExportJobs();
+  const filteredJobs = getFilteredExportJobs();
+  const totalCount = allJobs.length;
+  const filteredCount = filteredJobs.length;
+  const pageSize = Math.max(1, Number(state.exportJobsPageSize || EXPORT_JOBS_PAGE_SIZE || 8));
+  const totalPages = clampExportJobsPage(filteredCount);
+  const pageIndex = Math.max(1, Number(state.exportJobsPage || 1));
+  const sliceStart = Math.max(0, (pageIndex - 1) * pageSize);
+  const pageItems = filteredJobs.slice(sliceStart, sliceStart + pageSize);
+
+  refs.exportJobsCount.textContent = filteredCount === totalCount
+    ? state.shell.t("exportJobsCount", { count: filteredCount })
+    : `Số file: ${filteredCount}/${totalCount}`;
+  if (refs.exportJobsSummary) {
+    if (!totalCount) {
+      refs.exportJobsSummary.textContent = "";
+    } else if (filteredCount === totalCount) {
+      refs.exportJobsSummary.textContent = `Hiện ${pageItems.length}/${filteredCount} file trong hàng đợi xuất.`;
+    } else {
+      refs.exportJobsSummary.textContent = `Hiện ${pageItems.length}/${filteredCount} file phù hợp bộ lọc, tổng ${totalCount} file.`;
+    }
+  }
+  if (refs.exportJobsPageSummary) {
+    refs.exportJobsPageSummary.textContent = filteredCount
+      ? `Trang ${pageIndex}/${totalPages}`
+      : "";
+  }
+  if (refs.btnExportJobsPrev) refs.btnExportJobsPrev.disabled = pageIndex <= 1;
+  if (refs.btnExportJobsNext) refs.btnExportJobsNext.disabled = pageIndex >= totalPages;
+
+  if (!allJobs.length) {
     refs.exportJobsEmpty.classList.remove("hidden");
     refs.exportJobsEmpty.textContent = state.shell.t("exportJobsEmpty");
     return;
   }
+  if (!filteredCount) {
+    refs.exportJobsEmpty.classList.remove("hidden");
+    refs.exportJobsEmpty.textContent = "Không có file export nào khớp bộ lọc hiện tại.";
+    return;
+  }
   refs.exportJobsEmpty.classList.add("hidden");
-  for (const job of state.exportJobs) {
+  for (const job of pageItems) {
     const protection = getExportJobProtectionInfo(job);
     const row = document.createElement("article");
     row.className = "download-job-row";
@@ -4671,6 +4919,12 @@ function renderExportJobs() {
     title.className = "download-job-title";
     const formatLabel = String(job.format_label || job.format || "").trim();
     title.textContent = `${normalizeDisplayTitle(job.book_title || state.shell.t("libraryTitle"))}${formatLabel ? ` • ${formatLabel}` : ""}`;
+
+    const fileName = String(job.file_name || "").trim();
+    const fileNameNode = document.createElement("div");
+    fileNameNode.className = "export-job-file-name";
+    fileNameNode.hidden = !fileName;
+    fileNameNode.textContent = fileName ? `Tệp: ${fileName}` : "";
 
     const meta = document.createElement("div");
     meta.className = "download-job-meta";
@@ -4683,7 +4937,8 @@ function renderExportJobs() {
       ? state.shell.t("exportTranslatedTag")
       : state.shell.t("exportRawTag");
     const sizeText = formatFileSize(job.file_size_bytes || 0);
-    meta.textContent = `${translatedText} • ${state.shell.t("exportChapterCountShort", { current: done, total })} • ${state.shell.t("bookPercent", { percent: pct.toFixed(1) })}${queueText ? ` • ${queueText}` : ""}${sizeText ? ` • ${sizeText}` : ""}`;
+    const timeText = exportJobTimeLabel(job);
+    meta.textContent = `${translatedText} • ${state.shell.t("exportChapterCountShort", { current: done, total })} • ${state.shell.t("bookPercent", { percent: pct.toFixed(1) })}${queueText ? ` • ${queueText}` : ""}${sizeText ? ` • ${sizeText}` : ""}${timeText ? ` • ${timeText}` : ""}`;
 
     let protectionNode = null;
     if (protection.enabled) {
@@ -4789,7 +5044,9 @@ function renderExportJobs() {
       actions.appendChild(btnDelete);
     }
 
-    row.append(title, meta);
+    row.append(title);
+    if (!fileNameNode.hidden) row.appendChild(fileNameNode);
+    row.append(meta);
     if (protectionNode) row.appendChild(protectionNode);
     row.append(progress, status, actions);
     refs.exportJobsList.appendChild(row);
@@ -5318,6 +5575,20 @@ function currentExportFormatSpec() {
   return (state.exportFormats || []).find((item) => String(item.id || "").trim().toLowerCase() === formatId) || null;
 }
 
+function currentExportableChapterIds() {
+  const chapters = Array.isArray(state.exportBookDetail && state.exportBookDetail.chapters)
+    ? state.exportBookDetail.chapters
+    : [];
+  const result = [];
+  for (const chapter of chapters) {
+    const exportState = (chapter && chapter.export && typeof chapter.export === "object") ? chapter.export : {};
+    if (!exportState.can_export) continue;
+    const chapterId = String((chapter && chapter.chapter_id) || "").trim();
+    if (chapterId) result.push(chapterId);
+  }
+  return result;
+}
+
 function isExportTranslatedSelected() {
   const spec = currentExportFormatSpec();
   if (!spec || !Array.isArray(spec.options)) return false;
@@ -5607,20 +5878,42 @@ async function submitExportDialog() {
       continue;
     }
   }
-  state.shell.showStatus(state.shell.t("statusExporting"));
+  const chapterIds = currentExportableChapterIds();
+  if (!chapterIds.length) {
+    state.shell.showToast(state.shell.t("exportNoDownloadedChapters"));
+    return;
+  }
+  const pendingTranslation = Boolean(options.use_translated_text)
+    ? Math.max(0, Number(counts.translation_pending_chapters || 0))
+    : 0;
+  const optimisticJob = buildOptimisticExportJob({
+    book: state.exportBookDetail,
+    spec,
+    options,
+    chapterIds,
+    pendingTranslation,
+  });
+  closeExportDialog();
+  addOptimisticExportJob(optimisticJob);
+  state.exportJobsPage = 1;
+  renderExportJobs();
+  ensureExportCodeTicker();
   try {
     const categoryNames = Array.isArray(state.exportBookDetail && state.exportBookDetail.categories)
       ? state.exportBookDetail.categories
         .map((item) => String((item && item.name) || "").trim())
         .filter(Boolean)
       : [];
-    await state.shell.api(`/api/library/book/${encodeURIComponent(state.selectedBookId)}/export`, {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.selectedBookId)}/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         format: spec.id,
+        format_label: String(spec.label || spec.id || "").trim(),
         translation_mode: getCurrentTranslationMode(),
         use_cached_only: true,
+        chapter_ids: chapterIds,
+        translation_pending_chapters: pendingTranslation,
         metadata: {
           title: String((refs.exportMetaTitle && refs.exportMetaTitle.value) || "").trim(),
           author: String((refs.exportMetaAuthor && refs.exportMetaAuthor.value) || "").trim(),
@@ -5632,13 +5925,27 @@ async function submitExportDialog() {
         options,
       }),
     });
-    closeExportDialog();
+    removeOptimisticExportJob(optimisticJob.job_id);
+    if (data && data.job) {
+      const nextJob = data.job;
+      state.exportJobs = [
+        nextJob,
+        ...(Array.isArray(state.exportJobs) ? state.exportJobs : [])
+          .filter((job) => String((job && job.job_id) || "").trim() !== String(nextJob.job_id || "").trim()),
+      ];
+      state.exportJobsLoadedAt = Date.now();
+      renderExportJobs();
+      ensureExportCodeTicker();
+    } else {
+      renderExportJobs();
+    }
     state.shell.showToast(state.shell.t("exportQueued"));
-    await loadExportJobs();
+    loadExportJobs().catch(() => {});
   } catch (error) {
+    removeOptimisticExportJob(optimisticJob.job_id);
+    renderExportJobs();
+    ensureExportCodeTicker();
     state.shell.showToast(getErrorMessage(error));
-  } finally {
-    state.shell.hideStatus();
   }
 }
 
@@ -5698,6 +6005,7 @@ async function init() {
   state.translationMode = typeof state.shell.getTranslationMode === "function"
     ? state.shell.getTranslationMode()
     : "server";
+  state.exportJobsPageSize = EXPORT_JOBS_PAGE_SIZE;
   const initialCategoryPair = buildDistinctCategoryFilters(
     parseLibraryCategoryIdsFromQuery(),
     parseLibraryExcludedCategoryIdsFromQuery(),
@@ -5739,6 +6047,15 @@ async function init() {
   if (refs.downloadJobsEmpty) refs.downloadJobsEmpty.textContent = state.shell.t("downloadJobsEmpty");
   if (refs.exportJobsTitle) refs.exportJobsTitle.textContent = state.shell.t("exportJobsTitle");
   if (refs.exportJobsEmpty) refs.exportJobsEmpty.textContent = state.shell.t("exportJobsEmpty");
+  if (refs.exportJobsSearchLabel) refs.exportJobsSearchLabel.textContent = "Tìm nhanh";
+  if (refs.exportJobsSearchInput) refs.exportJobsSearchInput.placeholder = "Tên truyện, tên file...";
+  if (refs.exportJobsFormatLabel) refs.exportJobsFormatLabel.textContent = "Định dạng";
+  if (refs.exportJobsDateFromLabel) refs.exportJobsDateFromLabel.textContent = "Từ ngày";
+  if (refs.exportJobsDateToLabel) refs.exportJobsDateToLabel.textContent = "Đến ngày";
+  if (refs.btnExportJobsFilterClear) refs.btnExportJobsFilterClear.textContent = state.shell.t("clearFilter");
+  if (refs.btnExportJobsPrev) refs.btnExportJobsPrev.textContent = "Trang trước";
+  if (refs.btnExportJobsNext) refs.btnExportJobsNext.textContent = "Trang sau";
+  syncExportJobsFormatFilterOptions();
   if (refs.libraryCategoryFilterTitle) refs.libraryCategoryFilterTitle.textContent = state.shell.t("categoryFilterTitle");
   if (refs.btnCloseLibraryCategoryFilter) refs.btnCloseLibraryCategoryFilter.textContent = state.shell.t("close");
   if (refs.libraryCategoryFilterHint) refs.libraryCategoryFilterHint.textContent = state.shell.t("categoryFilterHint");
@@ -5933,6 +6250,52 @@ async function init() {
   if (refs.btnSubmitExportDialog) refs.btnSubmitExportDialog.addEventListener("click", () => {
     submitExportDialog().catch(() => {});
   });
+  if (refs.exportJobsSearchInput) {
+    refs.exportJobsSearchInput.addEventListener("input", () => {
+      state.exportJobsFilters.search = String(refs.exportJobsSearchInput.value || "").trim();
+      state.exportJobsPage = 1;
+      renderExportJobs();
+    });
+  }
+  if (refs.exportJobsFormatFilter) {
+    refs.exportJobsFormatFilter.addEventListener("change", () => {
+      state.exportJobsFilters.format = String(refs.exportJobsFormatFilter.value || "all").trim().toLowerCase() || "all";
+      state.exportJobsPage = 1;
+      renderExportJobs();
+    });
+  }
+  if (refs.exportJobsDateFrom) {
+    refs.exportJobsDateFrom.addEventListener("change", () => {
+      state.exportJobsFilters.dateFrom = String(refs.exportJobsDateFrom.value || "").trim();
+      state.exportJobsPage = 1;
+      renderExportJobs();
+    });
+  }
+  if (refs.exportJobsDateTo) {
+    refs.exportJobsDateTo.addEventListener("change", () => {
+      state.exportJobsFilters.dateTo = String(refs.exportJobsDateTo.value || "").trim();
+      state.exportJobsPage = 1;
+      renderExportJobs();
+    });
+  }
+  if (refs.btnExportJobsFilterClear) {
+    refs.btnExportJobsFilterClear.addEventListener("click", () => {
+      resetExportJobsFilters();
+      renderExportJobs();
+    });
+  }
+  if (refs.btnExportJobsPrev) {
+    refs.btnExportJobsPrev.addEventListener("click", () => {
+      state.exportJobsPage = Math.max(1, Number(state.exportJobsPage || 1) - 1);
+      renderExportJobs();
+    });
+  }
+  if (refs.btnExportJobsNext) {
+    refs.btnExportJobsNext.addEventListener("click", () => {
+      state.exportJobsPage = Math.max(1, Number(state.exportJobsPage || 1) + 1);
+      renderExportJobs();
+    });
+  }
   if (refs.exportFormatSelect) refs.exportFormatSelect.addEventListener("change", () => {
     renderExportOptions();
     renderExportChapterList(state.exportBookDetail);

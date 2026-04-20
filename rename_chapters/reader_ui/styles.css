@@ -1105,6 +1105,63 @@ p {
   gap: 8px;
 }
 
+.export-jobs-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.8fr) repeat(3, minmax(150px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+  margin: 12px 0 10px;
+}
+
+.export-jobs-filter {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.export-jobs-filter span {
+  font-size: 12px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--muted) 90%, transparent);
+}
+
+.export-jobs-filter-search input,
+.export-jobs-filter input,
+.export-jobs-filter select {
+  width: 100%;
+}
+
+.export-jobs-scroll {
+  max-height: min(58vh, 760px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.export-jobs-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.export-jobs-footer-top {
+  margin-bottom: 10px;
+}
+
+.export-jobs-pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-job-file-name {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .download-job-row {
   border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
   border-radius: 12px;
@@ -5136,6 +5193,23 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 
   .notification-card-side {
     justify-items: start;
+  }
+
+  .export-jobs-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .export-jobs-filter-search {
+    grid-column: 1 / -1;
+  }
+
+  #btn-export-jobs-filter-clear {
+    grid-column: 1 / -1;
+  }
+
+  .export-jobs-pager {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .tts-control-row .btn {

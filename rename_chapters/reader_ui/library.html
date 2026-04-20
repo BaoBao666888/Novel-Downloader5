@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260420-updatepopup3">
+  <link rel="stylesheet" href="./styles.css?v=20260420-exportqueue1">
 </head>
 
 <body data-page="library" class="mpa-body">
@@ -165,8 +165,39 @@
         <h2 id="export-jobs-title"></h2>
         <span id="export-jobs-count" class="tag"></span>
       </div>
-      <div id="export-jobs-list" class="download-jobs-list"></div>
-      <p id="export-jobs-empty" class="empty-text hidden"></p>
+      <div class="export-jobs-toolbar">
+        <label class="export-jobs-filter export-jobs-filter-search">
+          <span id="export-jobs-search-label"></span>
+          <input id="export-jobs-search-input" type="search" autocomplete="off">
+        </label>
+        <label class="export-jobs-filter">
+          <span id="export-jobs-format-label"></span>
+          <select id="export-jobs-format-filter"></select>
+        </label>
+        <label class="export-jobs-filter">
+          <span id="export-jobs-date-from-label"></span>
+          <input id="export-jobs-date-from" type="date">
+        </label>
+        <label class="export-jobs-filter">
+          <span id="export-jobs-date-to-label"></span>
+          <input id="export-jobs-date-to" type="date">
+        </label>
+        <button id="btn-export-jobs-filter-clear" class="btn btn-small" type="button"></button>
+      </div>
+      <div class="export-jobs-footer export-jobs-footer-top">
+        <span id="export-jobs-summary" class="download-job-status"></span>
+      </div>
+      <div class="export-jobs-scroll">
+        <div id="export-jobs-list" class="download-jobs-list"></div>
+        <p id="export-jobs-empty" class="empty-text hidden"></p>
+      </div>
+      <div class="export-jobs-footer">
+        <span id="export-jobs-page-summary" class="download-job-status"></span>
+        <div class="export-jobs-pager">
+          <button id="btn-export-jobs-prev" class="btn btn-small" type="button"></button>
+          <button id="btn-export-jobs-next" class="btn btn-small" type="button"></button>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -1010,7 +1041,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/library_page.js?v=20260420-updatepopup3"></script>
+  <script type="module" src="./js/pages/library_page.js?v=20260420-exportqueue1"></script>
 </body>
 
 </html>
