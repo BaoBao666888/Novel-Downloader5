@@ -2375,6 +2375,59 @@ p {
   gap: 8px;
 }
 
+.book-supplement-section {
+  margin-top: 6px;
+}
+
+.book-supplement-head {
+  display: grid;
+  gap: 6px;
+}
+
+.book-supplement-head .dialog-subtitle {
+  margin-bottom: 0;
+}
+
+.book-supplement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.book-supplement-grid > label,
+.book-supplement-note-field {
+  display: grid;
+  gap: 6px;
+}
+
+.book-supplement-note-field {
+  grid-column: 1 / -1;
+}
+
+.book-supplement-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.book-supplement-file-row .empty-text {
+  margin: 0;
+}
+
+.btn-icon-circle {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+}
+
 .cover-btns,
 .meta-actions,
 .settings-actions,
@@ -2411,6 +2464,57 @@ p {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-content: start;
+}
+
+.book-history-dialog {
+  width: min(760px, 94vw);
+}
+
+.book-history-list {
+  max-height: min(62vh, 680px);
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+}
+
+.book-history-item {
+  border: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--surface-alt) 36%, transparent);
+  display: grid;
+  gap: 8px;
+}
+
+.book-history-item-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.book-history-item-title {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--text) 96%, transparent);
+}
+
+.book-history-item-time {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.book-history-item-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--text) 90%, transparent);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.book-history-item-meta {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .toc-footer {
@@ -5090,6 +5194,15 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 
   .book-view-grid {
     grid-template-columns: 1fr;
+  }
+
+  .book-supplement-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .book-history-item-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .category-manager-grid {

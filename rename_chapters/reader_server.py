@@ -5506,6 +5506,31 @@ class ReaderStorage:
             utc_now_iso=utc_now_iso,
         )
 
+    def append_book_supplement(
+        self,
+        book_id: str,
+        chapters: list[dict[str, Any]],
+        *,
+        file_name: str = "",
+        target_mode: str = "existing",
+        volume_id: str = "",
+        new_volume_title: str = "",
+        note: str = "",
+    ) -> dict[str, Any]:
+        return storage_book_mutation_support.append_book_supplement(
+            self,
+            book_id,
+            chapters,
+            file_name=file_name,
+            target_mode=target_mode,
+            volume_id=volume_id,
+            new_volume_title=new_volume_title,
+            note=note,
+            utc_now_iso=utc_now_iso,
+            hash_text=hash_text,
+            deleted_retention_days=BOOK_SUPPLEMENT_RETENTION_DAYS,
+        )
+
     def update_book_progress(
         self,
         book_id: str,
@@ -6163,6 +6188,65 @@ class ReaderService:
             author=author,
             summary=summary,
             import_settings=import_settings,
+            import_preview_dir=IMPORT_PREVIEW_DIR,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+            normalize_reader_import_settings=normalize_reader_import_settings,
+            normalize_lang_source=normalize_lang_source,
+            parse_epub_book=parse_epub_book,
+            parse_txt_book=parse_txt_book,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+        )
+
+    def prepare_book_supplement_file(
+        self,
+        book_id: str,
+        filename: str,
+        file_bytes: bytes,
+        *,
+        target_mode: str = "existing",
+        volume_id: str = "",
+        new_volume_title: str = "",
+        note: str = "",
+    ) -> dict[str, Any]:
+        return service_local_import_support.prepare_book_supplement_file(
+            self,
+            book_id,
+            filename,
+            file_bytes,
+            target_mode=target_mode,
+            volume_id=volume_id,
+            new_volume_title=new_volume_title,
+            note=note,
+            import_preview_dir=IMPORT_PREVIEW_DIR,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+            utc_now_iso=utc_now_iso,
+            normalize_reader_import_settings=normalize_reader_import_settings,
+            normalize_lang_source=normalize_lang_source,
+            parse_epub_book=parse_epub_book,
+            parse_txt_book=parse_txt_book,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+        )
+
+    def commit_book_supplement_token(
+        self,
+        token: str,
+        *,
+        book_id: str,
+        target_mode: str = "",
+        volume_id: str = "",
+        new_volume_title: str = "",
+        note: str = "",
+    ) -> dict[str, Any]:
+        return service_local_import_support.commit_book_supplement_token(
+            self,
+            token,
+            book_id=book_id,
+            target_mode=target_mode,
+            volume_id=volume_id,
+            new_volume_title=new_volume_title,
+            note=note,
             import_preview_dir=IMPORT_PREVIEW_DIR,
             ApiError=ApiError,
             HTTPStatus=HTTPStatus,

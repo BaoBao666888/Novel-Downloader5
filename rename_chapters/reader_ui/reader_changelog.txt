@@ -18,6 +18,9 @@ Danh mục và thông tin truyện
 - Nút Bỏ lọc và Áp dụng luôn nằm ngoài vùng cuộn để dễ bấm.
 - Giao diện chọn danh mục trong trang thông tin truyện đã đồng bộ với cách hiển thị ở thư viện.
 - Văn án tiếng Trung sẽ được cố dịch lại cho phần hiển thị nếu vẫn còn sót.
+- Trong trang thông tin truyện đã có thể bổ sung thêm chương từ 1 file TXT vào quyển đang có hoặc tạo luôn quyển mới.
+- Với truyện thêm bằng link, quyển mặc định sẽ không cho chèn thêm trực tiếp để tránh lẫn với mục lục gốc; muốn thêm chương thì tạo quyển mới.
+- Có thêm nút `i` để xem nhanh lịch sử chính của sách như lúc thêm truyện, lúc kiểm tra mục lục nguồn, lúc tạo quyển mới và các đợt bổ sung chương.
 
 Xuất HTML
 - File HTML gộp 1 file giờ chỉ tải vài chương quanh vị trí đang xem nên mở truyện dài mượt hơn nhiều.

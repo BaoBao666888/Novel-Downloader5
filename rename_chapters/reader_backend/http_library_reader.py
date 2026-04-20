@@ -404,6 +404,40 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
         return {"ok": True, "book": updated}
 
+    if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/supplement/prepare"):
+        book_id = path.removeprefix("/api/library/book/").removesuffix("/supplement/prepare").strip("/")
+        form = handler._read_multipart_form()
+        if "file" not in form:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu file bổ sung.")
+        file_item = form.get_file("file")
+        if file_item is None:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "File bổ sung không hợp lệ.")
+        return handler.service.prepare_book_supplement_file(
+            book_id,
+            file_item.filename or "supplement.txt",
+            file_item.content,
+            target_mode=(form.getfirst("target_mode") or "existing").strip(),
+            volume_id=(form.getfirst("volume_id") or "").strip(),
+            new_volume_title=(form.getfirst("new_volume_title") or "").strip(),
+            note=(form.getfirst("note") or "").strip(),
+        )
+
+    if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/supplement/commit"):
+        book_id = path.removeprefix("/api/library/book/").removesuffix("/supplement/commit").strip("/")
+        payload = handler._read_json_body()
+        token = str(payload.get("token") or "").strip()
+        if not token:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu token bổ sung.")
+        result = handler.service.commit_book_supplement_token(
+            token,
+            book_id=book_id,
+            target_mode=str(payload.get("target_mode") or "").strip(),
+            volume_id=str(payload.get("volume_id") or "").strip(),
+            new_volume_title=str(payload.get("new_volume_title") or "").strip(),
+            note=str(payload.get("note") or "").strip(),
+        )
+        return {"ok": True, **dict(result or {})}
+
     if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/cover"):
         book_id = path.removeprefix("/api/library/book/").removesuffix("/cover").strip("/")
         form = handler._read_multipart_form()

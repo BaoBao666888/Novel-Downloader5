@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260420-bookvolume1";
+import { initShell } from "../site_common.js?v=20260420-booksupp2";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -19,6 +19,7 @@ const refs = {
   btnDownloadBook: document.getElementById("btn-download-book"),
   btnBookNameFilter: document.getElementById("btn-book-name-filter"),
   btnOpenBookNames: document.getElementById("btn-open-book-names"),
+  btnOpenBookHistory: document.getElementById("btn-open-book-history"),
   btnOpenBookEdit: document.getElementById("btn-open-book-edit"),
 
   labelViewTitle: document.getElementById("label-view-title"),
@@ -76,6 +77,47 @@ const refs = {
   btnUploadCover: document.getElementById("btn-upload-cover"),
   btnApplyCoverUrl: document.getElementById("btn-apply-cover-url"),
   btnSaveMeta: document.getElementById("btn-save-meta"),
+  bookSupplementSection: document.getElementById("book-supplement-section"),
+  bookSupplementTitle: document.getElementById("book-supplement-title"),
+  bookSupplementHint: document.getElementById("book-supplement-hint"),
+  bookSupplementTargetModeLabel: document.getElementById("book-supplement-target-mode-label"),
+  bookSupplementTargetMode: document.getElementById("book-supplement-target-mode"),
+  bookSupplementVolumeWrap: document.getElementById("book-supplement-volume-wrap"),
+  bookSupplementVolumeLabel: document.getElementById("book-supplement-volume-label"),
+  bookSupplementVolumeSelect: document.getElementById("book-supplement-volume-select"),
+  bookSupplementNewVolumeWrap: document.getElementById("book-supplement-new-volume-wrap"),
+  bookSupplementNewVolumeLabel: document.getElementById("book-supplement-new-volume-label"),
+  bookSupplementNewVolumeInput: document.getElementById("book-supplement-new-volume-input"),
+  bookSupplementNoteLabel: document.getElementById("book-supplement-note-label"),
+  bookSupplementNoteInput: document.getElementById("book-supplement-note-input"),
+  bookSupplementFileInput: document.getElementById("book-supplement-file-input"),
+  btnBookSupplementPick: document.getElementById("btn-book-supplement-pick"),
+  bookSupplementFileName: document.getElementById("book-supplement-file-name"),
+  btnBookSupplementPrepare: document.getElementById("btn-book-supplement-prepare"),
+  bookSupplementPreviewDialog: document.getElementById("book-supplement-preview-dialog"),
+  bookSupplementPreviewTitle: document.getElementById("book-supplement-preview-title"),
+  btnBookSupplementPreviewClose: document.getElementById("btn-book-supplement-preview-close"),
+  bookSupplementPreviewFileLabel: document.getElementById("book-supplement-preview-file-label"),
+  bookSupplementPreviewFileName: document.getElementById("book-supplement-preview-file-name"),
+  bookSupplementPreviewTypeLabel: document.getElementById("book-supplement-preview-type-label"),
+  bookSupplementPreviewFileType: document.getElementById("book-supplement-preview-file-type"),
+  bookSupplementPreviewCountLabel: document.getElementById("book-supplement-preview-count-label"),
+  bookSupplementPreviewChapterCount: document.getElementById("book-supplement-preview-chapter-count"),
+  bookSupplementPreviewTargetLabel: document.getElementById("book-supplement-preview-target-label"),
+  bookSupplementPreviewTargetValue: document.getElementById("book-supplement-preview-target-value"),
+  bookSupplementPreviewNoteLabel: document.getElementById("book-supplement-preview-note-label"),
+  bookSupplementPreviewNoteValue: document.getElementById("book-supplement-preview-note-value"),
+  bookSupplementPreviewHint: document.getElementById("book-supplement-preview-hint"),
+  bookSupplementPreviewDiagnostics: document.getElementById("book-supplement-preview-diagnostics"),
+  bookSupplementPreviewChapters: document.getElementById("book-supplement-preview-chapters"),
+  btnBookSupplementPreviewCancel: document.getElementById("btn-book-supplement-preview-cancel"),
+  btnBookSupplementPreviewCommit: document.getElementById("btn-book-supplement-preview-commit"),
+  bookHistoryDialog: document.getElementById("book-history-dialog"),
+  bookHistoryTitle: document.getElementById("book-history-title"),
+  btnCloseBookHistory: document.getElementById("btn-close-book-history"),
+  bookHistoryHint: document.getElementById("book-history-hint"),
+  bookHistoryList: document.getElementById("book-history-list"),
+  bookHistoryEmpty: document.getElementById("book-history-empty"),
 
   bookNameDialog: document.getElementById("book-name-dialog"),
   bookNameTitle: document.getElementById("book-name-title"),
@@ -215,6 +257,10 @@ const state = {
   tocItems: [],
   tocVolumes: [],
   selectedTocVolumeId: "",
+  supplementPreviewToken: "",
+  supplementPreviewData: null,
+  reopenBookEditAfterSupplementPreview: false,
+  bookHistoryItems: [],
   bookNameSets: { "Mặc định": {} },
   bookActiveNameSet: "Mặc định",
   bookNameFilterResults: [],
@@ -301,6 +347,33 @@ function supportsRawTextReplace(book) {
   if (Boolean(book.is_comic)) return false;
   const sourceType = String(book.source_type || "").toLowerCase();
   return sourceType !== "vbook_comic" && sourceType !== "comic";
+}
+
+function canUseBookSupplement(book) {
+  if (!book) return false;
+  if (Boolean(book.is_comic)) return false;
+  const sourceType = String(book.source_type || "").toLowerCase();
+  return sourceType !== "vbook_comic" && sourceType !== "comic";
+}
+
+function currentSupplementTargetMode() {
+  return String((refs.bookSupplementTargetMode && refs.bookSupplementTargetMode.value) || "existing").trim() === "new"
+    ? "new"
+    : "existing";
+}
+
+function getBookSupplementAppendableVolumes() {
+  return (Array.isArray(state.tocVolumes) ? state.tocVolumes : [])
+    .filter((item) => {
+      const policy = (item && typeof item.policy === "object") ? item.policy : {};
+      return Boolean(policy.can_append);
+    });
+}
+
+function getBookSupplementSelectedVolume() {
+  const targetVolumeId = String((refs.bookSupplementVolumeSelect && refs.bookSupplementVolumeSelect.value) || "").trim();
+  return (Array.isArray(state.tocVolumes) ? state.tocVolumes : [])
+    .find((item) => String((item && item.volume_id) || "").trim() === targetVolumeId) || null;
 }
 
 function resolveTocPageSize() {
@@ -1114,6 +1187,7 @@ function populateBook() {
   if (!book) {
     refs.bookViewWrap.classList.add("hidden");
     refs.bookEmpty.classList.remove("hidden");
+    if (refs.btnOpenBookHistory) refs.btnOpenBookHistory.disabled = true;
     return;
   }
   refs.bookViewWrap.classList.remove("hidden");
@@ -1156,6 +1230,7 @@ function populateBook() {
     refs.btnDownloadBook.textContent = state.shell.t("downloadedCountShort", { downloaded, total });
     refs.btnDownloadBook.disabled = total > 0 && downloaded >= total;
   }
+  if (refs.btnOpenBookHistory) refs.btnOpenBookHistory.disabled = false;
 
   refs.fieldTitle.value = book.title || "";
   refs.fieldTitleVi.value = book.title_vi || "";
@@ -1164,6 +1239,7 @@ function populateBook() {
   refs.fieldSummary.value = book.summary || "";
   refs.fieldExtraLink.value = book.extra_link || "";
   refs.fieldCoverUrl.value = book.cover_remote_url || ((String(book.cover_path || "").startsWith("http://") || String(book.cover_path || "").startsWith("https://") || String(book.cover_path || "").startsWith("data:")) ? (book.cover_path || "") : "");
+  renderBookSupplementForm();
 
   const canTranslate = supportsTranslation(book);
   refs.btnTocModeTrans.classList.toggle("hidden", !canTranslate);
@@ -1269,6 +1345,285 @@ function renderTocVolumeSelect() {
   refs.tocVolumeSelect.value = activeVolumeId;
 }
 
+function renderBookSupplementForm() {
+  if (!refs.bookSupplementSection) return;
+  const book = state.book;
+  const enabled = canUseBookSupplement(book);
+  refs.bookSupplementSection.classList.toggle("hidden", !enabled);
+  if (!enabled) return;
+
+  const volumes = getBookSupplementAppendableVolumes();
+  const hasExistingOption = volumes.length > 0;
+  if (refs.bookSupplementTargetMode) {
+    const existingOption = refs.bookSupplementTargetMode.querySelector('option[value="existing"]');
+    if (existingOption) existingOption.disabled = !hasExistingOption;
+    if (!hasExistingOption && currentSupplementTargetMode() !== "new") {
+      refs.bookSupplementTargetMode.value = "new";
+    }
+  }
+
+  if (refs.bookSupplementVolumeSelect) {
+    const selectedValue = String(refs.bookSupplementVolumeSelect.value || "").trim();
+    refs.bookSupplementVolumeSelect.innerHTML = "";
+    for (const item of volumes) {
+      const option = document.createElement("option");
+      option.value = String(item.volume_id || "").trim();
+      option.textContent = buildTocVolumeLabel(item);
+      refs.bookSupplementVolumeSelect.appendChild(option);
+    }
+    if (volumes.length) {
+      refs.bookSupplementVolumeSelect.value = volumes.some((item) => String(item.volume_id || "").trim() === selectedValue)
+        ? selectedValue
+        : String(volumes[0].volume_id || "").trim();
+    }
+  }
+
+  const targetMode = currentSupplementTargetMode();
+  if (refs.bookSupplementVolumeWrap) refs.bookSupplementVolumeWrap.classList.toggle("hidden", targetMode !== "existing");
+  if (refs.bookSupplementNewVolumeWrap) refs.bookSupplementNewVolumeWrap.classList.toggle("hidden", targetMode !== "new");
+
+  const bookPolicy = (book && typeof book.supplement_policy === "object") ? book.supplement_policy : {};
+  const sourceModeText = bookPolicy.source_mode === "link"
+    ? "Truyện thêm bằng link: quyển mặc định chỉ cho đổi tên, không cho bổ sung trực tiếp."
+    : "Truyện import bằng file: quyển mặc định vẫn cho bổ sung vào cuối quyển.";
+  const volume = getBookSupplementSelectedVolume();
+  const volumePolicy = (volume && typeof volume.policy === "object") ? volume.policy : {};
+  const targetHint = targetMode === "new"
+    ? "Quyển mới sẽ được thêm ở cuối bộ truyện."
+    : (volumePolicy.sync_with_source_toc
+      ? "Quyển này đang đồng bộ với mục lục nguồn. Muốn bổ sung thêm, hãy tạo quyển mới."
+      : "Các chương TXT mới sẽ được nối vào cuối quyển đã chọn.");
+  if (refs.bookSupplementHint) refs.bookSupplementHint.textContent = `${sourceModeText} ${targetHint}`;
+
+  const hasFile = Boolean(refs.bookSupplementFileInput && refs.bookSupplementFileInput.files && refs.bookSupplementFileInput.files[0]);
+  const prepareDisabled = !hasFile
+    || (targetMode === "existing" && !hasExistingOption)
+    || (targetMode === "new" && !String((refs.bookSupplementNewVolumeInput && refs.bookSupplementNewVolumeInput.value) || "").trim());
+  if (refs.btnBookSupplementPrepare) refs.btnBookSupplementPrepare.disabled = prepareDisabled;
+}
+
+function clearBookSupplementPreviewState() {
+  state.supplementPreviewToken = "";
+  state.supplementPreviewData = null;
+}
+
+function resetBookSupplementForm({ clearFile = true } = {}) {
+  clearBookSupplementPreviewState();
+  if (clearFile && refs.bookSupplementFileInput) refs.bookSupplementFileInput.value = "";
+  if (refs.bookSupplementFileName) {
+    const file = refs.bookSupplementFileInput && refs.bookSupplementFileInput.files ? refs.bookSupplementFileInput.files[0] : null;
+    refs.bookSupplementFileName.textContent = file ? String(file.name || "").trim() : "Chưa chọn file TXT nào.";
+  }
+  renderBookSupplementForm();
+}
+
+function collectBookSupplementPayload() {
+  return {
+    target_mode: currentSupplementTargetMode(),
+    volume_id: String((refs.bookSupplementVolumeSelect && refs.bookSupplementVolumeSelect.value) || "").trim(),
+    new_volume_title: String((refs.bookSupplementNewVolumeInput && refs.bookSupplementNewVolumeInput.value) || "").trim(),
+    note: String((refs.bookSupplementNoteInput && refs.bookSupplementNoteInput.value) || "").trim(),
+  };
+}
+
+function renderBookSupplementPreview(preview) {
+  state.supplementPreviewData = preview && typeof preview === "object" ? preview : null;
+  const data = state.supplementPreviewData || {};
+  const metadata = (data && typeof data.metadata === "object") ? data.metadata : {};
+  const target = (data && typeof data.target === "object") ? data.target : {};
+  if (refs.bookSupplementPreviewFileName) refs.bookSupplementPreviewFileName.textContent = String(data.file_name || "").trim() || "supplement.txt";
+  if (refs.bookSupplementPreviewFileType) refs.bookSupplementPreviewFileType.textContent = String(data.file_ext || "txt").toUpperCase();
+  if (refs.bookSupplementPreviewChapterCount) refs.bookSupplementPreviewChapterCount.textContent = String(Math.max(0, Number(metadata.chapter_count || 0)));
+  if (refs.bookSupplementPreviewTargetValue) {
+    refs.bookSupplementPreviewTargetValue.textContent = target.mode === "new"
+      ? `Quyển mới: ${String(target.new_volume_title || "").trim() || "Chưa đặt tên"}`
+      : String(target.volume_title || "").trim() || "Không rõ quyển";
+  }
+  if (refs.bookSupplementPreviewNoteValue) refs.bookSupplementPreviewNoteValue.textContent = String(target.note || "").trim() || "Không có";
+  if (refs.bookSupplementPreviewHint) {
+    refs.bookSupplementPreviewHint.textContent = `Sẽ bổ sung ${Math.max(0, Number(metadata.chapter_count || 0))} chương TXT vào truyện hiện tại.`;
+  }
+  if (refs.bookSupplementPreviewDiagnostics) {
+    const diagnostics = (data && typeof data.diagnostics === "object") ? data.diagnostics : {};
+    const parts = [];
+    if (String(metadata.detected_lang || "").trim()) parts.push(`Ngôn ngữ nhận diện: ${String(metadata.detected_lang || "").trim()}`);
+    if (Array.isArray(diagnostics.heading_matches) && diagnostics.heading_matches.length) {
+      parts.push(`Dòng tách chương: ${diagnostics.heading_matches.length}`);
+    }
+    refs.bookSupplementPreviewDiagnostics.textContent = parts.join(" • ");
+  }
+  if (refs.bookSupplementPreviewChapters) {
+    refs.bookSupplementPreviewChapters.innerHTML = "";
+    const rows = Array.isArray(data.chapters) ? data.chapters : [];
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-text";
+      empty.textContent = "Không có chương nào để bổ sung.";
+      refs.bookSupplementPreviewChapters.appendChild(empty);
+    }
+    for (const item of rows) {
+      const wrap = document.createElement("div");
+      wrap.className = "import-preview-chapter-item";
+      const head = document.createElement("div");
+      head.className = "import-preview-chapter-head";
+      head.textContent = `${Number(item.index || 0)}. ${normalizeDisplayTitle(String(item.title || "").trim())}`;
+      const meta = document.createElement("div");
+      meta.className = "import-preview-chapter-meta";
+      meta.textContent = `${Math.max(0, Number(item.word_count || 0))} ký tự`;
+      const text = document.createElement("div");
+      text.className = "import-preview-chapter-text";
+      text.textContent = String(item.preview || "").trim();
+      wrap.append(head, meta, text);
+      refs.bookSupplementPreviewChapters.appendChild(wrap);
+    }
+  }
+}
+
+function openBookSupplementPreviewDialog() {
+  const shouldReopenEdit = Boolean(refs.bookEditDialog && refs.bookEditDialog.open);
+  state.reopenBookEditAfterSupplementPreview = shouldReopenEdit;
+  if (shouldReopenEdit) refs.bookEditDialog.close();
+  if (refs.bookSupplementPreviewDialog && !refs.bookSupplementPreviewDialog.open) {
+    refs.bookSupplementPreviewDialog.showModal();
+  }
+}
+
+function formatBookHistoryTime(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  try {
+    return parsed.toLocaleString("vi-VN");
+  } catch {
+    return parsed.toISOString();
+  }
+}
+
+function normalizeHistoryCount(value) {
+  const amount = Math.max(0, Number(value || 0));
+  return amount > 0 ? amount : 0;
+}
+
+function describeBookChangeEvent(entry) {
+  const item = (entry && typeof entry === "object") ? entry : {};
+  const payload = (item.payload && typeof item.payload === "object") ? item.payload : {};
+  const eventType = String(item.event_type || "").trim().toLowerCase();
+  if (eventType === "book_created") {
+    const sourceMode = String(payload.source_mode || "").trim().toLowerCase() === "link" ? "link" : "file";
+    const sourceType = String(payload.source_type || "").trim().toUpperCase() || (sourceMode === "link" ? "LINK" : "TXT");
+    const chapterCount = normalizeHistoryCount(payload.chapter_count);
+    return {
+      title: sourceMode === "link" ? "Đã thêm truyện từ link" : "Đã thêm truyện từ file",
+      body: chapterCount > 0
+        ? `Nguồn khởi tạo: ${sourceType}. Ban đầu có ${chapterCount} chương trong thư viện.`
+        : `Nguồn khởi tạo: ${sourceType}.`,
+      meta: sourceMode === "link"
+        ? "Các lần kiểm tra cập nhật sau này sẽ so với mục lục nguồn."
+        : "Truyện import bằng file cho phép chỉnh và bổ sung ngay trong thư viện.",
+    };
+  }
+  if (eventType === "source_toc_sync") {
+    const added = normalizeHistoryCount(payload.added);
+    const removed = normalizeHistoryCount(payload.removed);
+    const renamed = normalizeHistoryCount(payload.renamed);
+    const reordered = normalizeHistoryCount(payload.reordered);
+    const chapterCount = normalizeHistoryCount(payload.chapter_count);
+    const parts = [];
+    if (added) parts.push(`thêm ${added} chương mới`);
+    if (removed) parts.push(`gỡ ${removed} chương cũ`);
+    if (renamed) parts.push(`đổi tên ${renamed} chương`);
+    if (reordered) parts.push(`sắp xếp lại ${reordered} chương`);
+    return {
+      title: "Đã kiểm tra cập nhật mục lục",
+      body: parts.length
+        ? `Mục lục mặc định vừa được cập nhật: ${parts.join(", ")}.`
+        : "Không có thay đổi mới trong mục lục mặc định lần kiểm tra này.",
+      meta: chapterCount > 0 ? `Hiện quyển mặc định có ${chapterCount} chương.` : "",
+    };
+  }
+  if (eventType === "volume_added") {
+    const volumeTitle = normalizeDisplayTitle(String(payload.volume_title || "").trim() || "Quyển mới");
+    return {
+      title: `Đã tạo quyển mới: ${volumeTitle}`,
+      body: "Quyển này được thêm để chứa phần chương bổ sung riêng.",
+      meta: "",
+    };
+  }
+  if (eventType === "supplement_added") {
+    const chapterCount = normalizeHistoryCount(payload.chapter_count);
+    const volumeTitle = normalizeDisplayTitle(String(payload.volume_title || "").trim() || "quyển đã chọn");
+    const note = normalizeParagraphDisplayText(String(payload.note || "").trim(), { singleLine: false });
+    const fileName = String(payload.file_name || "").trim();
+    const lines = [];
+    lines.push(chapterCount > 0
+      ? `Đã thêm ${chapterCount} chương vào ${volumeTitle}.`
+      : `Đã bổ sung chương vào ${volumeTitle}.`);
+    if (fileName) lines.push(`File nguồn: ${fileName}.`);
+    if (note) lines.push(`Ghi chú đợt bổ sung: ${note}`);
+    return {
+      title: "Đã bổ sung chương",
+      body: lines.join("\n"),
+      meta: Boolean(payload.created_volume) ? "Đợt này có tạo quyển mới trước khi chèn chương." : "",
+    };
+  }
+  return {
+    title: normalizeDisplayTitle(String(item.event_type || "Thay đổi sách").trim() || "Thay đổi sách"),
+    body: normalizeParagraphDisplayText(JSON.stringify(payload || {}, null, 2), { singleLine: false }) || "Hệ thống đã ghi nhận một thay đổi mới.",
+    meta: "",
+  };
+}
+
+function renderBookHistory() {
+  if (!refs.bookHistoryList || !refs.bookHistoryEmpty) return;
+  refs.bookHistoryList.innerHTML = "";
+  const items = Array.isArray(state.bookHistoryItems) ? state.bookHistoryItems : [];
+  refs.bookHistoryEmpty.classList.toggle("hidden", items.length > 0);
+  for (const entry of items) {
+    const info = describeBookChangeEvent(entry);
+    const card = document.createElement("article");
+    card.className = "book-history-item";
+
+    const head = document.createElement("div");
+    head.className = "book-history-item-head";
+    const title = document.createElement("div");
+    title.className = "book-history-item-title";
+    title.textContent = String(info.title || "").trim() || "Thay đổi sách";
+    const time = document.createElement("div");
+    time.className = "book-history-item-time";
+    time.textContent = formatBookHistoryTime(entry && entry.created_at);
+    head.append(title, time);
+
+    const body = document.createElement("div");
+    body.className = "book-history-item-body";
+    body.textContent = String(info.body || "").trim() || "Hệ thống đã ghi nhận một thay đổi mới.";
+
+    card.append(head, body);
+    if (String(info.meta || "").trim()) {
+      const meta = document.createElement("div");
+      meta.className = "book-history-item-meta";
+      meta.textContent = String(info.meta || "").trim();
+      card.appendChild(meta);
+    }
+    refs.bookHistoryList.appendChild(card);
+  }
+}
+
+async function openBookHistoryDialog() {
+  if (!state.bookId) return;
+  state.shell.showStatus("Đang tải lịch sử thay đổi...");
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/change-history?limit=200`);
+    state.bookHistoryItems = Array.isArray(data && data.items) ? data.items : [];
+    renderBookHistory();
+    if (refs.bookHistoryDialog && !refs.bookHistoryDialog.open) refs.bookHistoryDialog.showModal();
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
 function buildTocPageLabel(page, pagination = state.pagination) {
   const pageSize = Math.max(1, Number((pagination && pagination.page_size) || state.pagination.page_size || 40));
   const totalItems = Math.max(0, Number((pagination && pagination.total_items) || 0));
@@ -1301,6 +1656,7 @@ async function loadBook({ silent = false, suppressToast = false, refreshOnline =
   if (!state.bookId) {
     showBookInfoSkeleton(false);
     refs.bookEmpty.textContent = `${state.shell.t("noBookSelected")}. ${state.shell.t("noBookSelectedHint")}`;
+    if (refs.btnOpenBookHistory) refs.btnOpenBookHistory.disabled = true;
     return;
   }
   const shouldShowSkeleton = !silent && showSkeleton;
@@ -1344,6 +1700,7 @@ async function loadToc(page = 1, { silent = false, suppressToast = false, showSk
       || "",
     ).trim();
     state.pagination = { ...state.pagination, ...(data.pagination || {}) };
+    renderBookSupplementForm();
     renderToc();
   } catch (error) {
     if (!suppressToast) state.shell.showToast(error.message || state.shell.t("toastError"));
@@ -1566,6 +1923,80 @@ async function applyCoverUrl() {
     populateBook();
     state.shell.showToast(state.shell.t("bookMetaUpdated"));
   } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function prepareBookSupplement() {
+  if (!state.bookId || !canUseBookSupplement(state.book)) return;
+  const file = refs.bookSupplementFileInput && refs.bookSupplementFileInput.files
+    ? refs.bookSupplementFileInput.files[0]
+    : null;
+  if (!file) {
+    state.shell.showToast("Chưa chọn file TXT để bổ sung.");
+    return;
+  }
+  const payload = collectBookSupplementPayload();
+  if (payload.target_mode === "new" && !payload.new_volume_title) {
+    state.shell.showToast("Thiếu tên quyển mới.");
+    if (refs.bookSupplementNewVolumeInput) refs.bookSupplementNewVolumeInput.focus();
+    return;
+  }
+  state.shell.showStatus("Đang duyệt file TXT bổ sung...");
+  try {
+    const form = new FormData();
+    form.set("file", file, String(file.name || "supplement.txt"));
+    form.set("target_mode", payload.target_mode);
+    form.set("volume_id", payload.volume_id);
+    form.set("new_volume_title", payload.new_volume_title);
+    form.set("note", payload.note);
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/supplement/prepare`, {
+      method: "POST",
+      body: form,
+    });
+    state.supplementPreviewToken = String((data && data.token) || "").trim();
+    renderBookSupplementPreview(data && data.preview ? data.preview : null);
+    openBookSupplementPreviewDialog();
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function commitBookSupplement() {
+  if (!state.bookId || !state.supplementPreviewToken) return;
+  const token = String(state.supplementPreviewToken || "").trim();
+  const payload = collectBookSupplementPayload();
+  state.shell.showStatus("Đang bổ sung chương vào truyện...");
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/supplement/commit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token,
+        ...payload,
+      }),
+    });
+    clearBookSupplementPreviewState();
+    state.reopenBookEditAfterSupplementPreview = false;
+    if (refs.bookSupplementPreviewDialog && refs.bookSupplementPreviewDialog.open) refs.bookSupplementPreviewDialog.close();
+    if (data && data.book) {
+      state.book = data.book;
+      populateBook();
+    } else {
+      await loadBook({ silent: true, suppressToast: true, showSkeleton: false });
+    }
+    if (data && data.volume_id) {
+      state.selectedTocVolumeId = String(data.volume_id || "").trim();
+    }
+    await loadToc(1, { silent: true, suppressToast: true, showSkeleton: false });
+    resetBookSupplementForm();
+    state.shell.showToast(`Đã bổ sung ${Math.max(0, Number(data && data.added_chapters || 0))} chương.`);
+  } catch (error) {
+    state.supplementPreviewToken = token;
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
     state.shell.hideStatus();
@@ -2693,6 +3124,38 @@ async function init() {
   refs.btnUploadCover.textContent = state.shell.t("uploadCover");
   refs.btnApplyCoverUrl.textContent = state.shell.t("applyCoverUrl");
   refs.btnSaveMeta.textContent = state.shell.t("saveBookMeta");
+  if (refs.bookSupplementTitle) refs.bookSupplementTitle.textContent = "Bổ sung chương TXT";
+  if (refs.bookSupplementTargetModeLabel) refs.bookSupplementTargetModeLabel.textContent = "Đích bổ sung";
+  if (refs.bookSupplementTargetMode) {
+    const existingOption = refs.bookSupplementTargetMode.querySelector('option[value="existing"]');
+    const newOption = refs.bookSupplementTargetMode.querySelector('option[value="new"]');
+    if (existingOption) existingOption.textContent = "Quyển đã có";
+    if (newOption) newOption.textContent = "Quyển mới";
+  }
+  if (refs.bookSupplementVolumeLabel) refs.bookSupplementVolumeLabel.textContent = "Chọn quyển";
+  if (refs.bookSupplementNewVolumeLabel) refs.bookSupplementNewVolumeLabel.textContent = "Tên quyển mới";
+  if (refs.bookSupplementNoteLabel) refs.bookSupplementNoteLabel.textContent = "Mô tả đợt bổ sung";
+  if (refs.btnBookSupplementPick) refs.btnBookSupplementPick.textContent = "Chọn file TXT";
+  if (refs.bookSupplementFileName) refs.bookSupplementFileName.textContent = "Chưa chọn file TXT nào.";
+  if (refs.btnBookSupplementPrepare) refs.btnBookSupplementPrepare.textContent = "Duyệt file";
+  if (refs.bookSupplementPreviewTitle) refs.bookSupplementPreviewTitle.textContent = "Duyệt bổ sung chương";
+  if (refs.bookSupplementPreviewFileLabel) refs.bookSupplementPreviewFileLabel.textContent = "File:";
+  if (refs.bookSupplementPreviewTypeLabel) refs.bookSupplementPreviewTypeLabel.textContent = "Loại:";
+  if (refs.bookSupplementPreviewCountLabel) refs.bookSupplementPreviewCountLabel.textContent = "Số chương:";
+  if (refs.bookSupplementPreviewTargetLabel) refs.bookSupplementPreviewTargetLabel.textContent = "Bổ sung vào:";
+  if (refs.bookSupplementPreviewNoteLabel) refs.bookSupplementPreviewNoteLabel.textContent = "Mô tả:";
+  if (refs.btnBookSupplementPreviewCancel) refs.btnBookSupplementPreviewCancel.textContent = "Hủy";
+  if (refs.btnBookSupplementPreviewCommit) refs.btnBookSupplementPreviewCommit.textContent = "Bổ sung";
+  if (refs.btnOpenBookHistory) {
+    refs.btnOpenBookHistory.textContent = "i";
+    refs.btnOpenBookHistory.title = "Lịch sử thay đổi sách";
+    refs.btnOpenBookHistory.setAttribute("aria-label", "Lịch sử thay đổi sách");
+    refs.btnOpenBookHistory.disabled = true;
+  }
+  if (refs.bookHistoryTitle) refs.bookHistoryTitle.textContent = "Lịch sử thay đổi sách";
+  if (refs.btnCloseBookHistory) refs.btnCloseBookHistory.textContent = "Đóng";
+  if (refs.bookHistoryHint) refs.bookHistoryHint.textContent = "Ghi lại các lần thêm truyện, đồng bộ mục lục và bổ sung chương gần đây.";
+  if (refs.bookHistoryEmpty) refs.bookHistoryEmpty.textContent = "Chưa có thay đổi nào được ghi lại.";
   refs.bookNameTitle.textContent = state.shell.t("bookPrivateNamesTitle");
   refs.btnCloseBookNames.textContent = state.shell.t("close");
   refs.btnBookNameRefresh.textContent = state.shell.t("refreshNamePreview");
@@ -2809,8 +3272,12 @@ async function init() {
     openBookNameFilterDialog().catch(() => {});
   });
   refs.btnOpenBookNames.addEventListener("click", openBookNameDialog);
+  if (refs.btnOpenBookHistory) refs.btnOpenBookHistory.addEventListener("click", () => {
+    openBookHistoryDialog().catch(() => {});
+  });
   refs.btnOpenBookEdit.addEventListener("click", () => refs.bookEditDialog.showModal());
   refs.btnCloseBookEdit.addEventListener("click", () => refs.bookEditDialog.close());
+  if (refs.btnCloseBookHistory) refs.btnCloseBookHistory.addEventListener("click", () => refs.bookHistoryDialog.close());
   refs.btnCloseBookNames.addEventListener("click", () => refs.bookNameDialog.close());
   if (refs.btnCloseBookNameFilter) refs.btnCloseBookNameFilter.addEventListener("click", () => refs.bookNameFilterDialog.close());
   if (refs.btnCloseBookReplaces) refs.btnCloseBookReplaces.addEventListener("click", () => refs.bookReplaceDialog.close());
@@ -3020,6 +3487,43 @@ async function init() {
     refs.coverUploadInput.value = "";
   });
   refs.btnApplyCoverUrl.addEventListener("click", applyCoverUrl);
+  if (refs.btnBookSupplementPick) refs.btnBookSupplementPick.addEventListener("click", () => {
+    if (refs.bookSupplementFileInput) refs.bookSupplementFileInput.click();
+  });
+  if (refs.bookSupplementFileInput) refs.bookSupplementFileInput.addEventListener("change", () => {
+    const file = refs.bookSupplementFileInput.files && refs.bookSupplementFileInput.files[0];
+    if (refs.bookSupplementFileName) refs.bookSupplementFileName.textContent = file ? String(file.name || "").trim() : "Chưa chọn file TXT nào.";
+    renderBookSupplementForm();
+  });
+  if (refs.bookSupplementTargetMode) refs.bookSupplementTargetMode.addEventListener("change", () => {
+    renderBookSupplementForm();
+  });
+  if (refs.bookSupplementVolumeSelect) refs.bookSupplementVolumeSelect.addEventListener("change", () => {
+    renderBookSupplementForm();
+  });
+  if (refs.bookSupplementNewVolumeInput) refs.bookSupplementNewVolumeInput.addEventListener("input", () => {
+    renderBookSupplementForm();
+  });
+  if (refs.bookSupplementNoteInput) refs.bookSupplementNoteInput.addEventListener("input", () => {
+    renderBookSupplementForm();
+  });
+  if (refs.btnBookSupplementPrepare) refs.btnBookSupplementPrepare.addEventListener("click", () => {
+    prepareBookSupplement().catch(() => {});
+  });
+  if (refs.btnBookSupplementPreviewClose) refs.btnBookSupplementPreviewClose.addEventListener("click", () => {
+    if (refs.bookSupplementPreviewDialog && refs.bookSupplementPreviewDialog.open) refs.bookSupplementPreviewDialog.close();
+  });
+  if (refs.btnBookSupplementPreviewCancel) refs.btnBookSupplementPreviewCancel.addEventListener("click", () => {
+    if (refs.bookSupplementPreviewDialog && refs.bookSupplementPreviewDialog.open) refs.bookSupplementPreviewDialog.close();
+  });
+  if (refs.btnBookSupplementPreviewCommit) refs.btnBookSupplementPreviewCommit.addEventListener("click", () => {
+    commitBookSupplement().catch(() => {});
+  });
+  if (refs.bookSupplementPreviewDialog) refs.bookSupplementPreviewDialog.addEventListener("close", () => {
+    const shouldReopenEdit = state.reopenBookEditAfterSupplementPreview;
+    state.reopenBookEditAfterSupplementPreview = false;
+    if (shouldReopenEdit && refs.bookEditDialog && !refs.bookEditDialog.open) refs.bookEditDialog.showModal();
+  });
 
   refs.btnTocModeRaw.addEventListener("click", async () => {
     state.mode = "raw";
