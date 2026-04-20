@@ -480,6 +480,10 @@ def _build_export_html_nav(*, prev_href: str = "", next_href: str = "", index_hr
     return '<nav class="export-nav">' + "".join(links) + "</nav>"
 
 
+def _serialize_export_data_payload(value: Any) -> str:
+    return html.escape(json.dumps(value, ensure_ascii=False), quote=False)
+
+
 def wrap_export_html_document(
     title: str,
     body: str,
@@ -664,7 +668,26 @@ def wrap_export_html_document(
   const PROTECT_DEVTOOLS_CONFIRM_HITS = 3;
   const PROTECT_DEBUGGER_STALL_MS = 140;
   const PROTECT_MONITOR_GRACE_MS = 1800;
+  const PROTECT_MOBILE_VIEWPORT_MAX = 920;
   const PROTECT_EXTENSION_SCHEMES = ["chrome-extension://", "moz-extension://", "safari-extension://", "ms-browser-extension://"];
+  const protectProbablyMobile = (() => {{
+    try {{
+      if (navigator.userAgentData && navigator.userAgentData.mobile) return true;
+      const ua = String(navigator.userAgent || "").toLowerCase();
+      if (/(android|iphone|ipad|ipod|mobile)/.test(ua)) return true;
+      const coarsePointer = Boolean(
+        (window.matchMedia && window.matchMedia("(pointer: coarse)").matches)
+        || (window.matchMedia && window.matchMedia("(hover: none)").matches)
+      );
+      const touchPoints = Math.max(0, Number(navigator.maxTouchPoints || 0));
+      const screenWidth = Math.max(0, Number(window.screen?.width || window.innerWidth || 0));
+      const screenHeight = Math.max(0, Number(window.screen?.height || window.innerHeight || 0));
+      const screenMin = Math.min(screenWidth, screenHeight);
+      return Boolean((coarsePointer || touchPoints > 1) && screenMin > 0 && screenMin <= PROTECT_MOBILE_VIEWPORT_MAX);
+    }} catch (_error) {{
+      return false;
+    }}
+  }})();
   const protectInitialWidthGap = Math.abs(window.outerWidth - window.innerWidth);
   const protectInitialHeightGap = Math.abs(window.outerHeight - window.innerHeight);
   const themeColorFields = [
@@ -676,6 +699,11 @@ def wrap_export_html_document(
     {{ key: "customMuted", id: "setting-theme-muted", cssVar: "--muted" }},
     {{ key: "customAccent", id: "setting-theme-accent", cssVar: "--accent" }},
   ];
+  let virtualChapterPayload = null;
+  let virtualChapterRangeStart = -1;
+  let virtualChapterRangeEnd = -1;
+  let virtualChapterActiveIndex = -1;
+  let virtualChapterIndexMap = new Map();
   const isInteractiveTarget = (target) => target instanceof Element && Boolean(
     target.closest("input,textarea,select,option,button,label,summary,[contenteditable='true']")
   );
@@ -688,6 +716,155 @@ def wrap_export_html_document(
       link.dataset.drawerBound = "1";
       link.addEventListener("click", closeDrawers);
     }});
+  }};
+  const getChapterPayloadNode = () => document.getElementById("export-chapter-payload");
+  const getChapterWindowHost = () => document.getElementById("export-chapter-window");
+  const bindChapterImageLoadEvents = (scope = document) => {{
+    if (!(scope && typeof scope.querySelectorAll === "function")) return;
+    scope.querySelectorAll(".chapter-image").forEach((image) => {{
+      if (!(image instanceof HTMLImageElement)) return;
+      if (image.dataset.restoreBound === "1") return;
+      image.dataset.restoreBound = "1";
+      image.addEventListener("load", () => {{
+        if (!readingRestoreApplied) scheduleReadingRestore();
+      }});
+    }});
+  }};
+  const resetVirtualChapterState = () => {{
+    virtualChapterPayload = null;
+    virtualChapterRangeStart = -1;
+    virtualChapterRangeEnd = -1;
+    virtualChapterActiveIndex = -1;
+    virtualChapterIndexMap = new Map();
+  }};
+  const readVirtualChapterPayloadText = () => {{
+    const node = getChapterPayloadNode();
+    if (!(node instanceof HTMLTextAreaElement)) return "";
+    return String(node.value || node.textContent || "").trim();
+  }};
+  const ensureVirtualChapterPayload = () => {{
+    if (virtualChapterPayload && Array.isArray(virtualChapterPayload.chapters)) return virtualChapterPayload;
+    const raw = readVirtualChapterPayloadText();
+    if (!raw) return null;
+    try {{
+      const parsed = JSON.parse(raw);
+      const chapters = Array.isArray(parsed?.chapters)
+        ? parsed.chapters
+            .map((item, index) => {{
+              const id = String(item?.id || `chap-${{index + 1}}`).trim();
+              return {{
+                id,
+                title: String(item?.title || `Chương ${{index + 1}}`),
+                html: String(item?.html || ""),
+              }};
+            }})
+            .filter((item) => item.id && item.html)
+        : [];
+      if (!chapters.length) return null;
+      virtualChapterPayload = {{
+        enabled: Boolean(parsed?.enabled ?? true),
+        windowRadius: Math.max(1, Math.min(3, Number(parsed?.window_radius || 2) || 2)),
+        chapters,
+      }};
+      virtualChapterIndexMap = new Map();
+      chapters.forEach((chapter, index) => {{
+        virtualChapterIndexMap.set(chapter.id, index);
+      }});
+      return virtualChapterPayload;
+    }} catch (error) {{
+      console.warn("reader export chapter payload parse failed", error);
+      return null;
+    }}
+  }};
+  const isVirtualChapterSnapshot = (snapshot) => Boolean(snapshot && snapshot.mode === "virtual-chapters");
+  const syncVirtualChapterLinkState = () => {{
+    const payload = ensureVirtualChapterPayload();
+    const activeId = (
+      payload
+      && virtualChapterActiveIndex >= 0
+      && payload.chapters?.[virtualChapterActiveIndex]
+      && payload.chapters[virtualChapterActiveIndex].id
+    ) ? `#${{payload.chapters[virtualChapterActiveIndex].id}}` : "";
+    document.querySelectorAll('.export-toc a[href^="#chap-"], .export-nav-link[href^="#chap-"]').forEach((link) => {{
+      link.classList.toggle("is-active", Boolean(activeId) && link.getAttribute("href") === activeId);
+    }});
+  }};
+  const scrollToVirtualChapter = (chapterId, withinRatio = null, rawOffset = null) => {{
+    const node = document.getElementById(String(chapterId || ""));
+    if (!(node instanceof HTMLElement)) return null;
+    const chapterTop = Math.max(0, Number(node.offsetTop || 0));
+    const chapterMax = Math.max(0, Number(node.offsetHeight || 0) - window.innerHeight);
+    let offset = 0;
+    if (Number.isFinite(Number(rawOffset)) && Number(rawOffset) > 0) {{
+      offset = Math.min(chapterMax, Math.max(0, Number(rawOffset)));
+    }} else if (Number.isFinite(Number(withinRatio))) {{
+      offset = chapterMax * Math.min(1, Math.max(0, Number(withinRatio)));
+    }}
+    const target = Math.max(0, chapterTop + offset);
+    const previousBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    window.scrollTo(0, target);
+    window.setTimeout(() => {{
+      root.style.scrollBehavior = previousBehavior;
+    }}, 0);
+    return target;
+  }};
+  const renderVirtualChapterWindow = (centerIndex, options = {{}}) => {{
+    const payload = ensureVirtualChapterPayload();
+    const host = getChapterWindowHost();
+    if (!(payload && payload.enabled && host)) return false;
+    const total = payload.chapters.length;
+    if (!total) return false;
+    const center = Math.max(0, Math.min(total - 1, Number(centerIndex || 0)));
+    const radius = Math.max(1, Number(payload.windowRadius || 2));
+    const start = Math.max(0, center - radius);
+    const end = Math.min(total - 1, center + radius);
+    const shouldRender = Boolean(options.force) || start !== virtualChapterRangeStart || end !== virtualChapterRangeEnd || !host.childElementCount;
+    if (shouldRender) {{
+      host.innerHTML = payload.chapters.slice(start, end + 1).map((chapter) => String(chapter.html || "")).join("");
+    }}
+    virtualChapterRangeStart = start;
+    virtualChapterRangeEnd = end;
+    virtualChapterActiveIndex = center;
+    bindHydratedNavLinks();
+    bindChapterImageLoadEvents(host);
+    syncVirtualChapterLinkState();
+    const targetId = String(options.scrollToId || payload.chapters[center]?.id || "");
+    if (options.scroll !== false && targetId) {{
+      window.requestAnimationFrame(() => {{
+        scrollToVirtualChapter(targetId, options.withinRatio, options.rawOffset);
+      }});
+    }}
+    return true;
+  }};
+  const handleVirtualChapterHash = (hash = window.location.hash, options = {{}}) => {{
+    const payload = ensureVirtualChapterPayload();
+    if (!(payload && payload.enabled)) return false;
+    const rawHash = String(hash || "").trim();
+    if (!rawHash.startsWith("#")) return false;
+    let chapterId = "";
+    try {{
+      chapterId = decodeURIComponent(rawHash.slice(1));
+    }} catch (_error) {{
+      chapterId = rawHash.slice(1);
+    }}
+    if (!chapterId || !virtualChapterIndexMap.has(chapterId)) return false;
+    const index = Number(virtualChapterIndexMap.get(chapterId));
+    return renderVirtualChapterWindow(index, {{
+      force: Boolean(options.force),
+      scroll: options.scroll !== false,
+      scrollToId: chapterId,
+      withinRatio: options.withinRatio,
+      rawOffset: options.rawOffset,
+    }});
+  }};
+  const initializeLocalChapterRendering = (options = {{}}) => {{
+    const payload = ensureVirtualChapterPayload();
+    if (!(payload && payload.enabled)) return false;
+    const hash = String(options.hash || window.location.hash || "").trim();
+    if (handleVirtualChapterHash(hash, {{ force: Boolean(options.force), scroll: false }})) return true;
+    const fallbackIndex = virtualChapterActiveIndex >= 0 ? virtualChapterActiveIndex : 0;
+    return renderVirtualChapterWindow(fallbackIndex, {{ force: Boolean(options.force), scroll: false }});
   }};
   const getSuspiciousExtensionReason = () => {{
     const extensionHost = document.querySelector(
@@ -774,6 +951,8 @@ def wrap_export_html_document(
     if (protectedTocHost) protectedTocHost.innerHTML = protectRuntime.decodePayload(PROTECT_CONFIG.toc_chunks, PROTECT_CONFIG.toc_key_b64);
     protectedHydrated = true;
     bindHydratedNavLinks();
+    bindChapterImageLoadEvents();
+    initializeLocalChapterRendering({{ force: true }});
   }};
   const formatCountdown = (remainingMs) => {{
     const totalSec = Math.max(0, Math.ceil(Number(remainingMs || 0) / 1000));
@@ -825,7 +1004,40 @@ def wrap_export_html_document(
       return null;
     }}
   }};
+  const captureVirtualReadingSnapshot = () => {{
+    const payload = ensureVirtualChapterPayload();
+    const host = getChapterWindowHost();
+    if (!(payload && payload.enabled && host)) return null;
+    const rendered = Array.from(host.querySelectorAll(".chapter[id]")).filter((node) => node instanceof HTMLElement);
+    if (!rendered.length) return null;
+    const scrollTop = Math.max(0, Number(window.scrollY || getScrollHost()?.scrollTop || 0));
+    const anchorY = scrollTop + Math.max(0, window.innerHeight * 0.18);
+    let activeNode = rendered[0];
+    for (const node of rendered) {{
+      if (!(node instanceof HTMLElement)) continue;
+      if (node.offsetTop <= anchorY) activeNode = node;
+      else break;
+    }}
+    if (!(activeNode instanceof HTMLElement)) return null;
+    const chapterId = String(activeNode.id || "");
+    const chapterIndex = virtualChapterIndexMap.has(chapterId)
+      ? Number(virtualChapterIndexMap.get(chapterId))
+      : Math.max(0, virtualChapterActiveIndex);
+    const chapterTop = Math.max(0, Number(activeNode.offsetTop || 0));
+    const chapterMax = Math.max(0, Number(activeNode.offsetHeight || 0) - window.innerHeight);
+    const rawOffset = Math.max(0, scrollTop - chapterTop);
+    return {{
+      mode: "virtual-chapters",
+      chapter_id: chapterId,
+      chapter_index: chapterIndex,
+      chapter_offset: rawOffset,
+      chapter_ratio: chapterMax > 0 ? (rawOffset / chapterMax) : 0,
+      saved_at_ts: Date.now(),
+    }};
+  }};
   const captureReadingSnapshot = () => {{
+    const virtualSnapshot = captureVirtualReadingSnapshot();
+    if (virtualSnapshot) return virtualSnapshot;
     const host = getScrollHost();
     if (!host) return null;
     const scrollTop = Math.max(0, Number(window.scrollY || host.scrollTop || 0));
@@ -839,6 +1051,7 @@ def wrap_export_html_document(
   }};
   const persistReadingNow = () => {{
     if (PROTECT_ENABLED && protectedLocked) return;
+    if (!readingRestoreApplied) return;
     const snapshot = captureReadingSnapshot();
     if (!snapshot) return;
     try {{ localStorage.setItem(READING_STORAGE_KEY, JSON.stringify(snapshot)); }} catch (_error) {{}}
@@ -867,10 +1080,47 @@ def wrap_export_html_document(
     if (savedMax > 0 && Math.abs(savedMax - currentMax) < 160 && savedY > 0) target = savedY;
     return Math.min(currentMax, Math.max(0, target));
   }};
+  const restoreVirtualReadingPosition = (snapshot) => {{
+    const payload = ensureVirtualChapterPayload();
+    if (!(payload && payload.enabled)) return false;
+    let chapterIndex = Number(snapshot?.chapter_index);
+    const chapterId = String(snapshot?.chapter_id || "");
+    if (!Number.isFinite(chapterIndex) || chapterIndex < 0 || chapterIndex >= payload.chapters.length) {{
+      chapterIndex = virtualChapterIndexMap.has(chapterId) ? Number(virtualChapterIndexMap.get(chapterId)) : 0;
+    }}
+    if (!(chapterIndex >= 0 && chapterIndex < payload.chapters.length)) return false;
+    const rendered = renderVirtualChapterWindow(chapterIndex, {{
+      force: true,
+      scroll: false,
+      scrollToId: chapterId || payload.chapters[chapterIndex]?.id || "",
+    }});
+    if (!rendered) return false;
+    const targetId = chapterId || payload.chapters[chapterIndex]?.id || "";
+    window.requestAnimationFrame(() => {{
+      const target = scrollToVirtualChapter(
+        targetId,
+        Number(snapshot?.chapter_ratio),
+        Number(snapshot?.chapter_offset),
+      );
+      if (!Number.isFinite(Number(target))) return;
+      const settleDelay = window.location.hash ? 900 : 140;
+      window.setTimeout(() => {{
+        const current = Math.max(0, Number(window.scrollY || getScrollHost()?.scrollTop || 0));
+        if (Math.abs(current - Number(target || 0)) <= 12) readingRestoreApplied = true;
+      }}, settleDelay);
+    }});
+    return true;
+  }};
   const restoreReadingPosition = () => {{
-    if (readingRestoreApplied || window.location.hash) return;
     if (!readingSnapshot) readingSnapshot = readStoredReading();
+    const hasVirtualSnapshot = isVirtualChapterSnapshot(readingSnapshot);
+    if (readingRestoreApplied || (window.location.hash && !hasVirtualSnapshot)) return;
     if (!readingSnapshot) {{
+      readingRestoreApplied = true;
+      return;
+    }}
+    if (hasVirtualSnapshot) {{
+      if (restoreVirtualReadingPosition(readingSnapshot)) return;
       readingRestoreApplied = true;
       return;
     }}
@@ -892,7 +1142,9 @@ def wrap_export_html_document(
     if (Math.abs(current - target) <= 12) readingRestoreApplied = true;
   }};
   const scheduleReadingRestore = () => {{
-    if (readingRestoreApplied || window.location.hash) return;
+    if (!readingSnapshot) readingSnapshot = readStoredReading();
+    const hasVirtualSnapshot = isVirtualChapterSnapshot(readingSnapshot);
+    if (readingRestoreApplied || (window.location.hash && !hasVirtualSnapshot)) return;
     clearReadingRestoreTimers();
     for (const delay of READING_RESTORE_DELAYS) {{
       readingRestoreTimers.push(window.setTimeout(() => {{
@@ -999,6 +1251,7 @@ def wrap_export_html_document(
     protectedLocked = true;
     protectDockedDevtoolsHits = 0;
     clearProtectAutoSubmit();
+    resetVirtualChapterState();
     document.body.classList.add("protected-locked");
     if (protectOverlay) protectOverlay.hidden = false;
     if (protectUnlockPanel) protectUnlockPanel.hidden = true;
@@ -1013,6 +1266,7 @@ def wrap_export_html_document(
     clearHideTimer();
   }};
   const hasLikelyDockedDevtools = () => {{
+    if (protectProbablyMobile) return false;
     const widthGap = Math.abs(window.outerWidth - window.innerWidth);
     const heightGap = Math.abs(window.outerHeight - window.innerHeight);
     const widthDelta = Math.max(0, widthGap - protectInitialWidthGap);
@@ -1305,6 +1559,9 @@ def wrap_export_html_document(
       unlockProtected();
     }}
   }}
+  if (!PROTECT_ENABLED) {{
+    initializeLocalChapterRendering({{ force: true }});
+  }}
   document.querySelectorAll("[data-toggle-drawer]").forEach((button) => {{
     button.addEventListener("click", () => toggleDrawer(button.getAttribute("data-toggle-drawer") || ""));
   }});
@@ -1316,6 +1573,25 @@ def wrap_export_html_document(
   }});
   document.querySelectorAll(".export-toc a, .export-nav-link").forEach((link) => {{
     link.addEventListener("click", closeDrawers);
+  }});
+  document.addEventListener("click", (event) => {{
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const link = target.closest('a[href^="#"]');
+    if (!(link instanceof HTMLAnchorElement)) return;
+    const href = String(link.getAttribute("href") || "").trim();
+    if (!handleVirtualChapterHash(href, {{ force: true, scroll: true }})) return;
+    event.preventDefault();
+    if (window.location.hash !== href) {{
+      try {{
+        history.pushState(null, "", href);
+      }} catch (_error) {{
+        window.location.hash = href;
+      }}
+    }}
+  }});
+  window.addEventListener("hashchange", () => {{
+    handleVirtualChapterHash(window.location.hash, {{ force: true, scroll: true }});
   }});
   document.addEventListener("contextmenu", (event) => {{
     if (!PROTECT_ENABLED || isInteractiveTarget(event.target) || !isProtectedTarget(event.target)) return;
@@ -1488,12 +1764,7 @@ def wrap_export_html_document(
   main?.addEventListener("pointermove", trackTapMove, true);
   main?.addEventListener("pointerup", commitTapToggle, true);
   main?.addEventListener("pointercancel", resetTapTrack, true);
-  document.querySelectorAll(".chapter-image").forEach((image) => {{
-    if (!(image instanceof HTMLImageElement)) return;
-    image.addEventListener("load", () => {{
-      if (!readingRestoreApplied) scheduleReadingRestore();
-    }});
-  }});
+  bindChapterImageLoadEvents();
   header?.addEventListener("pointerenter", () => {{
     uiVisible = true;
     clearHideTimer();
@@ -1559,8 +1830,11 @@ def wrap_export_html_document(
         ".export-cover-wrap{display:flex;justify-content:center;margin:0 0 22px;}.export-cover{display:block;width:min(280px,100%);max-width:100%;border-radius:22px;border:1px solid var(--border);box-shadow:0 24px 48px rgba(0,0,0,.18);background:var(--surface);}"
         ".intro.intro-cover-only{display:flex;justify-content:center;padding-bottom:14px;}"
         ".chapter{margin:32px auto 44px;}.chapter-title{margin:0 0 16px;font:700 clamp(22px,3vw,32px)/1.25 var(--font-body);letter-spacing:-.02em;}.chapter-text{font-family:var(--font-body);font-size:var(--reader-font-size);line-height:var(--reader-line-height);}.chapter-text p{text-indent:var(--reader-indent);}.chapter-text p:empty,.chapter-text p.blank{margin-bottom:.4em;text-indent:0;}"
+        ".export-top-anchor{display:block;height:0;position:relative;top:-92px;}"
+        ".export-local-hint{margin:0 0 24px;padding:14px 16px;border:1px dashed var(--border);border-radius:18px;background:color-mix(in srgb,var(--surface) 88%, transparent);color:var(--muted);}.export-local-hint p{margin:0;font:600 13px/1.65 var(--font-ui);}"
+        ".export-local-reader{display:grid;gap:0;}.export-chapter-window{display:grid;gap:0;min-height:120px;}.export-chapter-payload{display:none !important;}"
         ".chapter-images{display:flex;flex-direction:column;gap:var(--comic-image-gap);align-items:center;}.chapter-image-wrap{width:100%;max-width:var(--comic-max-width);margin:0 auto;padding:0;border-radius:22px;overflow:hidden;background:color-mix(in srgb,var(--surface) 82%, transparent);box-shadow:0 18px 38px rgba(0,0,0,.18);}.chapter-image{display:block;width:100%;height:auto;}"
-        ".export-toc ol{margin:0;padding-left:22px;}.export-toc li+li{margin-top:8px;}.export-toc.empty p{color:var(--muted);}"
+        ".export-toc ol{margin:0;padding-left:22px;}.export-toc li+li{margin-top:8px;}.export-toc.empty p{color:var(--muted);}.export-toc a.is-active{font-weight:700;color:var(--text);text-decoration:underline;text-underline-offset:2px;}"
         ".export-nav{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 18px;}.chapter-footer-nav{margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}"
         ".export-drawer{position:fixed;top:0;bottom:0;z-index:40;pointer-events:none;}.export-drawer[data-drawer='toc']{left:0;}.export-drawer[data-drawer='settings']{right:0;}.export-drawer.open{pointer-events:auto;}.export-drawer-backdrop{position:absolute;inset:0;background:rgba(9,12,17,.44);opacity:0;transition:opacity .2s ease;}.export-drawer.open .export-drawer-backdrop{opacity:1;}"
         ".export-drawer-panel{position:absolute;top:0;bottom:0;width:min(360px,86vw);padding:20px;background:var(--bg-elev);box-shadow:var(--shadow);overflow:auto;transition:transform .22s ease;}.export-drawer[data-drawer='toc'] .export-drawer-panel{left:0;transform:translateX(-108%);border-right:1px solid var(--border);}.export-drawer[data-drawer='settings'] .export-drawer-panel{right:0;transform:translateX(108%);border-left:1px solid var(--border);}.export-drawer.open .export-drawer-panel{transform:translateX(0);}"
@@ -1660,7 +1934,12 @@ def create_export_html(
     protect_content = bool(options.get("protect_content"))
     cover_only_html = render_export_cover_html(metadata)
 
-    def _chapter_section(chapter: dict[str, Any], *, inline_images: bool) -> str:
+    def _chapter_section(
+        chapter: dict[str, Any],
+        *,
+        inline_images: bool,
+        footer_nav_html: str = "",
+    ) -> str:
         chapter_id = f"chap-{int(chapter.get('chapter_order') or 0)}"
         parts = [f'<section class="chapter" id="{chapter_id}">']
         if include_titles:
@@ -1684,12 +1963,14 @@ def create_export_html(
             for line in text_value.split("\n"):
                 parts.append(f"<p>{html.escape(line)}</p>" if line.strip() else '<p class="blank"></p>')
             parts.append("</div>")
+        if footer_nav_html:
+            parts.append(footer_nav_html)
         parts.append("</section>")
         return "".join(parts)
 
     if merge_single:
         out = export_dir / f"{safe_name}_{ts}.html"
-        body_parts: list[str] = []
+        body_parts: list[str] = ['<div id="export-main-top" class="export-top-anchor" aria-hidden="true"></div>']
         sidebar_toc_html = ""
         if chapters:
             sidebar_toc_html = build_export_toc_html(
@@ -1697,17 +1978,56 @@ def create_export_html(
                 link_builder=lambda chapter: f"#chap-{int(chapter.get('chapter_order') or 0)}",
             )
         if include_intro:
-            body_parts.append(f'<section class="intro">{render_export_intro_html(metadata)}</section>')
+            body_parts.append(f'<section class="intro" id="export-intro-section">{render_export_intro_html(metadata)}</section>')
         elif cover_only_html:
-            body_parts.append(f'<section class="intro intro-cover-only">{cover_only_html}</section>')
+            body_parts.append(f'<section class="intro intro-cover-only" id="export-intro-section">{cover_only_html}</section>')
         if include_toc:
             toc_html = build_export_toc_html(
                 chapters,
                 link_builder=lambda chapter: f"#chap-{int(chapter.get('chapter_order') or 0)}",
             )
-            body_parts.append(f'<section class="toc">{toc_html}</section>')
-        for chapter in chapters:
-            body_parts.append(_chapter_section(chapter, inline_images=is_comic))
+            body_parts.append(f'<section class="toc" id="export-inline-toc">{toc_html}</section>')
+        chapter_payload_entries: list[dict[str, Any]] = []
+        index_href = "#export-inline-toc" if include_toc else "#export-main-top"
+        index_label = "Mục lục" if include_toc else "Về đầu"
+        for index, chapter in enumerate(chapters):
+            prev_href = f"#chap-{int(chapters[index - 1].get('chapter_order') or 0)}" if index > 0 else ""
+            next_href = f"#chap-{int(chapters[index + 1].get('chapter_order') or 0)}" if index + 1 < len(chapters) else ""
+            nav_html = _build_export_html_nav(
+                prev_href=prev_href,
+                next_href=next_href,
+                index_href=index_href,
+                index_label=index_label,
+            )
+            footer_nav_html = f'<div class="chapter-footer-nav">{nav_html}</div>' if nav_html else ""
+            chapter_payload_entries.append(
+                {
+                    "id": f"chap-{int(chapter.get('chapter_order') or 0)}",
+                    "title": str(chapter.get("title") or chapter.get("title_raw") or ""),
+                    "html": _chapter_section(
+                        chapter,
+                        inline_images=is_comic,
+                        footer_nav_html=footer_nav_html,
+                    ),
+                }
+            )
+        if chapter_payload_entries:
+            body_parts.append(
+                '<section class="export-local-hint">'
+                '<p>File gộp 1 trang này chỉ render cục bộ vài chương quanh vị trí đang xem để giảm lag. '
+                'Dùng mục lục hoặc nút trước/sau để nhảy chương.</p>'
+                "</section>"
+            )
+            body_parts.append(
+                '<section class="export-local-reader">'
+                '<div id="export-chapter-window" class="export-chapter-window"></div>'
+                "</section>"
+            )
+            body_parts.append(
+                '<textarea id="export-chapter-payload" class="export-chapter-payload" hidden aria-hidden="true">'
+                f"{_serialize_export_data_payload({'enabled': True, 'window_radius': 2, 'chapters': chapter_payload_entries})}"
+                "</textarea>"
+            )
         out.write_text(
             wrap_export_html_document(
                 metadata["title"],
