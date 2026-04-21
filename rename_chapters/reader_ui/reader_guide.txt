@@ -60,6 +60,9 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 - Nếu một đợt import bị dừng giữa chừng, hãy mở notify để xem còn lỗi ở bước nào.
 - Trường hợp truyện đã vào thư viện nhưng còn thiếu bước cuối như gán danh mục, thường có thể xử lý tiếp từ nút `Tiếp tục` hoặc `Thử lại`.
 
+> [!WARN] Đối với vbook
+> - Hãy cập nhật vbook_runner trong `Nguồn vBook`
+
 ## 8. Quản lý cache
 
 - `Quản lý cache` cho phép dọn riêng từng nhóm dịch `Server`, `Local`, `Mô phỏng`, `Hán Việt`, cùng với `Ảnh` và cache theo truyện.
