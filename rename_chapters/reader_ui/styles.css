@@ -4762,11 +4762,17 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   background: color-mix(in srgb, var(--panel-surface) 92%, transparent);
+  color: var(--text);
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(12px);
   padding: 16px;
   display: grid;
   gap: 10px;
+}
+
+.action-modal-panel h3 {
+  margin: 0;
+  color: var(--text);
 }
 
 .action-modal-panel input {
