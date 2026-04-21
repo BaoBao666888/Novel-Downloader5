@@ -4497,19 +4497,26 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
 .action-modal {
   position: fixed;
   inset: 0;
-  z-index: 1600;
   display: none;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  width: 100vw;
+  max-width: none;
+  min-width: 0;
+  height: 100vh;
+  max-height: none;
+  border: none;
+  background: transparent;
+  overflow: visible;
 }
 
-.action-modal.open {
+.action-modal[open] {
   display: flex;
 }
 
-.action-modal.hidden {
-  display: none;
+.action-modal::backdrop {
+  background: transparent;
 }
 
 .action-modal-backdrop {

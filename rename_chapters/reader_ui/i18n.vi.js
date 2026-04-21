@@ -1011,7 +1011,7 @@ export const STRINGS = {
   toastSettingsReset: "Đã khôi phục cài đặt mặc định.",
   toastError: "Có lỗi xảy ra, vui lòng thử lại.",
 
-  confirmDeleteBook: "Bạn có chắc muốn xóa truyện này khỏi thư viện?",
+  confirmDeleteBook: "Bạn có chắc muốn xóa truyện này khỏi thư viện? Lưu ý: Hành động này không thể hoàn tác và sẽ xóa cả cache liên quan.",
   confirmClearCache: "Bạn có chắc muốn xóa toàn bộ cache dịch?",
   confirmReloadChapterEditedRaw: "Raw chương này đã được chỉnh tay. Nếu tải lại từ nguồn online, phần sửa này sẽ bị ghi đè. Bạn vẫn muốn tiếp tục?",
   actionModalTitle: "Xác nhận thao tác",

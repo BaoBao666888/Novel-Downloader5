@@ -1066,12 +1066,13 @@ function formatBytes(value) {
 
 function ensureActionModalUi() {
   if (actionModalUi) return actionModalUi;
-  const root = document.createElement("div");
+  const root = document.createElement("dialog");
   root.id = "action-modal-root";
-  root.className = "action-modal hidden";
+  root.className = "action-modal";
+  root.setAttribute("aria-labelledby", "action-modal-title");
   root.innerHTML = `
     <div class="action-modal-backdrop" data-role="backdrop"></div>
-    <div class="action-modal-panel" role="dialog" aria-modal="true" aria-labelledby="action-modal-title">
+    <div class="action-modal-panel">
       <div class="dialog-head">
         <h3 id="action-modal-title"></h3>
         <button id="btn-action-modal-close" class="btn btn-small" type="button">${t("close")}</button>
@@ -1106,11 +1107,20 @@ function ensureActionModalUi() {
     mode: "confirm",
     resolve: null,
     previousActive: null,
+    pendingResult: undefined,
     close(result = null) {
+      actionModalUi.pendingResult = result;
+      if (refs.root.open) {
+        try {
+          refs.root.close();
+          return;
+        } catch {
+          // fallback finalize below
+        }
+      }
       const resolver = actionModalUi.resolve;
       actionModalUi.resolve = null;
-      refs.root.classList.add("hidden");
-      refs.root.classList.remove("open");
+      actionModalUi.pendingResult = undefined;
       if (actionModalUi.previousActive && typeof actionModalUi.previousActive.focus === "function") {
         try {
           actionModalUi.previousActive.focus();
@@ -1142,10 +1152,24 @@ function ensureActionModalUi() {
       handleCancel();
     }
   });
-  root.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
+  root.addEventListener("cancel", (event) => {
     event.preventDefault();
     handleCancel();
+  });
+  root.addEventListener("close", () => {
+    const resolver = actionModalUi.resolve;
+    const result = actionModalUi.pendingResult;
+    actionModalUi.resolve = null;
+    actionModalUi.pendingResult = undefined;
+    if (actionModalUi.previousActive && typeof actionModalUi.previousActive.focus === "function") {
+      try {
+        actionModalUi.previousActive.focus();
+      } catch {
+        // ignore focus restore errors
+      }
+    }
+    actionModalUi.previousActive = null;
+    if (typeof resolver === "function") resolver(result == null ? null : result);
   });
   return actionModalUi;
 }
@@ -1162,9 +1186,8 @@ function openActionModal({
   inputMaxLength = 160,
 } = {}) {
   const ui = ensureActionModalUi();
-  if (typeof ui.resolve === "function") {
-    ui.resolve(null);
-    ui.resolve = null;
+  if (typeof ui.resolve === "function" || ui.refs.root.open) {
+    ui.close(null);
   }
   ui.mode = mode === "prompt" ? "prompt" : "confirm";
   ui.previousActive = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1189,8 +1212,7 @@ function openActionModal({
     refs.inputLabel.textContent = labelText;
     refs.inputLabel.classList.toggle("hidden", !(ui.mode === "prompt" && labelText));
   }
-  refs.root.classList.remove("hidden");
-  refs.root.classList.add("open");
+  if (!refs.root.open) refs.root.showModal();
   window.setTimeout(() => {
     if (ui.mode === "prompt" && refs.input) {
       refs.input.focus();
