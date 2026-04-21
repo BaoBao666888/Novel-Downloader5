@@ -67,9 +67,14 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 
 > [!WARN] Rule của `Xóa cache Trung (RAW)`
 > - Chỉ dùng cho truyện nguồn online `vbook` chưa có quyển hoặc file bổ sung.
-> - Nếu truyện được import bằng file, hoặc truyện online đã có quyển phụ hay đợt bổ sung TXT, action này sẽ bị chặn.
-> - Khi bấm RAW ở case hợp lệ, hệ thống sẽ đi thẳng sang xóa luôn truyện khỏi thư viện cùng cache liên quan, không chỉ xóa riêng file raw.
+> - Nếu truyện được import bằng file, hoặc truyện online đã có quyển phụ hay đợt bổ sung TXT, action này sẽ bị chặn; hãy xử lý ở trang sửa thông tin sách.
+> - Khi bấm RAW ở case hợp lệ, hệ thống chỉ xóa content/ảnh RAW đã tải của các chương nguồn online trong quyển mặc định, không xóa truyện khỏi thư viện.
+> - Nếu trong truyện có chương RAW từng được sửa tay, hệ thống sẽ hiện thêm một bước cảnh báo trước khi xóa.
 > - Nếu chỉ muốn dọn phần dịch, hãy dùng các nút `Dịch Server`, `Dịch Local`, `Dịch Mô phỏng` hoặc `Dịch Hán Việt`.
+
+> [!WARN] Xóa truyện khỏi thư viện là xóa vĩnh viễn
+> - Khi dùng action `Xóa truyện`, dữ liệu đó không có cơ chế khôi phục lại trong Reader.
+> - Hãy kiểm tra kỹ trước khi xác nhận vì hệ thống sẽ dọn luôn cache liên quan của truyện đó.
 
 ## 9. Xuất file HTML
 

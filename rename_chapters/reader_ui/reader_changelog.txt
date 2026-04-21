@@ -12,9 +12,14 @@ Reader bản này tập trung vào thao tác an toàn hơn, mở truyện nhẹ 
 > - Nếu URL đã có sẵn `chapter_id`, reader sẽ ưu tiên nạp ngay chương đó; metadata, `Name riêng`, TTS plugin và phần còn lại tải nền sau.
 > - Khi user mở mục lục, hệ thống chỉ dịch đúng trang mục lục đang xem; đổi sang trang khác mới dịch tiếp trang đó.
 
+> [!FIX] `Xóa cache Trung (RAW)` đã được sửa lại đúng nghĩa
+> - Chỉ áp dụng cho truyện nguồn online `vbook` ở quyển mặc định; truyện import file hoặc truyện online đã có quyển/file bổ sung sẽ tiếp tục bị chặn.
+> - Khi hợp lệ, action này chỉ dọn content/ảnh RAW đã tải của các chương nguồn online, không xóa truyện khỏi thư viện.
+> - Nếu có chương RAW từng được sửa tay, hệ thống sẽ hiện thêm bước cảnh báo xác nhận lần 2 trước khi xóa.
+
 > [!NEW] Hai thay đổi vừa hoàn tất
 > - `action-modal-panel` đã chuyển lên lớp modal top-layer, nên popup xác nhận hoặc prompt không còn nằm dưới `Quản lý cache` hay các dialog khác.
-> - `Xóa cache Trung (RAW)` trong `Quản lý cache` giờ chỉ áp dụng cho truyện nguồn online `vbook` chưa có quyển hoặc file bổ sung; nếu hợp lệ thì action này sẽ đi thẳng sang xóa truyện cùng cache liên quan.
+> - `Xóa cache Trung (RAW)` trong `Quản lý cache` chỉ mở cho truyện nguồn online `vbook` chưa có quyển hoặc file bổ sung.
 
 > [!FIX] Notify và popup cập nhật đã đọc được markdown
 > - `Changelog` và `Hướng dẫn` giờ hỗ trợ heading, list, `**bold**`, ``code``, link và khối nhấn mạnh `[!NEW]`, `[!FIX]`, `[!TIP]`, `[!WARN]`.

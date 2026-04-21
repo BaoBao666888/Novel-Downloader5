@@ -142,6 +142,24 @@ def clear_book_image_cache(
     }
 
 
+def _count_raw_edited_chapters(service, chapter_ids: list[str]) -> int:
+    keys = [
+        str(service.storage._chapter_raw_edit_state_key(chapter_id) or "").strip()
+        for chapter_id in (chapter_ids or [])
+        if str(chapter_id or "").strip()
+    ]
+    keys = [key for key in keys if key]
+    if not keys:
+        return 0
+    placeholders = ",".join("?" for _ in keys)
+    with service.storage._connect() as conn:
+        row = conn.execute(
+            f"SELECT COUNT(1) AS c FROM app_state WHERE key IN ({placeholders})",
+            tuple(keys),
+        ).fetchone()
+    return int((row["c"] if row else 0) or 0)
+
+
 def _build_book_raw_action_policy(service, book: dict[str, Any] | None) -> dict[str, Any]:
     bid = str((book or {}).get("book_id") or "").strip()
     source_type = str((book or {}).get("source_type") or "").strip().lower()
@@ -185,12 +203,12 @@ def _build_book_raw_action_policy(service, book: dict[str, Any] | None) -> dict[
         reason = "Không xác định được quyển mặc định của truyện nguồn online để xử lý RAW."
     elif active_supplement_batches > 0 or extra_volume_count > 0:
         reason_code = "has_supplement"
-        reason = "Truyện nguồn online đã có quyển/file bổ sung nên không cho xóa RAW riêng."
+        reason = "Truyện nguồn online đã có quyển/file bổ sung. Hãy xử lý phần này ở trang sửa thông tin sách; Quản lý cache không hỗ trợ xóa RAW mặc định cho case này."
 
     can_delete_via_raw = not reason_code
     return {
         "allowed": bool(can_delete_via_raw),
-        "delete_book": bool(can_delete_via_raw),
+        "delete_book": False,
         "reason_code": reason_code,
         "reason": reason,
         "source_mode": source_mode,
@@ -271,8 +289,18 @@ def get_cache_summary(
         raw_keys = [str(ch.get("raw_key") or "").strip() for ch in chapters if str(ch.get("raw_key") or "").strip()]
         trans_keys = [str(ch.get("trans_key") or "").strip() for ch in chapters if str(ch.get("trans_key") or "").strip()]
         cache_meta = service.storage.get_content_cache_meta(set(raw_keys + trans_keys))
-        raw_cached = [key for key in raw_keys if key in cache_meta]
+        raw_cached: list[str] = []
+        raw_cached_chapter_ids: list[str] = []
+        for chapter in chapters:
+            raw_key = str(chapter.get("raw_key") or "").strip()
+            if not raw_key or raw_key not in cache_meta:
+                continue
+            raw_cached.append(raw_key)
+            chapter_id = str(chapter.get("chapter_id") or "").strip()
+            if chapter_id:
+                raw_cached_chapter_ids.append(chapter_id)
         raw_bytes = sum(int((cache_meta.get(key) or {}).get("bytes") or 0) for key in raw_cached)
+        raw_edited_cached_chapters = _count_raw_edited_chapters(service, raw_cached_chapter_ids)
         translation_groups = {
             mode: {
                 "mode": mode,
@@ -361,6 +389,7 @@ def get_cache_summary(
                 "cached_raw_chapters": int(len(raw_cached)),
                 "cached_trans_chapters": int(trans_cached_count),
                 "cached_image_count": int(len(image_cached)),
+                "raw_edited_cached_chapters": int(raw_edited_cached_chapters),
                 "raw_bytes": int(raw_bytes),
                 "trans_bytes": int(trans_bytes),
                 "image_bytes": int(image_bytes),
@@ -467,17 +496,40 @@ def manage_cache(
         if not book:
             result_items.append({"book_id": bid, "found": False})
             continue
+        should_clear_images = action in {"clear_book_raw", "clear_book_images", "clear_book_all"}
+        image_stats = {"image_cache_keys": 0, "image_cache_deleted": 0, "image_bytes_deleted": 0}
+        if should_clear_images:
+            image_stats = clear_book_image_cache(
+                service,
+                book,
+                chapters,
+                is_book_comic=is_book_comic,
+                extract_comic_image_urls=extract_comic_image_urls,
+                vbook_image_cache_key=vbook_image_cache_key,
+                vbook_image_cache_dir=vbook_image_cache_dir,
+            )
         if action == "clear_book_raw":
-            deleted = bool(service.delete_book(bid))
+            cache_stats = service.storage.clear_book_cache(
+                bid,
+                clear_raw=True,
+                clear_trans=False,
+                translate_modes=None,
+            )
             item = {
                 "book_id": bid,
                 "found": True,
-                "book_deleted": deleted,
-                "raw_deleted_via": "delete_book",
+                **cache_stats,
+                **image_stats,
+                "book_deleted": False,
+                "raw_deleted_via": "clear_cache",
                 "raw_action": dict(raw_policy or {}),
             }
+            downloaded_count, chapter_total = service.storage.get_book_download_counts(bid)
+            item["downloaded_chapters"] = int(downloaded_count)
+            item["chapter_count"] = int(chapter_total)
             result_items.append(item)
-            total["books_deleted"] += 1 if deleted else 0
+            for key in total.keys():
+                total[key] += int(item.get(key) or 0)
             continue
         clear_raw = action in {"clear_book_raw", "clear_book_all"}
         clear_trans = action in {"clear_book_trans", "clear_book_trans_mode", "clear_book_all"}
@@ -490,23 +542,13 @@ def manage_cache(
             clear_trans=clear_trans,
             translate_modes=translate_modes,
         )
-        image_stats = {"image_cache_keys": 0, "image_cache_deleted": 0, "image_bytes_deleted": 0}
-        if action in {"clear_book_images", "clear_book_all"}:
-            image_stats = clear_book_image_cache(
-                service,
-                book,
-                chapters,
-                is_book_comic=is_book_comic,
-                extract_comic_image_urls=extract_comic_image_urls,
-                vbook_image_cache_key=vbook_image_cache_key,
-                vbook_image_cache_dir=vbook_image_cache_dir,
-            )
         item = {
             "book_id": bid,
             "found": True,
             **cache_stats,
-            **image_stats,
         }
+        if action in {"clear_book_images", "clear_book_all"}:
+            item.update(image_stats)
         downloaded_count, chapter_total = service.storage.get_book_download_counts(bid)
         item["downloaded_chapters"] = int(downloaded_count)
         item["chapter_count"] = int(chapter_total)

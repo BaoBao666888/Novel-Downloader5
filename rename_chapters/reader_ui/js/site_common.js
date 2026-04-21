@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260421-serverbatch1";
+import { t } from "../i18n.vi.js?v=20260421-cacheraw1";
 
 const UI_RUNTIME_VERSION = "0.1.5";
 const SETTINGS_KEY = "reader.ui.settings.v3";
@@ -1529,6 +1529,11 @@ function getCacheManagerRawSelectionState() {
     if (rawAction.allowed) eligible.push(book);
     else blocked.push(book);
   }
+  const editedRawBooks = eligible.filter((book) => Number(book && book.raw_edited_cached_chapters || 0) > 0);
+  const editedRawChapterCount = editedRawBooks.reduce(
+    (total, book) => total + Number(book && book.raw_edited_cached_chapters || 0),
+    0,
+  );
   const firstBlockedReason = blocked.length > 0
     ? String((((blocked[0] || {}).raw_action || {}).reason) || "").trim()
     : "";
@@ -1537,6 +1542,8 @@ function getCacheManagerRawSelectionState() {
     selectedCount: selectedBooks.length,
     eligible,
     blocked,
+    editedRawBooks,
+    editedRawChapterCount,
     firstBlockedReason,
   };
 }
@@ -1889,6 +1896,7 @@ async function runCacheManagerAction(action, { mode = "" } = {}) {
   const act = String(action || "").trim();
   const modeKey = String(mode || "").trim();
   const isGlobal = act === "clear_global_translation" || act === "clear_global_translation_mode";
+  let rawSelection = null;
   let selectedBookIds = isGlobal ? [] : Array.from(ui.selected);
   if (!isGlobal && !selectedBookIds.length) {
     showToast(t("cacheManagerNeedSelect"));
@@ -1903,7 +1911,7 @@ async function runCacheManagerAction(action, { mode = "" } = {}) {
       count: selectedBookIds.length,
     });
   if (act === "clear_book_raw") {
-    const rawSelection = getCacheManagerRawSelectionState();
+    rawSelection = getCacheManagerRawSelectionState();
     if (!rawSelection.selectedCount) {
       showToast(t("cacheManagerNeedSelect"));
       return;
@@ -1919,9 +1927,9 @@ async function runCacheManagerAction(action, { mode = "" } = {}) {
       showToast(t("cacheManagerNeedSelect"));
       return;
     }
-    confirmTitle = t("deleteBook");
-    confirmText = t("deleteBook");
-    confirmMessage = t("cacheManagerConfirmDeleteBooksFromRaw", { count: selectedBookIds.length });
+    confirmTitle = t("cacheManagerClearRaw");
+    confirmText = t("cacheManagerClearRaw");
+    confirmMessage = t("cacheManagerConfirmClearRawBooks", { count: selectedBookIds.length });
   }
   const confirmed = await confirmDialog({
     title: confirmTitle,
@@ -1929,6 +1937,17 @@ async function runCacheManagerAction(action, { mode = "" } = {}) {
     confirmText,
   });
   if (!confirmed) return;
+  if (act === "clear_book_raw" && rawSelection && rawSelection.editedRawBooks.length > 0) {
+    const editedConfirmed = await confirmDialog({
+      title: t("cacheManagerConfirmEditedRawTitle"),
+      message: t("cacheManagerConfirmEditedRawBooks", {
+        books: rawSelection.editedRawBooks.length,
+        chapters: rawSelection.editedRawChapterCount,
+      }),
+      confirmText: t("cacheManagerClearRaw"),
+    });
+    if (!editedConfirmed) return;
+  }
   showStatus(t("statusClearing"));
   try {
     const body = { action: act, book_ids: selectedBookIds };
