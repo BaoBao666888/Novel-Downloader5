@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260421-cachemgr1";
+import { initShell } from "../site_common.js?v=20260421-cleanup1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -1858,45 +1858,50 @@ async function uploadFilesBeforeImport(files, { title = "" } = {}) {
     uploadBytesTotal: totalBytes,
     phase: "uploading",
   });
-  for (const file of items) {
-    const fileName = String((file && file.name) || "").trim() || "import.txt";
-    updateBatchImportProgress({
-      currentFile: fileName,
-      completed: completedFiles,
-      uploadBytesLoaded: uploadedBytes,
-      uploadBytesTotal: totalBytes,
-      phase: "uploading",
-    });
-    const data = await uploadImportFileToServer(file, {
-      onProgress: ({ loaded, total }) => {
-        const currentTotal = Math.max(0, Number(total || (file && file.size) || 0));
-        const effectiveTotal = totalBytes > 0 ? totalBytes : (uploadedBytes + currentTotal);
-        updateBatchImportProgress({
-          currentFile: fileName,
-          completed: completedFiles,
-          uploadBytesLoaded: uploadedBytes + Math.max(0, Math.min(currentTotal || loaded, loaded)),
-          uploadBytesTotal: effectiveTotal,
-          phase: "uploading",
-        });
-      },
-    });
-    uploaded.push({
-      file,
-      token: String((data && data.token) || "").trim(),
-      file_name: String((data && data.file_name) || fileName).trim() || fileName,
-      file_ext: String((data && data.file_ext) || "").trim().toLowerCase(),
-    });
-    uploadedBytes += Math.max(0, Number((file && file.size) || 0));
-    completedFiles += 1;
-    updateBatchImportProgress({
-      currentFile: fileName,
-      completed: completedFiles,
-      uploadBytesLoaded: uploadedBytes,
-      uploadBytesTotal: totalBytes,
-      phase: "uploading",
-    });
+  try {
+    for (const file of items) {
+      const fileName = String((file && file.name) || "").trim() || "import.txt";
+      updateBatchImportProgress({
+        currentFile: fileName,
+        completed: completedFiles,
+        uploadBytesLoaded: uploadedBytes,
+        uploadBytesTotal: totalBytes,
+        phase: "uploading",
+      });
+      const data = await uploadImportFileToServer(file, {
+        onProgress: ({ loaded, total }) => {
+          const currentTotal = Math.max(0, Number(total || (file && file.size) || 0));
+          const effectiveTotal = totalBytes > 0 ? totalBytes : (uploadedBytes + currentTotal);
+          updateBatchImportProgress({
+            currentFile: fileName,
+            completed: completedFiles,
+            uploadBytesLoaded: uploadedBytes + Math.max(0, Math.min(currentTotal || loaded, loaded)),
+            uploadBytesTotal: effectiveTotal,
+            phase: "uploading",
+          });
+        },
+      });
+      uploaded.push({
+        file,
+        token: String((data && data.token) || "").trim(),
+        file_name: String((data && data.file_name) || fileName).trim() || fileName,
+        file_ext: String((data && data.file_ext) || "").trim().toLowerCase(),
+      });
+      uploadedBytes += Math.max(0, Number((file && file.size) || 0));
+      completedFiles += 1;
+      updateBatchImportProgress({
+        currentFile: fileName,
+        completed: completedFiles,
+        uploadBytesLoaded: uploadedBytes,
+        uploadBytesTotal: totalBytes,
+        phase: "uploading",
+      });
+    }
+    return uploaded;
+  } catch (error) {
+    await cancelImportPreviewTokens(uploaded.map((item) => item && item.token), { silent: true });
+    throw error;
   }
-  return uploaded;
 }
 
 function trackServerImportJob(job, { title = "", kind = "import_file" } = {}) {
@@ -2007,11 +2012,47 @@ function clearBatchImportSession() {
   state.batchImportItems = [];
   state.importPreviewBatchItemId = "";
   state.importPreviewContext = "single";
+  state.importPreviewToken = "";
+  state.importPreviewData = null;
   if (state.batchImportRenderTimer) {
     window.clearTimeout(state.batchImportRenderTimer);
     state.batchImportRenderTimer = 0;
   }
   renderBatchImportDialog();
+}
+
+function clearImportPreviewState() {
+  state.importPreviewToken = "";
+  state.importPreviewData = null;
+  state.importPreviewContext = "single";
+  state.importPreviewBatchItemId = "";
+}
+
+function collectBatchImportTokens() {
+  return (state.batchImportItems || [])
+    .map((item) => String((item && item.token) || "").trim())
+    .filter(Boolean);
+}
+
+async function cancelImportPreviewTokens(tokens, { silent = true } = {}) {
+  const normalized = Array.from(new Set(
+    (Array.isArray(tokens) ? tokens : [])
+      .map((token) => String(token || "").trim())
+      .filter(Boolean),
+  ));
+  if (!normalized.length || !state.shell) return null;
+  try {
+    return await state.shell.api("/api/library/import/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tokens: normalized }),
+    });
+  } catch (error) {
+    if (!silent) {
+      state.shell.showToast(getErrorMessage(error));
+    }
+    return null;
+  }
 }
 
 async function runItemsWithConcurrency(items, limit, worker) {
@@ -2688,8 +2729,10 @@ async function prepareBatchImports(files) {
         });
       } catch (error) {
         if (state.batchImportPrepareRunId !== runId) return;
+        await cancelImportPreviewTokens([item.token], { silent: true });
         updateBatchImportItem(item.id, {
           status: "error",
+          token: "",
           error: getErrorMessage(error),
         });
       }
@@ -2697,6 +2740,9 @@ async function prepareBatchImports(files) {
     resetImportFormUi();
     renderBatchImportDialog();
   } catch (error) {
+    const tokens = collectBatchImportTokens();
+    clearBatchImportSession();
+    await cancelImportPreviewTokens(tokens, { silent: true });
     closeBatchImportProgressDialog();
     state.shell.showToast(getErrorMessage(error));
   } finally {
@@ -2708,10 +2754,12 @@ async function importSingleFileDirect(file) {
   if (!file) return;
   if (refs.importDialog && refs.importDialog.open) refs.importDialog.close();
   state.shell.showStatus(state.shell.t("statusImporting"));
+  let uploadedTokens = [];
   try {
     const uploaded = await uploadFilesBeforeImport([file], {
       title: state.shell.t("importUploadTitle"),
     });
+    uploadedTokens = uploaded.map((item) => String((item && item.token) || "").trim()).filter(Boolean);
     const uploadedItem = uploaded[0] || null;
     if (!uploadedItem || !String(uploadedItem.token || "").trim()) {
       throw new Error(state.shell.t("importUploadFailed"));
@@ -2734,8 +2782,10 @@ async function importSingleFileDirect(file) {
       title: "Nhập file vào thư viện",
       kind: "import_file",
     });
+    uploadedTokens = [];
     resetImportFormUi();
   } catch (error) {
+    await cancelImportPreviewTokens(uploadedTokens, { silent: true });
     closeBatchImportProgressDialog();
     state.shell.showToast(getErrorMessage(error));
   } finally {
@@ -2748,10 +2798,12 @@ async function importBatchFilesDirect(files) {
   if (!items.length) return;
   if (refs.importDialog && refs.importDialog.open) refs.importDialog.close();
   state.shell.showStatus(state.shell.t("importBatchImporting"));
+  let uploadedTokens = [];
   try {
     const uploaded = await uploadFilesBeforeImport(items, {
       title: state.shell.t("importUploadTitle"),
     });
+    uploadedTokens = uploaded.map((item) => String((item && item.token) || "").trim()).filter(Boolean);
     const job = await enqueueImportJobRequest(
       uploaded.map((item) => ({
         token: String(item.token || "").trim(),
@@ -2771,8 +2823,10 @@ async function importBatchFilesDirect(files) {
       title: "Nhập file hàng loạt vào thư viện",
       kind: "import_file_batch",
     });
+    uploadedTokens = [];
     resetImportFormUi();
   } catch (error) {
+    await cancelImportPreviewTokens(uploadedTokens, { silent: true });
     closeBatchImportProgressDialog();
     state.shell.showToast(getErrorMessage(error));
   } finally {
@@ -2799,6 +2853,7 @@ async function handlePrepareImport() {
 
   const file = files[0];
   state.shell.showStatus(state.shell.t("statusPreparingImport"));
+  let previewToken = "";
   try {
     const uploaded = await uploadFilesBeforeImport([file], {
       title: state.shell.t("importUploadTitle"),
@@ -2807,11 +2862,12 @@ async function handlePrepareImport() {
     if (!uploadedItem || !String(uploadedItem.token || "").trim()) {
       throw new Error(state.shell.t("importUploadFailed"));
     }
+    previewToken = String(uploadedItem.token || "").trim();
     const data = await state.shell.api("/api/library/import/preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        token: String(uploadedItem.token || "").trim(),
+        token: previewToken,
         title: (refs.importBookTitleInput && refs.importBookTitleInput.value) || "",
         author: (refs.importAuthorInput && refs.importAuthorInput.value) || "",
         lang_source: String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh",
@@ -2824,7 +2880,9 @@ async function handlePrepareImport() {
     state.importPreviewBatchItemId = "";
     if (refs.importDialog && refs.importDialog.open) refs.importDialog.close();
     renderImportPreview(data && data.preview ? data.preview : null, { context: "single" });
+    previewToken = "";
   } catch (error) {
+    await cancelImportPreviewTokens([previewToken], { silent: true });
     closeBatchImportProgressDialog();
     state.shell.showToast(getErrorMessage(error));
   } finally {
@@ -2837,6 +2895,7 @@ async function commitBatchImports() {
   const items = (state.batchImportItems || []).filter((item) => item.status === "ready" && String(item.token || "").trim());
   if (!items.length) return;
   state.batchImportCommitBusy = true;
+  const tokens = items.map((item) => String(item.token || "").trim()).filter(Boolean);
   if (refs.importPreviewDialog && refs.importPreviewDialog.open) refs.importPreviewDialog.close();
   if (refs.importBatchDialog && refs.importBatchDialog.open) refs.importBatchDialog.close();
   state.shell.showStatus(state.shell.t("importBatchImporting"));
@@ -2856,6 +2915,9 @@ async function commitBatchImports() {
       title: "Nhập file hàng loạt vào thư viện",
       kind: "import_file_batch",
     });
+  } catch (error) {
+    await cancelImportPreviewTokens(tokens, { silent: true });
+    state.shell.showToast(getErrorMessage(error));
   } finally {
     clearBatchImportSession();
     state.shell.hideStatus();
@@ -2870,7 +2932,7 @@ async function commitPreparedImport() {
   if (!state.importPreviewToken) return;
   const payload = collectImportPreviewPayload();
   const token = String(state.importPreviewToken || "").trim();
-  state.importPreviewToken = "";
+  clearImportPreviewState();
   if (refs.importPreviewDialog && refs.importPreviewDialog.open) refs.importPreviewDialog.close();
   try {
     const job = await enqueueImportJobRequest([
@@ -2889,8 +2951,7 @@ async function commitPreparedImport() {
     });
     resetImportFormUi();
   } catch (error) {
-    state.importPreviewToken = token;
-    if (refs.importPreviewDialog && !refs.importPreviewDialog.open) refs.importPreviewDialog.showModal();
+    await cancelImportPreviewTokens([token], { silent: true });
     state.shell.showToast(getErrorMessage(error));
   }
 }
@@ -6596,6 +6657,28 @@ async function init() {
   if (refs.btnImportBatchCommit) {
     refs.btnImportBatchCommit.addEventListener("click", () => {
       commitBatchImports().catch(() => {});
+    });
+  }
+  if (refs.importPreviewDialog) {
+    refs.importPreviewDialog.addEventListener("close", () => {
+      if (state.importPreviewContext !== "single") {
+        clearImportPreviewState();
+        return;
+      }
+      const token = String(state.importPreviewToken || "").trim();
+      clearImportPreviewState();
+      if (token) {
+        cancelImportPreviewTokens([token], { silent: true }).catch(() => {});
+      }
+    });
+  }
+  if (refs.importBatchDialog) {
+    refs.importBatchDialog.addEventListener("close", () => {
+      if (state.batchImportCommitBusy) return;
+      const tokens = collectBatchImportTokens();
+      if (!tokens.length && !(state.batchImportItems || []).length) return;
+      clearBatchImportSession();
+      cancelImportPreviewTokens(tokens, { silent: true }).catch(() => {});
     });
   }
   if (refs.importProgressDialog) {

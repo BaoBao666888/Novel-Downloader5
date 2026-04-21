@@ -290,6 +290,16 @@ def handle_api(
             import_settings=payload.get("import_settings") if isinstance(payload.get("import_settings"), dict) else None,
         )
 
+    if method == "POST" and path == "/api/library/import/cancel":
+        payload = handler._read_json_body()
+        tokens_raw = payload.get("tokens")
+        if not isinstance(tokens_raw, list):
+            tokens_raw = []
+        single_token = str(payload.get("token") or "").strip()
+        if single_token:
+            tokens_raw = [single_token, *tokens_raw]
+        return handler.service.cancel_import_preview_tokens(tokens_raw)
+
     if method == "POST" and path == "/api/library/import/commit":
         payload = handler._read_json_body()
         token = str(payload.get("token") or "").strip()

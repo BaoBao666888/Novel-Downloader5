@@ -5651,6 +5651,9 @@ class ReaderStorage:
             app_state_book_vp_set_key_prefix=APP_STATE_BOOK_VP_SET_KEY_PREFIX,
             cache_dir=CACHE_DIR,
             cover_dir=COVER_DIR,
+            supplement_source_dir=SUPPLEMENT_SOURCE_DIR,
+            import_preview_dir=IMPORT_PREVIEW_DIR,
+            chapter_raw_edit_state_key=self._chapter_raw_edit_state_key,
             runtime_base_dir=runtime_base_dir,
             resolve_persisted_path=resolve_persisted_path,
             root_dir=ROOT_DIR,
@@ -6188,6 +6191,14 @@ class ReaderService:
     def _remove_import_preview_state(self, token: str) -> None:
         service_local_import_support.remove_import_preview_state(
             token,
+            import_preview_dir=IMPORT_PREVIEW_DIR,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+        )
+
+    def cancel_import_preview_tokens(self, tokens: list[str] | tuple[str, ...] | set[str] | None) -> dict[str, Any]:
+        return service_local_import_support.cancel_import_preview_tokens(
+            tokens,
             import_preview_dir=IMPORT_PREVIEW_DIR,
             ApiError=ApiError,
             HTTPStatus=HTTPStatus,
@@ -10467,6 +10478,60 @@ class ReaderService:
             self._export_cv.notify_all()
             return {"ok": True, "job_id": jid}
 
+    def purge_export_jobs_for_book(self, book_id: str) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        if not bid:
+            return {
+                "ok": True,
+                "book_id": "",
+                "removed_jobs": 0,
+                "marked_running_jobs": 0,
+                "deleted_files": 0,
+                "bytes_deleted": 0,
+            }
+        deleted_files = 0
+        bytes_deleted = 0
+        removed_jobs = 0
+        marked_running_jobs = 0
+        with self._export_cv:
+            self._cleanup_export_jobs_locked()
+            for job_id, job in list(self._export_jobs.items()):
+                if str(job.get("book_id") or "").strip() != bid:
+                    continue
+                status = str(job.get("status") or "").strip().lower()
+                is_running = job_id == self._export_running_job_id and self._export_status_is_active(status)
+                if is_running:
+                    job["cleanup_output_after_finish"] = True
+                    job["cleanup_reason"] = "book_deleted"
+                    job["updated_at"] = utc_now_iso()
+                    marked_running_jobs += 1
+                    continue
+                file_path = self._export_file_path_for_job_locked(job)
+                if file_path and file_path.exists():
+                    try:
+                        bytes_deleted += max(0, int(file_path.stat().st_size))
+                    except Exception:
+                        pass
+                    try:
+                        file_path.unlink()
+                        deleted_files += 1
+                    except Exception:
+                        pass
+                self._export_jobs.pop(job_id, None)
+                while job_id in self._export_queue:
+                    self._export_queue.remove(job_id)
+                removed_jobs += 1
+            self._persist_export_jobs_locked()
+            self._export_cv.notify_all()
+        return {
+            "ok": True,
+            "book_id": bid,
+            "removed_jobs": int(removed_jobs),
+            "marked_running_jobs": int(marked_running_jobs),
+            "deleted_files": int(deleted_files),
+            "bytes_deleted": int(bytes_deleted),
+        }
+
     def _run_export_job(self, job_id: str) -> None:
         with self._export_cv:
             job = self._export_jobs.get(job_id)
@@ -10527,6 +10592,17 @@ class ReaderService:
                     expires_at=expires_at,
                     completed_chapters=completed_chapters,
                 )
+                if bool(job2.get("cleanup_output_after_finish")):
+                    try:
+                        output.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                    self._export_jobs.pop(job_id, None)
+                    while job_id in self._export_queue:
+                        self._export_queue.remove(job_id)
+                    self._persist_export_jobs_locked()
+                    self._export_cv.notify_all()
+                    return
                 self._persist_export_jobs_locked()
                 self._export_cv.notify_all()
                 self._sync_export_notification_locked(job2)
@@ -10540,6 +10616,13 @@ class ReaderService:
                     message=str(exc) or "Xuất file thất bại.",
                     finished_at=utc_now_iso(),
                 )
+                if bool(job2.get("cleanup_output_after_finish")):
+                    self._export_jobs.pop(job_id, None)
+                    while job_id in self._export_queue:
+                        self._export_queue.remove(job_id)
+                    self._persist_export_jobs_locked()
+                    self._export_cv.notify_all()
+                    return
                 self._persist_export_jobs_locked()
                 self._export_cv.notify_all()
                 self._sync_export_notification_locked(job2)
@@ -10553,6 +10636,13 @@ class ReaderService:
                     message=str(exc.message or "Xuất file thất bại."),
                     finished_at=utc_now_iso(),
                 )
+                if bool(job2.get("cleanup_output_after_finish")):
+                    self._export_jobs.pop(job_id, None)
+                    while job_id in self._export_queue:
+                        self._export_queue.remove(job_id)
+                    self._persist_export_jobs_locked()
+                    self._export_cv.notify_all()
+                    return
                 self._persist_export_jobs_locked()
                 self._export_cv.notify_all()
                 self._sync_export_notification_locked(job2)
@@ -10566,6 +10656,13 @@ class ReaderService:
                     message=str(exc) or "Xuất file thất bại.",
                     finished_at=utc_now_iso(),
                 )
+                if bool(job2.get("cleanup_output_after_finish")):
+                    self._export_jobs.pop(job_id, None)
+                    while job_id in self._export_queue:
+                        self._export_queue.remove(job_id)
+                    self._persist_export_jobs_locked()
+                    self._export_cv.notify_all()
+                    return
                 self._persist_export_jobs_locked()
                 self._export_cv.notify_all()
                 self._sync_export_notification_locked(job2)

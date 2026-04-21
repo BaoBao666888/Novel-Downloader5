@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260421-cachemgr1";
+import { initShell } from "../site_common.js?v=20260421-cleanup1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -278,6 +278,7 @@ const state = {
   selectedTocVolumeId: "",
   supplementPreviewToken: "",
   supplementPreviewData: null,
+  supplementPreviewCommitBusy: false,
   reopenBookEditAfterSupplementPreview: false,
   bookHistoryItems: [],
   bookNameSets: { "Mặc định": {} },
@@ -1529,6 +1530,23 @@ function clearBookSupplementPreviewState() {
   state.supplementPreviewData = null;
 }
 
+async function cancelBookSupplementPreviewToken(token, { silent = true } = {}) {
+  const previewToken = String(token || "").trim();
+  if (!previewToken || !state.shell) return null;
+  try {
+    return await state.shell.api("/api/library/import/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: previewToken }),
+    });
+  } catch (error) {
+    if (!silent) {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    }
+    return null;
+  }
+}
+
 function resetBookSupplementForm({ clearFile = true } = {}) {
   clearBookSupplementPreviewState();
   if (clearFile && refs.bookSupplementFileInput) refs.bookSupplementFileInput.value = "";
@@ -2369,6 +2387,7 @@ async function commitBookSupplement() {
   if (!state.bookId || !state.supplementPreviewToken) return;
   const token = String(state.supplementPreviewToken || "").trim();
   const payload = collectBookSupplementPayload();
+  state.supplementPreviewCommitBusy = true;
   state.shell.showStatus("Đang bổ sung chương vào truyện...");
   try {
     const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/supplement/commit`, {
@@ -2397,9 +2416,13 @@ async function commitBookSupplement() {
     resetBookSupplementForm();
     state.shell.showToast(`Đã bổ sung ${Math.max(0, Number(data && data.added_chapters || 0))} chương.`);
   } catch (error) {
-    state.supplementPreviewToken = token;
+    clearBookSupplementPreviewState();
+    await cancelBookSupplementPreviewToken(token, { silent: true });
+    state.reopenBookEditAfterSupplementPreview = false;
+    if (refs.bookSupplementPreviewDialog && refs.bookSupplementPreviewDialog.open) refs.bookSupplementPreviewDialog.close();
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
+    state.supplementPreviewCommitBusy = false;
     state.shell.hideStatus();
   }
 }
@@ -4095,6 +4118,13 @@ async function init() {
     commitBookSupplement().catch(() => {});
   });
   if (refs.bookSupplementPreviewDialog) refs.bookSupplementPreviewDialog.addEventListener("close", () => {
+    const token = (!state.supplementPreviewCommitBusy)
+      ? String(state.supplementPreviewToken || "").trim()
+      : "";
+    clearBookSupplementPreviewState();
+    if (token) {
+      cancelBookSupplementPreviewToken(token, { silent: true }).catch(() => {});
+    }
     const shouldReopenEdit = state.reopenBookEditAfterSupplementPreview;
     state.reopenBookEditAfterSupplementPreview = false;
     if (shouldReopenEdit && refs.bookEditDialog && !refs.bookEditDialog.open) refs.bookEditDialog.showModal();

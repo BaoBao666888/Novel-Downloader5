@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import time
 import uuid
 from pathlib import Path
@@ -21,12 +22,7 @@ def cleanup_import_previews(*, import_preview_dir: Path, max_age_hours: int = 24
             if child.stat().st_mtime >= cutoff:
                 continue
             if child.is_dir():
-                for nested in child.iterdir():
-                    try:
-                        nested.unlink()
-                    except Exception:
-                        pass
-                child.rmdir()
+                shutil.rmtree(child, ignore_errors=True)
             else:
                 child.unlink()
         except Exception:
@@ -99,15 +95,54 @@ def remove_import_preview_state(token: str, *, import_preview_dir: Path, ApiErro
     )
     if not folder.exists():
         return
-    for item in folder.iterdir():
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def cancel_import_preview_tokens(
+    tokens: list[str] | tuple[str, ...] | set[str] | None,
+    *,
+    import_preview_dir: Path,
+    ApiError,
+    HTTPStatus,
+) -> dict[str, Any]:
+    normalized_tokens = []
+    seen: set[str] = set()
+    for raw_token in tokens or []:
+        token = re.sub(r"[^a-zA-Z0-9_-]", "", str(raw_token or ""))
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        normalized_tokens.append(token)
+
+    removed = 0
+    skipped = 0
+    for token in normalized_tokens:
         try:
-            item.unlink()
+            folder = import_preview_dir_for_token(
+                token,
+                import_preview_dir=import_preview_dir,
+                ApiError=ApiError,
+                HTTPStatus=HTTPStatus,
+            )
         except Exception:
-            pass
-    try:
-        folder.rmdir()
-    except Exception:
-        pass
+            skipped += 1
+            continue
+        if not folder.exists():
+            skipped += 1
+            continue
+        remove_import_preview_state(
+            token,
+            import_preview_dir=import_preview_dir,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+        )
+        removed += 1
+    return {
+        "ok": True,
+        "removed": int(removed),
+        "skipped": int(skipped),
+        "tokens": normalized_tokens,
+    }
 
 
 def merge_reader_import_settings(service, override: dict[str, Any] | None = None, *, normalize_reader_import_settings) -> dict[str, Any]:
@@ -477,50 +512,59 @@ def commit_import_token(
     parse_txt_book,
     normalize_vbook_display_text,
 ) -> dict[str, Any]:
-    state = load_import_preview_state(
-        token,
-        import_preview_dir=import_preview_dir,
-        ApiError=ApiError,
-        HTTPStatus=HTTPStatus,
-    )
-    folder = import_preview_dir_for_token(
-        token,
-        import_preview_dir=import_preview_dir,
-        ApiError=ApiError,
-        HTTPStatus=HTTPStatus,
-    )
-    source_path = folder / str(state.get("source_name") or "")
-    if not source_path.exists():
-        raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không còn file nguồn cho phiên import này.")
-    file_bytes = source_path.read_bytes()
-    parsed = parse_local_import_payload(
-        service,
-        str(state.get("file_name") or "imported"),
-        file_bytes,
-        lang_source=lang_source or str(state.get("lang_source") or ""),
-        title=title or str(state.get("title") or ""),
-        author=author or str(state.get("author") or ""),
-        summary=summary or str(state.get("summary") or ""),
-        import_settings=import_settings if isinstance(import_settings, dict) else state.get("import_settings"),
-        normalize_reader_import_settings=normalize_reader_import_settings,
-        normalize_lang_source=normalize_lang_source,
-        parse_epub_book=parse_epub_book,
-        parse_txt_book=parse_txt_book,
-        normalize_vbook_display_text=normalize_vbook_display_text,
-    )
-    created = create_book_from_local_import(
-        service,
-        parsed,
-        file_bytes,
-        normalize_lang_source=normalize_lang_source,
-    )
-    remove_import_preview_state(
-        token,
-        import_preview_dir=import_preview_dir,
-        ApiError=ApiError,
-        HTTPStatus=HTTPStatus,
-    )
-    return created
+    try:
+        state = load_import_preview_state(
+            token,
+            import_preview_dir=import_preview_dir,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+        )
+        folder = import_preview_dir_for_token(
+            token,
+            import_preview_dir=import_preview_dir,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+        )
+        source_path = folder / str(state.get("source_name") or "")
+        if not source_path.exists():
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không còn file nguồn cho phiên import này.")
+        file_bytes = source_path.read_bytes()
+        parsed = parse_local_import_payload(
+            service,
+            str(state.get("file_name") or "imported"),
+            file_bytes,
+            lang_source=lang_source or str(state.get("lang_source") or ""),
+            title=title or str(state.get("title") or ""),
+            author=author or str(state.get("author") or ""),
+            summary=summary or str(state.get("summary") or ""),
+            import_settings=import_settings if isinstance(import_settings, dict) else state.get("import_settings"),
+            normalize_reader_import_settings=normalize_reader_import_settings,
+            normalize_lang_source=normalize_lang_source,
+            parse_epub_book=parse_epub_book,
+            parse_txt_book=parse_txt_book,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+        )
+        created = create_book_from_local_import(
+            service,
+            parsed,
+            file_bytes,
+            normalize_lang_source=normalize_lang_source,
+        )
+        remove_import_preview_state(
+            token,
+            import_preview_dir=import_preview_dir,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+        )
+        return created
+    except Exception:
+        cancel_import_preview_tokens(
+            [token],
+            import_preview_dir=import_preview_dir,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+        )
+        raise
 
 
 def import_file(
@@ -1051,93 +1095,102 @@ def commit_book_supplement_token(
     decode_text_with_fallback,
     normalize_vbook_display_text,
 ) -> dict[str, Any]:
-    state = load_import_preview_state(
-        token,
-        import_preview_dir=import_preview_dir,
-        ApiError=ApiError,
-        HTTPStatus=HTTPStatus,
-    )
-    if str(state.get("kind") or "").strip() != "book_supplement":
-        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Token này không phải phiên bổ sung chương.")
-    bid = str(book_id or state.get("book_id") or "").strip()
-    if not bid:
-        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
-    if bid != str(state.get("book_id") or "").strip():
-        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Token bổ sung không thuộc truyện hiện tại.")
-    folder = import_preview_dir_for_token(
-        token,
-        import_preview_dir=import_preview_dir,
-        ApiError=ApiError,
-        HTTPStatus=HTTPStatus,
-    )
-    saved_sources = state.get("source_files") if isinstance(state.get("source_files"), list) else []
-    if not saved_sources and str(state.get("source_name") or "").strip():
-        saved_sources = [
-            {
-                "source_name": str(state.get("source_name") or "").strip(),
-                "file_name": str(state.get("file_name") or "supplement.txt").strip() or "supplement.txt",
-                "order_index": 1,
-            }
-        ]
-    source_files: list[tuple[str, bytes]] = []
-    for index, item in enumerate(saved_sources, start=1):
-        if not isinstance(item, dict):
-            continue
-        source_name = str(item.get("source_name") or "").strip()
-        if not source_name:
-            continue
-        source_path = folder / source_name
-        if not source_path.exists():
+    try:
+        state = load_import_preview_state(
+            token,
+            import_preview_dir=import_preview_dir,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+        )
+        if str(state.get("kind") or "").strip() != "book_supplement":
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Token này không phải phiên bổ sung chương.")
+        bid = str(book_id or state.get("book_id") or "").strip()
+        if not bid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+        if bid != str(state.get("book_id") or "").strip():
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Token bổ sung không thuộc truyện hiện tại.")
+        folder = import_preview_dir_for_token(
+            token,
+            import_preview_dir=import_preview_dir,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+        )
+        saved_sources = state.get("source_files") if isinstance(state.get("source_files"), list) else []
+        if not saved_sources and str(state.get("source_name") or "").strip():
+            saved_sources = [
+                {
+                    "source_name": str(state.get("source_name") or "").strip(),
+                    "file_name": str(state.get("file_name") or "supplement.txt").strip() or "supplement.txt",
+                    "order_index": 1,
+                }
+            ]
+        source_files: list[tuple[str, bytes]] = []
+        for index, item in enumerate(saved_sources, start=1):
+            if not isinstance(item, dict):
+                continue
+            source_name = str(item.get("source_name") or "").strip()
+            if not source_name:
+                continue
+            source_path = folder / source_name
+            if not source_path.exists():
+                raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không còn file nguồn cho phiên bổ sung này.")
+            file_name = str(item.get("file_name") or f"supplement_{index}.txt").strip() or f"supplement_{index}.txt"
+            source_files.append((file_name, source_path.read_bytes()))
+        if not source_files:
             raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không còn file nguồn cho phiên bổ sung này.")
-        file_name = str(item.get("file_name") or f"supplement_{index}.txt").strip() or f"supplement_{index}.txt"
-        source_files.append((file_name, source_path.read_bytes()))
-    if not source_files:
-        raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không còn file nguồn cho phiên bổ sung này.")
-    book = service.storage.find_book(bid)
-    if not book:
-        raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-    upload_mode_key = _normalize_supplement_upload_mode(upload_mode or state.get("upload_mode") or "", file_count=len(source_files))
-    parse_mode_key = _normalize_supplement_multi_parse_mode(multi_parse_mode or state.get("multi_parse_mode") or "")
-    if upload_mode_key == "single":
-        parsed = parse_local_import_payload(
-            service,
-            source_files[0][0],
-            source_files[0][1],
-            lang_source=str(book.get("lang_source") or "zh").strip() or "zh",
-            title=str(book.get("title") or "").strip(),
-            author=str(book.get("author") or "").strip(),
-            summary="",
-            import_settings=None,
-            normalize_reader_import_settings=normalize_reader_import_settings,
-            normalize_lang_source=normalize_lang_source,
-            parse_epub_book=parse_epub_book,
-            parse_txt_book=parse_txt_book,
-            normalize_vbook_display_text=normalize_vbook_display_text,
-        )
-    else:
-        parsed = _build_multi_file_supplement_payload(
-            source_files,
+        book = service.storage.find_book(bid)
+        if not book:
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+        upload_mode_key = _normalize_supplement_upload_mode(upload_mode or state.get("upload_mode") or "", file_count=len(source_files))
+        parse_mode_key = _normalize_supplement_multi_parse_mode(multi_parse_mode or state.get("multi_parse_mode") or "")
+        if upload_mode_key == "single":
+            parsed = parse_local_import_payload(
+                service,
+                source_files[0][0],
+                source_files[0][1],
+                lang_source=str(book.get("lang_source") or "zh").strip() or "zh",
+                title=str(book.get("title") or "").strip(),
+                author=str(book.get("author") or "").strip(),
+                summary="",
+                import_settings=None,
+                normalize_reader_import_settings=normalize_reader_import_settings,
+                normalize_lang_source=normalize_lang_source,
+                parse_epub_book=parse_epub_book,
+                parse_txt_book=parse_txt_book,
+                normalize_vbook_display_text=normalize_vbook_display_text,
+            )
+        else:
+            parsed = _build_multi_file_supplement_payload(
+                source_files,
+                parse_mode=parse_mode_key,
+                decode_text_with_fallback=decode_text_with_fallback,
+                normalize_vbook_display_text=normalize_vbook_display_text,
+            )
+        result = service.storage.append_book_supplement(
+            bid,
+            [dict(item or {}) for item in (parsed.get("chapters") or []) if isinstance(item, dict)],
+            file_name=str(state.get("file_name") or "supplement.txt"),
+            file_mode=upload_mode_key,
             parse_mode=parse_mode_key,
-            decode_text_with_fallback=decode_text_with_fallback,
-            normalize_vbook_display_text=normalize_vbook_display_text,
+            target_mode=_normalize_supplement_target_mode(target_mode or state.get("target_mode") or "existing"),
+            volume_id=str(volume_id or state.get("volume_id") or "").strip(),
+            new_volume_title=str(new_volume_title or state.get("new_volume_title") or "").strip(),
+            note=str(note or state.get("note") or "").strip(),
+            source_files=source_files,
+            source_store_dir=supplement_source_dir,
         )
-    result = service.storage.append_book_supplement(
-        bid,
-        [dict(item or {}) for item in (parsed.get("chapters") or []) if isinstance(item, dict)],
-        file_name=str(state.get("file_name") or "supplement.txt"),
-        file_mode=upload_mode_key,
-        parse_mode=parse_mode_key,
-        target_mode=_normalize_supplement_target_mode(target_mode or state.get("target_mode") or "existing"),
-        volume_id=str(volume_id or state.get("volume_id") or "").strip(),
-        new_volume_title=str(new_volume_title or state.get("new_volume_title") or "").strip(),
-        note=str(note or state.get("note") or "").strip(),
-        source_files=source_files,
-        source_store_dir=supplement_source_dir,
-    )
-    remove_import_preview_state(
-        token,
-        import_preview_dir=import_preview_dir,
-        ApiError=ApiError,
-        HTTPStatus=HTTPStatus,
-    )
-    return result
+        remove_import_preview_state(
+            token,
+            import_preview_dir=import_preview_dir,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+        )
+        return result
+    except Exception:
+        cancel_import_preview_tokens(
+            [token],
+            import_preview_dir=import_preview_dir,
+            ApiError=ApiError,
+            HTTPStatus=HTTPStatus,
+        )
+        raise

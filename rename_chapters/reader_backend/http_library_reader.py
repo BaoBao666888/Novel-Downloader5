@@ -612,6 +612,10 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             service.stop_download_jobs_for_book(book_id)
         except Exception:
             pass
+        try:
+            service.purge_export_jobs_for_book(book_id)
+        except Exception:
+            pass
         deleted = storage.delete_book(book_id)
         if not deleted:
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện cần xóa.")

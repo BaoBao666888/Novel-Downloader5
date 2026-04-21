@@ -47,7 +47,9 @@ Quản lý cache và popup thao tác
 - Màn Quản lý cache đã tách rõ cache dịch theo từng nhóm Server, Local, Mô phỏng và Hán Việt để xóa đúng phần cần dọn.
 - Danh sách truyện trong Quản lý cache sẽ tự đưa các truyện đang chiếm nhiều dung lượng lên trước và có phân trang để không bị lag khi thư viện lớn.
 - Mỗi truyện trong Quản lý cache giờ hiện rõ từng nhóm cache đang chiếm bao nhiêu chỗ, thay vì chỉ gộp chung một dòng.
+- Khi xóa truyện, hệ thống sẽ dọn sạch thêm cache, ảnh, file bổ sung TXT và các file export đã tạo từ chính truyện đó; riêng cache dịch server dùng chung vẫn được giữ lại.
 - Các thao tác dễ bị browser chặn như xóa file xuất, xóa truyện, xóa mềm hoặc khôi phục đợt bổ sung, tạo hoặc xóa bộ Name riêng và xóa thông báo đã chuyển sang popup nội bộ.
 
 Khác
 - Thẻ Hướng dẫn đã được làm dài và chi tiết hơn để người dùng tra cứu ngay trong notify.
+- Nếu hủy giữa chừng hoặc xử lý lỗi khi import file hay bổ sung TXT, file tạm vừa tải lên sẽ được dọn ngay thay vì nằm lại trên server.
