@@ -1,6 +1,16 @@
-Reader bản này tập trung vào thao tác an toàn hơn, quản lý cache rõ hơn và phần thông báo dễ đọc hơn.
+Reader bản này tập trung vào thao tác an toàn hơn, mở truyện nhẹ hơn và phần thông báo dễ đọc hơn.
 
 # Changelog Reader
+
+> [!FIX] Dịch server Reader đã gọn gói hơn
+> - Bỏ giới hạn số đoạn mỗi request; batch giờ chỉ còn gom theo tổng độ dài tối đa `9000`.
+> - Pipeline dịch đã dọn ký tự rác và chuẩn hóa kết quả server tốt hơn, retry chọn lọc từng đoạn nghi ngờ thay vì chẻ đôi cả gói từ đầu.
+> - Chia đôi batch chỉ còn là fallback cuối cho case server trả sai cấu trúc.
+
+> [!FIX] Reader mở truyện nhanh hơn và mục lục dịch theo đúng trang đang xem
+> - Khi vào reader, hệ thống không còn chờ dịch live toàn bộ tiêu đề mục lục, summary và `export_info` trước khi hiện nội dung.
+> - Nếu URL đã có sẵn `chapter_id`, reader sẽ ưu tiên nạp ngay chương đó; metadata, `Name riêng`, TTS plugin và phần còn lại tải nền sau.
+> - Khi user mở mục lục, hệ thống chỉ dịch đúng trang mục lục đang xem; đổi sang trang khác mới dịch tiếp trang đó.
 
 > [!NEW] Hai thay đổi vừa hoàn tất
 > - `action-modal-panel` đã chuyển lên lớp modal top-layer, nên popup xác nhận hoặc prompt không còn nằm dưới `Quản lý cache` hay các dialog khác.

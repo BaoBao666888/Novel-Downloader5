@@ -313,6 +313,8 @@ const state = {
     total_pages: 1,
     total_items: 0,
   },
+  readerTocTranslatedPages: new Set(),
+  readerTocPendingPages: new Map(),
   chapterContentType: "text",
   chapterImages: [],
   comicLoadSeq: 0,
@@ -602,7 +604,11 @@ function shouldTranslateReaderChrome() {
 }
 
 function effectiveMode() {
-  if (!supportsTranslation(state.book)) return "raw";
+  if (state.book) {
+    if (!supportsTranslation(state.book)) return "raw";
+  } else if (!hintedSupportsTranslation()) {
+    return "raw";
+  }
   return state.mode === "trans" ? "trans" : "raw";
 }
 
@@ -765,6 +771,26 @@ function findChapterAt(index) {
 
 function chapterCacheKey(chapterId, mode = effectiveMode(), translationMode = state.translateMode) {
   return `${String(chapterId || "")}::${String(mode || "raw")}::${String(translationMode || "server")}`;
+}
+
+function syncChapterRowFromLoadedCache(chapterId = state.chapterId, {
+  mode = effectiveMode(),
+  translationMode = state.translateMode,
+} = {}) {
+  if (!state.book || !Array.isArray(state.book.chapters)) return;
+  const chapterKey = String(chapterId || "").trim();
+  if (!chapterKey) return;
+  const row = state.book.chapters.find((item) => String((item && item.chapter_id) || "").trim() === chapterKey);
+  if (!row || typeof row !== "object") return;
+  const cached = state.chapterCache.get(chapterCacheKey(chapterKey, mode, translationMode));
+  if (!cached || typeof cached !== "object") return;
+  row.is_vip = Boolean(cached.is_vip);
+  if (typeof cached.title === "string" && cached.title.trim()) {
+    row.title_display = cached.title;
+  }
+  if (typeof cached.title_vi === "string") {
+    row.title_vi = cached.title_vi;
+  }
 }
 
 function isAbortError(error) {
@@ -1302,6 +1328,94 @@ function buildReaderTocPageLabel(page, pagination = state.readerTocPagination) {
   return `${start}-${end}`;
 }
 
+function resetReaderTocPageTranslation() {
+  state.readerTocTranslatedPages.clear();
+  state.readerTocPendingPages.clear();
+}
+
+function readerTocPageCacheKey(page = state.readerTocPagination.page, {
+  pageSize = state.readerTocPagination.page_size,
+  translationMode = state.translateMode,
+} = {}) {
+  return [
+    String(state.bookId || "").trim(),
+    String(page || 1),
+    String(pageSize || 120),
+    String(translationMode || "server"),
+  ].join("::");
+}
+
+function mergeReaderTocPageRows(items) {
+  if (!state.book || !Array.isArray(state.book.chapters) || !Array.isArray(items) || !items.length) return false;
+  const chapterMap = new Map();
+  for (const row of state.book.chapters) {
+    const chapterId = String((row && row.chapter_id) || "").trim();
+    if (!chapterId) continue;
+    chapterMap.set(chapterId, row);
+  }
+  let changed = false;
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const chapterId = String(item.chapter_id || "").trim();
+    if (!chapterId) continue;
+    const row = chapterMap.get(chapterId);
+    if (!row || typeof row !== "object") continue;
+    const nextTitleDisplay = String(item.title_display || row.title_display || "").trim();
+    const nextTitleVi = typeof item.title_vi === "string" ? item.title_vi : row.title_vi;
+    if (nextTitleDisplay && nextTitleDisplay !== String(row.title_display || "")) {
+      row.title_display = nextTitleDisplay;
+      changed = true;
+    }
+    if (typeof nextTitleVi === "string" && nextTitleVi !== String(row.title_vi || "")) {
+      row.title_vi = nextTitleVi;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+async function ensureReaderTocPageTranslated(page = state.readerTocPagination.page, { force = false } = {}) {
+  const bookId = String(state.bookId || "").trim();
+  if (!bookId || !state.book || !Array.isArray(state.book.chapters) || !state.book.chapters.length) return;
+  if (!shouldTranslateReaderChrome()) return;
+  const totalPages = Math.max(1, Number(state.readerTocPagination.total_pages || 1));
+  const safePage = Math.min(totalPages, Math.max(1, Number(page || 1)));
+  const pageSize = Math.max(1, Number(state.readerTocPagination.page_size || 120));
+  const translationMode = String(state.translateMode || "server");
+  const cacheKey = readerTocPageCacheKey(safePage, {
+    pageSize,
+    translationMode,
+  });
+  if (!force && state.readerTocTranslatedPages.has(cacheKey)) return;
+  if (state.readerTocPendingPages.has(cacheKey)) {
+    return state.readerTocPendingPages.get(cacheKey);
+  }
+  const request = state.shell.api(
+    `/api/library/book/${encodeURIComponent(bookId)}/chapters?page=${encodeURIComponent(String(safePage))}&page_size=${encodeURIComponent(String(pageSize))}&mode=trans&translation_mode=${encodeURIComponent(translationMode)}`,
+  )
+    .then((data) => {
+      if (String(state.bookId || "").trim() !== bookId) return;
+      if (String(state.translateMode || "server") !== translationMode) return;
+      if (!shouldTranslateReaderChrome()) return;
+      const changed = mergeReaderTocPageRows(Array.isArray(data && data.items) ? data.items : []);
+      state.readerTocTranslatedPages.add(cacheKey);
+      if (changed) {
+        updateHeader();
+        if (refs.readerTocDrawer && refs.readerTocDrawer.classList.contains("open")) {
+          renderToc();
+        }
+      }
+    })
+    .catch(() => {})
+    .finally(() => {
+      if (state.readerTocPendingPages.get(cacheKey) === request) {
+        state.readerTocPendingPages.delete(cacheKey);
+      }
+    });
+  state.readerTocPendingPages.set(cacheKey, request);
+  return request;
+}
+
 function syncReaderTocPagination({ focusCurrent = false } = {}) {
   const list = Array.isArray(state.book && state.book.chapters) ? state.book.chapters : [];
   const totalItems = list.length;
@@ -1414,6 +1528,9 @@ function renderToc() {
   if (refs.btnReaderTocNext) refs.btnReaderTocNext.disabled = page >= state.readerTocPagination.total_pages;
   renderReaderTocPageSelect();
   showReaderTocSkeleton(false);
+  if (refs.readerTocDrawer && refs.readerTocDrawer.classList.contains("open")) {
+    ensureReaderTocPageTranslated(page).catch(() => {});
+  }
 }
 
 async function downloadCurrentChapterById(chapterId) {
@@ -1999,6 +2116,8 @@ async function loadBook({ showSkeleton = false } = {}) {
       `/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(detailMode)}&translation_mode=${encodeURIComponent(state.translateMode)}&live_chapter_title_translation=0&live_summary_translation=0&include_export_info=0`,
     );
     state.book = detail;
+    resetReaderTocPageTranslation();
+    syncChapterRowFromLoadedCache(state.chapterId, { mode: detailMode, translationMode: state.translateMode });
     if (refs.btnReaderRefreshToc) {
       const sourceType = String((detail && detail.source_type) || "").trim().toLowerCase();
       const isOnline = sourceType === "vbook" || sourceType === "vbook_comic" || sourceType.startsWith("vbook_session");
@@ -2222,7 +2341,6 @@ function queueReaderDictRefresh({ preserveRatio = currentChapterRatio(), refresh
 
 function openToc() {
   syncReaderTocPagination({ focusCurrent: true });
-  renderToc();
   refs.readerTocDrawer.classList.add("open");
   refs.readerTocDrawer.setAttribute("aria-hidden", "false");
   const backdrop = document.getElementById("settings-backdrop");
@@ -2230,6 +2348,8 @@ function openToc() {
     backdrop.hidden = false;
     backdrop.classList.add("open");
   }
+  renderToc();
+  ensureReaderTocPageTranslated().catch(() => {});
 }
 
 function closeToc() {
@@ -6062,27 +6182,45 @@ async function init() {
   showReaderHeadSkeleton(true);
   showReaderTocSkeleton(true, 10);
   showReaderContentSkeleton(true, { comic: Boolean(state.isComicHint) });
-  await loadBook({ showSkeleton: true });
-  await refreshNameEditorData();
+  const explicitChapterId = Boolean(query.chapter_id);
+  if (explicitChapterId && state.chapterId) {
+    const initialChapterMode = effectiveMode();
+    const initialBookPromise = loadBook({ showSkeleton: true });
+    await loadChapter({ preserveRatio: null, showSkeleton: true });
+    await initialBookPromise;
+    if (!requestedMode && state.book) {
+      const savedMode = parseRequestedMode(state.book.last_read_mode || "");
+      state.mode = savedMode || "raw";
+    }
+    syncModeButtons();
+    if (!requestedMode && effectiveMode() !== initialChapterMode) {
+      await loadChapter({ preserveRatio: currentChapterRatio(), showSkeleton: false });
+    } else {
+      prefetchNearbyChapters();
+      updateHeader();
+      renderToc();
+      updateProgress();
+    }
+  } else {
+    await loadBook({ showSkeleton: true });
+    if (!requestedMode && state.book) {
+      const savedMode = parseRequestedMode(state.book.last_read_mode || "");
+      state.mode = savedMode || "raw";
+    }
+    syncModeButtons();
+    let initialRatio = null;
+    if (
+      state.book
+      && state.book.last_read_chapter_id
+      && state.chapterId === state.book.last_read_chapter_id
+      && typeof state.book.last_read_ratio === "number"
+    ) {
+      initialRatio = state.book.last_read_ratio;
+    }
+    await loadChapter({ preserveRatio: initialRatio, showSkeleton: true });
+  }
+  refreshNameEditorData().catch(() => {});
   loadTtsPlugins().catch(() => {});
-  if (!requestedMode && state.book) {
-    const savedMode = parseRequestedMode(state.book.last_read_mode || "");
-    state.mode = savedMode || "raw";
-  }
-  syncModeButtons();
-  // Khi vào reader bằng `book_id` (không chỉ định `chapter_id`), ưu tiên khôi phục vị trí đọc cũ.
-  const explicitChapterId = Boolean(state.shell.parseQuery().chapter_id);
-  let initialRatio = null;
-  if (
-    !explicitChapterId
-    && state.book
-    && state.book.last_read_chapter_id
-    && state.chapterId === state.book.last_read_chapter_id
-    && typeof state.book.last_read_ratio === "number"
-  ) {
-    initialRatio = state.book.last_read_ratio;
-  }
-  await loadChapter({ preserveRatio: initialRatio, showSkeleton: true });
   startReaderDownloadWatcher();
 
   refs.btnReaderToc.addEventListener("click", openToc);
