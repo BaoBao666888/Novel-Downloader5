@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260421-cachemgr1";
+import { t } from "../i18n.vi.js?v=20260421-rawguard1";
 
 const UI_RUNTIME_VERSION = "0.1.5";
 const SETTINGS_KEY = "reader.ui.settings.v3";
@@ -1300,6 +1300,41 @@ function getCacheManagerVisibleBooks() {
   };
 }
 
+function getCacheManagerSelectedBooks() {
+  const ui = ensureCacheManagerUi();
+  const byId = new Map(
+    (ui.books || [])
+      .map((book) => [String((book && book.book_id) || "").trim(), book])
+      .filter(([bookId]) => Boolean(bookId))
+  );
+  return Array.from(ui.selected)
+    .map((bookId) => byId.get(String(bookId || "").trim()))
+    .filter(Boolean);
+}
+
+function getCacheManagerRawSelectionState() {
+  const selectedBooks = getCacheManagerSelectedBooks();
+  const eligible = [];
+  const blocked = [];
+  for (const book of selectedBooks) {
+    const rawAction = (book && typeof book.raw_action === "object" && book.raw_action)
+      ? book.raw_action
+      : {};
+    if (rawAction.allowed) eligible.push(book);
+    else blocked.push(book);
+  }
+  const firstBlockedReason = blocked.length > 0
+    ? String((((blocked[0] || {}).raw_action || {}).reason) || "").trim()
+    : "";
+  return {
+    selectedBooks,
+    selectedCount: selectedBooks.length,
+    eligible,
+    blocked,
+    firstBlockedReason,
+  };
+}
+
 function syncCacheManagerSelectionState() {
   const ui = ensureCacheManagerUi();
   const { refs } = ui;
@@ -1318,6 +1353,11 @@ function syncCacheManagerSelectionState() {
       ? t("cacheManagerSelectionSummary", { count: selectedCount })
       : "";
     refs.selectionSummary.classList.toggle("hidden", selectedCount <= 0);
+  }
+  if (refs.btnClearRaw) {
+    const rawSelection = getCacheManagerRawSelectionState();
+    refs.btnClearRaw.disabled = rawSelection.selectedCount <= 0 || rawSelection.blocked.length > 0;
+    refs.btnClearRaw.title = rawSelection.blocked.length > 0 ? rawSelection.firstBlockedReason : "";
   }
 }
 
@@ -1643,21 +1683,44 @@ async function runCacheManagerAction(action, { mode = "" } = {}) {
   const act = String(action || "").trim();
   const modeKey = String(mode || "").trim();
   const isGlobal = act === "clear_global_translation" || act === "clear_global_translation_mode";
-  const selectedBookIds = isGlobal ? [] : Array.from(ui.selected);
+  let selectedBookIds = isGlobal ? [] : Array.from(ui.selected);
   if (!isGlobal && !selectedBookIds.length) {
     showToast(t("cacheManagerNeedSelect"));
     return;
   }
-  const confirmMessage = isGlobal
+  let confirmTitle = t("cacheManagerConfirmTitle");
+  let confirmText = cacheManagerActionLabel(act, modeKey);
+  let confirmMessage = isGlobal
     ? t("cacheManagerConfirmGlobal", { action: cacheManagerActionLabel(act, modeKey) })
     : t("cacheManagerConfirmBooks", {
       action: cacheManagerActionLabel(act, modeKey),
       count: selectedBookIds.length,
     });
+  if (act === "clear_book_raw") {
+    const rawSelection = getCacheManagerRawSelectionState();
+    if (!rawSelection.selectedCount) {
+      showToast(t("cacheManagerNeedSelect"));
+      return;
+    }
+    if (rawSelection.blocked.length > 0) {
+      showToast(rawSelection.firstBlockedReason || t("toastError"));
+      return;
+    }
+    selectedBookIds = rawSelection.eligible
+      .map((book) => String((book && book.book_id) || "").trim())
+      .filter(Boolean);
+    if (!selectedBookIds.length) {
+      showToast(t("cacheManagerNeedSelect"));
+      return;
+    }
+    confirmTitle = t("deleteBook");
+    confirmText = t("deleteBook");
+    confirmMessage = t("cacheManagerConfirmDeleteBooksFromRaw", { count: selectedBookIds.length });
+  }
   const confirmed = await confirmDialog({
-    title: t("cacheManagerConfirmTitle"),
+    title: confirmTitle,
     message: confirmMessage,
-    confirmText: cacheManagerActionLabel(act, modeKey),
+    confirmText,
   });
   if (!confirmed) return;
   showStatus(t("statusClearing"));

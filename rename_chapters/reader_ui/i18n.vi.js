@@ -1039,6 +1039,7 @@ export const STRINGS = {
   cacheManagerConfirmTitle: "Xóa cache",
   cacheManagerConfirmGlobal: "{action} trên toàn server?",
   cacheManagerConfirmBooks: "{action} cho {count} truyện đã chọn?",
+  cacheManagerConfirmDeleteBooksFromRaw: "RAW của truyện online chỉ nằm ở quyển mặc định. Xóa mục này sẽ xóa luôn {count} truyện đã chọn khỏi thư viện cùng cache liên quan. Tiếp tục?",
   cacheManagerSelectionSummary: "Đã chọn {count} truyện",
   cacheManagerPageSummary: "Hiển thị {start}-{end} / {total} truyện",
   cacheManagerPageSummaryEmpty: "Chưa có truyện nào có cache để quản lý.",

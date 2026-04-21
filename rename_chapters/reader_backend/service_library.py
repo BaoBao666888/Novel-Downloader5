@@ -142,6 +142,65 @@ def clear_book_image_cache(
     }
 
 
+def _build_book_raw_action_policy(service, book: dict[str, Any] | None) -> dict[str, Any]:
+    bid = str((book or {}).get("book_id") or "").strip()
+    source_type = str((book or {}).get("source_type") or "").strip().lower()
+    source_mode = "link" if source_type.startswith("vbook") else "file"
+    default_volume_count = 0
+    extra_volume_count = 0
+    active_supplement_batches = 0
+    if bid:
+        with service.storage._connect() as conn:
+            volume_row = conn.execute(
+                """
+                SELECT
+                    SUM(CASE WHEN lower(COALESCE(volume_kind, 'default')) = 'default' THEN 1 ELSE 0 END) AS default_volume_count,
+                    SUM(CASE WHEN lower(COALESCE(volume_kind, 'default')) <> 'default' THEN 1 ELSE 0 END) AS extra_volume_count
+                FROM book_volumes
+                WHERE book_id = ?
+                  AND trim(COALESCE(deleted_at, '')) = ''
+                """,
+                (bid,),
+            ).fetchone()
+            batch_row = conn.execute(
+                """
+                SELECT COUNT(1) AS c
+                FROM book_supplement_batches
+                WHERE book_id = ?
+                  AND trim(COALESCE(deleted_at, '')) = ''
+                """,
+                (bid,),
+            ).fetchone()
+        default_volume_count = int((volume_row["default_volume_count"] if volume_row else 0) or 0)
+        extra_volume_count = int((volume_row["extra_volume_count"] if volume_row else 0) or 0)
+        active_supplement_batches = int((batch_row["c"] if batch_row else 0) or 0)
+
+    reason_code = ""
+    reason = ""
+    if not source_type.startswith("vbook"):
+        reason_code = "not_online_source"
+        reason = "RAW chỉ hỗ trợ cho truyện thêm bằng link từ nguồn online vBook."
+    elif default_volume_count <= 0:
+        reason_code = "missing_default_volume"
+        reason = "Không xác định được quyển mặc định của truyện nguồn online để xử lý RAW."
+    elif active_supplement_batches > 0 or extra_volume_count > 0:
+        reason_code = "has_supplement"
+        reason = "Truyện nguồn online đã có quyển/file bổ sung nên không cho xóa RAW riêng."
+
+    can_delete_via_raw = not reason_code
+    return {
+        "allowed": bool(can_delete_via_raw),
+        "delete_book": bool(can_delete_via_raw),
+        "reason_code": reason_code,
+        "reason": reason,
+        "source_mode": source_mode,
+        "source_type": source_type,
+        "default_volume_count": int(default_volume_count),
+        "extra_volume_count": int(extra_volume_count),
+        "active_supplement_batches": int(active_supplement_batches),
+    }
+
+
 def reload_chapter(service, chapter_id: str, *, api_error_cls, http_status) -> dict[str, Any]:
     cid = str(chapter_id or "").strip()
     if not cid:
@@ -294,6 +353,8 @@ def get_cache_summary(
                 "title": str(book.get("title") or ""),
                 "title_display": str(book.get("title_display") or book.get("title") or ""),
                 "author_display": str(book.get("author_display") or book.get("author") or ""),
+                "source_type": str(book.get("source_type") or ""),
+                "source_mode": "link" if str(book.get("source_type") or "").strip().lower().startswith("vbook") else "file",
                 "cover_url": str(book.get("cover_url") or ""),
                 "is_comic": bool(book.get("is_comic")),
                 "chapter_count": chapter_total,
@@ -306,6 +367,7 @@ def get_cache_summary(
                 "cache_total_bytes": total_bytes,
                 "translation_groups": active_translation_groups,
                 "cache_groups": cache_groups,
+                "raw_action": _build_book_raw_action_policy(service, book),
             }
         )
 
@@ -369,6 +431,7 @@ def manage_cache(
 
     result_items: list[dict[str, Any]] = []
     total = {
+        "books_deleted": 0,
         "raw_cache_deleted": 0,
         "trans_cache_deleted": 0,
         "unit_map_deleted": 0,
@@ -379,11 +442,42 @@ def manage_cache(
         "image_bytes_deleted": 0,
     }
 
+    preloaded_books: dict[str, tuple[dict[str, Any] | None, list[dict[str, Any]], dict[str, Any] | None]] = {}
     for bid in book_ids:
         book = service.storage.find_book(bid)
         chapters = service.storage.get_chapter_rows(bid)
+        raw_policy = _build_book_raw_action_policy(service, book) if action == "clear_book_raw" and book else None
+        preloaded_books[bid] = (book, chapters, raw_policy)
+
+    if action == "clear_book_raw":
+        invalid_items: list[str] = []
+        for bid in book_ids:
+            book, _chapters, raw_policy = preloaded_books.get(bid, (None, [], None))
+            if not book:
+                continue
+            if not isinstance(raw_policy, dict) or not bool(raw_policy.get("allowed")):
+                title = str(book.get("title") or "").strip() or bid
+                reason = str((raw_policy or {}).get("reason") or "Không thể xóa RAW cho truyện này.").strip()
+                invalid_items.append(f"{title}: {reason}")
+        if invalid_items:
+            raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", invalid_items[0])
+
+    for bid in book_ids:
+        book, chapters, raw_policy = preloaded_books.get(bid, (None, [], None))
         if not book:
             result_items.append({"book_id": bid, "found": False})
+            continue
+        if action == "clear_book_raw":
+            deleted = bool(service.delete_book(bid))
+            item = {
+                "book_id": bid,
+                "found": True,
+                "book_deleted": deleted,
+                "raw_deleted_via": "delete_book",
+                "raw_action": dict(raw_policy or {}),
+            }
+            result_items.append(item)
+            total["books_deleted"] += 1 if deleted else 0
             continue
         clear_raw = action in {"clear_book_raw", "clear_book_all"}
         clear_trans = action in {"clear_book_trans", "clear_book_trans_mode", "clear_book_all"}
