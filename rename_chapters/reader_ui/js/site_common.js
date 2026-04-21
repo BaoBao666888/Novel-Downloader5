@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260421-cacheraw1";
+import { t } from "../i18n.vi.js?v=20260421-mdfix1";
 
 const UI_RUNTIME_VERSION = "0.1.5";
 const SETTINGS_KEY = "reader.ui.settings.v3";
@@ -1103,7 +1103,7 @@ function renderNoticeMarkdownInline(value) {
     return token;
   };
   let text = String(value || "").replace(/\r\n?/g, "\n");
-  text = text.replace(/`([^`\n]+)`/g, (_match, code) => (
+  text = text.replace(/(`+)([^`\n]+?)\1/g, (_match, _ticks, code) => (
     makeToken(`<code>${escapeNoticeMarkdownHtml(code)}</code>`)
   ));
   text = text.replace(/\[([^\]\n]+)\]\(([^)\n]+)\)/g, (_match, label, url) => {

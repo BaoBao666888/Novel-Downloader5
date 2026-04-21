@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260421-cacheraw1";
+import { initShell } from "../site_common.js?v=20260421-mdfix1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeParagraphDisplayText, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260408-readerpara2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 import {
