@@ -3,10 +3,95 @@ import requests
 import json
 import time
 import re
+import unicodedata
 
 # --- BIẾN TOÀN CỤC CHO CACHE ---
 hanviet_map_cache = None
 _CJK_RE = re.compile(r"[\u3400-\u9fff]")
+_INVISIBLE_TEXT_FORMATTING_RE = re.compile(r"[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]")
+_INLINE_SPACE_RE = re.compile(r"[ \t\f\v]+")
+
+
+def _is_wordish_char(ch: str) -> bool:
+    if not ch:
+        return False
+    try:
+        return unicodedata.category(ch)[0] in {"L", "N", "M"}
+    except Exception:
+        return False
+
+
+def _should_attach_quote_left(ch: str) -> bool:
+    return _is_wordish_char(ch) or ch in {".", "!", "?", ",", "…"}
+
+
+def normalize_text_for_translation(text: str) -> str:
+    value = str(text or "")
+    if not value:
+        return ""
+    value = value.replace("\r\n", "\n").replace("\r", "\n")
+    value = value.replace("\u2028", "\n").replace("\u2029", "\n")
+    return _INVISIBLE_TEXT_FORMATTING_RE.sub("", value)
+
+
+def _normalize_straight_quote_pairs(text: str) -> str:
+    if not text:
+        return ""
+    result: list[str] = []
+    inside_quote = False
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch != '"':
+            result.append(ch)
+            i += 1
+            continue
+        if not inside_quote:
+            prev = result[-1] if result else ""
+            if prev and not (prev.isspace() or prev in "([{"):
+                result.append(" ")
+            result.append('"')
+            i += 1
+            while i < n and text[i] in " \t\f\v":
+                i += 1
+            inside_quote = True
+            continue
+        while result and result[-1] in " \t\f\v":
+            result.pop()
+        result.append('"')
+        i += 1
+        while i < n and text[i] in " \t\f\v":
+            i += 1
+        if i < n and _is_wordish_char(text[i]):
+            result.append(" ")
+        inside_quote = False
+    return "".join(result)
+
+
+def normalize_translated_text(text: str) -> str:
+    value = normalize_text_for_translation(text)
+    if not value:
+        return ""
+    value = re.sub(r'\\+\s*(["”“‘’])', r"\1", value)
+    value = _normalize_straight_quote_pairs(value)
+    value = re.sub(r'([:;,])([“‘])', r"\1 \2", value)
+    value = re.sub(r'(^|[\s([{:])([“‘])[ \t\f\v]+', r"\1\2", value, flags=re.MULTILINE)
+    value = re.sub(
+        r'(\S)[ \t\f\v]+([”’])',
+        lambda m: f"{m.group(1)}{m.group(2)}" if _should_attach_quote_left(m.group(1)) else m.group(0),
+        value,
+    )
+    value = re.sub(
+        r'([”’])([^\s\n])',
+        lambda m: f'{m.group(1)} {m.group(2)}' if _is_wordish_char(m.group(2)) else m.group(0),
+        value,
+    )
+    value = re.sub(r"[ \t]+\n", "\n", value)
+    value = re.sub(r"\n[ \t]+", "\n", value)
+    value = _INLINE_SPACE_RE.sub(" ", value)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    return value.strip()
 
 def load_hanviet_json(url: str):
     """Tải và cache file Hán-Việt JSON từ URL."""
@@ -74,18 +159,27 @@ def _restore_names(text: str, placeholder_map: dict):
         return text
     result = text
     for placeholder, data in placeholder_map.items():
-        result = re.sub(re.escape(placeholder), data['viet'], result)
-    return result
+        result = re.sub(re.escape(placeholder), f"{data['viet']} ", result)
+    result = re.sub(r"\s+([,.;!?\)]|”|’|:)", r"\1", result)
+    result = re.sub(r"([(\[“‘])\s+", r"\1", result)
+    def _normalize_colon_spacing(match: re.Match[str]) -> str:
+        next_char = match.group(1)
+        prev_char = match.string[match.start() - 1] if match.start() > 0 else ""
+        if next_char == "/" or (prev_char.isdigit() and next_char.isdigit()):
+            return f":{next_char}"
+        return f": {next_char}"
+    result = re.sub(r":([^\s])", _normalize_colon_spacing, result)
+    result = _INLINE_SPACE_RE.sub(" ", result)
+    return normalize_translated_text(result)
 
-def _split_into_batches(text_list: list, max_chars: int, max_items: int = 40):
+def _split_into_batches(text_list: list, max_chars: int, max_items: int | None = None):
     batches = []
     current_batch = []
     current_len = 0
-    item_limit = max(1, int(max_items or 1))
+    max_chars = max(100, min(9000, int(max_chars or 4500)))
     for text in text_list:
         text_len = len(text)
-        next_count = len(current_batch) + 1
-        if ((current_len + text_len > max_chars) or (next_count > item_limit)) and current_batch:
+        if (current_len + text_len > max_chars) and current_batch:
             batches.append(current_batch)
             current_batch = [text]
             current_len = text_len
@@ -242,7 +336,7 @@ def _post_translate_batch(
             translated_content = json_response.get('data', {}).get('content')
             if translated_content in (None, ""):
                 translated_content = json_response.get('translatedText', [])
-            parsed = _parse_loose_json_array(translated_content)
+            parsed = [normalize_translated_text(item) for item in _parse_loose_json_array(translated_content)]
             if len(parsed) == len(content_array):
                 return parsed
             if parsed:
@@ -256,6 +350,161 @@ def _post_translate_batch(
     if last_request_error is not None:
         return [f"[Lỗi mạng: {last_request_error}]"] * len(content_array)
     return [f"[Lỗi server response]"] * len(content_array)
+
+
+def _translation_needs_retry(source_text: str, translated_text: str) -> bool:
+    source = normalize_text_for_translation(source_text).strip()
+    translated = normalize_translated_text(translated_text).strip()
+    if not source:
+        return False
+    if (not translated) or translated.startswith("[Lỗi"):
+        return True
+    return _looks_untranslated_translation(source, translated)
+
+
+def _translate_single_text_final(
+    text: str,
+    server_url: str,
+    proxies=None,
+    target_lang: str = 'vi',
+    retry_count: int = 2,
+    retry_backoff_ms: int = 700,
+    timeout_sec: int = 60,
+):
+    translated = _post_translate_batch(
+        [text],
+        server_url,
+        proxies,
+        target_lang=target_lang,
+        retry_count=retry_count,
+        retry_backoff_ms=retry_backoff_ms,
+        timeout_sec=timeout_sec,
+    )
+    candidate = translated[0] if translated else ""
+    if _translation_needs_retry(text, candidate):
+        return normalize_translated_text(text)
+    return normalize_translated_text(candidate)
+
+
+def _translate_failed_batch_final(
+    content_array: list,
+    server_url: str,
+    proxies=None,
+    target_lang: str = 'vi',
+    retry_count: int = 2,
+    retry_backoff_ms: int = 700,
+    timeout_sec: int = 60,
+):
+    if not content_array:
+        return []
+    translated = _post_translate_batch(
+        content_array,
+        server_url,
+        proxies,
+        target_lang=target_lang,
+        retry_count=retry_count,
+        retry_backoff_ms=retry_backoff_ms,
+        timeout_sec=timeout_sec,
+    )
+    if len(translated) == len(content_array):
+        return [
+            normalize_translated_text(item) if not _translation_needs_retry(source, item) else _translate_single_text_final(
+                source,
+                server_url,
+                proxies,
+                target_lang=target_lang,
+                retry_count=retry_count,
+                retry_backoff_ms=retry_backoff_ms,
+                timeout_sec=timeout_sec,
+            )
+            for source, item in zip(content_array, translated)
+        ]
+    if len(content_array) <= 1:
+        return [
+            _translate_single_text_final(
+                content_array[0],
+                server_url,
+                proxies,
+                target_lang=target_lang,
+                retry_count=retry_count,
+                retry_backoff_ms=retry_backoff_ms,
+                timeout_sec=timeout_sec,
+            )
+        ]
+    mid = max(1, len(content_array) // 2)
+    return _translate_failed_batch_final(
+        content_array[:mid],
+        server_url,
+        proxies,
+        target_lang=target_lang,
+        retry_count=retry_count,
+        retry_backoff_ms=retry_backoff_ms,
+        timeout_sec=timeout_sec,
+    ) + _translate_failed_batch_final(
+        content_array[mid:],
+        server_url,
+        proxies,
+        target_lang=target_lang,
+        retry_count=retry_count,
+        retry_backoff_ms=retry_backoff_ms,
+        timeout_sec=timeout_sec,
+    )
+
+
+def _retry_suspicious_texts(
+    source_texts: list[str],
+    server_url: str,
+    proxies=None,
+    target_lang: str = 'vi',
+    retry_count: int = 2,
+    retry_backoff_ms: int = 700,
+    timeout_sec: int = 60,
+    max_chars: int = 4500,
+):
+    if not source_texts:
+        return []
+    retry_chars = max(300, min(1800, int(max_chars or 4500)))
+    batches = _split_into_batches(source_texts, retry_chars)
+    results: list[str] = []
+    for batch in batches:
+        translated = _post_translate_batch(
+            batch,
+            server_url,
+            proxies,
+            target_lang=target_lang,
+            retry_count=retry_count,
+            retry_backoff_ms=retry_backoff_ms,
+            timeout_sec=timeout_sec,
+        )
+        if len(translated) != len(batch):
+            results.extend(
+                _translate_failed_batch_final(
+                    batch,
+                    server_url,
+                    proxies,
+                    target_lang=target_lang,
+                    retry_count=retry_count,
+                    retry_backoff_ms=retry_backoff_ms,
+                    timeout_sec=timeout_sec,
+                )
+            )
+            continue
+        for source_text, translated_text in zip(batch, translated):
+            if _translation_needs_retry(source_text, translated_text):
+                results.append(
+                    _translate_single_text_final(
+                        source_text,
+                        server_url,
+                        proxies,
+                        target_lang=target_lang,
+                        retry_count=retry_count,
+                        retry_backoff_ms=retry_backoff_ms,
+                        timeout_sec=timeout_sec,
+                    )
+                )
+            else:
+                results.append(normalize_translated_text(translated_text))
+    return results
 
 
 def _translate_batch_resilient(
@@ -279,48 +528,46 @@ def _translate_batch_resilient(
         retry_backoff_ms=retry_backoff_ms,
         timeout_sec=timeout_sec,
     )
-    if len(translated) == len(content_array):
-        suspicious = [
-            idx
-            for idx, (source_text, translated_text) in enumerate(zip(content_array, translated))
-            if _looks_untranslated_translation(source_text, translated_text)
-        ]
-        if not suspicious:
-            return translated
+    if len(translated) != len(content_array):
+        return _translate_failed_batch_final(
+            content_array,
+            server_url,
+            proxies,
+            target_lang=target_lang,
+            retry_count=retry_count,
+            retry_backoff_ms=retry_backoff_ms,
+            timeout_sec=timeout_sec,
+        )
 
-    if len(content_array) <= 1:
-        if translated:
-            return translated[:1]
-        return ["[Lỗi server response thiếu item]"]
+    resolved = [normalize_translated_text(item) for item in translated]
+    suspicious_indexes = [
+        idx
+        for idx, (source_text, translated_text) in enumerate(zip(content_array, resolved))
+        if _translation_needs_retry(source_text, translated_text)
+    ]
+    if not suspicious_indexes:
+        return resolved
 
-    mid = max(1, len(content_array) // 2)
-    left = _translate_batch_resilient(
-        content_array[:mid],
+    retried_results = _retry_suspicious_texts(
+        [content_array[idx] for idx in suspicious_indexes],
         server_url,
         proxies,
         target_lang=target_lang,
         retry_count=retry_count,
         retry_backoff_ms=retry_backoff_ms,
         timeout_sec=timeout_sec,
+        max_chars=max(300, min(9000, int(sum(len(text or "") for text in content_array) or 4500))),
     )
-    right = _translate_batch_resilient(
-        content_array[mid:],
-        server_url,
-        proxies,
-        target_lang=target_lang,
-        retry_count=retry_count,
-        retry_backoff_ms=retry_backoff_ms,
-        timeout_sec=timeout_sec,
-    )
-    return left + right
+    for idx, candidate in zip(suspicious_indexes, retried_results):
+        resolved[idx] = normalize_translated_text(candidate)
+    return resolved
 
 def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_progress_callback=None, target_lang: str = 'vi'):
     if not chunks:
         return []
 
     server_url = settings.get('serverUrl', 'https://dichngay.com/translate/text')
-    max_chars = settings.get('maxChars', 4500)
-    max_items = settings.get('maxItems', 40)
+    max_chars = max(500, min(9000, int(settings.get('maxChars', 9000) or 9000)))
     delay_ms = settings.get('delayMs', 400)
     retry_count = settings.get('retryCount', 2)
     retry_backoff_ms = settings.get('retryBackoffMs', 700)
@@ -330,9 +577,9 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
         update_progress_callback("Chuẩn bị và thay thế tên...", 0)
 
     replacer, placeholder_map = _build_name_set_replacer(name_set)
-    texts_with_placeholders = [replacer(chunk) for chunk in chunks]
+    texts_with_placeholders = [replacer(normalize_text_for_translation(chunk)) for chunk in chunks]
 
-    batches = _split_into_batches(texts_with_placeholders, max_chars, max_items)
+    batches = _split_into_batches(texts_with_placeholders, max_chars)
     total_batches = len(batches)
     
     all_translated_texts = []
@@ -355,34 +602,6 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
         if i < total_batches - 1:
             time.sleep(delay_ms / 1000.0)
 
-    suspicious_indexes = [
-        idx
-        for idx, (source_text, translated_text) in enumerate(zip(texts_with_placeholders, all_translated_texts))
-        if _looks_untranslated_translation(source_text, translated_text)
-    ]
-    if suspicious_indexes:
-        retry_batches = _split_into_batches(
-            [texts_with_placeholders[idx] for idx in suspicious_indexes],
-            min(max(200, int(max_chars or 4500)), 900),
-            max_items=4,
-        )
-        retried_results: list[str] = []
-        for batch in retry_batches:
-            retried_results.extend(
-                _translate_batch_resilient(
-                    batch,
-                    server_url,
-                    settings.get('proxies'),
-                    target_lang=target_lang or 'vi',
-                    retry_count=retry_count,
-                    retry_backoff_ms=retry_backoff_ms,
-                    timeout_sec=timeout_sec,
-                )
-            )
-        for idx, candidate in zip(suspicious_indexes, retried_results):
-            if not _looks_untranslated_translation(texts_with_placeholders[idx], candidate):
-                all_translated_texts[idx] = candidate
-
     if len(all_translated_texts) < len(texts_with_placeholders):
         all_translated_texts.extend(texts_with_placeholders[len(all_translated_texts):])
     elif len(all_translated_texts) > len(texts_with_placeholders):
@@ -390,8 +609,8 @@ def translate_text_chunks(chunks: list, name_set: dict, settings: dict, update_p
 
     if update_progress_callback:
         update_progress_callback("Khôi phục tên và hoàn tất...", 95)
-        
-    final_results = [_restore_names(text, placeholder_map) for text in all_translated_texts]
+    
+    final_results = [normalize_translated_text(_restore_names(text, placeholder_map)) for text in all_translated_texts]
     
     if update_progress_callback:
         update_progress_callback("Hoàn tất!", 100)

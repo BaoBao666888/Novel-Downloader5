@@ -68,8 +68,7 @@ def normalized_server_translate_settings(service, value: Any = None, cfg: dict[s
         "serverUrl": str(raw.get("serverUrl") or translator_cfg.get("serverUrl") or "https://dichngay.com/translate/text").strip()
         or "https://dichngay.com/translate/text",
         "delayMs": _to_int(raw.get("delayMs", translator_cfg.get("delayMs")), 250, 0, 10_000),
-        "maxChars": _to_int(raw.get("maxChars", translator_cfg.get("maxChars")), 4500, 500, 20_000),
-        "maxItems": _to_int(raw.get("maxItems", translator_cfg.get("maxItems")), 40, 1, 200),
+        "maxChars": _to_int(raw.get("maxChars", translator_cfg.get("maxChars")), 9000, 500, 9_000),
         "retryCount": _to_int(raw.get("retryCount", translator_cfg.get("retryCount")), 2, 0, 8),
         "timeoutSec": _to_int(raw.get("timeoutSec", translator_cfg.get("timeoutSec")), 60, 10, 180),
         "retryBackoffMs": _to_int(raw.get("retryBackoffMs", translator_cfg.get("retryBackoffMs")), 700, 100, 5_000),

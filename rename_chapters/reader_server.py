@@ -1926,7 +1926,7 @@ def local_translate_preserve_placeholders(
 
 
 def normalize_translation_cache_source(text: str) -> str:
-    return normalize_newlines(text or "").strip()
+    return normalize_newlines(translator_logic.normalize_text_for_translation(text or "")).strip()
 
 
 def split_text_for_translation_cache(text: str) -> list[tuple[str, str]]:
@@ -3626,8 +3626,7 @@ class TranslationAdapter:
                 "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/han_viet/output.json",
             ),
             "delayMs": int(server_cfg.get("delayMs", cfg.get("delayMs", 250)) or 250),
-            "maxChars": int(server_cfg.get("maxChars", cfg.get("maxChars", 4500)) or 4500),
-            "maxItems": int(server_cfg.get("maxItems", cfg.get("maxItems", 40)) or 40),
+            "maxChars": max(500, min(9000, int(server_cfg.get("maxChars", cfg.get("maxChars", 9000)) or 9000))),
             "retryCount": int(server_cfg.get("retryCount", cfg.get("retryCount", 2)) or 2),
             "timeoutSec": int(server_cfg.get("timeoutSec", cfg.get("timeoutSec", 60)) or 60),
             "retryBackoffMs": int(server_cfg.get("retryBackoffMs", cfg.get("retryBackoffMs", 700)) or 700),
@@ -3858,7 +3857,7 @@ class TranslationAdapter:
                 cached = {}
             for src_key, trans_val in (cached or {}).items():
                 key = normalize_translation_cache_source(src_key)
-                val = normalize_newlines(trans_val or "")
+                val = translator_logic.normalize_translated_text(normalize_newlines(trans_val or ""))
                 if not key:
                     continue
                 if key and val:
@@ -7442,40 +7441,31 @@ class ReaderService:
             return []
 
         settings = dict(self.translator._settings() or {})
-        max_chars_default = self._vbook_int(settings.get("maxChars"), default=4500, min_value=200, max_value=20000)
-        max_items_default = self._vbook_int(settings.get("maxItems"), default=40, min_value=1, max_value=200)
-        if single_line:
-            settings["maxChars"] = min(max_chars_default, 2200)
-            settings["maxItems"] = min(max_items_default, 8)
-        else:
-            settings["maxChars"] = min(max_chars_default, 1800)
-            settings["maxItems"] = min(max_items_default, 3)
-
-        def is_failed_piece(value: str) -> bool:
-            text = normalize_vi_display_text(value or "")
-            return (not text) or text.startswith("[Lỗi")
-
-        def translate_subset(subset: list[str]) -> list[str]:
-            try:
-                translated = translator_logic.translate_text_chunks(
-                    subset,
-                    name_set={},
-                    settings=settings,
-                    update_progress_callback=None,
-                    target_lang="vi",
-                )
-            except Exception:
-                translated = []
-            if len(translated) != len(subset):
-                translated = []
-            if translated and not any(is_failed_piece(piece) for piece in translated):
-                return translated
-            if len(subset) <= 1:
-                return subset
-            mid = max(1, len(subset) // 2)
-            return translate_subset(subset[:mid]) + translate_subset(subset[mid:])
-
-        return translate_subset(source_texts)
+        settings["maxChars"] = self._vbook_int(settings.get("maxChars"), default=9000, min_value=500, max_value=9000)
+        settings.pop("maxItems", None)
+        try:
+            translated = translator_logic.translate_text_chunks(
+                source_texts,
+                name_set={},
+                settings=settings,
+                update_progress_callback=None,
+                target_lang="vi",
+            )
+        except Exception:
+            translated = []
+        if len(translated) < len(source_texts):
+            translated.extend(source_texts[len(translated):])
+        elif len(translated) > len(source_texts):
+            translated = translated[:len(source_texts)]
+        out: list[str] = []
+        for idx, source_text in enumerate(source_texts):
+            piece = translated[idx] if idx < len(translated) else source_text
+            piece = translator_logic.normalize_translated_text(piece or "")
+            piece = normalize_vi_display_text(piece or "")
+            if (not piece) or piece.startswith("[Lỗi") or self._is_effectively_untranslated_ui_text(source_text, piece):
+                piece = source_text
+            out.append(piece)
+        return out
 
     def _translate_ui_texts_batch(
         self,

@@ -204,8 +204,7 @@ class ReaderTabMixin:
                 "server": {
                     "serverUrl": "https://dichngay.com/translate/text",
                     "delayMs": 250,
-                    "maxChars": 4500,
-                    "maxItems": 40,
+                    "maxChars": 9000,
                     "retryCount": 2,
                     "timeoutSec": 60,
                     "retryBackoffMs": 700,
@@ -263,7 +262,10 @@ class ReaderTabMixin:
         if isinstance(loaded.get("reader_translation"), dict):
             payload["reader_translation"].update(loaded["reader_translation"])
             if isinstance(payload["reader_translation"].get("server"), dict) and isinstance(loaded["reader_translation"].get("server"), dict):
-                payload["reader_translation"]["server"].update(loaded["reader_translation"]["server"])
+                server_payload = dict(loaded["reader_translation"]["server"])
+                server_payload.pop("maxItems", None)
+                payload["reader_translation"]["server"].update(server_payload)
+                payload["reader_translation"]["server"].pop("maxItems", None)
             if isinstance(payload["reader_translation"].get("global_dicts"), dict) and isinstance(loaded["reader_translation"].get("global_dicts"), dict):
                 payload["reader_translation"]["global_dicts"].update(loaded["reader_translation"]["global_dicts"])
         if isinstance(loaded.get("reader_import"), dict):

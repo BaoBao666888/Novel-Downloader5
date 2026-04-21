@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260421-rawguard1";
+import { t } from "../i18n.vi.js?v=20260421-serverbatch1";
 
 const UI_RUNTIME_VERSION = "0.1.5";
 const SETTINGS_KEY = "reader.ui.settings.v3";
@@ -54,8 +54,7 @@ const SIM_LOCAL_TRANSLATION_MODE = "dichngay_local";
 
 const SERVER_TRANSLATION_DEFAULT = {
   delayMs: 250,
-  maxChars: 4500,
-  maxItems: 40,
+  maxChars: 9000,
   retryCount: 2,
   timeoutSec: 60,
   retryBackoffMs: 700,
@@ -775,8 +774,7 @@ function normalizeServerTranslationSettings(raw) {
   };
   return {
     delayMs: toInt(src.delayMs, SERVER_TRANSLATION_DEFAULT.delayMs, 0, 10000),
-    maxChars: toInt(src.maxChars, SERVER_TRANSLATION_DEFAULT.maxChars, 500, 20000),
-    maxItems: toInt(src.maxItems, SERVER_TRANSLATION_DEFAULT.maxItems, 1, 200),
+    maxChars: toInt(src.maxChars, SERVER_TRANSLATION_DEFAULT.maxChars, 500, 9000),
     retryCount: toInt(src.retryCount, SERVER_TRANSLATION_DEFAULT.retryCount, 0, 8),
     timeoutSec: toInt(src.timeoutSec, SERVER_TRANSLATION_DEFAULT.timeoutSec, 10, 180),
     retryBackoffMs: toInt(src.retryBackoffMs, SERVER_TRANSLATION_DEFAULT.retryBackoffMs, 100, 5000),
@@ -2016,7 +2014,6 @@ function fillStaticTexts() {
     ["label-server-translate-settings", "serverTranslateSettings"],
     ["label-server-delay-ms", "serverDelayMs"],
     ["label-server-max-chars", "serverMaxChars"],
-    ["label-server-max-items", "serverMaxItems"],
     ["label-server-retry-count", "serverRetryCount"],
     ["label-server-timeout-sec", "serverTimeoutSec"],
     ["label-server-retry-backoff-ms", "serverRetryBackoffMs"],
@@ -2284,7 +2281,6 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const serverTranslateSection = qs("server-translation-settings");
   const serverDelayMsInput = qs("server-delay-ms-input");
   const serverMaxCharsInput = qs("server-max-chars-input");
-  const serverMaxItemsInput = qs("server-max-items-input");
   const serverRetryCountInput = qs("server-retry-count-input");
   const serverTimeoutSecInput = qs("server-timeout-sec-input");
   const serverRetryBackoffMsInput = qs("server-retry-backoff-ms-input");
@@ -3383,7 +3379,6 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     state.readerTranslationServer = cfg;
     if (serverDelayMsInput) serverDelayMsInput.value = String(cfg.delayMs);
     if (serverMaxCharsInput) serverMaxCharsInput.value = String(cfg.maxChars);
-    if (serverMaxItemsInput) serverMaxItemsInput.value = String(cfg.maxItems);
     if (serverRetryCountInput) serverRetryCountInput.value = String(cfg.retryCount);
     if (serverTimeoutSecInput) serverTimeoutSecInput.value = String(cfg.timeoutSec);
     if (serverRetryBackoffMsInput) serverRetryBackoffMsInput.value = String(cfg.retryBackoffMs);
@@ -3393,7 +3388,6 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     state.readerTranslationServer = normalizeServerTranslationSettings({
       delayMs: serverDelayMsInput && serverDelayMsInput.value,
       maxChars: serverMaxCharsInput && serverMaxCharsInput.value,
-      maxItems: serverMaxItemsInput && serverMaxItemsInput.value,
       retryCount: serverRetryCountInput && serverRetryCountInput.value,
       timeoutSec: serverTimeoutSecInput && serverTimeoutSecInput.value,
       retryBackoffMs: serverRetryBackoffMsInput && serverRetryBackoffMsInput.value,
@@ -3812,7 +3806,6 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   };
   bindServerTranslateSetting(serverDelayMsInput, "input");
   bindServerTranslateSetting(serverMaxCharsInput, "input");
-  bindServerTranslateSetting(serverMaxItemsInput, "input");
   bindServerTranslateSetting(serverRetryCountInput, "input");
   bindServerTranslateSetting(serverTimeoutSecInput, "input");
   bindServerTranslateSetting(serverRetryBackoffMsInput, "input");
