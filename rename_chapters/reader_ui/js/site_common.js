@@ -1,4 +1,4 @@
-import { t } from "../i18n.vi.js?v=20260420-updatepopup3";
+import { t } from "../i18n.vi.js?v=20260421-cachemgr1";
 
 const UI_RUNTIME_VERSION = "0.1.5";
 const SETTINGS_KEY = "reader.ui.settings.v3";
@@ -83,6 +83,7 @@ const EFFECT_CLASSES = ["effect-stars", "effect-sparkle", "effect-bubbles", "eff
 const STAR_STYLE_CLASSES = ["star-style-classic", "star-style-dense", "star-style-bling"];
 const PANEL_STYLE_CLASSES = ["panel-style-clear", "panel-style-balanced", "panel-style-solid"];
 let cacheManagerUi = null;
+let actionModalUi = null;
 let toastHideTimer = 0;
 let lastStatusToast = { msg: "", ts: 0 };
 
@@ -1063,6 +1064,259 @@ function formatBytes(value) {
   return `${size.toFixed(digits)} ${units[idx]}`;
 }
 
+function ensureActionModalUi() {
+  if (actionModalUi) return actionModalUi;
+  const root = document.createElement("div");
+  root.id = "action-modal-root";
+  root.className = "action-modal hidden";
+  root.innerHTML = `
+    <div class="action-modal-backdrop" data-role="backdrop"></div>
+    <div class="action-modal-panel" role="dialog" aria-modal="true" aria-labelledby="action-modal-title">
+      <div class="dialog-head">
+        <h3 id="action-modal-title"></h3>
+        <button id="btn-action-modal-close" class="btn btn-small" type="button">${t("close")}</button>
+      </div>
+      <p id="action-modal-message" class="dialog-subtitle hidden"></p>
+      <label id="action-modal-input-wrap" class="hidden">
+        <span id="action-modal-input-label" class="hidden"></span>
+        <input id="action-modal-input" type="text" maxlength="160">
+      </label>
+      <div class="dialog-actions">
+        <button id="btn-action-modal-cancel" class="btn" type="button">${t("cancel")}</button>
+        <button id="btn-action-modal-confirm" class="btn" type="button">${t("save")}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(root);
+  const refs = {
+    root,
+    backdrop: root.querySelector('[data-role="backdrop"]'),
+    panel: root.querySelector(".action-modal-panel"),
+    title: root.querySelector("#action-modal-title"),
+    message: root.querySelector("#action-modal-message"),
+    inputWrap: root.querySelector("#action-modal-input-wrap"),
+    inputLabel: root.querySelector("#action-modal-input-label"),
+    input: root.querySelector("#action-modal-input"),
+    btnClose: root.querySelector("#btn-action-modal-close"),
+    btnCancel: root.querySelector("#btn-action-modal-cancel"),
+    btnConfirm: root.querySelector("#btn-action-modal-confirm"),
+  };
+  actionModalUi = {
+    refs,
+    mode: "confirm",
+    resolve: null,
+    previousActive: null,
+    close(result = null) {
+      const resolver = actionModalUi.resolve;
+      actionModalUi.resolve = null;
+      refs.root.classList.add("hidden");
+      refs.root.classList.remove("open");
+      if (actionModalUi.previousActive && typeof actionModalUi.previousActive.focus === "function") {
+        try {
+          actionModalUi.previousActive.focus();
+        } catch {
+          // ignore focus restore errors
+        }
+      }
+      actionModalUi.previousActive = null;
+      if (typeof resolver === "function") resolver(result);
+    },
+  };
+  const handleCancel = () => actionModalUi.close(null);
+  refs.backdrop?.addEventListener("click", handleCancel);
+  refs.btnClose?.addEventListener("click", handleCancel);
+  refs.btnCancel?.addEventListener("click", handleCancel);
+  refs.btnConfirm?.addEventListener("click", () => {
+    if (actionModalUi.mode === "prompt") {
+      actionModalUi.close(String(refs.input?.value || ""));
+      return;
+    }
+    actionModalUi.close(true);
+  });
+  refs.input?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      actionModalUi.close(String(refs.input?.value || ""));
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      handleCancel();
+    }
+  });
+  root.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    handleCancel();
+  });
+  return actionModalUi;
+}
+
+function openActionModal({
+  mode = "confirm",
+  title = "",
+  message = "",
+  confirmText = "",
+  cancelText = "",
+  inputValue = "",
+  inputPlaceholder = "",
+  inputLabel = "",
+  inputMaxLength = 160,
+} = {}) {
+  const ui = ensureActionModalUi();
+  if (typeof ui.resolve === "function") {
+    ui.resolve(null);
+    ui.resolve = null;
+  }
+  ui.mode = mode === "prompt" ? "prompt" : "confirm";
+  ui.previousActive = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const { refs } = ui;
+  if (refs.title) refs.title.textContent = String(title || "").trim() || t("actionModalTitle");
+  if (refs.message) {
+    const messageText = String(message || "").trim();
+    refs.message.textContent = messageText;
+    refs.message.classList.toggle("hidden", !messageText);
+  }
+  if (refs.btnConfirm) refs.btnConfirm.textContent = String(confirmText || "").trim() || (ui.mode === "prompt" ? t("save") : t("actionModalConfirm"));
+  if (refs.btnCancel) refs.btnCancel.textContent = String(cancelText || "").trim() || t("cancel");
+  if (refs.inputWrap && refs.input) {
+    const promptMode = ui.mode === "prompt";
+    refs.inputWrap.classList.toggle("hidden", !promptMode);
+    refs.input.value = promptMode ? String(inputValue || "") : "";
+    refs.input.placeholder = promptMode ? String(inputPlaceholder || "") : "";
+    refs.input.maxLength = Math.max(1, Number(inputMaxLength || 160) || 160);
+  }
+  if (refs.inputLabel) {
+    const labelText = String(inputLabel || "").trim();
+    refs.inputLabel.textContent = labelText;
+    refs.inputLabel.classList.toggle("hidden", !(ui.mode === "prompt" && labelText));
+  }
+  refs.root.classList.remove("hidden");
+  refs.root.classList.add("open");
+  window.setTimeout(() => {
+    if (ui.mode === "prompt" && refs.input) {
+      refs.input.focus();
+      refs.input.select();
+    } else if (refs.btnConfirm) {
+      refs.btnConfirm.focus();
+    }
+  }, 0);
+  return new Promise((resolve) => {
+    ui.resolve = resolve;
+  });
+}
+
+async function confirmDialog(options = {}) {
+  const result = await openActionModal({ ...options, mode: "confirm" });
+  return result === true;
+}
+
+async function promptDialog(options = {}) {
+  const result = await openActionModal({ ...options, mode: "prompt" });
+  if (result == null) return null;
+  return String(result);
+}
+
+const CACHE_MANAGER_PAGE_SIZE = 24;
+
+function cacheManagerModeLabel(mode) {
+  const key = String(mode || "").trim().toLowerCase();
+  if (key === "server") return "Server";
+  if (key === "local") return "Local";
+  if (key === "dichngay_local") return "Mô phỏng";
+  if (key === "hanviet") return "Hán Việt";
+  return String(mode || "").trim() || "?";
+}
+
+function cacheManagerActionLabel(action, mode = "") {
+  const modeKey = String(mode || "").trim();
+  if (action === "clear_global_translation_mode" || action === "clear_book_trans_mode") {
+    return t("cacheManagerClearTransMode", { mode: cacheManagerModeLabel(modeKey) });
+  }
+  switch (action) {
+    case "clear_global_translation":
+      return t("cacheManagerClearGlobalTrans");
+    case "clear_book_raw":
+      return t("cacheManagerClearRaw");
+    case "clear_book_trans":
+      return t("cacheManagerClearTrans");
+    case "clear_book_images":
+      return t("cacheManagerClearImages");
+    case "clear_book_all":
+      return t("cacheManagerClearAll");
+    default:
+      return t("cacheManagerActionGeneric");
+  }
+}
+
+function sortCacheManagerGroups(groups) {
+  const items = Array.isArray(groups) ? groups.map((item) => ({ ...(item || {}) })) : [];
+  items.sort((a, b) => (
+    Number(b.cache_bytes || 0) - Number(a.cache_bytes || 0)
+    || Number(b.cache_count || 0) - Number(a.cache_count || 0)
+    || (Number(b.translation_memory_count || 0) + Number(b.translation_unit_map_count || 0))
+      - (Number(a.translation_memory_count || 0) + Number(a.translation_unit_map_count || 0))
+    || String(a.label || "").localeCompare(String(b.label || ""), "vi")
+  ));
+  return items;
+}
+
+function getCacheManagerVisibleBooks() {
+  const ui = ensureCacheManagerUi();
+  const pageSize = Math.max(1, Number(ui.pageSize || CACHE_MANAGER_PAGE_SIZE) || CACHE_MANAGER_PAGE_SIZE);
+  const total = Array.isArray(ui.books) ? ui.books.length : 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(totalPages, Math.max(1, Number(ui.currentPage || 1) || 1));
+  ui.currentPage = page;
+  const start = (page - 1) * pageSize;
+  return {
+    page,
+    pageSize,
+    total,
+    totalPages,
+    start,
+    end: Math.min(total, start + pageSize),
+    books: (ui.books || []).slice(start, start + pageSize),
+  };
+}
+
+function syncCacheManagerSelectionState() {
+  const ui = ensureCacheManagerUi();
+  const { refs } = ui;
+  const visible = getCacheManagerVisibleBooks().books;
+  const visibleIds = visible
+    .map((book) => String((book && book.book_id) || "").trim())
+    .filter(Boolean);
+  const selectedOnPage = visibleIds.filter((bookId) => ui.selected.has(bookId)).length;
+  if (refs.selectAll) {
+    refs.selectAll.checked = visibleIds.length > 0 && selectedOnPage === visibleIds.length;
+    refs.selectAll.indeterminate = selectedOnPage > 0 && selectedOnPage < visibleIds.length;
+  }
+  if (refs.selectionSummary) {
+    const selectedCount = ui.selected.size;
+    refs.selectionSummary.textContent = selectedCount > 0
+      ? t("cacheManagerSelectionSummary", { count: selectedCount })
+      : "";
+    refs.selectionSummary.classList.toggle("hidden", selectedCount <= 0);
+  }
+}
+
+function renderCacheManagerPagination() {
+  const ui = ensureCacheManagerUi();
+  const { refs } = ui;
+  const { page, totalPages, total, start, end } = getCacheManagerVisibleBooks();
+  if (refs.pageSummary) {
+    refs.pageSummary.textContent = total > 0
+      ? t("cacheManagerPageSummary", {
+        start: start + 1,
+        end,
+        total,
+      })
+      : t("cacheManagerPageSummaryEmpty");
+  }
+  if (refs.pageLabel) refs.pageLabel.textContent = t("pageCounter", { current: page, total: totalPages });
+  if (refs.btnPrev) refs.btnPrev.disabled = page <= 1;
+  if (refs.btnNext) refs.btnNext.disabled = page >= totalPages;
+}
+
 function ensureCacheManagerUi() {
   if (cacheManagerUi) return cacheManagerUi;
   const dialog = document.createElement("dialog");
@@ -1074,19 +1328,32 @@ function ensureCacheManagerUi() {
       <button id="btn-cache-manager-close" class="btn btn-small" type="button"></button>
     </div>
     <p id="cache-manager-global-stats" class="empty-text"></p>
+    <div id="cache-manager-global-groups" class="cache-manager-global-groups"></div>
     <div class="cover-btns cache-manager-actions">
       <button id="btn-cache-manager-refresh" class="btn btn-small" type="button"></button>
-      <button id="btn-cache-manager-clear-global-trans" class="btn btn-small" type="button"></button>
-    </div>
-    <div class="cover-btns cache-manager-actions">
       <label class="cache-manager-select-all">
         <input id="cache-manager-select-all" type="checkbox">
         <span id="cache-manager-select-all-label"></span>
       </label>
+      <span id="cache-manager-selection-summary" class="cache-manager-selection-summary hidden"></span>
       <button id="btn-cache-manager-clear-raw" class="btn btn-small" type="button"></button>
-      <button id="btn-cache-manager-clear-trans" class="btn btn-small" type="button"></button>
       <button id="btn-cache-manager-clear-images" class="btn btn-small" type="button"></button>
       <button id="btn-cache-manager-clear-all" class="btn btn-small" type="button"></button>
+    </div>
+    <div class="cover-btns cache-manager-actions">
+      <button id="btn-cache-manager-clear-trans" class="btn btn-small" type="button"></button>
+      <button id="btn-cache-manager-clear-trans-server" class="btn btn-small" type="button"></button>
+      <button id="btn-cache-manager-clear-trans-local" class="btn btn-small" type="button"></button>
+      <button id="btn-cache-manager-clear-trans-sim" class="btn btn-small" type="button"></button>
+      <button id="btn-cache-manager-clear-trans-hv" class="btn btn-small" type="button"></button>
+    </div>
+    <div class="cache-manager-toolbar">
+      <p id="cache-manager-page-summary" class="empty-text"></p>
+      <div class="cache-manager-pagination">
+        <button id="btn-cache-manager-prev" class="btn btn-small" type="button"></button>
+        <span id="cache-manager-page-label" class="tag"></span>
+        <button id="btn-cache-manager-next" class="btn btn-small" type="button"></button>
+      </div>
     </div>
     <div id="cache-manager-list" class="cache-manager-list"></div>
     <p id="cache-manager-empty" class="empty-text hidden"></p>
@@ -1098,14 +1365,23 @@ function ensureCacheManagerUi() {
     title: dialog.querySelector("#cache-manager-title"),
     btnClose: dialog.querySelector("#btn-cache-manager-close"),
     globalStats: dialog.querySelector("#cache-manager-global-stats"),
+    globalGroups: dialog.querySelector("#cache-manager-global-groups"),
     btnRefresh: dialog.querySelector("#btn-cache-manager-refresh"),
-    btnClearGlobalTrans: dialog.querySelector("#btn-cache-manager-clear-global-trans"),
     selectAll: dialog.querySelector("#cache-manager-select-all"),
     selectAllLabel: dialog.querySelector("#cache-manager-select-all-label"),
+    selectionSummary: dialog.querySelector("#cache-manager-selection-summary"),
     btnClearRaw: dialog.querySelector("#btn-cache-manager-clear-raw"),
     btnClearTrans: dialog.querySelector("#btn-cache-manager-clear-trans"),
+    btnClearTransServer: dialog.querySelector("#btn-cache-manager-clear-trans-server"),
+    btnClearTransLocal: dialog.querySelector("#btn-cache-manager-clear-trans-local"),
+    btnClearTransSim: dialog.querySelector("#btn-cache-manager-clear-trans-sim"),
+    btnClearTransHv: dialog.querySelector("#btn-cache-manager-clear-trans-hv"),
     btnClearImages: dialog.querySelector("#btn-cache-manager-clear-images"),
     btnClearAll: dialog.querySelector("#btn-cache-manager-clear-all"),
+    pageSummary: dialog.querySelector("#cache-manager-page-summary"),
+    pageLabel: dialog.querySelector("#cache-manager-page-label"),
+    btnPrev: dialog.querySelector("#btn-cache-manager-prev"),
+    btnNext: dialog.querySelector("#btn-cache-manager-next"),
     list: dialog.querySelector("#cache-manager-list"),
     empty: dialog.querySelector("#cache-manager-empty"),
   };
@@ -1113,17 +1389,25 @@ function ensureCacheManagerUi() {
     refs,
     books: [],
     selected: new Set(),
+    pageSize: CACHE_MANAGER_PAGE_SIZE,
+    currentPage: 1,
+    globalGroups: [],
   };
 
   refs.title.textContent = t("cacheManagerTitle");
   refs.btnClose.textContent = t("close");
   refs.btnRefresh.textContent = t("cacheManagerRefresh");
-  refs.btnClearGlobalTrans.textContent = t("cacheManagerClearGlobalTrans");
-  refs.selectAllLabel.textContent = t("cacheManagerSelectAll");
+  refs.selectAllLabel.textContent = t("cacheManagerSelectPage");
   refs.btnClearRaw.textContent = t("cacheManagerClearRaw");
   refs.btnClearTrans.textContent = t("cacheManagerClearTrans");
+  refs.btnClearTransServer.textContent = t("cacheManagerClearTransMode", { mode: "Server" });
+  refs.btnClearTransLocal.textContent = t("cacheManagerClearTransMode", { mode: "Local" });
+  refs.btnClearTransSim.textContent = t("cacheManagerClearTransMode", { mode: "Mô phỏng" });
+  refs.btnClearTransHv.textContent = t("cacheManagerClearTransMode", { mode: "Hán Việt" });
   refs.btnClearImages.textContent = t("cacheManagerClearImages");
   refs.btnClearAll.textContent = t("cacheManagerClearAll");
+  refs.btnPrev.textContent = t("cacheManagerPrevPage");
+  refs.btnNext.textContent = t("cacheManagerNextPage");
   refs.empty.textContent = t("cacheManagerEmpty");
 
   refs.btnClose.addEventListener("click", () => {
@@ -1131,20 +1415,17 @@ function ensureCacheManagerUi() {
   });
   refs.selectAll.addEventListener("change", () => {
     const checked = Boolean(refs.selectAll.checked);
-    cacheManagerUi.selected.clear();
-    if (checked) {
-      for (const row of cacheManagerUi.books) {
-        const bid = String((row && row.book_id) || "").trim();
-        if (bid) cacheManagerUi.selected.add(bid);
-      }
+    const visibleIds = getCacheManagerVisibleBooks().books
+      .map((row) => String((row && row.book_id) || "").trim())
+      .filter(Boolean);
+    for (const bookId of visibleIds) {
+      if (checked) cacheManagerUi.selected.add(bookId);
+      else cacheManagerUi.selected.delete(bookId);
     }
     renderCacheManagerList();
   });
   refs.btnRefresh.addEventListener("click", () => {
     loadCacheManagerSummary().catch(() => { });
-  });
-  refs.btnClearGlobalTrans.addEventListener("click", () => {
-    runCacheManagerAction("clear_global_translation").catch(() => { });
   });
   refs.btnClearRaw.addEventListener("click", () => {
     runCacheManagerAction("clear_book_raw").catch(() => { });
@@ -1152,11 +1433,32 @@ function ensureCacheManagerUi() {
   refs.btnClearTrans.addEventListener("click", () => {
     runCacheManagerAction("clear_book_trans").catch(() => { });
   });
+  refs.btnClearTransServer.addEventListener("click", () => {
+    runCacheManagerAction("clear_book_trans_mode", { mode: "server" }).catch(() => { });
+  });
+  refs.btnClearTransLocal.addEventListener("click", () => {
+    runCacheManagerAction("clear_book_trans_mode", { mode: "local" }).catch(() => { });
+  });
+  refs.btnClearTransSim.addEventListener("click", () => {
+    runCacheManagerAction("clear_book_trans_mode", { mode: "dichngay_local" }).catch(() => { });
+  });
+  refs.btnClearTransHv.addEventListener("click", () => {
+    runCacheManagerAction("clear_book_trans_mode", { mode: "hanviet" }).catch(() => { });
+  });
   refs.btnClearImages.addEventListener("click", () => {
     runCacheManagerAction("clear_book_images").catch(() => { });
   });
   refs.btnClearAll.addEventListener("click", () => {
     runCacheManagerAction("clear_book_all").catch(() => { });
+  });
+  refs.btnPrev.addEventListener("click", () => {
+    cacheManagerUi.currentPage = Math.max(1, Number(cacheManagerUi.currentPage || 1) - 1);
+    renderCacheManagerList();
+  });
+  refs.btnNext.addEventListener("click", () => {
+    const { totalPages } = getCacheManagerVisibleBooks();
+    cacheManagerUi.currentPage = Math.min(totalPages, Number(cacheManagerUi.currentPage || 1) + 1);
+    renderCacheManagerList();
   });
   return cacheManagerUi;
 }
@@ -1165,18 +1467,17 @@ function renderCacheManagerList() {
   const ui = ensureCacheManagerUi();
   const { refs } = ui;
   refs.list.innerHTML = "";
-  const books = Array.isArray(ui.books) ? ui.books : [];
-  if (!books.length) {
+  const visible = getCacheManagerVisibleBooks();
+  if (!visible.books.length) {
     refs.empty.classList.remove("hidden");
-    refs.selectAll.checked = false;
+    syncCacheManagerSelectionState();
+    renderCacheManagerPagination();
     return;
   }
   refs.empty.classList.add("hidden");
-  let selectedCount = 0;
-  for (const book of books) {
+  for (const book of visible.books) {
     const bid = String(book.book_id || "").trim();
     if (!bid) continue;
-    if (ui.selected.has(bid)) selectedCount += 1;
     const row = document.createElement("label");
     row.className = "cache-manager-row";
 
@@ -1187,7 +1488,7 @@ function renderCacheManagerList() {
     checkbox.addEventListener("change", () => {
       if (checkbox.checked) ui.selected.add(bid);
       else ui.selected.delete(bid);
-      refs.selectAll.checked = ui.selected.size > 0 && ui.selected.size === books.length;
+      syncCacheManagerSelectionState();
     });
 
     const cover = document.createElement("div");
@@ -1206,6 +1507,9 @@ function renderCacheManagerList() {
     const title = document.createElement("div");
     title.className = "cache-book-title";
     title.textContent = String(book.title_display || book.title || "Không tiêu đề");
+    const authorLine = document.createElement("div");
+    authorLine.className = "cache-book-line";
+    authorLine.textContent = String(book.author_display || "").trim() || t("unknownAuthor");
     const chapterLine = document.createElement("div");
     chapterLine.className = "cache-book-line";
     chapterLine.textContent = t("cacheManagerChapterLine", {
@@ -1213,35 +1517,84 @@ function renderCacheManagerList() {
       trans: Number(book.cached_trans_chapters || 0),
       total: Number(book.chapter_count || 0),
     });
-    const imageLine = document.createElement("div");
-    imageLine.className = "cache-book-line";
-    imageLine.textContent = t("cacheManagerImageLine", {
-      count: Number(book.cached_image_count || 0),
-      size: formatBytes(book.image_bytes || 0),
+    const totalLine = document.createElement("div");
+    totalLine.className = "cache-book-line cache-book-total";
+    totalLine.textContent = t("cacheManagerTotalSizeLine", {
+      total: formatBytes(book.cache_total_bytes || 0),
     });
-    const sizeLine = document.createElement("div");
-    sizeLine.className = "cache-book-line";
-    sizeLine.textContent = t("cacheManagerSizeLine", {
-      raw: formatBytes(book.raw_bytes || 0),
-      trans: formatBytes(book.trans_bytes || 0),
-    });
-    meta.append(title, chapterLine, imageLine, sizeLine);
+    const groupWrap = document.createElement("div");
+    groupWrap.className = "cache-book-groups";
+    const groups = sortCacheManagerGroups(book.cache_groups);
+    for (const group of groups) {
+      const chip = document.createElement("span");
+      chip.className = "cache-book-group-chip";
+      chip.textContent = t("cacheManagerGroupChip", {
+        label: String(group.label || group.key || "").trim() || "?",
+        count: Number(group.cache_count || 0),
+        size: formatBytes(group.cache_bytes || 0),
+      });
+      groupWrap.appendChild(chip);
+    }
+    meta.append(title, authorLine, chapterLine, totalLine, groupWrap);
     row.append(checkbox, cover, meta);
     refs.list.appendChild(row);
   }
-  refs.selectAll.checked = books.length > 0 && selectedCount === books.length;
+  syncCacheManagerSelectionState();
+  renderCacheManagerPagination();
 }
 
 function renderCacheManagerGlobal(data) {
   const ui = ensureCacheManagerUi();
   const { refs } = ui;
   const global = (data && data.global) || {};
+  const groups = Array.isArray(global.groups) ? global.groups.map((item) => ({ ...(item || {}) })) : [];
+  ui.globalGroups = groups;
   refs.globalStats.textContent = t("cacheManagerGlobalLine", {
     trans_count: Number(global.translated_cache_count || 0),
     trans_size: formatBytes(global.translated_cache_bytes || 0),
     tm_count: Number(global.translation_memory_count || 0),
     unit_count: Number(global.translation_unit_map_count || 0),
   });
+  if (refs.globalGroups) {
+    refs.globalGroups.innerHTML = "";
+    for (const group of sortCacheManagerGroups(groups)) {
+      const card = document.createElement("article");
+      card.className = "cache-global-card";
+      const head = document.createElement("div");
+      head.className = "cache-global-card-head";
+      const title = document.createElement("div");
+      title.className = "cache-global-card-title";
+      title.textContent = String(group.label || group.mode || "").trim() || "?";
+      const size = document.createElement("span");
+      size.className = "tag";
+      size.textContent = formatBytes(group.cache_bytes || 0);
+      head.append(title, size);
+      const body = document.createElement("div");
+      body.className = "cache-global-card-body";
+      body.textContent = t("cacheManagerGlobalGroupLine", {
+        cache_count: Number(group.cache_count || 0),
+        tm_count: Number(group.translation_memory_count || 0),
+        unit_count: Number(group.translation_unit_map_count || 0),
+      });
+      const actions = document.createElement("div");
+      actions.className = "cache-global-card-actions";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-small";
+      btn.textContent = t("cacheManagerClearGroupButton");
+      btn.disabled = (
+        Number(group.cache_count || 0) <= 0
+        && Number(group.translation_memory_count || 0) <= 0
+        && Number(group.translation_unit_map_count || 0) <= 0
+      );
+      btn.addEventListener("click", () => {
+        runCacheManagerAction("clear_global_translation_mode", { mode: String(group.mode || "") }).catch(() => {});
+      });
+      actions.appendChild(btn);
+      card.append(head, body, actions);
+      refs.globalGroups.appendChild(card);
+    }
+  }
 }
 
 async function loadCacheManagerSummary() {
@@ -1252,6 +1605,8 @@ async function loadCacheManagerSummary() {
     ui.books = Array.isArray(data.books) ? data.books : [];
     const valid = new Set(ui.books.map((x) => String((x && x.book_id) || "").trim()).filter(Boolean));
     ui.selected = new Set(Array.from(ui.selected).filter((x) => valid.has(x)));
+    const { totalPages } = getCacheManagerVisibleBooks();
+    ui.currentPage = Math.min(Math.max(1, ui.currentPage || 1), totalPages);
     renderCacheManagerGlobal(data);
     renderCacheManagerList();
   } catch (error) {
@@ -1261,26 +1616,41 @@ async function loadCacheManagerSummary() {
   }
 }
 
-async function runCacheManagerAction(action) {
+async function runCacheManagerAction(action, { mode = "" } = {}) {
   const ui = ensureCacheManagerUi();
   const act = String(action || "").trim();
-  const isGlobal = act === "clear_global_translation";
+  const modeKey = String(mode || "").trim();
+  const isGlobal = act === "clear_global_translation" || act === "clear_global_translation_mode";
   const selectedBookIds = isGlobal ? [] : Array.from(ui.selected);
   if (!isGlobal && !selectedBookIds.length) {
     showToast(t("cacheManagerNeedSelect"));
     return;
   }
-  if (!window.confirm(t("cacheManagerConfirmAction"))) return;
+  const confirmMessage = isGlobal
+    ? t("cacheManagerConfirmGlobal", { action: cacheManagerActionLabel(act, modeKey) })
+    : t("cacheManagerConfirmBooks", {
+      action: cacheManagerActionLabel(act, modeKey),
+      count: selectedBookIds.length,
+    });
+  const confirmed = await confirmDialog({
+    title: t("cacheManagerConfirmTitle"),
+    message: confirmMessage,
+    confirmText: cacheManagerActionLabel(act, modeKey),
+  });
+  if (!confirmed) return;
   showStatus(t("statusClearing"));
   try {
+    const body = { action: act, book_ids: selectedBookIds };
+    if (modeKey) body.mode = modeKey;
     const result = await api("/api/library/cache/manage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: act, book_ids: selectedBookIds }),
+      body: JSON.stringify(body),
     });
     emitCacheChanged({
       source: "cache-manager",
       action: act,
+      mode: modeKey,
       book_ids: selectedBookIds,
       result,
     });
@@ -2608,19 +2978,31 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       ui.btnDelete.addEventListener("click", async () => {
         const ids = getSelectedDeletableNotificationIds();
         if (!ids.length) return;
-        if (!window.confirm("Xóa các thông báo đã chọn?")) return;
+        if (!await confirmDialog({
+          title: t("notificationConfirmTitle"),
+          message: t("notificationConfirmDeleteSelected"),
+          confirmText: t("notificationDeleteSelected"),
+        })) return;
         await deleteNotifications(ids);
       });
     }
     if (ui.btnClearRead) {
       ui.btnClearRead.addEventListener("click", async () => {
-        if (!window.confirm("Dọn tất cả thông báo đã đọc?")) return;
+        if (!await confirmDialog({
+          title: t("notificationConfirmTitle"),
+          message: t("notificationConfirmClearRead"),
+          confirmText: t("notificationClearRead"),
+        })) return;
         await clearNotifications("read");
       });
     }
     if (ui.btnClearAll) {
       ui.btnClearAll.addEventListener("click", async () => {
-        if (!window.confirm("Xóa toàn bộ thông báo?")) return;
+        if (!await confirmDialog({
+          title: t("notificationConfirmTitle"),
+          message: t("notificationConfirmClearAll"),
+          confirmText: t("notificationClearAll"),
+        })) return;
         await clearNotifications("all");
       });
     }
@@ -2642,7 +3024,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
           showToast(t("notificationProtectedCard"));
           return;
         }
-        if (!window.confirm("Xóa thông báo này?")) return;
+        if (!await confirmDialog({
+          title: t("notificationConfirmTitle"),
+          message: t("notificationConfirmDeleteOne"),
+          confirmText: t("notificationDeleteOne"),
+        })) return;
         await deleteNotifications([ui.activeDetailId]);
       });
     }
@@ -2960,7 +3346,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     btnThemeCustomDelete.addEventListener("click", async () => {
       const activeTheme = getActiveTheme();
       if (!activeTheme || !isCustomThemeId(activeTheme.id)) return;
-      if (!window.confirm(t("themeCustomDeleteConfirm", { name: activeTheme.name || t("themeCustomTag") }))) return;
+      if (!await confirmDialog({
+        title: t("themeCustomDeleteTitle"),
+        message: t("themeCustomDeleteConfirm", { name: activeTheme.name || t("themeCustomTag") }),
+        confirmText: t("themeCustomDeleteButton"),
+      })) return;
       const fallbackTheme = findThemeById(state.serverThemes, activeTheme.baseThemeId)
         || state.serverThemes[0]
         || state.themes.find((item) => item.id !== activeTheme.id)
@@ -3788,7 +4178,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       btnRemove.addEventListener("click", async () => {
         const pidValue = String(item.plugin_id || "").trim();
         if (!pidValue) return;
-        if (!window.confirm(t("confirmRemoveVbookPlugin", { name: pluginName }))) return;
+        if (!await confirmDialog({
+          title: t("vbookRemoveTitle"),
+          message: t("confirmRemoveVbookPlugin", { name: pluginName }),
+          confirmText: t("vbookRemoveAction"),
+        })) return;
         showStatus(t("statusRemovingVbookPlugin"));
         try {
           await api(`/api/vbook/plugins/${encodeURIComponent(pidValue)}`, { method: "DELETE" });
@@ -4406,6 +4800,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     t,
     api,
     parseQuery,
+    confirmDialog,
+    promptDialog,
     showToast,
     showStatus,
     hideStatus,

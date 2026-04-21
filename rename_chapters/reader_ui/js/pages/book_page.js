@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260421-volauthor1";
+import { initShell } from "../site_common.js?v=20260421-cachemgr1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -2413,7 +2413,11 @@ async function deleteLatestBookSupplement(batchId = "") {
     state.shell.showToast("Quyển này chưa có đợt bổ sung nào để xóa.");
     return;
   }
-  if (!window.confirm("Xóa mềm đợt bổ sung TXT mới nhất của quyển này? Bạn vẫn có thể khôi phục trong vòng 30 ngày.")) return;
+  if (!await state.shell.confirmDialog({
+    title: "Xóa mềm đợt bổ sung",
+    message: "Xóa mềm đợt bổ sung TXT mới nhất của quyển này? Bạn vẫn có thể khôi phục trong vòng 30 ngày.",
+    confirmText: "Xóa mềm",
+  })) return;
   state.shell.showStatus("Đang xóa đợt bổ sung...");
   try {
     const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/supplement/delete`, {
@@ -2442,7 +2446,11 @@ async function deleteLatestBookSupplement(batchId = "") {
 async function restoreBookSupplementBatch(batchId) {
   const targetBatchId = String(batchId || "").trim();
   if (!state.bookId || !targetBatchId) return;
-  if (!window.confirm("Khôi phục lại đợt bổ sung TXT này?")) return;
+  if (!await state.shell.confirmDialog({
+    title: "Khôi phục đợt bổ sung",
+    message: "Khôi phục lại đợt bổ sung TXT này?",
+    confirmText: "Khôi phục",
+  })) return;
   state.shell.showStatus("Đang khôi phục đợt bổ sung...");
   try {
     const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/supplement/restore`, {
@@ -3891,7 +3899,14 @@ async function init() {
   }
   refs.btnBookNameRefresh.addEventListener("click", loadBookNameSets);
   refs.btnBookNameAddSet.addEventListener("click", async () => {
-    const setName = window.prompt(state.shell.t("promptNameSetNew"), "");
+    const setName = await state.shell.promptDialog({
+      title: state.shell.t("nameSets"),
+      message: state.shell.t("promptNameSetNew"),
+      inputValue: "",
+      inputPlaceholder: "Ví dụ: Nhân vật phụ",
+      confirmText: "Tạo bộ",
+      inputMaxLength: 80,
+    });
     const trimmed = String(setName || "").trim();
     if (!trimmed) return;
     if (state.bookNameSets[trimmed]) {
@@ -3919,7 +3934,11 @@ async function init() {
       state.shell.showToast(state.shell.t("nameSetNeedOne"));
       return;
     }
-    if (!window.confirm(state.shell.t("confirmDeleteNameSet"))) {
+    if (!await state.shell.confirmDialog({
+      title: state.shell.t("nameSets"),
+      message: state.shell.t("confirmDeleteNameSet"),
+      confirmText: "Xóa bộ",
+    })) {
       return;
     }
     const nextSets = { ...state.bookNameSets };

@@ -6,6 +6,17 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+_CACHE_TRANSLATION_MODES = ("server", "local", "dichngay_local", "hanviet")
+
+
+def normalize_cache_translation_mode(value: Any) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in {"sim", "simulation", "mock", "mophong"}:
+        raw = "dichngay_local"
+    if raw in {"han_viet", "han-viet"}:
+        raw = "hanviet"
+    return raw if raw in _CACHE_TRANSLATION_MODES else ""
+
 
 def cache_path_for_key(*, cache_dir: Path, cache_key: str) -> Path:
     prefix = str(cache_key or "")[:2]
@@ -398,6 +409,44 @@ def get_translation_cache_stats(storage) -> dict[str, int]:
     }
 
 
+def get_translation_cache_stats_by_mode(storage) -> dict[str, dict[str, int]]:
+    output = {
+        mode: {
+            "translation_memory_count": 0,
+            "translation_unit_map_count": 0,
+        }
+        for mode in _CACHE_TRANSLATION_MODES
+    }
+    with storage._connect() as conn:
+        tm_rows = conn.execute(
+            """
+            SELECT mode, COUNT(1) AS c
+            FROM translation_memory
+            GROUP BY mode
+            """
+        ).fetchall()
+        unit_rows = conn.execute(
+            """
+            SELECT translation_mode AS mode, COUNT(1) AS c
+            FROM translation_unit_map
+            GROUP BY translation_mode
+            """
+        ).fetchall()
+    for row in tm_rows:
+        mode = normalize_cache_translation_mode(row["mode"])
+        if not mode:
+            continue
+        output.setdefault(mode, {"translation_memory_count": 0, "translation_unit_map_count": 0})
+        output[mode]["translation_memory_count"] = int(row["c"] or 0)
+    for row in unit_rows:
+        mode = normalize_cache_translation_mode(row["mode"])
+        if not mode:
+            continue
+        output.setdefault(mode, {"translation_memory_count": 0, "translation_unit_map_count": 0})
+        output[mode]["translation_unit_map_count"] = int(row["c"] or 0)
+    return output
+
+
 def clear_translated_cache(storage, *, utc_now_iso) -> dict[str, Any]:
     with storage._connect() as conn:
         rows = conn.execute(
@@ -420,12 +469,101 @@ def clear_translated_cache(storage, *, utc_now_iso) -> dict[str, Any]:
     }
 
 
+def clear_translated_cache_by_mode(
+    storage,
+    *,
+    mode: str,
+    utc_now_iso,
+    resolve_chapter_translation_mode,
+) -> dict[str, Any]:
+    mode_key = normalize_cache_translation_mode(mode)
+    if not mode_key:
+        return {
+            "mode": "",
+            "deleted_files": 0,
+            "bytes_deleted": 0,
+            "cache_deleted": 0,
+            "tm_deleted": 0,
+            "unit_map_deleted": 0,
+            "chapter_count": 0,
+        }
+
+    chapter_rows: list[sqlite3.Row] = []
+    with storage._connect() as conn:
+        chapter_rows = conn.execute(
+            """
+            SELECT chapter_id, trans_key, trans_sig
+            FROM chapters
+            WHERE trim(COALESCE(trans_key, '')) <> ''
+            """
+        ).fetchall()
+
+    chapter_ids: list[str] = []
+    trans_keys: set[str] = set()
+    for row in chapter_rows:
+        chapter_mode = normalize_cache_translation_mode(resolve_chapter_translation_mode(row) if callable(resolve_chapter_translation_mode) else "")
+        if chapter_mode != mode_key:
+            continue
+        chapter_id = str(row["chapter_id"] or "").strip()
+        trans_key = str(row["trans_key"] or "").strip()
+        if chapter_id:
+            chapter_ids.append(chapter_id)
+        if trans_key:
+            trans_keys.add(trans_key)
+
+    cache_rows: list[sqlite3.Row] = []
+    tm_count = 0
+    tum_count = 0
+    with storage._connect() as conn:
+        if trans_keys:
+            placeholders = ",".join("?" for _ in trans_keys)
+            cache_rows = conn.execute(
+                f"SELECT cache_key, text_path, bytes FROM content_cache WHERE cache_key IN ({placeholders})",
+                tuple(trans_keys),
+            ).fetchall()
+            conn.execute(
+                f"DELETE FROM content_cache WHERE cache_key IN ({placeholders})",
+                tuple(trans_keys),
+            )
+        tm_row = conn.execute(
+            "SELECT COUNT(1) AS c FROM translation_memory WHERE mode = ?",
+            (mode_key,),
+        ).fetchone()
+        tm_count = int((tm_row or {"c": 0})["c"] or 0)
+        conn.execute("DELETE FROM translation_memory WHERE mode = ?", (mode_key,))
+        tum_row = conn.execute(
+            "SELECT COUNT(1) AS c FROM translation_unit_map WHERE translation_mode = ?",
+            (mode_key,),
+        ).fetchone()
+        tum_count = int((tum_row or {"c": 0})["c"] or 0)
+        conn.execute("DELETE FROM translation_unit_map WHERE translation_mode = ?", (mode_key,))
+        if chapter_ids:
+            placeholders = ",".join("?" for _ in chapter_ids)
+            conn.execute(
+                f"UPDATE chapters SET trans_key = NULL, trans_sig = NULL, updated_at = ? WHERE chapter_id IN ({placeholders})",
+                (utc_now_iso(), *chapter_ids),
+            )
+
+    file_stats = delete_cache_rows_with_stats(cache_rows)
+    return {
+        "mode": mode_key,
+        "deleted_files": int(file_stats.get("deleted_files") or 0),
+        "bytes_deleted": int(file_stats.get("bytes_deleted") or 0),
+        "cache_deleted": int(len(cache_rows)),
+        "tm_deleted": int(tm_count),
+        "unit_map_deleted": int(tum_count),
+        "chapter_count": int(len(chapter_ids)),
+    }
+
+
 def clear_book_cache(
     storage,
     book_id: str,
     *,
     clear_raw: bool = False,
     clear_trans: bool = False,
+    translate_modes: set[str] | None = None,
+    resolve_chapter_translation_mode=None,
     utc_now_iso,
 ) -> dict[str, Any]:
     bid = str(book_id or "").strip()
@@ -455,13 +593,29 @@ def clear_book_cache(
     raw_keys: set[str] = set()
     trans_keys: set[str] = set()
     chapter_ids: list[str] = []
+    mode_filters = {
+        mode_key
+        for mode_key in (normalize_cache_translation_mode(item) for item in (translate_modes or set()))
+        if mode_key
+    }
     for chapter in chapters:
         if clear_raw and chapter.get("raw_key"):
             raw_keys.add(str(chapter.get("raw_key") or "").strip())
-        if clear_trans and chapter.get("trans_key"):
-            trans_keys.add(str(chapter.get("trans_key") or "").strip())
-        if clear_trans and chapter.get("chapter_id"):
-            chapter_ids.append(str(chapter.get("chapter_id") or "").strip())
+        if clear_trans:
+            trans_key = str(chapter.get("trans_key") or "").strip()
+            chapter_id = str(chapter.get("chapter_id") or "").strip()
+            if mode_filters:
+                if not trans_key:
+                    continue
+                chapter_mode = normalize_cache_translation_mode(
+                    resolve_chapter_translation_mode(chapter) if callable(resolve_chapter_translation_mode) else ""
+                )
+                if chapter_mode not in mode_filters:
+                    continue
+            if trans_key:
+                trans_keys.add(trans_key)
+            if chapter_id:
+                chapter_ids.append(chapter_id)
     keys = {key for key in raw_keys.union(trans_keys) if key}
     deleted_stats = delete_cache_keys_with_stats(storage, keys) if keys else {
         "cache_deleted": 0,
@@ -482,8 +636,8 @@ def clear_book_cache(
                 tuple(chapter_ids),
             )
             conn.execute(
-                "UPDATE chapters SET trans_key = NULL, trans_sig = NULL, updated_at = ? WHERE book_id = ?",
-                (utc_now_iso(), bid),
+                f"UPDATE chapters SET trans_key = NULL, trans_sig = NULL, updated_at = ? WHERE chapter_id IN ({','.join('?' for _ in chapter_ids)})",
+                (utc_now_iso(), *chapter_ids),
             )
 
     return {

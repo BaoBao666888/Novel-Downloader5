@@ -3,6 +3,55 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+_CACHE_TRANSLATION_MODES = ("server", "local", "dichngay_local", "hanviet")
+_CACHE_TRANSLATION_LABELS = {
+    "server": "Server",
+    "local": "Local",
+    "dichngay_local": "Mô phỏng",
+    "hanviet": "Hán Việt",
+}
+
+
+def _normalize_cache_translation_mode(value: Any) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in {"sim", "simulation", "mock", "mophong"}:
+        raw = "dichngay_local"
+    if raw in {"han_viet", "han-viet"}:
+        raw = "hanviet"
+    return raw if raw in _CACHE_TRANSLATION_MODES else ""
+
+
+def _cache_mode_label(mode: str) -> str:
+    return _CACHE_TRANSLATION_LABELS.get(mode, str(mode or "").strip() or "Khác")
+
+
+def _empty_translation_group(mode: str) -> dict[str, Any]:
+    return {
+        "mode": mode,
+        "label": _cache_mode_label(mode),
+        "cache_count": 0,
+        "cache_bytes": 0,
+        "translation_memory_count": 0,
+        "translation_unit_map_count": 0,
+    }
+
+
+def _resolve_chapter_translation_mode(
+    service,
+    chapter: dict[str, Any] | Any,
+    *,
+    snapshot_mode_cache: dict[str, str],
+) -> str:
+    trans_sig = str((chapter.get("trans_sig") if isinstance(chapter, dict) else chapter["trans_sig"]) or "").strip()
+    if not trans_sig:
+        return ""
+    if trans_sig in snapshot_mode_cache:
+        return snapshot_mode_cache[trans_sig]
+    snapshot = service.storage.get_chapter_trans_sig_snapshot(trans_sig) or {}
+    mode = _normalize_cache_translation_mode(snapshot.get("mode"))
+    snapshot_mode_cache[trans_sig] = mode
+    return mode
+
 
 def scan_vbook_image_cache_index(*, vbook_image_cache_dir: Path) -> dict[str, int]:
     index: dict[str, int] = {}
@@ -138,8 +187,21 @@ def get_cache_summary(
 ) -> dict[str, Any]:
     books = service.storage.list_books(include_session=True)
     image_index = scan_vbook_image_cache_index(vbook_image_cache_dir=vbook_image_cache_dir)
-    global_stats = service.storage.get_translation_cache_stats()
+    base_global_stats = service.storage.get_translation_cache_stats()
+    global_by_mode = {
+        mode: _empty_translation_group(mode)
+        for mode in _CACHE_TRANSLATION_MODES
+    }
+    storage_mode_stats = service.storage.get_translation_cache_stats_by_mode()
+    for mode, stats in (storage_mode_stats or {}).items():
+        mode_key = _normalize_cache_translation_mode(mode)
+        if not mode_key:
+            continue
+        group = global_by_mode.setdefault(mode_key, _empty_translation_group(mode_key))
+        group["translation_memory_count"] = int((stats or {}).get("translation_memory_count") or 0)
+        group["translation_unit_map_count"] = int((stats or {}).get("translation_unit_map_count") or 0)
     items: list[dict[str, Any]] = []
+    snapshot_mode_cache: dict[str, str] = {}
 
     for book in books:
         bid = str(book.get("book_id") or "").strip()
@@ -151,9 +213,39 @@ def get_cache_summary(
         trans_keys = [str(ch.get("trans_key") or "").strip() for ch in chapters if str(ch.get("trans_key") or "").strip()]
         cache_meta = service.storage.get_content_cache_meta(set(raw_keys + trans_keys))
         raw_cached = [key for key in raw_keys if key in cache_meta]
-        trans_cached = [key for key in trans_keys if key in cache_meta]
         raw_bytes = sum(int((cache_meta.get(key) or {}).get("bytes") or 0) for key in raw_cached)
-        trans_bytes = sum(int((cache_meta.get(key) or {}).get("bytes") or 0) for key in trans_cached)
+        translation_groups = {
+            mode: {
+                "mode": mode,
+                "label": _cache_mode_label(mode),
+                "cache_count": 0,
+                "cache_bytes": 0,
+            }
+            for mode in _CACHE_TRANSLATION_MODES
+        }
+        for chapter in chapters:
+            trans_key = str(chapter.get("trans_key") or "").strip()
+            if not trans_key or trans_key not in cache_meta:
+                continue
+            mode_key = _resolve_chapter_translation_mode(
+                service,
+                chapter,
+                snapshot_mode_cache=snapshot_mode_cache,
+            )
+            if not mode_key:
+                continue
+            cache_bytes = int((cache_meta.get(trans_key) or {}).get("bytes") or 0)
+            translation_groups[mode_key]["cache_count"] += 1
+            translation_groups[mode_key]["cache_bytes"] += cache_bytes
+            global_by_mode[mode_key]["cache_count"] += 1
+            global_by_mode[mode_key]["cache_bytes"] += cache_bytes
+        active_translation_groups = [
+            dict(group)
+            for mode, group in translation_groups.items()
+            if int(group.get("cache_count") or 0) > 0 or int(group.get("cache_bytes") or 0) > 0
+        ]
+        trans_bytes = sum(int(group.get("cache_bytes") or 0) for group in active_translation_groups)
+        trans_cached_count = sum(int(group.get("cache_count") or 0) for group in active_translation_groups)
 
         image_keys = collect_book_image_cache_keys(
             service,
@@ -165,6 +257,36 @@ def get_cache_summary(
         )
         image_cached = [key for key in image_keys if key in image_index]
         image_bytes = sum(int(image_index.get(key) or 0) for key in image_cached)
+        total_bytes = int(raw_bytes) + int(trans_bytes) + int(image_bytes)
+        cache_groups: list[dict[str, Any]] = []
+        if raw_cached or raw_bytes:
+            cache_groups.append(
+                {
+                    "key": "raw",
+                    "label": "RAW",
+                    "cache_count": int(len(raw_cached)),
+                    "cache_bytes": int(raw_bytes),
+                }
+            )
+        cache_groups.extend(
+            {
+                "key": f"trans:{group['mode']}",
+                "mode": group["mode"],
+                "label": f"Dịch {group['label']}",
+                "cache_count": int(group.get("cache_count") or 0),
+                "cache_bytes": int(group.get("cache_bytes") or 0),
+            }
+            for group in active_translation_groups
+        )
+        if image_cached or image_bytes:
+            cache_groups.append(
+                {
+                    "key": "images",
+                    "label": "Ảnh",
+                    "cache_count": int(len(image_cached)),
+                    "cache_bytes": int(image_bytes),
+                }
+            )
 
         items.append(
             {
@@ -176,17 +298,31 @@ def get_cache_summary(
                 "is_comic": bool(book.get("is_comic")),
                 "chapter_count": chapter_total,
                 "cached_raw_chapters": int(len(raw_cached)),
-                "cached_trans_chapters": int(len(trans_cached)),
+                "cached_trans_chapters": int(trans_cached_count),
                 "cached_image_count": int(len(image_cached)),
                 "raw_bytes": int(raw_bytes),
                 "trans_bytes": int(trans_bytes),
                 "image_bytes": int(image_bytes),
+                "cache_total_bytes": total_bytes,
+                "translation_groups": active_translation_groups,
+                "cache_groups": cache_groups,
             }
         )
 
+    items.sort(
+        key=lambda item: (
+            -int(item.get("cache_total_bytes") or 0),
+            -int(item.get("trans_bytes") or 0),
+            -int(item.get("raw_bytes") or 0),
+            str(item.get("title_display") or item.get("title") or "").lower(),
+        )
+    )
     return {
         "ok": True,
-        "global": global_stats,
+        "global": {
+            **base_global_stats,
+            "groups": [global_by_mode[mode] for mode in _CACHE_TRANSLATION_MODES],
+        },
         "books": items,
     }
 
@@ -205,11 +341,17 @@ def manage_cache(
     if not isinstance(payload, dict):
         payload = {}
     action = str(payload.get("action") or "").strip().lower()
-    if action in {"clear_translation_global", "clear_global_translation", "global_trans"}:
+    global_mode = _normalize_cache_translation_mode(payload.get("mode"))
+    if action in {"clear_translation_global", "clear_global_translation", "global_trans", "clear_global_translation_mode"}:
+        if action == "clear_global_translation_mode":
+            if not global_mode:
+                raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu mode cache global hợp lệ.")
+            result = service.storage.clear_translated_cache_by_mode(global_mode)
+            return {"ok": True, "action": "clear_global_translation_mode", "mode": global_mode, **result}
         result = service.storage.clear_translated_cache()
         return {"ok": True, "action": "clear_global_translation", **result}
 
-    if action not in {"clear_book_raw", "clear_book_trans", "clear_book_images", "clear_book_all"}:
+    if action not in {"clear_book_raw", "clear_book_trans", "clear_book_trans_mode", "clear_book_images", "clear_book_all"}:
         raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "action cache không hợp lệ.")
     book_ids_raw = payload.get("book_ids")
     if not isinstance(book_ids_raw, list):
@@ -244,8 +386,16 @@ def manage_cache(
             result_items.append({"book_id": bid, "found": False})
             continue
         clear_raw = action in {"clear_book_raw", "clear_book_all"}
-        clear_trans = action in {"clear_book_trans", "clear_book_all"}
-        cache_stats = service.storage.clear_book_cache(bid, clear_raw=clear_raw, clear_trans=clear_trans)
+        clear_trans = action in {"clear_book_trans", "clear_book_trans_mode", "clear_book_all"}
+        translate_modes = {global_mode} if action == "clear_book_trans_mode" and global_mode else None
+        if action == "clear_book_trans_mode" and not translate_modes:
+            raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu mode cache truyện hợp lệ.")
+        cache_stats = service.storage.clear_book_cache(
+            bid,
+            clear_raw=clear_raw,
+            clear_trans=clear_trans,
+            translate_modes=translate_modes,
+        )
         image_stats = {"image_cache_keys": 0, "image_cache_deleted": 0, "image_bytes_deleted": 0}
         if action in {"clear_book_images", "clear_book_all"}:
             image_stats = clear_book_image_cache(

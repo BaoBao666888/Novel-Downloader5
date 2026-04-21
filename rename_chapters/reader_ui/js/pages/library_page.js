@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260420-updatepopup3";
+import { initShell } from "../site_common.js?v=20260421-cachemgr1";
 import { normalizeDisplayTitle } from "../reader_text.js?v=20260403-exportq1";
 
 const refs = {
@@ -3961,7 +3961,11 @@ async function deleteCategoryFromManager() {
     state.shell.showToast(state.shell.t("categoryManagerSelectHint"));
     return;
   }
-  const confirmed = window.confirm(state.shell.t("confirmDeleteCategory", { name: selected.name || "" }));
+  const confirmed = await state.shell.confirmDialog({
+    title: "Xóa danh mục",
+    message: state.shell.t("confirmDeleteCategory", { name: selected.name || "" }),
+    confirmText: "Xóa danh mục",
+  });
   if (!confirmed) return;
   try {
     const data = await state.shell.api(`/api/library/categories/${encodeURIComponent(String(selected.category_id || ""))}`, {
@@ -5031,10 +5035,14 @@ function renderExportJobs() {
         const confirmKey = protection.access_code_enabled
           ? "confirmDeleteExportJobProtected"
           : "confirmDeleteExportJob";
-        const confirmed = window.confirm(state.shell.t(confirmKey, {
-          file: String(job.file_name || formatLabel || job.job_id || "").trim() || state.shell.t("exportDialogTitle"),
-          code: String(protection.access_code_display || protection.access_code || "").trim(),
-        }));
+        const confirmed = await state.shell.confirmDialog({
+          title: state.shell.t("deleteExportFile"),
+          message: state.shell.t(confirmKey, {
+            file: String(job.file_name || formatLabel || job.job_id || "").trim() || state.shell.t("exportDialogTitle"),
+            code: String(protection.access_code_display || protection.access_code || "").trim(),
+          }),
+          confirmText: state.shell.t("deleteExportFile"),
+        });
         if (!confirmed) return;
         try {
           await state.shell.api(`/api/library/export/${encodeURIComponent(String(job.job_id || ""))}`, {
@@ -6035,7 +6043,11 @@ async function deleteBook() {
   const bookId = String(state.selectedBookId || "").trim();
   if (!bookId || isBookDeleting(bookId)) return;
   closeActions();
-  if (!window.confirm(state.shell.t("confirmDeleteBook"))) return;
+  if (!await state.shell.confirmDialog({
+    title: state.shell.t("deleteBook"),
+    message: state.shell.t("confirmDeleteBook"),
+    confirmText: state.shell.t("deleteBook"),
+  })) return;
   state.deletingBookIds.add(bookId);
   setBookDeletingVisual(bookId, true);
   try {

@@ -5804,15 +5804,42 @@ class ReaderStorage:
     def get_translation_cache_stats(self) -> dict[str, int]:
         return storage_cache_support.get_translation_cache_stats(self)
 
+    def get_translation_cache_stats_by_mode(self) -> dict[str, dict[str, int]]:
+        return storage_cache_support.get_translation_cache_stats_by_mode(self)
+
+    def _resolve_chapter_translation_cache_mode(self, row: dict[str, Any] | sqlite3.Row | None) -> str:
+        trans_sig = str(((row or {}).get("trans_sig") if isinstance(row, dict) else (row["trans_sig"] if row and "trans_sig" in row.keys() else "")) or "").strip() if row else ""
+        if not trans_sig:
+            return ""
+        snapshot = self.get_chapter_trans_sig_snapshot(trans_sig) or {}
+        return str(snapshot.get("mode") or "").strip().lower()
+
     def clear_translated_cache(self) -> dict[str, Any]:
         return storage_cache_support.clear_translated_cache(self, utc_now_iso=utc_now_iso)
 
-    def clear_book_cache(self, book_id: str, *, clear_raw: bool = False, clear_trans: bool = False) -> dict[str, Any]:
+    def clear_translated_cache_by_mode(self, mode: str) -> dict[str, Any]:
+        return storage_cache_support.clear_translated_cache_by_mode(
+            self,
+            mode=mode,
+            utc_now_iso=utc_now_iso,
+            resolve_chapter_translation_mode=self._resolve_chapter_translation_cache_mode,
+        )
+
+    def clear_book_cache(
+        self,
+        book_id: str,
+        *,
+        clear_raw: bool = False,
+        clear_trans: bool = False,
+        translate_modes: set[str] | None = None,
+    ) -> dict[str, Any]:
         return storage_cache_support.clear_book_cache(
             self,
             book_id,
             clear_raw=clear_raw,
             clear_trans=clear_trans,
+            translate_modes=translate_modes,
+            resolve_chapter_translation_mode=self._resolve_chapter_translation_cache_mode,
             utc_now_iso=utc_now_iso,
         )
 

@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260420-updatepopup3";
+import { initShell } from "../site_common.js?v=20260421-cachemgr1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeParagraphDisplayText, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260408-readerpara2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 import {
@@ -1457,7 +1457,11 @@ async function downloadBookFromReaderToc() {
     const hasMissingBefore = chapters.slice(0, currentIndex).some((chapter) => !chapter || !chapter.is_downloaded);
     if (hasMissingBefore) {
       const currentOrder = Math.max(1, Number(chapters[currentIndex].chapter_order || 0) || (currentIndex + 1));
-      const fromCurrent = window.confirm(state.shell.t("downloadBookFromCurrentConfirm", { current: currentOrder }));
+      const fromCurrent = await state.shell.confirmDialog({
+        title: state.shell.t("downloadBook"),
+        message: state.shell.t("downloadBookFromCurrentConfirm", { current: currentOrder }),
+        confirmText: state.shell.t("downloadBookFromCurrent"),
+      });
       startOrder = fromCurrent ? currentOrder : 1;
     }
   }
@@ -2824,7 +2828,14 @@ function openNameEditor(prefill = {}) {
 
 async function addNameSet() {
   if (!isNameBookScope()) return;
-  const setName = window.prompt(state.shell.t("promptNameSetNew"), "");
+  const setName = await state.shell.promptDialog({
+    title: state.shell.t("nameSets"),
+    message: state.shell.t("promptNameSetNew"),
+    inputValue: "",
+    inputPlaceholder: "Ví dụ: Nhân vật phụ",
+    confirmText: "Tạo bộ",
+    inputMaxLength: 80,
+  });
   const trimmed = String(setName || "").trim();
   if (!trimmed) return;
   if (state.nameSets[trimmed]) {
@@ -2855,7 +2866,11 @@ async function deleteActiveNameSet() {
     state.shell.showToast(state.shell.t("nameSetNeedOne"));
     return;
   }
-  if (!window.confirm(state.shell.t("confirmDeleteNameSet"))) {
+  if (!await state.shell.confirmDialog({
+    title: state.shell.t("nameSets"),
+    message: state.shell.t("confirmDeleteNameSet"),
+    confirmText: "Xóa bộ",
+  })) {
     return;
   }
   const nextSets = { ...state.nameSets };
@@ -5472,7 +5487,11 @@ async function goChapter(step) {
 async function reloadCurrentChapter() {
   if (!state.chapterId) return;
   if (state.chapterRawEdited && isCurrentChapterRemoteSource()) {
-    if (!window.confirm(state.shell.t("confirmReloadChapterEditedRaw"))) {
+    if (!await state.shell.confirmDialog({
+      title: state.shell.t("reloadChapter"),
+      message: state.shell.t("confirmReloadChapterEditedRaw"),
+      confirmText: state.shell.t("reloadChapter"),
+    })) {
       return;
     }
   }
