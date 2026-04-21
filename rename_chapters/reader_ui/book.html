@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260420-booksupp2">
+  <link rel="stylesheet" href="./styles.css?v=20260421-booksupp4">
 </head>
 
 <body data-page="book" class="mpa-body">
@@ -239,12 +239,25 @@
           <h4 id="book-supplement-title"></h4>
           <p id="book-supplement-hint" class="dialog-subtitle"></p>
         </div>
+        <div id="book-supplement-manage-row" class="book-supplement-manage-row hidden">
+          <p id="book-supplement-manage-info" class="empty-text"></p>
+          <div class="book-supplement-manage-actions">
+            <button id="btn-book-supplement-delete-latest" class="btn btn-small" type="button"></button>
+          </div>
+        </div>
         <div class="book-supplement-grid">
           <label>
             <span id="book-supplement-target-mode-label"></span>
             <select id="book-supplement-target-mode">
               <option value="existing"></option>
               <option value="new"></option>
+            </select>
+          </label>
+          <label id="book-supplement-multi-mode-wrap" class="hidden">
+            <span id="book-supplement-multi-mode-label"></span>
+            <select id="book-supplement-multi-mode">
+              <option value="position"></option>
+              <option value="server"></option>
             </select>
           </label>
           <label id="book-supplement-volume-wrap">
@@ -261,7 +274,7 @@
           </label>
         </div>
         <div class="book-supplement-file-row">
-          <input id="book-supplement-file-input" type="file" accept=".txt,text/plain" hidden>
+          <input id="book-supplement-file-input" type="file" accept=".txt,text/plain" multiple hidden>
           <button id="btn-book-supplement-pick" class="btn btn-small" type="button"></button>
           <span id="book-supplement-file-name" class="empty-text"></span>
         </div>
@@ -689,7 +702,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/book_page.js?v=20260420-booksupp2"></script>
+  <script type="module" src="./js/pages/book_page.js?v=20260421-booksupp4"></script>
 </body>
 
 </html>

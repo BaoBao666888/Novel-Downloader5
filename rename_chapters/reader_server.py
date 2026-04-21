@@ -147,6 +147,7 @@ LOCAL_DIR = RUNTIME_ROOT / "local"
 CACHE_DIR = LOCAL_DIR / "reader_cache"
 EXPORT_DIR = LOCAL_DIR / "reader_exports"
 COVER_DIR = LOCAL_DIR / "reader_covers"
+SUPPLEMENT_SOURCE_DIR = LOCAL_DIR / "reader_supplement_sources"
 VBOOK_IMAGE_CACHE_DIR = CACHE_DIR / "vbook_image_cache"
 IMPORT_PREVIEW_DIR = CACHE_DIR / "import_previews"
 DB_PATH = LOCAL_DIR / "reader_library.db"
@@ -453,11 +454,12 @@ def cleanup_reader_log_files(*, keep_days: int = 30) -> None:
 
 def set_local_dirs(local_dir: Path) -> None:
     """Override local/cache/export/cover dirs theo vị trí DB để ND5 + Reader dùng chung."""
-    global LOCAL_DIR, CACHE_DIR, EXPORT_DIR, COVER_DIR, VBOOK_IMAGE_CACHE_DIR, IMPORT_PREVIEW_DIR, DB_PATH
+    global LOCAL_DIR, CACHE_DIR, EXPORT_DIR, COVER_DIR, SUPPLEMENT_SOURCE_DIR, VBOOK_IMAGE_CACHE_DIR, IMPORT_PREVIEW_DIR, DB_PATH
     LOCAL_DIR = local_dir
     CACHE_DIR = LOCAL_DIR / "reader_cache"
     EXPORT_DIR = LOCAL_DIR / "reader_exports"
     COVER_DIR = LOCAL_DIR / "reader_covers"
+    SUPPLEMENT_SOURCE_DIR = LOCAL_DIR / "reader_supplement_sources"
     VBOOK_IMAGE_CACHE_DIR = CACHE_DIR / "vbook_image_cache"
     IMPORT_PREVIEW_DIR = CACHE_DIR / "import_previews"
     DB_PATH = LOCAL_DIR / "reader_library.db"
@@ -950,6 +952,7 @@ def ensure_dirs() -> None:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
     COVER_DIR.mkdir(parents=True, exist_ok=True)
+    SUPPLEMENT_SOURCE_DIR.mkdir(parents=True, exist_ok=True)
     VBOOK_IMAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -4619,7 +4622,14 @@ class ReaderStorage:
         folder.mkdir(parents=True, exist_ok=True)
         return folder / f"{cache_key}.txt"
 
-    def write_cache(self, cache_key: str, lang: str, text: str) -> dict[str, Any]:
+    def write_cache(
+        self,
+        cache_key: str,
+        lang: str,
+        text: str,
+        *,
+        conn: sqlite3.Connection | None = None,
+    ) -> dict[str, Any]:
         return storage_cache_support.write_cache(
             self,
             cache_key,
@@ -4627,6 +4637,7 @@ class ReaderStorage:
             text,
             utc_now_iso=utc_now_iso,
             cache_dir=CACHE_DIR,
+            conn=conn,
         )
 
     def read_cache(self, cache_key: str) -> str | None:
@@ -5512,20 +5523,28 @@ class ReaderStorage:
         chapters: list[dict[str, Any]],
         *,
         file_name: str = "",
+        file_mode: str = "single",
+        parse_mode: str = "",
         target_mode: str = "existing",
         volume_id: str = "",
         new_volume_title: str = "",
         note: str = "",
+        source_files: list[tuple[str, bytes]] | None = None,
+        source_store_dir: Path | None = None,
     ) -> dict[str, Any]:
         return storage_book_mutation_support.append_book_supplement(
             self,
             book_id,
             chapters,
             file_name=file_name,
+            file_mode=file_mode,
+            parse_mode=parse_mode,
             target_mode=target_mode,
             volume_id=volume_id,
             new_volume_title=new_volume_title,
             note=note,
+            source_files=source_files,
+            source_store_dir=source_store_dir,
             utc_now_iso=utc_now_iso,
             hash_text=hash_text,
             deleted_retention_days=BOOK_SUPPLEMENT_RETENTION_DAYS,
@@ -5608,7 +5627,11 @@ class ReaderStorage:
         return storage_history_support.cleanup_expired_history(self, utc_now_iso=utc_now_iso)
 
     def cleanup_expired_book_recycle_bin(self) -> dict[str, int]:
-        return storage_book_change_support.cleanup_expired_book_recycle_bin(self, utc_now_iso=utc_now_iso)
+        return storage_book_change_support.cleanup_expired_book_recycle_bin(
+            self,
+            utc_now_iso=utc_now_iso,
+            supplement_source_dir=SUPPLEMENT_SOURCE_DIR,
+        )
 
     def list_history_books(self) -> list[dict[str, Any]]:
         return storage_history_support.list_history_books(
@@ -5642,7 +5665,41 @@ class ReaderStorage:
         )
 
     def list_book_change_events(self, book_id: str, *, limit: int = 200) -> list[dict[str, Any]]:
-        return storage_book_change_support.list_book_change_events(self, book_id, limit=limit)
+        return storage_book_change_support.list_book_change_events(
+            self,
+            book_id,
+            limit=limit,
+            supplement_source_dir=SUPPLEMENT_SOURCE_DIR,
+            deleted_retention_days=BOOK_SUPPLEMENT_RETENTION_DAYS,
+        )
+
+    def delete_book_supplement_batch(self, book_id: str, batch_id: str) -> dict[str, Any]:
+        return storage_book_mutation_support.delete_book_supplement_batch(
+            self,
+            book_id,
+            batch_id,
+            utc_now_iso=utc_now_iso,
+            hash_text=hash_text,
+            deleted_retention_days=BOOK_SUPPLEMENT_RETENTION_DAYS,
+        )
+
+    def restore_book_supplement_batch(self, book_id: str, batch_id: str) -> dict[str, Any]:
+        return storage_book_mutation_support.restore_book_supplement_batch(
+            self,
+            book_id,
+            batch_id,
+            utc_now_iso=utc_now_iso,
+            hash_text=hash_text,
+            deleted_retention_days=BOOK_SUPPLEMENT_RETENTION_DAYS,
+        )
+
+    def get_book_supplement_source_download(self, book_id: str, batch_id: str) -> dict[str, Any]:
+        return storage_book_mutation_support.get_book_supplement_source_download(
+            self,
+            book_id,
+            batch_id,
+            source_store_dir=SUPPLEMENT_SOURCE_DIR,
+        )
 
     def get_history_book(self, history_id: str) -> dict[str, Any] | None:
         return storage_history_support.get_history_book(self, history_id)
@@ -6201,9 +6258,10 @@ class ReaderService:
     def prepare_book_supplement_file(
         self,
         book_id: str,
-        filename: str,
-        file_bytes: bytes,
+        files: list[tuple[str, bytes]],
         *,
+        upload_mode: str = "",
+        multi_parse_mode: str = "",
         target_mode: str = "existing",
         volume_id: str = "",
         new_volume_title: str = "",
@@ -6212,8 +6270,9 @@ class ReaderService:
         return service_local_import_support.prepare_book_supplement_file(
             self,
             book_id,
-            filename,
-            file_bytes,
+            files,
+            upload_mode=upload_mode,
+            multi_parse_mode=multi_parse_mode,
             target_mode=target_mode,
             volume_id=volume_id,
             new_volume_title=new_volume_title,
@@ -6226,6 +6285,7 @@ class ReaderService:
             normalize_lang_source=normalize_lang_source,
             parse_epub_book=parse_epub_book,
             parse_txt_book=parse_txt_book,
+            decode_text_with_fallback=decode_text_with_fallback,
             normalize_vbook_display_text=normalize_vbook_display_text,
         )
 
@@ -6234,6 +6294,8 @@ class ReaderService:
         token: str,
         *,
         book_id: str,
+        upload_mode: str = "",
+        multi_parse_mode: str = "",
         target_mode: str = "",
         volume_id: str = "",
         new_volume_title: str = "",
@@ -6243,19 +6305,26 @@ class ReaderService:
             self,
             token,
             book_id=book_id,
+            upload_mode=upload_mode,
+            multi_parse_mode=multi_parse_mode,
             target_mode=target_mode,
             volume_id=volume_id,
             new_volume_title=new_volume_title,
             note=note,
             import_preview_dir=IMPORT_PREVIEW_DIR,
+            supplement_source_dir=SUPPLEMENT_SOURCE_DIR,
             ApiError=ApiError,
             HTTPStatus=HTTPStatus,
             normalize_reader_import_settings=normalize_reader_import_settings,
             normalize_lang_source=normalize_lang_source,
             parse_epub_book=parse_epub_book,
             parse_txt_book=parse_txt_book,
+            decode_text_with_fallback=decode_text_with_fallback,
             normalize_vbook_display_text=normalize_vbook_display_text,
         )
+
+    def get_book_supplement_source_download(self, book_id: str, batch_id: str) -> dict[str, Any]:
+        return self.storage.get_book_supplement_source_download(book_id, batch_id)
 
     def prepare_import_url(
         self,
@@ -15139,6 +15208,12 @@ class MultipartForm:
             if item.filename is not None:
                 return item
         return None
+
+    def getlist(self, name: str) -> list[MultipartPart]:
+        return list(self._items.get(name) or [])
+
+    def get_files(self, name: str) -> list[MultipartPart]:
+        return [item for item in (self._items.get(name) or []) if item.filename is not None]
 
 
 class ReaderApiHandler(SimpleHTTPRequestHandler):

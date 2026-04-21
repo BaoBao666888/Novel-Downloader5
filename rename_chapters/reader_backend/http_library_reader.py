@@ -407,15 +407,18 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
     if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/supplement/prepare"):
         book_id = path.removeprefix("/api/library/book/").removesuffix("/supplement/prepare").strip("/")
         form = handler._read_multipart_form()
-        if "file" not in form:
+        file_items = form.get_files("files")
+        if not file_items and "file" in form:
+            single_item = form.get_file("file")
+            if single_item is not None:
+                file_items = [single_item]
+        if not file_items:
             raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu file bổ sung.")
-        file_item = form.get_file("file")
-        if file_item is None:
-            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "File bổ sung không hợp lệ.")
         return handler.service.prepare_book_supplement_file(
             book_id,
-            file_item.filename or "supplement.txt",
-            file_item.content,
+            [(item.filename or "supplement.txt", item.content) for item in file_items],
+            upload_mode=(form.getfirst("upload_mode") or "").strip(),
+            multi_parse_mode=(form.getfirst("multi_parse_mode") or "").strip(),
             target_mode=(form.getfirst("target_mode") or "existing").strip(),
             volume_id=(form.getfirst("volume_id") or "").strip(),
             new_volume_title=(form.getfirst("new_volume_title") or "").strip(),
@@ -431,11 +434,31 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         result = handler.service.commit_book_supplement_token(
             token,
             book_id=book_id,
+            upload_mode=str(payload.get("upload_mode") or "").strip(),
+            multi_parse_mode=str(payload.get("multi_parse_mode") or "").strip(),
             target_mode=str(payload.get("target_mode") or "").strip(),
             volume_id=str(payload.get("volume_id") or "").strip(),
             new_volume_title=str(payload.get("new_volume_title") or "").strip(),
             note=str(payload.get("note") or "").strip(),
         )
+        return {"ok": True, **dict(result or {})}
+
+    if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/supplement/delete"):
+        book_id = path.removeprefix("/api/library/book/").removesuffix("/supplement/delete").strip("/")
+        payload = handler._read_json_body()
+        batch_id = str(payload.get("batch_id") or "").strip()
+        if not batch_id:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu batch_id cần xóa.")
+        result = storage.delete_book_supplement_batch(book_id, batch_id)
+        return {"ok": True, **dict(result or {})}
+
+    if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/supplement/restore"):
+        book_id = path.removeprefix("/api/library/book/").removesuffix("/supplement/restore").strip("/")
+        payload = handler._read_json_body()
+        batch_id = str(payload.get("batch_id") or "").strip()
+        if not batch_id:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu batch_id cần khôi phục.")
+        result = storage.restore_book_supplement_batch(book_id, batch_id)
         return {"ok": True, **dict(result or {})}
 
     if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/cover"):

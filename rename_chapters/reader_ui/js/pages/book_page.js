@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260420-booksupp2";
+import { initShell } from "../site_common.js?v=20260421-booksupp4";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -80,8 +80,14 @@ const refs = {
   bookSupplementSection: document.getElementById("book-supplement-section"),
   bookSupplementTitle: document.getElementById("book-supplement-title"),
   bookSupplementHint: document.getElementById("book-supplement-hint"),
+  bookSupplementManageRow: document.getElementById("book-supplement-manage-row"),
+  bookSupplementManageInfo: document.getElementById("book-supplement-manage-info"),
+  btnBookSupplementDeleteLatest: document.getElementById("btn-book-supplement-delete-latest"),
   bookSupplementTargetModeLabel: document.getElementById("book-supplement-target-mode-label"),
   bookSupplementTargetMode: document.getElementById("book-supplement-target-mode"),
+  bookSupplementMultiModeWrap: document.getElementById("book-supplement-multi-mode-wrap"),
+  bookSupplementMultiModeLabel: document.getElementById("book-supplement-multi-mode-label"),
+  bookSupplementMultiMode: document.getElementById("book-supplement-multi-mode"),
   bookSupplementVolumeWrap: document.getElementById("book-supplement-volume-wrap"),
   bookSupplementVolumeLabel: document.getElementById("book-supplement-volume-label"),
   bookSupplementVolumeSelect: document.getElementById("book-supplement-volume-select"),
@@ -362,6 +368,20 @@ function currentSupplementTargetMode() {
     : "existing";
 }
 
+function getSelectedBookSupplementFiles() {
+  return Array.from((refs.bookSupplementFileInput && refs.bookSupplementFileInput.files) || []);
+}
+
+function currentSupplementUploadMode() {
+  return getSelectedBookSupplementFiles().length > 1 ? "multi" : "single";
+}
+
+function currentSupplementMultiParseMode() {
+  return String((refs.bookSupplementMultiMode && refs.bookSupplementMultiMode.value) || "server").trim() === "position"
+    ? "position"
+    : "server";
+}
+
 function getBookSupplementAppendableVolumes() {
   return (Array.isArray(state.tocVolumes) ? state.tocVolumes : [])
     .filter((item) => {
@@ -374,6 +394,18 @@ function getBookSupplementSelectedVolume() {
   const targetVolumeId = String((refs.bookSupplementVolumeSelect && refs.bookSupplementVolumeSelect.value) || "").trim();
   return (Array.isArray(state.tocVolumes) ? state.tocVolumes : [])
     .find((item) => String((item && item.volume_id) || "").trim() === targetVolumeId) || null;
+}
+
+function getLatestSupplementBatchForVolume(volume) {
+  const latest = (volume && typeof volume.latest_supplement === "object") ? volume.latest_supplement : null;
+  return latest ? { ...latest } : null;
+}
+
+function buildSupplementBatchDownloadUrl(batchId) {
+  const bookId = String(state.bookId || "").trim();
+  const targetBatchId = String(batchId || "").trim();
+  if (!bookId || !targetBatchId) return "";
+  return `/media/supplement/${encodeURIComponent(targetBatchId)}?book_id=${encodeURIComponent(bookId)}`;
 }
 
 function resolveTocPageSize() {
@@ -1350,10 +1382,16 @@ function renderBookSupplementForm() {
   const book = state.book;
   const enabled = canUseBookSupplement(book);
   refs.bookSupplementSection.classList.toggle("hidden", !enabled);
-  if (!enabled) return;
+  if (!enabled) {
+    if (refs.bookSupplementManageRow) refs.bookSupplementManageRow.classList.add("hidden");
+    return;
+  }
 
   const volumes = getBookSupplementAppendableVolumes();
   const hasExistingOption = volumes.length > 0;
+  const files = getSelectedBookSupplementFiles();
+  const uploadMode = currentSupplementUploadMode();
+  const isMulti = uploadMode === "multi";
   if (refs.bookSupplementTargetMode) {
     const existingOption = refs.bookSupplementTargetMode.querySelector('option[value="existing"]');
     if (existingOption) existingOption.disabled = !hasExistingOption;
@@ -1379,6 +1417,7 @@ function renderBookSupplementForm() {
   }
 
   const targetMode = currentSupplementTargetMode();
+  if (refs.bookSupplementMultiModeWrap) refs.bookSupplementMultiModeWrap.classList.toggle("hidden", !isMulti);
   if (refs.bookSupplementVolumeWrap) refs.bookSupplementVolumeWrap.classList.toggle("hidden", targetMode !== "existing");
   if (refs.bookSupplementNewVolumeWrap) refs.bookSupplementNewVolumeWrap.classList.toggle("hidden", targetMode !== "new");
 
@@ -1388,18 +1427,40 @@ function renderBookSupplementForm() {
     : "Truyện import bằng file: quyển mặc định vẫn cho bổ sung vào cuối quyển.";
   const volume = getBookSupplementSelectedVolume();
   const volumePolicy = (volume && typeof volume.policy === "object") ? volume.policy : {};
+  const latestBatch = getLatestSupplementBatchForVolume(volume);
+  const fileModeText = isMulti
+    ? (currentSupplementMultiParseMode() === "position"
+      ? "Nhiều file: giữ nguyên thứ tự file đã chọn và lấy dòng đầu mỗi file làm tên chương."
+      : "Nhiều file: ưu tiên parse từ tên file, fallback sang dòng đầu; file parse được số chương sẽ tự xếp theo số.")
+    : "Một file: sẽ tách chương như import TXT hiện tại.";
   const targetHint = targetMode === "new"
     ? "Quyển mới sẽ được thêm ở cuối bộ truyện."
     : (volumePolicy.sync_with_source_toc
       ? "Quyển này đang đồng bộ với mục lục nguồn. Muốn bổ sung thêm, hãy tạo quyển mới."
       : "Các chương TXT mới sẽ được nối vào cuối quyển đã chọn.");
-  if (refs.bookSupplementHint) refs.bookSupplementHint.textContent = `${sourceModeText} ${targetHint}`;
+  if (refs.bookSupplementHint) refs.bookSupplementHint.textContent = `${sourceModeText} ${fileModeText} ${targetHint}`;
 
-  const hasFile = Boolean(refs.bookSupplementFileInput && refs.bookSupplementFileInput.files && refs.bookSupplementFileInput.files[0]);
-  const prepareDisabled = !hasFile
+  const prepareDisabled = files.length <= 0
     || (targetMode === "existing" && !hasExistingOption)
     || (targetMode === "new" && !String((refs.bookSupplementNewVolumeInput && refs.bookSupplementNewVolumeInput.value) || "").trim());
   if (refs.btnBookSupplementPrepare) refs.btnBookSupplementPrepare.disabled = prepareDisabled;
+  if (refs.bookSupplementManageRow && refs.bookSupplementManageInfo && refs.btnBookSupplementDeleteLatest) {
+    const canShowManage = targetMode === "existing" && Boolean(latestBatch);
+    refs.bookSupplementManageRow.classList.toggle("hidden", !canShowManage);
+    if (canShowManage) {
+      const parts = [];
+      parts.push(`Đợt gần nhất: ${Math.max(0, Number(latestBatch.chapter_count || 0))} chương`);
+      if (String(latestBatch.file_mode || "").trim() === "multi") {
+        parts.push(`nguồn ${Math.max(1, Number(latestBatch.source_file_count || 0))} file TXT`);
+      }
+      if (String(latestBatch.note || "").trim()) parts.push(`ghi chú: ${String(latestBatch.note || "").trim()}`);
+      refs.bookSupplementManageInfo.textContent = parts.join(" • ");
+      refs.btnBookSupplementDeleteLatest.disabled = !latestBatch.can_delete;
+    } else {
+      refs.bookSupplementManageInfo.textContent = "";
+      refs.btnBookSupplementDeleteLatest.disabled = true;
+    }
+  }
 }
 
 function clearBookSupplementPreviewState() {
@@ -1410,15 +1471,14 @@ function clearBookSupplementPreviewState() {
 function resetBookSupplementForm({ clearFile = true } = {}) {
   clearBookSupplementPreviewState();
   if (clearFile && refs.bookSupplementFileInput) refs.bookSupplementFileInput.value = "";
-  if (refs.bookSupplementFileName) {
-    const file = refs.bookSupplementFileInput && refs.bookSupplementFileInput.files ? refs.bookSupplementFileInput.files[0] : null;
-    refs.bookSupplementFileName.textContent = file ? String(file.name || "").trim() : "Chưa chọn file TXT nào.";
-  }
+  renderSelectedBookSupplementFilesLabel();
   renderBookSupplementForm();
 }
 
 function collectBookSupplementPayload() {
   return {
+    upload_mode: currentSupplementUploadMode(),
+    multi_parse_mode: currentSupplementMultiParseMode(),
     target_mode: currentSupplementTargetMode(),
     volume_id: String((refs.bookSupplementVolumeSelect && refs.bookSupplementVolumeSelect.value) || "").trim(),
     new_volume_title: String((refs.bookSupplementNewVolumeInput && refs.bookSupplementNewVolumeInput.value) || "").trim(),
@@ -1426,13 +1486,48 @@ function collectBookSupplementPayload() {
   };
 }
 
+function renderSelectedBookSupplementFilesLabel() {
+  if (!refs.bookSupplementFileName) return;
+  const files = getSelectedBookSupplementFiles();
+  if (!files.length) {
+    refs.bookSupplementFileName.textContent = "Chưa chọn file TXT nào.";
+    return;
+  }
+  if (files.length === 1) {
+    refs.bookSupplementFileName.textContent = String(files[0].name || "").trim() || "supplement.txt";
+    return;
+  }
+  const previewNames = files.slice(0, 3).map((file) => String(file.name || "").trim()).filter(Boolean);
+  const suffix = files.length > 3 ? `, +${files.length - 3} file nữa` : "";
+  refs.bookSupplementFileName.textContent = `${files.length} file TXT: ${previewNames.join(", ")}${suffix}`;
+}
+
+function supplementParseSourceLabel(value) {
+  const key = String(value || "").trim().toLowerCase();
+  if (key === "filename") return "tên file";
+  if (key === "content") return "dòng đầu";
+  if (key === "position") return "theo vị trí";
+  return "fallback";
+}
+
 function renderBookSupplementPreview(preview) {
   state.supplementPreviewData = preview && typeof preview === "object" ? preview : null;
   const data = state.supplementPreviewData || {};
   const metadata = (data && typeof data.metadata === "object") ? data.metadata : {};
   const target = (data && typeof data.target === "object") ? data.target : {};
-  if (refs.bookSupplementPreviewFileName) refs.bookSupplementPreviewFileName.textContent = String(data.file_name || "").trim() || "supplement.txt";
-  if (refs.bookSupplementPreviewFileType) refs.bookSupplementPreviewFileType.textContent = String(data.file_ext || "txt").toUpperCase();
+  const fileCount = Math.max(1, Number(metadata.file_count || 1));
+  const uploadMode = String(metadata.upload_mode || "single").trim();
+  const parseMode = String(metadata.parse_mode || "single").trim();
+  if (refs.bookSupplementPreviewFileName) {
+    refs.bookSupplementPreviewFileName.textContent = fileCount > 1
+      ? `${fileCount} file TXT`
+      : (String(data.file_name || "").trim() || "supplement.txt");
+  }
+  if (refs.bookSupplementPreviewFileType) {
+    refs.bookSupplementPreviewFileType.textContent = uploadMode === "multi"
+      ? (parseMode === "position" ? "TXT nhiều file • Theo vị trí" : "TXT nhiều file • Theo parse server")
+      : String(data.file_ext || "txt").toUpperCase();
+  }
   if (refs.bookSupplementPreviewChapterCount) refs.bookSupplementPreviewChapterCount.textContent = String(Math.max(0, Number(metadata.chapter_count || 0)));
   if (refs.bookSupplementPreviewTargetValue) {
     refs.bookSupplementPreviewTargetValue.textContent = target.mode === "new"
@@ -1441,12 +1536,20 @@ function renderBookSupplementPreview(preview) {
   }
   if (refs.bookSupplementPreviewNoteValue) refs.bookSupplementPreviewNoteValue.textContent = String(target.note || "").trim() || "Không có";
   if (refs.bookSupplementPreviewHint) {
-    refs.bookSupplementPreviewHint.textContent = `Sẽ bổ sung ${Math.max(0, Number(metadata.chapter_count || 0))} chương TXT vào truyện hiện tại.`;
+    refs.bookSupplementPreviewHint.textContent = uploadMode === "multi"
+      ? `Sẽ ghép ${fileCount} file TXT thành ${Math.max(0, Number(metadata.chapter_count || 0))} chương để bổ sung vào truyện hiện tại.`
+      : `Sẽ bổ sung ${Math.max(0, Number(metadata.chapter_count || 0))} chương TXT vào truyện hiện tại.`;
   }
   if (refs.bookSupplementPreviewDiagnostics) {
     const diagnostics = (data && typeof data.diagnostics === "object") ? data.diagnostics : {};
     const parts = [];
     if (String(metadata.detected_lang || "").trim()) parts.push(`Ngôn ngữ nhận diện: ${String(metadata.detected_lang || "").trim()}`);
+    if (uploadMode === "multi") {
+      parts.push(parseMode === "position" ? "Mode: Theo vị trí file" : "Mode: Theo parse server");
+      if (Number(diagnostics.numbered_hits || 0) > 0) parts.push(`File có số chương: ${Number(diagnostics.numbered_hits || 0)}`);
+      if (Number(diagnostics.filename_hits || 0) > 0) parts.push(`Parse từ tên file: ${Number(diagnostics.filename_hits || 0)}`);
+      if (Number(diagnostics.content_hits || 0) > 0) parts.push(`Fallback dòng đầu: ${Number(diagnostics.content_hits || 0)}`);
+    }
     if (Array.isArray(diagnostics.heading_matches) && diagnostics.heading_matches.length) {
       parts.push(`Dòng tách chương: ${diagnostics.heading_matches.length}`);
     }
@@ -1469,7 +1572,10 @@ function renderBookSupplementPreview(preview) {
       head.textContent = `${Number(item.index || 0)}. ${normalizeDisplayTitle(String(item.title || "").trim())}`;
       const meta = document.createElement("div");
       meta.className = "import-preview-chapter-meta";
-      meta.textContent = `${Math.max(0, Number(item.word_count || 0))} ký tự`;
+      const metaParts = [`${Math.max(0, Number(item.word_count || 0))} ký tự`];
+      if (String(item.file_name || "").trim()) metaParts.push(String(item.file_name || "").trim());
+      if (String(item.parse_source || "").trim()) metaParts.push(`Tên: ${supplementParseSourceLabel(item.parse_source)}`);
+      meta.textContent = metaParts.join(" • ");
       const text = document.createElement("div");
       text.className = "import-preview-chapter-text";
       text.textContent = String(item.preview || "").trim();
@@ -1567,6 +1673,34 @@ function describeBookChangeEvent(entry) {
       meta: Boolean(payload.created_volume) ? "Đợt này có tạo quyển mới trước khi chèn chương." : "",
     };
   }
+  if (eventType === "supplement_deleted") {
+    const chapterCount = normalizeHistoryCount(payload.chapter_count);
+    const volumeTitle = normalizeDisplayTitle(String(payload.volume_title || "").trim() || "quyển đã chọn");
+    const fileName = String(payload.file_name || "").trim();
+    const expireAt = formatBookHistoryTime(payload.delete_expire_at);
+    const lines = [
+      chapterCount > 0
+        ? `Đã xóa mềm ${chapterCount} chương bổ sung mới nhất khỏi ${volumeTitle}.`
+        : `Đã xóa mềm một đợt bổ sung khỏi ${volumeTitle}.`,
+    ];
+    if (fileName) lines.push(`File nguồn giữ lại: ${fileName}.`);
+    return {
+      title: "Đã xóa mềm đợt bổ sung",
+      body: lines.join("\n"),
+      meta: expireAt ? `Có thể khôi phục hoặc tải lại file nguồn trước ${expireAt}.` : "",
+    };
+  }
+  if (eventType === "supplement_restored") {
+    const chapterCount = normalizeHistoryCount(payload.chapter_count);
+    const volumeTitle = normalizeDisplayTitle(String(payload.volume_title || "").trim() || "quyển đã chọn");
+    return {
+      title: "Đã khôi phục đợt bổ sung",
+      body: chapterCount > 0
+        ? `Đã đưa lại ${chapterCount} chương bổ sung vào ${volumeTitle}.`
+        : `Đã khôi phục một đợt bổ sung vào ${volumeTitle}.`,
+      meta: Boolean(payload.volume_restored) ? "Quyển phụ đã được mở lại cùng đợt bổ sung này." : "",
+    };
+  }
   return {
     title: normalizeDisplayTitle(String(item.event_type || "Thay đổi sách").trim() || "Thay đổi sách"),
     body: normalizeParagraphDisplayText(JSON.stringify(payload || {}, null, 2), { singleLine: false }) || "Hệ thống đã ghi nhận một thay đổi mới.",
@@ -1604,6 +1738,48 @@ function renderBookHistory() {
       meta.className = "book-history-item-meta";
       meta.textContent = String(info.meta || "").trim();
       card.appendChild(meta);
+    }
+    const batchState = (entry && typeof entry.batch_state === "object") ? entry.batch_state : null;
+    const eventType = String((entry && entry.event_type) || "").trim().toLowerCase();
+    const showDeleteAction = batchState && batchState.can_delete && (eventType === "supplement_added" || eventType === "supplement_restored");
+    const showRestoreAction = batchState && batchState.can_restore && eventType === "supplement_deleted";
+    const showDownloadAction = batchState && batchState.source_download_available && eventType === "supplement_deleted";
+    if (batchState && (showDeleteAction || showRestoreAction || showDownloadAction)) {
+      const actions = document.createElement("div");
+      actions.className = "book-history-item-actions";
+      if (showDeleteAction) {
+        const btnDelete = document.createElement("button");
+        btnDelete.type = "button";
+        btnDelete.className = "btn btn-small";
+        btnDelete.textContent = "Xóa đợt này";
+        btnDelete.addEventListener("click", () => {
+          deleteLatestBookSupplement(batchState.batch_id).catch(() => {});
+        });
+        actions.appendChild(btnDelete);
+      }
+      if (showRestoreAction) {
+        const btnRestore = document.createElement("button");
+        btnRestore.type = "button";
+        btnRestore.className = "btn btn-small";
+        btnRestore.textContent = "Khôi phục";
+        btnRestore.addEventListener("click", () => {
+          restoreBookSupplementBatch(batchState.batch_id).catch(() => {});
+        });
+        actions.appendChild(btnRestore);
+      }
+      if (showDownloadAction) {
+        const btnDownload = document.createElement("button");
+        btnDownload.type = "button";
+        btnDownload.className = "btn btn-small";
+        btnDownload.textContent = "Tải file";
+        btnDownload.addEventListener("click", () => {
+          const url = buildSupplementBatchDownloadUrl(batchState.batch_id);
+          if (!url) return;
+          window.open(url, "_blank", "noopener,noreferrer");
+        });
+        actions.appendChild(btnDownload);
+      }
+      if (actions.childNodes.length) card.appendChild(actions);
     }
     refs.bookHistoryList.appendChild(card);
   }
@@ -1931,10 +2107,8 @@ async function applyCoverUrl() {
 
 async function prepareBookSupplement() {
   if (!state.bookId || !canUseBookSupplement(state.book)) return;
-  const file = refs.bookSupplementFileInput && refs.bookSupplementFileInput.files
-    ? refs.bookSupplementFileInput.files[0]
-    : null;
-  if (!file) {
+  const files = getSelectedBookSupplementFiles();
+  if (!files.length) {
     state.shell.showToast("Chưa chọn file TXT để bổ sung.");
     return;
   }
@@ -1947,7 +2121,11 @@ async function prepareBookSupplement() {
   state.shell.showStatus("Đang duyệt file TXT bổ sung...");
   try {
     const form = new FormData();
-    form.set("file", file, String(file.name || "supplement.txt"));
+    for (const file of files) {
+      form.append("files", file, String(file.name || "supplement.txt"));
+    }
+    form.set("upload_mode", payload.upload_mode);
+    form.set("multi_parse_mode", payload.multi_parse_mode);
     form.set("target_mode", payload.target_mode);
     form.set("volume_id", payload.volume_id);
     form.set("new_volume_title", payload.new_volume_title);
@@ -1977,6 +2155,8 @@ async function commitBookSupplement() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         token,
+        upload_mode: payload.upload_mode,
+        multi_parse_mode: payload.multi_parse_mode,
         ...payload,
       }),
     });
@@ -1997,6 +2177,71 @@ async function commitBookSupplement() {
     state.shell.showToast(`Đã bổ sung ${Math.max(0, Number(data && data.added_chapters || 0))} chương.`);
   } catch (error) {
     state.supplementPreviewToken = token;
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function deleteLatestBookSupplement(batchId = "") {
+  if (!state.bookId) return;
+  const explicitBatchId = String(batchId || "").trim();
+  const volume = getBookSupplementSelectedVolume();
+  const latestBatch = explicitBatchId ? { batch_id: explicitBatchId } : getLatestSupplementBatchForVolume(volume);
+  if (!latestBatch || !latestBatch.batch_id) {
+    state.shell.showToast("Quyển này chưa có đợt bổ sung nào để xóa.");
+    return;
+  }
+  if (!window.confirm("Xóa mềm đợt bổ sung TXT mới nhất của quyển này? Bạn vẫn có thể khôi phục trong vòng 30 ngày.")) return;
+  state.shell.showStatus("Đang xóa đợt bổ sung...");
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/supplement/delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ batch_id: String(latestBatch.batch_id || "").trim() }),
+    });
+    if (data && data.book) {
+      state.book = data.book;
+      populateBook();
+    } else {
+      await loadBook({ silent: true, suppressToast: true, showSkeleton: false });
+    }
+    await loadToc(1, { silent: true, suppressToast: true, showSkeleton: false });
+    if (refs.bookHistoryDialog && refs.bookHistoryDialog.open) {
+      await openBookHistoryDialog();
+    }
+    state.shell.showToast(`Đã xóa mềm ${Math.max(0, Number(data && data.deleted_chapters || 0))} chương bổ sung.`);
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function restoreBookSupplementBatch(batchId) {
+  const targetBatchId = String(batchId || "").trim();
+  if (!state.bookId || !targetBatchId) return;
+  if (!window.confirm("Khôi phục lại đợt bổ sung TXT này?")) return;
+  state.shell.showStatus("Đang khôi phục đợt bổ sung...");
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/supplement/restore`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ batch_id: targetBatchId }),
+    });
+    if (data && data.book) {
+      state.book = data.book;
+      populateBook();
+    } else {
+      await loadBook({ silent: true, suppressToast: true, showSkeleton: false });
+    }
+    if (data && data.volume_id) state.selectedTocVolumeId = String(data.volume_id || "").trim();
+    await loadToc(1, { silent: true, suppressToast: true, showSkeleton: false });
+    if (refs.bookHistoryDialog && refs.bookHistoryDialog.open) {
+      await openBookHistoryDialog();
+    }
+    state.shell.showToast(`Đã khôi phục ${Math.max(0, Number(data && data.restored_chapters || 0))} chương.`);
+  } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
     state.shell.hideStatus();
@@ -3132,6 +3377,14 @@ async function init() {
     if (existingOption) existingOption.textContent = "Quyển đã có";
     if (newOption) newOption.textContent = "Quyển mới";
   }
+  if (refs.bookSupplementMultiModeLabel) refs.bookSupplementMultiModeLabel.textContent = "Xử lý nhiều file";
+  if (refs.bookSupplementMultiMode) {
+    const positionOption = refs.bookSupplementMultiMode.querySelector('option[value="position"]');
+    const serverOption = refs.bookSupplementMultiMode.querySelector('option[value="server"]');
+    if (positionOption) positionOption.textContent = "Theo vị trí file";
+    if (serverOption) serverOption.textContent = "Theo parse server";
+  }
+  if (refs.btnBookSupplementDeleteLatest) refs.btnBookSupplementDeleteLatest.textContent = "Xóa đợt bổ sung mới nhất";
   if (refs.bookSupplementVolumeLabel) refs.bookSupplementVolumeLabel.textContent = "Chọn quyển";
   if (refs.bookSupplementNewVolumeLabel) refs.bookSupplementNewVolumeLabel.textContent = "Tên quyển mới";
   if (refs.bookSupplementNoteLabel) refs.bookSupplementNoteLabel.textContent = "Mô tả đợt bổ sung";
@@ -3154,7 +3407,7 @@ async function init() {
   }
   if (refs.bookHistoryTitle) refs.bookHistoryTitle.textContent = "Lịch sử thay đổi sách";
   if (refs.btnCloseBookHistory) refs.btnCloseBookHistory.textContent = "Đóng";
-  if (refs.bookHistoryHint) refs.bookHistoryHint.textContent = "Ghi lại các lần thêm truyện, đồng bộ mục lục và bổ sung chương gần đây.";
+  if (refs.bookHistoryHint) refs.bookHistoryHint.textContent = "Ghi lại các lần thêm truyện, đồng bộ mục lục, bổ sung chương và cho phép khôi phục đợt đã xóa mềm.";
   if (refs.bookHistoryEmpty) refs.bookHistoryEmpty.textContent = "Chưa có thay đổi nào được ghi lại.";
   refs.bookNameTitle.textContent = state.shell.t("bookPrivateNamesTitle");
   refs.btnCloseBookNames.textContent = state.shell.t("close");
@@ -3278,6 +3531,9 @@ async function init() {
   refs.btnOpenBookEdit.addEventListener("click", () => refs.bookEditDialog.showModal());
   refs.btnCloseBookEdit.addEventListener("click", () => refs.bookEditDialog.close());
   if (refs.btnCloseBookHistory) refs.btnCloseBookHistory.addEventListener("click", () => refs.bookHistoryDialog.close());
+  if (refs.btnBookSupplementDeleteLatest) refs.btnBookSupplementDeleteLatest.addEventListener("click", () => {
+    deleteLatestBookSupplement().catch(() => {});
+  });
   refs.btnCloseBookNames.addEventListener("click", () => refs.bookNameDialog.close());
   if (refs.btnCloseBookNameFilter) refs.btnCloseBookNameFilter.addEventListener("click", () => refs.bookNameFilterDialog.close());
   if (refs.btnCloseBookReplaces) refs.btnCloseBookReplaces.addEventListener("click", () => refs.bookReplaceDialog.close());
@@ -3491,8 +3747,10 @@ async function init() {
     if (refs.bookSupplementFileInput) refs.bookSupplementFileInput.click();
   });
   if (refs.bookSupplementFileInput) refs.bookSupplementFileInput.addEventListener("change", () => {
-    const file = refs.bookSupplementFileInput.files && refs.bookSupplementFileInput.files[0];
-    if (refs.bookSupplementFileName) refs.bookSupplementFileName.textContent = file ? String(file.name || "").trim() : "Chưa chọn file TXT nào.";
+    renderSelectedBookSupplementFilesLabel();
+    renderBookSupplementForm();
+  });
+  if (refs.bookSupplementMultiMode) refs.bookSupplementMultiMode.addEventListener("change", () => {
     renderBookSupplementForm();
   });
   if (refs.bookSupplementTargetMode) refs.bookSupplementTargetMode.addEventListener("change", () => {

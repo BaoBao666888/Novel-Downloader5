@@ -14,15 +14,24 @@ def cache_path_for_key(*, cache_dir: Path, cache_key: str) -> Path:
     return folder / f"{cache_key}.txt"
 
 
-def write_cache(storage, cache_key: str, lang: str, text: str, *, utc_now_iso, cache_dir: Path) -> dict[str, Any]:
+def write_cache(
+    storage,
+    cache_key: str,
+    lang: str,
+    text: str,
+    *,
+    utc_now_iso,
+    cache_dir: Path,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
     now = utc_now_iso()
     raw = str(text or "").encode("utf-8")
     sha256 = hashlib.sha256(raw).hexdigest()
     path = cache_path_for_key(cache_dir=cache_dir, cache_key=cache_key)
     path.write_bytes(raw)
 
-    with storage._connect() as conn:
-        conn.execute(
+    def _run(active_conn: sqlite3.Connection) -> None:
+        active_conn.execute(
             """
             INSERT INTO content_cache(cache_key, lang, text_path, sha256, bytes, created_at, updated_at)
             VALUES(?, ?, ?, ?, ?, ?, ?)
@@ -35,6 +44,12 @@ def write_cache(storage, cache_key: str, lang: str, text: str, *, utc_now_iso, c
             """,
             (cache_key, lang, str(path), sha256, len(raw), now, now),
         )
+
+    if conn is not None:
+        _run(conn)
+    else:
+        with storage._connect() as active_conn:
+            _run(active_conn)
     return {"cache_key": cache_key, "path": str(path), "sha256": sha256, "bytes": len(raw)}
 
 

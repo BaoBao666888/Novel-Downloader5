@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import io
 import json
 import mimetypes
+import shutil
+import zipfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -762,16 +766,122 @@ def update_chapter_trans(storage, chapter_id: str, trans_key: str, trans_sig: st
         )
 
 
+def _parse_supplement_batch_payload(raw_value: Any) -> dict[str, Any]:
+    try:
+        payload = json.loads(str(raw_value or "{}"))
+    except Exception:
+        return {}
+    return dict(payload) if isinstance(payload, dict) else {}
+
+
+def _normalize_supplement_file_mode(value: Any) -> str:
+    mode = str(value or "").strip().lower()
+    return "multi" if mode == "multi" else "single"
+
+
+def _normalize_supplement_parse_mode(value: Any, *, file_mode: str) -> str:
+    if file_mode != "multi":
+        return "single"
+    mode = str(value or "").strip().lower()
+    return "position" if mode == "position" else "server"
+
+
+def _safe_supplement_source_file_name(file_name: Any, index: int) -> str:
+    raw = Path(str(file_name or "").strip().replace("\\", "/")).name
+    base = raw.strip() or f"supplement_{index:04d}.txt"
+    safe = "".join(ch if ch.isalnum() or ch in {" ", ".", "-", "_", "(", ")"} else "_" for ch in base).strip()
+    return safe or f"supplement_{index:04d}.txt"
+
+
+def _normalize_supplement_source_manifest(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_items = payload.get("source_files")
+    if not isinstance(raw_items, list):
+        return []
+    items: list[dict[str, Any]] = []
+    for index, raw_item in enumerate(raw_items, start=1):
+        if not isinstance(raw_item, dict):
+            continue
+        stored_name = str(raw_item.get("stored_name") or "").strip()
+        file_name = _safe_supplement_source_file_name(raw_item.get("file_name"), index)
+        if not stored_name:
+            continue
+        items.append(
+            {
+                "stored_name": stored_name,
+                "file_name": file_name,
+                "size": max(0, int(raw_item.get("size") or 0)),
+                "order_index": max(1, int(raw_item.get("order_index") or index)),
+            }
+        )
+    items.sort(key=lambda item: (int(item.get("order_index") or 0), str(item.get("file_name") or "")))
+    return items
+
+
+def _persist_supplement_source_files(
+    batch_id: str,
+    source_files: list[tuple[str, bytes]] | None,
+    *,
+    source_store_dir: Path | None,
+) -> tuple[list[dict[str, Any]], Path | None]:
+    batch_key = str(batch_id or "").strip()
+    if not batch_key or not source_store_dir:
+        return [], None
+    files = source_files if isinstance(source_files, list) else []
+    if not files:
+        return [], None
+    batch_dir = source_store_dir / batch_key
+    batch_dir.mkdir(parents=True, exist_ok=True)
+    manifest: list[dict[str, Any]] = []
+    try:
+        for index, (file_name, file_bytes) in enumerate(files, start=1):
+            safe_name = _safe_supplement_source_file_name(file_name, index)
+            suffix = Path(safe_name).suffix or ".txt"
+            stored_name = f"source_{index:04d}{suffix}"
+            payload = bytes(file_bytes or b"")
+            (batch_dir / stored_name).write_bytes(payload)
+            manifest.append(
+                {
+                    "stored_name": stored_name,
+                    "file_name": safe_name,
+                    "size": len(payload),
+                    "order_index": index,
+                }
+            )
+    except Exception:
+        shutil.rmtree(batch_dir, ignore_errors=True)
+        raise
+    return manifest, batch_dir
+
+
+def _book_supplement_delete_expire_at(*, days: int) -> str:
+    keep_days = max(1, int(days or 30))
+    return (datetime.now(timezone.utc) + timedelta(days=keep_days)).isoformat()
+
+
+def _remove_supplement_source_batch_dir(batch_id: str, *, source_store_dir: Path | None) -> None:
+    batch_key = str(batch_id or "").strip()
+    if not batch_key or not source_store_dir:
+        return
+    try:
+        shutil.rmtree(source_store_dir / batch_key, ignore_errors=True)
+    except Exception:
+        pass
+
+
 def append_book_supplement(
     storage,
     book_id: str,
     chapters: list[dict[str, Any]],
     *,
     file_name: str = "",
+    file_mode: str = "single",
+    parse_mode: str = "",
     target_mode: str = "existing",
     volume_id: str = "",
     new_volume_title: str = "",
     note: str = "",
+    source_files: list[tuple[str, bytes]] | None = None,
+    source_store_dir: Path | None = None,
     utc_now_iso,
     hash_text,
     deleted_retention_days: int = 30,
@@ -798,117 +908,350 @@ def append_book_supplement(
     target_mode_key = str(target_mode or "existing").strip().lower()
     if target_mode_key not in {"existing", "new"}:
         target_mode_key = "existing"
+    file_mode_key = _normalize_supplement_file_mode(file_mode)
+    parse_mode_key = _normalize_supplement_parse_mode(parse_mode, file_mode=file_mode_key)
     requested_volume_id = str(volume_id or "").strip()
     note_text = str(note or "").strip()
     now = utc_now_iso()
     lang_source = str(book.get("lang_source") or "").strip() or "zh"
+    source_manifest: list[dict[str, Any]] = []
+    persisted_source_dir: Path | None = None
 
-    with storage._connect() as conn:
-        default_volume_id = ensure_default_book_volume(
-            storage,
-            bid,
-            conn=conn,
-            hash_text=hash_text,
-            utc_now_iso=utc_now_iso,
-        )
-        volume_rows = [
-            dict(row)
-            for row in conn.execute(
-                """
-                SELECT volume_id, volume_order, volume_kind, title_raw, title_vi, created_at, updated_at
-                FROM book_volumes
-                WHERE book_id = ?
-                  AND trim(COALESCE(deleted_at, '')) = ''
-                ORDER BY volume_order ASC, created_at ASC, volume_id ASC
-                """,
-                (bid,),
-            ).fetchall()
-        ]
-        if not volume_rows:
+    try:
+        with storage._connect() as conn:
+            default_volume_id = ensure_default_book_volume(
+                storage,
+                bid,
+                conn=conn,
+                hash_text=hash_text,
+                utc_now_iso=utc_now_iso,
+            )
             volume_rows = [
-                {
-                    "volume_id": default_volume_id,
-                    "volume_order": 1,
-                    "volume_kind": "default",
-                    "title_raw": "Mục lục",
-                    "title_vi": "Mục lục",
-                    "created_at": now,
-                    "updated_at": now,
-                }
+                dict(row)
+                for row in conn.execute(
+                    """
+                    SELECT volume_id, volume_order, volume_kind, title_raw, title_vi, created_at, updated_at
+                    FROM book_volumes
+                    WHERE book_id = ?
+                      AND trim(COALESCE(deleted_at, '')) = ''
+                    ORDER BY volume_order ASC, created_at ASC, volume_id ASC
+                    """,
+                    (bid,),
+                ).fetchall()
             ]
+            if not volume_rows:
+                volume_rows = [
+                    {
+                        "volume_id": default_volume_id,
+                        "volume_order": 1,
+                        "volume_kind": "default",
+                        "title_raw": "Mục lục",
+                        "title_vi": "Mục lục",
+                        "created_at": now,
+                        "updated_at": now,
+                    }
+                ]
 
-        target_volume = None
-        created_volume = None
-        if target_mode_key == "new":
-            title_raw = normalize_volume_title(new_volume_title)
-            next_order = int(
+            target_volume = None
+            created_volume = None
+            if target_mode_key == "new":
+                title_raw = normalize_volume_title(new_volume_title)
+                next_order = int(
+                    conn.execute(
+                        """
+                        SELECT COALESCE(MAX(volume_order), 0) AS c
+                        FROM book_volumes
+                        WHERE book_id = ?
+                          AND trim(COALESCE(deleted_at, '')) = ''
+                        """,
+                        (bid,),
+                    ).fetchone()["c"] or 0
+                ) + 1
+                target_volume_id = f"vol_{hash_text(f'{bid}|supplement_volume|{title_raw}|{next_order}|{now}')}"
                 conn.execute(
                     """
-                    SELECT COALESCE(MAX(volume_order), 0) AS c
-                    FROM book_volumes
+                    INSERT INTO book_volumes(
+                        volume_id, book_id, volume_order, volume_kind, title_raw, title_vi,
+                        created_at, updated_at, deleted_at, delete_expire_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (target_volume_id, bid, next_order, "supplement", title_raw, "", now, now, "", ""),
+                )
+                target_volume = {
+                    "volume_id": target_volume_id,
+                    "volume_order": next_order,
+                    "volume_kind": "supplement",
+                    "title_raw": title_raw,
+                    "title_vi": "",
+                }
+                created_volume = dict(target_volume)
+                append_book_change_event(
+                    storage,
+                    book_id=bid,
+                    event_type="volume_added",
+                    event_scope="volume",
+                    ref_id=target_volume_id,
+                    payload={
+                        "volume_id": target_volume_id,
+                        "volume_title": title_raw,
+                        "volume_kind": "supplement",
+                        "source_mode": "link" if is_remote_library_source(book) else "file",
+                    },
+                    conn=conn,
+                    hash_text=hash_text,
+                    utc_now_iso=utc_now_iso,
+                )
+            else:
+                for row in volume_rows:
+                    current_volume_id = str(row.get("volume_id") or "").strip()
+                    if requested_volume_id and current_volume_id != requested_volume_id:
+                        continue
+                    policy = build_book_volume_manage_policy(
+                        book,
+                        is_default_volume=str(row.get("volume_kind") or "").strip().lower() == "default",
+                        deleted_retention_days=deleted_retention_days,
+                    )
+                    if policy.get("can_append"):
+                        target_volume = dict(row)
+                        break
+                if target_volume is None:
+                    raise ValueError("Quyển đã chọn không cho phép bổ sung chương.")
+
+            if target_volume is None:
+                raise ValueError("Không xác định được quyển đích để bổ sung.")
+            target_volume_id = str(target_volume.get("volume_id") or "").strip()
+            if not target_volume_id:
+                raise ValueError("Quyển đích không hợp lệ.")
+
+            stack_order = int(
+                conn.execute(
+                    """
+                    SELECT COALESCE(MAX(stack_order), 0) AS c
+                    FROM book_supplement_batches
+                    WHERE book_id = ?
+                      AND volume_id = ?
+                      AND trim(COALESCE(deleted_at, '')) = ''
+                    """,
+                    (bid, target_volume_id),
+                ).fetchone()["c"] or 0
+            ) + 1
+            batch_id = f"sup_{hash_text(f'{bid}|{target_volume_id}|{stack_order}|{now}|{file_name}|{note_text}')}"
+            source_manifest, persisted_source_dir = _persist_supplement_source_files(
+                batch_id,
+                source_files,
+                source_store_dir=source_store_dir,
+            )
+
+            anchor_order = int(
+                conn.execute(
+                    """
+                    SELECT COALESCE(MAX(chapter_order), 0) AS c
+                    FROM chapters
+                    WHERE book_id = ?
+                      AND volume_id = ?
+                      AND trim(COALESCE(deleted_at, '')) = ''
+                    """,
+                    (bid, target_volume_id),
+                ).fetchone()["c"] or 0
+            )
+            if target_mode_key == "existing":
+                conn.execute(
+                    """
+                    UPDATE chapters
+                    SET chapter_order = chapter_order + ?
+                    WHERE book_id = ?
+                      AND trim(COALESCE(deleted_at, '')) = ''
+                      AND chapter_order > ?
+                    """,
+                    (len(normalized_chapters), bid, anchor_order),
+                )
+
+            batch_payload = {
+                "file_name": str(file_name or "").strip() or "supplement.txt",
+                "file_mode": file_mode_key,
+                "parse_mode": parse_mode_key,
+                "target_mode": target_mode_key,
+                "volume_id": target_volume_id,
+                "volume_title": str(target_volume.get("title_raw") or "").strip(),
+                "source_mode": "link" if is_remote_library_source(book) else "file",
+                "source_file_count": len(source_manifest),
+                "source_files": source_manifest,
+            }
+            conn.execute(
+                """
+                INSERT INTO book_supplement_batches(
+                    batch_id, book_id, volume_id, source_kind, file_mode, note, payload_json,
+                    stack_order, chapter_count, created_at, updated_at, deleted_at, delete_expire_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    batch_id,
+                    bid,
+                    target_volume_id,
+                    "txt",
+                    file_mode_key,
+                    note_text,
+                    json.dumps(batch_payload, ensure_ascii=False, separators=(",", ":")),
+                    stack_order,
+                    len(normalized_chapters),
+                    now,
+                    now,
+                    "",
+                    "",
+                ),
+            )
+
+            chapter_rows: list[tuple[Any, ...]] = []
+            for idx, item in enumerate(normalized_chapters, start=1):
+                chapter_title = str(item.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
+                chapter_text = str(item.get("text") or "").strip()
+                chapter_id = f"ch_{hash_text(f'{bid}|{target_volume_id}|{batch_id}|{idx}|{chapter_title}')}"
+                raw_key = f"raw_{hash_text(f'{chapter_id}|{chapter_text}')}"
+                storage.write_cache(raw_key, lang_source, chapter_text, conn=conn)
+                chapter_rows.append(
+                    (
+                        chapter_id,
+                        bid,
+                        anchor_order + idx,
+                        target_volume_id,
+                        "supplement",
+                        batch_id,
+                        stack_order,
+                        note_text,
+                        chapter_title,
+                        None,
+                        build_chapter_search_text(title_raw=chapter_title, title_vi=""),
+                        raw_key,
+                        None,
+                        None,
+                        now,
+                        len(chapter_text),
+                        "",
+                        0,
+                        "",
+                        "",
+                    )
+                )
+            conn.executemany(
+                """
+                INSERT INTO chapters(
+                    chapter_id, book_id, chapter_order, volume_id, origin_type, supplement_batch_id,
+                    supplement_stack_order, supplement_note, title_raw, title_vi, search_text,
+                    raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip,
+                    deleted_at, delete_expire_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                chapter_rows,
+            )
+            storage.sync_chapter_search_texts(book_ids=[bid], conn=conn)
+            visible_count = int(
+                conn.execute(
+                    """
+                    SELECT COUNT(1) AS c
+                    FROM chapters
                     WHERE book_id = ?
                       AND trim(COALESCE(deleted_at, '')) = ''
                     """,
                     (bid,),
                 ).fetchone()["c"] or 0
-            ) + 1
-            target_volume_id = f"vol_{hash_text(f'{bid}|supplement_volume|{title_raw}|{next_order}|{now}')}"
-            conn.execute(
-                """
-                INSERT INTO book_volumes(
-                    volume_id, book_id, volume_order, volume_kind, title_raw, title_vi,
-                    created_at, updated_at, deleted_at, delete_expire_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (target_volume_id, bid, next_order, "supplement", title_raw, "", now, now, "", ""),
             )
-            target_volume = {
-                "volume_id": target_volume_id,
-                "volume_order": next_order,
-                "volume_kind": "supplement",
-                "title_raw": title_raw,
-                "title_vi": "",
-            }
-            created_volume = dict(target_volume)
+            conn.execute(
+                "UPDATE books SET chapter_count = ?, updated_at = ? WHERE book_id = ?",
+                (visible_count, now, bid),
+            )
             append_book_change_event(
                 storage,
                 book_id=bid,
-                event_type="volume_added",
+                event_type="supplement_added",
                 event_scope="volume",
                 ref_id=target_volume_id,
                 payload={
+                    "batch_id": batch_id,
                     "volume_id": target_volume_id,
-                    "volume_title": title_raw,
-                    "volume_kind": "supplement",
+                    "volume_title": str(target_volume.get("title_raw") or "").strip(),
+                    "note": note_text,
+                    "chapter_count": len(normalized_chapters),
+                    "stack_order": stack_order,
+                    "file_name": str(file_name or "").strip() or "supplement.txt",
+                    "file_mode": file_mode_key,
+                    "parse_mode": parse_mode_key,
+                    "source_file_count": len(source_manifest),
+                    "created_volume": bool(created_volume),
                     "source_mode": "link" if is_remote_library_source(book) else "file",
                 },
                 conn=conn,
                 hash_text=hash_text,
                 utc_now_iso=utc_now_iso,
             )
-        else:
-            for row in volume_rows:
-                current_volume_id = str(row.get("volume_id") or "").strip()
-                if requested_volume_id and current_volume_id != requested_volume_id:
-                    continue
-                policy = build_book_volume_manage_policy(
-                    book,
-                    is_default_volume=str(row.get("volume_kind") or "").strip().lower() == "default",
-                    deleted_retention_days=deleted_retention_days,
-                )
-                if policy.get("can_append"):
-                    target_volume = dict(row)
-                    break
-            if target_volume is None:
-                raise ValueError("Quyển đã chọn không cho phép bổ sung chương.")
+    except Exception:
+        if persisted_source_dir is not None:
+            shutil.rmtree(persisted_source_dir, ignore_errors=True)
+        raise
 
-        if target_volume is None:
-            raise ValueError("Không xác định được quyển đích để bổ sung.")
-        target_volume_id = str(target_volume.get("volume_id") or "").strip()
-        if not target_volume_id:
-            raise ValueError("Quyển đích không hợp lệ.")
+    return {
+        "ok": True,
+        "book": storage.get_book_detail(bid),
+        "batch_id": batch_id,
+        "volume_id": target_volume_id,
+        "volume_title": str(target_volume.get("title_raw") or "").strip(),
+        "created_volume": bool(created_volume),
+        "added_chapters": int(len(normalized_chapters)),
+        "note": note_text,
+    }
 
-        stack_order = int(
+
+def delete_book_supplement_batch(
+    storage,
+    book_id: str,
+    batch_id: str,
+    *,
+    utc_now_iso,
+    hash_text,
+    deleted_retention_days: int = 30,
+) -> dict[str, Any]:
+    bid = str(book_id or "").strip()
+    batch_key = str(batch_id or "").strip()
+    if not bid or not batch_key:
+        raise ValueError("Thiếu batch_id.")
+    book = storage.find_book(bid)
+    if not book:
+        raise ValueError("Không tìm thấy truyện.")
+
+    now = utc_now_iso()
+    expire_at = _book_supplement_delete_expire_at(days=deleted_retention_days)
+    with storage._connect() as conn:
+        batch_row = conn.execute(
+            """
+            SELECT batch_id, book_id, volume_id, file_mode, note, payload_json, stack_order, chapter_count,
+                   created_at, updated_at, deleted_at, delete_expire_at
+            FROM book_supplement_batches
+            WHERE book_id = ? AND batch_id = ?
+            """,
+            (bid, batch_key),
+        ).fetchone()
+        if not batch_row:
+            raise ValueError("Không tìm thấy đợt bổ sung cần xóa.")
+        if str(batch_row["deleted_at"] or "").strip():
+            raise ValueError("Đợt bổ sung này đã được xóa mềm trước đó.")
+
+        volume_row = conn.execute(
+            """
+            SELECT volume_id, volume_kind, title_raw, deleted_at, delete_expire_at
+            FROM book_volumes
+            WHERE volume_id = ?
+            """,
+            (str(batch_row["volume_id"] or "").strip(),),
+        ).fetchone()
+        volume_kind = str(volume_row["volume_kind"] or "").strip().lower() if volume_row else ""
+        policy = build_book_volume_manage_policy(
+            book,
+            is_default_volume=volume_kind == "default",
+            deleted_retention_days=deleted_retention_days,
+        )
+        if not policy.get("can_delete"):
+            raise ValueError("Quyển này không cho phép xóa đợt bổ sung.")
+
+        max_active_stack = int(
             conn.execute(
                 """
                 SELECT COALESCE(MAX(stack_order), 0) AS c
@@ -917,108 +1260,82 @@ def append_book_supplement(
                   AND volume_id = ?
                   AND trim(COALESCE(deleted_at, '')) = ''
                 """,
-                (bid, target_volume_id),
+                (bid, str(batch_row["volume_id"] or "").strip()),
             ).fetchone()["c"] or 0
-        ) + 1
-        batch_id = f"sup_{hash_text(f'{bid}|{target_volume_id}|{stack_order}|{now}|{file_name}|{note_text}')}"
+        )
+        current_stack = int(batch_row["stack_order"] or 0)
+        if current_stack != max_active_stack:
+            raise ValueError("Chỉ xóa được đợt bổ sung mới nhất của quyển trước.")
 
-        anchor_order = int(
+        chapter_rows = conn.execute(
+            """
+            SELECT chapter_id, chapter_order
+            FROM chapters
+            WHERE book_id = ?
+              AND supplement_batch_id = ?
+              AND trim(COALESCE(deleted_at, '')) = ''
+            ORDER BY chapter_order ASC, chapter_id ASC
+            """,
+            (bid, batch_key),
+        ).fetchall()
+        if not chapter_rows:
+            raise ValueError("Đợt bổ sung này không còn chương khả dụng để xóa.")
+
+        removed_count = len(chapter_rows)
+        max_removed_order = max(int(row["chapter_order"] or 0) for row in chapter_rows)
+        conn.execute(
+            """
+            UPDATE chapters
+            SET deleted_at = ?, delete_expire_at = ?, updated_at = ?
+            WHERE book_id = ?
+              AND supplement_batch_id = ?
+              AND trim(COALESCE(deleted_at, '')) = ''
+            """,
+            (now, expire_at, now, bid, batch_key),
+        )
+        conn.execute(
+            """
+            UPDATE chapters
+            SET chapter_order = chapter_order - ?
+            WHERE book_id = ?
+              AND trim(COALESCE(deleted_at, '')) = ''
+              AND chapter_order > ?
+            """,
+            (removed_count, bid, max_removed_order),
+        )
+        conn.execute(
+            """
+            UPDATE book_supplement_batches
+            SET deleted_at = ?, delete_expire_at = ?, updated_at = ?
+            WHERE batch_id = ?
+            """,
+            (now, expire_at, now, batch_key),
+        )
+
+        active_volume_chapter_count = int(
             conn.execute(
                 """
-                SELECT COALESCE(MAX(chapter_order), 0) AS c
+                SELECT COUNT(1) AS c
                 FROM chapters
                 WHERE book_id = ?
                   AND volume_id = ?
                   AND trim(COALESCE(deleted_at, '')) = ''
                 """,
-                (bid, target_volume_id),
+                (bid, str(batch_row["volume_id"] or "").strip()),
             ).fetchone()["c"] or 0
         )
-        if target_mode_key == "existing":
+        volume_deleted = False
+        if volume_row and volume_kind != "default" and active_volume_chapter_count <= 0:
             conn.execute(
                 """
-                UPDATE chapters
-                SET chapter_order = chapter_order + ?
-                WHERE book_id = ?
-                  AND trim(COALESCE(deleted_at, '')) = ''
-                  AND chapter_order > ?
+                UPDATE book_volumes
+                SET deleted_at = ?, delete_expire_at = ?, updated_at = ?
+                WHERE volume_id = ?
                 """,
-                (len(normalized_chapters), bid, anchor_order),
+                (now, expire_at, now, str(batch_row["volume_id"] or "").strip()),
             )
+            volume_deleted = True
 
-        batch_payload = {
-            "file_name": str(file_name or "").strip() or "supplement.txt",
-            "target_mode": target_mode_key,
-            "volume_id": target_volume_id,
-            "volume_title": str(target_volume.get("title_raw") or "").strip(),
-            "source_mode": "link" if is_remote_library_source(book) else "file",
-        }
-        conn.execute(
-            """
-            INSERT INTO book_supplement_batches(
-                batch_id, book_id, volume_id, source_kind, file_mode, note, payload_json,
-                stack_order, chapter_count, created_at, updated_at, deleted_at, delete_expire_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                batch_id,
-                bid,
-                target_volume_id,
-                "txt",
-                "single",
-                note_text,
-                json.dumps(batch_payload, ensure_ascii=False, separators=(",", ":")),
-                stack_order,
-                len(normalized_chapters),
-                now,
-                now,
-                "",
-                "",
-            ),
-        )
-
-        chapter_rows: list[tuple[Any, ...]] = []
-        for idx, item in enumerate(normalized_chapters, start=1):
-            chapter_title = str(item.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
-            chapter_text = str(item.get("text") or "").strip()
-            chapter_id = f"ch_{hash_text(f'{bid}|{target_volume_id}|{batch_id}|{idx}|{chapter_title}')}"
-            raw_key = f"raw_{hash_text(f'{chapter_id}|{chapter_text}')}"
-            storage.write_cache(raw_key, lang_source, chapter_text)
-            chapter_rows.append(
-                (
-                    chapter_id,
-                    bid,
-                    anchor_order + idx,
-                    target_volume_id,
-                    "supplement",
-                    batch_id,
-                    stack_order,
-                    note_text,
-                    chapter_title,
-                    None,
-                    build_chapter_search_text(title_raw=chapter_title, title_vi=""),
-                    raw_key,
-                    None,
-                    None,
-                    now,
-                    len(chapter_text),
-                    "",
-                    0,
-                    "",
-                    "",
-                )
-            )
-        conn.executemany(
-            """
-            INSERT INTO chapters(
-                chapter_id, book_id, chapter_order, volume_id, origin_type, supplement_batch_id,
-                supplement_stack_order, supplement_note, title_raw, title_vi, search_text,
-                raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip,
-                deleted_at, delete_expire_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            chapter_rows,
-        )
         storage.sync_chapter_search_texts(book_ids=[bid], conn=conn)
         visible_count = int(
             conn.execute(
@@ -1035,22 +1352,31 @@ def append_book_supplement(
             "UPDATE books SET chapter_count = ?, updated_at = ? WHERE book_id = ?",
             (visible_count, now, bid),
         )
+
+        payload = _parse_supplement_batch_payload(batch_row["payload_json"])
         append_book_change_event(
             storage,
             book_id=bid,
-            event_type="supplement_added",
+            event_type="supplement_deleted",
             event_scope="volume",
-            ref_id=target_volume_id,
+            ref_id=str(batch_row["volume_id"] or "").strip(),
             payload={
-                "batch_id": batch_id,
-                "volume_id": target_volume_id,
-                "volume_title": str(target_volume.get("title_raw") or "").strip(),
-                "note": note_text,
-                "chapter_count": len(normalized_chapters),
-                "stack_order": stack_order,
-                "file_name": str(file_name or "").strip() or "supplement.txt",
-                "created_volume": bool(created_volume),
-                "source_mode": "link" if is_remote_library_source(book) else "file",
+                "batch_id": batch_key,
+                "volume_id": str(batch_row["volume_id"] or "").strip(),
+                "volume_title": str(payload.get("volume_title") or (volume_row["title_raw"] if volume_row else "") or "").strip(),
+                "note": str(batch_row["note"] or "").strip(),
+                "chapter_count": removed_count,
+                "stack_order": current_stack,
+                "file_name": str(payload.get("file_name") or "").strip() or "supplement.txt",
+                "file_mode": _normalize_supplement_file_mode(batch_row["file_mode"]),
+                "parse_mode": _normalize_supplement_parse_mode(
+                    payload.get("parse_mode"),
+                    file_mode=_normalize_supplement_file_mode(batch_row["file_mode"]),
+                ),
+                "source_file_count": len(_normalize_supplement_source_manifest(payload)),
+                "source_mode": str(payload.get("source_mode") or ("link" if is_remote_library_source(book) else "file")).strip() or "file",
+                "volume_deleted": bool(volume_deleted),
+                "delete_expire_at": expire_at,
             },
             conn=conn,
             hash_text=hash_text,
@@ -1060,10 +1386,266 @@ def append_book_supplement(
     return {
         "ok": True,
         "book": storage.get_book_detail(bid),
-        "batch_id": batch_id,
-        "volume_id": target_volume_id,
-        "volume_title": str(target_volume.get("title_raw") or "").strip(),
-        "created_volume": bool(created_volume),
-        "added_chapters": int(len(normalized_chapters)),
-        "note": note_text,
+        "batch_id": batch_key,
+        "volume_id": str(batch_row["volume_id"] or "").strip(),
+        "deleted_chapters": int(removed_count),
+        "delete_expire_at": expire_at,
+        "volume_deleted": bool(volume_deleted),
+    }
+
+
+def restore_book_supplement_batch(
+    storage,
+    book_id: str,
+    batch_id: str,
+    *,
+    utc_now_iso,
+    hash_text,
+    deleted_retention_days: int = 30,
+) -> dict[str, Any]:
+    bid = str(book_id or "").strip()
+    batch_key = str(batch_id or "").strip()
+    if not bid or not batch_key:
+        raise ValueError("Thiếu batch_id.")
+    book = storage.find_book(bid)
+    if not book:
+        raise ValueError("Không tìm thấy truyện.")
+
+    now = utc_now_iso()
+    with storage._connect() as conn:
+        batch_row = conn.execute(
+            """
+            SELECT batch_id, book_id, volume_id, file_mode, note, payload_json, stack_order, chapter_count,
+                   created_at, updated_at, deleted_at, delete_expire_at
+            FROM book_supplement_batches
+            WHERE book_id = ? AND batch_id = ?
+            """,
+            (bid, batch_key),
+        ).fetchone()
+        if not batch_row:
+            raise ValueError("Không tìm thấy đợt bổ sung cần khôi phục.")
+        if not str(batch_row["deleted_at"] or "").strip():
+            raise ValueError("Đợt bổ sung này chưa bị xóa mềm.")
+
+        current_stack = int(batch_row["stack_order"] or 0)
+        active_max_stack = int(
+            conn.execute(
+                """
+                SELECT COALESCE(MAX(stack_order), 0) AS c
+                FROM book_supplement_batches
+                WHERE book_id = ?
+                  AND volume_id = ?
+                  AND trim(COALESCE(deleted_at, '')) = ''
+                """,
+                (bid, str(batch_row["volume_id"] or "").strip()),
+            ).fetchone()["c"] or 0
+        )
+        deleted_max_stack = int(
+            conn.execute(
+                """
+                SELECT COALESCE(MAX(stack_order), 0) AS c
+                FROM book_supplement_batches
+                WHERE book_id = ?
+                  AND volume_id = ?
+                  AND trim(COALESCE(deleted_at, '')) <> ''
+                """,
+                (bid, str(batch_row["volume_id"] or "").strip()),
+            ).fetchone()["c"] or 0
+        )
+        if current_stack != deleted_max_stack or current_stack <= active_max_stack:
+            raise ValueError("Phải khôi phục đúng đợt bổ sung bị xóa mới nhất trước.")
+
+        volume_row = conn.execute(
+            """
+            SELECT volume_id, volume_kind, title_raw, deleted_at, delete_expire_at
+            FROM book_volumes
+            WHERE volume_id = ?
+            """,
+            (str(batch_row["volume_id"] or "").strip(),),
+        ).fetchone()
+        if not volume_row:
+            raise ValueError("Không còn quyển gốc của đợt bổ sung này.")
+
+        deleted_chapters = conn.execute(
+            """
+            SELECT chapter_id
+            FROM chapters
+            WHERE book_id = ?
+              AND supplement_batch_id = ?
+              AND trim(COALESCE(deleted_at, '')) <> ''
+            ORDER BY chapter_order ASC, chapter_id ASC
+            """,
+            (bid, batch_key),
+        ).fetchall()
+        if not deleted_chapters:
+            raise ValueError("Không còn chương nào để khôi phục.")
+
+        restore_count = len(deleted_chapters)
+        anchor_order = int(
+            conn.execute(
+                """
+                SELECT COALESCE(MAX(chapter_order), 0) AS c
+                FROM chapters
+                WHERE book_id = ?
+                  AND volume_id = ?
+                  AND trim(COALESCE(deleted_at, '')) = ''
+                """,
+                (bid, str(batch_row["volume_id"] or "").strip()),
+            ).fetchone()["c"] or 0
+        )
+        conn.execute(
+            """
+            UPDATE chapters
+            SET chapter_order = chapter_order + ?
+            WHERE book_id = ?
+              AND trim(COALESCE(deleted_at, '')) = ''
+              AND chapter_order > ?
+            """,
+            (restore_count, bid, anchor_order),
+        )
+        for index, row in enumerate(deleted_chapters, start=1):
+            conn.execute(
+                """
+                UPDATE chapters
+                SET chapter_order = ?, deleted_at = '', delete_expire_at = '', updated_at = ?
+                WHERE chapter_id = ?
+                """,
+                (anchor_order + index, now, str(row["chapter_id"] or "").strip()),
+            )
+        conn.execute(
+            """
+            UPDATE book_supplement_batches
+            SET deleted_at = '', delete_expire_at = '', updated_at = ?
+            WHERE batch_id = ?
+            """,
+            (now, batch_key),
+        )
+
+        volume_restored = False
+        if str(volume_row["deleted_at"] or "").strip():
+            conn.execute(
+                """
+                UPDATE book_volumes
+                SET deleted_at = '', delete_expire_at = '', updated_at = ?
+                WHERE volume_id = ?
+                """,
+                (now, str(batch_row["volume_id"] or "").strip()),
+            )
+            volume_restored = True
+
+        storage.sync_chapter_search_texts(book_ids=[bid], conn=conn)
+        visible_count = int(
+            conn.execute(
+                """
+                SELECT COUNT(1) AS c
+                FROM chapters
+                WHERE book_id = ?
+                  AND trim(COALESCE(deleted_at, '')) = ''
+                """,
+                (bid,),
+            ).fetchone()["c"] or 0
+        )
+        conn.execute(
+            "UPDATE books SET chapter_count = ?, updated_at = ? WHERE book_id = ?",
+            (visible_count, now, bid),
+        )
+
+        payload = _parse_supplement_batch_payload(batch_row["payload_json"])
+        append_book_change_event(
+            storage,
+            book_id=bid,
+            event_type="supplement_restored",
+            event_scope="volume",
+            ref_id=str(batch_row["volume_id"] or "").strip(),
+            payload={
+                "batch_id": batch_key,
+                "volume_id": str(batch_row["volume_id"] or "").strip(),
+                "volume_title": str(payload.get("volume_title") or volume_row["title_raw"] or "").strip(),
+                "note": str(batch_row["note"] or "").strip(),
+                "chapter_count": restore_count,
+                "stack_order": current_stack,
+                "file_name": str(payload.get("file_name") or "").strip() or "supplement.txt",
+                "file_mode": _normalize_supplement_file_mode(batch_row["file_mode"]),
+                "parse_mode": _normalize_supplement_parse_mode(
+                    payload.get("parse_mode"),
+                    file_mode=_normalize_supplement_file_mode(batch_row["file_mode"]),
+                ),
+                "source_file_count": len(_normalize_supplement_source_manifest(payload)),
+                "source_mode": str(payload.get("source_mode") or ("link" if is_remote_library_source(book) else "file")).strip() or "file",
+                "volume_restored": bool(volume_restored),
+                "deleted_retention_days": max(1, int(deleted_retention_days or 30)),
+            },
+            conn=conn,
+            hash_text=hash_text,
+            utc_now_iso=utc_now_iso,
+        )
+
+    return {
+        "ok": True,
+        "book": storage.get_book_detail(bid),
+        "batch_id": batch_key,
+        "volume_id": str(batch_row["volume_id"] or "").strip(),
+        "restored_chapters": int(restore_count),
+        "volume_restored": bool(volume_restored),
+    }
+
+
+def get_book_supplement_source_download(
+    storage,
+    book_id: str,
+    batch_id: str,
+    *,
+    source_store_dir: Path | None,
+) -> dict[str, Any]:
+    bid = str(book_id or "").strip()
+    batch_key = str(batch_id or "").strip()
+    if not bid or not batch_key:
+        raise ValueError("Thiếu batch_id.")
+    with storage._connect() as conn:
+        row = conn.execute(
+            """
+            SELECT batch_id, payload_json
+            FROM book_supplement_batches
+            WHERE book_id = ? AND batch_id = ?
+            """,
+            (bid, batch_key),
+        ).fetchone()
+    if not row:
+        raise ValueError("Không tìm thấy đợt bổ sung.")
+
+    payload = _parse_supplement_batch_payload(row["payload_json"])
+    manifest = _normalize_supplement_source_manifest(payload)
+    if not manifest or not source_store_dir:
+        raise ValueError("Đợt bổ sung này không còn file nguồn để tải lại.")
+    batch_dir = source_store_dir / batch_key
+    existing_files: list[tuple[str, bytes]] = []
+    for item in manifest:
+        stored_name = str(item.get("stored_name") or "").strip()
+        if not stored_name:
+            continue
+        source_path = batch_dir / stored_name
+        if not source_path.exists() or not source_path.is_file():
+            continue
+        existing_files.append((str(item.get("file_name") or "").strip() or stored_name, source_path.read_bytes()))
+    if not existing_files:
+        raise ValueError("Đợt bổ sung này không còn file nguồn để tải lại.")
+
+    if len(existing_files) == 1:
+        file_name, data = existing_files[0]
+        content_type = mimetypes.guess_type(file_name)[0] or "text/plain"
+        return {
+            "file_name": file_name,
+            "content_type": content_type,
+            "data": data,
+        }
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for file_name, data in existing_files:
+            zf.writestr(file_name, data)
+    archive_name = f"{Path(str(payload.get('file_name') or '')).stem or batch_key}.zip"
+    return {
+        "file_name": archive_name,
+        "content_type": "application/zip",
+        "data": zip_buffer.getvalue(),
     }

@@ -567,6 +567,281 @@ def _normalize_supplement_target_mode(value: str) -> str:
     return "new" if mode == "new" else "existing"
 
 
+def _normalize_supplement_upload_mode(value: str, *, file_count: int = 1) -> str:
+    mode = str(value or "").strip().lower()
+    if mode == "multi" or int(file_count or 0) > 1:
+        return "multi"
+    return "single"
+
+
+def _normalize_supplement_multi_parse_mode(value: str) -> str:
+    mode = str(value or "").strip().lower()
+    return "position" if mode == "position" else "server"
+
+
+def _parse_local_cjk_number(raw: str) -> int | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    if text.isdigit():
+        try:
+            return int(text)
+        except Exception:
+            return None
+    digits = {
+        "零": 0,
+        "〇": 0,
+        "一": 1,
+        "二": 2,
+        "两": 2,
+        "兩": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+    }
+    units = {"十": 10, "百": 100, "千": 1000, "万": 10000}
+    total = 0
+    section = 0
+    number = 0
+    used = False
+    for ch in text:
+        if ch in digits:
+            number = digits[ch]
+            used = True
+            continue
+        unit = units.get(ch)
+        if unit is None:
+            return None
+        if unit == 10000:
+            total += (section + number) * unit
+            section = 0
+            number = 0
+            used = True
+            continue
+        if number == 0:
+            number = 1
+        section += number * unit
+        number = 0
+        used = True
+    result = total + section + number
+    if result > 0:
+        return result
+    if used and text in {"零", "〇"}:
+        return 0
+    return None
+
+
+_SUPPLEMENT_PARSE_PATTERNS = (
+    re.compile(r"^\s*第\s*([0-9一二三四五六七八九十百千零两兩]+)\s*[章节卷回集部篇]\s*[-—:：._、| )）]*(.*)$", re.IGNORECASE),
+    re.compile(r"^\s*(?:chương|chuong|chapter|chap|c|q|quyển|quyen)\s*(\d{1,5})\s*[-—:：._、| )）]*(.*)$", re.IGNORECASE),
+    re.compile(r"^\s*(\d{1,5})(?:(?:[\.\-、:： )）]\s*)|\s+)(.*)$", re.IGNORECASE),
+)
+
+
+def _parse_supplement_heading(text: str) -> tuple[int | None, str]:
+    raw = str(text or "").strip()
+    if not raw:
+        return None, ""
+    for pattern in _SUPPLEMENT_PARSE_PATTERNS:
+        match = pattern.match(raw)
+        if not match:
+            continue
+        number_raw = str(match.group(1) or "").strip()
+        title_tail = str(match.group(2) or "").strip()
+        number = int(number_raw) if number_raw.isdigit() else _parse_local_cjk_number(number_raw)
+        if number is None:
+            continue
+        return number, title_tail
+    return None, raw
+
+
+def _decode_supplement_text(file_bytes: bytes, *, decode_text_with_fallback) -> str:
+    return str(decode_text_with_fallback(file_bytes or b"") or "").replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _supplement_first_nonempty_line(text: str, *, normalize_vbook_display_text) -> str:
+    for raw_line in str(text or "").split("\n"):
+        line = normalize_vbook_display_text(raw_line, single_line=True)
+        if line:
+            return line
+    return ""
+
+
+def _strip_supplement_title_line(text: str, *, normalize_vbook_display_text) -> str:
+    lines = str(text or "").split("\n")
+    for index, raw_line in enumerate(lines):
+        if normalize_vbook_display_text(raw_line, single_line=True):
+            trimmed = "\n".join(lines[index + 1:]).strip()
+            if trimmed:
+                return trimmed
+            break
+    return str(text or "").strip()
+
+
+def _build_multi_file_supplement_payload(
+    files: list[tuple[str, bytes]],
+    *,
+    parse_mode: str,
+    decode_text_with_fallback,
+    normalize_vbook_display_text,
+) -> dict[str, Any]:
+    mode_key = _normalize_supplement_multi_parse_mode(parse_mode)
+    rows: list[dict[str, Any]] = []
+    filename_hits = 0
+    content_hits = 0
+    numbered_hits = 0
+    for index, (filename, file_bytes) in enumerate(files, start=1):
+        safe_name = str(filename or f"chapter_{index}.txt").strip() or f"chapter_{index}.txt"
+        full_text = _decode_supplement_text(file_bytes, decode_text_with_fallback=decode_text_with_fallback)
+        first_line = _supplement_first_nonempty_line(full_text, normalize_vbook_display_text=normalize_vbook_display_text)
+        filename_stem = normalize_vbook_display_text(Path(safe_name).stem, single_line=True) or Path(safe_name).stem
+        body_text = str(full_text or "").strip()
+        sort_number = None
+        parse_source = "position"
+        title_value = first_line or filename_stem or f"Chương {index}"
+
+        if mode_key == "position":
+            title_value = first_line or filename_stem or f"Chương {index}"
+            body_text = _strip_supplement_title_line(full_text, normalize_vbook_display_text=normalize_vbook_display_text)
+        else:
+            file_num, _ = _parse_supplement_heading(filename_stem)
+            content_num, _ = _parse_supplement_heading(first_line)
+            if file_num is not None:
+                sort_number = file_num
+                title_value = filename_stem or first_line or f"Chương {file_num}"
+                parse_source = "filename"
+                filename_hits += 1
+            elif content_num is not None:
+                sort_number = content_num
+                title_value = first_line or filename_stem or f"Chương {content_num}"
+                parse_source = "content"
+                content_hits += 1
+            else:
+                title_value = first_line or filename_stem or f"Chương {index}"
+                parse_source = "fallback"
+            if sort_number is not None:
+                numbered_hits += 1
+            if first_line and normalize_vbook_display_text(title_value, single_line=True) == normalize_vbook_display_text(first_line, single_line=True):
+                body_text = _strip_supplement_title_line(full_text, normalize_vbook_display_text=normalize_vbook_display_text)
+
+        normalized_title = normalize_vbook_display_text(title_value, single_line=True) or f"Chương {index}"
+        normalized_body = str(body_text or "").strip() or str(full_text or "").strip()
+        rows.append(
+            {
+                "order_index": index,
+                "sort_number": sort_number,
+                "title": normalized_title,
+                "text": normalized_body,
+                "file_name": safe_name,
+                "parse_source": parse_source,
+                "word_count": len(normalized_body),
+                "preview": normalize_vbook_display_text(normalized_body[:140], single_line=False),
+            }
+        )
+
+    if mode_key == "server":
+        rows.sort(key=lambda item: (0 if item.get("sort_number") is not None else 1, int(item.get("sort_number") or 0), int(item.get("order_index") or 0)))
+
+    chapter_preview = []
+    chapters = []
+    for index, row in enumerate(rows, start=1):
+        title = str(row.get("title") or f"Chương {index}").strip() or f"Chương {index}"
+        text = str(row.get("text") or "").strip()
+        if not text:
+            continue
+        chapters.append({"title": title, "text": text})
+        chapter_preview.append(
+            {
+                "index": index,
+                "title": title,
+                "word_count": int(row.get("word_count") or len(text)),
+                "preview": str(row.get("preview") or "").strip(),
+                "file_name": str(row.get("file_name") or "").strip(),
+                "parse_source": str(row.get("parse_source") or "").strip(),
+                "chapter_number": row.get("sort_number"),
+            }
+        )
+
+    if not chapters:
+        raise ValueError("Không đọc được nội dung hợp lệ từ các file TXT đã chọn.")
+
+    return {
+        "file_name": f"{len(files)} file TXT",
+        "file_ext": "txt",
+        "source_type": "supplement_txt_multi",
+        "metadata": {
+            "chapter_count": len(chapter_preview),
+            "file_count": len(files),
+            "upload_mode": "multi",
+            "parse_mode": mode_key,
+            "detected_lang": "",
+        },
+        "chapters": chapters,
+        "chapter_preview": chapter_preview,
+        "diagnostics": {
+            "parse_mode": mode_key,
+            "file_count": len(files),
+            "numbered_hits": numbered_hits,
+            "filename_hits": filename_hits,
+            "content_hits": content_hits,
+        },
+    }
+
+
+def _load_book_supplement_context(
+    service,
+    book_id: str,
+    *,
+    target_mode: str,
+    volume_id: str,
+    new_volume_title: str,
+    ApiError,
+    HTTPStatus,
+) -> tuple[dict[str, Any], list[dict[str, Any]], str, str, str]:
+    bid = str(book_id or "").strip()
+    if not bid:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+    book = service.storage.find_book(bid)
+    if not book:
+        raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+    if bool(book.get("is_comic")):
+        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Truyện tranh chưa hỗ trợ bổ sung TXT.")
+
+    volumes_payload = service.storage.list_chapters_paged(
+        bid,
+        page=1,
+        page_size=1,
+        mode="raw",
+        translator=service.translator,
+        translate_mode=service.resolve_translate_mode("server"),
+    )
+    volume_rows = [dict(item or {}) for item in (volumes_payload.get("volumes") or []) if isinstance(item, dict)]
+    target_mode_key = _normalize_supplement_target_mode(target_mode)
+    target_volume_id = str(volume_id or "").strip()
+    volume_title = str(new_volume_title or "").strip()
+    if target_mode_key == "existing":
+        selected_volume = None
+        for item in volume_rows:
+            if target_volume_id and str(item.get("volume_id") or "").strip() != target_volume_id:
+                continue
+            policy = dict(item.get("policy") or {}) if isinstance(item.get("policy"), dict) else {}
+            if policy.get("can_append"):
+                selected_volume = item
+                break
+        if selected_volume is None:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Quyển đã chọn không cho phép bổ sung.")
+        target_volume_id = str(selected_volume.get("volume_id") or "").strip()
+        volume_title = str(selected_volume.get("title_display") or selected_volume.get("title_raw") or "").strip()
+    else:
+        if not volume_title:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu tên quyển mới.")
+    return book, volume_rows, target_mode_key, target_volume_id, volume_title
+
+
 def _book_supplement_preview_payload(
     book: dict[str, Any],
     parsed: dict[str, Any],
@@ -601,6 +876,9 @@ def _book_supplement_preview_payload(
             "summary": str(note or "").strip(),
             "lang_source": str(book.get("lang_source") or metadata.get("lang_source") or "zh").strip() or "zh",
             "chapter_count": len(chapter_preview),
+            "file_count": int(metadata.get("file_count") or 1),
+            "upload_mode": str(metadata.get("upload_mode") or "single").strip() or "single",
+            "parse_mode": str(metadata.get("parse_mode") or "single").strip() or "single",
             "detected_lang": str(metadata.get("detected_lang") or "").strip(),
         },
         "chapters": chapter_preview,
@@ -619,9 +897,10 @@ def _book_supplement_preview_payload(
 def prepare_book_supplement_file(
     service,
     book_id: str,
-    filename: str,
-    file_bytes: bytes,
+    files: list[tuple[str, bytes]],
     *,
+    upload_mode: str = "",
+    multi_parse_mode: str = "",
     target_mode: str = "existing",
     volume_id: str = "",
     new_volume_title: str = "",
@@ -634,64 +913,65 @@ def prepare_book_supplement_file(
     normalize_lang_source,
     parse_epub_book,
     parse_txt_book,
+    decode_text_with_fallback,
     normalize_vbook_display_text,
 ) -> dict[str, Any]:
     bid = str(book_id or "").strip()
-    if not bid:
-        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
-    book = service.storage.find_book(bid)
-    if not book:
-        raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-    if bool(book.get("is_comic")):
-        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Truyện tranh chưa hỗ trợ bổ sung TXT.")
-    safe_name = str(filename or "").strip() or "supplement.txt"
-    suffix = Path(safe_name).suffix.lower()
-    if suffix != ".txt":
-        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Hiện chỉ hỗ trợ bổ sung file TXT.")
+    source_files: list[tuple[str, bytes]] = []
+    for index, item in enumerate(files or [], start=1):
+        try:
+            filename, file_bytes = item
+        except Exception:
+            continue
+        safe_name = str(filename or f"supplement_{index}.txt").strip() or f"supplement_{index}.txt"
+        if Path(safe_name).suffix.lower() != ".txt":
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Hiện chỉ hỗ trợ bổ sung file TXT.")
+        source_files.append((safe_name, bytes(file_bytes or b"")))
+    if not source_files:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu file TXT để bổ sung.")
 
     cleanup_import_previews(import_preview_dir=import_preview_dir)
-    parsed = parse_local_import_payload(
+    book, volume_rows, target_mode_key, target_volume_id, _ = _load_book_supplement_context(
         service,
-        safe_name,
-        file_bytes,
-        lang_source=str(book.get("lang_source") or "zh").strip() or "zh",
-        title=str(book.get("title") or "").strip(),
-        author=str(book.get("author") or "").strip(),
-        summary="",
-        import_settings=None,
-        normalize_reader_import_settings=normalize_reader_import_settings,
-        normalize_lang_source=normalize_lang_source,
-        parse_epub_book=parse_epub_book,
-        parse_txt_book=parse_txt_book,
-        normalize_vbook_display_text=normalize_vbook_display_text,
-    )
-    volumes_payload = service.storage.list_chapters_paged(
         bid,
-        page=1,
-        page_size=1,
-        mode="raw",
-        translator=service.translator,
-        translate_mode=service.resolve_translate_mode("server"),
+        target_mode=target_mode,
+        volume_id=volume_id,
+        new_volume_title=new_volume_title,
+        ApiError=ApiError,
+        HTTPStatus=HTTPStatus,
     )
-    volume_rows = [dict(item or {}) for item in (volumes_payload.get("volumes") or []) if isinstance(item, dict)]
-    target_mode_key = _normalize_supplement_target_mode(target_mode)
-    target_volume_id = str(volume_id or "").strip()
-    if target_mode_key == "existing":
-        selected_volume = None
-        for item in volume_rows:
-            if target_volume_id and str(item.get("volume_id") or "").strip() != target_volume_id:
-                continue
-            policy = dict(item.get("policy") or {}) if isinstance(item.get("policy"), dict) else {}
-            if policy.get("can_append"):
-                selected_volume = item
-                break
-        if selected_volume is None:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Quyển đã chọn không cho phép bổ sung.")
-        target_volume_id = str(selected_volume.get("volume_id") or "").strip()
+    upload_mode_key = _normalize_supplement_upload_mode(upload_mode, file_count=len(source_files))
+    parse_mode_key = _normalize_supplement_multi_parse_mode(multi_parse_mode)
+
+    if upload_mode_key == "single":
+        safe_name, file_bytes = source_files[0]
+        parsed = parse_local_import_payload(
+            service,
+            safe_name,
+            file_bytes,
+            lang_source=str(book.get("lang_source") or "zh").strip() or "zh",
+            title=str(book.get("title") or "").strip(),
+            author=str(book.get("author") or "").strip(),
+            summary="",
+            import_settings=None,
+            normalize_reader_import_settings=normalize_reader_import_settings,
+            normalize_lang_source=normalize_lang_source,
+            parse_epub_book=parse_epub_book,
+            parse_txt_book=parse_txt_book,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+        )
+        parsed_metadata = dict(parsed.get("metadata") or {})
+        parsed_metadata["file_count"] = 1
+        parsed_metadata["upload_mode"] = "single"
+        parsed_metadata["parse_mode"] = "single"
+        parsed["metadata"] = parsed_metadata
     else:
-        new_volume_title = str(new_volume_title or "").strip()
-        if not new_volume_title:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu tên quyển mới.")
+        parsed = _build_multi_file_supplement_payload(
+            source_files,
+            parse_mode=parse_mode_key,
+            decode_text_with_fallback=decode_text_with_fallback,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+        )
 
     token = uuid.uuid4().hex
     folder = import_preview_dir_for_token(
@@ -701,16 +981,28 @@ def prepare_book_supplement_file(
         HTTPStatus=HTTPStatus,
     )
     folder.mkdir(parents=True, exist_ok=True)
-    source_name = f"source{suffix or '.txt'}"
-    (folder / source_name).write_bytes(bytes(file_bytes or b""))
+    saved_sources: list[dict[str, Any]] = []
+    for index, (file_name, file_bytes) in enumerate(source_files, start=1):
+        source_name = f"source_{index:04d}.txt"
+        (folder / source_name).write_bytes(bytes(file_bytes or b""))
+        saved_sources.append(
+            {
+                "source_name": source_name,
+                "file_name": file_name,
+                "order_index": index,
+            }
+        )
     save_import_preview_state(
         token,
         {
             "token": token,
             "kind": "book_supplement",
             "book_id": bid,
-            "file_name": safe_name,
-            "source_name": source_name,
+            "file_name": str(parsed.get("file_name") or (source_files[0][0] if source_files else "supplement.txt")).strip() or "supplement.txt",
+            "source_name": str(saved_sources[0]["source_name"]) if saved_sources else "",
+            "source_files": saved_sources,
+            "upload_mode": upload_mode_key,
+            "multi_parse_mode": parse_mode_key,
             "target_mode": target_mode_key,
             "volume_id": target_volume_id,
             "new_volume_title": str(new_volume_title or "").strip(),
@@ -742,17 +1034,21 @@ def commit_book_supplement_token(
     token: str,
     *,
     book_id: str,
+    upload_mode: str = "",
+    multi_parse_mode: str = "",
     target_mode: str = "",
     volume_id: str = "",
     new_volume_title: str = "",
     note: str = "",
     import_preview_dir: Path,
+    supplement_source_dir: Path,
     ApiError,
     HTTPStatus,
     normalize_reader_import_settings,
     normalize_lang_source,
     parse_epub_book,
     parse_txt_book,
+    decode_text_with_fallback,
     normalize_vbook_display_text,
 ) -> dict[str, Any]:
     state = load_import_preview_state(
@@ -774,36 +1070,69 @@ def commit_book_supplement_token(
         ApiError=ApiError,
         HTTPStatus=HTTPStatus,
     )
-    source_path = folder / str(state.get("source_name") or "")
-    if not source_path.exists():
+    saved_sources = state.get("source_files") if isinstance(state.get("source_files"), list) else []
+    if not saved_sources and str(state.get("source_name") or "").strip():
+        saved_sources = [
+            {
+                "source_name": str(state.get("source_name") or "").strip(),
+                "file_name": str(state.get("file_name") or "supplement.txt").strip() or "supplement.txt",
+                "order_index": 1,
+            }
+        ]
+    source_files: list[tuple[str, bytes]] = []
+    for index, item in enumerate(saved_sources, start=1):
+        if not isinstance(item, dict):
+            continue
+        source_name = str(item.get("source_name") or "").strip()
+        if not source_name:
+            continue
+        source_path = folder / source_name
+        if not source_path.exists():
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không còn file nguồn cho phiên bổ sung này.")
+        file_name = str(item.get("file_name") or f"supplement_{index}.txt").strip() or f"supplement_{index}.txt"
+        source_files.append((file_name, source_path.read_bytes()))
+    if not source_files:
         raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không còn file nguồn cho phiên bổ sung này.")
-    file_bytes = source_path.read_bytes()
     book = service.storage.find_book(bid)
     if not book:
         raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-    parsed = parse_local_import_payload(
-        service,
-        str(state.get("file_name") or "supplement.txt"),
-        file_bytes,
-        lang_source=str(book.get("lang_source") or "zh").strip() or "zh",
-        title=str(book.get("title") or "").strip(),
-        author=str(book.get("author") or "").strip(),
-        summary="",
-        import_settings=None,
-        normalize_reader_import_settings=normalize_reader_import_settings,
-        normalize_lang_source=normalize_lang_source,
-        parse_epub_book=parse_epub_book,
-        parse_txt_book=parse_txt_book,
-        normalize_vbook_display_text=normalize_vbook_display_text,
-    )
+    upload_mode_key = _normalize_supplement_upload_mode(upload_mode or state.get("upload_mode") or "", file_count=len(source_files))
+    parse_mode_key = _normalize_supplement_multi_parse_mode(multi_parse_mode or state.get("multi_parse_mode") or "")
+    if upload_mode_key == "single":
+        parsed = parse_local_import_payload(
+            service,
+            source_files[0][0],
+            source_files[0][1],
+            lang_source=str(book.get("lang_source") or "zh").strip() or "zh",
+            title=str(book.get("title") or "").strip(),
+            author=str(book.get("author") or "").strip(),
+            summary="",
+            import_settings=None,
+            normalize_reader_import_settings=normalize_reader_import_settings,
+            normalize_lang_source=normalize_lang_source,
+            parse_epub_book=parse_epub_book,
+            parse_txt_book=parse_txt_book,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+        )
+    else:
+        parsed = _build_multi_file_supplement_payload(
+            source_files,
+            parse_mode=parse_mode_key,
+            decode_text_with_fallback=decode_text_with_fallback,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+        )
     result = service.storage.append_book_supplement(
         bid,
         [dict(item or {}) for item in (parsed.get("chapters") or []) if isinstance(item, dict)],
         file_name=str(state.get("file_name") or "supplement.txt"),
+        file_mode=upload_mode_key,
+        parse_mode=parse_mode_key,
         target_mode=_normalize_supplement_target_mode(target_mode or state.get("target_mode") or "existing"),
         volume_id=str(volume_id or state.get("volume_id") or "").strip(),
         new_volume_title=str(new_volume_title or state.get("new_volume_title") or "").strip(),
         note=str(note or state.get("note") or "").strip(),
+        source_files=source_files,
+        source_store_dir=supplement_source_dir,
     )
     remove_import_preview_state(
         token,

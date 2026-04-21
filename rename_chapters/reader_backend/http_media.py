@@ -109,6 +109,32 @@ def serve_media(handler, parsed_or_path, *, deps: MediaDeps) -> None:
         )
         return
 
+    if path.startswith("/media/supplement/"):
+        batch_id = deps.unquote_func(path.removeprefix("/media/supplement/").strip("/"))
+        book_id = (query.get("book_id", [""])[0] or "").strip()
+        if not batch_id or not book_id:
+            handler._send_error_json(api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id hoặc batch_id."))
+            return
+        try:
+            payload = handler.service.get_book_supplement_source_download(book_id, batch_id)
+        except ValueError as exc:
+            handler._send_error_json(api_error(http_status.NOT_FOUND, "NOT_FOUND", str(exc)))
+            return
+        filename = str((payload or {}).get("file_name") or "").strip() or f"{batch_id}.txt"
+        safe_ascii = deps.re_module.sub(r"[^A-Za-z0-9._-]+", "_", filename).strip("._") or "supplement.bin"
+        content_disposition = (
+            f"attachment; filename=\"{safe_ascii}\"; filename*=UTF-8''{deps.quote_func(filename, safe='')}"
+        )
+        _send_binary(
+            handler,
+            bytes((payload or {}).get("data") or b""),
+            http_status=http_status,
+            content_type=str((payload or {}).get("content_type") or "application/octet-stream"),
+            cache_control="no-store",
+            content_disposition=content_disposition,
+        )
+        return
+
     resolved = _resolve_disk_media(path, deps)
     if resolved is None:
         handler._send_error_json(api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài nguyên media."))

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 import time
 import unicodedata
@@ -168,6 +169,42 @@ def list_book_volumes(
             """,
             (bid,),
         ).fetchall()
+        batch_rows = conn.execute(
+            """
+            SELECT batch_id, volume_id, file_mode, note, payload_json, stack_order, chapter_count,
+                   created_at, updated_at
+            FROM book_supplement_batches
+            WHERE book_id = ?
+              AND trim(COALESCE(deleted_at, '')) = ''
+            ORDER BY volume_id ASC, stack_order DESC, created_at DESC, batch_id DESC
+            """,
+            (bid,),
+        ).fetchall()
+    latest_batch_by_volume: dict[str, dict[str, Any]] = {}
+    for batch_row in batch_rows:
+        batch_item = dict(batch_row)
+        volume_id = str(batch_item.get("volume_id") or "").strip()
+        if not volume_id or volume_id in latest_batch_by_volume:
+            continue
+        payload: dict[str, Any] = {}
+        try:
+            parsed = json.loads(str(batch_item.get("payload_json") or "{}"))
+            if isinstance(parsed, dict):
+                payload = parsed
+        except Exception:
+            payload = {}
+        latest_batch_by_volume[volume_id] = {
+            "batch_id": str(batch_item.get("batch_id") or "").strip(),
+            "stack_order": int(batch_item.get("stack_order") or 0),
+            "chapter_count": int(batch_item.get("chapter_count") or 0),
+            "note": str(batch_item.get("note") or "").strip(),
+            "file_name": str(payload.get("file_name") or "").strip() or "supplement.txt",
+            "file_mode": str(batch_item.get("file_mode") or payload.get("file_mode") or "single").strip() or "single",
+            "parse_mode": str(payload.get("parse_mode") or "single").strip() or "single",
+            "source_file_count": max(0, int(payload.get("source_file_count") or 0)),
+            "created_at": str(batch_item.get("created_at") or ""),
+            "updated_at": str(batch_item.get("updated_at") or ""),
+        }
     items: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
@@ -195,6 +232,14 @@ def list_book_volumes(
                     display_title = title_vi or title_raw
         else:
             display_title = title_raw
+        policy = build_book_volume_manage_policy(
+            book_row,
+            is_default_volume=is_default_volume,
+            deleted_retention_days=deleted_retention_days,
+        )
+        latest_batch = dict(latest_batch_by_volume.get(str(item.get("volume_id") or "").strip()) or {})
+        if latest_batch:
+            latest_batch["can_delete"] = bool(policy.get("can_delete"))
         items.append(
             {
                 "volume_id": str(item.get("volume_id") or "").strip(),
@@ -209,11 +254,8 @@ def list_book_volumes(
                 "last_chapter_order": int(item.get("last_chapter_order") or 0),
                 "created_at": str(item.get("created_at") or ""),
                 "updated_at": str(item.get("updated_at") or ""),
-                "policy": build_book_volume_manage_policy(
-                    book_row,
-                    is_default_volume=is_default_volume,
-                    deleted_retention_days=deleted_retention_days,
-                ),
+                "policy": policy,
+                "latest_supplement": latest_batch or None,
             }
         )
     return items
