@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260421-noticemd1";
+import { initShell } from "../site_common.js?v=20260421-serverbatch1";
 import { buildParagraphNodes, normalizeDisplayTitle, normalizeParagraphDisplayText, normalizeReaderText, splitParagraphBlocks } from "../reader_text.js?v=20260408-readerpara2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 import {
@@ -1995,7 +1995,9 @@ async function loadBook({ showSkeleton = false } = {}) {
   }
   try {
     const detailMode = state.translationEnabled ? state.mode : "raw";
-    const detail = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(detailMode)}&translation_mode=${encodeURIComponent(state.translateMode)}`);
+    const detail = await state.shell.api(
+      `/api/library/book/${encodeURIComponent(state.bookId)}?mode=${encodeURIComponent(detailMode)}&translation_mode=${encodeURIComponent(state.translateMode)}&live_chapter_title_translation=0&live_summary_translation=0&include_export_info=0`,
+    );
     state.book = detail;
     if (refs.btnReaderRefreshToc) {
       const sourceType = String((detail && detail.source_type) || "").trim().toLowerCase();

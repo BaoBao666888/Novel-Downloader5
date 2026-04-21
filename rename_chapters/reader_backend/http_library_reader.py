@@ -83,7 +83,17 @@ def _parse_csv_query_ids(query: dict[str, list[str]], key: str) -> list[str]:
     return [part.strip() for part in raw.split(",") if part.strip()]
 
 
-def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode: str, active_name_set, active_vp_set, deps: LibraryReaderDeps) -> None:
+def _apply_book_display_fields(
+    handler,
+    book: dict[str, Any],
+    *,
+    translate_mode: str,
+    active_name_set,
+    active_vp_set,
+    deps: LibraryReaderDeps,
+    live_chapter_title_translation: bool = True,
+    live_summary_translation: bool = True,
+) -> None:
     allow_translate = handler.service.translation_allowed_for_book(book)
     live_title_mode = translate_mode in {"local", "hanviet", "dichngay_local"}
     raw_summary = deps.normalize_vbook_display_text(str(book.get("summary") or ""), single_line=False) or str(book.get("summary") or "")
@@ -120,7 +130,7 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                     continue
                 row_title_raw = deps.normalize_vbook_display_text(str(row.get("title_raw") or ""), single_line=True)
                 row_title_vi = deps.normalize_vi_display_text(row.get("title_vi") or "")
-                if live_title_mode:
+                if live_title_mode and live_chapter_title_translation:
                     row["title_display"] = handler.service._translate_ui_text_with_dicts(
                         row_title_raw,
                         single_line=True,
@@ -128,6 +138,8 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                         name_set_override=active_name_set,
                         vp_set_override=active_vp_set,
                     ) or row_title_raw
+                elif live_title_mode:
+                    row["title_display"] = row_title_vi or row_title_raw
                 else:
                     if row_title_raw:
                         row["title_display"] = row_title_raw
@@ -160,7 +172,12 @@ def _apply_book_display_fields(handler, book: dict[str, Any], *, translate_mode:
                     continue
                 row["title_display"] = deps.normalize_vbook_display_text(str(row.get("title_raw") or ""), single_line=True) or str(row.get("title_raw") or "")
     summary_display = deps.normalize_vbook_display_text(str(book.get("summary_display") or raw_summary), single_line=False) or raw_summary
-    if raw_summary and handler.service.is_reader_translation_enabled() and handler.service._contains_cjk_text(raw_summary):
+    if (
+        live_summary_translation
+        and raw_summary
+        and handler.service.is_reader_translation_enabled()
+        and handler.service._contains_cjk_text(raw_summary)
+    ):
         if live_title_mode:
             translated_summary = handler.service._translate_ui_text_with_dicts(
                 raw_summary,
@@ -531,6 +548,9 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         translate_titles = (query.get("translate_titles", ["0"])[0] or "0").strip() in {"1", "true", "yes"}
         refresh_online = (query.get("refresh_online", ["0"])[0] or "0").strip().lower() in {"1", "true", "yes", "on"}
         include_chapters = (query.get("include_chapters", ["1"])[0] or "1").strip().lower() in {"1", "true", "yes", "on"}
+        live_chapter_title_translation = (query.get("live_chapter_title_translation", ["1"])[0] or "1").strip().lower() in {"1", "true", "yes", "on"}
+        live_summary_translation = (query.get("live_summary_translation", ["1"])[0] or "1").strip().lower() in {"1", "true", "yes", "on"}
+        include_export_info = (query.get("include_export_info", ["1"])[0] or "1").strip().lower() in {"1", "true", "yes", "on"}
         mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
         if mode not in ("raw", "trans"):
             mode = "raw"
@@ -564,8 +584,10 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             active_name_set=active_name_set,
             active_vp_set=active_vp_set,
             deps=deps,
+            live_chapter_title_translation=live_chapter_title_translation,
+            live_summary_translation=live_summary_translation,
         )
-        if include_chapters:
+        if include_chapters and include_export_info:
             export_info = service.build_book_export_info(
                 book,
                 translate_mode=translate_mode,
