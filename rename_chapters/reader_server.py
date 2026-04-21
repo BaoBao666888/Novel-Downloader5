@@ -4470,6 +4470,24 @@ class ReaderStorage:
                 CREATE INDEX IF NOT EXISTS idx_book_change_history_expire
                 ON book_change_history(expire_at);
 
+                CREATE TABLE IF NOT EXISTS book_name_history (
+                    event_id TEXT PRIMARY KEY,
+                    book_id TEXT NOT NULL,
+                    set_name TEXT DEFAULT '',
+                    action_type TEXT NOT NULL,
+                    source_text TEXT DEFAULT '',
+                    target_text TEXT DEFAULT '',
+                    previous_target_text TEXT DEFAULT '',
+                    origin TEXT DEFAULT '',
+                    chapter_id TEXT DEFAULT '',
+                    payload_json TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(book_id) REFERENCES books(book_id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_book_name_history_book
+                ON book_name_history(book_id, created_at DESC, event_id);
+
                 CREATE TABLE IF NOT EXISTS book_categories (
                     category_id TEXT PRIMARY KEY,
                     name TEXT NOT NULL COLLATE NOCASE UNIQUE,
@@ -4875,6 +4893,9 @@ class ReaderStorage:
         active_set: str | None = None,
         bump_version: bool = True,
         book_id: str | None = None,
+        origin: str | None = None,
+        chapter_id: str | None = None,
+        history_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return storage_user_state_support.set_name_set_state(
             self,
@@ -4884,6 +4905,10 @@ class ReaderStorage:
             book_id=book_id,
             normalize_name_sets_collection=normalize_name_sets_collection,
             base_key=APP_STATE_NAME_SET_STATE_KEY,
+            utc_now_iso=utc_now_iso,
+            origin=origin,
+            chapter_id=chapter_id,
+            history_context=history_context,
         )
 
     def update_name_set_entry(
@@ -4894,6 +4919,9 @@ class ReaderStorage:
         set_name: str | None = None,
         delete: bool = False,
         book_id: str | None = None,
+        origin: str | None = None,
+        chapter_id: str | None = None,
+        history_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return storage_user_state_support.update_name_set_entry(
             self,
@@ -4905,7 +4933,14 @@ class ReaderStorage:
             normalize_name_sets_collection=normalize_name_sets_collection,
             contains_name_split_delimiter=contains_name_split_delimiter,
             base_key=APP_STATE_NAME_SET_STATE_KEY,
+            utc_now_iso=utc_now_iso,
+            origin=origin,
+            chapter_id=chapter_id,
+            history_context=history_context,
         )
+
+    def list_book_name_history(self, book_id: str, *, limit: int = 200) -> list[dict[str, Any]]:
+        return storage_user_state_support.list_book_name_history(self, book_id, limit=limit)
 
     def get_active_name_set(
         self,

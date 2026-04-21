@@ -75,17 +75,37 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         )
         return {"ok": True, **state}
 
+    if method == "GET" and path == "/api/name-sets/history":
+        book_id = (query.get("book_id", [""])[0] or "").strip()
+        limit_raw = (query.get("limit", ["200"])[0] or "200").strip()
+        if not book_id:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id để xem lịch sử Name riêng.")
+        try:
+            limit = max(1, min(1000, int(limit_raw or 200)))
+        except Exception:
+            limit = 200
+        items = handler.service.storage.list_book_name_history(book_id, limit=limit)
+        return {"ok": True, "items": items}
+
     if method == "POST" and path == "/api/name-sets":
         payload = handler._read_json_body()
         sets = payload.get("sets")
         active_set = (payload.get("active_set") or "").strip() or None
         bump_version = bool(payload.get("bump_version", True))
         book_id = (payload.get("book_id") or "").strip() or None
+        origin = (payload.get("origin") or "").strip() or None
+        chapter_id = (payload.get("chapter_id") or "").strip() or None
+        history_context = payload.get("history_context")
+        if not isinstance(history_context, dict):
+            history_context = None
         state = handler.service.storage.set_name_set_state(
             sets if isinstance(sets, dict) else None,
             active_set=active_set,
             bump_version=bump_version,
             book_id=book_id,
+            origin=origin,
+            chapter_id=chapter_id,
+            history_context=history_context,
         )
         return {"ok": True, **state}
 
@@ -96,6 +116,11 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         set_name = (payload.get("set_name") or "").strip() or None
         delete = bool(payload.get("delete", False))
         book_id = (payload.get("book_id") or "").strip() or None
+        origin = (payload.get("origin") or "").strip() or None
+        chapter_id = (payload.get("chapter_id") or "").strip() or None
+        history_context = payload.get("history_context")
+        if not isinstance(history_context, dict):
+            history_context = None
         if not source:
             raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu source cho entry name set.")
         try:
@@ -105,6 +130,9 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 set_name=set_name,
                 delete=delete,
                 book_id=book_id,
+                origin=origin,
+                chapter_id=chapter_id,
+                history_context=history_context,
             )
         except ValueError as exc:
             raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", str(exc)) from exc

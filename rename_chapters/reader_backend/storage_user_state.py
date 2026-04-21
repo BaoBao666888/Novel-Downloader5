@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from typing import Any
 
 
@@ -19,8 +20,19 @@ def _name_set_state_key(book_id: str | None, *, base_key: str) -> str:
     return f"{base_key}.{bid}"
 
 
-def _load_name_set_state_raw(storage, *, book_id: str | None, base_key: str) -> dict[str, Any] | None:
-    raw = storage._get_app_state_value(_name_set_state_key(book_id, base_key=base_key))
+def _load_name_set_state_raw(
+    storage,
+    *,
+    book_id: str | None,
+    base_key: str,
+    conn=None,
+) -> dict[str, Any] | None:
+    key = _name_set_state_key(book_id, base_key=base_key)
+    if conn is not None:
+        row = conn.execute("SELECT value FROM app_state WHERE key = ?", (key,)).fetchone()
+        raw = str(row["value"]) if row and row["value"] is not None else None
+    else:
+        raw = storage._get_app_state_value(key)
     if not raw:
         return None
     try:
@@ -54,11 +66,183 @@ def _normalize_name_set_state(
     return {"sets": sets, "active_set": active, "version": version}
 
 
-def _persist_name_set_state(storage, state: dict[str, Any], *, book_id: str | None, base_key: str) -> None:
-    storage._set_app_state_value(
-        _name_set_state_key(book_id, base_key=base_key),
-        json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+def _persist_name_set_state(
+    storage,
+    state: dict[str, Any],
+    *,
+    book_id: str | None,
+    base_key: str,
+    conn=None,
+    utc_now_iso=None,
+) -> None:
+    key = _name_set_state_key(book_id, base_key=base_key)
+    value = json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if conn is None:
+        storage._set_app_state_value(key, value)
+        return
+    now = utc_now_iso() if callable(utc_now_iso) else ""
+    conn.execute(
+        """
+        INSERT INTO app_state(key, value, updated_at)
+        VALUES(?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = excluded.updated_at
+        """,
+        (key, value, now),
     )
+
+
+def _normalize_history_context(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    try:
+        payload = json.loads(json.dumps(value, ensure_ascii=False, default=str))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _insert_book_name_history_row(
+    conn,
+    *,
+    book_id: str,
+    set_name: str,
+    action_type: str,
+    source_text: str,
+    target_text: str,
+    previous_target_text: str,
+    origin: str,
+    chapter_id: str,
+    payload: dict[str, Any] | None,
+    created_at: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO book_name_history(
+            event_id,
+            book_id,
+            set_name,
+            action_type,
+            source_text,
+            target_text,
+            previous_target_text,
+            origin,
+            chapter_id,
+            payload_json,
+            created_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            f"bnh_{uuid.uuid4().hex}",
+            str(book_id or "").strip(),
+            str(set_name or "").strip(),
+            str(action_type or "").strip(),
+            str(source_text or "").strip(),
+            str(target_text or "").strip(),
+            str(previous_target_text or "").strip(),
+            str(origin or "").strip(),
+            str(chapter_id or "").strip(),
+            json.dumps(payload or {}, ensure_ascii=False, separators=(",", ":")),
+            str(created_at or "").strip(),
+        ),
+    )
+
+
+def _log_name_set_history_diff(
+    conn,
+    *,
+    book_id: str | None,
+    current_state: dict[str, Any],
+    next_state: dict[str, Any],
+    origin: str | None,
+    chapter_id: str | None,
+    history_context: dict[str, Any] | None,
+    utc_now_iso,
+) -> None:
+    normalized_book_id = str(book_id or "").strip()
+    if not normalized_book_id:
+        return
+    current_sets = current_state.get("sets") or {}
+    next_sets = next_state.get("sets") or {}
+    context = _normalize_history_context(history_context)
+    normalized_origin = str(origin or "").strip()
+    normalized_chapter_id = str(chapter_id or "").strip()
+    created_at = utc_now_iso() if callable(utc_now_iso) else ""
+
+    def emit(
+        *,
+        set_name: str,
+        action_type: str,
+        source_text: str = "",
+        target_text: str = "",
+        previous_target_text: str = "",
+        extra_payload: dict[str, Any] | None = None,
+    ) -> None:
+        payload = dict(context) if context else {}
+        if isinstance(extra_payload, dict):
+            payload.update(extra_payload)
+        _insert_book_name_history_row(
+            conn,
+            book_id=normalized_book_id,
+            set_name=set_name,
+            action_type=action_type,
+            source_text=source_text,
+            target_text=target_text,
+            previous_target_text=previous_target_text,
+            origin=normalized_origin,
+            chapter_id=normalized_chapter_id,
+            payload=payload,
+            created_at=created_at,
+        )
+
+    current_set_names = set(current_sets.keys())
+    next_set_names = set(next_sets.keys())
+    for set_name in sorted(next_set_names - current_set_names):
+        emit(
+            set_name=set_name,
+            action_type="set_added",
+            extra_payload={"entry_count": len(next_sets.get(set_name) or {})},
+        )
+    for set_name in sorted(current_set_names - next_set_names):
+        emit(
+            set_name=set_name,
+            action_type="set_deleted",
+            extra_payload={"entry_count": len(current_sets.get(set_name) or {})},
+        )
+
+    common_names = sorted(current_set_names & next_set_names)
+    for set_name in common_names:
+        before_entries = current_sets.get(set_name) or {}
+        after_entries = next_sets.get(set_name) or {}
+        before_sources = set(before_entries.keys())
+        after_sources = set(after_entries.keys())
+        for source_text in sorted(after_sources - before_sources):
+            emit(
+                set_name=set_name,
+                action_type="entry_added",
+                source_text=source_text,
+                target_text=str(after_entries.get(source_text) or "").strip(),
+            )
+        for source_text in sorted(before_sources - after_sources):
+            emit(
+                set_name=set_name,
+                action_type="entry_deleted",
+                source_text=source_text,
+                previous_target_text=str(before_entries.get(source_text) or "").strip(),
+            )
+        for source_text in sorted(before_sources & after_sources):
+            previous_target = str(before_entries.get(source_text) or "").strip()
+            next_target = str(after_entries.get(source_text) or "").strip()
+            if previous_target == next_target:
+                continue
+            emit(
+                set_name=set_name,
+                action_type="entry_updated",
+                source_text=source_text,
+                target_text=next_target,
+                previous_target_text=previous_target,
+            )
 
 
 def get_name_set_state(
@@ -69,8 +253,9 @@ def get_name_set_state(
     book_id: str | None = None,
     normalize_name_sets_collection,
     base_key: str,
+    conn=None,
 ) -> dict[str, Any]:
-    raw_state = _load_name_set_state_raw(storage, book_id=book_id, base_key=base_key)
+    raw_state = _load_name_set_state_raw(storage, book_id=book_id, base_key=base_key, conn=conn)
     return _normalize_name_set_state(
         raw_state,
         default_sets=default_sets,
@@ -88,26 +273,52 @@ def set_name_set_state(
     book_id: str | None = None,
     normalize_name_sets_collection,
     base_key: str,
+    utc_now_iso=None,
+    origin: str | None = None,
+    chapter_id: str | None = None,
+    history_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    current = get_name_set_state(
-        storage,
-        book_id=book_id,
-        normalize_name_sets_collection=normalize_name_sets_collection,
-        base_key=base_key,
-    )
-    normalized_sets = normalize_name_sets_collection(sets if isinstance(sets, dict) else current.get("sets") or {})
-    desired_active = str(active_set or current.get("active_set") or "").strip()
-    if desired_active not in normalized_sets:
-        desired_active = next(iter(normalized_sets.keys()))
-    next_version = int(current.get("version") or 1)
-    if bump_version:
-        next_version += 1
-    final_state = {
-        "sets": normalized_sets,
-        "active_set": desired_active,
-        "version": max(1, int(next_version)),
-    }
-    _persist_name_set_state(storage, final_state, book_id=book_id, base_key=base_key)
+    with storage._connect() as conn:
+        current = get_name_set_state(
+            storage,
+            book_id=book_id,
+            normalize_name_sets_collection=normalize_name_sets_collection,
+            base_key=base_key,
+            conn=conn,
+        )
+        normalized_sets = normalize_name_sets_collection(sets if isinstance(sets, dict) else current.get("sets") or {})
+        desired_active = str(active_set or current.get("active_set") or "").strip()
+        if not normalized_sets:
+            fallback_name = desired_active or "Mặc định"
+            normalized_sets = {fallback_name: {}}
+        if desired_active not in normalized_sets:
+            desired_active = next(iter(normalized_sets.keys()))
+        next_version = int(current.get("version") or 1)
+        if bump_version:
+            next_version += 1
+        final_state = {
+            "sets": normalized_sets,
+            "active_set": desired_active,
+            "version": max(1, int(next_version)),
+        }
+        _persist_name_set_state(
+            storage,
+            final_state,
+            book_id=book_id,
+            base_key=base_key,
+            conn=conn,
+            utc_now_iso=utc_now_iso,
+        )
+        _log_name_set_history_diff(
+            conn,
+            book_id=book_id,
+            current_state=current,
+            next_state=final_state,
+            origin=origin,
+            chapter_id=chapter_id,
+            history_context=history_context,
+            utc_now_iso=utc_now_iso,
+        )
     return final_state
 
 
@@ -122,6 +333,10 @@ def update_name_set_entry(
     normalize_name_sets_collection,
     contains_name_split_delimiter,
     base_key: str,
+    utc_now_iso=None,
+    origin: str | None = None,
+    chapter_id: str | None = None,
+    history_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     source_key = str(source or "").strip()
     if not source_key:
@@ -157,7 +372,60 @@ def update_name_set_entry(
         book_id=book_id,
         normalize_name_sets_collection=normalize_name_sets_collection,
         base_key=base_key,
+        utc_now_iso=utc_now_iso,
+        origin=origin,
+        chapter_id=chapter_id,
+        history_context=history_context,
     )
+
+
+def list_book_name_history(storage, book_id: str, *, limit: int = 200) -> list[dict[str, Any]]:
+    normalized_book_id = str(book_id or "").strip()
+    if not normalized_book_id:
+        return []
+    try:
+        safe_limit = max(1, min(1000, int(limit or 200)))
+    except Exception:
+        safe_limit = 200
+    with storage._connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT event_id, book_id, set_name, action_type, source_text, target_text,
+                   previous_target_text, origin, chapter_id, payload_json, created_at
+            FROM book_name_history
+            WHERE book_id = ?
+            ORDER BY created_at DESC, event_id DESC
+            LIMIT ?
+            """,
+            (normalized_book_id, safe_limit),
+        ).fetchall()
+    items: list[dict[str, Any]] = []
+    for row in rows:
+        payload_raw = row["payload_json"]
+        payload: dict[str, Any] = {}
+        if payload_raw:
+            try:
+                parsed = json.loads(str(payload_raw))
+                if isinstance(parsed, dict):
+                    payload = parsed
+            except Exception:
+                payload = {}
+        items.append(
+            {
+                "event_id": str(row["event_id"] or "").strip(),
+                "book_id": normalized_book_id,
+                "set_name": str(row["set_name"] or "").strip(),
+                "action_type": str(row["action_type"] or "").strip(),
+                "source_text": str(row["source_text"] or "").strip(),
+                "target_text": str(row["target_text"] or "").strip(),
+                "previous_target_text": str(row["previous_target_text"] or "").strip(),
+                "origin": str(row["origin"] or "").strip(),
+                "chapter_id": str(row["chapter_id"] or "").strip(),
+                "payload": payload,
+                "created_at": str(row["created_at"] or "").strip(),
+            }
+        )
+    return items
 
 
 def get_active_name_set(

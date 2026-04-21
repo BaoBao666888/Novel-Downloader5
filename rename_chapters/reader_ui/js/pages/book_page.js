@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260421-booksupp4";
+import { initShell } from "../site_common.js?v=20260421-namehistory1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -128,6 +128,7 @@ const refs = {
   bookNameDialog: document.getElementById("book-name-dialog"),
   bookNameTitle: document.getElementById("book-name-title"),
   btnCloseBookNames: document.getElementById("btn-close-book-names"),
+  btnBookNameHistory: document.getElementById("btn-book-name-history"),
   btnBookNameRefresh: document.getElementById("btn-book-name-refresh"),
   btnBookNameAddSet: document.getElementById("btn-book-name-add-set"),
   btnBookNameDelSet: document.getElementById("btn-book-name-del-set"),
@@ -143,6 +144,12 @@ const refs = {
   bookNameTarget: document.getElementById("book-name-target"),
   btnBookNameSaveEntry: document.getElementById("btn-book-name-save-entry"),
   bookNameBody: document.getElementById("book-name-body"),
+  bookNameHistoryDialog: document.getElementById("book-name-history-dialog"),
+  bookNameHistoryTitle: document.getElementById("book-name-history-title"),
+  btnCloseBookNameHistory: document.getElementById("btn-close-book-name-history"),
+  bookNameHistoryHint: document.getElementById("book-name-history-hint"),
+  bookNameHistoryList: document.getElementById("book-name-history-list"),
+  bookNameHistoryEmpty: document.getElementById("book-name-history-empty"),
   bookNameBulkDialog: document.getElementById("book-name-bulk-dialog"),
   bookNameBulkTitle: document.getElementById("book-name-bulk-title"),
   btnCloseBookNameBulk: document.getElementById("btn-close-book-name-bulk"),
@@ -269,6 +276,8 @@ const state = {
   bookHistoryItems: [],
   bookNameSets: { "Mặc định": {} },
   bookActiveNameSet: "Mặc định",
+  bookNameHistoryItems: [],
+  reopenBookNameDialogAfterHistory: false,
   bookNameFilterResults: [],
   bookNameFilterMeta: null,
   bookNameFilterJobId: "",
@@ -1800,6 +1809,154 @@ async function openBookHistoryDialog() {
   }
 }
 
+function buildBookNameHistoryPayload(origin, extraContext = null) {
+  const payload = {
+    origin: String(origin || "").trim(),
+  };
+  if (extraContext && typeof extraContext === "object") {
+    payload.history_context = extraContext;
+  }
+  return payload;
+}
+
+function describeBookNameHistoryOrigin(origin, payload = {}) {
+  const key = String(origin || "").trim().toLowerCase();
+  if (key === "book_filter") return "Thêm bằng lọc Name";
+  if (key === "book_import") return "Nhập file Name";
+  if (key === "book_bulk") return "Thêm nhanh";
+  if (key === "book_edit") return "Sửa tay ở trang sách";
+  if (key === "book_set_add") return "Tạo bộ Name";
+  if (key === "book_set_delete") return "Xóa bộ Name";
+  if (key === "reader_selection") return "Thêm từ đoạn bôi đen trong reader";
+  if (key === "reader_edit") return "Sửa tay trong reader";
+  if (key === "reader_import") return "Nhập file Name trong reader";
+  if (key === "reader_bulk") return "Thêm nhanh trong reader";
+  if (key === "reader_set_add") return "Tạo bộ Name trong reader";
+  if (key === "reader_set_delete") return "Xóa bộ Name trong reader";
+  const chapterTitle = normalizeDisplayTitle(String((payload && payload.chapter_title) || "").trim());
+  if (chapterTitle) return chapterTitle;
+  return "Hệ thống ghi nhận";
+}
+
+function describeBookNameHistoryEntry(entry) {
+  const item = (entry && typeof entry === "object") ? entry : {};
+  const payload = (item.payload && typeof item.payload === "object") ? item.payload : {};
+  const actionType = String(item.action_type || "").trim().toLowerCase();
+  const setName = normalizeDisplayTitle(String(item.set_name || "").trim() || "Mặc định");
+  const sourceText = normalizeDisplayTitle(String(item.source_text || "").trim());
+  const targetText = normalizeDisplayTitle(String(item.target_text || "").trim());
+  const previousTarget = normalizeDisplayTitle(String(item.previous_target_text || "").trim());
+  const metaParts = [`Bộ Name: ${setName}`];
+  const originLabel = describeBookNameHistoryOrigin(item.origin, payload);
+  if (originLabel) metaParts.push(originLabel);
+  const chapterTitle = normalizeDisplayTitle(String(payload.chapter_title || "").trim());
+  if (chapterTitle) metaParts.push(`Chương: ${chapterTitle}`);
+  else if (String(item.chapter_id || "").trim()) metaParts.push(`Chapter ID: ${String(item.chapter_id || "").trim()}`);
+
+  if (actionType === "set_added") {
+    const entryCount = normalizeHistoryCount(payload.entry_count);
+    return {
+      title: `Đã tạo bộ Name: ${setName}`,
+      body: entryCount > 0 ? `Bộ Name mới đang có sẵn ${entryCount} cặp tên.` : "Bộ Name mới đã sẵn sàng để thêm tên riêng.",
+      meta: metaParts.join(" • "),
+    };
+  }
+  if (actionType === "set_deleted") {
+    const entryCount = normalizeHistoryCount(payload.entry_count);
+    return {
+      title: `Đã xóa bộ Name: ${setName}`,
+      body: entryCount > 0 ? `Bộ Name này có ${entryCount} cặp tên trước khi bị xóa.` : "Bộ Name này không còn trong danh sách áp dụng.",
+      meta: metaParts.join(" • "),
+    };
+  }
+  if (actionType === "entry_added") {
+    return {
+      title: "Đã thêm Name riêng",
+      body: sourceText && targetText ? `${sourceText} -> ${targetText}` : "Một cặp Name riêng mới đã được thêm.",
+      meta: metaParts.join(" • "),
+    };
+  }
+  if (actionType === "entry_deleted") {
+    return {
+      title: "Đã xóa Name riêng",
+      body: sourceText && previousTarget ? `${sourceText} -> ${previousTarget}` : sourceText || "Một cặp Name riêng đã bị xóa.",
+      meta: metaParts.join(" • "),
+    };
+  }
+  if (actionType === "entry_updated") {
+    const bodyParts = [];
+    if (sourceText) bodyParts.push(`Tên gốc: ${sourceText}`);
+    if (previousTarget || targetText) bodyParts.push(`Đổi từ ${previousTarget || "(trống)"} sang ${targetText || "(trống)"}`);
+    return {
+      title: "Đã sửa Name riêng",
+      body: bodyParts.join("\n") || "Một cặp Name riêng đã được cập nhật lại.",
+      meta: metaParts.join(" • "),
+    };
+  }
+  return {
+    title: "Name riêng đã thay đổi",
+    body: sourceText && targetText ? `${sourceText} -> ${targetText}` : "Hệ thống đã ghi nhận một thay đổi trong Name riêng.",
+    meta: metaParts.join(" • "),
+  };
+}
+
+function renderBookNameHistory() {
+  if (!refs.bookNameHistoryList || !refs.bookNameHistoryEmpty) return;
+  refs.bookNameHistoryList.innerHTML = "";
+  const items = Array.isArray(state.bookNameHistoryItems) ? state.bookNameHistoryItems : [];
+  refs.bookNameHistoryEmpty.classList.toggle("hidden", items.length > 0);
+  for (const entry of items) {
+    const info = describeBookNameHistoryEntry(entry);
+    const card = document.createElement("article");
+    card.className = "book-history-item";
+
+    const head = document.createElement("div");
+    head.className = "book-history-item-head";
+    const title = document.createElement("div");
+    title.className = "book-history-item-title";
+    title.textContent = String(info.title || "").trim() || "Thay đổi Name riêng";
+    const time = document.createElement("div");
+    time.className = "book-history-item-time";
+    time.textContent = formatBookHistoryTime(entry && entry.created_at);
+    head.append(title, time);
+
+    const body = document.createElement("div");
+    body.className = "book-history-item-body";
+    body.textContent = String(info.body || "").trim() || "Hệ thống đã ghi nhận một thay đổi mới.";
+    card.append(head, body);
+
+    if (String(info.meta || "").trim()) {
+      const meta = document.createElement("div");
+      meta.className = "book-history-item-meta";
+      meta.textContent = String(info.meta || "").trim();
+      card.appendChild(meta);
+    }
+    refs.bookNameHistoryList.appendChild(card);
+  }
+}
+
+async function openBookNameHistoryDialog() {
+  if (!state.bookId) return;
+  const reopenNameDialog = Boolean(refs.bookNameDialog && refs.bookNameDialog.open);
+  state.reopenBookNameDialogAfterHistory = reopenNameDialog;
+  if (reopenNameDialog) refs.bookNameDialog.close();
+  state.shell.showStatus("Đang tải lịch sử Name riêng...");
+  try {
+    const data = await state.shell.api(`/api/name-sets/history?book_id=${encodeURIComponent(state.bookId)}&limit=400`);
+    state.bookNameHistoryItems = Array.isArray(data && data.items) ? data.items : [];
+    renderBookNameHistory();
+    if (refs.bookNameHistoryDialog && !refs.bookNameHistoryDialog.open) refs.bookNameHistoryDialog.showModal();
+  } catch (error) {
+    state.reopenBookNameDialogAfterHistory = false;
+    if (reopenNameDialog && refs.bookNameDialog && !refs.bookNameDialog.open) {
+      refs.bookNameDialog.showModal();
+    }
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
 function buildTocPageLabel(page, pagination = state.pagination) {
   const pageSize = Math.max(1, Number((pagination && pagination.page_size) || state.pagination.page_size || 40));
   const totalItems = Math.max(0, Number((pagination && pagination.total_items) || 0));
@@ -2409,9 +2566,9 @@ async function updateBookNameEntry(source, target, del = false) {
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
   try {
     if (del) {
-      await deleteBookNameEntry(source);
+      await deleteBookNameEntry(source, { origin: "book_edit" });
     } else {
-      await saveBookNameEntries({ [source]: target }, { replace: false });
+      await saveBookNameEntries({ [source]: target }, { replace: false, origin: "book_edit" });
     }
     await refreshBookNameEffects();
     state.shell.showToast(state.shell.t("nameEntryApplied"));
@@ -2639,7 +2796,7 @@ async function refreshBookNameEffects() {
   }
 }
 
-async function deleteBookNameEntry(source) {
+async function deleteBookNameEntry(source, { origin = "book_edit", historyContext = null } = {}) {
   const sourceKey = String(source || "").trim();
   if (!sourceKey || !state.bookId) return false;
   const active = state.bookActiveNameSet || "Mặc định";
@@ -2654,12 +2811,13 @@ async function deleteBookNameEntry(source) {
       active_set: active,
       bump_version: true,
       book_id: state.bookId,
+      ...buildBookNameHistoryPayload(origin, historyContext),
     }),
   });
   return true;
 }
 
-async function saveBookNameEntries(entries, { replace = false } = {}) {
+async function saveBookNameEntries(entries, { replace = false, origin = "book_edit", historyContext = null } = {}) {
   const active = state.bookActiveNameSet || "Mặc định";
   const nextEntries = replace
     ? normalizeBookNameEntries(entries)
@@ -2672,11 +2830,12 @@ async function saveBookNameEntries(entries, { replace = false } = {}) {
       active_set: active,
       bump_version: true,
       book_id: state.bookId,
+      ...buildBookNameHistoryPayload(origin, historyContext),
     }),
   });
 }
 
-async function applyBookNameEntries(entries, { replace = false, toastKey = "nameSetImported" } = {}) {
+async function applyBookNameEntries(entries, { replace = false, toastKey = "nameSetImported", origin = "book_edit", historyContext = null } = {}) {
   const nextEntries = normalizeBookNameEntries(entries);
   if (!Object.keys(nextEntries).length) {
     state.shell.showToast(state.shell.t("nameSetImportInvalid"));
@@ -2684,7 +2843,7 @@ async function applyBookNameEntries(entries, { replace = false, toastKey = "name
   }
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
   try {
-    await saveBookNameEntries(nextEntries, { replace });
+    await saveBookNameEntries(nextEntries, { replace, origin, historyContext });
     await refreshBookNameEffects();
     if (toastKey) {
       state.shell.showToast(state.shell.t(toastKey));
@@ -2709,7 +2868,11 @@ async function submitBookNameBulkEntries(event) {
   event.preventDefault();
   try {
     const entries = parseBookNameEntriesOrThrow(refs.bookNameBulkInput ? refs.bookNameBulkInput.value : "");
-    const applied = await applyBookNameEntries(entries, { replace: false, toastKey: "nameSetQuickAddApplied" });
+    const applied = await applyBookNameEntries(entries, {
+      replace: false,
+      toastKey: "nameSetQuickAddApplied",
+      origin: "book_bulk",
+    });
     if (applied && refs.bookNameBulkDialog) {
       refs.bookNameBulkDialog.close();
     }
@@ -3123,7 +3286,11 @@ async function importSelectedBookNameFilterRows() {
     state.shell.showToast(state.shell.t("nameFilterPickOne"));
     return;
   }
-  const applied = await applyBookNameEntries(entries, { replace: false, toastKey: "nameFilterImported" });
+  const applied = await applyBookNameEntries(entries, {
+    replace: false,
+    toastKey: "nameFilterImported",
+    origin: "book_filter",
+  });
   if (applied && refs.bookNameFilterDialog && refs.bookNameFilterDialog.open) {
     refs.bookNameFilterDialog.close();
   }
@@ -3411,12 +3578,17 @@ async function init() {
   if (refs.bookHistoryEmpty) refs.bookHistoryEmpty.textContent = "Chưa có thay đổi nào được ghi lại.";
   refs.bookNameTitle.textContent = state.shell.t("bookPrivateNamesTitle");
   refs.btnCloseBookNames.textContent = state.shell.t("close");
+  if (refs.btnBookNameHistory) refs.btnBookNameHistory.textContent = "Lịch sử sửa";
   refs.btnBookNameRefresh.textContent = state.shell.t("refreshNamePreview");
   refs.btnBookNameAddSet.textContent = state.shell.t("nameSetAdd");
   refs.btnBookNameDelSet.textContent = state.shell.t("nameSetDelete");
   refs.btnBookNameQuickAdd.textContent = state.shell.t("nameSetQuickAdd");
   refs.btnBookNameExport.textContent = state.shell.t("nameSetExport");
   refs.btnBookNameImport.textContent = state.shell.t("nameSetImport");
+  if (refs.bookNameHistoryTitle) refs.bookNameHistoryTitle.textContent = "Lịch sử Name riêng";
+  if (refs.btnCloseBookNameHistory) refs.btnCloseBookNameHistory.textContent = "Đóng";
+  if (refs.bookNameHistoryHint) refs.bookNameHistoryHint.textContent = "Ghi lại các lần thêm, xóa, sửa Name riêng và nguồn thao tác tương ứng.";
+  if (refs.bookNameHistoryEmpty) refs.bookNameHistoryEmpty.textContent = "Chưa có thay đổi Name riêng nào được ghi lại.";
   refs.bookNameSetLabel.textContent = state.shell.t("nameSetLabel");
   refs.bookNameCount.textContent = state.shell.t("bookNameCount", { count: 0 });
   refs.btnBookNameSaveEntry.textContent = state.shell.t("addNameEntry");
@@ -3535,6 +3707,19 @@ async function init() {
     deleteLatestBookSupplement().catch(() => {});
   });
   refs.btnCloseBookNames.addEventListener("click", () => refs.bookNameDialog.close());
+  if (refs.btnBookNameHistory) refs.btnBookNameHistory.addEventListener("click", () => {
+    openBookNameHistoryDialog().catch(() => {});
+  });
+  if (refs.btnCloseBookNameHistory) refs.btnCloseBookNameHistory.addEventListener("click", () => {
+    if (refs.bookNameHistoryDialog && refs.bookNameHistoryDialog.open) refs.bookNameHistoryDialog.close();
+  });
+  if (refs.bookNameHistoryDialog) refs.bookNameHistoryDialog.addEventListener("close", () => {
+    const shouldReopen = Boolean(state.reopenBookNameDialogAfterHistory);
+    state.reopenBookNameDialogAfterHistory = false;
+    if (shouldReopen && refs.bookNameDialog && !refs.bookNameDialog.open) {
+      refs.bookNameDialog.showModal();
+    }
+  });
   if (refs.btnCloseBookNameFilter) refs.btnCloseBookNameFilter.addEventListener("click", () => refs.bookNameFilterDialog.close());
   if (refs.btnCloseBookReplaces) refs.btnCloseBookReplaces.addEventListener("click", () => refs.bookReplaceDialog.close());
   if (refs.btnBookReplaceRefresh) refs.btnBookReplaceRefresh.addEventListener("click", () => {
@@ -3606,7 +3791,7 @@ async function init() {
       await state.shell.api("/api/name-sets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sets, active_set: trimmed, bump_version: false, book_id: state.bookId }),
+        body: JSON.stringify({ sets, active_set: trimmed, bump_version: false, book_id: state.bookId, origin: "book_set_add" }),
       });
       await refreshBookNameEffects();
     } catch (error) {
@@ -3632,7 +3817,7 @@ async function init() {
       await state.shell.api("/api/name-sets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sets: nextSets, active_set: nextActive, bump_version: false, book_id: state.bookId }),
+        body: JSON.stringify({ sets: nextSets, active_set: nextActive, bump_version: false, book_id: state.bookId, origin: "book_set_delete" }),
       });
       await refreshBookNameEffects();
     } catch (error) {
@@ -3655,7 +3840,7 @@ async function init() {
     try {
       const raw = await file.text();
       const entries = parseBookNameEntriesOrThrow(raw);
-      await applyBookNameEntries(entries, { replace: true, toastKey: "nameSetImported" });
+      await applyBookNameEntries(entries, { replace: true, toastKey: "nameSetImported", origin: "book_import" });
     } catch (error) {
       state.shell.showToast(error.message || state.shell.t("toastError"));
     }

@@ -2468,6 +2468,29 @@ function parseNameEntriesOrThrow(rawText) {
   return normalizeNameEntries(parsed.entries);
 }
 
+function currentReaderNameHistoryContext() {
+  const chapter = Array.isArray(state.book && state.book.chapters)
+    ? state.book.chapters.find((item) => String((item && item.chapter_id) || "").trim() === String(state.chapterId || "").trim())
+    : null;
+  const chapterTitleText = chapter ? chapterTitle(chapter) : "";
+  if (!chapterTitleText) return null;
+  return { chapter_title: chapterTitleText };
+}
+
+function buildReaderNameHistoryPayload(origin, historyContext = null) {
+  const payload = {
+    origin: String(origin || "").trim(),
+  };
+  if (state.chapterId) {
+    payload.chapter_id = state.chapterId;
+  }
+  const context = historyContext || currentReaderNameHistoryContext();
+  if (context && typeof context === "object" && Object.keys(context).length) {
+    payload.history_context = context;
+  }
+  return payload;
+}
+
 async function saveBookVpEntries(entries, { replace = false } = {}) {
   const current = normalizeNameEntries(state.bookVpDict || {});
   const incoming = normalizeNameEntries(entries);
@@ -2501,7 +2524,7 @@ async function saveBookVpEntries(entries, { replace = false } = {}) {
   }
 }
 
-async function saveCurrentDictEntries(entries, { replace = false } = {}) {
+async function saveCurrentDictEntries(entries, { replace = false, origin = "reader_edit", historyContext = null } = {}) {
   const incoming = normalizeNameEntries(entries);
   if (state.nameDictScope === "global") {
     const nextEntries = replace ? incoming : mergeNameEntriesWithPriority(getCurrentDictEntries(), incoming);
@@ -2526,11 +2549,12 @@ async function saveCurrentDictEntries(entries, { replace = false } = {}) {
       active_set: active,
       bump_version: true,
       book_id: state.bookId,
+      ...buildReaderNameHistoryPayload(origin, historyContext),
     }),
   });
 }
 
-async function applyCurrentDictEntries(entries, { replace = false, toastKey = "nameSetImported" } = {}) {
+async function applyCurrentDictEntries(entries, { replace = false, toastKey = "nameSetImported", origin = "reader_edit", historyContext = null } = {}) {
   const nextEntries = normalizeNameEntries(entries);
   if (!Object.keys(nextEntries).length) {
     state.shell.showToast(state.shell.t("nameSetImportInvalid"));
@@ -2539,7 +2563,7 @@ async function applyCurrentDictEntries(entries, { replace = false, toastKey = "n
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
   const preserveRatio = currentChapterRatio();
   try {
-    await saveCurrentDictEntries(nextEntries, { replace });
+    await saveCurrentDictEntries(nextEntries, { replace, origin, historyContext });
     if (refs.nameSuggestDialog && refs.nameSuggestDialog.open) refs.nameSuggestDialog.close();
     if (refs.nameEditorDialog && refs.nameEditorDialog.open) refs.nameEditorDialog.close();
     refreshNameEditorData().catch(() => {});
@@ -2556,7 +2580,7 @@ async function applyCurrentDictEntries(entries, { replace = false, toastKey = "n
   }
 }
 
-async function deleteCurrentDictEntry(source) {
+async function deleteCurrentDictEntry(source, { origin = "reader_edit", historyContext = null } = {}) {
   const sourceKey = normalizeNameSourceKey(source);
   if (!sourceKey) return false;
   if (state.nameDictScope === "global") {
@@ -2590,6 +2614,7 @@ async function deleteCurrentDictEntry(source) {
       active_set: active,
       bump_version: true,
       book_id: state.bookId,
+      ...buildReaderNameHistoryPayload(origin, historyContext),
     }),
   });
   return true;
@@ -2622,7 +2647,7 @@ async function refreshNamePreview() {
 }
 
 async function applyNameEntry(source, target) {
-  return applyCurrentDictEntries({ [source]: target }, { replace: false, toastKey: "nameEntryApplied" });
+  return applyCurrentDictEntries({ [source]: target }, { replace: false, toastKey: "nameEntryApplied", origin: "reader_edit" });
 }
 
 function renderReplaceEntriesTable() {
@@ -2764,7 +2789,7 @@ async function deleteNameEntry(source) {
   state.shell.showStatus(state.shell.t("statusApplyingNameEntry"));
   const preserveRatio = currentChapterRatio();
   try {
-    await deleteCurrentDictEntry(source);
+    await deleteCurrentDictEntry(source, { origin: "reader_edit" });
     refreshNameEditorData().catch(() => {});
     queueReaderDictRefresh({ preserveRatio, refreshBook: true });
   } catch (error) {
@@ -2812,7 +2837,7 @@ async function addNameSet() {
     await state.shell.api("/api/name-sets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sets, active_set: trimmed, bump_version: false, book_id: state.bookId }),
+      body: JSON.stringify({ sets, active_set: trimmed, bump_version: false, book_id: state.bookId, ...buildReaderNameHistoryPayload("reader_set_add") }),
     });
     await refreshNameEditorData();
     await refreshReaderAfterDictChange({ preserveRatio: currentChapterRatio(), refreshBook: true });
@@ -2841,7 +2866,7 @@ async function deleteActiveNameSet() {
     await state.shell.api("/api/name-sets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sets: nextSets, active_set: nextActive, bump_version: false, book_id: state.bookId }),
+      body: JSON.stringify({ sets: nextSets, active_set: nextActive, bump_version: false, book_id: state.bookId, ...buildReaderNameHistoryPayload("reader_set_delete") }),
     });
     await refreshNameEditorData();
     await refreshReaderAfterDictChange({ preserveRatio: currentChapterRatio(), refreshBook: true });
@@ -2868,7 +2893,7 @@ async function importNameSetFromFile(file) {
   try {
     const raw = await file.text();
     const entries = parseNameEntriesOrThrow(raw);
-    await applyCurrentDictEntries(entries, { replace: true, toastKey: "nameSetImported" });
+    await applyCurrentDictEntries(entries, { replace: true, toastKey: "nameSetImported", origin: "reader_import" });
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   }
@@ -2878,7 +2903,7 @@ async function submitQuickAddNameEntries(event) {
   event.preventDefault();
   try {
     const entries = parseNameEntriesOrThrow(refs.nameBulkInput ? refs.nameBulkInput.value : "");
-    const applied = await applyCurrentDictEntries(entries, { replace: false, toastKey: "nameSetQuickAddApplied" });
+    const applied = await applyCurrentDictEntries(entries, { replace: false, toastKey: "nameSetQuickAddApplied", origin: "reader_bulk" });
     if (applied && refs.nameBulkDialog) {
       refs.nameBulkDialog.close();
     }
@@ -4474,6 +4499,7 @@ async function saveSelectionNameEntry(source, target) {
       target,
       set_name: meta && meta.scope === "book" ? meta.setName : undefined,
       book_id: state.bookId,
+      ...buildReaderNameHistoryPayload("reader_selection"),
     }),
   });
 }
@@ -4502,6 +4528,7 @@ async function deleteSelectionNameEntry(source) {
       delete: true,
       set_name: meta.setName,
       book_id: state.bookId,
+      ...buildReaderNameHistoryPayload("reader_selection"),
     }),
   });
 }

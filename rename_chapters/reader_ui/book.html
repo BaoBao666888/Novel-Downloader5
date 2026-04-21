@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260421-booksupp4">
+  <link rel="stylesheet" href="./styles.css?v=20260421-namehistory1">
 </head>
 
 <body data-page="book" class="mpa-body">
@@ -334,6 +334,7 @@
         <select id="book-name-set-select"></select>
       </label>
       <div class="name-set-actions">
+        <button id="btn-book-name-history" class="btn btn-small" type="button">Lịch sử sửa</button>
         <button id="btn-book-name-refresh" class="btn btn-small" type="button"></button>
         <button id="btn-book-name-add-set" class="btn btn-small" type="button"></button>
         <button id="btn-book-name-del-set" class="btn btn-small" type="button"></button>
@@ -363,6 +364,16 @@
         </table>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="book-name-history-dialog" class="dialog book-history-dialog">
+    <div class="dialog-head">
+      <h3 id="book-name-history-title">Lịch sử Name riêng</h3>
+      <button id="btn-close-book-name-history" class="btn btn-small" type="button">Đóng</button>
+    </div>
+    <p id="book-name-history-hint" class="dialog-subtitle">Ghi lại các lần thêm, xóa, sửa Name riêng và nguồn thao tác tương ứng.</p>
+    <div id="book-name-history-list" class="book-history-list"></div>
+    <p id="book-name-history-empty" class="empty-text hidden">Chưa có thay đổi Name riêng nào được ghi lại.</p>
   </dialog>
 
   <dialog id="book-name-bulk-dialog" class="dialog name-editor-dialog">
@@ -702,7 +713,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/book_page.js?v=20260421-booksupp4"></script>
+  <script type="module" src="./js/pages/book_page.js?v=20260421-namehistory1"></script>
 </body>
 
 </html>
