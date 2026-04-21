@@ -3717,7 +3717,6 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   border: 1px solid color-mix(in srgb, var(--line) 86%, transparent);
   background: color-mix(in srgb, var(--surface-alt) 64%, transparent);
   color: var(--text);
-  white-space: pre-wrap;
   word-break: break-word;
   overflow: auto;
   min-height: 180px;
@@ -3950,12 +3949,243 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   border: 1px solid color-mix(in srgb, var(--line) 86%, transparent);
   background: color-mix(in srgb, var(--surface-alt) 62%, transparent);
   color: var(--text);
-  white-space: pre-wrap;
   word-break: break-word;
   max-height: none;
   overflow: auto;
   font: inherit;
   line-height: 1.55;
+}
+
+.reader-update-detail.is-plain-text,
+.notification-detail-body.is-plain-text {
+  white-space: pre-wrap;
+}
+
+.reader-update-detail.is-rich-markdown,
+.notification-detail-body.is-rich-markdown {
+  white-space: normal;
+}
+
+.reader-update-detail > :first-child,
+.notification-detail-body > :first-child {
+  margin-top: 0;
+}
+
+.reader-update-detail > :last-child,
+.notification-detail-body > :last-child {
+  margin-bottom: 0;
+}
+
+.reader-update-detail h1,
+.reader-update-detail h2,
+.reader-update-detail h3,
+.notification-detail-body h1,
+.notification-detail-body h2,
+.notification-detail-body h3 {
+  margin: 1.1em 0 0.5em;
+  line-height: 1.25;
+}
+
+.reader-update-detail h1,
+.notification-detail-body h1 {
+  font-size: 1.28em;
+}
+
+.reader-update-detail h2,
+.notification-detail-body h2 {
+  font-size: 1.12em;
+}
+
+.reader-update-detail h3,
+.notification-detail-body h3 {
+  font-size: 1em;
+}
+
+.reader-update-detail p,
+.notification-detail-body p {
+  margin: 0.72em 0;
+}
+
+.reader-update-detail ul,
+.reader-update-detail ol,
+.notification-detail-body ul,
+.notification-detail-body ol {
+  margin: 0.72em 0;
+  padding-left: 1.25em;
+  display: grid;
+  gap: 0.35em;
+}
+
+.reader-update-detail li,
+.notification-detail-body li {
+  line-height: 1.55;
+}
+
+.reader-update-detail hr,
+.notification-detail-body hr {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  margin: 1em 0;
+}
+
+.reader-update-detail a,
+.notification-detail-body a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.reader-update-detail a:hover,
+.notification-detail-body a:hover {
+  text-decoration: underline;
+}
+
+.reader-update-detail code,
+.notification-detail-body code {
+  display: inline-block;
+  padding: 0.08em 0.42em;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 84%, transparent);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.notice-markdown-callout {
+  display: grid;
+  gap: 10px;
+  margin: 0.9em 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+}
+
+.notice-markdown-callout-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notice-markdown-callout-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 72%, transparent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.notice-markdown-callout-title {
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.notice-markdown-callout-body {
+  color: color-mix(in srgb, var(--text) 96%, transparent);
+}
+
+.notice-markdown-callout-body > :first-child {
+  margin-top: 0;
+}
+
+.notice-markdown-callout-body > :last-child {
+  margin-bottom: 0;
+}
+
+.notice-markdown-callout-label::before {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.notice-markdown-callout-info {
+  border-color: color-mix(in srgb, #6db3ff 42%, var(--line));
+  background: color-mix(in srgb, #6db3ff 10%, var(--surface-alt));
+}
+
+.notice-markdown-callout-info .notice-markdown-callout-label {
+  border-color: color-mix(in srgb, #6db3ff 48%, var(--line));
+  color: color-mix(in srgb, #9fd0ff 88%, var(--text));
+}
+
+.notice-markdown-callout-info .notice-markdown-callout-label::before {
+  content: "i";
+}
+
+.notice-markdown-callout-new {
+  border-color: color-mix(in srgb, #57c27d 48%, var(--line));
+  background: color-mix(in srgb, #57c27d 11%, var(--surface-alt));
+}
+
+.notice-markdown-callout-new .notice-markdown-callout-label {
+  border-color: color-mix(in srgb, #57c27d 54%, var(--line));
+  color: color-mix(in srgb, #9ef0b7 82%, var(--text));
+}
+
+.notice-markdown-callout-new .notice-markdown-callout-label::before {
+  content: "+";
+}
+
+.notice-markdown-callout-fix {
+  border-color: color-mix(in srgb, #5bb9ff 48%, var(--line));
+  background: color-mix(in srgb, #5bb9ff 11%, var(--surface-alt));
+}
+
+.notice-markdown-callout-fix .notice-markdown-callout-label {
+  border-color: color-mix(in srgb, #5bb9ff 54%, var(--line));
+  color: color-mix(in srgb, #b3deff 84%, var(--text));
+}
+
+.notice-markdown-callout-fix .notice-markdown-callout-label::before {
+  content: "#";
+}
+
+.notice-markdown-callout-tip {
+  border-color: color-mix(in srgb, #7ac8a8 48%, var(--line));
+  background: color-mix(in srgb, #7ac8a8 11%, var(--surface-alt));
+}
+
+.notice-markdown-callout-tip .notice-markdown-callout-label {
+  border-color: color-mix(in srgb, #7ac8a8 54%, var(--line));
+  color: color-mix(in srgb, #d0ffe9 84%, var(--text));
+}
+
+.notice-markdown-callout-tip .notice-markdown-callout-label::before {
+  content: "?";
+}
+
+.notice-markdown-callout-warn {
+  border-color: color-mix(in srgb, #d9a13a 52%, var(--line));
+  background: color-mix(in srgb, #d9a13a 12%, var(--surface-alt));
+}
+
+.notice-markdown-callout-warn .notice-markdown-callout-label {
+  border-color: color-mix(in srgb, #d9a13a 56%, var(--line));
+  color: color-mix(in srgb, #ffd58f 86%, var(--text));
+}
+
+.notice-markdown-callout-warn .notice-markdown-callout-label::before {
+  content: "!";
+}
+
+.notice-markdown-callout-guide {
+  border-color: color-mix(in srgb, #b28cff 48%, var(--line));
+  background: color-mix(in srgb, #b28cff 10%, var(--surface-alt));
+}
+
+.notice-markdown-callout-guide .notice-markdown-callout-label {
+  border-color: color-mix(in srgb, #b28cff 54%, var(--line));
+  color: color-mix(in srgb, #ead9ff 88%, var(--text));
+}
+
+.notice-markdown-callout-guide .notice-markdown-callout-label::before {
+  content: ">";
 }
 
 .import-category-section {

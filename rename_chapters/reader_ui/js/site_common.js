@@ -1064,6 +1064,214 @@ function formatBytes(value) {
   return `${size.toFixed(digits)} ${units[idx]}`;
 }
 
+const NOTICE_MARKDOWN_CALLOUT_META = {
+  new: { label: "Mới", tone: "new" },
+  fix: { label: "Đã sửa", tone: "fix" },
+  tip: { label: "Mẹo", tone: "tip" },
+  warn: { label: "Lưu ý", tone: "warn" },
+  warning: { label: "Lưu ý", tone: "warn" },
+  info: { label: "Thông tin", tone: "info" },
+  note: { label: "Thông tin", tone: "info" },
+  guide: { label: "Hướng dẫn", tone: "guide" },
+};
+
+function escapeNoticeMarkdownHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function sanitizeNoticeMarkdownUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("#")) return raw;
+  try {
+    const parsed = new URL(raw, window.location.href);
+    if (["http:", "https:", "mailto:"].includes(parsed.protocol)) return parsed.href;
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function renderNoticeMarkdownInline(value) {
+  const tokens = [];
+  const makeToken = (html) => {
+    const token = `@@NOTICE_TOKEN_${tokens.length}@@`;
+    tokens.push(html);
+    return token;
+  };
+  let text = String(value || "").replace(/\r\n?/g, "\n");
+  text = text.replace(/`([^`\n]+)`/g, (_match, code) => (
+    makeToken(`<code>${escapeNoticeMarkdownHtml(code)}</code>`)
+  ));
+  text = text.replace(/\[([^\]\n]+)\]\(([^)\n]+)\)/g, (_match, label, url) => {
+    const safeUrl = sanitizeNoticeMarkdownUrl(url);
+    const safeLabel = escapeNoticeMarkdownHtml(label);
+    if (!safeUrl) return safeLabel;
+    return makeToken(
+      `<a href="${escapeNoticeMarkdownHtml(safeUrl)}" target="_blank" rel="noreferrer noopener">${safeLabel}</a>`
+    );
+  });
+  let html = escapeNoticeMarkdownHtml(text);
+  html = html.replace(/\*\*([^*\n][^*\n]*?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__([^_\n][^_\n]*?)__/g, "<strong>$1</strong>");
+  html = html.replace(/~~([^~\n][^~\n]*?)~~/g, "<del>$1</del>");
+  html = html.replace(/@@NOTICE_TOKEN_(\d+)@@/g, (_match, idx) => tokens[Number(idx)] || "");
+  return html;
+}
+
+function normalizeNoticeMarkdownCalloutType(value) {
+  const key = String(value || "").trim().toLowerCase();
+  if (!key) return "info";
+  if (key in NOTICE_MARKDOWN_CALLOUT_META) return key;
+  return "info";
+}
+
+function isNoticeMarkdownBlockStart(line) {
+  const trimmed = String(line || "").trim();
+  if (!trimmed) return false;
+  return (
+    /^#{1,6}\s+/.test(trimmed)
+    || /^-{3,}$/.test(trimmed)
+    || /^>\s?/.test(trimmed)
+    || /^[-*+]\s+/.test(trimmed)
+    || /^\d+\.\s+/.test(trimmed)
+  );
+}
+
+function looksLikeNoticeMarkdown(value) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  return [
+    /^#{1,6}\s+/m,
+    /^>\s*\[![A-Za-z0-9_-]+\]/m,
+    /^[-*+]\s+/m,
+    /^\d+\.\s+/m,
+    /\*\*[^*\n]+\*\*/,
+    /`[^`\n]+`/,
+    /\[[^\]\n]+\]\((?:https?:|mailto:|#)[^)]+\)/,
+  ].some((pattern) => pattern.test(text));
+}
+
+function appendNoticeMarkdownBlocks(target, value) {
+  const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
+  let index = 0;
+  while (index < lines.length) {
+    const rawLine = String(lines[index] || "");
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      index += 1;
+      continue;
+    }
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      const level = Math.max(1, Math.min(6, headingMatch[1].length));
+      const heading = document.createElement(`h${level}`);
+      heading.innerHTML = renderNoticeMarkdownInline(headingMatch[2]);
+      target.appendChild(heading);
+      index += 1;
+      continue;
+    }
+    if (/^-{3,}$/.test(trimmed)) {
+      target.appendChild(document.createElement("hr"));
+      index += 1;
+      continue;
+    }
+    if (/^>\s?/.test(trimmed)) {
+      const quoteLines = [];
+      while (index < lines.length) {
+        const quoteMatch = String(lines[index] || "").match(/^\s*>\s?(.*)$/);
+        if (!quoteMatch) break;
+        quoteLines.push(String(quoteMatch[1] || ""));
+        index += 1;
+      }
+      const firstQuote = String(quoteLines.shift() || "").trim();
+      const calloutMatch = firstQuote.match(/^\[!([A-Za-z0-9_-]+)\]\s*(.*)$/);
+      const calloutType = normalizeNoticeMarkdownCalloutType(calloutMatch ? calloutMatch[1] : "info");
+      const calloutMeta = NOTICE_MARKDOWN_CALLOUT_META[calloutType] || NOTICE_MARKDOWN_CALLOUT_META.info;
+      const callout = document.createElement("article");
+      callout.className = `notice-markdown-callout notice-markdown-callout-${calloutMeta.tone}`;
+      const head = document.createElement("div");
+      head.className = "notice-markdown-callout-head";
+      const label = document.createElement("span");
+      label.className = "notice-markdown-callout-label";
+      label.textContent = calloutMeta.label;
+      head.appendChild(label);
+      const titleText = String(calloutMatch ? calloutMatch[2] : firstQuote).trim();
+      if (titleText) {
+        const title = document.createElement("span");
+        title.className = "notice-markdown-callout-title";
+        title.innerHTML = renderNoticeMarkdownInline(titleText);
+        head.appendChild(title);
+      }
+      callout.appendChild(head);
+      const bodyText = quoteLines.join("\n").trim();
+      if (bodyText) {
+        const body = document.createElement("div");
+        body.className = "notice-markdown-callout-body";
+        appendNoticeMarkdownBlocks(body, bodyText);
+        callout.appendChild(body);
+      }
+      target.appendChild(callout);
+      continue;
+    }
+    const unorderedMatch = trimmed.match(/^[-*+]\s+(.+)$/);
+    const orderedMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
+    if (unorderedMatch || orderedMatch) {
+      const isOrdered = Boolean(orderedMatch);
+      const list = document.createElement(isOrdered ? "ol" : "ul");
+      while (index < lines.length) {
+        const current = String(lines[index] || "").trim();
+        const match = isOrdered
+          ? current.match(/^\d+\.\s+(.+)$/)
+          : current.match(/^[-*+]\s+(.+)$/);
+        if (!match) break;
+        const item = document.createElement("li");
+        item.innerHTML = renderNoticeMarkdownInline(match[1]);
+        list.appendChild(item);
+        index += 1;
+      }
+      target.appendChild(list);
+      continue;
+    }
+    const paragraphLines = [];
+    while (index < lines.length) {
+      const currentLine = String(lines[index] || "");
+      const currentTrimmed = currentLine.trim();
+      if (!currentTrimmed) break;
+      if (paragraphLines.length > 0 && isNoticeMarkdownBlockStart(currentLine)) break;
+      paragraphLines.push(currentTrimmed);
+      index += 1;
+    }
+    const paragraph = document.createElement("p");
+    paragraph.innerHTML = paragraphLines.map((line) => renderNoticeMarkdownInline(line)).join("<br>");
+    target.appendChild(paragraph);
+  }
+}
+
+function setNoticeRichText(target, value, { forceMarkdown = false } = {}) {
+  if (!target) return;
+  const text = String(value || "").trim();
+  target.innerHTML = "";
+  target.classList.remove("is-plain-text", "is-rich-markdown", "is-empty");
+  if (!text) {
+    target.classList.add("is-empty");
+    return;
+  }
+  const useMarkdown = Boolean(forceMarkdown || looksLikeNoticeMarkdown(text));
+  if (!useMarkdown) {
+    target.textContent = text;
+    target.classList.add("is-plain-text");
+    return;
+  }
+  appendNoticeMarkdownBlocks(target, text);
+  target.classList.add("is-rich-markdown");
+}
+
 function ensureActionModalUi() {
   if (actionModalUi) return actionModalUi;
   const root = document.createElement("dialog");
@@ -2330,7 +2538,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
           <button id="btn-reader-update-close-top" class="btn btn-small" type="button">${t("close")}</button>
         </div>
         <p id="reader-update-preview" class="dialog-subtitle"></p>
-        <pre id="reader-update-detail" class="reader-update-detail"></pre>
+        <div id="reader-update-detail" class="reader-update-detail"></div>
         <div class="dialog-actions">
           <button id="btn-reader-update-hide-2h" class="btn" type="button">${t("readerUpdateHideTwoHours")}</button>
           <button id="btn-reader-update-close" class="btn" type="button">${t("close")}</button>
@@ -2414,7 +2622,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     ui.currentSig = String((status && status.content_sig) || "").trim();
     if (ui.title) ui.title.textContent = String((status && status.title) || t("readerUpdateTitle"));
     if (ui.preview) ui.preview.textContent = String((status && status.preview) || t("readerUpdatePreview"));
-    if (ui.detail) ui.detail.textContent = detailParts.join("\n\n").trim();
+    if (ui.detail) setNoticeRichText(ui.detail, detailParts.join("\n\n").trim(), { forceMarkdown: true });
     return ui;
   };
 
@@ -2514,7 +2722,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
           </div>
           <p id="notification-detail-updated" class="dialog-subtitle"></p>
           <p id="notification-detail-created" class="dialog-subtitle"></p>
-          <pre id="notification-detail-body" class="notification-detail-body"></pre>
+        <div id="notification-detail-body" class="notification-detail-body"></div>
         </div>
         <div class="dialog-actions">
           <div id="notification-detail-actions-extra" class="notification-detail-actions-extra"></div>
@@ -2720,7 +2928,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         }
         const detailText = String(item.detail || "").trim();
         if (detailText) lines.push(detailText);
-        ui.detailBody.textContent = lines.filter(Boolean).join("\n\n").trim();
+        setNoticeRichText(ui.detailBody, lines.filter(Boolean).join("\n\n").trim());
       }
       if (ui.detailActionsExtra) {
         ui.detailActionsExtra.innerHTML = "";
