@@ -71,7 +71,7 @@
       else if (motion === "lite") root.classList.add("effects-lite");
     })();
   </script>
-  <link rel="stylesheet" href="./styles.css?v=20260421-namehistory1">
+  <link rel="stylesheet" href="./styles.css?v=20260421-volauthor1">
 </head>
 
 <body data-page="book" class="mpa-body">
@@ -243,6 +243,21 @@
           <p id="book-supplement-manage-info" class="empty-text"></p>
           <div class="book-supplement-manage-actions">
             <button id="btn-book-supplement-delete-latest" class="btn btn-small" type="button"></button>
+          </div>
+        </div>
+        <div id="book-volume-rename-row" class="book-supplement-manage-row hidden">
+          <div class="book-volume-rename-grid">
+            <label>
+              <span id="book-volume-rename-select-label">Quyển cần đổi tên</span>
+              <select id="book-volume-rename-select"></select>
+            </label>
+            <label>
+              <span id="book-volume-rename-input-label">Tên quyển mới</span>
+              <input id="book-volume-rename-input" type="text">
+            </label>
+          </div>
+          <div class="book-supplement-manage-actions">
+            <button id="btn-book-volume-rename" class="btn btn-small" type="button">Lưu tên quyển</button>
           </div>
         </div>
         <div class="book-supplement-grid">
@@ -713,7 +728,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/pages/book_page.js?v=20260421-namehistory1"></script>
+  <script type="module" src="./js/pages/book_page.js?v=20260421-volauthor1"></script>
 </body>
 
 </html>

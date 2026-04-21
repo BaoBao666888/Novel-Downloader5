@@ -163,7 +163,7 @@ APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX = "reader.chapter_raw_edit"
 APP_STATE_EXPORT_JOBS_STATE_KEY = "reader.export_jobs_state"
 APP_STATE_NOTIFICATIONS_STATE_KEY = "reader.notifications_state"
 APP_STATE_SEARCH_CACHE_VERSION_KEY = "reader.search_cache_version"
-SEARCH_CACHE_VERSION = "2"
+SEARCH_CACHE_VERSION = "3"
 COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
 HISTORY_BOOK_RETENTION_DAYS = 7
 EXPORT_JOB_RETENTION_DAYS = 7
@@ -4255,6 +4255,7 @@ class ReaderStorage:
         self.db_path = db_path
         # Optional callback to load remote chapter content on-demand (e.g. vBook).
         self.remote_chapter_fetcher: Callable[[dict[str, Any], dict[str, Any]], str] | None = None
+        self.author_hanviet_display: Callable[..., str] | None = None
         ensure_dirs()
         self._init_db()
 
@@ -5303,7 +5304,12 @@ class ReaderStorage:
         *,
         conn: sqlite3.Connection | None = None,
     ) -> int:
-        return storage_library_support.sync_book_search_texts(self, book_ids, conn=conn)
+        return storage_library_support.sync_book_search_texts(
+            self,
+            book_ids,
+            conn=conn,
+            author_to_hanviet_display=self.author_hanviet_display,
+        )
 
     def sync_chapter_search_texts(
         self,
@@ -5583,6 +5589,16 @@ class ReaderStorage:
             utc_now_iso=utc_now_iso,
             hash_text=hash_text,
             deleted_retention_days=BOOK_SUPPLEMENT_RETENTION_DAYS,
+        )
+
+    def rename_book_volume(self, book_id: str, volume_id: str, title: str) -> dict[str, Any]:
+        return storage_book_mutation_support.rename_book_volume(
+            self,
+            book_id,
+            volume_id,
+            title,
+            utc_now_iso=utc_now_iso,
+            hash_text=hash_text,
         )
 
     def update_book_progress(
@@ -5931,6 +5947,7 @@ class ReaderService:
         self.name_set_state: dict[str, Any] = {"sets": {"Mặc định": {}}, "active_set": "Mặc định", "version": 1}
         # Allow storage to lazy-load remote chapter content (vBook, ...).
         self.storage.remote_chapter_fetcher = self._fetch_remote_chapter
+        self.storage.author_hanviet_display = self._author_hanviet_display
         self.refresh_config()
         try:
             self.storage.cleanup_expired_history()
@@ -7614,11 +7631,17 @@ class ReaderService:
         if not book_supports_translation(book):
             return False
         raw_title = normalize_vbook_display_text(str(book.get("title") or ""), single_line=True)
+        raw_author = normalize_vbook_display_text(str(book.get("author") or ""), single_line=True)
         raw_current = normalize_vbook_display_text(str(book.get("current_chapter_title_raw") or ""), single_line=True)
         title_missing = bool(
             raw_title
             and self._contains_cjk_text(raw_title)
             and (not normalize_vi_display_text(book.get("title_vi") or ""))
+        )
+        author_missing = bool(
+            raw_author
+            and self._contains_cjk_text(raw_author)
+            and (not normalize_vi_display_text(book.get("author_vi") or ""))
         )
         current_missing = bool(
             str(book.get("current_chapter_id") or "").strip()
@@ -7626,7 +7649,7 @@ class ReaderService:
             and self._contains_cjk_text(raw_current)
             and (not normalize_vi_display_text(book.get("current_chapter_title_vi") or ""))
         )
-        return title_missing or current_missing
+        return title_missing or author_missing or current_missing
 
     def _book_title_cache_needs_translation(self, book_id: str) -> bool:
         bid = str(book_id or "").strip()
@@ -7673,12 +7696,21 @@ class ReaderService:
 
         pending_rows: list[tuple[str, str]] = []
         title_inputs: list[str] = []
+        author_updates: list[tuple[str, str]] = []
+        author_updated_ids: list[str] = []
         pending_current_rows: list[tuple[str, str]] = []
         current_inputs: list[str] = []
         for bid in normalized_ids:
             book = book_map.get(bid)
             if not book or not self.translation_allowed_for_book(book):
                 continue
+            raw_author = normalize_vbook_display_text(str(book.get("author") or ""), single_line=True)
+            existing_author = normalize_vi_display_text(book.get("author_vi") or "")
+            if (not existing_author) and raw_author and self._contains_cjk_text(raw_author):
+                author_hv = normalize_vi_display_text(self._author_hanviet_display(raw_author, single_line=True) or "")
+                if author_hv and author_hv != raw_author:
+                    author_updates.append((author_hv, bid))
+                    author_updated_ids.append(bid)
             existing_title = normalize_vi_display_text(book.get("title_vi") or "")
             if existing_title:
                 pass
@@ -7693,7 +7725,7 @@ class ReaderService:
             if current_id and (not current_vi) and current_raw and self._contains_cjk_text(current_raw):
                 pending_current_rows.append((current_id, current_raw))
                 current_inputs.append(current_raw)
-        if (not pending_rows) and (not pending_current_rows):
+        if (not pending_rows) and (not pending_current_rows) and (not author_updates):
             return []
 
         translated_list = self._translate_ui_texts_batch(title_inputs, single_line=True, mode="server")
@@ -7720,19 +7752,31 @@ class ReaderService:
                 continue
             current_updates.append((translated, chapter_id))
             updated_chapter_ids.append(chapter_id)
-        if updates:
+        touched_book_ids = {str(item or "").strip() for item in updated_ids + author_updated_ids if str(item or "").strip()}
+        if updates or author_updates:
             with self.storage._connect() as conn:
-                conn.executemany(
-                    """
-                    UPDATE books
-                    SET title_vi = ?
-                    WHERE book_id = ?
-                      AND trim(COALESCE(title_vi, '')) = ''
-                    """.strip(),
-                    updates,
-                )
-                if updated_ids:
-                    self.storage.sync_book_search_texts(updated_ids, conn=conn)
+                if updates:
+                    conn.executemany(
+                        """
+                        UPDATE books
+                        SET title_vi = ?
+                        WHERE book_id = ?
+                          AND trim(COALESCE(title_vi, '')) = ''
+                        """.strip(),
+                        updates,
+                    )
+                if author_updates:
+                    conn.executemany(
+                        """
+                        UPDATE books
+                        SET author_vi = ?
+                        WHERE book_id = ?
+                          AND trim(COALESCE(author_vi, '')) = ''
+                        """.strip(),
+                        author_updates,
+                    )
+                if touched_book_ids:
+                    self.storage.sync_book_search_texts(sorted(touched_book_ids), conn=conn)
                 if current_updates:
                     conn.executemany(
                         """
@@ -7758,7 +7802,7 @@ class ReaderService:
                 )
                 if updated_chapter_ids:
                     self.storage.sync_chapter_search_texts(chapter_ids=updated_chapter_ids, conn=conn)
-        return updated_ids
+        return sorted(touched_book_ids) if touched_book_ids else updated_ids
 
     def _ensure_library_title_cache_worker_locked(self) -> None:
         worker_alive = bool(self._library_title_cache_worker_thread and self._library_title_cache_worker_thread.is_alive())
@@ -7879,7 +7923,7 @@ class ReaderService:
         ]
         if total_value > 0:
             detail_lines.append(f"Tiến độ: {processed_value}/{total_value} truyện")
-        detail_lines.append(f"Đã ghi title cache: {updated_value} truyện")
+        detail_lines.append(f"Đã ghi cache tên: {updated_value} truyện")
         if remaining_value > 0:
             detail_lines.append(f"Còn thiếu sau lượt này: {remaining_value} truyện")
         if reason:

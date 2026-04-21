@@ -404,6 +404,21 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
         return {"ok": True, "book": updated}
 
+    if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/volume/rename"):
+        book_id = path.removeprefix("/api/library/book/").removesuffix("/volume/rename").strip("/")
+        payload = handler._read_json_body()
+        volume_id = str(payload.get("volume_id") or "").strip()
+        title = str(payload.get("title") or "").strip()
+        if not volume_id:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu volume_id.")
+        if not title:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu tên quyển mới.")
+        try:
+            result = storage.rename_book_volume(book_id, volume_id, title)
+        except ValueError as exc:
+            raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", str(exc)) from exc
+        return {"ok": True, **dict(result or {})}
+
     if method == "POST" and path.startswith("/api/library/book/") and path.endswith("/supplement/prepare"):
         book_id = path.removeprefix("/api/library/book/").removesuffix("/supplement/prepare").strip("/")
         form = handler._read_multipart_form()

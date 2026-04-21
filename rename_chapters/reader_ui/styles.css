@@ -2407,6 +2407,17 @@ p {
   gap: 8px;
 }
 
+.book-volume-rename-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.book-volume-rename-grid > label {
+  display: grid;
+  gap: 6px;
+}
+
 .book-supplement-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5222,6 +5233,10 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   }
 
   .book-supplement-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .book-volume-rename-grid {
     grid-template-columns: 1fr;
   }
 

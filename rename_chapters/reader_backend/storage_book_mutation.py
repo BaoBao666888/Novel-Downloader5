@@ -21,6 +21,11 @@ from .storage_library import (
 from .storage_book_change import append_book_change_event
 
 
+def _contains_cjk_text(value: Any) -> bool:
+    text = str(value or "")
+    return any(0x3400 <= ord(ch) <= 0x9FFF for ch in text)
+
+
 def create_book(
     storage,
     *,
@@ -1198,6 +1203,88 @@ def append_book_supplement(
         "added_chapters": int(len(normalized_chapters)),
         "note": note_text,
     }
+
+
+def rename_book_volume(
+    storage,
+    book_id: str,
+    volume_id: str,
+    title: str,
+    *,
+    utc_now_iso,
+    hash_text,
+) -> dict[str, Any]:
+    bid = str(book_id or "").strip()
+    volume_key = str(volume_id or "").strip()
+    if not bid:
+        raise ValueError("Thiếu book_id.")
+    if not volume_key:
+        raise ValueError("Thiếu volume_id.")
+
+    next_title = normalize_volume_title(title)
+    now = utc_now_iso()
+    with storage._connect() as conn:
+        book = storage.find_book(bid)
+        if not book:
+            raise ValueError("Không tìm thấy truyện.")
+        volume_row = conn.execute(
+            """
+            SELECT volume_id, book_id, volume_kind, title_raw, title_vi, deleted_at
+            FROM book_volumes
+            WHERE volume_id = ?
+              AND book_id = ?
+            LIMIT 1
+            """,
+            (volume_key, bid),
+        ).fetchone()
+        if not volume_row:
+            raise ValueError("Không tìm thấy quyển cần sửa tên.")
+        if str(volume_row["deleted_at"] or "").strip():
+            raise ValueError("Quyển này đang ở trạng thái đã xóa mềm.")
+
+        is_default_volume = str(volume_row["volume_kind"] or "").strip().lower() == "default"
+        policy = build_book_volume_manage_policy(book, is_default_volume=is_default_volume)
+        if not policy.get("can_rename"):
+            raise ValueError("Quyển này hiện không cho đổi tên.")
+
+        old_title = normalize_volume_title(volume_row["title_raw"] or "")
+        title_vi = str(volume_row["title_vi"] or "").strip()
+        if old_title != next_title:
+            title_vi = next_title if (not _contains_cjk_text(next_title)) else ""
+            conn.execute(
+                """
+                UPDATE book_volumes
+                SET title_raw = ?, title_vi = ?, updated_at = ?
+                WHERE volume_id = ?
+                """,
+                (next_title, title_vi, now, volume_key),
+            )
+            append_book_change_event(
+                storage,
+                book_id=bid,
+                event_type="volume_renamed",
+                event_scope="volume",
+                ref_id=volume_key,
+                payload={
+                    "volume_id": volume_key,
+                    "volume_kind": str(volume_row["volume_kind"] or "").strip().lower() or ("default" if is_default_volume else "supplement"),
+                    "old_title": old_title,
+                    "new_title": next_title,
+                },
+                conn=conn,
+                hash_text=hash_text,
+                utc_now_iso=utc_now_iso,
+            )
+
+        return {
+            "ok": True,
+            "book_id": bid,
+            "volume_id": volume_key,
+            "volume_kind": str(volume_row["volume_kind"] or "").strip().lower() or ("default" if is_default_volume else "supplement"),
+            "title_raw": next_title,
+            "title_vi": title_vi,
+            "updated_at": now,
+        }
 
 
 def delete_book_supplement_batch(

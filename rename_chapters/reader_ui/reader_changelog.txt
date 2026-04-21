@@ -25,6 +25,8 @@ Danh mục và thông tin truyện
 - Có thêm nút `i` để xem nhanh lịch sử chính của sách như lúc thêm truyện, lúc kiểm tra mục lục nguồn, lúc tạo quyển mới và các đợt bổ sung chương.
 - Đợt bổ sung TXT mới nhất của từng quyển giờ có thể xóa mềm theo kiểu stack; phần đã xóa có thể khôi phục hoặc tải lại file nguồn trong 30 ngày ngay từ popup lịch sử sách.
 - Trong khu `Name riêng` đã có thêm lịch sử sửa để xem ai vừa thêm, xóa hay đổi tên theo cách nào; nếu thao tác từ reader thì cũng ghi lại chương liên quan.
+- Trong popup sửa truyện đã có thể đổi tên từng quyển ngay tại chỗ, kể cả quyển mặc định.
+- Cache tìm kiếm của thư viện đã bổ sung thêm tên Hán Việt của tác giả truyện Trung, nên lọc theo tác giả bằng Hán Việt sẽ bắt đúng hơn.
 
 Xuất HTML
 - File HTML gộp 1 file giờ chỉ tải vài chương quanh vị trí đang xem nên mở truyện dài mượt hơn nhiều.

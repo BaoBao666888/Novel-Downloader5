@@ -1,4 +1,4 @@
-import { initShell } from "../site_common.js?v=20260421-namehistory1";
+import { initShell } from "../site_common.js?v=20260421-volauthor1";
 import { normalizeDisplayTitle, normalizeParagraphDisplayText } from "../reader_text.js?v=20260307-br2";
 import { downloadPlainTextFile, parseNameSetText, serializeNameSetText } from "../name_set_text.js?v=20260405-name1";
 
@@ -83,6 +83,12 @@ const refs = {
   bookSupplementManageRow: document.getElementById("book-supplement-manage-row"),
   bookSupplementManageInfo: document.getElementById("book-supplement-manage-info"),
   btnBookSupplementDeleteLatest: document.getElementById("btn-book-supplement-delete-latest"),
+  bookVolumeRenameRow: document.getElementById("book-volume-rename-row"),
+  bookVolumeRenameSelectLabel: document.getElementById("book-volume-rename-select-label"),
+  bookVolumeRenameSelect: document.getElementById("book-volume-rename-select"),
+  bookVolumeRenameInputLabel: document.getElementById("book-volume-rename-input-label"),
+  bookVolumeRenameInput: document.getElementById("book-volume-rename-input"),
+  btnBookVolumeRename: document.getElementById("btn-book-volume-rename"),
   bookSupplementTargetModeLabel: document.getElementById("book-supplement-target-mode-label"),
   bookSupplementTargetMode: document.getElementById("book-supplement-target-mode"),
   bookSupplementMultiModeWrap: document.getElementById("book-supplement-multi-mode-wrap"),
@@ -408,6 +414,30 @@ function getBookSupplementSelectedVolume() {
 function getLatestSupplementBatchForVolume(volume) {
   const latest = (volume && typeof volume.latest_supplement === "object") ? volume.latest_supplement : null;
   return latest ? { ...latest } : null;
+}
+
+function getBookRenamableVolumes() {
+  return (Array.isArray(state.tocVolumes) ? state.tocVolumes : [])
+    .filter((item) => {
+      const policy = (item && typeof item.policy === "object") ? item.policy : {};
+      return Boolean(policy.can_rename);
+    });
+}
+
+function getBookRenameSelectedVolume() {
+  const targetVolumeId = String((refs.bookVolumeRenameSelect && refs.bookVolumeRenameSelect.value) || "").trim();
+  return (Array.isArray(state.tocVolumes) ? state.tocVolumes : [])
+    .find((item) => String((item && item.volume_id) || "").trim() === targetVolumeId) || null;
+}
+
+function syncBookVolumeRenameInput() {
+  if (!refs.bookVolumeRenameInput) return;
+  const volume = getBookRenameSelectedVolume();
+  const nextVolumeId = String((volume && volume.volume_id) || "").trim();
+  const prevVolumeId = String(refs.bookVolumeRenameInput.dataset.volumeId || "").trim();
+  if (nextVolumeId && nextVolumeId === prevVolumeId) return;
+  refs.bookVolumeRenameInput.dataset.volumeId = nextVolumeId;
+  refs.bookVolumeRenameInput.value = String((volume && volume.title_raw) || "").trim();
 }
 
 function buildSupplementBatchDownloadUrl(batchId) {
@@ -1393,10 +1423,12 @@ function renderBookSupplementForm() {
   refs.bookSupplementSection.classList.toggle("hidden", !enabled);
   if (!enabled) {
     if (refs.bookSupplementManageRow) refs.bookSupplementManageRow.classList.add("hidden");
+    if (refs.bookVolumeRenameRow) refs.bookVolumeRenameRow.classList.add("hidden");
     return;
   }
 
   const volumes = getBookSupplementAppendableVolumes();
+  const renamableVolumes = getBookRenamableVolumes();
   const hasExistingOption = volumes.length > 0;
   const files = getSelectedBookSupplementFiles();
   const uploadMode = currentSupplementUploadMode();
@@ -1424,6 +1456,26 @@ function renderBookSupplementForm() {
         : String(volumes[0].volume_id || "").trim();
     }
   }
+  if (refs.bookVolumeRenameSelect) {
+    const selectedValue = String(refs.bookVolumeRenameSelect.value || state.selectedTocVolumeId || "").trim();
+    refs.bookVolumeRenameSelect.innerHTML = "";
+    for (const item of renamableVolumes) {
+      const option = document.createElement("option");
+      option.value = String(item.volume_id || "").trim();
+      option.textContent = buildTocVolumeLabel(item);
+      refs.bookVolumeRenameSelect.appendChild(option);
+    }
+    if (renamableVolumes.length) {
+      const fallbackValue = renamableVolumes.some((item) => String(item.volume_id || "").trim() === selectedValue)
+        ? selectedValue
+        : String(renamableVolumes[0].volume_id || "").trim();
+      refs.bookVolumeRenameSelect.value = fallbackValue;
+    }
+  }
+  if (refs.bookVolumeRenameRow) {
+    refs.bookVolumeRenameRow.classList.toggle("hidden", renamableVolumes.length <= 0);
+  }
+  syncBookVolumeRenameInput();
 
   const targetMode = currentSupplementTargetMode();
   if (refs.bookSupplementMultiModeWrap) refs.bookSupplementMultiModeWrap.classList.toggle("hidden", !isMulti);
@@ -1663,6 +1715,18 @@ function describeBookChangeEvent(entry) {
       title: `Đã tạo quyển mới: ${volumeTitle}`,
       body: "Quyển này được thêm để chứa phần chương bổ sung riêng.",
       meta: "",
+    };
+  }
+  if (eventType === "volume_renamed") {
+    const oldTitle = normalizeDisplayTitle(String(payload.old_title || "").trim() || "Quyển cũ");
+    const newTitle = normalizeDisplayTitle(String(payload.new_title || "").trim() || "Quyển mới");
+    const isDefaultVolume = String(payload.volume_kind || "").trim().toLowerCase() === "default";
+    return {
+      title: `Đã đổi tên quyển thành: ${newTitle}`,
+      body: `Tên cũ: ${oldTitle}\nTên mới: ${newTitle}`,
+      meta: isDefaultVolume
+        ? "Đây là quyển mặc định của truyện."
+        : "Quyển phụ này vẫn giữ nguyên các chương đang có.",
     };
   }
   if (eventType === "supplement_added") {
@@ -2398,6 +2462,48 @@ async function restoreBookSupplementBatch(batchId) {
       await openBookHistoryDialog();
     }
     state.shell.showToast(`Đã khôi phục ${Math.max(0, Number(data && data.restored_chapters || 0))} chương.`);
+  } catch (error) {
+    state.shell.showToast(error.message || state.shell.t("toastError"));
+  } finally {
+    state.shell.hideStatus();
+  }
+}
+
+async function renameBookVolume() {
+  if (!state.bookId) return;
+  const volume = getBookRenameSelectedVolume();
+  const volumeId = String((volume && volume.volume_id) || "").trim();
+  const nextTitle = String((refs.bookVolumeRenameInput && refs.bookVolumeRenameInput.value) || "").trim();
+  if (!volumeId) {
+    state.shell.showToast("Chưa có quyển nào để sửa tên.");
+    return;
+  }
+  if (!nextTitle) {
+    state.shell.showToast("Thiếu tên quyển mới.");
+    if (refs.bookVolumeRenameInput) refs.bookVolumeRenameInput.focus();
+    return;
+  }
+  const currentTitle = String((volume && volume.title_raw) || "").trim();
+  if (currentTitle === nextTitle) {
+    state.shell.showToast("Tên quyển chưa thay đổi.");
+    return;
+  }
+  state.shell.showStatus("Đang lưu tên quyển...");
+  try {
+    const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/volume/rename`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ volume_id: volumeId, title: nextTitle }),
+    });
+    if (data && data.volume_id) {
+      state.selectedTocVolumeId = String(data.volume_id || "").trim();
+    }
+    await loadToc(Math.max(1, Number(state.pagination.page || 1)), { silent: true, suppressToast: true, showSkeleton: false });
+    renderBookSupplementForm();
+    if (refs.bookHistoryDialog && refs.bookHistoryDialog.open) {
+      await openBookHistoryDialog();
+    }
+    state.shell.showToast("Đã lưu tên quyển.");
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -3538,6 +3644,9 @@ async function init() {
   refs.btnSaveMeta.textContent = state.shell.t("saveBookMeta");
   if (refs.bookSupplementTitle) refs.bookSupplementTitle.textContent = "Bổ sung chương TXT";
   if (refs.bookSupplementTargetModeLabel) refs.bookSupplementTargetModeLabel.textContent = "Đích bổ sung";
+  if (refs.bookVolumeRenameSelectLabel) refs.bookVolumeRenameSelectLabel.textContent = "Quyển cần đổi tên";
+  if (refs.bookVolumeRenameInputLabel) refs.bookVolumeRenameInputLabel.textContent = "Tên quyển mới";
+  if (refs.btnBookVolumeRename) refs.btnBookVolumeRename.textContent = "Lưu tên quyển";
   if (refs.bookSupplementTargetMode) {
     const existingOption = refs.bookSupplementTargetMode.querySelector('option[value="existing"]');
     const newOption = refs.bookSupplementTargetMode.querySelector('option[value="new"]');
@@ -3705,6 +3814,10 @@ async function init() {
   if (refs.btnCloseBookHistory) refs.btnCloseBookHistory.addEventListener("click", () => refs.bookHistoryDialog.close());
   if (refs.btnBookSupplementDeleteLatest) refs.btnBookSupplementDeleteLatest.addEventListener("click", () => {
     deleteLatestBookSupplement().catch(() => {});
+  });
+  if (refs.bookVolumeRenameSelect) refs.bookVolumeRenameSelect.addEventListener("change", syncBookVolumeRenameInput);
+  if (refs.btnBookVolumeRename) refs.btnBookVolumeRename.addEventListener("click", () => {
+    renameBookVolume().catch(() => {});
   });
   refs.btnCloseBookNames.addEventListener("click", () => refs.bookNameDialog.close());
   if (refs.btnBookNameHistory) refs.btnBookNameHistory.addEventListener("click", () => {

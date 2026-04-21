@@ -39,8 +39,9 @@ def build_book_search_text(
     title_vi: Any = "",
     author: Any = "",
     author_vi: Any = "",
+    author_hv: Any = "",
 ) -> str:
-    return build_search_text(title, title_vi, author, author_vi)
+    return build_search_text(title, title_vi, author, author_vi, author_hv)
 
 
 def build_chapter_search_text(
@@ -278,6 +279,7 @@ def sync_book_search_texts(
     book_ids: list[str] | tuple[str, ...] | set[str] | None = None,
     *,
     conn: sqlite3.Connection | None = None,
+    author_to_hanviet_display=None,
 ) -> int:
     normalized_ids = _normalize_row_ids(book_ids)
     select_sql = """
@@ -292,19 +294,30 @@ def sync_book_search_texts(
 
     def _run(active_conn: sqlite3.Connection) -> int:
         rows = active_conn.execute(select_sql, tuple(params)).fetchall()
-        updates = [
-            (
-                build_book_search_text(
-                    title=row["title"],
-                    title_vi=row["title_vi"],
-                    author=row["author"],
-                    author_vi=row["author_vi"],
-                ),
-                row["book_id"],
+        updates: list[tuple[str, str]] = []
+        for row in rows:
+            book_id = str(row["book_id"] or "").strip()
+            if not book_id:
+                continue
+            author_raw = str(row["author"] or "").strip()
+            author_hv = ""
+            if callable(author_to_hanviet_display) and author_raw:
+                try:
+                    author_hv = str(author_to_hanviet_display(author_raw, single_line=True) or "").strip()
+                except Exception:
+                    author_hv = ""
+            updates.append(
+                (
+                    build_book_search_text(
+                        title=row["title"],
+                        title_vi=row["title_vi"],
+                        author=author_raw,
+                        author_vi=row["author_vi"],
+                        author_hv=author_hv,
+                    ),
+                    book_id,
+                )
             )
-            for row in rows
-            if str(row["book_id"] or "").strip()
-        ]
         if updates:
             active_conn.executemany("UPDATE books SET search_text = ? WHERE book_id = ?", updates)
         return int(len(updates))
@@ -424,7 +437,9 @@ def _build_book_list_query_context(
     if not include_session:
         clauses.append("lower(COALESCE(b.source_type, '')) NOT LIKE 'vbook_session%'")
 
-    author_key = _normalize_book_query_value(author_query).lower()
+    author_raw = _normalize_book_query_value(author_query)
+    author_key = author_raw.lower()
+    author_search_key = normalize_search_text(author_raw)
     if author_key:
         like = f"%{author_key}%"
         clauses.append(
@@ -432,10 +447,11 @@ def _build_book_list_query_context(
             (
                 lower(COALESCE(b.author, '')) LIKE ?
                 OR lower(COALESCE(b.author_vi, '')) LIKE ?
+                OR instr(COALESCE(b.search_text, ''), ?) > 0
             )
             """.strip()
         )
-        params.extend([like, like])
+        params.extend([like, like, author_search_key or author_key])
 
     include_ids = _normalize_book_query_ids(category_ids)
     exclude_ids = _normalize_book_query_ids(category_exclude_ids)
