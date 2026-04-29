@@ -10,16 +10,21 @@ Script `TTS Reader` dùng để đọc tiêu đề + nội dung chương bằng 
   - Google TTS
   - Bing TTS
   - Gemini TTS
+  - Zalo TTS
 - Tô màu đoạn đang đọc/đã đọc.
 - Tự chuyển phần kế tiếp (nếu chương có chia phần) và tự qua chương sau (nếu có).
 
 ## 2) Chuẩn bị
-- Trình duyệt có cài Tampermonkey (hoặc userscript manager tương đương).
+- Trình duyệt có cài Tampermonkey (hoặc userscript manager tương đương). **Lưu ý:** Cần bật `Cho phép tập lệnh của người dùng` trong `Quản lý tiện ích` của Tampermonkey.
 - Cài script:
   - Link cài (auto-install): [TTS_Reader.user.js](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader.user.js)
 - Nếu dùng TikTok TTS:
   - Bạn cần đăng nhập TikTok để lấy cookie phiên (cookie nhạy cảm).
   - Tampermonkey Beta có thể tự đọc cookie HttpOnly; bản Stable/Violentmonkey thường không đọc được và phải nhập cookie thủ công (xem mục 6 và 7).
+- Nếu dùng Gemini TTS: Cần đăng nhập Gemini vào trình duyệt hiện tại đang dùng script.
+- Nếu dùng Zalo TTS:
+  - Vào [AI Zalo](https://ai.zalo.solutions/) và đăng nhập tài khoản Zalo của bạn.
+  - Chuyển sang trang [Api Key](https://ai.zalo.solutions/account/manage-keys) để tạo key mới hoặc copy key (nếu đã có), dán vào script để sử dụng.
 
 ## 3) Cách dùng nhanh
 1. Mở trang chương truyện (VD):
@@ -41,6 +46,7 @@ Script `TTS Reader` dùng để đọc tiêu đề + nội dung chương bằng 
 - `Vị trí đọc`: tự cập nhật theo đoạn đang phát thực tế, nên dừng giữa chừng rồi phát lại sẽ dễ bám đúng vị trí hơn
 
 ## 5) Tùy chọn quan trọng
+- `Hẹn giờ ngủ`: Được tính theo phút, khi bật nó sẽ đếm ngược ngay, khi hết thời gian được đặt script sẽ dừng.
 - `Tốc độ` / `Âm lượng`:
   - Browser Speech: áp dụng cho SpeechSynthesis.
   - TikTok/Google/Bing: áp dụng cho audio phát ra (rate/volume). (Pitch không áp dụng cho remote.)
