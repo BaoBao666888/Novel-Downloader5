@@ -1843,8 +1843,12 @@ p {
 
 .vbook-detail-comment-author {
   font-size: 13px;
-  color: color-mix(in srgb, var(--text) 92%, transparent);
-  font-weight: 600;
+  color: color-mix(in srgb, var(--accent) 78%, var(--text));
+  font-weight: 800;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 999px;
+  padding: 2px 8px;
 }
 
 .vbook-detail-comment-time {
@@ -2378,7 +2382,12 @@ p {
 }
 
 .book-source-comment-head strong {
-  color: color-mix(in srgb, var(--text) 92%, transparent);
+  color: color-mix(in srgb, var(--accent) 78%, var(--text));
+  font-weight: 800;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 999px;
+  padding: 2px 8px;
 }
 
 .book-source-comment-item p {

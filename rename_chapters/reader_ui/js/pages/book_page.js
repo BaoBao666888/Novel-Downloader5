@@ -1163,7 +1163,7 @@ function renderBookOnlineSuggestSections(container, sections) {
       more.type = "button";
       more.className = "btn btn-small";
       more.textContent = state.shell.t("vbookDetailViewMore");
-      more.addEventListener("click", () => openBookOnlineRelatedPopup("suggest", sections));
+      more.addEventListener("click", () => openBookOnlineRelatedPopup("suggest", sections, section.index));
       block.appendChild(more);
     }
     container.appendChild(block);
@@ -1191,7 +1191,7 @@ function renderBookOnlineCommentSections(container, sections) {
       more.type = "button";
       more.className = "btn btn-small";
       more.textContent = state.shell.t("vbookDetailViewMore");
-      more.addEventListener("click", () => openBookOnlineRelatedPopup("comment", sections));
+      more.addEventListener("click", () => openBookOnlineRelatedPopup("comment", sections, section.index));
       block.appendChild(more);
     }
     container.appendChild(block);
@@ -1210,7 +1210,7 @@ function mergeBookOnlineSectionPage(targetSections, incomingSection) {
   if (incomingSection.source) target.source = incomingSection.source;
 }
 
-function openBookOnlineRelatedPopup(kind, inputSections) {
+function openBookOnlineRelatedPopup(kind, inputSections, focusIndex = null) {
   const title = kind === "comment" ? state.shell.t("vbookDetailCommentTitle") : state.shell.t("vbookDetailSuggestTitle");
   const sections = (Array.isArray(inputSections) ? inputSections : []).map((section) => ({
     ...section,
@@ -1246,18 +1246,30 @@ function openBookOnlineRelatedPopup(kind, inputSections) {
       if (section.title) {
         const sectionTitle = document.createElement("h4");
         sectionTitle.className = "vbook-detail-section-title";
+        sectionTitle.dataset.sectionIndex = String(section.index ?? "");
         sectionTitle.textContent = section.title;
         body.appendChild(sectionTitle);
       }
       for (const row of section.items || []) {
         body.appendChild(kind === "comment" ? buildBookOnlineCommentNode(row) : buildBookOnlineSuggestNode(row));
       }
+      if (section.has_next && section.source) {
+        const moreWrap = document.createElement("div");
+        moreWrap.className = "vbook-detail-more-row";
+        const more = document.createElement("button");
+        more.type = "button";
+        more.className = "btn btn-small";
+        more.textContent = state.shell.t("vbookDetailViewMore");
+        more.addEventListener("click", () => loadNext(section));
+        moreWrap.appendChild(more);
+        body.appendChild(moreWrap);
+      }
     }
   };
 
-  const loadNext = async () => {
+  const loadNext = async (targetSection = null) => {
     if (loading) return;
-    const section = sections.find((row) => row && row.has_next && row.source);
+    const section = targetSection || [...sections].reverse().find((row) => row && row.has_next && row.source);
     if (!section) return;
     loading = true;
     empty.textContent = state.shell.t("statusLoadingVbookDetailSections");
@@ -1298,6 +1310,10 @@ function openBookOnlineRelatedPopup(kind, inputSections) {
   document.body.appendChild(dialog);
   dialog.showModal();
   window.setTimeout(() => {
+    if (focusIndex !== null && focusIndex !== undefined) {
+      const target = body.querySelector(`[data-section-index="${String(focusIndex)}"]`);
+      if (target && typeof target.scrollIntoView === "function") target.scrollIntoView({ block: "start" });
+    }
     if (body.scrollHeight <= body.clientHeight + 8) loadNext();
   }, 0);
 }

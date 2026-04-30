@@ -29,3 +29,5 @@
 > - Gợi ý dùng layout card giống danh sách Home/Genre hơn và có thể mở thông tin truyện từ card.
 > - Bình luận dài được thu gọn, có nút `Xem thêm` / `Rút gọn`.
 > - Nếu section có phân trang, nút `Xem thêm` mở popup dùng lại page 1 đã tải và tự tải tiếp khi cuộn gần cuối.
+> - Mỗi nhóm gợi ý/bình luận giữ phân trang riêng, phù hợp nguồn có nhiều loại bình luận.
+> - Tên user bình luận được tô màu/nhấn mạnh để dễ tách khỏi nội dung.

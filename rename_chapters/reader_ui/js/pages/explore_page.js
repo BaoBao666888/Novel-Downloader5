@@ -1681,10 +1681,6 @@ async function loadDetailRelated(kind) {
   }
 }
 
-function hasPagedRelatedSection(sections) {
-  return (Array.isArray(sections) ? sections : []).some((section) => section && section.has_next && section.source);
-}
-
 function mergeRelatedSectionPage(targetSections, incomingSection) {
   const idx = Number(incomingSection && incomingSection.index);
   const target = targetSections.find((section) => Number(section.index) === idx) || targetSections[0];
@@ -1697,7 +1693,7 @@ function mergeRelatedSectionPage(targetSections, incomingSection) {
   if (incomingSection.source) target.source = incomingSection.source;
 }
 
-function openDetailRelatedPopup(kind) {
+function openDetailRelatedPopup(kind, focusIndex = null) {
   const sourceBucket = getDetailRelated(kind);
   const title = kind === "comment" ? state.shell.t("vbookDetailCommentTitle") : state.shell.t("vbookDetailSuggestTitle");
   const sections = (sourceBucket.sections || []).map((section) => ({
@@ -1735,6 +1731,7 @@ function openDetailRelatedPopup(kind) {
         if (section.title) {
           const sectionTitle = document.createElement(kind === "comment" ? "h4" : "div");
           sectionTitle.className = "vbook-detail-section-title";
+          sectionTitle.dataset.sectionIndex = String(section.index ?? "");
           sectionTitle.textContent = section.title;
           body.appendChild(sectionTitle);
         }
@@ -1745,13 +1742,24 @@ function openDetailRelatedPopup(kind) {
             body.appendChild(buildOnlineBookCard(row));
           }
         }
+        if (section.has_next && section.source) {
+          const moreWrap = document.createElement("div");
+          moreWrap.className = "vbook-detail-more-row";
+          const more = document.createElement("button");
+          more.type = "button";
+          more.className = "btn btn-small";
+          more.textContent = state.shell.t("vbookDetailViewMore");
+          more.addEventListener("click", () => loadNext(section));
+          moreWrap.appendChild(more);
+          body.appendChild(moreWrap);
+        }
       }
     }
   };
 
-  const loadNext = async () => {
+  const loadNext = async (targetSection = null) => {
     if (loading) return;
-    const section = sections.find((row) => row && row.has_next && row.source);
+    const section = targetSection || [...sections].reverse().find((row) => row && row.has_next && row.source);
     if (!section) return;
     loading = true;
     empty.textContent = state.shell.t("statusLoadingVbookDetailSections");
@@ -1791,6 +1799,10 @@ function openDetailRelatedPopup(kind) {
   document.body.appendChild(dialog);
   dialog.showModal();
   window.setTimeout(() => {
+    if (focusIndex !== null && focusIndex !== undefined) {
+      const target = body.querySelector(`[data-section-index="${String(focusIndex)}"]`);
+      if (target && typeof target.scrollIntoView === "function") target.scrollIntoView({ block: "start" });
+    }
     if (body.scrollHeight <= body.clientHeight + 8) loadNext();
   }, 0);
 }
@@ -1935,17 +1947,17 @@ function renderVbookDetail() {
         li.appendChild(buildOnlineBookCard(row));
         refs.vbookDetailSuggestList.appendChild(li);
       }
-    }
-    if (hasPagedRelatedSection(suggestSections)) {
-      const li = document.createElement("li");
-      li.className = "vbook-detail-more-row";
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "btn btn-small";
-      btn.textContent = state.shell.t("vbookDetailViewMore");
-      btn.addEventListener("click", () => openDetailRelatedPopup("suggest"));
-      li.appendChild(btn);
-      refs.vbookDetailSuggestList.appendChild(li);
+      if (section.has_next && section.source) {
+        const li = document.createElement("li");
+        li.className = "vbook-detail-more-row";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-small";
+        btn.textContent = state.shell.t("vbookDetailViewMore");
+        btn.addEventListener("click", () => openDetailRelatedPopup("suggest", section.index));
+        li.appendChild(btn);
+        refs.vbookDetailSuggestList.appendChild(li);
+      }
     }
   }
 
@@ -1971,17 +1983,17 @@ function renderVbookDetail() {
         li.appendChild(buildVbookCommentNode(row));
         refs.vbookDetailCommentList.appendChild(li);
       }
-    }
-    if (hasPagedRelatedSection(commentSections)) {
-      const li = document.createElement("li");
-      li.className = "vbook-detail-more-row";
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "btn btn-small";
-      btn.textContent = state.shell.t("vbookDetailViewMore");
-      btn.addEventListener("click", () => openDetailRelatedPopup("comment"));
-      li.appendChild(btn);
-      refs.vbookDetailCommentList.appendChild(li);
+      if (section.has_next && section.source) {
+        const li = document.createElement("li");
+        li.className = "vbook-detail-more-row";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-small";
+        btn.textContent = state.shell.t("vbookDetailViewMore");
+        btn.addEventListener("click", () => openDetailRelatedPopup("comment", section.index));
+        li.appendChild(btn);
+        refs.vbookDetailCommentList.appendChild(li);
+      }
     }
   }
 
