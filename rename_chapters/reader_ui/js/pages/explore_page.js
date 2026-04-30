@@ -1597,6 +1597,43 @@ function normalizeRelatedSectionsFromResponse(data) {
     }));
 }
 
+function buildPendingRelatedSections(sources, fallbackTitle) {
+  return (Array.isArray(sources) ? sources : [])
+    .filter((source) => source && typeof source === "object")
+    .map((source, idx) => ({
+      index: Number.isFinite(Number(source.index)) ? Number(source.index) : idx,
+      title: normalizeParagraphDisplayText(source.title || source.title_raw || fallbackTitle || "", { singleLine: true }) || fallbackTitle || "",
+      title_raw: normalizeParagraphDisplayText(source.title_raw || source.title || fallbackTitle || "", { singleLine: true }) || fallbackTitle || "",
+      items: [],
+      page: 1,
+      has_next: false,
+      next: null,
+      source,
+      loading: true,
+      errorMessage: "",
+    }));
+}
+
+function mergeRelatedSectionsByIndex(currentSections, incomingSections) {
+  const byIndex = new Map();
+  for (const section of Array.isArray(currentSections) ? currentSections : []) {
+    if (!section || typeof section !== "object") continue;
+    byIndex.set(Number(section.index) || 0, section);
+  }
+  for (const incoming of Array.isArray(incomingSections) ? incomingSections : []) {
+    if (!incoming || typeof incoming !== "object") continue;
+    const idx = Number(incoming.index) || 0;
+    const previous = byIndex.get(idx) || {};
+    byIndex.set(idx, {
+      ...previous,
+      ...incoming,
+      loading: false,
+      errorMessage: "",
+    });
+  }
+  return [...byIndex.values()].sort((a, b) => (Number(a.index) || 0) - (Number(b.index) || 0));
+}
+
 function appendCollapsibleCommentContent(container, textValue) {
   const fullText = normalizeParagraphDisplayText(textValue || "");
   const limit = 360;
@@ -1647,38 +1684,61 @@ async function loadDetailRelated(kind) {
   const pluginId = String(state.detail.pluginId || (state.detail.item && state.detail.item.plugin_id) || "").trim();
   if (!url) return null;
   const requestId = state.detail.relatedRequestId;
+  const fallbackTitle = kind === "comment" ? state.shell.t("vbookDetailCommentTitle") : state.shell.t("vbookDetailSuggestTitle");
+  const sources = (Array.isArray(bucket.sources) ? bucket.sources : []).filter((source) => source && typeof source === "object");
   bucket.loading = true;
+  bucket.loaded = false;
   bucket.errorMessage = "";
+  bucket.sections = buildPendingRelatedSections(sources, fallbackTitle);
   renderVbookDetail();
-  try {
-    const data = await apiWithRequest(`detail-${kind}`, "/api/vbook/detail/sections", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url,
-        plugin_id: pluginId,
-        kind,
-        sources: bucket.sources,
-        page: 1,
-      }),
-    });
-    if (requestId !== state.detail.relatedRequestId) return null;
-    const sections = normalizeRelatedSectionsFromResponse(data);
-    bucket.sections = sections;
+  if (!sources.length) {
     bucket.loaded = true;
     bucket.loading = false;
-    bucket.errorMessage = "";
     renderVbookDetail();
-    return sections;
-  } catch (error) {
-    if (isAbortError(error)) return null;
-    if (requestId !== state.detail.relatedRequestId) return null;
-    bucket.loading = false;
-    bucket.loaded = true;
-    bucket.errorMessage = getErrorMessage(error);
-    renderVbookDetail();
-    return null;
+    return [];
   }
+  const tasks = sources.map(async (source, idx) => {
+    try {
+      const data = await apiWithRequest(`detail-${kind}-${idx}`, "/api/vbook/detail/sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url,
+          plugin_id: pluginId,
+          kind,
+          source,
+          page: 1,
+        }),
+      });
+      if (requestId !== state.detail.relatedRequestId) return null;
+      const sections = normalizeRelatedSectionsFromResponse(data);
+      bucket.sections = mergeRelatedSectionsByIndex(bucket.sections, sections);
+      renderVbookDetail();
+      return sections;
+    } catch (error) {
+      if (isAbortError(error) || requestId !== state.detail.relatedRequestId) return null;
+      const sectionIndex = Number(source.index) || idx;
+      bucket.sections = (bucket.sections || []).map((section) => (
+        Number(section.index) === sectionIndex
+          ? { ...section, loading: false, errorMessage: getErrorMessage(error) }
+          : section
+      ));
+      renderVbookDetail();
+      return null;
+    }
+  });
+  await Promise.allSettled(tasks);
+  if (requestId !== state.detail.relatedRequestId) return null;
+  bucket.loaded = true;
+  bucket.loading = false;
+  bucket.sections = (bucket.sections || []).filter((section) => (
+    (Array.isArray(section.items) && section.items.length)
+    || section.has_next
+    || section.errorMessage
+  ));
+  if (!bucket.sections.length) bucket.errorMessage = "";
+  renderVbookDetail();
+  return bucket.sections;
 }
 
 function mergeRelatedSectionPage(targetSections, incomingSection) {
@@ -1947,6 +2007,17 @@ function renderVbookDetail() {
         li.appendChild(buildOnlineBookCard(row));
         refs.vbookDetailSuggestList.appendChild(li);
       }
+      if (section.loading) {
+        const loadingLi = document.createElement("li");
+        loadingLi.className = "empty-text";
+        loadingLi.textContent = state.shell.t("statusLoadingVbookDetailSections");
+        refs.vbookDetailSuggestList.appendChild(loadingLi);
+      } else if (section.errorMessage) {
+        const errorLi = document.createElement("li");
+        errorLi.className = "empty-text";
+        errorLi.textContent = section.errorMessage;
+        refs.vbookDetailSuggestList.appendChild(errorLi);
+      }
       if (section.has_next && section.source) {
         const li = document.createElement("li");
         li.className = "vbook-detail-more-row";
@@ -1982,6 +2053,17 @@ function renderVbookDetail() {
         const li = document.createElement("li");
         li.appendChild(buildVbookCommentNode(row));
         refs.vbookDetailCommentList.appendChild(li);
+      }
+      if (section.loading) {
+        const loadingLi = document.createElement("li");
+        loadingLi.className = "empty-text";
+        loadingLi.textContent = state.shell.t("statusLoadingVbookDetailSections");
+        refs.vbookDetailCommentList.appendChild(loadingLi);
+      } else if (section.errorMessage) {
+        const errorLi = document.createElement("li");
+        errorLi.className = "empty-text";
+        errorLi.textContent = section.errorMessage;
+        refs.vbookDetailCommentList.appendChild(errorLi);
       }
       if (section.has_next && section.source) {
         const li = document.createElement("li");

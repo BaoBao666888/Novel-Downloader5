@@ -15471,7 +15471,17 @@ class ReaderService:
         if section_kind not in {"suggest", "comment"}:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Loại detail section không hợp lệ.")
         plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id or None)
-        flight_key = self._vbook_singleflight_key(f"detail-{section_kind}", plugin)
+        source_sig_payload: Any
+        if source and isinstance(source, dict):
+            source_sig_payload = source
+        elif isinstance(sources, list):
+            source_sig_payload = {"count": len(sources), "indexes": [row.get("index") for row in sources if isinstance(row, dict)]}
+        else:
+            source_sig_payload = {}
+        source_sig = hashlib.sha1(
+            json.dumps(source_sig_payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8", errors="ignore")
+        ).hexdigest()[:10]
+        flight_key = self._vbook_singleflight_key(f"detail-{section_kind}-{source_sig}", plugin)
         flight_token = self._begin_vbook_singleflight(flight_key)
         try:
             source_rows: list[dict[str, Any]] = []

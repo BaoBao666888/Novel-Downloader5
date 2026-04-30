@@ -284,7 +284,7 @@ def build_export_format_specs(*, is_comic: bool, translation_supported: bool) ->
             opt("include_intro", "Hiển thị trang giới thiệu", True),
             opt("merge_single_file", "Gộp thành 1 file", True),
             opt("include_chapter_titles", "Hiển thị tên chương", True),
-            opt("include_toc_page", "Hiển thị trang mục lục", False),
+            opt("include_toc_page", "Hiển thị trang mục lục", True),
         ]
         txt_options = [
             opt("merge_single_file", "Gộp thành 1 file", True),
@@ -469,15 +469,20 @@ def build_export_toc_html(
 
 def _build_export_html_nav(*, prev_href: str = "", next_href: str = "", index_href: str = "", index_label: str = "Mục lục") -> str:
     links: list[str] = []
-    if index_href:
-        links.append(f'<a class="export-nav-link" href="{html.escape(index_href)}">{html.escape(index_label)}</a>')
     if prev_href:
         links.append(f'<a class="export-nav-link" href="{html.escape(prev_href)}">Chương trước</a>')
+    if index_href:
+        links.append(f'<a class="export-nav-link" href="{html.escape(index_href)}">{html.escape(index_label)}</a>')
     if next_href:
         links.append(f'<a class="export-nav-link" href="{html.escape(next_href)}">Chương sau</a>')
     if not links:
         return ""
-    return '<nav class="export-nav">' + "".join(links) + "</nav>"
+    settings_button = (
+        '<button type="button" class="export-chip export-nav-settings" data-toggle-drawer="settings">'
+        '<span aria-hidden="true">&#9881;</span><span>Tùy chỉnh</span>'
+        "</button>"
+    )
+    return '<nav class="export-nav"><div class="export-nav-center">' + "".join(links) + f'</div><div class="export-nav-right">{settings_button}</div></nav>'
 
 
 def _serialize_export_data_payload(value: Any) -> str:
@@ -535,9 +540,14 @@ def wrap_export_html_document(
     protection_runtime_config = str(protection_context.get("runtime_config_json") or "{}") if protect_enabled else "{}"
     protection_extra_styles = str(protection_context.get("extra_styles") or "") if protect_enabled else ""
     font_choices = (
-        '<option value="serif">Serif dễ đọc</option>'
+        '<option value="vietserif">Serif Việt rõ</option>'
+        '<option value="serif">Serif hệ thống</option>'
         '<option value="literary">Serif đậm chất sách</option>'
+        '<option value="cambria">Cambria</option>'
+        '<option value="times">Times New Roman</option>'
+        '<option value="georgia">Georgia</option>'
         '<option value="sans">Sans gọn</option>'
+        '<option value="arial">Arial</option>'
         '<option value="mono">Mono</option>'
     )
     settings_markup = (
@@ -611,7 +621,7 @@ def wrap_export_html_document(
   const READING_RESTORE_DELAYS = [0, 160, 520, 1200, 2600];
   const defaults = IS_COMIC
     ? {{ theme: "graphite", fontFamily: "sans", width: 980, fontSize: 18, lineHeight: 1.8, indent: 0, noIndent: true, imageWidth: 1080, imageGap: 0.9, customThemeEnabled: false, customBg: "", customBgElev: "", customSurface: "", customSurfaceStrong: "", customText: "", customMuted: "", customAccent: "" }}
-    : {{ theme: "paper", fontFamily: "literary", width: 860, fontSize: 20, lineHeight: 1.9, indent: 1.8, noIndent: false, imageWidth: 960, imageGap: 1.0, customThemeEnabled: false, customBg: "", customBgElev: "", customSurface: "", customSurfaceStrong: "", customText: "", customMuted: "", customAccent: "" }};
+    : {{ theme: "paper", fontFamily: "vietserif", width: 860, fontSize: 20, lineHeight: 1.9, indent: 1.8, noIndent: false, imageWidth: 960, imageGap: 1.0, customThemeEnabled: false, customBg: "", customBgElev: "", customSurface: "", customSurfaceStrong: "", customText: "", customMuted: "", customAccent: "" }};
   let state = {{ ...defaults }};
   try {{
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -715,6 +725,11 @@ def wrap_export_html_document(
       if (link.dataset.drawerBound === "1") return;
       link.dataset.drawerBound = "1";
       link.addEventListener("click", closeDrawers);
+    }});
+    document.querySelectorAll("[data-toggle-drawer]").forEach((button) => {{
+      if (button.dataset.drawerBound === "1") return;
+      button.dataset.drawerBound = "1";
+      button.addEventListener("click", () => toggleDrawer(button.getAttribute("data-toggle-drawer") || ""));
     }});
   }};
   const getChapterPayloadNode = () => document.getElementById("export-chapter-payload");
@@ -1663,6 +1678,8 @@ def wrap_export_html_document(
     initializeLocalChapterRendering({{ force: true }});
   }}
   document.querySelectorAll("[data-toggle-drawer]").forEach((button) => {{
+    if (button.dataset.drawerBound === "1") return;
+    button.dataset.drawerBound = "1";
     button.addEventListener("click", () => toggleDrawer(button.getAttribute("data-toggle-drawer") || ""));
   }});
   document.querySelectorAll("[data-close-drawer]").forEach((button) => {{
@@ -1911,19 +1928,24 @@ def wrap_export_html_document(
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         f"<title>{html.escape(title)}</title>"
         "<style>"
-        ":root{--bg:#f5f0e8;--bg-elev:#fffdf8;--surface:#fffaf1;--surface-strong:#ffffff;--text:#1f1a17;--muted:#6d6259;--border:rgba(73,54,38,.14);--shadow:0 24px 48px rgba(46,31,20,.12);--accent:#99572a;--accent-soft:rgba(153,87,42,.14);--reader-width:860px;--reader-font-size:20px;--reader-line-height:1.9;--reader-indent:1.8em;--comic-max-width:1080px;--comic-image-gap:.9rem;--font-body:'Georgia','Times New Roman',serif;--font-ui:'Segoe UI',system-ui,sans-serif;}"
+        ":root{--bg:#f5f0e8;--bg-elev:#fffdf8;--surface:#fffaf1;--surface-strong:#ffffff;--text:#1f1a17;--muted:#6d6259;--border:rgba(73,54,38,.14);--shadow:0 24px 48px rgba(46,31,20,.12);--accent:#99572a;--accent-soft:rgba(153,87,42,.14);--reader-width:860px;--reader-font-size:20px;--reader-line-height:1.9;--reader-indent:1.8em;--comic-max-width:1080px;--comic-image-gap:.9rem;--font-body:'Noto Serif','Cambria','Times New Roman',serif;--font-ui:'Segoe UI',system-ui,sans-serif;}"
         f"{theme_css}"
-        ":root[data-font-family='serif']{--font-body:'Georgia','Times New Roman',serif;}"
-        ":root[data-font-family='literary']{--font-body:'Palatino Linotype','Book Antiqua','Noto Serif','Times New Roman',serif;}"
+        ":root[data-font-family='vietserif']{--font-body:'Noto Serif','Cambria','Liberation Serif','Times New Roman',serif;}"
+        ":root[data-font-family='serif']{--font-body:ui-serif,'Noto Serif','Cambria','Times New Roman',serif;}"
+        ":root[data-font-family='literary']{--font-body:'Palatino Linotype','Book Antiqua','Georgia','Noto Serif','Times New Roman',serif;}"
+        ":root[data-font-family='cambria']{--font-body:'Cambria','Noto Serif','Times New Roman',serif;}"
+        ":root[data-font-family='times']{--font-body:'Times New Roman','Noto Serif',serif;}"
+        ":root[data-font-family='georgia']{--font-body:'Georgia','Times New Roman',serif;}"
         ":root[data-font-family='sans']{--font-body:'Segoe UI','Helvetica Neue',Arial,sans-serif;}"
+        ":root[data-font-family='arial']{--font-body:Arial,'Helvetica Neue',sans-serif;}"
         ":root[data-font-family='mono']{--font-body:'Consolas','SFMono-Regular','Roboto Mono',monospace;}"
         "*{box-sizing:border-box;}html{scroll-behavior:smooth;}body{margin:0;background:radial-gradient(circle at top,var(--bg-elev),var(--bg) 42%);color:var(--text);font-family:var(--font-ui);}"
         f"{protection_extra_styles}"
         "a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}"
-        ".export-shell{min-height:100vh;padding:20px 18px 48px;}.export-header{position:fixed;top:12px;left:50%;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;width:min(calc(100vw - 36px),1180px);margin:0;padding:12px 16px;border:1px solid var(--border);border-radius:18px;background:color-mix(in srgb,var(--surface-strong) 88%, transparent);backdrop-filter:blur(16px);box-shadow:var(--shadow);transform:translate(-50%,-132%);opacity:0;pointer-events:none;transition:transform .22s ease,opacity .18s ease;}"
+        ".export-shell{min-height:100vh;padding:20px 18px 48px;}.export-header{position:fixed;top:12px;left:50%;z-index:20;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;width:min(calc(100vw - 36px),1180px);margin:0;padding:12px 16px;border:1px solid var(--border);border-radius:18px;background:color-mix(in srgb,var(--surface-strong) 88%, transparent);backdrop-filter:blur(16px);box-shadow:var(--shadow);transform:translate(-50%,-132%);opacity:0;pointer-events:none;transition:transform .22s ease,opacity .18s ease;}"
         ".export-shell.ui-visible .export-header{transform:translate(-50%,0);opacity:1;pointer-events:auto;}"
-        ".export-header-left,.export-header-right{display:flex;align-items:center;gap:10px;}.export-title{display:flex;flex-direction:column;gap:2px;min-width:0;text-align:center;}.export-title strong{font-size:15px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.export-title span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}"
-        ".export-chip,.export-nav-link,.export-drawer-close{appearance:none;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:10px 14px;border-radius:999px;font:600 13px/1 var(--font-ui);cursor:pointer;transition:transform .18s ease,background .18s ease,border-color .18s ease;}.export-chip:hover,.export-nav-link:hover,.export-drawer-close:hover{transform:translateY(-1px);background:var(--accent-soft);text-decoration:none;}"
+        ".export-header-left,.export-header-right{display:flex;align-items:center;gap:10px;}.export-header-left{grid-column:2;justify-content:center;}.export-title{grid-column:1;grid-row:1;display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;}.export-header-right{grid-column:3;justify-content:flex-end;}.export-title strong{font-size:15px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.export-title span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}"
+        ".export-chip,.export-nav-link,.export-drawer-close{appearance:none;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:10px 14px;border-radius:999px;font:600 13px/1 var(--font-ui);cursor:pointer;transition:transform .18s ease,background .18s ease,border-color .18s ease;}.export-chip:hover,.export-nav-link:hover,.export-drawer-close:hover{transform:translateY(-1px);background:var(--accent-soft);text-decoration:none;}.export-settings-button{display:inline-flex;align-items:center;gap:6px;}"
         ".export-main{max-width:1180px;margin:0 auto;}.export-reader{width:min(100%,var(--reader-width));margin:0 auto;padding:36px 34px;border:1px solid var(--border);border-radius:28px;background:color-mix(in srgb,var(--surface-strong) 92%, transparent);box-shadow:var(--shadow);}"
         ".export-reader.is-comic{width:min(100%,calc(var(--comic-max-width) + 80px));padding:24px 20px 28px;}.export-reader.is-comic .intro,.export-reader.is-comic .toc{max-width:var(--comic-max-width);margin-left:auto;margin-right:auto;}"
         ".intro,.toc{margin:0 0 28px;padding:0 0 22px;border-bottom:1px solid var(--border);}.intro h1{margin:0 0 14px;font:700 clamp(28px,4vw,40px)/1.15 var(--font-body);letter-spacing:-.02em;}.intro p,.toc p,.chapter p{margin:0 0 1em;white-space:pre-wrap;}"
@@ -1935,14 +1957,14 @@ def wrap_export_html_document(
         ".export-local-reader{display:grid;gap:0;}.export-chapter-window{display:grid;gap:0;min-height:120px;}.export-chapter-payload{display:none !important;}"
         ".chapter-images{display:flex;flex-direction:column;gap:var(--comic-image-gap);align-items:center;}.chapter-image-wrap{width:100%;max-width:var(--comic-max-width);margin:0 auto;padding:0;border-radius:22px;overflow:hidden;background:color-mix(in srgb,var(--surface) 82%, transparent);box-shadow:0 18px 38px rgba(0,0,0,.18);}.chapter-image{display:block;width:100%;height:auto;}"
         ".export-toc ol{margin:0;padding-left:22px;}.export-toc li+li{margin-top:8px;}.export-toc.empty p{color:var(--muted);}.export-toc a.is-active{font-weight:700;color:var(--text);text-decoration:underline;text-underline-offset:2px;}"
-        ".export-nav{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 18px;}.chapter-footer-nav{margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}"
+        ".export-nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:0 0 18px;}.export-nav-center{grid-column:2;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;}.export-nav-right{grid-column:3;display:flex;justify-content:flex-end;}.export-nav-settings{display:inline-flex;align-items:center;gap:6px;}.chapter-footer-nav{margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}"
         ".export-drawer{position:fixed;top:0;bottom:0;z-index:40;pointer-events:none;}.export-drawer[data-drawer='toc']{left:0;}.export-drawer[data-drawer='settings']{right:0;}.export-drawer.open{pointer-events:auto;}.export-drawer-backdrop{position:absolute;inset:0;background:rgba(9,12,17,.44);opacity:0;transition:opacity .2s ease;}.export-drawer.open .export-drawer-backdrop{opacity:1;}"
         ".export-drawer-panel{position:absolute;top:0;bottom:0;width:min(360px,86vw);padding:20px;background:var(--bg-elev);box-shadow:var(--shadow);overflow:auto;transition:transform .22s ease;}.export-drawer[data-drawer='toc'] .export-drawer-panel{left:0;transform:translateX(-108%);border-right:1px solid var(--border);}.export-drawer[data-drawer='settings'] .export-drawer-panel{right:0;transform:translateX(108%);border-left:1px solid var(--border);}.export-drawer.open .export-drawer-panel{transform:translateX(0);}"
         ".export-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}.export-drawer-head h2{margin:0;font-size:18px;}.export-drawer-body{display:grid;gap:14px;}.settings-group{display:grid;gap:8px;}.settings-group label{font-size:13px;font-weight:700;color:var(--muted);}.settings-group input,.settings-group select{width:100%;}.settings-group select{padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font:500 14px/1.2 var(--font-ui);}.settings-check-label{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);font:600 14px/1.3 var(--font-ui);}.settings-check-label span{color:var(--text);font:600 14px/1.3 var(--font-ui);}.settings-check-label input{width:20px;height:20px;flex:0 0 auto;accent-color:var(--accent);}.settings-subgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.settings-subgrid.is-disabled{opacity:.72;}.settings-color{display:grid;gap:6px;}.settings-color span{font-size:12px;font-weight:700;color:var(--muted);}.settings-color input[type='color']{width:100%;height:38px;padding:0;border:1px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;}.settings-reset-button{justify-self:end;}"
         "input[type='range']{accent-color:var(--accent);}input[type='range']:disabled,.settings-color input[type='color']:disabled{opacity:.45;cursor:not-allowed;}.no-indent .chapter-text p{text-indent:0;}.comic-only{display:none;}.is-comic .comic-only{display:grid;}.is-comic .text-only{display:none;}"
         "@media print{.content-protected .export-shell{display:none !important;}.content-protected .export-protect-overlay{display:flex !important;}}"
         "@media (max-width: 920px){.export-shell{padding:14px 12px 36px;}.export-header{top:8px;width:min(calc(100vw - 24px),1180px);padding:10px 12px;border-radius:16px;}.export-title strong{font-size:14px;}.export-title span{display:none;}.export-reader,.export-reader.is-comic{padding:24px 18px 28px;border-radius:22px;}.chapter-title{margin-bottom:14px;}.export-chip{padding:9px 12px;font-size:12px;}.settings-subgrid{grid-template-columns:1fr;}}"
-        "@media (max-width: 640px){.export-header{display:grid;grid-template-columns:1fr auto;align-items:center;}.export-header-right{justify-content:flex-end;}.export-header-left{grid-column:1 / span 2;}.export-title{order:-1;text-align:left;}}"
+        "@media (max-width: 720px){.export-header{grid-template-columns:1fr;justify-items:center;}.export-title{display:none;}.export-header-left{grid-column:1;}.export-header-right{display:none;}.export-nav{grid-template-columns:1fr;}.export-nav-center,.export-nav-right{grid-column:1;justify-content:center;}.export-nav-settings{justify-self:center;}}"
         "</style>"
         f"{hidden_notice_markup}"
         f"</head>{body_open_tag}"
@@ -1951,7 +1973,7 @@ def wrap_export_html_document(
         '<header class="export-header">'
         '<div class="export-header-left">'
         '<button type="button" class="export-chip" data-toggle-drawer="toc">Mục lục</button>'
-        '<button type="button" class="export-chip" data-toggle-drawer="settings">Tùy chỉnh</button>'
+        '<button type="button" class="export-chip export-settings-button" data-toggle-drawer="settings"><span aria-hidden="true">&#9881;</span><span>Tùy chỉnh</span></button>'
         "</div>"
         f'<div class="export-title"><strong>{html.escape(header_title)}</strong><span>{html.escape(title)}</span></div>'
         '<div class="export-header-right"></div>'
