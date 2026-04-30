@@ -1040,6 +1040,108 @@ function normalizeBookOnlineSections(rawSections, fallbackItems, fallbackTitle) 
   return sections.filter((section) => section.items.length);
 }
 
+function countBookOnlineSectionItems(sections) {
+  return (Array.isArray(sections) ? sections : []).reduce((total, section) => (
+    total + (Array.isArray(section.items) ? section.items.length : 0)
+  ), 0);
+}
+
+function normalizeBookOnlineSectionsResponse(data) {
+  return (Array.isArray(data && data.sections) ? data.sections : [])
+    .filter((section) => section && typeof section === "object")
+    .map((section, idx) => ({
+      ...section,
+      index: Number.isFinite(Number(section.index)) ? Number(section.index) : idx,
+      title: normalizeParagraphDisplayText(section.title || section.title_raw || "", { singleLine: true }),
+      title_raw: normalizeParagraphDisplayText(section.title_raw || section.title || "", { singleLine: true }),
+      items: Array.isArray(section.items) ? section.items.filter((row) => row && typeof row === "object") : [],
+      page: Math.max(1, Number(section.page) || 1),
+      has_next: Boolean(section.has_next),
+      next: section.next ?? null,
+      source: (section.source && typeof section.source === "object") ? section.source : null,
+    }));
+}
+
+function appendBookOnlineCollapsibleComment(container, textValue) {
+  const fullText = normalizeParagraphDisplayText(textValue || "");
+  const limit = 360;
+  const body = document.createElement("p");
+  if (fullText.length <= limit) {
+    body.textContent = fullText;
+    container.appendChild(body);
+    return;
+  }
+  let expanded = false;
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "btn btn-small vbook-comment-toggle";
+  const sync = () => {
+    body.textContent = expanded ? fullText : `${fullText.slice(0, limit).trimEnd()}...`;
+    toggle.textContent = expanded ? state.shell.t("collapseText") : state.shell.t("expandText");
+  };
+  toggle.addEventListener("click", () => {
+    expanded = !expanded;
+    sync();
+  });
+  sync();
+  container.append(body, toggle);
+}
+
+function buildBookOnlineCommentNode(row) {
+  const item = document.createElement("article");
+  item.className = "book-source-comment-item";
+  const head = document.createElement("div");
+  head.className = "book-source-comment-head";
+  const author = document.createElement("strong");
+  author.textContent = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }) || state.shell.t("vbookDetailCommentGuest");
+  const when = document.createElement("span");
+  when.textContent = normalizeParagraphDisplayText((row && row.time) || "", { singleLine: true });
+  head.append(author, when);
+  item.appendChild(head);
+  appendBookOnlineCollapsibleComment(item, (row && row.content) || "");
+  return item;
+}
+
+function buildBookOnlineSuggestNode(row) {
+  const item = document.createElement("article");
+  item.className = "book-source-suggest-item book-source-suggest-card";
+  const coverUrl = String((row && row.cover) || "").trim();
+  const cover = document.createElement("div");
+  cover.className = "book-source-suggest-cover";
+  if (coverUrl) {
+    const img = document.createElement("img");
+    img.src = coverUrl;
+    img.alt = normalizeDisplayTitle(String((row && row.title) || "").trim() || "Không tiêu đề");
+    img.loading = "lazy";
+    cover.appendChild(img);
+  }
+  const body = document.createElement("div");
+  body.className = "book-source-suggest-body";
+  const name = document.createElement("div");
+  name.className = "book-source-suggest-title";
+  name.textContent = normalizeDisplayTitle(String((row && row.title) || "").trim() || "Không tiêu đề");
+  const meta = document.createElement("div");
+  meta.className = "book-source-suggest-meta";
+  const parts = [];
+  const author = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true });
+  if (author) parts.push(author);
+  const desc = normalizeParagraphDisplayText((row && row.description) || "", { singleLine: true });
+  if (desc) parts.push(desc);
+  meta.textContent = parts.join(" • ");
+  const detailUrl = String((row && row.detail_url) || "").trim();
+  if (detailUrl) {
+    const link = document.createElement("a");
+    link.className = "btn btn-small";
+    link.href = `/explore?open_url=${encodeURIComponent(detailUrl)}&vpid=${encodeURIComponent(String((row && row.plugin_id) || state.book?.source_plugin || "").trim())}`;
+    link.textContent = state.shell.t("vbookSearchViewDetail");
+    body.append(name, meta, link);
+  } else {
+    body.append(name, meta);
+  }
+  item.append(cover, body);
+  return item;
+}
+
 function renderBookOnlineSuggestSections(container, sections) {
   if (!container) return;
   container.innerHTML = "";
@@ -1053,33 +1155,17 @@ function renderBookOnlineSuggestSections(container, sections) {
     const list = document.createElement("div");
     list.className = "book-source-suggest-list";
     for (const row of section.items) {
-      const item = document.createElement("article");
-      item.className = "book-source-suggest-item";
-      const name = document.createElement("div");
-      name.className = "book-source-suggest-title";
-      const detailUrl = String((row && row.detail_url) || "").trim();
-      if (detailUrl) {
-        const link = document.createElement("a");
-        link.href = detailUrl;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.textContent = normalizeDisplayTitle(String((row && row.title) || "").trim() || "Không tiêu đề");
-        name.appendChild(link);
-      } else {
-        name.textContent = normalizeDisplayTitle(String((row && row.title) || "").trim() || "Không tiêu đề");
-      }
-      const meta = document.createElement("div");
-      meta.className = "book-source-suggest-meta";
-      const parts = [];
-      const author = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true });
-      if (author) parts.push(author);
-      const desc = normalizeParagraphDisplayText((row && row.description) || "", { singleLine: true });
-      if (desc) parts.push(desc);
-      meta.textContent = parts.join(" • ");
-      item.append(name, meta);
-      list.appendChild(item);
+      list.appendChild(buildBookOnlineSuggestNode(row));
     }
     block.appendChild(list);
+    if (section.has_next && section.source) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "btn btn-small";
+      more.textContent = state.shell.t("vbookDetailViewMore");
+      more.addEventListener("click", () => openBookOnlineRelatedPopup("suggest", sections));
+      block.appendChild(more);
+    }
     container.appendChild(block);
   }
 }
@@ -1097,23 +1183,123 @@ function renderBookOnlineCommentSections(container, sections) {
     const list = document.createElement("div");
     list.className = "book-source-comment-list";
     for (const row of section.items) {
-      const item = document.createElement("article");
-      item.className = "book-source-comment-item";
-      const head = document.createElement("div");
-      head.className = "book-source-comment-head";
-      const author = document.createElement("strong");
-      author.textContent = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }) || state.shell.t("vbookDetailCommentGuest");
-      const when = document.createElement("span");
-      when.textContent = normalizeParagraphDisplayText((row && row.time) || "", { singleLine: true });
-      head.append(author, when);
-      const body = document.createElement("p");
-      body.textContent = normalizeParagraphDisplayText((row && row.content) || "");
-      item.append(head, body);
-      list.appendChild(item);
+      list.appendChild(buildBookOnlineCommentNode(row));
     }
     block.appendChild(list);
+    if (section.has_next && section.source) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "btn btn-small";
+      more.textContent = state.shell.t("vbookDetailViewMore");
+      more.addEventListener("click", () => openBookOnlineRelatedPopup("comment", sections));
+      block.appendChild(more);
+    }
     container.appendChild(block);
   }
+}
+
+function mergeBookOnlineSectionPage(targetSections, incomingSection) {
+  const idx = Number(incomingSection && incomingSection.index);
+  const target = targetSections.find((section) => Number(section.index) === idx) || targetSections[0];
+  if (!target) return;
+  const incomingItems = Array.isArray(incomingSection.items) ? incomingSection.items : [];
+  target.items = [...(Array.isArray(target.items) ? target.items : []), ...incomingItems];
+  target.page = Math.max(Number(target.page) || 1, Number(incomingSection.page) || 1);
+  target.next = incomingSection.next ?? null;
+  target.has_next = Boolean(incomingSection.has_next) && incomingItems.length > 0;
+  if (incomingSection.source) target.source = incomingSection.source;
+}
+
+function openBookOnlineRelatedPopup(kind, inputSections) {
+  const title = kind === "comment" ? state.shell.t("vbookDetailCommentTitle") : state.shell.t("vbookDetailSuggestTitle");
+  const sections = (Array.isArray(inputSections) ? inputSections : []).map((section) => ({
+    ...section,
+    items: Array.isArray(section.items) ? section.items.map((row) => ({ ...row })) : [],
+  }));
+  const dialog = document.createElement("dialog");
+  dialog.className = "dialog vbook-related-dialog";
+  const head = document.createElement("div");
+  head.className = "dialog-head";
+  const h3 = document.createElement("h3");
+  h3.textContent = title;
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "btn btn-small";
+  close.textContent = "×";
+  close.addEventListener("click", () => dialog.close());
+  head.append(h3, close);
+  const body = document.createElement("div");
+  body.className = kind === "comment" ? "vbook-related-body" : "vbook-related-body book-source-related-grid";
+  const empty = document.createElement("p");
+  empty.className = "empty-text";
+  let loading = false;
+
+  const render = () => {
+    body.innerHTML = "";
+    const count = countBookOnlineSectionItems(sections);
+    if (!count) {
+      empty.textContent = kind === "comment" ? state.shell.t("vbookDetailCommentEmpty") : state.shell.t("vbookDetailSuggestEmpty");
+      return;
+    }
+    empty.textContent = "";
+    for (const section of sections) {
+      if (section.title) {
+        const sectionTitle = document.createElement("h4");
+        sectionTitle.className = "vbook-detail-section-title";
+        sectionTitle.textContent = section.title;
+        body.appendChild(sectionTitle);
+      }
+      for (const row of section.items || []) {
+        body.appendChild(kind === "comment" ? buildBookOnlineCommentNode(row) : buildBookOnlineSuggestNode(row));
+      }
+    }
+  };
+
+  const loadNext = async () => {
+    if (loading) return;
+    const section = sections.find((row) => row && row.has_next && row.source);
+    if (!section) return;
+    loading = true;
+    empty.textContent = state.shell.t("statusLoadingVbookDetailSections");
+    try {
+      const detail = (state.book && state.book.online_detail) || {};
+      const data = await state.shell.api("/api/vbook/detail/sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: String(state.book?.source_url || state.book?.extra_link || detail.url || "").trim(),
+          plugin_id: String(state.book?.source_plugin || "").trim(),
+          kind,
+          source: section.source,
+          page: Math.max(1, Number(section.page) || 1) + 1,
+          next: section.next,
+          translate_ui: supportsTranslation(state.book) && state.mode === "trans",
+        }),
+      });
+      const incoming = normalizeBookOnlineSectionsResponse(data);
+      if (incoming.length) mergeBookOnlineSectionPage(sections, incoming[0]);
+      else section.has_next = false;
+      render();
+    } catch (error) {
+      empty.textContent = error.message || state.shell.t("toastError");
+    } finally {
+      loading = false;
+    }
+  };
+
+  body.addEventListener("scroll", () => {
+    if (body.scrollTop + body.clientHeight >= body.scrollHeight - 160) {
+      loadNext();
+    }
+  });
+  render();
+  dialog.append(head, body, empty);
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.appendChild(dialog);
+  dialog.showModal();
+  window.setTimeout(() => {
+    if (body.scrollHeight <= body.clientHeight + 8) loadNext();
+  }, 0);
 }
 
 function renderBookOnlineDetail(detail) {
@@ -1156,12 +1342,30 @@ function renderBookOnlineDetail(detail) {
     state.shell.t("vbookDetailCommentTitle"),
   );
   if (refs.viewSourceSuggestItem && refs.viewSourceSuggest) {
-    refs.viewSourceSuggestItem.classList.toggle("hidden", suggestSections.length <= 0);
-    renderBookOnlineSuggestSections(refs.viewSourceSuggest, suggestSections);
+    const suggestLoading = Boolean(payload.suggest_loading);
+    refs.viewSourceSuggestItem.classList.toggle("hidden", suggestSections.length <= 0 && !suggestLoading);
+    if (suggestLoading && suggestSections.length <= 0) {
+      refs.viewSourceSuggest.innerHTML = "";
+      const empty = document.createElement("p");
+      empty.className = "empty-text";
+      empty.textContent = state.shell.t("statusLoadingVbookDetailSections");
+      refs.viewSourceSuggest.appendChild(empty);
+    } else {
+      renderBookOnlineSuggestSections(refs.viewSourceSuggest, suggestSections);
+    }
   }
   if (refs.viewSourceCommentItem && refs.viewSourceComment) {
-    refs.viewSourceCommentItem.classList.toggle("hidden", commentSections.length <= 0);
-    renderBookOnlineCommentSections(refs.viewSourceComment, commentSections);
+    const commentLoading = Boolean(payload.comment_loading);
+    refs.viewSourceCommentItem.classList.toggle("hidden", commentSections.length <= 0 && !commentLoading);
+    if (commentLoading && commentSections.length <= 0) {
+      refs.viewSourceComment.innerHTML = "";
+      const empty = document.createElement("p");
+      empty.className = "empty-text";
+      empty.textContent = state.shell.t("statusLoadingVbookDetailSections");
+      refs.viewSourceComment.appendChild(empty);
+    } else {
+      renderBookOnlineCommentSections(refs.viewSourceComment, commentSections);
+    }
   }
 }
 
@@ -1187,14 +1391,19 @@ async function loadBookOnlineDetail(book, { suppressToast = true } = {}) {
         url: sourceUrl,
         plugin_id: pluginId,
         translate_ui: supportsTranslation(book) && state.mode === "trans",
+        include_sections: false,
       }),
     });
     if (requestId !== state.onlineDetailRequestId || String(state.bookId || "").trim() !== currentBookId) return null;
     const detail = (data && data.detail && typeof data.detail === "object") ? data.detail : {};
+    detail.suggest_loading = Array.isArray(detail.suggest_sources) && detail.suggest_sources.length > 0;
+    detail.comment_loading = Array.isArray(detail.comment_sources) && detail.comment_sources.length > 0;
     if (state.book && String(state.book.book_id || "").trim() === currentBookId) {
       state.book.online_detail = detail;
     }
     renderBookOnlineDetail(detail);
+    loadBookOnlineDetailSections(book, detail, "suggest", requestId, currentBookId).catch(() => {});
+    loadBookOnlineDetailSections(book, detail, "comment", requestId, currentBookId).catch(() => {});
     return detail;
   } catch (error) {
     if (requestId === state.onlineDetailRequestId && String(state.bookId || "").trim() === currentBookId) {
@@ -1203,6 +1412,40 @@ async function loadBookOnlineDetail(book, { suppressToast = true } = {}) {
     if (!suppressToast) state.shell.showToast(error.message || state.shell.t("toastError"));
     return null;
   }
+}
+
+async function loadBookOnlineDetailSections(book, detail, kind, requestId, currentBookId) {
+  const sourceKey = kind === "comment" ? "comment_sources" : "suggest_sources";
+  const sectionKey = kind === "comment" ? "comment_sections" : "suggest_sections";
+  const loadingKey = kind === "comment" ? "comment_loading" : "suggest_loading";
+  const sources = Array.isArray(detail && detail[sourceKey]) ? detail[sourceKey] : [];
+  if (!sources.length) {
+    if (detail) detail[loadingKey] = false;
+    renderBookOnlineDetail(detail);
+    return null;
+  }
+  const data = await state.shell.api("/api/vbook/detail/sections", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: String(book.source_url || book.extra_link || "").trim(),
+      plugin_id: String(book.source_plugin || "").trim(),
+      kind,
+      sources,
+      page: 1,
+      translate_ui: supportsTranslation(book) && state.mode === "trans",
+    }),
+  });
+  if (requestId !== state.onlineDetailRequestId || String(state.bookId || "").trim() !== currentBookId) return null;
+  const sections = normalizeBookOnlineSectionsResponse(data);
+  detail[sectionKey] = sections;
+  detail[`${kind}_items`] = sections.flatMap((section) => Array.isArray(section.items) ? section.items : []);
+  detail[loadingKey] = false;
+  if (state.book && String(state.book.book_id || "").trim() === currentBookId) {
+    state.book.online_detail = detail;
+  }
+  renderBookOnlineDetail(detail);
+  return sections;
 }
 
 function renderBookCategoriesDialogList() {

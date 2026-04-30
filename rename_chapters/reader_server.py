@@ -13821,14 +13821,33 @@ class ReaderService:
         return out[:80]
 
     def _collect_vbook_suggest_items(self, plugin: Any, raw_value: Any) -> list[dict[str, Any]]:
+        items, _, _ = self._collect_vbook_suggest_items_page(plugin, raw_value, page=1, next_token=None)
+        return items
+
+    def _vbook_descriptor_input_has_page(self, input_value: Any) -> bool:
+        if not isinstance(input_value, str):
+            return False
+        text = input_value.strip()
+        return "{{page}}" in text or "{page}" in text or "{0}" in text
+
+    def _collect_vbook_suggest_items_page(
+        self,
+        plugin: Any,
+        raw_value: Any,
+        *,
+        page: int = 1,
+        next_token: Any = None,
+    ) -> tuple[list[dict[str, Any]], Any, bool]:
+        p = max(1, int(page or 1))
         # Case chuẩn: plugin trả trực tiếp list book gợi ý.
-        direct_items = self._normalize_vbook_suggest_items(plugin, raw_value)
-        direct_items = [
-            row for row in direct_items
-            if str((row or {}).get("detail_url") or "").strip()
-        ]
-        if direct_items:
-            return direct_items
+        if p <= 1 and next_token is None:
+            direct_items = self._normalize_vbook_suggest_items(plugin, raw_value)
+            direct_items = [
+                row for row in direct_items
+                if str((row or {}).get("detail_url") or "").strip()
+            ]
+            if direct_items:
+                return direct_items, None, False
 
         # Fallback: một số ext (vd SanyTeam) trả tab/script để load gợi ý.
         rows = self._extract_vbook_list_rows(raw_value)
@@ -13840,25 +13859,29 @@ class ReaderService:
             if tab:
                 tabs.append(tab)
         if not tabs:
-            return []
+            return [], None, False
 
         out: list[dict[str, Any]] = []
         seen: set[str] = set()
+        best_next: Any = None
+        has_next = False
         for tab in tabs[:4]:
             script_raw = str(tab.get("script") or "").strip()
             if not script_raw:
                 continue
             try:
                 script_ref = self._normalize_vbook_script_ref(plugin, script_raw, default_key="home")
-                list_rows, _, _ = self._run_vbook_paged_list_script(
+                list_rows, next_value, _ = self._run_vbook_paged_list_script(
                     plugin,
                     script_ref=script_ref,
                     input_value=tab.get("input"),
-                    page=1,
-                    next_token=None,
+                    page=p,
+                    next_token=next_token,
                 )
             except Exception:
                 continue
+            if best_next is None and next_value is not None and str(next_value).strip() != "":
+                best_next = next_value
             for row in list_rows:
                 normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
                 if not normalized:
@@ -13869,13 +13892,33 @@ class ReaderService:
                 seen.add(key)
                 out.append(normalized)
                 if len(out) >= 80:
-                    return out
-        return out
+                    break
+            if out and (
+                (best_next is not None and str(best_next).strip() != "")
+                or self._vbook_descriptor_input_has_page(tab.get("input"))
+            ):
+                has_next = True
+            if len(out) >= 80:
+                break
+        return out[:80], best_next, has_next
 
     def _collect_vbook_comment_items(self, plugin: Any, raw_value: Any) -> list[dict[str, Any]]:
-        direct_items = self._normalize_vbook_comment_items(raw_value)
-        if direct_items:
-            return direct_items
+        items, _, _ = self._collect_vbook_comment_items_page(plugin, raw_value, page=1, next_token=None)
+        return items
+
+    def _collect_vbook_comment_items_page(
+        self,
+        plugin: Any,
+        raw_value: Any,
+        *,
+        page: int = 1,
+        next_token: Any = None,
+    ) -> tuple[list[dict[str, Any]], Any, bool]:
+        p = max(1, int(page or 1))
+        if p <= 1 and next_token is None:
+            direct_items = self._normalize_vbook_comment_items(raw_value)
+            if direct_items:
+                return direct_items, None, False
 
         rows = self._extract_vbook_list_rows(raw_value)
         tabs: list[dict[str, Any]] = []
@@ -13886,28 +13929,37 @@ class ReaderService:
             if tab:
                 tabs.append(tab)
         if not tabs:
-            return []
+            return [], None, False
 
         out: list[dict[str, Any]] = []
+        best_next: Any = None
+        has_next = False
         for tab in tabs[:4]:
             script_raw = str(tab.get("script") or "").strip()
             if not script_raw:
                 continue
             try:
                 script_ref = self._normalize_vbook_script_ref(plugin, script_raw, default_key="detail")
-                list_rows, _, _ = self._run_vbook_paged_list_script(
+                list_rows, next_value, _ = self._run_vbook_paged_list_script(
                     plugin,
                     script_ref=script_ref,
                     input_value=tab.get("input"),
-                    page=1,
-                    next_token=None,
+                    page=p,
+                    next_token=next_token,
                 )
             except Exception:
                 continue
+            if best_next is None and next_value is not None and str(next_value).strip() != "":
+                best_next = next_value
             out.extend(self._normalize_vbook_comment_items(list_rows))
+            if out and (
+                (best_next is not None and str(best_next).strip() != "")
+                or self._vbook_descriptor_input_has_page(tab.get("input"))
+            ):
+                has_next = True
             if len(out) >= 80:
-                return out[:80]
-        return out[:80]
+                break
+        return out[:80], best_next, has_next
 
     def _vbook_section_title_from_raw(self, raw_value: Any, default_title: str) -> str:
         if isinstance(raw_value, dict):
@@ -14011,6 +14063,67 @@ class ReaderService:
 
         return sections
 
+    def _build_vbook_detail_section_sources(
+        self,
+        raw_values: list[tuple[str, Any]],
+        *,
+        default_title: str,
+        candidate_keys: tuple[str, ...],
+    ) -> list[dict[str, Any]]:
+        sources: list[dict[str, Any]] = []
+
+        def push(title_raw: str, payload: Any) -> None:
+            if not self._has_non_empty_vbook_value(payload):
+                return
+            title = normalize_vbook_display_text(str(title_raw or default_title), single_line=True) or default_title
+            sources.append(
+                {
+                    "index": len(sources),
+                    "title_raw": title,
+                    "title": title,
+                    "payload": payload,
+                }
+            )
+
+        for raw_key, raw_value in raw_values:
+            if isinstance(raw_value, list):
+                section_rows = [row for row in raw_value if self._looks_like_vbook_detail_section(row, candidate_keys)]
+                if section_rows and len(section_rows) == len(raw_value):
+                    for row in section_rows:
+                        title = self._vbook_section_title_from_raw(row, default_title)
+                        push(title, self._vbook_section_payload_from_raw(row, candidate_keys))
+                else:
+                    push(default_title, raw_value)
+                continue
+
+            if isinstance(raw_value, dict):
+                direct_payload = self._vbook_section_payload_from_raw(raw_value, candidate_keys)
+                if direct_payload is not raw_value:
+                    push(self._vbook_section_title_from_raw(raw_value, default_title), direct_payload)
+                    continue
+
+                mapped = False
+                for key, value in raw_value.items():
+                    if key in {"title", "name", "label", "header", "heading"}:
+                        continue
+                    if not self._has_non_empty_vbook_value(value):
+                        continue
+                    if isinstance(value, (list, tuple, set)):
+                        push(str(key or default_title), value)
+                        mapped = True
+                    elif isinstance(value, dict):
+                        rows = self._extract_vbook_list_rows(value)
+                        if rows and not (len(rows) == 1 and rows[0] is value):
+                            push(str(key or default_title), value)
+                            mapped = True
+                if not mapped:
+                    push(default_title, raw_value)
+                continue
+
+            push(default_title, raw_value)
+
+        return sources
+
     def _flatten_vbook_detail_sections(self, sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
         for section in sections:
@@ -14020,6 +14133,89 @@ class ReaderService:
                 if isinstance(item, dict):
                     out.append(item)
         return out
+
+    def _translate_vbook_detail_sections_response(
+        self,
+        sections: list[dict[str, Any]],
+        *,
+        kind: str,
+        mode: str | None = None,
+    ) -> list[dict[str, Any]]:
+        if not sections or not self.is_reader_translation_enabled():
+            return sections
+        translate_mode = self.resolve_translate_mode(mode)
+        section_titles = self._translate_ui_texts_batch(
+            [str((section or {}).get("title_raw") or (section or {}).get("title") or "") for section in sections],
+            single_line=True,
+            mode=translate_mode,
+        )
+        for idx, section in enumerate(sections):
+            if idx < len(section_titles):
+                section["title"] = section_titles[idx]
+        items = self._flatten_vbook_detail_sections(sections)
+        if kind == "comment":
+            authors = self._translate_ui_texts_batch(
+                [str(item.get("author") or "") for item in items],
+                single_line=True,
+                mode=translate_mode,
+            )
+            contents = self._translate_ui_texts_batch(
+                [str(item.get("content") or "") for item in items],
+                single_line=False,
+                mode=translate_mode,
+            )
+            for idx, item in enumerate(items):
+                if idx < len(authors):
+                    item["author"] = authors[idx]
+                if idx < len(contents):
+                    item["content"] = contents[idx]
+        else:
+            self._translate_vbook_items_batch(items, mode=translate_mode)
+        return sections
+
+    def _collect_vbook_detail_section_page(
+        self,
+        plugin: Any,
+        source: dict[str, Any],
+        *,
+        kind: str,
+        page: int = 1,
+        next_token: Any = None,
+    ) -> dict[str, Any]:
+        p = max(1, int(page or 1))
+        title_raw = normalize_vbook_display_text(
+            str((source or {}).get("title_raw") or (source or {}).get("title") or ""),
+            single_line=True,
+        )
+        fallback_title = "Bình luận" if kind == "comment" else "Gợi ý"
+        if not title_raw:
+            title_raw = fallback_title
+        payload = (source or {}).get("payload")
+        if kind == "comment":
+            items, next_value, has_next = self._collect_vbook_comment_items_page(
+                plugin,
+                payload,
+                page=p,
+                next_token=next_token,
+            )
+        else:
+            items, next_value, has_next = self._collect_vbook_suggest_items_page(
+                plugin,
+                payload,
+                page=p,
+                next_token=next_token,
+            )
+        return {
+            "index": int((source or {}).get("index") or 0),
+            "title_raw": title_raw,
+            "title": title_raw,
+            "items": items,
+            "count": len(items),
+            "page": p,
+            "next": next_value,
+            "has_next": bool(has_next),
+            "source": source,
+        }
 
     def _normalize_vbook_comment_items(self, raw_value: Any) -> list[dict[str, Any]]:
         rows: list[Any]
@@ -14892,6 +15088,7 @@ class ReaderService:
         plugin_id: str = "",
         flight_key: str = "",
         flight_token: str = "",
+        include_detail_sections: bool = True,
     ) -> dict[str, Any]:
         source_url = str(url or "").strip()
         if not source_url:
@@ -14944,19 +15141,39 @@ class ReaderService:
             exact_keys=("comment", "comments", "review", "reviews"),
             fuzzy_tokens=("comment", "review"),
         )
-        suggest_sections = self._collect_vbook_detail_sections(
-            plugin,
+        suggest_candidate_keys = ("items", "list", "data", "books", "book", "novels", "novel", "suggest", "suggests", "recommend", "recommends", "related")
+        comment_candidate_keys = ("items", "list", "data", "comments", "comment", "reviews", "review", "records", "rows")
+        suggest_sources = self._build_vbook_detail_section_sources(
             suggest_raw_values,
             default_title="Gợi ý",
-            candidate_keys=("items", "list", "data", "books", "book", "novels", "novel", "suggest", "suggests", "recommend", "recommends", "related"),
-            item_collector=lambda raw: self._collect_vbook_suggest_items(plugin, raw),
+            candidate_keys=suggest_candidate_keys,
         )
-        comment_sections = self._collect_vbook_detail_sections(
-            plugin,
+        comment_sources = self._build_vbook_detail_section_sources(
             comment_raw_values,
             default_title="Bình luận",
-            candidate_keys=("items", "list", "data", "comments", "comment", "reviews", "review", "records", "rows"),
-            item_collector=lambda raw: self._collect_vbook_comment_items(plugin, raw),
+            candidate_keys=comment_candidate_keys,
+        )
+        suggest_sections = (
+            self._collect_vbook_detail_sections(
+                plugin,
+                suggest_raw_values,
+                default_title="Gợi ý",
+                candidate_keys=suggest_candidate_keys,
+                item_collector=lambda raw: self._collect_vbook_suggest_items(plugin, raw),
+            )
+            if include_detail_sections
+            else []
+        )
+        comment_sections = (
+            self._collect_vbook_detail_sections(
+                plugin,
+                comment_raw_values,
+                default_title="Bình luận",
+                candidate_keys=comment_candidate_keys,
+                item_collector=lambda raw: self._collect_vbook_comment_items(plugin, raw),
+            )
+            if include_detail_sections
+            else []
         )
         suggest_items = self._flatten_vbook_detail_sections(suggest_sections)
         comment_items = self._flatten_vbook_detail_sections(comment_sections)
@@ -14979,8 +15196,10 @@ class ReaderService:
                 "genres": genre_items,
                 "suggest_sections": suggest_sections,
                 "suggest_items": suggest_items,
+                "suggest_sources": suggest_sources,
                 "comment_sections": comment_sections,
                 "comment_items": comment_items,
+                "comment_sources": comment_sources,
                 "extra_fields": extra_fields,
             },
         }
@@ -14991,6 +15210,7 @@ class ReaderService:
         url: str,
         plugin_id: str = "",
         translate_ui: bool | None = None,
+        include_sections: bool = True,
     ) -> dict[str, Any]:
         source_url = str(url or "").strip()
         if not source_url:
@@ -15004,6 +15224,7 @@ class ReaderService:
                 plugin_id=str(getattr(plugin, "plugin_id", "") or ""),
                 flight_key=flight_key,
                 flight_token=flight_token,
+                include_detail_sections=include_sections,
             )
             plugin = payload["plugin"]
             detail = dict(payload["detail"] or {})
@@ -15053,6 +15274,8 @@ class ReaderService:
                 comment_sections = [{"title": "Bình luận", "title_raw": "Bình luận", "items": comment_items}]
             genre_items = [dict(x or {}) for x in (detail.get("genres") or []) if isinstance(x, dict)]
             extra_fields = [dict(x or {}) for x in (detail.get("extra_fields") or []) if isinstance(x, dict)]
+            suggest_sources = [dict(x or {}) for x in (detail.get("suggest_sources") or []) if isinstance(x, dict)]
+            comment_sources = [dict(x or {}) for x in (detail.get("comment_sources") or []) if isinstance(x, dict)]
             if translate_ui is None:
                 translate_on = self.is_reader_translation_enabled()
             else:
@@ -15103,6 +15326,15 @@ class ReaderService:
                         item["title"] = suggest_titles[idx] if idx < len(suggest_titles) else str(item.get("title") or "")
                         item["author"] = suggest_authors[idx] if idx < len(suggest_authors) else str(item.get("author") or "")
                         item["description"] = suggest_descs[idx] if idx < len(suggest_descs) else str(item.get("description") or "")
+                if suggest_sources:
+                    suggest_source_titles = self._translate_ui_texts_batch(
+                        [str(source.get("title_raw") or source.get("title") or "") for source in suggest_sources],
+                        single_line=True,
+                        mode=mode,
+                    )
+                    for idx, source in enumerate(suggest_sources):
+                        if idx < len(suggest_source_titles):
+                            source["title"] = suggest_source_titles[idx]
                 if comment_items:
                     comment_section_titles = self._translate_ui_texts_batch(
                         [str(section.get("title_raw") or section.get("title") or "") for section in comment_sections],
@@ -15127,6 +15359,15 @@ class ReaderService:
                             continue
                         item["author"] = comment_authors[idx] if idx < len(comment_authors) else str(item.get("author") or "")
                         item["content"] = comment_contents[idx] if idx < len(comment_contents) else str(item.get("content") or "")
+                if comment_sources:
+                    comment_source_titles = self._translate_ui_texts_batch(
+                        [str(source.get("title_raw") or source.get("title") or "") for source in comment_sources],
+                        single_line=True,
+                        mode=mode,
+                    )
+                    for idx, source in enumerate(comment_sources):
+                        if idx < len(comment_source_titles):
+                            source["title"] = comment_source_titles[idx]
                 if genre_items:
                     genre_titles = self._translate_ui_texts_batch(
                         [str(item.get("title") or "") for item in genre_items],
@@ -15186,6 +15427,7 @@ class ReaderService:
                         if isinstance(section, dict)
                     ],
                     "suggest_items": suggest_items,
+                    "suggest_sources": suggest_sources,
                     "comment_sections": [
                         {
                             "title": str(section.get("title") or "").strip() or "Bình luận",
@@ -15197,11 +15439,113 @@ class ReaderService:
                         if isinstance(section, dict)
                     ],
                     "comment_items": comment_items,
+                    "comment_sources": comment_sources,
                     "extra_fields": extra_fields,
                 },
             }
         except vbook_ext.RunnerCancelledError as exc:
             self._raise_vbook_request_replaced(plugin, "detail", exc)
+        finally:
+            self._end_vbook_singleflight(flight_key, flight_token)
+
+    def get_vbook_detail_sections(
+        self,
+        *,
+        url: str,
+        plugin_id: str = "",
+        kind: str = "suggest",
+        sources: list[Any] | None = None,
+        source: dict[str, Any] | None = None,
+        page: int = 1,
+        next_token: Any = None,
+        translate_ui: bool | None = None,
+    ) -> dict[str, Any]:
+        source_url = str(url or "").strip()
+        if not source_url:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL truyện.")
+        section_kind = str(kind or "").strip().lower()
+        if section_kind in {"comments", "review", "reviews"}:
+            section_kind = "comment"
+        elif section_kind in {"suggests", "recommend", "recommends", "related"}:
+            section_kind = "suggest"
+        if section_kind not in {"suggest", "comment"}:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Loại detail section không hợp lệ.")
+        plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id or None)
+        flight_key = self._vbook_singleflight_key(f"detail-{section_kind}", plugin)
+        flight_token = self._begin_vbook_singleflight(flight_key)
+        try:
+            source_rows: list[dict[str, Any]] = []
+            if source and isinstance(source, dict):
+                source_rows = [dict(source)]
+            elif isinstance(sources, list):
+                source_rows = [dict(row) for row in sources if isinstance(row, dict)]
+            if not source_rows:
+                payload = self._fetch_vbook_detail_raw(
+                    url=source_url,
+                    plugin_id=str(getattr(plugin, "plugin_id", "") or ""),
+                    flight_key=flight_key,
+                    flight_token=flight_token,
+                    include_detail_sections=False,
+                )
+                plugin = payload["plugin"]
+                detail = dict(payload.get("detail") or {})
+                source_rows = [
+                    dict(row)
+                    for row in (detail.get("comment_sources" if section_kind == "comment" else "suggest_sources") or [])
+                    if isinstance(row, dict)
+                ]
+
+            p = max(1, int(page or 1))
+            sections: list[dict[str, Any]] = []
+            for idx, row in enumerate(source_rows):
+                section_source = dict(row)
+                section_source["index"] = int(section_source.get("index") or idx)
+                section = self._collect_vbook_detail_section_page(
+                    plugin,
+                    section_source,
+                    kind=section_kind,
+                    page=p,
+                    next_token=next_token if len(source_rows) == 1 else None,
+                )
+                if section.get("items") or p <= 1:
+                    sections.append(section)
+
+            if translate_ui is None:
+                translate_on = self.is_reader_translation_enabled()
+            else:
+                translate_on = bool(translate_ui)
+            if translate_on:
+                self._translate_vbook_detail_sections_response(
+                    sections,
+                    kind=section_kind,
+                    mode=self.reader_translation_mode(),
+                )
+            items = self._flatten_vbook_detail_sections(sections)
+            return {
+                "ok": True,
+                "plugin": self._serialize_vbook_plugin(plugin),
+                "kind": section_kind,
+                "page": p,
+                "sections": [
+                    {
+                        "index": int((section or {}).get("index") or idx),
+                        "title": str((section or {}).get("title") or "").strip() or ("Bình luận" if section_kind == "comment" else "Gợi ý"),
+                        "title_raw": str((section or {}).get("title_raw") or (section or {}).get("title") or "").strip() or ("Bình luận" if section_kind == "comment" else "Gợi ý"),
+                        "items": [dict(item or {}) for item in ((section or {}).get("items") or []) if isinstance(item, dict)],
+                        "count": len([item for item in ((section or {}).get("items") or []) if isinstance(item, dict)]),
+                        "page": int((section or {}).get("page") or p),
+                        "next": (section or {}).get("next"),
+                        "has_next": bool((section or {}).get("has_next")),
+                        "source": dict((section or {}).get("source") or {}),
+                    }
+                    for idx, section in enumerate(sections)
+                    if isinstance(section, dict)
+                ],
+                "items": items,
+                "count": len(items),
+            }
+        except vbook_ext.RunnerCancelledError as exc:
+            self._raise_vbook_request_replaced(plugin, f"detail-{section_kind}", exc)
         finally:
             self._end_vbook_singleflight(flight_key, flight_token)
 

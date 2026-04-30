@@ -148,6 +148,16 @@ function createSearchBucket() {
   };
 }
 
+function createDetailRelatedBucket() {
+  return {
+    sections: [],
+    sources: [],
+    loading: false,
+    loaded: false,
+    errorMessage: "",
+  };
+}
+
 const state = {
   shell: null,
   query: "",
@@ -207,6 +217,9 @@ const state = {
     selectedChapterUrl: "",
     selectedChapterTitle: "",
     actionBusy: "",
+    relatedRequestId: 0,
+    suggest: createDetailRelatedBucket(),
+    comment: createDetailRelatedBucket(),
   },
   genreModal: {
     open: false,
@@ -533,6 +546,7 @@ function buildImportSeed(sourceUrl, pluginId, historyOnly = false) {
 }
 
 function resetDetailForPluginSwitch() {
+  state.detail.relatedRequestId += 1;
   state.detail.item = null;
   state.detail.detail = null;
   state.detail.loading = false;
@@ -550,6 +564,8 @@ function resetDetailForPluginSwitch() {
   state.detail.selectedChapterUrl = "";
   state.detail.selectedChapterTitle = "";
   state.detail.actionBusy = "";
+  state.detail.suggest = createDetailRelatedBucket();
+  state.detail.comment = createDetailRelatedBucket();
   if (refs.vbookDetailDialog && refs.vbookDetailDialog.open) refs.vbookDetailDialog.close();
   state.genreModal.open = false;
   state.genreModal.title = "";
@@ -1561,6 +1577,224 @@ function countVbookDetailSectionItems(sections) {
   ), 0);
 }
 
+function getDetailRelated(kind) {
+  return kind === "comment" ? state.detail.comment : state.detail.suggest;
+}
+
+function normalizeRelatedSectionsFromResponse(data) {
+  return (Array.isArray(data && data.sections) ? data.sections : [])
+    .filter((section) => section && typeof section === "object")
+    .map((section, idx) => ({
+      ...section,
+      index: Number.isFinite(Number(section.index)) ? Number(section.index) : idx,
+      title: normalizeParagraphDisplayText(section.title || section.title_raw || "", { singleLine: true }),
+      title_raw: normalizeParagraphDisplayText(section.title_raw || section.title || "", { singleLine: true }),
+      items: Array.isArray(section.items) ? section.items.filter((row) => row && typeof row === "object") : [],
+      page: Math.max(1, Number(section.page) || 1),
+      has_next: Boolean(section.has_next),
+      next: section.next ?? null,
+      source: (section.source && typeof section.source === "object") ? section.source : null,
+    }));
+}
+
+function appendCollapsibleCommentContent(container, textValue) {
+  const fullText = normalizeParagraphDisplayText(textValue || "");
+  const limit = 360;
+  const content = document.createElement("p");
+  content.className = "vbook-detail-comment-content";
+  if (fullText.length <= limit) {
+    content.textContent = fullText;
+    container.appendChild(content);
+    return;
+  }
+  let expanded = false;
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "btn btn-small vbook-comment-toggle";
+  const sync = () => {
+    content.textContent = expanded ? fullText : `${fullText.slice(0, limit).trimEnd()}...`;
+    toggle.textContent = expanded ? state.shell.t("collapseText") : state.shell.t("expandText");
+  };
+  toggle.addEventListener("click", () => {
+    expanded = !expanded;
+    sync();
+  });
+  sync();
+  container.append(content, toggle);
+}
+
+function buildVbookCommentNode(row) {
+  const box = document.createElement("article");
+  box.className = "vbook-detail-comment-item";
+  const head = document.createElement("div");
+  head.className = "vbook-detail-comment-head";
+  const user = document.createElement("span");
+  user.className = "vbook-detail-comment-author";
+  user.textContent = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }) || state.shell.t("vbookDetailCommentGuest");
+  const when = document.createElement("span");
+  when.className = "vbook-detail-comment-time";
+  when.textContent = normalizeParagraphDisplayText((row && row.time) || "", { singleLine: true });
+  head.append(user, when);
+  box.appendChild(head);
+  appendCollapsibleCommentContent(box, (row && row.content) || "");
+  return box;
+}
+
+async function loadDetailRelated(kind) {
+  const bucket = getDetailRelated(kind);
+  const detail = state.detail.detail || {};
+  const url = String(detail.url || (state.detail.item && state.detail.item.detail_url) || "").trim();
+  const pluginId = String(state.detail.pluginId || (state.detail.item && state.detail.item.plugin_id) || "").trim();
+  if (!url) return null;
+  const requestId = state.detail.relatedRequestId;
+  bucket.loading = true;
+  bucket.errorMessage = "";
+  renderVbookDetail();
+  try {
+    const data = await apiWithRequest(`detail-${kind}`, "/api/vbook/detail/sections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url,
+        plugin_id: pluginId,
+        kind,
+        sources: bucket.sources,
+        page: 1,
+      }),
+    });
+    if (requestId !== state.detail.relatedRequestId) return null;
+    const sections = normalizeRelatedSectionsFromResponse(data);
+    bucket.sections = sections;
+    bucket.loaded = true;
+    bucket.loading = false;
+    bucket.errorMessage = "";
+    renderVbookDetail();
+    return sections;
+  } catch (error) {
+    if (isAbortError(error)) return null;
+    if (requestId !== state.detail.relatedRequestId) return null;
+    bucket.loading = false;
+    bucket.loaded = true;
+    bucket.errorMessage = getErrorMessage(error);
+    renderVbookDetail();
+    return null;
+  }
+}
+
+function hasPagedRelatedSection(sections) {
+  return (Array.isArray(sections) ? sections : []).some((section) => section && section.has_next && section.source);
+}
+
+function mergeRelatedSectionPage(targetSections, incomingSection) {
+  const idx = Number(incomingSection && incomingSection.index);
+  const target = targetSections.find((section) => Number(section.index) === idx) || targetSections[0];
+  if (!target) return;
+  const incomingItems = Array.isArray(incomingSection.items) ? incomingSection.items : [];
+  target.items = [...(Array.isArray(target.items) ? target.items : []), ...incomingItems];
+  target.page = Math.max(Number(target.page) || 1, Number(incomingSection.page) || 1);
+  target.next = incomingSection.next ?? null;
+  target.has_next = Boolean(incomingSection.has_next) && incomingItems.length > 0;
+  if (incomingSection.source) target.source = incomingSection.source;
+}
+
+function openDetailRelatedPopup(kind) {
+  const sourceBucket = getDetailRelated(kind);
+  const title = kind === "comment" ? state.shell.t("vbookDetailCommentTitle") : state.shell.t("vbookDetailSuggestTitle");
+  const sections = (sourceBucket.sections || []).map((section) => ({
+    ...section,
+    items: Array.isArray(section.items) ? section.items.map((row) => ({ ...row })) : [],
+  }));
+  const dialog = document.createElement("dialog");
+  dialog.className = "dialog vbook-related-dialog";
+  const head = document.createElement("div");
+  head.className = "dialog-head";
+  const h3 = document.createElement("h3");
+  h3.textContent = title;
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "btn btn-small";
+  close.textContent = "×";
+  close.addEventListener("click", () => dialog.close());
+  head.append(h3, close);
+  const body = document.createElement("div");
+  body.className = kind === "comment" ? "vbook-related-body" : "vbook-related-body library-grid";
+  const empty = document.createElement("p");
+  empty.className = "empty-text";
+  let loading = false;
+
+  const render = () => {
+    body.innerHTML = "";
+    const count = countVbookDetailSectionItems(sections);
+    if (!count) {
+      empty.textContent = sourceBucket.loading
+        ? state.shell.t("statusLoadingVbookDetailSections")
+        : (kind === "comment" ? state.shell.t("vbookDetailCommentEmpty") : state.shell.t("vbookDetailSuggestEmpty"));
+    } else {
+      empty.textContent = "";
+      for (const section of sections) {
+        if (section.title) {
+          const sectionTitle = document.createElement(kind === "comment" ? "h4" : "div");
+          sectionTitle.className = "vbook-detail-section-title";
+          sectionTitle.textContent = section.title;
+          body.appendChild(sectionTitle);
+        }
+        for (const row of section.items || []) {
+          if (kind === "comment") {
+            body.appendChild(buildVbookCommentNode(row));
+          } else {
+            body.appendChild(buildOnlineBookCard(row));
+          }
+        }
+      }
+    }
+  };
+
+  const loadNext = async () => {
+    if (loading) return;
+    const section = sections.find((row) => row && row.has_next && row.source);
+    if (!section) return;
+    loading = true;
+    empty.textContent = state.shell.t("statusLoadingVbookDetailSections");
+    try {
+      const detail = state.detail.detail || {};
+      const data = await apiWithRequest(`detail-${kind}-more`, "/api/vbook/detail/sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: String(detail.url || (state.detail.item && state.detail.item.detail_url) || "").trim(),
+          plugin_id: String(state.detail.pluginId || (state.detail.item && state.detail.item.plugin_id) || "").trim(),
+          kind,
+          source: section.source,
+          page: Math.max(1, Number(section.page) || 1) + 1,
+          next: section.next,
+        }),
+      });
+      const incoming = normalizeRelatedSectionsFromResponse(data);
+      if (incoming.length) mergeRelatedSectionPage(sections, incoming[0]);
+      else section.has_next = false;
+      render();
+    } catch (error) {
+      empty.textContent = getErrorMessage(error);
+    } finally {
+      loading = false;
+    }
+  };
+
+  body.addEventListener("scroll", () => {
+    if (body.scrollTop + body.clientHeight >= body.scrollHeight - 160) {
+      loadNext();
+    }
+  });
+  render();
+  dialog.append(head, body, empty);
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.appendChild(dialog);
+  dialog.showModal();
+  window.setTimeout(() => {
+    if (body.scrollHeight <= body.clientHeight + 8) loadNext();
+  }, 0);
+}
+
 function renderVbookDetail() {
   const detail = state.detail.detail || {};
   const item = state.detail.item || {};
@@ -1573,18 +1807,22 @@ function renderVbookDetail() {
   const statusText = normalizeParagraphDisplayText(detail.status_text || "", { singleLine: true });
   const genres = Array.isArray(detail.genres) ? detail.genres : [];
   const extras = Array.isArray(detail.extra_fields) ? detail.extra_fields : [];
-  const suggestSections = normalizeVbookDetailSections(
+  const suggestRelated = getDetailRelated("suggest");
+  const commentRelated = getDetailRelated("comment");
+  const suggestSections = suggestRelated.loaded || suggestRelated.sections.length ? suggestRelated.sections : normalizeVbookDetailSections(
     detail.suggest_sections,
     detail.suggest_items,
     state.shell.t("vbookDetailSuggestTitle"),
   );
-  const commentSections = normalizeVbookDetailSections(
+  const commentSections = commentRelated.loaded || commentRelated.sections.length ? commentRelated.sections : normalizeVbookDetailSections(
     detail.comment_sections,
     detail.comment_items,
     state.shell.t("vbookDetailCommentTitle"),
   );
   const suggestCount = countVbookDetailSectionItems(suggestSections);
   const commentCount = countVbookDetailSectionItems(commentSections);
+  const suggestLoading = Boolean(suggestRelated.loading);
+  const commentLoading = Boolean(commentRelated.loading);
 
   refs.vbookDetailTitle.textContent = normalizeDisplayTitle(title);
   refs.vbookDetailAuthor.textContent = author;
@@ -1674,12 +1912,14 @@ function renderVbookDetail() {
     }
   }
 
-  refs.vbookDetailSuggestCount.textContent = state.shell.t("vbookDetailCount", { count: loading ? 0 : suggestCount });
+  refs.vbookDetailSuggestCount.textContent = state.shell.t("vbookDetailCount", { count: suggestCount });
   refs.vbookDetailSuggestList.innerHTML = "";
-  if (loading) {
-    refs.vbookDetailSuggestEmpty.textContent = state.shell.t("statusLoadingVbookDetail");
+  if (suggestLoading && !suggestCount) {
+    refs.vbookDetailSuggestEmpty.textContent = state.shell.t("statusLoadingVbookDetailSections");
   } else if (detailError) {
     refs.vbookDetailSuggestEmpty.textContent = detailError;
+  } else if (suggestRelated.errorMessage) {
+    refs.vbookDetailSuggestEmpty.textContent = suggestRelated.errorMessage;
   } else if (!suggestCount) {
     refs.vbookDetailSuggestEmpty.textContent = state.shell.t("vbookDetailSuggestEmpty");
   } else {
@@ -1691,59 +1931,32 @@ function renderVbookDetail() {
       refs.vbookDetailSuggestList.appendChild(sectionLi);
       for (const row of section.items) {
         const li = document.createElement("li");
-        const wrap = document.createElement("div");
-        wrap.className = "vbook-detail-suggest-item";
-
-        const info = document.createElement("div");
-        info.className = "vbook-detail-suggest-info";
-        const t = document.createElement("div");
-        t.className = "chapter-hit-title";
-        t.textContent = normalizeDisplayTitle(String((row && row.title) || "").trim() || "Không tiêu đề");
-        const sub = document.createElement("div");
-        sub.className = "chapter-hit-sub";
-        const subParts = [];
-        const subAuthor = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true });
-        if (subAuthor) subParts.push(subAuthor);
-        const subHost = normalizeParagraphDisplayText((row && row.host) || "", { singleLine: true });
-        if (subHost) subParts.push(subHost);
-        sub.textContent = subParts.join(" • ");
-        info.append(t, sub);
-
-        const actions = document.createElement("div");
-        actions.className = "vbook-detail-suggest-actions";
-        const openBtn = document.createElement("button");
-        openBtn.type = "button";
-        openBtn.className = "btn btn-small";
-        const detailUrl = String((row && row.detail_url) || "").trim();
-        openBtn.textContent = detailUrl ? state.shell.t("vbookDetailOpenSuggest") : state.shell.t("vbookDetailSuggestNoLink");
-        openBtn.disabled = !detailUrl;
-        openBtn.addEventListener("click", async () => {
-          const item = {
-            title: normalizeParagraphDisplayText((row && row.title) || "", { singleLine: true }),
-            author: normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }),
-            description: normalizeParagraphDisplayText((row && row.description) || ""),
-            cover: String((row && row.cover) || "").trim(),
-            detail_url: detailUrl,
-            plugin_id: String((row && row.plugin_id) || state.detail.pluginId || "").trim(),
-          };
-          if (!item.detail_url) return;
-          await openDetailDialog(item);
-        });
-        actions.append(openBtn);
-
-        wrap.append(info, actions);
-        li.appendChild(wrap);
+        li.className = "vbook-detail-suggest-card";
+        li.appendChild(buildOnlineBookCard(row));
         refs.vbookDetailSuggestList.appendChild(li);
       }
     }
+    if (hasPagedRelatedSection(suggestSections)) {
+      const li = document.createElement("li");
+      li.className = "vbook-detail-more-row";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-small";
+      btn.textContent = state.shell.t("vbookDetailViewMore");
+      btn.addEventListener("click", () => openDetailRelatedPopup("suggest"));
+      li.appendChild(btn);
+      refs.vbookDetailSuggestList.appendChild(li);
+    }
   }
 
-  refs.vbookDetailCommentCount.textContent = state.shell.t("vbookDetailCount", { count: loading ? 0 : commentCount });
+  refs.vbookDetailCommentCount.textContent = state.shell.t("vbookDetailCount", { count: commentCount });
   refs.vbookDetailCommentList.innerHTML = "";
-  if (loading) {
-    refs.vbookDetailCommentEmpty.textContent = state.shell.t("statusLoadingVbookDetail");
+  if (commentLoading && !commentCount) {
+    refs.vbookDetailCommentEmpty.textContent = state.shell.t("statusLoadingVbookDetailSections");
   } else if (detailError) {
     refs.vbookDetailCommentEmpty.textContent = detailError;
+  } else if (commentRelated.errorMessage) {
+    refs.vbookDetailCommentEmpty.textContent = commentRelated.errorMessage;
   } else if (!commentCount) {
     refs.vbookDetailCommentEmpty.textContent = state.shell.t("vbookDetailCommentEmpty");
   } else {
@@ -1755,24 +1968,20 @@ function renderVbookDetail() {
       refs.vbookDetailCommentList.appendChild(sectionLi);
       for (const row of section.items) {
         const li = document.createElement("li");
-        const box = document.createElement("article");
-        box.className = "vbook-detail-comment-item";
-        const head = document.createElement("div");
-        head.className = "vbook-detail-comment-head";
-        const user = document.createElement("span");
-        user.className = "vbook-detail-comment-author";
-        user.textContent = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }) || state.shell.t("vbookDetailCommentGuest");
-        const when = document.createElement("span");
-        when.className = "vbook-detail-comment-time";
-        when.textContent = normalizeParagraphDisplayText((row && row.time) || "", { singleLine: true });
-        head.append(user, when);
-        const content = document.createElement("p");
-        content.className = "vbook-detail-comment-content";
-        content.textContent = normalizeParagraphDisplayText((row && row.content) || "");
-        box.append(head, content);
-        li.appendChild(box);
+        li.appendChild(buildVbookCommentNode(row));
         refs.vbookDetailCommentList.appendChild(li);
       }
+    }
+    if (hasPagedRelatedSection(commentSections)) {
+      const li = document.createElement("li");
+      li.className = "vbook-detail-more-row";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-small";
+      btn.textContent = state.shell.t("vbookDetailViewMore");
+      btn.addEventListener("click", () => openDetailRelatedPopup("comment"));
+      li.appendChild(btn);
+      refs.vbookDetailCommentList.appendChild(li);
     }
   }
 
@@ -1878,6 +2087,7 @@ async function loadDetailToc({ force = false } = {}) {
 
 async function openDetailDialog(item, options = {}) {
   const openOptions = options && typeof options === "object" ? options : {};
+  state.detail.relatedRequestId += 1;
   state.detail.item = item;
   state.detail.loading = true;
   state.detail.errorMessage = "";
@@ -1901,6 +2111,8 @@ async function openDetailDialog(item, options = {}) {
   state.detail.tocError = "";
   state.detail.tocReversed = false;
   state.detail.actionBusy = "";
+  state.detail.suggest = createDetailRelatedBucket();
+  state.detail.comment = createDetailRelatedBucket();
   renderVbookDetail();
   if (!refs.vbookDetailDialog.open) refs.vbookDetailDialog.showModal();
 
@@ -1912,17 +2124,27 @@ async function openDetailDialog(item, options = {}) {
       body: JSON.stringify({
         url: item.detail_url || "",
         plugin_id: item.plugin_id || "",
+        include_sections: false,
       }),
     });
     const detail = (data && data.detail) || {};
     if (detail && typeof detail === "object") {
       state.detail.detail = detail;
+      state.detail.suggest.sources = Array.isArray(detail.suggest_sources)
+        ? detail.suggest_sources.filter((row) => row && typeof row === "object")
+        : [];
+      state.detail.comment.sources = Array.isArray(detail.comment_sources)
+        ? detail.comment_sources.filter((row) => row && typeof row === "object")
+        : [];
     }
     const plugin = (data && data.plugin) || {};
     if (plugin && plugin.plugin_id) {
       state.detail.pluginId = String(plugin.plugin_id || "").trim();
     }
     state.detail.loading = false;
+    renderVbookDetail();
+    loadDetailRelated("suggest");
+    loadDetailRelated("comment");
   } catch (error) {
     if (isAbortError(error)) return;
     state.detail.loading = false;

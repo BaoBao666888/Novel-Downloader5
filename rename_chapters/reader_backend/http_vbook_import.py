@@ -124,9 +124,29 @@ def handle_api(
         payload = handler._read_json_body()
         translate_ui_raw = payload.get("translate_ui")
         translate_ui = None if translate_ui_raw is None else _parse_boolish(translate_ui_raw)
+        include_sections_raw = payload.get("include_sections")
+        include_sections = True if include_sections_raw is None else _parse_boolish(include_sections_raw)
         return handler.service.get_vbook_detail(
             url=str(payload.get("url") or "").strip(),
             plugin_id=str(payload.get("plugin_id") or "").strip(),
+            translate_ui=translate_ui,
+            include_sections=include_sections,
+        )
+
+    if method == "POST" and path == "/api/vbook/detail/sections":
+        payload = handler._read_json_body()
+        translate_ui_raw = payload.get("translate_ui")
+        translate_ui = None if translate_ui_raw is None else _parse_boolish(translate_ui_raw)
+        source = payload.get("source") if isinstance(payload.get("source"), dict) else None
+        sources = payload.get("sources") if isinstance(payload.get("sources"), list) else None
+        return handler.service.get_vbook_detail_sections(
+            url=str(payload.get("url") or "").strip(),
+            plugin_id=str(payload.get("plugin_id") or "").strip(),
+            kind=str(payload.get("kind") or "").strip(),
+            sources=sources,
+            source=source,
+            page=_parse_page(payload),
+            next_token=payload.get("next"),
             translate_ui=translate_ui,
         )
 

@@ -1795,7 +1795,7 @@ p {
 }
 
 .vbook-detail-suggest-list {
-  max-height: min(28vh, 280px);
+  max-height: min(42vh, 430px);
 }
 
 .vbook-detail-section-title {
@@ -1806,23 +1806,20 @@ p {
   color: var(--muted);
 }
 
-.vbook-detail-suggest-item {
-  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
-  border-radius: 12px;
-  padding: 8px 10px;
-  background: color-mix(in srgb, var(--surface) 42%, transparent);
+.vbook-detail-suggest-card {
+  list-style: none;
+}
+
+.vbook-detail-suggest-card .book-card {
+  margin: 0;
+  box-shadow: none;
+}
+
+.vbook-detail-more-row {
+  list-style: none;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.vbook-detail-suggest-info {
-  min-width: 0;
-}
-
-.vbook-detail-suggest-actions {
-  flex: 0 0 auto;
+  justify-content: center;
+  padding: 8px 0 2px;
 }
 
 .vbook-detail-comment-list {
@@ -1860,6 +1857,31 @@ p {
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 14px;
+}
+
+.vbook-comment-toggle {
+  margin-top: 6px;
+}
+
+.vbook-related-dialog {
+  width: min(1080px, 96vw);
+}
+
+.vbook-related-body {
+  max-height: min(68vh, 720px);
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.vbook-related-body.library-grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.vbook-related-body .vbook-detail-section-title {
+  grid-column: 1 / -1;
+  margin-top: 4px;
 }
 
 .vbook-genre-dialog {
@@ -2308,6 +2330,34 @@ p {
   background: color-mix(in srgb, var(--surface) 46%, transparent);
 }
 
+.book-source-suggest-card {
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.book-source-suggest-cover {
+  width: 54px;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-alt) 68%, transparent);
+}
+
+.book-source-suggest-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.book-source-suggest-body {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
 .book-source-suggest-title {
   font-size: 14px;
   font-weight: 700;
@@ -2335,6 +2385,10 @@ p {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.book-source-related-grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 
 #explore-plugin-description-value {

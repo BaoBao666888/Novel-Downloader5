@@ -23,3 +23,9 @@
 > - Title nhóm, nội dung gợi ý và bình luận đều đi qua batch dịch UI khi bật dịch.
 > - Trang Explore và trang thông tin truyện đều hiển thị gợi ý/bình luận nếu truyện thuộc ext online còn cài và detail chạy được.
 > - Runner bổ sung `UserAgent.android()` để các script gọi được.
+
+> [!OPTIMIZE] Detail online không còn chờ gợi ý/bình luận
+> - Trang Explore và trang thông tin truyện tải metadata trước, sau đó tải `suggest/comment` riêng để phần chính không bị đơ lâu.
+> - Gợi ý dùng layout card giống danh sách Home/Genre hơn và có thể mở thông tin truyện từ card.
+> - Bình luận dài được thu gọn, có nút `Xem thêm` / `Rút gọn`.
+> - Nếu section có phân trang, nút `Xem thêm` mở popup dùng lại page 1 đã tải và tự tải tiếp khi cuộn gần cuối.
