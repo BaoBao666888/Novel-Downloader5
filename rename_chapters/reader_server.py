@@ -13586,6 +13586,43 @@ class ReaderService:
             "input": input_value,
         }
 
+    def _normalize_vbook_script_descriptor_item(
+        self,
+        item: Any,
+        *,
+        translate_ui: bool = True,
+        fallback_title: str = "",
+    ) -> dict[str, Any] | None:
+        if not isinstance(item, dict):
+            return None
+        script = str(item.get("script") or item.get("file") or "").strip()
+        if not script:
+            return None
+        if "input" in item:
+            raw_input = item.get("input")
+        elif "link" in item:
+            raw_input = item.get("link")
+        elif "url" in item:
+            raw_input = item.get("url")
+        else:
+            raw_input = None
+        title = normalize_vbook_display_text(
+            str(item.get("title") or item.get("name") or item.get("label") or fallback_title or ""),
+            single_line=True,
+        )
+        if title and translate_ui and self.is_reader_translation_enabled():
+            mode = self.reader_translation_mode()
+            title = self._translate_ui_text(title, single_line=True, mode=mode) or title
+        if isinstance(raw_input, (dict, list, str, int, float, bool)) or raw_input is None:
+            input_value = raw_input
+        else:
+            input_value = str(raw_input)
+        return {
+            "title": title,
+            "script": script,
+            "input": input_value,
+        }
+
     def _translate_vbook_items_batch(
         self,
         items: list[dict[str, Any]],
@@ -13798,6 +13835,8 @@ class ReaderService:
         tabs: list[dict[str, Any]] = []
         for row in rows:
             tab = self._normalize_vbook_tab_item(row, translate_ui=False)
+            if not tab:
+                tab = self._normalize_vbook_script_descriptor_item(row, translate_ui=False)
             if tab:
                 tabs.append(tab)
         if not tabs:
@@ -13811,7 +13850,7 @@ class ReaderService:
                 continue
             try:
                 script_ref = self._normalize_vbook_script_ref(plugin, script_raw, default_key="home")
-                list_rows, _ = self._run_vbook_paged_list_script(
+                list_rows, _, _ = self._run_vbook_paged_list_script(
                     plugin,
                     script_ref=script_ref,
                     input_value=tab.get("input"),
@@ -13832,6 +13871,43 @@ class ReaderService:
                 if len(out) >= 80:
                     return out
         return out
+
+    def _collect_vbook_comment_items(self, plugin: Any, raw_value: Any) -> list[dict[str, Any]]:
+        direct_items = self._normalize_vbook_comment_items(raw_value)
+        if direct_items:
+            return direct_items
+
+        rows = self._extract_vbook_list_rows(raw_value)
+        tabs: list[dict[str, Any]] = []
+        for row in rows:
+            tab = self._normalize_vbook_tab_item(row, translate_ui=False)
+            if not tab:
+                tab = self._normalize_vbook_script_descriptor_item(row, translate_ui=False)
+            if tab:
+                tabs.append(tab)
+        if not tabs:
+            return []
+
+        out: list[dict[str, Any]] = []
+        for tab in tabs[:4]:
+            script_raw = str(tab.get("script") or "").strip()
+            if not script_raw:
+                continue
+            try:
+                script_ref = self._normalize_vbook_script_ref(plugin, script_raw, default_key="detail")
+                list_rows, _, _ = self._run_vbook_paged_list_script(
+                    plugin,
+                    script_ref=script_ref,
+                    input_value=tab.get("input"),
+                    page=1,
+                    next_token=None,
+                )
+            except Exception:
+                continue
+            out.extend(self._normalize_vbook_comment_items(list_rows))
+            if len(out) >= 80:
+                return out[:80]
+        return out[:80]
 
     def _vbook_section_title_from_raw(self, raw_value: Any, default_title: str) -> str:
         if isinstance(raw_value, dict):
@@ -13858,6 +13934,8 @@ class ReaderService:
         if not isinstance(raw_value, dict):
             return False
         if any(str(key or "").strip().lower() in {"title", "name", "label", "header", "heading"} for key in raw_value.keys()):
+            if self._normalize_vbook_script_descriptor_item(raw_value, translate_ui=False):
+                return True
             for key in candidate_keys:
                 value = raw_value.get(key)
                 if isinstance(value, (list, tuple, set)) or (isinstance(value, dict) and self._extract_vbook_list_rows(value)):
@@ -13986,6 +14064,7 @@ class ReaderService:
                 time_value = (
                     row.get("time")
                     or row.get("date")
+                    or row.get("description")
                     or row.get("created_at")
                     or row.get("updated_at")
                     or row.get("createdAt")
@@ -14877,7 +14956,7 @@ class ReaderService:
             comment_raw_values,
             default_title="Bình luận",
             candidate_keys=("items", "list", "data", "comments", "comment", "reviews", "review", "records", "rows"),
-            item_collector=self._normalize_vbook_comment_items,
+            item_collector=lambda raw: self._collect_vbook_comment_items(plugin, raw),
         )
         suggest_items = self._flatten_vbook_detail_sections(suggest_sections)
         comment_items = self._flatten_vbook_detail_sections(comment_sections)

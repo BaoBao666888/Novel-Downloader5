@@ -18,6 +18,8 @@
 
 > [!NEW] Detail vBook hiện gợi ý và bình luận theo section
 > - Detail đọc cả `suggest`/`suggests` và `comment`/`comments`, hỗ trợ list trần, object có `title`, hoặc nhiều nhóm trong cùng object.
+> - Hỗ trợ descriptor dạng `{ input, script }` để detail tự chạy thêm script gợi ý/bình luận, kể cả khi ext không truyền title.
 > - Nếu ext không trả title nhóm, Reader dùng mặc định `Gợi ý` hoặc `Bình luận`.
 > - Title nhóm, nội dung gợi ý và bình luận đều đi qua batch dịch UI khi bật dịch.
 > - Trang Explore và trang thông tin truyện đều hiển thị gợi ý/bình luận nếu truyện thuộc ext online còn cài và detail chạy được.
+> - Runner bổ sung `UserAgent.android()` để các script gọi được.
