@@ -1535,6 +1535,32 @@ async function openGenreDialog(tag) {
   await loadGenreDialogItems();
 }
 
+function normalizeVbookDetailSections(rawSections, fallbackItems, fallbackTitle) {
+  const sections = [];
+  for (const section of Array.isArray(rawSections) ? rawSections : []) {
+    if (!section || typeof section !== "object") continue;
+    const items = Array.isArray(section.items) ? section.items.filter((row) => row && typeof row === "object") : [];
+    if (!items.length) continue;
+    const title = normalizeParagraphDisplayText(section.title || section.title_raw || fallbackTitle || "", { singleLine: true })
+      || fallbackTitle
+      || "";
+    sections.push({ title, items });
+  }
+  if (!sections.length && Array.isArray(fallbackItems) && fallbackItems.length) {
+    sections.push({
+      title: fallbackTitle || "",
+      items: fallbackItems.filter((row) => row && typeof row === "object"),
+    });
+  }
+  return sections.filter((section) => section.items.length);
+}
+
+function countVbookDetailSectionItems(sections) {
+  return (Array.isArray(sections) ? sections : []).reduce((total, section) => (
+    total + (Array.isArray(section.items) ? section.items.length : 0)
+  ), 0);
+}
+
 function renderVbookDetail() {
   const detail = state.detail.detail || {};
   const item = state.detail.item || {};
@@ -1547,8 +1573,18 @@ function renderVbookDetail() {
   const statusText = normalizeParagraphDisplayText(detail.status_text || "", { singleLine: true });
   const genres = Array.isArray(detail.genres) ? detail.genres : [];
   const extras = Array.isArray(detail.extra_fields) ? detail.extra_fields : [];
-  const suggests = Array.isArray(detail.suggest_items) ? detail.suggest_items : [];
-  const comments = Array.isArray(detail.comment_items) ? detail.comment_items : [];
+  const suggestSections = normalizeVbookDetailSections(
+    detail.suggest_sections,
+    detail.suggest_items,
+    state.shell.t("vbookDetailSuggestTitle"),
+  );
+  const commentSections = normalizeVbookDetailSections(
+    detail.comment_sections,
+    detail.comment_items,
+    state.shell.t("vbookDetailCommentTitle"),
+  );
+  const suggestCount = countVbookDetailSectionItems(suggestSections);
+  const commentCount = countVbookDetailSectionItems(commentSections);
 
   refs.vbookDetailTitle.textContent = normalizeDisplayTitle(title);
   refs.vbookDetailAuthor.textContent = author;
@@ -1638,93 +1674,105 @@ function renderVbookDetail() {
     }
   }
 
-  refs.vbookDetailSuggestCount.textContent = state.shell.t("vbookDetailCount", { count: loading ? 0 : suggests.length });
+  refs.vbookDetailSuggestCount.textContent = state.shell.t("vbookDetailCount", { count: loading ? 0 : suggestCount });
   refs.vbookDetailSuggestList.innerHTML = "";
   if (loading) {
     refs.vbookDetailSuggestEmpty.textContent = state.shell.t("statusLoadingVbookDetail");
   } else if (detailError) {
     refs.vbookDetailSuggestEmpty.textContent = detailError;
-  } else if (!suggests.length) {
+  } else if (!suggestCount) {
     refs.vbookDetailSuggestEmpty.textContent = state.shell.t("vbookDetailSuggestEmpty");
   } else {
     refs.vbookDetailSuggestEmpty.textContent = "";
-    for (const row of suggests) {
-      const li = document.createElement("li");
-      const wrap = document.createElement("div");
-      wrap.className = "vbook-detail-suggest-item";
+    for (const section of suggestSections) {
+      const sectionLi = document.createElement("li");
+      sectionLi.className = "vbook-detail-section-title";
+      sectionLi.textContent = section.title || state.shell.t("vbookDetailSuggestTitle");
+      refs.vbookDetailSuggestList.appendChild(sectionLi);
+      for (const row of section.items) {
+        const li = document.createElement("li");
+        const wrap = document.createElement("div");
+        wrap.className = "vbook-detail-suggest-item";
 
-      const info = document.createElement("div");
-      info.className = "vbook-detail-suggest-info";
-      const t = document.createElement("div");
-      t.className = "chapter-hit-title";
-      t.textContent = normalizeDisplayTitle(String((row && row.title) || "").trim() || "Không tiêu đề");
-      const sub = document.createElement("div");
-      sub.className = "chapter-hit-sub";
-      const subParts = [];
-      const subAuthor = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true });
-      if (subAuthor) subParts.push(subAuthor);
-      const subHost = normalizeParagraphDisplayText((row && row.host) || "", { singleLine: true });
-      if (subHost) subParts.push(subHost);
-      sub.textContent = subParts.join(" • ");
-      info.append(t, sub);
+        const info = document.createElement("div");
+        info.className = "vbook-detail-suggest-info";
+        const t = document.createElement("div");
+        t.className = "chapter-hit-title";
+        t.textContent = normalizeDisplayTitle(String((row && row.title) || "").trim() || "Không tiêu đề");
+        const sub = document.createElement("div");
+        sub.className = "chapter-hit-sub";
+        const subParts = [];
+        const subAuthor = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true });
+        if (subAuthor) subParts.push(subAuthor);
+        const subHost = normalizeParagraphDisplayText((row && row.host) || "", { singleLine: true });
+        if (subHost) subParts.push(subHost);
+        sub.textContent = subParts.join(" • ");
+        info.append(t, sub);
 
-      const actions = document.createElement("div");
-      actions.className = "vbook-detail-suggest-actions";
-      const openBtn = document.createElement("button");
-      openBtn.type = "button";
-      openBtn.className = "btn btn-small";
-      const detailUrl = String((row && row.detail_url) || "").trim();
-      openBtn.textContent = detailUrl ? state.shell.t("vbookDetailOpenSuggest") : state.shell.t("vbookDetailSuggestNoLink");
-      openBtn.disabled = !detailUrl;
-      openBtn.addEventListener("click", async () => {
-        const item = {
-          title: normalizeParagraphDisplayText((row && row.title) || "", { singleLine: true }),
-          author: normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }),
-          description: normalizeParagraphDisplayText((row && row.description) || ""),
-          cover: String((row && row.cover) || "").trim(),
-          detail_url: detailUrl,
-          plugin_id: String((row && row.plugin_id) || state.detail.pluginId || "").trim(),
-        };
-        if (!item.detail_url) return;
-        await openDetailDialog(item);
-      });
-      actions.append(openBtn);
+        const actions = document.createElement("div");
+        actions.className = "vbook-detail-suggest-actions";
+        const openBtn = document.createElement("button");
+        openBtn.type = "button";
+        openBtn.className = "btn btn-small";
+        const detailUrl = String((row && row.detail_url) || "").trim();
+        openBtn.textContent = detailUrl ? state.shell.t("vbookDetailOpenSuggest") : state.shell.t("vbookDetailSuggestNoLink");
+        openBtn.disabled = !detailUrl;
+        openBtn.addEventListener("click", async () => {
+          const item = {
+            title: normalizeParagraphDisplayText((row && row.title) || "", { singleLine: true }),
+            author: normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }),
+            description: normalizeParagraphDisplayText((row && row.description) || ""),
+            cover: String((row && row.cover) || "").trim(),
+            detail_url: detailUrl,
+            plugin_id: String((row && row.plugin_id) || state.detail.pluginId || "").trim(),
+          };
+          if (!item.detail_url) return;
+          await openDetailDialog(item);
+        });
+        actions.append(openBtn);
 
-      wrap.append(info, actions);
-      li.appendChild(wrap);
-      refs.vbookDetailSuggestList.appendChild(li);
+        wrap.append(info, actions);
+        li.appendChild(wrap);
+        refs.vbookDetailSuggestList.appendChild(li);
+      }
     }
   }
 
-  refs.vbookDetailCommentCount.textContent = state.shell.t("vbookDetailCount", { count: loading ? 0 : comments.length });
+  refs.vbookDetailCommentCount.textContent = state.shell.t("vbookDetailCount", { count: loading ? 0 : commentCount });
   refs.vbookDetailCommentList.innerHTML = "";
   if (loading) {
     refs.vbookDetailCommentEmpty.textContent = state.shell.t("statusLoadingVbookDetail");
   } else if (detailError) {
     refs.vbookDetailCommentEmpty.textContent = detailError;
-  } else if (!comments.length) {
+  } else if (!commentCount) {
     refs.vbookDetailCommentEmpty.textContent = state.shell.t("vbookDetailCommentEmpty");
   } else {
     refs.vbookDetailCommentEmpty.textContent = "";
-    for (const row of comments) {
-      const li = document.createElement("li");
-      const box = document.createElement("article");
-      box.className = "vbook-detail-comment-item";
-      const head = document.createElement("div");
-      head.className = "vbook-detail-comment-head";
-      const user = document.createElement("span");
-      user.className = "vbook-detail-comment-author";
-      user.textContent = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }) || state.shell.t("vbookDetailCommentGuest");
-      const when = document.createElement("span");
-      when.className = "vbook-detail-comment-time";
-      when.textContent = normalizeParagraphDisplayText((row && row.time) || "", { singleLine: true });
-      head.append(user, when);
-      const content = document.createElement("p");
-      content.className = "vbook-detail-comment-content";
-      content.textContent = normalizeParagraphDisplayText((row && row.content) || "");
-      box.append(head, content);
-      li.appendChild(box);
-      refs.vbookDetailCommentList.appendChild(li);
+    for (const section of commentSections) {
+      const sectionLi = document.createElement("li");
+      sectionLi.className = "vbook-detail-section-title";
+      sectionLi.textContent = section.title || state.shell.t("vbookDetailCommentTitle");
+      refs.vbookDetailCommentList.appendChild(sectionLi);
+      for (const row of section.items) {
+        const li = document.createElement("li");
+        const box = document.createElement("article");
+        box.className = "vbook-detail-comment-item";
+        const head = document.createElement("div");
+        head.className = "vbook-detail-comment-head";
+        const user = document.createElement("span");
+        user.className = "vbook-detail-comment-author";
+        user.textContent = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }) || state.shell.t("vbookDetailCommentGuest");
+        const when = document.createElement("span");
+        when.className = "vbook-detail-comment-time";
+        when.textContent = normalizeParagraphDisplayText((row && row.time) || "", { singleLine: true });
+        head.append(user, when);
+        const content = document.createElement("p");
+        content.className = "vbook-detail-comment-content";
+        content.textContent = normalizeParagraphDisplayText((row && row.content) || "");
+        box.append(head, content);
+        li.appendChild(box);
+        refs.vbookDetailCommentList.appendChild(li);
+      }
     }
   }
 

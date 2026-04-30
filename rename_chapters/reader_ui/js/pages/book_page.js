@@ -30,6 +30,8 @@ const refs = {
   labelViewExtraLink: document.getElementById("label-view-extra-link"),
   labelViewSourceDetail: document.getElementById("label-view-source-detail"),
   labelViewSourceFields: document.getElementById("label-view-source-fields"),
+  labelViewSourceSuggest: document.getElementById("label-view-source-suggest"),
+  labelViewSourceComment: document.getElementById("label-view-source-comment"),
   viewTitle: document.getElementById("view-title"),
   viewTitleVi: document.getElementById("view-title-vi"),
   viewAuthor: document.getElementById("view-author"),
@@ -38,8 +40,12 @@ const refs = {
   viewExtraLink: document.getElementById("view-extra-link"),
   viewSourceDetailItem: document.getElementById("view-source-detail-item"),
   viewSourceFieldsItem: document.getElementById("view-source-fields-item"),
+  viewSourceSuggestItem: document.getElementById("view-source-suggest-item"),
+  viewSourceCommentItem: document.getElementById("view-source-comment-item"),
   viewSourceDetail: document.getElementById("view-source-detail"),
   viewSourceFields: document.getElementById("view-source-fields"),
+  viewSourceSuggest: document.getElementById("view-source-suggest"),
+  viewSourceComment: document.getElementById("view-source-comment"),
 
   tocTitle: document.getElementById("toc-title"),
   btnTocModeRaw: document.getElementById("btn-toc-mode-raw"),
@@ -1014,6 +1020,102 @@ function renderAuthorField(container, authorText) {
   container.textContent = normalizeParagraphDisplayText(authorText || "", { singleLine: true });
 }
 
+function normalizeBookOnlineSections(rawSections, fallbackItems, fallbackTitle) {
+  const sections = [];
+  for (const section of Array.isArray(rawSections) ? rawSections : []) {
+    if (!section || typeof section !== "object") continue;
+    const items = Array.isArray(section.items) ? section.items.filter((row) => row && typeof row === "object") : [];
+    if (!items.length) continue;
+    const title = normalizeParagraphDisplayText(section.title || section.title_raw || fallbackTitle || "", { singleLine: true })
+      || fallbackTitle
+      || "";
+    sections.push({ title, items });
+  }
+  if (!sections.length && Array.isArray(fallbackItems) && fallbackItems.length) {
+    sections.push({
+      title: fallbackTitle || "",
+      items: fallbackItems.filter((row) => row && typeof row === "object"),
+    });
+  }
+  return sections.filter((section) => section.items.length);
+}
+
+function renderBookOnlineSuggestSections(container, sections) {
+  if (!container) return;
+  container.innerHTML = "";
+  for (const section of sections) {
+    const block = document.createElement("section");
+    block.className = "book-source-section";
+    const title = document.createElement("h4");
+    title.className = "book-source-section-title";
+    title.textContent = section.title || state.shell.t("vbookDetailSuggestTitle");
+    block.appendChild(title);
+    const list = document.createElement("div");
+    list.className = "book-source-suggest-list";
+    for (const row of section.items) {
+      const item = document.createElement("article");
+      item.className = "book-source-suggest-item";
+      const name = document.createElement("div");
+      name.className = "book-source-suggest-title";
+      const detailUrl = String((row && row.detail_url) || "").trim();
+      if (detailUrl) {
+        const link = document.createElement("a");
+        link.href = detailUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = normalizeDisplayTitle(String((row && row.title) || "").trim() || "Không tiêu đề");
+        name.appendChild(link);
+      } else {
+        name.textContent = normalizeDisplayTitle(String((row && row.title) || "").trim() || "Không tiêu đề");
+      }
+      const meta = document.createElement("div");
+      meta.className = "book-source-suggest-meta";
+      const parts = [];
+      const author = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true });
+      if (author) parts.push(author);
+      const desc = normalizeParagraphDisplayText((row && row.description) || "", { singleLine: true });
+      if (desc) parts.push(desc);
+      meta.textContent = parts.join(" • ");
+      item.append(name, meta);
+      list.appendChild(item);
+    }
+    block.appendChild(list);
+    container.appendChild(block);
+  }
+}
+
+function renderBookOnlineCommentSections(container, sections) {
+  if (!container) return;
+  container.innerHTML = "";
+  for (const section of sections) {
+    const block = document.createElement("section");
+    block.className = "book-source-section";
+    const title = document.createElement("h4");
+    title.className = "book-source-section-title";
+    title.textContent = section.title || state.shell.t("vbookDetailCommentTitle");
+    block.appendChild(title);
+    const list = document.createElement("div");
+    list.className = "book-source-comment-list";
+    for (const row of section.items) {
+      const item = document.createElement("article");
+      item.className = "book-source-comment-item";
+      const head = document.createElement("div");
+      head.className = "book-source-comment-head";
+      const author = document.createElement("strong");
+      author.textContent = normalizeParagraphDisplayText((row && row.author) || "", { singleLine: true }) || state.shell.t("vbookDetailCommentGuest");
+      const when = document.createElement("span");
+      when.textContent = normalizeParagraphDisplayText((row && row.time) || "", { singleLine: true });
+      head.append(author, when);
+      const body = document.createElement("p");
+      body.textContent = normalizeParagraphDisplayText((row && row.content) || "");
+      item.append(head, body);
+      list.appendChild(item);
+    }
+    block.appendChild(list);
+    container.appendChild(block);
+  }
+}
+
 function renderBookOnlineDetail(detail) {
   if (!(refs.viewSourceDetailItem && refs.viewSourceFieldsItem && refs.viewSourceDetail && refs.viewSourceFields)) return;
   const payload = (detail && typeof detail === "object") ? detail : {};
@@ -1041,6 +1143,25 @@ function renderBookOnlineDetail(detail) {
     value.textContent = row.value || "—";
     chip.append(key, value);
     refs.viewSourceFields.appendChild(chip);
+  }
+
+  const suggestSections = normalizeBookOnlineSections(
+    payload.suggest_sections,
+    payload.suggest_items,
+    state.shell.t("vbookDetailSuggestTitle"),
+  );
+  const commentSections = normalizeBookOnlineSections(
+    payload.comment_sections,
+    payload.comment_items,
+    state.shell.t("vbookDetailCommentTitle"),
+  );
+  if (refs.viewSourceSuggestItem && refs.viewSourceSuggest) {
+    refs.viewSourceSuggestItem.classList.toggle("hidden", suggestSections.length <= 0);
+    renderBookOnlineSuggestSections(refs.viewSourceSuggest, suggestSections);
+  }
+  if (refs.viewSourceCommentItem && refs.viewSourceComment) {
+    refs.viewSourceCommentItem.classList.toggle("hidden", commentSections.length <= 0);
+    renderBookOnlineCommentSections(refs.viewSourceComment, commentSections);
   }
 }
 
@@ -3642,6 +3763,8 @@ async function init() {
   refs.labelViewExtraLink.textContent = state.shell.t("viewExtraLink");
   if (refs.labelViewSourceDetail) refs.labelViewSourceDetail.textContent = state.shell.t("viewSourceDetail");
   if (refs.labelViewSourceFields) refs.labelViewSourceFields.textContent = state.shell.t("viewSourceFields");
+  if (refs.labelViewSourceSuggest) refs.labelViewSourceSuggest.textContent = state.shell.t("vbookDetailSuggestTitle");
+  if (refs.labelViewSourceComment) refs.labelViewSourceComment.textContent = state.shell.t("vbookDetailCommentTitle");
 
   refs.tocTitle.textContent = state.shell.t("tocTitle");
   refs.btnTocModeRaw.textContent = state.shell.t("tocModeRaw");

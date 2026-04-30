@@ -15,3 +15,9 @@
 > - Reader không tự nhét `Origin/Referer` của `EXT` vào API nữa, tránh làm EXT trả `403` rồi khiến `home/genre` rỗng.
 > - Proxy ảnh vBook có header giống browser hơn và tự retry bằng HTTP client khác khi `urllib` bị CDN trả lỗi, giúp ảnh bìa Fanqie qua `i*.wp.com` vẫn tải được mà không sửa URL của extension.
 > - Trang home/tabs của EXT không còn bị gán nhầm thành lỗi challenge khi lỗi thật chỉ là header runtime không hợp lệ.
+
+> [!NEW] Detail vBook hiện gợi ý và bình luận theo section
+> - Detail đọc cả `suggest`/`suggests` và `comment`/`comments`, hỗ trợ list trần, object có `title`, hoặc nhiều nhóm trong cùng object.
+> - Nếu ext không trả title nhóm, Reader dùng mặc định `Gợi ý` hoặc `Bình luận`.
+> - Title nhóm, nội dung gợi ý và bình luận đều đi qua batch dịch UI khi bật dịch.
+> - Trang Explore và trang thông tin truyện đều hiển thị gợi ý/bình luận nếu truyện thuộc ext online còn cài và detail chạy được.

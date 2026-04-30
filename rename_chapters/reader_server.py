@@ -13457,6 +13457,67 @@ class ReaderService:
 
         return None
 
+    def _pick_vbook_detail_values(
+        self,
+        detail: dict[str, Any],
+        *,
+        exact_keys: tuple[str, ...],
+        fuzzy_tokens: tuple[str, ...] = (),
+    ) -> list[tuple[str, Any]]:
+        if not isinstance(detail, dict):
+            return []
+        out: list[tuple[str, Any]] = []
+        seen_keys: set[str] = set()
+        lowered: dict[str, tuple[str, Any]] = {}
+        for raw_key, raw_value in detail.items():
+            key_text = str(raw_key or "").strip()
+            key_lower = key_text.lower()
+            if key_lower:
+                lowered[key_lower] = (key_text, raw_value)
+
+        for key in exact_keys:
+            key_lower = str(key or "").strip().lower()
+            if not key_lower or key_lower in seen_keys:
+                continue
+            pair: tuple[str, Any] | None = None
+            if key in detail:
+                pair = (key, detail.get(key))
+            elif key_lower in lowered:
+                pair = lowered.get(key_lower)
+            if not pair:
+                continue
+            raw_key, value = pair
+            if self._has_non_empty_vbook_value(value):
+                seen_keys.add(key_lower)
+                out.append((str(raw_key or key).strip() or key, value))
+
+        if out or not fuzzy_tokens:
+            return out
+
+        tokens = tuple(str(token or "").strip().lower() for token in fuzzy_tokens if str(token or "").strip())
+        if not tokens:
+            return out
+        scalar_candidates: list[tuple[str, Any]] = []
+        for raw_key, raw_value in detail.items():
+            key_text = str(raw_key or "").strip()
+            key_lower = key_text.lower()
+            if not key_lower or key_lower in seen_keys:
+                continue
+            if not any(token in key_lower for token in tokens):
+                continue
+            if not self._has_non_empty_vbook_value(raw_value):
+                continue
+            if any(marker in key_lower for marker in ("count", "total", "size", "num", "number")):
+                continue
+            if isinstance(raw_value, (list, dict)):
+                seen_keys.add(key_lower)
+                out.append((key_text, raw_value))
+            else:
+                scalar_candidates.append((key_text, raw_value))
+        if not out and scalar_candidates:
+            out.append(scalar_candidates[0])
+        return out
+
     def _normalize_vbook_text_flexible(self, value: Any, *, single_line: bool = False) -> str:
         if value is None:
             return ""
@@ -13770,6 +13831,116 @@ class ReaderService:
                 out.append(normalized)
                 if len(out) >= 80:
                     return out
+        return out
+
+    def _vbook_section_title_from_raw(self, raw_value: Any, default_title: str) -> str:
+        if isinstance(raw_value, dict):
+            for key in ("title", "name", "label", "header", "heading"):
+                title = normalize_vbook_display_text(str(raw_value.get(key) or ""), single_line=True)
+                if title:
+                    return title
+        return default_title
+
+    def _vbook_section_payload_from_raw(self, raw_value: Any, candidate_keys: tuple[str, ...]) -> Any:
+        if not isinstance(raw_value, dict):
+            return raw_value
+        for key in candidate_keys:
+            if key in raw_value and self._has_non_empty_vbook_value(raw_value.get(key)):
+                return raw_value.get(key)
+        lowered = {str(k or "").strip().lower(): v for k, v in raw_value.items()}
+        for key in candidate_keys:
+            value = lowered.get(str(key or "").strip().lower())
+            if self._has_non_empty_vbook_value(value):
+                return value
+        return raw_value
+
+    def _looks_like_vbook_detail_section(self, raw_value: Any, candidate_keys: tuple[str, ...]) -> bool:
+        if not isinstance(raw_value, dict):
+            return False
+        if any(str(key or "").strip().lower() in {"title", "name", "label", "header", "heading"} for key in raw_value.keys()):
+            for key in candidate_keys:
+                value = raw_value.get(key)
+                if isinstance(value, (list, tuple, set)) or (isinstance(value, dict) and self._extract_vbook_list_rows(value)):
+                    return True
+            lowered = {str(k or "").strip().lower(): v for k, v in raw_value.items()}
+            for key in candidate_keys:
+                value = lowered.get(str(key or "").strip().lower())
+                if isinstance(value, (list, tuple, set)) or (isinstance(value, dict) and self._extract_vbook_list_rows(value)):
+                    return True
+        return False
+
+    def _collect_vbook_detail_sections(
+        self,
+        plugin: Any,
+        raw_values: list[tuple[str, Any]],
+        *,
+        default_title: str,
+        candidate_keys: tuple[str, ...],
+        item_collector: Any,
+    ) -> list[dict[str, Any]]:
+        sections: list[dict[str, Any]] = []
+
+        def push(title_raw: str, payload: Any) -> None:
+            title = normalize_vbook_display_text(str(title_raw or default_title), single_line=True) or default_title
+            items = item_collector(payload)
+            if not items:
+                return
+            sections.append(
+                {
+                    "title_raw": title,
+                    "title": title,
+                    "items": items,
+                    "count": len(items),
+                }
+            )
+
+        for raw_key, raw_value in raw_values:
+            if isinstance(raw_value, list):
+                section_rows = [row for row in raw_value if self._looks_like_vbook_detail_section(row, candidate_keys)]
+                if section_rows and len(section_rows) == len(raw_value):
+                    for row in section_rows:
+                        title = self._vbook_section_title_from_raw(row, default_title)
+                        push(title, self._vbook_section_payload_from_raw(row, candidate_keys))
+                else:
+                    push(default_title, raw_value)
+                continue
+
+            if isinstance(raw_value, dict):
+                direct_payload = self._vbook_section_payload_from_raw(raw_value, candidate_keys)
+                if direct_payload is not raw_value:
+                    push(self._vbook_section_title_from_raw(raw_value, default_title), direct_payload)
+                    continue
+
+                mapped = False
+                for key, value in raw_value.items():
+                    if key in {"title", "name", "label", "header", "heading"}:
+                        continue
+                    if not self._has_non_empty_vbook_value(value):
+                        continue
+                    if isinstance(value, (list, tuple, set)):
+                        push(str(key or default_title), value)
+                        mapped = True
+                    elif isinstance(value, dict):
+                        rows = self._extract_vbook_list_rows(value)
+                        if rows and not (len(rows) == 1 and rows[0] is value):
+                            push(str(key or default_title), value)
+                            mapped = True
+                if not mapped:
+                    push(default_title, raw_value)
+                continue
+
+            push(default_title, raw_value)
+
+        return sections
+
+    def _flatten_vbook_detail_sections(self, sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        for section in sections:
+            if not isinstance(section, dict):
+                continue
+            for item in section.get("items") or []:
+                if isinstance(item, dict):
+                    out.append(item)
         return out
 
     def _normalize_vbook_comment_items(self, raw_value: Any) -> list[dict[str, Any]]:
@@ -14684,18 +14855,32 @@ class ReaderService:
         description_raw = description
         status_text_raw = status_text
         info_text_raw = info_text
-        suggest_raw = self._pick_vbook_detail_value(
+        suggest_raw_values = self._pick_vbook_detail_values(
             detail,
             exact_keys=("suggest", "suggests", "recommend", "recommends", "related"),
             fuzzy_tokens=("suggest", "recommend", "related"),
         )
-        comment_raw = self._pick_vbook_detail_value(
+        comment_raw_values = self._pick_vbook_detail_values(
             detail,
             exact_keys=("comment", "comments", "review", "reviews"),
             fuzzy_tokens=("comment", "review"),
         )
-        suggest_items = self._collect_vbook_suggest_items(plugin, suggest_raw)
-        comment_items = self._normalize_vbook_comment_items(comment_raw)
+        suggest_sections = self._collect_vbook_detail_sections(
+            plugin,
+            suggest_raw_values,
+            default_title="Gợi ý",
+            candidate_keys=("items", "list", "data", "books", "book", "novels", "novel", "suggest", "suggests", "recommend", "recommends", "related"),
+            item_collector=lambda raw: self._collect_vbook_suggest_items(plugin, raw),
+        )
+        comment_sections = self._collect_vbook_detail_sections(
+            plugin,
+            comment_raw_values,
+            default_title="Bình luận",
+            candidate_keys=("items", "list", "data", "comments", "comment", "reviews", "review", "records", "rows"),
+            item_collector=self._normalize_vbook_comment_items,
+        )
+        suggest_items = self._flatten_vbook_detail_sections(suggest_sections)
+        comment_items = self._flatten_vbook_detail_sections(comment_sections)
         genre_items = self._normalize_vbook_genre_items(detail)
         extra_fields = self._normalize_vbook_extra_fields(detail)
         return {
@@ -14713,7 +14898,9 @@ class ReaderService:
                 "status_text_raw": status_text_raw,
                 "info_text_raw": info_text_raw,
                 "genres": genre_items,
+                "suggest_sections": suggest_sections,
                 "suggest_items": suggest_items,
+                "comment_sections": comment_sections,
                 "comment_items": comment_items,
                 "extra_fields": extra_fields,
             },
@@ -14759,6 +14946,32 @@ class ReaderService:
             )
             suggest_items = [dict(x or {}) for x in (detail.get("suggest_items") or []) if isinstance(x, dict)]
             comment_items = [dict(x or {}) for x in (detail.get("comment_items") or []) if isinstance(x, dict)]
+            suggest_sections = [
+                {
+                    "title": str((section or {}).get("title") or (section or {}).get("title_raw") or "Gợi ý").strip() or "Gợi ý",
+                    "title_raw": str((section or {}).get("title_raw") or (section or {}).get("title") or "Gợi ý").strip() or "Gợi ý",
+                    "items": [dict(x or {}) for x in ((section or {}).get("items") or []) if isinstance(x, dict)],
+                }
+                for section in (detail.get("suggest_sections") or [])
+                if isinstance(section, dict)
+            ]
+            comment_sections = [
+                {
+                    "title": str((section or {}).get("title") or (section or {}).get("title_raw") or "Bình luận").strip() or "Bình luận",
+                    "title_raw": str((section or {}).get("title_raw") or (section or {}).get("title") or "Bình luận").strip() or "Bình luận",
+                    "items": [dict(x or {}) for x in ((section or {}).get("items") or []) if isinstance(x, dict)],
+                }
+                for section in (detail.get("comment_sections") or [])
+                if isinstance(section, dict)
+            ]
+            if suggest_sections:
+                suggest_items = self._flatten_vbook_detail_sections(suggest_sections)
+            elif suggest_items:
+                suggest_sections = [{"title": "Gợi ý", "title_raw": "Gợi ý", "items": suggest_items}]
+            if comment_sections:
+                comment_items = self._flatten_vbook_detail_sections(comment_sections)
+            elif comment_items:
+                comment_sections = [{"title": "Bình luận", "title_raw": "Bình luận", "items": comment_items}]
             genre_items = [dict(x or {}) for x in (detail.get("genres") or []) if isinstance(x, dict)]
             extra_fields = [dict(x or {}) for x in (detail.get("extra_fields") or []) if isinstance(x, dict)]
             if translate_ui is None:
@@ -14782,6 +14995,14 @@ class ReaderService:
                 if len(translated_body) >= 2:
                     description, info_text = translated_body[:2]
                 if suggest_items:
+                    suggest_section_titles = self._translate_ui_texts_batch(
+                        [str(section.get("title_raw") or section.get("title") or "") for section in suggest_sections],
+                        single_line=True,
+                        mode=mode,
+                    )
+                    for idx, section in enumerate(suggest_sections):
+                        if idx < len(suggest_section_titles):
+                            section["title"] = suggest_section_titles[idx]
                     suggest_titles = self._translate_ui_texts_batch(
                         [str(item.get("title") or "") for item in suggest_items],
                         single_line=True,
@@ -14804,6 +15025,14 @@ class ReaderService:
                         item["author"] = suggest_authors[idx] if idx < len(suggest_authors) else str(item.get("author") or "")
                         item["description"] = suggest_descs[idx] if idx < len(suggest_descs) else str(item.get("description") or "")
                 if comment_items:
+                    comment_section_titles = self._translate_ui_texts_batch(
+                        [str(section.get("title_raw") or section.get("title") or "") for section in comment_sections],
+                        single_line=True,
+                        mode=mode,
+                    )
+                    for idx, section in enumerate(comment_sections):
+                        if idx < len(comment_section_titles):
+                            section["title"] = comment_section_titles[idx]
                     comment_authors = self._translate_ui_texts_batch(
                         [str(item.get("author") or "") for item in comment_items],
                         single_line=True,
@@ -14867,7 +15096,27 @@ class ReaderService:
                     "info_text": info_text,
                     "info_text_raw": info_text_raw,
                     "genres": genre_items,
+                    "suggest_sections": [
+                        {
+                            "title": str(section.get("title") or "").strip() or "Gợi ý",
+                            "title_raw": str(section.get("title_raw") or section.get("title") or "").strip() or "Gợi ý",
+                            "items": [dict(item or {}) for item in (section.get("items") or []) if isinstance(item, dict)],
+                            "count": len([item for item in (section.get("items") or []) if isinstance(item, dict)]),
+                        }
+                        for section in suggest_sections
+                        if isinstance(section, dict)
+                    ],
                     "suggest_items": suggest_items,
+                    "comment_sections": [
+                        {
+                            "title": str(section.get("title") or "").strip() or "Bình luận",
+                            "title_raw": str(section.get("title_raw") or section.get("title") or "").strip() or "Bình luận",
+                            "items": [dict(item or {}) for item in (section.get("items") or []) if isinstance(item, dict)],
+                            "count": len([item for item in (section.get("items") or []) if isinstance(item, dict)]),
+                        }
+                        for section in comment_sections
+                        if isinstance(section, dict)
+                    ],
                     "comment_items": comment_items,
                     "extra_fields": extra_fields,
                 },
