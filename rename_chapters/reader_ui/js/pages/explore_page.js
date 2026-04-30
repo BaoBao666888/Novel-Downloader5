@@ -38,6 +38,7 @@ const refs = {
   explorePluginPrefetchInput: document.getElementById("explore-plugin-prefetch-input"),
   explorePluginSupplementalLabel: document.getElementById("explore-plugin-supplemental-label"),
   explorePluginSupplementalInput: document.getElementById("explore-plugin-supplemental-input"),
+  explorePluginConfigFields: document.getElementById("explore-plugin-config-fields"),
   explorePluginSettingsHint: document.getElementById("explore-plugin-settings-hint"),
   btnExplorePluginSettingsLoad: document.getElementById("btn-explore-plugin-settings-load"),
   btnExplorePluginSettingsSave: document.getElementById("btn-explore-plugin-settings-save"),
@@ -176,13 +177,17 @@ const state = {
       download_threads: null,
       prefetch_unread_count: null,
       supplemental_code: "",
+      config_values: {},
     },
     effective: {
       request_delay_ms: 0,
       download_threads: 4,
       prefetch_unread_count: 2,
       retry_count: 2,
+      config_values: {},
     },
+    configSchema: [],
+    effectiveConfigValues: {},
   },
   detail: {
     item: null,
@@ -679,6 +684,105 @@ function parseNullableIntInput(value, { min = 0, max = Number.POSITIVE_INFINITY 
   return num;
 }
 
+function normalizeConfigValues(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+  const out = {};
+  for (const [keyRaw, value] of Object.entries(payload)) {
+    const key = String(keyRaw || "").trim();
+    if (!key || value == null) continue;
+    out[key] = (typeof value === "number" || typeof value === "boolean") ? value : String(value);
+  }
+  return out;
+}
+
+function normalizeConfigSchema(payload) {
+  const rows = Array.isArray(payload) ? payload : [];
+  const out = [];
+  const seen = new Set();
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const key = String(row.key || "").trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const type = String(row.type || "").trim().toLowerCase() === "number" ? "number" : "text";
+    out.push({
+      key,
+      title: String(row.title || key).trim() || key,
+      type,
+      default: row.default == null ? (type === "number" ? 0 : "") : row.default,
+      description: String(row.description || "").trim(),
+    });
+  }
+  return out;
+}
+
+function renderPluginConfigFields({ disabled = false } = {}) {
+  const container = refs.explorePluginConfigFields;
+  if (!container) return;
+  const schema = normalizeConfigSchema(state.pluginSettings.configSchema || []);
+  const overrideValues = normalizeConfigValues((state.pluginSettings.override || {}).config_values);
+  const effectiveValues = normalizeConfigValues(state.pluginSettings.effectiveConfigValues || {});
+  container.innerHTML = "";
+  for (const item of schema) {
+    const label = document.createElement("label");
+    if (item.type === "text") label.classList.add("vbook-config-text");
+
+    const title = document.createElement("span");
+    title.textContent = `${item.title} (config.${item.key})`;
+    label.appendChild(title);
+
+    const hasOverride = Object.prototype.hasOwnProperty.call(overrideValues, item.key);
+    const value = hasOverride
+      ? overrideValues[item.key]
+      : (Object.prototype.hasOwnProperty.call(effectiveValues, item.key) ? effectiveValues[item.key] : item.default);
+    let input;
+    if (item.type === "number") {
+      input = document.createElement("input");
+      input.type = "number";
+      input.step = "any";
+      input.value = value == null ? "" : String(value);
+      input.placeholder = item.default == null ? "" : String(item.default);
+    } else {
+      input = document.createElement("textarea");
+      input.rows = String(String(value == null ? "" : value).includes("\n") ? 5 : 3);
+      input.spellcheck = false;
+      input.value = value == null ? "" : String(value);
+    }
+    input.disabled = disabled;
+    input.dataset.vbookConfigKey = item.key;
+    input.dataset.vbookConfigType = item.type;
+    label.appendChild(input);
+
+    if (item.description) {
+      const hint = document.createElement("small");
+      hint.textContent = item.description;
+      label.appendChild(hint);
+    }
+    container.appendChild(label);
+  }
+}
+
+function collectPluginConfigValues() {
+  const out = {};
+  const container = refs.explorePluginConfigFields;
+  if (!container) return out;
+  const fields = container.querySelectorAll("[data-vbook-config-key]");
+  for (const field of fields) {
+    const key = String(field.dataset.vbookConfigKey || "").trim();
+    if (!key) continue;
+    const type = String(field.dataset.vbookConfigType || "text").trim().toLowerCase();
+    if (type === "number") {
+      const text = String(field.value ?? "").trim();
+      if (!text) continue;
+      const num = Number(text);
+      if (Number.isFinite(num)) out[key] = num;
+    } else {
+      out[key] = String(field.value ?? "");
+    }
+  }
+  return out;
+}
+
 function renderPluginSection() {
   const plugin = getSelectedPlugin();
   state.pluginSettings.pluginInfo = plugin || null;
@@ -730,6 +834,7 @@ function renderPluginSection() {
   refs.btnExplorePluginSettingsLoad.disabled = !plugin || loading;
   refs.btnExplorePluginSettingsSave.disabled = !plugin || loading;
   refs.btnExplorePluginSettingsClear.disabled = !plugin || loading;
+  renderPluginConfigFields({ disabled });
 }
 
 async function loadPluginSettings() {
@@ -741,6 +846,7 @@ async function loadPluginSettings() {
       download_threads: null,
       prefetch_unread_count: null,
       supplemental_code: "",
+      config_values: {},
     };
     state.pluginSettings.effective = {
       request_delay_ms: 0,
@@ -748,6 +854,8 @@ async function loadPluginSettings() {
       prefetch_unread_count: 2,
       retry_count: 2,
     };
+    state.pluginSettings.configSchema = [];
+    state.pluginSettings.effectiveConfigValues = {};
     renderPluginSection();
     return;
   }
@@ -765,6 +873,7 @@ async function loadPluginSettings() {
       download_threads: null,
       prefetch_unread_count: null,
       supplemental_code: "",
+      config_values: {},
     };
     state.pluginSettings.effective = {
       request_delay_ms: 0,
@@ -773,6 +882,12 @@ async function loadPluginSettings() {
       retry_count: 2,
       ...((effectiveData && effectiveData.settings) || {}),
     };
+    state.pluginSettings.configSchema = normalizeConfigSchema(
+      (overrideData && overrideData.config_schema) || (effectiveData && effectiveData.config_schema) || []
+    );
+    state.pluginSettings.effectiveConfigValues = normalizeConfigValues(
+      (overrideData && overrideData.effective_config_values) || (effectiveData && effectiveData.effective_config_values) || {}
+    );
   } catch (error) {
     showToastError(error);
   } finally {
@@ -790,6 +905,7 @@ async function savePluginSettings() {
     download_threads: parseNullableIntInput(refs.explorePluginThreadsInput.value, { min: 1, max: 16 }),
     prefetch_unread_count: parseNullableIntInput(refs.explorePluginPrefetchInput.value, { min: 0, max: 50 }),
     supplemental_code: String(refs.explorePluginSupplementalInput.value || ""),
+    config_values: collectPluginConfigValues(),
   };
   state.shell.showStatus(state.shell.t("statusSavingVbookPluginSettings"));
   try {

@@ -38,6 +38,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 from urllib import request as urllib_request
 from urllib import error as urllib_error
 import xml.etree.ElementTree as ET
+import requests
 from reader_backend import download_execute as download_execute_support
 from reader_backend import download_jobs as download_jobs_support
 from reader_backend import download_batch as download_batch_support
@@ -11423,6 +11424,7 @@ class ReaderService:
             "request_delay_ms": self._vbook_int_or_none(current.get("request_delay_ms"), min_value=0, max_value=120_000),
             "download_threads": self._vbook_int_or_none(current.get("download_threads"), min_value=1, max_value=16),
             "prefetch_unread_count": self._vbook_int_or_none(current.get("prefetch_unread_count"), min_value=0, max_value=50),
+            "config_values": self._normalized_vbook_plugin_config_values(current.get("config_values")),
         }
 
         changed = False
@@ -11469,6 +11471,26 @@ class ReaderService:
             "retry_count": self._vbook_int(retry_raw, default=2, min_value=0, max_value=10),
         }
 
+    def _normalized_vbook_plugin_config_values(self, raw_values: Any) -> dict[str, Any]:
+        if not isinstance(raw_values, dict):
+            return {}
+        out: dict[str, Any] = {}
+        for raw_key, raw_value in raw_values.items():
+            key = str(raw_key or "").strip()
+            if not key:
+                continue
+            if raw_value is None:
+                continue
+            if isinstance(raw_value, bool):
+                out[key] = bool(raw_value)
+            elif isinstance(raw_value, int):
+                out[key] = int(raw_value)
+            elif isinstance(raw_value, float):
+                out[key] = float(raw_value)
+            else:
+                out[key] = str(raw_value)
+        return out
+
     def _normalized_vbook_plugin_runtime_overrides(self, raw_cfg: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
         vcfg = raw_cfg if isinstance(raw_cfg, dict) else self._vbook_cfg()
         payload = vcfg.get("plugin_overrides")
@@ -11484,12 +11506,14 @@ class ReaderService:
                 "request_delay_ms": self._vbook_int_or_none(raw_override.get("request_delay_ms"), min_value=0, max_value=15_000),
                 "download_threads": self._vbook_int_or_none(raw_override.get("download_threads"), min_value=1, max_value=16),
                 "prefetch_unread_count": self._vbook_int_or_none(raw_override.get("prefetch_unread_count"), min_value=0, max_value=50),
+                "config_values": self._normalized_vbook_plugin_config_values(raw_override.get("config_values")),
             }
             if (
                 override["supplemental_code"]
                 or override["request_delay_ms"] is not None
                 or override["download_threads"] is not None
                 or override["prefetch_unread_count"] is not None
+                or bool(override["config_values"])
             ):
                 out[pid] = override
         return out
@@ -11504,6 +11528,7 @@ class ReaderService:
             "download_threads": int((override or {}).get("download_threads")) if (override and override.get("download_threads") is not None) else int(global_cfg.get("download_threads") or 4),
             "prefetch_unread_count": int((override or {}).get("prefetch_unread_count")) if (override and override.get("prefetch_unread_count") is not None) else int(global_cfg.get("prefetch_unread_count") or 2),
             "retry_count": int(global_cfg.get("retry_count") or 2),
+            "config_values": self._normalized_vbook_plugin_config_values((override or {}).get("config_values")),
         }
 
     def _vbook_runner_target_path(self) -> Path:
@@ -11765,23 +11790,150 @@ class ReaderService:
         self.refresh_config()
         return self.get_vbook_settings_global()
 
+    def _vbook_plugin_config_default_value(self, raw_value: Any) -> Any:
+        if isinstance(raw_value, dict):
+            for key in ("value", "default", "defaultValue"):
+                if key in raw_value:
+                    return raw_value.get(key)
+            return ""
+        return raw_value
+
+    def _vbook_plugin_config_value_type(self, raw_value: Any, default_value: Any) -> str:
+        if isinstance(default_value, (int, float)) and not isinstance(default_value, bool):
+            return "number"
+        if isinstance(raw_value, dict):
+            markers = " ".join(
+                str(raw_value.get(key) or "")
+                for key in ("type", "mode", "format", "inputType")
+            ).strip().lower()
+            if any(token in markers for token in ("number", "numeric", "integer", "int", "float")):
+                return "number"
+        return "text"
+
+    def _vbook_plugin_config_schema(self, plugin: Any) -> list[dict[str, Any]]:
+        cfg = getattr(plugin, "config", {}) if plugin is not None else {}
+        if not isinstance(cfg, dict):
+            return []
+        out: list[dict[str, Any]] = []
+        for raw_key, raw_value in cfg.items():
+            key = str(raw_key or "").strip()
+            if not key:
+                continue
+            default_value = self._vbook_plugin_config_default_value(raw_value)
+            value_type = self._vbook_plugin_config_value_type(raw_value, default_value)
+            title = key
+            description = ""
+            if isinstance(raw_value, dict):
+                title = str(raw_value.get("title") or raw_value.get("label") or raw_value.get("name") or key).strip() or key
+                description = str(raw_value.get("description") or raw_value.get("desc") or raw_value.get("hint") or "").strip()
+            if value_type == "number":
+                default_normalized: Any = self._vbook_number_config_value(default_value)
+                if default_normalized is None:
+                    default_normalized = 0
+            else:
+                default_normalized = "" if default_value is None else str(default_value)
+            out.append(
+                {
+                    "key": key,
+                    "title": title,
+                    "type": value_type,
+                    "default": default_normalized,
+                    "description": description,
+                    "multiline": value_type == "text",
+                }
+            )
+        return out
+
+    def _vbook_number_config_value(self, raw_value: Any) -> int | float | None:
+        if raw_value is None:
+            return None
+        if isinstance(raw_value, bool):
+            return 1 if raw_value else 0
+        if isinstance(raw_value, int):
+            return int(raw_value)
+        if isinstance(raw_value, float):
+            return float(raw_value)
+        text = str(raw_value or "").strip()
+        if not text:
+            return None
+        try:
+            if re.fullmatch(r"[-+]?\d+", text):
+                return int(text)
+            return float(text)
+        except Exception:
+            return None
+
+    def _normalize_vbook_plugin_config_values_for_schema(
+        self,
+        raw_values: Any,
+        schema: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        if not isinstance(raw_values, dict):
+            return {}
+        schema_by_key = {str(item.get("key") or ""): item for item in schema if isinstance(item, dict)}
+        out: dict[str, Any] = {}
+        for key, item in schema_by_key.items():
+            if not key or key not in raw_values:
+                continue
+            value_type = str(item.get("type") or "text").strip().lower()
+            raw_value = raw_values.get(key)
+            if value_type == "number":
+                num = self._vbook_number_config_value(raw_value)
+                if num is not None:
+                    out[key] = num
+            else:
+                out[key] = "" if raw_value is None else str(raw_value)
+        return out
+
+    def _effective_vbook_plugin_config_values(
+        self,
+        plugin: Any,
+        override_values: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        schema = self._vbook_plugin_config_schema(plugin)
+        values = {str(item.get("key") or ""): item.get("default") for item in schema if str(item.get("key") or "")}
+        pid = self._normalize_vbook_plugin_id(str(getattr(plugin, "plugin_id", "") or ""))
+        saved_override = dict(override_values or {})
+        if not saved_override and pid:
+            current = (self.vbook_plugin_runtime_overrides or {}).get(pid) or {}
+            saved_override = self._normalize_vbook_plugin_config_values_for_schema(current.get("config_values"), schema)
+
+        # Legacy ND5/Fanqie bridge compatibility: plugin default trong zip thường là
+        # localhost:3000, còn app này đang lưu port bridge riêng trong api_settings.
+        # User override vẫn thắng nhánh này.
+        if self._is_fanqie_vbook_plugin(plugin) and "fanqieServer" in values and "fanqieServer" not in saved_override:
+            default_server = str(values.get("fanqieServer") or "").strip().lower()
+            if (not default_server) or default_server in {"http://localhost:3000", "http://127.0.0.1:3000"}:
+                values["fanqieServer"] = self._fanqie_bridge_base_url_for_vbook()
+
+        values.update(saved_override)
+        return values
+
     def get_vbook_settings_plugin(self, plugin_id: str) -> dict[str, Any]:
         pid = self._normalize_vbook_plugin_id(plugin_id)
         if not pid:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu plugin_id.")
+        plugin = self._require_vbook_plugin(pid)
+        config_schema = self._vbook_plugin_config_schema(plugin)
         override = dict((self.vbook_plugin_runtime_overrides or {}).get(pid) or {})
+        config_values = self._normalize_vbook_plugin_config_values_for_schema(
+            override.get("config_values"),
+            config_schema,
+        )
         # Normalize override trả ra cho UI.
         normalized_override = {
             "supplemental_code": str(override.get("supplemental_code") or ""),
             "request_delay_ms": self._vbook_int_or_none(override.get("request_delay_ms"), min_value=0, max_value=15_000),
             "download_threads": self._vbook_int_or_none(override.get("download_threads"), min_value=1, max_value=16),
             "prefetch_unread_count": self._vbook_int_or_none(override.get("prefetch_unread_count"), min_value=0, max_value=50),
+            "config_values": config_values,
         }
         has_override = bool(
             normalized_override["supplemental_code"]
             or normalized_override["request_delay_ms"] is not None
             or normalized_override["download_threads"] is not None
             or normalized_override["prefetch_unread_count"] is not None
+            or bool(normalized_override["config_values"])
         )
         return {
             "ok": True,
@@ -11790,6 +11942,8 @@ class ReaderService:
             "override": normalized_override,
             "global": dict(self.vbook_runtime_global_settings or {}),
             "effective": self._effective_vbook_runtime_settings(pid),
+            "config_schema": config_schema,
+            "effective_config_values": self._effective_vbook_plugin_config_values(plugin, config_values),
         }
 
     def set_vbook_settings_plugin(self, plugin_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -11810,11 +11964,14 @@ class ReaderService:
             overrides = {}
 
         current = overrides.get(pid) if isinstance(overrides.get(pid), dict) else {}
+        plugin = self._require_vbook_plugin(pid)
+        config_schema = self._vbook_plugin_config_schema(plugin)
         item: dict[str, Any] = {
             "supplemental_code": str(current.get("supplemental_code") or ""),
             "request_delay_ms": self._vbook_int_or_none(current.get("request_delay_ms"), min_value=0, max_value=15_000),
             "download_threads": self._vbook_int_or_none(current.get("download_threads"), min_value=1, max_value=16),
             "prefetch_unread_count": self._vbook_int_or_none(current.get("prefetch_unread_count"), min_value=0, max_value=50),
+            "config_values": self._normalize_vbook_plugin_config_values_for_schema(current.get("config_values"), config_schema),
         }
 
         if "supplemental_code" in payload:
@@ -11828,12 +11985,18 @@ class ReaderService:
             item["download_threads"] = self._vbook_int_or_none(raw_threads, min_value=1, max_value=16)
         if "prefetch_unread_count" in payload:
             item["prefetch_unread_count"] = self._vbook_int_or_none(payload.get("prefetch_unread_count"), min_value=0, max_value=50)
+        if "config_values" in payload:
+            item["config_values"] = self._normalize_vbook_plugin_config_values_for_schema(
+                payload.get("config_values"),
+                config_schema,
+            )
 
         if (
             item["supplemental_code"]
             or item["request_delay_ms"] is not None
             or item["download_threads"] is not None
             or item["prefetch_unread_count"] is not None
+            or bool(item["config_values"])
         ):
             overrides[pid] = item
         elif pid in overrides:
@@ -11867,11 +12030,15 @@ class ReaderService:
 
     def get_vbook_settings_effective(self, plugin_id: str = "") -> dict[str, Any]:
         pid = self._normalize_vbook_plugin_id(plugin_id)
+        plugin = self._require_vbook_plugin(pid) if pid else None
+        config_schema = self._vbook_plugin_config_schema(plugin) if plugin is not None else []
         return {
             "ok": True,
             "plugin_id": pid,
             "settings": self._effective_vbook_runtime_settings(pid),
             "global": dict(self.vbook_runtime_global_settings or {}),
+            "config_schema": config_schema,
+            "effective_config_values": self._effective_vbook_plugin_config_values(plugin) if plugin is not None else {},
         }
 
     # Backward compatibility tạm thời cho endpoint cũ.
@@ -12675,6 +12842,41 @@ class ReaderService:
                 return cookie_header
         return ""
 
+    def _is_fanqie_vbook_plugin(self, plugin: Any) -> bool:
+        text = " ".join(
+            [
+                str(getattr(plugin, "name", "") or ""),
+                str(getattr(plugin, "source", "") or ""),
+                str(getattr(plugin, "regexp", "") or ""),
+            ]
+        ).lower()
+        return any(token in text for token in ("fanqie", "fqnovel", "snssdk"))
+
+    def _fanqie_bridge_base_url_for_vbook(self) -> str:
+        fallback = 9999
+        settings = self.app_config.get("api_settings") if isinstance(self.app_config, dict) else {}
+        if not isinstance(settings, dict):
+            settings = {}
+        try:
+            port = int(settings.get("fanqie_bridge_port", fallback))
+        except Exception:
+            port = fallback
+        if port < 1 or port > 65535:
+            port = fallback
+        return f"http://127.0.0.1:{port}"
+
+    def _vbook_plugin_config_for_runner(self, plugin: Any) -> dict[str, Any]:
+        return self._effective_vbook_plugin_config_values(plugin)
+
+    def _vbook_should_add_source_headers(self, direct_host: str, source_host: str) -> bool:
+        direct = normalize_host(direct_host)
+        source = normalize_host(source_host)
+        if not source:
+            return False
+        if not direct:
+            return True
+        return host_matches_domain(direct, source) or host_matches_domain(source, direct)
+
     def _build_vbook_runner_override(
         self,
         plugin: Any,
@@ -12688,6 +12890,9 @@ class ReaderService:
         runtime_cfg = self._effective_vbook_runtime_settings(plugin_id)
         override["request_delay_ms"] = int(runtime_cfg.get("request_delay_ms") or 0)
         override["supplemental_code"] = str(runtime_cfg.get("supplemental_code") or "")
+        plugin_config = self._vbook_plugin_config_for_runner(plugin)
+        if plugin_config:
+            override["plugin_config"] = plugin_config
         if plugin_id:
             override["storage_path"] = str(self._vbook_plugin_storage_path(plugin_id))
 
@@ -12719,7 +12924,9 @@ class ReaderService:
 
             default_headers = self._vbook_default_headers_from_bridge_entry(entry)
             source = str(getattr(plugin, "source", "") or "").strip()
-            if source:
+            direct_host = self._extract_vbook_request_host(plugin, script_key, args)
+            source_host = normalize_host(source)
+            if source and self._vbook_should_add_source_headers(direct_host, source_host):
                 source_url = source if (source.startswith("http://") or source.startswith("https://")) else f"https://{source.lstrip('/')}"
                 header_keys_lower = {k.lower() for k in default_headers.keys()}
                 if "referer" not in header_keys_lower:
@@ -15168,6 +15375,10 @@ class ReaderService:
             parsed_ref = urlparse(resolved_referer)
             if parsed_ref.scheme and parsed_ref.netloc:
                 headers["Origin"] = f"{parsed_ref.scheme}://{parsed_ref.netloc}"
+        headers["Accept-Language"] = "zh-CN,zh;q=0.9,en;q=0.8,vi;q=0.7"
+        headers["Sec-Fetch-Dest"] = "image"
+        headers["Sec-Fetch-Mode"] = "no-cors"
+        headers["Sec-Fetch-Site"] = "cross-site"
 
         user_agent = ""
         cookie_header = ""
@@ -15189,6 +15400,33 @@ class ReaderService:
         if cookie_header:
             headers["Cookie"] = cookie_header
         return headers
+
+    def _fetch_vbook_image_with_requests(
+        self,
+        *,
+        target: str,
+        headers: dict[str, str],
+        timeout_sec: float,
+    ) -> tuple[bytes, str, str]:
+        resp = requests.get(target, headers=headers, timeout=timeout_sec, stream=True)
+        try:
+            status = int(resp.status_code)
+            if status < 200 or status >= 300:
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_IMAGE_FETCH_FAILED",
+                    "Không thể tải ảnh từ nguồn vBook.",
+                    {"url": target, "status": status, "reason": str(resp.reason or "")},
+                )
+            data = resp.content
+            content_type = str(resp.headers.get("Content-Type") or "").split(";", 1)[0].strip()
+            content_encoding = str(resp.headers.get("Content-Encoding") or "").strip()
+            return data, content_type, content_encoding
+        finally:
+            try:
+                resp.close()
+            except Exception:
+                pass
 
     def _vbook_image_cache_paths(self, *, image_url: str, plugin_id: str = "") -> tuple[Path, Path]:
         key = vbook_image_cache_key(image_url=image_url, plugin_id=plugin_id)
@@ -15310,19 +15548,45 @@ class ReaderService:
                 content_type = str(resp.headers.get("Content-Type") or "").split(";", 1)[0].strip()
                 content_encoding = str(resp.headers.get("Content-Encoding") or "").strip()
         except urllib_error.HTTPError as exc:
-            raise ApiError(
-                HTTPStatus.BAD_GATEWAY,
-                "VBOOK_IMAGE_FETCH_FAILED",
-                "Không thể tải ảnh từ nguồn vBook.",
-                {"url": target, "status": int(exc.code), "reason": str(exc.reason or "")},
-            ) from exc
+            try:
+                data, content_type, content_encoding = self._fetch_vbook_image_with_requests(
+                    target=target,
+                    headers=headers,
+                    timeout_sec=timeout_sec,
+                )
+            except ApiError:
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_IMAGE_FETCH_FAILED",
+                    "Không thể tải ảnh từ nguồn vBook.",
+                    {"url": target, "status": int(exc.code), "reason": str(exc.reason or "")},
+                ) from exc
+            except Exception as retry_exc:
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_IMAGE_FETCH_FAILED",
+                    "Không thể tải ảnh từ nguồn vBook.",
+                    {
+                        "url": target,
+                        "status": int(exc.code),
+                        "reason": str(exc.reason or ""),
+                        "retry_error": str(retry_exc),
+                    },
+                ) from retry_exc
         except Exception as exc:
-            raise ApiError(
-                HTTPStatus.BAD_GATEWAY,
-                "VBOOK_IMAGE_FETCH_FAILED",
-                "Không thể tải ảnh từ nguồn vBook.",
-                {"url": target, "error": str(exc)},
-            ) from exc
+            try:
+                data, content_type, content_encoding = self._fetch_vbook_image_with_requests(
+                    target=target,
+                    headers=headers,
+                    timeout_sec=timeout_sec,
+                )
+            except Exception as retry_exc:
+                raise ApiError(
+                    HTTPStatus.BAD_GATEWAY,
+                    "VBOOK_IMAGE_FETCH_FAILED",
+                    "Không thể tải ảnh từ nguồn vBook.",
+                    {"url": target, "error": str(exc), "retry_error": str(retry_exc)},
+                ) from retry_exc
 
         if not data:
             raise ApiError(

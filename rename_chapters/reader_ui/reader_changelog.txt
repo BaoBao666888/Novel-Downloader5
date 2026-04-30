@@ -1,86 +1,17 @@
-Reader bản này tập trung vào thao tác an toàn hơn, mở truyện nhẹ hơn và phần thông báo dễ đọc hơn.
-
 # Changelog Reader
 
-> [!FIX] Dịch server Reader đã gọn gói hơn
-> - Bỏ giới hạn số đoạn mỗi request; batch giờ chỉ còn gom theo tổng độ dài tối đa `9000`.
-> - Pipeline dịch đã dọn ký tự rác và chuẩn hóa kết quả server tốt hơn, retry chọn lọc từng đoạn nghi ngờ thay vì chẻ đôi cả gói từ đầu.
-> - Chia đôi batch chỉ còn là fallback cuối cho case server trả sai cấu trúc.
+> [!NEW] vBook extension config đã có UI riêng
+> - Reader đọc `plugin.json.config` của extension và hiện form chỉnh riêng từng key trong `Cài đặt vBook` và panel extension ở trang Explore.
+> - Hỗ trợ config dạng `text` bằng textarea, cho phép xuống dòng.
+> - Hỗ trợ config dạng `number` bằng input số.
+> - Giá trị user nhập được lưu riêng theo plugin và tự merge với default của `plugin.json` khi chạy runner.
 
-> [!FIX] Reader mở truyện nhanh hơn và mục lục dịch theo đúng trang đang xem
-> - Khi vào reader, hệ thống không còn chờ dịch live toàn bộ tiêu đề mục lục, summary và `export_info` trước khi hiện nội dung.
-> - Nếu URL đã có sẵn `chapter_id`, reader sẽ ưu tiên nạp ngay chương đó; metadata, `Name riêng`, TTS plugin và phần còn lại tải nền sau.
-> - Khi user mở mục lục, hệ thống chỉ dịch đúng trang mục lục đang xem; đổi sang trang khác mới dịch tiếp trang đó.
+> [!FIX] Runner vBook inject config đúng kiểu vBook beta hơn
+> - Runner giờ truyền `config.xxxx` thành biến global cho script, không cần nhét thủ công vào `Mã bổ sung`.
+> - `Mã bổ sung riêng ext (JS)` vẫn được giữ để dùng cho các đoạn JS tùy biến khác.
+> - Nếu `Mã bổ sung` và `plugin.json.config` cùng tạo một biến global, runner sẽ cảnh báo và ưu tiên giá trị từ config.
 
-> [!FIX] `Xóa cache Trung (RAW)` đã được sửa lại đúng nghĩa
-> - Chỉ áp dụng cho truyện nguồn online `vbook` ở quyển mặc định; truyện import file hoặc truyện online đã có quyển/file bổ sung sẽ tiếp tục bị chặn.
-> - Khi hợp lệ, action này chỉ dọn content/ảnh RAW đã tải của các chương nguồn online, không xóa truyện khỏi thư viện.
-> - Nếu có chương RAW từng được sửa tay, hệ thống sẽ hiện thêm bước cảnh báo xác nhận lần 2 trước khi xóa.
-
-> [!NEW] Hai thay đổi đã thêm
-> - `action-modal-panel` đã chuyển lên lớp modal top-layer, nên popup xác nhận hoặc prompt không còn nằm dưới `Quản lý cache` hay các dialog khác.
-> - `Xóa cache Trung (RAW)` trong `Quản lý cache` chỉ mở cho truyện nguồn online `vbook` chưa có quyển hoặc file bổ sung.
-
-> [!FIX] Notify và popup cập nhật đã đọc được markdown
-> - `Changelog` và `Hướng dẫn` giờ hỗ trợ heading, list, `**bold**`, ``code``, link và khối nhấn mạnh `[!NEW]`, `[!FIX]`, `[!TIP]`, `[!WARN]`.
-> - Các mục quan trọng trong notify và popup cập nhật đã nhìn rõ hơn, dễ lướt hơn khi nội dung dài.
-
-## Tìm kiếm và thư viện
-
-- Ô tìm kiếm có skeleton khi đang tải để dễ biết hệ thống vẫn đang xử lý.
-- Kết quả ưu tiên tìm theo truyện trước, rồi mới mở rộng sang chương.
-- Reader sẽ tự cache thêm các tên truyện còn thiếu để tìm bằng tên Việt ổn định hơn.
-- Việc cache tên chạy nền khi mở server và có tiến độ ngay trong thông báo.
-
-## Thông báo và tiến trình
-
-- Có thêm 2 thẻ hệ thống luôn ghim ở đầu là `Changelog` và `Hướng dẫn`.
-- Mở từng thẻ thông báo giờ xem nội dung dài hơn, cuộn thoải mái hơn.
-- Tiến trình nhập có nút `Tiếp tục` và `Thử lại` rõ ràng hơn cho trạng thái `Đã dừng` và `Thất bại`.
-- Nếu truyện đã nhập xong nhưng còn vướng bước cuối như gán danh mục, có thể xử lý lại từ thông báo thay vì làm lại từ đầu.
-- Nếu có bản Reader mới, web server sẽ hiện popup nhắc cập nhật thủ công và có thể ẩn trong 2 giờ.
-
-## Danh mục và thông tin truyện
-
-- Bộ lọc danh mục trong thư viện gọn hơn: nhóm `Tags` mặc định ẩn, các nhóm còn lại vẫn hiện sẵn.
-- Nút `Bỏ lọc` và `Áp dụng` luôn nằm ngoài vùng cuộn để dễ bấm.
-- Giao diện chọn danh mục trong trang thông tin truyện đã đồng bộ với cách hiển thị ở thư viện.
-- Văn án tiếng Trung sẽ được cố dịch lại cho phần hiển thị nếu vẫn còn sót.
-- Trong trang thông tin truyện đã có thể bổ sung thêm chương từ 1 file TXT vào quyển đang có hoặc tạo luôn quyển mới.
-- Bổ sung TXT nhiều file đã chạy được theo 2 cách: giữ thứ tự file đã chọn hoặc để server tự nhận diện số chương từ tên file.
-- Mỗi đợt bổ sung TXT sẽ lưu lại file nguồn trên server để có thể tải lại khi cần.
-- Với truyện thêm bằng link, quyển mặc định sẽ không cho chèn thêm trực tiếp để tránh lẫn với mục lục gốc; muốn thêm chương thì tạo quyển mới.
-- Có thêm nút `i` để xem nhanh lịch sử chính của sách như lúc thêm truyện, lúc kiểm tra mục lục nguồn, lúc tạo quyển mới và các đợt bổ sung chương.
-- Đợt bổ sung TXT mới nhất của từng quyển giờ có thể xóa mềm theo kiểu stack; phần đã xóa có thể khôi phục hoặc tải lại file nguồn trong 30 ngày ngay từ popup lịch sử sách.
-- Trong khu `Name riêng` đã có thêm lịch sử sửa để xem ai vừa thêm, xóa hay đổi tên theo cách nào; nếu thao tác từ reader thì cũng ghi lại chương liên quan.
-- Trong popup sửa truyện đã có thể đổi tên từng quyển ngay tại chỗ, kể cả quyển mặc định.
-- Cache tìm kiếm của thư viện đã bổ sung thêm tên Hán Việt của tác giả truyện Trung, nên lọc theo tác giả bằng Hán Việt sẽ bắt đúng hơn.
-
-## Xuất HTML
-
-- File HTML gộp 1 file giờ chỉ tải vài chương quanh vị trí đang xem nên mở truyện dài mượt hơn nhiều.
-- Bấm mục lục hoặc nút chương trước hoặc sau sẽ nạp lại vùng chương xung quanh, không còn dựng cả truyện lên cùng lúc.
-- Nếu bật mã mở file, thời gian nhớ mã đã được nới lên tối đa 1 năm.
-- Màn nhập mã đã dễ thao tác hơn trên iPhone.
-- Giảm lỗi bị khóa oan sau khi tải lại trang trên Edge.
-- Vẫn giữ chặn extension, script lạ và DevTools khi bật bảo vệ nội dung.
-- Khi tải lại đúng chương đang đọc, việc giữ vị trí trong chương đã ổn định hơn trước.
-
-## Xuất file và hàng đợi xuất file
-
-- Bấm `Xuất file` giờ sẽ đóng cửa sổ ngay và đưa truyện vào hàng đợi sớm hơn, không phải chờ đứng lâu mới thấy job xuất.
-- Hàng đợi xuất file đã có tìm nhanh, lọc theo định dạng, lọc theo ngày và phân trang để dễ xem khi có nhiều file.
-- Danh sách file xuất có vùng cuộn riêng nên không làm trang thư viện bị dài lê thê.
-- Khi xuất có thể chọn trước khoảng chương đã tải xuống thay vì luôn đóng gói toàn bộ phần đã tải.
-
-## Quản lý cache và popup thao tác
-
-- Màn `Quản lý cache` đã tách rõ cache dịch theo từng nhóm `Server`, `Local`, `Mô phỏng` và `Hán Việt` để xóa đúng phần cần dọn.
-- Danh sách truyện trong `Quản lý cache` sẽ tự đưa các truyện đang chiếm nhiều dung lượng lên trước và có phân trang để không bị lag khi thư viện lớn.
-- Mỗi truyện trong `Quản lý cache` giờ hiện rõ từng nhóm cache đang chiếm bao nhiêu chỗ, thay vì chỉ gộp chung một dòng.
-- Khi xóa truyện, hệ thống sẽ dọn sạch thêm cache, ảnh, file bổ sung TXT và các file export đã tạo từ chính truyện đó; riêng cache dịch server dùng chung vẫn được giữ lại.
-- Các thao tác dễ bị browser chặn như xóa file xuất, xóa truyện, xóa mềm hoặc khôi phục đợt bổ sung, tạo hoặc xóa bộ `Name riêng` và xóa thông báo đã chuyển sang popup nội bộ.
-
-## Khác
-
-- Nếu hủy giữa chừng hoặc xử lý lỗi khi import file hay bổ sung TXT, file tạm vừa tải lên sẽ được dọn ngay thay vì nằm lại trên server.
+> [!FIX] Ext chạy đúng nguồn config hơn
+> - Reader không tự nhét `Origin/Referer` của `EXT` vào API nữa, tránh làm EXT trả `403` rồi khiến `home/genre` rỗng.
+> - Proxy ảnh vBook có header giống browser hơn và tự retry bằng HTTP client khác khi `urllib` bị CDN trả lỗi, giúp ảnh bìa Fanqie qua `i*.wp.com` vẫn tải được mà không sửa URL của extension.
+> - Trang home/tabs của EXT không còn bị gán nhầm thành lỗi challenge khi lỗi thật chỉ là header runtime không hợp lệ.

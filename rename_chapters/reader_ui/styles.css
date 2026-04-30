@@ -5000,6 +5000,31 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   resize: vertical;
 }
 
+.vbook-plugin-config-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vbook-plugin-config-fields:empty {
+  display: none;
+}
+
+.vbook-plugin-config-fields label {
+  min-width: 0;
+}
+
+.vbook-plugin-config-fields label.vbook-config-text {
+  grid-column: 1 / -1;
+}
+
+.vbook-plugin-config-fields small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .vbook-runtime-subhead h5 {
   margin: 8px 0 8px;
   font-size: 14px;
@@ -5656,6 +5681,10 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   }
 
   .vbook-runtime-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vbook-plugin-config-fields {
     grid-template-columns: 1fr;
   }
 

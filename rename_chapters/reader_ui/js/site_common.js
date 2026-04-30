@@ -2239,6 +2239,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         install_label: "Cài đặt",
       },
       pluginSettings: {},
+      pluginConfigSchemas: {},
+      pluginEffectiveConfigValues: {},
       selectedRuntimePluginId: "",
     },
     readerUpdateStatus: null,
@@ -3980,6 +3982,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const vbookPluginDelayInput = qs("vbook-plugin-request-delay-ms");
   const vbookPluginThreadsInput = qs("vbook-plugin-download-threads");
   const vbookPluginPrefetchInput = qs("vbook-plugin-prefetch-unread-count");
+  const vbookPluginConfigFields = qs("vbook-plugin-config-fields");
   const vbookRunnerPathValue = qs("vbook-runner-path-value");
   const vbookRunnerInstalledValue = qs("vbook-runner-installed-value");
   const vbookRunnerStatusText = qs("vbook-runner-status");
@@ -4020,7 +4023,41 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       request_delay_ms: clampIntOrNull(raw.request_delay_ms, 0, 15000),
       download_threads: clampIntOrNull(raw.download_threads ?? raw.max_concurrency, 1, 16),
       prefetch_unread_count: clampIntOrNull(raw.prefetch_unread_count, 0, 50),
+      config_values: normalizeVbookConfigValues(raw.config_values),
     };
+  };
+
+  const normalizeVbookConfigValues = (payload) => {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+    const out = {};
+    for (const [keyRaw, value] of Object.entries(payload)) {
+      const key = String(keyRaw || "").trim();
+      if (!key || value == null) continue;
+      out[key] = (typeof value === "number" || typeof value === "boolean") ? value : String(value);
+    }
+    return out;
+  };
+
+  const normalizeVbookConfigSchema = (payload) => {
+    const rows = Array.isArray(payload) ? payload : [];
+    const out = [];
+    const seen = new Set();
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const key = String(row.key || "").trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const type = String(row.type || "").trim().toLowerCase() === "number" ? "number" : "text";
+      out.push({
+        key,
+        title: String(row.title || key).trim() || key,
+        type,
+        default: row.default == null ? (type === "number" ? 0 : "") : row.default,
+        description: String(row.description || "").trim(),
+        multiline: type === "text",
+      });
+    }
+    return out;
   };
 
   const normalizeVbookRunnerStatus = (payload) => {
@@ -4062,6 +4099,72 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     if (vbookGlobalRetryInput) vbookGlobalRetryInput.value = String(cfg.retry_count);
   };
 
+  const renderVbookPluginConfigFields = (pluginId = "") => {
+    if (!vbookPluginConfigFields) return;
+    const pid = String(pluginId || "").trim();
+    const schema = normalizeVbookConfigSchema((state.vbook.pluginConfigSchemas || {})[pid] || []);
+    const overrideValues = normalizeVbookConfigValues(((state.vbook.pluginSettings || {})[pid] || {}).config_values);
+    const effectiveValues = normalizeVbookConfigValues((state.vbook.pluginEffectiveConfigValues || {})[pid] || {});
+    vbookPluginConfigFields.innerHTML = "";
+    for (const item of schema) {
+      const label = document.createElement("label");
+      if (item.type === "text") label.classList.add("vbook-config-text");
+
+      const title = document.createElement("span");
+      title.textContent = `${item.title} (config.${item.key})`;
+      label.appendChild(title);
+
+      const hasOverride = Object.prototype.hasOwnProperty.call(overrideValues, item.key);
+      const value = hasOverride
+        ? overrideValues[item.key]
+        : (Object.prototype.hasOwnProperty.call(effectiveValues, item.key) ? effectiveValues[item.key] : item.default);
+      let input;
+      if (item.type === "number") {
+        input = document.createElement("input");
+        input.type = "number";
+        input.step = "any";
+        input.value = value == null ? "" : String(value);
+        input.placeholder = item.default == null ? "" : String(item.default);
+      } else {
+        input = document.createElement("textarea");
+        input.rows = String(String(value == null ? "" : value).includes("\n") ? 5 : 3);
+        input.spellcheck = false;
+        input.value = value == null ? "" : String(value);
+      }
+      input.dataset.vbookConfigKey = item.key;
+      input.dataset.vbookConfigType = item.type;
+      label.appendChild(input);
+
+      if (item.description) {
+        const hint = document.createElement("small");
+        hint.textContent = item.description;
+        label.appendChild(hint);
+      }
+      vbookPluginConfigFields.appendChild(label);
+    }
+  };
+
+  const collectVbookPluginConfigValues = () => {
+    const out = {};
+    if (!vbookPluginConfigFields) return out;
+    const fields = vbookPluginConfigFields.querySelectorAll("[data-vbook-config-key]");
+    for (const field of fields) {
+      const key = String(field.dataset.vbookConfigKey || "").trim();
+      if (!key) continue;
+      const type = String(field.dataset.vbookConfigType || "text").trim().toLowerCase();
+      const rawValue = field.value;
+      if (type === "number") {
+        const text = String(rawValue ?? "").trim();
+        if (!text) continue;
+        const num = Number(text);
+        if (Number.isFinite(num)) out[key] = num;
+      } else {
+        out[key] = String(rawValue ?? "");
+      }
+    }
+    return out;
+  };
+
   const fillVbookPluginForm = (pluginId = "") => {
     const pid = String(pluginId || state.vbook.selectedRuntimePluginId || "").trim();
     state.vbook.selectedRuntimePluginId = pid;
@@ -4083,6 +4186,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       vbookPluginPrefetchInput.value = pluginCfg.prefetch_unread_count == null ? "" : String(pluginCfg.prefetch_unread_count);
       vbookPluginPrefetchInput.placeholder = String(globalCfg.prefetch_unread_count);
     }
+    renderVbookPluginConfigFields(pid);
   };
 
   const renderVbookRunnerStatus = () => {
@@ -4180,6 +4284,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     try {
       const payload = await api(`/api/vbook/settings/plugin/${encodeURIComponent(pid)}`);
       const override = normalizeVbookPluginSettings(payload && payload.override);
+      state.vbook.pluginConfigSchemas[pid] = normalizeVbookConfigSchema(payload && payload.config_schema);
+      state.vbook.pluginEffectiveConfigValues[pid] = normalizeVbookConfigValues(payload && payload.effective_config_values);
       state.vbook.pluginSettings[pid] = override;
       state.vbook.selectedRuntimePluginId = pid;
       fillVbookPluginForm(pid);
@@ -4233,6 +4339,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       request_delay_ms: clampIntOrNull(vbookPluginDelayInput && vbookPluginDelayInput.value, 0, 15000),
       download_threads: clampIntOrNull(vbookPluginThreadsInput && vbookPluginThreadsInput.value, 1, 16),
       prefetch_unread_count: clampIntOrNull(vbookPluginPrefetchInput && vbookPluginPrefetchInput.value, 0, 50),
+      config_values: collectVbookPluginConfigValues(),
     };
     showStatus(t("statusSavingVbookPluginSettings"));
     try {
@@ -4242,6 +4349,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         body: JSON.stringify(payload),
       });
       const override = normalizeVbookPluginSettings(data && data.override);
+      state.vbook.pluginConfigSchemas[pid] = normalizeVbookConfigSchema(data && data.config_schema);
+      state.vbook.pluginEffectiveConfigValues[pid] = normalizeVbookConfigValues(data && data.effective_config_values);
       state.vbook.pluginSettings[pid] = override;
       fillVbookPluginForm(pid);
       showToast(t("toastVbookPluginSettingsSaved"));
@@ -4266,6 +4375,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         method: "DELETE",
       });
       const override = normalizeVbookPluginSettings(data && data.override);
+      state.vbook.pluginConfigSchemas[pid] = normalizeVbookConfigSchema(data && data.config_schema);
+      state.vbook.pluginEffectiveConfigValues[pid] = normalizeVbookConfigValues(data && data.effective_config_values);
       state.vbook.pluginSettings[pid] = override;
       fillVbookPluginForm(pid);
       showToast(t("toastVbookPluginSettingsCleared"));
