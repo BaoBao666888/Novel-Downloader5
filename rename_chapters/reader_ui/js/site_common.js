@@ -321,6 +321,19 @@ function buildTitleCacheSettingMarkup() {
   );
 }
 
+function buildReaderDebugSettingMarkup() {
+  return (
+    `<label id="reader-debug-wrap">
+      <span>${t("readerDebugMode")}</span>
+      <select id="reader-debug-select">
+        <option value="off">${t("readerDebugOff")}</option>
+        <option value="on">${t("readerDebugOn")}</option>
+      </select>
+      <small id="reader-debug-log-path"></small>
+    </label>`
+  );
+}
+
 function appendExistingNodes(parent, nodes) {
   for (const node of nodes) {
     if (!node) continue;
@@ -369,6 +382,10 @@ function ensureSettingsEnhancements(settingsForm) {
   if (translationModeLabel && !qs("title-cache-auto-wrap")) {
     insertMarkupAfter(translationModeLabel, buildTitleCacheSettingMarkup());
   }
+  const actions = settingsForm.querySelector(".settings-actions");
+  if (actions && !qs("reader-debug-wrap")) {
+    actions.insertAdjacentHTML("beforebegin", buildReaderDebugSettingMarkup());
+  }
   if (settingsForm.dataset.sectionized === "1") return;
   const groups = [
     {
@@ -414,8 +431,13 @@ function ensureSettingsEnhancements(settingsForm) {
         qs("local-translation-settings"),
       ],
     },
+    {
+      title: t("settingsSectionDebug"),
+      nodes: [
+        qs("reader-debug-wrap"),
+      ],
+    },
   ];
-  const actions = settingsForm.querySelector(".settings-actions");
   for (const section of groups) {
     const realNodes = section.nodes.filter((node) => node && settingsForm.contains(node));
     if (!realNodes.length) continue;
@@ -2213,6 +2235,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     readerTranslationHanviet: { ...LOCAL_TRANSLATION_DEFAULT },
     readerTranslationServer: { ...SERVER_TRANSLATION_DEFAULT },
     readerTranslationTitleCacheAuto: true,
+    readerDebug: {
+      enabled: false,
+      logPath: "",
+    },
     vbook: {
       installed: [],
       repoUrls: [],
@@ -2297,6 +2323,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const translationEnabledSelect = qs("translation-enabled-select");
   const translationModeSelect = qs("translation-mode-select");
   const titleCacheAutoSelect = qs("title-cache-auto-select");
+  const readerDebugSelect = qs("reader-debug-select");
+  const readerDebugLogPath = qs("reader-debug-log-path");
   const localSection = qs("local-translation-settings");
   const localSectionLegend = qs("label-local-translate-settings");
   const serverTranslateSection = qs("server-translation-settings");
@@ -3474,6 +3502,20 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     syncLocalTranslationForm();
   };
 
+  const applyReaderDebugSettings = (debug) => {
+    const payload = debug && typeof debug === "object" ? debug : {};
+    state.readerDebug = {
+      enabled: payload.enabled === true,
+      logPath: String(payload.log_path || payload.logPath || "").trim(),
+    };
+    if (readerDebugSelect) readerDebugSelect.value = state.readerDebug.enabled ? "on" : "off";
+    if (readerDebugLogPath) {
+      readerDebugLogPath.textContent = state.readerDebug.enabled && state.readerDebug.logPath
+        ? state.readerDebug.logPath
+        : t("readerDebugHint");
+    }
+  };
+
   const applyReaderTranslationSettings = ({ enabled, mode, server, local, dichngay_local, hanviet, title_cache_auto }, { emit = true } = {}) => {
     state.settings.translationEnabled = enabled !== false;
     state.settings.translationMode = normalizeTranslationMode(mode);
@@ -3499,6 +3541,9 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     const hanvietCfg = normalizeLocalTranslationSettings(state.readerTranslationHanviet || {});
     const mode = normalizeTranslationMode(state.settings.translationMode);
     const payload = {
+      debug: {
+        enabled: readerDebugSelect ? String(readerDebugSelect.value || "off").toLowerCase() === "on" : state.readerDebug.enabled === true,
+      },
       translation: {
         enabled: state.settings.translationEnabled !== false,
         mode,
@@ -3517,6 +3562,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     const serverTranslation = data && data.translation && typeof data.translation === "object"
       ? data.translation
       : payload.translation;
+    if (data && data.debug) applyReaderDebugSettings(data.debug);
     applyReaderTranslationSettings(serverTranslation, { emit: true });
     return serverTranslation;
   };
@@ -3532,8 +3578,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     } else {
       syncReaderTranslationForm();
     }
+    applyReaderDebugSettings(readerSettings && readerSettings.debug);
   } catch {
     syncReaderTranslationForm();
+    applyReaderDebugSettings(null);
   }
 
   const query = parseQuery();
@@ -3783,6 +3831,18 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     titleCacheAutoSelect.addEventListener("change", async () => {
       state.readerTranslationTitleCacheAuto = String(titleCacheAutoSelect.value || "").trim().toLowerCase() !== "off";
       syncReaderTranslationForm();
+      try {
+        await persistReaderTranslationSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
+    });
+  }
+
+  if (readerDebugSelect) {
+    readerDebugSelect.addEventListener("change", async () => {
+      state.readerDebug.enabled = String(readerDebugSelect.value || "").trim().toLowerCase() === "on";
+      applyReaderDebugSettings(state.readerDebug);
       try {
         await persistReaderTranslationSettings();
       } catch (error) {

@@ -191,6 +191,10 @@ def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -
         )
     return {
         "ok": True,
+        "debug": {
+            "enabled": bool(getattr(service, "reader_debug_enabled", False)),
+            "log_path": str(getattr(service, "reader_debug_log_path", "") or ""),
+        },
         "translation": {
             "enabled": bool(service.reader_translation_settings.get("enabled", True)),
             "mode": normalize_translate_mode(service.reader_translation_settings.get("mode"), "local"),
@@ -225,11 +229,13 @@ def set_reader_settings(
         payload = {}
     translation_payload = payload.get("translation")
     patch = translation_payload if isinstance(translation_payload, dict) else payload
+    debug_payload = payload.get("debug") if isinstance(payload.get("debug"), dict) else None
 
     with app_config_lock:
         cfg = load_app_config()
         if not isinstance(cfg, dict):
             cfg = {}
+        existing_debug = cfg.get("reader_debug") if isinstance(cfg.get("reader_debug"), dict) else {}
         existing = normalized_reader_translation_settings(
             service,
             cfg,
@@ -295,6 +301,10 @@ def set_reader_settings(
             "global_dicts": merged_global_dicts,
         }
         cfg["reader_translation"] = next_settings
+        if isinstance(debug_payload, dict):
+            cfg["reader_debug"] = {
+                "enabled": parse_bool(debug_payload.get("enabled"), bool(existing_debug.get("enabled", False))),
+            }
         save_app_config(cfg)
     try:
         vbook_local_translate.clear_bundle_cache()

@@ -245,6 +245,7 @@ const refs = {
   importProgressSummary: document.getElementById("import-progress-summary"),
   importProgressStats: document.getElementById("import-progress-stats"),
   importProgressCurrentFile: document.getElementById("import-progress-current-file"),
+  importProgressDetail: document.getElementById("import-progress-detail"),
 };
 
 const state = {
@@ -328,6 +329,8 @@ const state = {
     success: 0,
     failed: 0,
     currentFile: "",
+    currentStage: "",
+    currentDetail: "",
     phase: "idle",
     title: "",
     hidden: false,
@@ -1798,6 +1801,17 @@ function renderBatchImportProgressDialog() {
       ? state.shell.t(mode === "upload" ? "importUploadCurrentFile" : "importProgressCurrentFile", { name: currentFile })
       : "";
   }
+  if (refs.importProgressDetail) {
+    const detail = String(progress.detail || "").trim();
+    const stage = String(progress.currentStage || "").trim();
+    const stageDetail = String(progress.currentDetail || "").trim();
+    const detailLines = [];
+    if (stage) detailLines.push(`${state.shell.t("importProgressStage")}: ${stage}`);
+    if (stageDetail && stageDetail !== stage) detailLines.push(stageDetail);
+    if (detail) detailLines.push(detail);
+    refs.importProgressDetail.textContent = detailLines.join("\n").trim();
+    refs.importProgressDetail.hidden = !refs.importProgressDetail.textContent;
+  }
   if (progress.active && !progress.hidden) {
     if (!refs.importProgressDialog.open) refs.importProgressDialog.showModal();
   } else if (refs.importProgressDialog.open) {
@@ -1818,6 +1832,8 @@ function openBatchImportProgressDialog(total, {
     success: 0,
     failed: 0,
     currentFile: "",
+    currentStage: "",
+    currentDetail: "",
     phase: "importing",
     title: String(title || "").trim(),
     hidden: false,
@@ -1925,6 +1941,8 @@ function trackServerImportJob(job, { title = "", kind = "import_file" } = {}) {
     success: Math.max(0, Number(job.success || 0)),
     failed: Math.max(0, Number(job.failed || 0)),
     currentFile: String(job.current_file || "").trim(),
+    currentStage: String(job.current_stage || "").trim(),
+    currentDetail: String(job.current_detail || "").trim(),
     phase: String(job.status || "queued").trim().toLowerCase() === "queued" ? "queued" : "importing",
     title: String(title || job.title || "").trim() || "Nhập vào thư viện",
     notificationId: String(job.notification_id || "").trim(),
@@ -1985,6 +2003,8 @@ async function handleTrackedImportNotificationListing(payload) {
     success: Math.max(0, Number(meta.success_count || progress.success || 0)),
     failed: Math.max(0, Number(meta.failed_count || progress.failed || 0)),
     currentFile: String(meta.current_file || "").trim(),
+    currentStage: String(meta.current_stage || "").trim(),
+    currentDetail: String(meta.current_detail || "").trim(),
     phase: nextPhase,
     detail: String((current && current.detail) || "").trim(),
     errors: [],

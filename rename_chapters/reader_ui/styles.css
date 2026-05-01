@@ -3825,6 +3825,19 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   transition: width 0.18s ease;
 }
 
+.import-progress-detail {
+  max-height: 180px;
+  margin: 12px 0 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-alt) 50%, transparent);
+  color: var(--muted);
+  font: 500 12px/1.55 var(--font-ui);
+  white-space: pre-wrap;
+}
+
 .import-config-form {
   display: grid;
   gap: 14px;

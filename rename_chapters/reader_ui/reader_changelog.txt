@@ -41,6 +41,11 @@
 
 > [!OPTIMIZE] Theme và danh mục Reader
 > - Bỏ bớt lựa chọn `Serif hệ thống` trong HTML export vì trùng với `Serif Việt rõ`.
-> - Thêm theme `Mint M0602` và `Tím F5E1FD` cho reader server và HTML export.
+> - Thêm theme `Xanh bạc hà` và `Tím oải hương` cho reader server và HTML export.
 > - Tìm danh mục hỗ trợ khớp không dấu và không phân biệt hoa thường, ví dụ `tu chan` khớp `Tu chân`.
 > - Cập nhật danh mục mặc định WikiCV từ `/nhung-file`.
+
+> [!OPTIMIZE] Import file dễ theo dõi hơn
+> - Đổi tên 2 theme mới thành `Xanh bạc hà` và `Tím oải hương`.
+> - Popup/notification nhập file hiển thị bước xử lý chi tiết như đọc file upload, phân tích TXT/EPUB, lưu DB, lưu EPUB/bìa và dọn file tạm.
+> - Thêm công tắc `Debug server` trong cài đặt; khi bật, server ghi log chi tiết API/import vào thư mục `logs/reader_server`.

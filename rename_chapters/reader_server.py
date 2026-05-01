@@ -432,6 +432,30 @@ def _reader_log_path_for_now() -> Path:
     return _reader_log_dir() / f"reader_server-{now.strftime('%Y-%m-%d')}.log"
 
 
+def _reader_debug_log_path_for_now() -> Path:
+    now = datetime.now()
+    return _reader_log_dir() / f"reader_debug-{now.strftime('%Y-%m-%d')}.log"
+
+
+def write_reader_debug_log(event: str, **fields: Any) -> str:
+    payload = {
+        "ts": utc_now_iso(),
+        "event": str(event or "debug").strip() or "debug",
+        **{str(key): value for key, value in fields.items()},
+    }
+    path = _reader_debug_log_path_for_now()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with _EXPLICIT_LOG_LOCK:
+            with path.open("a", encoding="utf-8", errors="backslashreplace") as fp:
+                fp.write(json.dumps(payload, ensure_ascii=False, default=str, separators=(",", ":")))
+                fp.write("\n")
+                fp.flush()
+    except Exception:
+        return str(path)
+    return str(path)
+
+
 def cleanup_reader_log_files(*, keep_days: int = 30) -> None:
     log_dir = _reader_log_dir()
     try:
@@ -5974,6 +5998,8 @@ class ReaderService:
         self._vbook_bridge_state_mtime: float | None = None
         self.reader_translation_settings: dict[str, Any] = {"enabled": True, "mode": "local"}
         self.reader_import_settings: dict[str, Any] = normalize_reader_import_settings({})
+        self.reader_debug_enabled = False
+        self.reader_debug_log_path = str(_reader_debug_log_path_for_now())
         self.name_set_state: dict[str, Any] = {"sets": {"Mặc định": {}}, "active_set": "Mặc định", "version": 1}
         # Allow storage to lazy-load remote chapter content (vBook, ...).
         self.storage.remote_chapter_fetcher = self._fetch_remote_chapter
@@ -6066,6 +6092,14 @@ class ReaderService:
     def _vbook_runner_default_rel(self) -> str:
         return "tools/vbook_runner/vbook_runner.jar"
 
+    def debug_log(self, event: str, **fields: Any) -> None:
+        if not bool(getattr(self, "reader_debug_enabled", False)):
+            return
+        try:
+            self.reader_debug_log_path = write_reader_debug_log(event, **fields)
+        except Exception:
+            pass
+
     def _resolve_vbook_java_bin(
         self,
         vcfg: dict[str, Any] | None = None,
@@ -6107,6 +6141,9 @@ class ReaderService:
         self._ensure_reader_config_defaults_persisted()
         self.reader_translation_settings = self._normalized_reader_translation_settings(self.app_config)
         self.reader_import_settings = self._normalized_reader_import_settings(self.app_config)
+        debug_cfg = self.app_config.get("reader_debug") if isinstance(self.app_config.get("reader_debug"), dict) else {}
+        self.reader_debug_enabled = service_user_state_support.parse_bool(debug_cfg.get("enabled"), False)
+        self.reader_debug_log_path = str(_reader_debug_log_path_for_now())
         default_sets = self._default_name_sets()
         default_active = self._default_active_name_set(default_sets)
         self.name_set_state = self.storage.get_name_set_state(
@@ -6247,7 +6284,8 @@ class ReaderService:
         )
 
     def upload_import_file(self, filename: str, file_bytes: bytes) -> dict[str, Any]:
-        return service_local_import_support.create_upload_import_token(
+        started = time.perf_counter()
+        result = service_local_import_support.create_upload_import_token(
             filename,
             file_bytes,
             import_preview_dir=IMPORT_PREVIEW_DIR,
@@ -6255,6 +6293,14 @@ class ReaderService:
             HTTPStatus=HTTPStatus,
             utc_now_iso=utc_now_iso,
         )
+        self.debug_log(
+            "import_upload_saved",
+            file_name=str(result.get("file_name") or filename or ""),
+            size_bytes=int(result.get("size_bytes") or len(file_bytes or b"")),
+            token=str(result.get("token") or ""),
+            duration_ms=round((time.perf_counter() - started) * 1000, 1),
+        )
+        return result
 
     def prepare_import_file(
         self,
@@ -6326,6 +6372,7 @@ class ReaderService:
         author: str = "",
         summary: str = "",
         import_settings: dict[str, Any] | None = None,
+        progress_callback=None,
     ) -> dict[str, Any]:
         return service_local_import_support.commit_import_token(
             self,
@@ -6343,6 +6390,7 @@ class ReaderService:
             parse_epub_book=parse_epub_book,
             parse_txt_book=parse_txt_book,
             normalize_vbook_display_text=normalize_vbook_display_text,
+            progress_callback=progress_callback,
         )
 
     def prepare_book_supplement_file(
@@ -9414,6 +9462,10 @@ class ReaderService:
             "error": str(item.get("error") or "").strip(),
             "book_id": str(item.get("book_id") or "").strip(),
             "book_title": normalize_vbook_display_text(str(item.get("book_title") or ""), single_line=True),
+            "stage": normalize_vbook_display_text(str(item.get("stage") or ""), single_line=True),
+            "detail": normalize_vbook_display_text(str(item.get("detail") or ""), single_line=True),
+            "chapter_count": max(0, int(item.get("chapter_count") or 0)),
+            "stage_updated_at": str(item.get("stage_updated_at") or "").strip(),
         }
 
     def _find_import_job_item_locked(self, job: dict[str, Any], token: str) -> dict[str, Any] | None:
@@ -9457,6 +9509,45 @@ class ReaderService:
             }
             for item in failed_items
         ]
+        running_item = next((item for item in items if str(item.get("status") or "").strip().lower() == "running"), None)
+        if running_item:
+            job["current_stage"] = normalize_vbook_display_text(str(running_item.get("stage") or ""), single_line=True)
+            job["current_detail"] = normalize_vbook_display_text(str(running_item.get("detail") or ""), single_line=True)
+
+    def _update_import_job_progress_locked(
+        self,
+        job: dict[str, Any],
+        token: str,
+        *,
+        stage: str = "",
+        detail: str = "",
+        **extra: Any,
+    ) -> None:
+        now = utc_now_iso()
+        stage_text = normalize_vbook_display_text(str(stage or ""), single_line=True)
+        detail_text = normalize_vbook_display_text(str(detail or ""), single_line=True)
+        item_ref = self._find_import_job_item_locked(job, token)
+        if item_ref is not None:
+            item_ref["status"] = "running"
+            if stage_text:
+                item_ref["stage"] = stage_text
+            if detail_text:
+                item_ref["detail"] = detail_text
+            if "chapter_count" in extra:
+                try:
+                    item_ref["chapter_count"] = max(0, int(extra.get("chapter_count") or 0))
+                except Exception:
+                    pass
+            item_ref["stage_updated_at"] = now
+        if stage_text:
+            job["current_stage"] = stage_text
+        if detail_text:
+            job["current_detail"] = detail_text
+        job["updated_at"] = now
+        self._recount_import_job_locked(job)
+        self._persist_import_job_snapshot_locked(job)
+        self._import_cv.notify_all()
+        self._sync_import_notification_locked(job)
 
     def _persist_import_job_snapshot_locked(self, job: dict[str, Any]) -> None:
         snapshot_id = str(job.get("snapshot_id") or "").strip()
@@ -9482,6 +9573,8 @@ class ReaderService:
             ],
             "category_assign_error": str(job.get("category_assign_error") or "").strip(),
             "current_file": str(job.get("current_file") or "").strip(),
+            "current_stage": str(job.get("current_stage") or "").strip(),
+            "current_detail": str(job.get("current_detail") or "").strip(),
             "created_at": str(job.get("created_at") or ""),
             "updated_at": str(job.get("updated_at") or ""),
             "started_at": str(job.get("started_at") or ""),
@@ -9555,6 +9648,8 @@ class ReaderService:
             "success": max(0, int(job.get("success_count") or 0)),
             "failed": max(0, int(job.get("failed_count") or 0)),
             "current_file": str(job.get("current_file") or "").strip(),
+            "current_stage": str(job.get("current_stage") or "").strip(),
+            "current_detail": str(job.get("current_detail") or "").strip(),
             "created_at": str(job.get("created_at") or ""),
             "updated_at": str(job.get("updated_at") or ""),
         }
@@ -9573,6 +9668,8 @@ class ReaderService:
         completed = max(0, int(job.get("completed_count") or (success + failed)))
         completed = min(total or completed, completed)
         current_file = normalize_vbook_display_text(str(job.get("current_file") or ""), single_line=True)
+        current_stage = normalize_vbook_display_text(str(job.get("current_stage") or ""), single_line=True)
+        current_detail = normalize_vbook_display_text(str(job.get("current_detail") or ""), single_line=True)
         imported_book_ids = [
             str(item or "").strip()
             for item in (job.get("imported_book_ids") or [])
@@ -9616,6 +9713,8 @@ class ReaderService:
             preview = f"Đang hoàn tất: thành công {success} • lỗi {failed}"
         elif status in {"completed", "warning", "failed"}:
             preview = f"Hoàn tất: thành công {success} • lỗi {failed}"
+        elif current_file and current_stage:
+            preview = f"{current_stage}: {current_file}"
         elif current_file:
             preview = f"Đang nhập: {current_file}"
         else:
@@ -9629,6 +9728,10 @@ class ReaderService:
         ]
         if current_file:
             detail_lines.append(f"Đang xử lý: {current_file}")
+        if current_stage:
+            detail_lines.append(f"Bước hiện tại: {current_stage}")
+        if current_detail:
+            detail_lines.append(f"Chi tiết: {current_detail}")
         if category_names:
             detail_lines.append(f"Danh mục: {', '.join(category_names)}")
         if category_assign_error:
@@ -9680,6 +9783,8 @@ class ReaderService:
                 "success_count": success,
                 "failed_count": failed,
                 "current_file": current_file,
+                "current_stage": current_stage,
+                "current_detail": current_detail,
                 "book_ids_csv": ",".join(imported_book_ids),
                 "snapshot_id": snapshot_id,
                 "category_ids_csv": ",".join(category_ids),
@@ -10044,6 +10149,14 @@ class ReaderService:
             self._persist_import_job_snapshot_locked(job)
             self._import_cv.notify_all()
             self._sync_import_notification_locked(job)
+            self.debug_log(
+                "import_job_enqueued",
+                job_id=job_id,
+                notification_id=notification_id,
+                total=len(normalized_items),
+                run_tokens=len(run_tokens),
+                title=title,
+            )
             return {"ok": True, "job": self._serialize_import_job_locked(job)}
 
     def _run_import_job(self, job_id: str) -> None:
@@ -10070,6 +10183,7 @@ class ReaderService:
             self._persist_import_job_snapshot_locked(job)
             self._import_cv.notify_all()
             self._sync_import_notification_locked(job)
+            self.debug_log("import_job_started", job_id=job_id, total=len(items), run_tokens=len(run_token_set))
 
         for item in items:
             token = str(item.get("token") or "").strip()
@@ -10082,7 +10196,11 @@ class ReaderService:
                 if item_ref is not None:
                     item_ref["status"] = "running"
                     item_ref["error"] = ""
+                    item_ref["stage"] = "Đang bắt đầu"
+                    item_ref["detail"] = "Worker đã nhận file, chuẩn bị nhập."
                 job["current_file"] = file_name
+                job["current_stage"] = "Đang bắt đầu"
+                job["current_detail"] = "Worker đã nhận file, chuẩn bị nhập."
                 job["phase"] = "importing"
                 job["updated_at"] = utc_now_iso()
                 self._recount_import_job_locked(job)
@@ -10090,6 +10208,28 @@ class ReaderService:
                 self._import_cv.notify_all()
                 self._sync_import_notification_locked(job)
             try:
+                def import_progress(stage: str, detail: str = "", **extra: Any) -> None:
+                    with self._import_cv:
+                        active_job = self._import_jobs.get(job_id)
+                        if not active_job:
+                            return
+                        self._update_import_job_progress_locked(
+                            active_job,
+                            token,
+                            stage=detail or stage,
+                            detail=detail,
+                            **extra,
+                        )
+                    self.debug_log(
+                        "import_progress",
+                        job_id=job_id,
+                        token=token,
+                        file_name=file_name,
+                        stage=stage,
+                        detail=detail,
+                        extra=extra,
+                    )
+
                 created = self.commit_import_token(
                     token,
                     lang_source=str(item.get("lang_source") or ""),
@@ -10097,6 +10237,7 @@ class ReaderService:
                     author=str(item.get("author") or ""),
                     summary=str(item.get("summary") or ""),
                     import_settings=item.get("import_settings") if isinstance(item.get("import_settings"), dict) else None,
+                    progress_callback=import_progress,
                 )
                 book_id = str((created or {}).get("book_id") or "").strip()
                 book_title = normalize_vbook_display_text(
@@ -10113,7 +10254,11 @@ class ReaderService:
                         item_ref["error"] = ""
                         item_ref["book_id"] = book_id
                         item_ref["book_title"] = book_title
+                        item_ref["stage"] = "Hoàn tất"
+                        item_ref["detail"] = "Đã lưu truyện vào thư viện."
                     job["current_file"] = ""
+                    job["current_stage"] = ""
+                    job["current_detail"] = ""
                     job["updated_at"] = utc_now_iso()
                     self._recount_import_job_locked(job)
                     self._persist_import_job_snapshot_locked(job)
@@ -10129,7 +10274,11 @@ class ReaderService:
                     if item_ref is not None:
                         item_ref["status"] = "failed"
                         item_ref["error"] = message
+                        item_ref["stage"] = "Lỗi"
+                        item_ref["detail"] = message
                     job["current_file"] = ""
+                    job["current_stage"] = ""
+                    job["current_detail"] = ""
                     job["updated_at"] = utc_now_iso()
                     self._recount_import_job_locked(job)
                     self._persist_import_job_snapshot_locked(job)
@@ -10145,7 +10294,11 @@ class ReaderService:
                     if item_ref is not None:
                         item_ref["status"] = "failed"
                         item_ref["error"] = message
+                        item_ref["stage"] = "Lỗi"
+                        item_ref["detail"] = message
                     job["current_file"] = ""
+                    job["current_stage"] = ""
+                    job["current_detail"] = ""
                     job["updated_at"] = utc_now_iso()
                     self._recount_import_job_locked(job)
                     self._persist_import_job_snapshot_locked(job)
@@ -10158,6 +10311,8 @@ class ReaderService:
                 return
             job["phase"] = "finishing"
             job["current_file"] = ""
+            job["current_stage"] = "Đang hoàn tất"
+            job["current_detail"] = "Đang tổng kết kết quả và gán danh mục nếu có."
             job["updated_at"] = utc_now_iso()
             self._recount_import_job_locked(job)
             self._persist_import_job_snapshot_locked(job)
@@ -10197,6 +10352,8 @@ class ReaderService:
             job["phase"] = "done"
             job["run_tokens"] = []
             job["current_file"] = ""
+            job["current_stage"] = ""
+            job["current_detail"] = ""
             finished_at = utc_now_iso()
             job["finished_at"] = finished_at
             job["updated_at"] = finished_at
@@ -10204,6 +10361,14 @@ class ReaderService:
             self._persist_import_job_snapshot_locked(job)
             self._import_cv.notify_all()
             self._sync_import_notification_locked(job)
+            self.debug_log(
+                "import_job_finished",
+                job_id=job_id,
+                status=job.get("status"),
+                success=success,
+                failed=failed,
+                category_assign_error=category_assign_error,
+            )
 
     def _import_worker_loop(self) -> None:
         while True:
@@ -16502,11 +16667,34 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
 
     def _dispatch_api(self, method: str, parsed):
         trace_id = uuid.uuid4().hex
+        started_perf = time.perf_counter()
         try:
             self.service.refresh_config()
             data = self._handle_api(method, parsed)
             self._send_json(data, trace_id=trace_id)
+            self.service.debug_log(
+                "api_request",
+                trace_id=trace_id,
+                method=method,
+                path=parsed.path,
+                query_keys=sorted(parse_qs(parsed.query).keys()),
+                status="ok",
+                duration_ms=round((time.perf_counter() - started_perf) * 1000, 1),
+            )
         except ApiError as exc:
+            try:
+                self.service.debug_log(
+                    "api_request",
+                    trace_id=trace_id,
+                    method=method,
+                    path=parsed.path,
+                    status="api_error",
+                    error_code=getattr(exc, "error_code", ""),
+                    message=getattr(exc, "message", ""),
+                    duration_ms=round((time.perf_counter() - started_perf) * 1000, 1),
+                )
+            except Exception:
+                pass
             try:
                 self._send_error_json(exc, trace_id=trace_id)
             except OSError as send_exc:
@@ -16520,6 +16708,19 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 "exception": exc.__class__.__name__,
                 "traceback": traceback.format_exc(limit=5),
             }
+            try:
+                self.service.debug_log(
+                    "api_request",
+                    trace_id=trace_id,
+                    method=method,
+                    path=parsed.path,
+                    status="exception",
+                    exception=exc.__class__.__name__,
+                    message=str(exc),
+                    duration_ms=round((time.perf_counter() - started_perf) * 1000, 1),
+                )
+            except Exception:
+                pass
             try:
                 safe_console_print(
                     f"[API ERROR] trace_id={trace_id} method={method} path={parsed.path}\n{details['traceback']}"

@@ -175,9 +175,12 @@ def parse_local_import_payload(
     parse_epub_book,
     parse_txt_book,
     normalize_vbook_display_text,
+    progress_callback=None,
 ) -> dict[str, Any]:
     name = filename or "imported"
     ext = name.lower().rsplit(".", 1)[-1] if "." in name else "txt"
+    if callable(progress_callback):
+        progress_callback("merge_settings", "Đang đọc cấu hình nhập file.")
     settings = merge_reader_import_settings(
         service,
         import_settings,
@@ -186,6 +189,8 @@ def parse_local_import_payload(
     lang = normalize_lang_source(lang_source) or "zh"
 
     if ext == "epub":
+        if callable(progress_callback):
+            progress_callback("parse_epub", "Đang phân tích EPUB.")
         parsed = parse_epub_book(
             file_bytes,
             custom_title=title,
@@ -195,6 +200,8 @@ def parse_local_import_payload(
             lang_source=lang,
         )
     elif ext == "txt":
+        if callable(progress_callback):
+            progress_callback("parse_txt", "Đang phân tích TXT và tách chương.")
         parsed = parse_txt_book(
             name,
             file_bytes,
@@ -211,6 +218,8 @@ def parse_local_import_payload(
     chapters = parsed.get("chapters") if isinstance(parsed.get("chapters"), list) else []
     if not chapters:
         raise ValueError("Không có chương hợp lệ để import.")
+    if callable(progress_callback):
+        progress_callback("build_preview", f"Đã tách {len(chapters)} chương, đang dựng dữ liệu preview.", chapter_count=len(chapters))
 
     chapter_preview = []
     for idx, chapter in enumerate(chapters, start=1):
@@ -249,9 +258,11 @@ def parse_local_import_payload(
     }
 
 
-def create_book_from_local_import(service, parsed: dict[str, Any], file_bytes: bytes, *, normalize_lang_source) -> dict[str, Any]:
+def create_book_from_local_import(service, parsed: dict[str, Any], file_bytes: bytes, *, normalize_lang_source, progress_callback=None) -> dict[str, Any]:
     metadata = parsed.get("metadata") if isinstance(parsed.get("metadata"), dict) else {}
     chapters = parsed.get("chapters") if isinstance(parsed.get("chapters"), list) else []
+    if callable(progress_callback):
+        progress_callback("save_book", f"Đang lưu metadata và {len(chapters)} chương vào DB.", chapter_count=len(chapters))
     created = service.storage.create_book(
         title=str(metadata.get("title") or "Untitled").strip() or "Untitled",
         author=str(metadata.get("author") or "").strip(),
@@ -265,12 +276,16 @@ def create_book_from_local_import(service, parsed: dict[str, Any], file_bytes: b
         return created
 
     if str(parsed.get("source_type") or "") == "epub":
+        if callable(progress_callback):
+            progress_callback("save_epub", "Đang lưu file EPUB gốc.")
         service.storage.save_epub_source(book_id, file_bytes)
         created["epub_url"] = f"/media/epub/{book_id}.epub"
 
     cover_bytes = parsed.get("cover_bytes")
     if isinstance(cover_bytes, (bytes, bytearray)) and cover_bytes:
         try:
+            if callable(progress_callback):
+                progress_callback("save_cover", "Đang lưu ảnh bìa.")
             updated = service.storage.set_book_cover_upload(
                 book_id,
                 str(parsed.get("cover_name") or "cover.jpg"),
@@ -511,8 +526,11 @@ def commit_import_token(
     parse_epub_book,
     parse_txt_book,
     normalize_vbook_display_text,
+    progress_callback=None,
 ) -> dict[str, Any]:
     try:
+        if callable(progress_callback):
+            progress_callback("load_preview", "Đang đọc phiên upload trên server.")
         state = load_import_preview_state(
             token,
             import_preview_dir=import_preview_dir,
@@ -528,6 +546,8 @@ def commit_import_token(
         source_path = folder / str(state.get("source_name") or "")
         if not source_path.exists():
             raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không còn file nguồn cho phiên import này.")
+        if callable(progress_callback):
+            progress_callback("read_source", "Đang đọc file đã upload.")
         file_bytes = source_path.read_bytes()
         parsed = parse_local_import_payload(
             service,
@@ -543,13 +563,17 @@ def commit_import_token(
             parse_epub_book=parse_epub_book,
             parse_txt_book=parse_txt_book,
             normalize_vbook_display_text=normalize_vbook_display_text,
+            progress_callback=progress_callback,
         )
         created = create_book_from_local_import(
             service,
             parsed,
             file_bytes,
             normalize_lang_source=normalize_lang_source,
+            progress_callback=progress_callback,
         )
+        if callable(progress_callback):
+            progress_callback("cleanup", "Đang dọn file tạm.")
         remove_import_preview_state(
             token,
             import_preview_dir=import_preview_dir,

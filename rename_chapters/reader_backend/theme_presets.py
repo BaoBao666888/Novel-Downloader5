@@ -209,7 +209,7 @@ THEME_PRESETS: list[dict[str, Any]] = [
     },
     {
         "id": "mint_m0602",
-        "name": "Mint M0602",
+        "name": "Xanh bạc hà",
         "description": "Nền mint sáng, dịu mắt khi đọc lâu.",
         "tokens": {
             "bg": "#e0f6e6",
@@ -238,7 +238,7 @@ THEME_PRESETS: list[dict[str, Any]] = [
     },
     {
         "id": "tim_f5e1fd",
-        "name": "Tím F5E1FD",
+        "name": "Tím oải hương",
         "description": "Nền tím nhạt, sáng và ít chói.",
         "tokens": {
             "bg": "#f5e1fd",
