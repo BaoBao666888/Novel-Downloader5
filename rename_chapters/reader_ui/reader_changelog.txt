@@ -48,4 +48,7 @@
 > [!OPTIMIZE] Import file dễ theo dõi hơn
 > - Đổi tên 2 theme mới thành `Xanh bạc hà` và `Tím oải hương`.
 > - Popup/notification nhập file hiển thị bước xử lý chi tiết như đọc file upload, phân tích TXT/EPUB, lưu DB, lưu EPUB/bìa và dọn file tạm.
-> - Thêm công tắc `Debug server` trong cài đặt; khi bật, server ghi log chi tiết API/import vào thư mục `logs/reader_server`.
+> - Thêm công tắc `Debug server` trong cài đặt; khi bật, server ghi log JSON-lines vào thư mục `logs/reader_server`.
+> - Ghi chú ngay dưới nút Debug liệt kê các chức năng đang có log: API request, nhập file/upload/import, mở trang đọc chương, tải raw/remote chapter, dịch nội dung chương và dịch tiêu đề/UI.
+> - Log đọc chương ghi mode raw/dịch, mode dịch, nguồn online, thời gian lấy nội dung, số ký tự/ảnh và lỗi remote nếu có.
+> - Log dịch ghi thời gian, số đoạn, cache hit/cache miss và số dòng lưu cache để dễ soi máy nào chậm bất thường ở dịch server.

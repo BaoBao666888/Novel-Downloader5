@@ -3637,6 +3637,7 @@ class TranslationAdapter:
     name_set_version: int = 1
     cache_lookup_batch: Callable[[list[str], str, str], dict[str, str]] | None = None
     cache_store_batch: Callable[[list[tuple[str, str]], str, str], int] | None = None
+    debug_logger: Callable[..., None] | None = None
 
     def _settings(self) -> dict[str, Any]:
         cfg = self.app_config.get("translator_settings") or {}
@@ -3772,11 +3773,28 @@ class TranslationAdapter:
         name_set_override: dict[str, str] | None = None,
         vp_set_override: dict[str, str] | None = None,
     ) -> dict[str, Any]:
+        started = time.perf_counter()
         source = (text or "").strip()
         mode_norm = (mode or "server").strip().lower()
         if mode_norm not in {"server", "local", "hanviet", "dichngay_local"}:
             mode_norm = "server"
+
+        def _log(status: str, **fields: Any) -> None:
+            if not self.debug_logger:
+                return
+            try:
+                self.debug_logger(
+                    "reader_translation_detailed",
+                    status=status,
+                    mode=mode_norm,
+                    source_len=len(source or ""),
+                    duration_ms=round((time.perf_counter() - started) * 1000, 1),
+                    **fields,
+                )
+            except Exception:
+                pass
         if not source:
+            _log("empty", translated_len=0, unit_count=0, cache_hit_count=0, missing_count=0)
             return {
                 "source_text": "",
                 "processed_text": "",
@@ -3823,6 +3841,17 @@ class TranslationAdapter:
             unit_map = local_detail.get("unit_map") if isinstance(local_detail.get("unit_map"), list) else []
             token_map = local_detail.get("token_map") if isinstance(local_detail.get("token_map"), list) else []
             hits = local_detail.get("name_hits") if isinstance(local_detail.get("name_hits"), list) else collect_name_hits(source, name_set)
+            _log(
+                "ok",
+                translated_len=len(translated or ""),
+                unit_count=len(unit_map),
+                token_count=len(token_map),
+                name_hit_count=len(hits),
+                name_set_size=len(name_set),
+                vp_set_size=len(vp_set),
+                cache_hit_count=0,
+                missing_count=0,
+            )
             return {
                 "source_text": source,
                 "processed_text": processed_text,
@@ -3889,6 +3918,8 @@ class TranslationAdapter:
                     resolved_core[key] = val
 
         missing = [x for x in uniq_lookup if x not in resolved_core]
+        cache_hit_count = len(uniq_lookup) - len(missing)
+        stored_count = 0
         if missing:
             translated_list = translator_logic.translate_text_chunks(
                 missing,
@@ -3913,7 +3944,7 @@ class TranslationAdapter:
                     to_store.append((source_key, translated_piece))
             if to_store and self.cache_store_batch:
                 try:
-                    self.cache_store_batch(to_store, mode_norm, trans_sig)
+                    stored_count = int(self.cache_store_batch(to_store, mode_norm, trans_sig) or 0)
                 except Exception:
                     pass
 
@@ -4026,6 +4057,19 @@ class TranslationAdapter:
         ]
         placeholders.sort(key=lambda x: x["placeholder"])
 
+        _log(
+            "ok",
+            translated_len=len(translated or ""),
+            processed_len=len(processed_text or ""),
+            unit_count=len(unit_map),
+            lookup_count=len(uniq_lookup),
+            cache_hit_count=cache_hit_count,
+            missing_count=len(missing),
+            stored_count=stored_count,
+            name_hit_count=len(hits),
+            name_set_size=len(name_set),
+            vp_set_size=len(vp_set),
+        )
         return {
             "source_text": source,
             "processed_text": processed_text,
@@ -5979,7 +6023,7 @@ class ReaderService:
     def __init__(self, storage: ReaderStorage):
         self.storage = storage
         self.app_config = load_app_config()
-        self.translator = TranslationAdapter(self.app_config)
+        self.translator = TranslationAdapter(self.app_config, debug_logger=self.debug_log)
         self.vbook_manager: Any = None
         self.vbook_runner: Any = None
         self.vbook_runtime_global_settings: dict[str, Any] = {
@@ -6159,6 +6203,7 @@ class ReaderService:
             name_set_version=int(self.name_set_state.get("version") or 1),
             cache_lookup_batch=self.storage.get_translation_memory_batch,
             cache_store_batch=self.storage.set_translation_memory_batch,
+            debug_logger=self.debug_log,
         )
 
         # vBook integration (extensions + runner)
@@ -7525,18 +7570,34 @@ class ReaderService:
         name_set_override: dict[str, str] | None = None,
         vp_set_override: dict[str, str] | None = None,
     ) -> list[str]:
+        started = time.perf_counter()
         values = [
             normalize_vbook_display_text(text or "", single_line=False)
             for text in (texts or [])
         ]
         if not values:
+            self.debug_log(
+                "reader_translation_ui_batch",
+                status="empty",
+                mode=self.resolve_translate_mode(mode),
+                count=0,
+                duration_ms=round((time.perf_counter() - started) * 1000, 1),
+            )
             return []
         if not self.is_reader_translation_enabled():
+            self.debug_log(
+                "reader_translation_ui_batch",
+                status="disabled",
+                mode=self.resolve_translate_mode(mode),
+                count=len(values),
+                total_source_len=sum(len(value or "") for value in values),
+                duration_ms=round((time.perf_counter() - started) * 1000, 1),
+            )
             return [normalize_vbook_display_text(value, single_line=single_line) for value in values]
 
         translate_mode = self.resolve_translate_mode(mode)
         if translate_mode != "server":
-            return [
+            output = [
                 self._translate_ui_text_with_dicts(
                     value,
                     single_line=single_line,
@@ -7546,6 +7607,16 @@ class ReaderService:
                 )
                 for value in values
             ]
+            self.debug_log(
+                "reader_translation_ui_batch",
+                status="ok",
+                mode=translate_mode,
+                count=len(values),
+                total_source_len=sum(len(value or "") for value in values),
+                total_output_len=sum(len(value or "") for value in output),
+                duration_ms=round((time.perf_counter() - started) * 1000, 1),
+            )
+            return output
 
         outputs = [normalize_vbook_display_text(value, single_line=single_line) for value in values]
         unique_sources: list[str] = []
@@ -7558,6 +7629,14 @@ class ReaderService:
             seen_sources.add(value)
             unique_sources.append(value)
         if not unique_sources:
+            self.debug_log(
+                "reader_translation_ui_batch",
+                status="no_cjk",
+                mode=translate_mode,
+                count=len(values),
+                total_source_len=sum(len(value or "") for value in values),
+                duration_ms=round((time.perf_counter() - started) * 1000, 1),
+            )
             return outputs
 
         trans_sig = self.translator.translation_signature(
@@ -7584,6 +7663,8 @@ class ReaderService:
                 resolved[normalized_source] = normalized_target
 
         missing = [source for source in unique_sources if source not in resolved]
+        cache_hit_count = len(unique_sources) - len(missing)
+        stored_count = 0
         if missing:
             translated_list: list[str]
             server_name_set = self.translator._server_name_set_for_use(name_set_override)
@@ -7623,7 +7704,7 @@ class ReaderService:
                     to_store.append((source_key, translated_piece))
             if to_store:
                 try:
-                    self.storage.set_translation_memory_batch(to_store, "server", trans_sig)
+                    stored_count = int(self.storage.set_translation_memory_batch(to_store, "server", trans_sig) or 0)
                 except Exception:
                     pass
 
@@ -7635,6 +7716,19 @@ class ReaderService:
                 outputs[idx] = normalize_vbook_display_text(value, single_line=single_line)
                 continue
             outputs[idx] = resolved.get(value) or normalize_vbook_display_text(value, single_line=single_line)
+        self.debug_log(
+            "reader_translation_ui_batch",
+            status="ok",
+            mode=translate_mode,
+            count=len(values),
+            unique_count=len(unique_sources),
+            cache_hit_count=cache_hit_count,
+            missing_count=len(missing),
+            stored_count=stored_count,
+            total_source_len=sum(len(value or "") for value in values),
+            total_output_len=sum(len(value or "") for value in outputs),
+            duration_ms=round((time.perf_counter() - started) * 1000, 1),
+        )
         return outputs
 
     def _apply_book_card_translation(self, item: dict[str, Any]) -> dict[str, Any]:
@@ -16035,10 +16129,25 @@ class ReaderService:
         return output
 
     def _fetch_remote_chapter(self, chapter: dict[str, Any], book: dict[str, Any]) -> str:
+        started = time.perf_counter()
+        chapter_id = str((chapter or {}).get("chapter_id") or "")
+        book_id = str((book or {}).get("book_id") or "")
+
+        def _log(status: str, **fields: Any) -> None:
+            self.debug_log(
+                "reader_remote_chapter_fetch",
+                status=status,
+                chapter_id=chapter_id,
+                book_id=book_id,
+                duration_ms=round((time.perf_counter() - started) * 1000, 1),
+                **fields,
+            )
         if not str((book or {}).get("source_type") or "").startswith("vbook"):
+            _log("skip", reason="NON_VBOOK", source_type=str((book or {}).get("source_type") or ""))
             return ""
         remote_url = str((chapter or {}).get("remote_url") or "").strip()
         if not remote_url:
+            _log("error", error_code="VBOOK_CHAP_NO_URL")
             raise ApiError(HTTPStatus.BAD_GATEWAY, "VBOOK_CHAP_NO_URL", "Chương này thiếu remote_url để tải.")
 
         plugin_id = str((book or {}).get("source_plugin") or "").strip()
@@ -16051,6 +16160,13 @@ class ReaderService:
         if plugin is None and self.vbook_manager:
             plugin = self.vbook_manager.detect_plugin_for_url(str((book or {}).get("source_url") or "")) or self.vbook_manager.detect_plugin_for_url(remote_url)
         if plugin is None:
+            _log(
+                "error",
+                error_code="VBOOK_PLUGIN_MISSING",
+                source_url=str((book or {}).get("source_url") or ""),
+                remote_url=remote_url,
+                requested_plugin_id=plugin_id,
+            )
             raise ApiError(
                 HTTPStatus.BAD_GATEWAY,
                 "VBOOK_PLUGIN_MISSING",
@@ -16077,8 +16193,24 @@ class ReaderService:
         is_vip = bool((chapter or {}).get("is_vip"))
         vip_sentinel = remote_url_norm.endswith("/error") or remote_url_norm.rstrip("/").endswith("/error")
         try:
+            _log(
+                "start",
+                remote_url=remote_url,
+                plugin_id=str(getattr(plugin, "plugin_id", "") or ""),
+                plugin_name=str(getattr(plugin, "name", "") or ""),
+                is_vip=is_vip,
+                is_comic=bool(is_book_comic(book)),
+            )
             data = self._run_vbook_script(plugin, "chap", [remote_url])
         except ApiError as exc:
+            _log(
+                "error",
+                error_code=getattr(exc, "error_code", ""),
+                message=getattr(exc, "message", "") or str(exc),
+                remote_url=remote_url,
+                plugin_id=str(getattr(plugin, "plugin_id", "") or ""),
+                is_vip=is_vip,
+            )
             message_text = str(getattr(exc, "message", "") or str(exc)).strip().lower()
             generic_like = (
                 ("không tải được chương từ nguồn" in message_text)
@@ -16103,6 +16235,16 @@ class ReaderService:
                         "vip_sentinel": vip_sentinel,
                     },
                 ) from exc
+            raise
+        except Exception as exc:
+            _log(
+                "exception",
+                exception=exc.__class__.__name__,
+                message=str(exc),
+                remote_url=remote_url,
+                plugin_id=str(getattr(plugin, "plugin_id", "") or ""),
+                is_vip=is_vip,
+            )
             raise
         content = ""
         is_comic = bool(is_book_comic(book))
@@ -16139,6 +16281,14 @@ class ReaderService:
         if is_comic:
             images = [str(x).strip() for x in ((comic_payload or {}).get("images") or []) if str(x).strip()]
             if not images:
+                _log(
+                    "error",
+                    error_code="VBOOK_CHAP_EMPTY",
+                    message="Chương truyện tranh không có ảnh hợp lệ.",
+                    remote_url=remote_url,
+                    plugin_id=str(getattr(plugin, "plugin_id", "") or ""),
+                    is_comic=True,
+                )
                 raise ApiError(
                     HTTPStatus.BAD_GATEWAY,
                     "VBOOK_CHAP_EMPTY",
@@ -16158,6 +16308,16 @@ class ReaderService:
                         "Chương VIP này chưa mở được. Hãy đăng nhập đúng tài khoản PO18, mua chương này trên web, "
                         "rồi quay lại tải lại mục lục/chương."
                     )
+                _log(
+                    "error",
+                    error_code="VBOOK_CHAP_EMPTY",
+                    message=empty_message,
+                    remote_url=remote_url,
+                    plugin_id=str(getattr(plugin, "plugin_id", "") or ""),
+                    is_vip=is_vip,
+                    po18_like=po18_like,
+                    vip_sentinel=vip_sentinel,
+                )
                 raise ApiError(
                     HTTPStatus.BAD_GATEWAY,
                     "VBOOK_CHAP_EMPTY",
@@ -16191,6 +16351,15 @@ class ReaderService:
                 self.storage.update_chapter_word_count(str(chapter.get("chapter_id") or ""), len(core))
         except Exception:
             pass
+        comic_payload_done = decode_comic_payload(core) if is_comic else None
+        _log(
+            "ok",
+            remote_url=remote_url,
+            plugin_id=str(getattr(plugin, "plugin_id", "") or ""),
+            content_len=0 if comic_payload_done is not None else len(str(core or "")),
+            image_count=len((comic_payload_done or {}).get("images") or []) if comic_payload_done is not None else 0,
+            is_comic=is_comic,
+        )
         return core
 
     def _build_vbook_image_headers(self, *, image_url: str, plugin_id: str = "", referer: str = "") -> dict[str, str]:

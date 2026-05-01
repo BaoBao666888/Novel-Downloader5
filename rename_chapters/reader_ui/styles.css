@@ -5169,6 +5169,10 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   line-height: 1.35;
 }
 
+#reader-debug-log-path {
+  white-space: pre-wrap;
+}
+
 .vbook-runtime-subhead h5 {
   margin: 8px 0 8px;
   font-size: 14px;

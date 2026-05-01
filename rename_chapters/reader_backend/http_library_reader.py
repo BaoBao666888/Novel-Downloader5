@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import time
 from typing import Any
 from urllib.parse import unquote
 
@@ -81,6 +82,17 @@ def _parse_csv_query_ids(query: dict[str, list[str]], key: str) -> list[str]:
     if not raw:
         return []
     return [part.strip() for part in raw.split(",") if part.strip()]
+
+
+def _duration_ms(started: float) -> float:
+    return round((time.perf_counter() - started) * 1000, 1)
+
+
+def _debug_log(handler, event: str, **fields: Any) -> None:
+    try:
+        handler.service.debug_log(event, **fields)
+    except Exception:
+        pass
 
 
 def _apply_book_display_fields(
@@ -655,6 +667,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         return service.manage_cache(payload)
 
     if method == "GET" and path.startswith("/api/library/chapter/") and path.endswith("/raw"):
+        started = time.perf_counter()
         chapter_id = path.removeprefix("/api/library/chapter/").removesuffix("/raw").strip("/")
         chapter = storage.find_chapter(chapter_id)
         if not chapter:
@@ -671,6 +684,15 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             and chapter.get("remote_url")
             and storage.remote_chapter_fetcher
         ):
+            _debug_log(
+                handler,
+                "reader_chapter_raw_remote_fetch",
+                chapter_id=chapter["chapter_id"],
+                book_id=chapter["book_id"],
+                source_type=source_type,
+                remote_url=str(chapter.get("remote_url") or ""),
+                cached_raw_len=0,
+            )
             raw_text = storage.remote_chapter_fetcher(chapter, book) or ""
         raw_state = storage.get_chapter_raw_edit_state(chapter["chapter_id"])
         comic_payload = deps.decode_comic_payload(raw_text)
@@ -688,7 +710,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                     for img in images
                 ]
             response_content = ""
-        return {
+        response = {
             "ok": True,
             "chapter_id": chapter["chapter_id"],
             "book_id": chapter["book_id"],
@@ -702,6 +724,19 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             "raw_edited": bool(raw_state.get("edited")),
             "raw_edit_updated_at": str(raw_state.get("updated_at") or ""),
         }
+        _debug_log(
+            handler,
+            "reader_chapter_raw_open",
+            chapter_id=chapter["chapter_id"],
+            book_id=chapter["book_id"],
+            source_type=str(book.get("source_type") or ""),
+            content_type=content_type,
+            content_len=len(response_content or ""),
+            image_count=len(images),
+            remote_url=str(chapter.get("remote_url") or ""),
+            duration_ms=_duration_ms(started),
+        )
+        return response
 
     if method == "POST" and path.startswith("/api/library/chapter/") and path.endswith("/raw"):
         chapter_id = path.removeprefix("/api/library/chapter/").removesuffix("/raw").strip("/")
@@ -1046,6 +1081,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         }
 
     if method == "GET" and path.startswith("/api/library/chapter/"):
+        started = time.perf_counter()
         chapter_id = path.removeprefix("/api/library/chapter/").strip()
         chapter = storage.find_chapter(chapter_id)
         if not chapter:
@@ -1062,6 +1098,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             mode = "raw"
         _, active_name_set, _ = _get_active_name_set(handler, chapter["book_id"])
         active_vp_set, _ = storage.get_book_vp_set(chapter["book_id"])
+        content_started = time.perf_counter()
         text = storage.get_chapter_text(
             chapter,
             book,
@@ -1071,9 +1108,11 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,
         )
+        content_duration_ms = _duration_ms(content_started)
         include_name_map = (query.get("include_name_map", ["0"])[0] or "0").strip().lower() in {"1", "true", "yes"}
         name_preview = None
         if include_name_map and mode == "trans" and trans_supported:
+            preview_started = time.perf_counter()
             raw_text = storage.get_chapter_text(
                 chapter,
                 book,
@@ -1091,6 +1130,15 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             )
             if isinstance(name_preview, dict):
                 name_preview.pop("unit_map", None)
+            _debug_log(
+                handler,
+                "reader_chapter_name_map",
+                chapter_id=chapter["chapter_id"],
+                book_id=chapter["book_id"],
+                translation_mode=translate_mode,
+                raw_len=len(raw_text or ""),
+                duration_ms=_duration_ms(preview_started),
+            )
         comic_payload = deps.decode_comic_payload(text)
         response_content = text
         content_type = "text"
@@ -1156,9 +1204,30 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             response["name_map"] = name_preview.get("name_map") or {}
             response["processed_text"] = name_preview.get("processed_text") or ""
             response["translated_with_placeholders"] = name_preview.get("translated_with_placeholders") or ""
+        _debug_log(
+            handler,
+            "reader_chapter_open",
+            chapter_id=chapter["chapter_id"],
+            book_id=chapter["book_id"],
+            chapter_order=chapter.get("chapter_order"),
+            mode=mode,
+            output_mode=output_mode,
+            translation_mode=translate_mode,
+            translation_supported=bool(trans_supported),
+            include_name_map=bool(include_name_map),
+            source_type=str(book.get("source_type") or ""),
+            content_type=content_type,
+            content_len=len(response_content or ""),
+            raw_text_len=len(text or ""),
+            image_count=len(images),
+            remote_url=str(chapter.get("remote_url") or ""),
+            content_duration_ms=content_duration_ms,
+            duration_ms=_duration_ms(started),
+        )
         return response
 
     if method == "POST" and path.startswith("/api/library/chapter/") and path.endswith("/translate"):
+        started = time.perf_counter()
         chapter_id = path.removeprefix("/api/library/chapter/").removesuffix("/translate").strip("/")
         payload = handler._read_json_body()
         translate_mode = service.resolve_translate_mode(payload.get("translation_mode"))
@@ -1175,6 +1244,17 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 mode="raw",
                 translator=service.translator,
                 translate_mode=translate_mode,
+            )
+            _debug_log(
+                handler,
+                "reader_chapter_translate",
+                chapter_id=chapter["chapter_id"],
+                book_id=chapter["book_id"],
+                translation_mode=translate_mode,
+                skipped=True,
+                reason="TRANSLATION_NOT_SUPPORTED",
+                content_len=len(raw_text or ""),
+                duration_ms=_duration_ms(started),
             )
             return {
                 "ok": True,
@@ -1194,6 +1274,15 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             translate_mode=translate_mode,
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,
+        )
+        _debug_log(
+            handler,
+            "reader_chapter_translate",
+            chapter_id=chapter["chapter_id"],
+            book_id=chapter["book_id"],
+            translation_mode=translate_mode,
+            content_len=len(text or ""),
+            duration_ms=_duration_ms(started),
         )
         return {
             "ok": True,

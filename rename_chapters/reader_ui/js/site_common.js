@@ -3510,9 +3510,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     };
     if (readerDebugSelect) readerDebugSelect.value = state.readerDebug.enabled ? "on" : "off";
     if (readerDebugLogPath) {
+      const hint = t("readerDebugHint");
+      const supported = t("readerDebugSupported");
       readerDebugLogPath.textContent = state.readerDebug.enabled && state.readerDebug.logPath
-        ? state.readerDebug.logPath
-        : t("readerDebugHint");
+        ? `${hint}\n${supported}\nLog: ${state.readerDebug.logPath}`
+        : `${hint}\n${supported}`;
     }
   };
 
