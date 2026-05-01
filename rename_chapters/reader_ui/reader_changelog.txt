@@ -52,3 +52,11 @@
 > - Ghi chú ngay dưới nút Debug liệt kê các chức năng đang có log: API request, nhập file/upload/import, mở trang đọc chương, tải raw/remote chapter, dịch nội dung chương và dịch tiêu đề/UI.
 > - Log đọc chương ghi mode raw/dịch, mode dịch, nguồn online, thời gian lấy nội dung, số ký tự/ảnh và lỗi remote nếu có.
 > - Log dịch ghi thời gian, số đoạn, cache hit/cache miss và số dòng lưu cache để dễ soi máy nào chậm bất thường ở dịch server.
+
+> [!OPTIMIZE] Danh mục, cache, export HTML và lọc name
+> - Search danh mục được debounce và render bằng fragment để giảm lag khi gõ.
+> - File HTML export tự phân trang mục lục: desktop 501 chương/trang, mobile 100 chương/trang.
+> - Quản lý cache có ô tìm nhanh theo truyện/tác giả/nguồn/nhóm cache và bỏ truyện không có cache khỏi danh sách.
+> - Lọc name mặc định quét toàn bộ chương đã tải, không còn trần 500 chương phía server.
+> - Lọc name mặc định tắt `Bỏ các name đã có trong bộ hiện tại`.
+> - Lọc name loại thêm các từ xưng hô/đời thường như `小姐`, `嬷嬷`, `丫鬟`, `母亲`, `公子`, `夫人` để giảm candidate rác.

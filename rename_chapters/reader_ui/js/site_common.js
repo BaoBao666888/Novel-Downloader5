@@ -1509,10 +1509,35 @@ function sortCacheManagerGroups(groups) {
   return items;
 }
 
+function normalizeCacheManagerSearchText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .toLowerCase()
+    .trim();
+}
+
+function cacheManagerBookMatchesSearch(book, query) {
+  const needle = normalizeCacheManagerSearchText(query);
+  if (!needle) return true;
+  const haystack = normalizeCacheManagerSearchText([
+    book && book.title_display,
+    book && book.title,
+    book && book.author_display,
+    book && book.source_type,
+    book && book.source_mode,
+    ...(Array.isArray(book && book.cache_groups) ? book.cache_groups.map((group) => group && group.label) : []),
+  ].join(" "));
+  return haystack.includes(needle);
+}
+
 function getCacheManagerVisibleBooks() {
   const ui = ensureCacheManagerUi();
   const pageSize = Math.max(1, Number(ui.pageSize || CACHE_MANAGER_PAGE_SIZE) || CACHE_MANAGER_PAGE_SIZE);
-  const total = Array.isArray(ui.books) ? ui.books.length : 0;
+  const filteredBooks = (Array.isArray(ui.books) ? ui.books : [])
+    .filter((book) => cacheManagerBookMatchesSearch(book, ui.searchQuery));
+  const total = filteredBooks.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(totalPages, Math.max(1, Number(ui.currentPage || 1) || 1));
   ui.currentPage = page;
@@ -1524,7 +1549,7 @@ function getCacheManagerVisibleBooks() {
     totalPages,
     start,
     end: Math.min(total, start + pageSize),
-    books: (ui.books || []).slice(start, start + pageSize),
+    books: filteredBooks.slice(start, start + pageSize),
   };
 }
 
@@ -1626,6 +1651,10 @@ function ensureCacheManagerUi() {
     </div>
     <p id="cache-manager-global-stats" class="empty-text"></p>
     <div id="cache-manager-global-groups" class="cache-manager-global-groups"></div>
+    <label class="cache-manager-search">
+      <span id="cache-manager-search-label"></span>
+      <input id="cache-manager-search-input" type="search" autocomplete="off">
+    </label>
     <div class="cover-btns cache-manager-actions">
       <button id="btn-cache-manager-refresh" class="btn btn-small" type="button"></button>
       <label class="cache-manager-select-all">
@@ -1663,6 +1692,8 @@ function ensureCacheManagerUi() {
     btnClose: dialog.querySelector("#btn-cache-manager-close"),
     globalStats: dialog.querySelector("#cache-manager-global-stats"),
     globalGroups: dialog.querySelector("#cache-manager-global-groups"),
+    searchLabel: dialog.querySelector("#cache-manager-search-label"),
+    searchInput: dialog.querySelector("#cache-manager-search-input"),
     btnRefresh: dialog.querySelector("#btn-cache-manager-refresh"),
     selectAll: dialog.querySelector("#cache-manager-select-all"),
     selectAllLabel: dialog.querySelector("#cache-manager-select-all-label"),
@@ -1689,10 +1720,14 @@ function ensureCacheManagerUi() {
     pageSize: CACHE_MANAGER_PAGE_SIZE,
     currentPage: 1,
     globalGroups: [],
+    searchQuery: "",
+    searchTimer: 0,
   };
 
   refs.title.textContent = t("cacheManagerTitle");
   refs.btnClose.textContent = t("close");
+  refs.searchLabel.textContent = t("cacheManagerSearchLabel");
+  refs.searchInput.placeholder = t("cacheManagerSearchPlaceholder");
   refs.btnRefresh.textContent = t("cacheManagerRefresh");
   refs.selectAllLabel.textContent = t("cacheManagerSelectPage");
   refs.btnClearRaw.textContent = t("cacheManagerClearRaw");
@@ -1709,6 +1744,15 @@ function ensureCacheManagerUi() {
 
   refs.btnClose.addEventListener("click", () => {
     if (dialog.open) dialog.close();
+  });
+  refs.searchInput.addEventListener("input", () => {
+    if (cacheManagerUi.searchTimer) window.clearTimeout(cacheManagerUi.searchTimer);
+    cacheManagerUi.searchTimer = window.setTimeout(() => {
+      cacheManagerUi.searchTimer = 0;
+      cacheManagerUi.searchQuery = String(refs.searchInput.value || "").trim();
+      cacheManagerUi.currentPage = 1;
+      renderCacheManagerList();
+    }, 120);
   });
   refs.selectAll.addEventListener("change", () => {
     const checked = Boolean(refs.selectAll.checked);

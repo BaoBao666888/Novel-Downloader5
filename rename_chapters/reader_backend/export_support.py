@@ -731,6 +731,7 @@ def wrap_export_html_document(
       button.dataset.drawerBound = "1";
       button.addEventListener("click", () => toggleDrawer(button.getAttribute("data-toggle-drawer") || ""));
     }});
+    setupExportTocPagination();
   }};
   const getChapterPayloadNode = () => document.getElementById("export-chapter-payload");
   const getChapterWindowHost = () => document.getElementById("export-chapter-window");
@@ -874,6 +875,87 @@ def wrap_export_html_document(
     ) ? `#${{payload.chapters[virtualChapterActiveIndex].id}}` : "";
     document.querySelectorAll('.export-toc a[href^="#chap-"], .export-nav-link[href^="#chap-"]').forEach((link) => {{
       link.classList.toggle("is-active", Boolean(activeId) && link.getAttribute("href") === activeId);
+    }});
+  }};
+  const getExportTocPageSize = () => {{
+    try {{
+      return window.matchMedia && window.matchMedia("(max-width: 720px)").matches ? 100 : 501;
+    }} catch (_error) {{
+      return 501;
+    }}
+  }};
+  const renderExportTocPage = (toc, page = 1) => {{
+    if (!(toc instanceof HTMLElement)) return;
+    const list = toc.querySelector("ol");
+    if (!(list instanceof HTMLOListElement)) return;
+    const items = Array.from(list.children).filter((node) => node instanceof HTMLLIElement);
+    const pageSize = getExportTocPageSize();
+    const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+    const currentPage = Math.max(1, Math.min(totalPages, Number(page || toc.dataset.tocPage || 1) || 1));
+    toc.dataset.tocPage = String(currentPage);
+    toc.dataset.tocPageSize = String(pageSize);
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    items.forEach((item, index) => {{
+      item.hidden = index < start || index >= end;
+    }});
+    const controls = toc.querySelector(".export-toc-pagination");
+    if (!(controls instanceof HTMLElement)) return;
+    const summary = controls.querySelector("[data-toc-summary]");
+    const select = controls.querySelector("[data-toc-page-select]");
+    const prev = controls.querySelector("[data-toc-prev]");
+    const next = controls.querySelector("[data-toc-next]");
+    if (summary) summary.textContent = `Trang ${{currentPage}}/${{totalPages}} • ${{items.length}} chương`;
+    if (select instanceof HTMLSelectElement) {{
+      if (Number(select.dataset.totalPages || 0) !== totalPages) {{
+        select.replaceChildren(...Array.from({{ length: totalPages }}, (_item, index) => {{
+          const option = document.createElement("option");
+          option.value = String(index + 1);
+          option.textContent = `Trang ${{index + 1}}/${{totalPages}}`;
+          return option;
+        }}));
+        select.dataset.totalPages = String(totalPages);
+      }}
+      select.value = String(currentPage);
+      select.disabled = totalPages <= 1;
+    }}
+    if (prev instanceof HTMLButtonElement) prev.disabled = currentPage <= 1;
+    if (next instanceof HTMLButtonElement) next.disabled = currentPage >= totalPages;
+    controls.hidden = totalPages <= 1;
+  }};
+  const setupExportTocPagination = () => {{
+    document.querySelectorAll(".export-toc").forEach((toc) => {{
+      if (!(toc instanceof HTMLElement)) return;
+      const list = toc.querySelector("ol");
+      if (!(list instanceof HTMLOListElement)) return;
+      const items = Array.from(list.children).filter((node) => node instanceof HTMLLIElement);
+      const pageSize = getExportTocPageSize();
+      let controls = toc.querySelector(".export-toc-pagination");
+      if (items.length <= pageSize) {{
+        items.forEach((item) => {{ item.hidden = false; }});
+        if (controls instanceof HTMLElement) controls.hidden = true;
+        return;
+      }}
+      if (!(controls instanceof HTMLElement)) {{
+        controls = document.createElement("div");
+        controls.className = "export-toc-pagination";
+        controls.innerHTML = '<button type="button" class="export-chip" data-toc-prev>Trang trước</button><select class="export-toc-page-select" data-toc-page-select aria-label="Trang mục lục"></select><button type="button" class="export-chip" data-toc-next>Trang sau</button><span class="export-toc-page-summary" data-toc-summary></span>';
+        list.after(controls);
+        const select = controls.querySelector("[data-toc-page-select]");
+        const prev = controls.querySelector("[data-toc-prev]");
+        const next = controls.querySelector("[data-toc-next]");
+        if (select instanceof HTMLSelectElement) {{
+          select.addEventListener("change", () => renderExportTocPage(toc, Number(select.value || 1)));
+        }}
+        if (prev instanceof HTMLButtonElement) {{
+          prev.addEventListener("click", () => renderExportTocPage(toc, Number(toc.dataset.tocPage || 1) - 1));
+        }}
+        if (next instanceof HTMLButtonElement) {{
+          next.addEventListener("click", () => renderExportTocPage(toc, Number(toc.dataset.tocPage || 1) + 1));
+        }}
+      }}
+      const storedPageSize = Number(toc.dataset.tocPageSize || 0);
+      renderExportTocPage(toc, storedPageSize && storedPageSize !== pageSize ? 1 : Number(toc.dataset.tocPage || 1));
     }});
   }};
   const scrollToVirtualChapter = (chapterId, withinRatio = null, rawOffset = null) => {{
@@ -1691,6 +1773,11 @@ def wrap_export_html_document(
   document.querySelectorAll(".export-toc a, .export-nav-link").forEach((link) => {{
     link.addEventListener("click", closeDrawers);
   }});
+  setupExportTocPagination();
+  window.addEventListener("resize", () => {{
+    window.clearTimeout(window.__readerExportTocResizeTimer || 0);
+    window.__readerExportTocResizeTimer = window.setTimeout(setupExportTocPagination, 140);
+  }});
   document.addEventListener("click", (event) => {{
     const target = event.target;
     if (!(target instanceof Element)) return;
@@ -1956,7 +2043,7 @@ def wrap_export_html_document(
         ".export-local-hint{margin:0 0 24px;padding:14px 16px;border:1px dashed var(--border);border-radius:18px;background:color-mix(in srgb,var(--surface) 88%, transparent);color:var(--muted);}.export-local-hint p{margin:0;font:600 13px/1.65 var(--font-ui);}"
         ".export-local-reader{display:grid;gap:0;}.export-chapter-window{display:grid;gap:0;min-height:120px;}.export-chapter-payload{display:none !important;}"
         ".chapter-images{display:flex;flex-direction:column;gap:var(--comic-image-gap);align-items:center;}.chapter-image-wrap{width:100%;max-width:var(--comic-max-width);margin:0 auto;padding:0;border-radius:22px;overflow:hidden;background:color-mix(in srgb,var(--surface) 82%, transparent);box-shadow:0 18px 38px rgba(0,0,0,.18);}.chapter-image{display:block;width:100%;height:auto;}"
-        ".export-toc ol{margin:0;padding-left:22px;}.export-toc li+li{margin-top:8px;}.export-toc.empty p{color:var(--muted);}.export-toc a.is-active{font-weight:700;color:var(--text);text-decoration:underline;text-underline-offset:2px;}"
+        ".export-toc ol{margin:0;padding-left:22px;}.export-toc li+li{margin-top:8px;}.export-toc.empty p{color:var(--muted);}.export-toc a.is-active{font-weight:700;color:var(--text);text-decoration:underline;text-underline-offset:2px;}.export-toc-pagination{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}.export-toc-pagination[hidden]{display:none !important;}.export-toc-page-select{min-width:132px;padding:9px 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text);font:600 13px/1 var(--font-ui);}.export-toc-page-summary{font-size:12px;color:var(--muted);}"
         ".export-nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:0 0 18px;}.export-nav-center{grid-column:2;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;}.export-nav-right{grid-column:3;display:flex;justify-content:flex-end;}.export-nav-settings{display:inline-flex;align-items:center;gap:6px;}.chapter-footer-nav{margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}"
         ".export-drawer{position:fixed;top:0;bottom:0;z-index:40;pointer-events:none;}.export-drawer[data-drawer='toc']{left:0;}.export-drawer[data-drawer='settings']{right:0;}.export-drawer.open{pointer-events:auto;}.export-drawer-backdrop{position:absolute;inset:0;background:rgba(9,12,17,.44);opacity:0;transition:opacity .2s ease;}.export-drawer.open .export-drawer-backdrop{opacity:1;}"
         ".export-drawer-panel{position:absolute;top:0;bottom:0;width:min(360px,86vw);padding:20px;background:var(--bg-elev);box-shadow:var(--shadow);overflow:auto;transition:transform .22s ease;}.export-drawer[data-drawer='toc'] .export-drawer-panel{left:0;transform:translateX(-108%);border-right:1px solid var(--border);}.export-drawer[data-drawer='settings'] .export-drawer-panel{right:0;transform:translateX(108%);border-left:1px solid var(--border);}.export-drawer.open .export-drawer-panel{transform:translateX(0);}"

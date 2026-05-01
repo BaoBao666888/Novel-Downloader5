@@ -3644,12 +3644,12 @@ function resetBookNameFilterDialog() {
   const chapterTotal = bookChapterTotalCount();
   if (refs.bookNameFilterFirstN) refs.bookNameFilterFirstN.value = String(Math.min(Math.max(1, downloaded || 1), 20));
   if (refs.bookNameFilterStart) refs.bookNameFilterStart.value = "1";
-  if (refs.bookNameFilterEnd) refs.bookNameFilterEnd.value = String(Math.min(Math.max(1, downloaded || chapterTotal || 1), 20));
-  if (refs.bookNameFilterMaxChapters) refs.bookNameFilterMaxChapters.value = String(Math.min(Math.max(1, downloaded || 1), 80));
+  if (refs.bookNameFilterEnd) refs.bookNameFilterEnd.value = String(Math.max(1, downloaded || chapterTotal || 1));
+  if (refs.bookNameFilterMaxChapters) refs.bookNameFilterMaxChapters.value = String(Math.max(1, downloaded || 1));
   if (refs.bookNameFilterIncludePerson) refs.bookNameFilterIncludePerson.checked = true;
   if (refs.bookNameFilterIncludePlace) refs.bookNameFilterIncludePlace.checked = true;
   if (refs.bookNameFilterIncludeTitle) refs.bookNameFilterIncludeTitle.checked = true;
-  if (refs.bookNameFilterSkipExisting) refs.bookNameFilterSkipExisting.checked = true;
+  if (refs.bookNameFilterSkipExisting) refs.bookNameFilterSkipExisting.checked = false;
   if (refs.bookNameFilterSummary) refs.bookNameFilterSummary.textContent = "";
   if (refs.bookNameFilterSelectAll) {
     refs.bookNameFilterSelectAll.checked = false;
@@ -3673,7 +3673,7 @@ function buildBookNameFilterPayload() {
     min_length: Number(refs.bookNameFilterMinLength && refs.bookNameFilterMinLength.value || 2),
     max_length: Number(refs.bookNameFilterMaxLength && refs.bookNameFilterMaxLength.value || 4),
     max_items: Number(refs.bookNameFilterMaxItems && refs.bookNameFilterMaxItems.value || 120),
-    max_chapters: Number(refs.bookNameFilterMaxChapters && refs.bookNameFilterMaxChapters.value || 80),
+    max_chapters: Number(refs.bookNameFilterMaxChapters && refs.bookNameFilterMaxChapters.value || bookDownloadedChapterCount() || 999999),
     skip_existing: Boolean(refs.bookNameFilterSkipExisting && refs.bookNameFilterSkipExisting.checked),
     include_person: Boolean(refs.bookNameFilterIncludePerson && refs.bookNameFilterIncludePerson.checked),
     include_place: Boolean(refs.bookNameFilterIncludePlace && refs.bookNameFilterIncludePlace.checked),

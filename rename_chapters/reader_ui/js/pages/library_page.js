@@ -287,6 +287,7 @@ const state = {
   categoryFilterDraftExcludeIds: [],
   categoryFilterDraftMatchMode: "or",
   categorySectionExpanded: {},
+  renderTimers: {},
   authorFilterDraft: "",
   categoryManagerBooks: [],
   categoryManagerBooksLoaded: false,
@@ -668,15 +669,42 @@ function normalizeCategorySearchText(value) {
     .trim();
 }
 
-function categoryMatchesSearch(category, term) {
-  const needle = normalizeCategorySearchText(term);
-  if (!needle) return true;
+function scheduleRender(key, fn, delay = 120) {
+  const timerKey = String(key || "default").trim() || "default";
+  if (state.renderTimers[timerKey]) {
+    window.clearTimeout(state.renderTimers[timerKey]);
+  }
+  state.renderTimers[timerKey] = window.setTimeout(() => {
+    state.renderTimers[timerKey] = 0;
+    fn();
+  }, Math.max(0, Number(delay || 0)));
+}
+
+function getCategorySearchHaystack(category) {
   const item = normalizeCategoryItem(category);
-  return [
+  const signature = [
+    item.category_id,
     item.name,
     item.default_group_label,
     item.default_subgroup_label,
-  ].some((value) => normalizeCategorySearchText(value).includes(needle));
+  ].join("\u0001");
+  const cached = category && typeof category === "object" ? category._search_cache : null;
+  if (cached && cached.signature === signature) return cached.text;
+  const text = normalizeCategorySearchText([
+    item.name,
+    item.default_group_label,
+    item.default_subgroup_label,
+  ].join(" "));
+  if (category && typeof category === "object") {
+    category._search_cache = { signature, text };
+  }
+  return text;
+}
+
+function categoryMatchesSearch(category, term) {
+  const needle = normalizeCategorySearchText(term);
+  if (!needle) return true;
+  return getCategorySearchHaystack(category).includes(needle);
 }
 
 function compareCategoriesForDisplay(left, right) {
@@ -805,15 +833,16 @@ function renderCategoryPickerSections(container, {
   onToggle = null,
   scopeKey = "",
   collapsibleSections = false,
+  visibleSections = null,
 } = {}) {
   if (!container) return [];
-  container.innerHTML = "";
   const activeSet = new Set(normalizeCategoryIds(activeIds));
-  const sections = buildVisibleCategorySections(term);
+  const sections = Array.isArray(visibleSections) ? visibleSections : buildVisibleCategorySections(term);
   if (emptyNode) {
     emptyNode.classList.toggle("hidden", sections.length > 0);
     emptyNode.textContent = emptyText || "";
   }
+  const fragment = document.createDocumentFragment();
   for (const section of sections) {
     const sectionEl = document.createElement("section");
     sectionEl.className = "category-picker-section";
@@ -847,7 +876,7 @@ function renderCategoryPickerSections(container, {
     sectionEl.appendChild(head);
 
     if (!expanded) {
-      container.appendChild(sectionEl);
+      fragment.appendChild(sectionEl);
       continue;
     }
 
@@ -883,8 +912,9 @@ function renderCategoryPickerSections(container, {
       target.appendChild(list);
     }
 
-    container.appendChild(sectionEl);
+    fragment.appendChild(sectionEl);
   }
+  container.replaceChildren(fragment);
   return sections;
 }
 
@@ -3755,6 +3785,7 @@ function renderLibraryCategoryFilterList() {
   state.categoryFilterDraftExcludeIds = applySingleSelectionRules(draftPair.exclude);
   const includeSet = new Set(state.categoryFilterDraftIds);
   const excludeSet = new Set(state.categoryFilterDraftExcludeIds);
+  const visibleSections = buildVisibleCategorySections(term);
   if (refs.libraryCategoryMatchModeSelect) {
     refs.libraryCategoryMatchModeSelect.value = normalizeCategoryMatchMode(state.categoryFilterDraftMatchMode);
     refs.libraryCategoryMatchModeSelect.disabled = includeSet.size < 2;
@@ -3775,6 +3806,7 @@ function renderLibraryCategoryFilterList() {
     showCount: true,
     scopeKey: "library-filter-include",
     collapsibleSections: true,
+    visibleSections,
     onToggle: (id) => {
       const nextExclude = new Set(normalizeCategoryIds(state.categoryFilterDraftExcludeIds));
       nextExclude.delete(id);
@@ -3789,6 +3821,7 @@ function renderLibraryCategoryFilterList() {
     showCount: true,
     scopeKey: "library-filter-exclude",
     collapsibleSections: true,
+    visibleSections,
     onToggle: (id) => {
       const nextInclude = new Set(normalizeCategoryIds(state.categoryFilterDraftIds));
       nextInclude.delete(id);
@@ -3862,7 +3895,6 @@ function syncCategoryManagerControls() {
 
 function renderCategoryManagerList() {
   if (!refs.categoryManagerList || !refs.categoryManagerEmpty) return;
-  refs.categoryManagerList.innerHTML = "";
   const term = String((refs.categoryManagerSearchInput && refs.categoryManagerSearchInput.value) || "").trim().toLowerCase();
   const items = (state.categories || [])
     .map((item) => normalizeCategoryItem(item))
@@ -3873,6 +3905,7 @@ function renderCategoryManagerList() {
   if (state.categoryManagerSelectedId && !items.some((item) => String(item.category_id || "") === String(state.categoryManagerSelectedId || ""))) {
     state.categoryManagerSelectedId = items.length ? String(items[0].category_id || "") : "";
   }
+  const fragment = document.createDocumentFragment();
   for (const category of items) {
     const id = String(category.category_id || "").trim();
     const row = document.createElement("button");
@@ -3893,8 +3926,9 @@ function renderCategoryManagerList() {
       renderCategoryManagerList();
       renderCategoryManagerBooks();
     });
-    refs.categoryManagerList.appendChild(row);
+    fragment.appendChild(row);
   }
+  refs.categoryManagerList.replaceChildren(fragment);
   const selected = getCategoryManagerSelected();
   if (!selected && items.length) {
     state.categoryManagerSelectedId = String(items[0].category_id || "");
@@ -3904,7 +3938,6 @@ function renderCategoryManagerList() {
 
 function renderCategoryManagerBooks() {
   if (!refs.categoryManagerBooksList || !refs.categoryManagerBooksEmpty || !refs.categoryManagerBooksTitle) return;
-  refs.categoryManagerBooksList.innerHTML = "";
   const selected = getCategoryManagerSelected();
   refs.categoryManagerBooksTitle.textContent = selected
     ? state.shell.t("categoryManagerBooksTitle", { name: selected.name || "" })
@@ -3912,12 +3945,14 @@ function renderCategoryManagerBooks() {
   if (!selected) {
     refs.categoryManagerBooksEmpty.classList.remove("hidden");
     refs.categoryManagerBooksEmpty.textContent = state.shell.t("categoryManagerSelectHint");
+    refs.categoryManagerBooksList.replaceChildren();
     syncCategoryManagerControls();
     return;
   }
   if (state.categoryManagerBooksLoading && !state.categoryManagerBooksLoaded) {
     refs.categoryManagerBooksEmpty.classList.remove("hidden");
     refs.categoryManagerBooksEmpty.textContent = state.shell.t("categoryManagerBooksLoading");
+    refs.categoryManagerBooksList.replaceChildren();
     syncCategoryManagerControls();
     return;
   }
@@ -3933,6 +3968,7 @@ function renderCategoryManagerBooks() {
     }
   }
   let visibleChecked = 0;
+  const fragment = document.createDocumentFragment();
   for (const book of items) {
     const bid = String(book.book_id || "").trim();
     const row = document.createElement("label");
@@ -3962,8 +3998,9 @@ function renderCategoryManagerBooks() {
       : state.shell.t("categoryManagerNotInCategory");
 
     row.append(checkbox, meta, status);
-    refs.categoryManagerBooksList.appendChild(row);
+    fragment.appendChild(row);
   }
+  refs.categoryManagerBooksList.replaceChildren(fragment);
   if (refs.categoryManagerBooksSelectAll) {
     refs.categoryManagerBooksSelectAll.checked = items.length > 0 && visibleChecked === items.length;
     refs.categoryManagerBooksSelectAll.indeterminate = visibleChecked > 0 && visibleChecked < items.length;
@@ -6313,7 +6350,9 @@ async function init() {
   if (refs.btnCloseLibraryCategoryFilter) refs.btnCloseLibraryCategoryFilter.addEventListener("click", () => {
     if (refs.libraryCategoryFilterDialog && refs.libraryCategoryFilterDialog.open) refs.libraryCategoryFilterDialog.close();
   });
-  if (refs.libraryCategoryFilterSearch) refs.libraryCategoryFilterSearch.addEventListener("input", renderLibraryCategoryFilterList);
+  if (refs.libraryCategoryFilterSearch) refs.libraryCategoryFilterSearch.addEventListener("input", () => {
+    scheduleRender("library-category-filter", renderLibraryCategoryFilterList, 120);
+  });
   if (refs.libraryAuthorFilterInput) {
     refs.libraryAuthorFilterInput.addEventListener("input", () => {
       state.authorFilterDraft = normalizeAuthorFilterValue(refs.libraryAuthorFilterInput.value);
@@ -6354,7 +6393,9 @@ async function init() {
   if (refs.importSkipPrepareInput) refs.importSkipPrepareInput.addEventListener("change", () => {
     syncImportModeUi();
   });
-  if (refs.importCategoriesSearchInput) refs.importCategoriesSearchInput.addEventListener("input", renderImportCategoryList);
+  if (refs.importCategoriesSearchInput) refs.importCategoriesSearchInput.addEventListener("input", () => {
+    scheduleRender("import-categories", renderImportCategoryList, 120);
+  });
   if (refs.btnImportCategoriesClear) refs.btnImportCategoriesClear.addEventListener("click", () => {
     state.importSelectedCategoryIds = [];
     if (refs.importCategoriesSearchInput) refs.importCategoriesSearchInput.value = "";
@@ -6369,15 +6410,21 @@ async function init() {
   if (refs.btnCancelBookCategories) refs.btnCancelBookCategories.addEventListener("click", () => {
     if (refs.bookCategoriesDialog && refs.bookCategoriesDialog.open) refs.bookCategoriesDialog.close();
   });
-  if (refs.bookCategoriesSearchInput) refs.bookCategoriesSearchInput.addEventListener("input", renderBookCategoriesDialogList);
+  if (refs.bookCategoriesSearchInput) refs.bookCategoriesSearchInput.addEventListener("input", () => {
+    scheduleRender("book-categories-dialog", renderBookCategoriesDialogList, 120);
+  });
   if (refs.btnSaveBookCategories) refs.btnSaveBookCategories.addEventListener("click", () => {
     saveBookCategoriesDialog().catch(() => {});
   });
   if (refs.btnCloseCategoryManager) refs.btnCloseCategoryManager.addEventListener("click", () => {
     if (refs.categoryManagerDialog && refs.categoryManagerDialog.open) refs.categoryManagerDialog.close();
   });
-  if (refs.categoryManagerSearchInput) refs.categoryManagerSearchInput.addEventListener("input", renderCategoryManagerList);
-  if (refs.categoryManagerBooksSearchInput) refs.categoryManagerBooksSearchInput.addEventListener("input", renderCategoryManagerBooks);
+  if (refs.categoryManagerSearchInput) refs.categoryManagerSearchInput.addEventListener("input", () => {
+    scheduleRender("category-manager-list", renderCategoryManagerList, 120);
+  });
+  if (refs.categoryManagerBooksSearchInput) refs.categoryManagerBooksSearchInput.addEventListener("input", () => {
+    scheduleRender("category-manager-books", renderCategoryManagerBooks, 120);
+  });
   if (refs.categoryManagerBooksSelectAll) refs.categoryManagerBooksSelectAll.addEventListener("change", () => {
     syncCategoryManagerBookSelectionToVisible(Boolean(refs.categoryManagerBooksSelectAll.checked));
     renderCategoryManagerBooks();

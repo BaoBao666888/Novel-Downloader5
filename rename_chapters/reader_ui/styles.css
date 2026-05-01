@@ -4721,6 +4721,22 @@ body.fullscreen-reading:not(.fullscreen-ui-visible) .reader-footer {
   margin-bottom: 12px;
 }
 
+.cache-manager-search {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.cache-manager-search span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.cache-manager-search input {
+  width: 100%;
+}
+
 .cache-global-card {
   border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
   border-radius: 14px;

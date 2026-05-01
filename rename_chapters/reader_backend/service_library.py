@@ -375,6 +375,9 @@ def get_cache_summary(
                 }
             )
 
+        if total_bytes <= 0 and not cache_groups:
+            continue
+
         items.append(
             {
                 "book_id": bid,
