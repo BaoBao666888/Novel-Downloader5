@@ -758,15 +758,24 @@ function createCategoryChip(category, { active = false, onClick = null } = {}) {
   return chip;
 }
 
+function normalizeCategorySearchText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .toLowerCase()
+    .trim();
+}
+
 function categoryMatchesSearch(category, term) {
-  const needle = String(term || "").trim().toLowerCase();
+  const needle = normalizeCategorySearchText(term);
   if (!needle) return true;
   const item = normalizeCategoryItem(category);
   return [
     item.name,
     item.default_group_label,
     item.default_subgroup_label,
-  ].some((value) => String(value || "").trim().toLowerCase().includes(needle));
+  ].some((value) => normalizeCategorySearchText(value).includes(needle));
 }
 
 function compareCategoriesForDisplay(left, right) {

@@ -541,7 +541,6 @@ def wrap_export_html_document(
     protection_extra_styles = str(protection_context.get("extra_styles") or "") if protect_enabled else ""
     font_choices = (
         '<option value="vietserif">Serif Việt rõ</option>'
-        '<option value="serif">Serif hệ thống</option>'
         '<option value="literary">Serif đậm chất sách</option>'
         '<option value="cambria">Cambria</option>'
         '<option value="times">Times New Roman</option>'
@@ -630,6 +629,7 @@ def wrap_export_html_document(
       if (parsed && typeof parsed === "object") state = {{ ...state, ...parsed }};
     }}
   }} catch (_error) {{}}
+  if (String(state.fontFamily || "") === "serif") state.fontFamily = "vietserif";
   const root = document.documentElement;
   const shell = document.querySelector(".export-shell");
   const header = document.querySelector(".export-header");
