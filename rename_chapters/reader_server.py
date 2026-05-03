@@ -47,6 +47,7 @@ from reader_backend.core import logging_utils as logging_utils_support
 from reader_backend.core import notification_center as notification_center_support
 from reader_backend.core import reader_update as reader_update_support
 from reader_backend.core import runtime_paths as runtime_paths_support
+from reader_backend.core import versioning as versioning_support
 from reader_backend.exporting import support as export_support
 from reader_backend.jobs import download_batch as download_batch_support
 from reader_backend.jobs import download_execute as download_execute_support
@@ -136,6 +137,7 @@ NAME_FILTER_JOB_RETENTION_SECONDS = 1800
 VBOOK_RUNNER_INSTALL_URL = str(_LOCAL_VBOOK_RUNNER_INSTALL_URL or "").strip()
 READER_SERVER_RUNTIME_VERSION = "0.1.8"
 READER_UI_RUNTIME_VERSION = "0.1.7"
+READER_VBOOK_RUNNER_VERSION = "0.1.1"
 READER_VERSION_MANIFEST_URL = "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/refs/heads/main/rename_chapters/version.json"
 READER_UPDATE_STATUS_CACHE_TTL_SECONDS = 900
 
@@ -4177,6 +4179,11 @@ class ReaderService:
         self._vbook_singleflight_lock = threading.RLock()
         self._vbook_singleflight_runs: dict[str, dict[str, Any]] = {}
         self._vbook_image_fetch_sem = threading.BoundedSemaphore(6)
+        self._vbook_runner_auto_update_lock = threading.RLock()
+        self._vbook_runner_auto_update_running = False
+        self._vbook_runner_auto_update_thread: threading.Thread | None = None
+        self._vbook_runner_auto_update_last_key = ""
+        self._vbook_runner_auto_update_last_ts = 0.0
         with self._notifications_cv:
             self._load_notifications_state_locked()
         with self._export_cv:
@@ -8890,6 +8897,125 @@ class ReaderService:
             return generic_jars[0]
         raise RuntimeError("Không tìm thấy `vbook_runner.jar` trong file zip.")
 
+    def _is_vbook_runner_update_available(self, installed_version: str) -> bool:
+        return versioning_support.is_remote_version_newer(READER_VBOOK_RUNNER_VERSION, installed_version)
+
+    def _sync_vbook_runner_auto_update_notification(
+        self,
+        *,
+        status: str,
+        installed_version: str = "",
+        final_version: str = "",
+        error_text: str = "",
+    ) -> None:
+        expected = str(READER_VBOOK_RUNNER_VERSION or "").strip()
+        installed = str(installed_version or "").strip()
+        final = str(final_version or "").strip()
+        status_key = notification_center_support.normalize_notification_status(status)
+        if status_key == "running":
+            preview = f"Đang cập nhật vBook runner {installed or '?'} -> {expected}."
+        elif status_key == "success":
+            preview = f"Đã cập nhật vBook runner lên {final or expected}."
+        elif status_key == "failed":
+            preview = "Cập nhật vBook runner thất bại."
+        else:
+            preview = f"vBook runner cần cập nhật lên {expected}."
+        detail_lines = [
+            "Reader phát hiện vBook runner cũ hơn bản runner đi kèm server.",
+            f"Runner hiện tại: {installed or '?'}",
+            f"Runner yêu cầu: {expected or '?'}",
+        ]
+        if final:
+            detail_lines.append(f"Runner sau cập nhật: {final}")
+        if error_text:
+            detail_lines.extend(["", f"Lỗi: {error_text}"])
+        payload = {
+            "id": "system:vbook-runner-auto-update",
+            "kind": "system",
+            "topic": "vbook",
+            "topic_label": "vBook runner",
+            "title": "Cập nhật vBook runner",
+            "preview": preview,
+            "detail": "\n".join(detail_lines).strip(),
+            "status": status_key,
+            "pinned": False,
+            "allow_delete": True,
+            "allow_clear": True,
+            "retain_days": 14,
+            "meta": {
+                "runner_installed_version": installed,
+                "runner_required_version": expected,
+                "runner_final_version": final,
+            },
+        }
+        with self._notifications_cv:
+            self._upsert_notification_locked(payload)
+            self._persist_notifications_locked()
+            self._notifications_cv.notify_all()
+
+    def _run_vbook_runner_auto_update_worker(self, installed_version: str) -> None:
+        final_version = ""
+        try:
+            self._sync_vbook_runner_auto_update_notification(
+                status="running",
+                installed_version=installed_version,
+            )
+            result = self.install_vbook_runner()
+            runner = result.get("runner") if isinstance(result, dict) else {}
+            if isinstance(runner, dict):
+                final_version = str(runner.get("installed_version") or "").strip()
+            if self._is_vbook_runner_update_available(final_version):
+                raise RuntimeError(
+                    f"Gói cập nhật runner vẫn cũ hơn yêu cầu: {final_version or '?'} < {READER_VBOOK_RUNNER_VERSION}."
+                )
+            self._sync_vbook_runner_auto_update_notification(
+                status="success",
+                installed_version=installed_version,
+                final_version=final_version or READER_VBOOK_RUNNER_VERSION,
+            )
+        except Exception as exc:
+            self._sync_vbook_runner_auto_update_notification(
+                status="failed",
+                installed_version=installed_version,
+                error_text=str(exc) or exc.__class__.__name__,
+            )
+        finally:
+            with self._vbook_runner_auto_update_lock:
+                self._vbook_runner_auto_update_running = False
+                self._vbook_runner_auto_update_thread = None
+
+    def _maybe_start_vbook_runner_auto_update(self, *, exists: bool, installed_version: str) -> bool:
+        if (not exists) or (not VBOOK_RUNNER_INSTALL_URL):
+            return False
+        if not self._is_vbook_runner_update_available(installed_version):
+            return False
+        attempt_key = f"{str(installed_version or '').strip()}->{READER_VBOOK_RUNNER_VERSION}"
+        with self._vbook_runner_auto_update_lock:
+            alive = bool(
+                self._vbook_runner_auto_update_thread
+                and self._vbook_runner_auto_update_thread.is_alive()
+            )
+            if self._vbook_runner_auto_update_running and alive:
+                return True
+            now_ts = time.time()
+            if (
+                self._vbook_runner_auto_update_last_key == attempt_key
+                and (now_ts - float(self._vbook_runner_auto_update_last_ts or 0.0)) < 600.0
+            ):
+                return False
+            worker = threading.Thread(
+                target=self._run_vbook_runner_auto_update_worker,
+                args=(str(installed_version or "").strip(),),
+                name="ReaderVBookRunnerAutoUpdate",
+                daemon=True,
+            )
+            self._vbook_runner_auto_update_running = True
+            self._vbook_runner_auto_update_thread = worker
+            self._vbook_runner_auto_update_last_key = attempt_key
+            self._vbook_runner_auto_update_last_ts = now_ts
+            worker.start()
+            return True
+
     def get_vbook_runner_status(self) -> dict[str, Any]:
         configured_path = self._vbook_runner_target_path()
         runtime_path = self._vbook_runner_runtime_path()
@@ -8901,13 +9027,21 @@ class ReaderService:
             installed_version, version_error = self._query_vbook_runner_version(active_path)
         if not installed_version:
             installed_version = str(self._vbook_cfg().get("runner_installed_version") or "").strip()
+        update_available = self._is_vbook_runner_update_available(installed_version)
+        auto_update_running = self._maybe_start_vbook_runner_auto_update(
+            exists=exists,
+            installed_version=installed_version,
+        )
         return {
             "exists": exists,
             "configured_path": str(configured_path),
             "path": str(active_path),
             "installed_version": installed_version,
+            "required_version": READER_VBOOK_RUNNER_VERSION,
             "version_error": version_error,
             "install_available": bool(VBOOK_RUNNER_INSTALL_URL),
+            "update_available": bool(update_available),
+            "auto_update_running": bool(auto_update_running),
             "install_action": "reinstall" if exists else "install",
             "install_label": "Cài lại" if exists else "Cài đặt",
         }
