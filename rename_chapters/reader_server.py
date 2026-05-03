@@ -7091,46 +7091,23 @@ class ReaderService:
         snapshot_id = str(meta.get("snapshot_id") or notification_id).strip() or notification_id
         snapshot = self._load_import_job_snapshot(snapshot_id)
         if snapshot:
-            if not list(snapshot.get("category_ids") or []):
-                category_ids, category_names = self._import_category_ids_from_notification_item(current_item)
-                snapshot["category_ids"] = category_ids
-                snapshot["category_names"] = category_names
-            run_tokens: list[str] = []
-            for item in (snapshot.get("items") or []):
-                if not isinstance(item, dict):
-                    continue
-                status = str(item.get("status") or "").strip().lower()
-                token = str(item.get("token") or "").strip()
-                if not token:
-                    continue
-                if action == "resume" and status in {"pending", "running"}:
-                    item["status"] = "pending"
-                    item["error"] = ""
-                    run_tokens.append(token)
-                if action == "retry" and status == "failed":
-                    item["status"] = "pending"
-                    item["error"] = ""
-                    run_tokens.append(token)
+            snapshot, run_tokens = import_jobs_support.prepare_import_notification_snapshot_action(
+                snapshot=snapshot,
+                current_item=current_item,
+                notification_id=notification_id,
+                snapshot_id=snapshot_id,
+                action=action,
+                fallback_categories=self._import_category_ids_from_notification_item,
+                utc_now_iso=utc_now_iso,
+                api_error_cls=ApiError,
+                http_status=HTTPStatus,
+            )
             if not run_tokens and str(snapshot.get("category_assign_error") or "").strip():
                 return self._retry_import_categories_only(
                     notification_id=notification_id,
                     snapshot=snapshot,
                     fallback_item=current_item,
                 )
-            if not run_tokens:
-                raise ApiError(
-                    HTTPStatus.BAD_REQUEST,
-                    "BAD_REQUEST",
-                    "Không còn mục nào phù hợp để tiếp tục/thử lại.",
-                )
-            snapshot["notification_id"] = notification_id
-            snapshot["snapshot_id"] = snapshot_id
-            snapshot["status"] = "queued"
-            snapshot["phase"] = "queued"
-            snapshot["current_file"] = ""
-            snapshot["category_assign_error"] = ""
-            snapshot["updated_at"] = utc_now_iso()
-            snapshot["finished_at"] = ""
             self._recount_import_job_locked(snapshot)
             return self.enqueue_import_job(
                 {
