@@ -73,6 +73,7 @@ from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
 from reader_backend.services import vbook_image_cache as service_vbook_image_cache_support
+from reader_backend.services import vbook_image_fetch as service_vbook_image_fetch_support
 from reader_backend.services import vbook_image_headers as service_vbook_image_headers_support
 from reader_backend.services import vbook_lists as service_vbook_lists_support
 from reader_backend.services import vbook_normalize as service_vbook_normalize_support
@@ -12861,25 +12862,13 @@ class ReaderService:
         headers: dict[str, str],
         timeout_sec: float,
     ) -> tuple[bytes, str, str]:
-        resp = requests.get(target, headers=headers, timeout=timeout_sec, stream=True)
-        try:
-            status = int(resp.status_code)
-            if status < 200 or status >= 300:
-                raise ApiError(
-                    HTTPStatus.BAD_GATEWAY,
-                    "VBOOK_IMAGE_FETCH_FAILED",
-                    "Không thể tải ảnh từ nguồn vBook.",
-                    {"url": target, "status": status, "reason": str(resp.reason or "")},
-                )
-            data = resp.content
-            content_type = str(resp.headers.get("Content-Type") or "").split(";", 1)[0].strip()
-            content_encoding = str(resp.headers.get("Content-Encoding") or "").strip()
-            return data, content_type, content_encoding
-        finally:
-            try:
-                resp.close()
-            except Exception:
-                pass
+        return service_vbook_image_fetch_support.fetch_vbook_image_with_requests(
+            target=target,
+            headers=headers,
+            timeout_sec=timeout_sec,
+            api_error_cls=ApiError,
+            http_status=HTTPStatus,
+        )
 
     def _vbook_image_cache_paths(self, *, image_url: str, plugin_id: str = "") -> tuple[Path, Path]:
         return service_vbook_image_cache_support.vbook_image_cache_paths(
@@ -12921,84 +12910,18 @@ class ReaderService:
         referer: str = "",
         use_cache: bool = False,
     ) -> tuple[bytes, str]:
-        target = str(image_url or "").strip()
-        parsed = urlparse(target)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "URL ảnh vBook không hợp lệ.")
-
-        if use_cache:
-            cached = self._read_vbook_image_cache(image_url=target, plugin_id=plugin_id)
-            if cached is not None:
-                return cached
-
-        headers = self._build_vbook_image_headers(image_url=target, plugin_id=plugin_id, referer=referer)
-        timeout_ms = int((self._vbook_cfg().get("timeout_ms") or 20_000))
-        timeout_sec = max(3.0, min(60.0, timeout_ms / 1000.0))
-        req = urllib_request.Request(target, headers=headers, method="GET")
-        try:
-            with urllib_request.urlopen(req, timeout=timeout_sec) as resp:
-                data = resp.read()
-                content_type = str(resp.headers.get("Content-Type") or "").split(";", 1)[0].strip()
-                content_encoding = str(resp.headers.get("Content-Encoding") or "").strip()
-        except urllib_error.HTTPError as exc:
-            try:
-                data, content_type, content_encoding = self._fetch_vbook_image_with_requests(
-                    target=target,
-                    headers=headers,
-                    timeout_sec=timeout_sec,
-                )
-            except ApiError:
-                raise ApiError(
-                    HTTPStatus.BAD_GATEWAY,
-                    "VBOOK_IMAGE_FETCH_FAILED",
-                    "Không thể tải ảnh từ nguồn vBook.",
-                    {"url": target, "status": int(exc.code), "reason": str(exc.reason or "")},
-                ) from exc
-            except Exception as retry_exc:
-                raise ApiError(
-                    HTTPStatus.BAD_GATEWAY,
-                    "VBOOK_IMAGE_FETCH_FAILED",
-                    "Không thể tải ảnh từ nguồn vBook.",
-                    {
-                        "url": target,
-                        "status": int(exc.code),
-                        "reason": str(exc.reason or ""),
-                        "retry_error": str(retry_exc),
-                    },
-                ) from retry_exc
-        except Exception as exc:
-            try:
-                data, content_type, content_encoding = self._fetch_vbook_image_with_requests(
-                    target=target,
-                    headers=headers,
-                    timeout_sec=timeout_sec,
-                )
-            except Exception as retry_exc:
-                raise ApiError(
-                    HTTPStatus.BAD_GATEWAY,
-                    "VBOOK_IMAGE_FETCH_FAILED",
-                    "Không thể tải ảnh từ nguồn vBook.",
-                    {"url": target, "error": str(exc), "retry_error": str(retry_exc)},
-                ) from retry_exc
-
-        if not data:
-            raise ApiError(
-                HTTPStatus.BAD_GATEWAY,
-                "VBOOK_IMAGE_EMPTY",
-                "Nguồn ảnh vBook trả dữ liệu rỗng.",
-                {"url": target},
-            )
-        data = decode_http_encoded_body(data, content_encoding=content_encoding)
-        ctype = content_type or (mimetypes.guess_type(parsed.path)[0] or "application/octet-stream")
-        if use_cache:
-            self._write_vbook_image_cache(
-                image_url=target,
-                plugin_id=plugin_id,
-                content_type=ctype,
-                content_encoding="",
-                data=data,
-            )
-        return data, ctype
+        return service_vbook_image_fetch_support.fetch_vbook_image(
+            image_url=image_url,
+            plugin_id=plugin_id,
+            referer=referer,
+            use_cache=use_cache,
+            timeout_ms=int((self._vbook_cfg().get("timeout_ms") or 20_000)),
+            build_headers=self._build_vbook_image_headers,
+            read_cache=self._read_vbook_image_cache,
+            write_cache=self._write_vbook_image_cache,
+            api_error_cls=ApiError,
+            http_status=HTTPStatus,
+        )
 
     def _join_vbook_url(self, host: str, url: str) -> str:
         href = (url or "").strip()
