@@ -70,11 +70,11 @@ from reader_backend.services import library as service_library_support
 from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
-from reader_backend.services import vbook_image_cache as service_vbook_image_cache_support
-from reader_backend.services import vbook_image_fetch as service_vbook_image_fetch_support
-from reader_backend.services import vbook_image_headers as service_vbook_image_headers_support
-from reader_backend.services import vbook_lists as service_vbook_lists_support
-from reader_backend.services import vbook_normalize as service_vbook_normalize_support
+from reader_backend.services.vbook import image_cache as service_vbook_image_cache_support
+from reader_backend.services.vbook import image_fetch as service_vbook_image_fetch_support
+from reader_backend.services.vbook import image_headers as service_vbook_image_headers_support
+from reader_backend.services.vbook import lists as service_vbook_lists_support
+from reader_backend.services.vbook import normalize as service_vbook_normalize_support
 from reader_backend.storage import book_categories as storage_book_categories_support
 from reader_backend.storage import book_change as storage_book_change_support
 from reader_backend.storage import book_cleanup as storage_book_cleanup_support

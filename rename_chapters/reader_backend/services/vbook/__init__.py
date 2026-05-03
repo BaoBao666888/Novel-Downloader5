@@ -1,0 +1,1 @@
+"""vBook domain services."""
