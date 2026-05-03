@@ -10582,75 +10582,19 @@ class ReaderService:
         query: str,
         translate_ui: bool = True,
     ) -> dict[str, Any] | None:
-        if not isinstance(item, dict):
-            return None
-        plugin_id = str(getattr(plugin, "plugin_id", "") or "")
-        title = normalize_vbook_display_text(
-            str(
-            item.get("name")
-            or item.get("title")
-            or item.get("book_name")
-            or item.get("bookTitle")
-            or ""
-            ),
-            single_line=True,
+        return service_vbook_normalize_support.normalize_vbook_search_item(
+            plugin,
+            item,
+            query=query,
+            translate_ui=translate_ui,
+            join_vbook_url=self._join_vbook_url,
+            build_vbook_image_proxy_path=build_vbook_image_proxy_path,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+            normalize_lang_source=normalize_lang_source,
+            is_translation_enabled=self.is_reader_translation_enabled,
+            reader_translation_mode=self.reader_translation_mode,
+            translate_text=self._translate_ui_text,
         )
-        href = str(
-            item.get("link")
-            or item.get("url")
-            or item.get("detail")
-            or item.get("detail_url")
-            or item.get("book_url")
-            or ""
-        ).strip()
-        host = str(item.get("host") or "").strip()
-        detail_url = self._join_vbook_url(host, href)
-        if not detail_url and href.startswith("http"):
-            detail_url = href
-        if not title or not detail_url:
-            return None
-        cover = str(item.get("cover") or item.get("image") or item.get("img") or "").strip()
-        if cover and host and not cover.startswith("http"):
-            cover = self._join_vbook_url(host, cover)
-        cover = build_vbook_image_proxy_path(cover, plugin_id=plugin_id, referer=detail_url)
-        description = normalize_vbook_display_text(
-            str(item.get("description") or item.get("desc") or item.get("summary") or ""),
-            single_line=False,
-        )
-        author = normalize_vbook_display_text(
-            str(item.get("author") or item.get("writer") or ""),
-            single_line=True,
-        )
-        is_comic = "comic" in str(getattr(plugin, "type", "") or "").lower()
-        locale_norm = normalize_lang_source(str(getattr(plugin, "locale", "") or ""))
-        source_tag = "vbook_comic" if is_comic else "vbook"
-        title_raw = title
-        author_raw = author
-        description_raw = description
-        if translate_ui and self.is_reader_translation_enabled():
-            mode = self.reader_translation_mode()
-            title = self._translate_ui_text(title, single_line=True, mode=mode) or title
-            author = self._translate_ui_text(author, single_line=True, mode=mode) or author
-            description = self._translate_ui_text(description, single_line=False, mode=mode) or description
-        return {
-            "title": title,
-            "author": author,
-            "description": description,
-            "title_raw": title_raw,
-            "author_raw": author_raw,
-            "description_raw": description_raw,
-            "cover": cover,
-            "detail_url": detail_url,
-            "query": query,
-            "host": host,
-            "plugin_id": plugin_id,
-            "plugin_name": str(getattr(plugin, "name", "") or ""),
-            "plugin_type": str(getattr(plugin, "type", "") or ""),
-            "locale": str(getattr(plugin, "locale", "") or ""),
-            "source_type": source_tag,
-            "is_comic": is_comic,
-            "lang_source": locale_norm or "zh",
-        }
 
     def _extract_vbook_list_rows(self, data: Any) -> list[Any]:
         return service_vbook_normalize_support.extract_vbook_list_rows(data)
@@ -10686,44 +10630,14 @@ class ReaderService:
         )
 
     def _normalize_vbook_tab_item(self, item: Any, *, translate_ui: bool = True) -> dict[str, Any] | None:
-        if isinstance(item, str):
-            text = normalize_vbook_display_text(str(item), single_line=True)
-            if not text:
-                return None
-            if translate_ui and self.is_reader_translation_enabled():
-                mode = self.reader_translation_mode()
-                text = self._translate_ui_text(text, single_line=True, mode=mode) or text
-            return {
-                "title": text,
-                "script": "",
-                "input": text,
-            }
-        if not isinstance(item, dict):
-            return None
-        title = normalize_vbook_display_text(
-            str(item.get("title") or item.get("name") or item.get("label") or ""),
-            single_line=True,
+        return service_vbook_normalize_support.normalize_vbook_tab_item(
+            item,
+            translate_ui=translate_ui,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+            is_translation_enabled=self.is_reader_translation_enabled,
+            reader_translation_mode=self.reader_translation_mode,
+            translate_text=self._translate_ui_text,
         )
-        script = str(item.get("script") or item.get("file") or "").strip()
-        raw_input = item.get("input")
-        if raw_input is None:
-            raw_input = item.get("link")
-        if raw_input is None:
-            raw_input = item.get("url")
-        if not title:
-            return None
-        if translate_ui and self.is_reader_translation_enabled():
-            mode = self.reader_translation_mode()
-            title = self._translate_ui_text(title, single_line=True, mode=mode) or title
-        if isinstance(raw_input, (dict, list, str, int, float, bool)) or raw_input is None:
-            input_value = raw_input
-        else:
-            input_value = str(raw_input)
-        return {
-            "title": title,
-            "script": script,
-            "input": input_value,
-        }
 
     def _normalize_vbook_script_descriptor_item(
         self,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from typing import Any
 
 
@@ -215,6 +216,140 @@ def normalize_vbook_text_flexible(
             return ""
         return normalize_vbook_display_text("\n".join(parts), single_line=single_line)
     return normalize_vbook_display_text(str(value), single_line=single_line)
+
+
+def normalize_vbook_tab_item(
+    item: Any,
+    *,
+    translate_ui: bool = True,
+    normalize_vbook_display_text: Callable[..., str],
+    is_translation_enabled: Callable[[], bool],
+    reader_translation_mode: Callable[[], str],
+    translate_text: Callable[..., str],
+) -> dict[str, Any] | None:
+    if isinstance(item, str):
+        text = normalize_vbook_display_text(str(item), single_line=True)
+        if not text:
+            return None
+        if translate_ui and is_translation_enabled():
+            mode = reader_translation_mode()
+            text = translate_text(text, single_line=True, mode=mode) or text
+        return {
+            "title": text,
+            "script": "",
+            "input": text,
+        }
+    if not isinstance(item, dict):
+        return None
+    title = normalize_vbook_display_text(
+        str(item.get("title") or item.get("name") or item.get("label") or ""),
+        single_line=True,
+    )
+    script = str(item.get("script") or item.get("file") or "").strip()
+    raw_input = item.get("input")
+    if raw_input is None:
+        raw_input = item.get("link")
+    if raw_input is None:
+        raw_input = item.get("url")
+    if not title:
+        return None
+    if translate_ui and is_translation_enabled():
+        mode = reader_translation_mode()
+        title = translate_text(title, single_line=True, mode=mode) or title
+    if isinstance(raw_input, (dict, list, str, int, float, bool)) or raw_input is None:
+        input_value = raw_input
+    else:
+        input_value = str(raw_input)
+    return {
+        "title": title,
+        "script": script,
+        "input": input_value,
+    }
+
+
+def normalize_vbook_search_item(
+    plugin: Any,
+    item: dict[str, Any],
+    *,
+    query: str,
+    translate_ui: bool = True,
+    join_vbook_url: Callable[[str, str], str],
+    build_vbook_image_proxy_path: Callable[..., str],
+    normalize_vbook_display_text: Callable[..., str],
+    normalize_lang_source: Callable[[str], str],
+    is_translation_enabled: Callable[[], bool],
+    reader_translation_mode: Callable[[], str],
+    translate_text: Callable[..., str],
+) -> dict[str, Any] | None:
+    if not isinstance(item, dict):
+        return None
+    plugin_id = str(getattr(plugin, "plugin_id", "") or "")
+    title = normalize_vbook_display_text(
+        str(
+            item.get("name")
+            or item.get("title")
+            or item.get("book_name")
+            or item.get("bookTitle")
+            or ""
+        ),
+        single_line=True,
+    )
+    href = str(
+        item.get("link")
+        or item.get("url")
+        or item.get("detail")
+        or item.get("detail_url")
+        or item.get("book_url")
+        or ""
+    ).strip()
+    host = str(item.get("host") or "").strip()
+    detail_url = join_vbook_url(host, href)
+    if not detail_url and href.startswith("http"):
+        detail_url = href
+    if not title or not detail_url:
+        return None
+    cover = str(item.get("cover") or item.get("image") or item.get("img") or "").strip()
+    if cover and host and not cover.startswith("http"):
+        cover = join_vbook_url(host, cover)
+    cover = build_vbook_image_proxy_path(cover, plugin_id=plugin_id, referer=detail_url)
+    description = normalize_vbook_display_text(
+        str(item.get("description") or item.get("desc") or item.get("summary") or ""),
+        single_line=False,
+    )
+    author = normalize_vbook_display_text(
+        str(item.get("author") or item.get("writer") or ""),
+        single_line=True,
+    )
+    is_comic = "comic" in str(getattr(plugin, "type", "") or "").lower()
+    locale_norm = normalize_lang_source(str(getattr(plugin, "locale", "") or ""))
+    source_tag = "vbook_comic" if is_comic else "vbook"
+    title_raw = title
+    author_raw = author
+    description_raw = description
+    if translate_ui and is_translation_enabled():
+        mode = reader_translation_mode()
+        title = translate_text(title, single_line=True, mode=mode) or title
+        author = translate_text(author, single_line=True, mode=mode) or author
+        description = translate_text(description, single_line=False, mode=mode) or description
+    return {
+        "title": title,
+        "author": author,
+        "description": description,
+        "title_raw": title_raw,
+        "author_raw": author_raw,
+        "description_raw": description_raw,
+        "cover": cover,
+        "detail_url": detail_url,
+        "query": query,
+        "host": host,
+        "plugin_id": plugin_id,
+        "plugin_name": str(getattr(plugin, "name", "") or ""),
+        "plugin_type": str(getattr(plugin, "type", "") or ""),
+        "locale": str(getattr(plugin, "locale", "") or ""),
+        "source_type": source_tag,
+        "is_comic": is_comic,
+        "lang_source": locale_norm or "zh",
+    }
 
 
 def normalize_vbook_comment_items(raw_value: Any, *, normalize_vbook_display_text) -> list[dict[str, Any]]:
