@@ -5,7 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from reader_backend import export_support as export_support
+from reader_backend.exporting import support as export_support
 
 
 def export_status_is_active(status: str) -> bool:

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from .storage_library import build_book_volume_manage_policy
+from reader_backend.storage.library import build_book_volume_manage_policy
 
 
 def append_book_change_event(

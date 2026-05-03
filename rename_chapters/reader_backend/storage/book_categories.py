@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from . import default_categories_wikicv as default_wikicv_support
+from reader_backend.catalogs import default_categories_wikicv as default_wikicv_support
 
 
 def _utc_now_iso() -> str:

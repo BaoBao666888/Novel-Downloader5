@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from reader_backend import theme_presets as theme_presets_support
-from reader_backend import text_paragraphs as text_paragraphs_support
+from reader_backend.catalogs import theme_presets as theme_presets_support
+from reader_backend.text import paragraphs as text_paragraphs_support
 
 try:
-    from reader_backend import export_protect_private as export_protect_private_support
+    from reader_backend.exporting import protect_private as export_protect_private_support
 except Exception:  # pragma: no cover - private local module may be absent on public tree
     export_protect_private_support = None
 

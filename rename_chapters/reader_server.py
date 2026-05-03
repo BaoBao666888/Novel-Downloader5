@@ -39,43 +39,47 @@ from urllib import request as urllib_request
 from urllib import error as urllib_error
 import xml.etree.ElementTree as ET
 import requests
-from reader_backend import download_execute as download_execute_support
-from reader_backend import download_jobs as download_jobs_support
-from reader_backend import download_batch as download_batch_support
-from reader_backend import http_export_download as http_export_download_support
-from reader_backend import http_library_reader as http_library_reader_support
-from reader_backend import http_media as http_media_support
-from reader_backend import http_misc as http_misc_support
-from reader_backend import http_notifications as http_notifications_support
-from reader_backend import http_name_filter as http_name_filter_support
-from reader_backend import http_routes as http_routes_support
-from reader_backend import http_tts as http_tts_support
-from reader_backend import http_vbook_import as http_vbook_import_support
-from reader_backend import notification_center as notification_center_support
-from reader_backend import service_history as service_history_support
-from reader_backend import service_library as service_library_support
-from reader_backend import service_local_import as service_local_import_support
-from reader_backend import service_name_filter as service_name_filter_support
-from reader_backend import service_user_state as service_user_state_support
-from reader_backend import storage_book_cleanup as storage_book_cleanup_support
-from reader_backend import storage_book_categories as storage_book_categories_support
-from reader_backend import storage_book_change as storage_book_change_support
-from reader_backend import storage_history as storage_history_support
-from reader_backend import storage_book_mutation as storage_book_mutation_support
-from reader_backend import storage_book_titles as storage_book_titles_support
-from reader_backend import storage_chapter_content as storage_chapter_content_support
-from reader_backend import storage_cache as storage_cache_support
-from reader_backend import storage_library as storage_library_support
-from reader_backend import storage_user_state as storage_user_state_support
-from reader_backend import text_paragraphs as text_paragraphs_support
-from reader_backend import theme_presets as theme_presets_support
-from reader_backend import download_runtime as download_runtime_support
-from reader_backend import export_execute as export_execute_support
-from reader_backend import export_jobs as export_jobs_support
-from reader_backend import export_runtime as export_runtime_support
-from reader_backend import export_support
-from reader_backend import queue_runtime as queue_runtime_support
-from reader_backend import vbook_search_filters as vbook_search_filters_support
+from reader_backend.catalogs import theme_presets as theme_presets_support
+from reader_backend.catalogs import vbook_search_filters as vbook_search_filters_support
+from reader_backend.core import notices as notices_support
+from reader_backend.core import notification_center as notification_center_support
+from reader_backend.core import runtime_paths as runtime_paths_support
+from reader_backend.core import versioning as versioning_support
+from reader_backend.exporting import support as export_support
+from reader_backend.jobs import download_batch as download_batch_support
+from reader_backend.jobs import download_execute as download_execute_support
+from reader_backend.jobs import download_jobs as download_jobs_support
+from reader_backend.jobs import download_runtime as download_runtime_support
+from reader_backend.jobs import export_execute as export_execute_support
+from reader_backend.jobs import export_jobs as export_jobs_support
+from reader_backend.jobs import export_runtime as export_runtime_support
+from reader_backend.jobs import queue_runtime as queue_runtime_support
+from reader_backend.routes import export_download as http_export_download_support
+from reader_backend.routes import library_reader as http_library_reader_support
+from reader_backend.routes import media as http_media_support
+from reader_backend.routes import misc as http_misc_support
+from reader_backend.routes import name_filter as http_name_filter_support
+from reader_backend.routes import notifications as http_notifications_support
+from reader_backend.routes.http_base import ApiError, MultipartForm, MultipartPart
+from reader_backend.routes import route_matchers as http_routes_support
+from reader_backend.routes import tts as http_tts_support
+from reader_backend.routes import vbook_import as http_vbook_import_support
+from reader_backend.services import history as service_history_support
+from reader_backend.services import library as service_library_support
+from reader_backend.services import local_import as service_local_import_support
+from reader_backend.services import name_filter as service_name_filter_support
+from reader_backend.services import user_state as service_user_state_support
+from reader_backend.storage import book_categories as storage_book_categories_support
+from reader_backend.storage import book_change as storage_book_change_support
+from reader_backend.storage import book_cleanup as storage_book_cleanup_support
+from reader_backend.storage import book_mutation as storage_book_mutation_support
+from reader_backend.storage import book_titles as storage_book_titles_support
+from reader_backend.storage import cache as storage_cache_support
+from reader_backend.storage import chapter_content as storage_chapter_content_support
+from reader_backend.storage import history as storage_history_support
+from reader_backend.storage import library as storage_library_support
+from reader_backend.storage import user_state as storage_user_state_support
+from reader_backend.text import paragraphs as text_paragraphs_support
 
 try:
     from reader_local_urls import VBOOK_RUNNER_INSTALL_URL as _LOCAL_VBOOK_RUNNER_INSTALL_URL
@@ -84,66 +88,8 @@ except Exception:
 
 
 BUNDLE_ROOT = Path(__file__).resolve().parent
-
-
-def _candidate_runtime_roots_bootstrap() -> list[Path]:
-    candidates: list[Path] = []
-    seen: set[str] = set()
-
-    def add(path: Path | None) -> None:
-        if path is None:
-            return
-        try:
-            resolved = path.resolve(strict=False)
-        except Exception:
-            resolved = path
-        key = str(resolved)
-        if key in seen:
-            return
-        seen.add(key)
-        candidates.append(resolved)
-
-    try:
-        add(Path.cwd())
-    except Exception:
-        pass
-
-    add(BUNDLE_ROOT)
-
-    if getattr(sys, "frozen", False):
-        try:
-            exe_dir = Path(sys.executable).resolve().parent
-        except Exception:
-            exe_dir = None
-        add(exe_dir)
-        for parent in list((exe_dir or Path()).parents):
-            add(parent)
-
-    return candidates
-
-
-def _looks_like_runtime_root(path: Path) -> bool:
-    try:
-        return (
-            (path / "reader_ui").exists()
-            or (path / "config.json").exists()
-            or (path / "local" / "version.json").exists()
-            or (path / "reader_server.py").exists()
-        )
-    except Exception:
-        return False
-
-
-def _detect_runtime_root_bootstrap() -> Path:
-    candidates = _candidate_runtime_roots_bootstrap()
-    for candidate in candidates:
-        if _looks_like_runtime_root(candidate):
-            return candidate
-    return candidates[0] if candidates else BUNDLE_ROOT
-
-
 ROOT_DIR = BUNDLE_ROOT
-RUNTIME_ROOT = _detect_runtime_root_bootstrap()
+RUNTIME_ROOT = runtime_paths_support.detect_runtime_root_bootstrap(BUNDLE_ROOT)
 LOCAL_DIR = RUNTIME_ROOT / "local"
 CACHE_DIR = LOCAL_DIR / "reader_cache"
 EXPORT_DIR = LOCAL_DIR / "reader_exports"
@@ -186,140 +132,6 @@ mimetypes.add_type("text/css", ".css")
 
 
 _EXPLICIT_LOG_LOCK = threading.Lock()
-
-
-class _HtmlTextExtractor(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self._parts: list[str] = []
-
-    def handle_data(self, data: str) -> None:
-        if data:
-            self._parts.append(data)
-
-    def get_text(self) -> str:
-        return "".join(self._parts)
-
-
-def _strip_html_to_text(value: str) -> str:
-    raw = str(value or "").strip()
-    if not raw:
-        return ""
-    try:
-        parser = _HtmlTextExtractor()
-        parser.feed(raw)
-        parser.close()
-        text = parser.get_text()
-    except Exception:
-        text = re.sub(r"<[^>]+>", " ", raw)
-    text = html.unescape(text)
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    lines = [line.strip() for line in text.split("\n")]
-    return "\n".join(line for line in lines if line)
-
-
-def _normalize_notice_text(value: str) -> str:
-    raw = str(value or "")
-    if not raw:
-        return ""
-    raw = raw.replace("\r\n", "\n").replace("\r", "\n")
-    lines = [line.rstrip() for line in raw.split("\n")]
-    text = "\n".join(lines).strip()
-    return re.sub(r"\n{3,}", "\n\n", text)
-
-
-def _read_notice_text_file_if_exists(path: Path) -> str:
-    try:
-        if not path.exists() or not path.is_file():
-            return ""
-        raw = path.read_text(encoding="utf-8")
-        if path.suffix.lower() in {".html", ".htm"}:
-            return _normalize_notice_text(_strip_html_to_text(raw))
-        return _normalize_notice_text(raw)
-    except Exception:
-        return ""
-
-
-def _build_notice_file_candidates(configured_values: list[str], fallback_names: tuple[str, ...], base_dirs: list[Path]) -> list[Path]:
-    candidates: list[Path] = []
-    seen: set[str] = set()
-
-    def add(path: Path | None) -> None:
-        if path is None:
-            return
-        try:
-            resolved = path.resolve(strict=False)
-        except Exception:
-            resolved = path
-        key = str(resolved)
-        if key in seen:
-            return
-        seen.add(key)
-        candidates.append(resolved)
-
-    for raw_value in configured_values:
-        value = str(raw_value or "").strip()
-        if not value:
-            continue
-        candidate = Path(value)
-        if candidate.is_absolute():
-            add(candidate)
-            continue
-        for base_dir in base_dirs:
-            add(base_dir / candidate)
-
-    for name in fallback_names:
-        fallback = str(name or "").strip()
-        if not fallback:
-            continue
-        candidate = Path(fallback)
-        if candidate.is_absolute():
-            add(candidate)
-            continue
-        for base_dir in base_dirs:
-            add(base_dir / candidate)
-
-    return candidates
-
-
-def _version_cmp_key(value: Any) -> tuple[tuple[int, Any], ...]:
-    text = str(value or "").strip()
-    if not text:
-        return ()
-    parts: list[tuple[int, Any]] = []
-    for token in re.findall(r"\d+|[A-Za-z]+", text):
-        if token.isdigit():
-            parts.append((0, int(token)))
-        else:
-            parts.append((1, token.lower()))
-    return tuple(parts)
-
-
-def _is_remote_version_newer(remote_value: Any, local_value: Any) -> bool:
-    remote_key = _version_cmp_key(remote_value)
-    if not remote_key:
-        return False
-    local_key = _version_cmp_key(local_value)
-    if not local_key:
-        return True
-    max_len = max(len(remote_key), len(local_key))
-    for index in range(max_len):
-        remote_part = remote_key[index] if index < len(remote_key) else (0, 0)
-        local_part = local_key[index] if index < len(local_key) else (0, 0)
-        if remote_part == local_part:
-            continue
-        return remote_part > local_part
-    return False
-
-
-def _load_json_file_if_exists(path: Path) -> dict[str, Any]:
-    try:
-        if not path.exists():
-            return {}
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return dict(data) if isinstance(data, dict) else {}
-    except Exception:
-        return {}
 _LOG_CLEANUP_LOCK = threading.Lock()
 _APP_CONFIG_LOCK = threading.RLock()
 
@@ -332,11 +144,11 @@ def runtime_base_dir() -> Path:
     """
     try:
         cwd = Path.cwd().resolve()
-        if _looks_like_runtime_root(cwd):
+        if runtime_paths_support.looks_like_runtime_root(cwd):
             return cwd
     except Exception:
         pass
-    return _detect_runtime_root_bootstrap()
+    return runtime_paths_support.detect_runtime_root_bootstrap(BUNDLE_ROOT)
 
 
 def resolve_path_from_base(raw: str | Path, base_dir: Path) -> Path:
@@ -8995,7 +8807,7 @@ class ReaderService:
         update_parts: list[str] = []
         items: list[dict[str, Any]] = []
 
-        server_update = _is_remote_version_newer(remote_server_version, local_server_version)
+        server_update = versioning_support.is_remote_version_newer(remote_server_version, local_server_version)
         if server_update:
             update_parts.append("server")
         items.append(
@@ -9008,7 +8820,7 @@ class ReaderService:
             }
         )
 
-        ui_update = _is_remote_version_newer(remote_ui_version, local_ui_version)
+        ui_update = versioning_support.is_remote_version_newer(remote_ui_version, local_ui_version)
         if ui_update:
             update_parts.append("ui")
         items.append(
@@ -9151,7 +8963,7 @@ class ReaderService:
             RUNTIME_ROOT / "version.json",
             ROOT_DIR / "version.json",
         ):
-            version_data = _load_json_file_if_exists(candidate)
+            version_data = versioning_support.load_json_file_if_exists(candidate)
             if version_data:
                 version_path = str(candidate)
                 break
@@ -9177,7 +8989,7 @@ class ReaderService:
             str(reader_app.get("changelog_file") or "").strip(),
             str(version_data.get("notes_file_local") or "").strip(),
         ]
-        for candidate in _build_notice_file_candidates(
+        for candidate in notices_support.build_notice_file_candidates(
             changelog_files,
             (
                 "reader_changelog.txt",
@@ -9189,7 +9001,7 @@ class ReaderService:
             ),
             notice_base_dirs,
         ):
-            changelog_text = _read_notice_text_file_if_exists(candidate)
+            changelog_text = notices_support.read_notice_text_file_if_exists(candidate)
             if changelog_text:
                 changelog_path = str(candidate)
                 break
@@ -9200,7 +9012,7 @@ class ReaderService:
             str(version_data.get("reader_guide_file") or "").strip(),
             str(reader_app.get("guide_file") or "").strip(),
         ]
-        for candidate in _build_notice_file_candidates(
+        for candidate in notices_support.build_notice_file_candidates(
             guide_files,
             (
                 "reader_guide.txt",
@@ -9210,7 +9022,7 @@ class ReaderService:
             ),
             notice_base_dirs,
         ):
-            guide_text = _read_notice_text_file_if_exists(candidate)
+            guide_text = notices_support.read_notice_text_file_if_exists(candidate)
             if guide_text:
                 guide_path = str(candidate)
                 break
@@ -16635,60 +16447,6 @@ class ReaderService:
         return h.rstrip("/") + "/" + href.lstrip("/")
 
 
-class ApiError(Exception):
-    def __init__(self, status: HTTPStatus, error_code: str, message: str, details: Any = None):
-        super().__init__(message)
-        self.status = status
-        self.error_code = error_code
-        self.message = message
-        self.details = details
-
-
-@dataclass
-class MultipartPart:
-    name: str
-    filename: str | None
-    content: bytes
-
-    @property
-    def file(self) -> io.BytesIO:
-        return io.BytesIO(self.content)
-
-    @property
-    def text(self) -> str:
-        return decode_text_with_fallback(self.content)
-
-
-class MultipartForm:
-    def __init__(self):
-        self._items: dict[str, list[MultipartPart]] = {}
-
-    def add(self, part: MultipartPart) -> None:
-        self._items.setdefault(part.name, []).append(part)
-
-    def __contains__(self, name: str) -> bool:
-        return name in self._items and bool(self._items[name])
-
-    def getfirst(self, name: str, default: str | None = None) -> str | None:
-        items = self._items.get(name) or []
-        if not items:
-            return default
-        return items[0].text
-
-    def get_file(self, name: str) -> MultipartPart | None:
-        items = self._items.get(name) or []
-        for item in items:
-            if item.filename is not None:
-                return item
-        return None
-
-    def getlist(self, name: str) -> list[MultipartPart]:
-        return list(self._items.get(name) or [])
-
-    def get_files(self, name: str) -> list[MultipartPart]:
-        return [item for item in (self._items.get(name) or []) if item.filename is not None]
-
-
 class ReaderApiHandler(SimpleHTTPRequestHandler):
     server_version = "ReaderServer/1.0"
     extensions_map = {
@@ -17127,7 +16885,12 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             if filename == "":
                 filename = None
 
-            form.add(MultipartPart(name=name, filename=filename, content=content))
+            form.add(MultipartPart(
+                name=name,
+                filename=filename,
+                content=content,
+                text_content=decode_text_with_fallback(content),
+            ))
 
         return form
 

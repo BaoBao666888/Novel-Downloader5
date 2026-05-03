@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from reader_backend import text_paragraphs as text_paragraphs_support
+from reader_backend.text import paragraphs as text_paragraphs_support
 
 _TRANS_SIG_SNAPSHOT_KEY_PREFIX = "reader.trans_sig_snapshot"
 

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from .storage_library import (
+from reader_backend.storage.library import (
     build_book_search_text,
     build_chapter_search_text,
     build_book_volume_manage_policy,
@@ -18,7 +18,7 @@ from .storage_library import (
     is_remote_library_source,
     normalize_volume_title,
 )
-from .storage_book_change import append_book_change_event
+from reader_backend.storage.book_change import append_book_change_event
 
 
 def _contains_cjk_text(value: Any) -> bool:
