@@ -79,6 +79,7 @@ from reader_backend.storage import book_change as storage_book_change_support
 from reader_backend.storage import book_cleanup as storage_book_cleanup_support
 from reader_backend.storage import book_mutation as storage_book_mutation_support
 from reader_backend.storage import book_titles as storage_book_titles_support
+from reader_backend.storage import app_state as storage_app_state_support
 from reader_backend.storage import cache as storage_cache_support
 from reader_backend.storage import chapter_content as storage_chapter_content_support
 from reader_backend.storage import history as storage_history_support
@@ -2868,141 +2869,48 @@ class ReaderStorage:
         return storage_chapter_content_support.load_chapter_trans_sig_snapshot(self, chapter_trans_sig)
 
     def _get_app_state_value(self, key: str) -> str | None:
-        with self._connect() as conn:
-            row = conn.execute("SELECT value FROM app_state WHERE key = ?", (key,)).fetchone()
-        if row and row["value"] is not None:
-            return str(row["value"])
-        return None
+        return storage_app_state_support.get_value(self, key)
 
     def _set_app_state_value(self, key: str, value: str) -> None:
-        now = utc_now_iso()
-        attempts = 4
-        for attempt in range(attempts):
-            try:
-                with self._connect() as conn:
-                    conn.execute(
-                        """
-                        INSERT INTO app_state(key, value, updated_at)
-                        VALUES(?, ?, ?)
-                        ON CONFLICT(key) DO UPDATE SET
-                            value = excluded.value,
-                            updated_at = excluded.updated_at
-                        """,
-                        (key, value, now),
-                    )
-                return
-            except sqlite3.OperationalError as exc:
-                if "locked" not in str(exc).lower() or attempt >= attempts - 1:
-                    raise
-                time.sleep(0.12 * (attempt + 1))
+        storage_app_state_support.set_value(self, key, value, utc_now_iso=utc_now_iso)
 
     def _delete_app_state_value(self, key: str) -> None:
-        key_name = str(key or "").strip()
-        if not key_name:
-            return
-        attempts = 4
-        for attempt in range(attempts):
-            try:
-                with self._connect() as conn:
-                    conn.execute("DELETE FROM app_state WHERE key = ?", (key_name,))
-                return
-            except sqlite3.OperationalError as exc:
-                if "locked" not in str(exc).lower() or attempt >= attempts - 1:
-                    raise
-                time.sleep(0.12 * (attempt + 1))
+        storage_app_state_support.delete_value(self, key)
 
     def _chapter_raw_edit_state_key(self, chapter_id: str) -> str:
-        cid = str(chapter_id or "").strip()
-        return f"{APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX}.{cid}" if cid else APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX
+        return storage_app_state_support.chapter_raw_edit_state_key(
+            chapter_id,
+            prefix=APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX,
+        )
 
     def get_chapter_raw_edit_state(self, chapter_id: str) -> dict[str, Any]:
-        empty = {"edited": False, "updated_at": "", "source": ""}
-        cid = str(chapter_id or "").strip()
-        if not cid:
-            return dict(empty)
-        raw = self._get_app_state_value(self._chapter_raw_edit_state_key(cid))
-        if not raw:
-            return dict(empty)
-        try:
-            payload = json.loads(raw)
-        except Exception:
-            payload = {}
-        if not isinstance(payload, dict):
-            return dict(empty)
-        return {
-            "edited": bool(payload.get("edited")),
-            "updated_at": str(payload.get("updated_at") or ""),
-            "source": str(payload.get("source") or ""),
-        }
+        return storage_app_state_support.get_chapter_raw_edit_state(
+            self,
+            chapter_id,
+            prefix=APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX,
+        )
 
     def set_chapter_raw_edit_state(self, chapter_id: str, *, edited: bool, source: str = "") -> dict[str, Any]:
-        empty = {"edited": False, "updated_at": "", "source": ""}
-        cid = str(chapter_id or "").strip()
-        if not cid:
-            return dict(empty)
-        key = self._chapter_raw_edit_state_key(cid)
-        if not edited:
-            self._delete_app_state_value(key)
-            return dict(empty)
-        payload = {
-            "edited": True,
-            "updated_at": utc_now_iso(),
-            "source": str(source or "").strip() or "manual",
-        }
-        self._set_app_state_value(key, json.dumps(payload, ensure_ascii=False))
-        return payload
+        return storage_app_state_support.set_chapter_raw_edit_state(
+            self,
+            chapter_id,
+            edited=edited,
+            source=source,
+            prefix=APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX,
+            utc_now_iso=utc_now_iso,
+        )
 
     def load_export_jobs_state(self) -> list[dict[str, Any]]:
-        raw = self._get_app_state_value(APP_STATE_EXPORT_JOBS_STATE_KEY)
-        if not raw:
-            return []
-        try:
-            data = json.loads(raw)
-        except Exception:
-            return []
-        if not isinstance(data, list):
-            return []
-        out: list[dict[str, Any]] = []
-        for item in data:
-            if isinstance(item, dict):
-                out.append(dict(item))
-        return out
+        return storage_app_state_support.load_json_list(self, APP_STATE_EXPORT_JOBS_STATE_KEY)
 
     def save_export_jobs_state(self, items: list[dict[str, Any]]) -> None:
-        payload = []
-        for item in items or []:
-            if isinstance(item, dict):
-                payload.append(dict(item))
-        self._set_app_state_value(
-            APP_STATE_EXPORT_JOBS_STATE_KEY,
-            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-        )
+        storage_app_state_support.save_json_list(self, APP_STATE_EXPORT_JOBS_STATE_KEY, items)
 
     def load_notifications_state(self) -> list[dict[str, Any]]:
-        raw = self._get_app_state_value(APP_STATE_NOTIFICATIONS_STATE_KEY)
-        if not raw:
-            return []
-        try:
-            data = json.loads(raw)
-        except Exception:
-            return []
-        if not isinstance(data, list):
-            return []
-        out: list[dict[str, Any]] = []
-        for item in data:
-            if isinstance(item, dict):
-                out.append(dict(item))
-        return out
+        return storage_app_state_support.load_json_list(self, APP_STATE_NOTIFICATIONS_STATE_KEY)
 
     def save_notifications_state(self, items: list[dict[str, Any]]) -> None:
-        payload = []
-        for item in items or []:
-            if isinstance(item, dict):
-                payload.append(dict(item))
-        self._set_app_state_value(
-            APP_STATE_NOTIFICATIONS_STATE_KEY,
-            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-        )
+        storage_app_state_support.save_json_list(self, APP_STATE_NOTIFICATIONS_STATE_KEY, items)
 
     def get_name_set_state(
         self,
@@ -3252,13 +3160,10 @@ class ReaderStorage:
         )
 
     def get_theme_active(self) -> str:
-        value = self._get_app_state_value(APP_STATE_THEME_ACTIVE_KEY)
-        if value:
-            return value
-        return "sao_dem"
+        return storage_app_state_support.get_theme_active(self, state_key=APP_STATE_THEME_ACTIVE_KEY)
 
     def set_theme_active(self, theme_id: str) -> None:
-        self._set_app_state_value(APP_STATE_THEME_ACTIVE_KEY, str(theme_id or "").strip() or "sao_dem")
+        storage_app_state_support.set_theme_active(self, theme_id, state_key=APP_STATE_THEME_ACTIVE_KEY)
 
     def create_book(
         self,
