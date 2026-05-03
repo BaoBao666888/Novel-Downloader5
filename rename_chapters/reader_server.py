@@ -35,9 +35,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, unquote, urlparse
 from urllib import request as urllib_request
-from urllib import error as urllib_error
 import xml.etree.ElementTree as ET
-import requests
 from reader_backend.catalogs import theme_presets as theme_presets_support
 from reader_backend.catalogs import vbook_search_filters as vbook_search_filters_support
 from reader_backend.core import app_config as app_config_support
@@ -459,10 +457,6 @@ def normalize_vbook_display_text(text: str, *, single_line: bool = False) -> str
     if single_line:
         value = re.sub(r"\s*\n+\s*", " ", value)
     return value.strip()
-
-
-def decode_http_encoded_body(data: bytes, *, content_encoding: str = "") -> bytes:
-    return content_media_support.decode_http_encoded_body(data, content_encoding=content_encoding)
 
 
 _VI_PUNCT_REPLACEMENTS = {
