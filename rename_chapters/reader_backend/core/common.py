@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -69,6 +70,12 @@ def quote_url_path(value: str) -> str:
     return quote(value or "", safe="")
 
 
+def safe_filename(name: str, max_len: int = 80) -> str:
+    cleaned = re.sub(r"[\\/:*?\"<>|]+", "_", (name or "book")).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    cleaned = cleaned[:max_len].strip()
+    return cleaned or "book"
+
+
 def sleep_retry(attempt: int) -> None:
     time.sleep(0.05 * (int(attempt) + 1))
-

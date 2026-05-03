@@ -306,6 +306,10 @@ def quote_url_path(value: str) -> str:
     return common_support.quote_url_path(value)
 
 
+def safe_filename(name: str, max_len: int = 80) -> str:
+    return common_support.safe_filename(name, max_len=max_len)
+
+
 def build_vbook_image_proxy_path(
     image_url: str,
     *,
@@ -2764,16 +2768,10 @@ class ReaderStorage:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
     def _safe_filename(self, name: str, max_len: int = 80) -> str:
-        cleaned = re.sub(r"[\\/:*?\"<>|]+", "_", (name or "book")).strip()
-        cleaned = re.sub(r"\s+", " ", cleaned)
-        cleaned = cleaned[:max_len].strip()
-        return cleaned or "book"
+        return safe_filename(name, max_len=max_len)
 
     def _cache_path_for_key(self, cache_key: str) -> Path:
-        prefix = cache_key[:2]
-        folder = CACHE_DIR / prefix
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder / f"{cache_key}.txt"
+        return storage_cache_support.cache_path_for_key(cache_dir=CACHE_DIR, cache_key=cache_key)
 
     def write_cache(
         self,
