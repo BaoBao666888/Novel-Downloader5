@@ -824,6 +824,35 @@ function setCategorySectionExpanded(scopeKey, section, expanded) {
   state.categorySectionExpanded[sectionKey] = Boolean(expanded);
 }
 
+function captureScrollState(container) {
+  const rows = [];
+  let node = container;
+  while (node && node !== document.body && node !== document.documentElement) {
+    if (typeof node.scrollTop === "number") {
+      rows.push({ node, top: node.scrollTop, left: node.scrollLeft });
+    }
+    node = node.parentElement;
+  }
+  const doc = document.scrollingElement || document.documentElement;
+  rows.push({ node: doc, top: doc.scrollTop, left: doc.scrollLeft });
+  return rows;
+}
+
+function restoreScrollState(rows) {
+  for (const row of rows || []) {
+    if (!row || !row.node) continue;
+    row.node.scrollTop = row.top;
+    row.node.scrollLeft = row.left;
+  }
+}
+
+function rerenderCategoryPickerPreservingScroll(container, renderFn) {
+  const scrollState = captureScrollState(container);
+  renderFn();
+  restoreScrollState(scrollState);
+  requestAnimationFrame(() => restoreScrollState(scrollState));
+}
+
 function renderCategoryPickerSections(container, {
   term = "",
   activeIds = [],
@@ -858,17 +887,21 @@ function renderCategoryPickerSections(container, {
       toggleBtn.type = "button";
       toggleBtn.className = "btn btn-small category-section-toggle";
       toggleBtn.textContent = expanded ? state.shell.t("categorySectionHide") : state.shell.t("categorySectionShow");
-      toggleBtn.addEventListener("click", () => {
+      toggleBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         setCategorySectionExpanded(scopeKey, section, !expanded);
-        renderCategoryPickerSections(container, {
-          term,
-          activeIds,
-          emptyNode,
-          emptyText,
-          showCount,
-          onToggle,
-          scopeKey,
-          collapsibleSections,
+        rerenderCategoryPickerPreservingScroll(container, () => {
+          renderCategoryPickerSections(container, {
+            term,
+            activeIds,
+            emptyNode,
+            emptyText,
+            showCount,
+            onToggle,
+            scopeKey,
+            collapsibleSections,
+          });
         });
       });
       head.appendChild(toggleBtn);

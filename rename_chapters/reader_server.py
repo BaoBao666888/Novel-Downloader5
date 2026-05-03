@@ -583,7 +583,7 @@ def smart_capitalize_vi(text: str) -> str:
     cap_next = True
     cap_after_quote = False
     sentence_breakers = {".", "!", "?", ";", "…", "\n", "。", "！", "？", ":"}
-    skip_when_cap = {" ", "\t", "\"", "'", "“", "”", "‘", "’", "(", "[", "{", "<", "-", "*", "•", ">", "»", "«"}
+    skip_when_cap = {" ", "\t", "\"", "'", "“", "”", "‘", "’", "(", "[", "{", "<", "-", "—", "–", "―", "*", "•", ">", "»", "«"}
     quote_marks = {"\"", "'", "“", "”", "‘", "’", "«", "»"}
     skip_after_quote = {" ", "\t", "\n", ",", ".", ";", ":", "!", "?", "…", "，", "。", "！", "？", "；", "：", "、"}
     for i, ch in enumerate(chars):
@@ -733,6 +733,103 @@ def extract_name_lookup_text(text: str, *, keep_ascii: bool = True) -> str:
         if keep_ascii and ch.isascii() and ch.isalnum():
             out.append(ch)
     return "".join(out).strip()
+
+
+_HANVIET_MIXED_CJK_LATIN_RE = re.compile(r"[\u3400-\u9fff][A-Za-z0-9]|[A-Za-z0-9][\u3400-\u9fff]")
+_HANVIET_PUNCTUATION_MAP = {
+    "，": ",",
+    "、": ",",
+    "。": ".",
+    "！": "!",
+    "？": "?",
+    "：": ":",
+    "；": ";",
+    "（": "(",
+    "）": ")",
+    "【": "[",
+    "】": "]",
+    "「": "“",
+    "」": "”",
+    "『": "“",
+    "』": "”",
+}
+_HANVIET_OPENING_CHARS = set("([{<“‘《〈「『")
+_HANVIET_CLOSING_CHARS = set(")]}>”’》〉」』")
+_HANVIET_NO_SPACE_BEFORE = set(",.;:!?%…") | _HANVIET_CLOSING_CHARS
+_HANVIET_NO_SPACE_AFTER = _HANVIET_OPENING_CHARS
+
+
+def append_hanviet_piece(current_text: str, piece: str) -> str:
+    if not piece:
+        return ""
+    if not current_text:
+        return piece
+    tail = current_text[-1]
+    head = piece[0]
+    if tail == "\n" or head == "\n":
+        return piece
+    if tail.isspace():
+        return piece
+    if head in _HANVIET_NO_SPACE_BEFORE:
+        return piece
+    if tail in _HANVIET_NO_SPACE_AFTER:
+        return piece
+    return " " + piece
+
+
+def build_mixed_hanviet_text(source_text: str, settings: dict[str, Any] | None = None) -> str:
+    source = normalize_newlines(source_text or "").strip()
+    if not source:
+        return ""
+    try:
+        bundle = vbook_local_translate.get_public_bundle(settings or {})
+        hv_map = getattr(bundle, "hanviet", {}) if bundle is not None else {}
+        if not isinstance(hv_map, dict):
+            hv_map = {}
+    except Exception:
+        hv_map = {}
+    current = ""
+    idx = 0
+    while idx < len(source):
+        ch = source[idx]
+        if ch == "\n":
+            current += "\n"
+            idx += 1
+            continue
+        if re.search(r"[\u3400-\u9fff]", ch):
+            hv = str(hv_map.get(ch) or ch).strip() or ch
+            current += append_hanviet_piece(current, hv)
+            idx += 1
+            continue
+        if ch.isascii() and ch.isalnum():
+            end = idx + 1
+            while end < len(source) and source[end].isascii() and source[end].isalnum():
+                end += 1
+            current += append_hanviet_piece(current, source[idx:end])
+            idx = end
+            continue
+        if ch in _HANVIET_PUNCTUATION_MAP:
+            current += append_hanviet_piece(current, _HANVIET_PUNCTUATION_MAP[ch])
+            idx += 1
+            continue
+        current += ch
+        idx += 1
+    return normalize_vi_punctuation(current)
+
+
+def normalize_hanviet_mixed_latin_spacing(
+    source_text: str,
+    hv_text: str,
+    settings: dict[str, Any] | None = None,
+) -> str:
+    source = normalize_newlines(source_text or "")
+    value = normalize_newlines(hv_text or "")
+    if not source or not value:
+        return value
+    if not _HANVIET_MIXED_CJK_LATIN_RE.search(source):
+        return value
+    spaced = build_mixed_hanviet_text(source, settings)
+    return spaced or value
 
 
 def capitalize_after_quote_vi(text: str) -> str:
@@ -2088,9 +2185,15 @@ class TranslationAdapter:
         if not isinstance(global_dicts, dict):
             global_dicts = {}
         merged_local = dict(local_cfg)
+        if local_key == "hanviet":
+            merged_local["dict_base_dir"] = "reader_ui/translate/dichngay_local"
         merged_local["global_name_overrides"] = normalize_name_set(global_dicts.get("name"))
         merged_local["global_vp_overrides"] = normalize_name_set(global_dicts.get("vp"))
-        default_base_dir = "reader_ui/translate/dichngay_local" if local_key == "dichngay_local" else "reader_ui/translate/vbook_local"
+        default_base_dir = (
+            "reader_ui/translate/dichngay_local"
+            if local_key in {"dichngay_local", "hanviet"}
+            else "reader_ui/translate/vbook_local"
+        )
         return vbook_local_translate.normalize_local_settings(
             merged_local,
             default_base_dir=default_base_dir,
@@ -2242,12 +2345,16 @@ class TranslationAdapter:
                 personal_name_set=name_set,
                 personal_vp_set=vp_set,
             )
-            hanviet_source = normalize_newlines(local_detail.get("hanviet_source") or "")
+            processed_text = normalize_newlines(local_detail.get("processed_text") or source)
+            hanviet_source = normalize_hanviet_mixed_latin_spacing(
+                processed_text or source,
+                normalize_newlines(local_detail.get("hanviet_source") or ""),
+                local_settings,
+            )
             if mode_norm == "hanviet":
                 translated = hanviet_source or source
             else:
                 translated = normalize_newlines(local_detail.get("translated") or "")
-            processed_text = normalize_newlines(local_detail.get("processed_text") or source)
             translated_with_placeholders = normalize_newlines(
                 local_detail.get("translated_with_placeholders") or translated
             )
@@ -5384,7 +5491,12 @@ class ReaderService:
             return normalize_vbook_display_text(value, single_line=single_line)
         hv_text = ""
         try:
-            hv_text = vbook_local_translate.build_hanviet_text(value, self.translator._local_settings("hanviet")) or ""
+            local_settings = self.translator._local_settings("hanviet")
+            hv_text = normalize_hanviet_mixed_latin_spacing(
+                value,
+                vbook_local_translate.build_hanviet_text(value, local_settings) or "",
+                local_settings,
+            )
         except Exception:
             hv_text = ""
         if not hv_text:

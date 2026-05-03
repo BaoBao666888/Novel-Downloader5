@@ -6,7 +6,7 @@ SIMULATED_LOCAL_MODE = "dichngay_local"
 SIMULATED_LOCAL_BASE_DIR = "reader_ui/translate/dichngay_local"
 SIMULATED_LOCAL_LEGACY_BASE_DIR = "local/dichngay_local_pack"
 HANVIET_MODE = "hanviet"
-HANVIET_BASE_DIR = "reader_ui/translate/vbook_local"
+HANVIET_BASE_DIR = SIMULATED_LOCAL_BASE_DIR
 
 
 def _normalize_simulated_local_payload(raw: Any) -> dict[str, Any]:
@@ -17,6 +17,12 @@ def _normalize_simulated_local_payload(raw: Any) -> dict[str, Any]:
         f"{SIMULATED_LOCAL_LEGACY_BASE_DIR}/root",
     }:
         payload["dict_base_dir"] = SIMULATED_LOCAL_BASE_DIR
+    return payload
+
+
+def _normalize_hanviet_payload(raw: Any) -> dict[str, Any]:
+    payload = dict(raw) if isinstance(raw, dict) else {}
+    payload["dict_base_dir"] = HANVIET_BASE_DIR
     return payload
 
 
@@ -95,9 +101,7 @@ def normalized_reader_translation_settings(
     if not isinstance(local_payload, dict):
         local_payload = {}
     sim_local_payload = _normalize_simulated_local_payload(payload.get(SIMULATED_LOCAL_MODE) if isinstance(payload, dict) else {})
-    hanviet_payload = payload.get(HANVIET_MODE) if isinstance(payload, dict) else {}
-    if not isinstance(hanviet_payload, dict):
-        hanviet_payload = {}
+    hanviet_payload = _normalize_hanviet_payload(payload.get(HANVIET_MODE) if isinstance(payload, dict) else {})
     global_dicts = normalized_global_local_dicts(payload.get("global_dicts"), normalize_name_set=normalize_name_set)
     merged_local = dict(local_payload)
     merged_local["global_name_overrides"] = dict(global_dicts.get("name") or {})
@@ -184,11 +188,10 @@ def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -
             default_base_dir=SIMULATED_LOCAL_BASE_DIR,
         )
     hanviet_settings = service.reader_translation_settings.get(HANVIET_MODE)
-    if not isinstance(hanviet_settings, dict):
-        hanviet_settings = vbook_local_translate.normalize_local_settings(
-            {},
-            default_base_dir=HANVIET_BASE_DIR,
-        )
+    hanviet_settings = vbook_local_translate.normalize_local_settings(
+        _normalize_hanviet_payload(hanviet_settings if isinstance(hanviet_settings, dict) else {}),
+        default_base_dir=HANVIET_BASE_DIR,
+    )
     return {
         "ok": True,
         "debug": {
@@ -262,6 +265,7 @@ def set_reader_settings(
             merged_hanviet.update(patch_hanviet)
         else:
             merged_hanviet = existing.get(HANVIET_MODE) or {}
+        merged_hanviet = _normalize_hanviet_payload(merged_hanviet)
         if isinstance(patch_server, dict):
             merged_server = dict(existing.get("server") or {})
             merged_server.update(patch_server)

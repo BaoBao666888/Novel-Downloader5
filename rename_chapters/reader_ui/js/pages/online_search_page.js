@@ -257,6 +257,36 @@ function getSelectedPlugin() {
   return state.online.plugins.find((x) => String((x && x.plugin_id) || "").trim() === pid) || null;
 }
 
+function getOnlineItemDetailUrl(item) {
+  const value = item && typeof item === "object" ? item : {};
+  return String(
+    value.detail_url
+    || value.url
+    || value.link
+    || value.href
+    || value.source_url
+    || value.sourceUrl
+    || ""
+  ).trim();
+}
+
+function normalizeOnlineBookItem(item) {
+  const value = item && typeof item === "object" ? item : {};
+  const detailUrl = getOnlineItemDetailUrl(value);
+  const pluginId = String(
+    value.plugin_id
+    || state.online.pluginId
+    || state.genreModal.pluginId
+    || state.detail.pluginId
+    || ""
+  ).trim();
+  return {
+    ...value,
+    detail_url: detailUrl,
+    plugin_id: pluginId,
+  };
+}
+
 function renderPluginPicker() {
   const hasPlugins = Array.isArray(state.online.plugins) && state.online.plugins.length > 0;
   const selectedPlugin = getSelectedPlugin();
@@ -507,7 +537,8 @@ function renderFilterPanel() {
   }
 }
 
-function buildOnlineBookCard(item) {
+function buildOnlineBookCard(rawItem) {
+  const item = normalizeOnlineBookItem(rawItem);
   const card = document.createElement("article");
   card.className = "book-card";
   card.tabIndex = 0;
@@ -548,6 +579,7 @@ function buildOnlineBookCard(item) {
   btnDetail.className = "btn btn-small";
   btnDetail.textContent = state.shell.t("vbookSearchViewDetail");
   btnDetail.addEventListener("click", (event) => {
+    event.preventDefault();
     event.stopPropagation();
     openDetailDialog(item);
   });
@@ -557,6 +589,7 @@ function buildOnlineBookCard(item) {
   btnImport.className = "btn btn-small btn-primary";
   btnImport.textContent = state.shell.t("vbookSearchImportBook");
   btnImport.addEventListener("click", async (event) => {
+    event.preventDefault();
     event.stopPropagation();
     await importOnlineBook(item);
   });
@@ -971,7 +1004,7 @@ async function upsertHistoryFromDetail({
 } = {}) {
   const detail = state.detail.detail || {};
   const item = state.detail.item || {};
-  const sourceUrl = String(detail.url || item.detail_url || "").trim();
+  const sourceUrl = String(detail.url || getOnlineItemDetailUrl(item) || "").trim();
   if (!sourceUrl) return;
 
   const payload = {
@@ -1006,7 +1039,7 @@ async function upsertHistoryFromDetail({
 function detailSourceContext() {
   const detail = state.detail.detail || {};
   const item = state.detail.item || {};
-  const sourceUrl = String(detail.url || item.detail_url || "").trim();
+  const sourceUrl = String(detail.url || getOnlineItemDetailUrl(item) || "").trim();
   const pluginId = String(state.detail.pluginId || item.plugin_id || "").trim();
   return { sourceUrl, pluginId, detail, item };
 }
@@ -1215,7 +1248,7 @@ function renderVbookDetail() {
       const openBtn = document.createElement("button");
       openBtn.type = "button";
       openBtn.className = "btn btn-small";
-      const detailUrl = String((row && row.detail_url) || "").trim();
+      const detailUrl = getOnlineItemDetailUrl(row);
       openBtn.textContent = detailUrl ? state.shell.t("vbookDetailOpenSuggest") : state.shell.t("vbookDetailSuggestNoLink");
       openBtn.disabled = !detailUrl;
       openBtn.addEventListener("click", async () => {
@@ -1366,7 +1399,13 @@ async function loadDetailToc({ force = false } = {}) {
   }
 }
 
-async function openDetailDialog(item, options = {}) {
+async function openDetailDialog(rawItem, options = {}) {
+  const item = normalizeOnlineBookItem(rawItem);
+  const sourceUrl = getOnlineItemDetailUrl(item);
+  if (!sourceUrl) {
+    state.shell.showToast(state.shell.t("vbookDetailNoBookSelected"));
+    return;
+  }
   const openOptions = options && typeof options === "object" ? options : {};
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   state.detail.item = item;
@@ -1378,7 +1417,7 @@ async function openDetailDialog(item, options = {}) {
     author: item.author || "",
     description: "",
     cover: item.cover || "",
-    url: item.detail_url || "",
+    url: sourceUrl,
   };
   state.detail.pluginId = String(item.plugin_id || "").trim();
   state.detail.lastReadChapterUrl = String(openOptions.chapterUrl || "").trim();
@@ -1402,7 +1441,7 @@ async function openDetailDialog(item, options = {}) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        url: item.detail_url || "",
+        url: sourceUrl,
         plugin_id: item.plugin_id || "",
       }),
     });
@@ -1447,12 +1486,17 @@ async function resolveImportedBookFallback(sourceUrl, pluginId) {
   }
 }
 
-async function importOnlineBook(item, { openReader = false } = {}) {
-  const sourceUrl = String((item.detail_url || (state.detail.detail && state.detail.detail.url) || "")).trim();
-  if (!sourceUrl) return;
+async function importOnlineBook(rawItem, { openReader = false } = {}) {
+  const item = normalizeOnlineBookItem(rawItem);
+  const detailUrl = String((state.detail.detail && state.detail.detail.url) || "").trim();
+  const sourceUrl = String((item.detail_url || detailUrl || "")).trim();
+  if (!sourceUrl) {
+    state.shell.showToast(state.shell.t("vbookDetailNoBookSelected"));
+    return;
+  }
   const pluginId = String((item.plugin_id || state.detail.pluginId || "")).trim();
   const notificationId = !openReader ? state.shell.createNotificationTaskId("import_url") : "";
-  const activeDetailSource = String(((state.detail.detail && state.detail.detail.url) || (state.detail.item && state.detail.item.detail_url) || "")).trim();
+  const activeDetailSource = String(((state.detail.detail && state.detail.detail.url) || getOnlineItemDetailUrl(state.detail.item) || "")).trim();
   const busyAction = openReader ? "read" : "import";
   const shouldRenderBusy = Boolean(activeDetailSource && activeDetailSource === sourceUrl);
 
@@ -1615,7 +1659,7 @@ async function downloadFromDetail() {
     state.shell.showToast(state.shell.t("vbookDetailNoBookSelected"));
     return;
   }
-  const sourceUrl = String((state.detail.item.detail_url || "")).trim();
+  const sourceUrl = String(getOnlineItemDetailUrl(state.detail.item) || (state.detail.detail && state.detail.detail.url) || "").trim();
   if (!sourceUrl) {
     state.shell.showToast(state.shell.t("vbookDetailNoBookSelected"));
     return;
@@ -1719,7 +1763,7 @@ async function refreshPageByReaderSettings() {
     renderAll();
   }
 
-  if (detailWasOpen && detailSeed && detailSeed.detail_url) {
+  if (detailWasOpen && detailSeed && getOnlineItemDetailUrl(detailSeed)) {
     await openDetailDialog(detailSeed, {
       chapterUrl,
       chapterTitle,
