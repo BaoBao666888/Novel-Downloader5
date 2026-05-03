@@ -70,6 +70,7 @@ from reader_backend.services import library as service_library_support
 from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
+from reader_backend.services.vbook import detail_sections as service_vbook_detail_sections_support
 from reader_backend.services.vbook import image_cache as service_vbook_image_cache_support
 from reader_backend.services.vbook import image_fetch as service_vbook_image_fetch_support
 from reader_backend.services.vbook import image_headers as service_vbook_image_headers_support
@@ -10902,42 +10903,26 @@ class ReaderService:
         return out[:80], best_next, has_next
 
     def _vbook_section_title_from_raw(self, raw_value: Any, default_title: str) -> str:
-        if isinstance(raw_value, dict):
-            for key in ("title", "name", "label", "header", "heading"):
-                title = normalize_vbook_display_text(str(raw_value.get(key) or ""), single_line=True)
-                if title:
-                    return title
-        return default_title
+        return service_vbook_detail_sections_support.section_title_from_raw(
+            raw_value,
+            default_title,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+        )
 
     def _vbook_section_payload_from_raw(self, raw_value: Any, candidate_keys: tuple[str, ...]) -> Any:
-        if not isinstance(raw_value, dict):
-            return raw_value
-        for key in candidate_keys:
-            if key in raw_value and self._has_non_empty_vbook_value(raw_value.get(key)):
-                return raw_value.get(key)
-        lowered = {str(k or "").strip().lower(): v for k, v in raw_value.items()}
-        for key in candidate_keys:
-            value = lowered.get(str(key or "").strip().lower())
-            if self._has_non_empty_vbook_value(value):
-                return value
-        return raw_value
+        return service_vbook_detail_sections_support.section_payload_from_raw(
+            raw_value,
+            candidate_keys,
+            has_non_empty_value=self._has_non_empty_vbook_value,
+        )
 
     def _looks_like_vbook_detail_section(self, raw_value: Any, candidate_keys: tuple[str, ...]) -> bool:
-        if not isinstance(raw_value, dict):
-            return False
-        if any(str(key or "").strip().lower() in {"title", "name", "label", "header", "heading"} for key in raw_value.keys()):
-            if self._normalize_vbook_script_descriptor_item(raw_value, translate_ui=False):
-                return True
-            for key in candidate_keys:
-                value = raw_value.get(key)
-                if isinstance(value, (list, tuple, set)) or (isinstance(value, dict) and self._extract_vbook_list_rows(value)):
-                    return True
-            lowered = {str(k or "").strip().lower(): v for k, v in raw_value.items()}
-            for key in candidate_keys:
-                value = lowered.get(str(key or "").strip().lower())
-                if isinstance(value, (list, tuple, set)) or (isinstance(value, dict) and self._extract_vbook_list_rows(value)):
-                    return True
-        return False
+        return service_vbook_detail_sections_support.looks_like_detail_section(
+            raw_value,
+            candidate_keys,
+            extract_rows=self._extract_vbook_list_rows,
+            normalize_script_descriptor_item=self._normalize_vbook_script_descriptor_item,
+        )
 
     def _collect_vbook_detail_sections(
         self,
@@ -10948,60 +10933,16 @@ class ReaderService:
         candidate_keys: tuple[str, ...],
         item_collector: Any,
     ) -> list[dict[str, Any]]:
-        sections: list[dict[str, Any]] = []
-
-        def push(title_raw: str, payload: Any) -> None:
-            title = normalize_vbook_display_text(str(title_raw or default_title), single_line=True) or default_title
-            items = item_collector(payload)
-            if not items:
-                return
-            sections.append(
-                {
-                    "title_raw": title,
-                    "title": title,
-                    "items": items,
-                    "count": len(items),
-                }
-            )
-
-        for raw_key, raw_value in raw_values:
-            if isinstance(raw_value, list):
-                section_rows = [row for row in raw_value if self._looks_like_vbook_detail_section(row, candidate_keys)]
-                if section_rows and len(section_rows) == len(raw_value):
-                    for row in section_rows:
-                        title = self._vbook_section_title_from_raw(row, default_title)
-                        push(title, self._vbook_section_payload_from_raw(row, candidate_keys))
-                else:
-                    push(default_title, raw_value)
-                continue
-
-            if isinstance(raw_value, dict):
-                direct_payload = self._vbook_section_payload_from_raw(raw_value, candidate_keys)
-                if direct_payload is not raw_value:
-                    push(self._vbook_section_title_from_raw(raw_value, default_title), direct_payload)
-                    continue
-
-                mapped = False
-                for key, value in raw_value.items():
-                    if key in {"title", "name", "label", "header", "heading"}:
-                        continue
-                    if not self._has_non_empty_vbook_value(value):
-                        continue
-                    if isinstance(value, (list, tuple, set)):
-                        push(str(key or default_title), value)
-                        mapped = True
-                    elif isinstance(value, dict):
-                        rows = self._extract_vbook_list_rows(value)
-                        if rows and not (len(rows) == 1 and rows[0] is value):
-                            push(str(key or default_title), value)
-                            mapped = True
-                if not mapped:
-                    push(default_title, raw_value)
-                continue
-
-            push(default_title, raw_value)
-
-        return sections
+        return service_vbook_detail_sections_support.collect_detail_sections(
+            raw_values,
+            default_title=default_title,
+            candidate_keys=candidate_keys,
+            item_collector=item_collector,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+            has_non_empty_value=self._has_non_empty_vbook_value,
+            extract_rows=self._extract_vbook_list_rows,
+            normalize_script_descriptor_item=self._normalize_vbook_script_descriptor_item,
+        )
 
     def _build_vbook_detail_section_sources(
         self,
@@ -11010,69 +10951,18 @@ class ReaderService:
         default_title: str,
         candidate_keys: tuple[str, ...],
     ) -> list[dict[str, Any]]:
-        sources: list[dict[str, Any]] = []
-
-        def push(title_raw: str, payload: Any) -> None:
-            if not self._has_non_empty_vbook_value(payload):
-                return
-            title = normalize_vbook_display_text(str(title_raw or default_title), single_line=True) or default_title
-            sources.append(
-                {
-                    "index": len(sources),
-                    "title_raw": title,
-                    "title": title,
-                    "payload": payload,
-                }
-            )
-
-        for raw_key, raw_value in raw_values:
-            if isinstance(raw_value, list):
-                section_rows = [row for row in raw_value if self._looks_like_vbook_detail_section(row, candidate_keys)]
-                if section_rows and len(section_rows) == len(raw_value):
-                    for row in section_rows:
-                        title = self._vbook_section_title_from_raw(row, default_title)
-                        push(title, self._vbook_section_payload_from_raw(row, candidate_keys))
-                else:
-                    push(default_title, raw_value)
-                continue
-
-            if isinstance(raw_value, dict):
-                direct_payload = self._vbook_section_payload_from_raw(raw_value, candidate_keys)
-                if direct_payload is not raw_value:
-                    push(self._vbook_section_title_from_raw(raw_value, default_title), direct_payload)
-                    continue
-
-                mapped = False
-                for key, value in raw_value.items():
-                    if key in {"title", "name", "label", "header", "heading"}:
-                        continue
-                    if not self._has_non_empty_vbook_value(value):
-                        continue
-                    if isinstance(value, (list, tuple, set)):
-                        push(str(key or default_title), value)
-                        mapped = True
-                    elif isinstance(value, dict):
-                        rows = self._extract_vbook_list_rows(value)
-                        if rows and not (len(rows) == 1 and rows[0] is value):
-                            push(str(key or default_title), value)
-                            mapped = True
-                if not mapped:
-                    push(default_title, raw_value)
-                continue
-
-            push(default_title, raw_value)
-
-        return sources
+        return service_vbook_detail_sections_support.build_detail_section_sources(
+            raw_values,
+            default_title=default_title,
+            candidate_keys=candidate_keys,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+            has_non_empty_value=self._has_non_empty_vbook_value,
+            extract_rows=self._extract_vbook_list_rows,
+            normalize_script_descriptor_item=self._normalize_vbook_script_descriptor_item,
+        )
 
     def _flatten_vbook_detail_sections(self, sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        out: list[dict[str, Any]] = []
-        for section in sections:
-            if not isinstance(section, dict):
-                continue
-            for item in section.get("items") or []:
-                if isinstance(item, dict):
-                    out.append(item)
-        return out
+        return service_vbook_detail_sections_support.flatten_detail_sections(sections)
 
     def _translate_vbook_detail_sections_response(
         self,
