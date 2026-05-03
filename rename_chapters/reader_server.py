@@ -60,16 +60,13 @@ from reader_backend.jobs import export_jobs as export_jobs_support
 from reader_backend.jobs import import_jobs as import_jobs_support
 from reader_backend.jobs import export_runtime as export_runtime_support
 from reader_backend.jobs import queue_runtime as queue_runtime_support
+from reader_backend.routes import api_dispatch as http_api_dispatch_support
 from reader_backend.routes import export_download as http_export_download_support
-from reader_backend.routes import library_reader as http_library_reader_support
 from reader_backend.routes import media as http_media_support
-from reader_backend.routes import misc as http_misc_support
 from reader_backend.routes import name_filter as http_name_filter_support
 from reader_backend.routes import notifications as http_notifications_support
 from reader_backend.routes.http_base import ApiError, MultipartForm, MultipartPart
 from reader_backend.routes import route_matchers as http_routes_support
-from reader_backend.routes import tts as http_tts_support
-from reader_backend.routes import vbook_import as http_vbook_import_support
 from reader_backend.services import exporting as service_export_support
 from reader_backend.services import history as service_history_support
 from reader_backend.services import library as service_library_support
@@ -14374,72 +14371,15 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         self.wfile.flush()
 
     def _handle_api(self, method: str, parsed):
-        path = parsed.path
-        query = parse_qs(parsed.query)
-
-        export_download_result = http_export_download_support.handle_api(
+        return http_api_dispatch_support.handle_api(
             self,
             method,
-            path,
-            query,
-            route_support=http_routes_support,
-        )
-        if export_download_result is not None:
-            return export_download_result
-
-        name_filter_result = http_name_filter_support.handle_api(
-            self,
-            method,
-            path,
-            query,
-        )
-        if name_filter_result is not None:
-            return name_filter_result
-
-        notifications_result = http_notifications_support.handle_api(
-            self,
-            method,
-            path,
-            query,
-            api_error_cls=ApiError,
-            http_status=HTTPStatus,
-        )
-        if notifications_result is not None:
-            return notifications_result
-
-        vbook_import_result = http_vbook_import_support.handle_api(
-            self,
-            method,
-            path,
-            query,
-            api_error_cls=ApiError,
-            http_status=HTTPStatus,
-            re_module=re,
-            unquote_func=unquote,
-        )
-        if vbook_import_result is not None:
-            return vbook_import_result
-
-        tts_result = http_tts_support.handle_api(
-            self,
-            method,
-            path,
-            query,
-            api_error_cls=ApiError,
-            http_status=HTTPStatus,
-        )
-        if tts_result is not None:
-            return tts_result
-
-        library_reader_result = http_library_reader_support.handle_api(
-            self,
-            method,
-            path,
-            query,
-            deps=http_library_reader_support.LibraryReaderDeps(
+            parsed,
+            deps=http_api_dispatch_support.ApiDispatchDeps(
                 api_error_cls=ApiError,
                 http_status=HTTPStatus,
                 cache_dir=CACHE_DIR,
+                theme_presets=THEME_PRESETS,
                 normalize_vbook_display_text=normalize_vbook_display_text,
                 normalize_vi_display_text=normalize_vi_display_text,
                 normalize_newlines=normalize_newlines,
@@ -14449,22 +14389,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 map_selection_to_name_source=map_selection_to_name_source,
                 map_selection_to_source_segment=map_selection_to_source_segment,
                 text_snippet=_text_snippet,
-            ),
-        )
-        if library_reader_result is not None:
-            return library_reader_result
-
-        misc_result = http_misc_support.handle_api(
-            self,
-            method,
-            path,
-            query,
-            deps=http_misc_support.MiscApiDeps(
-                api_error_cls=ApiError,
-                http_status=HTTPStatus,
-                theme_presets=THEME_PRESETS,
                 utc_now_iso=utc_now_iso,
-                normalize_newlines=normalize_newlines,
                 normalize_name_set=normalize_name_set,
                 build_incremental_hv_suggestions=build_incremental_hv_suggestions,
                 build_name_right_suggestions=build_name_right_suggestions,
@@ -14475,10 +14400,6 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
                 unquote_func=unquote,
             ),
         )
-        if misc_result is not None:
-            return misc_result
-
-        raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy endpoint.")
 
     def _read_json_body(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length", "0") or "0")
