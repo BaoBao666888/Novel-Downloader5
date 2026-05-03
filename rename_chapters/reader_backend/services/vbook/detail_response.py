@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from typing import Any
 
@@ -40,6 +42,123 @@ def _serialize_sections(sections: list[dict[str, Any]], default_title: str) -> l
             }
         )
     return out
+
+
+def normalize_detail_section_kind(
+    kind: Any,
+    *,
+    api_error_cls: type[Exception],
+    http_status: Any,
+) -> str:
+    section_kind = str(kind or "").strip().lower()
+    if section_kind in {"comments", "review", "reviews"}:
+        return "comment"
+    if section_kind in {"suggests", "recommend", "recommends", "related"}:
+        return "suggest"
+    if section_kind in {"suggest", "comment"}:
+        return section_kind
+    raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Loại detail section không hợp lệ.")
+
+
+def detail_section_source_signature(
+    *,
+    source: dict[str, Any] | None = None,
+    sources: list[Any] | None = None,
+) -> str:
+    if source and isinstance(source, dict):
+        source_sig_payload: Any = source
+    elif isinstance(sources, list):
+        source_sig_payload = {
+            "count": len(sources),
+            "indexes": [row.get("index") for row in sources if isinstance(row, dict)],
+        }
+    else:
+        source_sig_payload = {}
+    return hashlib.sha1(
+        json.dumps(source_sig_payload, ensure_ascii=False, sort_keys=True, default=str).encode(
+            "utf-8",
+            errors="ignore",
+        )
+    ).hexdigest()[:10]
+
+
+def coerce_detail_section_source_rows(
+    *,
+    source: dict[str, Any] | None = None,
+    sources: list[Any] | None = None,
+) -> list[dict[str, Any]]:
+    if source and isinstance(source, dict):
+        return [dict(source)]
+    if isinstance(sources, list):
+        return [dict(row) for row in sources if isinstance(row, dict)]
+    return []
+
+
+def collect_detail_section_pages(
+    plugin: Any,
+    source_rows: list[dict[str, Any]],
+    *,
+    kind: str,
+    page: int = 1,
+    next_token: Any = None,
+    collect_section_page: Callable[..., dict[str, Any]],
+) -> tuple[int, list[dict[str, Any]]]:
+    p = max(1, int(page or 1))
+    sections: list[dict[str, Any]] = []
+    for idx, row in enumerate(source_rows):
+        section_source = dict(row)
+        section_source["index"] = int(section_source.get("index") or idx)
+        section = collect_section_page(
+            plugin,
+            section_source,
+            kind=kind,
+            page=p,
+            next_token=next_token if len(source_rows) == 1 else None,
+        )
+        if section.get("items") or p <= 1:
+            sections.append(section)
+    return p, sections
+
+
+def build_detail_sections_response(
+    *,
+    plugin: Any,
+    kind: str,
+    page: int,
+    sections: list[dict[str, Any]],
+    serialize_plugin: Callable[[Any], dict[str, Any]],
+    flatten_sections: Callable[[list[dict[str, Any]]], list[dict[str, Any]]],
+) -> dict[str, Any]:
+    fallback_title = "Bình luận" if kind == "comment" else "Gợi ý"
+    items = flatten_sections(sections)
+    serialized_sections: list[dict[str, Any]] = []
+    for idx, section in enumerate(sections):
+        if not isinstance(section, dict):
+            continue
+        section_items = _dict_rows(section.get("items"))
+        serialized_sections.append(
+            {
+                "index": int((section or {}).get("index") or idx),
+                "title": str((section or {}).get("title") or "").strip() or fallback_title,
+                "title_raw": str((section or {}).get("title_raw") or (section or {}).get("title") or "").strip()
+                or fallback_title,
+                "items": section_items,
+                "count": len(section_items),
+                "page": int((section or {}).get("page") or page),
+                "next": (section or {}).get("next"),
+                "has_next": bool((section or {}).get("has_next")),
+                "source": dict((section or {}).get("source") or {}),
+            }
+        )
+    return {
+        "ok": True,
+        "plugin": serialize_plugin(plugin),
+        "kind": kind,
+        "page": page,
+        "sections": serialized_sections,
+        "items": items,
+        "count": len(items),
+    }
 
 
 def _apply_translated_values(

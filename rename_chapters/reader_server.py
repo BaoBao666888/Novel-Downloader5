@@ -11689,32 +11689,23 @@ class ReaderService:
         source_url = str(url or "").strip()
         if not source_url:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu URL truyện.")
-        section_kind = str(kind or "").strip().lower()
-        if section_kind in {"comments", "review", "reviews"}:
-            section_kind = "comment"
-        elif section_kind in {"suggests", "recommend", "recommends", "related"}:
-            section_kind = "suggest"
-        if section_kind not in {"suggest", "comment"}:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Loại detail section không hợp lệ.")
+        section_kind = service_vbook_detail_response_support.normalize_detail_section_kind(
+            kind,
+            api_error_cls=ApiError,
+            http_status=HTTPStatus,
+        )
         plugin = self._resolve_vbook_plugin(source_url, plugin_id=plugin_id or None)
-        source_sig_payload: Any
-        if source and isinstance(source, dict):
-            source_sig_payload = source
-        elif isinstance(sources, list):
-            source_sig_payload = {"count": len(sources), "indexes": [row.get("index") for row in sources if isinstance(row, dict)]}
-        else:
-            source_sig_payload = {}
-        source_sig = hashlib.sha1(
-            json.dumps(source_sig_payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8", errors="ignore")
-        ).hexdigest()[:10]
+        source_sig = service_vbook_detail_response_support.detail_section_source_signature(
+            source=source,
+            sources=sources,
+        )
         flight_key = self._vbook_singleflight_key(f"detail-{section_kind}-{source_sig}", plugin)
         flight_token = self._begin_vbook_singleflight(flight_key)
         try:
-            source_rows: list[dict[str, Any]] = []
-            if source and isinstance(source, dict):
-                source_rows = [dict(source)]
-            elif isinstance(sources, list):
-                source_rows = [dict(row) for row in sources if isinstance(row, dict)]
+            source_rows = service_vbook_detail_response_support.coerce_detail_section_source_rows(
+                source=source,
+                sources=sources,
+            )
             if not source_rows:
                 payload = self._fetch_vbook_detail_raw(
                     url=source_url,
@@ -11731,20 +11722,14 @@ class ReaderService:
                     if isinstance(row, dict)
                 ]
 
-            p = max(1, int(page or 1))
-            sections: list[dict[str, Any]] = []
-            for idx, row in enumerate(source_rows):
-                section_source = dict(row)
-                section_source["index"] = int(section_source.get("index") or idx)
-                section = self._collect_vbook_detail_section_page(
-                    plugin,
-                    section_source,
-                    kind=section_kind,
-                    page=p,
-                    next_token=next_token if len(source_rows) == 1 else None,
-                )
-                if section.get("items") or p <= 1:
-                    sections.append(section)
+            p, sections = service_vbook_detail_response_support.collect_detail_section_pages(
+                plugin,
+                source_rows,
+                kind=section_kind,
+                page=page,
+                next_token=next_token,
+                collect_section_page=self._collect_vbook_detail_section_page,
+            )
 
             if translate_ui is None:
                 translate_on = self.is_reader_translation_enabled()
@@ -11756,30 +11741,14 @@ class ReaderService:
                     kind=section_kind,
                     mode=self.reader_translation_mode(),
                 )
-            items = self._flatten_vbook_detail_sections(sections)
-            return {
-                "ok": True,
-                "plugin": self._serialize_vbook_plugin(plugin),
-                "kind": section_kind,
-                "page": p,
-                "sections": [
-                    {
-                        "index": int((section or {}).get("index") or idx),
-                        "title": str((section or {}).get("title") or "").strip() or ("Bình luận" if section_kind == "comment" else "Gợi ý"),
-                        "title_raw": str((section or {}).get("title_raw") or (section or {}).get("title") or "").strip() or ("Bình luận" if section_kind == "comment" else "Gợi ý"),
-                        "items": [dict(item or {}) for item in ((section or {}).get("items") or []) if isinstance(item, dict)],
-                        "count": len([item for item in ((section or {}).get("items") or []) if isinstance(item, dict)]),
-                        "page": int((section or {}).get("page") or p),
-                        "next": (section or {}).get("next"),
-                        "has_next": bool((section or {}).get("has_next")),
-                        "source": dict((section or {}).get("source") or {}),
-                    }
-                    for idx, section in enumerate(sections)
-                    if isinstance(section, dict)
-                ],
-                "items": items,
-                "count": len(items),
-            }
+            return service_vbook_detail_response_support.build_detail_sections_response(
+                plugin=plugin,
+                kind=section_kind,
+                page=p,
+                sections=sections,
+                serialize_plugin=self._serialize_vbook_plugin,
+                flatten_sections=self._flatten_vbook_detail_sections,
+            )
         except vbook_ext.RunnerCancelledError as exc:
             self._raise_vbook_request_replaced(plugin, f"detail-{section_kind}", exc)
         finally:
