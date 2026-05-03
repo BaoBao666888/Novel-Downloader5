@@ -72,6 +72,7 @@ from reader_backend.services import library as service_library_support
 from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
+from reader_backend.services import vbook_image_cache as service_vbook_image_cache_support
 from reader_backend.services import vbook_lists as service_vbook_lists_support
 from reader_backend.services import vbook_normalize as service_vbook_normalize_support
 from reader_backend.storage import book_categories as storage_book_categories_support
@@ -12922,54 +12923,18 @@ class ReaderService:
                 pass
 
     def _vbook_image_cache_paths(self, *, image_url: str, plugin_id: str = "") -> tuple[Path, Path]:
-        key = vbook_image_cache_key(image_url=image_url, plugin_id=plugin_id)
-        return (
-            VBOOK_IMAGE_CACHE_DIR / f"{key}.bin",
-            VBOOK_IMAGE_CACHE_DIR / f"{key}.json",
+        return service_vbook_image_cache_support.vbook_image_cache_paths(
+            image_url=image_url,
+            plugin_id=plugin_id,
+            image_cache_dir=VBOOK_IMAGE_CACHE_DIR,
         )
 
     def _read_vbook_image_cache(self, *, image_url: str, plugin_id: str = "") -> tuple[bytes, str] | None:
-        body_path, meta_path = self._vbook_image_cache_paths(image_url=image_url, plugin_id=plugin_id)
-        if (not body_path.exists()) or (not meta_path.exists()):
-            return None
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            if not isinstance(meta, dict):
-                return None
-        except Exception:
-            return None
-        try:
-            ts = float(meta.get("ts") or 0.0)
-        except Exception:
-            ts = 0.0
-        # TTL cache ảnh nguồn online: 7 ngày.
-        if (not ts) or ((datetime.now(timezone.utc).timestamp() - ts) > (7 * 24 * 3600)):
-            return None
-        try:
-            data = body_path.read_bytes()
-        except Exception:
-            return None
-        if not data:
-            return None
-        ctype = str(meta.get("content_type") or "").strip()
-        content_encoding = str(meta.get("content_encoding") or "").strip()
-        if not ctype:
-            parsed = urlparse(str(image_url or "").strip())
-            ctype = mimetypes.guess_type(parsed.path)[0] or "application/octet-stream"
-        decoded = decode_http_encoded_body(data, content_encoding=content_encoding)
-        if decoded != data:
-            try:
-                self._write_vbook_image_cache(
-                    image_url=image_url,
-                    plugin_id=plugin_id,
-                    content_type=ctype,
-                    content_encoding="",
-                    data=decoded,
-                )
-            except Exception:
-                pass
-            data = decoded
-        return data, ctype
+        return service_vbook_image_cache_support.read_vbook_image_cache(
+            image_url=image_url,
+            plugin_id=plugin_id,
+            image_cache_dir=VBOOK_IMAGE_CACHE_DIR,
+        )
 
     def _write_vbook_image_cache(
         self,
@@ -12980,38 +12945,14 @@ class ReaderService:
         content_encoding: str = "",
         data: bytes,
     ) -> None:
-        if not data:
-            return
-        body_path, meta_path = self._vbook_image_cache_paths(image_url=image_url, plugin_id=plugin_id)
-        body_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_body = body_path.with_suffix(".bin.tmp")
-        tmp_meta = meta_path.with_suffix(".json.tmp")
-        try:
-            tmp_body.write_bytes(data)
-            tmp_meta.write_text(
-                json.dumps(
-                    {
-                        "ts": datetime.now(timezone.utc).timestamp(),
-                        "content_type": str(content_type or "").strip(),
-                        "content_encoding": str(content_encoding or "").strip(),
-                        "url": str(image_url or "").strip(),
-                        "plugin_id": str(plugin_id or "").strip(),
-                    },
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
-            )
-            os.replace(tmp_body, body_path)
-            os.replace(tmp_meta, meta_path)
-        except Exception:
-            try:
-                tmp_body.unlink(missing_ok=True)
-            except Exception:
-                pass
-            try:
-                tmp_meta.unlink(missing_ok=True)
-            except Exception:
-                pass
+        service_vbook_image_cache_support.write_vbook_image_cache(
+            image_url=image_url,
+            plugin_id=plugin_id,
+            content_type=content_type,
+            content_encoding=content_encoding,
+            data=data,
+            image_cache_dir=VBOOK_IMAGE_CACHE_DIR,
+        )
 
     def fetch_vbook_image(
         self,
