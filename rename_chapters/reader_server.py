@@ -73,6 +73,7 @@ from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
 from reader_backend.services import vbook_image_cache as service_vbook_image_cache_support
+from reader_backend.services import vbook_image_headers as service_vbook_image_headers_support
 from reader_backend.services import vbook_lists as service_vbook_lists_support
 from reader_backend.services import vbook_normalize as service_vbook_normalize_support
 from reader_backend.storage import book_categories as storage_book_categories_support
@@ -12841,59 +12842,17 @@ class ReaderService:
         return core
 
     def _build_vbook_image_headers(self, *, image_url: str, plugin_id: str = "", referer: str = "") -> dict[str, str]:
-        headers: dict[str, str] = {
-            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-            "Pragma": "no-cache",
-            "Cache-Control": "no-cache",
-        }
-        parsed = urlparse(str(image_url or "").strip())
-        host = normalize_host(parsed.netloc)
-
-        resolved_referer = str(referer or "").strip()
-        pid = str(plugin_id or "").strip()
-        if (not resolved_referer) and pid:
-            try:
-                plugin = self._require_vbook_plugin(pid)
-                source = str(getattr(plugin, "source", "") or "").strip()
-                if source:
-                    if source.startswith("http://") or source.startswith("https://"):
-                        resolved_referer = source
-                    else:
-                        resolved_referer = "https://" + source.lstrip("/")
-            except Exception:
-                resolved_referer = ""
-        if (not resolved_referer) and parsed.scheme and parsed.netloc:
-            resolved_referer = f"{parsed.scheme}://{parsed.netloc}/"
-        if resolved_referer:
-            headers["Referer"] = resolved_referer
-            parsed_ref = urlparse(resolved_referer)
-            if parsed_ref.scheme and parsed_ref.netloc:
-                headers["Origin"] = f"{parsed_ref.scheme}://{parsed_ref.netloc}"
-        headers["Accept-Language"] = "zh-CN,zh;q=0.9,en;q=0.8,vi;q=0.7"
-        headers["Sec-Fetch-Dest"] = "image"
-        headers["Sec-Fetch-Mode"] = "no-cors"
-        headers["Sec-Fetch-Site"] = "cross-site"
-
-        user_agent = ""
-        cookie_header = ""
-        if host and self.vbook_bridge_enabled:
-            state = self._load_vbook_bridge_state()
-            entry = self._pick_bridge_host_entry(state, host)
-            user_agent = str(entry.get("user_agent") or "").strip()
-            cookie_header = str(entry.get("cookie_header") or "").strip()
-            if (not cookie_header) and entry:
-                cookie_header = self._fallback_cookie_header_from_bridge_state(host, state)
-
-        if not user_agent:
-            user_agent = (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/122.0.0.0 Safari/537.36 NovelStudio/vBook"
-            )
-        headers["User-Agent"] = user_agent
-        if cookie_header:
-            headers["Cookie"] = cookie_header
-        return headers
+        return service_vbook_image_headers_support.build_vbook_image_headers(
+            image_url=image_url,
+            plugin_id=plugin_id,
+            referer=referer,
+            normalize_host=normalize_host,
+            require_plugin=self._require_vbook_plugin,
+            bridge_enabled=bool(self.vbook_bridge_enabled),
+            load_bridge_state=self._load_vbook_bridge_state,
+            pick_bridge_host_entry=self._pick_bridge_host_entry,
+            fallback_cookie_header_from_bridge_state=self._fallback_cookie_header_from_bridge_state,
+        )
 
     def _fetch_vbook_image_with_requests(
         self,
