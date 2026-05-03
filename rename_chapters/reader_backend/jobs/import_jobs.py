@@ -101,6 +101,129 @@ def serialize_import_job(job: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def build_import_job_enqueue_payload(
+    payload: dict[str, Any] | None,
+    *,
+    normalize_item: Callable[..., dict[str, Any]],
+    load_preview_state: Callable[[str], dict[str, Any]],
+    list_categories: Callable[[], list[dict[str, Any]]],
+    normalize_display_text: Callable[..., str],
+    normalize_lang_source_fn: Callable[[str], str],
+    utc_now_iso: Callable[[], str],
+    hash_text: Callable[[str], str],
+    uuid_hex: Callable[[], str],
+    api_error_cls: type[Exception],
+    http_status: Any,
+) -> dict[str, Any]:
+    body = payload if isinstance(payload, dict) else {}
+    items_raw = body.get("items")
+    if not isinstance(items_raw, list) or not items_raw:
+        raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu danh sách file để nhập.")
+    normalized_items: list[dict[str, Any]] = []
+    seen_tokens: set[str] = set()
+    for idx, raw in enumerate(items_raw):
+        if not isinstance(raw, dict):
+            continue
+        token = str(raw.get("token") or "").strip()
+        if not token or token in seen_tokens:
+            continue
+        item = normalize_item(raw, fallback_idx=idx)
+        try:
+            preview_state = load_preview_state(token)
+        except Exception:
+            preview_state = {}
+        if preview_state:
+            if not str(item.get("file_name") or "").strip():
+                item["file_name"] = normalize_display_text(
+                    str(preview_state.get("file_name") or f"import_{idx + 1}.txt"),
+                    single_line=True,
+                ) or f"import_{idx + 1}.txt"
+            if not str(item.get("title") or "").strip():
+                item["title"] = str(preview_state.get("title") or "").strip()
+            if not str(item.get("author") or "").strip():
+                item["author"] = str(preview_state.get("author") or "").strip()
+            if not str(item.get("summary") or "").strip():
+                item["summary"] = str(preview_state.get("summary") or "").strip()
+            if not str(item.get("lang_source") or "").strip():
+                item["lang_source"] = normalize_lang_source_fn(str(preview_state.get("lang_source") or "").strip()) or "zh"
+            if (not item.get("import_settings")) and isinstance(preview_state.get("import_settings"), dict):
+                item["import_settings"] = dict(preview_state.get("import_settings") or {})
+        normalized_items.append(item)
+        seen_tokens.add(token)
+    if not normalized_items:
+        raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Không có file hợp lệ để nhập.")
+
+    valid_token_set = {
+        str(item.get("token") or "").strip()
+        for item in normalized_items
+        if str(item.get("token") or "").strip()
+    }
+    run_tokens = [
+        str(item or "").strip()
+        for item in (body.get("run_tokens") or [])
+        if str(item or "").strip() in valid_token_set
+    ]
+    if not run_tokens:
+        run_tokens = [
+            str(item.get("token") or "").strip()
+            for item in normalized_items
+            if str(item.get("status") or "").strip().lower() in {"pending", "running"}
+        ]
+    if not run_tokens:
+        run_tokens = [str(item.get("token") or "").strip() for item in normalized_items if str(item.get("token") or "").strip()]
+
+    category_ids = list(dict.fromkeys(
+        str(item or "").strip()
+        for item in (body.get("category_ids") or [])
+        if str(item or "").strip()
+    ))
+    category_names: list[str] = []
+    if category_ids:
+        try:
+            category_id_set = set(category_ids)
+            category_names = [
+                normalize_display_text(str(item.get("name") or ""), single_line=True)
+                for item in list_categories()
+                if str(item.get("category_id") or "").strip() in category_id_set
+            ]
+            category_names = [item for item in category_names if item]
+        except Exception:
+            category_names = []
+
+    kind = str(body.get("kind") or "").strip() or ("import_file_batch" if len(normalized_items) > 1 else "import_file")
+    title = str(body.get("title") or "").strip() or ("Nhập file hàng loạt vào thư viện" if len(normalized_items) > 1 else "Nhập file vào thư viện")
+    now = utc_now_iso()
+    seed = f"{title}|{len(normalized_items)}|{now}|{uuid_hex()}"
+    job_id = f"imp_{hash_text(seed)}"
+    notification_id = str(body.get("notification_id") or f"import:{job_id}").strip() or f"import:{job_id}"
+    snapshot_id = str(body.get("snapshot_id") or notification_id).strip() or notification_id
+    return {
+        "job_id": job_id,
+        "notification_id": notification_id,
+        "snapshot_id": snapshot_id,
+        "kind": kind,
+        "title": title,
+        "status": "queued",
+        "phase": "queued",
+        "items": normalized_items,
+        "run_tokens": run_tokens,
+        "total": 0,
+        "completed_count": 0,
+        "success_count": 0,
+        "failed_count": 0,
+        "current_file": "",
+        "errors": [],
+        "category_ids": category_ids,
+        "category_names": category_names,
+        "category_assign_error": "",
+        "imported_book_ids": [],
+        "imported_book_titles": [],
+        "created_at": now,
+        "updated_at": now,
+        "finished_at": "",
+    }
+
+
 def build_import_notification_payload(
     job: dict[str, Any],
     *,
