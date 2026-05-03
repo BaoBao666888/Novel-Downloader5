@@ -40,7 +40,11 @@ import xml.etree.ElementTree as ET
 import requests
 from reader_backend.catalogs import theme_presets as theme_presets_support
 from reader_backend.catalogs import vbook_search_filters as vbook_search_filters_support
+from reader_backend.core import app_config as app_config_support
 from reader_backend.core import app_modules as app_modules_support
+from reader_backend.core import common as common_support
+from reader_backend.core import content_media as content_media_support
+from reader_backend.core import import_settings as import_settings_support
 from reader_backend.core import logging_utils as logging_utils_support
 from reader_backend.core import notices as notices_support
 from reader_backend.core import notification_center as notification_center_support
@@ -80,6 +84,8 @@ from reader_backend.storage import chapter_content as storage_chapter_content_su
 from reader_backend.storage import history as storage_history_support
 from reader_backend.storage import library as storage_library_support
 from reader_backend.storage import user_state as storage_user_state_support
+from reader_backend.text import cleanup as text_cleanup_support
+from reader_backend.text import html_utils as html_utils_support
 from reader_backend.text import paragraphs as text_paragraphs_support
 
 try:
@@ -112,7 +118,7 @@ APP_STATE_EXPORT_JOBS_STATE_KEY = "reader.export_jobs_state"
 APP_STATE_NOTIFICATIONS_STATE_KEY = "reader.notifications_state"
 APP_STATE_SEARCH_CACHE_VERSION_KEY = "reader.search_cache_version"
 SEARCH_CACHE_VERSION = "3"
-COMIC_CACHE_PREFIX = "__READER_COMIC_JSON__:"
+COMIC_CACHE_PREFIX = content_media_support.COMIC_CACHE_PREFIX
 HISTORY_BOOK_RETENTION_DAYS = 7
 EXPORT_JOB_RETENTION_DAYS = 7
 IMPORT_JOB_SNAPSHOT_RETENTION_DAYS = 14
@@ -225,32 +231,7 @@ except Exception:
 THEME_PRESETS: list[dict[str, Any]] = theme_presets_support.THEME_PRESETS
 
 
-BLOCK_TAGS = {
-    "p",
-    "div",
-    "section",
-    "article",
-    "header",
-    "footer",
-    "aside",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "li",
-    "ul",
-    "ol",
-    "table",
-    "thead",
-    "tbody",
-    "tr",
-    "td",
-    "th",
-    "blockquote",
-    "pre",
-}
+BLOCK_TAGS = html_utils_support.BLOCK_TAGS
 
 
 CHAPTER_HEADING_REGEX = re.compile(
@@ -258,267 +239,68 @@ CHAPTER_HEADING_REGEX = re.compile(
     re.MULTILINE,
 )
 
-TXT_IMPORT_PRESETS: list[dict[str, str]] = [
-    {
-        "id": "cn_standard",
-        "label": "Chương Trung chuẩn",
-        "pattern": r"^(?:\s*)(?:第\s*[\d0-9一二三四五六七八九十百千零两]+\s*[章节卷回集部篇])[^\n]{0,120}$",
-        "description": "Phù hợp đa số TXT truyện Trung có dạng 第123章 / 第三卷.",
-    },
-    {
-        "id": "vi_standard",
-        "label": "Chương tiếng Việt",
-        "pattern": r"^(?:\s*)(?:Chương|CHƯƠNG|Chuong|CHUONG)\s*[\dIVXLCDMivxlcdm]+[^\n]{0,120}$",
-        "description": "Bắt dòng tiêu đề dạng Chương 12 / CHƯƠNG IV.",
-    },
-    {
-        "id": "en_standard",
-        "label": "Chapter tiếng Anh",
-        "pattern": r"^(?:\s*)(?:Chapter|CHAPTER)\s*[\dIVXLCDMivxlcdm]+[^\n]{0,120}$",
-        "description": "Bắt dòng tiêu đề dạng Chapter 12 / CHAPTER IV.",
-    },
-    {
-        "id": "dual_numbered_pipe",
-        "label": "Mã số | số chương",
-        "pattern": r"^(?:\s*)\d{1,4}\s*[｜|]\s*\d{1,4}[\.、．]\s*[^\d\s][^\n]{0,80}$",
-        "description": "Phù hợp TXT có dòng kiểu 001｜1.Tên chương.",
-    },
-    {
-        "id": "short_numbered",
-        "label": "Dòng số thứ tự ngắn",
-        "pattern": r"^(?:\s*)(?:\d{1,5}|[一二三四五六七八九十百千零两]{1,8})[\.\-、:： )）]\s*[^\d\s][^\n]{0,80}$",
-        "description": "Dùng cho TXT có tiêu đề ngắn kiểu 12. Tên chương / 12- Tên chương.",
-    },
-    {
-        "id": "number_space_title",
-        "label": "Số thứ tự + khoảng trắng",
-        "pattern": r"^(?:\s*)\d{1,4}\s+[^\d\s][^\n]{1,80}$",
-        "description": "Dùng cho TXT có dòng tiêu đề kiểu 1 Tên chương.",
-    },
-]
-
-DEFAULT_READER_IMPORT_SETTINGS: dict[str, Any] = {
-    "txt": {
-        "target_size": 4500,
-        "preface_title": "Mở đầu",
-        "heading_patterns": [item["pattern"] for item in TXT_IMPORT_PRESETS],
-    },
-    "epub": {
-        "title_keys": ["title", "book-title"],
-        "author_keys": ["creator", "author"],
-        "summary_keys": ["description", "summary", "intro", "abstract", "subject"],
-        "language_keys": ["language"],
-        "cover_meta_names": ["cover"],
-        "cover_properties": ["cover-image"],
-    },
-}
+TXT_IMPORT_PRESETS: list[dict[str, str]] = import_settings_support.TXT_IMPORT_PRESETS
+DEFAULT_READER_IMPORT_SETTINGS: dict[str, Any] = import_settings_support.DEFAULT_READER_IMPORT_SETTINGS
 
 
 def normalize_metadata_key(value: Any) -> str:
-    text = str(value or "").strip().lower()
-    if not text:
-        return ""
-    if "}" in text:
-        text = text.split("}", 1)[1]
-    if ":" in text:
-        text = text.split(":", 1)[1]
-    return text.replace("_", "-").strip()
+    return import_settings_support.normalize_metadata_key(value)
 
 
 def normalize_import_list(value: Any, fallback: list[str] | tuple[str, ...]) -> list[str]:
-    if isinstance(value, list):
-        raw_items = value
-    elif isinstance(value, tuple):
-        raw_items = list(value)
-    else:
-        text = str(value or "").replace("\r\n", "\n").replace("\r", "\n")
-        raw_items = text.split("\n") if text else []
-    out: list[str] = []
-    seen: set[str] = set()
-    for item in raw_items:
-        text = str(item or "").strip()
-        if not text:
-            continue
-        key = text.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(text)
-    if out:
-        return out
-    return [str(x).strip() for x in fallback if str(x).strip()]
+    return import_settings_support.normalize_import_list(value, fallback)
 
 
 def normalize_junk_entries(value: Any) -> list[dict[str, Any]]:
-    if isinstance(value, list):
-        raw_items = value
-    elif isinstance(value, tuple):
-        raw_items = list(value)
-    else:
-        text = str(value or "").replace("\r\n", "\n").replace("\r", "\n")
-        raw_items = text.split("\n") if text else []
-    out: list[dict[str, Any]] = []
-    seen: set[tuple[str, bool, bool]] = set()
-    for item in raw_items:
-        use_regex = False
-        ignore_case = False
-        if isinstance(item, dict):
-            text = normalize_newlines(str(item.get("text") or item.get("line") or "")).strip()
-            use_regex = bool(item.get("use_regex") or item.get("regex"))
-            ignore_case = bool(item.get("ignore_case") or item.get("case_insensitive"))
-        else:
-            text = normalize_newlines(str(item or "")).strip()
-        key = (text, use_regex, ignore_case)
-        if not text or key in seen:
-            continue
-        seen.add(key)
-        out.append({"text": text, "use_regex": use_regex, "ignore_case": ignore_case})
-    return out
+    return text_cleanup_support.normalize_junk_entries(value)
 
 
 def normalize_junk_lines(value: Any) -> list[str]:
-    return [str(item.get("text") or "").strip() for item in normalize_junk_entries(value) if str(item.get("text") or "").strip()]
+    return text_cleanup_support.normalize_junk_lines(value)
 
 
 def normalize_text_replace_entries(value: Any) -> list[dict[str, Any]]:
-    if isinstance(value, list):
-        raw_items = value
-    elif isinstance(value, tuple):
-        raw_items = list(value)
-    else:
-        raw_items = []
-    out: list[dict[str, Any]] = []
-    seen: set[tuple[str, bool, bool]] = set()
-    for item in raw_items:
-        if not isinstance(item, dict):
-            continue
-        source = normalize_newlines(str(item.get("source") or item.get("text") or "")).strip()
-        target = normalize_newlines(str(item.get("target") or item.get("replace") or "")).strip()
-        use_regex = bool(item.get("use_regex") or item.get("regex"))
-        ignore_case = bool(item.get("ignore_case") or item.get("case_insensitive"))
-        key = (source, use_regex, ignore_case)
-        if not source or key in seen:
-            continue
-        seen.add(key)
-        out.append({
-            "source": source,
-            "target": target,
-            "use_regex": use_regex,
-            "ignore_case": ignore_case,
-        })
-    return out
+    return text_cleanup_support.normalize_text_replace_entries(value)
 
 
 def normalize_reader_import_settings(raw_cfg: dict[str, Any] | None = None) -> dict[str, Any]:
-    raw = raw_cfg if isinstance(raw_cfg, dict) else {}
-    txt_raw = raw.get("txt") if isinstance(raw.get("txt"), dict) else {}
-    epub_raw = raw.get("epub") if isinstance(raw.get("epub"), dict) else {}
-
-    txt_default = DEFAULT_READER_IMPORT_SETTINGS["txt"]
-    epub_default = DEFAULT_READER_IMPORT_SETTINGS["epub"]
-
-    try:
-        target_size = int(txt_raw.get("target_size") or txt_default["target_size"])
-    except Exception:
-        target_size = int(txt_default["target_size"])
-    target_size = max(800, min(30000, target_size))
-
-    txt_patterns = normalize_import_list(
-        txt_raw.get("heading_patterns"),
-        txt_default["heading_patterns"],
-    )
-
-    return {
-        "txt": {
-            "target_size": target_size,
-            "preface_title": str(txt_raw.get("preface_title") or txt_default["preface_title"]).strip() or "Mở đầu",
-            "heading_patterns": txt_patterns,
-        },
-        "epub": {
-            "title_keys": normalize_import_list(epub_raw.get("title_keys"), epub_default["title_keys"]),
-            "author_keys": normalize_import_list(epub_raw.get("author_keys"), epub_default["author_keys"]),
-            "summary_keys": normalize_import_list(epub_raw.get("summary_keys"), epub_default["summary_keys"]),
-            "language_keys": normalize_import_list(epub_raw.get("language_keys"), epub_default["language_keys"]),
-            "cover_meta_names": normalize_import_list(epub_raw.get("cover_meta_names"), epub_default["cover_meta_names"]),
-            "cover_properties": normalize_import_list(epub_raw.get("cover_properties"), epub_default["cover_properties"]),
-        },
-    }
+    return import_settings_support.normalize_reader_import_settings(raw_cfg)
 
 
 def import_settings_presets() -> dict[str, Any]:
-    return {
-        "txt_patterns": [dict(item) for item in TXT_IMPORT_PRESETS],
-        "epub_fields": {
-            "title_keys": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["title_keys"]),
-            "author_keys": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["author_keys"]),
-            "summary_keys": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["summary_keys"]),
-            "language_keys": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["language_keys"]),
-            "cover_meta_names": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["cover_meta_names"]),
-            "cover_properties": list(DEFAULT_READER_IMPORT_SETTINGS["epub"]["cover_properties"]),
-        },
-    }
+    return import_settings_support.import_settings_presets()
 
 
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return common_support.utc_now_iso()
 
 
 def utc_now_ts() -> int:
-    return int(datetime.now(timezone.utc).timestamp())
+    return common_support.utc_now_ts()
 
 
 def parse_iso_ts(value: Any) -> float:
-    raw = str(value or "").strip()
-    if not raw:
-        return 0.0
-    try:
-        if raw.endswith("Z"):
-            raw = raw[:-1] + "+00:00"
-        return float(datetime.fromisoformat(raw).timestamp())
-    except Exception:
-        return 0.0
+    return common_support.parse_iso_ts(value)
 
 
 def normalize_host(value: str) -> str:
-    raw = str(value or "").strip().lower()
-    if not raw:
-        return ""
-    if "://" not in raw:
-        raw = "https://" + raw
-    try:
-        parsed = urlparse(raw)
-        host = (parsed.hostname or "").strip().lower()
-    except Exception:
-        host = ""
-    return host
+    return common_support.normalize_host(value)
 
 
 def host_aliases(host: str) -> list[str]:
-    raw = normalize_host(host)
-    if not raw:
-        return []
-    aliases: list[str] = []
-    for item in (raw, raw.lstrip("www."), "www." + raw.lstrip("www.")):
-        val = str(item or "").strip().lower()
-        if val and val not in aliases:
-            aliases.append(val)
-    return aliases
+    return common_support.host_aliases(host)
 
 
 def host_matches_domain(host: str, domain: str) -> bool:
-    h = str(host or "").strip().lower().lstrip(".")
-    d = str(domain or "").strip().lower().lstrip(".")
-    if not h or not d:
-        return False
-    return h == d or h.endswith("." + d)
+    return common_support.host_matches_domain(host, domain)
 
 
 def hash_text(value: str) -> str:
-    return hashlib.sha1(value.encode("utf-8", errors="ignore")).hexdigest()
+    return common_support.hash_text(value)
 
 
 def quote_url_path(value: str) -> str:
-    return quote(value or "", safe="")
+    return common_support.quote_url_path(value)
 
 
 def build_vbook_image_proxy_path(
@@ -528,125 +310,56 @@ def build_vbook_image_proxy_path(
     referer: str = "",
     cache: bool = False,
 ) -> str:
-    url = str(image_url or "").strip()
-    if not url:
-        return ""
-    if not (url.startswith("http://") or url.startswith("https://")):
-        return url
-    parts = [f"url={quote_url_path(url)}"]
-    pid = str(plugin_id or "").strip()
-    if pid:
-        parts.append(f"plugin_id={quote_url_path(pid)}")
-    ref = str(referer or "").strip()
-    if ref:
-        parts.append(f"referer={quote_url_path(ref)}")
-    if cache:
-        parts.append("cache=1")
-    return "/media/vbook-image?" + "&".join(parts)
+    return content_media_support.build_vbook_image_proxy_path(
+        image_url,
+        plugin_id=plugin_id,
+        referer=referer,
+        cache=cache,
+    )
 
 
 def build_vbook_plugin_icon_path(plugin_id: str) -> str:
-    pid = str(plugin_id or "").strip()
-    if not pid:
-        return ""
-    return f"/media/vbook-plugin-icon?plugin_id={quote_url_path(pid)}"
+    return content_media_support.build_vbook_plugin_icon_path(plugin_id)
 
 
 def normalize_lang_source(value: str) -> str:
-    raw = str(value or "").strip().lower()
-    if not raw:
-        return ""
-    raw = raw.replace("_", "-")
-    return raw.split("-", 1)[0]
+    return content_media_support.normalize_lang_source(value)
 
 
 def is_lang_zh(value: str) -> bool:
-    return normalize_lang_source(value) == "zh"
+    return content_media_support.is_lang_zh(value)
 
 
 def is_book_comic(book: dict[str, Any] | None) -> bool:
-    source_type = str((book or {}).get("source_type") or "").strip().lower()
-    return source_type in {"comic", "vbook_comic", "vbook_session_comic"}
+    return content_media_support.is_book_comic(book)
 
 
 def book_supports_translation(book: dict[str, Any] | None) -> bool:
-    if not book:
-        return False
-    if is_book_comic(book):
-        return False
-    return is_lang_zh(str(book.get("lang_source") or ""))
+    return content_media_support.book_supports_translation(book)
 
 
 def encode_comic_payload(images: list[str]) -> str:
-    data = {"kind": "images", "images": [str(x).strip() for x in images if str(x).strip()]}
-    return COMIC_CACHE_PREFIX + json.dumps(data, ensure_ascii=False)
+    return content_media_support.encode_comic_payload(images)
 
 
 def decode_comic_payload(text: str) -> dict[str, Any] | None:
-    raw = str(text or "")
-    if not raw.startswith(COMIC_CACHE_PREFIX):
-        return None
-    body = raw[len(COMIC_CACHE_PREFIX) :].strip()
-    if not body:
-        return {"kind": "images", "images": []}
-    try:
-        payload = json.loads(body)
-    except Exception:
-        return {"kind": "images", "images": []}
-    if not isinstance(payload, dict):
-        return {"kind": "images", "images": []}
-    images = payload.get("images")
-    if not isinstance(images, list):
-        images = []
-    payload["images"] = [str(x).strip() for x in images if str(x).strip()]
-    payload["kind"] = "images"
-    return payload
+    return content_media_support.decode_comic_payload(text)
 
 
 def extract_comic_image_urls(raw_text: str | None) -> list[str]:
-    text = str(raw_text or "")
-    payload = decode_comic_payload(text)
-    if payload is not None:
-        return [str(x).strip() for x in (payload.get("images") or []) if str(x).strip()]
-
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    if not lines:
-        return []
-    out: list[str] = []
-    for line in lines:
-        if line.startswith(("http://", "https://", "/media/vbook-image?", "media/vbook-image?")):
-            out.append(line)
-            continue
-        return []
-    return out
+    return content_media_support.extract_comic_image_urls(raw_text)
 
 
 def normalize_vbook_image_cache_inputs(image_url: str, plugin_id: str = "") -> tuple[str, str]:
-    url = str(image_url or "").strip()
-    pid = str(plugin_id or "").strip()
-    if url.startswith("/media/vbook-image?") or url.startswith("media/vbook-image?"):
-        parsed = urlparse(url if url.startswith("/") else f"/{url}")
-        query = parse_qs(parsed.query)
-        inner_url = str((query.get("url", [""])[0] or "")).strip()
-        if inner_url:
-            url = inner_url
-        inner_pid = str((query.get("plugin_id", [""])[0] or "")).strip()
-        if inner_pid:
-            pid = inner_pid
-    return url, pid
+    return content_media_support.normalize_vbook_image_cache_inputs(image_url, plugin_id)
 
 
 def vbook_image_cache_key(*, image_url: str, plugin_id: str = "") -> str:
-    image, pid = normalize_vbook_image_cache_inputs(image_url=image_url, plugin_id=plugin_id)
-    seed = f"{pid}|{image}"
-    return hash_text(seed)
+    return content_media_support.vbook_image_cache_key(image_url=image_url, plugin_id=plugin_id)
 
 
 def chapter_raw_cache_has_payload(raw_text: str | None, *, is_comic: bool) -> bool:
-    text = str(raw_text or "")
-    if not is_comic:
-        return bool(text.strip())
-    return bool(extract_comic_image_urls(text))
+    return content_media_support.chapter_raw_cache_has_payload(raw_text, is_comic=is_comic)
 
 
 def ensure_dirs() -> None:
@@ -659,246 +372,57 @@ def ensure_dirs() -> None:
 
 
 def load_app_config() -> dict[str, Any]:
-    # Ưu tiên config Reader riêng. Nếu không có thì fallback config chung.
-    def _read_json(path: Path) -> dict[str, Any] | None:
-        try:
-            if path.exists():
-                parsed = json.loads(path.read_text(encoding="utf-8"))
-                if isinstance(parsed, dict):
-                    return parsed
-        except Exception:
-            return None
-        return None
-
-    env_path = (os.environ.get("READER_APP_CONFIG") or "").strip()
-    if env_path:
-        env_cfg = _read_json(Path(env_path))
-        if env_cfg is not None:
-            return env_cfg
-
-    base = runtime_base_dir()
-    global_cfg: dict[str, Any] = {}
-    for p in (base / "config.json", APP_CONFIG_PATH):
-        parsed = _read_json(p)
-        if parsed is not None:
-            global_cfg = parsed
-            break
-
-    legacy_reader_cfg = APP_READER_CONFIG_PATH.with_suffix(".js")
-    for p in (
-        base / "local" / "reader.config.json",
-        APP_READER_CONFIG_PATH,
-        base / "local" / "reader.config.js",
-        legacy_reader_cfg,
-    ):
-        parsed = _read_json(p)
-        if parsed is not None:
-            merged = dict(global_cfg)
-            merged.update(parsed)
-            return merged
-    return global_cfg
+    return app_config_support.load_app_config(
+        runtime_base_dir=runtime_base_dir,
+        app_config_path=APP_CONFIG_PATH,
+        app_reader_config_path=APP_READER_CONFIG_PATH,
+    )
 
 
 def resolve_app_config_path() -> Path:
-    env_path = (os.environ.get("READER_APP_CONFIG") or "").strip()
-    if env_path:
-        return Path(env_path)
-    base = runtime_base_dir()
-    base_reader_cfg = base / "local" / "reader.config.json"
-    if base_reader_cfg.exists() or base == ROOT_DIR:
-        return base_reader_cfg
-    if APP_READER_CONFIG_PATH.exists():
-        return APP_READER_CONFIG_PATH
-    return base_reader_cfg
+    return app_config_support.resolve_app_config_path(
+        runtime_base_dir=runtime_base_dir,
+        root_dir=ROOT_DIR,
+        app_reader_config_path=APP_READER_CONFIG_PATH,
+    )
 
 
 def save_app_config(config: dict[str, Any]) -> Path:
-    target = resolve_app_config_path()
-    target.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(config or {}, ensure_ascii=False, indent=2)
-    last_error: Exception | None = None
-    with _APP_CONFIG_LOCK:
-        for attempt in range(8):
-            tmp = target.with_name(
-                f"{target.name}.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex}.tmp"
-            )
-            try:
-                tmp.write_text(payload, encoding="utf-8")
-                os.replace(tmp, target)
-                return target
-            except Exception as exc:
-                last_error = exc
-                try:
-                    tmp.unlink(missing_ok=True)
-                except Exception:
-                    pass
-                winerror = getattr(exc, "winerror", None)
-                retryable = isinstance(exc, PermissionError) or winerror in {5, 32}
-                if (not retryable) or attempt >= 7:
-                    raise
-                time.sleep(0.05 * (attempt + 1))
-    if last_error is not None:
-        raise last_error
-    return target
+    return app_config_support.save_app_config(
+        config,
+        resolve_app_config_path=resolve_app_config_path,
+    )
 
 
 def localname(tag: str) -> str:
-    if not tag:
-        return ""
-    if "}" in tag:
-        return tag.split("}", 1)[1]
-    return tag
+    return html_utils_support.localname(tag)
 
 
 def resolve_zip_path(base_path: str, href: str) -> str:
-    if not href:
-        return ""
-    href_clean = href.split("#", 1)[0].strip().replace("\\", "/")
-    base = Path(base_path).as_posix()
-    base_dir = base.rsplit("/", 1)[0] if "/" in base else ""
-    joined = f"{base_dir}/{href_clean}" if base_dir else href_clean
-    parts = []
-    for p in joined.split("/"):
-        if not p or p == ".":
-            continue
-        if p == "..":
-            if parts:
-                parts.pop()
-            continue
-        parts.append(p)
-    return "/".join(parts)
+    return html_utils_support.resolve_zip_path(base_path, href)
 
 
-class HtmlToTextParser(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self._chunks: list[str] = []
-
-    def handle_starttag(self, tag, attrs):
-        t = (tag or "").lower()
-        if t == "br":
-            self._chunks.append("\n")
-        elif t in BLOCK_TAGS:
-            self._chunks.append("\n")
-
-    def handle_endtag(self, tag):
-        t = (tag or "").lower()
-        if t in BLOCK_TAGS:
-            self._chunks.append("\n")
-
-    def handle_data(self, data):
-        if data:
-            self._chunks.append(data)
-
-    def text(self) -> str:
-        text = "".join(self._chunks)
-        text = text.replace("\xa0", " ")
-        text = re.sub(r"[ \t]+\n", "\n", text)
-        text = re.sub(r"\n{3,}", "\n\n", text)
-        return text.strip()
+HtmlToTextParser = html_utils_support.HtmlToTextParser
 
 
 def html_to_text(html_content: str) -> str:
-    parser = HtmlToTextParser()
-    parser.feed(html_content or "")
-    return parser.text()
+    return html_utils_support.html_to_text(html_content)
 
 
 def decode_text_with_fallback(data: bytes) -> str:
-    for encoding in ("utf-8-sig", "utf-8", "gb18030"):
-        try:
-            return data.decode(encoding)
-        except Exception:
-            continue
-    return data.decode("utf-8", errors="replace")
+    return html_utils_support.decode_text_with_fallback(data)
 
 
 def normalize_newlines(text: str) -> str:
-    value = (text or "").replace("\r\n", "\n").replace("\r", "\n")
-    # Server dịch đôi lúc trả literal "\\n", chuyển về newline thật.
-    if "\\n" in value:
-        value = value.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n")
-    value = value.replace("\u2028", "\n").replace("\u2029", "\n")
-    value = re.sub(r"\n{3,}", "\n\n", value)
-    return value.strip()
+    return text_cleanup_support.normalize_newlines(text)
 
 
 def apply_junk_lines_to_text(text: str, junk_lines: list[Any] | tuple[Any, ...] | None = None) -> tuple[str, int]:
-    content = normalize_newlines(text or "")
-    entries = normalize_junk_entries(junk_lines)
-    if not content or not entries:
-        return content, 0
-    removed = 0
-    lines = content.split("\n")
-    kept_lines: list[str] = []
-    compiled_entries: list[tuple[str, re.Pattern[str] | None, bool, bool]] = []
-    for entry in entries:
-        pattern = str(entry.get("text") or "").strip()
-        use_regex = bool(entry.get("use_regex"))
-        ignore_case = bool(entry.get("ignore_case"))
-        if not pattern:
-            continue
-        compiled = None
-        if use_regex or ignore_case:
-            try:
-                flags = re.IGNORECASE if ignore_case else 0
-                compiled = re.compile(pattern if use_regex else re.escape(pattern), flags)
-            except re.error:
-                continue
-        compiled_entries.append((pattern, compiled, use_regex, ignore_case))
-
-    for raw_line in lines:
-        line = str(raw_line or "")
-        original_blank = not line.strip()
-        line_removed = 0
-        for pattern, compiled, use_regex, ignore_case in compiled_entries:
-            hits = 0
-            if use_regex:
-                if compiled is not None:
-                    line, hits = compiled.subn("", line)
-            elif ignore_case:
-                if compiled is not None:
-                    line, hits = compiled.subn("", line)
-            else:
-                hits = line.count(pattern)
-                if hits:
-                    line = line.replace(pattern, "")
-            line_removed += int(hits or 0)
-        if line_removed > 0:
-            line = re.sub(r"[^\S\n]+$", "", line)
-            removed += line_removed
-            if (not line.strip()) and (not original_blank):
-                continue
-        kept_lines.append(line)
-
-    content = normalize_newlines("\n".join(kept_lines))
-    return content, removed
+    return text_cleanup_support.apply_junk_lines_to_text(text, junk_lines)
 
 
 def apply_text_replace_entries_to_text(text: str, entries: list[Any] | tuple[Any, ...] | None = None) -> tuple[str, int]:
-    content = normalize_newlines(text or "")
-    rules = normalize_text_replace_entries(entries)
-    if not content or not rules:
-        return content, 0
-    changed = 0
-    for entry in rules:
-        source = str(entry.get("source") or "").strip()
-        target = normalize_newlines(str(entry.get("target") or ""))
-        use_regex = bool(entry.get("use_regex"))
-        ignore_case = bool(entry.get("ignore_case"))
-        if not source:
-            continue
-        flags = re.IGNORECASE if ignore_case else 0
-        try:
-            if use_regex:
-                content, hits = re.subn(source, target, content, flags=flags)
-            else:
-                content, hits = re.subn(re.escape(source), target, content, flags=flags)
-        except re.error:
-            continue
-        changed += int(hits or 0)
-    content = normalize_newlines(content)
-    return content, changed
+    return text_cleanup_support.apply_text_replace_entries_to_text(text, entries)
 
 
 def normalize_vbook_display_text(text: str, *, single_line: bool = False) -> str:
@@ -928,17 +452,7 @@ def normalize_vbook_display_text(text: str, *, single_line: bool = False) -> str
 
 
 def decode_http_encoded_body(data: bytes, *, content_encoding: str = "") -> bytes:
-    if not data:
-        return b""
-    encoding = str(content_encoding or "").strip().lower()
-    try:
-        if "gzip" in encoding or data[:2] == b"\x1f\x8b":
-            return gzip.decompress(data)
-        if "deflate" in encoding:
-            return zlib.decompress(data)
-    except Exception:
-        return data
-    return data
+    return content_media_support.decode_http_encoded_body(data, content_encoding=content_encoding)
 
 
 _VI_PUNCT_REPLACEMENTS = {
