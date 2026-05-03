@@ -63,7 +63,8 @@ from reader_backend.jobs import export_runtime as export_runtime_support
 from reader_backend.jobs import queue_runtime as queue_runtime_support
 from reader_backend.routes import api_dispatch as http_api_dispatch_support
 from reader_backend.routes import get_dispatch as http_get_dispatch_support
-from reader_backend.routes.http_base import ApiError, MultipartForm, MultipartPart
+from reader_backend.routes import http_base as http_base_support
+from reader_backend.routes.http_base import ApiError, MultipartForm
 from reader_backend.routes import request_dispatch as http_request_dispatch_support
 from reader_backend.services import exporting as service_export_support
 from reader_backend.services import history as service_history_support
@@ -13436,96 +13437,10 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_JSON", "JSON không hợp lệ.", str(exc)) from exc
 
     def _read_form_json_field(self, raw_value: str | None) -> dict[str, Any] | None:
-        text = str(raw_value or "").strip()
-        if not text:
-            return None
-        try:
-            payload = json.loads(text)
-        except Exception as exc:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_JSON", "JSON trong form không hợp lệ.", str(exc)) from exc
-        if payload is None:
-            return None
-        if not isinstance(payload, dict):
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_JSON", "JSON trong form phải là object.")
-        return payload
-
-    def _extract_disposition_param(self, header_value: str, key: str) -> str | None:
-        pattern = rf'(?:^|;)\s*{re.escape(key)}\*?=(?:"([^"]*)"|([^;]*))'
-        m = re.search(pattern, header_value, flags=re.IGNORECASE)
-        if not m:
-            return None
-        value = (m.group(1) if m.group(1) is not None else m.group(2) or "").strip()
-        if key.endswith("*") or f"{key}*" in header_value:
-            # RFC 5987 basic support: utf-8''...
-            if "''" in value:
-                value = value.split("''", 1)[1]
-            value = unquote(value)
-        return value
+        return http_base_support.read_form_json_field(raw_value)
 
     def _read_multipart_form(self) -> MultipartForm:
-        content_type = self.headers.get("Content-Type") or ""
-        if not content_type.startswith("multipart/form-data"):
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Yêu cầu phải là multipart/form-data.")
-
-        boundary_match = re.search(r'boundary=(?:"([^"]+)"|([^;]+))', content_type, flags=re.IGNORECASE)
-        if not boundary_match:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu boundary trong multipart/form-data.")
-        boundary = (boundary_match.group(1) or boundary_match.group(2) or "").strip()
-        if not boundary:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Boundary multipart không hợp lệ.")
-
-        content_length = int(self.headers.get("Content-Length", "0") or "0")
-        if content_length <= 0:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Nội dung upload rỗng.")
-
-        body = self.rfile.read(content_length)
-        marker = f"--{boundary}".encode("utf-8", errors="ignore")
-        segments = body.split(marker)
-        form = MultipartForm()
-
-        for seg in segments:
-            if not seg:
-                continue
-            if seg.startswith(b"--"):
-                # đoạn kết thúc '--'
-                continue
-            if seg.startswith(b"\r\n"):
-                seg = seg[2:]
-            if seg.endswith(b"\r\n"):
-                seg = seg[:-2]
-            if not seg:
-                continue
-
-            header_blob, sep, content = seg.partition(b"\r\n\r\n")
-            if not sep:
-                continue
-
-            header_lines = decode_text_with_fallback(header_blob).split("\r\n")
-            headers_map: dict[str, str] = {}
-            for line in header_lines:
-                if ":" not in line:
-                    continue
-                k, v = line.split(":", 1)
-                headers_map[k.strip().lower()] = v.strip()
-
-            disposition = headers_map.get("content-disposition", "")
-            if not disposition:
-                continue
-            name = self._extract_disposition_param(disposition, "name")
-            if not name:
-                continue
-            filename = self._extract_disposition_param(disposition, "filename")
-            if filename == "":
-                filename = None
-
-            form.add(MultipartPart(
-                name=name,
-                filename=filename,
-                content=content,
-                text_content=decode_text_with_fallback(content),
-            ))
-
-        return form
+        return http_base_support.read_multipart_form(self.headers, self.rfile)
 
     def _is_client_disconnect_error(self, exc: BaseException) -> bool:
         if isinstance(exc, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
