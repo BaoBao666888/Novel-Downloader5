@@ -61,12 +61,8 @@ from reader_backend.jobs import import_jobs as import_jobs_support
 from reader_backend.jobs import export_runtime as export_runtime_support
 from reader_backend.jobs import queue_runtime as queue_runtime_support
 from reader_backend.routes import api_dispatch as http_api_dispatch_support
-from reader_backend.routes import export_download as http_export_download_support
-from reader_backend.routes import media as http_media_support
-from reader_backend.routes import name_filter as http_name_filter_support
-from reader_backend.routes import notifications as http_notifications_support
+from reader_backend.routes import get_dispatch as http_get_dispatch_support
 from reader_backend.routes.http_base import ApiError, MultipartForm, MultipartPart
-from reader_backend.routes import route_matchers as http_routes_support
 from reader_backend.services import exporting as service_export_support
 from reader_backend.services import history as service_history_support
 from reader_backend.services import library as service_library_support
@@ -14183,87 +14179,23 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         parsed = urlparse(self.path)
-        if parsed.path == "/api/notifications/stream":
-            http_notifications_support.stream_notifications(
-                self,
-                parsed,
+        http_get_dispatch_support.handle_get(
+            self,
+            parsed,
+            deps=http_get_dispatch_support.GetDispatchDeps(
+                api_error_cls=ApiError,
                 http_status=HTTPStatus,
-            )
-            return
-        if parsed.path == "/api/library/name-filter/jobs/stream":
-            http_name_filter_support.stream_name_filter_jobs(
-                self,
-                parsed,
-                http_status=HTTPStatus,
-            )
-            return
-        route = http_routes_support.match_export_download_route("GET", parsed.path)
-        if route is not None and route.name == "export_jobs_stream":
-            http_export_download_support.stream_export_jobs(
-                self,
-                parsed,
-                route_support=http_routes_support,
-                http_status=HTTPStatus,
-            )
-            return
-        if route is not None and route.name == "download_jobs_stream":
-            http_export_download_support.stream_download_jobs(
-                self,
-                parsed,
-                route_support=http_routes_support,
-                http_status=HTTPStatus,
-            )
-            return
-        if parsed.path.startswith("/api/"):
-            self._dispatch_api("GET", parsed)
-            return
-        if parsed.path.startswith("/media/"):
-            http_media_support.serve_media(
-                self,
-                parsed,
-                deps=http_media_support.MediaDeps(
-                    api_error_cls=ApiError,
-                    http_status=HTTPStatus,
-                    export_dir=EXPORT_DIR,
-                    cover_dir=COVER_DIR,
-                    cache_dir=CACHE_DIR,
-                    mimetypes_module=mimetypes,
-                    quote_func=quote,
-                    unquote_func=unquote,
-                    re_module=re,
-                ),
-            )
-            return
-        if parsed.path == "/favicon.ico":
-            favicon_path = Path(str(self.directory or "")) / "favicon.ico"
-            if favicon_path.exists():
-                super().do_GET()
-                return
-            self.send_response(HTTPStatus.NO_CONTENT)
-            self.send_header("Content-Length", "0")
-            try:
-                self.end_headers()
-            except OSError as exc:
-                if self._is_client_disconnect_error(exc):
-                    return
-                raise
-            return
+                export_dir=EXPORT_DIR,
+                cover_dir=COVER_DIR,
+                cache_dir=CACHE_DIR,
+                mimetypes_module=mimetypes,
+                quote_func=quote,
+                unquote_func=unquote,
+                re_module=re,
+            ),
+        )
 
-        route_map = {
-            "/": "/library.html",
-            "": "/library.html",
-            "/index.html": "/library.html",
-            "/library": "/library.html",
-            "/search": "/search.html",
-            "/explore": "/explore.html",
-            "/online-search": "/online-search.html",
-            "/book": "/book.html",
-            "/reader": "/reader.html",
-        }
-        if parsed.path in route_map:
-            self.path = route_map[parsed.path]
-            super().do_GET()
-            return
+    def _serve_static_get(self) -> None:
         super().do_GET()
 
     def do_POST(self):  # noqa: N802
