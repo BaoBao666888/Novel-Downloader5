@@ -70,6 +70,7 @@ from reader_backend.services import library as service_library_support
 from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
+from reader_backend.services.vbook import detail_raw as service_vbook_detail_raw_support
 from reader_backend.services.vbook import detail_response as service_vbook_detail_response_support
 from reader_backend.services.vbook import detail_sections as service_vbook_detail_sections_support
 from reader_backend.services.vbook import image_cache as service_vbook_image_cache_support
@@ -11527,107 +11528,23 @@ class ReaderService:
             flight_key=flight_key,
             flight_token=flight_token,
         )
-        detail = data if isinstance(data, dict) else {}
-        title = normalize_vbook_display_text(str(detail.get("name") or detail.get("title") or ""), single_line=True) or source_url
-        author = normalize_vbook_display_text(str(detail.get("author") or ""), single_line=True)
-        cover = str(detail.get("cover") or detail.get("image") or "").strip()
-        description = normalize_vbook_display_text(
-            str(detail.get("description") or detail.get("desc") or ""),
-            single_line=False,
+        return service_vbook_detail_raw_support.build_detail_raw_payload(
+            plugin=plugin,
+            source_url=source_url,
+            raw_detail=data,
+            include_detail_sections=include_detail_sections,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+            join_vbook_url=self._join_vbook_url,
+            parse_ongoing=self._parse_vbook_ongoing,
+            pick_detail_values=self._pick_vbook_detail_values,
+            build_detail_section_sources=self._build_vbook_detail_section_sources,
+            collect_detail_sections=self._collect_vbook_detail_sections,
+            collect_suggest_items=self._collect_vbook_suggest_items,
+            collect_comment_items=self._collect_vbook_comment_items,
+            flatten_sections=self._flatten_vbook_detail_sections,
+            normalize_genre_items=self._normalize_vbook_genre_items,
+            normalize_extra_fields=self._normalize_vbook_extra_fields,
         )
-        host = str(detail.get("host") or "").strip()
-        if cover and host and not cover.startswith("http"):
-            cover = self._join_vbook_url(host, cover)
-        is_comic = "comic" in str(getattr(plugin, "type", "") or "").lower()
-        ongoing_raw = detail.get("ongoing")
-        ongoing = self._parse_vbook_ongoing(ongoing_raw)
-        if ongoing is True:
-            status_text = "Còn tiếp"
-        elif ongoing is False:
-            status_text = "Hoàn thành"
-        else:
-            status_text = normalize_vbook_display_text(str(ongoing_raw or ""), single_line=True)
-        info_text = normalize_vbook_display_text(
-            str(detail.get("detail") or ""),
-            single_line=False,
-        )
-        title_raw = title
-        author_raw = author
-        description_raw = description
-        status_text_raw = status_text
-        info_text_raw = info_text
-        suggest_raw_values = self._pick_vbook_detail_values(
-            detail,
-            exact_keys=("suggest", "suggests", "recommend", "recommends", "related"),
-            fuzzy_tokens=("suggest", "recommend", "related"),
-        )
-        comment_raw_values = self._pick_vbook_detail_values(
-            detail,
-            exact_keys=("comment", "comments", "review", "reviews"),
-            fuzzy_tokens=("comment", "review"),
-        )
-        suggest_candidate_keys = ("items", "list", "data", "books", "book", "novels", "novel", "suggest", "suggests", "recommend", "recommends", "related")
-        comment_candidate_keys = ("items", "list", "data", "comments", "comment", "reviews", "review", "records", "rows")
-        suggest_sources = self._build_vbook_detail_section_sources(
-            suggest_raw_values,
-            default_title="Gợi ý",
-            candidate_keys=suggest_candidate_keys,
-        )
-        comment_sources = self._build_vbook_detail_section_sources(
-            comment_raw_values,
-            default_title="Bình luận",
-            candidate_keys=comment_candidate_keys,
-        )
-        suggest_sections = (
-            self._collect_vbook_detail_sections(
-                plugin,
-                suggest_raw_values,
-                default_title="Gợi ý",
-                candidate_keys=suggest_candidate_keys,
-                item_collector=lambda raw: self._collect_vbook_suggest_items(plugin, raw),
-            )
-            if include_detail_sections
-            else []
-        )
-        comment_sections = (
-            self._collect_vbook_detail_sections(
-                plugin,
-                comment_raw_values,
-                default_title="Bình luận",
-                candidate_keys=comment_candidate_keys,
-                item_collector=lambda raw: self._collect_vbook_comment_items(plugin, raw),
-            )
-            if include_detail_sections
-            else []
-        )
-        suggest_items = self._flatten_vbook_detail_sections(suggest_sections)
-        comment_items = self._flatten_vbook_detail_sections(comment_sections)
-        genre_items = self._normalize_vbook_genre_items(detail)
-        extra_fields = self._normalize_vbook_extra_fields(detail)
-        return {
-            "plugin": plugin,
-            "detail": {
-                "title_raw": title_raw,
-                "author_raw": author_raw,
-                "cover_raw": cover,
-                "description_raw": description_raw,
-                "url": source_url,
-                "host": host,
-                "is_comic": is_comic,
-                "source_type": "vbook_comic" if is_comic else "vbook",
-                "ongoing": ongoing,
-                "status_text_raw": status_text_raw,
-                "info_text_raw": info_text_raw,
-                "genres": genre_items,
-                "suggest_sections": suggest_sections,
-                "suggest_items": suggest_items,
-                "suggest_sources": suggest_sources,
-                "comment_sections": comment_sections,
-                "comment_items": comment_items,
-                "comment_sources": comment_sources,
-                "extra_fields": extra_fields,
-            },
-        }
 
     def get_vbook_detail(
         self,
