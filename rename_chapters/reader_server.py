@@ -72,6 +72,7 @@ from reader_backend.services import library as service_library_support
 from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
+from reader_backend.services import vbook_lists as service_vbook_lists_support
 from reader_backend.services import vbook_normalize as service_vbook_normalize_support
 from reader_backend.storage import book_categories as storage_book_categories_support
 from reader_backend.storage import book_change as storage_book_change_support
@@ -11722,6 +11723,44 @@ class ReaderService:
         finally:
             self._end_vbook_singleflight(flight_key, flight_token)
 
+    def _get_vbook_tabbed_list(
+        self,
+        *,
+        plugin: Any,
+        default_script_key: str,
+        tab_script: str = "",
+        tab_input: Any = None,
+        page: int = 1,
+        next_token: Any = None,
+        flight_key: str = "",
+        flight_token: str = "",
+    ) -> dict[str, Any]:
+        return service_vbook_lists_support.get_vbook_tabbed_list(
+            plugin=plugin,
+            default_script_key=default_script_key,
+            tab_script=tab_script,
+            tab_input=tab_input,
+            page=page,
+            next_token=next_token,
+            flight_key=flight_key,
+            flight_token=flight_token,
+            serialize_plugin=self._serialize_vbook_plugin,
+            run_vbook_script=self._run_vbook_script,
+            extract_rows=self._extract_vbook_list_rows,
+            normalize_search_item=self._normalize_vbook_search_item,
+            normalize_tab_item=self._normalize_vbook_tab_item,
+            is_translation_enabled=self.is_reader_translation_enabled,
+            reader_translation_mode=self.reader_translation_mode,
+            translate_items=self._translate_vbook_items_batch,
+            translate_tabs=self._translate_vbook_tabs_batch,
+            normalize_script_ref=self._normalize_vbook_script_ref,
+            run_paged_list_script=self._run_vbook_paged_list_script,
+            diagnose_empty_attempts=self._diagnose_vbook_empty_attempts,
+            summarize_debug_row=self._summarize_vbook_debug_row,
+            api_error_cls=ApiError,
+            http_status=HTTPStatus,
+        )
+
     def get_vbook_home(
         self,
         *,
@@ -11734,122 +11773,17 @@ class ReaderService:
         plugin = self._require_vbook_plugin(plugin_id)
         flight_key = self._vbook_singleflight_key("home", plugin)
         flight_token = self._begin_vbook_singleflight(flight_key)
-        p = max(1, int(page or 1))
         try:
-            # Root mode: trả tabs từ home.js
-            if not str(tab_script or "").strip():
-                scripts = getattr(plugin, "scripts", None)
-                has_script = isinstance(scripts, dict) and bool(str((scripts.get("home") or "")).strip())
-                if not has_script:
-                    return {
-                        "ok": True,
-                        "plugin": self._serialize_vbook_plugin(plugin),
-                        "mode": "tabs",
-                        "tabs": [],
-                        "items": [],
-                        "count": 0,
-                        "item_count": 0,
-                        "has_script": False,
-                    }
-                data = self._run_vbook_script(
-                    plugin,
-                    "home",
-                    [],
-                    flight_key=flight_key,
-                    flight_token=flight_token,
-                )
-                rows = self._extract_vbook_list_rows(data)
-                tabs: list[dict[str, Any]] = []
-                items: list[dict[str, Any]] = []
-                for row in rows:
-                    normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
-                    if normalized:
-                        items.append(normalized)
-                        continue
-                    tab = self._normalize_vbook_tab_item(row, translate_ui=False)
-                    if tab:
-                        tabs.append(tab)
-                if self.is_reader_translation_enabled():
-                    mode = self.reader_translation_mode()
-                    self._translate_vbook_items_batch(items, mode=mode)
-                    self._translate_vbook_tabs_batch(tabs, mode=mode)
-                return {
-                    "ok": True,
-                    "plugin": self._serialize_vbook_plugin(plugin),
-                    "mode": "tabs",
-                    "tabs": tabs,
-                    "items": items,
-                    "count": len(tabs),
-                    "item_count": len(items),
-                    "has_script": True,
-                }
-
-            # Content mode: chạy script tab để lấy books.
-            script_ref = self._normalize_vbook_script_ref(plugin, tab_script, default_key="home")
-            rows, next_value, diagnostics = self._run_vbook_paged_list_script(
-                plugin,
-                script_ref=script_ref,
-                input_value=tab_input,
-                page=p,
+            return self._get_vbook_tabbed_list(
+                plugin=plugin,
+                default_script_key="home",
+                tab_script=tab_script,
+                tab_input=tab_input,
+                page=page,
                 next_token=next_token,
                 flight_key=flight_key,
                 flight_token=flight_token,
             )
-            items: list[dict[str, Any]] = []
-            extra_tabs: list[dict[str, Any]] = []
-            for row in rows:
-                normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
-                if normalized:
-                    items.append(normalized)
-                    continue
-                tab = self._normalize_vbook_tab_item(row, translate_ui=False)
-                if tab:
-                    extra_tabs.append(tab)
-            if self.is_reader_translation_enabled():
-                mode = self.reader_translation_mode()
-                self._translate_vbook_items_batch(items, mode=mode)
-                self._translate_vbook_tabs_batch(extra_tabs, mode=mode)
-            if rows and not items and not extra_tabs:
-                raise ApiError(
-                    HTTPStatus.BAD_GATEWAY,
-                    "VBOOK_LIST_NORMALIZE_FAILED",
-                    "Plugin vBook trả dữ liệu danh sách nhưng app không map được thành truyện hoặc tab.",
-                    {
-                        "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
-                        "script": script_ref,
-                        "raw_row_count": len(rows),
-                        "sample_rows": [self._summarize_vbook_debug_row(row) for row in rows[:3]],
-                        "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
-                    },
-                )
-            if not rows and not items and not extra_tabs:
-                self._diagnose_vbook_empty_attempts(
-                    diagnostics,
-                    plugin=plugin,
-                    script_ref=script_ref,
-                    input_value=tab_input,
-                    page=p,
-                )
-            payload = {
-                "ok": True,
-                "plugin": self._serialize_vbook_plugin(plugin),
-                "mode": "content",
-                "script": script_ref,
-                "page": p,
-                "items": items,
-                "tabs": extra_tabs,
-                "next": next_value,
-                "has_next": next_value is not None and str(next_value).strip() != "",
-                "count": len(items),
-                "tab_count": len(extra_tabs),
-                "has_script": True,
-            }
-            if not items and not extra_tabs:
-                payload["debug"] = {
-                    "empty_reason": "no_rows",
-                    "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
-                }
-            return payload
         except vbook_ext.RunnerCancelledError as exc:
             self._raise_vbook_request_replaced(plugin, "home", exc)
         finally:
@@ -11867,122 +11801,17 @@ class ReaderService:
         plugin = self._require_vbook_plugin(plugin_id)
         flight_key = self._vbook_singleflight_key("genre", plugin)
         flight_token = self._begin_vbook_singleflight(flight_key)
-        p = max(1, int(page or 1))
         try:
-            # Root mode: trả tabs từ genre.js
-            if not str(tab_script or "").strip():
-                scripts = getattr(plugin, "scripts", None)
-                has_script = isinstance(scripts, dict) and bool(str((scripts.get("genre") or "")).strip())
-                if not has_script:
-                    return {
-                        "ok": True,
-                        "plugin": self._serialize_vbook_plugin(plugin),
-                        "mode": "tabs",
-                        "tabs": [],
-                        "items": [],
-                        "count": 0,
-                        "item_count": 0,
-                        "has_script": False,
-                    }
-                data = self._run_vbook_script(
-                    plugin,
-                    "genre",
-                    [],
-                    flight_key=flight_key,
-                    flight_token=flight_token,
-                )
-                rows = self._extract_vbook_list_rows(data)
-                tabs: list[dict[str, Any]] = []
-                items: list[dict[str, Any]] = []
-                for row in rows:
-                    normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
-                    if normalized:
-                        items.append(normalized)
-                        continue
-                    tab = self._normalize_vbook_tab_item(row, translate_ui=False)
-                    if tab:
-                        tabs.append(tab)
-                if self.is_reader_translation_enabled():
-                    mode = self.reader_translation_mode()
-                    self._translate_vbook_items_batch(items, mode=mode)
-                    self._translate_vbook_tabs_batch(tabs, mode=mode)
-                return {
-                    "ok": True,
-                    "plugin": self._serialize_vbook_plugin(plugin),
-                    "mode": "tabs",
-                    "tabs": tabs,
-                    "items": items,
-                    "count": len(tabs),
-                    "item_count": len(items),
-                    "has_script": True,
-                }
-
-            # Content mode: chạy script tab để lấy books.
-            script_ref = self._normalize_vbook_script_ref(plugin, tab_script, default_key="genre")
-            rows, next_value, diagnostics = self._run_vbook_paged_list_script(
-                plugin,
-                script_ref=script_ref,
-                input_value=tab_input,
-                page=p,
+            return self._get_vbook_tabbed_list(
+                plugin=plugin,
+                default_script_key="genre",
+                tab_script=tab_script,
+                tab_input=tab_input,
+                page=page,
                 next_token=next_token,
                 flight_key=flight_key,
                 flight_token=flight_token,
             )
-            items: list[dict[str, Any]] = []
-            extra_tabs: list[dict[str, Any]] = []
-            for row in rows:
-                normalized = self._normalize_vbook_search_item(plugin, row, query="", translate_ui=False)
-                if normalized:
-                    items.append(normalized)
-                    continue
-                tab = self._normalize_vbook_tab_item(row, translate_ui=False)
-                if tab:
-                    extra_tabs.append(tab)
-            if self.is_reader_translation_enabled():
-                mode = self.reader_translation_mode()
-                self._translate_vbook_items_batch(items, mode=mode)
-                self._translate_vbook_tabs_batch(extra_tabs, mode=mode)
-            if rows and not items and not extra_tabs:
-                raise ApiError(
-                    HTTPStatus.BAD_GATEWAY,
-                    "VBOOK_LIST_NORMALIZE_FAILED",
-                    "Plugin vBook trả dữ liệu danh sách nhưng app không map được thành truyện hoặc tab.",
-                    {
-                        "plugin_id": str(getattr(plugin, "plugin_id", "") or ""),
-                        "script": script_ref,
-                        "raw_row_count": len(rows),
-                        "sample_rows": [self._summarize_vbook_debug_row(row) for row in rows[:3]],
-                        "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
-                    },
-                )
-            if not rows and not items and not extra_tabs:
-                self._diagnose_vbook_empty_attempts(
-                    diagnostics,
-                    plugin=plugin,
-                    script_ref=script_ref,
-                    input_value=tab_input,
-                    page=p,
-                )
-            payload = {
-                "ok": True,
-                "plugin": self._serialize_vbook_plugin(plugin),
-                "mode": "content",
-                "script": script_ref,
-                "page": p,
-                "items": items,
-                "tabs": extra_tabs,
-                "next": next_value,
-                "has_next": next_value is not None and str(next_value).strip() != "",
-                "count": len(items),
-                "tab_count": len(extra_tabs),
-                "has_script": True,
-            }
-            if not items and not extra_tabs:
-                payload["debug"] = {
-                    "empty_reason": "no_rows",
-                    "attempts": diagnostics.get("attempts") if isinstance(diagnostics, dict) else [],
-                }
-            return payload
         except vbook_ext.RunnerCancelledError as exc:
             self._raise_vbook_request_replaced(plugin, "genre", exc)
         finally:
