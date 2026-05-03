@@ -63,6 +63,7 @@ from reader_backend.jobs import queue_runtime as queue_runtime_support
 from reader_backend.routes import api_dispatch as http_api_dispatch_support
 from reader_backend.routes import get_dispatch as http_get_dispatch_support
 from reader_backend.routes.http_base import ApiError, MultipartForm, MultipartPart
+from reader_backend.routes import request_dispatch as http_request_dispatch_support
 from reader_backend.services import exporting as service_export_support
 from reader_backend.services import history as service_history_support
 from reader_backend.services import library as service_library_support
@@ -14213,76 +14214,14 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         self._send_error_json(ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy endpoint."))
 
     def _dispatch_api(self, method: str, parsed):
-        trace_id = uuid.uuid4().hex
-        started_perf = time.perf_counter()
-        try:
-            self.service.refresh_config()
-            data = self._handle_api(method, parsed)
-            self._send_json(data, trace_id=trace_id)
-            self.service.debug_log(
-                "api_request",
-                trace_id=trace_id,
-                method=method,
-                path=parsed.path,
-                query_keys=sorted(parse_qs(parsed.query).keys()),
-                status="ok",
-                duration_ms=round((time.perf_counter() - started_perf) * 1000, 1),
-            )
-        except ApiError as exc:
-            try:
-                self.service.debug_log(
-                    "api_request",
-                    trace_id=trace_id,
-                    method=method,
-                    path=parsed.path,
-                    status="api_error",
-                    error_code=getattr(exc, "error_code", ""),
-                    message=getattr(exc, "message", ""),
-                    duration_ms=round((time.perf_counter() - started_perf) * 1000, 1),
-                )
-            except Exception:
-                pass
-            try:
-                self._send_error_json(exc, trace_id=trace_id)
-            except OSError as send_exc:
-                if self._is_client_disconnect_error(send_exc):
-                    return
-                raise
-        except Exception as exc:
-            if self._is_client_disconnect_error(exc):
-                return
-            details = {
-                "exception": exc.__class__.__name__,
-                "traceback": traceback.format_exc(limit=5),
-            }
-            try:
-                self.service.debug_log(
-                    "api_request",
-                    trace_id=trace_id,
-                    method=method,
-                    path=parsed.path,
-                    status="exception",
-                    exception=exc.__class__.__name__,
-                    message=str(exc),
-                    duration_ms=round((time.perf_counter() - started_perf) * 1000, 1),
-                )
-            except Exception:
-                pass
-            try:
-                safe_console_print(
-                    f"[API ERROR] trace_id={trace_id} method={method} path={parsed.path}\n{details['traceback']}"
-                )
-            except Exception:
-                pass
-            try:
-                self._send_error_json(
-                    ApiError(HTTPStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Lỗi hệ thống nội bộ.", details),
-                    trace_id=trace_id,
-                )
-            except OSError as send_exc:
-                if self._is_client_disconnect_error(send_exc):
-                    return
-                raise
+        http_request_dispatch_support.dispatch_api_request(
+            self,
+            method,
+            parsed,
+            api_error_cls=ApiError,
+            http_status=HTTPStatus,
+            safe_console_print=safe_console_print,
+        )
 
     def _write_sse_event(self, event: str, payload: dict[str, Any], *, event_id: int | None = None) -> None:
         parts: list[str] = []
