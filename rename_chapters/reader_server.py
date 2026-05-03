@@ -76,6 +76,7 @@ from reader_backend.services.vbook import detail_sections as service_vbook_detai
 from reader_backend.services.vbook import image_cache as service_vbook_image_cache_support
 from reader_backend.services.vbook import image_fetch as service_vbook_image_fetch_support
 from reader_backend.services.vbook import image_headers as service_vbook_image_headers_support
+from reader_backend.services.vbook import importing as service_vbook_importing_support
 from reader_backend.services.vbook import lists as service_vbook_lists_support
 from reader_backend.services.vbook import normalize as service_vbook_normalize_support
 from reader_backend.storage import book_categories as storage_book_categories_support
@@ -4764,78 +4765,27 @@ class ReaderService:
             payload = self._fetch_vbook_detail_raw(url=source_url, plugin_id=plugin.plugin_id)
             detail = dict(payload.get("detail") or {})
 
-        toc_rows: list[dict[str, Any]] = []
-        if isinstance(prefetched_toc, list):
-            for row in prefetched_toc:
-                if not isinstance(row, dict):
-                    continue
-                ch_title = normalize_vbook_display_text(
-                    str(row.get("title_raw") or row.get("title") or row.get("name") or ""),
-                    single_line=True,
-                )
-                href = str(row.get("remote_url") or row.get("url") or "").strip()
-                host = str(row.get("host") or "").strip()
-                remote_url = href if href.startswith(("http://", "https://")) else self._join_vbook_url(host, href)
-                if not ch_title or not remote_url:
-                    continue
-                toc_rows.append(
-                    {
-                        "name": ch_title,
-                        "remote_url": remote_url,
-                        "is_vip": bool(row.get("is_vip") or row.get("vip") or row.get("pay")),
-                    }
-                )
+        toc_rows = service_vbook_importing_support.normalize_prefetched_toc_rows(
+            prefetched_toc,
+            join_vbook_url=self._join_vbook_url,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+        )
         if not toc_rows:
             toc_rows = self._fetch_vbook_toc(plugin, source_url)
 
-        title = normalize_vbook_display_text(
-            str(detail.get("title_raw") or detail.get("name") or detail.get("title") or ""),
-            single_line=True,
-        ) or source_url
-        author = normalize_vbook_display_text(
-            str(detail.get("author_raw") or detail.get("author") or ""),
-            single_line=True,
+        import_fields = service_vbook_importing_support.build_import_fields(
+            plugin=plugin,
+            source_url=source_url,
+            detail=detail,
+            history_only=history_only,
+            normalize_vbook_display_text=normalize_vbook_display_text,
+            normalize_lang_source=normalize_lang_source,
         )
-        cover_path = str(detail.get("cover_raw") or "").strip()
-        if not cover_path:
-            cover_candidate = str(detail.get("cover") or "").strip()
-            if cover_candidate.startswith(("http://", "https://", "data:")):
-                cover_path = cover_candidate
-        plugin_type = str(plugin.type or "").strip().lower()
-        if history_only:
-            source_type = "vbook_session_comic" if "comic" in plugin_type else "vbook_session"
-        else:
-            source_type = "vbook_comic" if "comic" in plugin_type else "vbook"
-        summary = normalize_vbook_display_text(
-            str(detail.get("description_raw") or detail.get("description") or ""),
-            single_line=False,
-        ) or (
-            "Truyện tranh được import từ URL (vBook extension)." if "comic" in source_type else "Truyện được import từ URL (vBook extension)."
+        cover_path = str(import_fields.get("cover_path") or "").strip()
+        chapters = service_vbook_importing_support.build_import_chapters(
+            toc_rows,
+            normalize_vbook_display_text=normalize_vbook_display_text,
         )
-        extra_link = source_url
-
-        locale_norm = normalize_lang_source(str(plugin.locale or ""))
-        if locale_norm:
-            lang_source = locale_norm
-        else:
-            lang_source = "zh"
-
-        chapters: list[dict[str, Any]] = []
-        for idx, row in enumerate(toc_rows, start=1):
-            ch_title = normalize_vbook_display_text(
-                str(row.get("name") or f"Chương {idx}"),
-                single_line=True,
-            ) or f"Chương {idx}"
-            remote_url = str(row.get("remote_url") or "").strip()
-            if not remote_url:
-                continue
-            chapters.append(
-                {
-                    "title": ch_title,
-                    "remote_url": remote_url,
-                    "is_vip": bool(row.get("is_vip") or row.get("vip") or row.get("pay")),
-                }
-            )
 
         if not chapters:
             raise ApiError(
@@ -4846,16 +4796,16 @@ class ReaderService:
             )
 
         created = self.storage.create_book_remote(
-            title=title,
-            author=author,
-            lang_source=lang_source,
-            source_type=source_type,
-            summary=summary,
+            title=str(import_fields.get("title") or ""),
+            author=str(import_fields.get("author") or ""),
+            lang_source=str(import_fields.get("lang_source") or "zh"),
+            source_type=str(import_fields.get("source_type") or "vbook"),
+            summary=str(import_fields.get("summary") or ""),
             chapters=chapters,
             source_url=source_url,
             source_plugin=plugin.plugin_id,
             cover_path=cover_path,
-            extra_link=extra_link,
+            extra_link=str(import_fields.get("extra_link") or source_url),
         )
         if not history_only:
             try:
