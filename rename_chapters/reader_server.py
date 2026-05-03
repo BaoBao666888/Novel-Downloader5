@@ -70,6 +70,7 @@ from reader_backend.services import library as service_library_support
 from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
+from reader_backend.services.vbook import detail_response as service_vbook_detail_response_support
 from reader_backend.services.vbook import detail_sections as service_vbook_detail_sections_support
 from reader_backend.services.vbook import image_cache as service_vbook_image_cache_support
 from reader_backend.services.vbook import image_fetch as service_vbook_image_fetch_support
@@ -11652,221 +11653,22 @@ class ReaderService:
             )
             plugin = payload["plugin"]
             detail = dict(payload["detail"] or {})
-            source_url = str(detail.get("url") or source_url or "").strip()
-            title_raw = normalize_vbook_display_text(str(detail.get("title_raw") or ""), single_line=True) or source_url
-            author_raw = normalize_vbook_display_text(str(detail.get("author_raw") or ""), single_line=True)
-            description_raw = normalize_vbook_display_text(str(detail.get("description_raw") or ""), single_line=False)
-            status_text_raw = normalize_vbook_display_text(str(detail.get("status_text_raw") or ""), single_line=True)
-            info_text_raw = normalize_vbook_display_text(str(detail.get("info_text_raw") or ""), single_line=False)
-            title = title_raw
-            author = author_raw
-            description = description_raw
-            status_text = status_text_raw
-            info_text = info_text_raw
-            cover = build_vbook_image_proxy_path(
-                str(detail.get("cover_raw") or "").strip(),
-                plugin_id=str(getattr(plugin, "plugin_id", "") or "").strip(),
-                referer=source_url,
-            )
-            suggest_items = [dict(x or {}) for x in (detail.get("suggest_items") or []) if isinstance(x, dict)]
-            comment_items = [dict(x or {}) for x in (detail.get("comment_items") or []) if isinstance(x, dict)]
-            suggest_sections = [
-                {
-                    "title": str((section or {}).get("title") or (section or {}).get("title_raw") or "Gợi ý").strip() or "Gợi ý",
-                    "title_raw": str((section or {}).get("title_raw") or (section or {}).get("title") or "Gợi ý").strip() or "Gợi ý",
-                    "items": [dict(x or {}) for x in ((section or {}).get("items") or []) if isinstance(x, dict)],
-                }
-                for section in (detail.get("suggest_sections") or [])
-                if isinstance(section, dict)
-            ]
-            comment_sections = [
-                {
-                    "title": str((section or {}).get("title") or (section or {}).get("title_raw") or "Bình luận").strip() or "Bình luận",
-                    "title_raw": str((section or {}).get("title_raw") or (section or {}).get("title") or "Bình luận").strip() or "Bình luận",
-                    "items": [dict(x or {}) for x in ((section or {}).get("items") or []) if isinstance(x, dict)],
-                }
-                for section in (detail.get("comment_sections") or [])
-                if isinstance(section, dict)
-            ]
-            if suggest_sections:
-                suggest_items = self._flatten_vbook_detail_sections(suggest_sections)
-            elif suggest_items:
-                suggest_sections = [{"title": "Gợi ý", "title_raw": "Gợi ý", "items": suggest_items}]
-            if comment_sections:
-                comment_items = self._flatten_vbook_detail_sections(comment_sections)
-            elif comment_items:
-                comment_sections = [{"title": "Bình luận", "title_raw": "Bình luận", "items": comment_items}]
-            genre_items = [dict(x or {}) for x in (detail.get("genres") or []) if isinstance(x, dict)]
-            extra_fields = [dict(x or {}) for x in (detail.get("extra_fields") or []) if isinstance(x, dict)]
-            suggest_sources = [dict(x or {}) for x in (detail.get("suggest_sources") or []) if isinstance(x, dict)]
-            comment_sources = [dict(x or {}) for x in (detail.get("comment_sources") or []) if isinstance(x, dict)]
             if translate_ui is None:
                 translate_on = self.is_reader_translation_enabled()
             else:
                 translate_on = bool(translate_ui)
-            if translate_on:
-                mode = self.reader_translation_mode()
-                translated_head = self._translate_ui_texts_batch(
-                    [title, author, status_text],
-                    single_line=True,
-                    mode=mode,
-                )
-                translated_body = self._translate_ui_texts_batch(
-                    [description, info_text],
-                    single_line=False,
-                    mode=mode,
-                )
-                if len(translated_head) >= 3:
-                    title, author, status_text = translated_head[:3]
-                if len(translated_body) >= 2:
-                    description, info_text = translated_body[:2]
-                if suggest_items:
-                    suggest_section_titles = self._translate_ui_texts_batch(
-                        [str(section.get("title_raw") or section.get("title") or "") for section in suggest_sections],
-                        single_line=True,
-                        mode=mode,
-                    )
-                    for idx, section in enumerate(suggest_sections):
-                        if idx < len(suggest_section_titles):
-                            section["title"] = suggest_section_titles[idx]
-                    suggest_titles = self._translate_ui_texts_batch(
-                        [str(item.get("title") or "") for item in suggest_items],
-                        single_line=True,
-                        mode=mode,
-                    )
-                    suggest_authors = self._translate_ui_texts_batch(
-                        [str(item.get("author") or "") for item in suggest_items],
-                        single_line=True,
-                        mode=mode,
-                    )
-                    suggest_descs = self._translate_ui_texts_batch(
-                        [str(item.get("description") or "") for item in suggest_items],
-                        single_line=False,
-                        mode=mode,
-                    )
-                    for idx, item in enumerate(suggest_items):
-                        if not isinstance(item, dict):
-                            continue
-                        item["title"] = suggest_titles[idx] if idx < len(suggest_titles) else str(item.get("title") or "")
-                        item["author"] = suggest_authors[idx] if idx < len(suggest_authors) else str(item.get("author") or "")
-                        item["description"] = suggest_descs[idx] if idx < len(suggest_descs) else str(item.get("description") or "")
-                if suggest_sources:
-                    suggest_source_titles = self._translate_ui_texts_batch(
-                        [str(source.get("title_raw") or source.get("title") or "") for source in suggest_sources],
-                        single_line=True,
-                        mode=mode,
-                    )
-                    for idx, source in enumerate(suggest_sources):
-                        if idx < len(suggest_source_titles):
-                            source["title"] = suggest_source_titles[idx]
-                if comment_items:
-                    comment_section_titles = self._translate_ui_texts_batch(
-                        [str(section.get("title_raw") or section.get("title") or "") for section in comment_sections],
-                        single_line=True,
-                        mode=mode,
-                    )
-                    for idx, section in enumerate(comment_sections):
-                        if idx < len(comment_section_titles):
-                            section["title"] = comment_section_titles[idx]
-                    comment_authors = self._translate_ui_texts_batch(
-                        [str(item.get("author") or "") for item in comment_items],
-                        single_line=True,
-                        mode=mode,
-                    )
-                    comment_contents = self._translate_ui_texts_batch(
-                        [str(item.get("content") or "") for item in comment_items],
-                        single_line=False,
-                        mode=mode,
-                    )
-                    for idx, item in enumerate(comment_items):
-                        if not isinstance(item, dict):
-                            continue
-                        item["author"] = comment_authors[idx] if idx < len(comment_authors) else str(item.get("author") or "")
-                        item["content"] = comment_contents[idx] if idx < len(comment_contents) else str(item.get("content") or "")
-                if comment_sources:
-                    comment_source_titles = self._translate_ui_texts_batch(
-                        [str(source.get("title_raw") or source.get("title") or "") for source in comment_sources],
-                        single_line=True,
-                        mode=mode,
-                    )
-                    for idx, source in enumerate(comment_sources):
-                        if idx < len(comment_source_titles):
-                            source["title"] = comment_source_titles[idx]
-                if genre_items:
-                    genre_titles = self._translate_ui_texts_batch(
-                        [str(item.get("title") or "") for item in genre_items],
-                        single_line=True,
-                        mode=mode,
-                    )
-                    for idx, item in enumerate(genre_items):
-                        if not isinstance(item, dict):
-                            continue
-                        item["title"] = genre_titles[idx] if idx < len(genre_titles) else str(item.get("title") or "")
-                if extra_fields:
-                    field_keys = self._translate_ui_texts_batch(
-                        [str(item.get("key") or "") for item in extra_fields],
-                        single_line=True,
-                        mode=mode,
-                    )
-                    field_values = self._translate_ui_texts_batch(
-                        [str(item.get("value") or "") for item in extra_fields],
-                        single_line=False,
-                        mode=mode,
-                    )
-                    for idx, item in enumerate(extra_fields):
-                        if not isinstance(item, dict):
-                            continue
-                        item["key"] = field_keys[idx] if idx < len(field_keys) else str(item.get("key") or "")
-                        item["value"] = field_values[idx] if idx < len(field_values) else str(item.get("value") or "")
-            return {
-                "ok": True,
-                "plugin": self._serialize_vbook_plugin(plugin),
-                "detail": {
-                    "title": title,
-                    "author": author,
-                    "title_raw": title_raw,
-                    "author_raw": author_raw,
-                    "cover": cover,
-                    "cover_raw": str(detail.get("cover_raw") or "").strip(),
-                    "description": description,
-                    "description_raw": description_raw,
-                    "url": source_url,
-                    "host": str(detail.get("host") or "").strip(),
-                    "is_comic": bool(detail.get("is_comic")),
-                    "source_type": str(detail.get("source_type") or ("vbook_comic" if bool(detail.get("is_comic")) else "vbook")),
-                    "ongoing": detail.get("ongoing"),
-                    "status_text": status_text,
-                    "status_text_raw": status_text_raw,
-                    "info_text": info_text,
-                    "info_text_raw": info_text_raw,
-                    "genres": genre_items,
-                    "suggest_sections": [
-                        {
-                            "title": str(section.get("title") or "").strip() or "Gợi ý",
-                            "title_raw": str(section.get("title_raw") or section.get("title") or "").strip() or "Gợi ý",
-                            "items": [dict(item or {}) for item in (section.get("items") or []) if isinstance(item, dict)],
-                            "count": len([item for item in (section.get("items") or []) if isinstance(item, dict)]),
-                        }
-                        for section in suggest_sections
-                        if isinstance(section, dict)
-                    ],
-                    "suggest_items": suggest_items,
-                    "suggest_sources": suggest_sources,
-                    "comment_sections": [
-                        {
-                            "title": str(section.get("title") or "").strip() or "Bình luận",
-                            "title_raw": str(section.get("title_raw") or section.get("title") or "").strip() or "Bình luận",
-                            "items": [dict(item or {}) for item in (section.get("items") or []) if isinstance(item, dict)],
-                            "count": len([item for item in (section.get("items") or []) if isinstance(item, dict)]),
-                        }
-                        for section in comment_sections
-                        if isinstance(section, dict)
-                    ],
-                    "comment_items": comment_items,
-                    "comment_sources": comment_sources,
-                    "extra_fields": extra_fields,
-                },
-            }
+            return service_vbook_detail_response_support.build_detail_response(
+                plugin=plugin,
+                detail=detail,
+                source_url=source_url,
+                translate_on=translate_on,
+                translation_mode=self.reader_translation_mode(),
+                normalize_vbook_display_text=normalize_vbook_display_text,
+                build_image_proxy_path=build_vbook_image_proxy_path,
+                flatten_sections=self._flatten_vbook_detail_sections,
+                serialize_plugin=self._serialize_vbook_plugin,
+                translate_texts_batch=self._translate_ui_texts_batch,
+            )
         except vbook_ext.RunnerCancelledError as exc:
             self._raise_vbook_request_replaced(plugin, "detail", exc)
         finally:
