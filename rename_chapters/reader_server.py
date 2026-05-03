@@ -13375,22 +13375,10 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         )
 
     def _write_sse_event(self, event: str, payload: dict[str, Any], *, event_id: int | None = None) -> None:
-        parts: list[str] = []
-        if event_id is not None:
-            parts.append(f"id: {int(event_id)}")
-        if event:
-            parts.append(f"event: {event}")
-        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-        for line in (body.splitlines() or [body]):
-            parts.append(f"data: {line}")
-        packet = ("\n".join(parts) + "\n\n").encode("utf-8", errors="ignore")
-        self.wfile.write(packet)
-        self.wfile.flush()
+        http_base_support.write_sse_event(self.wfile, event, payload, event_id=event_id)
 
     def _write_sse_comment(self, comment: str = "keepalive") -> None:
-        packet = f": {comment}\n\n".encode("utf-8", errors="ignore")
-        self.wfile.write(packet)
-        self.wfile.flush()
+        http_base_support.write_sse_comment(self.wfile, comment)
 
     def _handle_api(self, method: str, parsed):
         return http_api_dispatch_support.handle_api(
@@ -13424,17 +13412,7 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         )
 
     def _read_json_body(self) -> dict[str, Any]:
-        length = int(self.headers.get("Content-Length", "0") or "0")
-        raw = self.rfile.read(length) if length > 0 else b"{}"
-        if not raw:
-            return {}
-        try:
-            payload = json.loads(raw.decode("utf-8"))
-            if isinstance(payload, dict):
-                return payload
-            raise ValueError("JSON body phải là object")
-        except Exception as exc:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_JSON", "JSON không hợp lệ.", str(exc)) from exc
+        return http_base_support.read_json_body(self.headers, self.rfile)
 
     def _read_form_json_field(self, raw_value: str | None) -> dict[str, Any] | None:
         return http_base_support.read_form_json_field(raw_value)
@@ -13443,52 +13421,13 @@ class ReaderApiHandler(SimpleHTTPRequestHandler):
         return http_base_support.read_multipart_form(self.headers, self.rfile)
 
     def _is_client_disconnect_error(self, exc: BaseException) -> bool:
-        if isinstance(exc, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
-            return True
-        if not isinstance(exc, OSError):
-            return False
-        if getattr(exc, "errno", None) in {32, 104}:
-            return True
-        if getattr(exc, "winerror", None) in {10053, 10054, 10058}:
-            return True
-        return False
+        return http_base_support.is_client_disconnect_error(exc)
 
     def _send_json(self, payload: dict[str, Any], trace_id: str | None = None):
-        result = dict(payload)
-        if trace_id:
-            result["trace_id"] = trace_id
-        body = json.dumps(result, ensure_ascii=False).encode("utf-8")
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        try:
-            self.end_headers()
-            self.wfile.write(body)
-        except OSError as exc:
-            if self._is_client_disconnect_error(exc):
-                return
-            raise
+        http_base_support.send_json(self, payload, trace_id)
 
     def _send_error_json(self, error: ApiError, trace_id: str | None = None):
-        payload = {
-            "error_code": error.error_code,
-            "message": error.message,
-            "details": error.details,
-            "trace_id": trace_id or uuid.uuid4().hex,
-        }
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        self.send_response(error.status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        try:
-            self.end_headers()
-            self.wfile.write(body)
-        except OSError as exc:
-            if self._is_client_disconnect_error(exc):
-                return
-            raise
+        http_base_support.send_error_json(self, error, trace_id)
 
 
 def build_handler(ui_dir: Path, service: ReaderService):
