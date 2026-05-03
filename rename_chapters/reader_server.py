@@ -57,6 +57,7 @@ from reader_backend.jobs import download_runtime as download_runtime_support
 from reader_backend.jobs import export_execute as export_execute_support
 from reader_backend.jobs import export_jobs as export_jobs_support
 from reader_backend.jobs import import_jobs as import_jobs_support
+from reader_backend.jobs import import_snapshots as import_snapshots_support
 from reader_backend.jobs import job_notifications as job_notifications_support
 from reader_backend.jobs import export_runtime as export_runtime_support
 from reader_backend.jobs import queue_runtime as queue_runtime_support
@@ -6808,25 +6809,11 @@ class ReaderService:
             self._persist_notifications_locked()
             self._notifications_cv.notify_all()
 
-    def _import_snapshot_root(self) -> Path:
-        root = LOCAL_DIR / "reader_import_jobs"
-        root.mkdir(parents=True, exist_ok=True)
-        return root
-
-    def _import_snapshot_path(self, snapshot_id: str) -> Path:
-        sid = str(snapshot_id or "").strip() or "default"
-        return self._import_snapshot_root() / f"{hash_text(sid)}.json"
-
     def _cleanup_import_job_snapshots(self, *, max_age_days: int = IMPORT_JOB_SNAPSHOT_RETENTION_DAYS) -> None:
-        root = self._import_snapshot_root()
-        cutoff = time.time() - max(1, int(max_age_days or IMPORT_JOB_SNAPSHOT_RETENTION_DAYS)) * 86400
-        for path in root.glob("*.json"):
-            try:
-                if path.stat().st_mtime >= cutoff:
-                    continue
-                path.unlink(missing_ok=True)
-            except Exception:
-                continue
+        import_snapshots_support.cleanup_import_job_snapshots(
+            local_dir=LOCAL_DIR,
+            max_age_days=max_age_days or IMPORT_JOB_SNAPSHOT_RETENTION_DAYS,
+        )
 
     def _normalize_import_job_item(self, raw: dict[str, Any], *, fallback_idx: int) -> dict[str, Any]:
         return import_jobs_support.normalize_import_job_item(
@@ -6889,73 +6876,20 @@ class ReaderService:
         self._sync_import_notification_locked(job)
 
     def _persist_import_job_snapshot_locked(self, job: dict[str, Any]) -> None:
-        snapshot_id = str(job.get("snapshot_id") or "").strip()
-        if not snapshot_id:
-            return
-        payload = {
-            "snapshot_id": snapshot_id,
-            "job_id": str(job.get("job_id") or "").strip(),
-            "notification_id": str(job.get("notification_id") or "").strip(),
-            "kind": str(job.get("kind") or "").strip(),
-            "title": str(job.get("title") or "").strip(),
-            "status": str(job.get("status") or "").strip().lower(),
-            "phase": str(job.get("phase") or "").strip().lower(),
-            "category_ids": [
-                str(item or "").strip()
-                for item in (job.get("category_ids") or [])
-                if str(item or "").strip()
-            ],
-            "category_names": [
-                normalize_vbook_display_text(str(item or ""), single_line=True)
-                for item in (job.get("category_names") or [])
-                if str(item or "").strip()
-            ],
-            "category_assign_error": str(job.get("category_assign_error") or "").strip(),
-            "current_file": str(job.get("current_file") or "").strip(),
-            "current_stage": str(job.get("current_stage") or "").strip(),
-            "current_detail": str(job.get("current_detail") or "").strip(),
-            "created_at": str(job.get("created_at") or ""),
-            "updated_at": str(job.get("updated_at") or ""),
-            "started_at": str(job.get("started_at") or ""),
-            "finished_at": str(job.get("finished_at") or ""),
-            "items": [
-                self._normalize_import_job_item(item, fallback_idx=idx)
-                for idx, item in enumerate(job.get("items") or [])
-                if isinstance(item, dict) and str(item.get("token") or "").strip()
-            ],
-        }
-        try:
-            self._import_snapshot_path(snapshot_id).write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except Exception:
-            pass
+        import_snapshots_support.persist_import_job_snapshot(
+            job,
+            local_dir=LOCAL_DIR,
+            normalize_item=self._normalize_import_job_item,
+            normalize_display_text=normalize_vbook_display_text,
+        )
 
     def _load_import_job_snapshot(self, snapshot_id: str) -> dict[str, Any] | None:
-        sid = str(snapshot_id or "").strip()
-        if not sid:
-            return None
-        path = self._import_snapshot_path(sid)
-        if not path.exists():
-            return None
-        try:
-            raw = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            return None
-        if not isinstance(raw, dict):
-            return None
-        raw["snapshot_id"] = sid
-        raw["items"] = [
-            self._normalize_import_job_item(item, fallback_idx=idx)
-            for idx, item in enumerate(raw.get("items") or [])
-            if isinstance(item, dict) and str(item.get("token") or "").strip()
-        ]
-        self._recount_import_job_locked(raw)
-        return raw
-
-    def _import_status_is_active(self, status: str) -> bool:
-        return str(status or "").strip().lower() in {"queued", "running", "importing", "finishing"}
+        return import_snapshots_support.load_import_job_snapshot(
+            snapshot_id,
+            local_dir=LOCAL_DIR,
+            normalize_item=self._normalize_import_job_item,
+            recount_job=self._recount_import_job_locked,
+        )
 
     def _cleanup_import_jobs_locked(self) -> None:
         self._import_queue = [
@@ -7152,7 +7086,7 @@ class ReaderService:
                     continue
                 if str(job.get("notification_id") or "").strip() != notification_id:
                     continue
-                if self._import_status_is_active(str(job.get("status") or "")):
+                if import_snapshots_support.import_status_is_active(str(job.get("status") or "")):
                     return {"ok": True, "already_running": True, "job": self._serialize_import_job_locked(job)}
         meta = dict(current_item.get("meta") or {}) if isinstance(current_item.get("meta"), dict) else {}
         snapshot_id = str(meta.get("snapshot_id") or notification_id).strip() or notification_id
