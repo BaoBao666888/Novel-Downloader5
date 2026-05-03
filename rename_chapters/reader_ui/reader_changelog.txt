@@ -1,5 +1,10 @@
 # Changelog Reader
 
+> [!OPTIMIZE] Ảnh vBook không làm chậm toàn bộ Reader khi nguồn lỗi
+> - Proxy ảnh vBook ưu tiên tải bằng `requests`, tránh vòng `urllib` fail rồi mới retry chậm trên các nguồn CDN kén header.
+> - Giới hạn số ảnh vBook remote được tải song song ở endpoint UI; khi nguồn treo/lỗi, các thao tác khác trong Reader không bị nghẽn theo hàng loạt request ảnh.
+> - Cover từ ext online bật cache phía server để quay lại trang/tải lại danh sách không phải gọi lại nguồn ảnh liên tục.
+
 > [!FIX] Tìm online mở thông tin truyện và nhập thư viện ổn định hơn
 > - Sửa lỗi click kết quả Tìm online không mở popup thông tin truyện do render detail bị thiếu trạng thái item.
 > - Nút `Nhập vào thư viện` trong popup Tìm online hoạt động lại khi kết quả có URL chi tiết hợp lệ.

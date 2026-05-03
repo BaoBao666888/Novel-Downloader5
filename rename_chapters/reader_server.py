@@ -4176,6 +4176,7 @@ class ReaderService:
         self._library_title_autofill_reason = ""
         self._vbook_singleflight_lock = threading.RLock()
         self._vbook_singleflight_runs: dict[str, dict[str, Any]] = {}
+        self._vbook_image_fetch_sem = threading.BoundedSemaphore(6)
         with self._notifications_cv:
             self._load_notifications_state_locked()
         with self._export_cv:
@@ -4650,6 +4651,7 @@ class ReaderService:
             cover_raw,
             plugin_id=str(getattr(plugin_obj, "plugin_id", "") or "").strip(),
             referer=source_url,
+            cache=True,
         )
         token = uuid.uuid4().hex
         source_type = "vbook_session_comic" if ("comic" in plugin_type and history_only) else (
@@ -10817,6 +10819,7 @@ class ReaderService:
                 str(item.get("cover") or "").strip(),
                 plugin_id=str(item.get("plugin_id") or str(getattr(plugin, "plugin_id", "") or "")).strip(),
                 referer=str(item.get("detail_url") or "").strip(),
+                cache=True,
             )
             key = f"{str(item.get('title') or '').strip().lower()}|{str(item.get('detail_url') or '').strip()}"
             if not key or key in seen:
@@ -12344,19 +12347,41 @@ class ReaderService:
         plugin_id: str = "",
         referer: str = "",
         use_cache: bool = False,
+        interactive: bool = False,
     ) -> tuple[bytes, str]:
-        return service_vbook_image_fetch_support.fetch_vbook_image(
-            image_url=image_url,
-            plugin_id=plugin_id,
-            referer=referer,
-            use_cache=use_cache,
-            timeout_ms=int((self._vbook_cfg().get("timeout_ms") or 20_000)),
-            build_headers=self._build_vbook_image_headers,
-            read_cache=self._read_vbook_image_cache,
-            write_cache=self._write_vbook_image_cache,
-            api_error_cls=ApiError,
-            http_status=HTTPStatus,
-        )
+        if use_cache:
+            cached = self._read_vbook_image_cache(image_url=image_url, plugin_id=plugin_id)
+            if cached is not None:
+                return cached
+        sem = getattr(self, "_vbook_image_fetch_sem", None)
+        acquired = True
+        if sem is not None:
+            acquired = sem.acquire(timeout=0.75 if interactive else 30.0)
+        if not acquired:
+            raise ApiError(
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                "VBOOK_IMAGE_BUSY",
+                "Đang tải quá nhiều ảnh vBook, vui lòng thử lại sau.",
+            )
+        try:
+            return service_vbook_image_fetch_support.fetch_vbook_image(
+                image_url=image_url,
+                plugin_id=plugin_id,
+                referer=referer,
+                use_cache=use_cache,
+                timeout_ms=min(10_000, int((self._vbook_cfg().get("timeout_ms") or 20_000))),
+                build_headers=self._build_vbook_image_headers,
+                read_cache=self._read_vbook_image_cache,
+                write_cache=self._write_vbook_image_cache,
+                api_error_cls=ApiError,
+                http_status=HTTPStatus,
+            )
+        finally:
+            if sem is not None:
+                try:
+                    sem.release()
+                except Exception:
+                    pass
 
     def _join_vbook_url(self, host: str, url: str) -> str:
         href = (url or "").strip()

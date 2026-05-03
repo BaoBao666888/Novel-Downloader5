@@ -61,6 +61,7 @@ def list_history_books(storage, *, normalize_vbook_display_text, build_vbook_ima
             str(item.get("cover_url") or "").strip(),
             plugin_id=str(item.get("plugin_id") or "").strip(),
             referer=str(item.get("source_url") or "").strip(),
+            cache=True,
         )
         out.append(item)
     return out
@@ -163,6 +164,7 @@ def upsert_history_book(
             str(item.get("cover_url") or "").strip(),
             plugin_id=str(item.get("plugin_id") or "").strip(),
             referer=str(item.get("source_url") or "").strip(),
+            cache=True,
         )
     return item
 

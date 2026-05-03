@@ -77,6 +77,7 @@ def serve_media(handler, parsed_or_path, *, deps: MediaDeps) -> None:
                 plugin_id=plugin_id,
                 referer=referer,
                 use_cache=cache_enabled,
+                interactive=True,
             )
         except api_error as exc:
             handler._send_error_json(exc)

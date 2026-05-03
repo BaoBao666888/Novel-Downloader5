@@ -20,7 +20,9 @@ def fetch_vbook_image_with_requests(
     api_error_cls: type[Exception],
     http_status: Any,
 ) -> tuple[bytes, str, str]:
-    resp = requests.get(target, headers=headers, timeout=timeout_sec, stream=True)
+    connect_timeout = max(1.0, min(4.0, float(timeout_sec or 3.0) / 2.0))
+    read_timeout = max(2.0, float(timeout_sec or 3.0))
+    resp = requests.get(target, headers=headers, timeout=(connect_timeout, read_timeout), stream=True)
     try:
         status = int(resp.status_code)
         if status < 200 or status >= 300:
@@ -39,6 +41,20 @@ def fetch_vbook_image_with_requests(
             resp.close()
         except Exception:
             pass
+
+
+def fetch_vbook_image_with_urllib(
+    *,
+    target: str,
+    headers: dict[str, str],
+    timeout_sec: float,
+) -> tuple[bytes, str, str]:
+    req = urllib_request.Request(target, headers=headers, method="GET")
+    with urllib_request.urlopen(req, timeout=max(1.0, float(timeout_sec or 3.0))) as resp:
+        data = resp.read()
+        content_type = str(resp.headers.get("Content-Type") or "").split(";", 1)[0].strip()
+        content_encoding = str(resp.headers.get("Content-Encoding") or "").strip()
+    return data, content_type, content_encoding
 
 
 def fetch_vbook_image(
@@ -65,50 +81,35 @@ def fetch_vbook_image(
             return cached
 
     headers = build_headers(image_url=target, plugin_id=plugin_id, referer=referer)
-    timeout_sec = max(3.0, min(60.0, int(timeout_ms or 20_000) / 1000.0))
-    req = urllib_request.Request(target, headers=headers, method="GET")
+    timeout_sec = max(2.0, min(10.0, int(timeout_ms or 20_000) / 1000.0))
     try:
-        with urllib_request.urlopen(req, timeout=timeout_sec) as resp:
-            data = resp.read()
-            content_type = str(resp.headers.get("Content-Type") or "").split(";", 1)[0].strip()
-            content_encoding = str(resp.headers.get("Content-Encoding") or "").strip()
-    except urllib_error.HTTPError as exc:
+        data, content_type, content_encoding = fetch_vbook_image_with_requests(
+            target=target,
+            headers=headers,
+            timeout_sec=timeout_sec,
+            api_error_cls=api_error_cls,
+            http_status=http_status,
+        )
+    except Exception as exc:
+        fallback_timeout_sec = max(1.0, min(4.0, timeout_sec / 2.0))
         try:
-            data, content_type, content_encoding = fetch_vbook_image_with_requests(
+            data, content_type, content_encoding = fetch_vbook_image_with_urllib(
                 target=target,
                 headers=headers,
-                timeout_sec=timeout_sec,
-                api_error_cls=api_error_cls,
-                http_status=http_status,
+                timeout_sec=fallback_timeout_sec,
             )
-        except api_error_cls:
-            raise api_error_cls(
-                http_status.BAD_GATEWAY,
-                "VBOOK_IMAGE_FETCH_FAILED",
-                "Không thể tải ảnh từ nguồn vBook.",
-                {"url": target, "status": int(exc.code), "reason": str(exc.reason or "")},
-            ) from exc
-        except Exception as retry_exc:
+        except urllib_error.HTTPError as retry_exc:
             raise api_error_cls(
                 http_status.BAD_GATEWAY,
                 "VBOOK_IMAGE_FETCH_FAILED",
                 "Không thể tải ảnh từ nguồn vBook.",
                 {
                     "url": target,
-                    "status": int(exc.code),
-                    "reason": str(exc.reason or ""),
-                    "retry_error": str(retry_exc),
+                    "status": int(retry_exc.code),
+                    "reason": str(retry_exc.reason or ""),
+                    "primary_error": str(exc),
                 },
             ) from retry_exc
-    except Exception as exc:
-        try:
-            data, content_type, content_encoding = fetch_vbook_image_with_requests(
-                target=target,
-                headers=headers,
-                timeout_sec=timeout_sec,
-                api_error_cls=api_error_cls,
-                http_status=http_status,
-            )
         except Exception as retry_exc:
             raise api_error_cls(
                 http_status.BAD_GATEWAY,

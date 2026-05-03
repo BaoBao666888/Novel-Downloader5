@@ -311,7 +311,7 @@ def normalize_vbook_search_item(
     cover = str(item.get("cover") or item.get("image") or item.get("img") or "").strip()
     if cover and host and not cover.startswith("http"):
         cover = join_vbook_url(host, cover)
-    cover = build_vbook_image_proxy_path(cover, plugin_id=plugin_id, referer=detail_url)
+    cover = build_vbook_image_proxy_path(cover, plugin_id=plugin_id, referer=detail_url, cache=True)
     description = normalize_vbook_display_text(
         str(item.get("description") or item.get("desc") or item.get("summary") or ""),
         single_line=False,

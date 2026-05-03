@@ -396,6 +396,7 @@ def book_cover_url(
                 cover,
                 plugin_id=str(book.get("source_plugin") or "").strip(),
                 referer=str(book.get("source_url") or "").strip(),
+                cache=True,
             )
         return cover
     return f"/media/cover/{quote_url_path(Path(cover).name)}"
