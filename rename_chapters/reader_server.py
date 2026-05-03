@@ -8,7 +8,6 @@ import base64
 import gzip
 import hashlib
 import html
-import importlib.util
 import io
 import json
 import mimetypes
@@ -41,6 +40,8 @@ import xml.etree.ElementTree as ET
 import requests
 from reader_backend.catalogs import theme_presets as theme_presets_support
 from reader_backend.catalogs import vbook_search_filters as vbook_search_filters_support
+from reader_backend.core import app_modules as app_modules_support
+from reader_backend.core import logging_utils as logging_utils_support
 from reader_backend.core import notices as notices_support
 from reader_backend.core import notification_center as notification_center_support
 from reader_backend.core import runtime_paths as runtime_paths_support
@@ -131,8 +132,6 @@ mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("text/css", ".css")
 
 
-_EXPLICIT_LOG_LOCK = threading.Lock()
-_LOG_CLEANUP_LOCK = threading.Lock()
 _APP_CONFIG_LOCK = threading.RLock()
 
 
@@ -142,151 +141,53 @@ def runtime_base_dir() -> Path:
     Khi chạy dưới app Novel Studio, server được start với `cwd=BASE_DIR`, nên base là `Path.cwd()`.
     Khi chạy dev trực tiếp ở repo root, base cũng là repo root.
     """
-    try:
-        cwd = Path.cwd().resolve()
-        if runtime_paths_support.looks_like_runtime_root(cwd):
-            return cwd
-    except Exception:
-        pass
-    return runtime_paths_support.detect_runtime_root_bootstrap(BUNDLE_ROOT)
+    return runtime_paths_support.runtime_base_dir(BUNDLE_ROOT)
 
 
 def resolve_path_from_base(raw: str | Path, base_dir: Path) -> Path:
-    raw_s = str(raw or "").strip()
-    if not raw_s:
-        return base_dir
-    p = Path(raw_s)
-    if p.is_absolute():
-        return p
-    try:
-        return (base_dir / p).resolve(strict=False)
-    except Exception:
-        return base_dir / p
+    return runtime_paths_support.resolve_path_from_base(raw, base_dir)
 
 
 def resolve_existing_path(raw: str | Path, *bases: Path) -> Path:
-    raw_s = str(raw or "").strip()
-    valid_bases = [b for b in bases if isinstance(b, Path)]
-    fallback_base = valid_bases[0] if valid_bases else ROOT_DIR
-    if not raw_s:
-        return fallback_base
-
-    p = Path(raw_s)
-    if p.is_absolute():
-        return p
-
-    candidates: list[Path] = []
-    for base in valid_bases:
-        try:
-            candidates.append((base / p).resolve(strict=False))
-        except Exception:
-            candidates.append(base / p)
-
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    if candidates:
-        return candidates[0]
-    return p
+    return runtime_paths_support.resolve_existing_path(raw, *bases, fallback_root=ROOT_DIR)
 
 
 def resolve_persisted_path(raw: str | Path, *bases: Path) -> Path:
-    raw_s = str(raw or "").strip()
-    valid_bases = [b for b in bases if isinstance(b, Path)]
-    fallback_base = valid_bases[0] if valid_bases else ROOT_DIR
-    if not raw_s:
-        return fallback_base
-
-    direct = Path(raw_s)
-    try:
-        if direct.exists():
-            return direct
-    except Exception:
-        pass
-
-    wsl_match = re.match(r"^/mnt/(?P<drive>[A-Za-z])/(?P<rest>.+)$", raw_s)
-    if wsl_match:
-        drive = wsl_match.group("drive").upper()
-        rest = wsl_match.group("rest").replace("/", "\\")
-        mapped = Path(f"{drive}:\\{rest}")
-        try:
-            if mapped.exists():
-                return mapped
-        except Exception:
-            pass
-
-    win_match = re.match(r"^(?P<drive>[A-Za-z]):[\\/](?P<rest>.+)$", raw_s)
-    if win_match:
-        drive = win_match.group("drive").lower()
-        rest = win_match.group("rest").replace("\\", "/")
-        mapped = Path("/mnt") / drive / rest
-        try:
-            if mapped.exists():
-                return mapped
-        except Exception:
-            pass
-
-    return resolve_existing_path(raw_s, *valid_bases)
+    return runtime_paths_support.resolve_persisted_path(raw, *bases, fallback_root=ROOT_DIR)
 
 
 def _reader_log_dir() -> Path:
-    explicit_dir = (os.environ.get("READER_SERVER_LOG_DIR") or "").strip()
-    if explicit_dir:
-        return resolve_path_from_base(explicit_dir, runtime_base_dir())
-    explicit_file = (os.environ.get("READER_SERVER_LOG_FILE") or "").strip()
-    if explicit_file:
-        return Path(explicit_file).resolve().parent
-    return runtime_base_dir() / "logs" / "reader_server"
+    return logging_utils_support.reader_log_dir(
+        runtime_base_dir=runtime_base_dir,
+        resolve_path_from_base=resolve_path_from_base,
+    )
 
 
 def _reader_log_path_for_now() -> Path:
-    now = datetime.now()
-    return _reader_log_dir() / f"reader_server-{now.strftime('%Y-%m-%d')}.log"
+    return logging_utils_support.reader_log_path_for_now(
+        runtime_base_dir=runtime_base_dir,
+        resolve_path_from_base=resolve_path_from_base,
+    )
 
 
 def _reader_debug_log_path_for_now() -> Path:
-    now = datetime.now()
-    return _reader_log_dir() / f"reader_debug-{now.strftime('%Y-%m-%d')}.log"
+    return logging_utils_support.reader_debug_log_path_for_now(
+        runtime_base_dir=runtime_base_dir,
+        resolve_path_from_base=resolve_path_from_base,
+    )
 
 
 def write_reader_debug_log(event: str, **fields: Any) -> str:
-    payload = {
-        "ts": utc_now_iso(),
-        "event": str(event or "debug").strip() or "debug",
-        **{str(key): value for key, value in fields.items()},
-    }
-    path = _reader_debug_log_path_for_now()
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with _EXPLICIT_LOG_LOCK:
-            with path.open("a", encoding="utf-8", errors="backslashreplace") as fp:
-                fp.write(json.dumps(payload, ensure_ascii=False, default=str, separators=(",", ":")))
-                fp.write("\n")
-                fp.flush()
-    except Exception:
-        return str(path)
-    return str(path)
+    return logging_utils_support.write_reader_debug_log(
+        event,
+        fields,
+        log_path=_reader_debug_log_path_for_now,
+        utc_now_iso=utc_now_iso,
+    )
 
 
 def cleanup_reader_log_files(*, keep_days: int = 30) -> None:
-    log_dir = _reader_log_dir()
-    try:
-        log_dir.mkdir(parents=True, exist_ok=True)
-    except Exception:
-        return
-    cutoff = datetime.now() - timedelta(days=max(1, int(keep_days)))
-    pattern = re.compile(r"^reader_server-(\d{4}-\d{2}-\d{2})\.log$")
-    with _LOG_CLEANUP_LOCK:
-        for entry in log_dir.glob("reader_server-*.log"):
-            try:
-                match = pattern.match(entry.name)
-                if not match:
-                    continue
-                stamp = datetime.strptime(match.group(1), "%Y-%m-%d")
-                if stamp < cutoff:
-                    entry.unlink(missing_ok=True)
-            except Exception:
-                continue
+    logging_utils_support.cleanup_reader_log_files(log_dir=_reader_log_dir, keep_days=keep_days)
 
 
 def set_local_dirs(local_dir: Path) -> None:
@@ -302,59 +203,23 @@ def set_local_dirs(local_dir: Path) -> None:
     DB_PATH = LOCAL_DIR / "reader_library.db"
 
 
-def _load_translator_module():
-    module_path = ROOT_DIR / "app" / "core" / "translator.py"
-    spec = importlib.util.spec_from_file_location("reader_translator_logic", module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Không thể nạp module translator: {module_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # type: ignore[attr-defined]
-    return module
-
-
 try:
     # Ưu tiên import bình thường để PyInstaller có thể bundle vào `reader_server.exe`.
     from app.core import translator as translator_logic  # type: ignore
 except Exception:
-    translator_logic = _load_translator_module()
-
-
-def _load_vbook_module():
-    module_path = ROOT_DIR / "app" / "core" / "vbook_ext.py"
-    spec = importlib.util.spec_from_file_location("reader_vbook_ext", module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Không thể nạp module vbook_ext: {module_path}")
-    module = importlib.util.module_from_spec(spec)
-    import sys
-
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)  # type: ignore[attr-defined]
-    return module
+    translator_logic = app_modules_support.load_translator_module(ROOT_DIR)
 
 
 try:
     from app.core import vbook_ext  # type: ignore
 except Exception:
-    vbook_ext = _load_vbook_module()
-
-
-def _load_vbook_local_translate_module():
-    module_path = ROOT_DIR / "app" / "core" / "vbook_local_translate.py"
-    spec = importlib.util.spec_from_file_location("reader_vbook_local_translate", module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Cannot load local translate module: {module_path}")
-    module = importlib.util.module_from_spec(spec)
-    import sys
-
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)  # type: ignore[attr-defined]
-    return module
+    vbook_ext = app_modules_support.load_vbook_module(ROOT_DIR)
 
 
 try:
     from app.core import vbook_local_translate  # type: ignore
 except Exception:
-    vbook_local_translate = _load_vbook_local_translate_module()
+    vbook_local_translate = app_modules_support.load_vbook_local_translate_module(ROOT_DIR)
 
 
 THEME_PRESETS: list[dict[str, Any]] = theme_presets_support.THEME_PRESETS
@@ -16960,52 +16825,11 @@ def parse_args():
 
 
 def configure_console_output() -> None:
-    for stream_name in ("stdout", "stderr"):
-        stream = getattr(sys, stream_name, None)
-        if stream is None:
-            continue
-        try:
-            stream.reconfigure(errors="backslashreplace")
-        except Exception:
-            continue
+    logging_utils_support.configure_console_output()
 
 
 def safe_console_print(text: str) -> None:
-    message = str(text or "")
-    explicit_log = (os.environ.get("READER_SERVER_LOG_FILE") or "").strip()
-    explicit_dir = (os.environ.get("READER_SERVER_LOG_DIR") or "").strip()
-    if explicit_log or explicit_dir:
-        try:
-            log_path = Path(explicit_log).resolve() if explicit_log else _reader_log_path_for_now()
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            with _EXPLICIT_LOG_LOCK:
-                with log_path.open("a", encoding="utf-8", errors="backslashreplace") as fp:
-                    fp.write(message)
-                    fp.write("\n")
-                    fp.flush()
-            return
-        except Exception:
-            pass
-    try:
-        print(message)
-        return
-    except Exception:
-        pass
-
-    stream = getattr(sys, "stdout", None)
-    if stream is None:
-        return
-    encoding = getattr(stream, "encoding", None) or "utf-8"
-    payload = message.encode(encoding, errors="backslashreplace")
-    try:
-        buffer = getattr(stream, "buffer", None)
-        if buffer is not None:
-            buffer.write(payload + b"\n")
-        else:
-            stream.write(payload.decode(encoding, errors="ignore") + "\n")
-        stream.flush()
-    except Exception:
-        pass
+    logging_utils_support.safe_console_print(text, log_path_for_now=_reader_log_path_for_now)
 
 
 def main():
