@@ -1,5 +1,10 @@
 # Changelog Reader
 
+> [!FIX] Tìm online mở thông tin truyện và nhập thư viện ổn định hơn
+> - Sửa lỗi click kết quả Tìm online không mở popup thông tin truyện do render detail bị thiếu trạng thái item.
+> - Nút `Nhập vào thư viện` trong popup Tìm online hoạt động lại khi kết quả có URL chi tiết hợp lệ.
+> - Kết quả Tìm online giờ tự chuẩn hóa URL chi tiết từ nhiều kiểu field của extension, tránh click im lặng nếu extension trả `url`/`link` thay vì `detail_url`.
+
 > [!NEW] vBook extension config đã có UI riêng
 > - Reader đọc `plugin.json.config` của extension và hiện form chỉnh riêng từng key trong `Cài đặt vBook` và panel extension ở trang Explore.
 > - Hỗ trợ config dạng `text` bằng textarea, cho phép xuống dòng.
