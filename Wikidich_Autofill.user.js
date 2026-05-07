@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.9.3
+// @version      0.3.9.4
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -11,7 +11,7 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.9'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.9.4'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const MAX_COVER_FILE_SIZE = 500 * 1024;
@@ -551,6 +551,17 @@
             }
         }
         return map;
+    }
+
+    function isAiHiddenAgeLabel(label) {
+        const norm = T.normalizeText(label);
+        return norm === 'gia tuong lich su' || norm === 'lich su gia tuong';
+    }
+
+    function getAiOptionLabels(key, group) {
+        const labels = group ? group.map(x => x.label).filter(Boolean) : [];
+        if (key !== 'age') return labels;
+        return labels.filter(label => !isAiHiddenAgeLabel(label));
     }
 
     function resolveNegationConflicts(labels) {
@@ -2547,6 +2558,208 @@
         return out || raw;
     }
 
+    function stripAiNameCn(text) {
+        return T.safeText(text)
+            .replace(/[（(][^（）()]*[）)]/g, '')
+            .replace(/^[\s"'“”‘’《》【】\[\],，、;；:：|]+|[\s"'“”‘’《》【】\[\],，、;；:：|]+$/g, '')
+            .trim();
+    }
+
+    function isCjkNameText(text) {
+        const raw = T.safeText(text);
+        return !!raw
+            && /[\u3400-\u9FFF\uF900-\uFAFF]/.test(raw)
+            && !/[A-Za-zÀ-ỹ]/.test(raw)
+            && /^[\s\u3400-\u9FFF\uF900-\uFAFF·・々〇零一二三四五六七八九十百千万亿兩两]+$/.test(raw);
+    }
+
+    function titleCaseVietnameseWord(word) {
+        const raw = T.safeText(word);
+        if (!raw) return '';
+        const lower = raw.toLocaleLowerCase('vi-VN');
+        return lower.charAt(0).toLocaleUpperCase('vi-VN') + lower.slice(1);
+    }
+
+    function lowerVietnameseWord(word) {
+        return T.safeText(word).toLocaleLowerCase('vi-VN');
+    }
+
+    function getWordCapitalizationPattern(text) {
+        const words = T.safeText(text).split(/\s+/).filter(Boolean);
+        if (!words.length) return [];
+        return words.map((word) => {
+            const letter = word.match(/\p{L}/u)?.[0] || '';
+            return !!letter && letter === letter.toLocaleUpperCase('vi-VN') && letter !== letter.toLocaleLowerCase('vi-VN');
+        });
+    }
+
+    function normalizeAiCaps(value) {
+        if (!Array.isArray(value)) return [];
+        return value
+            .map((item) => {
+                if (typeof item === 'boolean') return item;
+                const norm = T.normalizeText(item);
+                if (['1', 'true', 'yes', 'y', 'hoa', 'viet hoa', 'upper', 'cap'].includes(norm)) return true;
+                if (['0', 'false', 'no', 'n', 'thuong', 'lower'].includes(norm)) return false;
+                return null;
+            })
+            .filter(item => item !== null);
+    }
+
+    function normalizeAiCaseStyle(value) {
+        const norm = T.normalizeText(value);
+        if (!norm) return '';
+        if (/(title|proper|name|all|viet hoa het|hoa het)/.test(norm)) return 'title';
+        if (/(phrase|common|generic|lower|sentence|cum|cụm|thuong|viet hoa dau|hoa dau)/.test(norm)) return 'phrase';
+        if (/(keep|foreign|ngoai|latin)/.test(norm)) return 'keep';
+        return '';
+    }
+
+    function inferHanVietCaseStyle(cn, words, candidate) {
+        if (candidate?.caps?.length === words.length) return '';
+        const aiPattern = getWordCapitalizationPattern(candidate?.vi || '');
+        if (aiPattern.length === words.length) return '';
+        if (aiPattern.length > 1 && aiPattern[0] && aiPattern.slice(1).every(item => !item)) return 'phrase';
+        if (aiPattern.length > 1 && aiPattern.every(Boolean)) return 'title';
+        if (/(?:家|族|氏|大陆|大陸|世界|学院|學院|学校|學校|帝国|帝國|王国|王國)$/.test(T.safeText(cn))) {
+            return 'phrase';
+        }
+        return 'title';
+    }
+
+    function applyCapitalization(words, pattern) {
+        return words.map((word, idx) => {
+            return pattern[idx] ? titleCaseVietnameseWord(word) : lowerVietnameseWord(word);
+        });
+    }
+
+    function formatHanVietName(cn, hv, candidate = {}) {
+        const raw = T.safeText(hv)
+            .replace(/[|/]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .replace(/[.,;:!?]+$/g, '')
+            .trim();
+        if (!raw) return '';
+        const words = raw.split(/\s+/).filter(Boolean);
+        if (!words.length) return '';
+
+        if (candidate.caps?.length === words.length) {
+            return applyCapitalization(words, candidate.caps).join(' ');
+        }
+
+        if (candidate.caseStyle === 'phrase') {
+            return words
+                .map((word, idx) => idx === 0 ? titleCaseVietnameseWord(word) : lowerVietnameseWord(word))
+                .join(' ');
+        }
+        if (candidate.caseStyle === 'title') {
+            return words.map(titleCaseVietnameseWord).join(' ');
+        }
+        if (candidate.caseStyle === 'keep') return raw;
+
+        const aiPattern = getWordCapitalizationPattern(candidate.vi || '');
+        if (aiPattern.length === words.length) {
+            return applyCapitalization(words, aiPattern).join(' ');
+        }
+
+        const caseStyle = inferHanVietCaseStyle(cn, words, candidate);
+        if (caseStyle === 'phrase') {
+            return words
+                .map((word, idx) => idx === 0 ? titleCaseVietnameseWord(word) : lowerVietnameseWord(word))
+                .join(' ');
+        }
+        return words.map(titleCaseVietnameseWord).join(' ');
+    }
+
+    function normalizeAiNameCandidate(item) {
+        if (!item || typeof item !== 'object') return null;
+        const cn = stripAiNameCn(item.cn || item.zh || item.chinese || item.orig || item.name || '');
+        const vi = T.safeText(item.vi || item.hv || item.hanviet || item.vn || item.trans || item.translation || '');
+        const origin = T.safeText(item.origin || item.kind || item.type || item.script || item.mode || '').toLowerCase();
+        const caseStyle = normalizeAiCaseStyle(item.case || item.caseStyle || item.casing || item.capitalization || item.nameCase || '');
+        const caps = normalizeAiCaps(item.caps || item.cap || item.capitalize || item.capitalized || item.uppercase || []);
+        if (!cn) return null;
+        return { cn, vi, origin, caseStyle, caps };
+    }
+
+    function looksLikeForeignAiName(vi) {
+        const raw = T.safeText(vi);
+        if (!raw) return false;
+        if (/[À-ỹĂăÂâĐđÊêÔôƠơƯư]/.test(raw)) return false;
+        const words = raw.split(/\s+/).filter(Boolean);
+        return words.length > 0
+            && words.length <= 2
+            && /^[A-Za-z][A-Za-z'’.-]*(?:\s+[A-Za-z][A-Za-z'’.-]*)?$/.test(raw);
+    }
+
+    function shouldUseHanVietForAiName(candidate) {
+        if (!candidate || !isCjkNameText(candidate.cn)) return false;
+        const origin = T.normalizeText(candidate.origin || '');
+        if (/(foreign|ngoai|nhat|japan|korea|han quoc|english|latin|western|non chinese|nonchinese|phien am)/.test(origin)) {
+            return false;
+        }
+        if (/(hanviet|han viet|han tu|chinese|trung quoc|hv|viet)/.test(origin)) {
+            return true;
+        }
+        return !looksLikeForeignAiName(candidate.vi);
+    }
+
+    async function translateHanVietList(list) {
+        const items = Array.isArray(list) ? list.map(stripAiNameCn).filter(Boolean) : [];
+        const result = new Map();
+        const batches = splitIntoBatches(items, MAX_CHARS);
+        for (const batch of batches) {
+            try {
+                const translated = await postTranslate(SERVER_URL, batch, 'hv');
+                if (!Array.isArray(translated)) throw new Error('Bad Hán Việt response.');
+                batch.forEach((item, idx) => {
+                    result.set(item, T.safeText(translated[idx] || item));
+                });
+            } catch (err) {
+                logUi(`Dịch Hán Việt batch lỗi, thử từng name: ${err.message || err}`, 'warn');
+                for (const item of batch) {
+                    try {
+                        const translatedSingle = await postTranslateSingle(SERVER_URL, item, 'hv');
+                        result.set(item, T.safeText(translatedSingle || item));
+                    } catch (singleErr) {
+                        logUi(`Dịch Hán Việt name lỗi, giữ bản AI: ${item} (${singleErr.message || singleErr})`, 'warn');
+                    }
+                    await sleep(REQUEST_DELAY_MS);
+                }
+            }
+            await sleep(REQUEST_DELAY_MS);
+        }
+        return result;
+    }
+
+    async function normalizeAiExtractedNames(rawNames) {
+        const candidates = (Array.isArray(rawNames) ? rawNames : [])
+            .map(normalizeAiNameCandidate)
+            .filter(Boolean);
+        if (!candidates.length) return [];
+
+        const seen = new Set();
+        const deduped = [];
+        for (const candidate of candidates) {
+            if (seen.has(candidate.cn)) continue;
+            seen.add(candidate.cn);
+            deduped.push(candidate);
+        }
+
+        const hvNames = deduped
+            .filter(shouldUseHanVietForAiName)
+            .map(item => item.cn);
+        const hvMap = hvNames.length ? await translateHanVietList(hvNames) : new Map();
+
+        return deduped
+            .map((item) => {
+                const hv = hvMap.get(item.cn);
+                const vi = hv ? formatHanVietName(item.cn, hv, item) : T.safeText(item.vi);
+                return { cn: item.cn, vi };
+            })
+            .filter(item => item.cn && item.vi);
+    }
+
     async function translateTextWithNameSet(text, nameSet, preserveLineBreaks) {
         const raw = T.safeText(text);
         if (!raw) return '';
@@ -3363,8 +3576,10 @@
     // ================================================
 
 const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.9</span></h2>
+<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.9.4</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
+    <li>🔤 <b>Viết hoa name thông minh hơn:</b> AI có thể trả cờ <code>case/caps</code>; name Hán vẫn lấy âm từ DichNgay nhưng giữ pattern viết hoa như <code>Lăng gia</code>. </li>
+    <li>🈶 <b>Name Hán Việt ổn hơn:</b> AI chỉ đánh dấu name Hán/ngoại lai, còn name thuần Hán được kiểm lại bằng Hán Việt DichNgay trước khi ghi NameSet.</li>
     <li>🪄 <b>JJWXC mượt hơn:</b> Dùng api cũ hay mới tùy hoàn cảnh; nút <code>Old/New</code> vẫn giữ để đổi nhanh sau đó.</li>
     <li>⏱️ <b>Gemini rõ ràng hơn:</b> Mặc định ưu tiên <code>gemini-3-flash-preview</code>, có toast/log đếm thời gian và báo rõ khi AI đang chạy thinking mode.</li>
     <li>🏷️ <b>Tối ưu chọn nhãn:</b> Tinh chỉnh cả AI lẫn keyword cho <code>架空历史</code> → <b>Giả tưởng lịch sử</b>, và <code>年代文</code> ưu tiên <b>Hiện đại</b> thay vì <b>Cận đại</b></li>
@@ -6773,14 +6988,13 @@ const CHANGELOG_CONTENT = `
             }
             const shouldExtractNames = state.settings.autoExtractNames !== false && state.sourceData.descCn;
             const groups = getGroupOptions();
-            const getLabels = (grp) => grp ? grp.map(x => x.label) : [];
             const availableOptions = {
-                gender: getLabels(groups.gender),
-                official: getLabels(groups.official),
-                age: getLabels(groups.age),
-                ending: getLabels(groups.ending),
-                genre: getLabels(groups.genre),
-                tag: getLabels(groups.tag),
+                gender: getAiOptionLabels('gender', groups.gender),
+                official: getAiOptionLabels('official', groups.official),
+                age: getAiOptionLabels('age', groups.age),
+                ending: getAiOptionLabels('ending', groups.ending),
+                genre: getAiOptionLabels('genre', groups.genre),
+                tag: getAiOptionLabels('tag', groups.tag),
             };
             return { shouldExtractNames, availableOptions };
         };
@@ -6809,12 +7023,14 @@ Description (Chinese): ${state.sourceData.descCn}
 Description (Vietnamese): ${getDescViForAi()}
 
 TASK 1: Extract all important names (characters, locations, titles) from the Chinese description.
-Return them as "names" array with format: [{"cn": "中文名", "vi": "Hán-Việt"}]
-Prioritize Hán-Việt pronunciation for "vi" field.
+Return them as "names" array with format: [{"cn": "中文名", "vi": "Vietnamese/Latin name", "origin": "hanviet|foreign", "case": "title|phrase|keep", "caps": [true, false]}]
+- For Chinese/Hán names, set "origin": "hanviet". The script will verify and overwrite "vi" with DichNgay Hán-Việt, so do NOT translate name characters by meaning. Example: "施探微" is hanviet, not "Thi Thăm Hy".
+- Add casing info. "case":"title" means capitalize every Vietnamese word/syllable. "case":"phrase" means only the first/proper component is capitalized, generic words stay lowercase. "case":"keep" is for foreign names.
+- "caps" is optional but preferred: one boolean per word in "vi"; true = capitalize that word, false = lowercase that word. Examples: 施探微 => {"vi":"Thi Tham Vi","origin":"hanviet","case":"title","caps":[true,true,true]}; 凌家 => {"vi":"Lăng gia","origin":"hanviet","case":"phrase","caps":[true,false]}; 兽人大陆 => {"vi":"Thú nhân đại lục","origin":"hanviet","case":"phrase","caps":[true,false,false,false]}.
+- For non-Chinese transliterated names (Japanese/English/Korean/Western/fantasy names written in Chinese chars), set "origin": "foreign" and keep the best Latin/Vietnamese transliteration in "vi". Example: "瑞苏泽尔" => "Risuzel" (NOT "Thụy Tô Trạch Nhĩ").
 - EXCLUDE pronouns/titles/common-role phrases (not proper names): 女主, 男主, 女配, 男配, 男二, 女二, 反派, 系统, 师尊, 师父, 徒弟, 兄长, 师兄, 师妹, 小姐, 少爷, 公爵, 王爷, 皇帝, 皇后, 太子, 贵妃, 圣女, 侍女, 侍卫, 丫鬟, 书童, 管家, 大人, 先生, 小姐, 夫人, 公子, 少主, 掌门, 宗主, 长老, 魔尊, 大妖, 等等.
 - Vietnamese name casing: do NOT Title-Case generic roles/kinship terms. Example: "女主" should NOT become "Nữ Chủ" (skip entirely). "叶哥哥" should map to "Diệp ca ca" (not "Diệp Ca Ca").
 - If a term is just a common phrase with meaning (not a unique proper name), skip it.
-- If a name is likely non-Chinese in context (Japanese/English/etc.), prefer Latin transliteration instead of Hán-Việt. Example: "瑞苏泽尔" => "Risuzel" (NOT "Thụy Tô Trạch Nhĩ").
 
 TASK 2: Classify the novel using ONLY the provided lists:
 - gender: ${JSON.stringify(availableOptions.gender)} // Pick 1
@@ -6823,12 +7039,11 @@ TASK 2: Classify the novel using ONLY the provided lists:
 - ending: ${JSON.stringify(availableOptions.ending)} // Pick 1 (if unclear, you may choose OE or HE). Pick multiple ONLY when tag/genre includes "Xuyên nhanh"/"快穿".
 - genre: ${JSON.stringify(availableOptions.genre)} // Pick multiple
 - tag: ${JSON.stringify(availableOptions.tag)} // Pick multiple
-- IMPORTANT: "架空历史" means "Giả tưởng lịch sử" / alternate history, NOT plain "Lịch sử". If both exist in the provided lists, prefer "Giả tưởng lịch sử".
 - IMPORTANT: "年代文" usually maps to "Hiện đại", NOT "Cận đại". Only choose "Cận đại" when there are clear Republic-era / 民国, World War I-II / 一战二战, or Western 19th-century signals. Use tags + context to infer carefully.
 
 Output JSON format:
 {
-  "names": [{"cn": "...", "vi": "..."}],
+  "names": [{"cn": "...", "vi": "...", "origin": "hanviet", "case": "title", "caps": [true, true]}],
   "gender": "...",
   "official": "...",
   "age": [...],
@@ -6855,7 +7070,6 @@ Available Lists (Choose from these ONLY):
 - ending: ${JSON.stringify(availableOptions.ending)} // Pick 1 (if unclear, you may choose OE or HE). Pick multiple ONLY when tag/genre includes "Xuyên nhanh"/"快穿".
 - genre: ${JSON.stringify(availableOptions.genre)} // Pick multiple
 - tag: ${JSON.stringify(availableOptions.tag)} // Pick multiple
-- IMPORTANT: "架空历史" means "Giả tưởng lịch sử" / alternate history, NOT plain "Lịch sử". If both exist in the provided lists, prefer "Giả tưởng lịch sử".
 - IMPORTANT: "年代文" usually maps to "Hiện đại", NOT "Cận đại". Only choose "Cận đại" when there are clear Republic-era / 民国, World War I-II / 一战二战, or Western 19th-century signals. Use tags + context to infer carefully.
 
 Output JSON format: { "gender": "...", "official": "...", "age": [...], "ending": [...], "genre": [...], "tag": [...] }
@@ -6865,11 +7079,11 @@ For arrays, return list of strings. If none fit, return empty array.
 
         const applyAiResult = async (result, shouldExtractNames, availableOptions) => {
             if (shouldExtractNames && result.names && Array.isArray(result.names) && result.names.length > 0) {
-                const extractedNames = result.names;
+                const extractedNames = await normalizeAiExtractedNames(result.names);
                 const nameSetEl = shadowRoot.getElementById(`${APP_PREFIX}nameSet`);
                 if (nameSetEl) {
                     const existingLines = nameSetEl.value.trim().split('\n').filter(Boolean);
-                    const existingKeys = new Set(existingLines.map(l => l.split('=')[0]));
+                    const existingKeys = new Set(Object.keys(parseNameSet(nameSetEl.value || '')).map(stripAiNameCn));
                     const newLines = extractedNames
                         .filter(n => n.cn && n.vi && !existingKeys.has(n.cn))
                         .map(n => `${n.cn}=${n.vi}`);
@@ -6877,7 +7091,7 @@ For arrays, return list of strings. If none fit, return empty array.
                         nameSetEl.value = [...existingLines, ...newLines].join('\n');
                     }
                 }
-                log(`Đã tách ${extractedNames.length} tên.`, 'ok');
+                log(`Đã tách ${extractedNames.length} tên, name Hán đã chuẩn hóa bằng Hán Việt nếu cần.`, 'ok');
 
                 log('Đang dịch lại văn án với bộ tên mới...', 'info');
                 const newNameSet = parseNameSet(nameSetEl?.value || '');
@@ -6921,6 +7135,8 @@ For arrays, return list of strings. If none fit, return empty array.
                         if (validSet.has(strV.toLowerCase().trim())) {
                             const exact = validList.find(x => x.toLowerCase().trim() === strV.toLowerCase().trim());
                             valid.push(exact || strV);
+                        } else if (key === 'age' && isAiHiddenAgeLabel(strV)) {
+                            // Hidden from AI by design; ignore silently if an old/cached prompt still returns it.
                         } else {
                             invalid.push(strV);
                         }
@@ -6932,6 +7148,8 @@ For arrays, return list of strings. If none fit, return empty array.
                     if (validSet.has(strValue.toLowerCase().trim())) {
                         const exact = validList.find(x => x.toLowerCase().trim() === strValue.toLowerCase().trim());
                         return exact || strValue;
+                    } else if (key === 'age' && isAiHiddenAgeLabel(strValue)) {
+                        return '';
                     } else {
                         log(`AI suggest rác [${key}]: ${strValue}`, 'warn');
                         return '';

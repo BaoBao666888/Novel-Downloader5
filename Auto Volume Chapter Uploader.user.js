@@ -1,21 +1,25 @@
 // ==UserScript==
 // @name         Auto Volume/Chapter Uploader
 // @namespace    http://tampermonkey.net/
-// @version      1.2.6.9
+// @version      1.2.8.1
 // @description  Tự động hóa quá trình thêm/bổ sung chương trên wiki và web hồng
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js
-// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich_Autofill.user.js?v=0.3.9.3
+// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich_Autofill.user.js?v=0.3.9.4
 // @match        https://wikicv.net/nhung-file
 // @match        https://wikicv.net/truyen/*/chinh-sua
 // @match        https://koanchay.org/nhung-file
 // @match        https://koanchay.org/truyen/*/chinh-sua
+// @match        *://*/*
+// @noframes
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
 // @connect      api5-normal-sinfonlineb.fqnovel.com
 // @connect      app.jjwxc.net
 // @connect      po18.tw
@@ -35,18 +39,14 @@
 (function () {
     'use strict';
     const { hostname, pathname } = window.location;
-    const parts = pathname.split('/').filter(p => p.length > 0);
-    if (parts[0] === 'truyen' && parts.at(-1) === 'chinh-sua') {
-        const count = parts.length;
-        if (count === 4) {
-            console.log('[WDU] Trang chỉnh sửa CHƯƠNG → không chạy script.');
-            return;
-        }
-    }
+    const IS_WIKI_HOST = hostname === 'wikicv.net' || hostname === 'koanchay.org';
     // --- Cấu hình ---
     const APP_PREFIX = 'WDU_';
-    const CURRENT_VERSION = '1.2.6';
+    const CURRENT_VERSION = '1.2.8.1';
     const VERSION_KEY = `${APP_PREFIX}version`;
+    const SPLIT_LAUNCHER_KEY = `${APP_PREFIX}split_launcher_enabled`;
+    const SPLIT_LAUNCHER_PROMPT_VERSION = '1.2.8';
+    const SPLIT_LAUNCHER_PROMPT_KEY = `${APP_PREFIX}split_launcher_prompt_version`;
     const VOLUME_STATS_KEY = `${APP_PREFIX}volume_stats_enabled`;
     const SHARED_THEME_KEY = 'WDX_theme';
     const DEFAULT_THEME_MODE = 'light';
@@ -66,13 +66,14 @@
         PARSE_PRIORITY: 'filename',
         THEME_MODE: DEFAULT_THEME_MODE,
         REVERSE_VOLUME_ORDER: false,
+        SPLIT_PREFACE_IN_FIRST_CHAPTER: true,
     };
     const SETTINGS_KEY = `${APP_PREFIX}settings`;
 
     // --- Trạng thái của Script ---
     let state = {
-        isEditPage: /^\/truyen\/[^\/]+\/chinh-sua$/.test(location.pathname),
-        isNewBookPage: /^\/nhung-file$/.test(location.pathname),
+        isEditPage: IS_WIKI_HOST && /^\/truyen\/[^\/]+\/chinh-sua$/.test(location.pathname),
+        isNewBookPage: IS_WIKI_HOST && /^\/nhung-file$/.test(location.pathname),
         selectedVolumeWrapper: null,
         allFiles: [],
         validFiles: [],
@@ -81,6 +82,8 @@
         volumeStatsData: null,
         bookOwner: null,
         bookOwnerPromise: null,
+        splitEditor: null,
+        splitLauncherEnabled: GM_getValue(SPLIT_LAUNCHER_KEY, false) === true,
     };
 
     // --- Tạo UI trong Shadow DOM để tránh xung đột CSS ---
@@ -537,6 +540,28 @@
         #${APP_PREFIX}floating-icon span {
             pointer-events: none;
         }
+        #${APP_PREFIX}split-launcher {
+            position: fixed;
+            right: max(18px, env(safe-area-inset-right, 0px) + 18px);
+            bottom: max(18px, env(safe-area-inset-bottom, 0px) + 18px);
+            z-index: 99999;
+            width: auto;
+            margin: 0;
+            padding: 12px 16px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.15px;
+            background: linear-gradient(135deg, #ff7eb3 0%, #7c3aed 48%, #0ea5e9 100%);
+            box-shadow: 0 16px 32px rgba(124, 58, 237, 0.34);
+        }
+        #${APP_PREFIX}split-launcher:hover {
+            box-shadow: 0 18px 38px rgba(14, 165, 233, 0.36);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-launcher {
+            background: linear-gradient(135deg, #f97316 0%, #be123c 48%, #0ea5e9 100%);
+            box-shadow: 0 16px 34px rgba(2, 6, 23, 0.62);
+        }
 
         #${APP_PREFIX}settings-overlay {
             position: fixed;
@@ -780,9 +805,16 @@
             background: linear-gradient(135deg, #ffe7f3 0%, #e8f3ff 100%);
             border: 1px solid rgba(255, 143, 194, 0.4);
             box-shadow: 0 8px 18px rgba(255, 143, 194, 0.2);
+            color: #5b2b56;
         }
         #${APP_PREFIX}update-banner strong {
             color: #7a1d5a;
+        }
+        #${APP_PREFIX}update-banner div:first-child {
+            color: #8b1e68;
+        }
+        #${APP_PREFIX}update-banner div:last-child {
+            color: #6b4a76;
         }
         #${APP_PREFIX}help-close {
             padding: 4px 10px;
@@ -1036,7 +1068,7 @@
             inset: 0;
             background: rgba(15, 16, 28, 0.45);
             backdrop-filter: blur(2px);
-            z-index: 100003;
+            z-index: 100030;
         }
         #${APP_PREFIX}confirm-modal {
             position: fixed;
@@ -1049,7 +1081,7 @@
             border-radius: 14px;
             border: 1px solid rgba(231, 88, 120, 0.25);
             box-shadow: 0 20px 40px rgba(120, 43, 64, 0.3);
-            z-index: 100004;
+            z-index: 100031;
             color: #3b2d33;
             font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
             overflow: hidden;
@@ -1120,7 +1152,7 @@
             inset: 0;
             background: rgba(15, 16, 28, 0.5);
             backdrop-filter: blur(2px);
-            z-index: 100009;
+            z-index: 100032;
         }
         #${APP_PREFIX}dialog-modal {
             position: fixed;
@@ -1133,7 +1165,7 @@
             border-radius: 14px;
             border: 1px solid rgba(120, 128, 160, 0.25);
             box-shadow: 0 20px 40px rgba(40, 48, 74, 0.3);
-            z-index: 100010;
+            z-index: 100033;
             color: #2f2a36;
             font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
             overflow: hidden;
@@ -1180,6 +1212,351 @@
             width: auto;
             margin: 0;
             min-width: 90px;
+        }
+        #${APP_PREFIX}split-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(14, 18, 32, 0.62);
+            backdrop-filter: blur(3px);
+            z-index: 100011;
+        }
+        #${APP_PREFIX}split-modal {
+            position: fixed;
+            inset: 4vh 4vw;
+            z-index: 100012;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            color: #252033;
+            background: linear-gradient(160deg, #fff8fb 0%, #eef7ff 100%);
+            border: 1px solid rgba(100, 116, 139, 0.24);
+            border-radius: 18px;
+            box-shadow: 0 24px 58px rgba(20, 26, 50, 0.38);
+            font-family: "Be Vietnam Pro", "Noto Sans", "Segoe UI", Arial, sans-serif;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-modal {
+            color: #e5e7eb;
+            background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+            border-color: rgba(148, 163, 184, 0.25);
+            box-shadow: 0 24px 58px rgba(0, 0, 0, 0.52);
+        }
+        #${APP_PREFIX}split-header,
+        #${APP_PREFIX}split-footer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-color: rgba(100, 116, 139, 0.18);
+            background: rgba(255, 255, 255, 0.78);
+        }
+        #${APP_PREFIX}split-header {
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.18);
+            flex-wrap: wrap;
+        }
+        #${APP_PREFIX}split-footer {
+            justify-content: flex-end;
+            border-top: 1px solid rgba(100, 116, 139, 0.18);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-header,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-footer {
+            background: rgba(15, 23, 42, 0.9);
+            border-color: rgba(148, 163, 184, 0.18);
+        }
+        #${APP_PREFIX}split-titlebar {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            flex: 1 1 260px;
+        }
+        #${APP_PREFIX}split-titlebar b {
+            font-size: 16px;
+        }
+        #${APP_PREFIX}split-summary {
+            font-size: 12px;
+            color: #6b6478;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-summary {
+            color: #cbd5e1;
+        }
+        #${APP_PREFIX}split-searchbar {
+            flex: 2 1 320px;
+            min-width: 220px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+        #${APP_PREFIX}split-search-input {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            border-radius: 999px;
+            border: 1px solid rgba(99, 102, 241, 0.26);
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.82);
+            color: #1f2937;
+            font: inherit;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        }
+        #${APP_PREFIX}split-search-target {
+            width: auto;
+            min-width: 76px;
+            min-height: 0;
+            margin: 0;
+            padding: 8px 10px;
+            border-radius: 999px;
+            white-space: nowrap;
+            background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);
+            box-shadow: 0 8px 16px rgba(14, 165, 233, 0.22);
+        }
+        #${APP_PREFIX}split-close {
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            min-height: 32px;
+            flex: 0 0 32px;
+            padding: 0;
+            margin: 0;
+            border-radius: 999px;
+            font-size: 15px;
+            line-height: 1;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-search-input {
+            background: rgba(2, 6, 23, 0.62);
+            color: #f8fafc;
+            border-color: rgba(148, 163, 184, 0.28);
+        }
+        #${APP_PREFIX}split-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: minmax(220px, 30%) 1fr;
+            gap: 12px;
+            padding: 12px;
+        }
+        #${APP_PREFIX}split-list,
+        #${APP_PREFIX}split-editor {
+            min-height: 0;
+            overflow: auto;
+            border-radius: 14px;
+            border: 1px solid rgba(100, 116, 139, 0.18);
+            background: rgba(255, 255, 255, 0.72);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-list,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-editor {
+            background: rgba(15, 23, 42, 0.66);
+            border-color: rgba(148, 163, 184, 0.18);
+        }
+        #${APP_PREFIX}split-list {
+            padding: 8px;
+        }
+        .${APP_PREFIX}split-row {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 6px;
+            border-radius: 12px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            background: rgba(255, 255, 255, 0.64);
+        }
+        .${APP_PREFIX}split-row[data-active="true"] {
+            border-color: rgba(59, 130, 246, 0.45);
+            background: linear-gradient(135deg, #dbeafe, #fce7f3);
+            box-shadow: 0 8px 18px rgba(59, 130, 246, 0.14);
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}split-row {
+            background: rgba(30, 41, 59, 0.72);
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}split-row[data-active="true"] {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.42), rgba(147, 51, 234, 0.32));
+        }
+        .${APP_PREFIX}split-row-title {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 650;
+        }
+        .${APP_PREFIX}split-row-meta {
+            color: #64748b;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+        .${APP_PREFIX}split-row-delete {
+            width: 26px;
+            height: 26px;
+            border: 0;
+            border-radius: 999px;
+            cursor: pointer;
+            color: #fff;
+            background: linear-gradient(135deg, #fb7185, #f97316);
+            box-shadow: 0 6px 12px rgba(251, 113, 133, 0.24);
+            font-weight: 800;
+            line-height: 1;
+        }
+        #${APP_PREFIX}split-empty {
+            padding: 16px;
+            color: #64748b;
+            text-align: center;
+            border: 1px dashed rgba(100, 116, 139, 0.28);
+            border-radius: 12px;
+        }
+        #${APP_PREFIX}split-editor {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 12px;
+        }
+        #${APP_PREFIX}split-edit-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        #${APP_PREFIX}split-edit-actions .${APP_PREFIX}btn {
+            width: auto;
+            margin: 0;
+            padding: 8px 10px;
+            min-height: 0;
+            border-radius: 999px;
+        }
+        #${APP_PREFIX}split-insert-before,
+        #${APP_PREFIX}split-insert-after {
+            background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+            box-shadow: 0 8px 16px rgba(20, 184, 166, 0.22);
+        }
+        #${APP_PREFIX}split-delete {
+            background: linear-gradient(135deg, #f43f5e 0%, #f97316 100%);
+            box-shadow: 0 8px 16px rgba(244, 63, 94, 0.24);
+        }
+        #${APP_PREFIX}split-title-input,
+        #${APP_PREFIX}split-preface-input,
+        #${APP_PREFIX}split-content-input {
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 12px;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #1f2937;
+            font: inherit;
+        }
+        #${APP_PREFIX}split-preface-box {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px;
+            border-radius: 14px;
+            border: 1px solid rgba(251, 146, 60, 0.28);
+            background: linear-gradient(135deg, rgba(255, 247, 237, 0.94), rgba(255, 228, 230, 0.78));
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-preface-box {
+            border-color: rgba(251, 146, 60, 0.25);
+            background: linear-gradient(135deg, rgba(67, 20, 7, 0.42), rgba(76, 29, 149, 0.22));
+        }
+        #${APP_PREFIX}split-preface-box .${APP_PREFIX}notice {
+            margin: 0;
+        }
+        #${APP_PREFIX}split-preface-input {
+            min-height: 96px;
+            max-height: 180px;
+            resize: vertical;
+            line-height: 1.55;
+            font-family: "Noto Serif SC", "Noto Serif", Georgia, serif;
+        }
+        #${APP_PREFIX}split-content-input {
+            flex: 1 1 auto;
+            min-height: 280px;
+            resize: none;
+            line-height: 1.55;
+            font-family: "Noto Serif SC", "Noto Serif", Georgia, serif;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-title-input,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-preface-input,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-content-input {
+            background: rgba(2, 6, 23, 0.62);
+            color: #f8fafc;
+            border-color: rgba(148, 163, 184, 0.28);
+        }
+        #${APP_PREFIX}split-editor label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #4a2c6f;
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-editor label {
+            color: #c7d2fe;
+        }
+        #${APP_PREFIX}split-stats {
+            font-size: 12px;
+            color: #64748b;
+        }
+        #${APP_PREFIX}split-list::-webkit-scrollbar,
+        #${APP_PREFIX}split-editor::-webkit-scrollbar,
+        #${APP_PREFIX}split-preface-input::-webkit-scrollbar,
+        #${APP_PREFIX}split-content-input::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        #${APP_PREFIX}split-list::-webkit-scrollbar-track,
+        #${APP_PREFIX}split-editor::-webkit-scrollbar-track,
+        #${APP_PREFIX}split-preface-input::-webkit-scrollbar-track,
+        #${APP_PREFIX}split-content-input::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.72);
+            border-radius: 999px;
+        }
+        #${APP_PREFIX}split-list::-webkit-scrollbar-thumb,
+        #${APP_PREFIX}split-editor::-webkit-scrollbar-thumb,
+        #${APP_PREFIX}split-preface-input::-webkit-scrollbar-thumb,
+        #${APP_PREFIX}split-content-input::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #ff8bd2 0%, #60a5fa 52%, #22d3ee 100%);
+            border-radius: 999px;
+            border: 2px solid rgba(255, 255, 255, 0.78);
+        }
+        #${APP_PREFIX}split-list,
+        #${APP_PREFIX}split-editor,
+        #${APP_PREFIX}split-preface-input,
+        #${APP_PREFIX}split-content-input {
+            scrollbar-width: thin;
+            scrollbar-color: #60a5fa rgba(255, 255, 255, 0.72);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-list::-webkit-scrollbar-track,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-editor::-webkit-scrollbar-track,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-preface-input::-webkit-scrollbar-track,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-content-input::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.86);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-list::-webkit-scrollbar-thumb,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-editor::-webkit-scrollbar-thumb,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-preface-input::-webkit-scrollbar-thumb,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-content-input::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #f472b6 0%, #38bdf8 60%, #818cf8 100%);
+            border-color: rgba(15, 23, 42, 0.9);
+        }
+        :host([data-theme="dark"]) #${APP_PREFIX}split-list,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-editor,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-preface-input,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-content-input {
+            scrollbar-color: #38bdf8 rgba(15, 23, 42, 0.86);
+        }
+        @media (max-width: 760px) {
+            #${APP_PREFIX}split-modal {
+                inset: 2vh 2vw;
+            }
+            #${APP_PREFIX}split-header {
+                align-items: stretch;
+            }
+            #${APP_PREFIX}split-searchbar {
+                order: 3;
+                flex-basis: 100%;
+            }
+            #${APP_PREFIX}split-body {
+                grid-template-columns: 1fr;
+                grid-template-rows: minmax(140px, 34%) 1fr;
+            }
         }
         .${APP_PREFIX}volume-stats {
             margin-top: 6px;
@@ -1385,10 +1762,11 @@
     const panelHTML = `
         <style>${css}</style>
         <div id="${APP_PREFIX}upload-toast" data-state="loading"></div>
-        <div id="${APP_PREFIX}floating-icon">
+        <button id="${APP_PREFIX}split-launcher" class="${APP_PREFIX}btn ${APP_PREFIX}hide" type="button" title="Chia 1 file TXT thành chương">📚 Chia TXT</button>
+        <div id="${APP_PREFIX}floating-icon" class="${APP_PREFIX}hide">
             <span>WDU</span>
         </div>
-        <div id="${APP_PREFIX}panel">
+        <div id="${APP_PREFIX}panel" class="${APP_PREFIX}hide">
             <div id="${APP_PREFIX}header">
                 <div id="${APP_PREFIX}header-title">
                     <span>Auto Uploader</span>
@@ -1466,6 +1844,45 @@
                 <button id="${APP_PREFIX}dialog-extra" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Tùy chọn</button>
                 <button id="${APP_PREFIX}dialog-cancel" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">Hủy</button>
                 <button id="${APP_PREFIX}dialog-ok" class="${APP_PREFIX}btn ${APP_PREFIX}btn-secondary">Đồng ý</button>
+            </div>
+        </div>
+        <div id="${APP_PREFIX}split-overlay" class="${APP_PREFIX}hide"></div>
+        <div id="${APP_PREFIX}split-modal" class="${APP_PREFIX}hide">
+            <div id="${APP_PREFIX}split-header">
+                <div id="${APP_PREFIX}split-titlebar">
+                    <b>Chia TXT thành chương</b>
+                    <span id="${APP_PREFIX}split-summary">Chưa có dữ liệu.</span>
+                </div>
+                <div id="${APP_PREFIX}split-searchbar">
+                    <input id="${APP_PREFIX}split-search-input" type="search" placeholder="Tìm nhanh..." autocomplete="off" />
+                    <button id="${APP_PREFIX}split-search-target" class="${APP_PREFIX}btn" type="button" title="Bấm để đổi phạm vi tìm">Tên</button>
+                </div>
+                <button id="${APP_PREFIX}split-close" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost" title="Đóng">✕</button>
+            </div>
+            <div id="${APP_PREFIX}split-body">
+                <div id="${APP_PREFIX}split-list"></div>
+                <div id="${APP_PREFIX}split-editor">
+                    <label for="${APP_PREFIX}split-title-input">Tên chương</label>
+                    <input id="${APP_PREFIX}split-title-input" type="text" />
+                    <div id="${APP_PREFIX}split-edit-actions">
+                        <button id="${APP_PREFIX}split-insert-before" class="${APP_PREFIX}btn" type="button">＋ Chèn trước</button>
+                        <button id="${APP_PREFIX}split-insert-after" class="${APP_PREFIX}btn" type="button">＋ Chèn sau</button>
+                        <button id="${APP_PREFIX}split-delete" class="${APP_PREFIX}btn" type="button">Xóa chương</button>
+                    </div>
+                    <div id="${APP_PREFIX}split-preface-box" class="${APP_PREFIX}hide">
+                        <label for="${APP_PREFIX}split-preface-input">Mở đầu gộp vào chương này</label>
+                        <textarea id="${APP_PREFIX}split-preface-input" spellcheck="false"></textarea>
+                        <span class="${APP_PREFIX}notice">Phần này sẽ nằm trước tên chương khi lưu ZIP hoặc gán vào web.</span>
+                    </div>
+                    <label for="${APP_PREFIX}split-content-input">Nội dung chương (file xuất/gán tự thêm tên chương ở dòng đầu)</label>
+                    <textarea id="${APP_PREFIX}split-content-input" spellcheck="false"></textarea>
+                    <div id="${APP_PREFIX}split-stats"></div>
+                </div>
+            </div>
+            <div id="${APP_PREFIX}split-footer">
+                <button id="${APP_PREFIX}split-download" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost">💾 Lưu về</button>
+                <button id="${APP_PREFIX}split-assign" class="${APP_PREFIX}btn">🚀 Gán vào web</button>
+                <button id="${APP_PREFIX}split-cancel" class="${APP_PREFIX}btn ${APP_PREFIX}btn-cancel">Đóng</button>
             </div>
         </div>
         <div id="${APP_PREFIX}snapshots-overlay" class="${APP_PREFIX}hide"></div>
@@ -1558,6 +1975,20 @@
                     <label for="${APP_PREFIX}setting-chapter-template">Mẫu tên chương:</label>
                     <input type="text" id="${APP_PREFIX}setting-chapter-template" class="${APP_PREFIX}text-input" placeholder="第{num}章 {title}">
                     <span class="${APP_PREFIX}notice">Ví dụ: <code>chương {num}: {title}</code> hoặc <code>{num}-{title}</code></span>
+                </div>
+                <div class="${APP_PREFIX}setting-item">
+                    <label>
+                        <input type="checkbox" id="${APP_PREFIX}setting-split-preface-first">
+                        Gộp phần Mở đầu vào chương 1 khi chia TXT
+                    </label>
+                    <span class="${APP_PREFIX}notice">Nếu tắt, phần chữ nằm trước tiêu đề chương đầu sẽ tách thành file Mở đầu riêng.</span>
+                </div>
+                <div class="${APP_PREFIX}setting-item">
+                    <label>
+                        <input type="checkbox" id="${APP_PREFIX}setting-split-launcher">
+                        Hiện nút Chia TXT trên các trang khác
+                    </label>
+                    <span class="${APP_PREFIX}notice">Có thể bật/tắt tại đây hoặc từ menu Tampermonkey của script. Trên trang không phải upload/edit wiki, nút này chỉ mở tính năng chia TXT và không có Gán vào web.</span>
                 </div>
             </div>
             <div class="${APP_PREFIX}modal-footer">
@@ -1685,6 +2116,7 @@
 
     const logBox = shadowRoot.querySelector(`#${APP_PREFIX}log-container`);
     const uploadToastEl = shadowRoot.querySelector(`#${APP_PREFIX}upload-toast`);
+    const splitLauncherBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-launcher`);
     const uploadBtn = shadowRoot.querySelector(`#${APP_PREFIX}upload-btn`);
     const addVolumeBtn = shadowRoot.querySelector(`#${APP_PREFIX}add-volume`);
     const deleteVolumeBtn = shadowRoot.querySelector(`#${APP_PREFIX}delete-volume`);
@@ -1698,6 +2130,10 @@
     fileInput.type = 'file';
     fileInput.accept = '.txt';
     fileInput.multiple = true;
+    const splitOnlyInput = document.createElement('input');
+    splitOnlyInput.type = 'file';
+    splitOnlyInput.accept = '.txt,text/plain';
+    splitOnlyInput.multiple = false;
 
     if (!state.isNewBookPage && !state.isEditPage) {
         if (addVolumeBtn) addVolumeBtn.classList.add(`${APP_PREFIX}hide`);
@@ -1726,6 +2162,24 @@
     const dialogExtraBtn = shadowRoot.querySelector(`#${APP_PREFIX}dialog-extra`);
     const dialogCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}dialog-cancel`);
     const dialogOkBtn = shadowRoot.querySelector(`#${APP_PREFIX}dialog-ok`);
+    const splitOverlay = shadowRoot.querySelector(`#${APP_PREFIX}split-overlay`);
+    const splitModal = shadowRoot.querySelector(`#${APP_PREFIX}split-modal`);
+    const splitCloseBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-close`);
+    const splitCancelBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-cancel`);
+    const splitDownloadBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-download`);
+    const splitAssignBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-assign`);
+    const splitSummaryEl = shadowRoot.querySelector(`#${APP_PREFIX}split-summary`);
+    const splitListEl = shadowRoot.querySelector(`#${APP_PREFIX}split-list`);
+    const splitSearchInput = shadowRoot.querySelector(`#${APP_PREFIX}split-search-input`);
+    const splitSearchTargetBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-search-target`);
+    const splitTitleInput = shadowRoot.querySelector(`#${APP_PREFIX}split-title-input`);
+    const splitPrefaceBox = shadowRoot.querySelector(`#${APP_PREFIX}split-preface-box`);
+    const splitPrefaceInput = shadowRoot.querySelector(`#${APP_PREFIX}split-preface-input`);
+    const splitContentInput = shadowRoot.querySelector(`#${APP_PREFIX}split-content-input`);
+    const splitStatsEl = shadowRoot.querySelector(`#${APP_PREFIX}split-stats`);
+    const splitInsertBeforeBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-insert-before`);
+    const splitInsertAfterBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-insert-after`);
+    const splitDeleteBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-delete`);
     const snapshotsOverlay = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-overlay`);
     const snapshotsModal = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-modal`);
     const snapshotsCloseBtn = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-close`);
@@ -1750,6 +2204,8 @@
     const themeSelect = shadowRoot.querySelector(`#${APP_PREFIX}setting-theme`);
     const firstLineOnlyInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-first-line-only`);
     const chapterTemplateInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-chapter-template`);
+    const splitPrefaceFirstInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-split-preface-first`);
+    const splitLauncherSettingInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-split-launcher`);
     const volumeStatsCheckbox = shadowRoot.querySelector(`#${APP_PREFIX}setting-volume-stats`);
     const totalChaptersEl = shadowRoot.querySelector(`#${APP_PREFIX}setting-total-chapters`);
     const prioritySelect = shadowRoot.querySelector(`#${APP_PREFIX}setting-priority`);
@@ -1764,6 +2220,41 @@
     function hidePanel() {
         panelEl.classList.add(`${APP_PREFIX}hide`);
         floatingIconEl.classList.remove(`${APP_PREFIX}hide`);
+    }
+
+    function isFullUploaderPage() {
+        return state.isEditPage || state.isNewBookPage;
+    }
+
+    function updateSplitLauncherUi() {
+        if (!splitLauncherBtn) return;
+        const shouldShow = !isFullUploaderPage() && state.splitLauncherEnabled === true;
+        splitLauncherBtn.classList.toggle(`${APP_PREFIX}hide`, !shouldShow);
+        if (splitLauncherSettingInput) {
+            splitLauncherSettingInput.checked = state.splitLauncherEnabled === true;
+        }
+    }
+
+    function setSplitLauncherEnabled(enabled, silent = false) {
+        const value = !!enabled;
+        state.splitLauncherEnabled = value;
+        GM_setValue(SPLIT_LAUNCHER_KEY, value);
+        updateSplitLauncherUi();
+        refreshSplitLauncherMenuCommand();
+        if (!silent) {
+            log(value ? '✅ Đã bật nút Chia TXT trên các trang khác.' : 'ℹ️ Đã tắt nút Chia TXT trên các trang khác.');
+        }
+    }
+
+    function applyPageModeUi() {
+        if (isFullUploaderPage()) {
+            if (splitLauncherBtn) splitLauncherBtn.classList.add(`${APP_PREFIX}hide`);
+            hidePanel();
+            return;
+        }
+        if (panelEl) panelEl.classList.add(`${APP_PREFIX}hide`);
+        if (floatingIconEl) floatingIconEl.classList.add(`${APP_PREFIX}hide`);
+        updateSplitLauncherUi();
     }
 
     function renderHelpMarkdown(md) {
@@ -2404,6 +2895,8 @@
 - **Chọn Quyển** cần bổ sung/chỉnh.
 - Bấm **Files TXT** và chọn nhiều file.
 - Script tự sắp xếp, kiểm tra, rồi điền tên chương + file.
+- Nếu chỉ chọn **1 file TXT lớn**, script tự mở modal chia chương; có thể sửa nội dung, lưu từng chương hoặc gán thẳng vào web.
+- Ngoài trang wiki/upload, có thể dùng menu Tampermonkey hoặc nút **Chia TXT** để mở riêng tính năng chia 1 file TXT; chế độ này có đủ chỉnh/sửa/lưu ZIP nhưng không có **Gán vào web**.
 - Bấm **Tải lên (web)** để nhấn nút upload thật.
 - Nút **Xóa** dùng để xóa quyển đang chọn (Nhúng file hoặc Chỉnh sửa). Ở Chỉnh sửa, quyển **bổ sung** hoặc **không thể bổ sung** cần nhập **username chủ truyện** để xác nhận.
 - Nút **Thêm Quyển** để tạo quyển mới và tự chọn vào đó.
@@ -2435,18 +2928,21 @@
     `.trim();
 
     const changelogMarkdown = `
-### ✨ v1.2.6
-- v1.2.6.5: Update Wikich AutoFill lên v0.3.8, thêm nút Đảo danh sách volume.
-- Thêm **💾 Lưu** + **🗂 Bản lưu**, lưu/khôi phục form nhúng truyện + volume/chapter + file (best-effort).
-- Lưu file bản lưu lên khoảng **10MB/bản lưu** bằng **IndexedDB** (phụ thuộc quota trình duyệt).
-- Mỗi thẻ bản lưu hiển thị **File: X/10MB** và khi xóa bản lưu sẽ dọn luôn file blob tránh rác.
-- Cover dạng "blob:..." hoặc "data:image/...;base64,..." sẽ được lưu best-effort (ưu tiên IndexedDB).
-- Thêm bước quét/làm sạch ký tự ẩn zero-width (U+200B/U+200C/U+200D/U+2060/U+FEFF) trước upload để tránh lỗi dịch bị tách chữ bất thường.
-- Hotfix nhận diện bảng mã: tránh false-positive UTF-16 (LE/BE) cho file UTF-8 chuẩn không BOM.
-- Thu gọn cụm nút trong modal Bản lưu (icon + toolbar) để đỡ chiếm chỗ.
-- Tóm tắt changelog cũ gọn hơn (như Autofill).
+### ✨ v1.2.8.1
+- Hotfix modal **Chia TXT**: phần **Mở đầu** gộp vào chương 1 giờ hiện rõ trong ô riêng để sửa, không còn nhìn như chương rỗng dù bộ đếm có ký tự.
+
+### 📦 v1.2.8
+- Script chạy mọi trang; trên wiki upload/edit hiện đủ Auto Volume, trang khác chỉ hiện nút **Chia TXT** nếu user bật.
+- Thêm menu Tampermonkey: mở **Cài đặt Auto Volume**, chia nhanh 1 file TXT, bật/tắt nút **Chia TXT**.
+- Khi cài mới hoặc update lên bản này sẽ hỏi có muốn bật nút **Chia TXT** không; có thể đổi lại trong menu Tampermonkey hoặc Cài đặt trên wiki.
+
+### 📦 v1.2.7
+- Chọn đúng **1 file TXT** sẽ tự mở modal **Chia TXT thành chương**.
+- Có thể sửa tên chương + nội dung từng file, **Lưu về** thành nhiều TXT hoặc **Gán vào web** ngay.
+- Regex chia chương tham chiếu reader_server: Trung/Việt/Anh, số thứ tự ngắn, dạng 001｜1.Tên chương; có fallback chia theo đoạn.
 
 ### 📦 Các bản trước (tóm tắt)
+- v1.2.6: Bản lưu/khôi phục form + file bằng IndexedDB, đảo danh sách volume, check/chuyển encoding, dọn zero-width, xử lý emoji/ký tự dễ lỗi upload.
 - v1.2.5: Popup xử lý ký tự đặc biệt, emoji/icon (4-byte), hỏi chuẩn hóa dấu phẩy Nhật "、", cải thiện dialog log.
 - v1.2.4: Bỏ regex tùy chỉnh UI, auto-detect encoding + hỏi chuyển UTF-8, fix double số chương trong tiêu đề.
 - v1.2.3: Tối ưu UI + theme tối.
@@ -2580,6 +3076,93 @@
             danger
         });
         return result === 'ok';
+    }
+
+    function formatByteSize(bytes) {
+        const value = Number(bytes) || 0;
+        if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+        if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`;
+        return `${value} B`;
+    }
+
+    function triggerBlobUrlDownload(url, filename) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename || 'download.zip';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    function showZipReadyDialog(zipBlob, filename, itemCount) {
+        return new Promise((resolve) => {
+            if (!dialogOverlay || !dialogModal || !dialogTitle || !dialogMessage || !dialogCancelBtn || !dialogOkBtn || !dialogExtraBtn) {
+                const fallbackUrl = URL.createObjectURL(zipBlob);
+                triggerBlobUrlDownload(fallbackUrl, filename);
+                setTimeout(() => URL.revokeObjectURL(fallbackUrl), 15000);
+                resolve('download');
+                return;
+            }
+            if (dialogState.resolver) {
+                closeUiDialog('dismiss');
+            }
+
+            const url = URL.createObjectURL(zipBlob);
+            let downloaded = false;
+            const cleanup = () => {
+                setTimeout(() => URL.revokeObjectURL(url), downloaded ? 15000 : 0);
+                if (dialogState.onKeyDown) {
+                    window.removeEventListener('keydown', dialogState.onKeyDown);
+                    dialogState.onKeyDown = null;
+                }
+                dialogState.resolver = null;
+                dialogOkBtn.onclick = null;
+                dialogCancelBtn.onclick = null;
+                dialogExtraBtn.onclick = null;
+            };
+            const finish = (result) => {
+                if (dialogModal) dialogModal.classList.add(`${APP_PREFIX}hide`);
+                if (dialogOverlay) dialogOverlay.classList.add(`${APP_PREFIX}hide`);
+                cleanup();
+                resolve(result);
+            };
+
+            dialogState.resolver = resolve;
+            dialogTitle.textContent = 'ZIP đã sẵn sàng';
+            dialogMessage.textContent =
+                `Đã nén xong ${itemCount} file TXT.\n` +
+                `Tên file: ${filename}\n\n` +
+                'Bấm "Tải ZIP" để trình duyệt tải file xuống.';
+            dialogOkBtn.textContent = 'Tải ZIP';
+            dialogCancelBtn.textContent = 'Đóng';
+            dialogExtraBtn.textContent = '';
+            dialogCancelBtn.classList.remove(`${APP_PREFIX}hide`);
+            dialogExtraBtn.classList.add(`${APP_PREFIX}hide`);
+            dialogOkBtn.classList.remove(`${APP_PREFIX}btn-danger`);
+            dialogOkBtn.classList.add(`${APP_PREFIX}btn-secondary`);
+
+            dialogOverlay.classList.remove(`${APP_PREFIX}hide`);
+            dialogModal.classList.remove(`${APP_PREFIX}hide`);
+
+            dialogOkBtn.onclick = () => {
+                downloaded = true;
+                triggerBlobUrlDownload(url, filename);
+                finish('download');
+            };
+            dialogCancelBtn.onclick = () => finish('cancel');
+            dialogOverlay.onclick = (ev) => ev.preventDefault();
+            dialogState.onKeyDown = (ev) => {
+                if (ev.key === 'Escape') {
+                    ev.preventDefault();
+                } else if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    downloaded = true;
+                    triggerBlobUrlDownload(url, filename);
+                    finish('download');
+                }
+            };
+            window.addEventListener('keydown', dialogState.onKeyDown);
+        });
     }
 
     async function showUiThreeChoice(
@@ -3994,6 +4577,15 @@
     const BUILTIN_CONTENT_NUMERIC_REGEX = /^(\d+)[\s.\-:]*(.*)/;
     const TITLE_CHINESE_PREFIX_REGEX = /^第\s*([一二三四五六七八九十百千万两零\d]+)\s*章[\s:：\-_.]*(.*)$/i;
     const TITLE_COMMON_PREFIX_REGEX = /^(?:chương|chapter|chap|c|q|quyển)\s*(\d+)[\s:：\-_.]*(.*)$/i;
+    const TXT_SPLIT_TARGET_SIZE = 4500;
+    const TXT_SPLIT_HEADING_REGEXES = [
+        /^(?:\s*)(?:第\s*[\d0-9一二三四五六七八九十百千零两兩]+\s*[章节卷回集部篇])[^\n]{0,120}$/gmi,
+        /^(?:\s*)(?:Chương|CHƯƠNG|Chuong|CHUONG)\s*[\dIVXLCDMivxlcdm]+[^\n]{0,120}$/gmi,
+        /^(?:\s*)(?:Chapter|CHAPTER)\s*[\dIVXLCDMivxlcdm]+[^\n]{0,120}$/gmi,
+        /^(?:\s*)\d{1,4}\s*[｜|]\s*\d{1,4}[.、．]\s*[^\d\s][^\n]{0,80}$/gmi,
+        /^(?:\s*)(?:\d{1,5}|[一二三四五六七八九十百千零两兩]{1,8})[.\-、:： )）]\s*[^\d\s][^\n]{0,80}$/gmi,
+        /^(?:\s*)\d{1,4}\s+[^\d\s][^\n]{1,80}$/gmi,
+    ];
     const CHINESE_NUMERALS = Object.freeze({
         '零': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9
     });
@@ -4070,6 +4662,425 @@
             title: dedupeRepeatedChapterPrefix(num, title),
             source,
         };
+    }
+
+    function normalizeTextForSplit(text) {
+        return String(text || '')
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            .replace(/[ \t]+\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    function splitLongTextBlock(text, maxLen) {
+        const raw = String(text || '').trim();
+        if (!raw) return [];
+        if (raw.length <= maxLen) return [raw];
+        const separators = new Set('。！？!?；;….,，、:：');
+        const chunks = [];
+        let buf = '';
+        for (const ch of raw) {
+            buf += ch;
+            if (buf.length >= maxLen || (separators.has(ch) && buf.length >= Math.floor(maxLen * 0.55))) {
+                chunks.push(buf.trim());
+                buf = '';
+            }
+        }
+        if (buf.trim()) chunks.push(buf.trim());
+        const out = [];
+        chunks.forEach((chunk) => {
+            if (chunk.length <= maxLen) {
+                out.push(chunk);
+                return;
+            }
+            for (let i = 0; i < chunk.length; i += maxLen) {
+                out.push(chunk.slice(i, i + maxLen).trim());
+            }
+        });
+        return out.filter(Boolean);
+    }
+
+    function mergeShortSplitChapters(chapters, minLen) {
+        const merged = [];
+        let buf = null;
+        for (const ch of chapters || []) {
+            const text = String(ch?.text || '').trim();
+            if (!text) continue;
+            const item = { title: String(ch?.title || '').trim(), text };
+            if (!buf) {
+                buf = item;
+                continue;
+            }
+            if (buf.text.length < minLen) {
+                buf.text = `${buf.text}\n\n${item.text}`.trim();
+            } else {
+                merged.push(buf);
+                buf = item;
+            }
+        }
+        if (buf) {
+            if (buf.text.length < minLen && merged.length) {
+                merged[merged.length - 1].text = `${merged[merged.length - 1].text}\n\n${buf.text}`.trim();
+            } else {
+                merged.push(buf);
+            }
+        }
+        return merged;
+    }
+
+    function splitByNewlinesForTxt(normalized, targetSize = TXT_SPLIT_TARGET_SIZE) {
+        if (!normalized) return [];
+        const maxChapterLen = Math.max(targetSize * 2, 9000);
+        let parts = normalized.split(/\n{2,}/g).map(s => s.trim()).filter(Boolean);
+        let joiner = '\n\n';
+        if (parts.length <= 1) {
+            parts = normalized.split(/\n+/g).map(s => s.trim()).filter(Boolean);
+            joiner = '\n';
+        }
+
+        const expanded = [];
+        parts.forEach((part) => {
+            if (part.length > maxChapterLen) expanded.push(...splitLongTextBlock(part, maxChapterLen));
+            else expanded.push(part);
+        });
+
+        const total = expanded.reduce((sum, item) => sum + item.length, 0);
+        const desiredCount = Math.max(1, Math.round(total / Math.max(targetSize, 1)));
+        const avg = Math.max(1, Math.ceil(total / desiredCount));
+        const groups = [];
+        let cur = [];
+        let curLen = 0;
+        expanded.forEach((part) => {
+            const addLen = part.length + (cur.length ? joiner.length : 0);
+            if (cur.length && curLen + addLen > avg && groups.length < desiredCount - 1) {
+                groups.push(cur.join(joiner).trim());
+                cur = [part];
+                curLen = part.length;
+            } else {
+                cur.push(part);
+                curLen += addLen;
+            }
+        });
+        if (cur.length) groups.push(cur.join(joiner).trim());
+
+        const minLen = Math.max(800, Math.floor(targetSize * 0.25));
+        const chapters = groups.map((content, idx) => ({ title: `Chương ${idx + 1}`, text: content }));
+        return mergeShortSplitChapters(chapters, minLen);
+    }
+
+    function extractSplitHeadingIndex(title) {
+        const raw = String(title || '').trim();
+        if (!raw) return null;
+        let m = raw.match(/第\s*([0-9一二三四五六七八九十百千零两兩〇]+)\s*[章节卷回集部篇]/i);
+        if (m) {
+            const num = chineseToArabic(m[1].replace(/兩/g, '两').replace(/〇/g, '零'));
+            return Number.isNaN(num) ? null : num;
+        }
+        m = raw.match(/^\s*\d{1,4}\s*[｜|]\s*(\d{1,4})(?:[.\-、:： )）]|\s|$)/);
+        if (m) return parseInt(m[1], 10);
+        m = raw.match(/^\s*(\d{1,5})(?:(?:[.\-、:： )）]\s*)|\s+)/);
+        if (m) return parseInt(m[1], 10);
+        m = raw.match(/^\s*(?:chương|chuong|chapter|chap|c|q|quyển|quyen)\s*(\d{1,5})/i);
+        if (m) return parseInt(m[1], 10);
+        return null;
+    }
+
+    function splitHeadingSequenceScore(matches) {
+        const values = (matches || []).map(item => extractSplitHeadingIndex(item.title)).filter(Number.isInteger);
+        if (values.length < 2) return 0;
+        let good = 0;
+        let total = 0;
+        let prev = values[0];
+        values.slice(1).forEach((current) => {
+            if (current === prev) return;
+            total += 1;
+            if (current === prev + 1) good += 1;
+            prev = current;
+        });
+        return total > 0 ? good / total : 0;
+    }
+
+    function collectSplitHeadingMatches(normalized) {
+        const rawMatches = [];
+        TXT_SPLIT_HEADING_REGEXES.forEach((pattern) => {
+            const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+            const re = new RegExp(pattern.source, flags);
+            let match;
+            while ((match = re.exec(normalized)) !== null) {
+                if (match.index === re.lastIndex) re.lastIndex += 1;
+                const title = String(match[0] || '').trim();
+                if (!title) continue;
+                rawMatches.push({
+                    start: match.index,
+                    end: match.index + match[0].length,
+                    title,
+                });
+            }
+        });
+        rawMatches.sort((a, b) => (a.start - b.start) || ((b.end - b.start) - (a.end - a.start)));
+        const dedup = [];
+        const seenRanges = new Set();
+        let lastEnd = -1;
+        rawMatches.forEach((item) => {
+            const key = `${item.start}:${item.end}`;
+            if (seenRanges.has(key)) return;
+            seenRanges.add(key);
+            if (item.start < lastEnd) return;
+            dedup.push(item);
+            lastEnd = item.end;
+        });
+        return dedup;
+    }
+
+    function buildRegexSplitCandidates(normalized, matches, prefaceTitle = 'Mở đầu') {
+        const mergePreface = settings.SPLIT_PREFACE_IN_FIRST_CHAPTER !== false;
+        const chapters = [];
+        let preface = '';
+        if (matches.length && matches[0].start > 0) {
+            preface = normalizeTextForSplit(normalized.slice(0, matches[0].start));
+            if (preface && !mergePreface) chapters.push({ title: prefaceTitle, text: preface });
+        }
+        matches.forEach((match, idx) => {
+            const title = String(match.title || '').trim() || `Chương ${idx + 1}`;
+            const start = match.end;
+            const end = idx + 1 < matches.length ? matches[idx + 1].start : normalized.length;
+            const content = normalizeTextForSplit(normalized.slice(start, end));
+            if (content || (idx === 0 && preface && mergePreface)) {
+                chapters.push({
+                    title,
+                    text: content,
+                    preface: idx === 0 && mergePreface ? preface : '',
+                });
+            }
+        });
+        return chapters;
+    }
+
+    function analyzeTxtSplit(text, targetSize = TXT_SPLIT_TARGET_SIZE) {
+        const normalized = normalizeTextForSplit(text);
+        const emptyDiagnostics = {
+            splitStrategy: 'newlines',
+            matchedHeadingCount: 0,
+            usedHeadingCount: 0,
+            fallbackReason: '',
+            sequenceScore: 0,
+        };
+        if (!normalized) return { chapters: [], diagnostics: emptyDiagnostics };
+
+        const matches = collectSplitHeadingMatches(normalized);
+        if (!matches.length) {
+            return {
+                chapters: splitByNewlinesForTxt(normalized, targetSize),
+                diagnostics: emptyDiagnostics,
+            };
+        }
+
+        const regexCandidates = buildRegexSplitCandidates(normalized, matches, 'Mở đầu');
+        if (!regexCandidates.length) {
+            return {
+                chapters: splitByNewlinesForTxt(normalized, targetSize),
+                diagnostics: {
+                    splitStrategy: 'regex_fallback',
+                    matchedHeadingCount: matches.length,
+                    usedHeadingCount: 0,
+                    fallbackReason: 'empty_after_regex',
+                    sequenceScore: 0,
+                },
+            };
+        }
+
+        const lengths = regexCandidates.map(ch => String(ch.text || '').trim().length).filter(Boolean);
+        const avgLen = lengths.length ? lengths.reduce((a, b) => a + b, 0) / lengths.length : 0;
+        const minLen = Math.max(800, Math.floor(targetSize * 0.25));
+        const maxLen = Math.max(targetSize * 2, 9000);
+        const tinyThreshold = Math.max(180, Math.floor(targetSize * 0.1));
+        const tinyRatio = lengths.length ? lengths.filter(len => len < tinyThreshold).length / lengths.length : 0;
+        const tooLongCount = lengths.filter(len => len > maxLen * 1.6).length;
+        const titleAvgLen = matches.length
+            ? matches.reduce((sum, item) => sum + String(item.title || '').trim().length, 0) / matches.length
+            : 0;
+        const sequenceScore = splitHeadingSequenceScore(matches);
+        let fallbackReason = '';
+        if (sequenceScore < 0.6) {
+            if (tooLongCount > Math.max(2, Math.floor(lengths.length / 8))) fallbackReason = 'too_many_long_blocks';
+            else if (matches.length >= 8 && titleAvgLen > 95) fallbackReason = 'heading_titles_too_long';
+            else if (matches.length >= 5 && avgLen < minLen * 0.45 && tinyRatio > 0.25) fallbackReason = 'headings_too_dense';
+            else if (matches.length <= 2 && avgLen < minLen * 0.35) fallbackReason = 'too_few_headings';
+        }
+        if (fallbackReason) {
+            return {
+                chapters: splitByNewlinesForTxt(normalized, targetSize),
+                diagnostics: {
+                    splitStrategy: 'regex_fallback',
+                    matchedHeadingCount: matches.length,
+                    usedHeadingCount: matches.length,
+                    fallbackReason,
+                    sequenceScore: Number(sequenceScore.toFixed(3)),
+                },
+            };
+        }
+        return {
+            chapters: regexCandidates,
+            diagnostics: {
+                splitStrategy: 'regex',
+                matchedHeadingCount: matches.length,
+                usedHeadingCount: matches.length,
+                fallbackReason: '',
+                sequenceScore: Number(sequenceScore.toFixed(3)),
+            },
+        };
+    }
+
+    function sanitizeSplitFilenamePart(value, fallback) {
+        const cleaned = String(value || '')
+            .replace(/[\\/:*?"<>|\u0000-\u001F]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 80);
+        return cleaned || fallback;
+    }
+
+    function createSplitFileName(chapter, index) {
+        const num = Number.isInteger(chapter.chapterNumber) ? chapter.chapterNumber : (index + 1);
+        const padded = String(num).padStart(4, '0');
+        const title = sanitizeSplitFilenamePart(chapter.title, `chapter_${padded}`);
+        return `${padded} ${title}.txt`;
+    }
+
+    const ZIP_CRC_TABLE = (() => {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i += 1) {
+            let c = i;
+            for (let k = 0; k < 8; k += 1) {
+                c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+            }
+            table[i] = c >>> 0;
+        }
+        return table;
+    })();
+
+    function crc32Bytes(bytes) {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < bytes.length; i += 1) {
+            crc = ZIP_CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function getDosDateTime(date = new Date()) {
+        const year = Math.max(1980, date.getFullYear());
+        const dosTime = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
+        const dosDate = ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+        return { dosTime, dosDate };
+    }
+
+    function writeZipU16(view, offset, value) {
+        view.setUint16(offset, value & 0xFFFF, true);
+    }
+
+    function writeZipU32(view, offset, value) {
+        view.setUint32(offset, value >>> 0, true);
+    }
+
+    function concatUint8Arrays(parts) {
+        const total = parts.reduce((sum, part) => sum + part.length, 0);
+        const out = new Uint8Array(total);
+        let offset = 0;
+        parts.forEach((part) => {
+            out.set(part, offset);
+            offset += part.length;
+        });
+        return out;
+    }
+
+    async function createZipBlobFromFiles(files, onProgress = null) {
+        const encoder = new TextEncoder();
+        const now = getDosDateTime();
+        const localParts = [];
+        const centralParts = [];
+        let localOffset = 0;
+        const totalFiles = files.length;
+
+        for (let index = 0; index < files.length; index += 1) {
+            const file = files[index];
+            const nameBytes = encoder.encode(file.name || 'chapter.txt');
+            const dataBytes = new Uint8Array(await file.arrayBuffer());
+            const crc = crc32Bytes(dataBytes);
+            const localHeader = new Uint8Array(30 + nameBytes.length);
+            const localView = new DataView(localHeader.buffer);
+            writeZipU32(localView, 0, 0x04034b50);
+            writeZipU16(localView, 4, 20);
+            writeZipU16(localView, 6, 0x0800);
+            writeZipU16(localView, 8, 0);
+            writeZipU16(localView, 10, now.dosTime);
+            writeZipU16(localView, 12, now.dosDate);
+            writeZipU32(localView, 14, crc);
+            writeZipU32(localView, 18, dataBytes.length);
+            writeZipU32(localView, 22, dataBytes.length);
+            writeZipU16(localView, 26, nameBytes.length);
+            writeZipU16(localView, 28, 0);
+            localHeader.set(nameBytes, 30);
+            localParts.push(localHeader, dataBytes);
+
+            const centralHeader = new Uint8Array(46 + nameBytes.length);
+            const centralView = new DataView(centralHeader.buffer);
+            writeZipU32(centralView, 0, 0x02014b50);
+            writeZipU16(centralView, 4, 20);
+            writeZipU16(centralView, 6, 20);
+            writeZipU16(centralView, 8, 0x0800);
+            writeZipU16(centralView, 10, 0);
+            writeZipU16(centralView, 12, now.dosTime);
+            writeZipU16(centralView, 14, now.dosDate);
+            writeZipU32(centralView, 16, crc);
+            writeZipU32(centralView, 20, dataBytes.length);
+            writeZipU32(centralView, 24, dataBytes.length);
+            writeZipU16(centralView, 28, nameBytes.length);
+            writeZipU16(centralView, 30, 0);
+            writeZipU16(centralView, 32, 0);
+            writeZipU16(centralView, 34, 0);
+            writeZipU16(centralView, 36, 0);
+            writeZipU32(centralView, 38, 0);
+            writeZipU32(centralView, 42, localOffset);
+            centralHeader.set(nameBytes, 46);
+            centralParts.push(centralHeader);
+
+            localOffset += localHeader.length + dataBytes.length;
+            if (typeof onProgress === 'function') {
+                onProgress({
+                    done: index + 1,
+                    total: totalFiles,
+                    fileName: file.name || '',
+                    bytes: localOffset,
+                    stage: 'files',
+                });
+            }
+            if ((index + 1) % 25 === 0) {
+                await sleepMs(0);
+            }
+        }
+
+        if (typeof onProgress === 'function') {
+            onProgress({ done: totalFiles, total: totalFiles, fileName: '', bytes: localOffset, stage: 'central' });
+        }
+        const centralDir = concatUint8Arrays(centralParts);
+        const endRecord = new Uint8Array(22);
+        const endView = new DataView(endRecord.buffer);
+        writeZipU32(endView, 0, 0x06054b50);
+        writeZipU16(endView, 4, 0);
+        writeZipU16(endView, 6, 0);
+        writeZipU16(endView, 8, files.length);
+        writeZipU16(endView, 10, files.length);
+        writeZipU32(endView, 12, centralDir.length);
+        writeZipU32(endView, 16, localOffset);
+        writeZipU16(endView, 20, 0);
+
+        return new Blob([...localParts, centralDir, endRecord], { type: 'application/zip' });
+    }
+
+    function createSplitZipName(sourceName) {
+        const base = sanitizeSplitFilenamePart(String(sourceName || 'split_chapters').replace(/\.txt$/i, ''), 'split_chapters');
+        return `${base}.zip`;
     }
 
     function parseChapterFromFilename(filenameBase) {
@@ -4708,6 +5719,440 @@
             .replace(/{title}/g, title || '');
     }
 
+    function normalizeSplitChapter(rawChapter, index) {
+        const rawTitle = String(rawChapter?.title || '').trim() || `Chương ${index + 1}`;
+        const chapterNumber = extractSplitHeadingIndex(rawTitle);
+        return {
+            id: createSplitChapterId(index),
+            index: index + 1,
+            title: rawTitle,
+            text: normalizeTextForSplit(rawChapter?.text || ''),
+            preface: normalizeTextForSplit(rawChapter?.preface || ''),
+            chapterNumber: Number.isInteger(chapterNumber) ? chapterNumber : null,
+        };
+    }
+
+    function createSplitChapterId(index = 0) {
+        return `${Date.now()}_${index}_${Math.random().toString(36).slice(2, 7)}`;
+    }
+
+    function getSplitChapters() {
+        const chapters = state.splitEditor?.chapters;
+        return Array.isArray(chapters) ? chapters : [];
+    }
+
+    function normalizeSplitBodyText(value) {
+        return String(value || '')
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            .trim();
+    }
+
+    function reindexSplitChapters() {
+        getSplitChapters().forEach((chapter, idx) => {
+            chapter.index = idx + 1;
+        });
+    }
+
+    function getSplitChapterTitle(chapter, index) {
+        return String(chapter?.title || `Chương ${index + 1}`).trim() || `Chương ${index + 1}`;
+    }
+
+    function buildSplitFileContent(chapter, index) {
+        const title = getSplitChapterTitle(chapter, index);
+        const preface = normalizeSplitBodyText(chapter?.preface || '');
+        let body = normalizeSplitBodyText(chapter?.text || '');
+        if (body === title) {
+            body = '';
+        } else if (body.startsWith(`${title}\n`)) {
+            body = body.slice(title.length).replace(/^\n+/, '').trim();
+        }
+        const chapterBlock = [title, body].filter(Boolean).join('\n').trim();
+        return [preface, chapterBlock].filter(Boolean).join('\n\n').trim();
+    }
+
+    function updateSplitChapterFromInputs() {
+        const editor = state.splitEditor;
+        if (!editor) return;
+        const chapters = getSplitChapters();
+        const item = chapters[editor.selectedIndex];
+        if (!item) return;
+        item.title = splitTitleInput ? splitTitleInput.value : item.title;
+        item.preface = splitPrefaceInput ? splitPrefaceInput.value : item.preface;
+        item.text = splitContentInput ? splitContentInput.value : item.text;
+        const parsedNum = extractSplitHeadingIndex(item.title);
+        item.chapterNumber = Number.isInteger(parsedNum) ? parsedNum : null;
+        updateSplitStats();
+        const row = splitListEl?.querySelector(`[data-split-index="${editor.selectedIndex}"]`);
+        if (row) {
+            const titleEl = row.querySelector(`.${APP_PREFIX}split-row-title`);
+            const metaEl = row.querySelector(`.${APP_PREFIX}split-row-meta`);
+            if (titleEl) titleEl.textContent = item.title || `Chương ${editor.selectedIndex + 1}`;
+            if (metaEl) metaEl.textContent = `${buildSplitFileContent(item, editor.selectedIndex).length} ký tự`;
+        }
+    }
+
+    function updateSplitStats() {
+        if (!splitStatsEl) return;
+        const item = getSplitChapters()[state.splitEditor?.selectedIndex || 0];
+        if (!item) {
+            splitStatsEl.textContent = '';
+            return;
+        }
+        const fileContent = buildSplitFileContent(item, state.splitEditor?.selectedIndex || 0);
+        const lineCount = fileContent ? fileContent.split(/\n/).length : 0;
+        const numText = Number.isInteger(item.chapterNumber) ? ` · số chương ${item.chapterNumber}` : '';
+        const prefaceLen = normalizeSplitBodyText(item.preface || '').length;
+        const prefaceText = prefaceLen ? ` · mở đầu ${prefaceLen} ký tự` : '';
+        splitStatsEl.textContent = `${fileContent.length} ký tự · ${lineCount} dòng${numText}${prefaceText}`;
+    }
+
+    function getSplitVisibleIndexes() {
+        const editor = state.splitEditor || {};
+        const query = String(editor.searchQuery || '').trim().toLowerCase();
+        const target = editor.searchTarget === 'content' ? 'content' : 'title';
+        const chapters = getSplitChapters();
+        if (!query) return chapters.map((_, idx) => idx);
+        return chapters
+            .map((chapter, idx) => ({ chapter, idx }))
+            .filter(({ chapter, idx }) => {
+                const haystack = target === 'content'
+                    ? buildSplitFileContent(chapter, idx)
+                    : getSplitChapterTitle(chapter, idx);
+                return haystack.toLowerCase().includes(query);
+            })
+            .map(item => item.idx);
+    }
+
+    function updateSplitSearchUi() {
+        const editor = state.splitEditor || {};
+        if (splitSearchInput && splitSearchInput.value !== String(editor.searchQuery || '')) {
+            splitSearchInput.value = String(editor.searchQuery || '');
+        }
+        if (splitSearchTargetBtn) {
+            const target = editor.searchTarget === 'content' ? 'content' : 'title';
+            splitSearchTargetBtn.textContent = target === 'content' ? 'Nội dung' : 'Tên';
+            splitSearchTargetBtn.dataset.target = target;
+            splitSearchTargetBtn.title = target === 'content'
+                ? 'Đang tìm trong nội dung file. Bấm để đổi sang tên chương.'
+                : 'Đang tìm trong tên chương. Bấm để đổi sang nội dung file.';
+        }
+    }
+
+    function renderSplitList() {
+        if (!splitListEl) return;
+        splitListEl.innerHTML = '';
+        const chapters = getSplitChapters();
+        const visibleIndexes = getSplitVisibleIndexes();
+        if (!visibleIndexes.length) {
+            const empty = document.createElement('div');
+            empty.id = `${APP_PREFIX}split-empty`;
+            empty.textContent = 'Không có chương nào khớp tìm kiếm.';
+            splitListEl.appendChild(empty);
+            return;
+        }
+        visibleIndexes.forEach((idx) => {
+            const chapter = chapters[idx];
+            const row = document.createElement('div');
+            row.className = `${APP_PREFIX}split-row`;
+            row.dataset.splitIndex = String(idx);
+            row.dataset.active = idx === (state.splitEditor?.selectedIndex || 0) ? 'true' : 'false';
+
+            const indexEl = document.createElement('b');
+            indexEl.textContent = String(idx + 1).padStart(2, '0');
+            row.appendChild(indexEl);
+
+            const titleEl = document.createElement('div');
+            titleEl.className = `${APP_PREFIX}split-row-title`;
+            titleEl.textContent = chapter.title || `Chương ${idx + 1}`;
+            row.appendChild(titleEl);
+
+            const metaEl = document.createElement('div');
+            metaEl.className = `${APP_PREFIX}split-row-meta`;
+            metaEl.textContent = `${buildSplitFileContent(chapter, idx).length} ký tự`;
+            row.appendChild(metaEl);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = `${APP_PREFIX}split-row-delete`;
+            deleteBtn.title = 'Xóa chương này';
+            deleteBtn.textContent = '×';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteSplitChapter(idx);
+            });
+            row.appendChild(deleteBtn);
+
+            row.addEventListener('click', () => selectSplitChapter(idx));
+            splitListEl.appendChild(row);
+        });
+    }
+
+    function selectSplitChapter(index, saveCurrent = true) {
+        if (saveCurrent) updateSplitChapterFromInputs();
+        const chapters = getSplitChapters();
+        if (!chapters[index]) return;
+        state.splitEditor.selectedIndex = index;
+        if (splitTitleInput) splitTitleInput.value = chapters[index].title || '';
+        if (splitPrefaceInput) splitPrefaceInput.value = chapters[index].preface || '';
+        if (splitPrefaceBox) {
+            splitPrefaceBox.classList.toggle(`${APP_PREFIX}hide`, !normalizeSplitBodyText(chapters[index].preface || ''));
+        }
+        if (splitContentInput) {
+            splitContentInput.value = chapters[index].text || '';
+            splitContentInput.placeholder = normalizeSplitBodyText(chapters[index].preface || '')
+                ? 'Nếu chương này có nội dung sau tên chương thì nhập ở đây. Phần mở đầu đang nằm ở ô phía trên.'
+                : '';
+        }
+        renderSplitList();
+        updateSplitStats();
+    }
+
+    function createEmptySplitChapter(index) {
+        return {
+            id: createSplitChapterId(index),
+            index: index + 1,
+            title: `Chương ${index + 1}`,
+            text: '',
+            preface: '',
+            chapterNumber: null,
+        };
+    }
+
+    function insertSplitChapter(offset) {
+        const editor = state.splitEditor;
+        if (!editor) return;
+        updateSplitChapterFromInputs();
+        const chapters = getSplitChapters();
+        const baseIndex = Number.isInteger(editor.selectedIndex) ? editor.selectedIndex : 0;
+        const insertAt = Math.max(0, Math.min(chapters.length, baseIndex + offset));
+        chapters.splice(insertAt, 0, createEmptySplitChapter(insertAt));
+        reindexSplitChapters();
+        editor.searchQuery = '';
+        updateSplitSearchUi();
+        selectSplitChapter(insertAt, false);
+    }
+
+    function deleteSplitChapter(index = state.splitEditor?.selectedIndex || 0) {
+        const editor = state.splitEditor;
+        if (!editor) return;
+        updateSplitChapterFromInputs();
+        const chapters = getSplitChapters();
+        if (chapters.length <= 1) {
+            showUiAlert('Danh sách phải còn ít nhất 1 chương.', 'Xóa chương');
+            return;
+        }
+        const deleteAt = Math.max(0, Math.min(chapters.length - 1, index));
+        chapters.splice(deleteAt, 1);
+        reindexSplitChapters();
+        const visibleIndexes = getSplitVisibleIndexes();
+        const nextIndex = visibleIndexes.includes(deleteAt)
+            ? deleteAt
+            : visibleIndexes.find(idx => idx >= deleteAt) ?? visibleIndexes[visibleIndexes.length - 1] ?? Math.min(deleteAt, chapters.length - 1);
+        selectSplitChapter(Math.max(0, Math.min(chapters.length - 1, nextIndex)), false);
+    }
+
+    function renderSplitModal() {
+        const editor = state.splitEditor;
+        if (!editor) return;
+        const chapters = getSplitChapters();
+        const diagnostics = editor.diagnostics || {};
+        const strategy = diagnostics.splitStrategy === 'regex'
+            ? 'regex tiêu đề'
+            : diagnostics.splitStrategy === 'regex_fallback'
+                ? `fallback đoạn (${diagnostics.fallbackReason || 'regex chưa ổn'})`
+                : 'chia theo đoạn';
+        const visibleCount = getSplitVisibleIndexes().length;
+        const searchText = editor.searchQuery ? ` · đang lọc ${visibleCount}` : '';
+        if (splitSummaryEl) {
+            splitSummaryEl.textContent =
+                `${editor.sourceName || 'TXT'} · ${chapters.length} chương · ${strategy}` +
+                (diagnostics.matchedHeadingCount ? ` · match ${diagnostics.matchedHeadingCount}` : '') +
+                searchText;
+        }
+        if (splitAssignBtn) {
+            splitAssignBtn.classList.toggle(`${APP_PREFIX}hide`, editor.canAssign === false);
+        }
+        updateSplitSearchUi();
+        renderSplitList();
+        selectSplitChapter(Math.min(editor.selectedIndex || 0, Math.max(0, chapters.length - 1)), false);
+    }
+
+    function openSplitModal() {
+        splitOverlay?.classList.remove(`${APP_PREFIX}hide`);
+        splitModal?.classList.remove(`${APP_PREFIX}hide`);
+    }
+
+    function closeSplitModal() {
+        splitOverlay?.classList.add(`${APP_PREFIX}hide`);
+        splitModal?.classList.add(`${APP_PREFIX}hide`);
+    }
+
+    async function openSplitTxtModal(file, scanInfo, options = {}) {
+        const scan = scanInfo || await readFirstLineOfFile(file);
+        const text = await readFileAsTextWithEncoding(file, scan.detectedEncoding);
+        const splitResult = analyzeTxtSplit(text, TXT_SPLIT_TARGET_SIZE);
+        const chapters = (splitResult.chapters || []).map(normalizeSplitChapter).filter(ch => ch.text || ch.title);
+        if (!chapters.length) {
+            await showUiAlert('Không tách được chương từ file TXT này.', 'Chia TXT thất bại');
+            return;
+        }
+        state.splitEditor = {
+            sourceName: file.name,
+            selectedIndex: 0,
+            chapters,
+            diagnostics: splitResult.diagnostics || {},
+            searchQuery: '',
+            searchTarget: 'title',
+            canAssign: options.canAssign !== false,
+        };
+        log(`📚 Đã chia "${file.name}" thành ${chapters.length} chương. Mở modal để chỉnh/lưu/gán.`);
+        renderSplitModal();
+        openSplitModal();
+    }
+
+    function handleSplitSearchInput() {
+        const editor = state.splitEditor;
+        if (!editor) return;
+        updateSplitChapterFromInputs();
+        editor.searchQuery = splitSearchInput ? splitSearchInput.value : '';
+        const visibleIndexes = getSplitVisibleIndexes();
+        if (visibleIndexes.length && !visibleIndexes.includes(editor.selectedIndex)) {
+            editor.selectedIndex = visibleIndexes[0];
+        }
+        renderSplitModal();
+    }
+
+    function toggleSplitSearchTarget() {
+        const editor = state.splitEditor;
+        if (!editor) return;
+        updateSplitChapterFromInputs();
+        editor.searchTarget = editor.searchTarget === 'content' ? 'title' : 'content';
+        const visibleIndexes = getSplitVisibleIndexes();
+        if (visibleIndexes.length && !visibleIndexes.includes(editor.selectedIndex)) {
+            editor.selectedIndex = visibleIndexes[0];
+        }
+        renderSplitModal();
+    }
+
+    function createSplitUploadItems() {
+        updateSplitChapterFromInputs();
+        reindexSplitChapters();
+        const chapters = getSplitChapters()
+            .map((chapter, idx) => ({
+                ...chapter,
+                title: String(chapter.title || `Chương ${idx + 1}`).trim() || `Chương ${idx + 1}`,
+                text: normalizeSplitBodyText(chapter.text || ''),
+                preface: normalizeSplitBodyText(chapter.preface || ''),
+            }))
+            .filter((chapter, idx) => buildSplitFileContent(chapter, idx));
+        return chapters.map((chapter, idx) => {
+            const fileContent = buildSplitFileContent(chapter, idx);
+            const file = new File([fileContent], createSplitFileName(chapter, idx), {
+                type: 'text/plain;charset=utf-8',
+                lastModified: Date.now(),
+            });
+            return {
+                file,
+                chapterNumber: Number.isInteger(chapter.chapterNumber) ? chapter.chapterNumber : (idx + 1),
+                rawTitle: chapter.title,
+                useDirectTitle: true,
+            };
+        });
+    }
+
+    async function downloadSplitChapters() {
+        const items = createSplitUploadItems();
+        if (!items.length) {
+            await showUiAlert('Không có chương nào để lưu.', 'Lưu TXT');
+            return;
+        }
+        const ok = await showUiConfirm(
+            `Sẽ nén ${items.length} file TXT thành 1 file ZIP rồi tải về.`,
+            'Lưu các chương đã chia',
+            'Tải ZIP',
+            'Hủy'
+        );
+        if (!ok) return;
+        if (splitDownloadBtn) splitDownloadBtn.disabled = true;
+        let lastProgressAt = 0;
+        let lastLoggedStep = 0;
+        try {
+            log(`📦 Bắt đầu nén ${items.length} file TXT thành ZIP...`);
+            showUploadToast(`Đang nén ZIP: 0/${items.length}`, 'loading');
+            const zipBlob = await createZipBlobFromFiles(items.map(item => item.file), (progress) => {
+                const now = Date.now();
+                const percent = progress.total ? Math.floor((progress.done / progress.total) * 100) : 0;
+                if (now - lastProgressAt > 250 || progress.done === progress.total) {
+                    const stageText = progress.stage === 'central' ? 'đang đóng gói thư mục ZIP' : `${progress.done}/${progress.total}`;
+                    showUploadToast(`Đang nén ZIP: ${stageText} · ${percent}% · ${formatByteSize(progress.bytes)}`, 'loading');
+                    lastProgressAt = now;
+                }
+                const logStep = Math.floor(progress.done / 100);
+                if (progress.done === progress.total || logStep > lastLoggedStep) {
+                    lastLoggedStep = logStep;
+                    log(`📦 Đang nén ZIP: ${progress.done}/${progress.total} (${percent}%)`);
+                }
+            });
+            const zipName = createSplitZipName(state.splitEditor?.sourceName);
+            showUploadToast(`Nén xong ZIP: ${formatByteSize(zipBlob.size)}. Bấm Tải ZIP trong popup.`, 'success', 3600);
+            log(`✅ Đã nén xong ZIP ${zipName} (${formatByteSize(zipBlob.size)}). Chờ bấm Tải ZIP.`);
+            const result = await showZipReadyDialog(zipBlob, zipName, items.length);
+            if (result === 'download') {
+                log(`💾 Đã yêu cầu trình duyệt tải ZIP: ${zipName}`, 'success');
+            } else {
+                log(`ℹ️ ZIP đã tạo nhưng chưa tải vì popup bị đóng: ${zipName}`, 'warn');
+            }
+        } catch (e) {
+            showUploadToast('Nén ZIP thất bại.', 'error', 3200);
+            log(`❌ Lỗi khi tạo ZIP: ${e.message}`, 'error');
+            await showUiAlert(`Không tạo được ZIP: ${e.message}`, 'Lưu TXT');
+        } finally {
+            if (splitDownloadBtn) splitDownloadBtn.disabled = false;
+        }
+    }
+
+    async function assignSplitChaptersToWeb() {
+        if (state.splitEditor?.canAssign === false) {
+            await showUiAlert('Chế độ chia TXT độc lập không có nút Gán vào web. Hãy dùng Lưu về để tải ZIP.', 'Gán TXT');
+            return;
+        }
+        if (!ensureSelectedVolumeValid()) return;
+        const items = createSplitUploadItems();
+        if (!items.length) {
+            await showUiAlert('Không có chương nào để gán.', 'Gán TXT');
+            return;
+        }
+        const emptyCount = items.filter(item => !item.file || item.file.size === 0).length;
+        if (emptyCount > 0) {
+            const ok = await showUiConfirm(
+                `Có ${emptyCount} chương đang trống nội dung. Vẫn gán vào web?`,
+                'Chương trống',
+                'Vẫn gán',
+                'Quay lại'
+            );
+            if (!ok) return;
+        }
+
+        state.validFiles = items;
+        state.invalidFiles = [];
+        state.previewOrder = null;
+        state.remainingInvalidFiles = [];
+        state.allFiles = items.map(item => item.file);
+        state.smallFileNames = [];
+        manualInputContainer.style.display = 'none';
+        manualInputContainer.innerHTML = '';
+        closeSplitModal();
+
+        const trueWrapper = state.selectedVolumeWrapper?.querySelector('.volume-wrapper');
+        const descInfo = computeDescInfo();
+        if (trueWrapper && descInfo.text) {
+            const synced = syncAppendDesc(trueWrapper, descInfo.text);
+            if (synced) log(`✅ Đã điền mô tả: ${descInfo.text}`);
+        }
+        log(`🚀 Gán nhanh ${items.length} chương đã chia vào web.`);
+        await startUploading();
+    }
 
     async function handleFileSelect(event) {
         if (!ensureSelectedVolumeValid()) {
@@ -4867,6 +6312,15 @@
         const riskyPunctuationResult = await processRiskyPunctuationFiles(files, scanByFile);
         files.splice(0, files.length, ...riskyPunctuationResult.files);
         scanByFile = riskyPunctuationResult.scanByFile;
+
+        if (files.length === 1) {
+            state.allFiles = files;
+            manualInputContainer.style.display = 'none';
+            manualInputContainer.innerHTML = '';
+            await openSplitTxtModal(files[0], scanByFile.get(files[0]) || null, { canAssign: true });
+            fileInput.value = "";
+            return;
+        }
 
         state.allFiles = files;
 
@@ -5327,13 +6781,15 @@
             mergedFiles = state.previewOrder.map(item => ({
                 file: item.file,
                 chapterNumber: item.chapterNumber,
-                rawTitle: item.rawTitle
+                rawTitle: item.rawTitle,
+                useDirectTitle: !!item.useDirectTitle
             }));
         } else {
             mergedFiles = state.validFiles.map(item => ({
                 file: item.file,
                 chapterNumber: item.chapterNumber,
-                rawTitle: item.rawTitle
+                rawTitle: item.rawTitle,
+                useDirectTitle: !!item.useDirectTitle
             }));
         }
 
@@ -5490,6 +6946,10 @@
 
 
         const buildChapterName = (item) => {
+            if (item.useDirectTitle) {
+                const directTitle = (typeof item.rawTitle === 'string') ? item.rawTitle.trim() : '';
+                return directTitle || item.file.name.replace(/\.txt$/i, '');
+            }
             if (item.chapterNumber != null) {
                 const titleFromName = (typeof item.rawTitle === 'string') ? item.rawTitle.trim() : item.file.name.replace(/\.txt$/i, '').trim();
                 const tpl = settings.CHAPTER_NAME_TEMPLATE || '第{num}章 {title}';
@@ -5619,9 +7079,230 @@
         fileInput.value = "";
     }
 
+    async function handleSplitOnlyFileSelect(event) {
+        const file = Array.from(event.target.files || [])[0];
+        if (!file) return;
+        try {
+            showUploadToast('Đang đọc file TXT để chia chương...', 'loading');
+            await openSplitTxtModal(file, null, { canAssign: false });
+            showUploadToast('Đã chia TXT. Có thể chỉnh, lưu ZIP trong modal.', 'success', 2200);
+        } catch (e) {
+            showUploadToast('Không chia được TXT.', 'error', 2600);
+            log(`❌ Không mở được file TXT: ${e.message}`, 'error');
+            await showUiAlert(`Không mở được file TXT: ${e.message}`, 'Chia TXT');
+        } finally {
+            splitOnlyInput.value = "";
+        }
+    }
+
+    function openSplitOnlyPicker() {
+        splitOnlyInput.click();
+    }
+
     // --- Khởi động script ---
-    if (state.isEditPage || state.isNewBookPage) {
-        hidePanel();
+    let initialFormValues = {};
+
+    function getFormValues() {
+        return {
+            logMax: logMaxInput.value,
+            fileKb: fileSizeKbInput.value,
+            theme: themeSelect ? themeSelect.value : '',
+            firstLineOnly: firstLineOnlyInput.checked,
+            priority: prioritySelect.value,
+            chapTemplate: chapterTemplateInput.value,
+            splitPrefaceFirst: splitPrefaceFirstInput ? splitPrefaceFirstInput.checked : true,
+            splitLauncher: splitLauncherSettingInput ? splitLauncherSettingInput.checked : state.splitLauncherEnabled,
+            volumeStats: volumeStatsCheckbox ? volumeStatsCheckbox.checked : null
+        };
+    }
+
+    function showSettingsModal() {
+        logMaxInput.value = settings.LOG_MAX_LINES;
+        fileSizeKbInput.value = settings.FILE_SIZE_WARNING_KB;
+        if (themeSelect) {
+            themeSelect.value = settings.THEME_MODE || DEFAULT_THEME_MODE;
+        }
+        firstLineOnlyInput.checked = !!settings.USE_FIRST_LINE_ONLY;
+        prioritySelect.value = settings.PARSE_PRIORITY || 'filename';
+        chapterTemplateInput.value = settings.CHAPTER_NAME_TEMPLATE;
+        if (splitPrefaceFirstInput) {
+            splitPrefaceFirstInput.checked = settings.SPLIT_PREFACE_IN_FIRST_CHAPTER !== false;
+        }
+        if (splitLauncherSettingInput) {
+            splitLauncherSettingInput.checked = state.splitLauncherEnabled === true;
+        }
+        if (volumeStatsCheckbox) {
+            volumeStatsCheckbox.checked = state.volumeStatsEnabled === true;
+        }
+        if (state.volumeStatsData && typeof state.volumeStatsData.total !== 'undefined') {
+            updateTotalChaptersDisplay(state.volumeStatsData.total);
+        } else {
+            updateTotalChaptersDisplay(null);
+        }
+
+        setParseControlsEnabled(!firstLineOnlyInput.checked);
+        initialFormValues = getFormValues();
+        settingsOverlay.classList.remove(`${APP_PREFIX}hide`);
+        settingsModal.classList.remove(`${APP_PREFIX}hide`);
+    }
+
+    function hideSettingsModal() {
+        settingsOverlay.classList.add(`${APP_PREFIX}hide`);
+        settingsModal.classList.add(`${APP_PREFIX}hide`);
+    }
+
+    async function tryCloseSettingsModal() {
+        const currentValues = getFormValues();
+        if (JSON.stringify(currentValues) !== JSON.stringify(initialFormValues)) {
+            const shouldClose = await showUiConfirm(
+                'Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy không?',
+                'Hủy thay đổi',
+                'Bỏ thay đổi',
+                'Tiếp tục chỉnh'
+            );
+            if (!shouldClose) return;
+        }
+        hideSettingsModal();
+    }
+
+    async function saveSettingsFromModal() {
+        const newLogMax = parseInt(logMaxInput.value, 10);
+        const newFileKb = parseInt(fileSizeKbInput.value, 10);
+        const newChapTpl = chapterTemplateInput.value.trim() || '第{num}章 {title}';
+        const useFirstLineOnly = firstLineOnlyInput.checked;
+
+        if (!useFirstLineOnly && !newChapTpl.includes('{num}')) {
+            await showUiAlert('Template phải chứa {num}.', 'Lỗi cài đặt');
+            return;
+        }
+        if (isNaN(newLogMax) || newLogMax <= 0) {
+            await showUiAlert('Số dòng log phải là số dương.', 'Lỗi cài đặt');
+            return;
+        }
+        if (isNaN(newFileKb) || newFileKb < 0) {
+            await showUiAlert('Kích thước file (KB) phải là số không âm (0 hoặc lớn hơn).', 'Lỗi cài đặt');
+            return;
+        }
+
+        settings.LOG_MAX_LINES = newLogMax;
+        settings.FILE_SIZE_WARNING_KB = newFileKb;
+        settings.USE_FIRST_LINE_ONLY = useFirstLineOnly;
+        settings.CHAPTER_NAME_TEMPLATE = newChapTpl;
+        settings.SPLIT_PREFACE_IN_FIRST_CHAPTER = splitPrefaceFirstInput ? splitPrefaceFirstInput.checked : true;
+        settings.PARSE_PRIORITY = prioritySelect.value;
+        if (themeSelect) {
+            settings.THEME_MODE = themeSelect.value || DEFAULT_THEME_MODE;
+        }
+        setSplitLauncherEnabled(splitLauncherSettingInput ? splitLauncherSettingInput.checked : state.splitLauncherEnabled, true);
+
+        saveSettings();
+        applyTheme(settings.THEME_MODE);
+        initialFormValues = getFormValues();
+        hideSettingsModal();
+        if (volumeStatsCheckbox) {
+            setVolumeStatsEnabled(volumeStatsCheckbox.checked);
+        }
+        updateSplitLauncherUi();
+        log('Cài đặt đã được cập nhật.');
+    }
+
+    async function maybePromptSplitLauncher(versionChanged) {
+        if (!versionChanged) return;
+        if (GM_getValue(SPLIT_LAUNCHER_PROMPT_KEY, '') === SPLIT_LAUNCHER_PROMPT_VERSION) return;
+        const enable = await showUiConfirm(
+            'Bạn có muốn bật nút khởi động tính năng Chia TXT trên các trang khác không?\n\n' +
+            'Nút này chỉ mở chọn 1 file TXT để chia chương, chỉnh sửa và lưu ZIP; trên trang không phải upload/edit wiki sẽ không có nút Gán vào web.\n\n' +
+            'Bạn có thể bật/tắt lại trong menu Tampermonkey của script hoặc trong Cài đặt của Auto Volume trên trang wiki.',
+            'Bật nút Chia TXT?',
+            'Bật nút',
+            'Không bật'
+        );
+        setSplitLauncherEnabled(enable, true);
+        GM_setValue(SPLIT_LAUNCHER_PROMPT_KEY, SPLIT_LAUNCHER_PROMPT_VERSION);
+        showUploadToast(enable ? 'Đã bật nút Chia TXT.' : 'Đã tắt nút Chia TXT.', enable ? 'success' : 'loading', 2200);
+    }
+
+    async function handleVersionPrompts() {
+        const storedVer = GM_getValue(VERSION_KEY, null);
+        const versionChanged = !storedVer || storedVer !== CURRENT_VERSION;
+        if (isFullUploaderPage()) {
+            if (!storedVer) {
+                openHelpModalFull();
+            } else if (storedVer !== CURRENT_VERSION) {
+                openHelpModalUpdateOnly();
+            }
+            if (versionChanged) {
+                GM_setValue(VERSION_KEY, CURRENT_VERSION);
+            }
+        }
+        await maybePromptSplitLauncher(versionChanged);
+    }
+
+    let splitLauncherMenuCommandId = null;
+
+    function refreshSplitLauncherMenuCommand() {
+        if (typeof GM_registerMenuCommand !== 'function') return;
+        if (splitLauncherMenuCommandId != null) {
+            if (typeof GM_unregisterMenuCommand !== 'function') return;
+            try {
+                GM_unregisterMenuCommand(splitLauncherMenuCommandId);
+            } catch { }
+            splitLauncherMenuCommandId = null;
+        }
+        const commandId = GM_registerMenuCommand(
+            `${state.splitLauncherEnabled ? 'Ẩn' : 'Hiện'} nút Chia TXT trên trang khác`,
+            () => setSplitLauncherEnabled(!state.splitLauncherEnabled)
+        );
+        splitLauncherMenuCommandId = commandId ?? null;
+    }
+
+    function registerTamperMenuCommands() {
+        if (typeof GM_registerMenuCommand !== 'function') return;
+        GM_registerMenuCommand('⚙️ Mở Cài đặt Auto Volume', showSettingsModal);
+        GM_registerMenuCommand('📚 Chia 1 file TXT', openSplitOnlyPicker);
+        refreshSplitLauncherMenuCommand();
+    }
+
+    function bindCommonEvents() {
+        if (splitCloseBtn) splitCloseBtn.addEventListener('click', closeSplitModal);
+        if (splitCancelBtn) splitCancelBtn.addEventListener('click', closeSplitModal);
+        if (splitDownloadBtn) splitDownloadBtn.addEventListener('click', downloadSplitChapters);
+        if (splitAssignBtn) splitAssignBtn.addEventListener('click', assignSplitChaptersToWeb);
+        if (splitSearchInput) splitSearchInput.addEventListener('input', handleSplitSearchInput);
+        if (splitSearchTargetBtn) splitSearchTargetBtn.addEventListener('click', toggleSplitSearchTarget);
+        if (splitInsertBeforeBtn) splitInsertBeforeBtn.addEventListener('click', () => insertSplitChapter(0));
+        if (splitInsertAfterBtn) splitInsertAfterBtn.addEventListener('click', () => insertSplitChapter(1));
+        if (splitDeleteBtn) splitDeleteBtn.addEventListener('click', () => deleteSplitChapter());
+        if (splitTitleInput) splitTitleInput.addEventListener('input', updateSplitChapterFromInputs);
+        if (splitPrefaceInput) splitPrefaceInput.addEventListener('input', updateSplitChapterFromInputs);
+        if (splitContentInput) splitContentInput.addEventListener('input', updateSplitChapterFromInputs);
+        if (splitOnlyInput) splitOnlyInput.addEventListener('change', handleSplitOnlyFileSelect);
+        if (splitLauncherBtn) splitLauncherBtn.addEventListener('click', openSplitOnlyPicker);
+        if (settingsBtn) settingsBtn.addEventListener('click', showSettingsModal);
+        if (settingsCancelBtn) settingsCancelBtn.addEventListener('click', tryCloseSettingsModal);
+        if (settingsSaveBtn) settingsSaveBtn.addEventListener('click', saveSettingsFromModal);
+        if (firstLineOnlyInput) {
+            firstLineOnlyInput.addEventListener('change', () => setParseControlsEnabled(!firstLineOnlyInput.checked));
+        }
+        if (helpCloseBtn) helpCloseBtn.addEventListener('click', closeHelpModal);
+        if (themePrefLightBtn) themePrefLightBtn.addEventListener('click', () => {
+            setThemeMode('light');
+            closeThemePref();
+            maybeShowVolumeStatsPref();
+        });
+        if (themePrefDarkBtn) themePrefDarkBtn.addEventListener('click', () => {
+            setThemeMode('dark');
+            closeThemePref();
+            maybeShowVolumeStatsPref();
+        });
+        if (themePrefAutoBtn) themePrefAutoBtn.addEventListener('click', () => {
+            setThemeMode('auto');
+            closeThemePref();
+            maybeShowVolumeStatsPref();
+        });
+    }
+
+    function bindFullPageEvents() {
         floatingIconEl.addEventListener('pointerdown', (e) => {
             iconDragged = false;
             const startX = e.clientX;
@@ -5643,7 +7324,6 @@
         });
         minimizeBtn.addEventListener('click', hidePanel);
         helpBtn.addEventListener('click', openHelpModalFull);
-        helpCloseBtn.addEventListener('click', closeHelpModal);
         uploadBtn.addEventListener('click', () => {
             if (!ensureSelectedVolumeValid()) return;
             fileInput.click();
@@ -5660,21 +7340,6 @@
         if (prefDisableBtn) prefDisableBtn.addEventListener('click', () => {
             setVolumeStatsEnabled(false);
             closeVolumeStatsPref();
-        });
-        if (themePrefLightBtn) themePrefLightBtn.addEventListener('click', () => {
-            setThemeMode('light');
-            closeThemePref();
-            maybeShowVolumeStatsPref();
-        });
-        if (themePrefDarkBtn) themePrefDarkBtn.addEventListener('click', () => {
-            setThemeMode('dark');
-            closeThemePref();
-            maybeShowVolumeStatsPref();
-        });
-        if (themePrefAutoBtn) themePrefAutoBtn.addEventListener('click', () => {
-            setThemeMode('auto');
-            closeThemePref();
-            maybeShowVolumeStatsPref();
         });
         fileInput.addEventListener('change', handleFileSelect);
         volumeSelect.addEventListener('change', handleVolumeChange);
@@ -5707,129 +7372,13 @@
                 );
             });
         }
+    }
 
-        let initialFormValues = {};
-
-
-        function getFormValues() {
-            return {
-                logMax: logMaxInput.value,
-                fileKb: fileSizeKbInput.value,
-                theme: themeSelect ? themeSelect.value : '',
-                firstLineOnly: firstLineOnlyInput.checked,
-                priority: prioritySelect.value,
-                chapTemplate: chapterTemplateInput.value,
-                volumeStats: volumeStatsCheckbox ? volumeStatsCheckbox.checked : null
-            };
-        }
-
-        function showSettingsModal() {
-
-            logMaxInput.value = settings.LOG_MAX_LINES;
-            fileSizeKbInput.value = settings.FILE_SIZE_WARNING_KB;
-            if (themeSelect) {
-                themeSelect.value = settings.THEME_MODE || DEFAULT_THEME_MODE;
-            }
-            firstLineOnlyInput.checked = !!settings.USE_FIRST_LINE_ONLY;
-            prioritySelect.value = settings.PARSE_PRIORITY || 'filename';
-            chapterTemplateInput.value = settings.CHAPTER_NAME_TEMPLATE;
-            if (volumeStatsCheckbox) {
-                volumeStatsCheckbox.checked = state.volumeStatsEnabled === true;
-            }
-            if (state.volumeStatsData && typeof state.volumeStatsData.total !== 'undefined') {
-                updateTotalChaptersDisplay(state.volumeStatsData.total);
-            } else {
-                updateTotalChaptersDisplay(null);
-            }
-
-            setParseControlsEnabled(!firstLineOnlyInput.checked);
-            initialFormValues = getFormValues();
-            settingsOverlay.classList.remove(`${APP_PREFIX}hide`);
-            settingsModal.classList.remove(`${APP_PREFIX}hide`);
-        }
-
-        function hideSettingsModal() {
-            settingsOverlay.classList.add(`${APP_PREFIX}hide`);
-            settingsModal.classList.add(`${APP_PREFIX}hide`);
-        }
-        async function tryCloseSettingsModal() {
-            const currentValues = getFormValues();
-            if (JSON.stringify(currentValues) !== JSON.stringify(initialFormValues)) {
-                const shouldClose = await showUiConfirm(
-                    'Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy không?',
-                    'Hủy thay đổi',
-                    'Bỏ thay đổi',
-                    'Tiếp tục chỉnh'
-                );
-                if (!shouldClose) {
-                    return;
-                }
-            }
-            hideSettingsModal();
-        }
-
-        settingsBtn.addEventListener('click', showSettingsModal);
-        settingsCancelBtn.addEventListener('click', tryCloseSettingsModal);
-        firstLineOnlyInput.addEventListener('change', () => {
-            setParseControlsEnabled(!firstLineOnlyInput.checked);
-        });
-        settingsSaveBtn.addEventListener('click', async () => {
-            const newLogMax = parseInt(logMaxInput.value, 10);
-            const newFileKb = parseInt(fileSizeKbInput.value, 10);
-            const newChapTpl = chapterTemplateInput.value.trim() || '第{num}章 {title}';
-            const useFirstLineOnly = firstLineOnlyInput.checked;
-
-
-            if (!useFirstLineOnly && !newChapTpl.includes('{num}')) {
-                await showUiAlert('Template phải chứa {num}.', 'Lỗi cài đặt');
-                return;
-            }
-
-
-            if (isNaN(newLogMax) || newLogMax <= 0) {
-                await showUiAlert('Số dòng log phải là số dương.', 'Lỗi cài đặt');
-                return;
-            }
-            if (isNaN(newFileKb) || newFileKb < 0) {
-
-                await showUiAlert('Kích thước file (KB) phải là số không âm (0 hoặc lớn hơn).', 'Lỗi cài đặt');
-                return;
-            }
-
-            settings.LOG_MAX_LINES = newLogMax;
-            settings.FILE_SIZE_WARNING_KB = newFileKb;
-            settings.USE_FIRST_LINE_ONLY = useFirstLineOnly;
-            settings.CHAPTER_NAME_TEMPLATE = newChapTpl;
-
-            settings.PARSE_PRIORITY = prioritySelect.value;
-            if (themeSelect) {
-                settings.THEME_MODE = themeSelect.value || DEFAULT_THEME_MODE;
-            }
-
-            saveSettings();
-            applyTheme(settings.THEME_MODE);
-            initialFormValues = getFormValues();
-            hideSettingsModal();
-            if (volumeStatsCheckbox) {
-                setVolumeStatsEnabled(volumeStatsCheckbox.checked);
-            }
-            log('Cài đặt đã được cập nhật.');
-        });
-
-
-        setTimeout(() => {
-            const storedVer = GM_getValue(VERSION_KEY, null);
-            if (!storedVer) {
-                openHelpModalFull();
-                GM_setValue(VERSION_KEY, CURRENT_VERSION);
-                return;
-            }
-            if (storedVer !== CURRENT_VERSION) {
-                openHelpModalUpdateOnly();
-                GM_setValue(VERSION_KEY, CURRENT_VERSION);
-            }
-        }, 1200);
-
+    applyPageModeUi();
+    bindCommonEvents();
+    registerTamperMenuCommands();
+    if (isFullUploaderPage()) {
+        bindFullPageEvents();
         initialize();
         if (state.volumeStatsEnabled === true) {
             loadVolumeStats(false);
@@ -5838,4 +7387,7 @@
             maybeShowThemePref();
         }, 1600);
     }
+    setTimeout(() => {
+        handleVersionPrompts();
+    }, 1200);
 })();
