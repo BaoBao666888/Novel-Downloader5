@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.5.4.1_beta
+// @version      3.5.5_beta
 // @description  Dịch trang, quản lý name-sets, sửa tên, chế độ đọc rút gọn và tùy chỉnh giao diện.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -127,9 +127,11 @@
             fontFamily: "Noto Serif, 'Times New Roman', serif",
             fontSize: 18,
             lineHeight: 1.9,
+            paragraphSpacing: 12,
+            textIndent: 2,
             bgColor: '#f7f4ee',
             textColor: '#1f1f1f',
-            paddingX: 40,
+            paddingX: 18,
             textAlign: 'justify'
         },
         blacklist: [], // Thêm dòng này
@@ -198,6 +200,8 @@
     let lastSelectionRange = null;
 
     let selectionEditBtn = null;
+    let selectionEditBtnLastActivation = 0;
+    let selectionEditRefreshTimer = null;
     let simplifiedActive = false;
     let originalBodyElement = null; // Giữ body gốc để khôi phục không cần reload
     let originalScrollPosition = 0;
@@ -205,7 +209,7 @@
     let translatedBodyClone = null;
 
     /* ================== VERSION ================== */
-    const CURRENT_VERSION = '3.5.4.1';
+    const CURRENT_VERSION = '3.5.5';
     const TM_VERSION_KEY = 'tm_translate_version';
 
     /* ================== SHADOW DOM ================== */
@@ -386,6 +390,10 @@
             cursor: pointer;
             box-shadow: var(--tm-shadow);
             user-select: none;
+            -webkit-user-select: none;
+            pointer-events: auto;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
         #tm-selection-edit-btn svg { width: 14px; height: 14px; }
         .tm-modal-wrapper {
@@ -406,6 +414,16 @@
         .tm-btn:hover { background: #e9e9e9; }
         .tm-btn-primary { background: var(--tm-primary); color: white; border-color: var(--tm-primary); }
         .tm-btn-primary:hover { background: #0056b3; }
+        .tm-lib-export-html {
+            position: relative; overflow: visible; padding-right: 22px; border-color: #f59e0b;
+            background: linear-gradient(135deg, #fff7ed 0%, #eff6ff 100%); color: #1f2937; font-weight: 600;
+        }
+        .tm-lib-export-html:hover { background: linear-gradient(135deg, #ffedd5 0%, #dbeafe 100%); }
+        .tm-lib-export-badge {
+            position: absolute; top: -8px; right: -7px; padding: 1px 5px; border-radius: 999px;
+            background: linear-gradient(90deg, #f97316, #ec4899); color: #fff; font-size: 9px; line-height: 1.25;
+            box-shadow: 0 3px 8px rgba(236,72,153,0.28); pointer-events: none;
+        }
         .tm-input, .tm-select, .tm-textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--tm-border-color); border-radius: 6px; margin-top: 4px; margin-bottom: 12px; box-sizing: border-box; font-size: 14px; }
         .tm-label { font-weight: 600; font-size: 14px; display: block; margin-bottom: 4px; }
         .tm-row { display: flex; gap: 16px; }
@@ -464,40 +482,129 @@
         #tm-simplified-container { padding: 30px 5%; min-height: 100vh; box-sizing: border-box; }
         #tm-simplified-container p { margin-bottom: 1.2em; }
         #tm-simplified-topbar { max-width: 800px; margin: 0 auto 24px auto; display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid rgba(128,128,128,0.3); }
-        .tm-reader-overlay { position: fixed; inset: 0; z-index: 2147483646; display: flex; flex-direction: column; background: var(--tm-reader-bg, #f7f4ee); color: var(--tm-reader-text, #1f1f1f); font-family: var(--tm-reader-font, "Noto Serif", "Times New Roman", serif); }
-        .tm-reader-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--tm-reader-border, rgba(0,0,0,0.08)); background: var(--tm-reader-surface, #fbf9f4); }
-        .tm-reader-title { display: flex; flex-direction: column; gap: 4px; }
-        .tm-reader-book { font-size: 18px; font-weight: 700; }
-        .tm-reader-chapter { font-size: 14px; color: var(--tm-reader-muted, #5c5c5c); }
-        .tm-reader-actions { display: flex; align-items: center; gap: 8px; }
-        .tm-reader-actions .tm-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #ccc; background: #f7f7f7; cursor: pointer; font-size: 14px; }
-        .tm-reader-actions .tm-btn.active { background: var(--tm-reader-text, #222); color: var(--tm-reader-bg, #fff); border-color: var(--tm-reader-text, #222); }
-        .tm-reader-body { flex: 1; display: flex; overflow: hidden; }
-        .tm-reader-toc { width: 280px; background: var(--tm-reader-surface, #f1ede4); border-right: 1px solid var(--tm-reader-border, rgba(0,0,0,0.08)); overflow-y: auto; }
-        .tm-reader-toc.hidden { display: none; }
-        .tm-reader-toc-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--tm-reader-border, rgba(0,0,0,0.05)); font-size: 14px; }
-        .tm-reader-toc-item:hover { background: var(--tm-reader-hover, rgba(0,0,0,0.04)); }
-        .tm-reader-toc-item.active { background: var(--tm-reader-active, rgba(0,0,0,0.08)); font-weight: 600; }
-        .tm-reader-content { flex: 1; overflow-y: auto; padding: 24px var(--tm-reader-padding-x, 28px); }
-        .tm-reader-content h2 { margin: 0 0 16px 0; font-size: 22px; }
-        .tm-reader-text { white-space: pre-wrap; font-size: var(--tm-reader-font-size, 18px); line-height: var(--tm-reader-line-height, 1.9); text-align: var(--tm-reader-text-align, justify); }
-        .tm-reader-text p, .tm-reader-block-text p { margin: 0 0 calc(var(--tm-reader-line-height, 1.9) * 1em) 0; }
-        .tm-reader-block { margin-bottom: 28px; }
-        .tm-reader-sep { margin: 24px 0 12px; text-align: center; color: var(--tm-reader-muted, #6b6b6b); font-size: 13px; }
-        .tm-reader-block-title { margin: 0 0 12px 0; font-size: 20px; font-weight: 700; text-align: var(--tm-reader-text-align, justify); }
+        .tm-reader-overlay {
+            position: fixed; inset: 0; z-index: 2147483646; width: 100vw; height: 100vh; height: 100dvh;
+            max-width: 100vw; max-height: 100dvh; overflow: hidden; display: flex; flex-direction: column;
+            background:
+                radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--tm-reader-text, #1f1f1f) 7%, transparent), transparent 34%),
+                radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--tm-reader-text, #1f1f1f) 5%, transparent), transparent 36%),
+                var(--tm-reader-bg, #f7f4ee);
+            color: var(--tm-reader-text, #1f1f1f);
+            font-family: var(--tm-reader-font, "Noto Serif", "Times New Roman", serif);
+            --tm-reader-safe-top: env(safe-area-inset-top, 0px);
+            --tm-reader-safe-right: env(safe-area-inset-right, 0px);
+            --tm-reader-safe-bottom: env(safe-area-inset-bottom, 0px);
+            --tm-reader-safe-left: env(safe-area-inset-left, 0px);
+        }
+        .tm-reader-overlay, .tm-reader-overlay * { box-sizing: border-box; }
+        .tm-reader-header, .tm-reader-footer {
+            flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            margin: 6px; padding: 7px 10px; border: 1px solid var(--tm-reader-border, rgba(0,0,0,0.12));
+            border-radius: 12px; background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 82%, transparent);
+            backdrop-filter: blur(10px); box-shadow: 0 8px 22px rgba(0,0,0,0.08);
+        }
+        .tm-reader-header { align-items: flex-start; padding-top: max(7px, calc(var(--tm-reader-safe-top) + 5px)); }
+        .tm-reader-title { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .tm-reader-book { overflow-wrap: anywhere; word-break: break-word; font-size: clamp(18px, 2.1vw, 26px); line-height: 1.16; font-weight: 800; }
+        .tm-reader-chapter { font-size: 12px; color: var(--tm-reader-muted, #5c5c5c); }
+        .tm-reader-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 5px; min-width: 0; }
+        .tm-reader-overlay .tm-btn {
+            min-height: 30px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--tm-reader-border, #ccc);
+            background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 72%, transparent);
+            color: var(--tm-reader-text, #1f1f1f); cursor: pointer; font-size: 12px; line-height: 1.1;
+            touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+        }
+        .tm-reader-overlay .tm-btn:hover { background: var(--tm-reader-hover, rgba(0,0,0,0.06)); }
+        .tm-reader-overlay .tm-btn.active { background: var(--tm-reader-text, #222); color: var(--tm-reader-bg, #fff); border-color: var(--tm-reader-text, #222); }
+        .tm-reader-overlay .tm-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+        .tm-reader-close-btn { min-width: 44px; font-weight: 800; }
+        .tm-reader-body { flex: 1 1 auto; min-height: 0; display: flex; padding: 0 6px; overflow: hidden; }
+        .tm-reader-viewport { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
+        .tm-reader-content {
+            flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+            padding: clamp(12px, 2vw, 20px) var(--tm-reader-padding-x, 18px);
+            border: 1px solid color-mix(in srgb, var(--tm-reader-border, #ccc) 70%, transparent);
+            border-radius: 12px; background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 18%, transparent);
+            scroll-behavior: smooth;
+            -webkit-user-select: text; user-select: text;
+        }
+        .tm-reader-text, .tm-reader-block-text, .tm-reader-text *, .tm-reader-block-text * { -webkit-user-select: text; user-select: text; }
+        .tm-reader-header, .tm-reader-footer, .tm-reader-toc-drawer, .tm-reader-mini-head, .tm-reader-mini-foot { -webkit-user-select: none; user-select: none; }
+        .tm-reader-content h2 { width: 100%; margin: 0 0 12px; font-size: clamp(20px, 3vw, 28px); line-height: 1.22; }
+        .tm-reader-text { width: 100%; margin: 0; white-space: pre-wrap; font-size: var(--tm-reader-font-size, 18px); line-height: var(--tm-reader-line-height, 1.9); text-align: var(--tm-reader-text-align, justify); }
+        .tm-reader-text p, .tm-reader-block-text p { margin: 0 0 var(--tm-reader-paragraph-spacing, 12px) 0; text-indent: var(--tm-reader-text-indent, 0em); }
+        .tm-reader-text p:last-child, .tm-reader-block-text p:last-child { margin-bottom: 0; }
+        .tm-reader-block { width: 100%; margin: 0 0 22px; }
+        .tm-reader-sep { margin: 16px 0 8px; text-align: center; color: var(--tm-reader-muted, #6b6b6b); font-size: 12px; }
+        .tm-reader-block-title { margin: 0 0 12px 0; font-size: clamp(20px, 3vw, 28px); line-height: 1.28; font-weight: 800; text-align: var(--tm-reader-text-align, justify); }
         .tm-reader-block-text { white-space: pre-wrap; font-size: var(--tm-reader-font-size, 18px); line-height: var(--tm-reader-line-height, 1.9); text-align: var(--tm-reader-text-align, justify); }
-        .tm-reader-spacer { height: var(--tm-reader-spacer, 120px); display: flex; align-items: center; justify-content: center; color: var(--tm-reader-muted, #6b6b6b); font-size: 12px; }
-        .tm-reader-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--tm-reader-border, rgba(0,0,0,0.08)); background: var(--tm-reader-surface, #fbf9f4); }
-        .tm-reader-footer .tm-btn { min-width: 140px; border-radius: 6px; border: 1px solid #ccc; background: #f7f7f7; cursor: pointer; font-size: 14px; padding: 8px 16px; }
-        .tm-reader-progress { font-size: 13px; color: var(--tm-reader-muted, #5c5c5c); }
+        .tm-reader-spacer { height: var(--tm-reader-spacer, 120px); display: flex; align-items: center; justify-content: center; color: var(--tm-reader-muted, #6b6b6b); font-size: 12px; text-align: center; }
+        .tm-reader-footer { padding-bottom: max(7px, calc(var(--tm-reader-safe-bottom) + 5px)); }
+        .tm-reader-footer .tm-btn { min-width: min(128px, 34vw); }
+        .tm-reader-progress { min-width: 110px; text-align: center; font-size: 12px; color: var(--tm-reader-muted, #5c5c5c); }
         .tm-reader-no-translate #tm-reader-raw-btn,
         .tm-reader-no-translate #tm-reader-trans-btn { display: none; }
-        .tm-reader-fullscreen .tm-reader-header,
-        .tm-reader-fullscreen .tm-reader-footer,
-        .tm-reader-fullscreen .tm-reader-toc { display: none; }
-        .tm-reader-fullscreen .tm-reader-content { padding: 28px var(--tm-reader-padding-x, 10vw); }
-        .tm-reader-overlay .tm-btn { background: transparent; color: var(--tm-reader-text, #1f1f1f); border-color: var(--tm-reader-border, #ccc); }
-        .tm-reader-overlay .tm-btn:hover { background: var(--tm-reader-hover, rgba(0,0,0,0.06)); }
+        .tm-reader-backdrop {
+            position: fixed; inset: 0; z-index: 2147483650; background: rgba(0,0,0,0.38);
+            opacity: 0; pointer-events: none; transition: opacity 0.18s ease;
+        }
+        .tm-reader-backdrop.open { opacity: 1; pointer-events: auto; }
+        .tm-reader-toc-drawer {
+            position: fixed; top: 0; bottom: 0; left: 0; z-index: 2147483651; width: min(360px, 88vw);
+            display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+            border-right: 1px solid var(--tm-reader-border, rgba(0,0,0,0.12));
+            background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 96%, transparent);
+            color: var(--tm-reader-text, #1f1f1f); backdrop-filter: blur(14px);
+            box-shadow: 12px 0 32px rgba(0,0,0,0.18); transform: translateX(-102%);
+            transition: transform 0.22s ease;
+        }
+        .tm-reader-toc-drawer.open { transform: translateX(0); }
+        .tm-reader-drawer-head {
+            flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            padding: max(12px, calc(var(--tm-reader-safe-top) + 10px)) 14px 12px;
+            border-bottom: 1px solid var(--tm-reader-border, rgba(0,0,0,0.12)); background: inherit;
+        }
+        .tm-reader-drawer-head h3 { margin: 0; font-size: 16px; }
+        .tm-reader-toc-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px; }
+        .tm-reader-toc-item { padding: 11px 12px; cursor: pointer; border: 1px solid transparent; border-radius: 12px; font-size: 14px; line-height: 1.35; }
+        .tm-reader-toc-item:hover { background: var(--tm-reader-hover, rgba(0,0,0,0.04)); }
+        .tm-reader-toc-item.active { background: var(--tm-reader-active, rgba(0,0,0,0.08)); border-color: var(--tm-reader-border, rgba(0,0,0,0.12)); font-weight: 700; }
+        .tm-reader-mini-head, .tm-reader-mini-foot {
+            position: fixed; left: 0; right: 0;
+            z-index: 2147483649; display: flex; align-items: center; gap: 10px;
+            border: 1px solid color-mix(in srgb, var(--tm-reader-border, #ccc) 70%, transparent);
+            background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 76%, transparent);
+            color: var(--tm-reader-muted, #5c5c5c); backdrop-filter: blur(8px); pointer-events: none;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+        }
+        .tm-reader-mini-head[hidden], .tm-reader-mini-foot[hidden] { display: none !important; }
+        .tm-reader-mini-head {
+            top: 0; padding: max(2px, var(--tm-reader-safe-top)) max(9px, var(--tm-reader-safe-right)) 3px max(9px, var(--tm-reader-safe-left));
+            border-top: 0; border-radius: 0 0 12px 12px;
+        }
+        .tm-reader-mini-foot {
+            bottom: 0; justify-content: space-between;
+            padding: 3px max(9px, var(--tm-reader-safe-right)) max(2px, var(--tm-reader-safe-bottom)) max(9px, var(--tm-reader-safe-left));
+            border-bottom: 0; border-radius: 12px 12px 0 0;
+        }
+        .tm-reader-mini-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--tm-reader-text, #1f1f1f); }
+        .tm-reader-mini-item { white-space: nowrap; font-size: 11px; }
+        .tm-reader-mini-right { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+        .tm-reader-fullscreen .tm-reader-body { padding: 0; }
+        .tm-reader-fullscreen .tm-reader-content {
+            border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0;
+            padding: max(16px, calc(var(--tm-reader-safe-top) + 12px)) var(--tm-reader-padding-x, 18px) max(24px, calc(var(--tm-reader-safe-bottom) + 16px));
+            background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 12%, transparent);
+        }
+        .tm-reader-fullscreen .tm-reader-header, .tm-reader-fullscreen .tm-reader-footer {
+            position: fixed; left: max(8px, var(--tm-reader-safe-left)); right: max(8px, var(--tm-reader-safe-right));
+            z-index: 2147483653; margin: 0; transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+        .tm-reader-fullscreen .tm-reader-header { top: max(8px, var(--tm-reader-safe-top)); }
+        .tm-reader-fullscreen .tm-reader-footer { bottom: max(8px, var(--tm-reader-safe-bottom)); }
+        .tm-reader-fullscreen:not(.tm-reader-fullscreen-ui-visible) .tm-reader-header { opacity: 0; transform: translateY(-12px); pointer-events: none; }
+        .tm-reader-fullscreen:not(.tm-reader-fullscreen-ui-visible) .tm-reader-footer { opacity: 0; transform: translateY(12px); pointer-events: none; }
+        .tm-reader-fullscreen.tm-reader-mini-visible .tm-reader-content { padding-top: max(44px, calc(var(--tm-reader-safe-top) + 38px)); padding-bottom: max(52px, calc(var(--tm-reader-safe-bottom) + 44px)); }
         .tm-reader-overlay * { scrollbar-width: thin; scrollbar-color: var(--tm-reader-border, #999) transparent; }
         .tm-reader-overlay ::-webkit-scrollbar { width: 10px; height: 10px; }
         .tm-reader-overlay ::-webkit-scrollbar-track { background: transparent; }
@@ -507,6 +614,28 @@
         }
         .tm-reader-overlay ::-webkit-scrollbar-thumb:hover {
             background: color-mix(in srgb, var(--tm-reader-text, #555) 45%, transparent);
+        }
+        @media (max-width: 760px) {
+            .tm-reader-header { margin: 4px; padding: max(6px, calc(var(--tm-reader-safe-top) + 4px)) 7px 7px; flex-direction: column; align-items: stretch; }
+            .tm-reader-actions { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+            .tm-reader-actions .tm-btn { width: 100%; min-height: 30px; padding: 5px 6px; font-size: 11px; }
+            .tm-reader-book { font-size: 17px; }
+            .tm-reader-body { padding: 0; }
+            .tm-reader-content { border-left: 0; border-right: 0; border-radius: 0; padding: 12px var(--tm-reader-padding-x, 12px); }
+            .tm-reader-footer { margin: 4px; display: grid; grid-template-columns: 1fr 1fr; padding: 6px 7px max(6px, calc(var(--tm-reader-safe-bottom) + 4px)); }
+            .tm-reader-progress { grid-column: 1 / -1; order: -1; width: 100%; font-size: 11px; }
+            .tm-reader-footer .tm-btn { width: 100%; min-width: 0; }
+            .tm-reader-toc-drawer { width: 100vw; max-width: 100vw; }
+            .tm-reader-mini-head, .tm-reader-mini-foot { gap: 6px; }
+            .tm-reader-mini-head { padding: max(2px, var(--tm-reader-safe-top)) max(6px, var(--tm-reader-safe-right)) 2px max(6px, var(--tm-reader-safe-left)); }
+            .tm-reader-mini-foot { padding: 2px max(6px, var(--tm-reader-safe-right)) max(2px, var(--tm-reader-safe-bottom)) max(6px, var(--tm-reader-safe-left)); }
+            .tm-reader-mini-title, .tm-reader-mini-item { font-size: 10px; }
+            .tm-reader-fullscreen .tm-reader-header, .tm-reader-fullscreen .tm-reader-footer { left: max(4px, var(--tm-reader-safe-left)); right: max(4px, var(--tm-reader-safe-right)); border-radius: 10px; }
+        }
+        @media (max-width: 420px) {
+            .tm-reader-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .tm-reader-chapter { font-size: 12px; }
+            .tm-reader-text, .tm-reader-block-text { text-align: left; }
         }
         `;
         const styleEl = document.createElement('style');
@@ -793,6 +922,39 @@
         if (selectionEditBtn) selectionEditBtn.remove();
         selectionEditBtn = null;
     }
+    function cacheSelectionRange(range) {
+        if (!range || range.collapsed || !range.toString().trim()) return;
+        lastSelectionRange = range.cloneRange();
+        lastSelectionRange._textSnapshot = range.toString();
+    }
+    function scheduleSelectionEditButtonUpdate(delay = 80) {
+        if (selectionEditRefreshTimer) clearTimeout(selectionEditRefreshTimer);
+        selectionEditRefreshTimer = setTimeout(() => {
+            selectionEditRefreshTimer = null;
+            updateSelectionEditButton();
+        }, delay);
+    }
+    function activateSelectionEditButton(e) {
+        if (e) {
+            if (typeof e.preventDefault === 'function') e.preventDefault();
+            if (typeof e.stopPropagation === 'function') e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+        }
+        const now = Date.now();
+        if (now - selectionEditBtnLastActivation < 350) return;
+        selectionEditBtnLastActivation = now;
+        openEditModalForSelection();
+        hideSelectionEditButton();
+    }
+    function getSelectionRangeRect(range) {
+        if (!range) return null;
+        const rects = Array.from(range.getClientRects ? range.getClientRects() : [])
+            .filter(rect => rect && (rect.width > 0 || rect.height > 0));
+        if (rects.length > 0) {
+            return rects[0];
+        }
+        return range.getBoundingClientRect ? range.getBoundingClientRect() : null;
+    }
     function getSelectionContainer(range) {
         if (!range) return null;
         const node = range.commonAncestorContainer;
@@ -834,7 +996,7 @@
             hideSelectionEditButton();
             return;
         }
-        const rect = range.getBoundingClientRect();
+        const rect = getSelectionRangeRect(range);
         if (!rect || (rect.width === 0 && rect.height === 0)) {
             hideSelectionEditButton();
             return;
@@ -843,11 +1005,10 @@
             selectionEditBtn = document.createElement('div');
             selectionEditBtn.id = 'tm-selection-edit-btn';
             selectionEditBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg><span>Sửa tên</span>`;
-            selectionEditBtn.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                openEditModalForSelection();
-                hideSelectionEditButton();
-            });
+            selectionEditBtn.addEventListener('pointerdown', activateSelectionEditButton, { passive: false });
+            selectionEditBtn.addEventListener('touchstart', activateSelectionEditButton, { passive: false });
+            selectionEditBtn.addEventListener('mousedown', activateSelectionEditButton);
+            selectionEditBtn.addEventListener('click', activateSelectionEditButton);
             tmUIRoot.appendChild(selectionEditBtn);
         }
         const left = Math.min(window.innerWidth - 140, Math.max(8, rect.left + rect.width / 2 - 50));
@@ -858,15 +1019,19 @@
     document.addEventListener('selectionchange', () => {
         try {
             const sel = window.getSelection();
-            if (!sel || sel.rangeCount === 0) return;
+            if (!sel || sel.rangeCount === 0) {
+                scheduleSelectionEditButtonUpdate(80);
+                return;
+            }
             const r = sel.getRangeAt(0);
             if (r && !r.collapsed && r.toString().trim()) {
-                lastSelectionRange = r.cloneRange();
-                lastSelectionRange._textSnapshot = r.toString();
+                cacheSelectionRange(r);
             }
-            updateSelectionEditButton();
+            scheduleSelectionEditButtonUpdate(80);
         } catch (e) { /* ignore */ }
     });
+    document.addEventListener('mouseup', () => scheduleSelectionEditButtonUpdate(24));
+    document.addEventListener('touchend', () => scheduleSelectionEditButtonUpdate(120), { passive: true });
 
     document.addEventListener('click', function delegatedEditStyle(e) {
         const btn = e.target.closest('.tm-edit-style-btn') || e.target.closest('#editStyleBtn') || e.target.closest('[data-tm-action="edit-style"]');
@@ -3398,11 +3563,14 @@
                      Bật chế độ Sửa Tên (Edit Name)
                 </label>
                 <div id="tm-allow-copy-container" style="padding-left: 25px; margin-top: 8px;">
-                     <label class="tm-label" style="font-weight: normal;">
-                         <input type="checkbox" id="tm-allow-copy-checkbox" style="margin-right: 5px;" />
-                         Cho phép copy văn bản khi đang ở chế độ Sửa Tên
-                     </label>
-                </div>
+	                     <label class="tm-label" style="font-weight: normal;">
+	                         <input type="checkbox" id="tm-allow-copy-checkbox" style="margin-right: 5px;" />
+	                         Cho phép copy văn bản khi đang ở chế độ Sửa Tên
+	                     </label>
+                         <p style="font-size:12px; color:#a05a00; background:#fff3cd; padding:6px 8px; border-radius:4px; margin:6px 0 0;">
+                             <b>Lưu ý:</b> Allow Copy can thiệp khá gắt để phá chặn copy trên web cứng đầu. Trên mobile, nhất là khi đọc trong Thư viện, nó có thể làm thao tác tô đen không ổn định. Nếu chỉ cần Edit Name thì nên tắt mục này.
+                         </p>
+	                </div>
                 <p style="font-size:13px; color:#c0392b; background: #f9e3e3; padding: 5px; border-radius: 4px;">
                     <b>Cảnh báo:</b> Tính năng này cần bọc văn bản đã dịch trong thẻ <code>&lt;span&gt;</code>.
                     Điều này có thể làm một số trang web bị lỗi hiển thị hoặc hoạt động không đúng.
@@ -3498,12 +3666,20 @@
                         <label class="tm-label">Cỡ chữ</label>
                         <input id="tm-reader-font-size" type="number" min="12" max="40" class="tm-input" value="${config.readerStyle?.fontSize || 18}">
                     </div>
-                    <div class="tm-col">
-                        <label class="tm-label">Giãn dòng</label>
-                        <input id="tm-reader-line-height" type="number" step="0.1" min="1.2" max="3" class="tm-input" value="${config.readerStyle?.lineHeight || 1.9}">
-                    </div>
-                </div>
-                <div class="tm-row">
+	                    <div class="tm-col">
+	                        <label class="tm-label">Giãn dòng</label>
+	                        <input id="tm-reader-line-height" type="number" step="0.1" min="1.2" max="3" class="tm-input" value="${config.readerStyle?.lineHeight || 1.9}">
+	                    </div>
+		                    <div class="tm-col">
+		                        <label class="tm-label">Dãn đoạn (px)</label>
+		                        <input id="tm-reader-paragraph-spacing" type="number" min="0" max="80" class="tm-input" value="${config.readerStyle?.paragraphSpacing ?? 12}">
+		                    </div>
+		                    <div class="tm-col">
+		                        <label class="tm-label">Thụt dòng (em)</label>
+		                        <input id="tm-reader-indent" type="number" step="0.1" min="0" max="8" class="tm-input" value="${config.readerStyle?.textIndent ?? DEFAULT_CONFIG.readerStyle.textIndent}">
+		                    </div>
+		                </div>
+		                <div class="tm-row">
                     <div class="tm-col">
                         <label class="tm-label">Màu nền</label>
                         <input id="tm-reader-bg" type="color" class="tm-input" value="${config.readerStyle?.bgColor || '#f7f4ee'}">
@@ -3511,11 +3687,11 @@
                     <div class="tm-col">
                         <label class="tm-label">Màu chữ</label>
                         <input id="tm-reader-text-color" type="color" class="tm-input" value="${config.readerStyle?.textColor || '#1f1f1f'}">
-                    </div>
-                    <div class="tm-col">
-                        <label class="tm-label">Lề ngang</label>
-                        <input id="tm-reader-padding" type="number" min="0" max="120" class="tm-input" value="${config.readerStyle?.paddingX ?? 28}">
-                    </div>
+	                    </div>
+	                    <div class="tm-col">
+	                        <label class="tm-label">Lề hai bên (px)</label>
+	                        <input id="tm-reader-padding" type="number" min="0" max="240" class="tm-input" value="${config.readerStyle?.paddingX ?? 18}">
+	                    </div>
                     <div class="tm-col">
                         <label class="tm-label">Căn lề</label>
                         <select id="tm-reader-align" class="tm-select">
@@ -3749,11 +3925,31 @@
         const readerFontSelect = wrapper.querySelector('#tm-reader-font');
         const readerFontSizeInput = wrapper.querySelector('#tm-reader-font-size');
         const readerLineHeightInput = wrapper.querySelector('#tm-reader-line-height');
+        const readerParagraphSpacingInput = wrapper.querySelector('#tm-reader-paragraph-spacing');
+        const readerIndentInput = wrapper.querySelector('#tm-reader-indent');
         const readerBgInput = wrapper.querySelector('#tm-reader-bg');
         const readerTextColorInput = wrapper.querySelector('#tm-reader-text-color');
         const readerPaddingInput = wrapper.querySelector('#tm-reader-padding');
         const readerAlignSelect = wrapper.querySelector('#tm-reader-align');
         const readerResetBtn = wrapper.querySelector('#tm-reader-reset');
+
+        const readNumberInput = (selector, fallback, min, max, integer = false) => {
+            const raw = wrapper.querySelector(selector)?.value;
+            const n = integer ? parseInt(raw, 10) : parseFloat(raw);
+            if (!Number.isFinite(n)) return fallback;
+            return Math.min(max, Math.max(min, n));
+        };
+        const readReaderStyleFromUI = () => ({
+            fontFamily: wrapper.querySelector('#tm-reader-font')?.value || DEFAULT_CONFIG.readerStyle.fontFamily,
+            fontSize: readNumberInput('#tm-reader-font-size', DEFAULT_CONFIG.readerStyle.fontSize, 12, 40, true),
+            lineHeight: readNumberInput('#tm-reader-line-height', DEFAULT_CONFIG.readerStyle.lineHeight, 1.2, 3),
+            paragraphSpacing: readNumberInput('#tm-reader-paragraph-spacing', DEFAULT_CONFIG.readerStyle.paragraphSpacing, 0, 80, true),
+            textIndent: readNumberInput('#tm-reader-indent', DEFAULT_CONFIG.readerStyle.textIndent, 0, 8),
+            bgColor: wrapper.querySelector('#tm-reader-bg')?.value || DEFAULT_CONFIG.readerStyle.bgColor,
+            textColor: wrapper.querySelector('#tm-reader-text-color')?.value || DEFAULT_CONFIG.readerStyle.textColor,
+            paddingX: readNumberInput('#tm-reader-padding', DEFAULT_CONFIG.readerStyle.paddingX, 0, 240, true),
+            textAlign: wrapper.querySelector('#tm-reader-align')?.value || DEFAULT_CONFIG.readerStyle.textAlign
+        });
 
         if (libPrefetchRange && libPrefetchValue) {
             libPrefetchValue.textContent = `${libPrefetchRange.value}%`;
@@ -3767,6 +3963,8 @@
         if (readerFontSelect) readerFontSelect.value = config.readerStyle?.fontFamily || DEFAULT_CONFIG.readerStyle.fontFamily;
         if (readerFontSizeInput) readerFontSizeInput.value = config.readerStyle?.fontSize || DEFAULT_CONFIG.readerStyle.fontSize;
         if (readerLineHeightInput) readerLineHeightInput.value = config.readerStyle?.lineHeight || DEFAULT_CONFIG.readerStyle.lineHeight;
+        if (readerParagraphSpacingInput) readerParagraphSpacingInput.value = config.readerStyle?.paragraphSpacing ?? DEFAULT_CONFIG.readerStyle.paragraphSpacing;
+        if (readerIndentInput) readerIndentInput.value = config.readerStyle?.textIndent ?? DEFAULT_CONFIG.readerStyle.textIndent;
         if (readerBgInput) readerBgInput.value = config.readerStyle?.bgColor || DEFAULT_CONFIG.readerStyle.bgColor;
         if (readerTextColorInput) readerTextColorInput.value = config.readerStyle?.textColor || DEFAULT_CONFIG.readerStyle.textColor;
         if (readerPaddingInput) readerPaddingInput.value = config.readerStyle?.paddingX ?? DEFAULT_CONFIG.readerStyle.paddingX;
@@ -3779,6 +3977,8 @@
                 if (readerFontSelect) readerFontSelect.value = DEFAULT_CONFIG.readerStyle.fontFamily;
                 if (readerFontSizeInput) readerFontSizeInput.value = DEFAULT_CONFIG.readerStyle.fontSize;
                 if (readerLineHeightInput) readerLineHeightInput.value = DEFAULT_CONFIG.readerStyle.lineHeight;
+                if (readerParagraphSpacingInput) readerParagraphSpacingInput.value = DEFAULT_CONFIG.readerStyle.paragraphSpacing;
+                if (readerIndentInput) readerIndentInput.value = DEFAULT_CONFIG.readerStyle.textIndent;
                 if (readerBgInput) readerBgInput.value = DEFAULT_CONFIG.readerStyle.bgColor;
                 if (readerTextColorInput) readerTextColorInput.value = DEFAULT_CONFIG.readerStyle.textColor;
                 if (readerPaddingInput) readerPaddingInput.value = DEFAULT_CONFIG.readerStyle.paddingX;
@@ -4428,15 +4628,7 @@
             tempConfigCheck.readerMode = wrapper.querySelector('#tm-reader-mode')?.value || 'single';
             const readerFullscreenEl = wrapper.querySelector('#tm-reader-fullscreen');
             if (readerFullscreenEl) tempConfigCheck.readerFullscreen = !!readerFullscreenEl.checked;
-            tempConfigCheck.readerStyle = {
-                fontFamily: wrapper.querySelector('#tm-reader-font')?.value || DEFAULT_CONFIG.readerStyle.fontFamily,
-                fontSize: parseInt(wrapper.querySelector('#tm-reader-font-size')?.value, 10) || DEFAULT_CONFIG.readerStyle.fontSize,
-                lineHeight: parseFloat(wrapper.querySelector('#tm-reader-line-height')?.value) || DEFAULT_CONFIG.readerStyle.lineHeight,
-                bgColor: wrapper.querySelector('#tm-reader-bg')?.value || DEFAULT_CONFIG.readerStyle.bgColor,
-                textColor: wrapper.querySelector('#tm-reader-text-color')?.value || DEFAULT_CONFIG.readerStyle.textColor,
-                paddingX: Math.max(0, parseInt(wrapper.querySelector('#tm-reader-padding')?.value, 10) || DEFAULT_CONFIG.readerStyle.paddingX),
-                textAlign: wrapper.querySelector('#tm-reader-align')?.value || DEFAULT_CONFIG.readerStyle.textAlign
-            };
+            tempConfigCheck.readerStyle = readReaderStyleFromUI();
 
             const provider = serverProviderSelect.value;
             const tempEndpoints = { ...tempConfigCheck.serverEndpoints };
@@ -4514,15 +4706,7 @@
             config.readerMode = wrapper.querySelector('#tm-reader-mode')?.value || 'single';
             const saveReaderFullscreenEl = wrapper.querySelector('#tm-reader-fullscreen');
             if (saveReaderFullscreenEl) config.readerFullscreen = !!saveReaderFullscreenEl.checked;
-            config.readerStyle = {
-                fontFamily: wrapper.querySelector('#tm-reader-font')?.value || DEFAULT_CONFIG.readerStyle.fontFamily,
-                fontSize: parseInt(wrapper.querySelector('#tm-reader-font-size')?.value, 10) || DEFAULT_CONFIG.readerStyle.fontSize,
-                lineHeight: parseFloat(wrapper.querySelector('#tm-reader-line-height')?.value) || DEFAULT_CONFIG.readerStyle.lineHeight,
-                bgColor: wrapper.querySelector('#tm-reader-bg')?.value || DEFAULT_CONFIG.readerStyle.bgColor,
-                textColor: wrapper.querySelector('#tm-reader-text-color')?.value || DEFAULT_CONFIG.readerStyle.textColor,
-                paddingX: Math.max(0, parseInt(wrapper.querySelector('#tm-reader-padding')?.value, 10) || DEFAULT_CONFIG.readerStyle.paddingX),
-                textAlign: wrapper.querySelector('#tm-reader-align')?.value || DEFAULT_CONFIG.readerStyle.textAlign
-            };
+            config.readerStyle = readReaderStyleFromUI();
             // Advanced
             config.serverEndpoints = { ...serverEndpointsState };
             config.serverUrl = config.serverEndpoints.dichngay || SERVER_PROVIDER_DEFAULTS.dichngay;
@@ -7021,6 +7205,533 @@
         }).join('\n');
     }
 
+    function libClampExportNumber(value, fallback, min, max) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return fallback;
+        return Math.max(min, Math.min(max, n));
+    }
+
+    function libSafeExportColor(value, fallback) {
+        const color = String(value || '').trim();
+        return /^#[0-9a-f]{6}$/i.test(color) ? color : fallback;
+    }
+
+    function libJsonForHtml(value) {
+        return JSON.stringify(value)
+            .replace(/</g, '\\u003c')
+            .replace(/>/g, '\\u003e')
+            .replace(/&/g, '\\u0026')
+            .replace(/\u2028/g, '\\u2028')
+            .replace(/\u2029/g, '\\u2029');
+    }
+
+    function libBuildReaderExportHtml(book, exportBookTitle, exportChapters, style) {
+        const baseStyle = style || DEFAULT_CONFIG.readerStyle;
+        const htmlDefaultPaddingX = 30;
+        const title = exportBookTitle || book?.title || 'Untitled';
+        const safeTitle = escapeHtml(title);
+        const exportStyle = {
+            fontFamily: baseStyle.fontFamily || DEFAULT_CONFIG.readerStyle.fontFamily,
+            fontSize: libClampExportNumber(baseStyle.fontSize, DEFAULT_CONFIG.readerStyle.fontSize, 12, 40),
+            lineHeight: libClampExportNumber(baseStyle.lineHeight, DEFAULT_CONFIG.readerStyle.lineHeight, 1.2, 3),
+            paragraphSpacing: libClampExportNumber(baseStyle.paragraphSpacing, DEFAULT_CONFIG.readerStyle.paragraphSpacing, 0, 80),
+            textIndent: libClampExportNumber(baseStyle.textIndent, DEFAULT_CONFIG.readerStyle.textIndent, 0, 8),
+            bgColor: libSafeExportColor(baseStyle.bgColor, DEFAULT_CONFIG.readerStyle.bgColor),
+            textColor: libSafeExportColor(baseStyle.textColor, DEFAULT_CONFIG.readerStyle.textColor),
+            paddingX: libClampExportNumber(
+                baseStyle.paddingX === DEFAULT_CONFIG.readerStyle.paddingX ? htmlDefaultPaddingX : baseStyle.paddingX,
+                htmlDefaultPaddingX,
+                0,
+                240
+            ),
+            textAlign: ['left', 'right', 'justify', 'center'].includes(baseStyle.textAlign) ? baseStyle.textAlign : DEFAULT_CONFIG.readerStyle.textAlign
+        };
+        const storageKey = `tm-export-reader:${libHashString(`${book?.bookId || ''}|${title}|${exportChapters.length}`)}`;
+        const payload = libJsonForHtml({
+            title,
+            author: book?.author || '',
+            bookId: book?.bookId || storageKey,
+            storageKey,
+            exportedAt: new Date().toISOString(),
+            style: exportStyle,
+            chapters: exportChapters.map((ch, idx) => ({
+                title: ch.title || `Chương ${idx + 1}`,
+                text: libNormalizeChapterParagraphBreaks(ch.text || '')
+            }))
+        });
+
+        return `<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>${safeTitle}</title>
+<style>
+:root {
+  --bg: ${exportStyle.bgColor};
+  --text: ${exportStyle.textColor};
+  --surface: color-mix(in srgb, var(--bg) 88%, white 12%);
+  --surface-soft: color-mix(in srgb, var(--bg) 78%, transparent);
+  --border: color-mix(in srgb, var(--text) 18%, transparent);
+  --muted: color-mix(in srgb, var(--text) 56%, transparent);
+  --accent: #0f7cff;
+  --font-family: ${exportStyle.fontFamily};
+  --font-size: ${exportStyle.fontSize}px;
+  --line-height: ${exportStyle.lineHeight};
+  --paragraph-spacing: ${exportStyle.paragraphSpacing}px;
+  --text-indent: ${exportStyle.textIndent}em;
+  --side-padding: ${exportStyle.paddingX}px;
+  --text-align: ${exportStyle.textAlign};
+  color-scheme: light dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-family);
+  overflow: hidden;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.tmx-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; min-height: 0; }
+.tmx-header, .tmx-footer {
+  flex: 0 0 auto; margin: 8px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(10px); box-shadow: 0 10px 24px rgba(0,0,0,.10);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.tmx-title { min-width: 0; }
+.tmx-title h1 { margin: 0; font-size: clamp(18px, 3vw, 30px); line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tmx-title small, .tmx-progress { color: var(--muted); font-size: 12px; }
+.tmx-actions, .tmx-footer-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tmx-btn {
+  min-height: 34px; padding: 7px 13px; border: 1px solid var(--border); border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--text);
+}
+.tmx-btn:hover { border-color: color-mix(in srgb, var(--accent) 72%, var(--border)); }
+.tmx-btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.tmx-btn:disabled { opacity: .45; cursor: not-allowed; }
+.tmx-scroll {
+  flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain;
+  padding: 16px var(--side-padding) 84px;
+}
+.tmx-chapter {
+  width: 100%; max-width: none; margin: 0; padding: clamp(18px, 4vw, 42px) 0;
+}
+.tmx-chapter h2 { margin: 0 0 1.1em; font-size: clamp(22px, 4vw, 38px); line-height: 1.18; }
+.tmx-content p {
+  margin: 0 0 var(--paragraph-spacing); font-size: var(--font-size); line-height: var(--line-height);
+  text-align: var(--text-align); text-indent: var(--text-indent); overflow-wrap: break-word;
+}
+.tmx-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.28); opacity: 0; pointer-events: none;
+  transition: opacity .18s ease; z-index: 20;
+}
+.tmx-backdrop.open { opacity: 1; pointer-events: auto; }
+.tmx-drawer {
+  position: fixed; top: 0; bottom: 0; z-index: 21; width: min(390px, 92vw);
+  background: color-mix(in srgb, var(--surface) 96%, transparent); color: var(--text);
+  border: 1px solid var(--border); backdrop-filter: blur(14px); box-shadow: 0 24px 60px rgba(0,0,0,.25);
+  display: flex; flex-direction: column; min-height: 0; transition: transform .2s ease;
+}
+.tmx-drawer.left { left: 0; transform: translateX(-102%); border-radius: 0 18px 18px 0; }
+.tmx-drawer.right { right: 0; transform: translateX(102%); border-radius: 18px 0 0 18px; }
+.tmx-drawer.open { transform: translateX(0); }
+.tmx-drawer-head { padding: max(12px, env(safe-area-inset-top)) 14px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tmx-drawer-head h3 { margin: 0; font-size: 16px; }
+.tmx-drawer-body { padding: 10px; overflow: auto; min-height: 0; }
+.tmx-toc-item {
+  width: 100%; text-align: left; padding: 10px 11px; margin: 0 0 6px; border: 1px solid transparent;
+  border-radius: 12px; background: transparent;
+}
+.tmx-toc-item.active { border-color: var(--border); background: color-mix(in srgb, var(--text) 8%, transparent); font-weight: 700; }
+.tmx-setting { display: grid; gap: 6px; margin-bottom: 13px; }
+.tmx-setting label { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.tmx-setting input, .tmx-setting select {
+  width: 100%; min-height: 34px; border: 1px solid var(--border); border-radius: 10px; padding: 5px 8px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+body.tmx-fullscreen .tmx-header, body.tmx-fullscreen .tmx-footer {
+  position: fixed; left: 0; right: 0; margin: 0; z-index: 15; border-left: 0; border-right: 0;
+  border-radius: 0; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right));
+  transition: opacity .18s ease, transform .18s ease;
+}
+body.tmx-fullscreen .tmx-header { top: 0; padding-top: max(6px, env(safe-area-inset-top)); border-top: 0; border-radius: 0 0 12px 12px; }
+body.tmx-fullscreen .tmx-footer { bottom: 0; padding-bottom: max(6px, env(safe-area-inset-bottom)); border-bottom: 0; border-radius: 12px 12px 0 0; }
+body.tmx-fullscreen:not(.tmx-ui-visible) .tmx-header { opacity: 0; transform: translateY(-12px); pointer-events: none; }
+body.tmx-fullscreen:not(.tmx-ui-visible) .tmx-footer { opacity: 0; transform: translateY(12px); pointer-events: none; }
+body.tmx-fullscreen .tmx-scroll {
+  height: 100vh; height: 100dvh;
+  padding-top: max(46px, calc(env(safe-area-inset-top) + 40px));
+  padding-bottom: max(58px, calc(env(safe-area-inset-bottom) + 48px));
+}
+@media (max-width: 720px) {
+  .tmx-header { align-items: stretch; flex-direction: column; padding: 7px 8px; }
+  .tmx-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 5px; }
+  .tmx-btn { min-height: 31px; padding: 6px 8px; font-size: 12px; }
+  .tmx-footer { margin: 6px; padding: 6px 8px; }
+  .tmx-progress { order: -1; width: 100%; text-align: center; }
+  .tmx-scroll { padding: 10px var(--side-padding) 78px; }
+  .tmx-content p { text-align: left; }
+}
+</style>
+</head>
+<body>
+<div class="tmx-shell">
+  <header class="tmx-header">
+    <div class="tmx-title">
+      <h1 id="book-title"></h1>
+      <small id="chapter-sub"></small>
+    </div>
+    <div class="tmx-actions">
+      <button id="btn-toc" class="tmx-btn" type="button">Mục lục</button>
+      <button id="btn-settings" class="tmx-btn" type="button">Cài đặt</button>
+      <button id="btn-fullscreen" class="tmx-btn primary" type="button">Fullscreen</button>
+    </div>
+  </header>
+  <main id="reader-scroll" class="tmx-scroll">
+    <article class="tmx-chapter">
+      <h2 id="chapter-title"></h2>
+      <div id="chapter-content" class="tmx-content"></div>
+    </article>
+  </main>
+  <footer class="tmx-footer">
+    <div class="tmx-footer-actions">
+      <button id="btn-prev" class="tmx-btn" type="button">← Chương trước</button>
+    </div>
+    <div id="progress" class="tmx-progress"></div>
+    <div class="tmx-footer-actions">
+      <button id="btn-next" class="tmx-btn" type="button">Chương sau →</button>
+    </div>
+  </footer>
+</div>
+<div id="backdrop" class="tmx-backdrop"></div>
+<aside id="toc-drawer" class="tmx-drawer left" aria-hidden="true">
+  <div class="tmx-drawer-head"><h3>Mục lục</h3><button class="tmx-btn" data-close-drawer type="button">Đóng</button></div>
+  <div id="toc-list" class="tmx-drawer-body"></div>
+</aside>
+<aside id="settings-drawer" class="tmx-drawer right" aria-hidden="true">
+  <div class="tmx-drawer-head"><h3>Cài đặt đọc</h3><button class="tmx-btn" data-close-drawer type="button">Đóng</button></div>
+  <div class="tmx-drawer-body">
+    <div class="tmx-setting"><label for="setting-font">Font chữ</label><select id="setting-font">
+      <option value="Noto Serif, 'Times New Roman', serif">Noto Serif</option>
+      <option value="'Times New Roman', Times, serif">Times New Roman</option>
+      <option value="Georgia, serif">Georgia</option>
+      <option value="Arial, sans-serif">Arial</option>
+      <option value="system-ui, sans-serif">Sans hệ thống</option>
+    </select></div>
+    <div class="tmx-setting"><label for="setting-size">Cỡ chữ <span id="value-size"></span></label><input id="setting-size" type="range" min="12" max="40" step="1"></div>
+    <div class="tmx-setting"><label for="setting-line">Dãn dòng <span id="value-line"></span></label><input id="setting-line" type="range" min="1.2" max="3" step="0.05"></div>
+    <div class="tmx-setting"><label for="setting-para">Dãn đoạn <span id="value-para"></span></label><input id="setting-para" type="range" min="0" max="80" step="1"></div>
+    <div class="tmx-setting"><label for="setting-indent">Thụt dòng <span id="value-indent"></span></label><input id="setting-indent" type="range" min="0" max="8" step="0.1"></div>
+    <div class="tmx-setting"><label for="setting-padding">Lề hai bên <span id="value-padding"></span></label><input id="setting-padding" type="range" min="0" max="240" step="2"></div>
+    <div class="tmx-setting"><label for="setting-align">Căn chữ</label><select id="setting-align"><option value="justify">Đều hai bên</option><option value="left">Trái</option><option value="right">Phải</option><option value="center">Giữa</option></select></div>
+    <div class="tmx-setting"><label for="setting-bg">Màu nền</label><input id="setting-bg" type="color"></div>
+    <div class="tmx-setting"><label for="setting-text">Màu chữ</label><input id="setting-text" type="color"></div>
+    <button id="btn-reset-settings" class="tmx-btn" type="button">Khôi phục mặc định</button>
+  </div>
+</aside>
+<script>
+(() => {
+  const DATA = ${payload};
+  const STORAGE_KEY = (DATA.storageKey || "tm-export-reader") + ":settings";
+  const POSITION_KEY = (DATA.storageKey || "tm-export-reader") + ":position";
+  const DEFAULTS = Object.assign({}, DATA.style || {});
+  const state = {
+    index: 0,
+    settings: Object.assign({}, DEFAULTS),
+    saveTimer: 0,
+    uiTimer: 0,
+    fullscreenFallback: false
+  };
+  const byId = (id) => document.getElementById(id);
+  const els = {
+    body: document.body,
+    root: document.documentElement,
+    bookTitle: byId("book-title"),
+    chapterSub: byId("chapter-sub"),
+    chapterTitle: byId("chapter-title"),
+    content: byId("chapter-content"),
+    scroll: byId("reader-scroll"),
+    progress: byId("progress"),
+    prev: byId("btn-prev"),
+    next: byId("btn-next"),
+    tocBtn: byId("btn-toc"),
+    settingsBtn: byId("btn-settings"),
+    fullscreenBtn: byId("btn-fullscreen"),
+    tocDrawer: byId("toc-drawer"),
+    settingsDrawer: byId("settings-drawer"),
+    tocList: byId("toc-list"),
+    backdrop: byId("backdrop")
+  };
+  function clamp(value, min, max, fallback) {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
+  }
+  function escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+  function readJson(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+  function writeJson(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (_error) {}
+  }
+  function normalizeText(text) {
+    return String(text || "").replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n")
+      .replace(/[ \\t]+\\n/g, "\\n").replace(/\\n[ \\t]+/g, "\\n").replace(/\\n{2,}/g, "\\n").trim();
+  }
+  function renderParagraphs(text) {
+    const lines = normalizeText(text).split(/\\n+/).filter((line) => line.trim());
+    if (!lines.length) return "<p>Chương trống.</p>";
+    return lines.map((line) => "<p>" + escapeHtml(line) + "</p>").join("");
+  }
+  function currentRatio() {
+    const max = els.scroll.scrollHeight - els.scroll.clientHeight;
+    return max > 0 ? Math.max(0, Math.min(1, els.scroll.scrollTop / max)) : 0;
+  }
+  function savePositionNow() {
+    window.clearTimeout(state.saveTimer);
+    state.saveTimer = 0;
+    writeJson(POSITION_KEY, { index: state.index, ratio: currentRatio(), updatedAt: Date.now() });
+  }
+  function savePositionSoon() {
+    window.clearTimeout(state.saveTimer);
+    state.saveTimer = window.setTimeout(savePositionNow, 250);
+  }
+  function applySettings(save) {
+    const s = state.settings;
+    s.fontSize = clamp(s.fontSize, 12, 40, DEFAULTS.fontSize || 18);
+    s.lineHeight = clamp(s.lineHeight, 1.2, 3, DEFAULTS.lineHeight || 1.9);
+    s.paragraphSpacing = clamp(s.paragraphSpacing, 0, 80, DEFAULTS.paragraphSpacing || 12);
+    s.textIndent = clamp(s.textIndent, 0, 8, Number.isFinite(Number(DEFAULTS.textIndent)) ? Number(DEFAULTS.textIndent) : 0);
+    s.paddingX = clamp(s.paddingX, 0, 240, DEFAULTS.paddingX || 18);
+    if (!["left", "right", "justify", "center"].includes(s.textAlign)) s.textAlign = DEFAULTS.textAlign || "justify";
+    els.root.style.setProperty("--font-family", s.fontFamily || DEFAULTS.fontFamily || "serif");
+    els.root.style.setProperty("--font-size", s.fontSize + "px");
+    els.root.style.setProperty("--line-height", String(s.lineHeight));
+    els.root.style.setProperty("--paragraph-spacing", s.paragraphSpacing + "px");
+    els.root.style.setProperty("--text-indent", s.textIndent + "em");
+    els.root.style.setProperty("--side-padding", s.paddingX + "px");
+    els.root.style.setProperty("--text-align", s.textAlign);
+    if (/^#[0-9a-f]{6}$/i.test(String(s.bgColor || ""))) els.root.style.setProperty("--bg", s.bgColor);
+    if (/^#[0-9a-f]{6}$/i.test(String(s.textColor || ""))) els.root.style.setProperty("--text", s.textColor);
+    syncSettingsForm();
+    if (save) writeJson(STORAGE_KEY, s);
+  }
+  function syncSettingsForm() {
+    const s = state.settings;
+    const setValue = (id, value) => {
+      const el = byId(id);
+      if (el) el.value = value;
+    };
+    setValue("setting-font", s.fontFamily || "");
+    setValue("setting-size", s.fontSize);
+    setValue("setting-line", s.lineHeight);
+    setValue("setting-para", s.paragraphSpacing);
+    setValue("setting-indent", s.textIndent);
+    setValue("setting-padding", s.paddingX);
+    setValue("setting-align", s.textAlign);
+    setValue("setting-bg", s.bgColor || DEFAULTS.bgColor || "#f7f4ee");
+    setValue("setting-text", s.textColor || DEFAULTS.textColor || "#1f1f1f");
+    const setText = (id, value) => {
+      const el = byId(id);
+      if (el) el.textContent = value;
+    };
+    setText("value-size", s.fontSize + "px");
+    setText("value-line", Number(s.lineHeight).toFixed(2));
+    setText("value-para", s.paragraphSpacing + "px");
+    setText("value-indent", Number(s.textIndent).toFixed(1) + "em");
+    setText("value-padding", s.paddingX + "px");
+  }
+  function updateProgress() {
+    const total = Math.max(1, DATA.chapters.length);
+    const percent = (((state.index) + currentRatio()) / total) * 100;
+    els.chapterSub.textContent = "Chương " + (state.index + 1) + " / " + total;
+    els.progress.textContent = "Chương " + (state.index + 1) + " / " + total + " · " + percent.toFixed(1) + "%";
+  }
+  function renderToc() {
+    els.tocList.innerHTML = DATA.chapters.map((chapter, idx) => {
+      const active = idx === state.index ? " active" : "";
+      return '<button class="tmx-toc-item' + active + '" type="button" data-index="' + idx + '">' + escapeHtml(chapter.title || ("Chương " + (idx + 1))) + "</button>";
+    }).join("");
+    els.tocList.querySelectorAll(".tmx-toc-item").forEach((button) => {
+      button.addEventListener("click", () => {
+        goTo(Number(button.getAttribute("data-index") || 0), false);
+        closeDrawers();
+      });
+    });
+  }
+  function renderChapter(restore) {
+    const chapter = DATA.chapters[state.index] || {};
+    els.bookTitle.textContent = DATA.title || "Untitled";
+    els.chapterTitle.textContent = chapter.title || ("Chương " + (state.index + 1));
+    els.content.innerHTML = renderParagraphs(chapter.text || "");
+    els.prev.disabled = state.index <= 0;
+    els.next.disabled = state.index >= DATA.chapters.length - 1;
+    renderToc();
+    updateProgress();
+    if (restore) {
+      const pos = readJson(POSITION_KEY);
+      const ratio = pos && Number(pos.index) === state.index ? clamp(pos.ratio, 0, 1, 0) : 0;
+      requestAnimationFrame(() => {
+        const max = els.scroll.scrollHeight - els.scroll.clientHeight;
+        els.scroll.scrollTop = max > 0 ? Math.floor(max * ratio) : 0;
+        updateProgress();
+      });
+    } else {
+      els.scroll.scrollTop = 0;
+      savePositionNow();
+    }
+  }
+  function goTo(index, restore) {
+    if (index < 0 || index >= DATA.chapters.length) return;
+    savePositionNow();
+    state.index = index;
+    renderChapter(Boolean(restore));
+  }
+  function go(offset) {
+    goTo(state.index + offset, false);
+  }
+  function openDrawer(which) {
+    closeDrawers();
+    const drawer = which === "settings" ? els.settingsDrawer : els.tocDrawer;
+    drawer.classList.add("open");
+    drawer.setAttribute("aria-hidden", "false");
+    els.backdrop.classList.add("open");
+  }
+  function closeDrawers() {
+    [els.tocDrawer, els.settingsDrawer].forEach((drawer) => {
+      drawer.classList.remove("open");
+      drawer.setAttribute("aria-hidden", "true");
+    });
+    els.backdrop.classList.remove("open");
+  }
+  function isFullscreenActive() {
+    return Boolean(document.fullscreenElement) || state.fullscreenFallback;
+  }
+  function setFullscreenUiVisible(visible, autoHideMs) {
+    window.clearTimeout(state.uiTimer);
+    els.body.classList.toggle("tmx-ui-visible", Boolean(visible));
+    if (visible && autoHideMs > 0) {
+      state.uiTimer = window.setTimeout(() => {
+        if (isFullscreenActive()) els.body.classList.remove("tmx-ui-visible");
+      }, autoHideMs);
+    }
+  }
+  function refreshFullscreen() {
+    if (document.fullscreenElement) state.fullscreenFallback = false;
+    const active = isFullscreenActive();
+    els.body.classList.toggle("tmx-fullscreen", active);
+    els.fullscreenBtn.textContent = active ? "Thoát full" : "Fullscreen";
+    setFullscreenUiVisible(active, active ? 2200 : 0);
+  }
+  async function toggleFullscreen() {
+    if (isFullscreenActive()) {
+      state.fullscreenFallback = false;
+      if (document.fullscreenElement) {
+        try { await document.exitFullscreen(); } catch (_error) {}
+      }
+      refreshFullscreen();
+      return;
+    }
+    try { await document.documentElement.requestFullscreen(); } catch (_error) {}
+    if (!document.fullscreenElement) await new Promise((resolve) => window.setTimeout(resolve, 80));
+    state.fullscreenFallback = !document.fullscreenElement;
+    refreshFullscreen();
+  }
+  function bindSetting(id, key, parser) {
+    const el = byId(id);
+    if (!el) return;
+    el.addEventListener("input", () => {
+      state.settings[key] = parser ? parser(el.value) : el.value;
+      applySettings(true);
+    });
+    el.addEventListener("change", () => {
+      state.settings[key] = parser ? parser(el.value) : el.value;
+      applySettings(true);
+    });
+  }
+  function initSettings() {
+    const saved = readJson(STORAGE_KEY);
+    if (saved && typeof saved === "object") state.settings = Object.assign({}, state.settings, saved);
+    applySettings(false);
+    bindSetting("setting-font", "fontFamily");
+    bindSetting("setting-size", "fontSize", Number);
+    bindSetting("setting-line", "lineHeight", Number);
+    bindSetting("setting-para", "paragraphSpacing", Number);
+    bindSetting("setting-indent", "textIndent", Number);
+    bindSetting("setting-padding", "paddingX", Number);
+    bindSetting("setting-align", "textAlign");
+    bindSetting("setting-bg", "bgColor");
+    bindSetting("setting-text", "textColor");
+    byId("btn-reset-settings").addEventListener("click", () => {
+      state.settings = Object.assign({}, DEFAULTS);
+      applySettings(true);
+    });
+  }
+  function initPosition() {
+    const pos = readJson(POSITION_KEY);
+    if (pos && Number.isFinite(Number(pos.index))) {
+      state.index = Math.max(0, Math.min(DATA.chapters.length - 1, Number(pos.index)));
+    }
+  }
+  initSettings();
+  initPosition();
+  renderChapter(true);
+  els.scroll.addEventListener("scroll", () => {
+    updateProgress();
+    savePositionSoon();
+  }, { passive: true });
+  els.scroll.addEventListener("click", (event) => {
+    if (!isFullscreenActive()) return;
+    if (event.target.closest("button,input,select,a,label")) return;
+    const sel = window.getSelection();
+    if (sel && sel.toString().trim()) return;
+    setFullscreenUiVisible(!els.body.classList.contains("tmx-ui-visible"), 2200);
+  });
+  els.prev.addEventListener("click", () => go(-1));
+  els.next.addEventListener("click", () => go(1));
+  els.tocBtn.addEventListener("click", () => openDrawer("toc"));
+  els.settingsBtn.addEventListener("click", () => openDrawer("settings"));
+  els.fullscreenBtn.addEventListener("click", toggleFullscreen);
+  els.backdrop.addEventListener("click", closeDrawers);
+  document.querySelectorAll("[data-close-drawer]").forEach((button) => button.addEventListener("click", closeDrawers));
+  document.addEventListener("fullscreenchange", refreshFullscreen);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeDrawers();
+      if (state.fullscreenFallback && !document.fullscreenElement) {
+        state.fullscreenFallback = false;
+        refreshFullscreen();
+      }
+    }
+    if (event.key === "ArrowLeft") go(-1);
+    if (event.key === "ArrowRight") go(1);
+  });
+  window.addEventListener("pagehide", savePositionNow);
+  window.addEventListener("beforeunload", savePositionNow);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") savePositionNow();
+  });
+})();
+</script>
+</body>
+</html>`;
+    }
+
     async function libResolveExportTitles(book, chapters) {
         config = loadConfig();
         const rawBookTitle = book?.title || 'Untitled';
@@ -7264,6 +7975,62 @@
         }
     }
 
+    async function libExportBookHtml(bookId) {
+        const book = libFindBookInIndex(bookId);
+        if (!book) {
+            showNotification('Không tìm thấy truyện.');
+            return;
+        }
+        const chapters = await libGetChaptersByBook(bookId);
+        if (!chapters.length) {
+            showNotification('Truyện chưa có chương.');
+            return;
+        }
+
+        const needsTranslate = await libCheckMissingTranslations(book, chapters);
+        let ensureTranslated = false;
+        if (needsTranslate) {
+            ensureTranslated = confirm('Có chương chưa có cache dịch. Dịch và cache trước khi xuất?');
+            if (!ensureTranslated) {
+                showNotification('Hủy xuất do thiếu cache dịch.');
+                return;
+            }
+        }
+
+        showNotification('Đang xuất HTML... Vui lòng chờ', 4000);
+        showLoading('Đang xuất HTML...');
+        try {
+            const cfg = loadConfig();
+            const { bookTitle: exportBookTitle, chapterTitles } = await libResolveExportTitles(book, chapters);
+            const exportChapters = [];
+            for (let i = 0; i < chapters.length; i++) {
+                const ch = chapters[i];
+                const title = chapterTitles[i] || ch.title || `Chương ${i + 1}`;
+                if (ensureTranslated && book.langSource === 'zh') {
+                    showLoading(`Đang dịch chương ${i + 1}/${chapters.length}...`);
+                }
+                const { text, translated } = await libGetExportTextForChapter(book, ch, ensureTranslated);
+                exportChapters.push({
+                    title,
+                    text: libNormalizeChapterParagraphBreaks(text || '')
+                });
+                if (ensureTranslated && book.langSource === 'zh' && translated && i < chapters.length - 1) {
+                    await sleep(cfg.delayMs || 0);
+                }
+            }
+            showLoading('Đang đóng gói HTML...');
+            const html = libBuildReaderExportHtml(book, exportBookTitle, exportChapters, cfg.readerStyle || DEFAULT_CONFIG.readerStyle);
+            const filename = `${libSafeFileName(exportBookTitle || book.title)}.html`;
+            libDownloadBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), filename);
+            showNotification('Đã xuất HTML.');
+        } catch (err) {
+            console.error(err);
+            showNotification('Xuất HTML thất bại.');
+        } finally {
+            removeLoading();
+        }
+    }
+
     async function libDeleteBook(bookId) {
         const book = libFindBookInIndex(bookId);
         if (!book) {
@@ -7393,7 +8160,7 @@
 
         chapters.forEach((ch, idx) => {
             const chapterTitle = normalizeTextForTranslation((ch.title || `Chương ${idx + 1}`).trim()) || `Chương ${idx + 1}`;
-            const chapterText = normalizeTextForTranslation(ch.text || '');
+            const chapterText = libNormalizeChapterParagraphBreaks(ch.text || '');
             const chapterId = libMakeChapterId(bookId, idx + 1, chapterTitle);
             const rawKey = libMakeRawKey(chapterId, chapterText);
             contentItems.push({
@@ -7553,6 +8320,13 @@
         let normalized = normalizeTextForTranslation(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         normalized = normalized.replace(/[ \t]+\n/g, '\n');
         normalized = normalized.replace(/\n{3,}/g, '\n\n');
+        return normalized.trim();
+    }
+
+    function libNormalizeChapterParagraphBreaks(text) {
+        let normalized = normalizeTextForTranslation(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        normalized = normalized.replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n');
+        normalized = normalized.replace(/\n{2,}/g, '\n');
         return normalized.trim();
     }
 
@@ -7852,6 +8626,7 @@
                 <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
                     <button class="tm-btn tm-lib-export-txt" data-book-id="${b.bookId}">Xuất TXT</button>
                     <button class="tm-btn tm-lib-export-epub" data-book-id="${b.bookId}">Xuất EPUB</button>
+                    <button class="tm-btn tm-lib-export-html" data-book-id="${b.bookId}">Xuất HTML<span class="tm-lib-export-badge">đề xuất</span></button>
                     <button class="tm-btn tm-lib-delete" data-book-id="${b.bookId}" style="border-color:#dc3545; color:#dc3545;">Xóa</button>
                 </div>
             </div>
@@ -7939,6 +8714,12 @@
                 if (bookId) await libExportBookEpub(bookId);
             });
         });
+        wrapper.querySelectorAll('.tm-lib-export-html').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const bookId = btn.getAttribute('data-book-id');
+                if (bookId) await libExportBookHtml(bookId);
+            });
+        });
         wrapper.querySelectorAll('.tm-lib-delete').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const bookId = btn.getAttribute('data-book-id');
@@ -7981,6 +8762,7 @@
     /* ================== READER UI (NEW) ================== */
     let libReaderState = null;
     let libReaderUI = null;
+    let libReaderGlobalEventsBound = false;
 
     async function libGetChaptersByBook(bookId) {
         let chapters = libLoadChaptersForBook(bookId);
@@ -8041,26 +8823,44 @@
                     <div id="tm-reader-chapter-sub" class="tm-reader-chapter"></div>
                 </div>
                 <div class="tm-reader-actions">
+                    <button id="tm-reader-toc-btn" class="tm-btn">Mục lục</button>
                     <button id="tm-reader-raw-btn" class="tm-btn">RAW</button>
                     <button id="tm-reader-trans-btn" class="tm-btn">DỊCH</button>
-                    <button id="tm-reader-fullscreen" class="tm-btn">Fullscreen</button>
                     <button id="tm-reader-settings" class="tm-btn">Cài đặt</button>
-                    <button id="tm-reader-toc-btn" class="tm-btn">Mục lục</button>
-                    <button id="tm-reader-close" class="tm-btn">×</button>
+                    <button id="tm-reader-fullscreen" class="tm-btn">Fullscreen</button>
+                    <button id="tm-reader-close" class="tm-btn tm-reader-close-btn">Thoát</button>
                 </div>
             </div>
             <div class="tm-reader-body">
-                <aside id="tm-reader-toc" class="tm-reader-toc"></aside>
-                <main class="tm-reader-content">
-                    <h2 id="tm-reader-chapter-title"></h2>
-                    <div id="tm-reader-text" class="tm-reader-text"></div>
-                </main>
+                <div class="tm-reader-viewport">
+                    <div id="tm-reader-mini-head" class="tm-reader-mini-head" aria-hidden="true" hidden>
+                        <div id="tm-reader-mini-title" class="tm-reader-mini-title"></div>
+                    </div>
+                    <main class="tm-reader-content">
+                        <h2 id="tm-reader-chapter-title"></h2>
+                        <div id="tm-reader-text" class="tm-reader-text"></div>
+                    </main>
+                    <div id="tm-reader-mini-foot" class="tm-reader-mini-foot" aria-hidden="true" hidden>
+                        <div id="tm-reader-mini-chapter" class="tm-reader-mini-item"></div>
+                        <div class="tm-reader-mini-right">
+                            <div id="tm-reader-mini-progress" class="tm-reader-mini-item"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="tm-reader-footer">
                 <button id="tm-reader-prev" class="tm-btn">← Chương trước</button>
                 <div id="tm-reader-progress" class="tm-reader-progress"></div>
                 <button id="tm-reader-next" class="tm-btn">Chương sau →</button>
             </div>
+            <div id="tm-reader-backdrop" class="tm-reader-backdrop" hidden></div>
+            <aside id="tm-reader-toc" class="tm-reader-toc-drawer" aria-hidden="true">
+                <div class="tm-reader-drawer-head">
+                    <h3>Mục lục</h3>
+                    <button id="tm-reader-toc-close" class="tm-btn">Đóng</button>
+                </div>
+                <div id="tm-reader-toc-list" class="tm-reader-toc-list"></div>
+            </aside>
         `;
         document.body.appendChild(root);
         removeFloatingButtons();
@@ -8072,8 +8872,16 @@
             chapterTitle: root.querySelector('#tm-reader-chapter-title'),
             contentWrap: root.querySelector('.tm-reader-content'),
             content: root.querySelector('#tm-reader-text'),
-            toc: root.querySelector('#tm-reader-toc'),
+            tocDrawer: root.querySelector('#tm-reader-toc'),
+            toc: root.querySelector('#tm-reader-toc-list'),
+            tocBackdrop: root.querySelector('#tm-reader-backdrop'),
+            btnTocClose: root.querySelector('#tm-reader-toc-close'),
             progress: root.querySelector('#tm-reader-progress'),
+            miniHead: root.querySelector('#tm-reader-mini-head'),
+            miniFoot: root.querySelector('#tm-reader-mini-foot'),
+            miniTitle: root.querySelector('#tm-reader-mini-title'),
+            miniChapter: root.querySelector('#tm-reader-mini-chapter'),
+            miniProgress: root.querySelector('#tm-reader-mini-progress'),
             btnPrev: root.querySelector('#tm-reader-prev'),
             btnNext: root.querySelector('#tm-reader-next'),
             btnRaw: root.querySelector('#tm-reader-raw-btn'),
@@ -8088,50 +8896,252 @@
         libReaderUI.btnPrev.addEventListener('click', () => libReaderGo(-1));
         libReaderUI.btnNext.addEventListener('click', () => libReaderGo(1));
         libReaderUI.btnToc.addEventListener('click', () => {
-            libReaderUI.toc.classList.toggle('hidden');
+            libReaderSetTocOpen(!libReaderUI.tocDrawer.classList.contains('open'));
         });
+        libReaderUI.btnTocClose.addEventListener('click', () => libReaderSetTocOpen(false));
+        libReaderUI.tocBackdrop.addEventListener('click', () => libReaderSetTocOpen(false));
         libReaderUI.btnRaw.addEventListener('click', () => libReaderSetMode('raw'));
         libReaderUI.btnTrans.addEventListener('click', () => libReaderSetMode('trans'));
-        libReaderUI.btnFullscreen.addEventListener('click', () => {
-            libReaderState = libReaderState || {};
-            libReaderState.fullscreen = !libReaderState.fullscreen;
-            libReaderApplySettings();
-            if (libReaderState.fullscreen) {
-                showNotification('Đã bật fullscreen. Nhấn ESC để thoát.');
-            }
-        });
+        libReaderUI.btnFullscreen.addEventListener('click', () => libReaderToggleFullscreen());
         libReaderUI.btnSettings.addEventListener('click', () => openSettingsUI('library'));
         if (libReaderUI.contentWrap) {
+            libReaderUI.contentWrap.addEventListener('pointerdown', libReaderNameTapStart, { passive: true });
+            libReaderUI.contentWrap.addEventListener('pointermove', libReaderNameTapMove, { passive: true });
+            libReaderUI.contentWrap.addEventListener('pointerup', libReaderNameTapEnd, { passive: true });
+            libReaderUI.contentWrap.addEventListener('pointercancel', libReaderNameTapEnd, { passive: true });
+            libReaderUI.contentWrap.addEventListener('touchstart', libReaderNameTapStart, { passive: true });
+            libReaderUI.contentWrap.addEventListener('touchmove', libReaderNameTapMove, { passive: true });
+            libReaderUI.contentWrap.addEventListener('touchend', libReaderNameTapEnd, { passive: true });
+            libReaderUI.contentWrap.addEventListener('touchcancel', libReaderNameTapEnd, { passive: true });
             libReaderUI.contentWrap.addEventListener('click', (e) => {
                 const nameSpan = e.target.closest('.tm-name');
                 if (!nameSpan) return;
-                const sel = window.getSelection();
-                if (sel && !sel.isCollapsed) {
+                if (libReaderShouldIgnoreNameClick(nameSpan)) {
                     return;
                 }
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 const orig = nameSpan.dataset.orig || '';
                 const text = nameSpan.textContent || '';
                 showEditModal(orig, text, { readerTheme: true });
+                if (libReaderState) libReaderState.nameTapGuard = null;
+                return;
+            });
+            libReaderUI.contentWrap.addEventListener('click', (e) => {
+                libReaderHandleFullscreenContentTap(e);
+            });
+            libReaderUI.contentWrap.addEventListener('contextmenu', (e) => {
+                if (!libReaderUI.contentWrap.contains(e.target)) return;
+                const sel = window.getSelection();
+                if (sel && sel.toString().trim()) {
+                    e.preventDefault();
+                }
             });
         }
         if (libReaderUI.contentWrap) {
             libReaderUI.contentWrap.addEventListener('scroll', libReaderHandleScroll);
             libReaderUI.contentWrap.addEventListener('wheel', libReaderHandleWheel, { passive: true });
         }
-        if (!libReaderState) libReaderState = {};
-        if (!libReaderState.keyHandler) {
-            libReaderState.keyHandler = (e) => {
-                if (e.key === 'Escape' && libReaderState?.fullscreen) {
-                    libReaderState.fullscreen = false;
-                    libReaderApplySettings();
-                }
-            };
-            document.addEventListener('keydown', libReaderState.keyHandler);
+        if (!libReaderGlobalEventsBound) {
+            document.addEventListener('fullscreenchange', libReaderRefreshFullscreenMode);
+            document.addEventListener('webkitfullscreenchange', libReaderRefreshFullscreenMode);
+            document.addEventListener('keydown', libReaderHandleKeydown, true);
+            document.addEventListener('visibilitychange', libReaderHandleVisibilityChange, true);
+            window.addEventListener('pagehide', libReaderSaveProgressNow, true);
+            window.addEventListener('beforeunload', libReaderSaveProgressNow, true);
+            libReaderGlobalEventsBound = true;
         }
 
         return libReaderUI;
+    }
+
+    function libReaderSetTocOpen(open) {
+        if (!libReaderUI?.tocDrawer) return;
+        const shouldOpen = !!open;
+        libReaderUI.tocDrawer.classList.toggle('open', shouldOpen);
+        libReaderUI.tocDrawer.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+        if (libReaderUI.tocBackdrop) {
+            libReaderUI.tocBackdrop.hidden = !shouldOpen;
+            libReaderUI.tocBackdrop.classList.toggle('open', shouldOpen);
+        }
+    }
+
+    function libReaderSelectionText() {
+        const sel = window.getSelection();
+        return sel ? String(sel.toString() || '').trim() : '';
+    }
+
+    function libReaderEventPoint(event) {
+        const point = event?.changedTouches?.[0] || event?.touches?.[0] || event;
+        return {
+            x: Number(point?.clientX) || 0,
+            y: Number(point?.clientY) || 0
+        };
+    }
+
+    function libReaderNameTapStart(event) {
+        const nameSpan = event?.target?.closest?.('.tm-name');
+        if (!nameSpan || !libReaderState) return;
+        const point = libReaderEventPoint(event);
+        libReaderState.nameTapGuard = {
+            target: nameSpan,
+            x: point.x,
+            y: point.y,
+            startedAt: Date.now(),
+            moved: false
+        };
+    }
+
+    function libReaderNameTapMove(event) {
+        const guard = libReaderState?.nameTapGuard;
+        if (!guard) return;
+        const point = libReaderEventPoint(event);
+        if (Math.hypot(point.x - guard.x, point.y - guard.y) > 10) {
+            guard.moved = true;
+        }
+    }
+
+    function libReaderNameTapEnd(event) {
+        const guard = libReaderState?.nameTapGuard;
+        if (!guard) return;
+        libReaderNameTapMove(event);
+        const heldMs = Date.now() - guard.startedAt;
+        if (guard.moved || heldMs > 320 || libReaderSelectionText()) {
+            libReaderState.ignoreNameClickUntil = Date.now() + 650;
+        }
+        scheduleSelectionEditButtonUpdate(120);
+    }
+
+    function libReaderShouldIgnoreNameClick(nameSpan) {
+        if (!libReaderState) return false;
+        if (libReaderSelectionText()) return true;
+        if (Date.now() < (libReaderState.ignoreNameClickUntil || 0)) return true;
+        const guard = libReaderState.nameTapGuard;
+        if (guard && guard.target === nameSpan) {
+            const heldMs = Date.now() - guard.startedAt;
+            if (guard.moved || heldMs > 320) return true;
+        }
+        return false;
+    }
+
+    function libReaderFullscreenElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || null;
+    }
+
+    function libReaderIsFullscreenActive() {
+        return !!libReaderFullscreenElement() || !!(libReaderState && libReaderState.fullscreenFallback);
+    }
+
+    function libReaderClearFullscreenUiTimer() {
+        if (!libReaderState?.fullscreenUiTimer) return;
+        clearTimeout(libReaderState.fullscreenUiTimer);
+        libReaderState.fullscreenUiTimer = null;
+    }
+
+    function libReaderSetFullscreenUiVisible(visible, { autoHideMs = 0 } = {}) {
+        if (!libReaderUI?.root) return;
+        libReaderClearFullscreenUiTimer();
+        const isVisible = !!visible;
+        libReaderUI.root.classList.toggle('tm-reader-fullscreen-ui-visible', isVisible);
+        libReaderUpdateMiniInfo();
+        if (isVisible && autoHideMs > 0 && libReaderState) {
+            libReaderState.fullscreenUiTimer = setTimeout(() => {
+                if (!libReaderIsFullscreenActive()) return;
+                libReaderUI?.root?.classList.remove('tm-reader-fullscreen-ui-visible');
+                libReaderUpdateMiniInfo();
+                if (libReaderState) libReaderState.fullscreenUiTimer = null;
+            }, autoHideMs);
+        }
+    }
+
+    function libReaderUpdateMiniInfo() {
+        if (!libReaderUI || !libReaderState) return;
+        const total = libReaderState.chapters?.length || 0;
+        const index = Math.max(0, libReaderState.currentIndex || 0);
+        const chapter = libReaderState.chapters?.[index];
+        const ratio = Math.max(0, Math.min(1, Number(libReaderState.lastScrollRatio || 0)));
+        const bookPercent = total > 0 ? Math.max(0, Math.min(100, ((index + ratio) / total) * 100)) : 0;
+        const chapterText = total > 0 ? `Chương ${index + 1} / ${total}` : 'Chưa có chương';
+        const percentText = `${bookPercent.toFixed(1)}%`;
+
+        if (libReaderUI.progress) libReaderUI.progress.textContent = `${chapterText} · ${percentText}`;
+        if (libReaderUI.miniTitle) libReaderUI.miniTitle.textContent = libReaderUI.chapterTitle?.textContent || chapter?.title || `Chương ${index + 1}`;
+        if (libReaderUI.miniChapter) libReaderUI.miniChapter.textContent = chapterText;
+        if (libReaderUI.miniProgress) libReaderUI.miniProgress.textContent = percentText;
+
+        const showMini = libReaderIsFullscreenActive();
+        libReaderUI.root.classList.toggle('tm-reader-mini-visible', showMini);
+        if (libReaderUI.miniHead) libReaderUI.miniHead.hidden = !showMini;
+        if (libReaderUI.miniFoot) libReaderUI.miniFoot.hidden = !showMini;
+    }
+
+    function libReaderRefreshFullscreenMode() {
+        if (!libReaderUI?.root) return;
+        if (libReaderFullscreenElement()) {
+            if (libReaderState) libReaderState.fullscreenFallback = false;
+        }
+        const isFullscreen = libReaderIsFullscreenActive();
+        if (libReaderState) libReaderState.fullscreen = isFullscreen;
+        libReaderUI.root.classList.toggle('tm-reader-fullscreen', isFullscreen);
+        if (libReaderUI.btnFullscreen) {
+            libReaderUI.btnFullscreen.textContent = isFullscreen ? 'Thoát full' : 'Fullscreen';
+        }
+        if (isFullscreen) {
+            libReaderSetFullscreenUiVisible(true, { autoHideMs: 2200 });
+        } else {
+            libReaderSetFullscreenUiVisible(false);
+            libReaderUpdateMiniInfo();
+        }
+    }
+
+    async function libReaderExitFullscreen() {
+        if (!libReaderIsFullscreenActive()) return;
+        if (libReaderState) libReaderState.fullscreenFallback = false;
+        const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+        if (libReaderFullscreenElement() && typeof exit === 'function') {
+            try { await exit.call(document); } catch (e) { /* ignore */ }
+        }
+        libReaderRefreshFullscreenMode();
+    }
+
+    async function libReaderToggleFullscreen() {
+        if (!libReaderUI?.root) return;
+        if (libReaderIsFullscreenActive()) {
+            await libReaderExitFullscreen();
+            return;
+        }
+
+        // Fullscreen the whole document so shadow-DOM modals (settings/edit name) remain visible.
+        const target = document.documentElement || libReaderUI.root;
+        const request = target.requestFullscreen || target.webkitRequestFullscreen || target.msRequestFullscreen;
+        if (typeof request === 'function') {
+            try { await request.call(target); } catch (e) { /* fallback below */ }
+        }
+        if (!libReaderFullscreenElement()) {
+            await sleep(80);
+        }
+        if (!libReaderFullscreenElement()) {
+            libReaderState = libReaderState || {};
+            libReaderState.fullscreenFallback = true;
+        }
+        libReaderRefreshFullscreenMode();
+    }
+
+    function libReaderHandleFullscreenContentTap(event) {
+        if (!libReaderIsFullscreenActive()) return;
+        if (event?.target?.closest?.('button, input, textarea, select, [contenteditable="true"], .tm-name')) return;
+        const sel = window.getSelection();
+        if (sel && sel.toString().trim()) return;
+        const isVisible = libReaderUI?.root?.classList.contains('tm-reader-fullscreen-ui-visible');
+        libReaderSetFullscreenUiVisible(!isVisible, { autoHideMs: isVisible ? 0 : 2200 });
+    }
+
+    function libReaderHandleKeydown(event) {
+        if (!libReaderIsFullscreenActive()) return;
+        if (String(event.key || '') !== 'Escape') return;
+        event.preventDefault();
+        libReaderExitFullscreen();
     }
 
     function libReaderEnterCleanMode() {
@@ -8200,9 +9210,12 @@
         libReaderUI.root.style.setProperty('--tm-reader-font', style.fontFamily || DEFAULT_CONFIG.readerStyle.fontFamily);
         libReaderUI.root.style.setProperty('--tm-reader-font-size', `${style.fontSize || DEFAULT_CONFIG.readerStyle.fontSize}px`);
         libReaderUI.root.style.setProperty('--tm-reader-line-height', style.lineHeight || DEFAULT_CONFIG.readerStyle.lineHeight);
+        libReaderUI.root.style.setProperty('--tm-reader-paragraph-spacing', `${style.paragraphSpacing ?? DEFAULT_CONFIG.readerStyle.paragraphSpacing}px`);
+        libReaderUI.root.style.setProperty('--tm-reader-text-indent', `${style.textIndent ?? DEFAULT_CONFIG.readerStyle.textIndent}em`);
         libReaderUI.root.style.setProperty('--tm-reader-padding-x', `${(style.paddingX ?? DEFAULT_CONFIG.readerStyle.paddingX)}px`);
         libReaderUI.root.style.setProperty('--tm-reader-text-align', style.textAlign || DEFAULT_CONFIG.readerStyle.textAlign);
-        const isFullscreen = !!(libReaderState && libReaderState.fullscreen);
+        const isFullscreen = libReaderIsFullscreenActive();
+        if (libReaderState) libReaderState.fullscreen = isFullscreen;
         libReaderUI.root.classList.toggle('tm-reader-fullscreen', isFullscreen);
         if (libReaderUI.btnFullscreen) {
             libReaderUI.btnFullscreen.textContent = isFullscreen ? 'Thoát full' : 'Fullscreen';
@@ -8212,9 +9225,39 @@
         libReaderUI.root.classList.remove('tm-reader-mode-single', 'tm-reader-mode-vertical');
         libReaderUI.root.classList.add(`tm-reader-mode-${viewMode}`);
         if (libReaderState) libReaderState.viewMode = viewMode;
+        libReaderUpdateMiniInfo();
+    }
+
+    function libReaderGetCurrentScrollRatio() {
+        if (!libReaderState || !libReaderUI?.contentWrap) return 0;
+        const wrap = libReaderUI.contentWrap;
+        const max = wrap.scrollHeight - wrap.clientHeight;
+        if (max <= 0) return 0;
+        return Math.max(0, Math.min(1, wrap.scrollTop / max));
+    }
+
+    function libReaderSaveProgressNow() {
+        if (!libReaderState) return;
+        if (libReaderState.scrollSaveTimer) {
+            clearTimeout(libReaderState.scrollSaveTimer);
+            libReaderState.scrollSaveTimer = null;
+        }
+        const currentChapter = libReaderState.chapters?.[libReaderState.currentIndex];
+        if (!currentChapter) return;
+        const ratio = libReaderGetCurrentScrollRatio();
+        libReaderState.lastScrollRatio = ratio;
+        const order = currentChapter.order || (libReaderState.currentIndex + 1);
+        libUpdateBookLastRead(libReaderState.book.bookId, currentChapter.chapterId, ratio, order);
+    }
+
+    function libReaderHandleVisibilityChange() {
+        if (document.visibilityState === 'hidden') {
+            libReaderSaveProgressNow();
+        }
     }
 
     function libReaderClose() {
+        libReaderSaveProgressNow();
         const el = document.getElementById('tm-reader-overlay');
         if (el) el.remove();
         libReaderState = null;
@@ -8268,6 +9311,7 @@
             item.addEventListener('click', () => {
                 const idx = parseInt(item.getAttribute('data-index') || '0', 10);
                 libReaderGoTo(idx);
+                libReaderSetTocOpen(false);
             });
         });
 
@@ -8308,14 +9352,10 @@
         libReaderState.lastScrollRatio = ratio;
         libReaderState.lastScrollTop = wrap.scrollTop;
         libReaderState.lastScrollLeft = wrap.scrollLeft;
+        libReaderUpdateMiniInfo();
         if (libReaderState.scrollSaveTimer) clearTimeout(libReaderState.scrollSaveTimer);
         libReaderState.scrollSaveTimer = setTimeout(() => {
-            if (!libReaderState) return;
-            const currentChapter = libReaderState.chapters[libReaderState.currentIndex];
-            if (currentChapter) {
-                const order = currentChapter.order || (libReaderState.currentIndex + 1);
-                libUpdateBookLastRead(libReaderState.book.bookId, currentChapter.chapterId, ratio, order);
-            }
+            libReaderSaveProgressNow();
         }, 300);
 
         const threshold = (config.readerPrefetchPercent || 50) / 100;
@@ -8420,7 +9460,7 @@
     function libReaderBuildHtmlFromRawAndTrans(rawText, transText) {
         config = loadConfig();
         const nameSet = config.nameSets[config.activeNameSet] || {};
-        const normalize = (s) => (s || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const normalize = (s) => libNormalizeChapterParagraphBreaks(s || '');
         const normalizedRaw = normalize(rawText);
         const normalizedTrans = normalize(transText);
         const rawParas = normalizedRaw ? normalizedRaw.split(/\n/) : [];
@@ -8449,7 +9489,8 @@
     async function libReaderResolveChapterDisplay(chapter, options = {}) {
         const { rawText, wasNormalized } = await libGetNormalizedRawChapterContent(chapter);
         if (libReaderState.book.langSource === 'vi' || libReaderState.mode === 'raw') {
-            return { text: rawText, html: null, rawText };
+            const displayText = libNormalizeChapterParagraphBreaks(rawText);
+            return { text: displayText, html: null, rawText };
         }
         const expectedKey = libMakeTransKey(chapter.chapterId, chapter.rawKey);
         const needsRefresh = wasNormalized;
@@ -8571,7 +9612,7 @@
         if (display.html && libReaderState.mode === 'trans' && libReaderState.book.langSource === 'zh') {
             blockText.innerHTML = display.html;
         } else {
-            blockText.textContent = display.text || 'Chương trống.';
+            blockText.innerHTML = libTextToHtml(display.text || 'Chương trống.');
         }
         libReaderUI.content.appendChild(blockText);
 
@@ -8631,7 +9672,7 @@
             if (display.html && libReaderState.mode === 'trans' && libReaderState.book.langSource === 'zh') {
                 blockText.innerHTML = display.html;
             } else {
-                blockText.textContent = display.text || '';
+                blockText.innerHTML = libTextToHtml(display.text || '');
             }
         }
         libReaderState.renderedIndices.add(index);
@@ -8647,7 +9688,10 @@
         libReaderUI.bookTitle.textContent = await libReaderResolveBookTitle(book);
         libReaderUI.chapterSub.textContent = `Chương ${currentIndex + 1} / ${chapters.length}`;
         libReaderUI.chapterTitle.textContent = chapter.title || `Chương ${currentIndex + 1}`;
-        libReaderUI.progress.textContent = `Chương ${currentIndex + 1} / ${chapters.length}`;
+        libReaderState.lastScrollRatio = (book.lastReadChapterId === chapter.chapterId && typeof book.lastReadScrollRatio === 'number')
+            ? Math.max(0, Math.min(1, book.lastReadScrollRatio))
+            : 0;
+        libReaderUpdateMiniInfo();
 
         libReaderUI.btnPrev.disabled = currentIndex === 0;
         libReaderUI.btnNext.disabled = currentIndex >= chapters.length - 1;
@@ -8664,6 +9708,7 @@
             const title = await libReaderResolveChapterTitle(chapter, currentIndex);
             libReaderUI.chapterTitle.textContent = title;
             await libReaderRenderVerticalChapter(currentIndex, options.scrollTo ? options : { scrollTo: 'restore' });
+            libReaderUpdateMiniInfo();
             return;
         }
 
@@ -8677,7 +9722,7 @@
         if (display.html && libReaderState.mode === 'trans' && libReaderState.book.langSource === 'zh') {
             libReaderUI.content.innerHTML = display.html;
         } else {
-            libReaderUI.content.textContent = display.text || 'Chương trống.';
+            libReaderUI.content.innerHTML = libTextToHtml(display.text || 'Chương trống.');
         }
         if (libReaderUI.contentWrap && book.lastReadChapterId === chapter.chapterId && typeof book.lastReadScrollRatio === 'number') {
             const max = libReaderUI.contentWrap.scrollHeight - libReaderUI.contentWrap.clientHeight;
@@ -8685,6 +9730,7 @@
                 libReaderUI.contentWrap.scrollTop = Math.floor(max * book.lastReadScrollRatio);
             }
         }
+        libReaderUpdateMiniInfo();
     }
 
     async function openLibraryReader(bookId) {
@@ -8774,10 +9820,10 @@
 
     const welcomeHtml = `
 <div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
-<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh</div>
-<div class="tm-welcome-banner">
-  <strong>✨ v${CURRENT_VERSION}:</strong> Hotfix nhỏ tiếp theo cho nhánh 3.5.4, xử lý thêm case dichngay trả plain text bắt đầu bằng dấu ngoặc kép. Các nút tròn góc phải dưới: Dịch trang, Bảng dịch nhanh, OCR, Thư viện. Bấm ⚙️ Cài đặt để tùy chỉnh.
-</div>
+	<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh</div>
+	<div class="tm-welcome-banner">
+	  <strong>✨ v${CURRENT_VERSION}:</strong> Gộp các sửa Reader: UI gọn hơn, fullscreen/mobile tốt hơn, tự lưu tiến độ chắc hơn và thêm xuất HTML reader.
+	</div>
 <div style="height:8px;"></div>
     `.trim();
 
@@ -8795,7 +9841,7 @@
 - Import **TXT/EPUB**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc).
 - Reader có: RAW/DỊCH, Fullscreen, Mục lục, cache dịch + prefetch chương.
 - Tự lưu **tiến độ đọc** (chương + vị trí cuộn).
-- Xuất **TXT/EPUB** với cache dịch & Name-set hiện tại.
+- Xuất **TXT/EPUB/HTML** với cache dịch & Name-set hiện tại. HTML có giao diện đọc, cài đặt và fullscreen riêng.
 
 ### 📷 OCR (Dịch Ảnh)
 - Chạy trên trình duyệt (không gửi ảnh lên server lạ).
@@ -8813,18 +9859,17 @@
     `.trim();
 
     const changelogMarkdown = `
-### ✨ v3.5.4 / v${CURRENT_VERSION}
-- Sửa lỗi lớn ở provider **dichngay** khi server trả về chuỗi JSON bị lỗi escape trong hội thoại, nhất là khi dùng **add name**.
-- Giảm mạnh thời gian chờ do bỏ retry lặp vô ích với lỗi parse/bad-response, đồng thời tự sửa payload hỏng trước khi phải chẻ batch sâu.
-- Hotfix thêm cho request đơn của **dichngay**: nếu server trả plain text mở đầu bằng dấu ngoặc kép của hội thoại thì script sẽ coi đó là text thô, không cố parse JSON nữa.
-
-### ✨ v3.5.3
-- Bổ sung nhẹ cho **Thư viện**: xuất **TXT/EPUB** sẽ dùng tiêu đề truyện và tiêu đề chương đã dịch thay vì giữ nguyên tiêu đề raw.
-- Làm sạch **ký tự ẩn** trong file import để giảm lỗi dịch bị **dính chữ** ở một số chương.
-- Giảm lỗi **dính chữ sau dấu câu** ở một số chương do trước đây text bị tách quá vụn khi gửi đi dịch.
-- Với dữ liệu cũ có ký tự ẩn, script sẽ tự làm sạch và dịch lại chapter/cache khi cần.
+### ✨ v3.5.5
+- Gộp các sửa Reader: UI hợp mobile/PC hơn, fullscreen thật có fallback, thanh điều khiển tự ẩn và mục lục dạng drawer.
+- Reader gọn hơn: bỏ nút **Thoát full** nổi, thu nhỏ header/footer, thêm chỉnh **Dãn đoạn**, **Thụt dòng** và **Lề hai bên**.
+- Tự lưu tiến độ chắc hơn khi cuộn, chuyển tab, đóng reader hoặc thoát trình duyệt; thêm xuất **HTML** tự đọc offline có settings + fullscreen.
+- Fix **Edit Name** trên mobile: tô đen ổn hơn trong Reader, nút **Sửa tên** hỗ trợ touch/pointer và không phá long-press/drag chọn chữ.
+- Import/Reader tự gom khoảng trắng đoạn: nếu giữa hai đoạn có nhiều hơn 1 xuống dòng thì giữ lại 1 xuống dòng.
+- Giữ nguyên cơ chế **Allow Copy** mạnh cho web cứng đầu, nhưng thêm cảnh báo vì có thể làm chọn chữ trên mobile không ổn định.
+- Gộp hotfix provider **dichngay**: sửa parse JSON lỗi escape/plain text và giảm retry vô ích.
 
 ### 📦 Các bản trước (tóm tắt)
+- v3.5.3 - v3.5.4: cải thiện import/export Thư viện, làm sạch ký tự ẩn, giảm dính chữ sau dấu câu và hotfix dịch server.
 - v3.5.2: Shadow DOM cho UI, popup welcome/changelog, dọn dẹp giao diện.
 - v3.5.0: Thư viện đọc offline, reader UI, OCR vùng chọn, dịch local nâng cao.
 - v3.4.x: Bảng dịch nhanh, sửa tên riêng inline, đa bộ tên.
@@ -8868,7 +9913,7 @@
         const updateBanner = `
 <div class="tm-update-banner">
   <div style="font-size:15px;font-weight:700;">🌈 TM Translate v${CURRENT_VERSION} đã sẵn sàng!</div>
-  <div style="font-size:12px;color:#6a4f7a;">Bản bổ sung nhẹ cho Thư viện import/export. Tóm tắt thay đổi ở bên dưới ✨</div>
+  <div style="font-size:12px;color:#6a4f7a;">Bản gộp sửa Reader/UI đọc và import chương. Tóm tắt thay đổi ở bên dưới.</div>
 </div>`.trim();
         openHelpModal([updateBanner, renderHelpMarkdown(changelogMarkdown)].join('\n'));
     }
