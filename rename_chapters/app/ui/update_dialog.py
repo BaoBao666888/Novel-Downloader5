@@ -370,10 +370,14 @@ def show_update_window(root, manifest, *, title=None, subtitle=None):
 
             status_lbl.config(text=f"Tải xong: {out_path}")
 
-            # Launch installer
+            # Launch installer after the app has time to release bundled files.
             try:
                 if sys.platform.startswith('win'):
-                    os.startfile(out_path)
+                    subprocess.Popen([
+                        'cmd',
+                        '/c',
+                        f'timeout /t 2 /nobreak >nul & start "" "{out_path}"',
+                    ])
                 else:
                     subprocess.Popen(['chmod', '+x', out_path])
                     subprocess.Popen([out_path])
@@ -385,15 +389,15 @@ def show_update_window(root, manifest, *, title=None, subtitle=None):
                     messagebox.showinfo("Lưu ý", f"Đã tải file tại: {out_path}. Hãy chạy thủ công.")
                     return
 
-            status_lbl.config(text="Đã khởi chạy bộ cài. Ứng dụng sẽ đóng để tiến hành cập nhật.")
-            # Delay a bit then close the main app
+            status_lbl.config(text="Ứng dụng sẽ đóng, sau đó bộ cài sẽ tự mở.")
+            # Close the main app before the installer starts replacing files.
             def _close_app():
                 try:
                     root.quit()
                     root.destroy()
                 except Exception:
                     os._exit(0)
-            win.after(800, _close_app)
+            win.after(300, _close_app)
 
         except Exception as e:
             messagebox.showerror("Lỗi tải", f"Không tải được file: {e}")
