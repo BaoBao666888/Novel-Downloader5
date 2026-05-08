@@ -392,8 +392,8 @@ def _sync_version_manifest(version):
     manifest['version'] = version
     url = manifest.get('url', '')
     if isinstance(url, str):
-        manifest['url'] = re.sub(r'(rename_chapters/)(\d+\.\d+\.\d+)',
-                                 rf'\1{version}', url, count=1)
+        manifest['url'] = re.sub(r'(/releases/download/)(\d+(?:\.\d+)+)(/)',
+                                 rf'\1{version}\3', url, count=1)
     if json.dumps(manifest, ensure_ascii=False, sort_keys=True) != original:
         with open(manifest_path, 'w', encoding='utf-8', newline='\n') as mf:
             json.dump(manifest, mf, indent=2, ensure_ascii=False)
@@ -409,9 +409,9 @@ def _sync_update_notes(version):
     except Exception:
         return
     new_content = content
-    new_content = re.sub(r'(Phiên bản\s+)(\d+\.\d+\.\d+)',
+    new_content = re.sub(r'(Phiên bản\s+)(\d+(?:\.\d+)+)',
                          rf'\1{version}', new_content, count=1)
-    new_content = re.sub(r'(Bản cập nhật\s+)(\d+\.\d+\.\d+)',
+    new_content = re.sub(r'(Bản cập nhật\s+)(\d+(?:\.\d+)+)',
                          rf'\1{version}', new_content, count=1)
     if new_content != content:
         with open(notes_path, 'w', encoding='utf-8', newline='\n') as nf:
@@ -419,7 +419,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.4')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.3.3')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
