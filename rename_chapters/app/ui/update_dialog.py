@@ -10,69 +10,217 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import tkinter.font as tkfont
 import webbrowser
+from html.parser import HTMLParser
 
 from app.paths import BASE_DIR
 
 # -----------------------
 # Private helpers
 # -----------------------
-# update.py
+LOCAL_UPDATE_NOTES_PATH = os.path.join(BASE_DIR, "update_notes.html")
+
+
+def _read_local_update_notes() -> str:
+    try:
+        with open(LOCAL_UPDATE_NOTES_PATH, "r", encoding="utf-8") as handle:
+            return handle.read()
+    except Exception:
+        return ""
+
+
+def _download_text(url: str, timeout: int = 10) -> str:
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        return response.read().decode("utf-8")
+
+
+def load_update_notes_for_manifest(manifest: dict, timeout: int = 10) -> dict:
+    """Ưu tiên notes_file từ Git/raw URL; lỗi mới fallback update_notes.html local."""
+    manifest = manifest if isinstance(manifest, dict) else {}
+    notes_file = manifest.get("notes_file")
+    notes = ""
+    source = ""
+
+    if isinstance(notes_file, str) and notes_file.strip():
+        notes_ref = notes_file.strip()
+        try:
+            if notes_ref.lower().startswith(("http://", "https://")):
+                notes = _download_text(notes_ref, timeout=timeout)
+                source = "git"
+            else:
+                path = notes_ref if os.path.isabs(notes_ref) else os.path.join(BASE_DIR, notes_ref)
+                with open(path, "r", encoding="utf-8") as handle:
+                    notes = handle.read()
+                source = "manifest-local"
+        except Exception:
+            notes = ""
+
+    if not notes:
+        notes = _read_local_update_notes()
+        source = "local" if notes else source
+
+    if not notes:
+        notes = str(manifest.get("notes") or "")
+        source = "manifest" if notes else source
+
+    manifest["notes"] = notes
+    manifest["notes_source"] = source
+    return manifest
+
+
+class _UpdateNotesHTMLRenderer(HTMLParser):
+    BLOCK_TAGS = {"h1", "h2", "h3", "p", "ul", "ol", "li", "div"}
+
+    def __init__(self, text_widget):
+        super().__init__(convert_charrefs=True)
+        self.text_widget = text_widget
+        self.tag_stack: list[str] = []
+        self.list_stack: list[str] = []
+        self.ol_counts: list[int] = []
+
+    def _line_start(self) -> bool:
+        return self.text_widget.index(tk.INSERT).split(".")[1] == "0"
+
+    def _last_chars(self, count: int = 2) -> str:
+        try:
+            return self.text_widget.get(f"insert-{count}c", tk.INSERT)
+        except Exception:
+            return ""
+
+    def _newline(self, max_blank: int = 1):
+        if self.text_widget.index(tk.INSERT) == "1.0":
+            return
+        tail = self._last_chars(max_blank + 1)
+        if tail.endswith("\n" * (max_blank + 1)):
+            return
+        if not tail.endswith("\n"):
+            self.text_widget.insert(tk.END, "\n")
+
+    def _tags(self, extra: tuple[str, ...] = ()) -> tuple[str, ...]:
+        tags = list(self.tag_stack)
+        if self.list_stack:
+            tags.append("li")
+        tags.extend(extra)
+        return tuple(tags)
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        attrs_dict = dict(attrs or [])
+        if tag in {"h1", "h2", "h3"}:
+            self._newline(1)
+            self.tag_stack.append(tag)
+        elif tag in {"strong", "b"}:
+            self.tag_stack.append("b")
+        elif tag == "code":
+            self.tag_stack.append("code")
+        elif tag == "a":
+            self.tag_stack.append("link")
+        elif tag == "br":
+            self._newline(0)
+        elif tag == "p":
+            self._newline(1)
+        elif tag in {"ul", "ol"}:
+            self._newline(1)
+            self.list_stack.append(tag)
+            if tag == "ol":
+                self.ol_counts.append(0)
+        elif tag == "li":
+            self._newline(0)
+            depth = max(0, len(self.list_stack) - 1)
+            indent = "  " * depth
+            bullet = "•"
+            if self.list_stack and self.list_stack[-1] == "ol":
+                self.ol_counts[-1] += 1
+                bullet = f"{self.ol_counts[-1]}."
+            self.text_widget.insert(tk.END, f"{indent}{bullet} ", ("bullet", "li"))
+        elif tag == "c":
+            color = attrs_dict.get("color", "").strip()
+            if color:
+                tag_name = f"color_{color.replace('#', '')}"
+                self.text_widget.tag_configure(tag_name, foreground=color)
+                self.tag_stack.append(tag_name)
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        mapped = {"strong": "b"}.get(tag, tag)
+        if mapped in {"h1", "h2", "h3", "p", "li"}:
+            self._newline(0)
+        if tag in {"ul", "ol"}:
+            if self.list_stack:
+                popped = self.list_stack.pop()
+                if popped == "ol" and self.ol_counts:
+                    self.ol_counts.pop()
+            self._newline(1)
+        if mapped in self.tag_stack:
+            for idx in range(len(self.tag_stack) - 1, -1, -1):
+                if self.tag_stack[idx] == mapped:
+                    del self.tag_stack[idx]
+                    break
+
+    def handle_data(self, data):
+        if not data:
+            return
+        text = data.replace("\r", "")
+        text = re.sub(r"[ \t\n]+", " ", text)
+        if not text.strip():
+            return
+        if self._line_start():
+            text = text.lstrip()
+        self.text_widget.insert(tk.END, text, self._tags())
+
+
+def _configure_update_notes_text(text_widget):
+    base_font = tkfont.Font(font=text_widget.cget("font"))
+    body_font = tkfont.Font(family="Segoe UI", size=max(10, base_font.cget("size")))
+    h1_font = tkfont.Font(family="Segoe UI", size=18, weight="bold")
+    h2_font = tkfont.Font(family="Segoe UI", size=13, weight="bold")
+    h3_font = tkfont.Font(family="Segoe UI", size=11, weight="bold")
+    bold_font = tkfont.Font(family="Segoe UI", size=body_font.cget("size"), weight="bold")
+    code_font = tkfont.Font(family="Consolas", size=body_font.cget("size"))
+
+    text_widget.configure(
+        font=body_font,
+        background="#fbfdff",
+        foreground="#111827",
+        insertbackground="#111827",
+        relief=tk.FLAT,
+        borderwidth=0,
+        padx=16,
+        pady=14,
+        spacing1=2,
+        spacing2=2,
+        spacing3=5,
+    )
+    text_widget.tag_configure("h1", font=h1_font, foreground="#0f3d7a", spacing1=8, spacing3=14)
+    text_widget.tag_configure("h2", font=h2_font, foreground="#166534", spacing1=12, spacing3=6)
+    text_widget.tag_configure("h3", font=h3_font, foreground="#374151", spacing1=8, spacing3=4)
+    text_widget.tag_configure("b", font=bold_font)
+    text_widget.tag_configure("code", font=code_font, background="#eef2f7", foreground="#7c2d12")
+    text_widget.tag_configure("link", foreground="#2563eb", underline=True)
+    text_widget.tag_configure("bullet", foreground="#4f46e5", font=bold_font)
+    text_widget.tag_configure("li", lmargin1=24, lmargin2=46, spacing1=2, spacing3=3)
+
 
 def _render_simplified_html(text_widget, html_text):
-    """
-    Render một file HTML đơn giản, hỗ trợ các tag:
-    <h1>, <h2>, <b>, và <c color="#..."></c> (ĐÃ SỬA LỖI)
-    """
-    # --- Cấu hình font và tag cho Text Widget ---
-    text_widget.config(state='normal')
-    text_widget.delete('1.0', tk.END)
+    """Render ghi chú HTML cơ bản thành Text widget dễ đọc hơn."""
+    text_widget.config(state="normal")
+    text_widget.delete("1.0", tk.END)
+    _configure_update_notes_text(text_widget)
 
-    base_font = tkfont.Font(font=text_widget.cget("font"))
-    h1_font = tkfont.Font(font=base_font)
-    h1_font.configure(size=base_font.cget('size') + 4, weight='bold')
-    h2_font = tkfont.Font(font=base_font)
-    h2_font.configure(weight='bold')
-
-    text_widget.tag_configure('h1', font=h1_font, foreground="#0b5394", spacing1=5, spacing3=10)
-    text_widget.tag_configure('h2', font=h2_font, foreground="#2e7d32", spacing1=10, spacing3=5)
-    text_widget.tag_configure('b', font=h2_font)
-
-    # --- Regex để tìm tất cả các tag được hỗ trợ ---
-    tag_regex = re.compile(r'<(?:h1|h2|b)>(.*?)</(?:h1|h2|b)>|<c color="(.*?)">(.*?)</c>')
-    last_end = 0
-
-    # Xóa các dòng trống ở đầu file HTML để tránh lỗi hiển thị
-    html_text = html_text.strip()
-
-    for match in tag_regex.finditer(html_text):
-        # Chèn phần text thường nằm giữa các tag
-        text_widget.insert(tk.END, html_text[last_end:match.start()])
-
-        # === PHẦN SỬA LỖI ===
-        # Dựa vào group nào có kết quả để xác định đúng loại tag
-        if match.group(1) is not None:  # Khớp với <h1>, <h2>, hoặc <b>
-            content = match.group(1)
-            full_tag_str = match.group(0)
-            if full_tag_str.startswith('<h1>'):
-                text_widget.insert(tk.END, content + "\n", 'h1')
-            elif full_tag_str.startswith('<h2>'):
-                text_widget.insert(tk.END, content + "\n", 'h2')
-            else: # <b>
-                text_widget.insert(tk.END, content, 'b')
-        elif match.group(2) is not None:  # Khớp với <c color="...">
-            color, content = match.group(2), match.group(3)
-            tag_name = f"color_{color.replace('#', '')}"
-            text_widget.tag_configure(tag_name, foreground=color)
-            text_widget.insert(tk.END, content, tag_name)
-        # =======================
-
-        last_end = match.end()
-
-    # Chèn phần text còn lại sau tag cuối cùng
-    text_widget.insert(tk.END, html_text[last_end:])
-    # Thêm một dòng trống ở cuối cho đẹp
+    html_text = (html_text or "").strip()
+    if not html_text:
+        text_widget.insert(tk.END, "Không có ghi chú cập nhật.")
+    elif html_text.startswith("<"):
+        parser = _UpdateNotesHTMLRenderer(text_widget)
+        try:
+            parser.feed(html_text)
+            parser.close()
+        except Exception:
+            cleaned = re.sub(r"<[^>]+>", "", html_text)
+            text_widget.insert(tk.END, cleaned.strip())
+    else:
+        text_widget.insert(tk.END, html_text)
     text_widget.insert(tk.END, "\n")
-    text_widget.config(state='disabled')
+    text_widget.config(state="disabled")
 
     
 # -----------------------
@@ -92,32 +240,9 @@ def fetch_manifest_from_url(url, timeout=10):
     except Exception:
         return None
 
-    # Nếu manifest có notes_file, tải nội dung của nó (hỗ trợ URL hoặc local path)
-    notes_file = manifest.get('notes_file')
-    if notes_file:
-        try:
-            if isinstance(notes_file, str) and notes_file.lower().startswith(('http://', 'https://')):
-                # Tải từ web
-                with urllib.request.urlopen(notes_file, timeout=timeout) as r:
-                    notes_text = r.read().decode('utf-8')
-                manifest['notes'] = notes_text
-            else:
-                # coi như là đường dẫn local (relative hoặc absolute)
-                try:
-                    # nếu là relative path, tìm theo working dir
-                    with open(notes_file, 'r', encoding='utf-8') as nf:
-                        manifest['notes'] = nf.read()
-                except FileNotFoundError:
-                    # thử interpret như relative to script dir
-                    alt_path = os.path.join(BASE_DIR, notes_file)
-                    with open(alt_path, 'r', encoding='utf-8') as nf:
-                        manifest['notes'] = nf.read()
-        except Exception:
-            # Không quá quan trọng — chỉ bỏ qua notes nếu không tải được
-            manifest['notes'] = manifest.get('notes', '')
-    return manifest
+    return load_update_notes_for_manifest(manifest, timeout=timeout)
 
-def show_update_window(root, manifest):
+def show_update_window(root, manifest, *, title=None, subtitle=None):
     """
     Hiển thị Toplevel dialog báo có bản cập nhật.
     - root: cửa sổ Tk chính (để có parent)
@@ -128,7 +253,10 @@ def show_update_window(root, manifest):
 
     version = manifest.get('version', 'N/A')
     url = manifest.get('url', None)
+    if not manifest.get("notes") or not manifest.get("notes_source"):
+        manifest = load_update_notes_for_manifest(manifest, timeout=8)
     notes = manifest.get('notes', '')
+    notes_source = manifest.get("notes_source") or ""
 
     win = tk.Toplevel(root)
     try:
@@ -136,16 +264,26 @@ def show_update_window(root, manifest):
             root._apply_window_icon(win)
     except Exception:
         pass
-    win.title(f"Cập nhật phiên bản {version}")
-    win.geometry("780x520")
+    win.title(title or f"Cập nhật phiên bản {version}")
+    win.geometry("860x600")
+    win.minsize(720, 480)
 
-    header = ttk.Frame(win)
-    header.pack(fill=tk.X, padx=12, pady=8)
-    ttk.Label(header, text=f"Phiên bản {version} đã có", font=('Segoe UI', 14, 'bold')).pack(side=tk.LEFT)
-    ttk.Label(header, text="  —  Nhấn Tải & Cài đặt để cập nhật", foreground='#555').pack(side=tk.LEFT, padx=8)
+    header = ttk.Frame(win, padding=(14, 12, 14, 8))
+    header.pack(fill=tk.X)
+    ttk.Label(header, text=title or f"Phiên bản {version} đã có", font=('Segoe UI', 16, 'bold')).pack(anchor="w")
+    subtitle_text = subtitle or "Nhấn Tải & Cài đặt nếu muốn cập nhật hoặc cài lại bản hiện tại."
+    ttk.Label(header, text=subtitle_text, foreground='#555').pack(anchor="w", pady=(3, 0))
+    if notes_source:
+        source_label = {
+            "git": "Ghi chú tải từ Git",
+            "local": "Ghi chú local",
+            "manifest-local": "Ghi chú từ manifest local",
+            "manifest": "Ghi chú từ manifest",
+        }.get(notes_source, f"Ghi chú: {notes_source}")
+        ttk.Label(header, text=source_label, foreground="#6b7280").pack(anchor="w", pady=(2, 0))
 
-    text_frame = ttk.Frame(win)
-    text_frame.pack(fill=tk.BOTH, expand=True, padx=12)
+    text_frame = ttk.LabelFrame(win, text="Ghi chú cập nhật", padding=1)
+    text_frame.pack(fill=tk.BOTH, expand=True, padx=14)
 
     # progress + buttons
     ctl = ttk.Frame(win)

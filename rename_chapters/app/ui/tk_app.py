@@ -30,7 +30,7 @@ import threading
 import urllib.request
 from urllib.parse import urlparse, urljoin, quote, unquote
 from packaging.version import parse as parse_version
-from app.ui.update_dialog import show_update_window, fetch_manifest_from_url
+from app.ui.update_dialog import show_update_window, fetch_manifest_from_url, load_update_notes_for_manifest
 from app.ui.cookie_manager import CookieManagerWindow
 import pythoncom
 import random
@@ -2803,22 +2803,35 @@ class RenamerApp(
                 manifest = json.load(f)
         except Exception:
             return None
+        return load_update_notes_for_manifest(manifest, timeout=6)
 
-        nf = manifest.get('notes_file')
-        if nf and not manifest.get('notes'):
-            if isinstance(nf, str) and nf.lower().startswith(('http://', 'https://')):
+    def show_update_notes(self):
+        """Mở ghi chú cập nhật, vẫn giữ nút cài/cài lại từ manifest."""
+        def _load_and_show():
+            manifest = None
+            if not self.use_local_manifest_only:
                 try:
-                    with urllib.request.urlopen(nf, timeout=6) as r:
-                        manifest['notes'] = r.read().decode('utf-8')
+                    manifest = fetch_manifest_from_url(self.VERSION_CHECK_URL, timeout=10)
                 except Exception:
-                    manifest['notes'] = ''
-            else:
-                try:
-                    with open(nf, 'r', encoding='utf-8') as nfobj:
-                        manifest['notes'] = nfobj.read()
-                except Exception:
-                    manifest['notes'] = ''
-        return manifest
+                    manifest = None
+            if not manifest:
+                manifest = self._load_local_manifest()
+            if not manifest:
+                self.after(0, lambda: messagebox.showerror("Ghi chú update", "Không đọc được version.json hoặc update_notes.html."))
+                return
+            manifest.setdefault("version", self.CURRENT_VERSION)
+            manifest = load_update_notes_for_manifest(manifest, timeout=8)
+            self.after(
+                0,
+                lambda: show_update_window(
+                    self,
+                    manifest,
+                    title="Ghi chú update Novel Studio",
+                    subtitle="Có thể bấm Tải & Cài đặt để cập nhật hoặc cài lại nếu bản hiện tại bị lỗi.",
+                ),
+            )
+
+        threading.Thread(target=_load_and_show, daemon=True).start()
 
     def check_for_updates(self, manual_check=False):
         """Kiểm tra phiên bản mới (thread riêng)."""
@@ -2927,6 +2940,7 @@ class RenamerApp(
         menubar.add_cascade(label="Trợ giúp", menu=help_menu)
         help_menu.add_command(label="Hướng dẫn Regex", command=lambda: self.show_regex_guide("general"))
         help_menu.add_command(label="Hướng dẫn thao tác", command=self.show_operation_guide)
+        help_menu.add_command(label="Xem ghi chú update", command=self.show_update_notes)
         help_menu.add_command(label="Gửi phản hồi...", command=self._open_feedback_issue)
         help_menu.add_separator()
         help_menu.add_command(label="Xóa cache ảnh bìa...", command=self._clear_cover_cache_dialog)
