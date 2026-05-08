@@ -2456,7 +2456,10 @@ class RenamerApp(
 
     def on_closing(self):
         """Hỏi lưu file nếu cần, sau đó lưu cấu hình trước khi đóng."""
-        if self.text_modified.get():
+        if hasattr(self, "_close_text_ops_windows_for_app_exit") and not self._close_text_ops_windows_for_app_exit():
+            self._force_exit = False
+            return
+        if getattr(self, "text_modified", tk.BooleanVar(value=False)).get() and hasattr(self, "_save_changes"):
             response = messagebox.askyesnocancel(
                 "Lưu thay đổi?",
                 "Bạn có các thay đổi chưa được lưu. Bạn có muốn lưu chúng trước khi thoát không?"
@@ -2502,15 +2505,6 @@ class RenamerApp(
             'credit_text': self.credit_text_widget.get("1.0", tk.END).strip(),
             'credit_position': self.credit_position.get(),
             'credit_line_num': self.credit_line_num.get(),
-            'find_replace_history': {
-                'find': list(self.find_text['values']),
-                'replace': list(self.replace_text['values'])
-            },
-            'split_regex_history': list(self.split_regex['values']),
-            'split_regex_last': self.split_regex.get(),
-            'split_format_history': list(self.split_format_combobox['values']),
-            'selected_file': self.selected_file.get(),
-            'split_position': self.split_position.get(),
             'combine_titles': self.combine_titles_var.get(),
             'title_format': self.title_format_var.get(),
             'background': dict(self.background_settings),
@@ -2549,7 +2543,16 @@ class RenamerApp(
         self.app_config['wikidich_upload_settings'] = dict(self.wikidich_upload_settings or {})
         if hasattr(self, "profile_recycle"):
             self.app_config['profile_recycle'] = dict(self.profile_recycle or {})
-        self.app_config['regex_pins'] = dict(self.regex_pins)
+        for legacy_key in (
+            'find_replace_history',
+            'split_regex_history',
+            'split_regex_last',
+            'split_format_history',
+            'selected_file',
+            'split_position',
+            'regex_pins',
+        ):
+            self.app_config.pop(legacy_key, None)
         tmp_path = f"{CONFIG_PATH}.tmp"
         try:
             self._create_daily_config_backup()
@@ -2616,7 +2619,8 @@ class RenamerApp(
                     self.app_config[key] = value
 
             config_data = self.app_config
-            self.regex_pins = dict(config_data.get('regex_pins', {'find': [], 'replace': [], 'split': []}))
+            if hasattr(self, "_migrate_text_ops_state_from_config"):
+                self._migrate_text_ops_state_from_config(config_data)
             api_cfg = config_data.get('api_settings', {}) if isinstance(config_data.get('api_settings'), dict) else {}
             self.api_settings = {**DEFAULT_API_SETTINGS, **api_cfg}
             # Luôn dùng header mặc định/bắt từ trình duyệt, bỏ User-Agent tùy chỉnh cũ
@@ -2645,21 +2649,6 @@ class RenamerApp(
             self.credit_position.set(config_data.get('credit_position', 'top'))
             self.credit_line_num.set(config_data.get('credit_line_num', 2))
             
-            fr_history = config_data.get('find_replace_history', {})
-            self._apply_history_with_pins(self.find_text, fr_history.get('find', []), 'find')
-            self._apply_history_with_pins(self.replace_text, fr_history.get('replace', []), 'replace')
-            split_regex_history = config_data.get('split_regex_history', [])
-            self._apply_history_with_pins(self.split_regex, split_regex_history, 'split')
-            # đồng bộ nút ghim
-            self._sync_pin_button('find', self.find_text, getattr(self, "find_pin_btn", None))
-            self._sync_pin_button('split', self.split_regex, getattr(self, "split_pin_btn", None))
-            if split_regex_history:
-                self.split_regex.set(config_data.get('split_regex_last', split_regex_history[0]))
-            else:
-                self.split_regex.set(config_data.get('split_regex_last', ''))
-            
-            split_format_history = config_data.get('split_format_history', []); self.split_format_combobox['values'] = split_format_history or ["{num}.txt"]; self.split_format_combobox.set((split_format_history or ["{num}.txt"])[0])
-            self.split_position.set(config_data.get('split_position', 'after'))
             self.combine_titles_var.set(config_data.get('combine_titles', False)); self.title_format_var.set(config_data.get('title_format', '{t1} - {t2}'))
             
             name_sets_keys = list(self.app_config.get('nameSets', {}).keys())
@@ -2736,7 +2725,6 @@ class RenamerApp(
             if hasattr(self, "_on_rename_tab_entered"):
                 self._on_rename_tab_entered()
             if self.folder_path.get(): self.schedule_preview_update()
-            self.selected_file.set(config_data.get('selected_file', ''))
             bg_cfg = config_data.get('background', {})
             if isinstance(bg_cfg, dict):
                 self.background_settings.update(DEFAULT_BACKGROUND_SETTINGS)
@@ -2904,6 +2892,12 @@ class RenamerApp(
         tools_menu.add_separator()
         tools_menu.add_command(label="Công cụ Xóa rác...", command=lambda: self._open_junk_remover(source_label="Công cụ"))
 
+        text_ops_menu = tk.Menu(menubar, **menu_style)
+        menubar.add_cascade(label="Xử lý văn bản", menu=text_ops_menu)
+        text_ops_menu.add_command(label="Mở cửa sổ mới", command=self._open_text_ops_window)
+        text_ops_menu.add_command(label="Mở gần đây...", command=self._open_text_ops_recent_dialog)
+        text_ops_menu.add_command(label="Lịch sử...", command=self._open_text_ops_history_dialog)
+
         menubar.add_command(label="Dịch", command=lambda: self._select_tab_by_name("Dịch"))
         menubar.add_command(label="Proxy", command=self._open_proxy_manager_window)
         menubar.add_command(label=self.browser_menu_label, command=self.toggle_browser_overlay)
@@ -2939,7 +2933,6 @@ class RenamerApp(
         self.create_rename_tab()
         self.create_credit_tab()
         self.create_online_fetch_tab()
-        self.create_text_operations_tab()
         self.create_translator_tab()
         self.create_image_processing_tab()
         self.create_wikidich_tab()
@@ -3640,12 +3633,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             if tab_text == "Đổi Tên" and hasattr(self, "_on_rename_tab_entered"):
                 self._on_rename_tab_entered()
 
-            if tab_text == "Xử lý Văn bản":
-                filepath = self.selected_file.get()
-                if filepath and os.path.isfile(filepath):
-                    if getattr(self, "_last_loaded_file", "") != filepath:
-                        self._select_file_for_ops(filepath=filepath)
-                        self._last_loaded_file = filepath
             if tab_text == "Xử lý Ảnh" and hasattr(self, "_image_ai_check_tool_state"):
                 if not getattr(self, "_image_ai_tool_checked_on_tab", False):
                     self._image_ai_tool_checked_on_tab = True
@@ -3659,6 +3646,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
 
     def _select_tab_by_name(self, name_to_find: str):
         """Tìm và chọn một tab trong notebook chính dựa vào tên của nó."""
+        if name_to_find == "Xử lý Văn bản":
+            self._open_text_ops_window()
+            return
         for tab_id in self.notebook.tabs():
             if self.notebook.tab(tab_id, "text") == name_to_find:
                 self.notebook.select(tab_id)
@@ -3717,14 +3707,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
                 item_data = self.online_tree.item(item_id, 'values')
                 selected_titles.append(f"第{item_data[0]}章 {item_data[title_key_index]}")
 
-        # Chuyển tab và điền dữ liệu
-        self._select_tab_by_name("Xử lý Văn bản")
-        self.ops_notebook.select(self.ops_notebook.tabs()[-1]) # Chọn sub-tab cuối cùng (Công cụ Nhanh)
-        
-        self.toc_content_text.delete("1.0", tk.END)
-        self.toc_content_text.insert("1.0", "\n".join(selected_titles))
-        
-        self.log(f"Đã sao chép {len(selected_titles)} tiêu đề vào Công cụ Nhanh.")
+        self._copy_titles_to_text_ops_quick_tools(selected_titles)
     
 def main(instance_server=None):
     """Launch the Tkinter application."""

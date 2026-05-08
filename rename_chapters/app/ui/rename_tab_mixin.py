@@ -854,24 +854,8 @@ class RenameTabMixin:
         ).pack(side=tk.LEFT, padx=5)
 
     def _jump_to_text_ops_and_load(self, filepath):
-        """Chuyển sang tab Xử lý Văn bản -> Tìm & Thay thế và load file để chỉnh sửa."""
-        self._select_tab_by_name("Xử lý Văn bản")
-        try:
-            if hasattr(self, "ops_notebook"):
-                selected = False
-                for tab_id in self.ops_notebook.tabs():
-                    if self.ops_notebook.tab(tab_id, "text") == "Tìm & Thay thế":
-                        self.ops_notebook.select(tab_id)
-                        selected = True
-                        break
-                if not selected:
-                    tabs = self.ops_notebook.tabs()
-                    if tabs:
-                        self.ops_notebook.select(tabs[0])
-        except Exception:
-            pass
-
-        self._select_file_for_ops(filepath=filepath)
+        """Mở cửa sổ Xử lý văn bản và load file để chỉnh sửa."""
+        self._open_text_ops_window(filepath=filepath)
 
     def _jump_to_translator_and_load(self, filepath):
         """Chuyển sang tab Dịch và tải nội dung file vào."""

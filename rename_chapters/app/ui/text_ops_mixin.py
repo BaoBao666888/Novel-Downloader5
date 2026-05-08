@@ -6,10 +6,144 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 from app.core import renamer as logic
 from app.core.text_ops import TextOperations
 from app.ui.constants import SOURCE_BY_ID
+from app.ui.text_ops_state import TextOpsStateStore
+from app.ui.text_ops_window import TextOpsWindow
 
 
 class TextOpsMixin:
     """Tab Xử lý Văn bản và các thao tác find/replace, split."""
+
+    def _ensure_text_ops_state_store(self):
+        store = getattr(self, "_text_ops_state_store", None)
+        if store is None:
+            store = TextOpsStateStore()
+            self._text_ops_state_store = store
+        return store
+
+    def _migrate_text_ops_state_from_config(self, config_data):
+        self._ensure_text_ops_state_store().migrate_from_config(config_data or {})
+
+    def _open_text_ops_window(self, filepath: str = "", quick_toc_text: str = ""):
+        store = self._ensure_text_ops_state_store()
+        if not hasattr(self, "_text_ops_windows"):
+            self._text_ops_windows = set()
+        win = TextOpsWindow(self, store, initial_file=filepath or "", quick_toc_text=quick_toc_text or "")
+        self._text_ops_windows.add(win)
+        try:
+            win.lift()
+            win.focus_force()
+        except Exception:
+            pass
+        return win
+
+    def _open_text_ops_recent_dialog(self):
+        store = self._ensure_text_ops_state_store()
+        files = [path for path in store.get_list("recent_files") if path]
+        if not files:
+            messagebox.showinfo("Mở gần đây", "Chưa có file gần đây.", parent=self)
+            return
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title("Mở gần đây")
+        win.geometry("640x360")
+        frame = ttk.Frame(win, padding=10)
+        frame.pack(fill=tk.BOTH, expand=True)
+        frame.rowconfigure(0, weight=1)
+        frame.columnconfigure(0, weight=1)
+        listbox = tk.Listbox(frame, selectmode=tk.SINGLE)
+        listbox.grid(row=0, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=listbox.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        listbox.configure(yscrollcommand=scrollbar.set)
+        for path in files:
+            listbox.insert(tk.END, path)
+
+        def open_selected():
+            selection = listbox.curselection()
+            if not selection:
+                return
+            path = files[selection[0]]
+            win.destroy()
+            self._open_text_ops_window(filepath=path)
+
+        listbox.bind("<Double-1>", lambda _e: open_selected())
+        buttons = ttk.Frame(frame)
+        buttons.grid(row=1, column=0, columnspan=2, sticky="e", pady=(10, 0))
+        ttk.Button(buttons, text="Mở", command=open_selected).pack(side=tk.LEFT)
+        ttk.Button(buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
+
+    def _open_text_ops_history_dialog(self):
+        store = self._ensure_text_ops_state_store()
+        win = tk.Toplevel(self)
+        self._apply_window_icon(win)
+        win.title("Lịch sử Xử lý văn bản")
+        win.geometry("760x480")
+        frame = ttk.Frame(win, padding=10)
+        frame.pack(fill=tk.BOTH, expand=True)
+        frame.rowconfigure(0, weight=1)
+        frame.columnconfigure(0, weight=1)
+        cols = ("File", "Mở gần nhất", "Số lần")
+        tree = ttk.Treeview(frame, columns=cols, show="headings", selectmode="extended")
+        for col, width in zip(cols, (440, 190, 70)):
+            tree.heading(col, text=col)
+            tree.column(col, width=width, anchor="w")
+        tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        tree.configure(yscrollcommand=scrollbar.set)
+
+        def refresh():
+            tree.delete(*tree.get_children())
+            for entry in store.state.get("history_files") or []:
+                if not isinstance(entry, dict):
+                    continue
+                path = str(entry.get("path") or "")
+                if path:
+                    tree.insert("", "end", iid=path, values=(path, entry.get("last_opened_at", ""), entry.get("open_count", 1)))
+
+        def selected_paths():
+            return [str(item) for item in tree.selection()]
+
+        def open_selected():
+            paths = selected_paths()
+            if not paths:
+                return
+            win.destroy()
+            text_win = self._open_text_ops_window(filepath=paths[0])
+            for path in paths[1:]:
+                text_win.open_file(path)
+
+        def delete_selected():
+            paths = selected_paths()
+            if not paths:
+                return
+            if not messagebox.askyesno("Xóa lịch sử", f"Xóa {len(paths)} mục khỏi lịch sử?", parent=win):
+                return
+            store.remove_files(paths)
+            refresh()
+
+        tree.bind("<Double-1>", lambda _e: open_selected())
+        buttons = ttk.Frame(frame)
+        buttons.grid(row=1, column=0, columnspan=2, sticky="e", pady=(10, 0))
+        ttk.Button(buttons, text="Mở đã chọn", command=open_selected).pack(side=tk.LEFT)
+        ttk.Button(buttons, text="Xóa khỏi lịch sử", command=delete_selected).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
+        refresh()
+
+    def _copy_titles_to_text_ops_quick_tools(self, selected_titles):
+        text = "\n".join(selected_titles or [])
+        self._open_text_ops_window(quick_toc_text=text)
+        self.log(f"Đã sao chép {len(selected_titles or [])} tiêu đề vào Công cụ Nhanh.")
+
+    def _close_text_ops_windows_for_app_exit(self):
+        windows = list(getattr(self, "_text_ops_windows", set()) or [])
+        for win in windows:
+            try:
+                if win.winfo_exists() and not win.close_window():
+                    return False
+            except Exception:
+                pass
+        return True
 
     def create_text_operations_tab(self):
         text_ops_tab = ttk.Frame(self.notebook, padding="10")

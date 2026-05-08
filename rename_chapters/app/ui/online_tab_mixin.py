@@ -301,11 +301,7 @@ class OnlineTabMixin:
                 item_data = self.online_tree.item(item_id, "values")
                 selected_titles.append(f"第{item_data[0]}章 {item_data[title_key_index]}")
 
-        self._select_tab_by_name("Xử lý Văn bản")
-        self.ops_notebook.select(self.ops_notebook.tabs()[-1])
-        self.toc_content_text.delete("1.0", tk.END)
-        self.toc_content_text.insert("1.0", "\n".join(selected_titles))
-        self.log(f"Đã sao chép {len(selected_titles)} tiêu đề vào Công cụ Nhanh.")
+        self._copy_titles_to_text_ops_quick_tools(selected_titles)
 
     def _select_online_range(self):
         range_str = self.online_range_var.get().strip().lower()
