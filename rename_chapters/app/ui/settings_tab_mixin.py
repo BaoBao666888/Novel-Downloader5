@@ -98,6 +98,8 @@ class SettingsTabMixin:
         font_candidates = [
             "Segoe UI",
             "Segoe UI Variable",
+            "Microsoft YaHei",
+            "Microsoft Sans Serif",
             "Inter",
             "Arial",
             "Calibri",
@@ -105,7 +107,16 @@ class SettingsTabMixin:
             "Times New Roman",
         ]
         available_fonts = set(tkfont.families())
-        font_values = [f for f in font_candidates if f in available_fonts] or sorted(list(available_fonts))[:10]
+        font_values = []
+        for font_name in font_candidates:
+            if font_name not in font_values:
+                font_values.append(font_name)
+        for font_name in sorted(available_fonts):
+            if font_name not in font_values:
+                font_values.append(font_name)
+        current_font = self.ui_settings.get('font_family', 'Segoe UI')
+        if current_font not in font_values:
+            font_values.insert(0, current_font)
         self.ui_font_family_var = tk.StringVar(value=self.ui_settings.get('font_family', 'Segoe UI'))
         font_combo = ttk.Combobox(appearance_frame, textvariable=self.ui_font_family_var, values=font_values, state="readonly")
         font_combo.grid(row=4, column=1, sticky="ew", padx=(0, 8), pady=(10, 0))
