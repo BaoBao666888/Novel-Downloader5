@@ -59,6 +59,35 @@ def _snippet(text: str, start: int, end: int, radius: int = 34) -> str:
     return (prefix + text[left:right].replace("\n", "\\n") + suffix).strip()
 
 
+def _clean_preview_text(text: str) -> str:
+    return (text or "").replace("\t", "    ").replace("\r", "").replace("\n", "\\n")
+
+
+def _crop_preview_line(line: str, start: int, end: int, radius: int = 70) -> str:
+    left = max(0, start - radius)
+    right = min(len(line), end + radius)
+    prefix = "..." if left > 0 else ""
+    suffix = "..." if right < len(line) else ""
+    return _clean_preview_text(prefix + line[left:right] + suffix)
+
+
+def _preview_line_change(content: str, start: int, end: int, replacement: str) -> tuple[int, str, str]:
+    line_start = content.rfind("\n", 0, start) + 1
+    line_end = content.find("\n", end)
+    if line_end == -1:
+        line_end = len(content)
+    line = content[line_start:line_end]
+    rel_start = max(0, start - line_start)
+    rel_end = max(rel_start, end - line_start)
+    changed = line[:rel_start] + replacement + line[rel_end:]
+    line_no = content.count("\n", 0, start) + 1
+    return (
+        line_no,
+        _crop_preview_line(line, rel_start, rel_end),
+        _crop_preview_line(changed, rel_start, rel_start + len(replacement)),
+    )
+
+
 def _path_autosave_id(path: str) -> str:
     digest = hashlib.sha1(os.path.normcase(os.path.normpath(path)).encode("utf-8", errors="ignore")).hexdigest()
     return f"file-{digest}"
@@ -699,37 +728,97 @@ class TextOpsWindow(tk.Toplevel):
         return combo
 
     def open_find_dialog(self):
-        doc = self._current_doc()
-        if not doc:
+        self.open_find_replace_dialog("find")
+
+    def open_replace_dialog(self):
+        self.open_find_replace_dialog("replace")
+
+    def open_find_replace_dialog(self, initial_tab: str = "find"):
+        if not self._current_doc():
             return
-        win = self._dialog_refs.get("find")
+        win = self._dialog_refs.get("find_replace")
         if win and win.winfo_exists():
             win.lift()
+            notebook = getattr(win, "_find_replace_notebook", None)
+            if notebook:
+                try:
+                    notebook.select(1 if initial_tab == "replace" else 0)
+                except Exception:
+                    pass
             return
+
         win = tk.Toplevel(self)
-        self._dialog_refs["find"] = win
-        win.title("Tìm")
-        win.geometry("460x150")
+        self._dialog_refs["find_replace"] = win
+        win.title("Tìm & Thay thế")
+        win.geometry("520x270")
         win.transient(self)
-        frame = ttk.Frame(win, padding=10)
-        frame.pack(fill=tk.BOTH, expand=True)
-        frame.columnconfigure(1, weight=1)
-        ttk.Label(frame, text="Tìm:").grid(row=0, column=0, sticky="w")
-        find_combo = self._make_history_combo(frame, "find_history", "find")
-        find_combo.grid(row=0, column=1, sticky="ew", padx=(8, 0))
+        root = ttk.Frame(win, padding=10)
+        root.pack(fill=tk.BOTH, expand=True)
+        root.rowconfigure(0, weight=1)
+        root.columnconfigure(0, weight=1)
+
+        notebook = ttk.Notebook(root)
+        notebook.grid(row=0, column=0, sticky="nsew")
+        win._find_replace_notebook = notebook
+
+        find_var = tk.StringVar()
+        replace_var = tk.StringVar()
+        current_text = self._current_text()
+        if current_text:
+            try:
+                selected_text = current_text.get(tk.SEL_FIRST, tk.SEL_LAST)
+                if selected_text and "\n" not in selected_text and len(selected_text) <= 200:
+                    find_var.set(selected_text)
+            except tk.TclError:
+                pass
         opts = {
             "case": tk.BooleanVar(value=False),
             "word": tk.BooleanVar(value=False),
             "regex": tk.BooleanVar(value=False),
         }
-        ttk.Checkbutton(frame, text="Khớp hoa/thường", variable=opts["case"]).grid(row=1, column=0, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(frame, text="Toàn bộ từ", variable=opts["word"]).grid(row=1, column=1, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(frame, text="Regex", variable=opts["regex"]).grid(row=2, column=0, sticky="w")
-        buttons = ttk.Frame(frame)
-        buttons.grid(row=3, column=0, columnspan=2, sticky="e", pady=(10, 0))
-        ttk.Button(buttons, text="Tìm tiếp", command=lambda: self._find_from_dialog(find_combo, opts, False)).pack(side=tk.LEFT)
-        ttk.Button(buttons, text="Tìm ngược", command=lambda: self._find_from_dialog(find_combo, opts, True)).pack(side=tk.LEFT, padx=(6, 0))
-        find_combo.focus_set()
+        find_values = self.state_store.history_with_pins("find_history", "find")
+        replace_values = self.state_store.history_with_pins("replace_history", "replace")
+
+        def make_opts(parent, start_row: int = 1):
+            ttk.Checkbutton(parent, text="Khớp hoa/thường", variable=opts["case"]).grid(row=start_row, column=0, sticky="w", pady=(8, 0))
+            ttk.Checkbutton(parent, text="Toàn bộ từ", variable=opts["word"]).grid(row=start_row, column=1, sticky="w", pady=(8, 0))
+            ttk.Checkbutton(parent, text="Regex", variable=opts["regex"]).grid(row=start_row + 1, column=0, sticky="w")
+
+        find_tab = ttk.Frame(notebook, padding=10)
+        find_tab.columnconfigure(1, weight=1)
+        notebook.add(find_tab, text="Tìm")
+        ttk.Label(find_tab, text="Tìm:").grid(row=0, column=0, sticky="w")
+        find_combo = ttk.Combobox(find_tab, values=find_values, width=42, textvariable=find_var)
+        find_combo.grid(row=0, column=1, sticky="ew", padx=(8, 0))
+        make_opts(find_tab, 1)
+        find_buttons = ttk.Frame(find_tab)
+        find_buttons.grid(row=3, column=0, columnspan=2, sticky="e", pady=(16, 0))
+        ttk.Button(find_buttons, text="Tìm tiếp", command=lambda: self._find_from_dialog(find_combo, opts, False)).pack(side=tk.LEFT)
+        ttk.Button(find_buttons, text="Tìm ngược", command=lambda: self._find_from_dialog(find_combo, opts, True)).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(find_buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
+
+        replace_tab = ttk.Frame(notebook, padding=10)
+        replace_tab.columnconfigure(1, weight=1)
+        notebook.add(replace_tab, text="Thay thế")
+        ttk.Label(replace_tab, text="Tìm:").grid(row=0, column=0, sticky="w")
+        replace_find_combo = ttk.Combobox(replace_tab, values=find_values, width=42, textvariable=find_var)
+        replace_find_combo.grid(row=0, column=1, sticky="ew", padx=(8, 0))
+        ttk.Label(replace_tab, text="Thay thế:").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        replace_combo = ttk.Combobox(replace_tab, values=replace_values, width=42, textvariable=replace_var)
+        replace_combo.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=(8, 0))
+        make_opts(replace_tab, 2)
+        replace_buttons = ttk.Frame(replace_tab)
+        replace_buttons.grid(row=4, column=0, columnspan=2, sticky="e", pady=(16, 0))
+        ttk.Button(replace_buttons, text="Tìm tiếp", command=lambda: self._find_from_dialog(replace_find_combo, opts, False)).pack(side=tk.LEFT)
+        ttk.Button(replace_buttons, text="Thay thế", command=lambda: self._replace_current_from_dialog(replace_find_combo, replace_combo, opts)).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(replace_buttons, text="Thay tất cả", command=lambda: self._replace_all_from_dialog(replace_find_combo, replace_combo, opts)).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(replace_buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
+
+        find_combo.bind("<Return>", lambda _e: self._find_from_dialog(find_combo, opts, False))
+        replace_find_combo.bind("<Return>", lambda _e: self._find_from_dialog(replace_find_combo, opts, False))
+        replace_combo.bind("<Return>", lambda _e: self._replace_current_from_dialog(replace_find_combo, replace_combo, opts))
+        notebook.select(1 if initial_tab == "replace" else 0)
+        (replace_find_combo if initial_tab == "replace" else find_combo).focus_set()
 
     def _find_from_dialog(self, combo, opts, search_up: bool):
         text = self._current_text()
@@ -758,116 +847,48 @@ class TextOpsWindow(tk.Toplevel):
         text.see(start_pos)
         text.focus_set()
 
-    def open_replace_dialog(self):
-        if not self._current_doc():
-            return
-        win = self._dialog_refs.get("replace")
-        if win and win.winfo_exists():
-            win.lift()
-            return
-        win = tk.Toplevel(self)
-        self._dialog_refs["replace"] = win
-        win.title("Tìm & Thay thế")
-        win.geometry("860x440")
-        win.transient(self)
-        root = ttk.Frame(win, padding=10)
-        root.pack(fill=tk.BOTH, expand=True)
-        root.columnconfigure(1, weight=1)
-        root.rowconfigure(0, weight=1)
-
-        controls = ttk.Frame(root)
-        controls.grid(row=0, column=0, sticky="nsw", padx=(0, 10))
-        ttk.Label(controls, text="Tìm:").grid(row=0, column=0, sticky="w")
-        find_combo = self._make_history_combo(controls, "find_history", "find", width=28)
-        find_combo.grid(row=1, column=0, sticky="ew", pady=(2, 8))
-        ttk.Label(controls, text="Thay thế:").grid(row=2, column=0, sticky="w")
-        replace_combo = self._make_history_combo(controls, "replace_history", "replace", width=28)
-        replace_combo.grid(row=3, column=0, sticky="ew", pady=(2, 8))
-        opts = {
-            "case": tk.BooleanVar(value=False),
-            "word": tk.BooleanVar(value=False),
-            "regex": tk.BooleanVar(value=False),
-            "all": tk.BooleanVar(value=False),
-        }
-        ttk.Checkbutton(controls, text="Khớp hoa/thường", variable=opts["case"]).grid(row=4, column=0, sticky="w")
-        ttk.Checkbutton(controls, text="Toàn bộ từ", variable=opts["word"]).grid(row=5, column=0, sticky="w")
-        ttk.Checkbutton(controls, text="Regex", variable=opts["regex"]).grid(row=6, column=0, sticky="w")
-        ttk.Checkbutton(controls, text="Hiện tất cả", variable=opts["all"]).grid(row=7, column=0, sticky="w")
-
-        preview_frame = ttk.LabelFrame(root, text="Preview")
-        preview_frame.grid(row=0, column=1, sticky="nsew")
-        preview_frame.rowconfigure(0, weight=1)
-        preview_frame.columnconfigure(0, weight=1)
-        cols = ("#", "Trước", "Sau")
-        tree = ttk.Treeview(preview_frame, columns=cols, show="headings", height=10)
-        for col, width in zip(cols, [48, 320, 320]):
-            tree.heading(col, text=col)
-            tree.column(col, width=width, anchor="w")
-        tree.grid(row=0, column=0, sticky="nsew")
-        vsb = ttk.Scrollbar(preview_frame, orient="vertical", command=tree.yview)
-        vsb.grid(row=0, column=1, sticky="ns")
-        tree.configure(yscrollcommand=vsb.set)
-        count_var = tk.StringVar(value="Chưa preview.")
-        ttk.Label(preview_frame, textvariable=count_var).grid(row=1, column=0, sticky="w", pady=(4, 0))
-
-        def refresh_preview():
-            matches, error = self._replace_preview_matches(
-                find_combo.get(),
-                replace_combo.get(),
-                opts["case"].get(),
-                opts["word"].get(),
-                opts["regex"].get(),
-                show_all=opts["all"].get(),
-            )
-            tree.delete(*tree.get_children())
-            if error:
-                count_var.set(error)
-                return
-            for idx, item in enumerate(matches, 1):
-                tree.insert("", "end", values=(idx, item["before"], item["after"]))
-            suffix = "" if opts["all"].get() else " đầu tiên"
-            count_var.set(f"Đang hiển thị {len(matches)} kết quả{suffix}.")
-
-        buttons = ttk.Frame(root)
-        buttons.grid(row=1, column=0, columnspan=2, sticky="e", pady=(10, 0))
-        ttk.Button(buttons, text="Preview", command=refresh_preview).pack(side=tk.LEFT)
-        ttk.Button(buttons, text="Thay lựa chọn", command=lambda: self._replace_current_from_dialog(find_combo, replace_combo, opts)).pack(side=tk.LEFT, padx=(6, 0))
-        ttk.Button(buttons, text="Thay tất cả", command=lambda: self._replace_all_from_dialog(find_combo, replace_combo, opts, refresh_preview)).pack(side=tk.LEFT, padx=(6, 0))
-        find_combo.bind("<KeyRelease>", lambda _e: refresh_preview())
-        replace_combo.bind("<KeyRelease>", lambda _e: refresh_preview())
-        for key in ("case", "word", "regex", "all"):
-            opts[key].trace_add("write", lambda *_: refresh_preview())
-        refresh_preview()
-
     def _replace_preview_matches(self, find_what, replace_with, match_case, match_word, use_regex, show_all=False):
         text = self._current_text()
         if not text or not find_what:
-            return [], None
+            return [], None, 0
         content = text.get("1.0", "end-1c")
-        limit = None if show_all else 100
+        limit = None if show_all else 200
         results = []
+        total = 0
         try:
             if use_regex:
                 flags = re.MULTILINE if match_case else re.MULTILINE | re.IGNORECASE
                 pattern = find_what if not match_word else rf"\b(?:{find_what})\b"
                 repl = re.sub(r"\$(\d)", r"\\\1", replace_with)
                 for match in re.finditer(pattern, content, flags):
-                    after_piece = re.sub(pattern, repl, match.group(0), count=1, flags=flags)
-                    results.append({"before": _snippet(content, match.start(), match.end()), "after": after_piece.replace("\n", "\\n")})
-                    if limit and len(results) >= limit:
-                        break
+                    total += 1
+                    if not limit or len(results) < limit:
+                        replacement = match.expand(repl)
+                        line_no, before, after = _preview_line_change(content, match.start(), match.end(), replacement)
+                        results.append({
+                            "line": line_no,
+                            "match": _clean_preview_text(match.group(0)),
+                            "before": before,
+                            "after": after,
+                        })
             else:
                 flags = 0 if match_case else re.IGNORECASE
                 pattern = re.escape(find_what)
                 if match_word:
                     pattern = rf"\b{pattern}\b"
                 for match in re.finditer(pattern, content, flags):
-                    results.append({"before": _snippet(content, match.start(), match.end()), "after": replace_with.replace("\n", "\\n")})
-                    if limit and len(results) >= limit:
-                        break
+                    total += 1
+                    if not limit or len(results) < limit:
+                        line_no, before, after = _preview_line_change(content, match.start(), match.end(), replace_with)
+                        results.append({
+                            "line": line_no,
+                            "match": _clean_preview_text(match.group(0)),
+                            "before": before,
+                            "after": after,
+                        })
         except re.error as exc:
-            return [], f"Regex lỗi: {exc}"
-        return results, None
+            return [], f"Regex lỗi: {exc}", 0
+        return results, None, total
 
     def _replace_current_from_dialog(self, find_combo, replace_combo, opts):
         text = self._current_text()
@@ -893,7 +914,7 @@ class TextOpsWindow(tk.Toplevel):
             if doc:
                 self._refresh_doc_modified_state(doc)
 
-    def _replace_all_from_dialog(self, find_combo, replace_combo, opts, refresh_preview):
+    def _replace_all_from_dialog(self, find_combo, replace_combo, opts):
         text = self._current_text()
         if not text:
             return
@@ -903,21 +924,94 @@ class TextOpsWindow(tk.Toplevel):
             return
         self._add_combo_history(find_combo, "find_history", "find")
         self._add_combo_history(replace_combo, "replace_history", "replace")
-        if not messagebox.askyesno("Xác nhận", "Thay thế tất cả trong tài liệu hiện tại?", parent=self):
-            return
-        count = TextOperations.replace_all(
-            text,
-            find_what,
-            replace_with,
-            match_case=opts["case"].get(),
-            match_word=opts["word"].get(),
-            use_regex=opts["regex"].get(),
+
+        def apply_replace_all(parent=None):
+            count = TextOperations.replace_all(
+                text,
+                find_what,
+                replace_with,
+                match_case=opts["case"].get(),
+                match_word=opts["word"].get(),
+                use_regex=opts["regex"].get(),
+            )
+            doc = self._current_doc()
+            if doc and count:
+                self._refresh_doc_modified_state(doc)
+            messagebox.showinfo("Hoàn tất", f"Đã thay thế {count} kết quả.", parent=parent or self)
+            return count
+
+        choice = messagebox.askyesnocancel(
+            "Thay tất cả",
+            "Mở bảng preview để xem trước khi thay tất cả không?",
+            parent=self,
         )
-        doc = self._current_doc()
-        if doc and count:
-            self._refresh_doc_modified_state(doc)
-        refresh_preview()
-        messagebox.showinfo("Hoàn tất", f"Đã thay thế {count} kết quả.", parent=self)
+        if choice is None:
+            return
+        if choice is True:
+            self._open_replace_preview_modal(
+                find_what,
+                replace_with,
+                opts,
+                apply_replace_all,
+            )
+            return
+        apply_replace_all(self)
+
+    def _open_replace_preview_modal(self, find_what, replace_with, opts, apply_replace_all):
+        win = tk.Toplevel(self)
+        win.title("Preview thay thế")
+        win.geometry("980x520")
+        win.transient(self)
+        win.grab_set()
+        root = ttk.Frame(win, padding=10)
+        root.pack(fill=tk.BOTH, expand=True)
+        root.rowconfigure(0, weight=1)
+        root.columnconfigure(0, weight=1)
+
+        cols = ("#", "Dòng", "Khớp", "Trước", "Sau")
+        tree = ttk.Treeview(root, columns=cols, show="headings", height=14)
+        widths = [48, 70, 180, 330, 330]
+        for col, width in zip(cols, widths):
+            tree.heading(col, text=col)
+            tree.column(col, width=width, anchor="w")
+        tree.grid(row=0, column=0, sticky="nsew")
+        vsb = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
+        vsb.grid(row=0, column=1, sticky="ns")
+        tree.configure(yscrollcommand=vsb.set)
+
+        status_var = tk.StringVar(value="")
+        ttk.Label(root, textvariable=status_var).grid(row=1, column=0, sticky="w", pady=(6, 0))
+
+        def load_preview(show_all=False):
+            matches, error, total = self._replace_preview_matches(
+                find_what,
+                replace_with,
+                opts["case"].get(),
+                opts["word"].get(),
+                opts["regex"].get(),
+                show_all=show_all,
+            )
+            tree.delete(*tree.get_children())
+            if error:
+                status_var.set(error)
+                return
+            for idx, item in enumerate(matches, 1):
+                tree.insert("", "end", values=(idx, item["line"], item["match"], item["before"], item["after"]))
+            if len(matches) < total:
+                status_var.set(f"Đang hiển thị {len(matches)}/{total} kết quả. Nhấn Hiện tất cả nếu cần.")
+            else:
+                status_var.set(f"Đang hiển thị {len(matches)} kết quả.")
+
+        def apply_and_close():
+            apply_replace_all(win)
+            win.destroy()
+
+        buttons = ttk.Frame(root)
+        buttons.grid(row=2, column=0, columnspan=2, sticky="e", pady=(10, 0))
+        ttk.Button(buttons, text="Hiện tất cả", command=lambda: load_preview(True)).pack(side=tk.LEFT)
+        ttk.Button(buttons, text="Thay tất cả", command=apply_and_close).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
+        load_preview(False)
 
     def open_split_dialog(self):
         if not self._current_doc():
@@ -1191,13 +1285,15 @@ Phím tắt:
 - Ctrl+Z / Ctrl+Y: hoàn tác / làm lại
 
 Ghi chú:
+- Tìm và Thay thế nằm chung một hộp thoại có tab chuyển qua lại như Word.
+- Khi nhấn Thay tất cả, app hỏi có mở preview không. Chọn Không thì thay ngay; chọn Có thì mở modal preview với dòng, đoạn khớp, trước và sau.
 - File GB2312/GB18030/CP936 sẽ được chuyển thành Unicode khi mở.
 - Khi lưu, file được ghi UTF-8.
 - Menu Hiển thị > Hiện thanh công cụ dùng để thu gọn/mở lại dải nút phía trên.
 - TextOps tự chọn Microsoft Sans Serif cho tiếng Việt, Microsoft YaHei cho tiếng Trung, và Segoe UI cho ngôn ngữ khác.
 - File đang sửa được lưu tạm trong local/text_ops_autosave để khôi phục nếu app/máy tắt đột ngột.
 - Lịch sử file và regex nằm trong local/text_ops_state.json, không còn phụ thuộc config.json.
-- Tìm & Thay thế preview mặc định tối đa 100 kết quả; bật Hiện tất cả nếu cần xem toàn bộ.
+- Preview thay tất cả mặc định hiển thị tối đa 200 kết quả; bấm Hiện tất cả nếu cần xem toàn bộ.
 """
         text.insert("1.0", guide.strip())
         text.config(state="disabled")

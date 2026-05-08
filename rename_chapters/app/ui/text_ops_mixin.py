@@ -36,6 +36,18 @@ class TextOpsMixin:
             pass
         return win
 
+    def _open_text_ops_file_dialog(self):
+        paths = filedialog.askopenfilenames(
+            title="Mở file trong Xử lý văn bản",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            parent=self,
+        )
+        if not paths:
+            return
+        win = self._open_text_ops_window(filepath=paths[0])
+        for path in paths[1:]:
+            win.open_file(path)
+
     def _open_text_ops_recent_dialog(self):
         store = self._ensure_text_ops_state_store()
         files = [path for path in store.get_list("recent_files") if path]

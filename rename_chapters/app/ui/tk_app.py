@@ -2912,6 +2912,7 @@ class RenamerApp(
         text_ops_menu = tk.Menu(menubar, **menu_style)
         menubar.add_cascade(label="Xử lý văn bản", menu=text_ops_menu)
         text_ops_menu.add_command(label="Mở cửa sổ mới", command=self._open_text_ops_window)
+        text_ops_menu.add_command(label="Mở...", command=self._open_text_ops_file_dialog)
         text_ops_menu.add_command(label="Mở gần đây...", command=self._open_text_ops_recent_dialog)
         text_ops_menu.add_command(label="Lịch sử...", command=self._open_text_ops_history_dialog)
 
@@ -3446,14 +3447,15 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         create_tab("Lấy Tiêu Đề Online", online_guide)
 
         text_guide = """
-        --- TAB XỬ LÝ VĂN BẢN ---
-        Cung cấp các công cụ để chỉnh sửa nội dung file hoặc chia nhỏ file.
+        --- CỬA SỔ XỬ LÝ VĂN BẢN ---
+        Cung cấp các công cụ để chỉnh sửa nội dung file hoặc chia nhỏ file. Mở từ menu chính **Xử lý văn bản**.
 
-        1.  **Chọn file**: Chọn file .txt bạn muốn chỉnh sửa hoặc chia nhỏ. Nội dung file sẽ được tải vào ô bên dưới.
+        1.  **Mở file**: Chọn **Xử lý văn bản > Mở...** để mở file nhanh trong cửa sổ mới, hoặc mở cửa sổ TextOps rồi bấm **Mở**.
 
-        **--- Sub-tab: Tìm & Thay thế ---**
+        **--- Hộp thoại: Tìm & Thay thế ---**
         -   **Tìm / Thay thế**: Nhập văn bản cần tìm và văn bản sẽ thay thế. Hỗ trợ Regex, nhóm $1, $2,...
-        -   **Lịch sử & Ghim**: Ô Tìm/Thay thế lưu tối đa ~20 mục; nút Ghim/Bỏ ghim giữ regex không bị trôi.
+        -   **Tìm và Thay thế nằm chung một hộp thoại có tab** để chuyển qua lại nhanh như Word.
+        -   **Lịch sử & Ghim**: Ô Tìm/Thay thế lưu tối đa 40 mục; nút Ghim/Bỏ ghim giữ regex không bị trôi.
         -   **Các tùy chọn**:
             -   **Khớp chữ hoa/thường**: Bật để phân biệt A và a.
             -   **Khớp toàn bộ từ**: Chỉ tìm các từ đứng riêng lẻ (ví dụ: tìm "an" sẽ không khớp với "bàn").
@@ -3462,7 +3464,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         -   **Các nút hành động**:
             -   **Tìm tiếp**: Nhảy đến kết quả trùng khớp tiếp theo.
             -   **Thay thế**: Thay thế kết quả đang được chọn và tự động tìm kết quả tiếp theo.
-            -   **Thay thế tất cả**: Thay thế mọi kết quả tìm thấy trong toàn bộ file.
+            -   **Thay thế tất cả**: Hỏi có mở preview không. Chọn Không thì thay ngay; chọn Có thì mở bảng preview dòng khớp/trước/sau rồi mới thay.
             -   **Lưu**: Ghi đè các thay đổi lên file gốc.
             -   **Lưu thành file mới...**: Lưu nội dung đã sửa vào một file mới.
             -   **Hoàn tác / Làm lại**: Quay lại hoặc tiến tới các bước chỉnh sửa.
