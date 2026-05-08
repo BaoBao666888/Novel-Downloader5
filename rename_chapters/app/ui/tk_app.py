@@ -3512,7 +3512,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         2.  **Dịch ảnh OCR**:
             -   Mở tab con **"Dịch ảnh OCR"**, chọn ảnh / dán ảnh clipboard / dán URL ảnh rồi nhấn **"OCR + Dịch"**.
             -   Chữ Trung OCR hiển thị ở ô bên trái; bản Việt hiển thị song song trong khung **"Kết quả dịch"** bên phải.
-            -   OCR dùng bộ eSearch/PaddleOCR của TM Translate nếu thư mục assets/model có sẵn.
+            -   OCR dùng Windows OCR tích hợp (`Windows.Media.Ocr`), không cần tải model riêng. Nếu máy chưa nhận tiếng Trung, hãy cài thêm gói ngôn ngữ/OCR tiếng Trung trong Windows.
 
         3.  **Quản lý Name**:
             -   **Bộ tên**: Chọn name-set bạn muốn sử dụng cho lần dịch này. Bạn có thể **Tạo mới**, **Xóa bộ**, **Nhập/Xuất** file name hoặc **Xóa hết name** trong một bộ.
