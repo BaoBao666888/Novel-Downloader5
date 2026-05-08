@@ -1,7 +1,9 @@
+import hashlib
 import os
 import re
 import tkinter as tk
 import tkinter.font as tkfont
+import uuid
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 
 from app.core.text_ops import TextOperations
@@ -17,6 +19,21 @@ TEXT_ENCODINGS = (
     "big5",
     "cp950",
 )
+
+TEXTOPS_CHINESE_FONT = "Microsoft YaHei"
+TEXTOPS_VIETNAMESE_FONT = "Microsoft Sans Serif"
+TEXTOPS_FALLBACK_FONT = "Segoe UI"
+TEXTOPS_AUTOSAVE_DELAY_MS = 700
+
+VIETNAMESE_MARKS = set(
+    "ăâđêôơư"
+    "áàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩị"
+    "óòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ"
+    "ĂÂĐÊÔƠƯ"
+    "ÁÀẢÃẠẮẰẲẴẶẤẦẨẪẬÉÈẺẼẸẾỀỂỄỆÍÌỈĨỊ"
+    "ÓÒỎÕỌỐỒỔỖỘỚỜỞỠỢÚÙỦŨỤỨỪỬỮỰÝỲỶỸỴ"
+)
+CHINESE_CHAR_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 
 
 def read_text_file_auto(path: str) -> tuple[str, str]:
@@ -42,6 +59,15 @@ def _snippet(text: str, start: int, end: int, radius: int = 34) -> str:
     return (prefix + text[left:right].replace("\n", "\\n") + suffix).strip()
 
 
+def _path_autosave_id(path: str) -> str:
+    digest = hashlib.sha1(os.path.normcase(os.path.normpath(path)).encode("utf-8", errors="ignore")).hexdigest()
+    return f"file-{digest}"
+
+
+def _content_hash(content: str) -> str:
+    return hashlib.sha1((content or "").encode("utf-8", errors="ignore")).hexdigest()
+
+
 class TextOpsWindow(tk.Toplevel):
     def __init__(
         self,
@@ -56,6 +82,7 @@ class TextOpsWindow(tk.Toplevel):
         self.state_store = state_store
         self.docs: dict[str, dict] = {}
         self._dialog_refs: dict[str, tk.Toplevel] = {}
+        self._font_controls_updating = False
         self.title("Xử lý văn bản")
         self.geometry("980x720")
         self.minsize(720, 480)
@@ -73,10 +100,17 @@ class TextOpsWindow(tk.Toplevel):
         self.bind("<Control-f>", lambda _e: self.open_find_dialog())
         self.bind("<Control-h>", lambda _e: self.open_replace_dialog())
         self.bind("<Control-n>", lambda _e: self.new_document())
+        self.bind("<Control-w>", lambda _e: (self.close_current_tab(), "break")[1])
+        self.bind("<Control-W>", lambda _e: (self.close_current_tab(), "break")[1])
+        self.bind("<Control-Shift-W>", lambda _e: (self.close_other_tabs(), "break")[1])
+        self.bind("<Control-Alt-w>", lambda _e: (self.close_all_tabs(), "break")[1])
+        self.bind("<Control-Alt-W>", lambda _e: (self.close_all_tabs(), "break")[1])
 
+        opened_initial = False
         if initial_file:
-            self.open_file(initial_file)
-        else:
+            opened_initial = self.open_file(initial_file)
+        restored = self._restore_autosave_docs()
+        if not opened_initial and not restored:
             self.new_document()
         if quick_toc_text:
             self.open_quick_tools_dialog(initial_toc=quick_toc_text)
@@ -93,7 +127,9 @@ class TextOpsWindow(tk.Toplevel):
         self.file_menu.add_command(label="Lưu", accelerator="Ctrl+S", command=self.save_current)
         self.file_menu.add_command(label="Lưu như...", accelerator="Ctrl+Shift+S", command=self.save_current_as)
         self.file_menu.add_separator()
-        self.file_menu.add_command(label="Đóng tab", command=self.close_current_tab)
+        self.file_menu.add_command(label="Đóng tab", accelerator="Ctrl+W", command=self.close_current_tab)
+        self.file_menu.add_command(label="Đóng tab khác", accelerator="Ctrl+Shift+W", command=self.close_other_tabs)
+        self.file_menu.add_command(label="Đóng tất cả tab", accelerator="Ctrl+Alt+W", command=self.close_all_tabs)
         self.file_menu.add_command(label="Đóng cửa sổ", command=self.close_window)
         self.menubar.add_cascade(label="File", menu=self.file_menu)
 
@@ -114,6 +150,13 @@ class TextOpsWindow(tk.Toplevel):
         self.menubar.add_cascade(label="Công cụ", menu=self.tools_menu)
 
         self.view_menu = tk.Menu(self.menubar, tearoff=False)
+        self.toolbar_visible_var = tk.BooleanVar(value=self.state_store.get_toolbar_visible())
+        self.view_menu.add_checkbutton(
+            label="Hiện thanh công cụ",
+            variable=self.toolbar_visible_var,
+            command=self.toggle_toolbar,
+        )
+        self.view_menu.add_separator()
         self.view_menu.add_command(label="Áp dụng font", command=self.apply_font_from_controls)
         self.menubar.add_cascade(label="Hiển thị", menu=self.view_menu)
 
@@ -127,8 +170,9 @@ class TextOpsWindow(tk.Toplevel):
         root.rowconfigure(1, weight=1)
         root.columnconfigure(0, weight=1)
 
-        toolbar = ttk.Frame(root)
-        toolbar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        self.toolbar = ttk.Frame(root)
+        self.toolbar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        toolbar = self.toolbar
         ttk.Button(toolbar, text="Mở", command=self.open_file_dialog).pack(side=tk.LEFT)
         ttk.Button(toolbar, text="Lưu", command=self.save_current).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(toolbar, text="Tìm", command=self.open_find_dialog).pack(side=tk.LEFT, padx=(12, 0))
@@ -136,18 +180,29 @@ class TextOpsWindow(tk.Toplevel):
         ttk.Button(toolbar, text="Chia file", command=self.open_split_dialog).pack(side=tk.LEFT, padx=(12, 0))
         ttk.Button(toolbar, text="Công cụ nhanh", command=self.open_quick_tools_dialog).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(toolbar, text="Xóa rác", command=self.open_junk_remover).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(toolbar, text="Thu gọn", command=self.hide_toolbar).pack(side=tk.LEFT, padx=(12, 0))
 
-        ttk.Label(toolbar, text="Font:").pack(side=tk.LEFT, padx=(18, 4))
-        families = sorted(set(tkfont.families(self)) | {"Microsoft YaHei", "Microsoft Sans Serif"})
+        ttk.Label(toolbar, text="Tìm font:").pack(side=tk.LEFT, padx=(18, 4))
+        installed_families = set(tkfont.families(self))
+        self.installed_font_families = installed_families
+        self.font_families = sorted(installed_families | {TEXTOPS_CHINESE_FONT, TEXTOPS_VIETNAMESE_FONT, TEXTOPS_FALLBACK_FONT})
         family, size = self.state_store.get_font()
+        self.font_search_var = tk.StringVar()
         self.font_family_var = tk.StringVar(value=family)
         self.font_size_var = tk.IntVar(value=size)
-        self.font_combo = ttk.Combobox(toolbar, values=families, width=24, textvariable=self.font_family_var)
+        self.font_search_entry = ttk.Entry(toolbar, width=14, textvariable=self.font_search_var)
+        self.font_search_entry.pack(side=tk.LEFT)
+        self.font_combo = ttk.Combobox(toolbar, values=self.font_families, width=22, textvariable=self.font_family_var)
         self.font_combo.pack(side=tk.LEFT)
         self.font_size_spin = ttk.Spinbox(toolbar, from_=8, to=36, width=4, textvariable=self.font_size_var, command=self.apply_font_from_controls)
         self.font_size_spin.pack(side=tk.LEFT, padx=(4, 0))
         self.font_combo.bind("<<ComboboxSelected>>", lambda _e: self.apply_font_from_controls())
+        self.font_combo.bind("<Return>", lambda _e: self.apply_font_from_controls())
+        self.font_search_entry.bind("<KeyRelease>", self._filter_font_list)
+        self.font_search_entry.bind("<Return>", self._select_first_font_match)
         self.font_size_spin.bind("<Return>", lambda _e: self.apply_font_from_controls())
+        if not self.toolbar_visible_var.get():
+            self.toolbar.grid_remove()
 
         self.notebook = ttk.Notebook(root)
         self.notebook.grid(row=1, column=0, sticky="nsew")
@@ -165,6 +220,194 @@ class TextOpsWindow(tk.Toplevel):
     def _current_text(self):
         doc = self._current_doc()
         return doc.get("text") if doc else None
+
+    def hide_toolbar(self):
+        self.toolbar_visible_var.set(False)
+        self.toggle_toolbar()
+
+    def toggle_toolbar(self):
+        visible = bool(self.toolbar_visible_var.get())
+        if visible:
+            self.toolbar.grid()
+        else:
+            self.toolbar.grid_remove()
+        self.state_store.set_toolbar_visible(visible)
+
+    def _filter_font_list(self, _event=None):
+        term = self.font_search_var.get().strip().lower()
+        values = [family for family in self.font_families if term in family.lower()] if term else list(self.font_families)
+        self.font_combo.configure(values=values or self.font_families)
+
+    def _select_first_font_match(self, _event=None):
+        values = list(self.font_combo.cget("values") or [])
+        if values:
+            self.font_family_var.set(values[0])
+            self.apply_font_from_controls()
+        return "break"
+
+    def _safe_font_family(self, family: str) -> str:
+        family = (family or "").strip()
+        if family:
+            return family
+        if TEXTOPS_FALLBACK_FONT in self.installed_font_families:
+            return TEXTOPS_FALLBACK_FONT
+        try:
+            return tkfont.nametofont("TkDefaultFont").actual("family")
+        except Exception:
+            return TEXTOPS_FALLBACK_FONT
+
+    def _detect_font_family(self, content: str) -> str:
+        sample = (content or "")[:30000]
+        chinese_count = len(CHINESE_CHAR_RE.findall(sample))
+        vietnamese_count = sum(1 for ch in sample if ch in VIETNAMESE_MARKS)
+        if chinese_count and chinese_count >= vietnamese_count:
+            return self._safe_font_family(TEXTOPS_CHINESE_FONT)
+        if vietnamese_count:
+            return self._safe_font_family(TEXTOPS_VIETNAMESE_FONT)
+        return self._safe_font_family(TEXTOPS_FALLBACK_FONT)
+
+    def _set_doc_font(self, doc: dict, family: str, size: int | None = None, *, manual: bool = False):
+        if not doc:
+            return
+        try:
+            size = int(size or doc.get("font_size") or self.font_size_var.get() or 11)
+        except Exception:
+            size = 11
+        size = max(8, min(36, size))
+        family = self._safe_font_family(family)
+        doc["font_family"] = family
+        doc["font_size"] = size
+        if manual:
+            doc["font_manual"] = True
+            self.state_store.set_font(family, size)
+        try:
+            doc["text"].configure(font=(family, size))
+        except Exception:
+            pass
+        if self._current_doc() is doc:
+            self._sync_font_controls_with_doc(doc)
+
+    def _auto_apply_font_for_doc(self, doc: dict, content: str | None = None):
+        if not doc or doc.get("font_manual"):
+            return
+        if content is None:
+            content = doc["text"].get("1.0", "1.0+30000c")
+        family = self._detect_font_family(content)
+        self._set_doc_font(doc, family, doc.get("font_size") or self.font_size_var.get(), manual=False)
+
+    def _sync_font_controls_with_doc(self, doc: dict | None):
+        if not doc:
+            return
+        self._font_controls_updating = True
+        try:
+            self.font_family_var.set(doc.get("font_family") or self.state_store.get_font()[0])
+            self.font_size_var.set(int(doc.get("font_size") or self.state_store.get_font()[1]))
+        finally:
+            self._font_controls_updating = False
+
+    def _restore_autosave_docs(self) -> bool:
+        restored = False
+        for item in reversed(self.state_store.get_autosave_docs()):
+            doc_id = str(item.get("id") or "")
+            path = os.path.normpath(str(item.get("path") or "")) if item.get("path") else ""
+            if self._has_doc_autosave(doc_id, path):
+                continue
+            content = str(item.get("content") or "")
+            title = os.path.basename(path) if path else str(item.get("title") or "Chưa lưu")
+            baseline = ""
+            if path and os.path.exists(path):
+                try:
+                    baseline, _encoding = read_text_file_auto(path)
+                except Exception:
+                    baseline = ""
+            doc = self.new_document(content=content, title=title, autosave_id=doc_id, baseline_content=baseline)
+            doc["path"] = path
+            doc["encoding"] = str(item.get("encoding") or "utf-8")
+            doc["font_manual"] = False
+            self._auto_apply_font_for_doc(doc, content)
+            self._refresh_doc_modified_state(doc, content)
+            self._update_doc_title(doc)
+            self._set_status_for_doc(doc)
+            restored = True
+        if restored:
+            self.app.log("Đã khôi phục bản lưu tạm Xử lý văn bản.")
+        return restored
+
+    def _has_doc_autosave(self, autosave_id: str, path: str = "") -> bool:
+        target_path = os.path.normcase(os.path.normpath(path)) if path else ""
+        for doc in self.docs.values():
+            if autosave_id and str(doc.get("autosave_id") or "") == autosave_id:
+                return True
+            doc_path = doc.get("path") or ""
+            if target_path and os.path.normcase(os.path.normpath(doc_path)) == target_path:
+                return True
+        return False
+
+    def _schedule_autosave(self, doc: dict):
+        if not doc or not doc.get("modified"):
+            return
+        after_id = doc.get("autosave_after_id")
+        if after_id:
+            try:
+                self.after_cancel(after_id)
+            except Exception:
+                pass
+        doc["autosave_after_id"] = self.after(TEXTOPS_AUTOSAVE_DELAY_MS, lambda d=doc: self._autosave_doc(d))
+
+    def _autosave_doc(self, doc: dict):
+        if not doc or doc.get("tab_id") not in self.docs:
+            return
+        doc["autosave_after_id"] = None
+        if not doc.get("modified"):
+            return
+        content = doc["text"].get("1.0", "end-1c")
+        if not content and not doc.get("path"):
+            return
+        doc_id = doc.get("autosave_id") or f"draft-{uuid.uuid4().hex}"
+        doc["autosave_id"] = doc_id
+        self.state_store.save_autosave_doc(
+            doc_id,
+            path=doc.get("path") or "",
+            title=doc.get("title") or "Chưa lưu",
+            encoding=doc.get("encoding") or "utf-8",
+            content=content,
+            modified=True,
+        )
+        if self._current_doc() is doc:
+            self._set_status_for_doc(doc)
+
+    def _remove_autosave_for_doc(self, doc: dict):
+        after_id = doc.get("autosave_after_id")
+        if after_id:
+            try:
+                self.after_cancel(after_id)
+            except Exception:
+                pass
+        doc["autosave_after_id"] = None
+        doc_id = doc.get("autosave_id")
+        if doc_id:
+            self.state_store.remove_autosave_doc(str(doc_id))
+
+    def _doc_content(self, doc: dict) -> str:
+        text = doc.get("text")
+        return text.get("1.0", "end-1c") if text else ""
+
+    def _set_doc_baseline(self, doc: dict, content: str):
+        doc["baseline_hash"] = _content_hash(content)
+
+    def _refresh_doc_modified_state(self, doc: dict, content: str | None = None):
+        if not doc:
+            return
+        if content is None:
+            content = self._doc_content(doc)
+        doc["modified"] = _content_hash(content) != doc.get("baseline_hash")
+        if doc.get("modified"):
+            self._schedule_autosave(doc)
+        else:
+            self._remove_autosave_for_doc(doc)
+        self._update_doc_title(doc)
+        self._set_status_for_doc(doc)
+        self._refresh_controls()
 
     def _doc_title(self, doc: dict) -> str:
         name = os.path.basename(doc.get("path") or "") or doc.get("title") or "Chưa lưu"
@@ -190,19 +433,27 @@ class TextOpsWindow(tk.Toplevel):
         if not text:
             return
         if text.edit_modified():
-            doc["modified"] = True
             text.edit_modified(False)
-            self._update_doc_title(doc)
-            self._set_status_for_doc(doc)
-            self._refresh_controls()
+            if not doc.get("font_manual"):
+                self._auto_apply_font_for_doc(doc)
+            self._refresh_doc_modified_state(doc)
 
-    def new_document(self, content: str = "", title: str = "Chưa lưu") -> dict:
+    def new_document(
+        self,
+        content: str = "",
+        title: str = "Chưa lưu",
+        *,
+        autosave_id: str = "",
+        baseline_content: str | None = None,
+    ) -> dict:
+        baseline_content = content if baseline_content is None else baseline_content
         frame = ttk.Frame(self.notebook)
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
         text = scrolledtext.ScrolledText(frame, wrap=tk.WORD, undo=True)
         text.grid(row=0, column=0, sticky="nsew")
-        family, size = self.state_store.get_font()
+        _, size = self.state_store.get_font()
+        family = self._detect_font_family(content)
         text.configure(font=(family, size))
         doc = {
             "tab_id": "",
@@ -210,18 +461,25 @@ class TextOpsWindow(tk.Toplevel):
             "text": text,
             "path": "",
             "encoding": "utf-8",
-            "modified": False,
+            "modified": _content_hash(content) != _content_hash(baseline_content),
             "title": title,
+            "autosave_id": autosave_id or f"draft-{uuid.uuid4().hex}",
+            "autosave_after_id": None,
+            "baseline_hash": _content_hash(baseline_content),
+            "font_family": family,
+            "font_size": size,
+            "font_manual": False,
         }
-        self.notebook.add(frame, text=title)
+        self.notebook.add(frame, text="")
         tab_id = self.notebook.tabs()[-1]
         doc["tab_id"] = tab_id
         self.docs[tab_id] = doc
-        text.bind("<<Modified>>", lambda _e, d=doc: self._on_text_modified(d))
         if content:
             text.insert("1.0", content)
             text.edit_reset()
-            text.edit_modified(False)
+        text.edit_modified(False)
+        text.bind("<<Modified>>", lambda _e, d=doc: self._on_text_modified(d))
+        self._update_doc_title(doc)
         self.notebook.select(tab_id)
         self._set_status_for_doc(doc)
         return doc
@@ -235,33 +493,55 @@ class TextOpsWindow(tk.Toplevel):
         for path in paths:
             self.open_file(path)
 
-    def open_file(self, path: str):
+    def open_file(self, path: str) -> bool:
         if not path:
-            return
+            return False
         path = os.path.normpath(path)
         for doc in list(self.docs.values()):
             if os.path.normcase(doc.get("path") or "") == os.path.normcase(path):
                 self.notebook.select(doc["tab_id"])
                 self.focus_force()
-                return
-        try:
-            content, encoding = read_text_file_auto(path)
-        except Exception as exc:
-            messagebox.showerror("Lỗi", f"Không thể đọc file:\n{path}\n\n{exc}", parent=self)
-            return
-        doc = self.new_document(title=os.path.basename(path))
+                return True
+        autosaved = self.state_store.find_autosave_for_path(path)
+        if autosaved:
+            content = str(autosaved.get("content") or "")
+            encoding = str(autosaved.get("encoding") or "utf-8")
+            try:
+                baseline, _baseline_encoding = read_text_file_auto(path)
+            except Exception:
+                baseline = ""
+            doc = self.new_document(
+                content=content,
+                title=os.path.basename(path),
+                autosave_id=str(autosaved.get("id") or _path_autosave_id(path)),
+                baseline_content=baseline,
+            )
+            self.app.log(f"Đã mở bản lưu tạm của '{os.path.basename(path)}' trong Xử lý văn bản.")
+        else:
+            try:
+                content, encoding = read_text_file_auto(path)
+            except Exception as exc:
+                messagebox.showerror("Lỗi", f"Không thể đọc file:\n{path}\n\n{exc}", parent=self)
+                return False
+            doc = self.new_document(
+                content=content,
+                title=os.path.basename(path),
+                autosave_id=_path_autosave_id(path),
+                baseline_content=content,
+            )
         doc["path"] = path
         doc["encoding"] = encoding
         text = doc["text"]
-        text.delete("1.0", tk.END)
-        text.insert("1.0", content)
         text.edit_reset()
         text.edit_modified(False)
-        doc["modified"] = False
+        self._auto_apply_font_for_doc(doc, content)
+        self._refresh_doc_modified_state(doc, content)
         self._update_doc_title(doc)
         self._set_status_for_doc(doc)
         self.state_store.record_file(path)
-        self.app.log(f"Đã mở file '{os.path.basename(path)}' trong Xử lý văn bản.")
+        if not autosaved:
+            self.app.log(f"Đã mở file '{os.path.basename(path)}' trong Xử lý văn bản.")
+        return True
 
     def save_current(self) -> bool:
         doc = self._current_doc()
@@ -292,10 +572,16 @@ class TextOpsWindow(tk.Toplevel):
             content = doc["text"].get("1.0", "end-1c")
             with open(path, "w", encoding="utf-8") as handle:
                 handle.write(content)
+            old_autosave_id = doc.get("autosave_id")
             doc["path"] = os.path.normpath(path)
+            doc["autosave_id"] = _path_autosave_id(doc["path"])
             doc["encoding"] = "utf-8"
             doc["modified"] = False
+            self._set_doc_baseline(doc, content)
             doc["text"].edit_modified(False)
+            if old_autosave_id:
+                self.state_store.remove_autosave_doc(str(old_autosave_id))
+            self.state_store.remove_autosave_doc(str(doc["autosave_id"]))
             self._update_doc_title(doc)
             self._set_status_for_doc(doc)
             self.state_store.record_file(path)
@@ -306,12 +592,29 @@ class TextOpsWindow(tk.Toplevel):
             return False
 
     def close_current_tab(self) -> bool:
-        doc = self._current_doc()
+        tab_id = self.notebook.select()
+        return self.close_tab(tab_id)
+
+    def close_other_tabs(self) -> bool:
+        current = self.notebook.select()
+        for tab_id in list(self.notebook.tabs()):
+            if tab_id != current and not self.close_tab(tab_id):
+                return False
+        return True
+
+    def close_all_tabs(self) -> bool:
+        for tab_id in list(self.notebook.tabs()):
+            if tab_id in self.docs and not self.close_tab(tab_id):
+                return False
+        return True
+
+    def close_tab(self, tab_id: str) -> bool:
+        doc = self.docs.get(tab_id)
         if not doc:
             return True
         if not self._confirm_close_doc(doc):
             return False
-        tab_id = doc["tab_id"]
+        self._remove_autosave_for_doc(doc)
         self.notebook.forget(tab_id)
         self.docs.pop(tab_id, None)
         if not self.docs:
@@ -346,6 +649,7 @@ class TextOpsWindow(tk.Toplevel):
         for doc in list(self.docs.values()):
             if not self._confirm_close_doc(doc):
                 return False
+            self._remove_autosave_for_doc(doc)
         try:
             self.app._text_ops_windows.discard(self)
         except Exception:
@@ -370,17 +674,17 @@ class TextOpsWindow(tk.Toplevel):
                 pass
 
     def apply_font_from_controls(self):
-        family = self.font_family_var.get().strip() or "Microsoft YaHei"
+        if self._font_controls_updating:
+            return
+        doc = self._current_doc()
+        if not doc:
+            return
+        family = self.font_family_var.get().strip() or TEXTOPS_FALLBACK_FONT
         try:
             size = int(self.font_size_var.get())
         except Exception:
             size = 11
-        self.state_store.set_font(family, size)
-        for doc in self.docs.values():
-            try:
-                doc["text"].configure(font=(family, size))
-            except Exception:
-                pass
+        self._set_doc_font(doc, family, size, manual=True)
 
     def _add_combo_history(self, combo: ttk.Combobox, history_key: str, pin_key: str = ""):
         value = combo.get().strip()
@@ -587,9 +891,7 @@ class TextOpsWindow(tk.Toplevel):
         if replaced:
             doc = self._current_doc()
             if doc:
-                doc["modified"] = True
-                self._update_doc_title(doc)
-                self._set_status_for_doc(doc)
+                self._refresh_doc_modified_state(doc)
 
     def _replace_all_from_dialog(self, find_combo, replace_combo, opts, refresh_preview):
         text = self._current_text()
@@ -613,9 +915,7 @@ class TextOpsWindow(tk.Toplevel):
         )
         doc = self._current_doc()
         if doc and count:
-            doc["modified"] = True
-            self._update_doc_title(doc)
-            self._set_status_for_doc(doc)
+            self._refresh_doc_modified_state(doc)
         refresh_preview()
         messagebox.showinfo("Hoàn tất", f"Đã thay thế {count} kết quả.", parent=self)
 
@@ -856,9 +1156,9 @@ class TextOpsWindow(tk.Toplevel):
     def _mark_current_modified_if_target(self, target):
         doc = self._current_doc()
         if doc and target is doc.get("text"):
-            doc["modified"] = True
-            self._update_doc_title(doc)
-            self._set_status_for_doc(doc)
+            if not doc.get("font_manual"):
+                self._auto_apply_font_for_doc(doc)
+            self._refresh_doc_modified_state(doc)
 
     def open_junk_remover(self):
         doc = self._current_doc()
@@ -883,6 +1183,9 @@ Phím tắt:
 - Ctrl+O: mở file
 - Ctrl+S: lưu
 - Ctrl+Shift+S: lưu như
+- Ctrl+W: đóng tab hiện tại
+- Ctrl+Shift+W: đóng các tab khác
+- Ctrl+Alt+W: đóng tất cả tab
 - Ctrl+F: tìm
 - Ctrl+H: tìm & thay thế
 - Ctrl+Z / Ctrl+Y: hoàn tác / làm lại
@@ -890,6 +1193,9 @@ Phím tắt:
 Ghi chú:
 - File GB2312/GB18030/CP936 sẽ được chuyển thành Unicode khi mở.
 - Khi lưu, file được ghi UTF-8.
+- Menu Hiển thị > Hiện thanh công cụ dùng để thu gọn/mở lại dải nút phía trên.
+- TextOps tự chọn Microsoft Sans Serif cho tiếng Việt, Microsoft YaHei cho tiếng Trung, và Segoe UI cho ngôn ngữ khác.
+- File đang sửa được lưu tạm trong local/text_ops_autosave để khôi phục nếu app/máy tắt đột ngột.
 - Lịch sử file và regex nằm trong local/text_ops_state.json, không còn phụ thuộc config.json.
 - Tìm & Thay thế preview mặc định tối đa 100 kết quả; bật Hiện tất cả nếu cần xem toàn bộ.
 """
@@ -899,7 +1205,7 @@ Ghi chú:
     def _refresh_controls(self):
         has_doc = bool(self._current_doc())
         for menu, labels in (
-            (self.file_menu, ("Lưu", "Lưu như...", "Đóng tab")),
+            (self.file_menu, ("Lưu", "Lưu như...", "Đóng tab", "Đóng tab khác", "Đóng tất cả tab")),
             (self.edit_menu, ("Hoàn tác", "Làm lại")),
             (self.search_menu, ("Tìm...", "Tìm & Thay thế...")),
             (self.tools_menu, ("Chia file...", "Công cụ nhanh...", "Xóa rác...")),
@@ -909,4 +1215,5 @@ Ghi chú:
                     menu.entryconfig(label, state=(tk.NORMAL if has_doc else tk.DISABLED))
                 except Exception:
                     pass
+        self._sync_font_controls_with_doc(self._current_doc())
         self._set_status_for_doc()

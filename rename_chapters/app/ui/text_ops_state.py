@@ -7,8 +7,10 @@ from app.paths import BASE_DIR
 
 
 TEXT_OPS_STATE_PATH = os.path.join(BASE_DIR, "local", "text_ops_state.json")
+TEXT_OPS_AUTOSAVE_DIR = os.path.join(BASE_DIR, "local", "text_ops_autosave")
 MAX_TEXT_OPS_HISTORY = 40
 MAX_TEXT_OPS_RECENT = 12
+MAX_TEXT_OPS_AUTOSAVE = 80
 
 
 def _now_iso() -> str:
@@ -24,6 +26,11 @@ def _unique_values(values: list[Any], limit: int = MAX_TEXT_OPS_HISTORY) -> list
         if len(result) >= limit:
             break
     return result
+
+
+def _safe_autosave_id(value: str) -> str:
+    text = "".join(ch for ch in str(value or "") if ch.isalnum() or ch in ("-", "_")).strip()
+    return text[:96] or "draft"
 
 
 class TextOpsStateStore:
@@ -54,6 +61,8 @@ class TextOpsStateStore:
                 "family": "Microsoft YaHei",
                 "size": 11,
             },
+            "toolbar_visible": True,
+            "autosave_docs": [],
             "migrated_from_config": False,
         }
 
@@ -70,6 +79,8 @@ class TextOpsStateStore:
                     merged["pins"] = self._default_state()["pins"]
                 if not isinstance(merged.get("font"), dict):
                     merged["font"] = self._default_state()["font"]
+                if not isinstance(merged.get("autosave_docs"), list):
+                    merged["autosave_docs"] = []
                 self.state = merged
         except Exception:
             self.state = self._default_state()
@@ -202,3 +213,105 @@ class TextOpsStateStore:
     def set_font(self, family: str, size: int):
         self.state["font"] = {"family": family or "Microsoft YaHei", "size": max(8, min(36, int(size or 11)))}
         self.save()
+
+    def get_toolbar_visible(self) -> bool:
+        return bool(self.state.get("toolbar_visible", True))
+
+    def set_toolbar_visible(self, visible: bool):
+        self.state["toolbar_visible"] = bool(visible)
+        self.save()
+
+    def _autosave_path(self, doc_id: str) -> str:
+        return os.path.join(TEXT_OPS_AUTOSAVE_DIR, f"{_safe_autosave_id(doc_id)}.txt")
+
+    def save_autosave_doc(
+        self,
+        doc_id: str,
+        *,
+        path: str = "",
+        title: str = "",
+        encoding: str = "utf-8",
+        content: str = "",
+        modified: bool = True,
+    ):
+        doc_id = _safe_autosave_id(doc_id)
+        os.makedirs(TEXT_OPS_AUTOSAVE_DIR, exist_ok=True)
+        autosave_path = self._autosave_path(doc_id)
+        tmp_path = f"{autosave_path}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as handle:
+            handle.write(content or "")
+        os.replace(tmp_path, autosave_path)
+
+        now = _now_iso()
+        entry = {
+            "id": doc_id,
+            "path": os.path.normpath(str(path or "")) if path else "",
+            "title": str(title or ""),
+            "encoding": str(encoding or "utf-8"),
+            "content_file": os.path.basename(autosave_path),
+            "modified": bool(modified),
+            "updated_at": now,
+            "content_length": len(content or ""),
+        }
+        docs = [
+            item for item in (self.state.get("autosave_docs") or [])
+            if isinstance(item, dict) and str(item.get("id") or "") != doc_id
+        ]
+        docs.insert(0, entry)
+        dropped = docs[MAX_TEXT_OPS_AUTOSAVE:]
+        self.state["autosave_docs"] = docs[:MAX_TEXT_OPS_AUTOSAVE]
+        for item in dropped:
+            stale_id = str(item.get("id") or "")
+            if stale_id:
+                try:
+                    os.remove(self._autosave_path(stale_id))
+                except OSError:
+                    pass
+        self.save()
+
+    def remove_autosave_doc(self, doc_id: str):
+        doc_id = _safe_autosave_id(doc_id)
+        self.state["autosave_docs"] = [
+            item for item in (self.state.get("autosave_docs") or [])
+            if isinstance(item, dict) and str(item.get("id") or "") != doc_id
+        ]
+        try:
+            os.remove(self._autosave_path(doc_id))
+        except OSError:
+            pass
+        self.save()
+
+    def _read_autosave_entry(self, entry: dict[str, Any]) -> dict[str, Any] | None:
+        if not isinstance(entry, dict):
+            return None
+        doc_id = str(entry.get("id") or "")
+        content_file = str(entry.get("content_file") or "")
+        if not doc_id:
+            return None
+        path = os.path.join(TEXT_OPS_AUTOSAVE_DIR, os.path.basename(content_file)) if content_file else self._autosave_path(doc_id)
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                content = handle.read()
+        except Exception:
+            return None
+        item = dict(entry)
+        item["content"] = content
+        return item
+
+    def get_autosave_docs(self) -> list[dict[str, Any]]:
+        docs = []
+        for entry in self.state.get("autosave_docs") or []:
+            item = self._read_autosave_entry(entry)
+            if item:
+                docs.append(item)
+        return docs
+
+    def find_autosave_for_path(self, path: str) -> dict[str, Any] | None:
+        target = os.path.normcase(os.path.normpath(str(path or "")))
+        if not target:
+            return None
+        for item in self.get_autosave_docs():
+            item_path = os.path.normcase(os.path.normpath(str(item.get("path") or "")))
+            if item_path == target:
+                return item
+        return None
