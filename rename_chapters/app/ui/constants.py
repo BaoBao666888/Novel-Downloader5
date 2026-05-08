@@ -66,7 +66,8 @@ DEFAULT_UI_SETTINGS = {
     'font_family': 'Segoe UI',
     'mouse_glow': False,
     'background_image': '',
-    'use_classic_theme': False
+    'use_classic_theme': False,
+    'show_koanchay': False
 }
 
 DEFAULT_API_SETTINGS = {

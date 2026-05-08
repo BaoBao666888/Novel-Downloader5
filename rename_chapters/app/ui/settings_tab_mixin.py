@@ -161,8 +161,23 @@ class SettingsTabMixin:
             text="Tạo hiệu ứng highlight nhẹ khi di chuyển chuột quanh ứng dụng.",
         ).grid(row=1, column=0, sticky="w", pady=(4, 0))
 
+        wikidich_frame = ttk.LabelFrame(content, text="Wikidich", padding=14, style="Section.TLabelframe")
+        wikidich_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        wikidich_frame.columnconfigure(0, weight=1)
+        self.ui_show_koanchay_var = tk.BooleanVar(value=bool(self.ui_settings.get('show_koanchay', False)))
+        ttk.Checkbutton(
+            wikidich_frame,
+            text="Hiện Koanchay",
+            variable=self.ui_show_koanchay_var,
+            command=self._toggle_show_koanchay,
+        ).grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            wikidich_frame,
+            text="Bật lại tab và nút chuyển Koanchay trong khu Wikidich.",
+        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+
         tray_frame = ttk.LabelFrame(content, text="Chạy nền / Khay hệ thống", padding=14, style="Section.TLabelframe")
-        tray_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        tray_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(12, 0))
         tray_frame.columnconfigure(0, weight=1)
 
         self.bg_enable_var = tk.BooleanVar(value=bool(self.background_settings.get('enable', False)))
@@ -185,7 +200,7 @@ class SettingsTabMixin:
         ).grid(row=2, column=0, sticky="w", pady=(6, 0))
 
         bg_frame = ttk.LabelFrame(content, text="Ảnh nền", padding=14, style="Section.TLabelframe")
-        bg_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        bg_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(12, 0))
         bg_frame.columnconfigure(1, weight=1)
         ttk.Label(bg_frame, text="Đường dẫn:").grid(row=0, column=0, sticky="w")
         self.ui_background_var = tk.StringVar(value=self.ui_settings.get('background_image', ''))
@@ -199,7 +214,7 @@ class SettingsTabMixin:
         ).grid(row=1, column=0, columnspan=4, sticky="w", pady=(6, 0))
 
         actions_frame = ttk.Frame(content)
-        actions_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(16, 0))
+        actions_frame.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(16, 0))
         ttk.Button(actions_frame, text="Khôi phục mặc định", command=self._reset_ui_theme).pack(side=tk.LEFT)
         ttk.Button(actions_frame, text="Lưu cấu hình ngay", command=self.save_config).pack(side=tk.LEFT, padx=(8, 0))
 

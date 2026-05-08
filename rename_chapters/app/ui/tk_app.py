@@ -511,6 +511,7 @@ class RenamerApp(
         self.ui_settings_vars = {
             'use_classic_theme': tk.BooleanVar(value=self.ui_settings.get('use_classic_theme', False)),
             'mouse_glow': tk.BooleanVar(value=self.ui_settings.get('mouse_glow', False)),
+            'show_koanchay': tk.BooleanVar(value=self.ui_settings.get('show_koanchay', False)),
         }
         self._tray_icon = None
         self._tray_icon_thread = None
@@ -1629,11 +1630,14 @@ class RenamerApp(
         if save:
             self.save_config()
         self._sync_ui_settings_controls()
+        if 'show_koanchay' in changes and hasattr(self, "_wd_update_site_button_visibility"):
+            self._wd_update_site_button_visibility()
 
     def _sync_ui_settings_controls(self):
         if hasattr(self, "ui_settings_vars"):
             self.ui_settings_vars.get('use_classic_theme', tk.BooleanVar()).set(bool(self.ui_settings.get('use_classic_theme', False)))
             self.ui_settings_vars.get('mouse_glow', tk.BooleanVar()).set(bool(self.ui_settings.get('mouse_glow', False)))
+            self.ui_settings_vars.get('show_koanchay', tk.BooleanVar()).set(bool(self.ui_settings.get('show_koanchay', False)))
         if hasattr(self, "ui_theme_var"):
             self.ui_theme_var.set(self.ui_settings.get('theme', DEFAULT_UI_SETTINGS['theme']))
         if hasattr(self, "ui_accent_var"):
@@ -1650,6 +1654,8 @@ class RenamerApp(
             self.font_size_label.config(text=f"{self.ui_font_var.get()} pt")
         if hasattr(self, "ui_classic_var"):
             self.ui_classic_var.set(bool(self.ui_settings.get('use_classic_theme', False)))
+        if hasattr(self, "ui_show_koanchay_var"):
+            self.ui_show_koanchay_var.set(bool(self.ui_settings.get('show_koanchay', False)))
         if hasattr(self, "ui_background_var"):
             self.ui_background_var.set(self.ui_settings.get('background_image', ''))
         if hasattr(self, "ui_theme_combo"):
@@ -1846,6 +1852,15 @@ class RenamerApp(
         else:
             self._apply_mouse_glow_setting()
 
+    def _toggle_show_koanchay(self):
+        desired = bool(self.ui_show_koanchay_var.get()) if hasattr(self, "ui_show_koanchay_var") else False
+        if desired != bool(self.ui_settings.get('show_koanchay', False)):
+            self._update_ui_settings(show_koanchay=desired)
+        else:
+            self._sync_ui_settings_controls()
+        if hasattr(self, "_wd_update_site_button_visibility"):
+            self._wd_update_site_button_visibility()
+
     def _choose_background_image(self):
         filetypes = [
             ("Ảnh", "*.png *.jpg *.jpeg *.bmp *.gif"),
@@ -1900,6 +1915,8 @@ class RenamerApp(
         self._apply_modern_theme(refresh_existing=True)
         self._apply_mouse_glow_setting()
         self._sync_ui_settings_controls()
+        if hasattr(self, "_wd_update_site_button_visibility"):
+            self._wd_update_site_button_visibility()
         self.save_config()
 
     def _supports_mouse_glow(self):
@@ -3259,6 +3276,7 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         wikidich_guide = """
         --- WIKIDICH / KOANCHAY ---
         - **Tải Works / Tải chi tiết**: dùng cookie từ trình duyệt tích hợp. Khi bị Cloudflare sẽ tạm dừng và **resume theo từng site**, kể cả sau khi mở lại app (thao tác lại Tải Works/Tải chi tiết). Domain đọc cookie/header bám theo domain cấu hình trong Cài đặt request.
+        - **Koanchay**: mặc định ẩn khỏi khu Wikidich. Muốn dùng lại, vào tab **Cài đặt** → **Wikidich** → bật **Hiện Koanchay**.
         - **Domain**: đổi domain Wikidich/Koanchay trong Cài đặt request; dữ liệu local sẽ tự rewrite theo domain mới.
         - **Works không chính chủ**: Sync ▾ → “Tải Works (không chính chủ)” (nhập URL/user_id). Chỉ chạy khi profile trống hoặc đang dùng Works không chính chủ; sẽ tắt “Chỉ đồng bộ số chương”, ẩn Auto Update/Chỉnh sửa/Cập nhật chương và ẩn khu Liên kết.
         - **DS Chương cho Works không chính chủ**: app sẽ tự lấy `bookId` thật trước khi tải danh sách chương.

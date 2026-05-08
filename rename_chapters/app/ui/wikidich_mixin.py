@@ -91,6 +91,7 @@ class WikidichMixin:
         self.wikidich_data = initial_data
         self.wikidich_filtered = list(initial_filtered) if initial_filtered else []
         self._wd_set_active_site("wikidich", skip_save=True)
+        self._wd_update_site_button_visibility()
         self._wd_load_autoupdate_state()
         self._wd_update_auto_menu_state()
 
@@ -757,7 +758,9 @@ class WikidichMixin:
             "wd_count_var", "wd_info_vars", "wd_flag_vars", "wd_role_vars",
             "wd_user_label", "_wd_count_header_label", "wd_basic_toggle_btn", "wd_site_button",
             "wd_progress", "wd_progress_label", "wd_cancel_btn", "wd_progress_frame",
-            "_wd_filter_frame", "wd_adv_toggle_btn", "wd_adv_container", "wd_category_listbox",
+            "_wd_filter_frame", "wd_adv_toggle_btn", "wd_adv_container", "wd_category_group_var",
+            "wd_category_group_combo", "wd_category_search_var", "wd_category_search_entry",
+            "wd_category_listbox", "wd_selected_category_listbox",
             "wd_title_text", "wd_summary_text", "wd_collections_text", "wd_flags_text",
             "wd_links_listbox", "wd_current_links", "wd_auto_pick_btn", "wd_open_link_btn",
             "wd_download_btn", "wd_tree", "_wd_tree_index",
@@ -789,6 +792,9 @@ class WikidichMixin:
         self._wd_sync_filter_controls_from_filters()
     
     def _wd_switch_site(self, site):
+        if site == "koanchay" and not self._wd_show_koanchay_enabled():
+            messagebox.showinfo("Koanchay đang ẩn", "Bật 'Hiện Koanchay' trong tab Cài đặt để dùng lại.")
+            return
         if site == getattr(self, "wd_site", ""):
             return
         # Save current filters to store before switching (use copy)
@@ -6176,12 +6182,18 @@ class WikidichMixin:
         site = (site or "").strip().lower()
         if site not in ("wikidich", "koanchay"):
             return
+        if site == "koanchay" and not self._wd_show_koanchay_enabled():
+            messagebox.showinfo("Koanchay đang ẩn", "Bật 'Hiện Koanchay' trong tab Cài đặt để dùng lại.")
+            return
         self._wd_show_site_tab(site)
 
     def _wd_show_site_tab(self, site: str):
         """Hiện tab theo site và kích hoạt context tương ứng."""
         tab = (self._wd_tabs or {}).get(site)
         if not tab:
+            return
+        if site == "koanchay" and not self._wd_show_koanchay_enabled():
+            messagebox.showinfo("Koanchay đang ẩn", "Bật 'Hiện Koanchay' trong tab Cài đặt để dùng lại.")
             return
         try:
             if self.notebook.tab(tab, "state") == "hidden":
@@ -6190,6 +6202,42 @@ class WikidichMixin:
             self._wd_set_active_site(site)
         except Exception:
             pass
+
+    def _wd_show_koanchay_enabled(self):
+        settings = getattr(self, "ui_settings", {}) or {}
+        return bool(settings.get("show_koanchay", False))
+
+    def _wd_update_site_button_visibility(self):
+        show_koanchay = self._wd_show_koanchay_enabled()
+        tabs = getattr(self, "_wd_tabs", {}) or {}
+        current = getattr(self, "wd_site", "wikidich")
+        if current == "koanchay" and not show_koanchay:
+            self._wd_show_site_tab("wikidich")
+            current = getattr(self, "wd_site", "wikidich")
+        koanchay_tab = tabs.get("koanchay")
+        wikidich_tab = tabs.get("wikidich")
+        if koanchay_tab and hasattr(self, "notebook"):
+            try:
+                if not show_koanchay and self.notebook.select() == str(koanchay_tab) and wikidich_tab:
+                    self.notebook.select(wikidich_tab)
+                self.notebook.tab(koanchay_tab, state="normal" if show_koanchay else "hidden")
+            except Exception:
+                pass
+        button = getattr(self, "wd_site_button", None)
+        if not button:
+            return
+        if show_koanchay:
+            other = "koanchay" if current == "wikidich" else "wikidich"
+            button.config(text=other.capitalize(), command=lambda s=other: self._wd_switch_site(s))
+            try:
+                button.grid(row=0, column=13, padx=(12, 0))
+            except Exception:
+                pass
+        else:
+            try:
+                button.grid_remove()
+            except Exception:
+                pass
 
     def _wd_capture_context(self):
         """Lưu tất cả thuộc tính bắt đầu bằng wd_ cho site hiện tại."""
@@ -6264,6 +6312,8 @@ class WikidichMixin:
         site = (site or "").strip().lower()
         if site not in ("wikidich", "koanchay"):
             return
+        if site == "koanchay" and not self._wd_show_koanchay_enabled():
+            return
         if site not in (self._wd_contexts or {}):
             return
         current = getattr(self, "wd_site", "wikidich")
@@ -6314,6 +6364,7 @@ class WikidichMixin:
         if hasattr(self, "wd_site_button"):
             other = "koanchay" if site == "wikidich" else "wikidich"
             self.wd_site_button.config(text=other.capitalize(), command=lambda s=other: self._wd_switch_site(s))
+            self._wd_update_site_button_visibility()
         self._wd_update_user_label()
         if getattr(self, "_wd_adv_section_visible", False):
             self._wd_toggle_advanced_section(show=True)
