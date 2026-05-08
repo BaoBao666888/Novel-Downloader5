@@ -105,6 +105,7 @@ class WikidichMixin:
         self._wd_adv_section_visible = False
         self._wd_pending_categories = []
         self._wd_category_options = []
+        self._wd_all_category_options = []
 
         header = ttk.Frame(tab)
         header.grid(row=0, column=0, sticky="ew")
@@ -361,13 +362,50 @@ class WikidichMixin:
         ttk.Button(to_row, text="Chọn", command=lambda: self._wd_open_date_picker(self.wd_to_date_var, "Chọn ngày kết thúc")).pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(to_row, text="Xóa", command=lambda: self._wd_clear_date(self.wd_to_date_var)).pack(side=tk.LEFT)
 
-        ttk.Label(self.wd_adv_container, text="Thể loại đang có").grid(row=2, column=0, sticky="w", pady=(4, 2))
+        ttk.Label(self.wd_adv_container, text="Thể loại / tag").grid(row=2, column=0, sticky="w", pady=(4, 2))
+        category_tools = ttk.Frame(self.wd_adv_container)
+        category_tools.grid(row=3, column=0, sticky="ew", pady=(0, 4))
+        category_tools.columnconfigure(1, weight=1)
+        ttk.Label(category_tools, text="Nhóm:").grid(row=0, column=0, sticky="w")
+        self.wd_category_group_var = tk.StringVar(value="Tất cả")
+        self.wd_category_group_combo = ttk.Combobox(
+            category_tools,
+            textvariable=self.wd_category_group_var,
+            values=["Tất cả", "Tính chất", "Giới tính", "Thời đại", "Loại hình", "Khác"],
+            state="readonly",
+            width=14,
+        )
+        self.wd_category_group_combo.grid(row=0, column=1, sticky="w", padx=(4, 12))
+        ttk.Label(category_tools, text="Tìm tag:").grid(row=0, column=2, sticky="w")
+        self.wd_category_search_var = tk.StringVar(value="")
+        self.wd_category_search_entry = ttk.Entry(category_tools, textvariable=self.wd_category_search_var)
+        self.wd_category_search_entry.grid(row=0, column=3, sticky="ew", padx=(4, 0))
+        category_tools.columnconfigure(3, weight=1)
         self.wd_category_listbox = tk.Listbox(self.wd_adv_container, selectmode=tk.MULTIPLE, height=6, exportselection=False)
-        self.wd_category_listbox.grid(row=3, column=0, sticky="ew")
+        self.wd_category_listbox.grid(row=4, column=0, sticky="ew")
+        self.wd_category_listbox.bind("<<ListboxSelect>>", lambda _e: self._wd_update_pending_categories_from_visible())
+        self.wd_category_group_combo.bind("<<ComboboxSelected>>", lambda _e: self._wd_refresh_category_options())
+        self.wd_category_search_var.trace_add("write", lambda *_: self._wd_refresh_category_options())
 
-        ttk.Label(self.wd_adv_container, text="Vai trò của bạn").grid(row=4, column=0, sticky="w", pady=(8, 2))
+        selected_category_frame = ttk.Frame(self.wd_adv_container)
+        selected_category_frame.grid(row=5, column=0, sticky="ew", pady=(6, 0))
+        selected_category_frame.columnconfigure(0, weight=1)
+        self.wd_selected_category_listbox = tk.Listbox(selected_category_frame, selectmode=tk.MULTIPLE, height=3, exportselection=False)
+        self.wd_selected_category_listbox.grid(row=0, column=0, rowspan=2, sticky="ew")
+        ttk.Button(
+            selected_category_frame,
+            text="Bỏ tag chọn",
+            command=self._wd_remove_selected_categories_from_preview,
+        ).grid(row=0, column=1, sticky="ew", padx=(6, 0))
+        ttk.Button(
+            selected_category_frame,
+            text="Xóa tất cả tag",
+            command=self._wd_clear_selected_categories,
+        ).grid(row=1, column=1, sticky="ew", padx=(6, 0), pady=(4, 0))
+
+        ttk.Label(self.wd_adv_container, text="Vai trò của bạn").grid(row=6, column=0, sticky="w", pady=(8, 2))
         roles_frame = ttk.Frame(self.wd_adv_container)
-        roles_frame.grid(row=5, column=0, sticky="w")
+        roles_frame.grid(row=7, column=0, sticky="w")
         role_labels = {
             "poster": "Tôi là người đăng",
             "managerOwner": "Đồng quản lý - chủ",
@@ -1272,38 +1310,141 @@ class WikidichMixin:
         self._wd_update_foreign_mode_ui()
 
     def _wd_get_selected_categories(self):
+        self._wd_update_pending_categories_from_visible()
+        return list(getattr(self, "_wd_pending_categories", []))
+
+    def _wd_update_pending_categories_from_visible(self):
         listbox = getattr(self, "wd_category_listbox", None)
-        if not listbox or not getattr(self, "_wd_category_options", None):
-            return list(getattr(self, "_wd_pending_categories", []))
-        selected = []
+        visible_options = list(getattr(self, "_wd_category_options", []) or [])
+        if not listbox or not visible_options:
+            return
+        pending = [cat for cat in getattr(self, "_wd_pending_categories", []) or [] if cat not in visible_options]
+        seen = set(pending)
         for idx in listbox.curselection():
-            if 0 <= idx < len(self._wd_category_options):
-                selected.append(self._wd_category_options[idx])
-        self._wd_pending_categories = list(selected)
-        return selected
+            if 0 <= idx < len(visible_options):
+                cat = visible_options[idx]
+                if cat not in seen:
+                    pending.append(cat)
+                    seen.add(cat)
+        self._wd_pending_categories = pending
+        self._wd_update_category_selection_preview()
 
     def _wd_select_categories(self, categories):
-        self._wd_pending_categories = list(categories or [])
+        pending = []
+        seen = set()
+        for cat in categories or []:
+            if cat and cat not in seen:
+                pending.append(cat)
+                seen.add(cat)
+        self._wd_pending_categories = pending
         listbox = getattr(self, "wd_category_listbox", None)
         if not listbox:
             return
         listbox.selection_clear(0, tk.END)
         if not getattr(self, "_wd_category_options", None):
+            self._wd_update_category_selection_preview()
             return
         for idx, cat in enumerate(self._wd_category_options):
             if cat in self._wd_pending_categories:
                 listbox.selection_set(idx)
+        self._wd_update_category_selection_preview()
+
+    def _wd_update_category_selection_preview(self):
+        listbox = getattr(self, "wd_selected_category_listbox", None)
+        if not listbox:
+            return
+        current = list(getattr(self, "_wd_pending_categories", []) or [])
+        listbox.delete(0, tk.END)
+        for cat in current:
+            listbox.insert(tk.END, cat)
+
+    def _wd_remove_selected_categories_from_preview(self):
+        preview = getattr(self, "wd_selected_category_listbox", None)
+        if not preview:
+            return
+        remove = set()
+        current = list(getattr(self, "_wd_pending_categories", []) or [])
+        for idx in preview.curselection():
+            if 0 <= idx < len(current):
+                remove.add(current[idx])
+        if not remove:
+            return
+        self._wd_select_categories([cat for cat in current if cat not in remove])
+
+    def _wd_clear_selected_categories(self):
+        self._wd_select_categories([])
 
     def _wd_refresh_category_options(self):
         listbox = getattr(self, "wd_category_listbox", None)
         if not listbox:
             return
-        categories = sorted({c for b in self.wikidich_data.get('books', {}).values() for c in (b.get('collections') or []) if c})
+        self._wd_update_pending_categories_from_visible()
+        all_categories = sorted({c for b in self.wikidich_data.get('books', {}).values() for c in (b.get('collections') or []) if c})
+        self._wd_all_category_options = all_categories
+        group_var = getattr(self, "wd_category_group_var", None)
+        search_var = getattr(self, "wd_category_search_var", None)
+        group = group_var.get().strip() if group_var else "Tất cả"
+        keyword = search_var.get().strip().casefold() if search_var else ""
+        categories = []
+        for cat in all_categories:
+            if group and group != "Tất cả" and self._wd_category_group_for_tag(cat) != group:
+                continue
+            if keyword and keyword not in str(cat).casefold():
+                continue
+            categories.append(cat)
         self._wd_category_options = categories
         listbox.delete(0, tk.END)
         for cat in categories:
             listbox.insert(tk.END, cat)
         self._wd_select_categories(getattr(self, "_wd_pending_categories", []) or self.wikidich_filters.get('categories', []))
+
+    def _wd_category_group_for_tag(self, category):
+        text = str(category or "").casefold()
+        if not text:
+            return "Khác"
+        grouped_keywords = (
+            (
+                "Giới tính",
+                (
+                    "男", "女", "无cp", "無cp", "言情", "耽美", "百合", "女强", "男主", "女主",
+                    "1v1", "多男", "多女", "đam mỹ", "bách hợp", "ngôn tình", "nam chủ",
+                    "nữ chủ", "nữ cường", "không cp", "vo cp", "vô cp",
+                ),
+            ),
+            (
+                "Thời đại",
+                (
+                    "古代", "现代", "現代", "近代", "未来", "未來", "末世", "民国", "民國",
+                    "年代", "历史", "歷史", "架空", "星际", "星際", "cổ đại", "hien dai",
+                    "hiện đại", "mạt thế", "mat the", "dân quốc", "dan quoc", "lịch sử",
+                ),
+            ),
+            (
+                "Loại hình",
+                (
+                    "玄幻", "奇幻", "仙侠", "仙俠", "武侠", "武俠", "都市", "科幻", "游戏",
+                    "遊戲", "竞技", "競技", "同人", "穿越", "重生", "快穿", "修真", "修仙",
+                    "无限", "無限", "轻小说", "輕小說", "huyền huyễn", "huyen huyen",
+                    "tiên hiệp", "tien hiep", "võ hiệp", "vo hiep", "đô thị", "do thi",
+                    "khoa huyễn", "xuyên", "trọng sinh", "trong sinh", "đồng nhân",
+                ),
+            ),
+            (
+                "Tính chất",
+                (
+                    "爽", "虐", "甜", "宠", "寵", "轻松", "輕鬆", "搞笑", "悬疑", "懸疑",
+                    "灵异", "靈異", "热血", "熱血", "无敌", "無敵", "系统", "系統",
+                    "升级", "升級", "强强", "強強", "种田", "種田", "经营", "經營",
+                    "日常", "sảng", "sang", "ngược", "nguoc", "ngọt", "ngot", "sủng",
+                    "sung", "hài", "hai", "kinh dị", "kinh di", "hệ thống", "he thong",
+                    "thăng cấp", "thang cap", "vô địch", "vo dich",
+                ),
+            ),
+        )
+        for label, keywords in grouped_keywords:
+            if any(keyword in text for keyword in keywords):
+                return label
+        return "Khác"
 
     def _wd_open_date_picker(self, target_var, title):
         today = datetime.today()
@@ -6076,6 +6217,7 @@ class WikidichMixin:
             "new_chapters": dict(getattr(self, "wd_new_chapters", {}) or {}),
             "pending_categories": list(getattr(self, "_wd_pending_categories", []) or []),
             "category_options": list(getattr(self, "_wd_category_options", []) or []),
+            "all_category_options": list(getattr(self, "_wd_all_category_options", []) or []),
             "adv_visible": bool(getattr(self, "_wd_adv_section_visible", False)),
             "progress_visible": bool(visible_map.get(current_site, getattr(self, "_wd_progress_visible", False))),
             "progress_running": bool(running_map.get(current_site, getattr(self, "_wd_progress_running", False))),
@@ -6103,6 +6245,7 @@ class WikidichMixin:
         self.wd_new_chapters = dict(state.get("new_chapters", {}))
         self._wd_pending_categories = list(state.get("pending_categories", []))
         self._wd_category_options = list(state.get("category_options", []))
+        self._wd_all_category_options = list(state.get("all_category_options", []))
         self._wd_adv_section_visible = state.get("adv_visible", False)
         visible_map = getattr(self, "_wd_progress_visible_by_site", {})
         running_map = getattr(self, "_wd_progress_running_by_site", {})
