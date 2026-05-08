@@ -1286,6 +1286,7 @@ Phím tắt:
 
 Ghi chú:
 - Tìm và Thay thế nằm chung một hộp thoại có tab chuyển qua lại như Word.
+- Khi bật Regex, ô Thay thế hỗ trợ group bắt được bằng cú pháp $1, $2... Ví dụ tìm `Chương (\\d+)` và thay `第$1章` sẽ giữ lại số chương.
 - Khi nhấn Thay tất cả, app hỏi có mở preview không. Chọn Không thì thay ngay; chọn Có thì mở modal preview với dòng, đoạn khớp, trước và sau.
 - File GB2312/GB18030/CP936 sẽ được chuyển thành Unicode khi mở.
 - Khi lưu, file được ghi UTF-8.

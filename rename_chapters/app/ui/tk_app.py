@@ -3453,7 +3453,8 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         1.  **Mở file**: Chọn **Xử lý văn bản > Mở...** để mở file nhanh trong cửa sổ mới, hoặc mở cửa sổ TextOps rồi bấm **Mở**.
 
         **--- Hộp thoại: Tìm & Thay thế ---**
-        -   **Tìm / Thay thế**: Nhập văn bản cần tìm và văn bản sẽ thay thế. Hỗ trợ Regex, nhóm $1, $2,...
+        -   **Tìm / Thay thế**: Nhập văn bản cần tìm và văn bản sẽ thay thế. Khi bật Regex, có thể dùng group bắt được trong ô thay thế bằng `$1`, `$2`,...
+            -   Ví dụ: tìm `Chương (\\d+)` và thay `第$1章` sẽ giữ lại số chương đã bắt.
         -   **Tìm và Thay thế nằm chung một hộp thoại có tab** để chuyển qua lại nhanh như Word.
         -   **Lịch sử & Ghim**: Ô Tìm/Thay thế lưu tối đa 40 mục; nút Ghim/Bỏ ghim giữ regex không bị trôi.
         -   **Các tùy chọn**:
