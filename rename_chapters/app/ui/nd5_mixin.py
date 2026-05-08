@@ -3322,6 +3322,9 @@ class ND5Mixin:
                             _open_settings_dialog()
                         _update_status("Chọn lại nguồn hoặc link.")
                         return
+            loaded_book_url = str(current_book.get("book_url") or "").strip()
+            if range_var.get() and (not loaded_book_url or loaded_book_url != book_url):
+                range_var.set("")
             _persist_nd5_options()
             _update_status("Đang lấy thông tin truyện...")
             progress_token = _start_progress("indeterminate")
@@ -3833,7 +3836,7 @@ class ND5Mixin:
         opt_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=(4, 4))
         for c in range(0, 6):
             opt_frame.columnconfigure(c, weight=0)
-        opt_frame.columnconfigure(1, weight=1)
+        opt_frame.columnconfigure(1, weight=2)
         opt_frame.columnconfigure(3, weight=1)
         ttk.Checkbutton(opt_frame, text="Tải thông tin sách (chương 0)", variable=include_info_var).grid(row=0, column=0, sticky="w")
         ttk.Checkbutton(opt_frame, text="Tải ảnh bìa", variable=include_cover_var).grid(row=0, column=1, sticky="w", padx=(10, 0))
@@ -3853,9 +3856,19 @@ class ND5Mixin:
         fmt_combo.bind("<<ComboboxSelected>>", _toggle_zip_heading)
         _toggle_zip_heading()
 
-        ttk.Label(opt_frame, text="Phạm vi tải (vd 1-10,15, -5,10-; trống = tất cả):").grid(row=1, column=0, sticky="w", pady=(8, 0))
-        range_entry = ttk.Entry(opt_frame, textvariable=range_var)
-        range_entry.grid(row=1, column=1, sticky="ew", padx=(6, 12), pady=(8, 0))
+        range_frame = ttk.Frame(opt_frame)
+        range_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        range_frame.columnconfigure(1, weight=1)
+        ttk.Label(range_frame, text="Phạm vi tải:").grid(row=0, column=0, sticky="w")
+        range_entry = ttk.Entry(range_frame, textvariable=range_var, width=18)
+        range_entry.grid(row=0, column=1, sticky="ew", padx=(6, 12))
+        ttk.Label(
+            range_frame,
+            text="Ví dụ: 1-10,15, -5,10-; trống = tất cả",
+            foreground="#6b7280",
+            justify="left",
+            wraplength=360,
+        ).grid(row=1, column=1, sticky="w", padx=(6, 12), pady=(2, 0))
 
         ttk.Label(opt_frame, text="Thư mục lưu:").grid(row=1, column=2, sticky="w", pady=(8, 0))
         out_entry = ttk.Entry(opt_frame, textvariable=out_dir_var)
@@ -3907,6 +3920,25 @@ class ND5Mixin:
         btn_start_download["ref"] = btn_start
         btn_stop_download["ref"] = btn_stop
         _sync_download_buttons()
+
+        def _start_download_from_enter(event=None):
+            widget = getattr(event, "widget", None)
+            try:
+                widget_class = widget.winfo_class() if widget else ""
+            except Exception:
+                widget_class = ""
+            if isinstance(widget, tk.Text) or widget_class in {"TButton", "Button", "TCombobox", "Combobox"}:
+                return None
+            if download_state.get("running"):
+                return "break"
+            loaded_book_url = str(current_book.get("book_url") or "").strip()
+            current_url = url_var.get().strip()
+            if not current_book.get("meta") or not current_book.get("toc") or loaded_book_url != current_url:
+                return None
+            _start_download()
+            return "break"
+
+        win.bind("<Return>", _start_download_from_enter)
 
         self.after(200, _start_bridge_async)
         def _on_close_downloader():
