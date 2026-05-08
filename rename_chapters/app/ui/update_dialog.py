@@ -282,15 +282,9 @@ def show_update_window(root, manifest, *, title=None, subtitle=None):
         }.get(notes_source, f"Ghi chú: {notes_source}")
         ttk.Label(header, text=source_label, foreground="#6b7280").pack(anchor="w", pady=(2, 0))
 
-    text_frame = ttk.LabelFrame(win, text="Ghi chú cập nhật", padding=1)
-    text_frame.pack(fill=tk.BOTH, expand=True, padx=14)
-
     # progress + buttons
     ctl = ttk.Frame(win)
-    ctl.pack(fill=tk.X, padx=12, pady=10)
-
-    progress = ttk.Progressbar(ctl, orient='horizontal', mode='determinate')
-    progress.pack(fill=tk.X, side=tk.LEFT, expand=True, padx=(0,8))
+    ctl.pack(fill=tk.X, padx=14, pady=(0, 8))
 
     btn_frame = ttk.Frame(ctl)
     btn_frame.pack(side=tk.RIGHT)
@@ -302,8 +296,14 @@ def show_update_window(root, manifest, *, title=None, subtitle=None):
     btn_browser.grid(row=0, column=1, padx=6) 
     btn_cancel.grid(row=0, column=2) 
 
+    progress = ttk.Progressbar(ctl, orient='horizontal', mode='determinate')
+    progress.pack(fill=tk.X, side=tk.LEFT, expand=True, padx=(0, 10), pady=2)
+
     status_lbl = ttk.Label(win, text="", font=('Segoe UI', 9))
-    status_lbl.pack(fill=tk.X, padx=12, pady=(0,8))
+    status_lbl.pack(fill=tk.X, padx=14, pady=(0, 6))
+
+    text_frame = ttk.LabelFrame(win, text="Ghi chú cập nhật", padding=1)
+    text_frame.pack(fill=tk.BOTH, expand=True, padx=14, pady=(0, 12))
 
     # ScrolledText fallback (parser nhẹ)
     txt = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD)
