@@ -3509,15 +3509,20 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   Dán văn bản cần dịch vào ô bên trái hoặc nhấn nút **"Tải file..."** để mở một file .txt.
             -   Mỗi dòng được coi là một "chunk" và sẽ được dịch riêng biệt để giữ nguyên định dạng.
 
-        2.  **Quản lý Name**:
+        2.  **Dịch ảnh OCR**:
+            -   Mở tab con **"Dịch ảnh OCR"**, chọn ảnh / dán ảnh clipboard / dán URL ảnh rồi nhấn **"OCR + Dịch"**.
+            -   Chữ Trung OCR hiển thị ở ô bên trái; bản Việt hiển thị song song trong khung **"Kết quả dịch"** bên phải.
+            -   OCR dùng bộ eSearch/PaddleOCR của TM Translate nếu thư mục assets/model có sẵn.
+
+        3.  **Quản lý Name**:
             -   **Bộ tên**: Chọn name-set bạn muốn sử dụng cho lần dịch này. Bạn có thể **Tạo mới**, **Xóa bộ**, **Nhập/Xuất** file name hoặc **Xóa hết name** trong một bộ.
             -   **Thêm/Sửa nhanh**: Nhập các cặp `Tiếng Trung=Tiếng Việt` (mỗi cặp một dòng) rồi nhấn nút "Thêm/Cập nhật" để thêm hàng loạt.
             -   **Danh sách name**: Hiển thị tất cả các name trong bộ hiện tại. Nhấn nút **"Sửa/Gợi ý"** để chỉnh sửa hoặc xem gợi ý cho một name.
 
-        3.  **Nâng cao**:
+        4.  **Nâng cao**:
             -   Cho phép tùy chỉnh các thông số kỹ thuật như URL server dịch, URL file Hán-Việt, độ trễ và số ký tự tối đa cho mỗi yêu cầu.
 
-        4.  **Dịch và Sửa Name từ kết quả**:
+        5.  **Dịch và Sửa Name từ kết quả**:
             -   Nút **"Việt"** dịch sang tiếng Việt, **"Hán Việt"** dùng API dichngay với `tl=hv`.
             -   Thanh tiến độ ẩn mặc định, chỉ hiện khi đang dịch; nhãn trạng thái nằm cùng hàng với các nút.
             -   Sau khi dịch xong, bạn có thể **chuột phải** vào một đoạn văn bản trong ô "Kết quả dịch" và chọn **"Sửa Name..."**.

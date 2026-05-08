@@ -1,9 +1,24 @@
+import io
 import json
+import os
+import re
 import threading
+import tempfile
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext, simpledialog
+from urllib.parse import urlparse
 
+import requests
+from PIL import Image, ImageTk
+
+try:
+    from PIL import ImageGrab
+except Exception:
+    ImageGrab = None
+
+from app.core import ocr_service
 from app.core import translator as trans_logic
+from app.paths import BASE_DIR
 
 
 class TranslateTabMixin:
@@ -25,6 +40,7 @@ class TranslateTabMixin:
 
         left_notebook = ttk.Notebook(left_frame)
         left_notebook.grid(row=0, column=0, sticky="nsew")
+        self.translator_left_notebook = left_notebook
 
         input_tab = ttk.Frame(left_notebook, padding=5)
         left_notebook.add(input_tab, text="Văn bản gốc")
@@ -33,6 +49,10 @@ class TranslateTabMixin:
 
         self.translator_input_text = scrolledtext.ScrolledText(input_tab, wrap=tk.WORD, undo=True)
         self.translator_input_text.grid(row=0, column=0, sticky="nsew")
+
+        ocr_tab = ttk.Frame(left_notebook, padding=5)
+        left_notebook.add(ocr_tab, text="Dịch ảnh OCR")
+        self._create_translator_ocr_tab(ocr_tab)
 
         name_tab = ttk.Frame(left_notebook, padding=10)
         left_notebook.add(name_tab, text="Quản lý Name")
@@ -86,6 +106,35 @@ class TranslateTabMixin:
         self.translator_status_label = ttk.Label(control_frame, text="Sẵn sàng.")
         self.translator_status_label.grid(row=0, column=6, sticky="e", pady=(0, 0))
 
+    def _create_translator_ocr_tab(self, parent):
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(3, weight=1)
+        self.translator_ocr_image_path = ""
+        self.translator_ocr_preview_image = None
+        self.translator_ocr_path_var = tk.StringVar(value="Chưa chọn ảnh.")
+        self.translator_ocr_status_var = tk.StringVar(value="Sẵn sàng OCR.")
+
+        toolbar = ttk.Frame(parent)
+        toolbar.grid(row=0, column=0, sticky="ew")
+        ttk.Button(toolbar, text="Chọn ảnh...", command=self._translator_ocr_choose_image).pack(side=tk.LEFT)
+        ttk.Button(toolbar, text="Dán ảnh", command=self._translator_ocr_paste_image).pack(side=tk.LEFT, padx=(5, 0))
+        ttk.Button(toolbar, text="URL ảnh...", command=self._translator_ocr_load_url).pack(side=tk.LEFT, padx=(5, 0))
+        ttk.Button(toolbar, text="OCR + Dịch", command=self._translator_ocr_run).pack(side=tk.LEFT, padx=(10, 0))
+        ttk.Button(toolbar, text="Copy Trung", command=self._translator_ocr_copy_source).pack(side=tk.LEFT, padx=(5, 0))
+        ttk.Button(toolbar, text="Copy Dịch", command=self._translator_ocr_copy_translation).pack(side=tk.LEFT, padx=(5, 0))
+        ttk.Button(toolbar, text="Xóa", command=self._translator_ocr_clear).pack(side=tk.LEFT, padx=(5, 0))
+
+        ttk.Label(parent, textvariable=self.translator_ocr_path_var, foreground="#64748b").grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        preview_frame = ttk.Frame(parent)
+        preview_frame.grid(row=2, column=0, sticky="ew", pady=(6, 6))
+        preview_frame.columnconfigure(1, weight=1)
+        self.translator_ocr_preview_label = ttk.Label(preview_frame, text="Preview ảnh")
+        self.translator_ocr_preview_label.grid(row=0, column=0, sticky="w")
+        ttk.Label(preview_frame, textvariable=self.translator_ocr_status_var).grid(row=0, column=1, sticky="e")
+
+        self.translator_ocr_text = scrolledtext.ScrolledText(parent, wrap=tk.WORD, undo=True)
+        self.translator_ocr_text.grid(row=3, column=0, sticky="nsew")
+
     def _load_file_into_translator(self, text_widget):
         filepath = filedialog.askopenfilename(filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
         if not filepath:
@@ -97,6 +146,217 @@ class TranslateTabMixin:
             text_widget.insert("1.0", content)
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể đọc file: {e}", parent=self)
+
+    def _translator_ocr_temp_dir(self):
+        path = os.path.join(BASE_DIR, "local", "ocr_inputs")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    def _translator_ocr_set_image_path(self, filepath):
+        self.translator_ocr_image_path = filepath or ""
+        if filepath:
+            self.translator_ocr_path_var.set(filepath)
+            self._translator_ocr_update_preview(filepath)
+        else:
+            self.translator_ocr_path_var.set("Chưa chọn ảnh.")
+            self.translator_ocr_preview_image = None
+            if hasattr(self, "translator_ocr_preview_label"):
+                self.translator_ocr_preview_label.config(image="", text="Preview ảnh")
+
+    def _translator_ocr_update_preview(self, filepath):
+        try:
+            with Image.open(filepath) as img:
+                img.thumbnail((260, 160))
+                self.translator_ocr_preview_image = ImageTk.PhotoImage(img.copy())
+            self.translator_ocr_preview_label.config(image=self.translator_ocr_preview_image, text="")
+        except Exception:
+            self.translator_ocr_preview_image = None
+            self.translator_ocr_preview_label.config(image="", text="Không xem trước được ảnh.")
+
+    def _translator_ocr_save_temp_image(self, image, suffix=".png"):
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=self._translator_ocr_temp_dir())
+        tmp.close()
+        image.save(tmp.name)
+        return tmp.name
+
+    def _translator_ocr_choose_image(self):
+        filepath = filedialog.askopenfilename(
+            title="Chọn ảnh OCR",
+            filetypes=[
+                ("Image files", "*.png *.jpg *.jpeg *.webp *.bmp *.gif"),
+                ("All files", "*.*"),
+            ],
+            parent=self,
+        )
+        if filepath:
+            self._translator_ocr_set_image_path(filepath)
+            self.translator_ocr_status_var.set("Đã chọn ảnh.")
+
+    def _translator_ocr_paste_image(self):
+        if ImageGrab is None:
+            messagebox.showerror("Thiếu hỗ trợ", "Môi trường này không hỗ trợ đọc ảnh từ clipboard.", parent=self)
+            return
+        try:
+            data = ImageGrab.grabclipboard()
+            if isinstance(data, Image.Image):
+                path = self._translator_ocr_save_temp_image(data.convert("RGB"), ".png")
+                self._translator_ocr_set_image_path(path)
+                self.translator_ocr_status_var.set("Đã dán ảnh từ clipboard.")
+                return
+            if isinstance(data, list) and data:
+                first = str(data[0])
+                if os.path.exists(first):
+                    self._translator_ocr_set_image_path(first)
+                    self.translator_ocr_status_var.set("Đã lấy file ảnh từ clipboard.")
+                    return
+            messagebox.showinfo("Clipboard trống", "Không tìm thấy ảnh trong clipboard.", parent=self)
+        except Exception as exc:
+            messagebox.showerror("Lỗi clipboard", f"Không thể dán ảnh: {exc}", parent=self)
+
+    def _translator_ocr_load_url(self):
+        url = simpledialog.askstring("URL ảnh", "Dán URL ảnh cần OCR:", parent=self)
+        if not url:
+            return
+        try:
+            self.translator_ocr_status_var.set("Đang tải ảnh từ URL...")
+            response = requests.get(url.strip(), timeout=30)
+            response.raise_for_status()
+            image = Image.open(io.BytesIO(response.content))
+            parsed = urlparse(url)
+            ext = os.path.splitext(parsed.path)[1].lower()
+            suffix = ext if ext in {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"} else ".png"
+            path = self._translator_ocr_save_temp_image(image.convert("RGB"), suffix)
+            self._translator_ocr_set_image_path(path)
+            self.translator_ocr_status_var.set("Đã tải ảnh từ URL.")
+        except Exception as exc:
+            self.translator_ocr_status_var.set("Tải URL thất bại.")
+            messagebox.showerror("Lỗi URL ảnh", f"Không thể tải ảnh: {exc}", parent=self)
+
+    def _translator_ocr_copy_source(self):
+        if not hasattr(self, "translator_ocr_text"):
+            return
+        text = self.translator_ocr_text.get("1.0", tk.END).strip()
+        if not text:
+            return
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self.translator_ocr_status_var.set("Đã copy chữ Trung OCR.")
+
+    def _translator_ocr_copy_translation(self):
+        if not hasattr(self, "translator_output_text"):
+            return
+        text = self.translator_output_text.get("1.0", tk.END).strip()
+        if not text:
+            return
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self.translator_ocr_status_var.set("Đã copy bản dịch OCR.")
+
+    def _translator_ocr_clear(self):
+        self._translator_ocr_set_image_path("")
+        if hasattr(self, "translator_ocr_text"):
+            self.translator_ocr_text.delete("1.0", tk.END)
+        if hasattr(self, "translator_output_text"):
+            self.translator_output_text.config(state="normal")
+            self.translator_output_text.delete("1.0", tk.END)
+            self.translator_output_text.config(state="disabled")
+        self.translator_ocr_status_var.set("Đã xóa OCR.")
+
+    def _translator_get_active_name_set(self):
+        set_name = self.translator_name_set_combo.get() if hasattr(self, "translator_name_set_combo") else ""
+        return dict(self.app_config.get("nameSets", {}).get(set_name, {}) or {})
+
+    def _translator_collect_runtime_settings(self):
+        settings = self.app_config.setdefault("translator_settings", {})
+        if hasattr(self, "adv_server_url"):
+            settings["serverUrl"] = self.adv_server_url.get()
+        if hasattr(self, "adv_hv_url"):
+            settings["hanvietJsonUrl"] = self.adv_hv_url.get()
+        if hasattr(self, "adv_delay"):
+            settings["delayMs"] = self.adv_delay.get()
+        if hasattr(self, "adv_max_chars"):
+            settings["maxChars"] = self.adv_max_chars.get()
+        proxies = self._get_proxy_for_request("translate") if hasattr(self, "_get_proxy_for_request") else None
+        if proxies:
+            self.log(f"Dịch thuật sử dụng proxy: {proxies['http']}")
+        settings["proxies"] = proxies
+        return dict(settings)
+
+    def _translator_set_output_chunks(self, output_widget, original_chunks, translated_chunks):
+        output_widget.config(state="normal")
+        output_widget.delete("1.0", tk.END)
+        output_widget.chunk_data = {}
+        for i, translated_chunk in enumerate(translated_chunks):
+            tag_name = f"chunk_{i}"
+            original_chunk = original_chunks[i] if i < len(original_chunks) else ""
+            output_widget.chunk_data[tag_name] = original_chunk
+            output_widget.insert(tk.END, translated_chunk + "\n", (tag_name,))
+        output_widget.config(state="disabled")
+
+    def _translator_ocr_run(self):
+        image_path = getattr(self, "translator_ocr_image_path", "")
+        if not image_path:
+            self._translator_ocr_choose_image()
+            image_path = getattr(self, "translator_ocr_image_path", "")
+            if not image_path:
+                return
+        if getattr(self, "_translator_ocr_running", False):
+            return
+
+        self._translator_ocr_running = True
+        self.translator_ocr_status_var.set("Đang OCR ảnh...")
+        self.translator_status_label.config(text="Đang OCR ảnh...")
+        self.translator_progress_bar.config(value=0)
+        self.translator_progress_bar.grid()
+
+        settings = self._translator_collect_runtime_settings()
+        active_name_set = self._translator_get_active_name_set()
+
+        def update_progress(message, value):
+            self.after(
+                0,
+                lambda: [
+                    self.translator_status_label.config(text=message),
+                    self.translator_ocr_status_var.set(message),
+                    self.translator_progress_bar.config(value=value),
+                    self.translator_progress_bar.grid(),
+                ],
+            )
+
+        def worker():
+            try:
+                payload = ocr_service.recognize_image(image_path)
+                engine_name = str(payload.get("engine") or "ocr")
+                raw_text = str(payload.get("text") or "")
+                cleaned_text = re.sub(r"([^\x00-\xff])[^\S\r\n]+([^\x00-\xff])", r"\1\2", raw_text).strip()
+                if not cleaned_text:
+                    self.after(0, lambda: messagebox.showinfo("OCR", "Không tìm thấy chữ trong ảnh.", parent=self))
+                    return
+                lines = cleaned_text.splitlines() or [cleaned_text]
+                self.after(0, lambda: [self.translator_ocr_text.delete("1.0", tk.END), self.translator_ocr_text.insert("1.0", cleaned_text)])
+                update_progress("Đang dịch chữ OCR...", 35)
+                translated = trans_logic.translate_text_chunks(
+                    lines,
+                    active_name_set,
+                    settings,
+                    update_progress,
+                    target_lang="vi",
+                )
+                self.after(0, lambda: self._translator_set_output_chunks(self.translator_output_text, lines, translated))
+                self.after(0, lambda: self.translator_ocr_status_var.set(f"OCR xong ({engine_name}): {len(lines)} dòng."))
+                self._last_translation_lang = "vi"
+            except Exception as exc:
+                self.after(0, lambda e=exc: messagebox.showerror("Lỗi OCR", str(e), parent=self))
+                self.after(0, lambda: self.translator_ocr_status_var.set("OCR thất bại."))
+            finally:
+                def finish():
+                    self._translator_ocr_running = False
+                    self.translator_progress_bar.grid_remove()
+                    if self.translator_status_label.cget("text").startswith("Đang"):
+                        self.translator_status_label.config(text="Sẵn sàng.")
+                self.after(0, finish)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _export_translation_result(self):
         if not hasattr(self, "translator_output_text"):
@@ -498,22 +758,12 @@ class TranslateTabMixin:
             return
         self.is_translating = True
 
-        self.app_config["translator_settings"]["serverUrl"] = self.adv_server_url.get()
-        self.app_config["translator_settings"]["hanvietJsonUrl"] = self.adv_hv_url.get()
-        self.app_config["translator_settings"]["delayMs"] = self.adv_delay.get()
-        self.app_config["translator_settings"]["maxChars"] = self.adv_max_chars.get()
-
-        proxies = self._get_proxy_for_request("translate") if hasattr(self, "_get_proxy_for_request") else None
-        if proxies:
-            self.log(f"Dịch thuật sử dụng proxy: {proxies['http']}")
-        self.app_config["translator_settings"]["proxies"] = proxies
-
-        set_name = self.translator_name_set_combo.get()
-        active_name_set = self.app_config.get("nameSets", {}).get(set_name, {})
+        settings = self._translator_collect_runtime_settings()
+        active_name_set = self._translator_get_active_name_set()
 
         thread = threading.Thread(
             target=self._translation_worker,
-            args=(input_content, active_name_set, self.app_config["translator_settings"], output_widget, target_lang),
+            args=(input_content, active_name_set, settings, output_widget, target_lang),
             daemon=True,
         )
         thread.start()
@@ -535,19 +785,8 @@ class TranslateTabMixin:
         )
 
         def update_output_widget():
-            output_widget.config(state="normal")
-            output_widget.delete("1.0", tk.END)
-            output_widget.chunk_data = {}
-
             original_chunks = content.split("\n")
-
-            for i, translated_chunk in enumerate(translated_chunks):
-                tag_name = f"chunk_{i}"
-                original_chunk = original_chunks[i] if i < len(original_chunks) else ""
-                output_widget.chunk_data[tag_name] = original_chunk
-                output_widget.insert(tk.END, translated_chunk + "\n", (tag_name,))
-
-            output_widget.config(state="disabled")
+            self._translator_set_output_chunks(output_widget, original_chunks, translated_chunks)
             self._last_translation_lang = target_lang or "vi"
             self.translator_progress_bar.grid_remove()
 
