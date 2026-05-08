@@ -498,11 +498,59 @@ class RenameTabMixin:
         suggestions = self._suggest_regex_from_samples(samples)
         self._choose_regex_from_suggestions(self.content_regex_text, suggestions)
 
+    def _rename_folder_key(self, path: str = "") -> str:
+        raw = path or self.folder_path.get()
+        try:
+            return os.path.normcase(os.path.abspath(raw)) if raw else ""
+        except Exception:
+            return str(raw or "").strip()
+
+    def _clear_rename_regex_fields(self):
+        for widget_name in ("filename_regex_text", "content_regex_text"):
+            widget = getattr(self, widget_name, None)
+            if not widget:
+                continue
+            try:
+                widget.delete("1.0", tk.END)
+                widget.edit_modified(False)
+            except Exception:
+                pass
+
+    def _reset_rename_scope_state(self):
+        self._clear_rename_regex_fields()
+        self.excluded_files.clear()
+        self.files_data.clear()
+        self.sorted_files_cache.clear()
+        self.tree_filepaths.clear()
+        try:
+            self.search_var.set("")
+        except Exception:
+            pass
+        try:
+            self.tree.delete(*self.tree.get_children())
+        except Exception:
+            pass
+
+    def _ensure_rename_scope_for_folder(self, path: str = None) -> bool:
+        folder_key = self._rename_folder_key(path or self.folder_path.get())
+        previous_key = getattr(self, "_rename_active_folder_key", None)
+        if previous_key == folder_key:
+            return False
+        self._rename_active_folder_key = folder_key
+        self._reset_rename_scope_state()
+        if folder_key:
+            self.log("Đã dọn regex/gợi ý Đổi Tên cho thư mục mới.")
+        return True
+
+    def _on_rename_tab_entered(self):
+        self._ensure_rename_scope_for_folder()
+
     # ==== Logic cho tab Đổi Tên ====
     def select_folder(self):
         path = filedialog.askdirectory(title="Chọn thư mục chứa file .txt")
         if path:
             self.folder_path.set(path)
+            self._ensure_rename_scope_for_folder(path)
             self.log(f"Đã chọn thư mục: {path}")
             self.schedule_preview_update(None)
 

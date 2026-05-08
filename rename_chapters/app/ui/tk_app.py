@@ -2497,8 +2497,8 @@ class RenamerApp(
             'sort_strategy': self.sort_strategy.get(),
             'rename_format': self.format_combobox.get(),
             'rename_format_history': list(self.format_combobox['values']),
-            'filename_regexes': self.filename_regex_text.get("1.0", tk.END).strip(),
-            'content_regexes': self.content_regex_text.get("1.0", tk.END).strip(),
+            'filename_regexes': '',
+            'content_regexes': '',
             'credit_text': self.credit_text_widget.get("1.0", tk.END).strip(),
             'credit_position': self.credit_position.get(),
             'credit_line_num': self.credit_line_num.get(),
@@ -2639,8 +2639,8 @@ class RenamerApp(
             self.format_combobox['values'] = format_history
             self.format_combobox.set(config_data.get('rename_format', format_history[0]))
             
-            self.filename_regex_text.delete("1.0", tk.END); self.filename_regex_text.insert("1.0", config_data.get('filename_regexes', ''))
-            self.content_regex_text.delete("1.0", tk.END); self.content_regex_text.insert("1.0", config_data.get('content_regexes', ''))
+            self.filename_regex_text.delete("1.0", tk.END)
+            self.content_regex_text.delete("1.0", tk.END)
             self.credit_text_widget.delete("1.0", tk.END); self.credit_text_widget.insert("1.0", config_data.get('credit_text', ''))
             self.credit_position.set(config_data.get('credit_position', 'top'))
             self.credit_line_num.set(config_data.get('credit_line_num', 2))
@@ -2733,6 +2733,8 @@ class RenamerApp(
             except Exception as cache_exc:
                 self.log(f"Không thể nạp cache Wikidich lúc khởi động: {cache_exc}")
 
+            if hasattr(self, "_on_rename_tab_entered"):
+                self._on_rename_tab_entered()
             if self.folder_path.get(): self.schedule_preview_update()
             self.selected_file.set(config_data.get('selected_file', ''))
             bg_cfg = config_data.get('background', {})
@@ -3634,6 +3636,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             if tab_text in ("Wikidich", "Koanchay"):
                 target_site = "koanchay" if tab_text == "Koanchay" else "wikidich"
                 self._wd_set_active_site(target_site)
+
+            if tab_text == "Đổi Tên" and hasattr(self, "_on_rename_tab_entered"):
+                self._on_rename_tab_entered()
 
             if tab_text == "Xử lý Văn bản":
                 filepath = self.selected_file.get()
