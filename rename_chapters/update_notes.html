@@ -1,4 +1,4 @@
-<h1>Phiên bản 0.3.3.4 - TextOps dễ dùng hơn</h1>
+<h1>Phiên bản 0.3.3.4 - TextOps và OCR dễ dùng hơn</h1>
 
 <h2>Xử lý văn bản</h2>
 <ul>
@@ -13,6 +13,15 @@
   <li>Tab tài liệu vẫn dùng tên file, chữ tab rõ và đậm hơn.</li>
 </ul>
 
+<h2>OCR ảnh</h2>
+<ul>
+  <li>Tách OCR khỏi tab Dịch thành cửa sổ riêng trong menu <b>OCR &gt; Mở cửa sổ OCR</b>; có thể nạp một hoặc nhiều ảnh, xem ảnh bên trái và text/kết quả bên phải.</li>
+  <li>Chuyển engine chính sang <b>PaddleOCR runtime tách riêng</b>; app chính chỉ gọi <code>tools/ocr_runtime/ocr_runtime.exe</code>, Windows OCR chỉ còn là lựa chọn dự phòng cuối.</li>
+  <li>Khi mở menu OCR mà chưa có runtime, app hỏi có muốn tải gói runtime từ <code>version.json</code> và giải nén tự động không.</li>
+  <li>Thêm danh sách model theo ngôn ngữ kèm mô tả chức năng: Trung, Việt/Latin, Anh, Hàn, Nhật và phồn thể.</li>
+  <li>Thêm nút <b>Tải model</b>; user không cần tự tải file model, OCR runtime tự tải/cache model chính thức theo lựa chọn.</li>
+</ul>
+
 <h2>Hướng dẫn cập nhật</h2>
 <ul>
   <li>Nhấn <b>Tải &amp; Cài đặt</b> để lên 0.3.3.4. Ứng dụng sẽ tự đóng trước khi chạy bộ cài.</li>
@@ -23,6 +32,6 @@
 <ul>
   <li>0.3.3.3 đã chuyển Xử lý văn bản thành cửa sổ riêng, tách state TextOps khỏi <code>config.json</code>, thêm autosave/khôi phục tài liệu và tăng bộ nhớ regex.</li>
   <li>Đã cải thiện Download Novel 5: ô phạm vi tải rộng hơn, Enter để tải và tự reset phạm vi khi lấy truyện khác.</li>
-  <li>Đã dọn regex gợi ý cũ trong Đổi tên khi đổi cuốn, thêm lọc tag Wikidich theo nhóm, ẩn Koanchay mặc định và thêm OCR ảnh bằng Windows OCR.</li>
+  <li>Đã dọn regex gợi ý cũ trong Đổi tên khi đổi cuốn, thêm lọc tag Wikidich theo nhóm, ẩn Koanchay mặc định và thử nghiệm OCR ảnh bằng Windows OCR.</li>
   <li>Đã cải thiện cửa sổ ghi chú update và bộ cài update để dọn runtime cũ trước khi chép bản mới.</li>
 </ul>

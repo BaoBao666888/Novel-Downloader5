@@ -60,6 +60,7 @@ from app.ui.online_tab_mixin import OnlineTabMixin
 from app.ui.settings_tab_mixin import SettingsTabMixin
 from app.ui.text_ops_mixin import TextOpsMixin
 from app.ui.translate_tab_mixin import TranslateTabMixin
+from app.ui.ocr_mixin import OcrMixin
 from app.ui.image_tab_mixin import ImageTabMixin
 from app.ui.proxy_mixin import ProxyMixin
 from app.ui.radical_checker import open_radical_checker_dialog
@@ -466,6 +467,7 @@ class RenamerApp(
     SettingsTabMixin,
     TextOpsMixin,
     TranslateTabMixin,
+    OcrMixin,
     ImageTabMixin,
     LibraryMixin,
     ReaderTabMixin,
@@ -627,6 +629,12 @@ class RenamerApp(
                 'hanvietJsonUrl': 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/han_viet/output.json',
                 'delayMs': 400,
                 'maxChars': 4500
+            },
+            'ocr_settings': {
+                'engine': 'paddle',
+                'model_key': 'ppocrv5_mobile_zh',
+                'target_lang': 'vi',
+                'downloaded_models': {}
             },
             'proxy_settings': {
                 'proxies': [],
@@ -2476,6 +2484,9 @@ class RenamerApp(
         if hasattr(self, "_close_text_ops_windows_for_app_exit") and not self._close_text_ops_windows_for_app_exit():
             self._force_exit = False
             return
+        if hasattr(self, "_close_ocr_windows_for_app_exit") and not self._close_ocr_windows_for_app_exit():
+            self._force_exit = False
+            return
         if getattr(self, "text_modified", tk.BooleanVar(value=False)).get() and hasattr(self, "_save_changes"):
             response = messagebox.askyesnocancel(
                 "Lưu thay đổi?",
@@ -2930,6 +2941,11 @@ class RenamerApp(
         text_ops_menu.add_command(label="Lịch sử...", command=self._open_text_ops_history_dialog)
 
         menubar.add_command(label="Dịch", command=lambda: self._select_tab_by_name("Dịch"))
+        ocr_menu = tk.Menu(menubar, **menu_style)
+        menubar.add_cascade(label="OCR", menu=ocr_menu)
+        ocr_menu.add_command(label="Mở cửa sổ OCR", command=self._open_ocr_window)
+        ocr_menu.add_command(label="Quản lý model...", command=self._open_ocr_model_manager)
+        ocr_menu.add_command(label="Cài/cập nhật runtime...", command=self._install_ocr_runtime_from_menu)
         menubar.add_command(label="Proxy", command=self._open_proxy_manager_window)
         menubar.add_command(label=self.browser_menu_label, command=self.toggle_browser_overlay)
         menubar.add_command(label=self.cookie_menu_label, command=self.open_cookie_manager)
@@ -3528,20 +3544,15 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   Dán văn bản cần dịch vào ô bên trái hoặc nhấn nút **"Tải file..."** để mở một file .txt.
             -   Mỗi dòng được coi là một "chunk" và sẽ được dịch riêng biệt để giữ nguyên định dạng.
 
-        2.  **Dịch ảnh OCR**:
-            -   Mở tab con **"Dịch ảnh OCR"**, chọn ảnh / dán ảnh clipboard / dán URL ảnh rồi nhấn **"OCR + Dịch"**.
-            -   Chữ Trung OCR hiển thị ở ô bên trái; bản Việt hiển thị song song trong khung **"Kết quả dịch"** bên phải.
-            -   OCR dùng Windows OCR tích hợp (`Windows.Media.Ocr`), không cần tải model riêng. Nếu máy chưa nhận tiếng Trung, hãy cài thêm gói ngôn ngữ/OCR tiếng Trung trong Windows.
-
-        3.  **Quản lý Name**:
+        2.  **Quản lý Name**:
             -   **Bộ tên**: Chọn name-set bạn muốn sử dụng cho lần dịch này. Bạn có thể **Tạo mới**, **Xóa bộ**, **Nhập/Xuất** file name hoặc **Xóa hết name** trong một bộ.
             -   **Thêm/Sửa nhanh**: Nhập các cặp `Tiếng Trung=Tiếng Việt` (mỗi cặp một dòng) rồi nhấn nút "Thêm/Cập nhật" để thêm hàng loạt.
             -   **Danh sách name**: Hiển thị tất cả các name trong bộ hiện tại. Nhấn nút **"Sửa/Gợi ý"** để chỉnh sửa hoặc xem gợi ý cho một name.
 
-        4.  **Nâng cao**:
+        3.  **Nâng cao**:
             -   Cho phép tùy chỉnh các thông số kỹ thuật như URL server dịch, URL file Hán-Việt, độ trễ và số ký tự tối đa cho mỗi yêu cầu.
 
-        5.  **Dịch và Sửa Name từ kết quả**:
+        4.  **Dịch và Sửa Name từ kết quả**:
             -   Nút **"Việt"** dịch sang tiếng Việt, **"Hán Việt"** dùng API dichngay với `tl=hv`.
             -   Thanh tiến độ ẩn mặc định, chỉ hiện khi đang dịch; nhãn trạng thái nằm cùng hàng với các nút.
             -   Sau khi dịch xong, bạn có thể **chuột phải** vào một đoạn văn bản trong ô "Kết quả dịch" và chọn **"Sửa Name..."**.
@@ -3550,6 +3561,19 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   **Xuất kết quả**: Lưu nội dung đã dịch ra `.txt` hoặc `.json` (dạng list dòng) bằng nút **"Xuất kết quả..."**.
         """
         create_tab("Dịch", translate_guide)
+
+        ocr_guide = """
+        --- CỬA SỔ OCR ---
+        Mở từ menu **OCR > Mở cửa sổ OCR** để nhận chữ từ một hoặc nhiều ảnh bằng PaddleOCR.
+
+        -   **Thêm ảnh / Dán ảnh / URL ảnh**: Nạp một hoặc nhiều file ảnh vào danh sách bên trái.
+        -   **Model**: Chọn đúng model theo ngôn ngữ. Mô tả ngay dưới combobox ghi rõ model đó dùng cho Trung, Việt/Latin, Anh, Hàn, Nhật hay phồn thể.
+        -   Nếu chưa có runtime, app hỏi tải zip trong `version.json > ocr_runtime.url` và giải nén vào `tools/ocr_runtime`.
+        -   **Tải model**: User không cần tự tải file model. OCR runtime tự tải/cache model chính thức theo lựa chọn.
+        -   **OCR file này / OCR tất cả**: Bên trái hiển thị ảnh, bên phải có tab **OCR gốc** và **Kết quả**. Nếu chọn kết quả khác "Không dịch", app dùng pipeline Dịch hiện tại để dịch text OCR.
+        -   **Windows OCR** chỉ là engine dự phòng cuối khi OCR runtime/model lỗi.
+        """
+        create_tab("OCR", ocr_guide)
 
         image_guide = """
         --- TAB XỬ LÝ ẢNH ---
