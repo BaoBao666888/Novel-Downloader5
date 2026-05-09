@@ -69,6 +69,6 @@
     "version": "0.1.1",
     "url": "",
     "exe_name": "ocr_runtime.exe",
-    "notes": "Zip thư mục ocr/dist/ocr_runtime sau khi build rồi điền link Drive vào url."
+    "notes": "Zip thư mục runtime OCR. "
   }
 }

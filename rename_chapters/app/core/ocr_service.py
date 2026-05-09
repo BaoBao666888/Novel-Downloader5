@@ -17,6 +17,8 @@ import time
 import zipfile
 from typing import Any, Callable
 
+from packaging.version import parse as parse_version
+
 from app.paths import BASE_DIR
 
 
@@ -138,13 +140,13 @@ def ocr_model_cache_dir() -> str:
     return os.path.join(BASE_DIR, "local", "ocr_models")
 
 
-def get_ocr_runtime_status(meta: dict[str, Any] | None = None) -> dict[str, Any]:
+def get_ocr_runtime_status(meta: dict[str, Any] | None = None, *, query_version: bool = True) -> dict[str, Any]:
     meta = meta or {}
     exe_name = (meta.get("exe_name") or DEFAULT_RUNTIME_EXE_NAME).strip()
     target_version = str(meta.get("version") or DEFAULT_RUNTIME_VERSION).strip()
     exe_path = ocr_runtime_exe_path(exe_name)
     installed = os.path.isfile(exe_path)
-    installed_version = _query_runtime_version(exe_path) if installed else ""
+    installed_version = _query_runtime_version(exe_path) if installed and query_version else ""
     return {
         "installed": installed,
         "exe_path": exe_path,
@@ -152,10 +154,21 @@ def get_ocr_runtime_status(meta: dict[str, Any] | None = None) -> dict[str, Any]
         "version": installed_version,
         "target_version": target_version,
         "needs_install": not installed,
-        "needs_update": bool(installed and target_version and installed_version and installed_version != target_version),
+        "needs_update": bool(installed and _is_newer_version(target_version, installed_version)),
         "url": meta.get("url") or "",
         "model_cache_dir": ocr_model_cache_dir(),
     }
+
+
+def _is_newer_version(target_version: str, installed_version: str) -> bool:
+    target = str(target_version or "").strip()
+    installed = str(installed_version or "").strip()
+    if not target or not installed:
+        return False
+    try:
+        return parse_version(target) > parse_version(installed)
+    except Exception:
+        return target != installed
 
 
 def install_ocr_runtime(meta: dict[str, Any], status_cb: Callable[[str], None] | None = None) -> dict[str, Any]:
