@@ -47,6 +47,7 @@ class TextOpsStateStore:
             "recent_files": [],
             "history_files": [],
             "find_history": [],
+            "replace_find_history": [],
             "replace_history": [],
             "split_regex_history": [],
             "split_format_history": ["part_{num}.txt"],
@@ -54,6 +55,7 @@ class TextOpsStateStore:
             "pins": {
                 "find": [],
                 "replace": [],
+                "replace_text": [],
                 "split": [],
                 "quick_regex": [],
             },
@@ -77,6 +79,10 @@ class TextOpsStateStore:
                 merged.update(loaded)
                 if not isinstance(merged.get("pins"), dict):
                     merged["pins"] = self._default_state()["pins"]
+                else:
+                    default_pins = self._default_state()["pins"]
+                    for key, value in default_pins.items():
+                        merged["pins"].setdefault(key, value)
                 if not isinstance(merged.get("font"), dict):
                     merged["font"] = self._default_state()["font"]
                 if not isinstance(merged.get("autosave_docs"), list):
@@ -99,6 +105,7 @@ class TextOpsStateStore:
         fr_history = config_data.get("find_replace_history")
         if isinstance(fr_history, dict):
             self.add_history_values("find_history", fr_history.get("find", []), save=False)
+            self.add_history_values("replace_find_history", fr_history.get("find", []), save=False)
             self.add_history_values("replace_history", fr_history.get("replace", []), save=False)
         self.add_history_values("split_regex_history", config_data.get("split_regex_history", []), save=False)
         self.add_history_values("split_format_history", config_data.get("split_format_history", []), save=False)

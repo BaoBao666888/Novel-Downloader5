@@ -1,58 +1,28 @@
-<h1>Phiên bản 0.3.3.3 - Cải thiện Novel Studio</h1>
-
-<h2>Download Novel 5</h2>
-<ul>
-  <li>Tối ưu dòng <b>Phạm vi tải</b> để ô nhập rộng hơn khi snap cửa sổ nửa màn hình.</li>
-  <li>Có thể bấm <b>Enter</b> để bắt đầu tải sau khi đã lấy thông tin truyện.</li>
-  <li>Khi lấy thông tin cho truyện khác, ô <b>Phạm vi tải</b> tự trở về trống.</li>
-</ul>
-
-<h2>Đổi tên</h2>
-<ul>
-  <li>Dọn gợi ý regex cũ khi vào tab hoặc chọn thư mục truyện khác, tránh dùng nhầm regex của cuốn trước.</li>
-</ul>
+<h1>Phiên bản 0.3.3.4 - TextOps dễ dùng hơn</h1>
 
 <h2>Xử lý văn bản</h2>
 <ul>
-  <li>Chuyển Xử lý văn bản thành cửa sổ riêng, mở được nhiều cửa sổ từ menu chính.</li>
-  <li>Tách lịch sử/regex/pin khỏi <code>config.json</code> sang state riêng để giảm rủi ro lỗi config.</li>
-  <li>Thêm menu kiểu Word: mở, lưu, lưu như, hoàn tác, làm lại, tìm, tìm &amp; thay thế, chia file, công cụ nhanh, xóa rác và hướng dẫn.</li>
-  <li>Menu chính <b>Xử lý văn bản</b> có thêm <b>Mở...</b> để chọn file và mở nhanh trong cửa sổ mới.</li>
-  <li>Tìm và Tìm &amp; thay thế nằm chung một hộp thoại có tab như Word; khi <b>Thay tất cả</b> mới hỏi có mở preview không.</li>
-  <li>Hướng dẫn Tìm &amp; thay thế ghi rõ Regex hỗ trợ group thay thế như <code>(\d+)</code> &rarr; <code>$1</code>.</li>
-  <li>Preview thay tất cả mở dạng modal riêng, hiển thị đúng dòng, chuỗi khớp, trước và sau; Công cụ nhanh và Tìm &amp; thay thế tăng bộ nhớ regex tối đa 40 mục.</li>
-  <li>Tự nhận diện UTF-8/GB2312/GB18030/Big5 khi mở file txt và lưu ra UTF-8.</li>
-  <li>Có thể thu gọn/hiện lại thanh công cụ để lấy tối đa không gian soạn thảo.</li>
-  <li>Thêm tìm nhanh font, tự chọn font phù hợp cho tiếng Việt/tiếng Trung và fallback an toàn cho ngôn ngữ khác.</li>
-  <li>Thêm phím tắt đóng tab: <b>Ctrl+W</b> đóng tab hiện tại, <b>Ctrl+Shift+W</b> đóng tab khác, <b>Ctrl+Alt+W</b> đóng tất cả tab.</li>
-  <li>File đang sửa được lưu tạm và khôi phục lại nếu app/máy tắt đột ngột; nếu undo về đúng nội dung gốc thì không còn bị đánh dấu đã sửa.</li>
-</ul>
-
-<h2>Wikidich</h2>
-<ul>
-  <li>Thiết kế lại lọc tag theo nhóm: tính chất, giới tính, thời đại, loại hình và nhóm khác.</li>
-  <li>Thêm ô tìm tag nhanh, danh sách tag đã chọn, bỏ từng tag hoặc xóa toàn bộ tag.</li>
-  <li>Ẩn Koanchay mặc định; có thể bật lại trong <b>Cài đặt</b> &rarr; <b>Wikidich</b> &rarr; <b>Hiện Koanchay</b>.</li>
-</ul>
-
-<h2>Dịch</h2>
-<ul>
-  <li>Thêm tab con <b>Dịch ảnh OCR</b>: chọn ảnh, dán ảnh clipboard hoặc nhập URL ảnh.</li>
-  <li>Hiển thị song song chữ Trung OCR bên trái và bản dịch tiếng Việt bên phải, có nút copy từng bên.</li>
-  <li>OCR dùng Windows OCR tích hợp (<b>Windows.Media.Ocr</b>), không cần tải model riêng; nếu máy chưa nhận tiếng Trung thì cài thêm gói ngôn ngữ/OCR tiếng Trung trong Windows.</li>
-</ul>
-
-<h2>Giao diện</h2>
-<ul>
-  <li>Thêm font <b>Microsoft YaHei</b> và <b>Microsoft Sans Serif</b> vào danh sách font TextOps và Cài đặt chính.</li>
-  <li>Menu <b>Trợ giúp</b> có thêm <b>Xem ghi chú update</b>, ưu tiên tải <code>update_notes.html</code> từ Git và fallback local khi lỗi mạng.</li>
-  <li>Cải thiện render ghi chú update: tiêu đề, danh sách, chữ đậm và code hiển thị gọn hơn; vẫn giữ nút tải/cài đặt để cài lại khi cần.</li>
-  <li>Thanh nút <b>Tải &amp; Cài đặt</b> và <b>Mở bằng trình duyệt</b> luôn hiện ngay dưới phần mô tả, không bị vùng ghi chú đẩy mất khỏi cửa sổ.</li>
-  <li>Bộ cài update dọn runtime cũ trước khi chép bản mới, tránh lỗi PyInstaller khi nâng Python runtime.</li>
+  <li><b>Mở file gần nhất</b> trong menu Xử lý văn bản giờ mở thẳng file recent mới nhất, không bật thêm cửa sổ chọn trùng với Lịch sử.</li>
+  <li><b>Chia file</b> mở dạng cửa sổ riêng, có bảng preview cuộn dọc/ngang, hiển thị tên file sẽ tạo và chữ lớn hơn để dễ nhìn chương.</li>
+  <li>Double-click một phần trong preview chia file hoặc bấm <b>Sửa raw...</b> để mở cửa sổ xem/sửa raw riêng cho phần đó; khi đóng nếu có sửa app sẽ hỏi lưu vào preview.</li>
+  <li><b>Công cụ nhanh</b> mở dạng cửa sổ riêng, có vùng cuộn để dùng tốt hơn trên màn hình thấp.</li>
+  <li>Bỏ dòng thông tin file/encoding lặp ở đầu tab tài liệu; status bar cuối cửa sổ vẫn hiển thị path, encoding đọc, encoding lưu và trạng thái lưu.</li>
+  <li>Tự nhận diện thêm UTF-16/Unicode khi mở file txt; nếu nội dung có dấu hiệu sai encoding, app mở bảng chọn encoding có preview để user chọn trực quan.</li>
+  <li>Lưu file mặc định bằng UTF-8 để tránh lỗi Unicode; có thể đổi mã lưu trong <b>File &gt; Chọn mã lưu...</b> khi cần.</li>
+  <li>Hộp <b>Tìm</b> và <b>Tìm &amp; thay thế</b> có ghim regex riêng; regex ghim ở tab nào chỉ ưu tiên trong tab đó.</li>
+  <li>Tab tài liệu vẫn dùng tên file, chữ tab rõ và đậm hơn.</li>
 </ul>
 
 <h2>Hướng dẫn cập nhật</h2>
 <ul>
-  <li>Nhấn <b>Tải &amp; Cài đặt</b> để lên 0.3.3.3 (ứng dụng sẽ tự đóng trước khi chạy bộ cài).</li>
-  <li>Nếu muốn xem chi tiết, chọn <b>Mở bằng trình duyệt</b>.</li>
+  <li>Nhấn <b>Tải &amp; Cài đặt</b> để lên 0.3.3.4. Ứng dụng sẽ tự đóng trước khi chạy bộ cài.</li>
+  <li>Nếu cần xem ghi chú bằng trình duyệt, bấm <b>Mở bằng trình duyệt</b>.</li>
+</ul>
+
+<h2>Ghi chú các bản trước</h2>
+<ul>
+  <li>0.3.3.3 đã chuyển Xử lý văn bản thành cửa sổ riêng, tách state TextOps khỏi <code>config.json</code>, thêm autosave/khôi phục tài liệu và tăng bộ nhớ regex.</li>
+  <li>Đã cải thiện Download Novel 5: ô phạm vi tải rộng hơn, Enter để tải và tự reset phạm vi khi lấy truyện khác.</li>
+  <li>Đã dọn regex gợi ý cũ trong Đổi tên khi đổi cuốn, thêm lọc tag Wikidich theo nhóm, ẩn Koanchay mặc định và thêm OCR ảnh bằng Windows OCR.</li>
+  <li>Đã cải thiện cửa sổ ghi chú update và bộ cài update để dọn runtime cũ trước khi chép bản mới.</li>
 </ul>

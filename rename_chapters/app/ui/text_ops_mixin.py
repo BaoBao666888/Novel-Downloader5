@@ -52,37 +52,9 @@ class TextOpsMixin:
         store = self._ensure_text_ops_state_store()
         files = [path for path in store.get_list("recent_files") if path]
         if not files:
-            messagebox.showinfo("Mở gần đây", "Chưa có file gần đây.", parent=self)
+            messagebox.showinfo("Mở file gần nhất", "Chưa có file gần đây.", parent=self)
             return
-        win = tk.Toplevel(self)
-        self._apply_window_icon(win)
-        win.title("Mở gần đây")
-        win.geometry("640x360")
-        frame = ttk.Frame(win, padding=10)
-        frame.pack(fill=tk.BOTH, expand=True)
-        frame.rowconfigure(0, weight=1)
-        frame.columnconfigure(0, weight=1)
-        listbox = tk.Listbox(frame, selectmode=tk.SINGLE)
-        listbox.grid(row=0, column=0, sticky="nsew")
-        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=listbox.yview)
-        scrollbar.grid(row=0, column=1, sticky="ns")
-        listbox.configure(yscrollcommand=scrollbar.set)
-        for path in files:
-            listbox.insert(tk.END, path)
-
-        def open_selected():
-            selection = listbox.curselection()
-            if not selection:
-                return
-            path = files[selection[0]]
-            win.destroy()
-            self._open_text_ops_window(filepath=path)
-
-        listbox.bind("<Double-1>", lambda _e: open_selected())
-        buttons = ttk.Frame(frame)
-        buttons.grid(row=1, column=0, columnspan=2, sticky="e", pady=(10, 0))
-        ttk.Button(buttons, text="Mở", command=open_selected).pack(side=tk.LEFT)
-        ttk.Button(buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
+        self._open_text_ops_window(filepath=files[0])
 
     def _open_text_ops_history_dialog(self):
         store = self._ensure_text_ops_state_store()

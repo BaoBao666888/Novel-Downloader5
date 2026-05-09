@@ -7,18 +7,24 @@ import uuid
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 
 from app.core.text_ops import TextOperations
-from app.ui.text_ops_state import MAX_TEXT_OPS_HISTORY, TextOpsStateStore
+from app.ui.text_ops_state import TextOpsStateStore
 
 
-TEXT_ENCODINGS = (
-    "utf-8-sig",
-    "utf-8",
-    "gb18030",
-    "gb2312",
-    "cp936",
-    "big5",
-    "cp950",
+TEXT_ENCODING_OPTIONS = (
+    ("utf-8", "UTF-8"),
+    ("utf-8-sig", "UTF-8 có BOM"),
+    ("utf-16", "Unicode (UTF-16/BOM)"),
+    ("utf-16-le", "Unicode (UTF-16 LE)"),
+    ("utf-16-be", "Unicode (UTF-16 BE)"),
+    ("gb18030", "Chinese GB18030"),
+    ("gb2312", "Chinese GB2312"),
+    ("cp936", "Chinese CP936/GBK"),
+    ("big5", "Chinese Big5"),
+    ("cp950", "Chinese CP950"),
 )
+TEXT_ENCODINGS = tuple(encoding for encoding, _label in TEXT_ENCODING_OPTIONS)
+TEXT_ENCODING_LABELS = dict(TEXT_ENCODING_OPTIONS)
+SAVE_TEXT_ENCODINGS = ("utf-8", "utf-8-sig", "utf-16", "utf-16-le", "utf-16-be", "gb18030", "big5")
 
 TEXTOPS_CHINESE_FONT = "Microsoft YaHei"
 TEXTOPS_VIETNAMESE_FONT = "Microsoft Sans Serif"
@@ -36,19 +42,225 @@ VIETNAMESE_MARKS = set(
 CHINESE_CHAR_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 
 
-def read_text_file_auto(path: str) -> tuple[str, str]:
-    with open(path, "rb") as handle:
-        raw = handle.read()
+def _encoding_label(encoding: str) -> str:
+    encoding = (encoding or "utf-8").lower()
+    return TEXT_ENCODING_LABELS.get(encoding, encoding)
+
+
+def _encoding_combo_values(encodings=TEXT_ENCODINGS) -> list[str]:
+    return [f"{_encoding_label(encoding)} [{encoding}]" for encoding in encodings]
+
+
+def _encoding_from_combo_value(value: str) -> str:
+    match = re.search(r"\[([^\]]+)\]\s*$", value or "")
+    if match:
+        return match.group(1).strip()
+    label = (value or "").strip()
+    for encoding, display in TEXT_ENCODING_OPTIONS:
+        if label in (encoding, display):
+            return encoding
+    return label or "utf-8"
+
+
+def _ordered_text_encodings(raw: bytes) -> list[str]:
+    encodings: list[str] = []
+
+    def add(encoding: str):
+        if encoding not in encodings:
+            encodings.append(encoding)
+
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        add("utf-16")
+        add("utf-16-le")
+        add("utf-16-be")
+
+    add("utf-8-sig")
+    add("utf-8")
+
+    sample = raw[:8000]
+    if len(sample) >= 4:
+        even_nulls = sample[0::2].count(0)
+        odd_nulls = sample[1::2].count(0)
+        half_len = max(1, len(sample) // 2)
+        if odd_nulls / half_len > 0.22:
+            add("utf-16-le")
+            add("utf-16")
+        if even_nulls / half_len > 0.22:
+            add("utf-16-be")
+            add("utf-16")
+
+    for encoding in ("gb18030", "gb2312", "cp936", "big5", "cp950", "utf-16-le", "utf-16-be"):
+        add(encoding)
+    return encodings
+
+
+def _decoded_text_score(text: str) -> float:
+    sample = (text or "")[:40000]
+    if not sample:
+        return 100.0
+    length = len(sample)
+    replacement = sample.count("\ufffd")
+    nulls = sample.count("\x00")
+    controls = sum(1 for ch in sample if ord(ch) < 32 and ch not in "\r\n\t")
+    printable = sum(1 for ch in sample if ch.isprintable() or ch in "\r\n\t")
+    chinese = len(CHINESE_CHAR_RE.findall(sample))
+    vietnamese = sum(1 for ch in sample if ch in VIETNAMESE_MARKS)
+    ascii_letters = sum(1 for ch in sample if "a" <= ch.lower() <= "z")
+    readable_bonus = min(25.0, chinese * 0.08 + vietnamese * 0.35 + ascii_letters * 0.02)
+    bad_penalty = replacement * 10.0 + nulls * 18.0 + controls * 4.0
+    return (printable / length) * 100.0 + readable_bonus - bad_penalty
+
+
+def _decode_text_bytes_auto(raw: bytes) -> tuple[str, str, float]:
+    candidates: list[tuple[float, int, str, str]] = []
     last_error = None
-    for encoding in TEXT_ENCODINGS:
+    for order, encoding in enumerate(_ordered_text_encodings(raw)):
         try:
-            return raw.decode(encoding), encoding
+            text = raw.decode(encoding)
         except UnicodeDecodeError as exc:
             last_error = exc
+            continue
+        candidates.append((_decoded_text_score(text), -order, encoding, text))
+    if candidates:
+        score, _order, encoding, text = max(candidates, key=lambda item: (item[0], item[1]))
+        return text, encoding, score
     try:
-        return raw.decode("utf-8", errors="replace"), "utf-8-replace"
+        text = raw.decode("utf-8", errors="replace")
+        return text, "utf-8-replace", _decoded_text_score(text)
     except Exception as exc:
         raise last_error or exc
+
+
+def _needs_encoding_dialog(text: str, encoding: str, score: float) -> bool:
+    sample = (text or "")[:8000]
+    return (
+        encoding == "utf-8-replace"
+        or score < 45.0
+        or "\ufffd" in sample
+        or "\x00" in sample
+    )
+
+
+def select_text_encoding_dialog(parent, path: str, raw: bytes, initial_encoding: str = "utf-8"):
+    result: dict[str, str | None] = {"text": None, "encoding": None}
+    win = tk.Toplevel(parent)
+    win.title(f"Chọn mã văn bản - {os.path.basename(path)}")
+    win.geometry("760x520")
+    win.minsize(640, 420)
+    try:
+        win.transient(parent)
+        win.grab_set()
+    except Exception:
+        pass
+
+    root = ttk.Frame(win, padding=10)
+    root.pack(fill=tk.BOTH, expand=True)
+    root.columnconfigure(1, weight=1)
+    root.rowconfigure(2, weight=1)
+
+    ttk.Label(root, text="Chọn encoding làm nội dung đọc được. File sẽ lưu mặc định bằng UTF-8.").grid(
+        row=0, column=0, columnspan=2, sticky="w"
+    )
+    ttk.Label(root, text="Text encoding:").grid(row=1, column=0, sticky="nw", pady=(8, 4))
+
+    list_frame = ttk.Frame(root)
+    list_frame.grid(row=1, column=1, sticky="nsew", pady=(8, 4))
+    list_frame.columnconfigure(0, weight=1)
+    list_frame.rowconfigure(0, weight=1)
+    encoding_list = tk.Listbox(list_frame, exportselection=False, height=8)
+    encoding_list.grid(row=0, column=0, sticky="nsew")
+    list_scroll = ttk.Scrollbar(list_frame, orient="vertical", command=encoding_list.yview)
+    list_scroll.grid(row=0, column=1, sticky="ns")
+    encoding_list.configure(yscrollcommand=list_scroll.set)
+
+    encodings = list(TEXT_ENCODINGS)
+    for encoding in encodings:
+        encoding_list.insert(tk.END, f"{_encoding_label(encoding)} [{encoding}]")
+
+    preview = scrolledtext.ScrolledText(root, wrap=tk.WORD, height=12, font=(TEXTOPS_FALLBACK_FONT, 11))
+    preview.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(6, 0))
+    status_var = tk.StringVar(value="")
+    ttk.Label(root, textvariable=status_var).grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 0))
+
+    def selected_encoding() -> str:
+        selection = encoding_list.curselection()
+        if not selection:
+            return initial_encoding or "utf-8"
+        return encodings[selection[0]]
+
+    def decode_selected():
+        encoding = selected_encoding()
+        try:
+            text = raw.decode(encoding)
+            return text, encoding, None
+        except Exception as exc:
+            return "", encoding, exc
+
+    def refresh_preview(_event=None):
+        text, encoding, error = decode_selected()
+        preview.configure(state="normal")
+        preview.delete("1.0", tk.END)
+        if error:
+            preview.insert("1.0", f"Không đọc được bằng {_encoding_label(encoding)}:\n{error}")
+            status_var.set("Chọn encoding khác.")
+        else:
+            preview.insert("1.0", text[:20000])
+            status_var.set(f"Preview: {_encoding_label(encoding)} [{encoding}]")
+        preview.configure(state="disabled")
+
+    def ok():
+        text, encoding, error = decode_selected()
+        if error:
+            messagebox.showerror("Encoding", f"Không đọc được bằng {_encoding_label(encoding)}:\n{error}", parent=win)
+            return
+        result["text"] = text
+        result["encoding"] = encoding
+        win.destroy()
+
+    def cancel():
+        win.destroy()
+
+    initial_encoding = (initial_encoding or "utf-8").lower()
+    try:
+        encoding_list.selection_set(encodings.index(initial_encoding))
+        encoding_list.see(encodings.index(initial_encoding))
+    except ValueError:
+        encoding_list.selection_set(0)
+    encoding_list.bind("<<ListboxSelect>>", refresh_preview)
+    encoding_list.bind("<Double-1>", lambda _e: ok())
+    refresh_preview()
+
+    buttons = ttk.Frame(root)
+    buttons.grid(row=4, column=0, columnspan=2, sticky="e", pady=(10, 0))
+    ttk.Button(buttons, text="OK", command=ok).pack(side=tk.LEFT)
+    ttk.Button(buttons, text="Cancel", command=cancel).pack(side=tk.LEFT, padx=(6, 0))
+    win.protocol("WM_DELETE_WINDOW", cancel)
+    try:
+        win.wait_window()
+    except Exception:
+        pass
+    if result["text"] is None or result["encoding"] is None:
+        return None
+    return result["text"], result["encoding"]
+
+
+def read_text_file_auto(
+    path: str,
+    *,
+    parent=None,
+    interactive: bool = False,
+    force_dialog: bool = False,
+) -> tuple[str, str]:
+    with open(path, "rb") as handle:
+        raw = handle.read()
+    text, encoding, score = _decode_text_bytes_auto(raw)
+    if parent is not None and (force_dialog or (interactive and _needs_encoding_dialog(text, encoding, score))):
+        selected = select_text_encoding_dialog(parent, path, raw, encoding)
+        if selected:
+            return selected
+        if force_dialog:
+            raise ValueError("Đã hủy chọn mã văn bản.")
+    return text, encoding
 
 
 def _snippet(text: str, start: int, end: int, radius: int = 34) -> str:
@@ -120,6 +332,7 @@ class TextOpsWindow(tk.Toplevel):
         except Exception:
             pass
 
+        self._configure_textops_styles()
         self._build_menu()
         self._build_body()
         self.protocol("WM_DELETE_WINDOW", self.close_window)
@@ -153,8 +366,10 @@ class TextOpsWindow(tk.Toplevel):
         self.file_menu.add_command(label="Mở cửa sổ mới", command=self.app._open_text_ops_window)
         self.file_menu.add_command(label="Tab mới", accelerator="Ctrl+N", command=self.new_document)
         self.file_menu.add_command(label="Mở...", accelerator="Ctrl+O", command=self.open_file_dialog)
+        self.file_menu.add_command(label="Mở lại với mã...", command=self.reopen_current_with_encoding)
         self.file_menu.add_command(label="Lưu", accelerator="Ctrl+S", command=self.save_current)
         self.file_menu.add_command(label="Lưu như...", accelerator="Ctrl+Shift+S", command=self.save_current_as)
+        self.file_menu.add_command(label="Chọn mã lưu...", command=self.choose_save_encoding)
         self.file_menu.add_separator()
         self.file_menu.add_command(label="Đóng tab", accelerator="Ctrl+W", command=self.close_current_tab)
         self.file_menu.add_command(label="Đóng tab khác", accelerator="Ctrl+Shift+W", command=self.close_other_tabs)
@@ -192,6 +407,29 @@ class TextOpsWindow(tk.Toplevel):
         help_menu = tk.Menu(self.menubar, tearoff=False)
         help_menu.add_command(label="Hướng dẫn Xử lý văn bản", command=self.open_guide)
         self.menubar.add_cascade(label="Trợ giúp", menu=help_menu)
+
+    def _configure_textops_styles(self):
+        try:
+            default_font = tkfont.nametofont("TkDefaultFont").copy()
+            default_font.configure(weight="bold")
+            self._doc_title_font = default_font
+            self._doc_path_font = tkfont.nametofont("TkSmallCaptionFont").copy()
+        except Exception:
+            self._doc_title_font = (TEXTOPS_FALLBACK_FONT, 10, "bold")
+            self._doc_path_font = (TEXTOPS_FALLBACK_FONT, 9)
+        try:
+            style = ttk.Style(self)
+            style.configure(
+                "TextOps.TNotebook.Tab",
+                font=(TEXTOPS_FALLBACK_FONT, 10, "bold"),
+                padding=(10, 5),
+                foreground="#111827",
+            )
+            style.map("TextOps.TNotebook.Tab", foreground=[("selected", "#000000"), ("!selected", "#1f2937")])
+            style.configure("TextOpsSplit.Treeview", font=(TEXTOPS_FALLBACK_FONT, 13), rowheight=40)
+            style.configure("TextOpsSplit.Treeview.Heading", font=(TEXTOPS_FALLBACK_FONT, 10, "bold"))
+        except Exception:
+            pass
 
     def _build_body(self):
         root = ttk.Frame(self, padding=(8, 8, 8, 4))
@@ -234,6 +472,10 @@ class TextOpsWindow(tk.Toplevel):
             self.toolbar.grid_remove()
 
         self.notebook = ttk.Notebook(root)
+        try:
+            self.notebook.configure(style="TextOps.TNotebook")
+        except Exception:
+            pass
         self.notebook.grid(row=1, column=0, sticky="nsew")
         self.notebook.bind("<<NotebookTabChanged>>", lambda _e: self._refresh_controls())
 
@@ -352,6 +594,7 @@ class TextOpsWindow(tk.Toplevel):
             doc = self.new_document(content=content, title=title, autosave_id=doc_id, baseline_content=baseline)
             doc["path"] = path
             doc["encoding"] = str(item.get("encoding") or "utf-8")
+            doc["save_encoding"] = "utf-8"
             doc["font_manual"] = False
             self._auto_apply_font_for_doc(doc, content)
             self._refresh_doc_modified_state(doc, content)
@@ -454,8 +697,12 @@ class TextOpsWindow(tk.Toplevel):
             return
         path = doc.get("path") or "Chưa lưu"
         encoding = doc.get("encoding") or "utf-8"
+        save_encoding = doc.get("save_encoding") or "utf-8"
         state = "đã sửa" if doc.get("modified") else "đã lưu"
-        self.status_var.set(f"{path}  |  {encoding}  |  {state}")
+        self.status_var.set(
+            f"{path}  |  đọc: {_encoding_label(encoding)} [{encoding}]"
+            f"  |  lưu: {_encoding_label(save_encoding)} [{save_encoding}]  |  {state}"
+        )
 
     def _on_text_modified(self, doc: dict):
         text = doc.get("text")
@@ -490,6 +737,7 @@ class TextOpsWindow(tk.Toplevel):
             "text": text,
             "path": "",
             "encoding": "utf-8",
+            "save_encoding": "utf-8",
             "modified": _content_hash(content) != _content_hash(baseline_content),
             "title": title,
             "autosave_id": autosave_id or f"draft-{uuid.uuid4().hex}",
@@ -548,7 +796,7 @@ class TextOpsWindow(tk.Toplevel):
             self.app.log(f"Đã mở bản lưu tạm của '{os.path.basename(path)}' trong Xử lý văn bản.")
         else:
             try:
-                content, encoding = read_text_file_auto(path)
+                content, encoding = read_text_file_auto(path, parent=self, interactive=True)
             except Exception as exc:
                 messagebox.showerror("Lỗi", f"Không thể đọc file:\n{path}\n\n{exc}", parent=self)
                 return False
@@ -560,6 +808,7 @@ class TextOpsWindow(tk.Toplevel):
             )
         doc["path"] = path
         doc["encoding"] = encoding
+        doc["save_encoding"] = "utf-8"
         text = doc["text"]
         text.edit_reset()
         text.edit_modified(False)
@@ -596,15 +845,89 @@ class TextOpsWindow(tk.Toplevel):
             return False
         return self._save_doc_to_path(doc, path)
 
+    def choose_save_encoding(self):
+        doc = self._current_doc()
+        if not doc:
+            return
+        win = tk.Toplevel(self)
+        win.title("Chọn mã lưu")
+        win.geometry("420x150")
+        win.resizable(False, False)
+        try:
+            win.transient(self)
+            win.grab_set()
+        except Exception:
+            pass
+        frame = ttk.Frame(win, padding=12)
+        frame.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(frame, text="Mã lưu file:").grid(row=0, column=0, sticky="w")
+        values = _encoding_combo_values(SAVE_TEXT_ENCODINGS)
+        current = doc.get("save_encoding") or "utf-8"
+        var = tk.StringVar(value=f"{_encoding_label(current)} [{current}]")
+        combo = ttk.Combobox(frame, values=values, textvariable=var, state="readonly", width=32)
+        combo.grid(row=0, column=1, sticky="ew", padx=(8, 0))
+        frame.columnconfigure(1, weight=1)
+        ttk.Label(frame, text="Mặc định nên dùng UTF-8 để tránh lỗi Unicode khi mở lại.").grid(
+            row=1, column=0, columnspan=2, sticky="w", pady=(8, 0)
+        )
+
+        def apply():
+            encoding = _encoding_from_combo_value(var.get())
+            doc["save_encoding"] = encoding or "utf-8"
+            self._update_doc_title(doc)
+            self._set_status_for_doc(doc)
+            win.destroy()
+
+        buttons = ttk.Frame(frame)
+        buttons.grid(row=2, column=0, columnspan=2, sticky="e", pady=(14, 0))
+        ttk.Button(buttons, text="OK", command=apply).pack(side=tk.LEFT)
+        ttk.Button(buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
+
+    def reopen_current_with_encoding(self):
+        doc = self._current_doc()
+        if not doc or not doc.get("path"):
+            messagebox.showinfo("Mở lại với mã", "Tài liệu hiện tại chưa có file trên đĩa.", parent=self)
+            return
+        if doc.get("modified"):
+            response = messagebox.askyesnocancel(
+                "Mở lại với mã",
+                "Tài liệu đang có thay đổi chưa lưu. Lưu trước khi mở lại không?",
+                parent=self,
+            )
+            if response is None:
+                return
+            if response is True and not self.save_current():
+                return
+        path = doc["path"]
+        try:
+            content, encoding = read_text_file_auto(path, parent=self, force_dialog=True)
+        except Exception as exc:
+            messagebox.showerror("Lỗi", f"Không thể đọc file:\n{path}\n\n{exc}", parent=self)
+            return
+        text = doc["text"]
+        text.delete("1.0", tk.END)
+        text.insert("1.0", content)
+        text.edit_reset()
+        text.edit_modified(False)
+        doc["encoding"] = encoding
+        doc["save_encoding"] = "utf-8"
+        self._set_doc_baseline(doc, content)
+        self._auto_apply_font_for_doc(doc, content)
+        self._refresh_doc_modified_state(doc, content)
+        self._update_doc_title(doc)
+        self._set_status_for_doc(doc)
+
     def _save_doc_to_path(self, doc: dict, path: str) -> bool:
         try:
             content = doc["text"].get("1.0", "end-1c")
-            with open(path, "w", encoding="utf-8") as handle:
+            save_encoding = doc.get("save_encoding") or "utf-8"
+            with open(path, "w", encoding=save_encoding) as handle:
                 handle.write(content)
             old_autosave_id = doc.get("autosave_id")
             doc["path"] = os.path.normpath(path)
             doc["autosave_id"] = _path_autosave_id(doc["path"])
-            doc["encoding"] = "utf-8"
+            doc["encoding"] = save_encoding
+            doc["save_encoding"] = save_encoding
             doc["modified"] = False
             self._set_doc_baseline(doc, content)
             doc["text"].edit_modified(False)
@@ -727,6 +1050,87 @@ class TextOpsWindow(tk.Toplevel):
         combo = ttk.Combobox(parent, values=values, width=width)
         return combo
 
+    def _toggle_window_maximized(self, win, button=None):
+        try:
+            if win.state() == "zoomed":
+                win.state("normal")
+                if button:
+                    button.configure(text="Phóng to")
+            else:
+                win.state("zoomed")
+                if button:
+                    button.configure(text="Thu nhỏ")
+            return
+        except Exception:
+            pass
+        try:
+            full = bool(win.attributes("-fullscreen"))
+            win.attributes("-fullscreen", not full)
+            if button:
+                button.configure(text="Thu nhỏ" if not full else "Phóng to")
+        except Exception:
+            pass
+
+    def _make_maximize_button(self, parent, win):
+        button = ttk.Button(parent, text="Phóng to")
+        button.configure(command=lambda: self._toggle_window_maximized(win, button))
+        return button
+
+    def _make_scrollable_content(self, parent):
+        container = ttk.Frame(parent)
+        canvas = tk.Canvas(container, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas)
+        window_id = canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        def update_scrollregion(_event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def sync_width(event):
+            canvas.itemconfigure(window_id, width=event.width)
+
+        inner.bind("<Configure>", update_scrollregion)
+        canvas.bind("<Configure>", sync_width)
+
+        def wheel(event):
+            delta = event.delta
+            if delta == 0 and getattr(event, "num", None) in (4, 5):
+                delta = 120 if event.num == 4 else -120
+            canvas.yview_scroll(int(-1 * (delta / 120)), "units")
+
+        def bind_wheel(_event):
+            canvas.bind_all("<MouseWheel>", wheel)
+            canvas.bind_all("<Button-4>", wheel)
+            canvas.bind_all("<Button-5>", wheel)
+
+        def unbind_wheel(_event):
+            canvas.unbind_all("<MouseWheel>")
+            canvas.unbind_all("<Button-4>")
+            canvas.unbind_all("<Button-5>")
+
+        container.bind("<Enter>", bind_wheel)
+        container.bind("<Leave>", unbind_wheel)
+        return container, inner
+
+    def _sync_textops_pin_button(self, combo, pin_key: str, button):
+        if not button:
+            return
+        value = combo.get().strip()
+        button.configure(text="Bỏ ghim" if value and value in self.state_store.get_pins(pin_key) else "Ghim")
+
+    def _toggle_combo_pin(self, combo, history_key: str, pin_key: str, button=None):
+        value = combo.get().strip()
+        if not value:
+            messagebox.showinfo("Ghim", "Không có nội dung để ghim.", parent=self)
+            return
+        self.state_store.add_history_value(history_key, value)
+        self.state_store.toggle_pin(pin_key, value)
+        combo.configure(values=self.state_store.history_with_pins(history_key, pin_key))
+        self._sync_textops_pin_button(combo, pin_key, button)
+
     def open_find_dialog(self):
         self.open_find_replace_dialog("find")
 
@@ -750,7 +1154,7 @@ class TextOpsWindow(tk.Toplevel):
         win = tk.Toplevel(self)
         self._dialog_refs["find_replace"] = win
         win.title("Tìm & Thay thế")
-        win.geometry("520x270")
+        win.geometry("640x300")
         win.transient(self)
         root = ttk.Frame(win, padding=10)
         root.pack(fill=tk.BOTH, expand=True)
@@ -777,7 +1181,8 @@ class TextOpsWindow(tk.Toplevel):
             "regex": tk.BooleanVar(value=False),
         }
         find_values = self.state_store.history_with_pins("find_history", "find")
-        replace_values = self.state_store.history_with_pins("replace_history", "replace")
+        replace_find_values = self.state_store.history_with_pins("replace_find_history", "replace")
+        replace_values = self.state_store.get_list("replace_history")
 
         def make_opts(parent, start_row: int = 1):
             ttk.Checkbutton(parent, text="Khớp hoa/thường", variable=opts["case"]).grid(row=start_row, column=0, sticky="w", pady=(8, 0))
@@ -790,9 +1195,17 @@ class TextOpsWindow(tk.Toplevel):
         ttk.Label(find_tab, text="Tìm:").grid(row=0, column=0, sticky="w")
         find_combo = ttk.Combobox(find_tab, values=find_values, width=42, textvariable=find_var)
         find_combo.grid(row=0, column=1, sticky="ew", padx=(8, 0))
+        find_pin_btn = ttk.Button(
+            find_tab,
+            text="Ghim",
+            width=8,
+            command=lambda: self._toggle_combo_pin(find_combo, "find_history", "find", find_pin_btn),
+        )
+        find_pin_btn.grid(row=0, column=2, sticky="e", padx=(6, 0))
+        self._sync_textops_pin_button(find_combo, "find", find_pin_btn)
         make_opts(find_tab, 1)
         find_buttons = ttk.Frame(find_tab)
-        find_buttons.grid(row=3, column=0, columnspan=2, sticky="e", pady=(16, 0))
+        find_buttons.grid(row=3, column=0, columnspan=3, sticky="e", pady=(16, 0))
         ttk.Button(find_buttons, text="Tìm tiếp", command=lambda: self._find_from_dialog(find_combo, opts, False)).pack(side=tk.LEFT)
         ttk.Button(find_buttons, text="Tìm ngược", command=lambda: self._find_from_dialog(find_combo, opts, True)).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(find_buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
@@ -801,33 +1214,92 @@ class TextOpsWindow(tk.Toplevel):
         replace_tab.columnconfigure(1, weight=1)
         notebook.add(replace_tab, text="Thay thế")
         ttk.Label(replace_tab, text="Tìm:").grid(row=0, column=0, sticky="w")
-        replace_find_combo = ttk.Combobox(replace_tab, values=find_values, width=42, textvariable=find_var)
+        replace_find_combo = ttk.Combobox(replace_tab, values=replace_find_values, width=42, textvariable=find_var)
         replace_find_combo.grid(row=0, column=1, sticky="ew", padx=(8, 0))
+        replace_find_pin_btn = ttk.Button(
+            replace_tab,
+            text="Ghim",
+            width=8,
+            command=lambda: self._toggle_combo_pin(
+                replace_find_combo,
+                "replace_find_history",
+                "replace",
+                replace_find_pin_btn,
+            ),
+        )
+        replace_find_pin_btn.grid(row=0, column=2, sticky="e", padx=(6, 0))
+        self._sync_textops_pin_button(replace_find_combo, "replace", replace_find_pin_btn)
         ttk.Label(replace_tab, text="Thay thế:").grid(row=1, column=0, sticky="w", pady=(8, 0))
         replace_combo = ttk.Combobox(replace_tab, values=replace_values, width=42, textvariable=replace_var)
-        replace_combo.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=(8, 0))
+        replace_combo.grid(row=1, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0))
         make_opts(replace_tab, 2)
         replace_buttons = ttk.Frame(replace_tab)
-        replace_buttons.grid(row=4, column=0, columnspan=2, sticky="e", pady=(16, 0))
-        ttk.Button(replace_buttons, text="Tìm tiếp", command=lambda: self._find_from_dialog(replace_find_combo, opts, False)).pack(side=tk.LEFT)
-        ttk.Button(replace_buttons, text="Thay thế", command=lambda: self._replace_current_from_dialog(replace_find_combo, replace_combo, opts)).pack(side=tk.LEFT, padx=(6, 0))
-        ttk.Button(replace_buttons, text="Thay tất cả", command=lambda: self._replace_all_from_dialog(replace_find_combo, replace_combo, opts)).pack(side=tk.LEFT, padx=(6, 0))
+        replace_buttons.grid(row=4, column=0, columnspan=3, sticky="e", pady=(16, 0))
+        ttk.Button(
+            replace_buttons,
+            text="Tìm tiếp",
+            command=lambda: self._find_from_dialog(replace_find_combo, opts, False, "replace_find_history", "replace"),
+        ).pack(side=tk.LEFT)
+        ttk.Button(
+            replace_buttons,
+            text="Thay thế",
+            command=lambda: self._replace_current_from_dialog(
+                replace_find_combo,
+                replace_combo,
+                opts,
+                "replace_find_history",
+                "replace",
+            ),
+        ).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(
+            replace_buttons,
+            text="Thay tất cả",
+            command=lambda: self._replace_all_from_dialog(
+                replace_find_combo,
+                replace_combo,
+                opts,
+                "replace_find_history",
+                "replace",
+            ),
+        ).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(replace_buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
 
         find_combo.bind("<Return>", lambda _e: self._find_from_dialog(find_combo, opts, False))
-        replace_find_combo.bind("<Return>", lambda _e: self._find_from_dialog(replace_find_combo, opts, False))
-        replace_combo.bind("<Return>", lambda _e: self._replace_current_from_dialog(replace_find_combo, replace_combo, opts))
+        find_combo.bind("<<ComboboxSelected>>", lambda _e: self._sync_textops_pin_button(find_combo, "find", find_pin_btn))
+        find_combo.bind("<KeyRelease>", lambda _e: self._sync_textops_pin_button(find_combo, "find", find_pin_btn))
+        replace_find_combo.bind(
+            "<Return>",
+            lambda _e: self._find_from_dialog(replace_find_combo, opts, False, "replace_find_history", "replace"),
+        )
+        replace_find_combo.bind(
+            "<<ComboboxSelected>>",
+            lambda _e: self._sync_textops_pin_button(replace_find_combo, "replace", replace_find_pin_btn),
+        )
+        replace_find_combo.bind(
+            "<KeyRelease>",
+            lambda _e: self._sync_textops_pin_button(replace_find_combo, "replace", replace_find_pin_btn),
+        )
+        replace_combo.bind(
+            "<Return>",
+            lambda _e: self._replace_current_from_dialog(
+                replace_find_combo,
+                replace_combo,
+                opts,
+                "replace_find_history",
+                "replace",
+            ),
+        )
         notebook.select(1 if initial_tab == "replace" else 0)
         (replace_find_combo if initial_tab == "replace" else find_combo).focus_set()
 
-    def _find_from_dialog(self, combo, opts, search_up: bool):
+    def _find_from_dialog(self, combo, opts, search_up: bool, history_key: str = "find_history", pin_key: str = "find"):
         text = self._current_text()
         if not text:
             return
         find_what = combo.get().strip()
         if not find_what:
             return
-        self._add_combo_history(combo, "find_history", "find")
+        self._add_combo_history(combo, history_key, pin_key)
         result = TextOperations.find_text(
             text,
             find_what,
@@ -890,7 +1362,14 @@ class TextOpsWindow(tk.Toplevel):
             return [], f"Regex lỗi: {exc}", 0
         return results, None, total
 
-    def _replace_current_from_dialog(self, find_combo, replace_combo, opts):
+    def _replace_current_from_dialog(
+        self,
+        find_combo,
+        replace_combo,
+        opts,
+        find_history_key: str = "find_history",
+        find_pin_key: str = "find",
+    ):
         text = self._current_text()
         if not text:
             return
@@ -898,10 +1377,10 @@ class TextOpsWindow(tk.Toplevel):
         replace_with = replace_combo.get()
         if not find_what:
             return
-        self._add_combo_history(find_combo, "find_history", "find")
-        self._add_combo_history(replace_combo, "replace_history", "replace")
+        self._add_combo_history(find_combo, find_history_key, find_pin_key)
+        self._add_combo_history(replace_combo, "replace_history")
         if not text.tag_ranges(tk.SEL):
-            self._find_from_dialog(find_combo, opts, False)
+            self._find_from_dialog(find_combo, opts, False, find_history_key, find_pin_key)
         replaced = TextOperations.replace_text(
             text,
             find_what,
@@ -914,7 +1393,14 @@ class TextOpsWindow(tk.Toplevel):
             if doc:
                 self._refresh_doc_modified_state(doc)
 
-    def _replace_all_from_dialog(self, find_combo, replace_combo, opts):
+    def _replace_all_from_dialog(
+        self,
+        find_combo,
+        replace_combo,
+        opts,
+        find_history_key: str = "find_history",
+        find_pin_key: str = "find",
+    ):
         text = self._current_text()
         if not text:
             return
@@ -922,8 +1408,8 @@ class TextOpsWindow(tk.Toplevel):
         replace_with = replace_combo.get()
         if not find_what:
             return
-        self._add_combo_history(find_combo, "find_history", "find")
-        self._add_combo_history(replace_combo, "replace_history", "replace")
+        self._add_combo_history(find_combo, find_history_key, find_pin_key)
+        self._add_combo_history(replace_combo, "replace_history")
 
         def apply_replace_all(parent=None):
             count = TextOperations.replace_all(
@@ -1018,18 +1504,31 @@ class TextOpsWindow(tk.Toplevel):
             return
         win = tk.Toplevel(self)
         win.title("Chia file")
-        win.geometry("760x440")
-        win.transient(self)
+        win.geometry("980x640")
+        win.minsize(820, 520)
+        try:
+            self.app._apply_window_icon(win)
+        except Exception:
+            pass
         root = ttk.Frame(win, padding=10)
         root.pack(fill=tk.BOTH, expand=True)
         root.columnconfigure(0, weight=1)
-        root.rowconfigure(2, weight=1)
-        options = ttk.Frame(root)
+        root.rowconfigure(1, weight=1)
+
+        options = ttk.LabelFrame(root, text="Tùy chọn chia", padding=10)
         options.grid(row=0, column=0, sticky="ew")
         options.columnconfigure(1, weight=1)
         ttk.Label(options, text="Regex chia:").grid(row=0, column=0, sticky="w")
         regex_combo = self._make_history_combo(options, "split_regex_history", "split", width=38)
         regex_combo.grid(row=0, column=1, sticky="ew", padx=(8, 6))
+        split_pin_btn = ttk.Button(
+            options,
+            text="Ghim",
+            width=8,
+            command=lambda: self._toggle_combo_pin(regex_combo, "split_regex_history", "split", split_pin_btn),
+        )
+        split_pin_btn.grid(row=0, column=2, sticky="w", padx=(0, 6))
+        self._sync_textops_pin_button(regex_combo, "split", split_pin_btn)
         ttk.Label(options, text="Tên file:").grid(row=1, column=0, sticky="w", pady=(6, 0))
         format_combo = self._make_history_combo(options, "split_format_history", "", width=38)
         if not format_combo.get():
@@ -1037,16 +1536,57 @@ class TextOpsWindow(tk.Toplevel):
             format_combo.set(values[0])
         format_combo.grid(row=1, column=1, sticky="ew", padx=(8, 6), pady=(6, 0))
         position_var = tk.StringVar(value="after")
-        ttk.Radiobutton(options, text="Chia sau regex", variable=position_var, value="after").grid(row=0, column=2, sticky="w")
-        ttk.Radiobutton(options, text="Chia trước regex", variable=position_var, value="before").grid(row=1, column=2, sticky="w", pady=(6, 0))
+        ttk.Radiobutton(options, text="Chia sau regex", variable=position_var, value="after").grid(row=0, column=3, sticky="w")
+        ttk.Radiobutton(options, text="Chia trước regex", variable=position_var, value="before").grid(row=1, column=3, sticky="w", pady=(6, 0))
+        regex_combo.bind("<<ComboboxSelected>>", lambda _e: self._sync_textops_pin_button(regex_combo, "split", split_pin_btn))
+        regex_combo.bind("<KeyRelease>", lambda _e: self._sync_textops_pin_button(regex_combo, "split", split_pin_btn))
 
-        tree = ttk.Treeview(root, columns=("#", "Bắt đầu", "Kích thước"), show="headings")
-        for col, width in zip(("#", "Bắt đầu", "Kích thước"), [52, 520, 110]):
+        tree_frame = ttk.Frame(root)
+        tree_frame.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
+        tree_frame.rowconfigure(0, weight=1)
+        tree_frame.columnconfigure(0, weight=1)
+        tree = ttk.Treeview(
+            tree_frame,
+            columns=("#", "Tên file", "Bắt đầu", "Kích thước"),
+            show="headings",
+            style="TextOpsSplit.Treeview",
+            selectmode="browse",
+        )
+        for col, width in zip(("#", "Tên file", "Bắt đầu", "Kích thước"), [58, 260, 520, 120]):
             tree.heading(col, text=col)
             tree.column(col, width=width, anchor="w")
-        tree.grid(row=2, column=0, sticky="nsew", pady=(10, 0))
+        tree.grid(row=0, column=0, sticky="nsew")
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
+        vsb.grid(row=0, column=1, sticky="ns")
+        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=tree.xview)
+        hsb.grid(row=1, column=0, sticky="ew")
+        tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
         status = tk.StringVar(value="")
-        ttk.Label(root, textvariable=status).grid(row=3, column=0, sticky="w", pady=(4, 0))
+        ttk.Label(root, textvariable=status).grid(row=2, column=0, sticky="w", pady=(4, 0))
+        preview_state = {"chunks": [], "names": []}
+
+        def render_name(index: int) -> str:
+            name = TextOperations.render_split_filename(format_combo.get(), index + 1)
+            if "{" in name or "}" in name:
+                name = f"part_{index + 1}.txt"
+            return TextOperations._sanitize_filename(name) or f"part_{index + 1}.txt"
+
+        def row_preview(content: str) -> str:
+            cleaned = " ".join((content or "").strip().split())
+            return cleaned[:180] + ("..." if len(cleaned) > 180 else "")
+
+        def update_tree_row(index: int):
+            chunks = preview_state.get("chunks") or []
+            names = preview_state.get("names") or []
+            if index < 0 or index >= len(chunks):
+                return
+            iid = str(index)
+            values = (index + 1, names[index], row_preview(chunks[index]), f"{len(chunks[index])} chars")
+            if tree.exists(iid):
+                tree.item(iid, values=values)
+            else:
+                tree.insert("", "end", iid=iid, values=values)
 
         def get_chunks():
             return self._split_current_content(regex_combo.get(), position_var.get())
@@ -1059,17 +1599,114 @@ class TextOpsWindow(tk.Toplevel):
             if error:
                 status.set(error)
                 return
+            preview_state["chunks"] = list(chunks)
+            preview_state["names"] = [render_name(idx) for idx in range(len(chunks))]
             for idx, chunk in enumerate(chunks, 1):
-                tree.insert("", "end", values=(idx, chunk[:80].replace("\n", "\\n"), f"{len(chunk)} chars"))
-            status.set(f"{len(chunks)} phần.")
+                update_tree_row(idx - 1)
+            status.set(f"{len(chunks)} phần. Double-click hoặc bấm Sửa raw để chỉnh nội dung từng phần trước khi tạo file.")
+
+        def selected_index():
+            selected = tree.selection()
+            if not selected:
+                return None
+            try:
+                return int(selected[0])
+            except Exception:
+                return None
+
+        def open_raw_editor(index: int | None = None):
+            if index is None:
+                index = selected_index()
+            chunks = preview_state.get("chunks") or []
+            names = preview_state.get("names") or []
+            if index is None or index < 0 or index >= len(chunks):
+                messagebox.showinfo("Sửa raw", "Chọn một phần trong bảng preview trước.", parent=win)
+                return
+            file_name = names[index]
+            editor = tk.Toplevel(win)
+            editor.title(file_name)
+            editor.geometry("860x640")
+            editor.minsize(680, 460)
+            try:
+                self.app._apply_window_icon(editor)
+            except Exception:
+                pass
+            editor_root = ttk.Frame(editor, padding=10)
+            editor_root.pack(fill=tk.BOTH, expand=True)
+            editor_root.rowconfigure(1, weight=1)
+            editor_root.columnconfigure(0, weight=1)
+            editor_top = ttk.Frame(editor_root)
+            editor_top.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+            editor_top.columnconfigure(0, weight=1)
+            title_var = tk.StringVar(value=file_name)
+            ttk.Label(editor_top, textvariable=title_var, font=self._doc_title_font, foreground="#111827").grid(row=0, column=0, sticky="w")
+            ttk.Button(editor_top, text="Lưu", command=lambda: save_editor()).grid(row=0, column=1, padx=(6, 0))
+
+            text_widget = scrolledtext.ScrolledText(
+                editor_root,
+                wrap=tk.WORD,
+                undo=True,
+                font=(self._safe_font_family(TEXTOPS_CHINESE_FONT), 13),
+                spacing1=6,
+                spacing3=10,
+            )
+            text_widget.grid(row=1, column=0, sticky="nsew")
+            text_widget.insert("1.0", chunks[index])
+            text_widget.edit_reset()
+            text_widget.edit_modified(False)
+            modified = {"value": False}
+
+            def mark_modified(_event=None):
+                if text_widget.edit_modified():
+                    modified["value"] = True
+                    title_var.set(f"* {file_name}")
+                    editor.title(f"* {file_name}")
+                    text_widget.edit_modified(False)
+
+            def save_editor():
+                chunks[index] = text_widget.get("1.0", "end-1c")
+                preview_state["chunks"] = chunks
+                modified["value"] = False
+                title_var.set(file_name)
+                editor.title(file_name)
+                text_widget.edit_modified(False)
+                update_tree_row(index)
+                status.set(f"Đã cập nhật raw cho {file_name}.")
+                return True
+
+            def close_editor():
+                if modified["value"]:
+                    response = messagebox.askyesnocancel(
+                        "Lưu thay đổi?",
+                        f"'{file_name}' có thay đổi chưa lưu. Lưu vào preview trước khi đóng không?",
+                        parent=editor,
+                    )
+                    if response is None:
+                        return
+                    if response is True and not save_editor():
+                        return
+                editor.destroy()
+
+            text_widget.bind("<<Modified>>", mark_modified)
+            editor.protocol("WM_DELETE_WINDOW", close_editor)
+            text_widget.focus_set()
+
+        def open_selected_from_event(event):
+            item_id = tree.identify_row(event.y)
+            if item_id:
+                tree.selection_set(item_id)
+                open_raw_editor(int(item_id))
 
         def execute():
             self._add_combo_history(regex_combo, "split_regex_history", "split")
             self._add_combo_history(format_combo, "split_format_history")
-            chunks, error = get_chunks()
-            if error:
-                messagebox.showerror("Lỗi", error, parent=win)
-                return
+            if not preview_state.get("chunks"):
+                chunks, error = get_chunks()
+                if error:
+                    messagebox.showerror("Lỗi", error, parent=win)
+                    return
+                preview_state["chunks"] = list(chunks)
+                preview_state["names"] = [render_name(idx) for idx in range(len(chunks))]
             doc = self._current_doc()
             base_path = doc.get("path") if doc else ""
             if base_path:
@@ -1080,23 +1717,26 @@ class TextOpsWindow(tk.Toplevel):
                     return
             os.makedirs(output_dir, exist_ok=True)
             count = 0
-            for chunk in chunks:
+            if not messagebox.askyesno("Chia file", f"Tạo file vào thư mục:\n{output_dir}?", parent=win):
+                return
+            for idx, chunk in enumerate(preview_state.get("chunks") or []):
                 cleaned = chunk.strip()
                 if not cleaned:
                     continue
                 count += 1
-                name = TextOperations.render_split_filename(format_combo.get(), count)
-                if "{" in name or "}" in name:
-                    name = f"part_{count}.txt"
-                name = TextOperations._sanitize_filename(name) or f"part_{count}.txt"
+                names = preview_state.get("names") or []
+                name = names[idx] if idx < len(names) else render_name(idx)
                 with open(os.path.join(output_dir, name), "w", encoding="utf-8") as handle:
                     handle.write(cleaned)
             messagebox.showinfo("Hoàn tất", f"Đã chia thành {count} file.\n{output_dir}", parent=win)
 
         buttons = ttk.Frame(root)
-        buttons.grid(row=4, column=0, sticky="e", pady=(10, 0))
+        buttons.grid(row=3, column=0, sticky="e", pady=(10, 0))
         ttk.Button(buttons, text="Xem trước", command=preview).pack(side=tk.LEFT)
+        ttk.Button(buttons, text="Sửa raw...", command=lambda: open_raw_editor()).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(buttons, text="Bắt đầu chia", command=execute).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
+        tree.bind("<Double-1>", open_selected_from_event)
 
     def _split_current_content(self, regex: str, position: str):
         text = self._current_text()
@@ -1122,10 +1762,24 @@ class TextOpsWindow(tk.Toplevel):
             self.new_document()
         win = tk.Toplevel(self)
         win.title("Công cụ nhanh")
-        win.geometry("820x520")
-        win.transient(self)
-        root = ttk.Frame(win, padding=10)
-        root.pack(fill=tk.BOTH, expand=True)
+        win.geometry("900x620")
+        win.minsize(760, 500)
+        try:
+            self.app._apply_window_icon(win)
+        except Exception:
+            pass
+        outer = ttk.Frame(win, padding=10)
+        outer.pack(fill=tk.BOTH, expand=True)
+        outer.columnconfigure(0, weight=1)
+        outer.rowconfigure(1, weight=1)
+        topbar = ttk.Frame(outer)
+        topbar.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        topbar.columnconfigure(0, weight=1)
+        ttk.Label(topbar, text="Công cụ nhanh", font=self._doc_title_font, foreground="#111827").grid(row=0, column=0, sticky="w")
+        self._make_maximize_button(topbar, win).grid(row=0, column=1, sticky="e")
+
+        scroll_container, root = self._make_scrollable_content(outer)
+        scroll_container.grid(row=1, column=0, sticky="nsew")
         root.columnconfigure(0, weight=1)
         root.rowconfigure(1, weight=1)
 
@@ -1143,6 +1797,8 @@ class TextOpsWindow(tk.Toplevel):
             command=lambda: self._toggle_quick_pin(quick_combo, pin_btn),
         )
         pin_btn.grid(row=0, column=2, padx=(0, 6))
+        quick_combo.bind("<<ComboboxSelected>>", lambda _e: self._sync_textops_pin_button(quick_combo, "quick_regex", pin_btn))
+        quick_combo.bind("<KeyRelease>", lambda _e: self._sync_textops_pin_button(quick_combo, "quick_regex", pin_btn))
         ttk.Label(renumber, text="Thay bằng:").grid(row=1, column=0, sticky="w", pady=(6, 0))
         replace_entry = ttk.Entry(renumber)
         replace_entry.insert(0, "第{num}章")
@@ -1223,10 +1879,11 @@ class TextOpsWindow(tk.Toplevel):
             self._mark_current_modified_if_target(target)
             messagebox.showinfo("Hoàn tất", f"Đã áp dụng mục lục cho {count} chương.", parent=win)
 
-        buttons = ttk.Frame(root)
+        buttons = ttk.Frame(outer)
         buttons.grid(row=2, column=0, sticky="e", pady=(10, 0))
         ttk.Button(buttons, text="Đánh số lại", command=renumber_action).pack(side=tk.LEFT)
         ttk.Button(buttons, text="Áp dụng mục lục", command=apply_toc).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
 
     def _toggle_quick_pin(self, combo, button):
         value = combo.get().strip()
@@ -1241,7 +1898,7 @@ class TextOpsWindow(tk.Toplevel):
         if not path:
             return
         try:
-            content, _encoding = read_text_file_auto(path)
+            content, _encoding = read_text_file_auto(path, parent=self, interactive=True)
             widget.delete("1.0", tk.END)
             widget.insert("1.0", content)
         except Exception as exc:
@@ -1286,10 +1943,13 @@ Phím tắt:
 
 Ghi chú:
 - Tìm và Thay thế nằm chung một hộp thoại có tab chuyển qua lại như Word.
+- Tab Tìm và tab Thay thế có nút Ghim/Bỏ ghim riêng cho regex; regex đã ghim luôn đứng trước lịch sử của đúng tab đó.
 - Khi bật Regex, ô Thay thế hỗ trợ group bắt được bằng cú pháp $1, $2... Ví dụ tìm `Chương (\\d+)` và thay `第$1章` sẽ giữ lại số chương.
 - Khi nhấn Thay tất cả, app hỏi có mở preview không. Chọn Không thì thay ngay; chọn Có thì mở modal preview với dòng, đoạn khớp, trước và sau.
-- File GB2312/GB18030/CP936 sẽ được chuyển thành Unicode khi mở.
-- Khi lưu, file được ghi UTF-8.
+- File UTF-16/Unicode, GB2312/GB18030/CP936 sẽ được chuyển thành Unicode khi mở; nếu nội dung đáng ngờ, app mở bảng chọn encoding có preview.
+- Menu File > Mở lại với mã... cho phép chọn encoding thủ công. Menu File > Chọn mã lưu... mặc định UTF-8 nhưng có thể đổi khi cần.
+- Chia file mở bằng cửa sổ riêng, có bảng cuộn và editor raw cho từng phần preview bằng double-click hoặc nút Sửa raw.
+- Công cụ nhanh mở bằng cửa sổ riêng, có nút phóng to và vùng cuộn.
 - Menu Hiển thị > Hiện thanh công cụ dùng để thu gọn/mở lại dải nút phía trên.
 - TextOps tự chọn Microsoft Sans Serif cho tiếng Việt, Microsoft YaHei cho tiếng Trung, và Segoe UI cho ngôn ngữ khác.
 - File đang sửa được lưu tạm trong local/text_ops_autosave để khôi phục nếu app/máy tắt đột ngột.
@@ -1302,7 +1962,7 @@ Ghi chú:
     def _refresh_controls(self):
         has_doc = bool(self._current_doc())
         for menu, labels in (
-            (self.file_menu, ("Lưu", "Lưu như...", "Đóng tab", "Đóng tab khác", "Đóng tất cả tab")),
+            (self.file_menu, ("Mở lại với mã...", "Lưu", "Lưu như...", "Chọn mã lưu...", "Đóng tab", "Đóng tab khác", "Đóng tất cả tab")),
             (self.edit_menu, ("Hoàn tác", "Làm lại")),
             (self.search_menu, ("Tìm...", "Tìm & Thay thế...")),
             (self.tools_menu, ("Chia file...", "Công cụ nhanh...", "Xóa rác...")),

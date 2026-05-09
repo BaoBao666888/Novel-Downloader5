@@ -2926,7 +2926,7 @@ class RenamerApp(
         menubar.add_cascade(label="Xử lý văn bản", menu=text_ops_menu)
         text_ops_menu.add_command(label="Mở cửa sổ mới", command=self._open_text_ops_window)
         text_ops_menu.add_command(label="Mở...", command=self._open_text_ops_file_dialog)
-        text_ops_menu.add_command(label="Mở gần đây...", command=self._open_text_ops_recent_dialog)
+        text_ops_menu.add_command(label="Mở file gần nhất", command=self._open_text_ops_recent_dialog)
         text_ops_menu.add_command(label="Lịch sử...", command=self._open_text_ops_history_dialog)
 
         menubar.add_command(label="Dịch", command=lambda: self._select_tab_by_name("Dịch"))
@@ -3465,12 +3465,13 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         Cung cấp các công cụ để chỉnh sửa nội dung file hoặc chia nhỏ file. Mở từ menu chính **Xử lý văn bản**.
 
         1.  **Mở file**: Chọn **Xử lý văn bản > Mở...** để mở file nhanh trong cửa sổ mới, hoặc mở cửa sổ TextOps rồi bấm **Mở**.
+        2.  **Encoding**: TextOps tự đọc UTF-8/UTF-16/Unicode/GB18030/CP936 và mở bảng chọn encoding có preview nếu nội dung đáng ngờ. Khi lưu, mặc định ghi UTF-8; có thể đổi bằng **File > Chọn mã lưu...**.
 
         **--- Hộp thoại: Tìm & Thay thế ---**
         -   **Tìm / Thay thế**: Nhập văn bản cần tìm và văn bản sẽ thay thế. Khi bật Regex, có thể dùng group bắt được trong ô thay thế bằng `$1`, `$2`,...
             -   Ví dụ: tìm `Chương (\\d+)` và thay `第$1章` sẽ giữ lại số chương đã bắt.
         -   **Tìm và Thay thế nằm chung một hộp thoại có tab** để chuyển qua lại nhanh như Word.
-        -   **Lịch sử & Ghim**: Ô Tìm/Thay thế lưu tối đa 40 mục; nút Ghim/Bỏ ghim giữ regex không bị trôi.
+        -   **Lịch sử & Ghim**: Tab Tìm và tab Thay thế có nút Ghim/Bỏ ghim riêng cho regex; regex đã ghim luôn đứng trước lịch sử của đúng tab đó.
         -   **Các tùy chọn**:
             -   **Khớp chữ hoa/thường**: Bật để phân biệt A và a.
             -   **Khớp toàn bộ từ**: Chỉ tìm các từ đứng riêng lẻ (ví dụ: tìm "an" sẽ không khớp với "bàn").
@@ -3484,14 +3485,15 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
             -   **Lưu thành file mới...**: Lưu nội dung đã sửa vào một file mới.
             -   **Hoàn tác / Làm lại**: Quay lại hoặc tiến tới các bước chỉnh sửa.
 
-        **--- Sub-tab: Chia file ---**
+        **--- Cửa sổ: Chia file ---**
         -   **Regex chia file**: Nhập mẫu Regex để xác định dòng dùng làm điểm chia (hỗ trợ lịch sử + ghim). Ví dụ: `^Chương \\d+` sẽ chia file tại mỗi dòng bắt đầu bằng "Chương [số]".
         -   **Cấu trúc tên file**: Đặt tên cho các file con được tạo ra.
         -   **Chia sau/trước regex**: Quyết định dòng khớp với regex sẽ thuộc về file trước đó hay file sau đó.
-        -   **Xem trước**: Hiển thị danh sách các phần sẽ được tạo ra. Double-click vào một dòng để xem trước toàn bộ nội dung của phần đó.
+        -   **Xem trước**: Hiển thị danh sách các phần sẽ được tạo ra, có tên file và thanh cuộn.
+        -   **Sửa raw**: Double-click một dòng hoặc bấm **Sửa raw...** để mở cửa sổ xem/sửa nội dung phần đó. Khi đóng mà có sửa, app hỏi có lưu vào preview không.
         -   **BẮT ĐẦU CHIA FILE**: Thực hiện việc chia file. Các file con sẽ được lưu trong một thư mục mới.
 
-        **--- Sub-tab: Công cụ Nhanh ---**
+        **--- Cửa sổ: Công cụ Nhanh ---**
         Đây là nơi chứa các công cụ xử lý văn bản chuyên dụng, giúp tự động hóa các tác vụ lặp đi lặp lại.
 
         **a. Đánh lại số chương:**
