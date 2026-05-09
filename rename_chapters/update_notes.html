@@ -16,10 +16,14 @@
 <h2>OCR ảnh</h2>
 <ul>
   <li>Tách OCR khỏi tab Dịch thành cửa sổ riêng trong menu <b>OCR &gt; Mở cửa sổ OCR</b>; có thể nạp một hoặc nhiều ảnh, xem ảnh bên trái và text/kết quả bên phải.</li>
-  <li>Chuyển engine chính sang <b>PaddleOCR runtime tách riêng</b>; app chính chỉ gọi <code>tools/ocr_runtime/ocr_runtime.exe</code>, Windows OCR chỉ còn là lựa chọn dự phòng cuối.</li>
-  <li>Khi mở menu OCR mà chưa có runtime, app hỏi có muốn tải gói runtime từ <code>version.json</code> và giải nén tự động không.</li>
+  <li>Chuyển OCR sang <b>PaddleOCR runtime tách riêng</b>; app chính chỉ gọi <code>tools/ocr_runtime/ocr_runtime.exe</code> để giữ app nhẹ và dễ cập nhật runtime riêng.</li>
+  <li>Khi mở OCR, cửa sổ hiện trước rồi mới kiểm tra runtime trong nền; trong lúc runtime đang load app sẽ chặn OCR để tránh đơ UI.</li>
+  <li>Nếu runtime chưa có hoặc bản online mới hơn bản đang cài, app sẽ hỏi tải/cập nhật runtime từ <code>version.json</code> trước khi OCR.</li>
   <li>Thêm danh sách model theo ngôn ngữ kèm mô tả chức năng: Trung, Việt/Latin, Anh, Hàn, Nhật và phồn thể.</li>
   <li>Thêm nút <b>Tải model</b>; user không cần tự tải file model, OCR runtime tự tải/cache model chính thức theo lựa chọn.</li>
+  <li>Preview ảnh có thể cuộn chuột để zoom nhanh, giữ chuột kéo để pan, và vẽ khung nhận diện OCR lên ảnh sau khi chạy xong.</li>
+  <li>Khi OCR đang chạy, đóng cửa sổ sẽ hỏi xác nhận; ảnh đang nằm trong phiên OCR sẽ không bị xóa nhầm bằng phím Delete/menu xóa.</li>
+  <li>Thêm tùy chọn <b>Gộp dòng ngang</b> để tự nối các box OCR gần nhau thành đoạn văn, phù hợp text ngang trái qua phải.</li>
 </ul>
 
 <h2>Hướng dẫn cập nhật</h2>
